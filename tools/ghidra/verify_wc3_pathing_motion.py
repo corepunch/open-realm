@@ -10,6 +10,7 @@ See report counts/exclusions.
 """
 import argparse
 import hashlib
+import gzip
 import itertools
 import math
 import json
@@ -65,7 +66,11 @@ def main():
     parser.add_argument('--primary-route-reference', type=Path, help='repeat and compare original owner/clock/detour words against the frozen fixture')
     parser.add_argument('--route-trajectory-fixture', type=Path, help='export complete controlled wall-route decisions and original mover parameters')
     parser.add_argument('--route-trajectory-reference', type=Path, help='check complete controlled wall-route words against the frozen fixture')
+    parser.add_argument('--completion-reference', type=Path, help='compare the complete original completion export against a frozen fixture')
+    parser.add_argument('--completion-fixture', type=Path, help='export complete original blocked-completion boundaries, then stop before unrelated order lifecycles')
     args = parser.parse_args()
+    if args.completion_reference and not args.completion_fixture:parser.error('--completion-reference requires --completion-fixture')
+    if args.completion_fixture and args.completion_fixture.exists():parser.error('completion export must be fresh')
     if args.world_velocity_fixture and not args.engine_library:parser.error('--world-velocity-fixture requires --engine-library for exact guard comparisons')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
@@ -1528,6 +1533,7 @@ def main():
     completion_threshold=float(bytes(machine.mem_read(0x6fa91e84,32)).split(bytes([0]),1)[0])
     floats(0x6fd541ac,completion_threshold)
     completion_notifications=[]
+    completion_notification_counters=[]
     completion_packets=[]
     completion_events=[]
     saved_bridge=read(0x6fd3c82c)[0]
@@ -1550,9 +1556,11 @@ def main():
         actor=uc.reg_read(UC_X86_REG_ECX)
         argument=read(uc.reg_read(UC_X86_REG_ESP)+4)[0] if address==0x6f170dc0 else None
         completion_notifications.append((address,actor,argument,read(actor+0x9c,2)))
+        completion_notification_counters.append(read(group+0x60)[0])
     completion_hooks=[machine.hook_add(UC_HOOK_CODE,observe_completion,begin=a,end=a) for a in [0x6f170d50,0x6f170dc0,0x6f170d98,0x6f170e10,0x6f071dc0]]
     machine.ctl_flush_tb()
     completion_cases=0
+    completion_rows=[]
     for count,counter,distance,member_flags,path_flags,gate,attached in itertools.product(
             [1,2],[0,18,19,20],[0,8,16,32],[0x10000,0x30000],
             [0,0x10000000,0x20000000,0x30000000],[(0,0),(1,32),(1,33)],[False,True]):
@@ -1614,6 +1622,7 @@ def main():
         retry=active and count>1 and bool(member_flags&0x20000) and counter+1<20 and distance*distance>completion_threshold
         complete=active and not retry
         completion_notifications.clear()
+        completion_notification_counters.clear()
         completion_packets.clear()
         completion_events.clear()
         run(0x6f16c390,group)
@@ -1638,6 +1647,7 @@ def main():
             partial=int(bool(path_flags&0x10000000) and not path_flags&0x20000000)
             expected=[(0x6f170dc0 if blocked else 0x6f170d50,actor,partial if blocked else None,[0xffffffff]*2)]
         assert completion_notifications==expected
+        assert completion_notification_counters==([counter+1] if complete else [])
         expected_packets=[]
         if complete:
             tag=0x63702670-partial if blocked else 0x63702661
@@ -1647,6 +1657,13 @@ def main():
         assert completion_events==([(bridge_unit,event_code,event_code,bridge_unit)] if complete and attached else [])
         assert read(members+0x2c,2)==[1,101]
         assert scalar(actors[1]+0x80)==0.25
+        completion_rows.append(dict(count=count,counter=counter,distance=distance,member_flags=member_flags,
+            path_flags=path_flags,gate=list(gate),attached=attached,retry=retry,complete=complete,
+            next_counter=read(group+0x60)[0],member_identity=read(members,2),
+            fine_count=read(path_ptr+0x50)[0],adaptive_count=read(path_ptr+0x70)[0],
+            indices=read(path_ptr+0x74,2),retry_delay=read(path_ptr+0x94,2),
+            next_path_flags=read(path_ptr+0x88)[0],destination=read(path_ptr+0x1c,2),
+            notifications=list(completion_notifications),notification_counters=list(completion_notification_counters),events=list(completion_events)))
         run(0x6f16bc10,group)
         assert read(group+0x38)[0]==count-int(complete)
         assert machine.reg_read(UC_X86_REG_EAX)==count-int(complete)
@@ -1654,6 +1671,18 @@ def main():
             assert read(members,2)==([1,101] if complete else [0,100])
             assert read(members+0x14)[0]==actors[1 if complete else 0]
         completion_cases+=1
+    if args.completion_fixture:
+        result=dict(version=1,binary_sha256=digest,function='6f16c390',reset_function='6f168740',
+            threshold=completion_threshold,cases=completion_rows,
+            scope='Complete unmodified original completion scans plus following preparation; controlled actors, half include real CUnit event bridge, no gameplay subscribers')
+        if args.completion_reference:
+            frozen=args.completion_reference.read_bytes()
+            if args.completion_reference.suffix=='.gz':frozen=gzip.decompress(frozen)
+            assert json.loads(json.dumps(result))==json.loads(frozen),'completion fixture differs from original'
+        args.completion_fixture.write_text(json.dumps(result,indent=1)+'\n')
+        args.report.write_text(json.dumps(dict(binary_sha256=digest,passed=True,cases=completion_cases,threshold=completion_threshold,
+            fixture_sha256=hashlib.sha256(args.completion_fixture.read_bytes()).hexdigest()),indent=1)+'\n')
+        return
     for hook in completion_hooks: machine.hook_del(hook)
     write(0x6fd3c82c,saved_bridge)
     # Bounded original dispatch prefixes: stop at the real movement handler,

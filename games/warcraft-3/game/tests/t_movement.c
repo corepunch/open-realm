@@ -18058,6 +18058,114 @@ TEST(wc3_movement, completion194_callbacks_keep_member_order_and_owner_frontier)
     reset_entities();setup_test_world();
 }
 
+/* Original16c390 retries only a blocked, far, multi-member completion
+ * before the twentieth scan. Exercise the production completion stage after
+ * the decision/commit boundary, retaining the admitted physical identities. */
+TEST(wc3_movement, completion195_blocked_member_retries_before_terminal_scan) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *units[2]={completion194_unit(256,256),completion194_unit(256,384)};
+    vec2_t point={1800,256};groupPointOrder_t request={.count=2,.point=&point,.order="move",
+        .order_id=G_OrderId("move"),.issuer_player=0};
+    FOR_LOOP(i,2)request.units[i]=(typeof(request.units[i])){units[i],units[i]->spawn_time};
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    moveGroup_t *group=move_unit_group(units[0]);T_NOT_NULL(group);
+    if(!group){reset_entities();setup_test_world();return;}
+    edict_t *unit=group->members[0].unit;
+    moveGroupMember_t *member=group->members;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    member->destination=(vec2_t){wc3_add(pose.grid[0],32),pose.grid[1]};
+    member->arrived=true;member->flags=0x30000;
+    group->completion_counter=18;group->route.group_index=0;group->ticking=true;
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    route->count=route->adaptive_count=5;route->index=3;route->adaptive_index=4;
+    route->partial=true;route->warp_markers=true;
+    unit->movement.retry_count=29;unit->movement.wait_delay=17;
+    unit->movement.fine_request_time=123;route->adaptive_admission.time=121;
+    route->adaptive_goal=(vec2_t){12,8};
+    uint32_t id=group->id;
+    moveGroupMember_t *finished[]={member};move_group_complete_members(group,finished,1);
+    T_EQ(unit->movement.group_id,id);T_EQ(group->completion_counter,19);
+    T_EQ(group->count,2);T_EQ(member->unit,unit);
+    T_EQ(route->count,0);T_EQ(route->adaptive_count,0);
+    T_EQ(route->index,UINT32_MAX);T_EQ(route->adaptive_index,UINT32_MAX);
+    T_EQ(unit->movement.retry_count,0);T_EQ(unit->movement.wait_delay,0);
+    T_ASSERT(!route->partial);T_ASSERT(route->warp_markers);
+    T_EQ(unit->movement.fine_request_time,123);T_EQ(route->adaptive_admission.time,121);
+    T_EQ(route->adaptive_goal.x,12);T_EQ(route->adaptive_goal.y,8);
+    /* The scan19 retry is persistent simulation state, not a callback-local
+     * grace period. A cold load must finish on the same following scan. */
+    uint32_t number=unit-g_edicts;
+    cstring_t file=Test_TempPath("wc3-completion195.bin");
+    group->ticking=false;
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    group=move_find_group(id);T_NOT_NULL(group);
+    if(!group){reset_entities();setup_test_world();remove(file);return;}
+    unit=g_edicts+number;member=group->members;finished[0]=member;
+    T_EQ(group->completion_counter,19);T_EQ(unit->movement.group_id,id);
+    T_EQ(unit->movement.fine_request_time,123);
+    T_EQ(unit->movement.fine_route.adaptive_admission.time,121);
+    T_ASSERT(unit->movement.fine_route.warp_markers);
+    group->ticking=true;
+    /* The same far member completes on scan20, leaving its row until prep. */
+    if(unit->movement.group_id==id) {
+        move_group_complete_members(group,finished,1);
+        T_EQ(unit->movement.group_id,0);T_EQ(group->completion_counter,0);
+        T_EQ(group->count,2);T_NULL(member->unit);
+    }
+    group->ticking=false;remove(file);reset_entities();setup_test_world();
+}
+
+static uint32_t completion195_observed_counter;
+static unsigned completion195_notifications;
+static void completion195_stand(edict_t *unit) {
+    /* Ownership is already invalid, but the old group's scan counter is still
+     * observable until all synchronous notifications have returned. */
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups))if(level.move_groups[i]->inuse && level.move_groups[i]->ticking)
+        completion195_observed_counter=level.move_groups[i]->completion_counter;
+    completion195_notifications++;
+    unit_stand(unit);
+}
+
+TEST(wc3_movement, completion195_original_gate_distance_and_counter_boundaries) {
+    unsigned counters[]={0,18,19,20},distances[]={0,8,16,32};
+    FOR_LOOP(n,2)FOR_LOOP(c,4)FOR_LOOP(d,4)FOR_LOOP(blocked,2)FOR_LOOP(gate,3) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        vec2_t point={1800,256};groupPointOrder_t request={.count=n+1,.point=&point,.order="move",
+            .order_id=G_OrderId("move"),.issuer_player=0};
+        FOR_LOOP(i,n+1) {
+            edict_t *unit=completion194_unit(256,256+128*i);
+            request.units[i]=(typeof(request.units[i])){unit,unit->spawn_time};
+        }
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        moveGroup_t *group=move_unit_group(request.units[0].unit);T_NOT_NULL(group);
+        if(!group)continue;
+        edict_t *unit=group->members[0].unit;
+        wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+        group->members[0].destination=(vec2_t){wc3_add(pose.grid[0],distances[d]),pose.grid[1]};
+        group->members[0].flags=blocked ? 0x30000 : 0x10000;
+        group->flags=gate!=0;group->unseen_counter=gate==2 ? 33 : 32;
+        group->completion_counter=counters[c];group->route.group_index=0;group->ticking=true;
+        unit->stand=completion195_stand;
+        completion195_notifications=completion195_observed_counter=0;
+        bool active=gate!=1;
+        bool retry=active && n && blocked && counters[c]+1<20 && distances[d]>16;
+        bool complete=active && !retry;
+        moveGroupMember_t *finished[]={group->members};move_group_complete_members(group,finished,active ? 1 : 0);
+        T_EQ(completion195_notifications,complete);
+        T_EQ(group->completion_counter,complete ? 0 : counters[c]+active);
+        T_EQ(unit->movement.group_id,complete ? 0 : group->id);
+        T_EQ(group->count,n+1);
+        if(complete) {T_EQ(completion195_observed_counter,counters[c]+1);T_NULL(group->members[0].unit);}
+        else T_EQ(group->members[0].unit,unit);
+        group->ticking=false;
+    }
+    reset_entities();setup_test_world();
+}
+
 static unsigned target164_cursor;
 static bool target164_mismatch;
 static edict_t *target164_unit;

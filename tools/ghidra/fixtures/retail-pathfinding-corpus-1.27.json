@@ -47150,6 +47150,52 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "oracle-blocked-completion195",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_motion.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--completion-reference",
+        "tools/ghidra/fixtures/retail-blocked-completion195-1.27.json.gz",
+        "--completion-fixture",
+        "{output}/blocked-completion195-observed.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "blocked-completion195-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 1536
+        },
+        "threshold": {
+          "equal": 256.0
+        },
+        "fixture_sha256": {
+          "equal": "b4ec3925ba87dd6b73e433e8b2b160019d765786a6efb397cae3201539594225"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Complete original final-leg completion and following preparation: blocked multi-member nineteen-scan retry, strict256 squared fine distance, persistent/unseen gate and incremented counter observation inside actual mover notification. Production completion boundary and scan19 cold-save continuation integrated in Move.",
+      "exclusions": [
+        "Controlled original actors; gameplay subscribers and complete public multi-member range-change lifetime remain TARGET-04.2.",
+        "Existing public callback mutation remains independently certified by payoff194; this chunk adds no live capture."
+      ]
     }
   ],
   "fixtures": [
@@ -48048,7 +48094,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "59088ae0d306215f47be08bcaa616a11049b6ad7aba111b0b0c86c8672f62595"
+      "sha256": "ca9e53b67f2908c0b32eca75e4a9d3d3f39b152a3261a490814a1f51914504dc"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -48904,7 +48950,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "b5a75d4579af75630d33ab48c5837f591fa22d09779bca9a5b5893916f44ddb8"
+      "sha256": "b46c812f376d02ffe142397ec7c1b1af497493444d9bc26221530e19925e5e67"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -49596,7 +49642,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "eddd6771fbdf6e9dd1fc21133a8449dd460ade36c2cc0842bb07dc7f143bd94c"
+      "sha256": "50821607b980311aa7e1f843649570cf9a6583a4f4db7f254437c0a5bc7e657d"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -49840,7 +49886,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "8c8b45bbf87ac1b3e8ce094dc67f113b1014ed83195bc3b8ee3bfec5e7ae98c6"
+      "sha256": "eee59d906f13710d09f8e5196fb10c4c79ff5a8e776cea7c1194721f207ca86f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -49852,11 +49898,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "e59e165cd5e4e77fd750fca37dc4b4ecda4b982c31347f30c203865954be7784"
+      "sha256": "7c6f9a6337f9d91324ecfdf6d247b5e21ce612ffc8db43c3c07e14725b912f5b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "dd854b92e0bd52513a94eaabb99937e89e6606ae2107bc643985239cbe6cecd6"
+      "sha256": "9eef0fdd7123f63cf38dcd1c955ae19c739b325f46f5bdd435779ab0017b5d19"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -51641,6 +51687,10 @@
     {
       "path": "tests/test_wc3_pathfinding_completion_mutation.py",
       "sha256": "24427d63d9f90d370491848ff499a714791faa99f6863b214c5e503a8dc18f4a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-blocked-completion195-1.27.json.gz",
+      "sha256": "48618d4301f5b00a4beec8a2e3ca2639b4f19f201f0bb500a37e3d382af747a5"
     }
   ]
 }

@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **264 done / 336 tasks; 72 remaining.**
 
+Payoff195 implements the missing blocked multi-member completion retry and
+moves counter reset after synchronous notifications. The original1536-case
+export, failing-first engine boundaries and cold-save continuation pass. The
+full TARGET-04.2 public range-change lifetime remains open; no new TODO is added.
+See [blocked completion retries](retail-pathfinding-engine.md#blocked-group-completion-retries-before-the-twentieth-scan-payoff195).
+
 Payoff194 closes SCHED-02.4: actual public retail Channel callback mutation
 preserves the current owner frontier and next-visit retirement. The engine now
 dispatches simultaneous ready callbacks in stored order, retains invalid rows

@@ -54,9 +54,34 @@ class CorpusTests(unittest.TestCase):
         self.assertEqual(sum(c['metadata']['mode']=='control' for c in captures),2)
         self.assertTrue(any('No new live' in x for x in entry['exclusions']))
 
+    def test_blocked_completion_export_retains_observed_notification_counter(self):
+        import gzip
+        fixture=ROOT/'tools/ghidra/fixtures/retail-blocked-completion195-1.27.json.gz'
+        rows=json.loads(gzip.decompress(fixture.read_bytes()))['cases']
+        self.assertEqual(len(rows),1536)
+        self.assertEqual(sum(r['retry'] for r in rows),32)
+        for row in rows:
+            active=not row['gate'][0] or row['gate'][1]>32
+            retry=active and row['count']>1 and bool(row['member_flags']&0x20000) and row['counter']+1<20 and row['distance']>16
+            complete=active and not retry
+            self.assertEqual(row['retry'],retry)
+            self.assertEqual(row['complete'],complete)
+            self.assertEqual(row['next_counter'],0 if complete else row['counter']+active)
+            self.assertEqual(row['notification_counters'],[row['counter']+1] if complete else [])
+            self.assertEqual(bool(row['notifications']),complete)
+            self.assertEqual(row['member_identity'],[0xffffffff]*2 if complete else [0,100])
+            if retry:
+                self.assertEqual(row['indices'],[0xffffffff]*2)
+                self.assertEqual(row['retry_delay'],[0,0])
+                self.assertEqual(row['next_path_flags'],row['path_flags']&0xcfffffff)
+                self.assertEqual(row['destination'],[0x41400000,0x41000000])
+        entry=next(e for e in self.manifest['entries'] if e['id']=='oracle-blocked-completion195')
+        self.assertEqual(entry['checks']['cases'],dict(equal=1536))
+        self.assertTrue(any('public' in x for x in entry['exclusions']))
+
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),154)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),155)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),156)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']

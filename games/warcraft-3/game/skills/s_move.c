@@ -5179,6 +5179,92 @@ static void move_group_stop_members(moveGroup_t *group) {
     }
 }
 
+/*16c390 gives a far blocked member nineteen completion scans to retry.
+ *168740(-1,1,0,1) discards local points/results and retry state, retaining
+ * destinations, request timestamps, allocations and scheduler membership. */
+static bool move_group_retry_completion(moveGroup_t const *group, moveGroupMember_t const *member) {
+    edict_t *unit=member->unit;
+    if (!(member->flags&0x20000) || group->count<=1 || group->completion_counter>=20)
+        return false;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
+    if (!(wc3_add(wc3_mul(x,x),wc3_mul(y,y))>256)) return false;
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    route->count=route->adaptive_count=0;
+    route->index=route->adaptive_index=UINT32_MAX;
+    route->partial=false;
+    unit->movement.retry_count=unit->movement.wait_delay=0;
+    unit->movement.wait_blocker=NULL;
+    unit->movement.path.valid=false;
+    return true;
+}
+
+/* Completion callbacks run after all member commits and target refresh. */
+static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **finished, uint32_t count) {
+    if (!group->route.group_index) {
+        if (!(group->flags&1) || group->unseen_counter>32) group->completion_counter++;
+    } else move_group_regroup(group);
+    bool completed=false;
+    /* Original16c390 visits ready rows from first to last. A callback may
+     * remove/reorder later members, so retain the decision frontier. */
+    FOR_LOOP(i,count) {
+        moveGroupMember_t const *member=finished[i];edict_t *unit=member->unit;
+        if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id) {
+            if (move_group_retry_completion(group,member)) continue;
+            edict_t *target=group->target;
+            if(group->receiver) {
+                completed=true;
+                edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
+                void (*complete)(edict_t *,edict_t *,bool)=group->complete;
+                group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;
+                move_detach_group(unit);unit->movement.group_id=0;
+                S_SetFollowTarget(unit,NULL);
+                if(receiver->inuse && receiver->spawn_time==spawn && complete)
+                    complete(receiver,unit,true);
+                else unit_stand(unit);
+                continue;
+            }
+            if (target && (group->flags&1) && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) continue;
+            completed=true;
+            move_detach_group(unit); unit->movement.group_id=0;
+            if (target) {
+                if (S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) {
+                    move_reset_local_path(unit);
+                    move_start_follow_group(unit,target,true);
+                }
+                else move_end_follow(unit);
+            }
+            else {
+                edict_t *actor=unit->movement.captain_home.roster_actor;
+                /* Native9d8a90 reissues an idle roster member while
+                 * the captain is outside its retained request range.
+                 * The all-entered200 point range does not replace the
+                 * retained GoHome500 range used by9cff90. */
+                bool follow=actor && (actor->unitinfo.move_flags&BZ_UNIT_SPEED_SET) &&
+                    !move_captain_near_home(actor,&unit->movement.captain_home.home);
+                if (follow) {
+                    typeof(unit->movement.captain_home) retained=unit->movement.captain_home;
+                    unit->movement.captain_home.actor=NULL;
+                    S_TrackMoveTimers(unit);
+                    move_leave(unit); S_RecoverStoppedUnitPosition(unit);
+                    S_IssueMoveOrder(unit,unit->goalentity,G_OrderId("move"));
+                    unit->movement.captain_home=retained;
+                    S_TrackMoveTimers(unit);
+                    unit->movement.captain_home.actor=actor;
+                    S_TrackMoveTimers(unit);
+                    unit->movement.captain_home.active=true;
+                    move_start_follow_group(unit,actor,true);
+                } else {
+                    unit->stand(unit);
+                    if (unit->movement.captain_actor_owned) G_BotCaptainGoalEvent(unit);
+                }
+            }
+        }
+    }
+    /* The scan's incremented counter remains observable inside callbacks. */
+    if (completed) group->completion_counter=0;
+}
+
 static void move_run_group_updates(void) {
     move_update_shared();
     move_prepare_group_order();
@@ -5319,7 +5405,7 @@ static void move_run_group_updates(void) {
             if (shared->speed!=FLT_MAX) cap=shared->speed;
         }
         MOVE_OWNER_PHASE(MOVE_PHASE_COMMIT,group->id);
-        edict_t *finished[BZ_WC3_GROUP_ORDER_UNITS]; uint32_t count=0;
+        moveGroupMember_t *finished[BZ_WC3_GROUP_ORDER_UNITS]; uint32_t count=0;
         FOR_LOOP(i,group->count) {
             moveGroupMember_t *member=group->members+i; edict_t *unit=member->unit;
             if (unit->paused || unit->stunned) continue;
@@ -5350,67 +5436,11 @@ static void move_run_group_updates(void) {
              * hidden visits.5fa7a0/5ff8b0 validate when completion dispatches. */
             if (member->arrived && !group->route.group_index &&
                 (!(group->flags&1) || group->unseen_counter>32))
-                finished[count++]=unit;
+                finished[count++]=member;
         }
         group->flags&=~0x10000u;
         move_group_update_refresh(group);
-        if (!group->route.group_index) {
-            if (!(group->flags&1) || group->unseen_counter>32) group->completion_counter++;
-        } else move_group_regroup(group);
-        if (count) group->completion_counter=0;
-        /* Original16c390 visits ready rows from first to last. A callback may
-         * remove/reorder later members, so retain the decision frontier. */
-        FOR_LOOP(i,count) {
-            edict_t *unit=finished[i];
-            if (unit->movement.group_id==group->id) {
-                edict_t *target=group->target;
-                if(group->receiver) {
-                    edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
-                    void (*complete)(edict_t *,edict_t *,bool)=group->complete;
-                    group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;
-                    move_detach_group(unit);unit->movement.group_id=0;
-                    S_SetFollowTarget(unit,NULL);
-                    if(receiver->inuse && receiver->spawn_time==spawn && complete)
-                        complete(receiver,unit,true);
-                    else unit_stand(unit);
-                    continue;
-                }
-                if (target && (group->flags&1) && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) continue;
-                move_detach_group(unit); unit->movement.group_id=0;
-                if (target) {
-                    if (S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) {
-                        move_reset_local_path(unit);
-                        move_start_follow_group(unit,target,true);
-                    }
-                    else move_end_follow(unit);
-                }
-                else {
-                    edict_t *actor=unit->movement.captain_home.roster_actor;
-                    /* Native9d8a90 reissues an idle roster member while
-                     * the captain is outside its retained request range.
-                     * The all-entered200 point range does not replace the
-                     * retained GoHome500 range used by9cff90. */
-                    bool follow=actor && (actor->unitinfo.move_flags&BZ_UNIT_SPEED_SET) &&
-                        !move_captain_near_home(actor,&unit->movement.captain_home.home);
-                    if (follow) {
-                        typeof(unit->movement.captain_home) retained=unit->movement.captain_home;
-                        unit->movement.captain_home.actor=NULL;
-                        S_TrackMoveTimers(unit);
-                        move_leave(unit); S_RecoverStoppedUnitPosition(unit);
-                        S_IssueMoveOrder(unit,unit->goalentity,G_OrderId("move"));
-                        unit->movement.captain_home=retained;
-                        S_TrackMoveTimers(unit);
-                        unit->movement.captain_home.actor=actor;
-                        S_TrackMoveTimers(unit);
-                        unit->movement.captain_home.active=true;
-                        move_start_follow_group(unit,actor,true);
-                    } else {
-                        unit->stand(unit);
-                        if (unit->movement.captain_actor_owned) G_BotCaptainGoalEvent(unit);
-                    }
-                }
-            }
-        }
+        move_group_complete_members(group,finished,count);
         if (group->cooldown) group->cooldown--;
         group->ticking=false;
         /*16c150 retains an owner emptied by completion callbacks. Its next

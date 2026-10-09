@@ -13564,3 +13564,64 @@ and staged431-entry inventories retain valid source/fixture fingerprints.
 Validation logs and reports: `/GitHub/wc3-analysis/runtime/payoff194/`.
 No full repository sweep is added to this chunk; the prior merge passed it,
 and the next sweep follows the authorized approximately12-commit cadence.
+
+
+## Blocked group completion retries before the twentieth scan (Payoff195)
+
+`PathGroup_CompleteReadyMembers` (`6f16c390`) increments the group's completion
+counter before visiting its captured member frontier. An arrived member with
+blocked flag `0x20000` retries when the captured group contains more than one
+member, the incremented counter is below20, and squared distance from its
+current predicted fine position to its stored destination is **strictly greater
+than256**. Distance16 is terminal; distance32 retries at counter19 and completes
+at counter20. Singleton blocked members finish immediately. Persistent groups
+suppress this scan until their unseen counter exceeds32.
+
+Retry calls original `Path_ResetBuffers` (`6f168740`) with
+`(-1, clear_retry=1, unlink_request=0, clear_results=1)`. It clears fine/adaptive
+counts and indices, delay/retry and terminal path results, retaining allocated
+storage, cached destinations, request timestamps, scheduler membership and the
+independent warp marker. The member retains its group identity. A completed
+member invalidates that identity before callbacks; the group resets its scan
+counter **after** all synchronous callbacks return.
+
+The engine previously completed every ready blocked member immediately and
+reset the counter before callbacks. Move now owns a separate completion stage,
+performs the missing bounded retry, and leaves the incremented counter visible
+through notifications. There is no per-case trajectory override or added
+allocation. The scan19 state round-trips through the current save format148 and
+completes on scan20 after a cold load; no save or wire layout change is needed.
+
+Two runs of the unmodified original code agree on all1536 complete scans and
+following preparation passes. The frozen compressed export is
+`tools/ghidra/fixtures/retail-blocked-completion195-1.27.json.gz`; its uncompressed
+SHA256 is `b4ec3925ba87dd6b73e433e8b2b160019d765786a6efb397cae3201539594225`.
+Half the cases include the original mover-to-CUnit event bridge. Every observed
+notification sees the incremented counter, and final output resets it only for
+an actual completion. These are controlled original-code cases with no gameplay
+subscribers, not new public crowded-map captures. Payoff194's repeated Frida
+Channel interruption/control remains the separate public callback witness.
+
+The failing-first engine regression lost group ownership at scan19. Its fixed
+version checks route/results reset, timestamp/warp retention and cold-save
+continuation. A second regression checks192 size/counter/distance/blocked/
+visibility combinations at the production completion boundary. Classic and
+TFT also retain all existing selected-order, Captain, AI, hidden-target,
+Holy Light approach and public dynamic-blocker expectations unchanged.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_motion.py \
+  --binary /path/to/original/game.dll \
+  --report /tmp/completion195-report.json \
+  --completion-reference tools/ghidra/fixtures/retail-blocked-completion195-1.27.json.gz \
+  --completion-fixture /tmp/completion195-observed.json
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+  build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test 'wc3_movement.completion195*'
+```
+
+Both report and export must be fresh. Logs, the identical original exports,
+decompilation and saved Ghidra readback are under
+`/GitHub/wc3-analysis/runtime/payoff195/`. **TARGET-04.2 remains open** for its
+complete public long-count, multi-member range-change and event lifetime.
+This implementation closes no additional TODO and adds none.
