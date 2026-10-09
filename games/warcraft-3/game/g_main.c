@@ -597,6 +597,7 @@ float G_Cinefade(void) {
 }
 
 static color32_t G_CineFilterColor(void) {
+    static float const alpha_scale = 0.5f;
     uint32_t const duration = level.cinefilter.end.time - level.cinefilter.start.time;
     uint32_t const now = G_Time();
     float k;
@@ -607,7 +608,8 @@ static color32_t G_CineFilterColor(void) {
                 (uint8_t)LerpNumber(level.cinefilter.start.color.r, level.cinefilter.end.color.r, k),
                 (uint8_t)LerpNumber(level.cinefilter.start.color.g, level.cinefilter.end.color.g, k),
                 (uint8_t)LerpNumber(level.cinefilter.start.color.b, level.cinefilter.end.color.b, k),
-                (uint8_t)LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k));
+                (uint8_t)(LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k) *
+                          alpha_scale));
 }
 
 bool G_SkipCutscene(void) {
