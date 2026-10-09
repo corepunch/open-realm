@@ -333,7 +333,7 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
         }
         /* HACK: ScriptDialog FDF supplies a button template but no row container or dynamic anchors. */
         if (previous) UI_SetPoint(button, FRAMEPOINT_TOP, previous, FRAMEPOINT_BOTTOM, 0, -0.004f);
-        else UI_SetPoint(button, FRAMEPOINT_TOP, root, FRAMEPOINT_TOP, 0, -0.10f);
+        else UI_SetPoint(button, FRAMEPOINT_TOP, message, FRAMEPOINT_BOTTOM, 0, -0.016f);
         content_height += button->Height + 0.004f;
         previous = button;
         text = stock_button ? button_frames.ScriptDialogButtonText : NULL;
