@@ -322,14 +322,10 @@ static void CON_CompleteReplace(uint32_t start, uint32_t end, cstring_t text, bo
     if (!text || !*text || start > end || end > strlen(con_input)) {
         return;
     }
-    snprintf(completed,
-             sizeof(completed),
-             "%.*s%s%s%s",
-             (int)start,
-             con_input,
-             text,
-             add_space ? " " : "",
-             con_input + end);
+    strlcpy(completed, con_input, MIN((size_t)start + 1, sizeof(completed)));
+    strlcat(completed, text, sizeof(completed));
+    if (add_space) strlcat(completed, " ", sizeof(completed));
+    strlcat(completed, con_input + end, sizeof(completed));
     CON_SetInput(completed);
     con_cursor = start + (uint32_t)strlen(text) + (add_space ? 1 : 0);
 }

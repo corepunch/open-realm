@@ -1049,8 +1049,9 @@ void GameSetup_UpdateLobbySetup(lobbyState_t const *state) {
         GameSetup_LoadMap(state->map_path);
     }
     snprintf(setup.map_path, sizeof(setup.map_path), "%s", state->map_path);
-    snprintf(setup.map_name, sizeof(setup.map_name), "%s",
-             state->map_name[0] ? state->map_name : GameSetup_BaseName(state->map_path));
+    strlcpy(setup.map_name,
+            state->map_name[0] ? state->map_name : GameSetup_BaseName(state->map_path),
+            sizeof(setup.map_name));
     GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
     memset(setup.configs, 0, sizeof(setup.configs));
     FOR_LOOP(i, state->slot_count) {
