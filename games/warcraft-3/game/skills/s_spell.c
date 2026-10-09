@@ -965,7 +965,17 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
 }
 
 void S_SpellTargetApproachComplete(edict_t *receiver, edict_t *caster, bool arrived) {
-    if(!arrived || S_SpellChannelOwner(receiver)!=caster) {G_FreeEdict(receiver);return;}
+    if(S_SpellChannelOwner(receiver)!=caster) {G_FreeEdict(receiver);return;}
+    if(!arrived) {
+        /* Terminal cant-path has already detached Move. Cancellation while
+         * replacing an order still owns its old group and must not dispatch a
+         * queued successor here. Never execute an unreachable cast. */
+        bool terminal=!caster->movement.group_id && caster->goalentity==receiver->goalentity &&
+            move_is_active_order_walk(caster);
+        G_FreeEdict(receiver);
+        if(terminal)unit_stand(caster);
+        return;
+    }
     spell_finish_target_approach(receiver,true);
 }
 

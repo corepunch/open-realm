@@ -5214,13 +5214,14 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
             edict_t *target=group->target;
             if(group->receiver) {
                 completed=true;
+                bool arrived=!(member->flags&0x20000);
                 edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
                 void (*complete)(edict_t *,edict_t *,bool)=group->complete;
                 group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;
                 move_detach_group(unit);unit->movement.group_id=0;
                 S_SetFollowTarget(unit,NULL);
                 if(receiver->inuse && receiver->spawn_time==spawn && complete)
-                    complete(receiver,unit,true);
+                    complete(receiver,unit,arrived);
                 else unit_stand(unit);
                 continue;
             }
@@ -5265,6 +5266,27 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
     if (completed) group->completion_counter=0;
 }
 
+static void move_group_prepare_members(moveGroup_t *group) {
+    /*16d1c0 prunes from the last captured row toward the first. */
+    for (uint32_t i=group->count;i>0;) {
+        i--;
+        moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
+        if (!unit || !unit->inuse || unit->spawn_time!=member->spawn || G_IsDeferredFree(unit) || (!unit->movement.captain_actor_type && M_IsDead(unit)) ||
+            unit->movement.group_id!=group->id ||
+            (unit->currentmove!=&move_move_walk && (!group->target || unit->currentmove!=&follow_move_walk)) ||
+            !unit->goalentity) {
+            if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
+                unit->movement.group_id=0;
+            if (unit) move_complete_receiver(group,unit,false);
+            group->members[i]=group->members[--group->count]; continue;
+        }
+        if (!S_UnitCanTranslate(unit)) {
+            unit->stand(unit);
+            group->members[i]=group->members[--group->count];
+        }
+    }
+}
+
 static void move_run_group_updates(void) {
     move_update_shared();
     move_prepare_group_order();
@@ -5291,24 +5313,7 @@ static void move_run_group_updates(void) {
         if (!group->inuse || group->sequence!=owners[g].sequence) continue;
         MOVE_OWNER_PHASE(MOVE_PHASE_GROUP,group->id);
         group->ticking=true;
-        /*16d1c0 prunes from the last captured row toward the first. */
-        for (uint32_t i=group->count;i>0;) {
-            i--;
-            moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
-            if (!unit || !unit->inuse || unit->spawn_time!=member->spawn || G_IsDeferredFree(unit) || (!unit->movement.captain_actor_type && M_IsDead(unit)) ||
-                unit->movement.group_id!=group->id ||
-                (unit->currentmove!=&move_move_walk && (!group->target || unit->currentmove!=&follow_move_walk)) ||
-                !unit->goalentity) {
-                if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
-                    unit->movement.group_id=0;
-                if (unit) move_complete_receiver(group,unit,false);
-                group->members[i]=group->members[--group->count]; continue;
-            }
-            if (!S_UnitCanTranslate(unit)) {
-                unit->stand(unit);
-                group->members[i]=group->members[--group->count];
-            }
-        }
+        move_group_prepare_members(group);
         if (!group->count) { move_release_group(group); continue; }
         if (group->individual) {
             edict_t *unit=group->members[0].unit;

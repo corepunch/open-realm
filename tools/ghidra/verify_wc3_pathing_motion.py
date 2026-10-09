@@ -68,7 +68,11 @@ def main():
     parser.add_argument('--route-trajectory-reference', type=Path, help='check complete controlled wall-route words against the frozen fixture')
     parser.add_argument('--completion-reference', type=Path, help='compare the complete original completion export against a frozen fixture')
     parser.add_argument('--completion-fixture', type=Path, help='export complete original blocked-completion boundaries, then stop before unrelated order lifecycles')
+    parser.add_argument('--retry-lifetime-fixture', type=Path, help='export composed original multi-member retry, bridge range changes and terminal events')
+    parser.add_argument('--retry-lifetime-reference', type=Path, help='compare composed retry lifetime against frozen original words')
     args = parser.parse_args()
+    if args.retry_lifetime_reference and not args.retry_lifetime_fixture:parser.error('--retry-lifetime-reference requires --retry-lifetime-fixture')
+    if args.retry_lifetime_fixture and args.retry_lifetime_fixture.exists():parser.error('retry lifetime export must be fresh')
     if args.completion_reference and not args.completion_fixture:parser.error('--completion-reference requires --completion-fixture')
     if args.completion_fixture and args.completion_fixture.exists():parser.error('completion export must be fresh')
     if args.world_velocity_fixture and not args.engine_library:parser.error('--world-velocity-fixture requires --engine-library for exact guard comparisons')
@@ -1671,6 +1675,77 @@ def main():
             assert read(members,2)==([1,101] if complete else [0,100])
             assert read(members+0x14)[0]==actors[1 if complete else 0]
         completion_cases+=1
+    if args.retry_lifetime_fixture:
+        # Compose complete unmodified functions. Blocked/held member inputs are
+        # explicit controlled states, not claimed to be a public crowded route.
+        long_actors=formation_actors
+        long_paths=regroup_paths+[system+0x1e300]
+        long_objects=actor_objects+[[0x10109500,0x10109600]]
+        rows=[]
+        for scenario,count in enumerate([2,3]):
+            machine.mem_write(group,bytes(0x100));machine.mem_write(members,bytes(0x100))
+            write(group+0x14,3,103);write(group+0x28,members);write(group+0x38,count)
+            write(tick_slots+3*8,-2,group);write(tick_registry+0x1c,8)
+            floats(owner+0x54,0);write(owner+0x58,0)
+            for n,actor in enumerate(long_actors[:count]):
+                machine.mem_write(actor,bytes(0x100));machine.mem_write(long_paths[n],bytes(0x100))
+                write(actor,0x6fa9129c,owner+0x200,0);write(actor+0x14,n,100+n)
+                write(tick_slots+n*8,-2,actor);write(actor+0x9c,3,103)
+                write(actor+0xa8,long_paths[n]);write(actor+0xd0,8,8)
+                floats(actor+0x78,8,8,0,0,2,0);floats(actor+0x90,.25)
+                floats(actor+0xb0,64 if n<2 else .49,.25,.125,.25)
+                write(actor+0x94,*long_objects[n])
+                for obj,grid in zip(long_objects[n],maps):
+                    machine.mem_write(obj,bytes(0x80));write(obj+0x2c,grid)
+                    write(obj+0x34,0x01000001)
+                write(members+n*0x2c,n,100+n);write(members+n*0x2c+0x14,actor)
+                floats(members+n*0x2c+0x18,40 if n<2 else 12,8)
+                write(members+n*0x2c+0x28,0x220000 if n<2 else 0x200000)
+                floats(long_paths[n]+0x1c,12,8,12,8,12,8)
+                write(long_paths[n]+0x88,0x10000000 if n==0 else 0x30000000 if n==1 else 0)
+                payload,unit=0x1010b000+n*0x500,0x1010b100+n*0x500
+                machine.mem_write(payload,bytes(0x100));machine.mem_write(unit,bytes(0x300))
+                write(payload,0x6fa8099c);write(payload+0xc,0x2b61676c,0x2b616761,5+n,105+n)
+                write(payload+0x54,unit);write(unit,0x6fb77eb0);write(unit+0xc,5+n,105+n)
+                write(tick_slots+(5+n)*8,-2,payload);write(actor+0x30,payload)
+            end=20 if count==2 else 27
+            for step in range(1,end+1):
+                changes=[]
+                if step in (9,14) or (count==3 and step==7):
+                    n=2 if step==7 else 1;world=256 if n==2 else 32 if step==9 else 2048
+                    write(formation_wrapper+8,n,100+n);floats(speed_ptr,world)
+                    run(0x6f05c410,formation_wrapper,speed_ptr)
+                    changes.append([n,float_bits(world),read(long_actors[n]+0xb0)[0]])
+                for n in range(read(group+0x38)[0]):run(0x6f16a790,group,members+n*0x2c,0)
+                decisions=[read(members+n*0x2c,11) for n in range(read(group+0x38)[0])]
+                completion_notifications.clear();completion_notification_counters.clear();completion_events.clear();completion_packets.clear()
+                run(0x6f16c390,group)
+                expected_finish=[2] if count==3 and step==7 else [0,1] if step==end else []
+                actual_finish=[long_actors.index(item[1]) for item in completion_notifications]
+                assert actual_finish==expected_finish,(scenario,step,actual_finish,expected_finish)
+                expected_counter=0 if expected_finish else step if count==2 or step<7 else step-7
+                assert read(group+0x60)[0]==expected_counter
+                if step==end:
+                    assert [item[0] for item in completion_notifications]==[0x6f170dc0]*2
+                    # A retry reset clears old partial-result bits before terminal failure.
+                    assert [item[2] for item in completion_notifications]==[0,0]
+                rows.append(dict(scenario=scenario,step=step,changes=changes,
+                    decisions=decisions,counter=read(group+0x60)[0],
+                    ranges=[read(a+0xb0)[0] for a in long_actors[:count]],
+                    notifications=list(completion_notifications),notification_counters=list(completion_notification_counters),events=list(completion_events)))
+                run(0x6f16bc10,group)
+                assert read(group+0x38)[0]==(0 if step==end else 2 if count==3 and step>=7 else count)
+        result=dict(version=1,binary_sha256=digest,cases=rows,
+            functions=['6f05c410','6f1710a0','6f16a790','6f16c390','6f168740','6f16bc10'],
+            scope='Controlled composed long lifetimes: original bridge range setter, held-member decisions, completion/retry, preparation and real CUnit event bridge; blocked/held inputs supplied, no public producer or ability subscribers')
+        if args.retry_lifetime_reference:
+            frozen=args.retry_lifetime_reference.read_bytes()
+            if args.retry_lifetime_reference.suffix=='.gz':frozen=gzip.decompress(frozen)
+            assert json.loads(json.dumps(result))==json.loads(frozen),'retry lifetime differs from original'
+        args.retry_lifetime_fixture.write_text(json.dumps(result,indent=1)+'\n')
+        args.report.write_text(json.dumps(dict(binary_sha256=digest,passed=True,cases=len(rows),
+            fixture_sha256=hashlib.sha256(args.retry_lifetime_fixture.read_bytes()).hexdigest()),indent=1)+'\n')
+        return
     if args.completion_fixture:
         result=dict(version=1,binary_sha256=digest,function='6f16c390',reset_function='6f168740',
             threshold=completion_threshold,cases=completion_rows,

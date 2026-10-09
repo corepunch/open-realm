@@ -13625,3 +13625,70 @@ decompilation and saved Ghidra readback are under
 `/GitHub/wc3-analysis/runtime/payoff195/`. **TARGET-04.2 remains open** for its
 complete public long-count, multi-member range-change and event lifetime.
 This implementation closes no additional TODO and adds none.
+
+
+## Long member retries preserve range and failure outcomes (Payoff196)
+
+TARGET-04.2 now has two repeated composed lifetimes from unmodified retail
+functions. Both execute the actual range bridge (`6f05c410`), held-member step
+(`6f16a790`), completion (`6f16c390`) and next preparation (`6f16bc10`). Two
+blocked members retry through scan19 and both fail on scan20. With a third
+member, its normal arrival at scan7 resets the common completion counter;
+the two survivors then fail at scan27. World range32/2048 changes at scans9/14
+become fine range1/64, changing readiness without resetting that counter.
+Retry clears the former partial-result bits, so both eventual failures carry
+blocked notification argument0. The real CUnit bridge emits one arrival and
+four blocked events across the two lifetimes. The frozen47-stage export is
+`tools/ghidra/fixtures/retail-retry-lifetime196-1.27.json.gz`; the C regression
+checks its member flags, published ranges, counters, notification order,
+retained timestamps and following retirement through production stages.
+
+The long lifetimes explicitly supply blocked/held states and range-publication
+inputs. They certify the composed mechanism, not a claim that a public group
+order naturally produces those exact inputs. Public range producer families
+remain TARGET-01.2; broader crowded routing stays under its existing owners.
+No task was split or numerical expectation rewritten to make these cases pass.
+
+A separate real public spell scene found an engine defect. Holy Light targeting
+a Footman beyond a full-height fine-grid wall at x20..23 reaches blocked
+completion at counter1129. Original `6f170dc0(0)` emits Unit event `0x40190066`
+and enters `CAbilityMove_OnCantPath` (`6f603110`). The spell order ends, the
+caster stays at world577.4907/303.8493, mana255 remains unchanged, and the target
+only receives natural regeneration. Two read-only Frida streams agree exactly
+after normalizing the resolved process addresses; all186 public markers also
+match an observer-free control. The original map, capture pins and frozen
+stream are checked by `completion196_verify.py`.
+
+The engine had sent success to every target-approach receiver, including
+blocked members. Its public Holy Light regression consequently healed the
+unreachable target and spent mana. Move now captures the actual arrival/failure
+result before detaching and dispatches it to the ability-owned receiver. Spell
+ends a terminal failed approach without executing; cancellation while the old
+Move owner still exists does not activate a pending successor prematurely.
+Both no-successor and queued-Move cases pass. Member preparation is extracted
+without changing its reverse pruning order, allowing the long-stage regression
+to consume the same production preparation function.
+
+The save and wire layouts are unchanged. Focused Classic/TFT checks include
+completion, spell approach/cancellation, selected orders, Captain lifetimes,
+hidden targets and saves; full validation follows the established batch cadence.
+No performance target is claimed by this behavioral fix.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_motion.py \
+  --binary /path/to/original/game.dll --report /tmp/retry196-report.json \
+  --retry-lifetime-reference tools/ghidra/fixtures/retail-retry-lifetime196-1.27.json.gz \
+  --retry-lifetime-fixture /tmp/retry196-observed.json
+python3 tools/ghidra/research/retry196_expected.py \
+  --fixture tools/ghidra/fixtures/retail-retry-lifetime196-1.27.json.gz \
+  --header games/warcraft-3/game/tests/retail_retry_lifetime196.h
+python3 tools/frida/research/completion196_verify.py \
+  --expected tools/ghidra/fixtures/retail-blocked-spell196-1.27.json.gz \
+  --archive /path/to/corpus/research/TARGET-04.2/captures196 --output /tmp/live196-report.json
+```
+
+Failed launches are retained separately: the generic group controller focused
+an old crash window sharing the Warcraft title and never entered simulation;
+one isolated C attach timed out. The accepted spell controller verifies the
+owned data/map invocation before focusing a window and holding Space briefly.
+Neither failed capture is included as evidence.

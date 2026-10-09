@@ -55,12 +55,18 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**264 done / 336 tasks; 72 remaining.**
+**265 done / 336 tasks; 71 remaining.**
+
+Payoff196 closes TARGET-04.2 with repeated47-stage multi-member retry/range
+lifetimes and an actual blocked-spell receiver fix. Repeated public Holy Light
+and an observer-free control agree; production regressions preserve failure,
+queued continuation and cancellation. See [long retries and failure](retail-pathfinding-engine.md#long-member-retries-preserve-range-and-failure-outcomes-payoff196).
 
 Payoff195 implements the missing blocked multi-member completion retry and
 moves counter reset after synchronous notifications. The original1536-case
 export, failing-first engine boundaries and cold-save continuation pass. The
-full TARGET-04.2 public range-change lifetime remains open; no new TODO is added.
+TARGET-04.2 lifetime remained open at Payoff195 and is covered below by
+Payoff196; no new TODO was added.
 See [blocked completion retries](retail-pathfinding-engine.md#blocked-group-completion-retries-before-the-twentieth-scan-payoff195).
 
 Payoff194 closes SCHED-02.4: actual public retail Channel callback mutation
@@ -1055,7 +1061,7 @@ Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh,
 ### TARGET-04 — Delayed refresh
 
 - [ ] **TARGET-04.1** Trace refresh-threshold and Captain AI extra-delay producers; assert actual simulation ticks to the next request.
-- [ ] **TARGET-04.2** Run a long-count retry with multiple members and a range change; assert per-member retry/completion/failure events.
+- [x] **TARGET-04.2** Payoff196: complete repeated47-stage original two/three-member retries with bridge range changes, normal completion resetting the counter, terminal per-member failures and following preparation. Production stage fixture matches flags/ranges/counters/events; public unreachable Holy Light failing-first regression fixes blocked receiver success and preserves queued continuation. Two actual Frida observations match186 public markers against an unhooked control. Controlled long-lifetime inputs remain labelled; public range producer breadth stays TARGET-01.2. [Evidence](retail-pathfinding-engine.md#long-member-retries-preserve-range-and-failure-outcomes-payoff196).
 
 ## SCHED — Scheduling and owner updates
 

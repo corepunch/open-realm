@@ -18166,6 +18166,127 @@ TEST(wc3_movement, completion195_original_gate_distance_and_counter_boundaries) 
     reset_entities();setup_test_world();
 }
 
+#include "retail_retry_lifetime196.h"
+static edict_t *retry196_units[3];
+static moveGroup_t *retry196_group;
+static unsigned retry196_completed,retry196_counter;
+static void retry196_stand(edict_t *unit) {
+    FOR_LOOP(i,3)if(unit==retry196_units[i])retry196_completed|=1u<<i;
+    retry196_counter=retry196_group->completion_counter;
+    unit_stand(unit);
+}
+
+/* Compose actual owning stages against native16a790/16c390/16bc10 words.
+ * Blocked/held inputs and range publication are controlled explicitly; this
+ * does not stand in for the separately tracked public range producers. */
+TEST(wc3_movement, completion196_multi_member_long_retry_and_range_changes) {
+    FOR_LOOP(scenario,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        unsigned initial_count=scenario+2;
+        vec2_t point={1800,256};groupPointOrder_t request={.count=initial_count,.point=&point,.order="move",
+            .order_id=G_OrderId("move"),.issuer_player=0};
+        FOR_LOOP(i,initial_count) {
+            edict_t *unit=completion194_unit(256,256);
+            request.units[i]=(typeof(request.units[i])){unit,unit->spawn_time};
+        }
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        moveGroup_t *group=move_unit_group(request.units[0].unit);T_NOT_NULL(group);
+        if(!group)continue;
+        group->flags=group->completion_counter=0;group->route.group_index=0;
+        memset(retry196_units,0,sizeof(retry196_units));retry196_group=group;
+        FOR_LOOP(i,initial_count) {
+            edict_t *unit=group->members[i].unit;retry196_units[i]=unit;
+            unit->stand=retry196_stand;unit->s.angle=0;unit->movement.velocity=(vec2_t){0,0};
+            group->members[i].destination=(vec2_t){i<2 ? 40 : 12,8};
+            group->members[i].flags=i<2 ? 0x220000 : 0x200000;
+            group->members[i].arrival_range=i<2 ? 64 : .49f;
+            unit->movement.fine_route.partial=i==0;
+            unit->movement.fine_request_time=123;
+            unit->movement.fine_route.adaptive_admission.time=121;
+        }
+        FOR_LOOP(r,sizeof(retry196_rows)/sizeof(*retry196_rows)) {
+            typeof(retry196_rows[0]) const *row=retry196_rows+r;
+            if(row->scenario!=scenario)continue;
+            group->ticking=true;move_group_prepare_members(group);
+            T_EQ(group->count,row->count);
+            if(row->change_member!=UINT32_MAX) {
+                moveGroupMember_t *member=move_find_member(retry196_units[row->change_member]);T_NOT_NULL(member);
+                if(member)member->arrival_range=wc3_point_arrival_range(wc3_float(row->change_world));
+            }
+            moveGroupMember_t *finished[BZ_WC3_GROUP_ORDER_UNITS];unsigned ready=0;
+            FOR_LOOP(i,group->count) {
+                move_group_decide(group,group->members+i);
+                T_EQ(group->members[i].flags,row->flags[i]);
+                if(group->members[i].arrived)finished[ready++]=group->members+i;
+            }
+            FOR_LOOP(i,initial_count) {
+                moveGroupMember_t const *member=move_find_member(retry196_units[i]);
+                if(member)T_EQ(wc3_float_bits(member->arrival_range),row->ranges[i]);
+            }
+            retry196_completed=retry196_counter=0;
+            move_group_complete_members(group,finished,ready);
+            T_EQ(group->completion_counter,row->counter);
+            T_EQ(retry196_completed,row->completed);T_EQ(retry196_counter,row->notify_counter);
+            FOR_LOOP(i,initial_count) {
+                T_EQ(retry196_units[i]->movement.fine_request_time,123);
+                T_EQ(retry196_units[i]->movement.fine_route.adaptive_admission.time,121);
+            }
+            group->ticking=false;
+        }
+        FOR_LOOP(i,initial_count) {T_EQ(retry196_units[i]->movement.group_id,0);retry196_units[i]->stand=unit_stand;}
+        move_group_prepare_members(group);T_EQ(group->count,0);
+        uint32_t id=group->id;move_run_group_updates();T_NULL(move_find_group(id));
+    }
+    retry196_group=NULL;reset_entities();setup_test_world();
+}
+
+/* A blocked target approach must not spend mana or execute its spell as if
+ * the member had arrived. Drive the public order and actual owner scheduler. */
+TEST(wc3_movement, completion196_unreachable_spell_does_not_execute) {
+    FOR_LOOP(queued,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        FOR_LOOP(y,64)FOR_LOOP(x,4)cells[y*64+20+x]=0xca;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        char const *text=
+            "ID;PWXL;N;EBB;Y2;X7\n"
+            "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+            "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\n"
+            "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+            "C;Y2;X4;K\"13\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"800\"\nC;Y2;X7;K\"37\"\nE\n";
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('H','p','a','l'),288,288);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1856,288);
+        UnitAbilities_t abilities={.abilList="AHhb"};unit->data.UnitAbilities=&abilities;
+        unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=target->movetype=MOVETYPE_STEP;
+        unit->stand=target->stand=unit_stand;unit->collision=32;target->collision=31;
+        unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->mana.value=unit->mana.max_value=200;target->health.value=100;target->health.max_value=1000;
+        unit->s.player=target->s.player=0;unit->targtype=target->targtype=TARG_GROUND;
+        unit_stand(unit);unit_stand(target);
+        level.pathing_clock=(wc3Clock_t){2,0,300};level.pathing_counter=1090;
+        T_ASSERT(G_IssueUnitTargetOrder(unit,"holybolt",target,false,0));
+        T_NOT_NULL(S_UnitTargetApproachReceiver(unit));
+        vec2_t successor={256,512};
+        if(queued)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&successor,true,0,0));
+        unsigned visits=0;
+        while(unit->movement.group_id && visits++<2000) {
+            level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);level.pathing_counter++;
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+        T_ASSERT(visits<2000);T_EQ(unit->movement.group_id,0);
+        T_NULL(S_UnitTargetApproachReceiver(unit));
+        T_FEQ(target->health.value,100,0);T_FEQ(unit->mana.value,200,0);
+        T_ASSERT(unit->s.origin2.x<640);
+        T_EQ(unit->current_order_id,0);
+        if(queued)T_ASSERT(Vector2_distance(&unit->s.origin2,&successor)<32);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);reset_entities();setup_test_world();
+    }
+}
+
 static unsigned target164_cursor;
 static bool target164_mismatch;
 static edict_t *target164_unit;

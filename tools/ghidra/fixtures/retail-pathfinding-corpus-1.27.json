@@ -47193,8 +47193,212 @@
       ],
       "scope": "Complete original final-leg completion and following preparation: blocked multi-member nineteen-scan retry, strict256 squared fine distance, persistent/unseen gate and incremented counter observation inside actual mover notification. Production completion boundary and scan19 cold-save continuation integrated in Move.",
       "exclusions": [
-        "Controlled original actors; gameplay subscribers and complete public multi-member range-change lifetime remain TARGET-04.2.",
+        "Controlled original actors without gameplay subscribers. The separate composed long multi-member/range-change contract is certified by payoff196; broader public range producers remain TARGET-01.2.",
         "Existing public callback mutation remains independently certified by payoff194; this chunk adds no live capture."
+      ]
+    },
+    {
+      "id": "oracle-retry-lifetime196",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_motion.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--retry-lifetime-reference",
+        "tools/ghidra/fixtures/retail-retry-lifetime196-1.27.json.gz",
+        "--retry-lifetime-fixture",
+        "{output}/retry-lifetime196-observed.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "retry-lifetime196-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 47
+        },
+        "fixture_sha256": {
+          "equal": "f6cedaf1d73502377db989cecfbf53674161df4eecec6d7d8be6b83b8b06f671"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Composed original long two/three-member held-step, range bridge, retry/completion and preparation lifetimes with real CUnit event bridge; engine stages retain observed flags/ranges/counters/events and timestamps.",
+      "exclusions": [
+        "Explicit controlled blocked/held inputs; full public range producer inventory remains TARGET-01.2.",
+        "No ability subscribers in this oracle; actual public failure dispatch is independently witnessed by live-blocked-spell-completion196."
+      ]
+    },
+    {
+      "id": "live-blocked-spell-completion196",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/research/completion196_verify.py",
+        "--archive",
+        "{archive}/research/TARGET-04.2/captures196/",
+        "--expected",
+        "tools/ghidra/fixtures/retail-blocked-spell196-1.27.json.gz",
+        "--output",
+        "{report}"
+      ],
+      "report": "blocked-spell-completion196-live.json",
+      "expected_exit": 0,
+      "expected_status": "live-blocked-spell-completion",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 186
+        },
+        "owner_intervals": {
+          "equal": 600
+        },
+        "blocked_events": {
+          "equal": 1
+        },
+        "arrival_events": {
+          "equal": 0
+        },
+        "completion_counter": {
+          "equal": 1129
+        }
+      },
+      "evidence": [
+        "S",
+        "L",
+        "C"
+      ],
+      "scope": "Actual unreachable public Holy Light target approach ends via blocked notification, Unit event and Move cant-path without casting/mana spend; production failing-first no-successor/queued-Move regression fixes receiver result.",
+      "exclusions": [
+        "Controlled long multi-member range changes are separately certified by oracle-retry-lifetime196; this public scene has one member.",
+        "Launches without simulation markers and failed attach attempts excluded; complete spell Channel/cast/effect timeline remains ORDER-01.13."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/TARGET-04.2/captures196/live-4.jsonl",
+        "sha256": "fc50125f820aa2609b83c988a80e1215d18a5701b9c33a77d227c5f780f76016",
+        "bytes": 171942,
+        "metadata": {
+          "task": "payoff196",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+            "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+            "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+            "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+            "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+            "completion196_observer.js": "b278a20391fd2024968a254ce288e2135de83b575b17c6313216cb60475e8421",
+            "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+            "map": "8c5de696578376d58d393866bf49f1a514524cfef75da271684c8aa3e9476f6c"
+          },
+          "map": "Maps\\RS-Completion196.w3m",
+          "seconds": 90.0,
+          "continue_at": 10.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "C196 ",
+          "always": false,
+          "lite": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/TARGET-04.2/captures196/live-5.jsonl",
+            "sha256": "f9c91374da80f2716b835c18bb592916fcd2e36154c9b12ed4043985fad033e5",
+            "bytes": 171853,
+            "metadata": {
+              "task": "payoff196",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "completion196_observer.js": "b278a20391fd2024968a254ce288e2135de83b575b17c6313216cb60475e8421",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "8c5de696578376d58d393866bf49f1a514524cfef75da271684c8aa3e9476f6c"
+              },
+              "map": "Maps\\RS-Completion196.w3m",
+              "seconds": 90.0,
+              "continue_at": 10.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "C196 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/TARGET-04.2/captures196/control-1.jsonl",
+            "sha256": "e20e7f58125fc2696ff3a87f4d22bc85d844e594e93ef0cfdf513c8d53c9f711",
+            "bytes": 1539,
+            "metadata": {
+              "task": "payoff196",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "completion196_observer.js": "b278a20391fd2024968a254ce288e2135de83b575b17c6313216cb60475e8421",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "8c5de696578376d58d393866bf49f1a514524cfef75da271684c8aa3e9476f6c"
+              },
+              "map": "Maps\\RS-Completion196.w3m",
+              "seconds": 90.0,
+              "continue_at": 10.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "C196 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": false
+        }
       ]
     }
   ],
@@ -48094,7 +48298,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "ca9e53b67f2908c0b32eca75e4a9d3d3f39b152a3261a490814a1f51914504dc"
+      "sha256": "3e7d08744f371678f2a53d5a85062a436d36403f2cb71072791c65eb2993c847"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -48946,11 +49150,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "5661c4b469c00e0582c729e1fa38a3d009a9d58cd6147465b8a5d74d72a69606"
+      "sha256": "90a18bfc466dbb7b7fd0f7d65351ffa04e4d2f001363dc76bba4a77e567abc56"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "b46c812f376d02ffe142397ec7c1b1af497493444d9bc26221530e19925e5e67"
+      "sha256": "1413be8e95c480920afb344a336dcff053a0df77150201f4015dc7f1859c7d84"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -49642,7 +49846,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "50821607b980311aa7e1f843649570cf9a6583a4f4db7f254437c0a5bc7e657d"
+      "sha256": "cacf942d335371ac20acf1b4eb5dd1766a92f992327bd0b7fa07e815c551d319"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -49886,7 +50090,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "eee59d906f13710d09f8e5196fb10c4c79ff5a8e776cea7c1194721f207ca86f"
+      "sha256": "5848fe3da4e2bfc836efde78f3aad8d8e530357c7af1dab8a688f832c8db0711"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -49898,11 +50102,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "7c6f9a6337f9d91324ecfdf6d247b5e21ce612ffc8db43c3c07e14725b912f5b"
+      "sha256": "fa40aa0b269624e5bbb558a0650c7a000299610640d0bdec6ba4945d4f3d7eab"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "9eef0fdd7123f63cf38dcd1c955ae19c739b325f46f5bdd435779ab0017b5d19"
+      "sha256": "86973b1adefebf7edd9db2e6b452c59011e64b11eca9c8c5c17ffa59fbe58d27"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -51691,6 +51895,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-blocked-completion195-1.27.json.gz",
       "sha256": "48618d4301f5b00a4beec8a2e3ca2639b4f19f201f0bb500a37e3d382af747a5"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_retry_lifetime196.h",
+      "sha256": "d75a23b87036e55ac667e84db6c63e372ae6009b0b2f497c10e4f7dc44adcfce"
+    },
+    {
+      "path": "tools/frida/research/completion196_make_map.py",
+      "sha256": "316f5d6ccb8e58f37e188aafb2cfa8af9c22fd21df5b52294de849f7ecb08eed"
+    },
+    {
+      "path": "tools/frida/research/completion196_observer.js",
+      "sha256": "b278a20391fd2024968a254ce288e2135de83b575b17c6313216cb60475e8421"
+    },
+    {
+      "path": "tools/frida/research/completion196_probe.j",
+      "sha256": "195e73ac8765d15332d797fdbfbc1d5a6735fb893b5764ad5c3e2fe51560ac96"
+    },
+    {
+      "path": "tools/frida/research/completion196_verify.py",
+      "sha256": "61e90bf2c8294a77648e03244ceb48f0409c52960aafa31b6c5b2c75baa25bf4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-blocked-spell196-1.27.json.gz",
+      "sha256": "ffb2223a716fe37e74a60e9f2a1347a79fcf52086c64f885f94cc63c6a9166fb"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-retry-lifetime196-1.27.json.gz",
+      "sha256": "34cd98811fa22ecc60e4c9ad54dd60bee3b68bdbf4bacd670a3dfefba539c61b"
+    },
+    {
+      "path": "tools/ghidra/research/retry196_expected.py",
+      "sha256": "74b1a932cee0322717cd40c6ea75d6f1a3045d1e96909dec879d1df72c245227"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_motion.py",
+      "sha256": "8e9a53dd50b12a1775e0e9fe885fa5aa01cad2bded09e4535390da2566722c73"
     }
   ]
 }

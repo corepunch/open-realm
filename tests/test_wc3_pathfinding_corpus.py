@@ -79,11 +79,49 @@ class CorpusTests(unittest.TestCase):
         self.assertEqual(entry['checks']['cases'],dict(equal=1536))
         self.assertTrue(any('public' in x for x in entry['exclusions']))
 
+    def test_retry_lifetime196_fixture_is_the_original_stage_input(self):
+        import gzip
+        sys.path.insert(0,str(ROOT/'tools/ghidra/research'))
+        from retry196_expected import render
+        fixture=json.loads(gzip.decompress((ROOT/'tools/ghidra/fixtures/retail-retry-lifetime196-1.27.json.gz').read_bytes()))
+        self.assertEqual(render(fixture),(ROOT/'games/warcraft-3/game/tests/retail_retry_lifetime196.h').read_text())
+        rows=fixture['cases']
+        self.assertEqual([sum(r['scenario']==s for r in rows)for s in (0,1)],[20,27])
+        self.assertEqual([r['step']for r in rows if r['notifications']],[20,7,27])
+        events=[e[1]for r in rows for e in r['events']]
+        self.assertEqual(events.count(0x40190065),1)
+        self.assertEqual(events.count(0x40190066),4)
+        self.assertEqual([r['counter']for r in rows if r['notifications']],[0,0,0])
+        self.assertEqual(rows[20+6]['notification_counters'],[7])
+        self.assertEqual(rows[20+7]['decisions'][0][:2],[0,100])
+        self.assertEqual(len(rows[20+7]['decisions']),2)
+        self.assertEqual(rows[8]['changes'],[[1,0x42000000,0x3f800000]])
+        self.assertEqual(rows[13]['changes'],[[1,0x45000000,0x42800000]])
+
+    def test_blocked_spell196_verifier_rejects_arrival_and_missing_failure(self):
+        import gzip
+        sys.path.insert(0,str(ROOT/'tools/frida/research'))
+        from completion196_verify import timeline
+        fixture=json.loads(gzip.decompress((ROOT/'tools/ghidra/fixtures/retail-blocked-spell196-1.27.json.gz').read_bytes()))
+        rows=copy.deepcopy(fixture['timeline'])
+        for row in rows:
+            if row['event']=='cant-path':row['ability']='0x12345678'
+        self.assertEqual(timeline(rows),fixture['timeline'])
+        self.assertEqual(len(fixture['captures']),3)
+        changed=copy.deepcopy(rows)
+        next(r for r in changed if r['event']=='blocked')['event']='arrival'
+        with self.assertRaises(ValueError):timeline(changed)
+        changed=[r for r in rows if r['event']!='unit-completion-event']
+        with self.assertRaises(ValueError):timeline(changed)
+        missing=next(r for r in rows if r['event']=='owner-begin')
+        changed=[r for r in rows if r is not missing]
+        with self.assertRaises(ValueError):timeline(changed)
+
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),155)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),156)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),156)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),157)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))
