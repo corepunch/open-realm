@@ -8640,6 +8640,25 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     T_NE(state.name, 0);
 }
 
+TEST(wc3_api, customize_entity_tree_hover_has_ring_without_label_or_health_bar) {
+    static DestructableData_t const row = { .file = "Tree.mdx" };
+    destructable_t destructable_state = { 0 };
+    edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('T','r','e','e'),
+        .svflags = SVF_STATIC_SCENERY, .targtype = TARG_TREE,
+        .data = { .DestructableData = &row }, .destructable = &destructable_state,
+        .health = { .value = 500, .max_value = 500 } };
+    entityState_t state = { .number = 7, .model = 11 };
+
+    globals.CustomizeEntity(0, &ent, &state);
+
+    T_EQ(state.name, 0);
+    T_ASSERT(state.flags & EF_HOVER_RING);
+    T_ASSERT(state.flags & EF_NEUTRAL);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+    T_ASSERT(!(state.flags & EF_HOVER_MANA));
+    T_ASSERT(state.stats[ENT_HEALTH] > 0);
+}
+
 /* Missing Warcraft natives must execute through the production JASS dispatcher. */
 TEST(wc3_api, alarm_and_ai_native_registration) {
     T_ASSERT(run_test_jass(

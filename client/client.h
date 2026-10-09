@@ -293,7 +293,7 @@ static inline bool CL_EntityAllowsWorldHover(entityState_t const *state) {
     return state && state->model &&
            state->stats[ENT_HEALTH] > 0 &&
            !(state->flags & EF_NOT_SELECTABLE) &&
-           (state->name || (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA)));
+           (state->name || (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOVER_RING)));
 }
 
 entityState_t const *SCR_LayoutContextEntity(void);
