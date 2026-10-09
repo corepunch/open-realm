@@ -1,10 +1,32 @@
 # WoW Gameplay Features
 
-Reference for implemented and missing gameplay features, based on comparison with WoWee (data/WoWee) as the feature checklist.
+Reference for implemented and missing gameplay features, based on comparison with WoWee (`data/WoWee`) as the feature checklist.
 
-WoWee is a C++ client that connects to AzerothCore/TrinityCore servers over the real WoW protocol.  
-Our engine is a standalone Q2-style server+client — all game logic lives in the server module.  
-Features here use the Q2 svc_layout / server-authored UI pattern, not WoWee's ImGui approach.
+WoWee is a C++ client that connects to AzerothCore/TrinityCore servers over the real WoW protocol.
+Our engine is a standalone server and client. Game logic stays in the game module.
+Copy data contracts and rendering rules from WoWee. Do not copy opcodes, Warden, Vulkan, or their old ImGui panels.
+
+## Upstream since the vendored snapshot
+
+Checked 2026-10-09 against `https://github.com/Kelsidavis/WoWee`.
+
+| | Commit | Date | Tag |
+|--|--|--|--|
+| Vendored `data/WoWee` | `3d52d5a48` | 2026-08-02 | v2.0.37-preview |
+| Same tree on upstream (history was rewritten; other parent differs, tree matches) | `2f9cf5476` | 2026-08-02 | v2.0.37-preview |
+| `origin/master` | `b8b6242d0` | 2026-10-03 | v3.1.42 |
+
+3032 commits and about 1965 files (`+245k/−99k`) landed after that identical tree. August 2026 is the jump (v2.0.38 through v3.1.x). September is polish through v3.1.42. The worktree is clean but `master` has diverged from `origin/master` because of the rewrite, so a pull will not fast-forward. To read current code: `git -C data/WoWee fetch origin && git -C data/WoWee reset --hard origin/master`. The missing-feature table below was written against the August 2 tree.
+
+v3.0.0 (2026-08-14) is the cut that matters. They stopped drawing their own interface and drive Blizzard FrameXML. The changelog groups roughly two thousand commits as API shape, events, and layout, then settings, world, picture, and sound. Use that changelog as a checklist. Do not merge the C++.
+
+Drive our work from these, in this order:
+
+1. **FrameXML answers.** Wrong arity raises; a missing function usually does not. Cases they hit: `GetTalentInfo` returns 10 values not 8, `AbandonQuest()` takes none, `PLAYER_LEVEL_UP` carries nine values, gossip is announced only after its text query, scroll frames ask for the wheel and never the mouse, a status bar's fill honors `SetDrawLayer`, and 83 sites anchor and measure in the same breath (the quest tracker collapses when the measure is zero). A stand-in that answers the wrong type is worse than nil. Layout is in a 768-tall virtual screen.
+2. **One terrain surface.** Mesh, floor query, and clutter must sample the same height, including the center vertex of a chunk cell (v3.0.9). Ground-cover budget is per chunk, not a running total that spends the tile on the first rows (v3.0.1). Short foliage normalizes wind against its own height. Player passage bends clutter and then it springs back. Detail doodads keep their authored sequence. Shader wind does not also swing them.
+3. **Collision and camera.** Stairs and hole-cut chunks stay under the heightfield. Tree trunks collide by height, not by a width test that drops conifers. Use authored collision instead of a name guess. The camera stops on WMO walls, floors, and ceilings and steps around a hit instead of only pulling in. Creature draw scale uses both scale fields. Doodad distance does not outrun the terrain under it. Tilted doodad rotation was tried four ways and reverted. Do not copy a guessed placement order.
+4. **Character and items.** Helm attachment is slot 11, not 0. Circlets use `HelmetGeosetVisData` zeros so hair stays. `CharacterFacialHairStyles` variants are columns 6–8. Stat flyouts come from `gt*.dbc`. `CR_*` is one-based and the game tables are zero-based. Quest reward XP, honor, title, reputation, and spell are in the query plus `QuestXP.dbc` / `QuestFactionReward.dbc`, not hard zeros. The fail bit is beside the complete bit. A loot click addresses a stable slot id after earlier slots are removed.
+5. **Leave on their side.** Opcode tables, update fields, Warden, SRP, battleground and guild-bank packet layouts, FSR, ray tracing, Android, and the asset extractor. Their ImGui panels are the interface they retired.
 
 ## Implemented
 
