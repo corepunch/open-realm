@@ -37,7 +37,7 @@ def validate(spec, manifest, root=ROOT):
     return validate_bindings(spec, manifest, CATEGORIES, SOURCES, 'E2E-01.4', root)
 
 
-def validate_bindings(spec, manifest, categories, sources, task, root=ROOT):
+def validate_bindings(spec, manifest, categories, sources, task, root=ROOT, evidence_by_id=None):
     if (spec['version'] != 1 or spec['task'] != task or spec['parent'] != sources[0] or
         spec['engine_repeats'] != 2 or spec['engine_editions'] != ['classic', 'tft']):
         raise ValueError('unsupported combined baseline contract')
@@ -60,7 +60,8 @@ def validate_bindings(spec, manifest, categories, sources, task, root=ROOT):
             raise ValueError('missing original sub-contract')
         for identity in ids:
             entry = entries[identity]
-            if fingerprint(entry) != row['entry_sha256'][identity] or 'L' not in entry['evidence']:
+            required = evidence_by_id[identity] if evidence_by_id is not None else 'L'
+            if fingerprint(entry) != row['entry_sha256'][identity] or required not in entry['evidence']:
                 raise ValueError('original sub-contract differs: ' + identity)
             selected.append(entry)
     expected = sum(len(ids) for _, ids in categories.values())

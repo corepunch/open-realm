@@ -198,3 +198,52 @@ run3,251 tests/15,224,495 assertions; the pathfinding-tools target passes1,011
 Python checks, in addition to the14 focused E2E contract checks. Complete logs,
 JUnit copies and `full-checkpoint.json` are retained in the runtime directory.
 This checkpoint starts the next focused implementation batch.
+
+## Active movement across wrap and reuse boundaries (Payoff212)
+
+`E2E-04.1` now composes the verified boundaries in four actual-game acceptance
+categories, repeated twice in both Classic and TFT. Ten unchanged original
+contracts are evaluated into fresh reports before running the engine categories.
+The contract distinguishes original instruction execution (`O`) from observed
+Frida gameplay (`L`); combining them does not upgrade forced-state evidence into
+a natural long-running capture.
+
+The full Gate96 immediate/delayed destruction and reuse journeys inject owner
+counter `fffffffe`, fine-search stamp `ffff`, and both spatial query counters
+`80000000` at 1,000 ms while the original public Move is active. The initial run
+and the 495/510-ms cold snapshots cross each boundary; later snapshots resume
+past it. Each repeat asserts six actual owner resets, six fine-search wraps and
+six repairs of each query map. It compares all 514/299 original seven-word
+motion commits, plus 2,692/757 saved suffix commits, without changing a retail
+word or the route policy. Both orders eventually retire. Group-ID wrap is
+exercised by actual multi-member public orders, rather than injected into a
+singleton journey that never allocates one.
+
+The retained-storage category checks fine hash epochs and native 16-bit node
+stamps, exact fine/adaptive node and route words across reused storage and
+lane/size changes, and original spatial repair aliases. Repair retains object
+stamps: the native first-stamp alias can unlink records while the identity stays
+live. Those verified expectations remain explicit; acceptance does not silently
+replace them with a different algorithm.
+
+The ownership category combines unsigned work charging, request serial order,
+clock rebasing, saved live/queued group-ID reservations, recycled edicts and
+survivor movement to the replacement goal. A stale release cannot destroy the
+new occupant. The gate-pool category exhausts all 255 nonzero IDs, verifies
+release/recreation ownership, refills 17 then 255 then reserved zero, rejects
+duplicate ownership and restores cold snapshots. Original pool execution and
+both full Frida pool captures remain independently required.
+
+`retail-e2e-wrap212-1.27.json` pins the existing literals and exact child
+contracts. `oracle-e2e-wrap212` builds a fresh adapter from the production
+pathfinding headers for the original/C differential checks, then runs all four
+actual-game categories with fresh JUnit identities. Missing categories, changed
+literals, weakened original checks, omitted forced boundaries, swapped evidence
+kinds and empty engine runs fail validation. Existing saved Ghidra layouts and
+Frida controls are revalidated; this chunk introduces no new retail mapping and
+requires no invented `MapPathfinding.java` annotations.
+
+Forced jumps, synthetic unreachable work overflow and engine generation IDs
+retain their stated limits. This is acceptance of the verified component
+contracts during repeated movement, not a natural seven-hour capture, a new
+retail combined-wrap/save-load session or a whole-world determinism claim.

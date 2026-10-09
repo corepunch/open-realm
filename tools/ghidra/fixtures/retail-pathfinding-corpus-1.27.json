@@ -48661,6 +48661,63 @@
         "Placement45 deferred retries, other Root forms and changed collision during facing remain unported.",
         "Cold engine saves establish deterministic continuation, not retail UI save parity."
       ]
+    },
+    {
+      "id": "oracle-e2e-wrap212",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_e2e_wrap.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "e2e-wrap212.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "categories": {
+          "equal": 4
+        },
+        "retail_contracts": {
+          "equal": 10
+        },
+        "engine_repeats_per_edition": {
+          "equal": 2
+        },
+        "engine_editions": {
+          "equal": 2
+        },
+        "original": {
+          "length": 10
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "E2E-04.1 combined active Gate96 motion across labelled owner/stamp repair, retained search storage, counter/clock and member/slot reuse, and exhausted gate IDs. Four actual game categories repeat twice per edition; ten unchanged original execution/live contracts revalidate afresh.",
+      "exclusions": [
+        "Forced state jumps remain labelled; no natural seven-hour capture, public scheduler-work overflow or new original combined-wrap live launch is claimed.",
+        "Original child contracts, literal fixtures and their exclusions are unchanged; engine composed movement uses the existing complete Gate96 motion words.",
+        "Retained object-stamp aliases are original behavior. This closes acceptance of verified boundaries, not a new claim that every historical alias is absent.",
+        "Edict/group generations are engine ownership identities. Raw retail process-pointer identity equality and whole-world determinism are not claimed.",
+        "Cold engine suffixes compare with uninterrupted original expectations; no new retail UI save/load capture is claimed."
+      ]
     }
   ],
   "fixtures": [
@@ -51107,7 +51164,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "47886cb64620ad31b0898b0f59dca24715d504b0b8f4aadd1a02d483784d2c2f"
+      "sha256": "8673f24394edc61978fc046edaf50d36028dd4616d59c381848f2e3fe52d790f"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -51351,7 +51408,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "f14ca82a750a6f1c4cdfcf4f278021cab2ba7737a36cae19bb4938aa15740b1a"
+      "sha256": "64ec215819e3076d811677321f744bbf15f80070f1f23808078429dbe259e315"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51367,7 +51424,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "bd717b041324a89f805d20f73c98018dbe7a539bc1c24b7fb5d33c77a3346927"
+      "sha256": "f7f166f5bd66fcd8138cd08cfc49bf2fe94d83b53cf597390c5e037878f6a1e2"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -53351,11 +53408,11 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_e2e_variants.py",
-      "sha256": "8b80c9ae83489e724f175002896287c4661af250385c908cdbe161bdab1f3a4c"
+      "sha256": "9c960bff3ed2f5262ffe23ae90be3b720531f11fc59c4e6dbfc1973cbb55bbd0"
     },
     {
       "path": "tools/ghidra/research/e2e205_contract.py",
-      "sha256": "bb328fe515f7de87b479b4f97af638c352b280ca1d9064f65ea57ef10d0fed75"
+      "sha256": "d7cf3312f0a67d60c76bb3b141a61cb2180432755e4b8abe04e083a1e08c4d48"
     },
     {
       "path": "tools/ghidra/research/e2e205_expected.py",
@@ -53371,7 +53428,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_e2e_variants.c",
-      "sha256": "5dd3e45070ebcbea22a69769b46af43ee5f9b11f36724f47a61c5d7ed92d6cbe"
+      "sha256": "756fee942ae4731caddc3303c62df138f4be07285f0a54cdf0177b84bbb623e7"
     },
     {
       "path": "tests/test_wc3_pathing_e2e_variants.py",
@@ -53604,6 +53661,34 @@
     {
       "path": "tests/test_wc3_pathing_root.py",
       "sha256": "c97ec5747b5535a808af32d5277d7f0ae8aa7fd59e33d421ef693170ad1d7780"
+    },
+    {
+      "path": "tools/ghidra/research/e2e212_contract.py",
+      "sha256": "e4e8445bc583fc76c79707bf000375cddf3e9ef2ab7b1b84b494332cc6b347e0"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_e2e_wrap.py",
+      "sha256": "3d08de7c2e4a3e101aba2e70a3cb219ac6c7d21034ac571e10b7ce8d45489328"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-e2e-wrap212-1.27.json",
+      "sha256": "06cc04bc8b295db5869df0bb766bffafaa075695344394552796a2e41f49be7a"
+    },
+    {
+      "path": "tests/test_wc3_pathing_e2e_wrap.py",
+      "sha256": "5d0720485821554cededd5f65f3bee0d2e9a78938dd2de087cebadc5f8433edd"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_fine_queue.h",
+      "sha256": "dd34c20a0de033282e5f48f3e3a86d724d30745126c42bad125f755f88cdfcaf"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_adaptive_wrap.h",
+      "sha256": "e12eecdf4a90cf07cf29dab605c054a50c0a3f1bb59a170fc69f452bfb2a963e"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_scheduler_work.h",
+      "sha256": "15bba9331d268ea9a8fa75917923661b01084ca7a9eaa915df2f6d0ee3130be0"
     }
   ]
 }

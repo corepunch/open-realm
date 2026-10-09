@@ -114,4 +114,51 @@ TEST(wc3_e2e210, queued_orders_follow_arrival_combat_and_blocked_completion) {
         e2e_journey(wc3_movement_recovery197_blocked_completion_dispatches_saved_successor_fn);
     }
 }
+/* E2E-04.1 retains the labelled native wrap aliases: repair does not erase
+ * object stamps. Acceptance must not "fix" that historical retail behavior. */
+static void pathfinding_fine_lookup_epoch_wrap_and_reuse_fn(void);
+static void pathfinding_retained_fine_storage_matches_native_stamp_wrap_nodes_and_routes_fn(void);
+static void pathfinding_owned_adaptive_requests_reuse_all_lanes_sizes_and_partial_node_states_fn(void);
+static void wc3_fine_spatial_real_search_publishes_head_metadata_and_reuses_it_across_stamp_wrap_fn(void);
+static void wc3_fine_spatial_labelled_stamp_repair_retains_native_unlink_alias_fn(void);
+static void wc3_proximity_labelled_forced_stamp_repair_retains_native_aliases_fn(void);
+static void wc3_movement_scheduler_work_wrap_matches_original_charge_and_clean_admission_fn(void);
+static void wc3_movement_group_id_allocation_scales_with_requests_and_restores_reserved_ids_fn(void);
+static void wc3_movement_group_move_identity_survives_counter_wrap_and_unit_reuse_fn(void);
+static void wc3_movement_group_survivor_reorder_after_member_reuse_reaches_new_goal_fn(void);
+static void wc3_unit_releases_different_deadlines_and_unsigned_serial_wrap_choose_the_next_receiver_fn(void);
+static void wc3_unit_releases_cold_restore_after_wrap_keeps_rebased_release_and_borrowed_clock_fn(void);
+static void wc3_unit_releases_cancellation_preserves_heap_and_does_not_release_reused_slot_fn(void);
+static void wc3_waygate_allocation_and_exhaustion_survive_save_and_reject_duplicate_ownership_fn(void);
+static void wc3_waygate_exhausted_gate_stays_unallocated_until_ability_recreation_fn(void);
+
+TEST(wc3_e2e212, retained_search_storage_crosses_native_stamps_without_stale_nodes) {
+    FOR_LOOP(repeat,2) {
+        e2e_journey(pathfinding_fine_lookup_epoch_wrap_and_reuse_fn);
+        e2e_journey(pathfinding_retained_fine_storage_matches_native_stamp_wrap_nodes_and_routes_fn);
+        e2e_journey(pathfinding_owned_adaptive_requests_reuse_all_lanes_sizes_and_partial_node_states_fn);
+        e2e_journey(wc3_fine_spatial_real_search_publishes_head_metadata_and_reuses_it_across_stamp_wrap_fn);
+        e2e_journey(wc3_fine_spatial_labelled_stamp_repair_retains_native_unlink_alias_fn);
+        e2e_journey(wc3_proximity_labelled_forced_stamp_repair_retains_native_aliases_fn);
+    }
+}
+
+TEST(wc3_e2e212, wrapped_requests_and_reused_members_keep_live_successors) {
+    FOR_LOOP(repeat,2) {
+        e2e_journey(wc3_movement_scheduler_work_wrap_matches_original_charge_and_clean_admission_fn);
+        e2e_journey(wc3_movement_group_id_allocation_scales_with_requests_and_restores_reserved_ids_fn);
+        e2e_journey(wc3_movement_group_move_identity_survives_counter_wrap_and_unit_reuse_fn);
+        e2e_journey(wc3_movement_group_survivor_reorder_after_member_reuse_reaches_new_goal_fn);
+        e2e_journey(wc3_unit_releases_different_deadlines_and_unsigned_serial_wrap_choose_the_next_receiver_fn);
+        e2e_journey(wc3_unit_releases_cold_restore_after_wrap_keeps_rebased_release_and_borrowed_clock_fn);
+        e2e_journey(wc3_unit_releases_cancellation_preserves_heap_and_does_not_release_reused_slot_fn);
+    }
+}
+
+TEST(wc3_e2e212, exhausted_gate_ids_reuse_only_after_release_and_survive_cold_load) {
+    FOR_LOOP(repeat,2) {
+        e2e_journey(wc3_waygate_allocation_and_exhaustion_survive_save_and_reject_duplicate_ownership_fn);
+        e2e_journey(wc3_waygate_exhausted_gate_stays_unallocated_until_ability_recreation_fn);
+    }
+}
 #endif

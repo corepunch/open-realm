@@ -92,6 +92,7 @@
 #include "retail_e2e_routes203.h"
 
 static void (*movement_journey_pass)(unsigned pass);
+static void (*movement_journey_frame)(bool after);
 
 /* Older small movement tests drive one controlled owner interval directly.
  * Public point admission now owns a physical group, so its entity callback
@@ -13873,7 +13874,10 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
             }
             if(count)T_EQ(count,unit_count);
         }
-        trace.count=0;level.time+=5;globals.RunFrame();
+        trace.count=0;level.time+=5;
+        if(movement_journey_frame)movement_journey_frame(false);
+        globals.RunFrame();
+        if(movement_journey_frame)movement_journey_frame(true);
         if(gate_retry.mismatch || gate_repulse.mismatch)mismatch=true;
         if(jass_rterror_pending(level.vm)){fprintf(stderr,"%s JASS at%u: %s\n",name,level.time,jass_rterror_message(level.vm));mismatch=true;}
         FOR_LOOP(i,trace.count) {
@@ -13925,6 +13929,48 @@ TEST(wc3_movement, retail_gate_destroy_and_immediate_or_delayed_reuse_match_all_
         retail_gate96_same_script,times,sizeof(times)/sizeof(*times),"gate96-same",20500,1,NULL);
     public_gate_journey(retail_gate96_reuse_motion,sizeof(retail_gate96_reuse_motion)/sizeof(*retail_gate96_reuse_motion),
         retail_gate96_reuse_script,times,sizeof(times)/sizeof(*times),"gate96-reuse",20500,1,NULL);
+}
+
+/* Labelled state jumps compose already verified boundaries with unchanged
+ * complete retail Gate96 motion. They do not simulate seven hours of play. */
+static unsigned wrap212_jumps,wrap212_owner_resets,wrap212_query_repairs,wrap212_search_wraps;
+static uint32_t wrap212_before_counter;
+static uint16_t wrap212_before_search;
+static void wrap212_frame(bool after) {
+    if(!after) {
+        if(level.time==1000) {
+            level.pathing_counter=UINT32_MAX-1;
+            G_SetMoveFineSearchStamp(UINT16_MAX);
+            S_SetMoveProximityQuery(INT32_MAX+1u);
+            S_GetMoveFineSpatial()->query=INT32_MAX+1u;
+            wrap212_jumps++;
+        }
+        wrap212_before_counter=level.pathing_counter;
+        wrap212_before_search=G_GetMoveFineSearchStamp();
+    } else {
+        if(wrap212_before_counter==UINT32_MAX && level.pathing_counter!=UINT32_MAX) {
+            T_EQ(level.pathing_counter,BZ_WC3_PATH_OWNER_START);wrap212_owner_resets++;
+        }
+        if(level.time==1200) {
+            T_ASSERT(S_GetMoveProximityQuery()<INT32_MAX);
+            T_ASSERT(S_GetMoveFineSpatial()->query<INT32_MAX);wrap212_query_repairs++;
+        }
+        if(wrap212_before_search==UINT16_MAX && G_GetMoveFineSearchStamp()!=UINT16_MAX) {
+            T_EQ(G_GetMoveFineSearchStamp(),0);wrap212_search_wraps++;
+        }
+    }
+}
+TEST(wc3_e2e212, active_gate_routes_cross_stamps_and_counter_then_reuse_saved_owners) {
+    FOR_LOOP(repeat,2) {
+        wrap212_jumps=wrap212_owner_resets=wrap212_query_repairs=wrap212_search_wraps=0;
+        movement_journey_frame=wrap212_frame;
+        e2e_journey(wc3_movement_retail_gate_destroy_and_immediate_or_delayed_reuse_match_all_motion_fn);
+        movement_journey_frame=NULL;
+        /* Initial run and the495/510ms snapshots cross the jump in both
+         * same-callback and delayed gate reuse. Later snapshots resume it. */
+        T_EQ(wrap212_jumps,6u);T_EQ(wrap212_owner_resets,6u);
+        T_EQ(wrap212_query_repairs,6u);T_EQ(wrap212_search_wraps,6u);
+    }
 }
 
 #include "retail_gate_exit.h"

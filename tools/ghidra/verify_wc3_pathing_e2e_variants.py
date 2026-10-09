@@ -40,8 +40,15 @@ def verify(a, validator=validate, categories=CATEGORIES, prefix='wc3_e2e205'):
         raise ValueError('retail executable/CRT differs')
     work = a.report.with_suffix('.work')
     work.mkdir(parents=True, exist_ok=False)
+    adapter = work / 'pathing-engine.so'
+    kernel = None
+    if any('{engine}' in entry['command'] for entry in entries):
+        command = ['cc', '-DBZ_WC3_FINE_TRACE', '-O2', '-shared', '-fPIC', '-I', str(ROOT),
+                   str(ROOT / 'tools/ghidra/wc3_pathing_engine_probe.c'), '-o', str(adapter), '-lm']
+        subprocess.run(command, cwd=ROOT, check=True)
+        kernel = dict(command=command, sha256=digest(adapter))
     context = dict(python=sys.executable, binary=a.binary.resolve(), archive=a.archive.resolve(),
-                   output=work, timeout=900)
+                   output=work, timeout=900, engine=adapter)
     original = []
     for entry in entries:
         result = run_entry(entry, context, manifest['target'])
@@ -70,7 +77,7 @@ def verify(a, validator=validate, categories=CATEGORIES, prefix='wc3_e2e205'):
         editions[edition] = dict(assertions=count, command=command, log_sha256=digest(log), junit_sha256=digest(junit))
         print(edition + ': complete fresh/save journeys repeated twice', flush=True)
     return dict(passed=True, binary_sha256=spec['build']['game_sha256'], crt_sha256=spec['build']['crt_sha256'],
-                task=spec['task'], categories=case_count, retail_contracts=len(entries), engine_repeats_per_edition=2,
+                task=spec['task'], categories=case_count, retail_contracts=len(entries), kernel_adapter=kernel, engine_repeats_per_edition=2,
                 engine_editions=2, original=original, engine=editions, fixture_sha256=digest(a.fixture),
                 test_binary_sha256=digest(a.test_binary),
                 game_library_sha256=digest(a.test_binary.parent.parent / 'lib/libgame-wc3-test.so'),

@@ -55,7 +55,11 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**274 done / 336 tasks; 62 remaining.**
+**275 done / 336 tasks; 61 remaining.**
+
+Payoff212 closes E2E-04.1: active gate motion crosses verified counter/stamp
+boundaries with exact saved suffixes; repeated storage, member/release and gate-ID
+reuse preserve the original contracts. See [wrap and reuse acceptance](retail-pathfinding-e2e-baselines.md#active-movement-across-wrap-and-reuse-boundaries-payoff212).
 
 Payoff210 closes E2E-01.3: contention, cancellation, completion/release and queued
 successors run together against unchanged retail contracts and saved engine
@@ -1489,7 +1493,7 @@ Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and n
 
 ### E2E-04 — Long-run composition
 
-- [ ] **E2E-04.1** Compose verified stamp/counter/handle/gate-ID wrap and reuse cases into repeated movement; assert no stale ownership or changed route policy.
+- [x] **E2E-04.1** Compose verified stamp/counter/handle/gate-ID wrap and reuse cases into repeated movement; assert no stale ownership or changed route policy. [Payoff212](retail-pathfinding-e2e-baselines.md#active-movement-across-wrap-and-reuse-boundaries-payoff212) composes four actual-game categories twice per Classic/TFT, with ten unchanged original contracts revalidated fresh. Active Gate96 counter/stamp jumps preserve every motion word and ten saved continuations per journey; retained search storage, group/edict/release ownership and exhausted gate IDs preserve their verified policies. Native stamp aliases remain explicit; forced jumps are not claimed as natural gameplay.
 - [ ] **E2E-04.2** Compose reload/save-load, callback removal and pool pressure cases with active orders; assert final idle state and uninterrupted-control differences.
 
 ### E2E-05 — Unknowns audit
