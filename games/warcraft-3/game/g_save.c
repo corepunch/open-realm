@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format148 retains invalid completed member rows until owner preparation. */
-static uint32_t const save_version = 148;
+/* Format149 retains bounded variable-capacity queued-order rings. */
+static uint32_t const save_version = 149;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -831,16 +831,6 @@ static field_t const repulse_fields[] = {
     TF(struct edictRepulse_s, state.packed, F_INT),
     TF(struct edictRepulse_s, next, F_EDICT, 0, FIELD_NONE),
     TF(struct edictRepulse_s, active, F_INT),
-    { NULL, 0, 0, 0, 0, 0 }
-};
-
-static field_t const queued_order_fields[] = {
-    TF(unitOrder_t, owner_context, F_INT),
-    { NULL, 0, 0, 0, 0, 0 }
-};
-
-static field_t const unit_order_storage_fields[] = {
-    TF(unitOrderStorage_t, entries, F_STRUCT, UNIT_ORDER_STORAGE_CAPACITY, queued_order_fields),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -2651,13 +2641,19 @@ static bool ReadUnitAnimationText(FILE *f, edict_t *ent) {
     return true;
 }
 
+static bool ValidUnitOrderBounds(unitOrderQueue_t const *queue) {
+    if(!queue->capacity)return !queue->head && !queue->count;
+    return queue->capacity>=UNIT_ORDER_INITIAL_CAPACITY &&
+        queue->capacity<=UNIT_ORDER_STORAGE_CAPACITY &&
+        queue->head<queue->capacity && queue->count<=queue->capacity;
+}
+
 static bool WriteEdict(FILE *f, edict_t const *ent) {
     edict_t temp = *ent;
     field_t const *field;
 
-    if (ent->order_queue.head >= UNIT_ORDER_STORAGE_CAPACITY ||
-        ent->order_queue.count > UNIT_ORDER_STORAGE_CAPACITY ||
-        (ent->order_queue.count && !ent->order_queue.entries)) {
+    if (!ValidUnitOrderBounds(&ent->order_queue) ||
+        (ent->order_queue.capacity && !ent->order_queue.entries)) {
         fprintf(stderr, "WC3 SaveGame: invalid order queue on edict %u\n", ent->s.number);
         return false;
     }
@@ -2830,8 +2826,7 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
 
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
     ClearRuntimeFields(ent, edict_fields, FIELD_RUNTIME);
-    if (ent->order_queue.head >= UNIT_ORDER_STORAGE_CAPACITY ||
-        ent->order_queue.count > UNIT_ORDER_STORAGE_CAPACITY) {
+    if (!ValidUnitOrderBounds(&ent->order_queue)) {
         fprintf(stderr, "WC3 LoadGame: invalid order queue bounds on edict %u\n", ent->s.number);
         return false;
     }
@@ -2921,7 +2916,7 @@ static savePool_t const save_pools[] = {
     { "rally", offsetof(edict_t, rally), sizeof(rally_t), rally_fields, SaveAllocRally },
     { "food", offsetof(edict_t, food), sizeof(food_t), scalar_pool_fields, SaveAllocFood },
     { "abilstatus", offsetof(edict_t, abilstatus), sizeof(unitStatusStorage_t), unit_status_fields, SaveAllocUnitStatus },
-    { "order_queue", offsetof(edict_t, order_queue.entries), sizeof(unitOrderStorage_t), unit_order_storage_fields, SaveAllocUnitOrders },
+    { "order_queue", offsetof(edict_t, order_queue.entries), sizeof(unitOrderStorage_t), scalar_pool_fields, SaveAllocUnitOrders },
     { "buildwork", offsetof(edict_t, buildwork), sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork },
     { "revival", offsetof(edict_t, revival), sizeof(revival_t), revival_fields, SaveAllocRevival },
     { "sacrifice", offsetof(edict_t, sacrifice), sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice },
@@ -2964,6 +2959,14 @@ static bool WritePool(FILE *f, savePool_t const *pool) {
         void *slot = SavePoolSlot(g_edicts + i, pool);
         uint32_t index = i;
         if (!ok || !g_edicts[i].inuse || !slot) continue;
+        /* Commands contain scalar values and incarnation keys only. Large
+         * rings serialize their bounded current allocation, never pointers. */
+        if(pool->offset==offsetof(edict_t,order_queue.entries)) {
+            uint32_t capacity=g_edicts[i].order_queue.capacity;
+            size_t size=(capacity ? capacity : UNIT_ORDER_INITIAL_CAPACITY)*sizeof(unitOrder_t);
+            ok=SaveBytes(f,&index,sizeof(index)) && SaveBytes(f,slot,size);
+            continue;
+        }
         memcpy(temp, slot, pool->size);
         ClearRuntimeFields(temp, pool->fields, FIELD_RUNTIME);
         for (field_t const *field = pool->fields; ok && field->name; field++)
@@ -2981,9 +2984,14 @@ static bool ReadPool(FILE *f, savePool_t const *pool) {
         uint32_t index;
         if (!LoadBytes(f, &index, sizeof(index)) || index >= globals.num_edicts ||
             !g_edicts[index].inuse || SavePoolSlot(g_edicts + index, pool)) return false;
-        void *slot = pool->alloc();
+        size_t size=pool->size;
+        bool orders=pool->offset==offsetof(edict_t,order_queue.entries);
+        uint32_t capacity=orders ? g_edicts[index].order_queue.capacity : 0;
+        if(orders)size=(capacity ? capacity : UNIT_ORDER_INITIAL_CAPACITY)*sizeof(unitOrder_t);
+        void *slot=capacity>UNIT_ORDER_INITIAL_CAPACITY ? calloc(1,size) : pool->alloc();
+        if(!slot)return false;
         memcpy((uint8_t *)(g_edicts + index) + pool->offset, &slot, sizeof(slot));
-        if (!LoadBytes(f, slot, pool->size)) return false;
+        if (!LoadBytes(f, slot, size)) return false;
         ClearRuntimeFields(slot, pool->fields, FIELD_RUNTIME);
         for (field_t const *field = pool->fields; field->name; field++)
             if (!ReadField(field, slot)) return false;
@@ -3235,6 +3243,12 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
+    FILTER_EDICTS(unit,unit->inuse && unit->order_queue.capacity) {
+        if(!unit->order_queue.entries) {
+            fprintf(stderr,"WC3 LoadGame: missing order queue on edict %u\n",unit->s.number);
+            fclose(f);return false;
+        }
+    }
     if (!G_ReadCaptainState(f)) { fprintf(stderr,"WC3 LoadGame: failed at logical Captain state\n"); fclose(f); return false; }
     if (!S_ReadTimedLives(f)) { fprintf(stderr,"WC3 LoadGame: failed at timed-life records\n"); fclose(f); return false; }
     if (!S_RestoreMoveRepulsors()) { fprintf(stderr,"WC3 LoadGame: invalid repulsor owner links\n"); fclose(f); return false; }
@@ -3978,7 +3992,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
+    uint32_t const old_versions[] = { 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));
@@ -4013,6 +4027,33 @@ TEST(wc3_save, cargo_unload_rejects_unallocated_goal_index) {
     rewind(f);
     T_ASSERT(!ReadEdict(f, &restored));
     fclose(f);
+}
+
+TEST(wc3_save, queue198_rejects_invalid_capacity_count_and_head) {
+    reset_entities();setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    T_ASSERT(G_QueueUnitOrder(unit,"move",UNIT_ORDER_TARGET_POINT,&(vec2_t){200,100},NULL,0,0,0));
+    unitOrderQueue_t valid=unit->order_queue;
+    FOR_LOOP(i,6) {
+        unit->order_queue=valid;
+        if(i==0)unit->order_queue.capacity=UINT32_MAX;
+        if(i==1)unit->order_queue.capacity=UNIT_ORDER_INITIAL_CAPACITY-1;
+        if(i==2)unit->order_queue.capacity=0;
+        if(i==3)unit->order_queue.count=valid.capacity+1;
+        if(i==4)unit->order_queue.head=valid.capacity;
+        if(i==5)unit->order_queue.entries=NULL;
+        FILE *file=tmpfile();T_NOT_NULL(file);if(!file)continue;
+        T_ASSERT(!WriteEdict(file,unit));
+        if(i<5) {
+            T_ASSERT(SaveBytes(file,unit,sizeof(*unit)));rewind(file);
+            edict_t restored;
+            T_ASSERT(!ReadEdict(file,&restored));
+            T_NULL(restored.order_queue.entries);
+        }
+        fclose(file);
+    }
+    unit->order_queue=valid;
+    G_ClearUnitOrderQueue(unit);reset_entities();setup_test_world();
 }
 
 TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {

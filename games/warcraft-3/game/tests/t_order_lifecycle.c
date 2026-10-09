@@ -61,13 +61,14 @@ static edict_t *review_order_unit(float x, uint32_t owner) {
 }
 
 TEST(wc3_order_lifecycle, unused_queue_is_sparse_and_wrapped_entries_survive_save) {
+    unsigned const pending_limit=MAX_UNIT_ORDER_QUEUE+1; /* No executing user head. */
     cstring_t file = Test_TempPath("wc3-sparse-order-ring.bin");
     reset_entities(); setup_test_world();
     edict_t *unit = review_order_unit(0, 0);
     T_NULL(unit->order_queue.entries);
     G_ClearUnitOrderQueue(unit);
     T_NULL(unit->order_queue.entries);
-    FOR_LOOP(i, MAX_UNIT_ORDER_QUEUE) {
+    FOR_LOOP(i, pending_limit) {
         vec2_t point = { (float)i, -(float)i };
         T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE,
                                  &point, NULL, 0, 0, i));
@@ -76,7 +77,7 @@ TEST(wc3_order_lifecycle, unused_queue_is_sparse_and_wrapped_entries_survive_sav
     T_NOT_NULL(storage);
     T_ASSERT(!G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0, 100));
     T_ASSERT(G_UnitStartNextQueuedOrder(unit));
-    T_EQ(unit->order_queue.head, 1); T_EQ(unit->order_queue.count, MAX_UNIT_ORDER_QUEUE - 1);
+    T_EQ(unit->order_queue.head, 1); T_EQ(unit->order_queue.count, pending_limit - 1);
     vec2_t last = { 900, 800 };
     T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, &last, NULL, 3, 7, 999));
     T_ASSERT(WriteGame(file));
@@ -84,12 +85,12 @@ TEST(wc3_order_lifecycle, unused_queue_is_sparse_and_wrapped_entries_survive_sav
     T_NULL(unit->order_queue.entries);
     T_EQ(unit->order_queue.count, 0);
     T_ASSERT(ReadGame(file));
-    T_EQ(unit->order_queue.head, 1); T_EQ(unit->order_queue.count, MAX_UNIT_ORDER_QUEUE);
-    FOR_LOOP(i, MAX_UNIT_ORDER_QUEUE) {
+    T_EQ(unit->order_queue.head, 1); T_EQ(unit->order_queue.count, pending_limit);
+    FOR_LOOP(i, pending_limit) {
         unitOrder_t const *entry = unit->order_queue.entries + unit->order_queue.head;
-        T_EQ(entry->order_id, i == MAX_UNIT_ORDER_QUEUE - 1 ? 999 : i + 1);
+        T_EQ(entry->order_id, i == pending_limit - 1 ? 999 : i + 1);
         T_STREQ(entry->order, "holdposition");
-        T_FEQ(entry->point.x, i == MAX_UNIT_ORDER_QUEUE - 1 ? 900 : i + 1, 0);
+        T_FEQ(entry->point.x, i == pending_limit - 1 ? 900 : i + 1, 0);
         T_ASSERT(G_UnitStartNextQueuedOrder(unit));
     }
     T_EQ(unit->order_queue.head, 0); T_EQ(unit->order_queue.count, 0);
@@ -101,6 +102,113 @@ TEST(wc3_order_lifecycle, unused_queue_is_sparse_and_wrapped_entries_survive_sav
     T_NULL(unit->order_queue.entries);
     remove(file);
     reset_entities(); setup_test_world();
+}
+
+/* Retail693490 admits user_count <501. One active Move leaves500 pending
+ * commands; the next Shift must preserve the current head and the full FIFO. */
+TEST(wc3_order_lifecycle, queue198_retail_ceiling_and_saved_successors) {
+    reset_entities(); setup_test_world();
+    edict_t *unit=review_order_unit(0,0);
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){800,0},false,0,0));
+    unsigned accepted=0;
+    FOR_LOOP(i,500) accepted+=G_IssueUnitPointOrder(unit,"move",&(vec2_t){(float)i,64},true,0,0);
+    T_EQ(accepted,500);T_EQ(unit->order_queue.count,500);
+    if(accepted!=500) {G_ClearUnitOrderQueue(unit);reset_entities();setup_test_world();return;}
+    umove_t const *active=unit->currentmove;
+    T_ASSERT(!G_IssueUnitPointOrder(unit,"move",&(vec2_t){900,64},true,0,0));
+    T_ASSERT(unit->currentmove==active);T_EQ(unit->order_queue.count,500);
+    uint32_t number=unit->s.number;
+    cstring_t file=Test_TempPath("wc3-queue198.bin");
+    T_ASSERT(WriteGame(file));
+    G_ClearUnitOrderQueue(unit);T_NULL(unit->order_queue.entries);
+    T_ASSERT(ReadGame(file));unit=g_edicts+number;
+    T_EQ(unit->order_queue.count,500);
+    FOR_LOOP(i,500) {
+        unitOrder_t const *entry=unit->order_queue.entries+unit->order_queue.head;
+        T_STREQ(entry->order,"move");T_FEQ(entry->point.x,i,0);T_FEQ(entry->point.y,64,0);
+        T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    }
+    T_EQ(unit->order_queue.count,0);T_NULL(unit->order_queue.entries);
+    remove(file);reset_entities();setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, queue198_wrapped_growth_preserves_commands_and_reset_releases_storage) {
+    reset_entities();setup_test_world();
+    edict_t *unit=review_order_unit(0,0);
+    FOR_LOOP(i,17) T_ASSERT(G_QueueUnitOrder(unit,"holdposition",UNIT_ORDER_TARGET_NONE,
+        &(vec2_t){i,-(float)i},NULL,0,0,i));
+    FOR_LOOP(i,8) T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    FOR_LOOP(i,8) T_ASSERT(G_QueueUnitOrder(unit,"holdposition",UNIT_ORDER_TARGET_NONE,
+        &(vec2_t){i+17,-(float)(i+17)},NULL,0,0,i+17));
+    T_EQ(unit->order_queue.head,8);T_EQ(unit->order_queue.count,17);
+    T_EQ(unit->order_queue.capacity,UNIT_ORDER_INITIAL_CAPACITY);
+    T_ASSERT(G_QueueUnitOrder(unit,"holdposition",UNIT_ORDER_TARGET_NONE,
+        &(vec2_t){25,-25},NULL,0,0,25));
+    T_ASSERT(unit->order_queue.capacity>UNIT_ORDER_INITIAL_CAPACITY);
+    FOR_LOOP(i,3) T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    cstring_t file=Test_TempPath("wc3-queue198-wrapped.bin");
+    uint32_t number=unit->s.number;
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));unit=g_edicts+number;
+    T_EQ(unit->order_queue.count,15);
+    FOR_LOOP(i,15) {
+        unitOrder_t const *order=unit->order_queue.entries+unit->order_queue.head;
+        T_EQ(order->order_id,i+11);T_FEQ(order->point.x,i+11,0);T_FEQ(order->point.y,-(float)(i+11),0);
+        T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    }
+    T_NULL(unit->order_queue.entries);T_EQ(unit->order_queue.capacity,0);
+    FOR_LOOP(i,40) T_ASSERT(G_QueueUnitOrder(unit,"holdposition",UNIT_ORDER_TARGET_NONE,NULL,NULL,0,0,i));
+    G_PoolsReset();T_NULL(unit->order_queue.entries);T_EQ(unit->order_queue.capacity,0);
+    T_EQ(unit->order_queue.head,0);T_EQ(unit->order_queue.count,0);
+    remove(file);reset_entities();setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, queue198_suspended_user_head_counts_toward_501) {
+    reset_entities();setup_test_world();
+    edict_t *unit=review_order_unit(0,0);
+    G_DeferFreeEdict(unit);T_ASSERT(G_IsDeferredFree(unit));
+    unsigned accepted=0;
+    FOR_LOOP(i,501)accepted+=G_IssueUnitPointOrder(unit,"move",&(vec2_t){200+i,64},true,0,0);
+    T_EQ(accepted,501);T_EQ(unit->order_queue.count,501);
+    T_ASSERT(!G_IssueUnitPointOrder(unit,"move",&(vec2_t){900,64},true,0,0));
+    T_EQ(unit->current_order_id,G_OrderId("move"));
+    G_TestFinishDeferredFrees();T_ASSERT(!unit->inuse);T_NULL(unit->order_queue.entries);
+    reset_entities();setup_test_world();
+}
+
+static abilityProc_t queue198_move_proc;
+static edict_t *queue198_other;
+static bool queue198_growth_seen;
+static intptr_t queue198_cancel_grows_ring(edict_t *unit,abilityMsg_t msg,abilityCall_t const *call) {
+    if(msg==A_QUEUE_ORDER_CANCEL && !queue198_growth_seen) {
+        queue198_growth_seen=true;
+        uint32_t id=call->queued_order->order_id;
+        vec2_t point=call->queued_order->point;
+        T_ASSERT(G_QueueUnitOrder(unit,"move",UNIT_ORDER_TARGET_POINT,&(vec2_t){300,400},NULL,0,0,999));
+        /* Growth returns the short bucket; this unit immediately reuses it.
+         * The cancel handler still owns its original command through unwind. */
+        T_ASSERT(G_QueueUnitOrder(queue198_other,"holdposition",UNIT_ORDER_TARGET_NONE,NULL,NULL,0,0,555));
+        T_EQ(call->queued_order->order_id,id);
+        T_STREQ(call->queued_order->order,"move");
+        T_FEQ(call->queued_order->point.x,point.x,0);T_FEQ(call->queued_order->point.y,point.y,0);
+    }
+    return queue198_move_proc(unit,msg,call);
+}
+
+TEST(wc3_order_lifecycle, queue198_cancel_payload_survives_ring_growth_and_bucket_reuse) {
+    reset_entities();setup_test_world();
+    edict_t *unit=review_order_unit(0,0);
+    queue198_other=review_order_unit(32,0);
+    FOR_LOOP(i,17)T_ASSERT(G_QueueUnitOrder(unit,"move",UNIT_ORDER_TARGET_POINT,
+        &(vec2_t){100+i,64},NULL,0,0,i+101));
+    ability_t const *move=FindAbilityByClassname("Amov");T_NOT_NULL(move);if(!move)return;
+    queue198_move_proc=move->proc;queue198_growth_seen=false;
+    S_ReplaceAbilityProcedure(move,queue198_cancel_grows_ring);
+    G_ClearUnitOrderQueue(unit);
+    S_ReplaceAbilityProcedure(move,queue198_move_proc);
+    T_ASSERT(queue198_growth_seen);T_NULL(unit->order_queue.entries);
+    T_EQ(queue198_other->order_queue.count,1);
+    G_ClearUnitOrderQueue(queue198_other);queue198_other=NULL;
+    reset_entities();setup_test_world();
 }
 
 /* Cold allocation, ordered cancellation and final dispatch must return storage

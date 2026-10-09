@@ -1581,6 +1581,10 @@ bool S_UnitQueuedOrderEvent(edict_t *ent, unitOrder_t const *queued, abilityMsg_
     abilityCall_t call;
 
     if (!ent || !queued || (msg != A_QUEUE_ORDER_START && msg != A_QUEUE_ORDER_CANCEL)) return false;
+    /*673e80 retains the order through event delivery, releasing it afterward.
+     * Queue growth or nested creation may recycle its old ring allocation. */
+    unitOrder_t retained=*queued;
+    queued=&retained;
     ability = FindAbilityByOrder(queued->order);
     if (!ability || !ability->proc) return false;
     item = MAKE(abilityitem_t, .code = queued->order_id, .ability = ability);

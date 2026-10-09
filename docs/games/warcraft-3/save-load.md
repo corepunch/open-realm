@@ -1,5 +1,11 @@
 # Warcraft III Save/Load
 
+Save149 retains bounded variable-capacity queued-order rings. Capacity, head and
+count are scalar edict state; the sparse stream writes the allocated scalar
+entries and rebuilds its process pointer. Invalid bounds and missing backing
+records are rejected; Save148 and older layouts are incompatible. See
+[queued-order storage](retail-pathfinding-engine.md#queued-orders-grow-to-the-retail-admission-bound-payoff198).
+
 Save145 excludes the synchronous Blink target-loss validation window from saved
 edicts, including saves initiated during notification callbacks. The live bit
 remains unchanged while writing; loaded units use ordinary target validation.
@@ -52,7 +58,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 148, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 149, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;

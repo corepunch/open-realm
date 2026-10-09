@@ -5975,7 +5975,7 @@ static edict_t *building_queued_build_preview(edict_t *worker, uint32_t queue_of
     uint32_t slot;
 
     if (!worker || queue_offset >= worker->order_queue.count) return NULL;
-    slot = (worker->order_queue.head + queue_offset) % UNIT_ORDER_STORAGE_CAPACITY;
+    slot = (worker->order_queue.head + queue_offset) % worker->order_queue.capacity;
     queued = &worker->order_queue.entries[slot];
     if (queued->target_type != UNIT_ORDER_TARGET_BUILD || !queued->target_number ||
         queued->target_number >= globals.num_edicts) {

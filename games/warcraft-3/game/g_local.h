@@ -763,10 +763,11 @@ struct client_s {
 /* Player-issued WC3 Shift orders are simulation state, separate from the
  * training/research queue. Targets are retained by edict number + spawn_time
  * so a recycled slot cannot silently retarget an old queued command. */
-#define MAX_UNIT_ORDER_QUEUE 16
+#define MAX_UNIT_ORDER_QUEUE 500 /*693490:501 user heads including the active order. */
 /* One reserved slot lets an active looping order append its continuation
  * before retiring its head, even when every user FIFO slot is occupied. */
 #define UNIT_ORDER_STORAGE_CAPACITY (MAX_UNIT_ORDER_QUEUE + 1)
+#define UNIT_ORDER_INITIAL_CAPACITY 17 /* Small queues retain their existing pooled bucket. */
 #define UNIT_ORDER_NAME_SIZE 20 // bytes; fits the 17-byte longest stock order name plus NUL; bounds queued order strings
 
 /* Retail command identities: issued Patrol becomes a two-endpoint order on
@@ -800,13 +801,14 @@ typedef struct {
 } unitOrder_t;
 
 typedef struct {
-    unitOrder_t entries[UNIT_ORDER_STORAGE_CAPACITY];
+    unitOrder_t entries[UNIT_ORDER_INITIAL_CAPACITY];
 } unitOrderStorage_t;
 
 typedef struct {
-    unitOrder_t *entries; /* stable while queued; return storage after the final command releases it */
+    unitOrder_t *entries; /* owned ring; growth can relocate entries before callbacks */
     uint32_t head;
     uint32_t count;
+    uint32_t capacity;
 } unitOrderQueue_t;
 
 typedef enum {
@@ -4449,6 +4451,7 @@ void G_FreeUnitStatus(edict_t *ent);
 unitStatusStorage_t *G_AllocUnitStatus(void);
 void G_FreeUnitOrders(edict_t *ent);
 unitOrderStorage_t *G_AllocUnitOrders(void);
+bool G_ReserveUnitOrders(edict_t *ent, uint32_t capacity);
 void G_FreeBuildwork(edict_t *ent);
 buildwork_t *G_AllocBuildwork(void);
 void G_FreeRevival(edict_t *ent);

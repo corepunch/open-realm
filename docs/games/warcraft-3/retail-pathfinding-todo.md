@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **266 done / 336 tasks; 70 remaining.**
 
+Payoff198 advances ORDER-02.2/02.3 and GROUP-04.6: replace the sixteen-pending
+order cap with the verified retail501-head bound and geometrically growing
+sparse rings. FIFO/save/wrapped-growth/reset regressions preserve ownership;
+the bounded original append oracle retains exact admission and publication.
+The wider queue-control tasks stay open. See [queue capacity](retail-pathfinding-engine.md#queued-orders-grow-to-the-retail-admission-bound-payoff198).
+
 Payoff197 closes ORDER-01.3 with complete blocked recovery and genuine Shift
 successor dispatch. Repeated retail task/FIFO cleanup and an unhooked control
 agree; Move exit clears stale retry/wait state, with failing-first saved

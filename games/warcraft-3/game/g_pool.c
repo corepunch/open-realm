@@ -64,8 +64,46 @@ DEFINE_POOL_OWNER_CALLBACKS(attack_two, ent->attack_overrides[1], AttackTwo, uni
 /* Plain units carry no status storage. Records retain their original slot
  * identities until edict release, including synchronous inverse callbacks. */
 DEFINE_POOL(abilstatus, UnitStatus, unitStatusStorage_t, MAX_ENTITIES)
-DEFINE_POOL_OWNER_CALLBACKS(orders, ent->order_queue.entries, UnitOrders, unitOrderStorage_t, MAX_ENTITIES,
+DEFINE_POOL_OWNER_CALLBACKS(orders, ent->order_queue.entries, UnitOrdersInline, unitOrderStorage_t, MAX_ENTITIES,
     (void)0, ent->order_queue.head = ent->order_queue.count = 0)
+/* Large FIFOs grow geometrically. Most units never allocate a queue, and
+ * ordinary short queues use the original LIFO pool. No maximum-sized bucket
+ * is charged to every unit merely because the retail admission bound is501. */
+unitOrderStorage_t *G_AllocUnitOrders(void) { return G_AllocUnitOrdersInline(); }
+
+void G_FreeUnitOrders(edict_t *ent) {
+    unitOrderQueue_t *queue=&ent->order_queue;
+    if(queue->entries) {
+        if(queue->capacity>UNIT_ORDER_INITIAL_CAPACITY) free(queue->entries);
+        else G_FreeUnitOrdersInline(ent);
+    }
+    *queue=(unitOrderQueue_t){0};
+}
+
+bool G_ReserveUnitOrders(edict_t *ent,uint32_t required) {
+    unitOrderQueue_t *queue=&ent->order_queue;
+    if(required>UNIT_ORDER_STORAGE_CAPACITY)return false;
+    if(queue->entries && !queue->capacity)queue->capacity=UNIT_ORDER_INITIAL_CAPACITY;
+    if(queue->entries && required<=queue->capacity)return true;
+    if(!queue->entries && required<=UNIT_ORDER_INITIAL_CAPACITY) {
+        queue->entries=G_AllocUnitOrders()->entries;
+        queue->capacity=UNIT_ORDER_INITIAL_CAPACITY;return true;
+    }
+    uint32_t capacity=queue->capacity ? queue->capacity : UNIT_ORDER_INITIAL_CAPACITY;
+    while(capacity<required)capacity=MIN(capacity*2,UNIT_ORDER_STORAGE_CAPACITY);
+    unitOrder_t *entries=calloc(capacity,sizeof(*entries));
+    if(!entries) {gi.error("Unit order queue: cannot allocate %u entries",capacity);abort();}
+    if(queue->count) {
+        uint32_t first=MIN(queue->count,queue->capacity-queue->head);
+        memcpy(entries,queue->entries+queue->head,first*sizeof(*entries));
+        memcpy(entries+first,queue->entries,(queue->count-first)*sizeof(*entries));
+    }
+    uint32_t count=queue->count;
+    G_FreeUnitOrders(ent);
+    *queue=(unitOrderQueue_t){.entries=entries,.count=count,.capacity=capacity};
+    return true;
+}
+
 DEFINE_POOL(buildwork, Buildwork, buildwork_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(revival, Revival, revival_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(sacrifice, Sacrifice, sacrifice_t, LIFECYCLE_POOL_CAP)
@@ -143,7 +181,7 @@ void G_PoolsReset(void) {
             g_edicts[i].food = NULL;
             memset(g_edicts[i].attack_overrides, 0, sizeof(g_edicts[i].attack_overrides));
             g_edicts[i].abilstatus = NULL;
-            g_edicts[i].order_queue.entries = NULL;
+            G_FreeUnitOrders(g_edicts+i);
             g_edicts[i].buildwork = NULL;
             g_edicts[i].revival = NULL;
             g_edicts[i].sacrifice = NULL;
@@ -176,7 +214,7 @@ void G_PoolsReset(void) {
     G_ResetAttackOnePool();
     G_ResetAttackTwoPool();
     G_ResetUnitStatusPool();
-    G_ResetUnitOrdersPool();
+    G_ResetUnitOrdersInlinePool();
     G_ResetBuildworkPool();
     G_ResetRevivalPool();
     G_ResetSacrificePool();

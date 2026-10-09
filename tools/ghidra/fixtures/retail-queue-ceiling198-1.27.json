@@ -1,0 +1,588 @@
+{
+  "passed": true,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "case_count": 24,
+  "cases": [
+    {
+      "count": 0,
+      "flags": 0,
+      "final_count": 1,
+      "head": [
+        700,
+        800
+      ],
+      "tail": [
+        700,
+        800
+      ],
+      "previous_next": null,
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": [
+        [
+          852645,
+          [
+            700,
+            800
+          ]
+        ]
+      ]
+    },
+    {
+      "count": 0,
+      "flags": 256,
+      "final_count": 0,
+      "head": [
+        4294967295,
+        4294967295
+      ],
+      "tail": [
+        4294967295,
+        4294967295
+      ],
+      "previous_next": null,
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 1,
+      "flags": 0,
+      "final_count": 2,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        700,
+        800
+      ],
+      "previous_next": [
+        700,
+        800
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": [
+        [
+          852645,
+          [
+            700,
+            800
+          ]
+        ]
+      ]
+    },
+    {
+      "count": 1,
+      "flags": 256,
+      "final_count": 1,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        0,
+        100
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 499,
+      "flags": 0,
+      "final_count": 500,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        700,
+        800
+      ],
+      "previous_next": [
+        700,
+        800
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": [
+        [
+          852645,
+          [
+            700,
+            800
+          ]
+        ]
+      ]
+    },
+    {
+      "count": 499,
+      "flags": 256,
+      "final_count": 499,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        498,
+        598
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 500,
+      "flags": 0,
+      "final_count": 501,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        700,
+        800
+      ],
+      "previous_next": [
+        700,
+        800
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": [
+        [
+          852645,
+          [
+            700,
+            800
+          ]
+        ]
+      ]
+    },
+    {
+      "count": 500,
+      "flags": 256,
+      "final_count": 500,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        499,
+        599
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 501,
+      "flags": 0,
+      "final_count": 501,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        500,
+        600
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 501,
+      "flags": 256,
+      "final_count": 501,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        500,
+        600
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 502,
+      "flags": 0,
+      "final_count": 502,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        501,
+        601
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 502,
+      "flags": 256,
+      "final_count": 502,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        501,
+        601
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 0,
+      "flags": 0,
+      "final_count": 1,
+      "head": [
+        700,
+        800
+      ],
+      "tail": [
+        700,
+        800
+      ],
+      "previous_next": null,
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": [
+        [
+          852645,
+          [
+            700,
+            800
+          ]
+        ]
+      ]
+    },
+    {
+      "count": 0,
+      "flags": 256,
+      "final_count": 0,
+      "head": [
+        4294967295,
+        4294967295
+      ],
+      "tail": [
+        4294967295,
+        4294967295
+      ],
+      "previous_next": null,
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 1,
+      "flags": 0,
+      "final_count": 2,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        700,
+        800
+      ],
+      "previous_next": [
+        700,
+        800
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": [
+        [
+          852645,
+          [
+            700,
+            800
+          ]
+        ]
+      ]
+    },
+    {
+      "count": 1,
+      "flags": 256,
+      "final_count": 1,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        0,
+        100
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 499,
+      "flags": 0,
+      "final_count": 500,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        700,
+        800
+      ],
+      "previous_next": [
+        700,
+        800
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": [
+        [
+          852645,
+          [
+            700,
+            800
+          ]
+        ]
+      ]
+    },
+    {
+      "count": 499,
+      "flags": 256,
+      "final_count": 499,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        498,
+        598
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 500,
+      "flags": 0,
+      "final_count": 501,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        700,
+        800
+      ],
+      "previous_next": [
+        700,
+        800
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": [
+        [
+          852645,
+          [
+            700,
+            800
+          ]
+        ]
+      ]
+    },
+    {
+      "count": 500,
+      "flags": 256,
+      "final_count": 500,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        499,
+        599
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 501,
+      "flags": 0,
+      "final_count": 501,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        500,
+        600
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 501,
+      "flags": 256,
+      "final_count": 501,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        500,
+        600
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 502,
+      "flags": 0,
+      "final_count": 502,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        501,
+        601
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    },
+    {
+      "count": 502,
+      "flags": 256,
+      "final_count": 502,
+      "head": [
+        0,
+        100
+      ],
+      "tail": [
+        501,
+        601
+      ],
+      "previous_next": [
+        4294967295,
+        4294967295
+      ],
+      "new_next": [
+        4294967295,
+        4294967295
+      ],
+      "events": []
+    }
+  ],
+  "scope": "Complete original693490 with supplied canonical order/task identities and controlled virtual event receiver. No factory or public long-FIFO trajectory claim."
+}

@@ -47600,6 +47600,42 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "oracle-queue-ceiling198",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_queue_ceiling.py",
+        "--binary",
+        "{binary}",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-queue-ceiling198-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "queue-ceiling198.json",
+      "expected_exit": 0,
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "case_count": {
+          "equal": 24
+        }
+      },
+      "evidence": [
+        "S",
+        "O"
+      ],
+      "scope": "Complete693490 original append ceiling, admission flag100, original canonical resolution/linking and head/tail/count writes, two identical repeats.",
+      "exclusions": [
+        "Supplied canonical order/task identities; virtual d02a5 event receiver controlled. No factory/public long-FIFO trajectory or callback-mutation lifetime claim."
+      ],
+      "expected_status": "bounded-original-queue-ceiling"
     }
   ],
   "fixtures": [
@@ -48498,7 +48534,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "9445a97bf4cfa2e7c3c19b773c8587c31bbbd222e761bc4bbb49a09725cfefc4"
+      "sha256": "feba798b328bd5f7197e55af7d3e4ceb2dd351cff7dac391719422eb19cdd08d"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -49354,7 +49390,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "8ff48ffd8193d073156925e284e3daaf4b04f6b0a6788749d87c5d4293ae4b81"
+      "sha256": "23d1cf2aa68989fc02cefd9953cabd97e29a8730af4c8ad0e2061b3f5ce7a67a"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -49790,7 +49826,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "cb61b29972de40e0ff31e829f3cf780456c95f4adef43bc1245e2692f26ceb96"
+      "sha256": "2f9cb1a18b6930efb4e0c66dab10a7bf4306d617de129174347a7c326f89f7b9"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -49798,7 +49834,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "d5a73923787c9a1df55fbdba7230938845a29ee6e68ce9cc031497be556b0e3f"
+      "sha256": "2a6c59f0a85612dc1bf62a91de7b21edbd73f1ab4f10de2fa0285090c0def698"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -50290,7 +50326,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "a3ff6f0db0a854803d7952d19b4b5aad9dd30709293f1599ef62ba635e648dd0"
+      "sha256": "0ec107905e3ffebe633e95b3769897ccd85bbb132be66bad97c77cee2aad585f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -50298,15 +50334,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "d46cd361fb47d18fb5baad75ce07a7b28f0f83e785d888d345a78d91524406f9"
+      "sha256": "add6c20876bb0a75cd3e2e994f5b1edbd3d4abf7f362e24535113d9625c4d7f3"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "bc2439a63030cf80588050004a7bf7bacda83f33275c308bc89cef6771362ea1"
+      "sha256": "6ca598768645acb26d27c165d72ace830eb076ccb1456cf756bd1dd8d20b0336"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "48d6b42e727ef08ab832344944ee22b5a2becb156614d22c186e582fbc4ecbcd"
+      "sha256": "f34e1a31a0fe65c768c50ecde5dd551e8dba539a51fb1123f89bfafef6730a67"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -50318,7 +50354,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "0a9ccdcdecd61fc3e1f550b5015bf04dff79ed2aec3faa7f112ae45d75e595cd"
+      "sha256": "9ae155f3735332be182b383c72d809fcaa19e554f93c0b24d361676a8b02040a"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -51254,7 +51290,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "9761aab45bc3719428543e742985a400405752314ffb9da89a3aa8655947fae9"
+      "sha256": "b1819544f2f4942b25f623700f0518e4e0a465a0eb225cce526f227c5be5855f"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -51382,19 +51418,19 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_patrol.c",
-      "sha256": "a068c37a3d97dbd859231df267eaf0ace49114974ee4a6151344c975f6f6020a"
+      "sha256": "30f45bca71b2f058b1ca4e7b86f4f083d035e36ca5d75aaf82cb5d9d072296c6"
     },
     {
       "path": "games/warcraft-3/game/tests/t_building.c",
-      "sha256": "4102489359bf9aba3e0da4084efe9013161af114d353f296303b8c1f5c074346"
+      "sha256": "36387525b3eb295f8208137785bca0fc4ad6ba423da454246ebfa3ac122527a8"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
-      "sha256": "3398f11a5f0315c25dd2d1943f0ac0872bf20e9b3f67d6fc16db992d70895c9d"
+      "sha256": "f93dc1b23647498dc378b400bab59a9097fd3e7870d6e0eba1e6be36bf46b975"
     },
     {
       "path": "games/warcraft-3/game/tests/t_patrol_orders.c",
-      "sha256": "9ddef30cdf10f1de987da2f24c615b425318818cf6150c692c244774cc1696ea"
+      "sha256": "e501735cd9c2083a01012fa2688b27c180b6a7bdac151bd575a2ecaad16ba116"
     },
     {
       "path": "tools/ghidra/research/verify_patrol176_queue.py",
@@ -52159,6 +52195,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-blocked-recovery197-1.27.json.gz",
       "sha256": "00e7d7a84d02525ec4557771f772289911769c34611fa295f69bbcd24d195239"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_queue_ceiling.py",
+      "sha256": "d433f6e1111c55c0dce17920a77633ffc03c224a68a27ecb72eaf69de701df76"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-queue-ceiling198-1.27.json",
+      "sha256": "ebf8ed3e99b3af0619a0cb9a4bc992517c7c7fc042b128ca1f9fc147abeb656f"
     }
   ]
 }

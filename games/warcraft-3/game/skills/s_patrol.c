@@ -19,7 +19,7 @@ static void patrol_clear(edict_t *ent) {
 static bool patrol_has_queued_non_patrol(edict_t const *ent) {
     unitOrderQueue_t const *queue=&ent->order_queue;
     FOR_LOOP(i,queue->count) {
-        unitOrder_t const *order=queue->entries+(queue->head+i)%UNIT_ORDER_STORAGE_CAPACITY;
+        unitOrder_t const *order=queue->entries+(queue->head+i)%queue->capacity;
         if (strcmp(order->order,"patrol")) return true;
     }
     return false;

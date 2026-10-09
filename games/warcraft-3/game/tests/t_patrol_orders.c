@@ -94,7 +94,7 @@ TEST(wc3_patrol_orders, full_user_fifo_keeps_its_return_continuation) {
     T_ASSERT(!G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},true,0,0));
     patrol_orders_until(actor,G_OrderId("move"),80);
     T_EQ(actor->order_queue.count,MAX_UNIT_ORDER_QUEUE);
-    patrol_orders_until(actor,WC3_ORDER_ID_PATROL_TWO_POINTS,120);
+    patrol_orders_until(actor,WC3_ORDER_ID_PATROL_TWO_POINTS,MAX_UNIT_ORDER_QUEUE*2+120);
     T_NOT_NULL(actor->movement.patrol_target);
     if(actor->movement.patrol_target)T_FEQ(actor->movement.patrol_target->s.origin2.x,64,0);
 }
@@ -107,7 +107,7 @@ TEST(wc3_patrol_orders, saved_rotated_pair_retains_activation_origin_and_fifo_or
     T_EQ(actor->order_queue.count,2);
     unitOrderQueue_t *queue=&actor->order_queue;
     if(queue->count!=2)return;
-    unitOrder_t first=queue->entries[queue->head],second=queue->entries[(queue->head+1)%UNIT_ORDER_STORAGE_CAPACITY];
+    unitOrder_t first=queue->entries[queue->head],second=queue->entries[(queue->head+1)%queue->capacity];
     T_FEQ(first.point.x,64,0);T_FEQ(first.continuation.x,384,0);
     T_FEQ(second.point.x,256,0);T_FEQ(second.point.y,320,0);
     T_FEQ(second.continuation.x,actor->s.origin2.x,0);
@@ -117,7 +117,7 @@ TEST(wc3_patrol_orders, saved_rotated_pair_retains_activation_origin_and_fifo_or
     T_EQ(queue->count,0);T_ASSERT(ReadGame(save));remove(save);
     T_EQ(queue->count,2);
     T_ASSERT(!memcmp(&queue->entries[queue->head],&first,sizeof(first)));
-    T_ASSERT(!memcmp(&queue->entries[(queue->head+1)%UNIT_ORDER_STORAGE_CAPACITY],&second,sizeof(second)));
+    T_ASSERT(!memcmp(&queue->entries[(queue->head+1)%queue->capacity],&second,sizeof(second)));
     patrol_orders_until(actor,WC3_ORDER_ID_PATROL_TWO_POINTS,100);
     T_FEQ(actor->movement.patrol_target->s.origin2.x,64,0);
     bool rotated=false;

@@ -796,8 +796,8 @@ bool G_AppendUnitOrder(edict_t *self, unitOrder_t const *order) {
     if (!self || !order || !unit_order_name_valid(order->order)) return false;
     unitOrderQueue_t *queue=&self->order_queue;
     if (queue->count>=UNIT_ORDER_STORAGE_CAPACITY) return false;
-    if (!queue->entries) queue->entries=G_AllocUnitOrders()->entries;
-    unsigned slot=(queue->head+queue->count)%UNIT_ORDER_STORAGE_CAPACITY;
+    if (!G_ReserveUnitOrders(self,queue->count+1)) return false;
+    unsigned slot=(queue->head+queue->count)%queue->capacity;
     queue->entries[slot]=*order;queue->count++;
     return true;
 }
@@ -805,7 +805,11 @@ bool G_AppendUnitOrder(edict_t *self, unitOrder_t const *order) {
 bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t target_type,
                       vec2_t const *point, edict_t *target, uint32_t issuer_player,
                       float group_speed, uint32_t order_id) {
-    if (!self || !unit_order_name_valid(order) || self->order_queue.count>=MAX_UNIT_ORDER_QUEUE) return false;
+    if (!self || !unit_order_name_valid(order)) return false;
+    /*693490 counts the active user head. A suspended head lives in this ring
+     * instead, so only an executing head consumes the extra user slot. */
+    uint32_t limit=MAX_UNIT_ORDER_QUEUE+(G_IsDeferredFree(self) || !G_UnitHasActiveOrder(self));
+    if(self->order_queue.count>=limit)return false;
     unitOrder_t queued={.target_type=target_type,.issuer_player=issuer_player,
                         .order_id=order_id,.group_speed=group_speed};
     snprintf(queued.order,sizeof(queued.order),"%s",order);
@@ -826,7 +830,7 @@ static bool unit_queue_pop(edict_t *self, unitOrder_t *out) {
     if (!queue->count) return false;
     *out = queue->entries[queue->head];
     memset(&queue->entries[queue->head], 0, sizeof(queue->entries[queue->head]));
-    queue->head = (queue->head + 1) % UNIT_ORDER_STORAGE_CAPACITY;
+    queue->head = (queue->head + 1) % queue->capacity;
     queue->count--;
     /* The caller owns the copied command before any successor callback runs. */
     if (!queue->count) G_FreeUnitOrders(self);
@@ -839,11 +843,11 @@ void G_ClearUnitOrderQueue(edict_t *self) {
     if (!self) return;
     queue = &self->order_queue;
     FOR_LOOP(i, queue->count) {
-        uint32_t const slot = (queue->head + i) % UNIT_ORDER_STORAGE_CAPACITY;
+        uint32_t const slot = (queue->head + i) % queue->capacity;
         S_UnitQueuedOrderEvent(self, &queue->entries[slot], A_QUEUE_ORDER_CANCEL);
     }
-    /* Cancellation callbacks finish while their borrowed entries remain live.
-     * Return the bucket once; allocation clears it before its next owner. */
+    /* Each handler owns its command snapshot through callback unwind.
+     * Return the current backing allocation after cancellation completes. */
     G_FreeUnitOrders(self);
     queue->head = queue->count = 0;
 }

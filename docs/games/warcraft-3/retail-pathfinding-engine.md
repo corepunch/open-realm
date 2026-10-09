@@ -13759,3 +13759,81 @@ retail verification pass. The435-entry inventory and1,139 staged fixture/source
 pins verify. Full repository validation follows the established batch cadence
 (four implementation commits since the merge checkpoint). This fidelity fix
 makes no performance-target claim. Logs: `/GitHub/wc3-analysis/runtime/payoff197/`.
+
+### Queued orders grow to the retail admission bound (Payoff198)
+
+The engine no longer rejects a player's Shift orders after sixteen pending
+commands. Original `693490` admits while the signed user count is below501;
+that count includes the active head. An executing order therefore leaves500
+pending user slots. A suspended chain whose head is stored in the engine FIFO
+has501 slots. One reserved physical slot lets an executing looping owner append
+its continuation while retiring its head; it does not admit another user order.
+
+`unitOrderQueue_t` remains a flat ring. Short queues use the existing17-entry
+LIFO pool; larger queues grow geometrically to the bounded501-entry extent.
+Growth copies the two occupied spans in FIFO order, returns the old allocation,
+and normalizes the head. Append is amortized O(1), removal from the head is O(1),
+and growth takes O(queued commands). Fresh units allocate nothing, and final
+pop, cancellation, entity release and map reset return storage. This fixes an
+admission difference; it is not a measured reduction in path-search CPU time.
+
+All consumers use the current ring capacity, including Patrol's queued-leg
+scan, Move's queued group identity scan/publication, construction test helpers,
+and save/load. Format149 retains capacity, head, count and scalar command
+entries; process pointers are cleared. Large rings allocate only their saved,
+bounded extent. Load rejects invalid capacity/head/count before allocation,
+and rejects a missing backing record. Format148 and earlier saves are rejected.
+The short-queue pool layout and other sparse pool streams remain unchanged.
+
+The original-code oracle executes the complete unmodified `693490` body,
+including canonical identity resolution, predecessor linking and head/tail/count
+writes, in24 cases: two identical repeats over counts0/1/499/500/501/502 and
+admission flag100 clear/set. Counts500 advance to501; counts501/502 and every
+flag100 case preserve the user chain. With a supplied internal head, admitted
+orders publish exactly one `d02a5` event. Its virtual event receiver is controlled.
+Canonical identities and existing chains are supplied, not factory-created;
+this is not evidence for a public501-command retail trajectory or callback
+mutation. The existing read-only Frida197 active Shift witness independently
+retains the public1-to2 append/head-preservation behavior and observer controls.
+
+The engine regression first failed at its old16-command bound. Production point
+orders now retain500 successors through save/load and FIFO dispatch, with the
+next user order rejected without replacing the active owner. Additional checks
+exercise a wrapped short ring crossing into overflow storage, saved rotation,
+map-reset cleanup, the full Patrol return chain and invalid saved bounds.
+A cancellation handler receives its own stack-local command snapshot through
+`S_UnitQueuedOrderEvent`. Growing the ring and immediately reusing its old short
+bucket cannot overwrite that in-flight payload. The failing-first procedure
+mutation regression exercises this through real queue cancellation; it does
+not certify all reentrant FIFO edits. Original `673e80` publishes its order event
+before releasing that order with virtual5c, retaining its payload through the
+receiver call.
+
+Previously frozen retail positions, velocities, RNG and motion fixtures are
+unchanged. ORDER-02.2/02.3 and GROUP-04.6 remain open for their broader queue
+controls, reentrant ownership and complete group storage contracts; no new
+leaves are added.
+
+Bounded reproduction:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_queue_ceiling.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --fixture tools/ghidra/fixtures/retail-queue-ceiling198-1.27.json \
+  --output /tmp/queue-ceiling198.json
+```
+
+Ghidra's saved `Unit_AppendUserOrder` annotation and `MapPathfinding.java` retain
+this scope. The corpus adds `oracle-queue-ceiling198` with pinned source and
+frozen original expectations. Engine/evidence validation logs are archived
+under `/GitHub/wc3-analysis/runtime/payoff198`.
+
+Validation: the initial growing-ring implementation passes all434 movement tests
+(6,250,417 assertions) in each edition. After the suspended-head and payload
+fixes, Classic and TFT each pass465 directly affected queue/Patrol/save/pool/
+construction/ability-dispatch tests (86,483 assertions) plus14 selected movement
+and saved-Shift journey tests (82,346 assertions). All35 Python corpus checks
+pass; a fresh strict report verifies24 original cases. All436 entries and1,141
+fixture/source pins are verified in both the worktree and staged index. The full
+repository suite follows the authorized approximately12-commit checkpoint
+cadence; this is implementation commit5 since the merge checkpoint.
