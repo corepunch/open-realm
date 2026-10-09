@@ -156,6 +156,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Ability Identity and Cooldown Ownership](ability-system.md#rawcode-and-procedure-identity)
 - [Regeneration Auras And Fountains](regeneration-auras.md)
 - [Cinematics](cinematics.md)
+- [Gul'dan Cinematic Branch Merge Review](../../../GULDAN_CINEMATIC_MERGE_REVIEW.md)
 - [Time Of Day](time-of-day.md)
 - [Timer Dialogs And Mission Countdowns](timer-dialogs.md)
 - [Leaderboards And Counted Objective HUDs](leaderboards.md)
