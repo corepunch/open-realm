@@ -50,8 +50,14 @@ for bisectability:
 - `7a60c75c` — cover filter delta round-trip and viewport rendering.
 - `2308d2c7` — exercise the cinematic HUD race-skin context through actual
   layout serialization.
-- Pending protocol fix — bump to protocol 21 and append filter fields after
-  existing player-state fields.
+- `bfc196a2` — bump the shared wire protocol to 21 and append filter fields
+  after existing player-state fields, preserving existing delta bit positions.
+- `bc9c8a97` — verify that protocol 20 clients are rejected by a protocol 21
+  server.
+- `e5bcdc60` — cover server-side filter interpolation/publication at midpoint,
+  completion, hidden state, and `skip_cutscene`.
+- `786fc76e` — clear optimized-build warnings found during the required
+  release build, including checked file reads and bounded string assembly.
 
 The first four commits form the filter path; the portrait/save commits form the
 portrait contract correction; the HUD race-skin commit is an independent fix
@@ -61,6 +67,8 @@ within each path and take the regression tests with their fixes.
 ## Behavior and implementation details
 
 - Filter image and packed RGBA state are sent in two `NFT_LONG` player-state
+  fields appended after existing fields. Protocol version 21 rejects older
+  peers during connection setup, before snapshots can be decoded with the new
   fields. The server interpolates transitions and halves authored alpha to
   match the observed retail opacity. Image-only filters with zero alpha are
   normalized to white to avoid a black overlay.
@@ -84,14 +92,19 @@ save-policy details.
 - Save regression: targeted save version test passed after version 77 change.
 - Portrait regression: `make test-core` and targeted portrait tests passed.
 - `make test-core` passed with **2503 assertions in 240 tests**.
+- `make test-server-net` passed with **3234 assertions in 62 tests**, including
+  rejection of protocol 20.
 - `make test-wc3-engine` passed on classic and TFT; each variant completed all
-  four shards. The latest run after strengthening the race-skin test reported
-  16,468 / 5,910 / 6,237 / 20,815 assertions per variant.
-- `make test` passed, including the core, server, client/UI, renderer, WC3, WoW,
-  and SC2 test targets. This run preceded the protocol 21 update; rerun it
-  after that commit.
+  four shards. The last standalone run after strengthening the race-skin test
+  reported 16,468 / 5,910 / 6,237 / 20,815 assertions per variant.
+- `make test` passed on the protocol 21 tree, including core, server, client/UI,
+  renderer, WC3 classic/TFT, WoW, and SC2 targets.
+- `make BUILD=release build` completed with no warnings after the build cleanup.
 - `python3 tools/engine_boundary_audit.py` reported clean against `main`.
-- `git diff --check` passed before the protocol update; rerun after it.
+- One earlier parallel `make test` attempt hit a segfault in classic shard 0,
+  before the new filter test's shard. The shard passed on isolated rerun
+  (20,843/20,843 assertions), and subsequent full `make test` runs passed.
+- `git diff --check` passed after the final code commits.
 
 The test suite verifies the serialized values and geometry contract. It does
 not establish pixel-for-pixel retail visual parity; the alpha adjustment is
