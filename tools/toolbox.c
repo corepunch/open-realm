@@ -714,6 +714,17 @@ static void load_history(app_t *app) {
     fclose(f);
 }
 
+static void append_bounded(char *dst, size_t dst_size, const char *src) {
+    size_t used, copy;
+    if (!dst || !src || !dst_size) return;
+    used = strlen(dst);
+    if (used >= dst_size) return;
+    copy = strlen(src);
+    if (copy > dst_size - used - 1) copy = dst_size - used - 1;
+    memmove(dst + used, src, copy);
+    dst[used + copy] = '\0';
+}
+
 static void build_command(app_t *app) {
     const tool_t *tool = &tools[app->selected_tool];
     char exe[PATH_MAX];
@@ -722,7 +733,7 @@ static void build_command(app_t *app) {
     path_join(exe, sizeof(exe), app->exe_dir, tool->exe);
     app->command[0] = 0;
     shell_quote_append(app->command, sizeof(app->command), exe);
-    strncat(app->command, " ", sizeof(app->command) - strlen(app->command) - 1);
+    append_bounded(app->command, sizeof(app->command), " ");
 
     const char *p = tool->template_args;
     while (*p && strlen(app->command) + 8 < sizeof(app->command)) {
@@ -740,12 +751,12 @@ static void build_command(app_t *app) {
             p += 5;
         } else {
             char tmp[2] = { *p++, 0 };
-            strncat(app->command, tmp, sizeof(app->command) - strlen(app->command) - 1);
+            append_bounded(app->command, sizeof(app->command), tmp);
         }
     }
     if (app->extra_args[0]) {
-        strncat(app->command, " ", sizeof(app->command) - strlen(app->command) - 1);
-        strncat(app->command, app->extra_args, sizeof(app->command) - strlen(app->command) - 1);
+        append_bounded(app->command, sizeof(app->command), " ");
+        append_bounded(app->command, sizeof(app->command), app->extra_args);
     }
     (void)dst;
     (void)left;
@@ -799,14 +810,14 @@ static void append_archive_child(app_t *app, const char *name, bool is_dir) {
     size_t len = strlen(is_dir ? app->browser_path : app->archive_path);
     if (is_dir) {
         if (len > 0) {
-            strncat(app->browser_path, "\\", sizeof(app->browser_path) - strlen(app->browser_path) - 1);
+            append_bounded(app->browser_path, sizeof(app->browser_path), "\\");
         }
-        strncat(app->browser_path, name, sizeof(app->browser_path) - strlen(app->browser_path) - 1);
+        append_bounded(app->browser_path, sizeof(app->browser_path), name);
     } else {
         if (len > 0) {
-            strncat(app->archive_path, "\\", sizeof(app->archive_path) - strlen(app->archive_path) - 1);
+            append_bounded(app->archive_path, sizeof(app->archive_path), "\\");
         }
-        strncat(app->archive_path, name, sizeof(app->archive_path) - strlen(app->archive_path) - 1);
+        append_bounded(app->archive_path, sizeof(app->archive_path), name);
     }
 }
 

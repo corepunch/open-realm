@@ -25,9 +25,14 @@ static char **pe_rtti_strings(const char *path, size_t *out_count) {
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);
+    if (fsize <= 0) { fclose(f); return NULL; }
     char *data = malloc(fsize);
     if (!data) { fclose(f); return NULL; }
-    fread(data, 1, fsize, f);
+    if (fread(data, 1, (size_t)fsize, f) != (size_t)fsize) {
+        free(data);
+        fclose(f);
+        return NULL;
+    }
     fclose(f);
 
     if (fsize < 64 || *(uint16_t *)data != 0x5A4D) { free(data); return NULL; }

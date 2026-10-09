@@ -318,20 +318,27 @@ static void CON_PrintCompleteMatch(cstring_t name, void *userData) {
 
 static void CON_CompleteReplace(uint32_t start, uint32_t end, cstring_t text, bool add_space) {
     char completed[CON_INPUT_LEN];
+    size_t position, inserted, inserted_space = 0, available, suffix;
 
     if (!text || !*text || start > end || end > strlen(con_input)) {
         return;
     }
-    snprintf(completed,
-             sizeof(completed),
-             "%.*s%s%s%s",
-             (int)start,
-             con_input,
-             text,
-             add_space ? " " : "",
-             con_input + end);
+    position = MIN((size_t)start, sizeof(completed) - 1);
+    memcpy(completed, con_input, position);
+    available = sizeof(completed) - 1 - position;
+    inserted = MIN(strlen(text), available);
+    memcpy(completed + position, text, inserted);
+    position += inserted;
+    if (add_space && position < sizeof(completed) - 1) {
+        completed[position++] = ' ';
+        inserted_space = 1;
+    }
+    suffix = MIN(strlen(con_input + end), sizeof(completed) - 1 - position);
+    memcpy(completed + position, con_input + end, suffix);
+    position += suffix;
+    completed[position] = '\0';
     CON_SetInput(completed);
-    con_cursor = start + (uint32_t)strlen(text) + (add_space ? 1 : 0);
+    con_cursor = start + (uint32_t)inserted + (uint32_t)inserted_space;
 }
 
 static void CON_CompleteInput(void) {
