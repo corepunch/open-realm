@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 76, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 78, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -44,6 +44,10 @@ See [Aura Targets And Overlays](aura-targets-and-overlays.md).
 Version 75 includes the persistent `edict_t.ignore_alarm` per-unit flag and rejects version 74 saves. The existing `wc3_save.round_trip_edict_and_player_state` suite now checks suppression survives a save/load.
 
 Version 76 persists texttag presentation readiness and slot generations, alongside the existing text and unit anchor. The `wc3_save.texttag_presentation_state_round_trips` regression checks those fields and the anchor survive save/load; version 75 saves are rejected.
+
+Version 77 persists Wisp tree egress ownership and its local exit target.
+
+Version 78 changes the cinematic portrait byte to a presence flag and stores the complete model index in the existing 16-bit player stat array. Version 77 saves are rejected; the loader does not migrate old portrait state.
 
 Version 74 changes only the footer checksum to the word-wise `SaveChecksum`. Save and load streams also use a 1 MB stdio buffer. Version 73 and earlier saves are rejected.
 
