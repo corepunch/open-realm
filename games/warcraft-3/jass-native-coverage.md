@@ -19,6 +19,12 @@ calling strict `jass_checkcode()`; non-null handlers still require the exact
 fast-forward or ESC skip. HiveWorkshop's timer reset examples confirm the same
 native behavior, commonly followed by `PauseTimer` when resetting getter state.
 
+`PreloadRefresh` and `PreloadEndEx` are registered no-op boundaries so maps can
+advance through preload batches without aborting their JASS trigger. They do
+not load assets; `Preload`, `Preloader`, and preload-file generation remain
+unimplemented. `wc3_api.preload_refresh_boundaries_are_registered` guards the
+map-script call contract.
+
 The AI-only `UnitInvis(unit)` native reports intrinsic active invisibility through `S_UnitHasInvisibilityState()`; it
 does not incorporate owner/shared vision or detector coverage. Stock `common.ai` calls it separately from
 `IsUnitDetected(target, ai_player)`. The latter and `IsUnitInvisible(unit, player)` remain placeholders in
