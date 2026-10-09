@@ -1211,7 +1211,8 @@ float CM_DistanceToPathingFootprintFlags(struct edict_s const *target, vec2_t co
             float min_x, max_x, min_y, max_y, dx = 0.0f, dy = 0.0f;
 
             if (!( ((blocked_flags & CM_PATHING_UNWALKABLE) && pathtex_pixel_blocks_walk(pt, x, y)) ||
-                   ((blocked_flags & CM_PATHING_UNFLYABLE) && pathtex_pixel_blocks_fly(pt, x, y)) ) ||
+                   ((blocked_flags & CM_PATHING_UNFLYABLE) && pathtex_pixel_blocks_fly(pt, x, y)) ||
+                   ((blocked_flags & CM_PATHING_UNSWIMMABLE) && pathtex_pixel_blocks_walk(pt, x, y)) ) ||
                 !is_valid_point(px, py))
                 continue;
 

@@ -33,6 +33,9 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
+float CM_DistanceToPathingFootprintFlags(edict_t const *target, vec2_t const *point,
+                                         uint8_t blocked_flags);
 
 
 
@@ -254,6 +257,26 @@ TEST(wc3_pathfinding, pathtex_red_channel_blocks_ground_and_float) {
     T_ASSERT(!CM_PointIsPathableForRadiusFlags(&center, 0.0f, CM_PATHING_UNSWIMMABLE));
 
     building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
+TEST(wc3_pathfinding, footprint_distance_honors_unswimmable_flags) {
+    uint8_t cells[8 * 8] = { 0 };
+    vec2_t const center = { 4.5f, 4.5f };
+    edict_t *tree;
+    pathTex_t *pathtex;
+
+    CM_SetupTestPathmap(8, 8, cells);
+    reset_entities();
+    tree = alloc_test_unit(MAKEFOURCC('A','T','t','r'), center.x, center.y);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + sizeof(color32_t));
+    T_NOT_NULL(pathtex);
+    pathtex->width = pathtex->height = 1;
+    pathtex->map[0] = (color32_t){ .b = 255, .a = 255 };
+    tree->pathtex = pathtex;
+    T_FEQ(CM_DistanceToPathingFootprintFlags(tree, &center, CM_PATHING_UNSWIMMABLE),
+          0.0f, 0.001f);
+    tree->pathtex = NULL;
     gi.MemFree(pathtex);
 }
 
