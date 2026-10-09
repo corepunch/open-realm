@@ -45,6 +45,47 @@ Cutscenes in Warcraft III are driven entirely by the map's JASS script (`war3map
 
 Pre-rendered campaign movies are a separate client media path driven by `PlayCinematic`; see [Pre-rendered Movies](pre-rendered-movies.md). They do not use the in-engine cinematic HUD/camera pipeline described below.
 
+### Cinematic portrait and filter transport
+
+The cinematic dialogue path sends the portrait through the existing player
+stats slot 29. The payload remains a single byte. It now carries the complete
+model index (`0` through `255`); `cinematic_portrait` is a presence flag, so a
+valid portrait whose index is zero is still distinguishable from no portrait.
+The client indexes its player-model table with that full byte. Do not restore
+the former six-bit mask: model indices above 63 are valid and were truncated by
+that mask. This reuses an existing stats slot and does not add player-state
+delta bits.
+
+Cinematic filters use two new player-state fields: `cinefilter_image` and
+`cinefilter_color`. Both are encoded as `NFT_LONG` entries in
+`playerStateFields`, so each adds a player-state delta bit and the resulting
+player-state payload changes when either field is present. The image identifies
+the loaded filter texture; the packed color carries RGBA, including opacity.
+The client resolves that texture and draws the filter over the camera's world
+viewport, before the HUD layers. The viewport rectangle follows the scene's
+normalized viewport and the expanded UI canvas, so widescreen side regions are
+not covered and the filter remains below HUD chrome. The server interpolates
+the filter color and uses half of the authored alpha to match the observed
+retail filter opacity. An image-only filter with zero color alpha is normalized
+to white before transmission to avoid turning the texture black.
+
+This is a network protocol change: servers and clients must use a build with
+the same `playerStateFields` layout. Mixed versions can disagree about which
+delta bits and bytes follow, so the filter-bearing player state is not
+wire-compatible with the earlier layout. Coordinate server and client updates
+when merging or deploying these commits. The portrait change is wire-compatible
+because it reinterprets an existing byte, but maps relying on the old 0–63
+truncation behavior should be checked. Cinematic filter state is transient and
+is not persisted in WC3 saves. The portrait stats-slot meaning is part of the
+serialized player contract, so the WC3 save version is 77; version 76 saves are
+rejected rather than migrated, consistent with the repository save policy.
+
+Focused regressions cover filter player-state delta round-trip, viewport-sized
+filter rendering with HUD disabled, portrait model indices above 63 across a
+player-stat delta, and client portrait model lookup. The implementation and
+tests are in the commits after `babd5b3e`; see the branch review note for the
+commit sequence and validation results.
+
 ### Flow
 
 1. **Enter cinematic mode:** JASS calls `CinematicModeBJ(true, player)` → `ShowInterface(false)` → sets `client_ui_state = CLIENT_UI_CINEMATIC`.
