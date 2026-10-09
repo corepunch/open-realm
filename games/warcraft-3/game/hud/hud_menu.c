@@ -306,6 +306,8 @@ void UI_LoadHudMenu(void) {
 
     UI_SetText(hud.menu.PauseButtonText, "Resume Game");
     UI_SetText(hud.menu.ReturnButtonText, "Return to Game");
+    /* PauseButton duplicates ReturnButton's resume action in this menu. */
+    UI_SetHidden(hud.menu.PauseButton, true);
     UI_SetText(hud.menu.RestartButtonText, "Restart Mission");
     UI_SetOnClick(hud.menu.PauseButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
     UI_SetOnClick(hud.menu.ReturnButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
