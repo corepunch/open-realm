@@ -219,6 +219,20 @@ the `client_frames.*` suite, and the `stress_net.*` suite (`make test-stress`):
 a 33.6 kbps link with latency, jitter that reorders packets and 8% loss, asserting every delta base is a frame the client
 holds and every unit name arrives.
 
+## Cinematic filter player state (protocol 21)
+
+Protocol 21 adds `cinefilter_image` and `cinefilter_color` to the generic
+player-state delta schema. They are appended after the existing fields so the
+prior player-state delta bit assignments remain stable. When either filter
+field changes, its value is carried in the player-state payload. Clients and
+servers must use protocol 21 together; the connection handshake rejects older
+peers before they can decode snapshots with these fields.
+
+The WC3 cinematic portrait model index reuses player stats slot 29, and
+`cinematic_portrait` is now a presence flag. This changes WC3's use and saved
+meaning of those existing values without changing the generic stats wire
+structure. WC3 save format 77 rejects older saves.
+
 ## Entity heading encoding
 
 Protocol version 9 keeps `entityState_t.angle` two bytes wide but encodes its radian value as an unsigned
