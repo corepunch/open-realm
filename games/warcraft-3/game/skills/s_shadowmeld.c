@@ -9,12 +9,30 @@
 
 static uint32_t shadowmeld_fade_ms(edict_t const *unit);
 
+static bool shadowmeld_has_standard(edict_t const *unit) {
+    return unit && G_UnitAbilityLevel(unit, ID_ASHM) != 0;
+}
+
+static bool shadowmeld_has_akama(edict_t const *unit) {
+    return unit && G_UnitAbilityLevel(unit, ID_AHID) != 0;
+}
+
+static bool shadowmeld_has_ability(edict_t const *unit) {
+    return shadowmeld_has_standard(unit) || shadowmeld_has_akama(unit);
+}
+
+static bool shadowmeld_ability_available(edict_t const *unit) {
+    return (shadowmeld_has_standard(unit) && G_IsUnitAbilityAvailable(unit, ID_ASHM)) ||
+           (shadowmeld_has_akama(unit) && G_IsUnitAbilityAvailable(unit, ID_AHID));
+}
+
 /* Retail Shadow Meld is conditional invisibility rather than an RF_HIDDEN
  * lifecycle. Keeping the source as explicit unit state lets the existing
  * player-relative invisibility query decide owner/detector visibility without
  * colliding with RF_HIDDEN uses such as cargo, mines, training, or revival. */
 bool S_ShadowMeldActive(edict_t const *unit) {
-    return unit && unit->inuse && unit->shadowmeld && unit->shadowmeld->active;
+    return unit && unit->inuse && unit->shadowmeld && unit->shadowmeld->active &&
+           shadowmeld_ability_available(unit);
 }
 
 /* Presentation-only opacity for a viewer that is allowed to perceive the unit.
@@ -25,7 +43,7 @@ float S_ShadowMeldPresentationAlpha(edict_t const *unit) {
     float t, eased;
     uint32_t elapsed, fade_ms;
 
-    if (!unit || !unit->inuse || !unit->shadowmeld) return 1.0f;
+    if (!unit || !unit->inuse || !unit->shadowmeld || !shadowmeld_ability_available(unit)) return 1.0f;
     if (unit->shadowmeld->active) return WC3_SHADOWMELD_FRIENDLY_ALPHA;
     if (!unit->shadowmeld->fading) return 1.0f;
 
@@ -53,18 +71,6 @@ void S_ShadowMeldBreak(edict_t *unit) {
     unit->shadowmeld->fading = false;
     unit->shadowmeld->active = false;
     shadowmeld_set_hide_order(unit, false);
-}
-
-static bool shadowmeld_has_standard(edict_t const *unit) {
-    return unit && G_UnitAbilityLevel(unit, ID_ASHM) != 0;
-}
-
-static bool shadowmeld_has_akama(edict_t const *unit) {
-    return unit && G_UnitAbilityLevel(unit, ID_AHID) != 0;
-}
-
-static bool shadowmeld_has_ability(edict_t const *unit) {
-    return shadowmeld_has_standard(unit) || shadowmeld_has_akama(unit);
 }
 
 static uint32_t shadowmeld_fade_ms(edict_t const *unit) {
@@ -96,7 +102,7 @@ static bool shadowmeld_stationary(edict_t const *unit) {
 
 static bool shadowmeld_eligible(edict_t const *unit) {
     if (!G_IsNight() || !shadowmeld_stationary(unit)) return false;
-    return shadowmeld_has_ability(unit);
+    return shadowmeld_ability_available(unit);
 }
 
 static void shadowmeld_update(edict_t *unit) {
@@ -107,6 +113,10 @@ static void shadowmeld_update(edict_t *unit) {
     if (!unit->shadowmeld && !shadowmeld_has_ability(unit)) return;
     if (!unit->shadowmeld) unit->shadowmeld = G_AllocShadowMeld();
     assert(unit->shadowmeld);
+    if (!shadowmeld_ability_available(unit)) {
+        S_ShadowMeldBreak(unit);
+        return;
+    }
     fade_ms = shadowmeld_fade_ms(unit);
     eligible = fade_ms && shadowmeld_eligible(unit);
     if (!eligible) {
@@ -140,11 +150,12 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         shadowmeld_update(ent);
         return ent && shadowmeld_has_ability(ent);
     case A_NO_ACQUIRE:
-        return ent && ((ent->shadowmeld && ent->shadowmeld->hide_order_active) || (akama && shadowmeld_has_akama(ent)));
+        return ent && shadowmeld_ability_available(ent) &&
+               ((ent->shadowmeld && ent->shadowmeld->hide_order_active) || (akama && shadowmeld_has_akama(ent)));
     case A_NO_RETALIATE:
-        return ent && ent->shadowmeld && ent->shadowmeld->hide_order_active;
+        return ent && shadowmeld_ability_available(ent) && ent->shadowmeld && ent->shadowmeld->hide_order_active;
     case A_TOGGLE_ON:
-        return ent && ent->shadowmeld && ent->shadowmeld->hide_order_active;
+        return ent && shadowmeld_ability_available(ent) && ent->shadowmeld && ent->shadowmeld->hide_order_active;
     case A_MOVE_LEAVE:
         if (ent && ent->shadowmeld && (ent->shadowmeld->active || ent->shadowmeld->fading || ent->shadowmeld->hide_order_active)) {
             S_ShadowMeldBreak(ent);
@@ -165,9 +176,9 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         if (ent && !shadowmeld_has_ability(ent)) S_ShadowMeldBreak(ent);
         return false;
     case A_VALIDATE:
-        return ent && G_IsNight();
+        return ent && G_IsNight() && G_IsUnitAbilityAvailable(ent, akama ? ID_AHID : ID_ASHM);
     case A_EXECUTE:
-        if (!ent || !G_IsNight()) return false;
+        if (!ent || !G_IsNight() || !G_IsUnitAbilityAvailable(ent, akama ? ID_AHID : ID_ASHM)) return false;
         order_stop_cleanup(ent);
         if (!ent->shadowmeld) ent->shadowmeld = G_AllocShadowMeld();
         assert(ent->shadowmeld);
