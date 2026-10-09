@@ -1442,7 +1442,12 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
 void SCR_DrawLayout(void) {
     active_tooltip = NULL;
 
-    if (cl.playerstate.cinefade > 0) {
+    if (cl.playerstate.cinefilter_image > 0 && cl.playerstate.cinefilter_image < MAX_IMAGES &&
+        cl.pics[cl.playerstate.cinefilter_image]) {
+        rect_t const screen = MAKE(rect_t, 0, 0, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
+        re.DrawImage(cl.pics[cl.playerstate.cinefilter_image], &screen, &MAKE(rect_t,0,0,1,1),
+                     cl.playerstate.cinefilter_color);
+    } else if (cl.playerstate.cinefade > 0) {
         color32_t color = COLOR32_BLACK;
         rect_t const screen = MAKE(rect_t, 0, 0, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
         color.a = 255 * cl.playerstate.cinefade;

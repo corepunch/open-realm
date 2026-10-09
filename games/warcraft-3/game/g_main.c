@@ -577,10 +577,8 @@ float G_Cinefade(void) {
     if (G_SkipCutscene()) {
         return 0;
     }
-    /* CinematicFilterGenericBJ also drives these fields for textured color
-     * filters. Until the client renders that texture, don't mistake a color
-     * transition for a full-screen black fade. CinematicFadeBJ keeps RGB
-     * constant and varies only alpha, so its black-fade behavior is retained. */
+    /* Color-changing filters are rendered as textured overlays. The separate
+     * cinefade field remains the client path for ordinary cinematic fades. */
     if (level.cinefilter.start.color.r != level.cinefilter.end.color.r ||
         level.cinefilter.start.color.g != level.cinefilter.end.color.g ||
         level.cinefilter.start.color.b != level.cinefilter.end.color.b) {
@@ -596,6 +594,20 @@ float G_Cinefade(void) {
         float k = (G_Time() - level.cinefilter.start.time) / (float)duration;
         return LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k) / 255.0;
     }
+}
+
+static color32_t G_CineFilterColor(void) {
+    uint32_t const duration = level.cinefilter.end.time - level.cinefilter.start.time;
+    uint32_t const now = G_Time();
+    float k;
+    if (!duration || now >= level.cinefilter.end.time) k = 1.0f;
+    else if (now <= level.cinefilter.start.time) k = 0.0f;
+    else k = (now - level.cinefilter.start.time) / (float)duration;
+    return MAKE(color32_t,
+                (uint8_t)LerpNumber(level.cinefilter.start.color.r, level.cinefilter.end.color.r, k),
+                (uint8_t)LerpNumber(level.cinefilter.start.color.g, level.cinefilter.end.color.g, k),
+                (uint8_t)LerpNumber(level.cinefilter.start.color.b, level.cinefilter.end.color.b, k),
+                (uint8_t)LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k));
 }
 
 bool G_SkipCutscene(void) {
@@ -862,6 +874,12 @@ static vec3_t G_CameraNoiseOffset(gameClient_t const *client, cameraNoiseSlot_t 
 
 static void G_RunClients(void) {
     float cinefade = G_Cinefade();
+    bool const has_color_filter = level.cinefilter.start.color.r != level.cinefilter.end.color.r ||
+                                  level.cinefilter.start.color.g != level.cinefilter.end.color.g ||
+                                  level.cinefilter.start.color.b != level.cinefilter.end.color.b;
+    uint32_t const cinefilter_image = level.cinefilter.displayed && has_color_filter && !G_SkipCutscene()
+        ? level.cinefilter.texture : 0;
+    color32_t const cinefilter_color = G_CineFilterColor();
     G_UpdateUnitResponsePresentation();
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients+i;
@@ -935,6 +953,8 @@ static void G_RunClients(void) {
         }
         if (client->connected) UI_UpdateCursorPresentation(client);
         client->ps.cinefade = cinefade;
+        client->ps.cinefilter_image = cinefilter_image;
+        client->ps.cinefilter_color = cinefilter_color;
     }
     G_CameraTraceFrame();
 }

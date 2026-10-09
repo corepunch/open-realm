@@ -656,6 +656,8 @@ struct playerState_s {
     uint8_t race;                      // playerRace_t
     string_t name;                     // player display name from mapplayer or JASS script; NOTE: string_t but no caller mutates through this — cstring_t would be correct
     int32_t  start_location;           // start location index for JASS GetStartLocationX/Y (-1 = none)
+    uint32_t cinefilter_image;         // server-selected full-screen cinefilter texture image index, 0 = none
+    color32_t cinefilter_color;        // current server-interpolated cinefilter RGBA tint
     float cinefade;                 // full-screen fade alpha [0,1]; collapsed from Q2's blend[4] since no game here uses tinted overlays
     uint16_t stats[MAX_STATS];        // fast-update integer stats; uint16_t (vs Q3's int) to halve wire size
     cstring_t texts[PLAYERTEXT_COUNT]; // named player text channels used by server-authored UI
