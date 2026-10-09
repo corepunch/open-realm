@@ -749,7 +749,7 @@ TEST(server_net, udp_multi_client_connects_register_distinct_slots) {
 
 TEST(server_net, connectionless_connect_requires_matching_protocol) {
     netadr_t loopback = { .type = NA_LOOPBACK };
-    cstring_t requests[] = { "connect\n\\name\\Old", "connect 14\n\\name\\Old",
+    cstring_t requests[] = { "connect\n\\name\\Old", "connect 20\n\\name\\Old",
         "connect " BZ_XSTR(BZ_PROTOCOL_VERSION) "\n\\name\\Player" };
     NET_Init(); reset_server_state(4);
     FOR_LOOP(i, 3) {
