@@ -2736,6 +2736,77 @@ TEST(wc3_movement, wisp_harvest_move_order_leaves_tree) {
     free_slk_rows(rows);
 }
 
+/* NightElf07's ewsp_0164 repeatedly stopped 117-134 units from its assigned
+ * ATtr, just outside Awha's 116-unit range, after a route field became
+ * available. Recreate that stalled position, prebuild the collision-sized
+ * field, and require the targetless order to complete without a manual
+ * move/reorder. */
+TEST(wc3_movement, wisp_autoharvest_reaches_tree_from_blocked_approach) {
+    enum { CELLS_X = 384, CELLS_Y = 640 };
+    static uint8_t pathmap[CELLS_X * CELLS_Y];
+    static bool setup_pathmap;
+    static color32_t tree_cells[16];
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
+    vec2_t const start = {2818.6f, 4828.7f};
+    vec2_t const tree_pos = {2752.0f, 4928.0f};
+    edict_t *wisp = make_moving_unit(start.x, start.y);
+    edict_t *tree = make_harvest_tree(tree_pos.x, tree_pos.y, 100.0f);
+    edict_t *nearby_trees[3];
+    pathTex_t *tree_path = gi.MemAlloc(sizeof(*tree_path) + sizeof(tree_cells));
+
+    if (!setup_pathmap) {
+        memset(pathmap, 64, sizeof(pathmap)); /* Logged NightElf07 WPM cells are water-only and walkable. */
+        setup_pathmap = true;
+    }
+    memset(tree_cells, 0, sizeof(tree_cells));
+    for (int i = 0; i < 16; i++) tree_cells[i].b = 255; /* 4x4Default.tga has blocked red channel in every texel. */
+    nearby_trees[0] = make_harvest_tree(2816.0f, 5056.0f, 100.0f);
+    nearby_trees[1] = make_harvest_tree(2624.0f, 4928.0f, 100.0f);
+    nearby_trees[2] = make_harvest_tree(2688.0f, 5056.0f, 100.0f);
+    CM_SetupTestPathmap(CELLS_X, CELLS_Y, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {-4096.0f, -8192.0f},
+        .max = { 8192.0f,  12288.0f}));
+    wisp->class_id = MAKEFOURCC('e','w','s','p');
+    wisp->svflags |= SVF_MONSTER;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->collision = 16.0f;
+    wisp->unitinfo.MoveSpeed = 220.0f;
+    tree_path->width = tree_path->height = 4;
+    memcpy(tree_path->map, tree_cells, sizeof(tree_cells));
+    tree->pathtex = tree->destructable->alive_pathtex = tree_path;
+    tree->s.angle = 4.712389f; /* NightElf07 ATtr records use this rotation. */
+    tree->destructable->placement_solid = true;
+    tree->destructable->pathing_active = true;
+    for (int i = 0; i < 3; i++) {
+        nearby_trees[i]->pathtex = nearby_trees[i]->destructable->alive_pathtex = tree_path;
+        nearby_trees[i]->s.angle = 4.712389f;
+        nearby_trees[i]->destructable->placement_solid = true;
+        nearby_trees[i]->destructable->pathing_active = true;
+    }
+    CM_BakeStaticObstacles();
+
+    HARVEST_RANGE = 116.0f;
+    T_ASSERT(CM_BuildHeatmapForRadius(tree, wisp->collision) != 0);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&start, wisp->collision,
+                                               M_UnitStaticPathingFlags(wisp)));
+    T_ASSERT(!CM_LineIsPathableForRadiusFlags(&start, &tree_pos, wisp->collision,
+                                               M_UnitStaticPathingFlags(wisp)));
+    T_ASSERT(unit_issueimmediateorder(wisp, "autoharvestlumber"));
+    for (int i = 0; i < 256 && strcmp(wisp->currentmove->animation, "stand lumber"); i++) {
+        CM_ProcessPathJobs(4096);
+        if (wisp->currentmove && wisp->currentmove->think) wisp->currentmove->think(wisp);
+    }
+    T_ASSERT(wisp->currentmove && !strcmp(wisp->currentmove->animation, "stand lumber"));
+    T_EQ(wisp->goalentity, tree);
+
+    HARVEST_RANGE = old_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* Warsmash reserves an actively harvested tree to one Wisp. If two Wisps were
  * ordered to the same tree, the later arrival should acquire the nearest free
  * live tree instead of stacking on the occupied target. */

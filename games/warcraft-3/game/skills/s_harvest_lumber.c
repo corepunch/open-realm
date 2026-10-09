@@ -967,10 +967,13 @@ static void ai_wisp_walktree(edict_t * ent) {
         wisp_harvest_retarget_or_stop(ent);
         return;
     }
-    if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
-        unit_changeangle(ent);
-        unit_moveindirection(ent);
-        return;
+    {
+        float const distance = M_DistanceToGoal(ent);
+        if (distance > HARVEST_RANGE) {
+            unit_changeangle_for_radius_worker(ent, ent->collision);
+            unit_moveindirection(ent);
+            return;
+        }
     }
 
     /* The attached Wisp lives at the tree while harvesting and never damages
