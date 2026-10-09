@@ -439,7 +439,7 @@ For result-lifecycle diagnosis, `wc3_game_result_debug 1` enables game-module `W
 deferral (`event_queue`, `cinematic`, or `disconnected`), paused-result event draining/cinematic override, FDF binding,
 server layout emission, and result-button session actions. Pair it with the shared `ui_layout_debug 1` transport trace when client receipt/storage must also be observed;
 that generic trace logs every UI layer and the server-side result breadcrumb identifies the numeric result layer to correlate.
-Both diagnostics are runtime-gated and keep Warcraft-specific knowledge out of shared client code.
+`wc3_dialog_debug 1` adds `WC3_DIALOG` breadcrumbs for JASS dialog creation, labels, visibility, generated button state, and callbacks. Use it to trace the script-authored choice path. All three diagnostics are runtime-gated and keep Warcraft-specific knowledge out of shared client code.
 
 Single-player result pausing is also intentionally still missing. Result UI should reuse the existing WC3 pause/modal
 ownership path rather than suppressing `SV_Frame` or creating a second clock-freeze mechanism. `PauseGame` and
