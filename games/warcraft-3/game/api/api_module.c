@@ -1072,6 +1072,8 @@ jassModule_t jass_funcs[] = {
     { "PreloadGenClear", PreloadGenClear },
     { "PreloadGenStart", PreloadGenStart },
     { "PreloadGenEnd", PreloadGenEnd },
+    { "PreloadRefresh", PreloadRefresh },
+    { "PreloadEndEx", PreloadEndEx },
     { "Preloader", Preloader },
     // 1.24 hashtable family
     { "GetHandleId", GetHandleId },
