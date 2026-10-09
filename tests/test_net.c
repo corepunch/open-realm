@@ -52,6 +52,7 @@ void SCR_LayoutDrawTexture(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawTextArea(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawListBox(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawOverlay(handle_t layout);
 void SCR_LayoutDrawLoadingBar(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutClampSelectionRect(rect_t *rect);
@@ -88,6 +89,8 @@ static uint32_t test_fade_draws;
 static PATHSTR test_model_load_paths[4];
 static char test_sprite_anim[96];
 static uint32_t test_sprite_draws;
+static model_t const *test_portrait_model;
+static rect_t test_portrait_viewport;
 
 static model_t *capture_load_model(cstring_t filename) {
     uint32_t slot = test_model_loads;
@@ -2716,6 +2719,69 @@ TEST(net, game_presentation_variant_stat_roundtrips) {
 
     T_EQ(number, 3);
     T_EQ(out.stats[UI_PLAYERSTAT_GAME_VARIANT], 2);
+}
+
+TEST(net, cinematic_portrait_model_index_roundtrips_above_byte_range) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    player_t from = { 0 }, to = { 0 }, out = { 0 };
+    uint32_t bits;
+    int number;
+
+    to.number = 1;
+    to.cinematic_portrait = 1;
+    to.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] = 258;
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(out.cinematic_portrait, 1);
+    T_EQ(out.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL], 258);
+}
+
+static bool capture_portrait_anim(model_t const *model, cstring_t anim, renderEntity_t *entity) {
+    T_ASSERT(model != NULL);
+    T_STREQ(anim, "Portrait Talk");
+    test_portrait_model = model;
+    entity->frame = 12;
+    return true;
+}
+
+static void capture_portrait_frame(viewDef_t const *view) {
+    T_EQ(view->num_entities, 1);
+    test_portrait_model = view->entities[0].model;
+    test_portrait_viewport = view->viewport;
+}
+
+TEST(client_layout, cinematic_portrait_uses_full_registered_model_index) {
+    uiFrame_t frame = {
+        .number = 7,
+        .flags.type = FT_PORTRAIT,
+        .tex.index = 258,
+        .stat = 4,
+        .text = "Portrait Talk",
+    };
+    rect_t const screen = { 0.2f, 0.3f, 0.1f, 0.12f };
+    model_t const *model = (model_t const *)(uintptr_t)258;
+    __typeof__(re.SetEntityAnimFrame) old_anim;
+    __typeof__(re.RenderFrame) old_render;
+
+    test_client_stubs_init();
+    cl.models[258] = (model_t *)model;
+    old_anim = re.SetEntityAnimFrame;
+    old_render = re.RenderFrame;
+    re.SetEntityAnimFrame = capture_portrait_anim;
+    re.RenderFrame = capture_portrait_frame;
+    test_portrait_model = NULL;
+
+    SCR_LayoutDrawPortrait(&frame, &screen);
+
+    T_ASSERT(test_portrait_model == model);
+    T_FEQ(test_portrait_viewport.x, screen.x / SCR_UICanvasWidth(), 0.0001f);
+    T_FEQ(test_portrait_viewport.h, screen.h / UI_BASE_HEIGHT, 0.0001f);
+    re.SetEntityAnimFrame = old_anim;
+    re.RenderFrame = old_render;
 }
 
 TEST(net, playerstat_pair_after_gameplay_states_roundtrips) {
