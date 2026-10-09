@@ -1669,10 +1669,12 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         }
         return;
     }
-    /* Destructables are scenery, not units. Their live hover contract still
-     * exposes the authored name and neutral Select cursor, without unit bars. */
+    /* Destructables are scenery, not units. Retail world-hover names are
+     * limited to debris targets such as gates; walls, bridges, and decorations
+     * do not publish a hover name, even when they carry health. */
     if (G_IsDestructable(ent)) {
-        if (G_DestructableIsAttackable(ent) && !(state->flags & EF_NOT_SELECTABLE) &&
+        if (G_DestructableIsAttackable(ent) && ent->targtype == TARG_DEBRIS &&
+            !(state->flags & EF_NOT_SELECTABLE) &&
             !(state->renderfx & RF_HIDDEN) && G_FowPlayerCanHoverEntity(player, ent)) {
             char localized[MAX_PATHLEN];
             cstring_t name = ent->data.DestructableData->displayName;
@@ -1690,6 +1692,11 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
             state->name = G_UnitNameConfigstring(G_LevelString(name));
             state->stats[ENT_HEALTH] = compress_stat(&ent->health);
             state->flags |= EF_NEUTRAL;
+            /* Warcraft gate doodads (DTg*) are attackable world objects. The
+             * universal hover UI only displays their health when the game
+             * explicitly publishes the hover-health capability. */
+            if (!ent->invulnerable && !memcmp(&ent->class_id, "DTg", 3))
+                state->flags |= EF_HOVER_HEALTH;
         }
         return;
     }
