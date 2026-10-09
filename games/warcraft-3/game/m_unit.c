@@ -947,6 +947,13 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     if (!self || !order || !point || G_IsDeferredFree(self)) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self)) return false;
+    ability_t const *owner=FindAbilityByOrder(order);
+    if(owner) {
+        abilityitem_t item={.ability=owner};
+        abilityCall_t call={.item=&item,.point_order={point,order}};
+        abilityOrderResult_t result=S_AbilityMessage(self,A_POINT_ORDER,&call);
+        if(result!=ABILITY_ORDER_UNHANDLED)return result==ABILITY_ORDER_ACCEPTED;
+    }
     /* The Attack owner keeps the exact clicked point, including range-hold
      * orders on ordinary weapons and in-range immobile artillery. */
     if (!strcmp(order, "attackground")) return S_OrderAttackGround(self, point);
@@ -1122,9 +1129,18 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
             return accepted;
         }
     }
-    if ((self->aiflags & AI_IMMOBILE) && strcmp(order, "attackground")) return false;
+    ability_t const *owner=FindAbilityByOrder(order);
+    bool owned=false;
+    if(owner) {
+        abilityitem_t item={.ability=owner};
+        abilityCall_t call={.item=&item,.point_order={point,order}};
+        abilityOrderResult_t result=S_AbilityMessage(self,A_POINT_ORDER_ADMIT,&call);
+        if(result==ABILITY_ORDER_REJECTED)return false;
+        owned=result==ABILITY_ORDER_ACCEPTED;
+    }
+    if (!owned && (self->aiflags & AI_IMMOBILE) && strcmp(order, "attackground")) return false;
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") && strcmp(order, "patrol") &&
-        strcmp(order, "attackground")) return false;
+        strcmp(order, "attackground") && !owned) return false;
 
     if (queue && G_UnitHasActiveOrder(self)) {
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,

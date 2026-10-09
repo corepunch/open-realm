@@ -6,7 +6,8 @@
 #define ID_ROOT_ANCIENT MAKEFOURCC('A', 'r', 'o', '1')
 #define ID_ROOT_PROTECTOR MAKEFOURCC('A', 'r', 'o', '2')
 
-static umove_t ancient_root_morph, ancient_uproot_morph;
+static umove_t ancient_root_morph, ancient_uproot_morph, ancient_root_facing;
+static bool ancient_root_validate(edict_t *,vec2_t const *,vec2_t *);
 
 #ifdef BZ_TESTS
 static uint32_t moon_well_effect_release_calls;
@@ -424,6 +425,33 @@ void S_AncientBeginMorph(edict_t *unit, bool rooted) {
     if (unit->animation) unit->s.frame = unit->animation->interval[0];
 }
 
+/* Internal d0176 completion starts morph only while Root still owns execution.
+ * Stop/replacement clears that ownership through the same Move receiver. */
+void S_AncientFacingComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(receiver!=unit || !unit || !unit->ancient_root || unit->ancient_root->mode!=ANCIENT_ROOT_FACING)return;
+    if(arrived && unit->currentmove==&ancient_root_facing && !M_IsDead(unit) &&
+       S_UnitPointInMoveRange(unit,&unit->ancient_root->destination,0) &&
+       ancient_root_validate(unit,&unit->ancient_root->destination,&unit->ancient_root->destination)) {
+        /*438ac0 relocates through virtual180 before publishing the morph.
+         * Calling the public native here would cancel Root's retained head. */
+        S_PlaceUnitPosition(unit,&unit->ancient_root->destination);
+        S_AncientBeginMorph(unit,true);
+    } else unit->ancient_root->mode=ANCIENT_UPROOTED;
+}
+
+/*426f50 truncates authored RootAngle, applies signed modulo360 and prepends
+ * d0176.6002b0 supplies the fixed cd53c4 turn scalar to the ordinary bridge. */
+static void ancient_root_begin_facing(edict_t *unit) {
+    int32_t degrees=(int32_t)wc3_int_bits(wc3_float_bits(game.constants.rootAngle));
+    float angle=wc3_mul(wc3_float(wc3_from_int(degrees%360)),wc3_float(0x3c8efa35));
+    unit->ancient_root->approaching=false;
+    unit->ancient_root->mode=ANCIENT_ROOT_FACING;
+    unit->ancient_root->transition_end_time=0;
+    unit_setmove(unit,&ancient_root_facing);
+    S_BeginUnitFacingRequest(unit,&(moveFacingRequest_t){.angle=angle,.turn=wc3_float(0x3dcccccd),
+        .receiver=unit,.complete=S_AncientFacingComplete});
+}
+
 static void ancient_root_commit(edict_t *unit, bool rooted) {
     abilityLevel_t const *level;
     if (!unit || !unit->inuse || M_IsDead(unit)) return;
@@ -437,7 +465,6 @@ static void ancient_root_commit(edict_t *unit, bool rooted) {
         unit->s.flags |= EF_BUILDING;
         unit->movetype = MOVETYPE_NONE;
         unit->defense_type = unit->ancient_root->rooted_defense_type;
-        unit->s.angle = game.constants.rootAngle * (float)M_PI / 180.0f;
         G_AddUnitAnimationProperties(unit, "alternate", true);
         unit->ancient_root->mode = ANCIENT_ROOTED;
     } else {
@@ -471,6 +498,26 @@ static bool ancient_root_validate(edict_t *unit, vec2_t const *point, vec2_t *sn
     return unit && point && G_EvaluateRootPlacement(unit, point, snapped) == PLACE_OK;
 }
 
+/* Both UI and native point producers share Root's placement/approach owner. */
+static bool ancient_root_place(edict_t *unit,vec2_t const *point) {
+    vec2_t snapped;
+    if(!unit || !unit->ancient_root || unit->ancient_root->mode!=ANCIENT_UPROOTED ||
+       !ancient_root_validate(unit,point,&snapped))return false;
+    unit->ancient_root->destination=snapped;
+    if(unit->s.origin2.x==snapped.x && unit->s.origin2.y==snapped.y) {
+        unit->current_order_id=G_OrderId("root");ancient_root_begin_facing(unit);return true;
+    }
+    unit->ancient_root->mode=ANCIENT_ROOTING;unit->ancient_root->approaching=true;
+    S_IssueMoveOrder(unit,Waypoint_add(&snapped),G_OrderId("root"));
+    S_SetMoveGoal(unit,&unit->ancient_root->approach_goal,unit->goalentity);
+    unit->ancient_root->approach_goal_spawn_time=unit->goalentity ? unit->goalentity->spawn_time : 0;
+    if(!unit->currentmove || unit->currentmove->proc!=CAbilityMove || !unit->goalentity) {
+        unit->ancient_root->mode=ANCIENT_UPROOTED;unit->ancient_root->approaching=false;
+        S_SetMoveGoal(unit,&unit->ancient_root->approach_goal,NULL);return false;
+    }
+    return true;
+}
+
 static bool ancient_root_select_location(edict_t *clent, vec2_t const *point) {
     edict_t *unit;
     vec2_t snapped;
@@ -488,19 +535,7 @@ static bool ancient_root_select_location(edict_t *clent, vec2_t const *point) {
     G_ClearRootPlacementCursor(clent);
     clent->client->menu.on_location_selected = NULL;
     clent->client->menu.supports_order_queue = false;
-    unit->ancient_root->destination = snapped;
-    unit->ancient_root->mode = ANCIENT_ROOTING;
-    unit->ancient_root->approaching = true;
-    order_move(unit, Waypoint_add(&snapped));
-    S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, unit->goalentity);
-    unit->ancient_root->approach_goal_spawn_time = unit->goalentity ? unit->goalentity->spawn_time : 0;
-    if (!unit->currentmove || unit->currentmove->proc != CAbilityMove || !unit->goalentity) {
-        unit->ancient_root->mode = ANCIENT_UPROOTED;
-        unit->ancient_root->approaching = false;
-        S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, NULL);
-        return false;
-    }
-    return true;
+    return ancient_root_place(unit,&snapped);
 }
 
 static void ancient_root_command(edict_t *clent) {
@@ -619,6 +654,16 @@ BZ_ABILITY_PROC(CAbilityRoot) {
      * the Ancient occupies rooted building mode. The HUD uses this response
      * to resolve the authored Unart/Untip fields for the command button. */
     if (msg == A_TOGGLE_ON) return S_AncientIsRooted(ent);
+    if(msg==A_POINT_ORDER_ADMIT || msg==A_POINT_ORDER) {
+        vec2_t snapped;
+        if(!call || !call->point_order.order || strcmp(call->point_order.order,"root"))return ABILITY_ORDER_UNHANDLED;
+        if(ent && (!ent->ancient_root || ent->ancient_root->mode==ANCIENT_ROOT_UNINITIALIZED))ancient_root_update(ent);
+        if(!ent || !ent->ancient_root || ent->ancient_root->mode!=ANCIENT_UPROOTED ||
+           !ancient_root_ability(ent) || !G_IsUnitAbilityAvailable(ent,ent->ancient_root->ability) ||
+           !ancient_root_validate(ent,call->point_order.point,&snapped))return ABILITY_ORDER_REJECTED;
+        return msg==A_POINT_ORDER_ADMIT || ancient_root_place(ent,&snapped) ?
+            ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    }
     if (msg == A_ORDER && call && call->order) {
         if (ent && (!ent->ancient_root || ent->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED))
             ancient_root_update(ent);
@@ -635,6 +680,8 @@ BZ_ABILITY_PROC(CAbilityRoot) {
     case A_COMMAND: ancient_root_command(call && call->client ? call->client : ent); return true;
     case A_UPDATE: ancient_root_update(ent); return true;
     case A_MOVE_LEAVE:
+        if(ent && ent->ancient_root && ent->ancient_root->mode==ANCIENT_ROOT_FACING &&
+           call && call->next_move_proc!=CAbilityRoot)ent->ancient_root->mode=ANCIENT_UPROOTED;
         if (ent && ent->ancient_root && !ent->ancient_root->approaching &&
             (ent->ancient_root->mode == ANCIENT_ROOTING || ent->ancient_root->mode == ANCIENT_UPROOTING) &&
             call && call->next_move_proc != CAbilityRoot) {
@@ -653,7 +700,8 @@ BZ_ABILITY_PROC(CAbilityRoot) {
         if (ent && ent->ancient_root && ent->ancient_root->mode == ANCIENT_ROOTING && ent->ancient_root->approaching &&
             ent->goalentity == ent->ancient_root->approach_goal && ent->goalentity &&
             ent->goalentity->spawn_time == ent->ancient_root->approach_goal_spawn_time) {
-            if (Vector2_distance(&ent->s.origin2, &ent->ancient_root->destination) > 1.0f ||
+            /* Retail uses the mover's collision window, not a one-unit cutoff. */
+            if (!S_UnitPointInMoveRange(ent, &ent->ancient_root->destination, 0) ||
                 !ancient_root_validate(ent, &ent->ancient_root->destination, &ent->ancient_root->destination)) {
                 ent->ancient_root->mode = ANCIENT_UPROOTED;
                 ent->ancient_root->approaching = false;
@@ -665,7 +713,7 @@ BZ_ABILITY_PROC(CAbilityRoot) {
                 return false;
             }
             S_SetMoveGoal(ent, &ent->ancient_root->approach_goal, NULL);
-            S_AncientBeginMorph(ent, true);
+            ancient_root_begin_facing(ent);
             return true;
         }
         return false;
@@ -684,3 +732,4 @@ BZ_ABILITY_PROC(CAbilityRoot) {
 
 static umove_t ancient_root_morph = { "morph", ancient_root_morph_think, NULL, CAbilityRoot, ancient_root_animation_duration };
 static umove_t ancient_uproot_morph = { "morph alternate", ancient_root_morph_think, NULL, CAbilityRoot, ancient_root_animation_duration };
+static umove_t ancient_root_facing = { "stand", NULL, NULL, CAbilityRoot };

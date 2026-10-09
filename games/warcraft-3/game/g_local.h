@@ -924,6 +924,8 @@ typedef enum {
     A_REQUIREMENTS_CHANGED, /* Player research state changed; authored owners recheck pending work. */
     A_LEVEL_CHANGED,    /* Level refresh: apply the new call->level to behavior-owned state. */
     A_ORDER,            /* Immediate-order dispatch: handle call->order; return whether it was accepted. */
+    A_POINT_ORDER_ADMIT, /* Point owner validates before pending orders are changed; abilityOrderResult_t. */
+    A_POINT_ORDER,      /* Point owner starts the admitted or queued command; abilityOrderResult_t. */
     A_GROUP_POINT_ORDER, /* Batch producer: call->group_order; return abilityOrderResult_t. */
     A_TARGET_ORDER,     /* Target-owned interaction: handle call->target_order for an order aimed at this unit. */
     A_ORDER_ACCEPTED,   /* Accepted non-queued order that may not install a new move; call->order identifies it. */
@@ -1062,6 +1064,7 @@ struct ability_call_s {
         edict_t *removed_target; /* A_TARGET_REMOVED; valid throughout the notification. */
         edict_t *lost_target; /* A_TARGET_LOST; world/invisibility state is already published. */
         cstring_t order;
+        struct { vec2_t const *point; cstring_t order; } point_order;
         groupPointOrder_t const *group_order; /* A_GROUP_POINT_ORDER: retained public point request. */
         abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
@@ -1679,6 +1682,7 @@ typedef enum {
     ANCIENT_ROOTING,
     ANCIENT_UPROOTED,
     ANCIENT_UPROOTING,
+    ANCIENT_ROOT_FACING, /* d0176 precedes morph and remains interruptible. */
 } ancientRootMode_t;
 
 typedef struct {
@@ -3216,6 +3220,12 @@ void unit_refreshstatusflags(edict_t *);
 float unit_turnspeed(edict_t const *);
 float S_UnitFacing(edict_t *);
 void S_SetUnitFacingTimed(edict_t *, float degrees, float duration);
+typedef struct {
+    float angle, turn; /* Radians and radians per physical decision. */
+    edict_t *receiver;
+    void (*complete)(edict_t *, edict_t *, bool);
+} moveFacingRequest_t;
+void S_BeginUnitFacingRequest(edict_t *, moveFacingRequest_t const *);
 float unit_propwindow(edict_t const *);
 void unit_moveindirection(edict_t *);
 void unit_moveindirection_ignore_units(edict_t *);
@@ -3241,6 +3251,7 @@ float S_UnitDefaultMoveSpeed(edict_t const *);
 void S_SetUnitMoveSpeed(edict_t *, float);
 void S_SetUnitAxisPosition(edict_t *, uint32_t, float);
 void S_SetUnitPosition(edict_t *, vec2_t const *);
+void S_PlaceUnitPosition(edict_t *, vec2_t const *);
 void S_InitUnitPosition(edict_t *, vec2_t const *);
 void S_RecoverStoppedUnitPosition(edict_t *);
 void S_StopUnitMovement(edict_t *);
@@ -3447,6 +3458,7 @@ void S_QueryMoveProximityContext(edict_t const *,float const[2],float,void (*)(v
 void S_QueryMoveRangeCandidates(edict_t const *,float const[2],float,void (*)(void *,edict_t const *),void *);
 void S_PredictUnitFinePointAt(edict_t const *,wc3Clock_t const *,float[2]);
 bool S_UnitTargetInMoveRange(edict_t const *,edict_t const *,float);
+bool S_UnitPointInMoveRange(edict_t const *,vec2_t const *,float);
 wc3FineBox_t const *S_GetMoveProximity(uint32_t);
 bool S_LoadMoveProximity(uint32_t,wc3FineBox_t);
 bool S_NextMoveSpatialMaintenance(wc3Clock_t *,uint32_t *);

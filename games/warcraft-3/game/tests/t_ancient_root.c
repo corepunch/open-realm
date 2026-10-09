@@ -1,7 +1,9 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+bool run_test_jass(cstring_t src);
 #include "../skills/s_skills.h"
+#include "retail_root211.h"
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -596,7 +598,7 @@ TEST(wc3_ancient_root, command_rejects_blocked_placement_and_keeps_cursor_active
     memset(client, 0, sizeof(*client));
 }
 
-TEST(wc3_ancient_root, placement_order_walks_then_starts_root_morph_on_arrival) {
+TEST(wc3_ancient_root, placement_order_walks_then_faces_before_root_morph) {
     slkTestData_t *rows = parse_slk_string(ancient_root_tft);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     edict_t *player, *unit;
@@ -622,15 +624,143 @@ TEST(wc3_ancient_root, placement_order_walks_then_starts_root_morph_on_arrival) 
 
     unit->s.origin2 = unit->ancient_root->destination;
     T_ASSERT(S_UnitAbilityMoveArrive(unit));
-    T_EQ(unit->ancient_root->mode, ANCIENT_ROOTING);
+    T_EQ(unit->ancient_root->mode, ANCIENT_ROOT_FACING);
     T_ASSERT(!unit->ancient_root || !unit->ancient_root->approaching);
     T_EQ(unit->currentmove->proc, CAbilityRoot);
-    T_EQ(unit->ancient_root->transition_end_time, G_Time() + 2250);
+    T_EQ(unit->ancient_root->transition_end_time, 0);
+    T_NOT_NULL(move_unit_group(unit));
+    if (move_unit_group(unit)) {
+        T_ASSERT(move_unit_group(unit)->turning);
+        T_EQ(wc3_float_bits(move_unit_group(unit)->turn_rate), 0x3dcccccdu);
+        T_ASSERT(move_unit_group(unit)->receiver == unit);
+    }
 
     player->client = NULL;
     memset(client, 0, sizeof(*client));
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+}
+
+/* Root's public point producer must retain Root while the internal approach
+ * and d0176 angular owner run. Stop can interrupt that owner before morph. */
+TEST(wc3_ancient_root, native_root_retains_public_head_and_interruptible_facing) {
+    slkTestData_t *rows=parse_slk_string(ancient_root_tft),*old=G_SetSLKRows("AbilityData",rows);
+    reset_entities();setup_test_world();level.time=1000;
+    edict_t *unit=ancient_test_unit(false);
+    vec2_t point={320,320};unit->collision=16;
+    bool accepted=G_IssueUnitPointOrder(unit,"root",&point,false,0,0);
+    T_ASSERT(accepted);
+    if(accepted) {
+        T_EQ(unit->current_order_id,G_OrderId("root"));
+        unit->s.origin2=unit->ancient_root->destination;
+        T_ASSERT(S_UnitAbilityMoveArrive(unit));
+        T_EQ(unit->ancient_root->transition_end_time,0);
+        T_NOT_NULL(move_unit_group(unit));
+        T_ASSERT(S_AncientCanReceiveOrder(unit));
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        T_EQ(unit->ancient_root->mode,ANCIENT_UPROOTED);
+        T_EQ(unit->ancient_root->transition_end_time,0);
+        T_NULL(move_unit_group(unit));
+        T_ASSERT(!G_UnitIsStructure(unit));
+    }
+    gameClient_t *owner=G_GetPlayerClientByNumber(unit->s.player);
+    T_NOT_NULL(owner);
+    if(owner) {
+        G_SetPlayerAbilityAvailable(owner,TEST_AROO,false);
+        T_ASSERT(!G_IssueUnitPointOrder(unit,"root",&point,false,0,0));
+        T_EQ(unit->ancient_root->mode,ANCIENT_UPROOTED);
+        T_NULL(move_unit_group(unit));
+        G_SetPlayerAbilityAvailable(owner,TEST_AROO,true);
+    }
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+/* These words come from both unmodified retail captures, not engine output.
+ * The generic bridge must consume Root's authored heading/turn and tiny point. */
+TEST(wc3_ancient_root, stock_root_producer_matches_retail_request_words) {
+    slkTestData_t *rows=parse_slk_string(ancient_root_tft),*old=G_SetSLKRows("AbilityData",rows);
+    float old_angle=game.constants.rootAngle;game.constants.rootAngle=250;
+    reset_entities();setup_test_world();level.time=1000;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    FOR_LOOP(i,2) {
+        edict_t *unit=ancient_test_unit(false);
+        vec2_t point={512+512*i,512};unit->s.origin2=point;unit->collision=16;
+        T_ASSERT(G_IssueUnitPointOrder(unit,"root",&point,false,0,0));
+        moveGroup_t const *group=move_unit_group(unit);
+        T_NOT_NULL(group);
+        if(group) {
+            uint32_t words[]={wc3_float_bits(wc3_mul(250,wc3_float(0x3c8efa35))),
+                wc3_float_bits(group->turn_rate),wc3_float_bits(group->point.x),wc3_float_bits(group->point.y),
+                group->flags&~0x10000u};
+            FOR_LOOP(k,5)T_EQ(words[k],retail_root211_requests[i][k]);
+            T_EQ(unit->current_order_id,G_OrderId("root"));
+            T_EQ(unit->ancient_root->transition_end_time,0);
+        }
+    }
+    game.constants.rootAngle=old_angle;G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+/* Retail Root211 turns 15.366 world units short of its root point, then
+ * publishes that admitted point only when the angular owner completes. */
+TEST(wc3_ancient_root, collision_window_arrival_places_only_at_morph_start) {
+    slkTestData_t *rows=parse_slk_string(ancient_root_tft),*old=G_SetSLKRows("AbilityData",rows);
+    reset_entities();setup_test_world();level.time=1000;
+    edict_t *unit=ancient_test_unit(false);
+    vec2_t point={320,320};unit->collision=16;
+    T_ASSERT(G_IssueUnitPointOrder(unit,"root",&point,false,0,0));
+    unit->s.origin2=(vec2_t){320,305};
+    T_ASSERT(S_UnitAbilityMoveArrive(unit));
+    T_EQ(unit->ancient_root->mode,ANCIENT_ROOT_FACING);
+    T_EQ(unit->ancient_root->transition_end_time,0);
+    T_EQ(unit->s.origin2.y,305);
+    S_AncientFacingComplete(unit,unit,true);
+    T_EQ(unit->ancient_root->mode,ANCIENT_ROOTING);
+    T_EQ(unit->ancient_root->transition_end_time,G_Time()+2250);
+    T_EQ(unit->s.origin2.x,320);T_EQ(unit->s.origin2.y,320);
+    T_EQ(unit->current_order_id,G_OrderId("root"));
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+/* Save while the callback-bearing angular owner is live, then compare every
+ * resumed physical heading, Root stage and morph deadline with uninterrupted frames. */
+TEST(wc3_ancient_root, physical_facing_resumes_after_cold_save_without_final_snap) {
+    slkTestData_t *rows=parse_slk_string(ancient_root_tft),*old=G_SetSLKRows("AbilityData",rows);
+    float old_angle=game.constants.rootAngle;game.constants.rootAngle=628.75f;
+    reset_entities();setup_test_world();level.time=1000;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    edict_t *unit=ancient_test_unit(false);
+    unit->think=monster_think;unit->collision=16;
+    unit->unitinfo.move_flags|=BZ_UNIT_WINDOW_SET;unit->unitinfo.PropWindow=wc3_float(0x3e32b8c3);
+    vec2_t point=unit->s.origin2;
+    T_ASSERT(G_IssueUnitPointOrder(unit,"root",&point,false,0,0));
+    T_EQ(unit->ancient_root->mode,ANCIENT_ROOT_FACING);
+    T_EQ(unit->ancient_root->transition_end_time,0);
+    T_NOT_NULL(move_unit_group(unit));
+    if(move_unit_group(unit))T_ASSERT(move_unit_group(unit)->complete==S_AncientFacingComplete);
+    PATHSTR path;strlcpy(path,Test_TempPath("wc3-root211-turn.bin"),sizeof(path));
+    T_ASSERT(WriteGame(path));
+    uint32_t states[700][4];
+    FOR_LOOP(i,700) {
+        level.time+=5;globals.RunFrame();
+        states[i][0]=wc3_float_bits(unit->s.angle);states[i][1]=unit->ancient_root->mode;
+        states[i][2]=unit->ancient_root->transition_end_time;states[i][3]=unit->current_order_id;
+    }
+    T_EQ(unit->ancient_root->mode,ANCIENT_ROOTED);
+    T_EQ(unit->current_order_id,0);
+    float settled=unit->s.angle;
+    T_ASSERT(settled!=wc3_mul(268,wc3_float(0x3c8efa35)));
+    T_ASSERT(ReadGame(path));
+    T_EQ(unit->ancient_root->mode,ANCIENT_ROOT_FACING);
+    T_ASSERT(move_unit_group(unit) && move_unit_group(unit)->complete==S_AncientFacingComplete);
+    FOR_LOOP(i,700) {
+        level.time+=5;globals.RunFrame();
+        T_EQ(wc3_float_bits(unit->s.angle),states[i][0]);T_EQ(unit->ancient_root->mode,states[i][1]);
+        T_EQ(unit->ancient_root->transition_end_time,states[i][2]);T_EQ(unit->current_order_id,states[i][3]);
+    }
+    T_EQ(wc3_float_bits(unit->s.angle),wc3_float_bits(settled));
+    remove(path);
+    game.constants.rootAngle=old_angle;G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
 }
 
 TEST(wc3_ancient_root, ability_availability_is_enforced_by_simulation_dispatch) {

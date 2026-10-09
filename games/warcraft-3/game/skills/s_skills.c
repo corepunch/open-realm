@@ -1727,7 +1727,8 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
     if(msg==A_MOVE_SPEED_BONUS)move_bonus_messages++;
 #endif
     ability_t const *ability = call && call->item ? call->item->ability : NULL;
-    bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
+    bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_POINT_ORDER_ADMIT ||
+                      msg == A_POINT_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
                       msg == A_AUTOCAST_ACQUIRE || (msg == A_AUTOCAST_SET && call && call->enabled);
     if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST))) {
         uint32_t const code = call && call->item ? call->item->code : 0;

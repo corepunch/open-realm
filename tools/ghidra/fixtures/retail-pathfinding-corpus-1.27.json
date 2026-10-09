@@ -48612,6 +48612,55 @@
         "Patrol witnesses retain physical-motion and observer limits of their child contract. No whole-world, multiplayer, frame-budget or all-scenario determinism claim.",
         "Saved engine suffixes are compared with uninterrupted expectations; no new original retail UI save/load is claimed."
       ]
+    },
+    {
+      "id": "oracle-root211",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_root.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "root211.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "engine_editions": {
+          "equal": 2
+        },
+        "original": {
+          "equal": {
+            "observations": 2,
+            "controls": 1,
+            "rows": 4904,
+            "public_markers": 1068,
+            "angular_visits": 57
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "FORM-01.3 Root d0176 producer: repeated original/control request words and normal-placement stage boundaries; native/UI engine Root point orders, collision-window arrival, retained head, interruptible angular receiver, relocation before morph and cold-save continuation. Wider producer families remain open.",
+      "exclusions": [
+        "FORM-01.3 remains open for wider producer families and flag consequences.",
+        "Exact full Root physical/visual trajectory and morph/event timing are not certified against the engine; request words and stage boundaries are integrated.",
+        "Placement45 deferred retries, other Root forms and changed collision during facing remain unported.",
+        "Cold engine saves establish deterministic continuation, not retail UI save parity."
+      ]
     }
   ],
   "fixtures": [
@@ -49510,7 +49559,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "1382722b74b76f5214ccd8d4bf843819726286261ce3e2f5be5c0e394b3e90cf"
+      "sha256": "55257c707cadd5c9a2591852615d507bca806573be0025469b47a0096a3d0acb"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50366,7 +50415,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "51053afb7051bd0b6a1b859971b35cf6b2b02c471eba0939d9b94be8bdaa67ab"
+      "sha256": "5458851c739d440bb0796cfcde922a61335c589ddf7acadea40ce10fc281992d"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -50802,7 +50851,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "37376a72905c0ac37e12d57b1ebe8d4ba6dbb3227684df3525fe4c756987554f"
+      "sha256": "ac1ed20abaead0b5bbb743a03c8db9ead59c124327328d769aa30e07666e011f"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -50810,7 +50859,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "08911d69e4ccf8bad6212c43d42623777a85b6656ad20ff5907896fcfebc3b79"
+      "sha256": "61d24291e8405001afbd448894ccb68b808b9625dfaf0fa9adaf9953d8c0ca36"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51302,7 +51351,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "3821f0259f4351ebf49a22455ff303ebbfdb2f806fb611e9ac08b64da2594e05"
+      "sha256": "f14ca82a750a6f1c4cdfcf4f278021cab2ba7737a36cae19bb4938aa15740b1a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51310,15 +51359,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "a7fa6f403bb6351c0141d61462441101d8a098d7de82a7dcaa0c7ccd43e6eb80"
+      "sha256": "b26b75691f75335e814e28d192230459c1a36bdda34ae32a3e7d7d2668c42096"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "cefe29cbda28c07d625897afd29313d10ea69b6a6cef553ab495dccf8c3073da"
+      "sha256": "50a26cc17dd2a9b120054dfff5b66da0b37d9a999e2b0986ee7cc096a2919278"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "673acc5eefc5ef5ebd38c9d7807e46d606be07e688a7e85ce68b481e08b99774"
+      "sha256": "bd717b041324a89f805d20f73c98018dbe7a539bc1c24b7fb5d33c77a3346927"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -51330,7 +51379,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "1c35da788d5627c9f8f5f3ab9532b1a267ab717033b25fce38bac7e1c19eca04"
+      "sha256": "9f891bca9348d4690786041db5f49ac5bad86614485b87d2bf26bc9953aae6c2"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -52266,7 +52315,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "1f551604906772e59a1acdb145de5c0912303994a761a20b58dd3303368be6d0"
+      "sha256": "65c13c7df44ed32dda9b72766196fa02d72f468b8c388f2c649544edf166a9ec"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -52526,7 +52575,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "5306a3b80f86835ece625339fd710869492dc6ab4f930da36c0be52c8bffda99"
+      "sha256": "48d966bb262c67f8bbe07d38df3811c6617bd8512896d1e9d4f75fee6f361ee2"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -53523,6 +53572,38 @@
     {
       "path": "games/warcraft-3/game/tests/retail_scheduler_contention.h",
       "sha256": "b62dfce3b0985ed406afcd5564f9c49f89b6fd81f567a62745d692d97222e91a"
+    },
+    {
+      "path": "tools/frida/research/root211_probe.j",
+      "sha256": "bbed521d557a01e23916f10edc957a0a532a5eabaa90d7566f3476dfc1b671c4"
+    },
+    {
+      "path": "tools/frida/research/root211_observer.js",
+      "sha256": "2dda802d42fe89749692f572288b789f2e3364d3e743852bda3d20df8aab4f43"
+    },
+    {
+      "path": "tools/frida/research/root211_fixture.py",
+      "sha256": "cd11e8bf2c60fb94aa27058422b14a3dc528c8abe536bda8cbeef46386dd6c8a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_root.py",
+      "sha256": "f8dc6784a8dfbddc10363c80a8023cd1c731e3e9e12bf3252c51098ac9be5bc9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-root211-1.27.json",
+      "sha256": "197f5a7595b2667e0ada834c2bafb64a319c04c919fe461c5114265edf1bb4fc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-root211-1.27.jsonl.gz",
+      "sha256": "82f5601dbee06e6f910c0b6329979826e6492a9f279b4653d7d8b66d59a9357c"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_root211.h",
+      "sha256": "aa56a0d390f96149215421f4b031b614379a4b2d4c172e8a71ad896279456d14"
+    },
+    {
+      "path": "tests/test_wc3_pathing_root.py",
+      "sha256": "c97ec5747b5535a808af32d5277d7f0ae8aa7fd59e33d421ef693170ad1d7780"
     }
   ]
 }

@@ -1851,6 +1851,27 @@ bool S_UnitTargetInMoveRange(edict_t const *self,edict_t const *target,float ran
         wc3_float(wc3_float_bits(wc3_sub(squared,limit))&0x7fffffffu)<wc3_float(0x3a83126f);
 }
 
+/* Original05b440 predicts the source, adds only its collision radius and
+ * tests squared fine distance. Root uses zero authored extra range. */
+bool S_UnitPointInMoveRange(edict_t const *self,vec2_t const *point,float range) {
+    if(!self || !point)return false;
+    uint32_t word=wc3_float_bits(range);
+    range=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
+    range=wc3_add(range,wc3_mul(self->collision,wc3_float(0x3d000000)));
+    box2_t bounds=CM_GetWorldBounds();
+    float source[2],target[2]={point->x,point->y},origin[2]={bounds.min.x,bounds.min.y},squared=0;
+    S_PredictUnitFinePointAt(self,&level.pathing_clock,source);
+    FOR_LOOP(k,2) {
+        uint32_t axis=wc3_float_bits(wc3_sub(target[k],origin[k]));
+        float fine=wc3_float((axis^(axis-0x03000000u))&0x80000000u ? 0 : axis-0x02800000u);
+        float delta=wc3_sub(source[k],fine);
+        squared=wc3_add(squared,wc3_mul(delta,delta));
+    }
+    float limit=wc3_mul(range,range);
+    return limit>squared ||
+        wc3_float(wc3_float_bits(wc3_sub(squared,limit))&0x7fffffffu)<wc3_float(0x3a83126f);
+}
+
 static void unit_predicted_pose_raw(edict_t const *self,wc3GridPose_t *pose) {
     unit_predicted_pose_at(self,&level.pathing_clock,pose);
 }
@@ -2113,8 +2134,15 @@ void S_InitUnitPosition(edict_t *self, vec2_t const *requested) {
 /* Both public placement natives replace the order before admitting position. */
 void S_SetUnitPosition(edict_t *self, vec2_t const *requested) {
     if (!self || !requested) return;
-    vec2_t old_position = self->s.origin2, position;
     order_stop(self);
+    S_PlaceUnitPosition(self,requested);
+}
+
+/* Unit virtual180 admits/publishes position independently of public Stop.
+ * Root438ac0 retains its head when relocating at morph start. */
+void S_PlaceUnitPosition(edict_t *self,vec2_t const *requested) {
+    if(!self || !requested)return;
+    vec2_t old_position=self->s.origin2,position;
     self->movement.velocity = (vec2_t){0};
     self->movement.clock_valid = false;
     G_FindUnitPlacementPosition(self, requested, &position);
@@ -4945,12 +4973,20 @@ void S_SetUnitFacingTimed(edict_t *unit,float degrees,float duration) {
     float turn=wc3_float(wc3_float_bits(wc3_div(wc3_turn_error(angle,S_UnitFacing(unit)),visits))&0x7fffffffu);
     if(!(fabsf(wc3_sub(visits,0))>=wc3_float(0x3456bf95)) ||
        !(fabsf(wc3_sub(turn,0))>=wc3_float(0x3456bf95)))return;
+    S_BeginUnitFacingRequest(unit,&(moveFacingRequest_t){.angle=angle,.turn=turn});
+}
+
+/* Native05c0e0 is shared by public timed facing and internal d0176 tasks.
+ * Completion belongs to the requesting ability; Move only owns its cohort. */
+void S_BeginUnitFacingRequest(edict_t *unit,moveFacingRequest_t const *request) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || !request)return;
+    float angle=request->angle;
     wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
     vec2_t point={wc3_add(pose.grid[0],wc3_mul(wc3_float(0x3c23d70a),wc3_cos(angle))),
         wc3_add(pose.grid[1],wc3_mul(wc3_float(0x3c23d70a),wc3_sin(angle)))};
     move_detach_group(unit);
     moveGroup_t *group=move_alloc_group();
-    group->inuse=true;group->turning=true;group->turn_rate=turn;
+    group->inuse=true;group->turning=true;group->turn_rate=request->turn;
     group->id=move_allocate_group_id();group->flags=0x10200u;
     group->point=point;group->radius=unit->collision;
     group->goal=(vec2_t){wc3_world_coordinate(point.x,pose.origin[0],32),
@@ -4959,6 +4995,9 @@ void S_SetUnitFacingTimed(edict_t *unit,float degrees,float duration) {
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
         .arrival_range=wc3_float(0x3efae148)};
     unit->movement.group_id=group->id;move_unit_groups[unit-g_edicts]=group;
+    group->receiver=request->receiver;
+    group->receiver_spawn=request->receiver ? request->receiver->spawn_time : 0;
+    group->complete=request->complete;
 }
 
 static void move_captain_actor_point(edict_t *actor,vec2_t const *home,float range) {

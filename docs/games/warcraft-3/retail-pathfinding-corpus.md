@@ -2085,3 +2085,13 @@ child observer/motion/lifecycle restrictions remain explicit. See
 [combined variants](retail-pathfinding-engine.md#contention-cancellation-and-successors-share-the-end-to-end-baseline-payoff210)
 for reproduction and coverage limits. The inventory now has447 entries;
 historical inventory breakdowns remain unchanged.
+
+## Root internal facing producer (Payoff211)
+
+`oracle-root211` binds the Root211b normal-placement producer to native/UI engine
+point orders, collision-window arrival, angular completion/interruption and cold
+save continuation. It requires two complete original repeats, the observer-free
+public control and original heading/turn/request-point words. The frozen inputs
+are `retail-root211-1.27.json` and its portable timeline; the engine consumes
+`retail_root211.h`. It leaves full Root trajectory/timing, placement45 retries
+and wider FORM-01.3 producers open. See [Root facing](retail-pathfinding-engine.md#root-approaches-then-faces-before-morphing-payoff211).

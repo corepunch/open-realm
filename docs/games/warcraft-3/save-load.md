@@ -1,5 +1,11 @@
 # Warcraft III Save/Load
 
+Save151 adds the registered Root angular completion receiver and facing stage.
+Single-member angular owners may retain a receiver without a target; generation,
+callback and member validation still applies. Cold saves resume the turn and
+morph with identical physical heading, public head and deadline words. Save150
+and earlier layouts are incompatible. See [Root facing](retail-pathfinding-engine.md#root-approaches-then-faces-before-morphing-payoff211).
+
 Save150 retains bridge-owned angular cohorts, temporary turn overrides and
 logical visual-facing state. Load rebuilds the derived active visual set;
 invalid scalar/policy/member records are rejected. Save149 and older layouts
@@ -63,7 +69,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 150, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 151, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;

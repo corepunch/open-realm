@@ -14394,3 +14394,74 @@ python3 tools/ghidra/run_wc3_pathfinding_corpus.py \
 
 Use a new output directory. The runner compares frozen expectations and never
 regenerates them on disk.
+
+## Root approaches then faces before morphing (Payoff211)
+
+The public Root point order queues three owners: d016b approach when needed,
+d0176 facing, then d018f morph. `426f50` captures Misc.RootAngle by wrapped
+integer conversion, signed modulo360 and software degrees scaling. `691d80`
+prepends the task; `6002b0` sends its heading to `05c0e0` with turn scalar
+`3dcccccd`, completion event d0196 and the Move receiver. Root retains its public
+head through both internal owners. These are ability producers using the same
+angular bridge as timed facing, rather than a Root-specific steering algorithm.
+
+`438ac0` accepts the predicted source within its collision radius through
+`05b440`; it does not require a one-world-unit distance. After placement
+validation it calls Unit virtual180 (`698050`) before starting morph. This
+placement operation preserves the current order. Public SetUnitPosition performs
+Stop separately; the engine now exposes the shared position operation without
+that public cancellation. Root no longer forces its final heading to RootAngle.
+
+Two complete owned read-only Root211b captures match 4,904 normalized records,
+including 57 angular owner visits. All 1,068 public markers match the observer-free
+control. Three stock Tree of Life Root producers capture 250 degrees as 408ba057;
+two begin facing immediately and the distant one starts at tick 174. Stop at 53
+cancels the second turn. The distant unit turns at (1536.012,1008.634), relocates
+to (1536,1024) at morph start, and settles visually at 239.015 degrees. The
+same-position survivor settles at 256.867. These traces prove that a final snap
+to 250 is wrong; they do not certify every engine Root trajectory word.
+
+The engine integrates native/UI point admission, public-head retention,
+collision-window arrival, ability-owned angular completion, relocation before
+morph, interruption and the unsnapped heading. Four new regressions include
+original request words and 700 actual-frame cold-save continuation steps. The
+old placement test's immediate-morph expectation changed only after the original
+captures and producer/handler disassembly proved the missing facing stage.
+No previously frozen retail numerical fixture is overwritten.
+
+Save151 appends the Root completion callback and accepts a single-member angular
+receiver without requiring a target. Existing receiver generation, flags,
+callback-registration and member-count validation remains. Save150 and earlier
+layouts are rejected. The exact native callback event identity remains in the
+evidence; the engine persists its equivalent registered ability callback.
+
+`retail-root211-1.27.json` pins both full originals, the control, producer map,
+Ghidra dumps/readback and source snapshots. `oracle-root211` revalidates them and
+runs the complete Classic/TFT Root suite with fresh JUnit identities and nonempty
+assertion totals. `MapPathfinding.java` and the saved Ghidra program retain the
+six producer/handler/range mappings. Diagnostic earlier observers are excluded
+because one read the wrong argument location; the accepted probe reads the
+heading pointer from stack4 at 691d80, with ECX containing the Unit.
+
+FORM-01.3 remains open for remaining producer families and policy consequences.
+The native placement45 ten-retry path, complete Root trajectories/timing, and
+other actor forms are not closed by this normal-placement integration. Engine
+cold-save equality is not a retail UI-save claim. The backlog remains 274/336
+done, 62 open. This focused chunk is 5/12 since the last full checkpoint.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+python3 tools/ghidra/verify_wc3_pathing_root.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 --report /tmp/root211-fresh.json
+```
+
+Use a fresh report path. The verifier compares the frozen evidence and does not
+regenerate it.
+
+Fresh strict acceptance passes19 Root tests/3,034 assertions per edition.
+Neighboring facing3/14,308, order lifecycle43/15,280, save206/38,027,
+interruption2/111, range listeners20/123 and spell412/11,321 pass in both
+editions. The focused Python evidence/corpus suites pass44 checks. The staged
+corpus contains448 entries and1,235 verified pins. Production and test game
+libraries build; the pre-existing parser unused-value warning is unchanged.

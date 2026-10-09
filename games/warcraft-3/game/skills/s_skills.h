@@ -193,6 +193,7 @@ BZ_ABILITY_PROC(CAbilityHarvestLumber);
 BZ_ABILITY_PROC(CAbilityRepairGeneric);
 BZ_ABILITY_PROC(CAbilityRoot);
 void S_AncientBeginMorph(edict_t *, bool rooted);
+void S_AncientFacingComplete(edict_t *, edict_t *, bool arrived);
 BZ_ABILITY_PROC(CAbilityBlink);
 BZ_ABILITY_PROC(CAbilityFanOfKnives);
 BZ_ABILITY_PROC(CAbilityShadowStrike);
