@@ -904,8 +904,11 @@ TEST(wc3_api, cinefilter_interpolates_and_publishes_player_state) {
     level.cinefilter = (cineFilter_t){
         .texture = 73,
         .displayed = true,
-        .start = { .color = MAKE(color32_t, 10, 20, 30, 40), .time = 0 },
-        .end = { .color = MAKE(color32_t, 110, 120, 130, 200), .time = 2000 },
+        .texmapflags = TEXMAP_FLAG_WRAP_UV,
+        .start = { .color = MAKE(color32_t, 10, 20, 30, 40), .time = 0,
+                   .uv = { .min = { 0, 0 }, .max = { 1, 1 } } },
+        .end = { .color = MAKE(color32_t, 110, 120, 130, 200), .time = 2000,
+                 .uv = { .min = { 1, 0.5f }, .max = { 3, 2.5f } } },
     };
     level.time = 1000;
     G_RunClients();
@@ -914,6 +917,11 @@ TEST(wc3_api, cinefilter_interpolates_and_publishes_player_state) {
     T_EQ(game.clients[0].ps.cinefilter_color.g, 70);
     T_EQ(game.clients[0].ps.cinefilter_color.b, 80);
     T_EQ(game.clients[0].ps.cinefilter_color.a, 120);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.min.x, 0.5f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.min.y, 0.25f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.max.x, 2.0f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.max.y, 1.75f, 0.0001f);
+    T_EQ(game.clients[0].ps.cinefilter_texmapflags, TEXMAP_FLAG_WRAP_UV);
 
     level.time = 2000;
     G_RunClients();
@@ -921,6 +929,13 @@ TEST(wc3_api, cinefilter_interpolates_and_publishes_player_state) {
     T_EQ(game.clients[0].ps.cinefilter_color.g, 120);
     T_EQ(game.clients[0].ps.cinefilter_color.b, 130);
     T_EQ(game.clients[0].ps.cinefilter_color.a, 200);
+
+    /* Natives that never set UVs leave an empty box; that means full UVs. */
+    level.cinefilter.start.uv = level.cinefilter.end.uv = (box2_t){ 0 };
+    G_RunClients();
+    T_FEQ(game.clients[0].ps.cinefilter_uv.min.x, 0.0f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.max.x, 1.0f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.max.y, 1.0f, 0.0001f);
 
     /* CinematicFadeBJ to black must reach opaque. */
     level.cinefilter.end.color = MAKE(color32_t, 0, 0, 0, 255);

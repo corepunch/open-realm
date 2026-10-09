@@ -52,8 +52,9 @@ The cinematic dialogue path sends the portrait model through the existing
 indices above 255 survive; `cinematic_portrait` is only a presence flag. This
 reuses an existing stats slot and does not add player-state delta bits.
 
-Cinematic filters use three player-state fields: `cinefilter_image`,
-`cinefilter_color`, and `cinefilter_blendmode`, appended to
+Cinematic filters use five player-state fields: `cinefilter_image`,
+`cinefilter_color`, `cinefilter_blendmode`, `cinefilter_uv`, and
+`cinefilter_texmapflags`, appended to
 `playerStateFields` so existing delta bit assignments stay stable. Every
 `CinematicFadeBJ` and `CinematicFilterGenericBJ` call sets a mask texture
 (`White_mask`, `Black_mask`, `DreamFilter_Mask`, ...), so all WC3 fades go
@@ -62,8 +63,10 @@ interpolates the authored RGBA and publishes it unscaled, so a fade to black
 reaches opaque. Alpha 0 means hidden (not displayed, or cutscene skipped).
 `SetCineFilterBlendMode` maps the JASS `blendmode` constants onto `BLEND_MODE`
 with `G_BlendModeFromJass()`: JASS has no ADDALPHA entry, so its MODULATE and
-MODULATE_2X values are one below the engine's. Custom UV ranges are not yet
-transmitted; the filter always uses full UVs.
+MODULATE_2X values are one below the engine's. The start/end UV boxes are
+interpolated like the color (an empty box, from natives that never set UVs,
+means full UVs) and sent as `NFT_BOX2`; `SetCineFilterTexMapFlags` selects which
+axes repeat instead of clamping, so scrolling haze filters tile.
 
 The client turns the filter (or a game's plain `cinefade`) into the generic
 `viewDef` overlay in `SCR_SetupViewBlend()`. Image 0 or an unknown image draws
@@ -73,7 +76,7 @@ view, stays below every HUD layer, and is unaffected by `r_hud`. Mask
 textures keep their own alpha: `DreamFilter_Mask` is a JPEG BLP whose alpha is
 0 at the centre and about 38% on average, which gives the Gul'dan vignette.
 
-This is a network protocol change; protocol 22 rejects older peers. The
+This is a network protocol change; protocol 23 rejects older peers. The
 portrait meaning change is part of the serialized player contract, so the WC3
 save version is 78; version 77 saves are rejected rather than migrated.
 Cinematic filter state is transient and is not persisted.

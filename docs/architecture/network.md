@@ -219,13 +219,14 @@ the `client_frames.*` suite, and the `stress_net.*` suite (`make test-stress`):
 a 33.6 kbps link with latency, jitter that reorders packets and 8% loss, asserting every delta base is a frame the client
 holds and every unit name arrives.
 
-## Cinematic filter player state (protocol 22)
+## Cinematic filter player state (protocol 23)
 
 Protocol 22 adds `cinefilter_blendmode` to the generic player-state delta
-schema. It is appended after the existing filter fields so prior player-state
+schema; protocol 23 appends `cinefilter_uv` (`NFT_BOX2`) and
+`cinefilter_texmapflags`. It is appended after the existing filter fields so prior player-state
 delta bit assignments remain stable. The texture, RGBA tint/opacity, and blend
 mode are carried in player-state deltas. Clients and servers must use protocol
-22 together; the connection handshake rejects older peers before they can
+23 together; the connection handshake rejects older peers before they can
 decode snapshots with these fields.
 
 The WC3 cinematic portrait model index reuses player stats slot 29, and

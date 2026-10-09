@@ -474,6 +474,7 @@ typedef struct {
     vertex_t const *vertices;
     uint32_t vertexCount;
     bool repeat;
+    TEXMAP_FLAGS wrap; /* per-axis repeat on top of `repeat` */
     bool opaque; /* GL_BLEND off: texture alpha ignored */
 } drawImageBatchParams_t;
 void R_DrawImageBatch(texture_t const *texture, SHADERTYPE shaderType, BLEND_MODE alphamode, float uActiveGlow, float uRadialShade, bool hasClip, rect_t const *clip, vertex_t const *vertices, uint32_t num_vertices, bool repeat);

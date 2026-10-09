@@ -156,6 +156,8 @@ netField_t playerStateFields[] = {
     { NETF(player_t, cinefilter_image), NFT_LONG },
     { NETF(player_t, cinefilter_color), NFT_LONG },
     { NETF(player_t, cinefilter_blendmode), NFT_LONG },
+    { NETF(player_t, cinefilter_uv), NFT_BOX2 },
+    { NETF(player_t, cinefilter_texmapflags), NFT_LONG },
     /* Map metadata moved to the WoW map-info configstring; only small generic presentation values remain here. */
     { NULL }
 };

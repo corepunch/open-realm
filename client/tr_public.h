@@ -238,6 +238,8 @@ typedef struct {
     texture_t const *blendTexture;
     color32_t blendColor;
     BLEND_MODE blendMode;
+    rect_t blendUV;
+    TEXMAP_FLAGS blendWrap;
 } viewDef_t;
 
 struct modelInfo_s {

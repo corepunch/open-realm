@@ -575,19 +575,38 @@ static void G_ShutdownGame(void) {
 
 /* Every JASS fade and filter is a textured cinefilter; publish its interpolated
  * RGBA unscaled so CinematicFadeBJ reaches opaque. Alpha 0 hides the filter. */
-static color32_t G_CineFilterColor(void) {
+static float G_CineFilterProgress(void) {
     uint32_t const duration = level.cinefilter.end.time - level.cinefilter.start.time;
     uint32_t const now = G_Time();
-    float k;
+    if (!duration || now >= level.cinefilter.end.time) return 1.0f;
+    if (now <= level.cinefilter.start.time) return 0.0f;
+    return (now - level.cinefilter.start.time) / (float)duration;
+}
+
+static color32_t G_CineFilterColor(void) {
+    float const k = G_CineFilterProgress();
     if (!level.cinefilter.displayed || G_SkipCutscene()) return MAKE(color32_t, 0, 0, 0, 0);
-    if (!duration || now >= level.cinefilter.end.time) k = 1.0f;
-    else if (now <= level.cinefilter.start.time) k = 0.0f;
-    else k = (now - level.cinefilter.start.time) / (float)duration;
     return MAKE(color32_t,
                 (uint8_t)LerpNumber(level.cinefilter.start.color.r, level.cinefilter.end.color.r, k),
                 (uint8_t)LerpNumber(level.cinefilter.start.color.g, level.cinefilter.end.color.g, k),
                 (uint8_t)LerpNumber(level.cinefilter.start.color.b, level.cinefilter.end.color.b, k),
                 (uint8_t)LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k));
+}
+
+/* Natives that never set UVs leave an empty box; draw those with full UVs. */
+static box2_t G_CineFilterUVBox(box2_t uv) {
+    if (uv.min.x == uv.max.x && uv.min.y == uv.max.y)
+        return MAKE(box2_t, .min = { 0, 0 }, .max = { 1, 1 });
+    return uv;
+}
+
+static box2_t G_CineFilterUV(void) {
+    box2_t const a = G_CineFilterUVBox(level.cinefilter.start.uv);
+    box2_t const b = G_CineFilterUVBox(level.cinefilter.end.uv);
+    float const k = G_CineFilterProgress();
+    return MAKE(box2_t,
+                .min = { LerpNumber(a.min.x, b.min.x, k), LerpNumber(a.min.y, b.min.y, k) },
+                .max = { LerpNumber(a.max.x, b.max.x, k), LerpNumber(a.max.y, b.max.y, k) });
 }
 
 bool G_SkipCutscene(void) {
@@ -855,6 +874,7 @@ static vec3_t G_CameraNoiseOffset(gameClient_t const *client, cameraNoiseSlot_t 
 static void G_RunClients(void) {
     color32_t const cinefilter_color = G_CineFilterColor();
     uint32_t const cinefilter_image = cinefilter_color.a ? level.cinefilter.texture : 0;
+    box2_t const cinefilter_uv = G_CineFilterUV();
     G_UpdateUnitResponsePresentation();
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients+i;
@@ -931,6 +951,8 @@ static void G_RunClients(void) {
         client->ps.cinefilter_image = cinefilter_image;
         client->ps.cinefilter_color = cinefilter_color;
         client->ps.cinefilter_blendmode = level.cinefilter.blendmode;
+        client->ps.cinefilter_uv = cinefilter_uv;
+        client->ps.cinefilter_texmapflags = level.cinefilter.texmapflags;
     }
     G_CameraTraceFrame();
 }

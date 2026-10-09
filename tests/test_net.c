@@ -1932,6 +1932,9 @@ TEST(client_screen, view_blend_maps_cinefade_to_untextured_black) {
     T_EQ(view.blendColor.a, 255);
     T_EQ(view.blendMode, BLEND_MODE_BLEND);
 
+    T_FEQ(view.blendUV.w, 1.0f, 0.0001f);
+    T_EQ(view.blendWrap, TEXMAP_FLAG_NONE);
+
     ps.cinefade = 0.0f;
     SCR_SetupViewBlend(&view, &ps, pics);
     T_EQ(view.blendColor.a, 0);
@@ -1954,6 +1957,15 @@ TEST(client_screen, view_blend_prefers_textured_filter) {
     T_EQ(view.blendColor.b, 173);
     T_EQ(view.blendColor.a, 96);
     T_EQ(view.blendMode, BLEND_MODE_MODULATE);
+
+    ps.cinefilter_uv = MAKE(box2_t, .min = { 0.5f, 0.25f }, .max = { 2.5f, 1.25f });
+    ps.cinefilter_texmapflags = TEXMAP_FLAG_WRAP_U;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_FEQ(view.blendUV.x, 0.5f, 0.0001f);
+    T_FEQ(view.blendUV.y, 0.25f, 0.0001f);
+    T_FEQ(view.blendUV.w, 2.0f, 0.0001f);
+    T_FEQ(view.blendUV.h, 1.0f, 0.0001f);
+    T_EQ(view.blendWrap, TEXMAP_FLAG_WRAP_U);
 
     /* Out-of-range images still draw the tint rather than indexing past pics. */
     ps.cinefilter_image = MAX_IMAGES;
@@ -2715,6 +2727,8 @@ TEST(net, playerinfo_cinematic_filter_state_roundtrips) {
     to.cinefilter_image = 513;
     to.cinefilter_color = MAKE(color32_t, 28, 84, 173, 96);
     to.cinefilter_blendmode = BLEND_MODE_MODULATE;
+    to.cinefilter_uv = MAKE(box2_t, .min = { 0.25f, -0.5f }, .max = { 2.25f, 1.5f });
+    to.cinefilter_texmapflags = TEXMAP_FLAG_WRAP_UV;
     MSG_WriteDeltaPlayerState(&sb, &from, &to);
     sb.readcount = 0;
     number = MSG_ReadPlayerBits(&sb, &bits);
@@ -2726,6 +2740,11 @@ TEST(net, playerinfo_cinematic_filter_state_roundtrips) {
     T_EQ(out.cinefilter_color.b, 173);
     T_EQ(out.cinefilter_color.a, 96);
     T_EQ(out.cinefilter_blendmode, BLEND_MODE_MODULATE);
+    T_FEQ(out.cinefilter_uv.min.x, 0.25f, 0.0001f);
+    T_FEQ(out.cinefilter_uv.min.y, -0.5f, 0.0001f);
+    T_FEQ(out.cinefilter_uv.max.x, 2.25f, 0.0001f);
+    T_FEQ(out.cinefilter_uv.max.y, 1.5f, 0.0001f);
+    T_EQ(out.cinefilter_texmapflags, TEXMAP_FLAG_WRAP_UV);
     T_EQ(sb.readcount, sb.cursize);
 }
 

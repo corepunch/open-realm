@@ -160,10 +160,15 @@ void SCR_SetupViewBlend(viewDef_t *view, player_t const *ps, texture_t const *co
     view->blendTexture = NULL;
     view->blendColor = MAKE(color32_t, 0, 0, 0, 0);
     view->blendMode = BLEND_MODE_BLEND;
+    view->blendUV = MAKE(rect_t, 0, 0, 1, 1);
+    view->blendWrap = TEXMAP_FLAG_NONE;
     if (ps->cinefilter_color.a > 0) {
+        box2_t const uv = ps->cinefilter_uv;
         view->blendTexture = image > 0 && image < MAX_IMAGES ? pics[image] : NULL;
         view->blendColor = ps->cinefilter_color;
         view->blendMode = (BLEND_MODE)ps->cinefilter_blendmode;
+        view->blendUV = MAKE(rect_t, uv.min.x, uv.min.y, uv.max.x - uv.min.x, uv.max.y - uv.min.y);
+        view->blendWrap = (TEXMAP_FLAGS)(ps->cinefilter_texmapflags & TEXMAP_FLAG_WRAP_UV);
     } else if (ps->cinefade > 0) {
         view->blendColor.a = (uint8_t)(MIN(ps->cinefade, 1.0f) * 255);
     }

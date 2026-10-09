@@ -163,13 +163,10 @@ void R_DrawImageBatchEx(drawImageBatchParams_t const *params)
     
 //    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 //    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    if (params->repeat) {
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    } else {
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
+    bool const repeatS = params->repeat || (params->wrap & TEXMAP_FLAG_WRAP_U);
+    bool const repeatT = params->repeat || (params->wrap & TEXMAP_FLAG_WRAP_V);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeatS ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeatT ? GL_REPEAT : GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     R_Call(glDisable, GL_CULL_FACE);
@@ -217,14 +214,19 @@ void R_DrawImageBatch(texture_t const *texture,
 /* Runs while the scene viewport and scissor are bound, so the UI-scene quad
  * fills exactly the 3D view and later 2D UI stays on top. */
 void R_DrawViewBlend(void) {
+    vertex_t quad[6];
+    rect_t const screen = R_UISceneRect();
+
     if (!tr.viewDef.blendColor.a) return;
-    R_DrawImageEx(&MAKE(drawImage_t,
-                        .texture = tr.viewDef.blendTexture,
-                        .screen = R_UISceneRect(),
-                        .uv = MAKE(rect_t, 0, 0, 1, 1),
-                        .color = tr.viewDef.blendColor,
-                        .shader = SHADER_UI,
-                        .alphamode = tr.viewDef.blendMode));
+    R_AddQuad(quad, &screen, &tr.viewDef.blendUV, tr.viewDef.blendColor, 0);
+    R_DrawImageBatchEx(&(drawImageBatchParams_t){
+        .texture = tr.viewDef.blendTexture,
+        .shader = SHADER_UI,
+        .alphamode = tr.viewDef.blendMode,
+        .vertices = quad,
+        .vertexCount = 6,
+        .wrap = tr.viewDef.blendWrap,
+    });
 }
 
 void R_DrawImageEx(drawImage_t const *drawImage) {

@@ -16,7 +16,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 22 // v22 cinematic filter blend mode; v21 cinematic filter player state; v20 sequenced UDP netchan
+#define BZ_PROTOCOL_VERSION 23 // v23 cinematic filter UVs and wrap flags; v22 cinematic filter blend mode; v21 cinematic filter player state; v20 sequenced UDP netchan
 
 
 typedef struct entityState_s entityState_t;
