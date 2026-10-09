@@ -13896,3 +13896,66 @@ Move and save/load. The repeated-windup regression checks retained and rearmed
 exact deadlines through the same production transitions. Classic/TFT order and
 attack-movement suites pass; broader combat validation is recorded with this
 commit. Full repository validation follows the existing twelve-commit cadence.
+
+## Audited thirteen-member Captain contract (Payoff200)
+
+GROUP-03.4.6 and GROUP-03.4.6.2 are closed. Their old descriptions still said
+cross-batch shared ownership needed porting, but the completed child work now
+covers every obligation of these **stationary thirteen-recruit** tasks. This is
+an audit of existing engine behavior, not a new steering change or a claim
+that the remaining moving Captain policies are complete.
+
+| Required behavior | Engine implementation and unchanged retail regression |
+|---|---|
+| Thirteen recruits become twelve plus one physical members | `move_group_captain_order`; complete homogeneous journey (`public_captain_thirteen_recruits_match_original_complete_journey`), Payoff61 |
+| The largest mover occupies the final/singleton batch | Mixed birth0 radius63 is last in physical publication order; complete mixed journey and shared footprint words, Payoffs63/65 |
+| Both groups receive one live maximum before routing | `move_update_shared` publishes prior speed/reset, gathers every bound group's live radii, then routes; saved `moveShared_t` identity/references and separate cached route radius, Payoffs63/189/190 |
+| Largest-member completion and second generation | Logical roster survives physical completion; 5,462 complete motion rows and both generations' 353 footprint rows, Payoff65 |
+| Largest-member Stop before/after binding | Complete early/late journeys preserve 5,458/5,593 motion rows, live31 versus cached63 and old-owner retirement, Payoff66 |
+| Final cancellation and fresh reuse | Empty physical groups retire at their owner visit; zero-reference shared owner is reclaimed next prepass; all Stop, RemoveUnit/refill and retarget controls, Payoffs67/120 |
+| Saved continuation | Eight checkpoints per bounded journey, including admission, departure, cancellation and collected states; bot-free restored movement and reference validation; Payoffs61/63/65/66/67/120 |
+| Wider private range producers | Authored defaults, suppression/temporary/siege cases, retained ranges and repeated point identity covered by the already closed03.4.6.2.1.2, Payoff193 |
+
+No child of GROUP-03.4.6.2 remains open. Closing it also completes the sole
+remaining child of GROUP-03.4.6. The parent GROUP-03.4 stays open: dynamic
+attach/detach, moving actors and broader public home/retreat goal policies are
+still separate obligations. This audit does not widen any frozen fixture's
+original scope or replace an expected value.
+
+Current-source Classic/TFT replay checks run all 23 `public_captain_*` tests,
+including final-binding removal, retarget, Stop, generation refill and saved
+continuations. The focused eight thirteen-member tests separately pass
+1,302,591 assertions per mode. Historical prefix tests remain useful bounded
+checkpoints; their old comments describe the limitation of that earlier
+checkpoint, not the coverage of today's complete journey.
+
+Seven fresh strict corpus contracts reverify the original repeated captures
+and shared-owner factory/allocator oracle:
+
+- `live-captain-thirteen-captures-261003`
+- `live-captain-shared-captures-261003`
+- `live-captain-reentry-captures-261003`
+- `live-captain-cancel-captures-261003`
+- `live-captain-last-binding-captures-261003`
+- `live-captain-lifetime-261006`
+- `oracle-shared-growth`
+
+The first combined run exposed a local archive-layout problem for Payoff120:
+its six existing captures were under `/GitHub/wc3-analysis/runtime/payoff120`
+instead of the manifest's archive root. Each original was checked against its
+committed length/SHA256 before copying to
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/payoff120`. The failed
+report remains visible; fresh re-verification of that contract succeeds. No
+capture pin, public word, expected header or semantic fixture was changed.
+There was no new live launch or Ghidra behavior discovery in this audit;
+existing saved mappings and repeated/control evidence are reused.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_movement.public_captain_*'
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests -data build/tests -tft +dedicated 1 +test 'wc3_movement.public_captain_*'
+PATH=/GitHub/wc3-analysis/verify-venv/bin:$PATH python3 tools/ghidra/run_wc3_pathfinding_corpus.py --binary /run/media/lofcz/ssd_external/Games/w3/game.dll --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 --output /tmp/captain-batch-fresh --only live-captain-thirteen-captures-261003 --only live-captain-shared-captures-261003 --only live-captain-reentry-captures-261003 --only live-captain-cancel-captures-261003 --only live-captain-last-binding-captures-261003 --only live-captain-lifetime-261006 --only oracle-shared-growth
+```
+
+Logs and the failed/resolved archive check remain in
+`/GitHub/wc3-analysis/runtime/payoff200`. This documentation-only closure does
+not consume an implementation-commit interval toward the full-suite checkpoint.

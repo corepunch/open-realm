@@ -50489,11 +50489,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "8015ecf3aa1c7bf792b9dec12371a3970c8418661de3f2b6306e0bba88185ac0"
+      "sha256": "311c393b46911cb67a226e5c80cd3804f78b57711a60268f6405034a4c539eb9"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "fc79de477badfa12c36120ec400aa803802b3f201a17734f0f1c064b1a4677f1"
+      "sha256": "65b9f9ef9f5ac0dadee7edaa0e2103d3ad6c2db4eafba322ca286d6fbe2cd1d8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
