@@ -1,6 +1,33 @@
+/* Reads the alpha depth from the image header. Authored .tga names usually
+ * ship as .blp, matching the renderer's lookup fallback. */
+bool G_ImageHeaderHasAlpha(uint8_t const *data, uint32_t size) {
+    if (!data) return false;
+    if (size >= 12 && !memcmp(data, "BLP1", 4)) return data[8] | data[9] | data[10] | data[11];
+    if (size >= 10 && !memcmp(data, "BLP2", 4)) return data[9] != 0;
+    if (size >= 18 && (data[2] == 2 || data[2] == 10)) return (data[17] & 0x0F) != 0; /* TGA */
+    return false;
+}
+
+static bool G_ImageFileHasAlpha(cstring_t filename) {
+    PATHSTR path;
+    uint32_t size = 0;
+    cstring_t ext = strrchr(filename, '.');
+    handle_t data = gi.ReadFile(filename, &size);
+    bool alpha;
+
+    if (!data && ext && !strcasecmp(ext, ".tga")) {
+        snprintf(path, sizeof(path), "%.*s.blp", (int)(ext - filename), filename);
+        data = gi.ReadFile(path, &size);
+    }
+    alpha = G_ImageHeaderHasAlpha(data, size);
+    if (data) gi.MemFree(data);
+    return alpha;
+}
+
 uint32_t SetCineFilterTexture(jass_t *j) {
     cstring_t filename = jass_checkstring(j, 1);
     level.cinefilter.texture = (uint32_t)gi.ImageIndex(filename);
+    level.cinefilter.masked = G_ImageFileHasAlpha(filename);
     return 0;
 }
 /* JASS blendmode constants have no ADDALPHA entry, so MODULATE and MODULATE_2X

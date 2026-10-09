@@ -937,6 +937,12 @@ TEST(wc3_api, cinefilter_interpolates_and_publishes_player_state) {
     T_FEQ(game.clients[0].ps.cinefilter_uv.max.x, 1.0f, 0.0001f);
     T_FEQ(game.clients[0].ps.cinefilter_uv.max.y, 1.0f, 0.0001f);
 
+    /* Alpha-masked filters (vignettes) draw at half the authored alpha. */
+    level.cinefilter.masked = true;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 100);
+    level.cinefilter.masked = false;
+
     /* CinematicFadeBJ to black must reach opaque. */
     level.cinefilter.end.color = MAKE(color32_t, 0, 0, 0, 255);
     G_RunClients();
@@ -967,6 +973,21 @@ TEST(wc3_api, cinefilter_interpolates_and_publishes_player_state) {
     level.time = saved_time;
     level.cinefilter = saved_filter;
     gi.CvarString = old_cvar;
+}
+
+TEST(wc3_api, cinefilter_detects_masks_with_alpha) {
+    uint8_t blp1[12] = { 'B', 'L', 'P', '1', 0, 0, 0, 0, 8, 0, 0, 0 };
+    uint8_t blp1_opaque[12] = { 'B', 'L', 'P', '1' };
+    uint8_t blp2[10] = { 'B', 'L', 'P', '2', 1, 0, 0, 0, 2, 8 };
+    uint8_t tga[18] = { 0, 0, 2 };
+
+    T_ASSERT(G_ImageHeaderHasAlpha(blp1, sizeof(blp1)));
+    T_ASSERT(!G_ImageHeaderHasAlpha(blp1_opaque, sizeof(blp1_opaque)));
+    T_ASSERT(G_ImageHeaderHasAlpha(blp2, sizeof(blp2)));
+    T_ASSERT(!G_ImageHeaderHasAlpha(tga, sizeof(tga)));
+    tga[17] = 8;
+    T_ASSERT(G_ImageHeaderHasAlpha(tga, sizeof(tga)));
+    T_ASSERT(!G_ImageHeaderHasAlpha(NULL, 0));
 }
 
 TEST(wc3_api, cinefilter_blend_mode_maps_jass_constants) {

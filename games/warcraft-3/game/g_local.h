@@ -1987,6 +1987,7 @@ typedef struct {
     uint32_t texture;
     BLEND_MODE blendmode;
     TEXMAP_FLAGS texmapflags;
+    bool masked; /* texture has its own alpha channel (vignettes), not a plain fade mask */
     struct {
         box2_t uv;
         color32_t color;
@@ -2359,6 +2360,7 @@ cstring_t G_MapString(mapInfo_t const *info, cstring_t name);
 cstring_t G_UnitName(uint32_t);
 bool G_SkipCutscene(void);
 BLEND_MODE G_BlendModeFromJass(uint32_t mode);
+bool G_ImageHeaderHasAlpha(uint8_t const *data, uint32_t size);
 vec2_t G_ClampCameraPosition(gameClient_t *client, vec2_t const *position);
 vec3_t G_MakeServerOrigin(float x, float y, float z_offset);
 void G_SetCameraBounds(float const bounds[8]);

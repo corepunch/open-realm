@@ -59,8 +59,11 @@ Cinematic filters use five player-state fields: `cinefilter_image`,
 `CinematicFadeBJ` and `CinematicFilterGenericBJ` call sets a mask texture
 (`White_mask`, `Black_mask`, `DreamFilter_Mask`, ...), so all WC3 fades go
 through this path; WC3 no longer writes `cinefade`. `G_RunClients()`
-interpolates the authored RGBA and publishes it unscaled, so a fade to black
-reaches opaque. Alpha 0 means hidden (not displayed, or cutscene skipped).
+interpolates the authored RGBA. Plain fade masks (`White_mask`, `Black_mask`
+have no alpha channel) keep the authored alpha, so a fade to black reaches
+opaque. `SetCineFilterTexture` reads the mask's image header; masks with their
+own alpha (`DreamFilter_Mask`) draw at half the authored alpha, which matches
+the lighter retail vignette in footage of the Gul'dan glyph scenes. Alpha 0 means hidden (not displayed, or cutscene skipped).
 `SetCineFilterBlendMode` maps the JASS `blendmode` constants onto `BLEND_MODE`
 with `G_BlendModeFromJass()`: JASS has no ADDALPHA entry, so its MODULATE and
 MODULATE_2X values are one below the engine's. The start/end UV boxes are
@@ -74,7 +77,8 @@ the tint untextured. The renderer draws it at the end of `R_RenderView()` while
 the scene viewport and scissor are still bound, so it covers exactly the 3D
 view, stays below every HUD layer, and is unaffected by `r_hud`. Mask
 textures keep their own alpha: `DreamFilter_Mask` is a JPEG BLP whose alpha is
-0 at the centre and about 38% on average, which gives the Gul'dan vignette.
+0 at the centre and about 38% on average, which gives the Gul'dan vignette
+its clear centre.
 
 This is a network protocol change; protocol 23 rejects older peers. The
 portrait meaning change is part of the serialized player contract, so the WC3

@@ -573,8 +573,10 @@ static void G_ShutdownGame(void) {
     SAFE_DELETE(game.clients, gi.MemFree);
 }
 
-/* Every JASS fade and filter is a textured cinefilter; publish its interpolated
- * RGBA unscaled so CinematicFadeBJ reaches opaque. Alpha 0 hides the filter. */
+/* Every JASS fade and filter is a textured cinefilter. Plain fade masks keep
+ * the authored alpha so CinematicFadeBJ reaches opaque; masks with their own
+ * alpha (DreamFilter's vignette) draw at half the authored alpha, which
+ * matches retail footage. Alpha 0 hides the filter. */
 static float G_CineFilterProgress(void) {
     uint32_t const duration = level.cinefilter.end.time - level.cinefilter.start.time;
     uint32_t const now = G_Time();
@@ -590,7 +592,8 @@ static color32_t G_CineFilterColor(void) {
                 (uint8_t)LerpNumber(level.cinefilter.start.color.r, level.cinefilter.end.color.r, k),
                 (uint8_t)LerpNumber(level.cinefilter.start.color.g, level.cinefilter.end.color.g, k),
                 (uint8_t)LerpNumber(level.cinefilter.start.color.b, level.cinefilter.end.color.b, k),
-                (uint8_t)LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k));
+                (uint8_t)(LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k) *
+                          (level.cinefilter.masked ? 0.5f : 1.0f)));
 }
 
 /* Natives that never set UVs leave an empty box; draw those with full UVs. */
