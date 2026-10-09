@@ -374,7 +374,8 @@ static void MenuWrite(edict_t *ent, menuPanel_t panel, bool disable_return) {
     MenuSelectPanel(panel);
     UI_WriteWindow(ent, hud.menu.EscMenuMainPanel, &MAKE(uiWindowDef_t,
         .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU,
-        .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
+        .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE |
+            (disable_return ? UI_WINDOW_NO_ESCAPE : 0)));
     UI_SetCurrentClient(NULL);
 }
 

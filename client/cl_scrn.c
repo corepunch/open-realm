@@ -686,7 +686,7 @@ void SCR_LayoutDrawScrollBar(uiFrame_t const *frame, rect_t const *screen) {
 }
 
 bool SCR_LayoutFrameHasClickCommand(uiFrame_t const *frame) {
-    return frame && frame->onclick && *frame->onclick;
+    return frame && !(frame->flagsvalue & UIFRAME_DISABLED) && frame->onclick && *frame->onclick;
 }
 static bool SCR_LayoutGlueTextButtonIsPushed(uiFrame_t const *frame) {
     /* The left button is global, but the pushed state belongs only to the hovered layout frame. */

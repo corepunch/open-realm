@@ -1055,14 +1055,16 @@ typedef enum {
 #define UIFLAG_TEXTURE_OVERLAY (1 << 19) // flag bit; draws a texture after the containing layout artwork
 #define UIFLAG_MINIMAP_PREVIEW (1 << 15) // flag bit; frame text names a static map preview; excludes fog, camera and input
 #define UIFLAG_ALERT_RED_PULSE (1 << 14) // flag bit; command-button art pulses red until frame.value absolute milliseconds; used for transient alerts
-/* Shared uiFrame_t.flagsvalue bits 9..19; bits 0..8 are the per-game FDF state
- * bits (UIFLAG_PRESSED..UIFLAG_PASSTHROUGH in stb_fdf.h).  Distinct bits add up
- * to exactly their bitwise union, so any overlap fails the build. */
+/* Generic disabled-control state carried in the high bits of uiFrame_t.flagsvalue.
+ * Low bits overlap the frame type/alpha-mode union and cannot carry control state. */
+#define UIFRAME_DISABLED (1u << 20)
+/* Shared uiFrame_t.flagsvalue bits 9..20; low bits overlap the frame type/alpha-mode
+ * union. Distinct bits add up to exactly their bitwise union, so any overlap fails the build. */
 #define UIFLAG_SHARED_BITS(op) \
     (UIFLAG_RADIAL_SHADE op UIFLAG_SIZE_TO_CONTENT op UIFLAG_ALTERNATE_ACTIVE op \
      UIFLAG_SPRITE_STAT_SEQUENCE op UIFLAG_EXTEND_WIDESCREEN_X op UIFLAG_ALERT_RED_PULSE op \
      UIFLAG_MINIMAP_PREVIEW op UIFLAG_SPRITE_OVERLAY op UIFLAG_ABILITY_ENGAGED op \
-     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY)
+     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFRAME_DISABLED)
 _Static_assert(UIFLAG_SHARED_BITS(+) == UIFLAG_SHARED_BITS(|), "UIFLAG_* bits overlap");
 _Static_assert((UIFLAG_SHARED_BITS(|) & ((1 << 9) - 1)) == 0, "UIFLAG_* bits collide with FDF state bits 0..8");
 

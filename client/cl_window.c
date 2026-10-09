@@ -313,14 +313,19 @@ static void CL_WindowDebugLayout(clientWindow_t const *window) {
             uiGlueTextButton_t const *button = frame->buffer.data;
             fprintf(stderr,
                     "UI_WINDOW_DEBUG window=%08x control=button frame=%u parent=%u "
-                    "rect=(%.4f,%.4f %.4fx%.4f) normal=%u path=\"%s\" loaded=%p "
-                    "pushed=%u path=\"%s\" loaded=%p highlight=%u path=\"%s\" loaded=%p\n",
+                    "rect=(%.4f,%.4f %.4fx%.4f) disabled=%u flags=0x%08x onclick=\"%s\" "
+                    "normal=%u path=\"%s\" loaded=%p pushed=%u path=\"%s\" loaded=%p "
+                    "disabledBg=%u path=\"%s\" loaded=%p highlight=%u path=\"%s\" loaded=%p\n",
                     (unsigned)window->id, (unsigned)frame->number, (unsigned)frame->parent,
                     r->x, r->y, r->w, r->h,
+                    !!(frame->flagsvalue & UIFRAME_DISABLED), (unsigned)frame->flagsvalue,
+                    frame->onclick ? frame->onclick : "",
                     (unsigned)button->normal.Background, CL_WindowImageName(button->normal.Background),
                     button->normal.Background < MAX_IMAGES ? (void *)cl.pics[button->normal.Background] : NULL,
                     (unsigned)button->pushed.Background, CL_WindowImageName(button->pushed.Background),
                     button->pushed.Background < MAX_IMAGES ? (void *)cl.pics[button->pushed.Background] : NULL,
+                    (unsigned)button->disabled.Background, CL_WindowImageName(button->disabled.Background),
+                    button->disabled.Background < MAX_IMAGES ? (void *)cl.pics[button->disabled.Background] : NULL,
                     (unsigned)button->highlight.alphaFile, CL_WindowImageName(button->highlight.alphaFile),
                     button->highlight.alphaFile < MAX_IMAGES ? (void *)cl.pics[button->highlight.alphaFile] : NULL);
         }

@@ -323,6 +323,9 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
             fprintf(stderr, "WC3 JASS dialog %u: cloned button %u binding is incomplete\n", dialog->id, entry->id);
             goto cleanup;
         }
+        /* The stock ScriptDialogButton template starts disabled in some data
+         * sets; each generated choice must be explicitly interactive. */
+        UI_SetEnabled(button, true);
         snprintf(button->Name, sizeof(button->Name), "JassChoiceButton%u", n);
         if (!button->Width || !button->Height) {
             /* TODO: this fallback applies only when no button dimensions exist in the loaded stock FDF. */
@@ -345,6 +348,9 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
         UI_SetText(text, "%s", entry->text);
         snprintf(button->Button.NormalText.frame, sizeof(button->Button.NormalText.frame), "%s", text->Name);
         UI_SetOnClick(button, UI_WINDOW_CLOSE_COMMAND_PREFIX "jassdialog %u %u", dialog->id, entry->id);
+        DialogDebug("ui_button dialog=%u player=%u button=%u label=\"%s\" disabled=%u ui_flags=0x%08x onclick=\"%s\"",
+            dialog->id, ent->client->ps.number, entry->id, entry->text, button->disabled,
+            button->ui_flags, button->OnClick);
         ++n;
     }
     if (omitted) fprintf(stderr, "WC3 JASS dialog %u: omitted %u button(s); UI capacity is %d\n", dialog->id, omitted, MAX_JASS_DIALOG_UI_BUTTONS);

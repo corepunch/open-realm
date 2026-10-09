@@ -427,7 +427,7 @@ executes, but keep the actual world replacement deferred.
 menu, consuming an explicit `ForceCampaignSelectScreen` request as well. It cannot yet honor `doScoreScreen`; there
 is no score-screen controller. `ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
 `DisplayLoadDialog` opens the in-game save/load panel; cancelling a result-dialog load returns to the game menu with
-Return to Game disabled. `ForceCampaignSelectScreen` returns to
+Return to Game disabled and Escape consumed. `ForceCampaignSelectScreen` returns to
 `menu_single_player_campaign`. On single-player victory, the fallback Continue button delegates to Blizzard.j's
 `CustomVictoryOkBJ`, preserving its `bj_changeLevelMapName` decision instead of guessing the next map in HUD code.
 Because `CustomVictoryDialogBJ` has already paused single-player simulation, this fallback invocation is synchronous:
