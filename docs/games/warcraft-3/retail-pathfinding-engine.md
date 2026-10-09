@@ -13692,3 +13692,70 @@ an old crash window sharing the Warcraft title and never entered simulation;
 one isolated C attach timed out. The accepted spell controller verifies the
 owned data/map invocation before focusing a window and holding Space briefly.
 Neither failed capture is included as evidence.
+
+## Blocked recovery unwinds before queued successor (Payoff197)
+
+ORDER-01.3 now has a complete public blocked point Move followed by genuine
+UI Shift Move, including internal tasks, user FIFO, retry searches and cleanup.
+The flat64x64 arena blocks fine cells31..32 on each axis; a stock Footman moves
+from272/304 toward1008/1040. The probe uses `GetLocalPlayer()` and enables control
+before selection: creating Player0's unit in this campaign template produced
+an uncontrollable subject and a diagnostic capture with no queued admission.
+That run is retained but excluded from the certificate.
+
+Two read-only Frida captures (`live-3`, `live-4`) and an observer-free control
+agree on all253 public position/order markers. Genuine mouse admission at
+`6f6b93a0` uses flags1, appends Move851986 at world606.761047/785.906372 and leaves
+both current heads unchanged while user count increases1 to2. Its input timing
+varies between counters1253 and1256; neither run alters the first route or the
+subsequent recovery. The first three fine searches occur1191/1283/1318; the
+successor's search occurs1320.
+
+At1319, blocked `6f170dc0(0)` enters `6f603110` and `6f5fb190`. The fallback pops
+the old internal task, prepends action0 then two `d0144` cleanup tasks, and invokes
+arrival cleanup. The complete67-row synchronous recovery repeats exactly,
+including canonical task/order identities and absolute Unit references.
+`6f171340` calls `6f168b80`/`6f168740` to clear fine/adaptive counts, indices,
+retry98/delay94 and scheduler links before the pending user head dispatches.
+In this zero-origin arena the stop destination is `c7fa0000/c7fa0000`; retain
+older origin-specific sentinel captures instead of rewriting their expectations.
+
+The arrival cleanup returns with count1, user head equal to the former tail,
+a new internal movement task and balanced references35. The new physical owner
+starts its work at1320. Arrival1376 clears both queues and leaves balanced
+cleanup references40. Intervening mouse-hover references vary; the certificate
+compares the synchronous recovery and final cleanup independently, plus the
+public timeline, rather than pretending those presentation references are
+constant throughout movement. No original calls, memory writes or patched
+branches are used by the observer. Void-handler EAX is not an event result.
+
+The engine had left retry1 on an idle unit after terminal blocked completion.
+The failing-first regression reproduces that defect after the unchanged207-commit
+public blocked journey and all four cold-save continuations. Move exit now also
+clears retry, wait delay and its borrowed blocker. The separate production
+completion-stage regression exercises immediate Shift successor dispatch, old
+owner tombstone retirement on its next visit and saved pending-order recovery.
+It supplies terminal blocked member state explicitly; it is not a claim that the
+flat retail scene's complete numerical trajectory is already an engine fixture.
+Existing numerical fixtures remain unchanged. Wire and save layouts are unchanged.
+
+Frozen capture pins and stages are in
+`tools/ghidra/fixtures/retail-blocked-recovery197-1.27.json.gz`. The raw map,
+metadata and three capture/preload pairs live in the corpus archive under
+`research/ORDER-01.3/captures197/`. Six existing Ghidra function annotations are
+saved and mirrored in `MapPathfinding.java`. Target-specific alternative recovery,
+AI replacement and general queue mutation remain their existing open tasks.
+
+```sh
+python3 tools/frida/research/recovery197_verify.py \
+  --expected tools/ghidra/fixtures/retail-blocked-recovery197-1.27.json.gz \
+  --archive /path/to/corpus/research/ORDER-01.3/captures197 \
+  --output /tmp/recovery197-report.json
+```
+
+Production/test builds pass. Classic/TFT each pass676 tests/6,299,009 assertions
+across movement, save and order lifecycle;45 Python checks and fresh strict
+retail verification pass. The435-entry inventory and1,139 staged fixture/source
+pins verify. Full repository validation follows the established batch cadence
+(four implementation commits since the merge checkpoint). This fidelity fix
+makes no performance-target claim. Logs: `/GitHub/wc3-analysis/runtime/payoff197/`.

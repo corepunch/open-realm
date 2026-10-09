@@ -14312,7 +14312,7 @@ static void public_group_radius_journey(unsigned scenario, uint32_t const (*moti
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
-static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motion)[7], unsigned count) {
+static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motion)[7], unsigned count, bool verify_cleanup) {
     bool blocked=goal_case==0 || goal_case==6,captain=goal_case>=2,far=goal_case==3,pair=goal_case>=4,mixed=goal_case==5;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities();setup_test_world();
@@ -14439,6 +14439,13 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
     }
     T_EQ(steps,count);T_ASSERT(!jass_rterror_pending(level.vm));
     if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!movement_test_forced_arrival(unit));T_ASSERT(!unit->movement.clock_valid);if(pair)T_EQ(peer->current_order_id,0);}
+    if(verify_cleanup && !mismatch) {
+        T_EQ(unit->movement.retry_count,0);T_EQ(unit->movement.wait_delay,0);
+        T_EQ(unit->movement.group_id,0);T_EQ(unit->movement.fine_route.count,0);
+        T_EQ(unit->movement.fine_route.adaptive_count,0);
+        T_EQ(unit->movement.fine_route.index,UINT32_MAX);
+        T_EQ(unit->movement.fine_route.adaptive_index,UINT32_MAX);
+    }
     if(pass)suffix_steps+=steps-saved_steps[pass-1];
     }
     fprintf(stderr,"Point goal case=%u exact commits=%u saved suffix commits=%u\n",goal_case,count,suffix_steps);
@@ -15777,32 +15784,36 @@ TEST(wc3_movement, temporary_modifiers_match_original_velocity_and_saved_restora
     G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
+TEST(wc3_movement, recovery197_public_blocked_move_unwinds_retry_state) {
+    public_point_goal_journey(0,blocked_goal_motion,sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion),true);
+}
+
 TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
-    public_point_goal_journey(0,blocked_goal_motion,sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion));
+    public_point_goal_journey(0,blocked_goal_motion,sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion),false);
 }
 
 TEST(wc3_movement, public_move_matches_original_outside_west_goal) {
-    public_point_goal_journey(1,outside_west_motion,sizeof(outside_west_motion)/sizeof(*outside_west_motion));
+    public_point_goal_journey(1,outside_west_motion,sizeof(outside_west_motion)/sizeof(*outside_west_motion),false);
 }
 
 TEST(wc3_movement, public_ai_recruit_matches_original_captain_home_admission) {
-    public_point_goal_journey(2,captain_home_motion,sizeof(captain_home_motion)/sizeof(*captain_home_motion));
+    public_point_goal_journey(2,captain_home_motion,sizeof(captain_home_motion)/sizeof(*captain_home_motion),false);
 }
 
 TEST(wc3_movement, public_ai_recruit_matches_original_farther_captain_home) {
-    public_point_goal_journey(3,captain_range_far_motion,sizeof(captain_range_far_motion)/sizeof(*captain_range_far_motion));
+    public_point_goal_journey(3,captain_range_far_motion,sizeof(captain_range_far_motion)/sizeof(*captain_range_far_motion),false);
 }
 
 TEST(wc3_movement, public_ai_pair_recruits_match_original_captain_home) {
-    public_point_goal_journey(4,captain_pair_motion,sizeof(captain_pair_motion)/sizeof(*captain_pair_motion));
+    public_point_goal_journey(4,captain_pair_motion,sizeof(captain_pair_motion)/sizeof(*captain_pair_motion),false);
 }
 
 TEST(wc3_movement, public_ai_blocked_pair_matches_original_captain_retry) {
-    public_point_goal_journey(6,captain_blocked_motion,sizeof(captain_blocked_motion)/sizeof(*captain_blocked_motion));
+    public_point_goal_journey(6,captain_blocked_motion,sizeof(captain_blocked_motion)/sizeof(*captain_blocked_motion),false);
 }
 
 TEST(wc3_movement, public_ai_mixed_recruits_match_original_captain_home) {
-    public_point_goal_journey(5,captain_mixed_motion,sizeof(captain_mixed_motion)/sizeof(*captain_mixed_motion));
+    public_point_goal_journey(5,captain_mixed_motion,sizeof(captain_mixed_motion)/sizeof(*captain_mixed_motion),false);
 }
 
 /* Recruitment must retain owned insertion order before and after saves. The
@@ -18115,6 +18126,46 @@ TEST(wc3_movement, completion195_blocked_member_retries_before_terminal_scan) {
         T_EQ(group->count,2);T_NULL(member->unit);
     }
     group->ticking=false;remove(file);reset_entities();setup_test_world();
+}
+
+/* Retail fallback recovery retires the old task then activates the pending
+ * user head synchronously. The replaced group remains for its next owner visit. */
+TEST(wc3_movement, recovery197_blocked_completion_dispatches_saved_successor) {
+    FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        edict_t *unit=completion194_unit(256,256);
+        vec2_t blocked={1008,1040},next={606.7610473632812f,785.9063720703125f};
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&blocked,false,0,0));
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&next,true,0,0));
+        T_EQ(unit->order_queue.count,1);
+        uint32_t id=unit->movement.group_id,number=unit-g_edicts;
+        cstring_t file=Test_TempPath("wc3-recovery197-successor.bin");
+        if(saved){T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));unit=g_edicts+number;}
+        moveGroup_t *group=move_find_group(id);T_NOT_NULL(group);
+        if(group) {
+            group->ticking=true;
+            moveGroupMember_t *member=group->members;
+            member->flags|=0x20000;member->arrived=true;
+            unit->movement.retry_count=1;
+            moveGroupMember_t *finished[]={member};move_group_complete_members(group,finished,1);
+            T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->order_queue.count,0);
+            T_NE(unit->movement.group_id,id);T_NE(unit->movement.group_id,0);
+            T_EQ(unit->movement.retry_count,0);T_EQ(unit->movement.wait_delay,0);
+            T_NOT_NULL(unit->goalentity);
+            if(unit->goalentity){T_EQ(unit->goalentity->s.origin2.x,next.x);T_EQ(unit->goalentity->s.origin2.y,next.y);}
+            T_NULL(group->members[0].unit);T_EQ(group->count,1);
+            group->ticking=false;
+            /* The newly published owner survives pruning the old tombstone. */
+            moveGroup_t *successor=move_unit_group(unit);T_NOT_NULL(successor);
+            level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            T_NULL(move_find_group(id));T_ASSERT(move_unit_group(unit)==successor);
+            T_ASSERT(unit->currentmove==&move_move_walk);
+        }
+        remove(file);reset_entities();setup_test_world();
+    }
 }
 
 static uint32_t completion195_observed_counter;

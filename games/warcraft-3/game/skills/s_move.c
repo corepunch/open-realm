@@ -1998,6 +1998,10 @@ static void move_leave(edict_t *self) {
     route->count=route->adaptive_count=route->group_count=0;
     route->index=route->adaptive_index=route->group_index=UINT32_MAX;
     route->partial=false;
+    /*168b80 resets retry/delay before the stopped order unwinds its task
+     * chain. Inactive units must not retain the failed search counters. */
+    self->movement.retry_count=self->movement.wait_delay=0;
+    self->movement.wait_blocker=NULL;
     self->movement.path.valid=false;
     if (!self->movement.clock_valid) return;
     unit_commit_current_pose(self);

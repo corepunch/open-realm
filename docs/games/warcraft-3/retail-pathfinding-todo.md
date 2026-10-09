@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**265 done / 336 tasks; 71 remaining.**
+**266 done / 336 tasks; 70 remaining.**
+
+Payoff197 closes ORDER-01.3 with complete blocked recovery and genuine Shift
+successor dispatch. Repeated retail task/FIFO cleanup and an unhooked control
+agree; Move exit clears stale retry/wait state, with failing-first saved
+continuation regressions. See [blocked recovery](retail-pathfinding-engine.md#blocked-recovery-unwinds-before-queued-successor-payoff197).
 
 Payoff196 closes TARGET-04.2 with repeated47-stage multi-member retry/range
 lifetimes and an actual blocked-spell receiver fix. Repeated public Holy Light
@@ -1143,7 +1148,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 
 - [x] **ORDER-01.1** 24 generated point-order chains arrive and reclaim queues/pools; 288 internal tasks complete. Evidence: [queued arrival][arrival], O `queued_order_arrival_cases=24`; open fine grid and explicit group ticks.
 - [ ] **ORDER-01.2** Enumerate remaining arrival/can't-path early exits and unit-state gates; add one full-dispatch witness per branch, including unit+280 bit40.
-- [ ] **ORDER-01.3** Run one blocked-goal recovery chain through retries and final failure/next-order dispatch; assert unwind and cleanup rather than only notification.
+- [x] **ORDER-01.3** Payoff197: full public blocked Move plus genuine Shift successor; two read-only captures match67 synchronous recovery rows, four fine searches, next-head activation and final task/FIFO/ref cleanup, and all253 public markers agree with an unhooked control. Engine failing-first207-commit/four-save blocked lifetime clears stale retry/wait state; production completion stage preserves synchronous pending-order dispatch and following old-owner retirement. Existing numerical fixtures unchanged. [Evidence](retail-pathfinding-engine.md#blocked-recovery-unwinds-before-queued-successor-payoff197).
 - [x] **ORDER-01.4** Trace retail `GetUnitCurrentOrder` and separate OpenRealm's ordinary point-Move current query from historical issued-event ID storage. Verify admission, queued Smart activation, replacement/rejection, Stop and natural arrival through public natives/server frames, including save/load and actual edict reuse. Evidence: [current point-order ownership](retail-pathfinding-engine.md#current-point-order-ownership), registered2039d0 full native at42 frozen states plus18 invalid-backing controls, both cases repeated identically (124 executed calls); failing engine regression followed by Move-owned admission/current state and save57. Immutable callbacks are independently closed01.5. Non-point orders are explicitly01.6 and indexed by BASE-03.1; this does not certify those queries or full original JASS/Unit construction.
 - [x] **ORDER-01.5** Preserve accepted issued-order IDs, points and targets in queued and suspended event contexts, independently of subsequent per-unit orders. Verify delayed Move/Smart/Stop, reentrant point replacement, both target event families, unread-event save/load and sleeping-callback save/load; exclude unrelated spell metadata through the retail event-type gates. Evidence: [immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership), failing public-native regression followed by engine fix, JASS snapshot7, persisted Ghidra getters/prototypes and full tests. Ordinary point active query state is separately01.4; complete original event producer/subscriber mutation graph remains ORDER-03/BASE-03.1.
 - [x] **ORDER-01.6** Export the bounded current-command owner matrix and split the original non-point query acceptance into explicit domain leaves01.7..16. Link engine owners, known retail dispatch/interception roots and each remaining witness; persist the known Hold/Patrol/Smart/Attack Move/shared-dispatch names and Hold field/prototypes in Ghidra. Evidence: [owner inventory](retail-pathfinding-engine.md#remaining-command-owner-inventory),277 names/17 layouts/110 fields/44 prototypes with guarded refinement and negative controls. This inventory does not close the remaining domain leaves or BASE-03.1's complete reachable producer graph.

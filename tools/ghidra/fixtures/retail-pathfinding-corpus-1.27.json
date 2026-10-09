@@ -47400,6 +47400,206 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-blocked-recovery-successor197",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/research/recovery197_verify.py",
+        "--archive",
+        "{archive}/research/ORDER-01.3/captures197/",
+        "--expected",
+        "tools/ghidra/fixtures/retail-blocked-recovery197-1.27.json.gz",
+        "--output",
+        "{report}"
+      ],
+      "report": "blocked-recovery-successor197-live.json",
+      "expected_exit": 0,
+      "expected_status": "live-blocked-recovery-successor",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 253
+        },
+        "recovery_counter": {
+          "equal": 1319
+        },
+        "successor_counter": {
+          "equal": 1376
+        },
+        "searches": {
+          "equal": 4
+        },
+        "recovery_rows": {
+          "equal": 67
+        }
+      },
+      "evidence": [
+        "S",
+        "L",
+        "C"
+      ],
+      "scope": "Full public blocked point Move fallback recovery, task prepends, path/reset/ref unwind, genuine Shift pending head activation and final successor cleanup; engine failing-first unchanged blocked numerical journey clears stale retry/wait state.",
+      "exclusions": [
+        "Mouse admission counter varies; absolute refs during intervening hover are not gameplay constants. Complete synchronous recovery and final cleanup each repeat unchanged.",
+        "No original code patches or calls; native UI input helper/source pins retained. Target-specific/AI alternatives and general queue mutation remain open.",
+        "Engine saved successor regression explicitly supplies terminal blocked member state at the production completion boundary; does not claim full flat live motion parity."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/ORDER-01.3/captures197/live-3.jsonl",
+        "sha256": "ad10a5d73686737aafefbe8ac61ec8e3cae5154a6ac674dfec736804796bb102",
+        "bytes": 158719,
+        "metadata": {
+          "task": "ORDER-01.3",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "recovery197_capture.py": "88258e2c3958d7fc4d6d73a09cbbe49eaca07446a6025c74fecffcfd5a7d2d44",
+            "recovery197_observer.js": "57fa9b9d859d6f4a09e7165d9391d7674a7f654d7e12ff70167e1e0861354af1",
+            "recovery197_make_map.py": "8c1b93b60f1cad69342d32cbdacbe5159591b6f1317f0541cce82072068b0446",
+            "recovery197_probe.j": "7cd0cfefc9e71a012b2485736900019cce9f6e53d87e8dc05edcdb9ccf92c3fb",
+            "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+            "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+            "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+            "wc3_ui_input.exe.so": "f52258feb793f8cd808ea9fd24da785e379a85e2b3e099b1fadbadca4b7148fa",
+            "map": "b54ef9a98405c5e98afd2082cd41fb84b60cfc9c92cb10e4fb98c257098870d5"
+          },
+          "map": "Maps\\RS-Recovery197-v2.w3m",
+          "seconds": 100.0,
+          "continue_at": 10.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [
+            {
+              "tick": 60,
+              "pixel": [
+                512,
+                330
+              ],
+              "alt": false,
+              "shift": true,
+              "key": "move"
+            }
+          ],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "R197 "
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/ORDER-01.3/captures197/live-4.jsonl",
+            "sha256": "a7d5b9226e100207fb64315302f64b2c4f4fce0a5f4c2b8f18839ff84425e95b",
+            "bytes": 158582,
+            "metadata": {
+              "task": "ORDER-01.3",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "recovery197_capture.py": "88258e2c3958d7fc4d6d73a09cbbe49eaca07446a6025c74fecffcfd5a7d2d44",
+                "recovery197_observer.js": "57fa9b9d859d6f4a09e7165d9391d7674a7f654d7e12ff70167e1e0861354af1",
+                "recovery197_make_map.py": "8c1b93b60f1cad69342d32cbdacbe5159591b6f1317f0541cce82072068b0446",
+                "recovery197_probe.j": "7cd0cfefc9e71a012b2485736900019cce9f6e53d87e8dc05edcdb9ccf92c3fb",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+                "wc3_ui_input.exe.so": "f52258feb793f8cd808ea9fd24da785e379a85e2b3e099b1fadbadca4b7148fa",
+                "map": "b54ef9a98405c5e98afd2082cd41fb84b60cfc9c92cb10e4fb98c257098870d5"
+              },
+              "map": "Maps\\RS-Recovery197-v2.w3m",
+              "seconds": 100.0,
+              "continue_at": 10.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 60,
+                  "pixel": [
+                    512,
+                    330
+                  ],
+                  "alt": false,
+                  "shift": true,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "R197 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ORDER-01.3/captures197/control-1.jsonl",
+            "sha256": "203721497e1e083c13334507c109bf3b66e33ae63d278afcfac3206c1708af4c",
+            "bytes": 1919,
+            "metadata": {
+              "task": "ORDER-01.3",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "recovery197_capture.py": "88258e2c3958d7fc4d6d73a09cbbe49eaca07446a6025c74fecffcfd5a7d2d44",
+                "recovery197_observer.js": "57fa9b9d859d6f4a09e7165d9391d7674a7f654d7e12ff70167e1e0861354af1",
+                "recovery197_make_map.py": "8c1b93b60f1cad69342d32cbdacbe5159591b6f1317f0541cce82072068b0446",
+                "recovery197_probe.j": "7cd0cfefc9e71a012b2485736900019cce9f6e53d87e8dc05edcdb9ccf92c3fb",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+                "wc3_ui_input.exe.so": "f52258feb793f8cd808ea9fd24da785e379a85e2b3e099b1fadbadca4b7148fa",
+                "map": "b54ef9a98405c5e98afd2082cd41fb84b60cfc9c92cb10e4fb98c257098870d5"
+              },
+              "map": "Maps\\RS-Recovery197-v2.w3m",
+              "seconds": 100.0,
+              "continue_at": 10.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 60,
+                  "pixel": [
+                    512,
+                    330
+                  ],
+                  "alt": false,
+                  "shift": true,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": [
+                5.9
+              ],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "R197 "
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -48298,7 +48498,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "3e7d08744f371678f2a53d5a85062a436d36403f2cb71072791c65eb2993c847"
+      "sha256": "9445a97bf4cfa2e7c3c19b773c8587c31bbbd222e761bc4bbb49a09725cfefc4"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -49154,7 +49354,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "1413be8e95c480920afb344a336dcff053a0df77150201f4015dc7f1859c7d84"
+      "sha256": "8ff48ffd8193d073156925e284e3daaf4b04f6b0a6788749d87c5d4293ae4b81"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -49846,7 +50046,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "cacf942d335371ac20acf1b4eb5dd1766a92f992327bd0b7fa07e815c551d319"
+      "sha256": "73ac8f8565dbe230839d31ff774adea329ed5300050215119f1f075046839864"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -50090,7 +50290,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "5848fe3da4e2bfc836efde78f3aad8d8e530357c7af1dab8a688f832c8db0711"
+      "sha256": "a3ff6f0db0a854803d7952d19b4b5aad9dd30709293f1599ef62ba635e648dd0"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -50102,11 +50302,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "fa40aa0b269624e5bbb558a0650c7a000299610640d0bdec6ba4945d4f3d7eab"
+      "sha256": "bc2439a63030cf80588050004a7bf7bacda83f33275c308bc89cef6771362ea1"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "86973b1adefebf7edd9db2e6b452c59011e64b11eca9c8c5c17ffa59fbe58d27"
+      "sha256": "48d6b42e727ef08ab832344944ee22b5a2becb156614d22c186e582fbc4ecbcd"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -51931,6 +52131,34 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_motion.py",
       "sha256": "8e9a53dd50b12a1775e0e9fe885fa5aa01cad2bded09e4535390da2566722c73"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_recovery.py",
+      "sha256": "ac7f93968fb67d6d6fec7313be31a43147e187d0473dd47f78d699c93496f436"
+    },
+    {
+      "path": "tools/frida/research/recovery197_capture.py",
+      "sha256": "88258e2c3958d7fc4d6d73a09cbbe49eaca07446a6025c74fecffcfd5a7d2d44"
+    },
+    {
+      "path": "tools/frida/research/recovery197_make_map.py",
+      "sha256": "8c1b93b60f1cad69342d32cbdacbe5159591b6f1317f0541cce82072068b0446"
+    },
+    {
+      "path": "tools/frida/research/recovery197_observer.js",
+      "sha256": "57fa9b9d859d6f4a09e7165d9391d7674a7f654d7e12ff70167e1e0861354af1"
+    },
+    {
+      "path": "tools/frida/research/recovery197_probe.j",
+      "sha256": "7cd0cfefc9e71a012b2485736900019cce9f6e53d87e8dc05edcdb9ccf92c3fb"
+    },
+    {
+      "path": "tools/frida/research/recovery197_verify.py",
+      "sha256": "aabdf6896bc899df1b6c64567f50355f86c5d2ddf194f73f2cfbb54bba790d65"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-blocked-recovery197-1.27.json.gz",
+      "sha256": "00e7d7a84d02525ec4557771f772289911769c34611fa295f69bbcd24d195239"
     }
   ]
 }
