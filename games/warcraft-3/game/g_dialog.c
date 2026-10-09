@@ -17,6 +17,20 @@ _Static_assert(MAX_JASS_DIALOG_BUTTONS < 1u << JASS_DIALOG_SLOT_BITS, "slot inde
 
 static bool dialog_fdf_warning_printed, button_fdf_warning_printed;
 
+static bool DialogDebugEnabled(void) {
+    return gi.CvarString && atoi(gi.CvarString("wc3_dialog_debug", "0")) != 0;
+}
+
+static void DialogDebug(cstring_t format, ...) {
+    va_list args;
+    if (!DialogDebugEnabled()) return;
+    fprintf(stderr, "WC3_DIALOG ");
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputc('\n', stderr);
+}
+
 static bool DialogIsPlayer(player_t const *player, uint32_t *number) {
     if (!player || !number || !game.clients) return false;
     FOR_LOOP(i, game.max_clients) if (player == &game.clients[i].ps && i < 32) {
@@ -80,7 +94,18 @@ jassDialogButton_t *G_JassDialogButton(handle_t value) {
 }
 
 jassDialog_t *G_JassDialogCreate(void) {
-    return DialogAllocSlot(level.dialogs, sizeof(*level.dialogs), &level.dialog_count, MAX_JASS_DIALOGS, "dialog");
+    jassDialog_t *dialog = DialogAllocSlot(level.dialogs, sizeof(*level.dialogs), &level.dialog_count, MAX_JASS_DIALOGS, "dialog");
+    DialogDebug("create dialog=%u success=%u", dialog ? dialog->id : 0, dialog != NULL);
+    return dialog;
+}
+
+void G_JassDialogSetMessage(jassDialog_t *dialog, cstring_t message) {
+    if (!G_JassDialog(dialog)) {
+        DialogDebug("set_message rejected reason=invalid_dialog");
+        return;
+    }
+    snprintf(dialog->message, sizeof(dialog->message), "%s", message ? G_LevelString(message) : "");
+    DialogDebug("set_message dialog=%u message=\"%s\"", dialog->id, dialog->message);
 }
 
 /* Store optional presentation metadata without growing this native's argument list. */
@@ -96,11 +121,14 @@ jassDialogButton_t *G_JassDialogAddButton(jassDialog_t *dialog, cstring_t label,
         button->score_screen = options->score_screen;
     }
     snprintf(button->text, sizeof(button->text), "%s", label ? G_LevelString(label) : "");
+    DialogDebug("add_button dialog=%u button=%u label=\"%s\" hotkey=%d quit=%u score_screen=%u",
+        dialog->id, button->id, button->text, button->hotkey, button->quit, button->score_screen);
     return button;
 }
 
 void G_JassDialogClear(jassDialog_t *dialog) {
     if (!G_JassDialog(dialog)) return;
+    DialogDebug("clear dialog=%u visible_players=0x%08x", dialog->id, dialog->visible_players);
     FOR_LOOP(i, game.max_clients) {
         uint32_t number = game.clients[i].ps.number;
         if (number < 32 && (dialog->visible_players & (1u << number))) {
@@ -119,6 +147,7 @@ void G_JassDialogClear(jassDialog_t *dialog) {
 
 void G_JassDialogDestroy(jassDialog_t *dialog) {
     if (!G_JassDialog(dialog)) return;
+    DialogDebug("destroy dialog=%u", dialog->id);
     G_JassDialogClear(dialog);
     dialog->inuse = false;
     dialog->visible_players = 0;
@@ -126,10 +155,24 @@ void G_JassDialogDestroy(jassDialog_t *dialog) {
 
 void G_JassDialogDisplay(player_t *player, jassDialog_t *dialog, bool visible) {
     uint32_t index;
-    if (!G_JassDialog(dialog) || !DialogIsPlayer(player, &index)) return;
+    if (!G_JassDialog(dialog) || !DialogIsPlayer(player, &index)) {
+        DialogDebug("display rejected dialog=%u visible=%u reason=invalid_dialog_or_player",
+            dialog ? dialog->id : 0, visible);
+        return;
+    }
     edict_t *ent = G_GetPlayerEntityByNumber(index);
     bool was_visible = dialog->visible_players & (1u << index);
+    DialogDebug("display dialog=%u player=%u visible=%u was_visible=%u entity=%u",
+        dialog->id, index, visible, was_visible, ent && ent->client);
     if (visible) {
+        /* A script-authored choice dialog is the result presentation for this
+         * player. Do not also flush the temporary native result fallback. */
+        if (ent && ent->client && ent->client->jass.pending_game_result) {
+            G_GameResultDebug("fallback suppressed player=%u result=%u reason=jass_choice_dialog dialog=%u",
+                index, (unsigned)ent->client->jass.pending_game_result - 1, dialog->id);
+            ent->client->jass.pending_game_result = 0;
+            ent->client->jass.pending_game_result_event = 0;
+        }
         /* The client has a single authoritative choice window per player. */
         FOR_LOOP(i, level.dialog_count) if (level.dialogs[i].id != dialog->id)
             level.dialogs[i].visible_players &= ~(1u << index);
@@ -147,8 +190,14 @@ void G_JassDialogClick(edict_t *ent, uint32_t dialog_id, uint32_t button_id) {
     uint32_t player;
     if (!ent || !ent->client || !dialog || !button || button->dialog_id != dialog_id ||
         !DialogIsPlayer(&ent->client->ps, &player) ||
-        !(dialog->visible_players & (1u << player))) return;
+        !(dialog->visible_players & (1u << player))) {
+        DialogDebug("click rejected dialog=%u button=%u entity=%u reason=stale_or_not_visible",
+            dialog_id, button_id, ent && ent->client);
+        return;
+    }
+    DialogDebug("click dialog=%u button=%u player=%u label=\"%s\"", dialog_id, button_id, player, button->text);
     dialog->visible_players &= ~(1u << player); /* reject duplicate commands */
+    uint32_t published = 0;
     FOR_EACH_EVENT(registration) {
         if (!registration->trigger || registration->dialog_id != dialog_id) continue;
         if (registration->type != EVENT_DIALOG_CLICK &&
@@ -160,6 +209,17 @@ void G_JassDialogClick(edict_t *ent, uint32_t dialog_id, uint32_t button_id) {
         event->dialog_id = dialog_id;
         event->button_id = button_id;
         event->dialog_player = player + 1;
+        ++published;
+    }
+    DialogDebug("click dispatched dialog=%u button=%u player=%u events=%u", dialog_id, button_id, player, published);
+    /* Blizzard's single-player result dialogs pause simulation before the
+     * player chooses. Their button callbacks therefore cannot wait for the
+     * ordinary next-frame event pass. Drain the published choice now, just as
+     * the result handoff drains result events while paused. */
+    if (published && level.script_paused && level.vm) {
+        DialogDebug("click drain paused events dialog=%u button=%u", dialog_id, button_id);
+        G_RunEvents();
+        jass_runevents(level.vm);
     }
     /* Quit buttons are tracked as distinct choices; retail end-game policy
      * must be implemented separately, not guessed from a client UI callback. */
@@ -207,6 +267,8 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
     float content_height = 0.10f;
     uint32_t n = 0, omitted = 0;
     if (!ent || !ent->client || !dialog) return;
+    DialogDebug("ui_show dialog=%u player=%u message=\"%s\"", dialog->id,
+        ent->client->ps.number, dialog->message);
     stock_dialog = UI_EnsureFDF("UI\\FrameDef\\UI\\ScriptDialog.fdf") && ScriptDialog_Load(&dialog_frames);
     stock_button = stock_dialog && ScriptDialogButton_Load(&button_template);
     if (!stock_dialog && !dialog_fdf_warning_printed) {
@@ -286,6 +348,9 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
         ++n;
     }
     if (omitted) fprintf(stderr, "WC3 JASS dialog %u: omitted %u button(s); UI capacity is %d\n", dialog->id, omitted, MAX_JASS_DIALOG_UI_BUTTONS);
+    DialogDebug("ui_build dialog=%u player=%u stock_dialog=%u stock_button=%u buttons=%u omitted=%u size=%.3fx%.3f",
+        dialog->id, ent->client->ps.number, stock_dialog, stock_button, n, omitted, root->Width,
+        MAX(root->Height, content_height + 0.012f));
     /* HACK: expand the template around its generated rows; stock FDF has no variable-height choice layout. */
     UI_SetSize(root, root->Width, MAX(root->Height, content_height + 0.012f));
     UI_SetCurrentClient(ent->client);
@@ -299,6 +364,7 @@ cleanup:
 
 void UI_JassDialogHide(edict_t *ent) {
     if (!ent || !ent->client) return;
+    DialogDebug("ui_hide player=%u", ent->client->ps.number);
     gi.Write(PF_BYTE, &(int32_t){svc_window});
     gi.Write(PF_BYTE, &(int32_t){UI_WINDOW_CLOSE});
     gi.Write(PF_LONG, &(uint32_t){WC3_JASS_DIALOG_WINDOW});

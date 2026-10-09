@@ -3101,6 +3101,7 @@ jassDialogButton_t *G_JassDialogButton(handle_t);
 jassDialog_t *G_JassDialogById(uint32_t);
 jassDialogButton_t *G_JassDialogButtonById(uint32_t);
 jassDialog_t *G_JassDialogCreate(void);
+void G_JassDialogSetMessage(jassDialog_t *, cstring_t);
 jassDialogButton_t *G_JassDialogAddButton(jassDialog_t *, cstring_t, jassDialogButtonOptions_t const *);
 void G_JassDialogDestroy(jassDialog_t *);
 void G_JassDialogClear(jassDialog_t *);

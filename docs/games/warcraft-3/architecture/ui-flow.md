@@ -398,9 +398,10 @@ Esc-menu backdrop art at the authored dialog bounds; on victory, Quit is re-anch
 small gap so both actions stay inside that window. The result is not Escape-dismissable because its explicit buttons
 own the Blizzard.j/session continuation.
 
-The fallback exists because the stock Blizzard.j result path still cannot build its normal ScriptDialogs: generic
-`DialogCreate` / `DialogAddButton` / `DialogDisplay` and dialog-button event support remain incomplete. It therefore
-does not try to recreate every campaign/melee policy. It uses Warcraft `GAMEOVER_*` global strings where available,
+The native fallback remains for result paths that do not display a script-authored dialog. When a JASS choice dialog
+is displayed for a player with a pending result fallback, that dialog takes ownership and the native fallback is
+suppressed. This prevents both result presentations from appearing together. The native fallback does not try to
+recreate every campaign/melee policy. It uses Warcraft `GAMEOVER_*` global strings where available,
 uses Restart/Load/Quit Mission for the supported single-player defeat subset, uses Continue/Continue Game for
 victory, and routes those executable actions through game/session boundaries. Observer continuation remains deferred
 until observer-on-death simulation policy exists.
@@ -422,7 +423,8 @@ under the active VM. `MenuAction` therefore copies the resolved map/menu argumen
 after the enclosing `SV_Frame` has returned. Keep `CustomVictoryOkBJ` itself synchronous so its `PauseGame(false)`
 executes, but keep the actual world replacement deferred.
 
-`EndGame(doScoreScreen)` currently returns to the frontend and consumes but cannot yet honor `doScoreScreen`; there
+`EndGame(doScoreScreen)` returns single-player campaign maps to the campaign selector and other sessions to the main
+menu, consuming an explicit `ForceCampaignSelectScreen` request as well. It cannot yet honor `doScoreScreen`; there
 is no score-screen controller. `ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
 `DisplayLoadDialog` enters the frontend load-game screen, and `ForceCampaignSelectScreen` returns to
 `menu_single_player_campaign`. On single-player victory, the fallback Continue button delegates to Blizzard.j's
