@@ -1101,6 +1101,19 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     return true;
 }
 
+/* Entity hits arrive as Select commands from the universal client. While a
+ * spell's point cursor is active, treat those hits as point casts at the
+ * entity's ground position (retail accepts clicks on pickups for Blink). */
+bool S_SpellPointTargetMode(edict_t *clent) {
+    return clent && clent->client &&
+           clent->client->menu.on_location_selected == spell_point_target_selected;
+}
+
+bool S_SpellPointTargetEntity(edict_t *clent, edict_t *target) {
+    if (!S_SpellPointTargetMode(clent) || !target || !target->inuse) return false;
+    return spell_point_target_selected(clent, &target->s.origin2);
+}
+
 /* No-target (self-cast / instant) execute in-place. */
 static void spell_no_target_execute(edict_t *clent) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);

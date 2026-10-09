@@ -809,6 +809,15 @@ CLIENTCOMMAND(Select) {
          * player can click several waypoints/targets without reopening it. */
         if (accepted && !queued) Get_Commands_f(clent);
     } else {
+        if (S_SpellPointTargetMode(clent)) {
+            uint32_t number;
+            if (argc < 2 || !G_ParseEntityNumber(argv[1], &number) || number >= globals.num_edicts)
+                return;
+            edict_t *target = &globals.edicts[number];
+            bool accepted = S_SpellPointTargetEntity(clent, target);
+            if (accepted) Get_Commands_f(clent);
+            return;
+        }
 #ifdef WC3_DEBUG_MINING
         if (client->menu.on_location_selected) {
             fprintf(stderr, "WC3_MINING select-while-building client=%ld building=%.4s callback=%p argc=%d",
