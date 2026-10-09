@@ -362,7 +362,7 @@ A 2880x1620 trace demonstrated the failure mode: canvas width was `1.06667`, HUD
 
 ### Cinefilter
 
-Full-screen overlay effects (fades, blurs) use `SetCineFilterTexture`/`SetCineFilterStartColor`/`SetCineFilterEndColor`/`SetCineFilterDuration`/`DisplayCineFilter`. The runtime interpolation is in `G_Cinefade()` which lerps between start/end alpha.
+Full-screen overlay effects (fades, blurs) use `SetCineFilterTexture`/`SetCineFilterStartColor`/`SetCineFilterEndColor`/`SetCineFilterDuration`/`DisplayCineFilter`. Ordinary fades keep using `G_Cinefade()` and the full-screen color overlay. Color-changing filters register their texture as a shared image configstring; `G_RunClients()` interpolates RGBA and publishes the generic image index plus tint in player state. `SCR_DrawLayout()` draws that image over the physical screen before the authored HUD layers, preserving cinematic portraits and text above it. This supports the `BLEND_MODE_BLEND`, full-UV color-mask path used by NightElfX03's Gul'dan `DreamFilter_Mask`; other filter blend modes and custom UV ranges are not yet represented in player state.
 
 The client-side fade is physical-screen presentation, not centered 4:3 HUD content. `SCR_DrawLayout()` must cover `{ x=0, y=0, w=SCR_UICanvasWidth(), h=UI_BASE_HEIGHT }`, the full canvas scene; under the widened (1.30+ data) policy that is wider than the centered HUD root returned by `SCR_LayoutSceneRect()`, under the classic stretched policy both are the authored 0.8 width. Renderer projection and input use that same canvas ([ui-canvas.md](../../architecture/ui-canvas.md)); the world camera retains the physical viewport aspect.
 

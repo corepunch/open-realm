@@ -1,6 +1,6 @@
 uint32_t SetCineFilterTexture(jass_t *j) {
     cstring_t filename = jass_checkstring(j, 1);
-    level.cinefilter.texture = UI_LoadTexture(filename, true);
+    level.cinefilter.texture = (uint32_t)gi.ImageIndex(filename);
     return 0;
 }
 uint32_t SetCineFilterBlendMode(jass_t *j) {

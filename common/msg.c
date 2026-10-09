@@ -133,7 +133,7 @@ netField_t uiFrameFields[] = {
     { NULL }
 };
 
-/* Player-state deltas use a 32-bit mask; map metadata moved to configstrings, leaving room for generic camera fields. */
+/* Player-state deltas use a 32-bit mask; map metadata moved to configstrings, leaving room for generic camera and presentation fields. */
 netField_t playerStateFields[] = {
     { NETF(player_t, viewangles), NFT_VECTOR3_FLOAT },
     { NETF(player_t, vieworigin), NFT_VECTOR3_FLOAT },
@@ -149,10 +149,12 @@ netField_t playerStateFields[] = {
     { NETF(player_t, cinematic_portrait), NFT_LONG },
     { NETF(player_t, name), NFT_DUPTEXT },
     { NETF(player_t, start_location), NFT_LONG },
+    { NETF(player_t, cinefilter_image), NFT_LONG },
+    { NETF(player_t, cinefilter_color), NFT_LONG },
     { NETF(player_t, cinefade), NFT_FLOAT },
     { NETF(player_t, texts[0]), NFT_DUPTEXT },
     { NETF(player_t, texts[1]), NFT_DUPTEXT },
-    /* Map metadata moved to the WoW map-info configstring; only cinematic text remains in player state. */
+    /* Map metadata moved to the WoW map-info configstring; only small generic presentation values remain here. */
     { NULL }
 };
 
