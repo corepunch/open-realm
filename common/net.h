@@ -16,7 +16,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 20 // v20 sequenced UDP netchan; v19 hover-name records; v18 widened entity flags to 32 bits
+#define BZ_PROTOCOL_VERSION 21 // v21 cinematic filter player state; v20 sequenced UDP netchan; v19 hover-name records
 
 
 typedef struct entityState_s entityState_t;

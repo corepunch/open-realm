@@ -12,10 +12,12 @@ The review found two compatibility changes that should be considered before
 merging:
 
 1. **Client/server wire protocol:** `cinefilter_image` and `cinefilter_color`
-   are added to `playerStateFields` as `NFT_LONG`. This changes player-state
-   delta bit assignments and payload length when those fields are sent. A
-   server and client from opposite sides of this change must not be mixed; they
-   need a coordinated update. This is the material deployment risk.
+   are added to `playerStateFields` as `NFT_LONG`. Protocol version 21 rejects
+   older peers during connection setup. The new fields are appended after the
+   existing player-state fields, preserving existing delta bit assignments;
+   changed filters still add values to the snapshot payload. The portrait
+   model reuses stats slot 29, so it does not add a delta field, but its
+   rendering meaning changes. Client and server must both use protocol 21.
 2. **WC3 save format:** the portrait stats-slot contract changes, and the save
    version is now 77. Version 76 saves are rejected. The repository policy in
    `AGENTS.md` and `CONTRIBUTING.md` requires version bumps and rejection when
@@ -44,8 +46,12 @@ for bisectability:
 - `e9595dd6` — cover portrait indices above 63 through the player delta and
   client drawing paths.
 - `083843ba` — restore the prior UI client after cinematic-layer serialization;
-  keep skin context scoped and covered.
+  keep skin context scoped.
 - `7a60c75c` — cover filter delta round-trip and viewport rendering.
+- `2308d2c7` — exercise the cinematic HUD race-skin context through actual
+  layout serialization.
+- Pending protocol fix — bump to protocol 21 and append filter fields after
+  existing player-state fields.
 
 The first four commits form the filter path; the portrait/save commits form the
 portrait contract correction; the HUD race-skin commit is an independent fix
@@ -79,12 +85,13 @@ save-policy details.
 - Portrait regression: `make test-core` and targeted portrait tests passed.
 - `make test-core` passed with **2503 assertions in 240 tests**.
 - `make test-wc3-engine` passed on classic and TFT; each variant completed all
-  four shards. Classic reported 16,468 / 5,910 / 6,237 / 20,809 assertions;
-  TFT reported the same totals.
+  four shards. The latest run after strengthening the race-skin test reported
+  16,468 / 5,910 / 6,237 / 20,815 assertions per variant.
 - `make test` passed, including the core, server, client/UI, renderer, WC3, WoW,
-  and SC2 test targets.
-- `git diff --check` passed before the final commits; rerun on the review note
-  before merging.
+  and SC2 test targets. This run preceded the protocol 21 update; rerun it
+  after that commit.
+- `python3 tools/engine_boundary_audit.py` reported clean against `main`.
+- `git diff --check` passed before the protocol update; rerun after it.
 
 The test suite verifies the serialized values and geometry contract. It does
 not establish pixel-for-pixel retail visual parity; the alpha adjustment is
@@ -92,9 +99,8 @@ based on the observed Gul'dan scene appearance.
 
 ## Merge recommendation
 
-Merge only with a coordinated client/server rollout because of the player-state
-delta layout change. Confirm the save-version 77 rejection is acceptable for
-the target branch and release policy. If both are acceptable, the commits are
-small and covered by focused regressions; otherwise, the filter fields need a
-versioned protocol negotiation/design before deployment rather than mixed
-builds.
+Deploy protocol 21 client and server builds together; older peers are rejected
+during connection setup. Confirm the save-version 77 rejection is acceptable
+for the target branch and release policy. The commits are small and covered by
+focused regressions. Retail framebuffer parity for the filter opacity remains
+a visual observation rather than an automated pixel comparison.
