@@ -787,7 +787,11 @@ static void ai_attack_walk(edict_t *ent) {
             return;
         }
         if (!S_UnitCanTranslate(ent)) return;
-        unit_changeangle(ent);
+        if (ent->goalentity->targtype == TARG_WALL)
+            unit_changeangle(ent);
+        else
+            unit_changeangle_for_radius(ent, ent->collision);
+        if (ent->movement.flow_unreachable) return;
         unit_moveindirection(ent);
     } else if (attack_target_too_close(ent)) {
         /* Artillery minimum range is a real dead zone. Mobile siege units back
@@ -1114,7 +1118,12 @@ static void ai_attackmove_walk(edict_t *ent) {
 
     if (!S_UnitCanTranslate(ent)) return;
     if (move_should_arrive(ent, move_distance)) {
-        if (M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
+        /* A shared attack-move waypoint may be across blocked terrain. Don't
+         * snap onto it based only on Euclidean proximity: each mover must be
+         * able to reach the goal in its own collision-sized flow field. */
+        uint32_t const heatmap = M_RefreshHeatmapForMover(ent, ent->goalentity, ent->collision);
+        if (heatmap && CM_FlowCanReach(heatmap, ent->s.origin.x, ent->s.origin.y) &&
+            M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
             ent->s.origin2 = ent->goalentity->s.origin2;
             gi.LinkEntity(ent);
         }

@@ -2241,6 +2241,84 @@ TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
     T_ASSERT(attacker->goalentity == gate);
 }
 
+TEST(wc3_movement, group_smart_attack_keeps_unreachable_member_on_its_side_of_water) {
+    enum { CELLS = 16 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    edict_t *clent, *blocked, *reachable, *target;
+    vec2_t const target_origin = {432.0f, 272.0f};
+    char target_number[16];
+    cstring_t command[2] = { "smart", target_number };
+    bool reachable_advanced = false, blocked_unreachable = false;
+    bool reachable_jumped = false, blocked_jumped = false, target_jumped = false;
+    float blocked_start_x;
+
+    reset_entities(); setup_test_world();
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    G_SetClientConnected(clent, true);
+    blocked = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 80.0f, 272.0f);
+    reachable = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 320.0f, 272.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), target_origin.x, target_origin.y);
+    blocked->s.player = reachable->s.player = 0;
+    target->s.player = 6;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[6].playerType = kPlayerTypeHuman;
+    target->targtype = TARG_GROUND;
+    target->collision = 16.0f;
+    target->health.value = target->health.max_value = 100000.0f;
+    FOR_LOOP(i, 2) {
+        edict_t *unit = i ? reachable : blocked;
+        unit->svflags |= SVF_MONSTER;
+        unit->movetype = MOVETYPE_STEP;
+        unit->unitinfo.MoveSpeed = 80.0f;
+        unit->collision = 16.0f;
+        unit->attack1.type = ATK_NORMAL;
+        unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+        unit->attack1.range = 48.0f;
+        unit->stand = unit_stand;
+        unit_stand(unit);
+        G_SelectEntity(clent->client, unit);
+    }
+    for (int y = 0; y < CELLS; ++y)
+        pathmap[y * CELLS + 7] = CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    blocked_start_x = blocked->s.origin2.x;
+    snprintf(target_number, sizeof(target_number), "%u", (unsigned)target->s.number);
+    G_ClientCommand(clent, 2, command);
+    T_ASSERT(blocked->goalentity == target);
+    T_ASSERT(reachable->goalentity == target);
+
+    FOR_LOOP(frame, 200) {
+        vec2_t const old_blocked = blocked->s.origin2;
+        vec2_t const old_reachable = reachable->s.origin2;
+        vec2_t const old_target = target->s.origin2;
+        CM_ProcessPathJobs(4096);
+        if (blocked->currentmove && blocked->currentmove->think) blocked->currentmove->think(blocked);
+        if (reachable->currentmove && reachable->currentmove->think) reachable->currentmove->think(reachable);
+        reachable_advanced |= Vector2_distance(&old_reachable, &reachable->s.origin2) > 0.01f;
+        blocked_unreachable |= blocked->movement.flow_unreachable;
+        blocked_jumped |= Vector2_distance(&old_blocked, &blocked->s.origin2) > unit_movedistance(blocked) + 1.0f;
+        reachable_jumped |= Vector2_distance(&old_reachable, &reachable->s.origin2) >
+            unit_movedistance(reachable) + 1.0f;
+        target_jumped |= Vector2_distance(&old_target, &target->s.origin2) > 0.01f;
+    }
+
+    T_ASSERT(reachable_advanced);
+    T_ASSERT(Vector2_distance(&reachable->s.origin2, &target->s.origin2) < 112.0f);
+    T_ASSERT(blocked_unreachable);
+    T_ASSERT(blocked->s.origin2.x < 224.0f - blocked->collision);
+    T_FEQ(blocked->s.origin2.x, blocked_start_x, 1.0f);
+    T_ASSERT(!blocked_jumped);
+    T_ASSERT(!reachable_jumped);
+    T_ASSERT(!target_jumped);
+    T_ASSERT(blocked->goalentity == target);
+    T_ASSERT(reachable->goalentity == target);
+    T_FEQ(target->s.origin2.x, target_origin.x, 0.01f);
+    T_FEQ(target->s.origin2.y, target_origin.y, 0.01f);
+}
+
 TEST(wc3_movement, shift_smart_walkable_bridge_queues_clicked_ground_point) {
     static DestructableData_t const bridge_data = {
         .file = "Doodads/Terrain/WoodBridgeLarge45/WoodBridgeLarge45.mdx",
