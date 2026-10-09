@@ -64,9 +64,11 @@ static cstring_t G_RemoveQuotes(cstring_t text) {
     }
     len = strlen(text);
     if (len >= 2 && text[0] == '"' && text[len - 1] == '"') {
-        snprintf(out, sizeof(buffers[0]), "%.*s", (int)(len - 2), text + 1);
+        len = MIN(len - 2, sizeof(buffers[0]) - 1);
+        memcpy(out, text + 1, len);
+        out[len] = '\0';
     } else {
-        snprintf(out, sizeof(buffers[0]), "%s", text);
+        strlcpy(out, text, sizeof(buffers[0]));
     }
     return out;
 }

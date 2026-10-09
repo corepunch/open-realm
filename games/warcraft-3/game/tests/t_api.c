@@ -710,7 +710,7 @@ TEST(wc3_api, region_add_rect_reports_capacity_rejection) {
     T_EQ(dup2(saved_stderr, STDERR_FILENO), STDERR_FILENO);
     close(saved_stderr);
     rewind(capture);
-    (void)fread(diagnostic, 1, sizeof(diagnostic) - 1, capture);
+    diagnostic[fread(diagnostic, 1, sizeof(diagnostic) - 1, capture)] = '\0';
     fclose(capture);
 
     FOR_LOOP(i, level.num_regions)
@@ -5481,7 +5481,7 @@ TEST(wc3_api, selection_limit_warns_once_for_unsupported_values) {
     T_EQ(dup2(saved_stderr, STDERR_FILENO), STDERR_FILENO);
     close(saved_stderr);
     rewind(capture);
-    (void)fread(diagnostic, 1, sizeof(diagnostic) - 1, capture);
+    diagnostic[fread(diagnostic, 1, sizeof(diagnostic) - 1, capture)] = '\0';
     fclose(capture);
     gi.CvarString = old_cvar;
 

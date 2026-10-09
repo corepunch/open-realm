@@ -329,7 +329,7 @@ static void CL_ParseConfigString(sizeBuf_t *msg) {
         CL_UpdateMinimapModel();
     if (index == CS_WORLD && cl.configstrings[index][0] &&
         strcmp(last_world, cl.configstrings[index])) {
-        snprintf(last_world, sizeof(last_world), "%s", cl.configstrings[index]);
+        strlcpy(last_world, cl.configstrings[index], sizeof(last_world));
         CL_BeginLoadingMap(cl.configstrings[index]);
     }
 }

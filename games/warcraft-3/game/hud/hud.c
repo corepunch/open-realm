@@ -60,11 +60,15 @@ uint32_t UI_FindFrameNumber(cstring_t name) {
 
 static void UI_CopyFrameBase(uiFrame_t *dest, frameDef_t const *src) {
     AddFrame(src);
-    FOR_LOOP(i, FPP_COUNT * 2) {
+    FOR_LOOP(i, FPP_COUNT) {
         dest->points.x[i].targetPos = src->Points.x[i].targetPos;
         dest->points.x[i].used = src->Points.x[i].used;
         dest->points.x[i].relativeTo = FindFrameNumber(src->Points.x[i].relativeTo, UI_PARENT);
         dest->points.x[i].offset = (int16_t)(src->Points.x[i].offset * UI_FRAMEPOINT_SCALE);
+        dest->points.y[i].targetPos = src->Points.y[i].targetPos;
+        dest->points.y[i].used = src->Points.y[i].used;
+        dest->points.y[i].relativeTo = FindFrameNumber(src->Points.y[i].relativeTo, UI_PARENT);
+        dest->points.y[i].offset = (int16_t)(src->Points.y[i].offset * UI_FRAMEPOINT_SCALE);
     }
     static char tooltip[1024];
     cstring_t tooltip_text = NULL;
