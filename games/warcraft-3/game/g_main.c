@@ -577,6 +577,15 @@ float G_Cinefade(void) {
     if (G_SkipCutscene()) {
         return 0;
     }
+    /* CinematicFilterGenericBJ also drives these fields for textured color
+     * filters. Until the client renders that texture, don't mistake a color
+     * transition for a full-screen black fade. CinematicFadeBJ keeps RGB
+     * constant and varies only alpha, so its black-fade behavior is retained. */
+    if (level.cinefilter.start.color.r != level.cinefilter.end.color.r ||
+        level.cinefilter.start.color.g != level.cinefilter.end.color.g ||
+        level.cinefilter.start.color.b != level.cinefilter.end.color.b) {
+        return 0;
+    }
     uint32_t duration = level.cinefilter.end.time - level.cinefilter.start.time;
     if (!level.cinefilter.displayed) {
         return 0;
