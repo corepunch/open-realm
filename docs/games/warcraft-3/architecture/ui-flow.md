@@ -426,7 +426,8 @@ executes, but keep the actual world replacement deferred.
 `EndGame(doScoreScreen)` returns single-player campaign maps to the campaign selector and other sessions to the main
 menu, consuming an explicit `ForceCampaignSelectScreen` request as well. It cannot yet honor `doScoreScreen`; there
 is no score-screen controller. `ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
-`DisplayLoadDialog` enters the frontend load-game screen, and `ForceCampaignSelectScreen` returns to
+`DisplayLoadDialog` opens the in-game save/load panel; cancelling a result-dialog load returns to the game menu with
+Return to Game disabled. `ForceCampaignSelectScreen` returns to
 `menu_single_player_campaign`. On single-player victory, the fallback Continue button delegates to Blizzard.j's
 `CustomVictoryOkBJ`, preserving its `bj_changeLevelMapName` decision instead of guessing the next map in HUD code.
 Because `CustomVictoryDialogBJ` has already paused single-player simulation, this fallback invocation is synchronous:

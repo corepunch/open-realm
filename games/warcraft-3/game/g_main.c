@@ -1100,8 +1100,14 @@ void G_RequestRestartGame(bool do_score_screen) {
 }
 
 void G_RequestLoadGameMenu(void) {
-    G_GameResultDebug("request LoadGameMenu");
-    gi.MenuAction("menu", "menu_loadgame");
+    G_GameResultDebug("request LoadGameMenu result_dialog=1");
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t *client = game.clients + i;
+        edict_t *ent;
+        if (!client->connected) continue;
+        ent = G_GetPlayerEntityByNumber(client->ps.number);
+        if (ent) UI_ShowGameMenuLoad(ent, true);
+    }
 }
 
 void G_RequestLoadGameNamed(cstring_t name) {

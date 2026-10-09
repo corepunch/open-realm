@@ -2115,6 +2115,11 @@ CLIENTCOMMAND(Menu) {
     UI_ShowMainMenu(clent);
 }
 
+CLIENTCOMMAND(MenuLoadCancel) {
+    (void)argc; (void)argv;
+    UI_ShowMainMenuLoadCancelled(clent);
+}
+
 CLIENTCOMMAND(MenuOptions) {
     (void)argc; (void)argv;
     UI_ShowGameMenuOptions(clent);
@@ -2153,7 +2158,7 @@ CLIENTCOMMAND(MenuSaveGame) {
 
 CLIENTCOMMAND(MenuLoadGame) {
     (void)argc; (void)argv;
-    UI_ShowGameMenuLoad(clent);
+    UI_ShowGameMenuLoad(clent, false);
 }
 
 static bool MenuNormalizeSaveName(cstring_t input, string_t out, uint32_t out_size) {
@@ -3052,6 +3057,7 @@ clientCommand_t clientCommands[] = {
     { "sound_event", CMD_SoundEvent },
     { "camera", CMD_Camera },
     { "menu", CMD_Menu },
+    { "menu_load_cancel", CMD_MenuLoadCancel },
     { "wc3_menu_options", CMD_MenuOptions },
     { "wc3_menu_options_sound", CMD_MenuOptionsSound },
     { "menu_endgame", CMD_MenuEndGame },

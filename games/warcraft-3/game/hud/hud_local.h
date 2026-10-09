@@ -225,13 +225,14 @@ void UI_AlliesToggleVictory(edict_t *ent);
 void UI_AlliesAccept(edict_t *ent);
 void UI_AlliesCancel(edict_t *ent);
 void UI_ShowMainMenu(edict_t *ent);
+void UI_ShowMainMenuLoadCancelled(edict_t *ent);
 void UI_SetGameMenuOptionsPage(EscMenuOptionsPanel_t *options, bool sound_page);
 void UI_ShowGameMenuOptionsSound(edict_t *ent);
 void UI_ShowGameMenuEndGame(edict_t *ent);
 void UI_ShowGameMenuConfirmExit(edict_t *ent);
 void UI_ShowGameMenuOptions(edict_t *ent);
 void UI_ShowGameMenuSave(edict_t *ent);
-void UI_ShowGameMenuLoad(edict_t *ent);
+void UI_ShowGameMenuLoad(edict_t *ent, bool result_dialog);
 
 /* Game result dialog (hud_game_result.c) */
 void UI_ShowGameResult(edict_t *ent, uint32_t result);
