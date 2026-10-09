@@ -89,7 +89,7 @@ TEST(wc3_bot, help_policy_follows_ai_enrollment_transfer_and_save) {
     T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(.75f));
     G_SetUnitPlayer(victim,2);T_ASSERT(!(victim->aiflags&AI_TOWN_OWNED));
     G_SetUnitPlayer(victim,0);T_ASSERT(victim->aiflags&AI_TOWN_OWNED);
-    cstring_t file="/tmp/wc3-help-ai153.bin";
+    cstring_t file=Test_TempPath("wc3-help-ai153.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
     T_ASSERT(victim->aiflags&AI_TOWN_OWNED);T_EQ(level.ai_owned_players,(1u<<0)|(1u<<PLAYER_NEUTRAL_AGGRESSIVE));
     T_EQ(victim->combat_help.sequence,serial);
@@ -117,7 +117,7 @@ TEST(wc3_bot, ai_enrollment_preserves_preplaced_identity_and_excludes_nonunits) 
     game.clients[0].jass.removed=true;
     game.clients[1].jass.controller=1;game.clients[1].mapplayer=&level.mapinfo->players[1];
     G_BotInitPlayers();T_EQ(level.ai_owned_players,1u<<PLAYER_NEUTRAL_AGGRESSIVE);
-    cstring_t file="/tmp/wc3-help-ai153-invalid.bin";
+    cstring_t file=Test_TempPath("wc3-help-ai153-invalid.bin");
     level.ai_owned_players|=1u<<PLAYER_NEUTRAL_PASSIVE;
     T_ASSERT(!WriteGame(file));remove(file);
     reset_entities();setup_test_world();
@@ -729,6 +729,113 @@ TEST(wc3_bot, melee_settings_cover_inverse_flags_and_clamp_replacements) {
     T_ASSERT(!(ai->flags & BOT_SMART_ARTILLERY));
     T_ASSERT(!(ai->flags & BOT_NEW_HEROES));
     T_ASSERT(!(ai->flags & BOT_DEFEND_PLAYER));
+}
+
+TEST(wc3_bot, hero_item_policy_buys_makeitems_shop_merchandise) {
+    static UnitAbilities_t shop_abilities = { .abilList = "Apit", .heroAbilList = "" };
+    static UnitAbilities_t inventory_abilities = { .abilList = "AInv", .heroAbilList = "" };
+    static UnitBalance_t hero_balance = { .agility = 1 };
+    player_t *player;
+    edict_t *clent, *hero, *shop;
+    bot_t *bot;
+
+    reset_entities(); setup_test_world();
+    player = &game.clients[0].ps;
+    clent = &g_edicts[0];
+    clent->inuse = true;
+    clent->client = game.clients;
+    clent->client->connected = true;
+    player->number = 0;
+    player->race = kPlayerRaceNightElf;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->s.player = 0;
+    hero->health.value = hero->health.max_value = 1000;
+    hero->svflags |= SVF_MONSTER;
+    hero->data.UnitAbilities = &inventory_abilities;
+    hero->data.UnitBalance = &hero_balance;
+    shop = alloc_test_unit(MAKEFOURCC('e','d','e','n'), 32, 0);
+    shop->data.UnitAbilities = &shop_abilities;
+    shop->s.player = PLAYER_NEUTRAL_PASSIVE;
+    shop->collision = 32;
+    shop->spawn_time = G_Time();
+    if (!shop->stock) shop->stock = G_AllocStock();
+    T_NOT_NULL(shop->stock);
+    shop->stock->item_slots = 11;
+    gi.LinkEntity(shop);
+    T_STREQ(shop->data.UnitProfile->makeItems, "moon,plcl,phea");
+
+    level.time = 3000;
+    bot = G_BotState(0);
+    memset(bot, 0, sizeof(*bot));
+    bot->flags = BOT_HEROES_BUY_ITEMS;
+    T_ASSERT(G_BotUnitAlive(hero));
+    T_ASSERT(G_UnitIsHero(hero));
+    T_ASSERT(!unit_affectingcombat(hero));
+    T_EQ(G_FindFreeInventorySlot(hero), 0);
+    T_ASSERT(G_CanUseItemShop(clent->client, shop));
+    T_EQ(G_FindShopPatron(clent->client, shop), hero);
+    T_ASSERT(G_ShopSellsItem(shop, MAKEFOURCC('m','o','o','n')));
+    T_EQ(shop->stock->items[0].id, MAKEFOURCC('m','o','o','n'));
+    T_ASSERT(shop->stock->items[0].current > 0);
+    G_BotUpdateHeroItems(player);
+    T_EQ(bot->item_policy_last_scan, G_Time());
+    T_EQ(bot->hero_buy_last_scan, G_Time());
+    T_NOT_NULL(hero->inventory[0]);
+    if (hero->inventory[0])
+        T_ASSERT(hero->inventory[0]->class_id == MAKEFOURCC('m','o','o','n') ||
+                 hero->inventory[0]->class_id == MAKEFOURCC('p','l','c','l'));
+}
+
+/* Bots shop from the live stock like players, including AddItemToStock. */
+TEST(wc3_bot, hero_item_policy_buys_trigger_added_stock) {
+    static UnitAbilities_t shop_abilities = { .abilList = "Apit,Asid", .heroAbilList = "" };
+    static UnitAbilities_t inventory_abilities = { .abilList = "AInv", .heroAbilList = "" };
+    static UnitBalance_t hero_balance = { .agility = 1 };
+    player_t *player;
+    edict_t *clent, *hero, *shop;
+    bot_t *bot;
+
+    reset_entities(); setup_test_world();
+    player = &game.clients[0].ps;
+    clent = &g_edicts[0];
+    clent->inuse = true;
+    clent->client = game.clients;
+    clent->client->connected = true;
+    player->number = 0;
+    player->race = kPlayerRaceHuman;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->s.player = 0;
+    hero->health.value = hero->health.max_value = 1000;
+    hero->svflags |= SVF_MONSTER;
+    hero->data.UnitAbilities = &inventory_abilities;
+    hero->data.UnitBalance = &hero_balance;
+    shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    shop->data.UnitAbilities = &shop_abilities;
+    shop->s.player = PLAYER_NEUTRAL_PASSIVE;
+    shop->collision = 32;
+    shop->spawn_time = G_Time();
+    if (!shop->stock) shop->stock = G_AllocStock();
+    T_NOT_NULL(shop->stock);
+    shop->stock->item_slots = 11;
+    gi.LinkEntity(shop);
+    T_ASSERT(!G_IsItemShop(shop)); /* No authored Sellitems/Makeitems. */
+    T_ASSERT(G_AddItemStock(shop, MAKEFOURCC('p','l','c','l'), 1, 1));
+
+    level.time = 3000;
+    bot = G_BotState(0);
+    memset(bot, 0, sizeof(*bot));
+    bot->flags = BOT_HEROES_BUY_ITEMS;
+    T_ASSERT(G_CanUseItemShop(clent->client, shop));
+    T_EQ(G_FindShopPatron(clent->client, shop), hero);
+    T_ASSERT(G_ShopItemRequirementsSatisfied(clent->client, MAKEFOURCC('p','l','c','l'), NULL, 0));
+    G_BotUpdateHeroItems(player);
+    T_NOT_NULL(hero->inventory[0]);
+    if (hero->inventory[0]) T_EQ(hero->inventory[0]->class_id, MAKEFOURCC('p','l','c','l'));
+    T_EQ(shop->stock->items[0].current, 0);
 }
 
 TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
@@ -2054,6 +2161,127 @@ TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
     T_EQ(level.bots[2].captains[BOT_CAPTAIN_DEFENSE].state, BOT_CAPTAIN_IDLE);
     T_NOT_NULL(defender->currentmove);
     T_EQ(defender->currentmove->proc, CAbilityMove);
+}
+
+/* These tests intentionally do not assume retail's undocumented captain
+ * in-flight order/arrival tolerance; they assert independent engine-owned state. */
+TEST(wc3_bot, teleport_captain_preserves_home_goal_and_members) {
+    player_t *player = &game.clients[2].ps;
+    botCaptain_t *attack = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
+    botCaptain_t *defense = &level.bots[2].captains[BOT_CAPTAIN_DEFENSE];
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    G_BotSetCaptainHome(player, 1, 100.0f, 200.0f);
+    G_BotSetCaptainHome(player, 2, 700.0f, 800.0f);
+    G_BotCaptainAttack(player, &(vec2_t){400.0f, 500.0f});
+    G_BotTeleportCaptain(player, 400.0f, 500.0f);
+    T_ASSERT(attack->position_valid);
+    T_FEQ(attack->position.x, 400.0f, 0.01f);
+    T_FEQ(attack->position.y, 500.0f, 0.01f);
+    T_FEQ(attack->goal.x, 400.0f, 0.01f);
+    T_FEQ(attack->home.x, 100.0f, 0.01f);
+    T_FEQ(defense->home.x, 700.0f, 0.01f);
+    T_ASSERT(!defense->position_valid);
+    T_ASSERT(G_BotCaptainAtGoal(player));
+    G_BotResetCaptainLocs(player);
+    T_FEQ(attack->position.x, 100.0f, 0.01f);
+    T_ASSERT(G_BotCaptainIsHome(player));
+}
+
+TEST(wc3_bot, captain_teleport_never_moves_assigned_units) {
+    player_t *player = &game.clients[2].ps;
+    edict_t *footman;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    footman = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
+    T_ASSERT(G_BotAddAssault(player, 1, footman->class_id));
+    G_BotTeleportCaptain(player, 2000.0f, 3000.0f);
+    T_FEQ(footman->s.origin2.x, 64.0f, 0.01f);
+    T_FEQ(footman->s.origin2.y, 128.0f, 0.01f);
+    T_EQ(G_BotCaptainGroupSize(player), 1);
+}
+
+TEST(wc3_bot, teleport_captain_affects_arrival_even_with_assigned_units) {
+    player_t *player = &game.clients[2].ps;
+    botCaptain_t *captain = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
+    edict_t *footman;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    footman = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
+    T_ASSERT(G_BotAddAssault(player, 1, footman->class_id));
+    captain->goal = MAKE(vec2_t, 1500.0f, 2000.0f);
+    G_BotTeleportCaptain(player, 1500.0f, 2000.0f);
+    T_ASSERT(G_BotCaptainAtGoal(player));
+    T_ASSERT(!G_BotCaptainIsHome(player));
+    T_FEQ(footman->s.origin2.x, 64.0f, 0.01f);
+    G_BotCaptainGoHome(player);
+    T_ASSERT(!captain->position_valid);
+    G_BotCreateCaptains(player);
+}
+
+TEST(wc3_bot, amphibious_route_policy_does_not_change_unit_pathing) {
+    player_t *player = &game.clients[2].ps;
+    edict_t *footman;
+    uint8_t movement_flags;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    footman = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
+    movement_flags = M_UnitStaticPathingFlags(footman);
+    level.bots[2].flags |= BOT_AMPHIBIOUS | BOT_DISABLE_PATHING;
+    T_EQ(M_UnitStaticPathingFlags(footman), movement_flags);
+    T_ASSERT(G_BotAddAssault(player, 1, footman->class_id));
+    G_BotCaptainAttack(player, &(vec2_t){320.0f, 384.0f});
+    T_EQ(M_UnitStaticPathingFlags(footman), movement_flags);
+    G_BotCreateCaptains(player);
+}
+
+TEST(wc3_bot, captain_goal_query_uses_move_owned_actor) {
+    player_t *player = &game.clients[2].ps;
+    botCaptain_t *captain = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
+    reset_entities();setup_test_world();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    G_BotSetCaptainHome(player, 1, 128, 128);
+    edict_t *unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 128, 2, NULL);
+    T_ASSERT(G_BotAddAssault(player, 1, unit->class_id));
+    level.bots[2].flags = BOT_AMPHIBIOUS | BOT_DISABLE_PATHING;
+    vec2_t goal={1000,1000};
+    G_BotCaptainAttack(player, &goal);
+    T_NOT_NULL(captain->home_actor);
+    T_ASSERT(!G_BotCaptainAtGoal(player));
+    T_EQ(captain->goal.x,goal.x);T_EQ(captain->goal.y,goal.y);
+    /* Public pose mutation updates the actual retained actor; no separate
+     * per-unit route table can declare a remote objective completed. */
+    S_SetUnitPosition(captain->home_actor,&goal);
+    T_ASSERT(G_BotCaptainAtGoal(player));
+    T_ASSERT(!G_BotCaptainIsHome(player));
+    T_EQ(unit->s.origin2.x,64);T_EQ(unit->s.origin2.y,128);
+    G_BotClearCaptainTargets(player);
+    T_EQ(captain->state,BOT_CAPTAIN_ACTIVE);
+    G_BotCreateCaptains(player);
+}
+
+TEST(wc3_bot, captain_targeting_selects_one_visible_group_objective) {
+    player_t *player = &game.clients[2].ps;
+    player_t *enemy_player = &game.clients[3].ps;
+    botCaptain_t *captain = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
+    edict_t *a, *b, *enemy_a, *enemy_b;
+    uint32_t rdflags = player->rdflags;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 128, 2, NULL);
+    b = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 640, 128, 2, NULL);
+    enemy_a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 96, 128, 3, NULL);
+    enemy_b = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 608, 128, 3, NULL);
+    enemy_a->svflags |= SVF_MONSTER;
+    enemy_b->svflags |= SVF_MONSTER;
+    T_ASSERT(G_BotAddAssault(player, 2, a->class_id));
+    player->rdflags |= RDF_NOFOG; /* isolate target-scoring from fog fixture */
+    G_BotCaptainVsUnits(player, enemy_player);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
+    T_FEQ(captain->goal.x, enemy_a->s.origin2.x, 0.01f);
+    T_ASSERT(a->goalentity == enemy_a && b->goalentity == enemy_a);
+    player->rdflags = rdflags;
+    G_BotCreateCaptains(player);
 }
 
 #endif /* BZ_TESTS */

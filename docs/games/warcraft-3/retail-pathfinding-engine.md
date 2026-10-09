@@ -13349,3 +13349,83 @@ Public Attack re-add remains a preserved, separately documented mismatch.
 Default Town homes, broad idle/combat/transport fallback and complete moving
 Captain lifecycle tasks remain open under their existing leaves. This closure
 covers the listed private range inputs, retention and fresh-admission rules.
+
+
+## Upstream merge preserves retail validation contracts (October9)
+
+The merge keeps the recovered Move/Captain owners, runtime definitions and sparse
+ability pools. Upstream adds dialog context, aura presentation roles, Wander,
+queued scenery animations and shared entity-state fields. The game-owned
+`scheduled_think_frame` storage must remain outside the engine edict prefix; placing it between `entityState_t` and
+`client` makes server linking misread liveness/bounds. See [save147](save-load.md#upstream-synchronization-format147).
+
+Two old test assumptions were checked against the hash-matched original DLL
+before changing their assertions. `retail-world-velocity-1.27.json` retains all
+1,040 original `input` and `expected` rows word-identically. Its old `expected`
+values are the original velocity projected through ScalarMultiply32, which
+canonicalizes zero. The additional `native_expected` values are raw fine velocity
+and facing read immediately after original `16fe20`. The production storage
+adapter preserves negative zero when rescaling native velocity, as required by
+the existing TARGET-02.1 live commits. The generator and regression independently
+check the arithmetic projection and stored-word projection; the arithmetic
+fixture is not rewritten to excuse a divergence. Binary SHA256 remains
+`d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
+
+The complete original `16ee80` endpoint validator was rerun with a column7 wall
+(x224..256), radius16, y235.75 and centers x208/210.5/223.5/224. Retail admits the
+first three and rejects x224. Class1 uses a decreasing-axis-biased 2x2 square;
+a continuous circle-clearance assertion wrongly rejected legal positions.
+`retail-footprint-endpoints-1.27.json` retains every one of its existing1,184
+results and adds these four `wall_endpoints`. The gate regression now checks
+retail footprint admission and the unchanged authored gate pose. No gate movement
+or terrain collision restriction was removed.
+
+Minimal fixture rows were checked against installed stock `war3.mpq`:
+`Units/AbilityData.slk` AIso row353 has Rng1=500;
+`Units/UnitData.slk` nwlt row273 has movetp=foot, turnRate=0.6, propWin=60.
+The previous missing AIso range forced approaches in instant-cast tests. Missing
+nwlt turn data left Wander at retail's minimum turn speed with a zero window,
+so the short fixture never translated. The corrected minimal rows restore the
+authored inputs rather than bypassing Move's turn/range gates. Stock archive
+content is used for verification, not as a test runtime dependency.
+
+Older Soul Gem approach tests polled `S_SpellTargetApproachThink`, predating
+[retained spell receivers](#spell-approaches-capture-a-physical-stopping-range-payoff185).
+They now drive the real frame and check receiver/group binding through save/load.
+[Retail Follow death captures](#follow-cancels-synchronously-before-target-pool-reuse)
+require synchronous retirement: a same-identity Hero revival permits a fresh
+cast, but does not resurrect the canceled receiver. Distant enemy-Hero fixtures
+explicitly retain visibility so an unrelated fog update cannot cancel the cast.
+The loot-wrapper regression sets an explicit RNG seed: its random requests land
+in distinct fine cells. Crowded item admission remains independently covered by
+[category/admission regressions](retail-pathfinding-categories.md); a BJ request
+within32 units is not a promise that crowded placement stays within32 units.
+
+Construction retains Move-owned displacement rather than upstream's immediate
+circle-based teleport at construction start/completion. The old route-preservation
+and footprint regressions remain intact. The upstream direct-initializer test
+incorrectly treated the real unfinished footprint as walk-through; its replacement
+runs Build's displacement stage and actual simulation frames, asserts distinct
+escape targets, movement for both occupants, and unchanged poses at completion.
+It exposed a real batching defect: independent exit searches selected the same
+candidate and the final collision check rejected every occupant. Exit planning
+now reserves destinations before committing Move orders, while retaining the
+single-unit candidate order and admission predicates. No speculative pose or
+spatial publication is used. This fixes engine construction planning, not the
+remaining retail exit-order/deep-footprint recovery task. Timer/reclamation tests
+advance the original minimum scalar deadline before running scheduled callbacks;
+ordinary registration/free cannot be tested by an unscheduled zero-time call.
+Aura fixtures invalidate their provider after directly changing a learned rank,
+as real mutation entry points do. Frozen retail outputs remain unchanged.
+
+
+The merge checkpoint builds all production targets and passes3,225 engine tests
+in each Classic/TFT mode (6,450 total), all996 Python pathfinding checks and the
+other shared/renderer/SC2/WoW/network suites. After the construction planner
+change, the complete Classic/TFT suite was rerun; unrelated unchanged suites
+retain the completed aggregate checkpoint. Corpus inventory/pins pass430 entries,
+and its32 verifier tests pass. Logs, original-binary readback, the verified stock
+row extracts and the pre-merge WIP backup are retained under
+`/GitHub/wc3-analysis/runtime/upstream-sync-20261009/`. This synchronization closes
+no additional retail TODOs. The saved Payoff194 work and peer research are
+restored separately after committing the validated merge.

@@ -57,9 +57,9 @@ static ability_t abilitylist[] = {
     { "ANr2", CAbilityReincarnationCampaign, AB_SPELL },  /* Reincarnation */
     { "Afbb", CAbilityFeedbackCampaign, AB_SPELL | AB_TOGGLE },  /* Feedback (campaign toggle) */
     { "Andm", CAbilityAbolishMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Abolish Magic */
-    { "Asb1", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE },  /* Submerge */
-    { "Asb2", CAbilitySubmergeRoyalGuard, AB_SPELL | AB_TOGGLE },  /* Submerge */
-    { "Asb3", CAbilitySubmergeSnapDragon, AB_SPELL | AB_TOGGLE },  /* Submerge */
+    { "Asb1", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge */
+    { "Asb2", CAbilitySubmergeRoyalGuard, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge */
+    { "Asb3", CAbilitySubmergeSnapDragon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge */
     { "ANha", CAbilityHarvest, AB_COMMAND },  /* Harvest */
     { "ANen", CAbilityEnsnare, AB_SPELL | AB_UPDATE | AB_TYPE_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
     { "ACfu", CAbilityFrostArmorCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
@@ -322,16 +322,18 @@ static ability_t abilitylist[] = {
     /* CampaignAbilityStrings.txt */
 
     /* ItemAbilityStrings.txt */
-    // TODO: AIsp a_item_speed  /* Item Temporary Speed Bonus */
+    { "AIsp", CAbilityItemSpeed, AB_ITEM | AB_POWERUP },  /* Item Temporary Speed Bonus */
     // TODO: AIdm a_bounce  /* Item Area tree/wall damage */
     // TODO: AIfl a_button  /* Item Capture The Flag */
     // TODO: AIfm a_button  /* Item Capture The Flag */
     // TODO: AIfn a_button  /* Item Capture The Flag */
     // TODO: AIfo a_button  /* Item Capture The Flag */
     // TODO: AIfe a_button  /* Item Capture The Flag */
-    // TODO: AIha a_item_heal_aoe  /* Item Area Healing */
+    { "AIha", CAbilityItemHealAoe, AB_ITEM | AB_POWERUP },  /* Item Area Healing / Healing Runes */
     // TODO: AIvu a_item_invul  /* Item Temporary Invulnerability */
-    // TODO: AImr a_item_mana_restore_aoe  /* Item Area Mana Regain */
+    { "AImr", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Item Area Mana Regain */
+    { "APmr", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Rune of Mana */
+    { "APmg", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Rune of Greater Mana */
     // TODO: AIre a_item_restore  /* Item Heal/Mana Regain */
     // TODO: AIra a_item_restore_aoe  /* Item Area Heal/Mana Regain */
     // TODO: AIta a_item_town_portal  /* Item Area Detection */
@@ -361,8 +363,10 @@ static ability_t abilitylist[] = {
     // TODO: AIan a_simple_spell  /* Item Animate Dead */
     // TODO: AIrs a_item_reincarnation  /* Item Resurrection */
     { "AIms", CAbilityMoveSpeedBonus, AB_PASSIVE | AB_MOVE_SPEED_BONUS },  /* Item Move Speed Bonus */
-    // TODO: AIgo a_attack_mod  /* Chest of Gold */
-    // TODO: AIlu a_item_heal_aoe  /* Bundle of Lumber */
+    { "APrl", CAbilityItemResurrection, AB_ITEM | AB_POWERUP },  /* Rune of Lesser Resurrection */
+    { "APrr", CAbilityItemResurrection, AB_ITEM | AB_POWERUP },  /* Rune of Greater Resurrection */
+    { "AIgo", CAbilityItemGold, AB_ITEM | AB_POWERUP },  /* Chest of Gold / Gold Coins */
+    { "AIlu", CAbilityItemLumber, AB_ITEM | AB_POWERUP },  /* Bundle of Lumber */
     // TODO: AIfa a_agility_mod  /* Flare Gun */
     // TODO: AIrv a_item_heal_aoe  /* Item Reveal Entire Map */
     // TODO: AIdc CAbilityItemDefenseAoe  /* Item Chain Dispel */
@@ -373,17 +377,25 @@ static ability_t abilitylist[] = {
     // TODO: Aste a_figurine_rock_golem  /* Steal */
     // TODO: AIpv a_item_mana_restore_aoe  /* Vampiric Potion */
     // TODO: AIsr a_item_speed  /* Spell Damage Reduction */
-    // TODO: AIbl CAbilityOnFireHuman  /* Build Tiny Castle */
+    { "AIbl", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Castle */
+    { "AIbg", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Great Hall */
+    { "AIbt", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Scout Tower */
+    { "AIbb", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Blacksmith */
+    { "AIbf", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Farm */
+    { "AIbr", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Lumber Mill */
+    { "AIbs", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Barracks */
+    { "AIbh", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Altar of Kings */
     // TODO: Ashs a_spell  /* Wand of Shadowsight */
     // TODO: Aret CAbilityResurrection  /* Tome of Retraining */
     // TODO: ANpr a_button  /* Staff of Preservation */
     // TODO: Amec a_button  /* Mechanical Critter */
     // TODO: ANss a_bounce  /* Spell Shield */
-    // TODO: ANse a_spell  /* Spell Shield */
+    { "ANse", CAbilitySpellShieldAoe, AB_ITEM | AB_POWERUP }, /* Rune of Shielding */
     // TODO: Aspb a_bounce  /* Spell Book */
     { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
     // TODO: ANsa a_bounce  /* Staff of Sanctuary */
-    // TODO: AIsa a_item_speed  /* Scroll of Haste */
+    { "APsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Rune of Speed */
+    { "AIsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Scroll of Haste / Speed AOE */
     // TODO: AItb a_button  /* Dust of Appearance */
     // TODO: AIsb CAbilityItemHeal  /* Orb of Slow */
     // TODO: ANbs a_spell  /* Orb of Darkness */
@@ -451,7 +463,7 @@ static ability_t abilitylist[] = {
     { "Aeth", CAbilityGhostVisible, AB_PASSIVE },  /* Ghost */
     { "Amin", CAbilityLandMine, AB_PASSIVE | AB_INNATE | AB_TYPE_INIT },  /* Mine - exploding */
     { "Apiv", CAbilityPermanentInvisibility, AB_PASSIVE | AB_INNATE | AB_TYPE_INIT | AB_PRIMARY_TIMER },  /* Permanent Invisibility */
-    { "Awan", CAbilityWander, AB_PASSIVE },  /* Wander */
+    { "Awan", CAbilityWander, AB_PASSIVE | AB_INNATE },  /* Wander */
     /* Aarm is registered with the explicit regeneration family below. */
     { "Asid", CAbilitySellItem, AB_PASSIVE },  /* Sell Items */
     { "Asud", CAbilitySellUnit, AB_PASSIVE },  /* Sell Units */
@@ -556,7 +568,7 @@ static ability_t abilitylist[] = {
     /* No AbilityStrings source file */
     // TODO: AIgl a_unknown  /* FortificationGlyph — CAbility [ITEM] other */
     // TODO: AIrg a_unknown  /* Potion of Life Regen — CAbility [ITEM] other */
-    { "ANsu", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE },  /* Submerge (Myrmidon) */
+    { "ANsu", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge (Myrmidon) */
     { "AOwd", CAbilitySerpentWard, AB_SPELL, SPELL_TARGET_POINT },  /* Shadow Hunter - Serpent Ward */
     { "Aimp", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impaling Bolt */
     { "Ansp", CAbilityNeutralSpell, AB_PASSIVE },  /* Neutral Spies */
@@ -1449,28 +1461,29 @@ static bool unit_dispatch_engine_event_abilities(edict_t *ent, abilityMsg_t msg,
 
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
  * idle, acquisition, and ability queries stop when an owner consumes the decision. */
-bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
+bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload) {
     bool handled = false;
 
     if (!ent) return false;
     if (msg == A_UNIT_TYPE_CHANGING || msg == A_UNIT_TYPE_CHANGED)
-        return unit_dispatch_engine_event_abilities(ent, msg, NULL);
+        return unit_dispatch_engine_event_abilities(ent, msg, payload);
     if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH ||
         msg == A_UNIT_REMOVING || msg == A_UNIT_RETIRE || msg == A_UNIT_REMOVE)
-        handled |= unit_dispatch_engine_event_abilities(ent, msg, NULL);
+        handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
     if (msg == A_REQUIREMENTS_CHANGED)
-        return unit_dispatch_authored_abilities(ent, msg, NULL, false, false, false) != 0;
+        return unit_dispatch_authored_abilities(ent, msg, payload, false, false, false) != 0;
     if (msg == A_UNIT_INIT)
-        return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
+        return unit_dispatch_authored_abilities(ent, msg, payload, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_RETIRE || msg == A_UNIT_REMOVE || msg == A_UNIT_REMOVING)
-        return unit_dispatch_authored_abilities(ent, msg, NULL, false,
+        return unit_dispatch_authored_abilities(ent, msg, payload, false,
                                                  msg != A_DEATH, msg == A_MOVE_LEAVE) != 0 || handled;
     if (msg == A_NATURAL_MANA_REGEN_BLOCKED)
-        return unit_dispatch_authored_abilities(ent, msg, NULL, true, false, false) != 0;
+        return unit_dispatch_authored_abilities(ent, msg, payload, true, false, false) != 0;
 
     FOR_LOOP(i, num_innate) {
         if (!innate_receives(i, msg)) continue;
-        abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i);
+        abilityCall_t call = payload ? *payload : MAKE(abilityCall_t, 0);
+        call.item = innate_items + i;
         handled |= S_AbilityMessage(ent, msg, &call) != 0;
         if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE || msg == A_NO_RETALIATE)) break;
     }
@@ -1512,6 +1525,10 @@ void S_UnitTargetRemoved(edict_t *target) {
             continue;
         ent->currentmove->proc(ent, A_TARGET_REMOVED, &call);
     }
+}
+
+bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
+    return S_UnitAbilityEventWithCall(ent, msg, NULL);
 }
 
 void S_UnitAbilityMoveLeave(edict_t *ent, abilityProc_t next_move_proc) {
@@ -1659,11 +1676,20 @@ ability_t const *FindAbilityByClassname(cstring_t classname) {
  * Only rawcodes belong in the SLK resolver: passing CmdBuild through FS_SLKKey
  * truncates it to CmdB and loses the registered build command. */
 ability_t const *FindAbilityForCommand(cstring_t classname) {
+    ability_t const *ability;
+
     if (!classname || !*classname) {
         return NULL;
     }
     if (strlen(classname) != 4) {
         return FindAbilityByClassname(classname);
+    }
+    /* Prefer a concrete rawcode registration before following AbilityData's
+     * `code` alias. Some item abilities inherit a spell's data (for example
+     * APrl/APrr from AHre) but have their own runtime class and pickup flags. */
+    ability = FindAbilityByClassname(classname);
+    if (ability) {
+        return ability;
     }
     return FindAbilityByClassname(GetClassName(G_AbilityCodeName(classname)));
 }

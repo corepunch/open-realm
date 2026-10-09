@@ -269,8 +269,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.skin = cl.pics[ent->current.image];
     if (ent->current.name) {
         uint32_t i = ent->current.name - 1;
-        cstring_t cs = cl.configstrings[CS_GENERAL + (i >> 4)];
-        re.name = cs ? cs + (i & 0xF) * ENT_NAME_SLOT_SIZE : NULL;
+        cstring_t cs = cl.configstrings[CS_GENERAL + i / ENT_NAMES_PER_CS];
+        re.name = cs ? cs + (i % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE : NULL;
     }
     {
         uint32_t const encoded_color =
@@ -300,10 +300,15 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_NEUTRAL) re.flags |= RF_NEUTRAL;
     if (ent->current.flags & EF_NOT_SELECTABLE) re.flags |= RF_NOT_SELECTABLE;
     if (ent->current.flags & EF_BUILDING) re.flags |= RF_BUILDING;
+    if (ent->current.flags & EF_UNIT) re.flags |= RF_UNIT;
+    if (ent->current.flags & EF_ALLIED) re.flags |= RF_ALLIED;
     if (ent->current.flags & EF_GROUND_CONFORM) re.flags |= RF_GROUND_CONFORM;
     if (ent->current.flags & EF_GROUND_SURFACE) re.flags |= RF_GROUND_SURFACE;
+    if (ent->current.flags & EF_SELECTION_CIRCLE_ON_WATER) re.flags |= RF_SELECTION_CIRCLE_ON_WATER;
     re.radius = ent->current.radius;
     re.ground_offset = ent->current.ground_offset;
+    re.ground_snapshot_z = ent->current.origin.z;
+    re.ground_snapshot_valid = true;
     re.tint_valid = ent->tint_valid;
     re.tint = ent->tint_valid ? ent->tint : COLOR32_WHITE;
     re.number = ent->current.number;
@@ -410,8 +415,7 @@ static void CL_AddBuildingPlacementGrid(vec3_t const *origin) {
             };
             blocked = !CM_GetPathingFlagsAt(&sample, &pathing);
             if (!blocked) CL_GameModifyBuildPathing(&sample, &pathing);
-            blocked = blocked || (pathing & prevented) != 0 ||
-                      (pathing & required) != required;
+            blocked = blocked || CL_GameBuildPathingBlocked(&sample, pathing, prevented, required);
             rect.color = blocked || mine_blocked
                 ? (color32_t){ 255, 0, 0, 166 }
                 : (color32_t){ 0, 255, 0, 166 };

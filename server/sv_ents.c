@@ -127,7 +127,9 @@ entityState_t *SV_NextClientEntity(void) {
  * be delta-encoded and sent by SV_WriteFrameToClient. */
 void SV_BuildClientFrame(client_t *client) {
     edict_t *clent = client->edict;
-    clientFrame_t *frame = &client->frames[sv.framenum & UPDATE_MASK];
+    /* Snapshots live in a ring indexed by how many this client has had built, not by game frame: a rate-limited
+     * client skips frames, and skipped frame numbers must not evict the snapshot it will delta against. */
+    clientFrame_t *frame = &client->frames[client->built_frames++ & UPDATE_MASK];
     /* Keep the per-client, per-frame candidate workspace off the stack. */
     static visibleEntityCandidate_t candidates[MAX_PACKET_ENTITIES];
     int num_candidates = 0;
@@ -139,6 +141,8 @@ void SV_BuildClientFrame(client_t *client) {
 
     frame->ps = clent->client->ps;
     frame->num_entities = 0;
+    frame->framenum = sv.framenum;
+    frame->valid = true;
     if (!svs.client_entities || svs.num_client_entities == 0) {
         frame->first_entity = 0;
         return;
@@ -338,20 +342,27 @@ void SV_WritePlayerstateToClient(clientFrame_t const *from, clientFrame_t const 
     MSG_WriteDeltaPlayerState(msg, ops, ps);
 }
 
-/* Write the full frame packet (svc_frame header + player state + entity list)
- * to the client's outgoing channel and record the sent frame number so the
- * next call can compute the correct delta. */
-void SV_WriteFrameToClient(client_t *client) {
-    clientFrame_t *frame = &client->frames[sv.framenum & UPDATE_MASK];
-    clientFrame_t *oldframe = client->lastframe == (uint32_t)-1
-        ? NULL
-        : &client->frames[client->lastframe & UPDATE_MASK];
+/* Queue the frame packet (svc_frame header + player state + entity list) on the
+ * client's outgoing channel. On a lossless channel the client now holds it; over
+ * UDP SV_WriteFrameToClient records the packet that carried it. */
+void SV_QueueFrameForClient(client_t *client) {
+    uint32_t const slot = (client->built_frames - 1) & UPDATE_MASK;
+    clientFrame_t *frame = &client->frames[slot];
+    /* Delta against a frame the client has acknowledged (Q2), never merely the last one sent: a lost snapshot then
+     * costs a larger delta instead of a desynchronised entity table. The client keeps its last UPDATE_BACKUP
+     * snapshots and the server its entity ring, so a base that is too many snapshots back means a full resend. */
+    clientFrame_t *oldframe = NULL;
+    if (client->lastframe != (uint32_t)-1 && client->built_frames - client->delta_base.ordinal < UPDATE_BACKUP - 2 &&
+        svs.next_client_entities - client->frames[client->delta_base.slot].first_entity <= svs.num_client_entities) {
+        oldframe = &client->frames[client->delta_base.slot];
+        if (!oldframe->valid || oldframe->framenum != client->lastframe) oldframe = NULL;
+    }
     uint32_t start_size = client->netchan.message.cursize;
 
     MSG_WriteByte(&client->netchan.message, svc_frame);
     MSG_WriteLong(&client->netchan.message, sv.framenum);
     MSG_WriteLong(&client->netchan.message, sv.time);
-    MSG_WriteLong(&client->netchan.message, client->lastframe);
+    MSG_WriteLong(&client->netchan.message, oldframe ? oldframe->framenum : (uint32_t)-1);
     {
         uint8_t data[MAX_GAME_DATAGRAM_SIZE];
         uint32_t size = ge->WriteClientDatagram(client->edict, data, sizeof(data));
@@ -365,7 +376,11 @@ void SV_WriteFrameToClient(client_t *client) {
     SV_WritePlayerstateToClient(oldframe, frame, &client->netchan.message);
     SV_EmitPacketEntities(oldframe, frame, &client->netchan.message);
 
-    client->lastframe = sv.framenum;
+    if (!Netchan_IsSequenced(&client->netchan)) { // lossless transport: the client holds what we sent
+        client->lastframe = sv.framenum;
+        client->delta_base.slot = slot;
+        client->delta_base.ordinal = client->built_frames;
+    }
 
     if (client->netchan.message.overflowed ||
         client->netchan.message.cursize + 1024 >= client->netchan.message.maxsize) {
@@ -379,5 +394,44 @@ void SV_WriteFrameToClient(client_t *client) {
                 (unsigned)client->netchan.message.maxsize,
                 client->netchan.message.overflowed ? 1 : 0);
     }
-    Netchan_Transmit(NS_SERVER, &client->netchan);
+}
+
+/* Queue and send this frame to the client; returns the bytes sent. Over UDP, remember the packet that carried the
+ * frame, so its acknowledgement says the client holds it. This was recorded before sending, against the packet's
+ * expected sequence, so a frame the netchan dropped (overflowed message) still became a delta base. */
+uint32_t SV_WriteFrameToClient(client_t *client) {
+    struct netchan *chan = &client->netchan;
+    uint32_t const sequence = chan->outgoing_sequence + 1;
+    SV_QueueFrameForClient(client);
+    uint32_t const bytes = Netchan_Transmit(NS_SERVER, chan);
+    if (Netchan_IsSequenced(chan) && chan->unreliable_sequence == sequence) {
+        typeof(*client->sent_frames) *sent = &client->sent_frames[sequence % (sizeof(client->sent_frames) / sizeof(*client->sent_frames))];
+        *sent = (typeof(*sent)){ .sequence = sequence, .framenum = sv.framenum, .slot = (client->built_frames - 1) & UPDATE_MASK,
+                                 .ordinal = client->built_frames };
+    }
+    return bytes;
+}
+
+/* True while a rate-limited client's link is still draining its previous snapshot (Q2 SV_RateDrop). */
+bool SV_ClientLinkBusy(client_t const *client) {
+    return Netchan_IsSequenced(&client->netchan) && Cvar_Integer("sv_rate", 0) > 0 && svs.realtime < client->rate_clear_msec;
+}
+
+/* Forget which snapshots the client holds: the next one goes in full, and acknowledgements of packets sent so far
+ * (a previous session's, or deltas the client could not decode) no longer name a delta base. */
+void SV_ResetDeltaBase(client_t *client) {
+    client->lastframe = (uint32_t)-1;
+    memset(client->sent_frames, 0, sizeof(client->sent_frames));
+}
+
+/* The client acknowledged a packet: if it carried a snapshot, that snapshot is the new delta base. */
+void SV_AcknowledgeFrames(client_t *client) {
+    uint32_t const sequence = client->netchan.incoming_acknowledged;
+    size_t const count = sizeof(client->sent_frames) / sizeof(*client->sent_frames);
+    if (!sequence || client->sent_frames[sequence % count].sequence != sequence) return;
+    typeof(*client->sent_frames) const *sent = &client->sent_frames[sequence % count];
+    if (client->lastframe != (uint32_t)-1 && (int32_t)(sent->ordinal - client->delta_base.ordinal) <= 0) return;
+    client->lastframe = sent->framenum;
+    client->delta_base.slot = sent->slot;
+    client->delta_base.ordinal = sent->ordinal;
 }

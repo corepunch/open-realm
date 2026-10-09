@@ -5,6 +5,16 @@
 #include "renderer/r_shader.h"
 #include "renderer/r_trail.h"
 
+/* Keep MDX translucent layers out of the pre-water scene pass. Opaque
+ * materials with per-instance alpha move to the alpha pass as well. */
+static inline bool MDLX_RenderPhaseIncludesPass(render_phase_t phase,
+                                                bool blended_pass,
+                                                bool translucent_instance) {
+    if (phase == RENDER_PHASE_LIGHTS) return true;
+    if (phase == RENDER_PHASE_ALPHA) return blended_pass || translucent_instance;
+    return !blended_pass && !translucent_instance;
+}
+
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
 #define MDX_TEXTURE_PATH_LENGTH 260
 #define MDX_TEXTURE_RECORD_SIZE (sizeof(uint32_t) + MDX_TEXTURE_PATH_LENGTH + sizeof(uint32_t))
@@ -472,6 +482,16 @@ typedef struct mdxModel_s {
     int num_pivots;
 } mdxModel_t;
 
+/* Model camera inputs and output matrices travel together through cinematic extraction. */
+typedef struct mdxCameraView_s {
+    mdxModel_t const *model;
+    uint32_t frame;
+    uint32_t camera_index;
+    float aspect;
+    mat4_t *output;
+    mat4_t *light;
+} mdxCameraView_t;
+
 typedef struct {
     modelProg_t *shader;
 } mdlx_state_t;
@@ -507,7 +527,7 @@ void MDLX_Shutdown(void);
 void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4_t const *model_matrix);
 bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);
 bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);
-bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, mat4_t *output, mat4_t *light);
+bool MDLX_ExtractCamera(mdxCameraView_t const *view);
 bool MDLX_SetEntityAnimationFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);
 void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint);
 void MDLX_ReleaseSprites(mdxModel_t *model);

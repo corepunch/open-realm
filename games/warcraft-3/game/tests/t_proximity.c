@@ -90,7 +90,7 @@ TEST(wc3_proximity, save_load_rebuilds_proximity_in_save_order) {
     S_SetUnitAxisPosition(proximity_save_units[0],0,600);
     S_SetUnitAxisPosition(proximity_save_units[0],0,304);
     proximity_save_query();T_EQ(proximity_save_results[0],proximity_save_units[0]);
-    cstring_t file="/tmp/wc3-proximity-save-order.bin";T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    cstring_t file=Test_TempPath("wc3-proximity-save-order.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     proximity_save_query();FOR_LOOP(i,3)T_EQ(proximity_save_results[i],proximity_save_units[2-i]);
     FOR_LOOP(i,3)gi.LinkEntity(proximity_save_units[i]);
     proximity_save_query();FOR_LOOP(i,3)T_EQ(proximity_save_results[i],proximity_save_units[2-i]);
@@ -268,7 +268,7 @@ TEST(wc3_proximity, save_compacts_links_and_restores_logical_stamps) {
     S_SetUnitAxisPosition(unit,0,600);S_SetUnitAxisPosition(unit,0,304);
     T_EQ(S_TestMoveProximityLinks(),5);
     uint32_t index=unit-g_edicts;
-    cstring_t file="/tmp/wc3-proximity-stamp-save.bin";
+    cstring_t file=Test_TempPath("wc3-proximity-stamp-save.bin");
     T_ASSERT(WriteGame(file));T_EQ(S_TestMoveProximityLinks(),1);
     uint32_t query=S_GetMoveProximityQuery(),stamp=S_GetMoveProximityStamp(index);
     T_ASSERT(ReadGame(file));T_EQ(S_TestMoveProximityLinks(),1);

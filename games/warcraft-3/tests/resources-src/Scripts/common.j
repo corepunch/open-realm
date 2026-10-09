@@ -10,6 +10,7 @@ type widget           extends agent
 type unit             extends widget
 type destructable     extends widget
 type item             extends widget
+type itemtype         extends handle
 type effect           extends agent
 type effecttype       extends handle
 type weathereffect    extends handle
@@ -69,6 +70,8 @@ type multiboarditem  extends agent
 type texttag         extends handle
 type timerdialog     extends agent
 type leaderboard     extends agent
+type dialog          extends agent
+type button          extends agent
 
 // Cinematic skip regression uses the same event and local-player guards as campaign scripts.
 native ConvertPlayerEvent         takes integer i returns playerevent
@@ -294,6 +297,16 @@ native ConvertPlayerGameResult  takes integer i returns playergameresult
 native RemovePlayer             takes player whichPlayer, playergameresult gameResult returns nothing
 native Player                   takes integer number returns player
 
+// Stock Blizzard.j drop helpers: authoritative game-side item creation and
+// position queries, with itemtype's value-handle enum used by stock filters.
+constant native GetUnitX       takes unit whichUnit returns real
+constant native GetUnitY       takes unit whichUnit returns real
+constant native GetUnitTypeId  takes unit whichUnit returns integer
+constant native GetWidgetX     takes widget whichWidget returns real
+constant native GetWidgetY     takes widget whichWidget returns real
+native GetRandomReal            takes real lowBound, real highBound returns real
+constant native ConvertItemType takes integer i returns itemtype
+
 // Item inventory presentation and charge state.
 native CreateItem               takes integer itemid, real x, real y returns item
 native RemoveItem               takes item whichItem returns nothing
@@ -303,6 +316,11 @@ native SetItemPosition          takes item whichItem, real x, real y returns not
 native GetItemCharges           takes item whichItem returns integer
 native SetItemCharges           takes item whichItem, integer charges returns nothing
 native SetItemDropID            takes item whichItem, integer unitId returns nothing
+native GetItemDropID            takes item whichItem returns integer
+native GetItemX                 takes item whichItem returns real
+native GetItemY                 takes item whichItem returns real
+native GetItemType              takes item whichItem returns itemtype
+native GetItemLevel             takes item whichItem returns integer
 native GetItemName              takes item whichItem returns string
 native GetItemUserData          takes item whichItem returns integer
 native SetItemUserData          takes item whichItem, integer data returns nothing
@@ -368,6 +386,9 @@ native BJassError   takes string msg returns nothing
 // Player game result constants — must live in a globals block (top-level
 // "constant <type>" is not valid; only "constant native" is top-level).
 globals
+    constant itemtype ITEM_TYPE_PERMANENT = ConvertItemType(0)
+    constant itemtype ITEM_TYPE_CHARGED   = ConvertItemType(1)
+    constant itemtype ITEM_TYPE_ARTIFACT  = ConvertItemType(3)
     // Integer selector order follows Warcraft III common.j, not W3I's on-disk
     // complement order (left, right, bottom, top).
     constant integer CAMERA_MARGIN_LEFT   = 0

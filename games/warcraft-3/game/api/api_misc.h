@@ -563,11 +563,12 @@ uint32_t GetFilterUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 uint32_t GetEnumUnit(jass_t *j) {
-    extern edict_t *currentunit;
-    return jass_pushlighthandle(j, currentunit, "unit");
+    extern edict_t *currentenumunit;
+    return jass_pushlighthandle(j, currentenumunit, "unit");
 }
 uint32_t GetFilterDestructable(jass_t *j) {
-    return jass_pushnullhandle(j, "destructable");
+    extern edict_t *currentdestructable;
+    return jass_pushlighthandle(j, currentdestructable, "destructable");
 }
 uint32_t GetEnumDestructable(jass_t *j) {
     extern edict_t *currentdestructable;
@@ -647,10 +648,10 @@ uint32_t GetTriggeringTrackable(jass_t *j) {
     return jass_pushnullhandle(j, "trackable");
 }
 uint32_t GetClickedButton(jass_t *j) {
-    return jass_pushnullhandle(j, "button");
+    return jass_pushlighthandle(j, G_JassDialogButtonById(jass_getcontext(j)->dialog_button_id), "button");
 }
 uint32_t GetClickedDialog(jass_t *j) {
-    return jass_pushnullhandle(j, "dialog");
+    return jass_pushlighthandle(j, G_JassDialogById(jass_getcontext(j)->dialog_id), "dialog");
 }
 uint32_t GetLevelingUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
@@ -893,7 +894,13 @@ uint32_t SetWidgetLife(jass_t *j) {
     float newLife = jass_checknumber(j, 2);
     if (whichWidget) {
         bool const was_dead = M_IsDead(whichWidget);
+        float const oldLife = whichWidget->health.value;
         G_SetHealth(whichWidget, newLife);
+        /* Match SetUnitState(UNIT_STATE_LIFE): setting a live widget's life
+         * to zero must run its death lifecycle, not leave a zero-life entity
+         * without death events or cleanup. */
+        if (oldLife > 0.0f && newLife <= 0.0f && !(whichWidget->svflags & SVF_DEADMONSTER) && whichWidget->die)
+            whichWidget->die(whichWidget, NULL);
         if ((whichWidget->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichWidget)) G_FowMarkBlockersDirty();
     }
     return 0;
@@ -1143,35 +1150,46 @@ uint32_t SetDefaultDifficulty(jass_t *j) {
     return 0;
 }
 uint32_t DialogCreate(jass_t *j) {
-    return jass_pushnullhandle(j, "dialog");
+    return jass_pushlighthandle(j, G_JassDialogCreate(), "dialog");
 }
 uint32_t DialogDestroy(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
+    G_JassDialogDestroy(G_JassDialog(jass_checkhandle(j, 1, "dialog")));
     return 0;
 }
 uint32_t DialogSetAsync(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
+    /* Compatibility extension. Standard dialogs remain authoritative. */
     return 0;
 }
 uint32_t DialogClear(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
+    G_JassDialogClear(G_JassDialog(jass_checkhandle(j, 1, "dialog")));
     return 0;
 }
 uint32_t DialogSetMessage(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
-    //cstring_t messageText = jass_checkstring(j, 2);
+    jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
+    cstring_t message = jass_checkstring(j, 2);
+    if (dialog) snprintf(dialog->message, sizeof(dialog->message), "%s", message ? G_LevelString(message) : "");
     return 0;
 }
 uint32_t DialogAddButton(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
-    //cstring_t buttonText = jass_checkstring(j, 2);
-    //int32_t hotkey = jass_checkinteger(j, 3);
-    return jass_pushnullhandle(j, "button");
+    jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
+    cstring_t text = jass_checkstring(j, 2);
+    int32_t hotkey = jass_checkinteger(j, 3);
+    jassDialogButtonOptions_t options = { .hotkey = hotkey };
+    return jass_pushlighthandle(j, G_JassDialogAddButton(dialog, text, &options), "button");
+}
+uint32_t DialogAddQuitButton(jass_t *j) {
+    jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
+    bool score = jass_checkboolean(j, 2);
+    cstring_t text = jass_checkstring(j, 3);
+    int32_t hotkey = jass_checkinteger(j, 4);
+    jassDialogButtonOptions_t options = { .hotkey = hotkey, .quit = true, .score_screen = score };
+    return jass_pushlighthandle(j, G_JassDialogAddButton(dialog, text, &options), "button");
 }
 uint32_t DialogDisplay(jass_t *j) {
-    //player_t *whichPlayer = jass_checkhandle(j, 1, "player");
-    //handle_t whichDialog = jass_checkhandle(j, 2, "dialog");
-    //bool flag = jass_checkboolean(j, 3);
+    player_t *player = jass_checkhandle(j, 1, "player");
+    jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 2, "dialog"));
+    bool visible = jass_checkboolean(j, 3);
+    G_JassDialogDisplay(player, dialog, visible);
     return 0;
 }
 uint32_t InitGameCache(jass_t *j) {
@@ -1706,6 +1724,11 @@ uint32_t EnableWorldFogBoundary(jass_t *j) {
     //bool b = jass_checkboolean(j, 1);
     return 0;
 }
+uint32_t PlayModelCinematic(jass_t *j) {
+    cstring_t path = jass_checkstring(j, 1);
+    if (path && *path) gi.QueueModelCinematic(path);
+    return 0;
+}
 uint32_t PlayCinematic(jass_t *j) {
     cstring_t movieName = jass_checkstring(j, 1);
     PATHSTR path;
@@ -1952,6 +1975,14 @@ uint32_t PreloadGenStart(jass_t *j) {
 }
 uint32_t PreloadGenEnd(jass_t *j) {
     //cstring_t filename = jass_checkstring(j, 1);
+    return 0;
+}
+uint32_t PreloadRefresh(jass_t *j) {
+    (void)j; /* Native asset preloading is not modeled; keep map-authored preload boundaries executable. */
+    return 0;
+}
+uint32_t PreloadEndEx(jass_t *j) {
+    (void)j; /* Native asset preloading is not modeled; keep map-authored preload boundaries executable. */
     return 0;
 }
 uint32_t Preloader(jass_t *j) {

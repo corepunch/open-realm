@@ -45,7 +45,20 @@ edict_t *G_NextSelectedEntity(gameClient_t const *client, uint32_t from) {
 }
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(edict_t *clent, uint32_t argc, cstring_t argv[])
-#define WC3_SELECTION_LIMIT 12
+/* Server authority and HUD share the same WC3-only selection policy. Only the
+ * classic 12 and the Reforged 24 have HUD layouts; anything else falls back to
+ * 24 and is reported once per distinct value so the substitution is visible. */
+uint32_t G_SelectionLimit(void) {
+    static char warned[16];
+    cstring_t value = gi.CvarString("wc3_selection_limit", "24");
+
+    if (!strcmp(value, "12")) return 12u;
+    if (strcmp(value, "24") && strncmp(value, warned, sizeof(warned) - 1)) {
+        fprintf(stderr, "wc3_selection_limit \"%s\" is unsupported (12 or 24); using 24\n", value);
+        strlcpy(warned, value, sizeof(warned));
+    }
+    return WC3_SELECTION_MAX;
+}
 #define WC3_ENEMIES_CLEAR_RADIUS 768.0f
 
 typedef struct {
@@ -147,7 +160,7 @@ uint32_t G_GetOrderedSelectedUnits(gameClient_t *client, edict_t * *out, uint32_
             out[insert] = ent;
         } else if (G_CompareSelectionOrder(ent, out[max_out - 1]) < 0) {
             /* Keep the best max_out entries even if malformed/scripted state
-             * ever exceeds the normal 12-unit authoritative selection cap. */
+             * ever exceeds the configured authoritative selection cap. */
             insert = max_out - 1;
             out[insert] = ent;
         } else {
@@ -259,13 +272,14 @@ edict_t *G_GetMainSelectedUnit(gameClient_t *client) {
 
 void G_SyncClientSelection(gameClient_t *client) {
     edict_t *clent;
-    uint32_t selected[WC3_SELECTION_LIMIT];
+    uint32_t selected[WC3_SELECTION_MAX];
     uint32_t count = 0;
+    uint32_t const limit = G_SelectionLimit();
 
     if (!client) return;
     client->selection_dirty = false;
     FOR_SELECTED_UNITS(client, ent) {
-        if (count >= WC3_SELECTION_LIMIT) break;
+        if (count >= limit) break;
         selected[count++] = ent->s.number;
     }
 
@@ -297,14 +311,14 @@ bool G_FocusSelectedUnit(gameClient_t *client, edict_t *ent) {
 }
 
 bool G_CycleSelectionSubgroup(gameClient_t *client) {
-    edict_t *ordered[WC3_SELECTION_LIMIT];
+    edict_t *ordered[WC3_SELECTION_MAX];
     edict_t *main;
     uint32_t count;
     uint32_t main_index = 0;
     uint32_t next_index;
 
     if (!client) return false;
-    count = G_GetOrderedSelectedUnits(client, ordered, WC3_SELECTION_LIMIT);
+    count = G_GetOrderedSelectedUnits(client, ordered, WC3_SELECTION_MAX);
     if (count < 2) return false;
 
     main = G_GetMainSelectedUnit(client);
@@ -349,10 +363,13 @@ void G_SelectEntity(gameClient_t *client, edict_t *ent) {
      * they are no longer valid gameplay selection targets. */
     if (!client || !ent || !ent->inuse) return;
     if (M_IsDead(ent) || (ent->s.flags & EF_NOT_SELECTABLE)) return;
+    uint32_t count = 0;
+    uint32_t const limit = G_SelectionLimit();
+    if (ent->selected & (1u << client->ps.number)) return;
     FOR_SELECTED_UNITS(client, selected) {
         (void)selected;
         had_selection = true;
-        break;
+        if (++count >= limit) return;
     }
     G_SetEntitySelectionMask(ent, ent->selected | (1 << client->ps.number));
     if (!had_selection) G_FocusSelectedUnit(client, ent);
@@ -394,7 +411,8 @@ selectionRelation_t G_SelectionRelation(uint32_t viewer, edict_t const *ent) {
     if (!G_PlayerTreatsPlayerAsAlly(viewer, owner)) {
         return SELECT_RELATION_ENEMY;
     }
-    if (alliances & (1 << ALLIANCE_SHARED_CONTROL)) {
+    if (alliances & ((1u << ALLIANCE_SHARED_CONTROL) |
+                     (1u << ALLIANCE_SHARED_ADVANCED_CONTROL))) {
         return SELECT_RELATION_FRIEND;
     }
     return SELECT_RELATION_NEUTRAL;
@@ -438,7 +456,36 @@ bool G_UnitCanControl(gameClient_t *client, edict_t const *ent) {
     }
     alliances = level.alliances[client->ps.number][owner];
     return G_PlayerTreatsPlayerAsAlly(client->ps.number, owner) &&
-           (alliances & (1 << ALLIANCE_SHARED_CONTROL)) != 0;
+           (alliances & ((1u << ALLIANCE_SHARED_CONTROL) |
+                         (1u << ALLIANCE_SHARED_ADVANCED_CONTROL))) != 0;
+}
+
+/* Full/advanced sharing is required to use another player's production,
+ * upgrades and research. Orders to an allied army require only basic control.
+ * Resource charges themselves remain owned by the producing unit's player. */
+/* Team Resources exposes the economy of an allied player who granted the
+ * viewer advanced control.  Read the directional viewer -> owner permissions,
+ * never the reverse edge.  A disconnected owner remains eligible when its
+ * existing advanced permission is retained; disconnects do not manufacture
+ * alliances and ordinary shared control does not reveal resources. */
+bool G_CanViewTeamResources(uint32_t viewer, uint32_t owner) {
+    if (viewer >= MAX_PLAYERS || owner >= PLAYER_NEUTRAL_AGGRESSIVE ||
+        viewer == owner)
+        return false;
+    return G_PlayerTreatsPlayerAsAlly(viewer, owner) &&
+           (level.alliances[viewer][owner] &
+            (1u << ALLIANCE_SHARED_ADVANCED_CONTROL)) != 0;
+}
+
+bool G_UnitCanSpendResources(gameClient_t *client, edict_t const *ent) {
+    uint32_t owner;
+
+    if (!G_UnitCanControl(client, ent)) return false;
+    owner = ent->s.player;
+    if (owner == client->ps.number) return true;
+    return owner < MAX_PLAYERS &&
+           (level.alliances[client->ps.number][owner] &
+            (1u << ALLIANCE_SHARED_ADVANCED_CONTROL)) != 0;
 }
 
 void G_UpdateClientSelections(void) {
@@ -448,9 +495,28 @@ void G_UpdateClientSelections(void) {
         /* Inspect the raw bit here rather than FOR_SELECTED_UNITS.  The latter
          * deliberately hides dead/unselectable entities, while this pass must
          * clear stale selection bits after visibility/selectability changes. */
+        uint32_t count = 0;
+        uint32_t const limit = G_SelectionLimit();
         FOR_SELECTION_MEMBERS(client, ent) {
             if (!G_UnitCanBeSelected(client, ent)) {
                 G_DeselectEntity(client, ent);
+                changed = true;
+            } else {
+                count++;
+            }
+        }
+        /* A lowered cap trims by Warcraft selection priority, not by edict
+         * index, so the Hero survives a 24 -> 12 switch ahead of its escort. */
+        if (count > limit) {
+            edict_t *keep[WC3_SELECTION_MAX];
+            uint32_t const kept = G_GetOrderedSelectedUnits(client, keep, limit);
+            FOR_SELECTED_UNITS(client, ent) {
+                bool retained = false;
+                FOR_LOOP(k, kept) if (keep[k] == ent) { retained = true; break; }
+                if (retained) continue;
+                G_DeselectEntity(client, ent);
+                G_PublishEvent(ent, EVENT_PLAYER_UNIT_DESELECTED);
+                G_PublishEvent(ent, EVENT_UNIT_DESELECTED);
                 changed = true;
             }
         }
@@ -683,6 +749,11 @@ bool G_CancelTargetMode(edict_t *clent) {
 
     if (!client || (!client->menu.on_entity_selected && !client->menu.on_location_selected))
         return false;
+    /* Reset a possible item-owned building model preview as well as the
+     * generic targeting state. A zero-model cursor is harmless for spells. */
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &(entityState_t){0});
+    gi.unicast(clent);
     memset(&client->menu, 0, sizeof(client->menu));
     Get_Commands_f(clent);
     return true;
@@ -720,7 +791,7 @@ void CMD_CancelCommand(edict_t *ent) {
         return;
     }
     if (ent && ent->client && (producer = G_GetMainSelectedUnit(ent->client)) &&
-        G_UnitCanControl(ent->client, producer)) {
+        G_UnitCanSpendResources(ent->client, producer)) {
         /* In-place upgrades and spawned construction are both cancelled by
          * the selected structure itself. Keep them ahead of queue cancellation
          * so CmdCancelBuild cannot fall through to unrelated producer state. */
@@ -829,12 +900,13 @@ CLIENTCOMMAND(Select) {
         bool const same_type = argc >= 3 && !strcmp(argv[2], "sametype");
         edict_t *same_type_anchor = NULL;
         edict_t *voice = NULL;
-        edict_t *old_selection[WC3_SELECTION_LIMIT] = { 0 };
+        edict_t *old_selection[WC3_SELECTION_MAX] = { 0 };
         uint32_t old_count = 0;
         uint32_t selected_count = 0;
+        uint32_t const limit = G_SelectionLimit();
 
         FOR_SELECTED_UNITS(client, selected) {
-            if (old_count >= WC3_SELECTION_LIMIT) break;
+            if (old_count >= WC3_SELECTION_MAX) break;
             old_selection[old_count++] = selected;
         }
         if (same_type) {
@@ -868,7 +940,7 @@ CLIENTCOMMAND(Select) {
                 if (G_IsEntitySelected(client, e)) {
                     continue;
                 }
-                if (selected_count >= WC3_SELECTION_LIMIT) {
+                if (selected_count >= limit) {
                     break;
                 }
                 G_SelectEntity(client, e);
@@ -959,11 +1031,11 @@ CLIENTCOMMAND(Focus) {
      * different portrait, including another unit in the same type subgroup,
      * only changes focus and leaves the full selection intact. */
     if (G_GetMainSelectedUnit(client) == target) {
-        edict_t *old_selection[WC3_SELECTION_LIMIT] = { 0 };
+        edict_t *old_selection[WC3_SELECTION_MAX] = { 0 };
         uint32_t old_count = 0;
 
         FOR_SELECTED_UNITS(client, selected) {
-            if (old_count >= WC3_SELECTION_LIMIT) break;
+            if (old_count >= WC3_SELECTION_MAX) break;
             old_selection[old_count++] = selected;
         }
         if (old_count <= 1) return;
@@ -1168,6 +1240,7 @@ CLIENTCOMMAND(Button) {
     }
     if (!G_UnitCanControl(client, producer)) return;
     if (!strncmp(classname, "revive:", 7)) {
+        if (!G_UnitCanSpendResources(client, producer)) return;
         char *end = NULL;
         unsigned long const number = strtoul(classname + 7, &end, 10);
         if (!end || *end || number >= globals.num_edicts) return;
@@ -1195,7 +1268,7 @@ CLIENTCOMMAND(Button) {
     } else {
         uint32_t class_id = 0;
 
-        if (strlen(classname) != 4) return;
+        if (!G_UnitCanSpendResources(client, producer) || strlen(classname) != 4) return;
         memcpy(&class_id, classname, sizeof(class_id));
         SP_TrainUnit(producer, class_id);
     }
@@ -1296,8 +1369,10 @@ CLIENTCOMMAND(Research) {
     }
     memcpy(&abilcode, classname, sizeof(abilcode));
     if (G_ProducerCanResearch(ent, abilcode)) {
+        if (!G_UnitCanSpendResources(client, ent)) return;
         G_QueueResearch(ent, abilcode);
     } else {
+        /* Hero skill points do not spend the owning player's gold/lumber. */
         G_HeroLearnSkill(ent, abilcode);
     }
     Get_Commands_f(clent);
@@ -1309,7 +1384,7 @@ CLIENTCOMMAND(Upgrade) {
     edict_t *ent = client ? G_GetMainSelectedUnit(client) : NULL;
     uint32_t unit_id = 0;
 
-    if (!G_UnitCanControl(client, ent) || !classname || strlen(classname) != 4) return;
+    if (!G_UnitCanSpendResources(client, ent) || !classname || strlen(classname) != 4) return;
     memcpy(&unit_id, classname, sizeof(unit_id));
     G_StartBuildingUpgrade(ent, unit_id);
     Get_Commands_f(clent);
@@ -1861,15 +1936,11 @@ CLIENTCOMMAND(Inventory) {
             bool succeeded = false;
 
             if (!ability) continue;
-            client->menu.ability_code = *((uint32_t const *)ability_name);
+            client->menu.ability_code = FS_SLKKey(ability_name);
             if (ability->flags & AB_ITEM) {
                 succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
                 handled = true;
             } else if (S_AbilityHasCommand(ability)) {
-                /* Bind the carried item to the asynchronous spell command.
-                 * The target callback completes item use only after A_EXECUTE
-                 * succeeds, so selecting/approaching a target does not consume
-                 * the charge prematurely. */
                 client->menu.ability_item = item;
                 client->menu.ability_item_spawn_time = item->spawn_time;
                 S_AbilityCommand(clent, ability);
@@ -1919,7 +1990,7 @@ CLIENTCOMMAND(CancelTrain) {
     if (!end || *end || parsed > UINT_MAX) return;
     client = clent->client;
     producer = G_GetMainSelectedUnit(client);
-    if (!G_UnitCanControl(client, producer) || !producer->build || !producer->build->training) return;
+    if (!G_UnitCanSpendResources(client, producer) || !producer->build || !producer->build->training) return;
     index = (uint32_t)parsed;
     if (!G_CancelTrainingQueueItem(producer, index, true)) return;
     Get_Portrait_f(clent);
@@ -2947,6 +3018,32 @@ static void CMD_UICanvas(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     ent->client->canvas = (UICANVASCLASS)value;
 }
 
+static void CMD_TeamResourcesToggle(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    uint32_t client_index;
+    uint32_t bit;
+    (void)argc;
+    (void)argv;
+    if (!ent || !ent->client || !game.clients) return;
+    client_index = (uint32_t)(ent->client - game.clients);
+    if (client_index >= (uint32_t)game.max_clients || client_index >= MAX_CLIENTS ||
+        G_VisibleMultiboard(client_index) || G_IsMultiboardSuppressed(&ent->client->ps)) return;
+    bit = 1u << client_index;
+    level.team_resources_collapsed_clients ^= bit;
+    level.multiboard_dirty_clients |= bit;
+}
+
+/* The client sends opaque generation-tagged IDs; G_JassDialogClick validates slot, generation and ownership. */
+static void CMD_JassDialogChoice(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    char *end_dialog, *end_button;
+    unsigned long dialog, button;
+    if (!ent || !ent->client || argc != 3) return;
+    dialog = strtoul(argv[1], &end_dialog, 10);
+    button = strtoul(argv[2], &end_button, 10);
+    if (!argv[1][0] || *end_dialog || !argv[2][0] || *end_button ||
+        dialog > UINT32_MAX || button > UINT32_MAX) return;
+    G_JassDialogClick(ent, (uint32_t)dialog, (uint32_t)button);
+}
+
 clientCommand_t clientCommands[] = {
     { "give", CMD_Give },
     { "god", CMD_God },
@@ -2997,6 +3094,7 @@ clientCommand_t clientCommands[] = {
     { "gameresult_restart", CMD_GameResultRestart },
     { "gameresult_load", CMD_GameResultLoad },
     { "gameresult_quit", CMD_GameResultQuit },
+    { "jassdialog", CMD_JassDialogChoice },
     { "debugspawn", CMD_DebugSpawn },
     { "enemiesclear", CMD_EnemiesClear },
     { "eclear", CMD_EnemiesClear },
@@ -3019,6 +3117,7 @@ clientCommand_t clientCommands[] = {
     { "resume", CMD_Resume },
     { "pause", CMD_Pause },
     { "ui_canvas", CMD_UICanvas },
+    { "team_resources_toggle", CMD_TeamResourcesToggle },
     { "allies", CMD_Allies },
     { "allies_toggle", CMD_AlliesToggle },
     { "allies_toggle_victory", CMD_AlliesToggleVictory },

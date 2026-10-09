@@ -84,7 +84,7 @@ TEST(wc3_bot, captain_logical_roster_and_policy_survive_cold_save_load) {
     botCaptain_t *captain=level.bots[0].captains;
     edict_t *first=captain->units[0],*second=captain->units[1],*actor=captain->home_actor;
     level.bots[0].flags=BOT_GROUP_TIMED_LIFE;
-    cstring_t file="/tmp/wc3-captain-logical158.bin";
+    cstring_t file=Test_TempPath("wc3-captain-logical158.bin");
     T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));remove(file);
     T_EQ(level.bots[0].flags,BOT_GROUP_TIMED_LIFE);
     T_EQ(ARRAY_COUNT(captain->units),2);

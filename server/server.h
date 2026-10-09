@@ -12,8 +12,14 @@
 #define BZ_SIGNON_SIZE 1400 // bytes; fits a 1500-byte LAN MTU with UDP/IP headers; bounds remote startup batches
 #define BZ_CLIENT_ZOMBIE_MSEC 2000 // milliseconds; Quake 2 disconnect grace period before a client slot can be reused
 
-/* Loopback accepts engine-sized messages; UDP startup must fit an individual datagram. */
-static inline uint32_t SV_SignonLimit(struct netchan const *chan) { return chan->remote_address.type == NA_LOOPBACK ? chan->message.maxsize : MIN(chan->message.maxsize, BZ_SIGNON_SIZE); }
+/* Loopback accepts engine-sized messages; a UDP or EOS datagram must fit BZ_SIGNON_SIZE with its netchan header. */
+static inline uint32_t SV_DatagramLimit(struct netchan const *chan) { return chan->remote_address.type == NA_LOOPBACK ? chan->message.maxsize : MIN(chan->message.maxsize, BZ_SIGNON_SIZE - (Netchan_IsSequenced(chan) ? NETCHAN_HEADER_SIZE : 0)); }
+/* Room for a startup reply. The next packet also carries the pending reliable message (a new batch, or a resend of the
+ * one in flight) in front of it, so that comes off the datagram budget; it used to be added on top. */
+static inline uint32_t SV_SignonLimit(struct netchan const *chan) {
+    uint32_t const limit = SV_DatagramLimit(chan), pending = chan->inflight_length ? chan->inflight_length : chan->reliable.cursize;
+    return chan->remote_address.type == NA_LOOPBACK ? limit : limit - MIN(limit, pending);
+}
 
 KNOWN_AS(client_frame, clientFrame_t);
 KNOWN_AS(client, client_t);
@@ -61,6 +67,8 @@ struct client_frame {
     player_t ps;
     uint32_t num_entities;
     uint32_t first_entity;        // into the circular sv_packet_entities[]
+    uint32_t framenum;            // sv.framenum this snapshot was built for
+    bool valid;
 };
 
 struct client {
@@ -68,7 +76,11 @@ struct client {
     struct netchan netchan;
     clientState_t state;
     edict_t *edict; // EDICT_NUM(clientnum+1)
-    uint32_t lastframe;
+    uint32_t lastframe;           // frame the client is known to hold: its newest acknowledged frame, or the last one sent on loopback
+    uint32_t built_frames;        // snapshots built for this client; (built_frames - 1) & UPDATE_MASK is the newest slot
+    struct { uint32_t slot, ordinal; } delta_base; // where the frame named by lastframe lives, and when it was built
+    struct { uint32_t sequence, framenum, slot, ordinal; } sent_frames[UPDATE_BACKUP * 4]; // netchan packet -> snapshot it carried
+    uint32_t rate_clear_msec;     // svs.realtime when this client's modem link has drained its last snapshot
     uint32_t playernum;
     uint32_t lobby_slot;
     uint32_t drop_time;
@@ -137,6 +149,7 @@ extern struct game_export *ge;
 // sv_init.c
 void SV_StartLobby(cstring_t mapFilename);
 void SV_Map(cstring_t pFilename);
+void SV_CreateBaseline(void);
 bool SV_LoadGame(cstring_t name, cstring_t map);
 bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size);
 #ifdef WOW
@@ -162,7 +175,12 @@ void SV_LobbyBroadcastSetup(void);
 void SV_LobbyWriteSetup(client_t *cl);
 void SV_LobbyAddCommands(void);
 void SV_BuildClientFrame(client_t *client);
-void SV_WriteFrameToClient(client_t *client);
+void SV_SendClientDatagram(client_t *client);
+void SV_QueueFrameForClient(client_t *client);
+uint32_t SV_WriteFrameToClient(client_t *client);
+bool SV_ClientLinkBusy(client_t const *client);
+void SV_AcknowledgeFrames(client_t *client);
+void SV_ResetDeltaBase(client_t *client);
 void SV_SetPaused(bool paused);
 void SV_ParseClientMessage(sizeBuf_t *msg, client_t *client);
 int SV_ModelIndex(cstring_t name);

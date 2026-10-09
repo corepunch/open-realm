@@ -90,6 +90,9 @@ static bool regen_sources_dirty=true;
 static edict_t *regen_overlays[MAX_ENTITIES][REGEN_FAMILY_COUNT];
 static edict_t *devotion_overlays[MAX_ENTITIES];
 static edict_t *unholy_overlays[MAX_ENTITIES];
+/* Ability TargetArt on the caster. Recipient slots above keep BuffID TargetArt. */
+static edict_t *devotion_source_fx[MAX_ENTITIES];
+static edict_t *unholy_source_fx[MAX_ENTITIES];
 static uint32_t devotion_recipient_buff[MAX_ENTITIES];
 static uint32_t unholy_recipient_buff[MAX_ENTITIES];
 static uint32_t regen_value_next_update[MAX_ENTITIES];
@@ -350,11 +353,17 @@ static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targe
         aura_target_has_token(targets, "invulnerable", "invu");
 
     if (!S_AuraUnitActive(source) || !S_AuraUnitActive(target)) return false;
-    is_self = source == target;
-    is_friend = S_SpellIsFriend(source, target);
-    is_enemy = S_SpellIsEnemy(source, target);
-    is_neutral = target->s.player < MAX_PLAYERS && level.mapinfo &&
+    /* `neutral` is a relation to the source, not a property of the target's
+     * slot: another owner's Neutral-typed slot can appear friendly under the
+     * default passive alliances, yet its authored relation remains neutral and
+     * requires an explicit mask token. A unit on the source's own slot is
+     * always a friend, whatever that slot's type (a creep aura buffs creeps). */
+    is_neutral = target->s.player != source->s.player &&
+        target->s.player < MAX_PLAYERS && level.mapinfo &&
         level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
+    is_self = source == target;
+    is_friend = !is_neutral && S_SpellIsFriend(source, target);
+    is_enemy = !is_neutral && S_SpellIsEnemy(source, target);
     bool const wants_relation = aura_target_has_token(targets, "friend", "frie") ||
         aura_target_has_token(targets, "allies", "alli") ||
         aura_target_has_token(targets, "enemy", "enem") ||
@@ -406,6 +415,8 @@ void G_ResetHeroPassiveCaches(void) {
     memset(regen_overlays, 0, sizeof(regen_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
+    memset(devotion_source_fx, 0, sizeof(devotion_source_fx));
+    memset(unholy_source_fx, 0, sizeof(unholy_source_fx));
     memset(devotion_recipient_buff, 0, sizeof(devotion_recipient_buff));
     memset(unholy_recipient_buff, 0, sizeof(unholy_recipient_buff));
     memset(regen_value_cache, 0, sizeof(regen_value_cache));
@@ -425,6 +436,12 @@ static uint32_t aura_buff_code(cstring_t buff_id) {
     uint32_t code = 0;
     if (buff_id && strlen(buff_id) >= 4) memcpy(&code, buff_id, 4);
     return code;
+}
+
+/* TargetArt model for an ability or buff rawcode. Empty art stays unregistered. */
+static uint32_t aura_target_model(uint32_t code) {
+    cstring_t art = code ? G_AbilityEffectArt(code, WC3_EFFECT_TARGET, 0) : NULL;
+    return art && *art ? (uint32_t)G_RegisterModel(art) : 0;
 }
 
 /* Records are addressed by edict identity; the membership sets retain original
@@ -489,6 +506,8 @@ static void regen_aura_cache_update(void) {
     memset(regen_overlays, 0, sizeof(regen_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
+    memset(devotion_source_fx, 0, sizeof(devotion_source_fx));
+    memset(unholy_source_fx, 0, sizeof(unholy_source_fx));
     FOR_LOOP(i, globals.num_edicts) {
 #ifdef BZ_TESTS
         test_aura_overlay_visits++;
@@ -497,14 +516,16 @@ static void regen_aura_cache_update(void) {
         regenFamily_t family;
         if (!effect->inuse || !effect->owner || effect->owner->s.number >= MAX_ENTITIES ||
             effect->goalentity != effect->owner) continue;
-        if (effect->summon_ability == ID_DEVOTION_AURA) {
-            if (!devotion_overlays[effect->owner->s.number])
-                devotion_overlays[effect->owner->s.number] = effect;
-            continue;
-        }
-        if (effect->summon_ability == ID_UNHOLY_AURA) {
-            if (!unholy_overlays[effect->owner->s.number])
-                unholy_overlays[effect->owner->s.number] = effect;
+        if (effect->summon_ability == ID_DEVOTION_AURA || effect->summon_ability == ID_UNHOLY_AURA) {
+            edict_t * *slots;
+            /* The current alias/art can change or disappear. Bind by the saved
+             * role so a custom caster rune cannot become an orphaned recipient. */
+            if (effect->aura_effect_role == AURA_EFFECT_SOURCE)
+                slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_source_fx : unholy_source_fx;
+            else if (effect->aura_effect_role == AURA_EFFECT_RECIPIENT)
+                slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_overlays : unholy_overlays;
+            else continue;
+            if (!slots[effect->owner->s.number]) slots[effect->owner->s.number] = effect;
             continue;
         }
         if (effect->summon_ability != ID_REGEN_LIFE_ORC &&
@@ -816,7 +837,38 @@ static void hero_aura_sync_overlay(edict_t *unit, uint32_t base_code, edict_t * 
         edict_t *effect = G_SpawnOwnedAbilityEffectTarget(unit, effect_code, WC3_EFFECT_TARGET, 0, unit, NULL);
         if (effect) {
             effect->summon_ability = base_code;
+            effect->aura_effect_role = AURA_EFFECT_RECIPIENT;
             overlays[unit->s.number] = effect;
+        }
+    }
+}
+
+/* Ability TargetArt stays on the unit that owns the aura. Recipients keep BuffID
+ * TargetArt. RoC has no BuffID, so the recipient overlay already uses the ability
+ * art and a second copy on the caster would stack the same model. */
+static void hero_aura_sync_source(edict_t *unit, uint32_t base_code, edict_t * *sources,
+                                  edict_t *const *recipients) {
+    auraAbilityRef_t own = S_AuraUnitActive(unit) ? actor_aura_ability(unit, base_code) : (auraAbilityRef_t){0};
+    uint32_t desired = aura_target_model(own.alias);
+    edict_t *keep = sources[unit->s.number];
+    edict_t *recipient = recipients[unit->s.number];
+
+    if (recipient && recipient->inuse && recipient->owner == unit && recipient->goalentity == unit &&
+        recipient->summon_ability == base_code && desired && (uint32_t)recipient->s.model == desired)
+        desired = 0;
+    if (keep && (!keep->inuse || keep->owner != unit || keep->goalentity != unit ||
+                 keep->summon_ability != base_code)) keep = NULL;
+    if (keep && (!desired || (uint32_t)keep->s.model != desired)) {
+        G_DestroyEffect(keep);
+        sources[unit->s.number] = NULL;
+        keep = NULL;
+    }
+    if (!keep && desired) {
+        edict_t *effect = G_SpawnOwnedAbilityEffectTarget(unit, own.alias, WC3_EFFECT_TARGET, 0, unit, NULL);
+        if (effect) {
+            effect->summon_ability = base_code;
+            effect->aura_effect_role = AURA_EFFECT_SOURCE;
+            sources[unit->s.number] = effect;
         }
     }
 }
@@ -828,10 +880,12 @@ void S_UpdateHeroAuraEffects(edict_t *unit) {
     devotion = hero_aura_presentation(unit, ID_DEVOTION_AURA);
     devotion_recipient_buff[unit->s.number] = devotion.alias ? devotion.buff : 0;
     hero_aura_sync_overlay(unit, ID_DEVOTION_AURA, devotion_overlays, devotion.alias ? &devotion : NULL);
+    hero_aura_sync_source(unit, ID_DEVOTION_AURA, devotion_source_fx, devotion_overlays);
 
     unholy = hero_aura_presentation(unit, ID_UNHOLY_AURA);
     unholy_recipient_buff[unit->s.number] = unholy.alias ? unholy.buff : 0;
     hero_aura_sync_overlay(unit, ID_UNHOLY_AURA, unholy_overlays, unholy.alias ? &unholy : NULL);
+    hero_aura_sync_source(unit, ID_UNHOLY_AURA, unholy_source_fx, unholy_overlays);
 }
 
 uint32_t S_DevotionAuraBuff(edict_t *unit) {

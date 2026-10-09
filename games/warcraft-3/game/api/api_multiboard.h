@@ -51,6 +51,16 @@ uint32_t MultiboardDisplay(jass_t *j) {
     return 0;
 }
 
+uint32_t IsMultiboardDisplayed(jass_t *j) {
+    multiboard_t *board = jass_checkhandle(j, 1, "multiboard");
+    return jass_pushboolean(j, G_IsMultiboardDisplayed(board, currentplayer));
+}
+
+uint32_t MultiboardSuppressDisplay(jass_t *j) {
+    G_SuppressMultiboardDisplay(currentplayer, jass_checkboolean(j, 1));
+    return 0;
+}
+
 uint32_t MultiboardMinimize(jass_t *j) {
     multiboard_t *board = jass_checkhandle(j, 1, "multiboard");
     bool minimize = jass_checkboolean(j, 2);
@@ -200,6 +210,8 @@ uint32_t SetTextTagText(jass_t *j) {
     if (tag && tag->inuse) {
         strlcpy(tag->text, G_LevelString(text ? text : ""), sizeof(tag->text));
         tag->height = height;
+        tag->has_text = true;
+        G_TextTagPresentation(tag, false);
     }
     return 0;
 }
@@ -208,7 +220,10 @@ uint32_t SetTextTagColor(jass_t *j) {
     texttag_t *tag = jass_checkhandle(j, 1, "texttag");
     int32_t r = jass_checkinteger(j, 2), g = jass_checkinteger(j, 3);
     int32_t b = jass_checkinteger(j, 4), a = jass_checkinteger(j, 5);
-    if (tag && tag->inuse) tag->color = multiboard_color(r, g, b, a);
+    if (tag && tag->inuse) {
+        tag->color = multiboard_color(r, g, b, a);
+        G_TextTagPresentation(tag, false);
+    }
     return 0;
 }
 
@@ -223,6 +238,8 @@ uint32_t SetTextTagPosUnit(jass_t *j) {
             tag->x = unit->s.origin.x;
             tag->y = unit->s.origin.y;
         }
+        tag->has_position = unit != NULL;
+        G_TextTagPresentation(tag, false);
     }
     return 0;
 }
@@ -233,6 +250,7 @@ uint32_t SetTextTagVelocity(jass_t *j) {
     if (tag && tag->inuse) {
         tag->xvel = xvel;
         tag->yvel = yvel;
+        G_TextTagPresentation(tag, false);
     }
     return 0;
 }
@@ -247,20 +265,29 @@ uint32_t SetTextTagVisibility(jass_t *j) {
 uint32_t SetTextTagPermanent(jass_t *j) {
     texttag_t *tag = jass_checkhandle(j, 1, "texttag");
     bool permanent = jass_checkboolean(j, 2);
-    if (tag && tag->inuse) tag->permanent = permanent;
+    if (tag && tag->inuse) {
+        tag->permanent = permanent;
+        G_TextTagPresentation(tag, false);
+    }
     return 0;
 }
 
 uint32_t SetTextTagLifespan(jass_t *j) {
     texttag_t *tag = jass_checkhandle(j, 1, "texttag");
     float lifespan = jass_checknumber(j, 2);
-    if (tag && tag->inuse) tag->lifespan = lifespan;
+    if (tag && tag->inuse) {
+        tag->lifespan = lifespan;
+        G_TextTagPresentation(tag, false);
+    }
     return 0;
 }
 
 uint32_t SetTextTagFadepoint(jass_t *j) {
     texttag_t *tag = jass_checkhandle(j, 1, "texttag");
     float fadepoint = jass_checknumber(j, 2);
-    if (tag && tag->inuse) tag->fadepoint = fadepoint;
+    if (tag && tag->inuse) {
+        tag->fadepoint = fadepoint;
+        G_TextTagPresentation(tag, false);
+    }
     return 0;
 }

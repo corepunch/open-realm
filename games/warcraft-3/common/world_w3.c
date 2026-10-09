@@ -163,6 +163,7 @@ static void CM_ReadWeather(handle_t archive);
 void CM_ReadUnits(handle_t archive);
 void CM_ReadItems(handle_t archive);
 void CM_ReadAbilities(handle_t archive);
+void CM_ReadDestructables(handle_t archive);
 void CM_ReadStrings(handle_t archive);
 void CM_ReadMapScript(handle_t archive);
 
@@ -179,6 +180,7 @@ static cmW3Read_t const cm_w3_readers[] = {
     CM_ReadUnits,
     CM_ReadItems,
     CM_ReadAbilities,
+    CM_ReadDestructables,
     CM_ReadStrings,
     CM_ReadMapScript,
 };
@@ -244,6 +246,33 @@ void CL_GameModifyBuildPathing(vec2_t const *point, uint8_t *flags) {
     }
     if (cl.terrain_mask.cells[x + y * cl.terrain_mask.width]) *flags |= WC3_PATH_BLIGHTED;
     else *flags &= ~WC3_PATH_BLIGHTED;
+}
+
+/* The cursor renderer asks the active game to interpret its authored placement
+ * predicates. Keep Warcraft-specific amphibious and shallow-water rules out of
+ * the universal client. */
+bool CL_GameBuildPathingBlocked(vec2_t const *point, uint8_t pathing, uint8_t prevented, uint8_t required) {
+    uint8_t const unamph = 0x80;
+    uint8_t const naga_shallow = 0x01;
+    uint8_t const unbuildable = 0x08;
+    uint8_t simple = prevented & (uint8_t)~(unamph | naga_shallow);
+    bool shallow_water = false;
+
+    if ((prevented & naga_shallow) && (pathing & unbuildable) && point &&
+        !(pathing & (CM_PATHING_UNFLOATABLE | CM_PATHING_UNFLYABLE))) {
+        shallow_water = CM_GetWaterHeightAtPoint(point->x, point->y) >
+                        CM_GetHeightAtPoint(point->x, point->y);
+    }
+    if (shallow_water) simple &= (uint8_t)~unbuildable;
+    if ((pathing & simple) != 0) return true;
+    if ((prevented & unamph) && (pathing & CM_PATHING_UNWALKABLE) &&
+        (pathing & CM_PATHING_UNFLOATABLE)) return true;
+
+    simple = required & (uint8_t)~unamph;
+    if ((pathing & simple) != simple) return true;
+    if ((required & unamph) &&
+        !((pathing & CM_PATHING_UNWALKABLE) && (pathing & CM_PATHING_UNFLOATABLE))) return true;
+    return false;
 }
 
 bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
@@ -369,9 +398,19 @@ static float CM_GetWar3MapVertexHeight(war3mapVertex_t const *vert) {
 	return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
 }
 
+static float cm_w3_water_height; /* Water.slk height (tiles) for the loaded tileset; set by the game. */
+
+void CM_W3SetWaterHeight(float slk_height) {
+    cm_w3_water_height = slk_height;
+}
+
+float CM_W3WaterHeight(void) {
+    return cm_w3_water_height;
+}
+
 static float CM_GetWar3MapVertexWaterHeight(war3mapVertex_t const *vert) {
     if (!vert) return -FLT_MAX;
-    return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
+    return W3_WaterSurfaceHeight(vert->waterlevel, cm_w3_water_height);
 }
 
 /* war3map.w3r v5 stores editor regions.  Weather is one field on each region;
@@ -492,12 +531,15 @@ static void CM_W3ReleaseMapArchive(void) {
 
 static void CM_W3ClearMapData(void) {
     CM_W3ReleaseMapArchive();
+    cm_w3_water_height = 0;
     CM_W3FreeUnitOverrides(world.info.num_originalUnits, &world.info.originalUnits);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedUnits, &world.info.userCreatedUnits);
     CM_W3FreeUnitOverrides(world.info.num_originalItems, &world.info.originalItems);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedItems, &world.info.userCreatedItems);
     CM_W3FreeUnitOverrides(world.info.num_originalAbilities, &world.info.originalAbilities);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedAbilities, &world.info.userCreatedAbilities);
+    CM_W3FreeUnitOverrides(world.info.num_originalDestructables, &world.info.originalDestructables);
+    CM_W3FreeUnitOverrides(world.info.num_userCreatedDestructables, &world.info.userCreatedDestructables);
     CM_ReleaseModel();
     while (world.doodads) {
         doodad_t *doodad = world.doodads;

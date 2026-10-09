@@ -57,6 +57,8 @@ static uint8_t building_queue_numitems;
 static uint32_t building_queue_starttime;
 static uint32_t building_queue_endtime;
 static PATHSTR building_sound_path;
+static uint32_t building_commandbar_layouts;
+static int32_t building_last_byte;
 
 static int building_test_sound_index(cstring_t path) {
     snprintf(building_sound_path, sizeof(building_sound_path), "%s", path ? path : "");
@@ -127,6 +129,16 @@ static void building_queue_capture_write(pfWriteType_t type, void const *value) 
 }
 
 static void building_test_unicast(edict_t *ent) { (void)ent; }
+
+/* Counts svc_layout payloads that open the command bar: the only writer of
+ * that pair during spell targeting setup is UI_AddCancelButton. */
+static void building_layout_capture_write(pfWriteType_t type, void const *value) {
+    int32_t byte;
+    if (type != PF_BYTE || !value) { building_last_byte = -1; return; }
+    byte = *(int32_t const *)value;
+    if (building_last_byte == svc_layout && byte == LAYER_COMMANDBAR) building_commandbar_layouts++;
+    building_last_byte = byte;
+}
 
 static cstring_t building_all_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_build_all") ? "1" : fallback;
@@ -439,6 +451,71 @@ static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows
     free_slk_rows(rows);
 }
 
+TEST(wc3_building, tiny_structure_resolves_stock_endpoints_and_great_hall_by_race) {
+    const char ability_slk[] =
+        "ID;PWXL;N;EBB;Y9;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"AIbl\"\nC;Y2;X2;K\"AIbl\"\nC;Y2;X3;K1\nC;Y2;X4;K\"hcas\"\n"
+        "C;Y3;X1;K\"AIbg\"\nC;Y3;X2;K\"AIbl\"\nC;Y3;X3;K1\nC;Y3;X4;K\"htow\"\n"
+        "C;Y4;X1;K\"AIbt\"\nC;Y4;X2;K\"AIbl\"\nC;Y4;X3;K1\nC;Y4;X4;K\"hwtw\"\n"
+        "C;Y5;X1;K\"AIbb\"\nC;Y5;X2;K\"AIbl\"\nC;Y5;X3;K1\nC;Y5;X4;K\"hbla\"\n"
+        "C;Y6;X1;K\"AIbf\"\nC;Y6;X2;K\"AIbl\"\nC;Y6;X3;K1\nC;Y6;X4;K\"hhou\"\n"
+        "C;Y7;X1;K\"AIbr\"\nC;Y7;X2;K\"AIbl\"\nC;Y7;X3;K1\nC;Y7;X4;K\"hlum\"\n"
+        "C;Y8;X1;K\"AIbs\"\nC;Y8;X2;K\"AIbl\"\nC;Y8;X3;K1\nC;Y8;X4;K\"hbar\"\n"
+        "C;Y9;X1;K\"AIbh\"\nC;Y9;X2;K\"AIbl\"\nC;Y9;X3;K1\nC;Y9;X4;K\"halt\"\nE\n";
+    const char missing_unit_id_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"AIbg\"\nC;Y2;X2;K\"AIbl\"\nC;Y2;X3;K1\nE\n";
+    uint32_t const great_hall = MAKEFOURCC('A','I','b','g');
+    uint32_t const great_hall_races[] = {
+        MAKEFOURCC('h','t','o','w'), MAKEFOURCC('o','g','r','e'),
+        MAKEFOURCC('u','n','p','l'), MAKEFOURCC('e','t','o','l')
+    };
+    uint32_t const races[] = {
+        kPlayerRaceHuman, kPlayerRaceOrc, kPlayerRaceUndead, kPlayerRaceNightElf
+    };
+    uint32_t const codes[] = {
+        MAKEFOURCC('A','I','b','l'), MAKEFOURCC('A','I','b','t'),
+        MAKEFOURCC('A','I','b','b'), MAKEFOURCC('A','I','b','f'),
+        MAKEFOURCC('A','I','b','r'), MAKEFOURCC('A','I','b','s'),
+        MAKEFOURCC('A','I','b','h')
+    };
+    uint32_t const structures[] = {
+        MAKEFOURCC('h','c','a','s'), MAKEFOURCC('h','w','t','w'),
+        MAKEFOURCC('h','b','l','a'), MAKEFOURCC('h','h','o','u'),
+        MAKEFOURCC('h','l','u','m'), MAKEFOURCC('h','b','a','r'),
+        MAKEFOURCC('h','a','l','t')
+    };
+    slkTestData_t *rows, *old;
+    slkTestData_t *missing_rows, *saved_rows;
+    edict_t *caster;
+
+    setup_test_world();
+    rows = parse_slk_string(ability_slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    caster->s.player = 0;
+    for (uint32_t race = 0; race < sizeof(races) / sizeof(races[0]); race++) {
+        game.clients[0].ps.race = races[race];
+        T_EQ(S_TinyStructureUnitId(caster, great_hall, 1), great_hall_races[race]);
+        T_EQ(S_TinyStructureUnitId(caster, codes[0], 1), structures[0]);
+    }
+    for (uint32_t i = 1; i < sizeof(codes) / sizeof(codes[0]); i++)
+        T_EQ(S_TinyStructureUnitId(caster, codes[i], 1), structures[i]);
+
+    /* Missing authored endpoints stay unresolved; race handling must not
+     * silently invent a building type. */
+    missing_rows = parse_slk_string(missing_unit_id_slk);
+    saved_rows = G_SetSLKRows("AbilityData", missing_rows);
+    T_EQ(S_TinyStructureUnitId(caster, great_hall, 1), 0);
+    G_SetSLKRows("AbilityData", saved_rows);
+    free_slk_rows(missing_rows);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_building, hud_texture_paths_are_authored_per_recipient) {
     stbIniCache_t old = game.config.theme, custom = {0};
     gameClient_t *previous = ui_current_client;
@@ -491,7 +568,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
      * FT_BUILDQUEUE payload that drives the client progress bar. */
     building_queue_frame_count = 0;
     UI_WriteStart(LAYER_INFOPANEL);
-    UI_WriteBuildQueue(building);
+    UI_WriteBuildQueue(building, client);
     T_EQ(building_queue_frame_count, 1);
     T_EQ(building_queue_numitems, 1);
     T_ASSERT(building_queue_buildtimer != 0);
@@ -510,7 +587,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
      * queue backdrop is hidden. */
     building_queue_frame_count = 0;
     UI_WriteStart(LAYER_INFOPANEL);
-    UI_WriteBuildQueue(building);
+    UI_WriteBuildQueue(building, client);
     T_EQ(building_queue_frame_count, 1);
     T_EQ(building_queue_numitems, 1);
     T_ASSERT(building_queue_buildtimer != 0);
@@ -1331,6 +1408,70 @@ TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
     T_ASSERT(found);
 
     building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, naga_production_buttons_have_distinct_command_card_cells) {
+    static uint32_t const producers[] = {
+        MAKEFOURCC('n','n','t','t'), MAKEFOURCC('n','n','s','g'), MAKEFOURCC('n','n','s','a')
+    };
+    static cstring_t const expected_trains[] = {
+        "nmpe,nnmg", "nmyr,nsnp,nhyc", "nnsw,nwgs"
+    };
+    gameClient_t *client;
+    gameCommandButton_t buttons[16];
+    UnitData_t naga_unit_data = { .race = "naga" };
+    static char const profile_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y4;D0\n"
+        "C;X1;Y1;K\"id\"\nC;X2;K\"Trains\"\n"
+        "C;X1;Y2;K\"nntt\"\nC;X2;K\"nmpe,nnmg\"\n"
+        "C;X1;Y3;K\"nnsg\"\nC;X2;K\"nmyr,nsnp,nhyc\"\n"
+        "C;X1;Y4;K\"nnsa\"\nC;X2;K\"nnsw,nwgs\"\nE\n";
+    slkTestData_t *profile_rows, *old_profile_rows;
+
+    setup_test_world();
+    profile_rows = parse_slk_string(profile_slk);
+    old_profile_rows = G_SetProfileRows(profile_rows);
+    client = &game.clients[0];
+    client->connected = true;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    for (uint32_t p = 0; p < sizeof(producers) / sizeof(producers[0]); p++) {
+        edict_t *producer = alloc_test_unit(producers[p], 0.0f, 0.0f);
+        UnitProfile_t const *profile = G_UnitProfile(producers[p]);
+        uint8_t count;
+        producer->data.UnitData = &naga_unit_data;
+        producer->s.player = client->ps.number;
+        T_STREQ(profile->trains, expected_trains[p]);
+        count = G_GetCommandButtons(producer, buttons, sizeof(buttons) / sizeof(buttons[0]));
+
+        char expected[4][5] = {{0}};
+        uint32_t expected_count = 0;
+        cstring_t cursor = expected_trains[p];
+        while (*cursor && expected_count < sizeof(expected) / sizeof(expected[0])) {
+            uint32_t n = 0;
+            while (*cursor && *cursor != ',' && n < 4) expected[expected_count][n++] = *cursor++;
+            if (*cursor == ',') cursor++;
+            if (n == 4) expected_count++;
+        }
+        for (uint32_t i = 0; i < expected_count; i++) {
+            bool found = false;
+            FOR_LOOP(j, count) {
+                if (!strcmp(buttons[j].command, expected[i])) {
+                    found = true;
+                    break;
+                }
+            }
+            T_ASSERT(found);
+        }
+        FOR_LOOP(i, count) FOR_LOOP(j, i) {
+            T_ASSERT(buttons[i].x != buttons[j].x || buttons[i].y != buttons[j].y);
+        }
+    }
+    G_SetProfileRows(old_profile_rows);
+    free_slk_rows(profile_rows);
 }
 
 TEST(wc3_building, setplayerabilityavailable_hides_human05_polymorph_command) {
@@ -2291,6 +2432,239 @@ TEST(wc3_building, rally_invalidation_visits_only_producers_and_checks_identity)
     reset_entities(); setup_test_world();
 }
 
+TEST(wc3_building, advanced_control_grant_and_revoke_dirty_viewer_card) {
+    gameClient_t *owner = &game.clients[0];
+    gameClient_t *viewer = &game.clients[1];
+    uint32_t const original = level.alliances[viewer->ps.number][owner->ps.number];
+    bool const was_connected = viewer->connected;
+    bool const was_dirty = viewer->commands_dirty;
+
+    viewer->connected = true;
+    level.alliances[viewer->ps.number][owner->ps.number] = (1u << ALLIANCE_PASSIVE) |
+        (1u << ALLIANCE_SHARED_CONTROL);
+    viewer->commands_dirty = false;
+
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, true);
+    T_ASSERT(viewer->commands_dirty);
+    viewer->commands_dirty = false;
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    T_ASSERT(viewer->commands_dirty);
+    viewer->commands_dirty = false;
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    T_ASSERT(!viewer->commands_dirty);
+
+    level.alliances[viewer->ps.number][owner->ps.number] = original;
+    viewer->connected = was_connected;
+    viewer->commands_dirty = was_dirty;
+}
+
+/* Shared-control fixtures: client 0 owns the units, client 1 is the allied
+ * viewer.  Captured command buttons are keyed by their registered art so a
+ * disabled (DIS-skinned) button can still be matched to its command. */
+#define SHARED_MAX_BUTTONS 24 // FT_COMMANDBUTTON frames one command card can emit
+#define SHARED_MAX_IMAGES 64  // distinct image registrations one capture tracks
+
+typedef struct {
+    gameClient_t *owner;
+    gameClient_t *viewer;
+    edict_t *owner_ent;
+    edict_t *viewer_ent;
+} sharedControlFixture_t;
+
+static PATHSTR shared_image_paths[SHARED_MAX_IMAGES];
+static uint32_t shared_image_count;
+static uint32_t shared_button_image[SHARED_MAX_BUTTONS];
+static float shared_button_x[SHARED_MAX_BUTTONS];
+static float shared_button_y[SHARED_MAX_BUTTONS];
+static bool shared_button_has_onclick[SHARED_MAX_BUTTONS];
+static char shared_button_onclick[SHARED_MAX_BUTTONS][64];
+static uint32_t shared_button_count;
+static uint32_t shared_cancel_train_targets;
+
+static int shared_image_index(cstring_t name) {
+    FOR_LOOP(i, shared_image_count) if (!strcmp(shared_image_paths[i], name)) return (int)i + 1;
+    if (shared_image_count >= SHARED_MAX_IMAGES) return 0;
+    snprintf(shared_image_paths[shared_image_count], sizeof(shared_image_paths[0]), "%s", name);
+    return (int)++shared_image_count;
+}
+
+static void shared_reset_capture(void) {
+    memset(shared_image_paths, 0, sizeof(shared_image_paths));
+    memset(shared_button_image, 0, sizeof(shared_button_image));
+    memset(shared_button_x, 0, sizeof(shared_button_x));
+    memset(shared_button_y, 0, sizeof(shared_button_y));
+    memset(shared_button_has_onclick, 0, sizeof(shared_button_has_onclick));
+    memset(shared_button_onclick, 0, sizeof(shared_button_onclick));
+    shared_image_count = shared_button_count = shared_cancel_train_targets = 0;
+}
+
+static void shared_capture_write(pfWriteType_t type, void const *value) {
+    uiFrame_t const *frame;
+    if (type != PF_UIFRAME || !value) return;
+    frame = value;
+    if (frame->flags.type == FT_COMMANDBUTTON && shared_button_count < SHARED_MAX_BUTTONS) {
+        shared_button_image[shared_button_count] = frame->tex.index;
+        /* Serialized points are int16 UI_FRAMEPOINT_SCALE units, y negated. */
+        shared_button_x[shared_button_count] = (float)frame->points.x[FPP_MIN].offset / UI_FRAMEPOINT_SCALE;
+        shared_button_y[shared_button_count] = -(float)frame->points.y[FPP_MIN].offset / UI_FRAMEPOINT_SCALE;
+        shared_button_has_onclick[shared_button_count] = frame->onclick != NULL;
+        snprintf(shared_button_onclick[shared_button_count], sizeof(shared_button_onclick[0]),
+                 "%s", frame->onclick ? frame->onclick : "");
+        shared_button_count++;
+    } else if (frame->flags.type == FT_SIMPLEFRAME && frame->onclick &&
+               !strncmp(frame->onclick, "canceltrain ", 12)) {
+        shared_cancel_train_targets++;
+    }
+}
+
+/* Captured button authored at command-card cell (x, y); the fixture gives
+ * every command the same art, so the cell is the identity.  Mirrors the
+ * UI_WriteCommandButtonFrame grid origin and pitch. */
+static int shared_button_for_cell(uint8_t x, uint8_t y) {
+    float const fx = 0.6175f + (float)x * 0.0434f;
+    float const fy = 0.4660f + (float)y * 0.0440f;
+    float const eps = 1.5f / UI_FRAMEPOINT_SCALE; /* int16 quantization */
+    FOR_LOOP(i, shared_button_count)
+        if (fabsf(shared_button_x[i] - fx) < eps && fabsf(shared_button_y[i] - fy) < eps) return (int)i;
+    return -1;
+}
+
+static sharedControlFixture_t shared_control_fixture(bool advanced) {
+    sharedControlFixture_t f = { &game.clients[0], &game.clients[1], &g_edicts[0], &g_edicts[1] };
+    setup_test_world();
+    G_SetClientConnected(f.owner_ent, true);
+    G_SetClientConnected(f.viewer_ent, true);
+    f.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    f.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    f.owner->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    G_SetPlayerAlliance(&f.viewer->ps, &f.owner->ps, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(&f.viewer->ps, &f.owner->ps, ALLIANCE_SHARED_CONTROL, true);
+    G_SetPlayerAlliance(&f.viewer->ps, &f.owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, advanced);
+    return f;
+}
+
+static edict_t *shared_owned_unit(sharedControlFixture_t const *f, uint32_t class_id, UnitProfile_t *profile) {
+    edict_t *unit = alloc_test_unit(class_id, 0.0f, 0.0f);
+    unit->data.UnitProfile = profile;
+    unit->s.player = f->owner->ps.number;
+    G_SelectEntity(f->viewer, unit);
+    return unit;
+}
+
+static void shared_check_build_menu_button(bool advanced) {
+    /* G_UnitHasBuildMenu reads the profile table, not the entity's row. */
+    static char const profile_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Builds\"\n"
+        "C;Y2;X1;K\"hpea\"\nC;Y2;X2;K\"hbar\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(profile_slk);
+    slkTestData_t *old_rows = G_SetProfileRows(rows);
+    sharedControlFixture_t f = shared_control_fixture(advanced);
+    UnitProfile_t profile = { .builds = "hbar" };
+    gameCommandButton_t buttons[12];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    edict_t *worker = shared_owned_unit(&f, MAKEFOURCC('h','p','e','a'), &profile);
+    gameCommandButton_t const *build = NULL;
+    int index;
+
+    T_ASSERT(G_UnitHasBuildMenu(worker));
+    FOR_LOOP(i, G_GetCommandButtons(worker, buttons, 12))
+        if (!strcmp(buttons[i].command, STR_CmdBuild)) build = &buttons[i];
+    T_NOT_NULL(build);
+    if (!build) { G_SetProfileRows(old_rows); free_slk_rows(rows); return; }
+
+    shared_reset_capture();
+    gi.Write = shared_capture_write;
+    gi.ImageIndex = shared_image_index;
+    Get_Commands_f(f.viewer_ent);
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+
+    /* The Build submenu spends the owner's resources (ui_builds is gated on
+     * advanced sharing), so the card must agree with that authority. */
+    index = shared_button_for_cell(build->x, build->y);
+    T_ASSERT(index >= 0);
+    if (index >= 0) {
+        T_EQ(shared_button_has_onclick[index], advanced);
+        if (advanced) T_STREQ(shared_button_onclick[index], "button " STR_CmdBuild);
+        else T_NOT_NULL(strstr(shared_image_paths[shared_button_image[index] - 1], "DIS"));
+    }
+    G_SetProfileRows(old_rows);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, basic_control_ally_sees_build_menu_disabled) { shared_check_build_menu_button(false); }
+TEST(wc3_building, advanced_control_ally_sees_build_menu_enabled) { shared_check_build_menu_button(true); }
+
+static void shared_check_queue_cancel_targets(bool advanced) {
+    sharedControlFixture_t f = shared_control_fixture(advanced);
+    UnitProfile_t profile = { .trains = "hpea" };
+    UnitBalance_t balance;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    edict_t *barracks = shared_owned_unit(&f, MAKEFOURCC('h','b','a','r'), &profile);
+
+    /* The fixture Barracks row carries no building flag; the queue panel needs one. */
+    balance = *barracks->data.UnitBalance;
+    balance.isBuilding = true;
+    barracks->data.UnitBalance = &balance;
+    T_ASSERT(SP_TrainUnit(barracks, MAKEFOURCC('h','p','e','a')));
+    T_ASSERT(SP_TrainUnit(barracks, MAKEFOURCC('h','p','e','a')));
+    T_EQ(G_ProductionQueueCount(barracks), 2);
+    T_ASSERT(UI_TestUsesBuildingQueuePanel(f.viewer, barracks));
+
+    gi.Write = shared_capture_write;
+    gi.ImageIndex = shared_image_index;
+    /* The owner always gets one cancel target per queued item. */
+    shared_reset_capture();
+    UI_SendInfoPanel(f.owner_ent, &barracks, 1);
+    T_EQ(shared_cancel_train_targets, 2);
+    /* CancelTrain is denied server-side without advanced sharing, so the
+     * viewer's panel offers the hit targets only when the command would work. */
+    shared_reset_capture();
+    UI_SendInfoPanel(f.viewer_ent, &barracks, 1);
+    T_EQ(shared_cancel_train_targets, advanced ? 2 : 0);
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
+TEST(wc3_building, basic_control_ally_sees_no_queue_cancel_targets) { shared_check_queue_cancel_targets(false); }
+TEST(wc3_building, advanced_control_ally_sees_queue_cancel_targets) { shared_check_queue_cancel_targets(true); }
+
+static void shared_check_spending_commands(bool advanced) {
+    sharedControlFixture_t f = shared_control_fixture(advanced);
+    UnitProfile_t profile = { .trains = "hpea", .researches = "Rhme" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    edict_t *barracks;
+    uint32_t gold, queued;
+
+    memset(f.owner->tech, 0, sizeof(f.owner->tech));
+    barracks = shared_owned_unit(&f, MAKEFOURCC('h','b','a','r'), &profile);
+    T_ASSERT(G_UnitCanControl(f.viewer, barracks));
+    T_EQ(G_UnitCanSpendResources(f.viewer, barracks), advanced);
+    gold = f.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+
+    G_ClientCommand(f.viewer_ent, 2, (cstring_t[]){ "button", "hpea" });
+    T_EQ(G_ProductionQueueCount(barracks), advanced ? 1 : 0);
+    G_ClientCommand(f.viewer_ent, 2, (cstring_t[]){ "research", "Rhme" });
+    T_EQ(G_ProductionQueueCount(barracks), advanced ? 2 : 0);
+    if (advanced) T_ASSERT(f.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < gold);
+    else T_EQ(f.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], gold);
+
+    /* The owner's own production can only be cancelled with advanced sharing. */
+    T_ASSERT(SP_TrainUnit(barracks, MAKEFOURCC('h','p','e','a')));
+    queued = G_ProductionQueueCount(barracks);
+    G_ClientCommand(f.viewer_ent, 2, (cstring_t[]){ "canceltrain", "0" });
+    T_EQ(G_ProductionQueueCount(barracks), advanced ? queued - 1 : queued);
+
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, basic_control_ally_commands_cannot_spend_owner_resources) { shared_check_spending_commands(false); }
+TEST(wc3_building, advanced_control_ally_commands_spend_owner_resources) { shared_check_spending_commands(true); }
+
 TEST(wc3_building, enable_user_ui_does_not_block_build_command_button) {
     edict_t *clent = &g_edicts[0];
     gameClient_t *client = clent->client;
@@ -2641,6 +3015,202 @@ TEST(wc3_building, placement_flags_treat_slk_sentinel_as_empty) {
     T_EQ(G_PlacementFlags(NULL), 0);
     T_EQ(G_PlacementFlags("_"), 0);
     T_ASSERT(G_PlacementFlags("unwalkable") & WC3_PATH_UNWALKABLE);
+}
+
+TEST(wc3_building, placement_flags_decode_warsmash_pathing_predicates) {
+    uint8_t const flags = G_PlacementFlags("unflyable, blockvision, unfloat, unamph");
+    T_ASSERT(flags & CM_PATHING_UNFLYABLE);
+    T_ASSERT(flags & WC3_PATH_BLOCKVISION);
+    T_ASSERT(flags & WC3_PATH_UNFLOAT);
+    T_ASSERT(flags & WC3_PATH_UNAMPH);
+}
+
+TEST(wc3_building, placement_unamph_is_compound_walk_and_swim_blocker) {
+    uint8_t const land = CM_PATHING_UNFLOATABLE;
+    uint8_t const water = CM_PATHING_UNWALKABLE;
+    uint8_t const neither = CM_PATHING_UNWALKABLE | CM_PATHING_UNFLOATABLE;
+
+    T_ASSERT(!G_PlacementPathingPrevented(land, WC3_PATH_UNAMPH, false));
+    T_ASSERT(!G_PlacementPathingPrevented(water, WC3_PATH_UNAMPH, false));
+    T_ASSERT(G_PlacementPathingPrevented(neither, WC3_PATH_UNAMPH, false));
+    T_ASSERT(!G_PlacementPathingRequired(land, WC3_PATH_UNAMPH));
+    T_ASSERT(!G_PlacementPathingRequired(water, WC3_PATH_UNAMPH));
+    T_ASSERT(G_PlacementPathingRequired(neither, WC3_PATH_UNAMPH));
+}
+
+TEST(wc3_building, naga_shallow_override_only_clears_unbuildable_on_water) {
+    uint8_t const unbuildable = WC3_PATH_UNBUILDABLE | WC3_PATH_NAGA_SHALLOW;
+    uint8_t const blocked_cliff = WC3_PATH_UNBUILDABLE | CM_PATHING_UNFLYABLE |
+                                  WC3_PATH_NAGA_SHALLOW;
+
+    T_ASSERT(!G_PlacementPathingPrevented(WC3_PATH_UNBUILDABLE, unbuildable, true));
+    T_ASSERT(G_PlacementPathingPrevented(WC3_PATH_UNBUILDABLE, unbuildable, false));
+    T_ASSERT(G_PlacementPathingPrevented(WC3_PATH_UNBUILDABLE | CM_PATHING_UNFLYABLE,
+                                         blocked_cliff, true));
+}
+
+static void building_set_test_water_surface(bool present) {
+    war3mapVertex_t *vertices = (war3mapVertex_t *)world.map->vertices;
+    uint16_t const waterlevel = present ? (uint16_t)(0x2000 + 4 * 32) : 0;
+    CM_W3SetWaterHeight(0.0f);
+    FOR_LOOP(i, world.map->width * world.map->height) vertices[i].waterlevel = waterlevel;
+}
+
+TEST(wc3_building, naga_structures_allow_land_and_shallow_but_reject_deep_water) {
+    enum { CELLS = 512 };
+    static uint8_t pathmap[CELLS * CELLS];
+    static cstring_t const data_slk =
+        "ID;PWXL;N;EBB;Y7;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"race\"\n"
+        "C;Y2;X1;K\"nntt\"\nC;Y2;X2;K\"naga\"\n"
+        "C;Y3;X1;K\"nnfm\"\nC;Y3;X2;K\"naga\"\n"
+        "C;Y4;X1;K\"nnsg\"\nC;Y4;X2;K\"naga\"\n"
+        "C;Y5;X1;K\"nnsa\"\nC;Y5;X2;K\"naga\"\n"
+        "C;Y6;X1;K\"nntg\"\nC;Y6;X2;K\"naga\"\n"
+        "C;Y7;X1;K\"nnad\"\nC;Y7;X2;K\"naga\"\n"
+        "E\n";
+    static cstring_t const balance_slk =
+        "ID;PWXL;N;EBB;Y7;X2\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"isbldg\"\n"
+        "C;Y2;X1;K\"nntt\"\nC;Y2;X2;K1\n"
+        "C;Y3;X1;K\"nnfm\"\nC;Y3;X2;K1\n"
+        "C;Y4;X1;K\"nnsg\"\nC;Y4;X2;K1\n"
+        "C;Y5;X1;K\"nnsa\"\nC;Y5;X2;K1\n"
+        "C;Y6;X1;K\"nntg\"\nC;Y6;X2;K1\n"
+        "C;Y7;X1;K\"nnad\"\nC;Y7;X2;K1\n"
+        "E\n";
+    static uint32_t const naga_buildings[] = {
+        MAKEFOURCC('n','n','t','t'), MAKEFOURCC('n','n','f','m'),
+        MAKEFOURCC('n','n','s','g'), MAKEFOURCC('n','n','s','a'),
+        MAKEFOURCC('n','n','t','g'), MAKEFOURCC('n','n','a','d')
+    };
+    slkTestData_t *data_rows, *balance_rows;
+    slkTestData_t *old_data, *old_balance;
+    slkTestData_t *new_data, *new_balance;
+    uint8_t prevented = 0, required = 0;
+    vec2_t const requested = { 64.0f, 64.0f };
+    edict_t *builder;
+
+    setup_test_world();
+    data_rows = parse_slk_string(data_slk);
+    balance_rows = parse_slk_string(balance_slk);
+    old_data = G_SetSLKRows("UnitData", data_rows);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    builder = alloc_test_unit(MAKEFOURCC('n','m','p','e'), -128.0f, -128.0f);
+    for (uint32_t i = 0; i < sizeof(naga_buildings) / sizeof(naga_buildings[0]); i++) {
+        uint32_t const building = naga_buildings[i];
+        G_GetBuildPlacementPathingFlags(building, &prevented, &required);
+        T_ASSERT(prevented & WC3_PATH_UNBUILDABLE);
+        T_ASSERT(prevented & WC3_PATH_UNAMPH);
+        T_ASSERT(!(prevented & WC3_PATH_UNWALKABLE));
+        T_ASSERT(prevented & WC3_PATH_NAGA_SHALLOW);
+        T_EQ(required, 0);
+
+        building_set_test_water_surface(false);
+        memset(pathmap, CM_PATHING_UNFLOATABLE, sizeof(pathmap));
+        setup_test_pathmap(CELLS, CELLS, pathmap);
+        T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_OK);
+
+        /* Retail shallow-water WPM cells include both UNWALKABLE and
+         * UNBUILDABLE, but remain swimmable. */
+        building_set_test_water_surface(true);
+        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE, sizeof(pathmap));
+        setup_test_pathmap(CELLS, CELLS, pathmap);
+        T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_OK);
+
+        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE | CM_PATHING_UNFLOATABLE,
+               sizeof(pathmap));
+        setup_test_pathmap(CELLS, CELLS, pathmap);
+        T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_TERRAIN_BLOCKED);
+
+        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE | CM_PATHING_UNFLYABLE,
+               sizeof(pathmap));
+        setup_test_pathmap(CELLS, CELLS, pathmap);
+        T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_TERRAIN_BLOCKED);
+
+        memset(pathmap, WC3_PATH_UNBUILDABLE, sizeof(pathmap));
+        building_set_test_water_surface(false);
+        setup_test_pathmap(CELLS, CELLS, pathmap);
+        T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_TERRAIN_BLOCKED);
+    }
+
+    new_balance = G_SetSLKRows("UnitBalance", old_balance);
+    new_data = G_SetSLKRows("UnitData", old_data);
+    free_slk_rows(new_balance);
+    free_slk_rows(new_data);
+}
+
+TEST(wc3_building, melee_race_buildings_reject_naga_shallow_water_cells) {
+    enum { CELLS = 512 };
+    static uint8_t pathmap[CELLS * CELLS];
+    static cstring_t const data_slk =
+        "ID;PWXL;N;EBB;Y5;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"race\"\n"
+        "C;Y2;X1;K\"hbar\"\nC;Y2;X2;K\"human\"\n"
+        "C;Y3;X1;K\"obar\"\nC;Y3;X2;K\"orc\"\n"
+        "C;Y4;X1;K\"usep\"\nC;Y4;X2;K\"undead\"\n"
+        "C;Y5;X1;K\"eaom\"\nC;Y5;X2;K\"nightelf\"\n"
+        "E\n";
+    static cstring_t const balance_slk =
+        "ID;PWXL;N;EBB;Y5;X2\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"isbldg\"\n"
+        "C;Y2;X1;K\"hbar\"\nC;Y2;X2;K1\n"
+        "C;Y3;X1;K\"obar\"\nC;Y3;X2;K1\n"
+        "C;Y4;X1;K\"usep\"\nC;Y4;X2;K1\n"
+        "C;Y5;X1;K\"eaom\"\nC;Y5;X2;K1\n"
+        "E\n";
+    static struct {
+        uint32_t building;
+        cstring_t race;
+    } const melee_buildings[] = {
+        { MAKEFOURCC('h','b','a','r'), STR_HUMAN },
+        { MAKEFOURCC('o','b','a','r'), STR_ORC },
+        { MAKEFOURCC('u','s','e','p'), STR_UNDEAD },
+        { MAKEFOURCC('e','a','o','m'), STR_NIGHTELF }
+    };
+    slkTestData_t *data_rows, *balance_rows;
+    slkTestData_t *old_data, *old_balance;
+    slkTestData_t *new_data, *new_balance;
+    vec2_t const requested = { 64.0f, 64.0f };
+    uint8_t prevented = 0, required = 0;
+    edict_t *builder;
+
+    setup_test_world();
+    data_rows = parse_slk_string(data_slk);
+    balance_rows = parse_slk_string(balance_slk);
+    old_data = G_SetSLKRows("UnitData", data_rows);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128.0f, -128.0f);
+
+    building_set_test_water_surface(true);
+    memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE, sizeof(pathmap));
+    setup_test_pathmap(CELLS, CELLS, pathmap);
+    for (uint32_t i = 0; i < sizeof(melee_buildings) / sizeof(melee_buildings[0]); i++) {
+        uint32_t const building = melee_buildings[i].building;
+        UnitData_t const *data = G_UnitData(building);
+
+        T_ASSERT(G_UnitIsBuilding(building));
+        T_STREQ(data->race, melee_buildings[i].race);
+        G_GetBuildPlacementPathingFlags(building, &prevented, &required);
+        T_ASSERT(prevented & WC3_PATH_UNWALKABLE);
+        T_ASSERT(prevented & WC3_PATH_UNBUILDABLE);
+        T_ASSERT(!(prevented & WC3_PATH_NAGA_SHALLOW));
+        T_EQ(required, 0);
+        T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL),
+             PLACE_TERRAIN_BLOCKED);
+    }
+
+    new_balance = G_SetSLKRows("UnitBalance", old_balance);
+    new_data = G_SetSLKRows("UnitData", old_data);
+    free_slk_rows(new_balance);
+    free_slk_rows(new_data);
+}
+
+TEST(wc3_building, placement_unfloat_uses_unswimmable_channel) {
+    T_ASSERT(G_PlacementPathingPrevented(CM_PATHING_UNFLOATABLE, WC3_PATH_UNFLOAT, false));
+    T_ASSERT(!G_PlacementPathingPrevented(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT, false));
+    T_ASSERT(G_PlacementPathingRequired(CM_PATHING_UNFLOATABLE, WC3_PATH_UNFLOAT));
+    T_ASSERT(!G_PlacementPathingRequired(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT));
 }
 
 TEST(wc3_building, blight_required_placement_tracks_runtime_blight) {
@@ -3113,6 +3683,87 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     gi.MemFree(pathtex);
 }
 
+TEST(wc3_building, construction_displacement_reserves_distinct_exits_before_start) {
+    enum { CELLS = 128, FOOTPRINT = 9 };
+    static uint8_t pathmap[CELLS * CELLS];
+    size_t const pathtex_size = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
+    edict_t *builder, *occupant, *occupant2, *building;
+    pathTex_t *pathtex;
+    vec2_t const center = { 0.0f, 0.0f };
+
+    setup_test_world();
+    memset(pathmap, 0, sizeof(pathmap));
+    setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f },
+                                  .max = { 2048.0f, 2048.0f }));
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512.0f, -512.0f);
+    occupant = alloc_test_unit(MAKEFOURCC('h','f','o','o'), -64.0f, -192.0f);
+    occupant2 = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, -192.0f);
+    building = alloc_test_unit(MAKEFOURCC('h','t','o','w'), center.x, center.y);
+    occupant->svflags |= SVF_MONSTER;
+    occupant->s.model = 1;
+    occupant->movetype = MOVETYPE_STEP;
+    occupant->collision = 16.0f;
+    occupant2->svflags |= SVF_MONSTER;
+    occupant2->s.model = 1;
+    occupant2->movetype = MOVETYPE_STEP;
+    occupant2->collision = 16.0f;
+    occupant->stand = occupant2->stand = unit_stand;
+    occupant->think = occupant2->think = monster_think;
+    occupant->unitinfo.MoveSpeed = occupant2->unitinfo.MoveSpeed = 320.0f;
+    unit_stand(occupant); unit_stand(occupant2);
+    building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
+    building->stand = unit_stand;
+    pathtex = gi.MemAlloc(pathtex_size);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = pathtex->height = FOOTPRINT;
+    FOR_LOOP(i, FOOTPRINT * FOOTPRINT) pathtex->map[i].b = 0xff;
+    building->pathtex = pathtex;
+    gi.LinkEntity(builder); gi.LinkEntity(occupant); gi.LinkEntity(occupant2); gi.LinkEntity(building);
+    CM_BakeStaticObstacles();
+
+    /* Both workers occupy the approach margin used by the real Build path.
+     * Their existing routes are cut by construction. Planning must reserve
+     * distinct exits before committing either Move order. */
+    vec2_t const first_start = occupant->s.origin2, second_start = occupant2->s.origin2;
+    T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+    building->s.flags &= ~EF_NOT_SELECTABLE;
+    T_ASSERT(G_StartHumanConstruction(builder, building));
+    T_FEQ(Vector2_distance(&occupant->s.origin2, &first_start), 0, 0);
+    T_FEQ(Vector2_distance(&occupant2->s.origin2, &second_start), 0, 0);
+    T_ASSERT(move_displacement_active(occupant));
+    T_ASSERT(move_displacement_active(occupant2));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center, 0));
+    T_ASSERT(Vector2_distance(&occupant->movement.displacement_target,
+        &occupant2->movement.displacement_target) >= occupant->collision + occupant2->collision);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = level.scriptsStarted = true;
+    FOR_LOOP(frame, 60) { level.time += FRAMETIME; globals.RunFrame(); }
+    T_ASSERT(!move_displacement_active(occupant));
+    T_ASSERT(!move_displacement_active(occupant2));
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &first_start) > occupant->collision);
+    T_ASSERT(Vector2_distance(&occupant2->s.origin2, &second_start) > occupant2->collision);
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &center) >= occupant->collision);
+    T_ASSERT(Vector2_distance(&occupant2->s.origin2, &center) >= occupant2->collision);
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &occupant2->s.origin2) >=
+             occupant->collision + occupant2->collision);
+
+    /* The real unfinished footprint already blocks routes. Completion keeps
+     * it solid and does not teleport the units that have already escaped. */
+    vec2_t const first_exit = occupant->s.origin2, second_exit = occupant2->s.origin2;
+    G_CompleteConstruction(building);
+    T_ASSERT(!CM_PointIsPathableForRadius(&center, 0));
+    T_FEQ(Vector2_distance(&occupant->s.origin2, &first_exit), 0, 0);
+    T_FEQ(Vector2_distance(&occupant2->s.origin2, &second_exit), 0, 0);
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &center) >= occupant->collision);
+    T_ASSERT(Vector2_distance(&occupant2->s.origin2, &center) >= occupant2->collision);
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &occupant2->s.origin2) >=
+             occupant->collision + occupant2->collision);
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
 TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {
     gameClient_t *client = &game.clients[0];
     edict_t *worker, *mine;
@@ -3359,6 +4010,117 @@ TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
     T_FEQ(building->construction->progress, (float)FRAMETIME, 0.001f);
     T_ASSERT(building->health.value > hp_before);
     T_ASSERT(building->health.value < building->health.max_value);
+}
+
+TEST(wc3_building, naga_construction_hides_worker_and_progresses_autonomously) {
+    edict_t *worker;
+    edict_t *building;
+    UnitBalance_t balance;
+    float hp_before;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 10;
+    building->data.UnitBalance = &balance;
+    building->health.max_value = 1000.0f;
+    building->health.value = 1000.0f;
+
+    T_ASSERT(G_StartNagaConstruction(worker, building));
+    T_EQ(building->construction->type, CONSTRUCTION_NAGA);
+    T_ASSERT(!building->construction->paused);
+    T_ASSERT(building->construction->worker == worker);
+    T_ASSERT(building->construction->worker_inside);
+    T_ASSERT(!building->construction->consumes_worker);
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+    T_ASSERT(worker->paused);
+    T_ASSERT(worker->invulnerable);
+    T_FEQ(building->health.value, 100.0f, 0.001f);
+
+    hp_before = building->health.value;
+    G_RunConstructionFrame(building);
+    T_FEQ(building->construction->progress, (float)FRAMETIME, 0.001f);
+    T_ASSERT(building->health.value > hp_before);
+}
+
+TEST(wc3_building, naga_build_dispatch_uses_worker_inside_construction) {
+    gameClient_t *client = &game.clients[0];
+    UnitData_t worker_data;
+    UnitProfile_t profile = { .builds = "hbar" };
+    edict_t *worker, *building = NULL;
+    vec2_t point = { 64.0f, 64.0f };
+    uint32_t const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), -128.0f, -128.0f);
+    worker_data = *worker->data.UnitData;
+    worker_data.race = STR_NAGA;
+    worker->data.UnitData = &worker_data;
+    worker->data.UnitProfile = &profile;
+    worker->s.player = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(G_IssueBuildOrder(worker, barracks, &point));
+    worker->s.origin2 = worker->goalentity->s.origin2;
+    build_build(worker);
+    FILTER_EDICTS(ent, ent->inuse && ent->s.class_id == barracks && ent != worker) building = ent;
+    T_NOT_NULL(building);
+    T_EQ(building->construction->type, CONSTRUCTION_NAGA);
+    T_ASSERT(building->construction->worker == worker);
+    T_ASSERT(building->construction->worker_inside);
+}
+
+TEST(wc3_building, naga_build_custom_alias_resolves_to_agbu_semantics) {
+    static const char ability_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;X1;Y2;K\"A0NB\"\nC;X2;K\"AGbu\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "A0NB" };
+    slkTestData_t *rows = parse_slk_string(ability_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *worker;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    worker->data.UnitAbilities = &abilities;
+
+    T_EQ(G_AbilityCode(MAKEFOURCC('A', '0', 'N', 'B')), BZ_NAGA_BUILD);
+    T_ASSERT(build_actor_has_base_ability(worker, BZ_NAGA_BUILD));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, naga_build_ability_overrides_non_naga_race_dispatch) {
+    gameClient_t *client = &game.clients[0];
+    UnitData_t worker_data;
+    UnitProfile_t profile = { .builds = "hbar" };
+    UnitAbilities_t abilities = { .abilList = "AGbu" };
+    edict_t *worker, *building = NULL;
+    vec2_t point = { 64.0f, 64.0f };
+    uint32_t const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), -128.0f, -128.0f);
+    worker_data = *worker->data.UnitData;
+    worker_data.race = STR_HUMAN;
+    worker->data.UnitData = &worker_data;
+    worker->data.UnitProfile = &profile;
+    worker->data.UnitAbilities = &abilities;
+    worker->s.player = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(G_IssueBuildOrder(worker, barracks, &point));
+    worker->s.origin2 = worker->goalentity->s.origin2;
+    build_build(worker);
+    FILTER_EDICTS(ent, ent->inuse && ent->s.class_id == barracks && ent != worker) building = ent;
+    T_NOT_NULL(building);
+    T_EQ(building->construction->type, CONSTRUCTION_NAGA);
 }
 
 TEST(wc3_building, orc_build_dispatch_hides_peon_with_shared_repair_ability) {
@@ -5466,7 +6228,7 @@ TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
 }
 
 TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-queued-build.bin";
+    cstring_t filename = Test_TempPath("wc3-save-queued-build.bin");
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     vec2_t const point = { 512.0f, 64.0f };
     edict_t *clent;
@@ -5919,6 +6681,216 @@ TEST(wc3_building, primary_human_builder_ignores_datad_but_extra_builder_require
     T_NULL(extra->build);
 
     building_restore_repair_data(old_abilities, rows);
+}
+
+/* Stock Build Tiny data shape: the item carries one AbilityData alias whose
+ * UnitID1 names the structure and Dur1 the autonomous build time. AIbt is a
+ * zero-duration row and AIbg omits UnitID1 so the cursor cannot resolve. */
+static char const building_tiny_ability_slk[] =
+    "ID;PWXL;N;EBB;Y5;X14\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+    "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+    "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+    "C;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataB1\"\nC;Y1;X12;K\"DataC1\"\n"
+    "C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"UnitID1\"\n"
+    "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\n"
+    "C;Y2;X10;K\"6\"\nC;Y2;X12;K\"1\"\n"
+    "C;Y3;X1;K\"AIbl\"\nC;Y3;X2;K\"AIbl\"\nC;Y3;X3;K\"1\"\n"
+    "C;Y3;X4;K\"ground\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\n"
+    "C;Y3;X7;K\"600\"\nC;Y3;X8;K\"3\"\nC;Y3;X14;K\"hbar\"\n"
+    "C;Y4;X1;K\"AIbt\"\nC;Y4;X2;K\"AIbl\"\nC;Y4;X3;K\"1\"\n"
+    "C;Y4;X4;K\"ground\"\nC;Y4;X7;K\"600\"\nC;Y4;X8;K\"0\"\nC;Y4;X14;K\"hbar\"\n"
+    "C;Y5;X1;K\"AIbg\"\nC;Y5;X2;K\"AIbl\"\nC;Y5;X3;K\"1\"\n"
+    "C;Y5;X4;K\"ground\"\nC;Y5;X7;K\"600\"\nC;Y5;X8;K\"3\"\nE\n";
+
+typedef struct {
+    edict_t *player, *hero, *item;
+    slkTestData_t *rows, *old;
+} buildingTinyFixture_t;
+
+/* A selected inventory unit carrying one two-charge Tiny Structure item,
+ * standing in cast range of the (64,64) footprint the tests place on. A
+ * non-hero carrier keeps the headless info panel off the hero attribute
+ * frames, which only exist once the HUD FDF is loaded. */
+static buildingTinyFixture_t building_tiny_fixture(cstring_t ability) {
+    static UnitAbilities_t const abilities = { .abilList = "AInv", .heroAbilList = "" };
+    static ItemData_t item_data;
+    buildingTinyFixture_t f;
+
+    setup_test_world();
+    f.rows = parse_slk_string(building_tiny_ability_slk);
+    f.old = G_SetSLKRows("AbilityData", f.rows);
+    f.player = &g_edicts[0]; f.player->client->ps.number = 0;
+    f.hero = alloc_test_unit(MAKEFOURCC('h','f','o','o'), -200.0f, -200.0f);
+    f.hero->data.UnitAbilities = &abilities; f.hero->s.player = 0; f.hero->svflags |= SVF_MONSTER;
+    f.hero->targtype = TARG_GROUND; f.hero->health.value = f.hero->health.max_value = 100;
+    f.hero->think = monster_think; f.hero->stand = unit_stand; f.hero->movetype = MOVETYPE_STEP;
+    f.hero->collision = 16.0f; unit_stand(f.hero); gi.LinkEntity(f.hero);
+    item_data = MAKE(ItemData_t, .abilList = ability, .uses = 2, .perishable = false);
+    f.item = alloc_test_unit(MAKEFOURCC('s','t','w','p'), -200.0f, -200.0f);
+    f.item->s.model = 1; f.item->movetype = MOVETYPE_NONE; f.item->targtype = TARG_ITEM;
+    if (!f.item->item) f.item->item = G_AllocItem();
+    assert(f.item->item);
+    f.item->item->carrier = NULL; f.item->item->inventory_slot = -1; f.item->item->in_world = true;
+    f.item->data.ItemData = &item_data; f.item->item->charges = 2; f.item->spawn_time = 1234;
+    gi.LinkEntity(f.item);
+    T_ASSERT(G_AddItemToSlot(f.hero, f.item, 0));
+    G_SelectEntity(f.player->client, f.hero);
+    return f;
+}
+
+static void building_tiny_restore(buildingTinyFixture_t const *f) {
+    G_SetSLKRows("AbilityData", f->old);
+    free_slk_rows(f->rows);
+}
+
+static edict_t *building_find_tiny_structure(void) {
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','b','a','r')) return ent;
+    return NULL;
+}
+
+static uint32_t building_count_inuse_edicts(void) {
+    uint32_t count = 0;
+    FILTER_EDICTS(ent, ent->inuse) count++;
+    return count;
+}
+
+TEST(wc3_building, tiny_structure_item_spawns_tiny_construction_and_completes_on_authored_duration) {
+    buildingTinyFixture_t f = building_tiny_fixture("AIbl");
+    cstring_t click[] = { "point", "64", "64" };
+    edict_t *building;
+    UnitBalance_t balance;
+
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(f.player->client->menu.on_location_selected);
+    T_EQ(f.player->client->menu.ability_item, f.item);
+    G_ClientCommand(f.player, 3, click);
+
+    building = building_find_tiny_structure();
+    T_NOT_NULL(building);
+    if (!building) { building_tiny_restore(&f); return; }
+    T_EQ(building->s.player, 0);
+    T_NOT_NULL(building->construction);
+    if (!building->construction) { building_tiny_restore(&f); return; }
+    T_EQ(building->construction->type, CONSTRUCTION_TINY);
+    T_FEQ(building->construction->duration_ms, 3000.0f, 0.001f);
+    T_ASSERT(building->build == building);
+    T_ASSERT(building->health.value < building->health.max_value);
+    /* Only a successful A_EXECUTE consumes the item; the targeting state is released with it. */
+    T_EQ(G_ItemCharges(f.item), 1);
+    T_NULL(f.player->client->menu.on_location_selected);
+    T_NULL(f.player->client->menu.ability_item);
+
+    /* The structure's normal build time must not drive the Tiny clock. */
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 100;
+    building->data.UnitBalance = &balance;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = true;
+    level.scriptsStarted = true;
+    FOR_LOOP(frame, 15) globals.RunFrame();
+    T_NOT_NULL(building->construction);
+    if (building->construction) T_FEQ(building->construction->progress, 15.0f * FRAMETIME, 0.001f);
+    FOR_LOOP(frame, 15) globals.RunFrame();
+    T_ASSERT(building->inuse);
+    T_NULL(building->construction);
+    T_NULL(building->build);
+    T_FEQ(building->health.value, building->health.max_value, 0.001f);
+    building->data.UnitBalance = NULL;
+    building_tiny_restore(&f);
+}
+
+TEST(wc3_building, tiny_structure_blocked_footprint_keeps_item_and_leaves_no_structure) {
+    buildingTinyFixture_t f = building_tiny_fixture("AIbl");
+    cstring_t click[] = { "point", "64", "64" };
+    edict_t *blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    uint32_t inuse;
+
+    blocker->svflags |= SVF_MONSTER;
+    blocker->collision = 16.0f;
+    gi.LinkEntity(blocker);
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(f.player->client->menu.on_location_selected);
+    inuse = building_count_inuse_edicts();
+    G_ClientCommand(f.player, 3, click);
+    T_NULL(building_find_tiny_structure());
+    T_EQ(building_count_inuse_edicts(), inuse);
+    T_EQ(G_ItemCharges(f.item), 2);
+    building_tiny_restore(&f);
+}
+
+TEST(wc3_building, tiny_structure_zero_duration_completes_immediately) {
+    buildingTinyFixture_t f = building_tiny_fixture("AIbt");
+    cstring_t click[] = { "point", "64", "64" };
+    edict_t *building;
+
+    G_UseItem(f.hero, 0);
+    G_ClientCommand(f.player, 3, click);
+    building = building_find_tiny_structure();
+    T_NOT_NULL(building);
+    if (building) {
+        T_NULL(building->construction);
+        T_NULL(building->build);
+        T_FEQ(building->health.value, building->health.max_value, 0.001f);
+    }
+    T_EQ(G_ItemCharges(f.item), 1);
+    building_tiny_restore(&f);
+}
+
+/* An unresolvable Tiny cursor (AIbg without UnitID1) must not leave the
+ * client in a half-open target mode where only a dead Cancel button exists. */
+TEST(wc3_building, tiny_structure_without_cursor_adds_no_cancel_button) {
+    buildingTinyFixture_t f = building_tiny_fixture("AIbg");
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+
+    building_commandbar_layouts = 0; building_last_byte = -1;
+    gi.Write = building_layout_capture_write; gi.unicast = building_test_unicast;
+    gi.ImageIndex = building_test_image_index;
+    G_UseItem(f.hero, 0);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_NULL(f.player->client->menu.on_location_selected);
+    T_NULL(f.player->client->menu.ability_item);
+    T_EQ(building_commandbar_layouts, 0);
+    T_EQ(G_ItemCharges(f.item), 2);
+    building_tiny_restore(&f);
+}
+
+/* The info-panel build timer follows the Tiny clock, not the structure's buildTime. */
+TEST(wc3_building, tiny_construction_queue_timer_uses_authored_duration) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *building;
+    UnitBalance_t balance;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+
+    setup_test_world();
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 100;
+    building->data.UnitBalance = &balance;
+    building->s.player = client->ps.number;
+    building->build = building;
+    if (!building->construction) building->construction = G_AllocConstruction();
+    assert(building->construction);
+    building->construction->type = CONSTRUCTION_TINY;
+    building->construction->duration_ms = 9000.0f;
+    building->health.value = building->health.max_value * 0.5f;
+    gi.Write = building_queue_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    building_queue_frame_count = 0;
+    UI_WriteStart(LAYER_INFOPANEL);
+    UI_WriteBuildQueue(building, client);
+    T_EQ(building_queue_frame_count, 1);
+    T_EQ(building_queue_numitems, 1);
+    T_EQ(building_queue_endtime - building_queue_starttime, 9000);
+
+    building->build = NULL;
+    G_FreeConstruction(building);
+    building->data.UnitBalance = NULL;
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
 }
 
 #endif

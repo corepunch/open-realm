@@ -260,7 +260,7 @@ TEST(wc3_spell, creep_regression_incinerate_expiry_dispel_and_source_reuse) {
 }
 
 TEST(wc3_save, creep_disease_status_round_trip_and_source_reuse) {
-    cstring_t filename = "/tmp/openwarcraft3-creep-disease.bin";
+    cstring_t filename = Test_TempPath("creep-disease.bin");
     creepFix_t fix;
     heroabilitystatus_t *slot;
     creep_setup(&fix, &(creepData_t){ .id = "Aap1", .parent = "Aapl", .buffs = "Bapl", .area = 176, .data = {120, 1} });
@@ -279,7 +279,7 @@ TEST(wc3_save, creep_disease_status_round_trip_and_source_reuse) {
 }
 
 TEST(wc3_save, creep_incinerate_mark_and_delayed_explosion_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-creep-incinerate.bin";
+    cstring_t filename = Test_TempPath("creep-incinerate.bin");
     creepFix_t fix;
     edict_t *nearby, *blast = NULL;
     creep_setup(&fix, &(creepData_t){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .data = {2, 30, 120, 15, 240, 0.2f} });
@@ -299,7 +299,7 @@ TEST(wc3_save, creep_incinerate_mark_and_delayed_explosion_round_trip) {
 }
 
 TEST(wc3_save, creep_monsoon_channel_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-creep-monsoon.bin";
+    cstring_t filename = Test_TempPath("creep-monsoon.bin");
     creepFix_t fix;
     edict_t *thinker = NULL;
     creep_setup(&fix, &(creepData_t){ .id = "ANmo", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f} });
@@ -319,7 +319,7 @@ TEST(wc3_save, creep_monsoon_channel_round_trip) {
 }
 
 TEST(wc3_save, creep_web_autocast_landing_and_expiry_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-creep-web.bin";
+    cstring_t filename = Test_TempPath("creep-web.bin");
     creepFix_t fix;
     slkTestData_t *units, *old_units;
     abilityitem_t item;

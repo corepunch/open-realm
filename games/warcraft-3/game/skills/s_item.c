@@ -468,6 +468,250 @@ BZ_ITEM_PROC(AbilityFigurineSkeleton) {
     return true;
 }
 
+/* Item-use recipient: a client's selection, the acquiring unit, or the item carrier. */
+static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
+    if (ent && ent->client) return G_GetMainSelectedUnit(ent->client);
+    if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
+    if (call && call->source_item && G_IsItem(call->source_item)) return call->source_item->item->carrier;
+    return NULL;
+}
+
+/* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.
+ * The authored ability supplies duration, area, target mask and BuffID.  WC3
+ * treats the active speed status as maximum movement speed rather than as a
+ * normal multiplicative haste bonus.  Like Area Healing, a use with valid data
+ * succeeds even when no unit qualifies. */
+static bool item_speed_apply(edict_t *caster, uint32_t code, bool area_effect) {
+    abilityLevel_t const *row = G_AbilityLevel(code, 1);
+    cstring_t buff = row ? row->buffID : NULL;
+
+    if (!caster || !buff || strlen(buff) < 4) return false;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellAllowsAreaTarget(code, caster, target) &&
+                  (area_effect ? Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area : target == caster)) {
+        float const duration = S_SpellHeroDuration(code, 1, target);
+        heroabilitystatus_t *status = duration > 0.0f ? S_SpellApplyTimedTargetStatus(target, code, 1, buff, duration) : NULL;
+        if (status) status->data = code;
+    }
+    return true;
+}
+
+/* Item Area Healing (AIha): use the acquiring unit as the AoE origin, including
+ * when activated by a world powerup without an inventory slot.  All recipients
+ * use the authored ability target mask and heal independently.  Full-health
+ * recipients do not prevent a rune from being consumed. */
+BZ_ABILITY_PROC(CAbilityItemHealAoe) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    float amount, area;
+    uint32_t code;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row) return false;
+    amount = S_SpellData(code, 1, 1); /* DataA / Hit Points Gained */
+    area = row->area;
+    if (!(amount > 0.0f) || !(area >= 0.0f)) return false;
+
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 S_SpellIsFriend(caster, target) &&
+                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+        if (target->health.value >= target->health.max_value) continue;
+        S_SpellHeal(target, amount);
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    }
+    return true;
+}
+
+/* TFT Mana Runes (AImr / APmr / APmg): restore the authored DataA
+ * amount to each eligible friendly unit within the authored Area. Use the
+ * actual picker as origin; full-mana groups still consume the powerup. */
+BZ_ABILITY_PROC(CAbilityItemManaAoe) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    uint32_t code;
+    float amount, area;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row) return false;
+    amount = S_SpellData(code, 1, 1); /* DataA / Mana Gained */
+    area = row->area;
+    if (!(amount > 0.0f) || !(area >= 0.0f)) return false;
+
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 S_SpellIsFriend(caster, target) &&
+                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+        if (target->mana.value >= target->mana.max_value) continue;
+        target->mana.value = MIN(target->mana.max_value, target->mana.value + amount);
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    }
+    return true;
+}
+
+/* Rune of Shielding (ANse): a one-use, untimed BNss protection per eligible
+ * ally. Stock zero Dur is intentional: only an incoming block or dispel
+ * removes it. Re-pickup does not stack charges or create an expiry timer. */
+BZ_ABILITY_PROC(CAbilitySpellShieldAoe) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    cstring_t buff;
+    uint32_t code;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    buff = row ? row->buffID : NULL;
+    if (!caster || !row || !buff || strlen(buff) < 4 || row->area < 0.0f) return false;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
+        if (G_UnitStatusLevel(target, FS_SLKKey(buff))) continue;
+        /* TargetArt is one-shot presentation; BNss owns persistent game state. */
+        S_SpellApplyTimedTargetStatus(target, code, 1, buff, 0.0f);
+    }
+    return true; /* Powerups consume even if all eligible allies already have shields. */
+}
+
+/* TFT Resurrection Runes (APrl / APrr): DataA is the maximum number of
+ * nearby friendly ordinary corpses to restore and Area is the search radius.
+ * Match the shared Resurrection spell's corpse policy: Heroes keep their altar
+ * revival lifecycle, structures are not eligible, and higher-level corpses are
+ * preferred before lower-level corpses with distance breaking equal-level ties.
+ * With no eligible corpse, report the failed use and leave the rune in-world. */
+static bool item_resurrection_preferred(edict_t const *candidate, edict_t const *current, edict_t const *caster) {
+    int32_t candidate_level, current_level;
+
+    if (!current) return true;
+    candidate_level = G_CorpseUnitLevel(candidate);
+    current_level = G_CorpseUnitLevel(current);
+    if (candidate_level != current_level) return candidate_level > current_level;
+    return Vector2_distance(&candidate->s.origin2, &caster->s.origin2) <
+           Vector2_distance(&current->s.origin2, &caster->s.origin2);
+}
+
+BZ_ABILITY_PROC(CAbilityItemResurrection) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    uint32_t code, count = 0, limit;
+    bool raised_invulnerable;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row || !(row->area >= 0.0f)) return false;
+    limit = (uint32_t)MAX(0.0f, S_SpellData(code, 1, 1)); /* DataA / Number of Corpses Raised */
+    raised_invulnerable = S_SpellData(code, 1, 2) != 0.0f; /* DataB / Raised Units Are Invulnerable */
+
+    while (count < limit) {
+        edict_t *selected = NULL;
+        FILTER_EDICTS(target, G_UnitIsRaisableCorpse(target) && !G_UnitIsHero(target) &&
+                     !G_UnitIsStructure(target) && S_SpellIsFriend(caster, target) &&
+                     Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
+            if (item_resurrection_preferred(target, selected, caster)) selected = target;
+        }
+        if (!selected) {
+            if (!count) {
+                G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
+                                      "Cantfindfriendlycorpse", "There are no corpses of friendly units nearby.");
+                return false;
+            }
+            break;
+        }
+        G_ReviveCorpse(selected, 1.0f);
+        if (raised_invulnerable) selected->invulnerable = true;
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, selected, NULL, true);
+        count++;
+    }
+    return true;
+}
+
+/* Chest of Gold / Gold Coins. DataA is the authored gold grant; a powerup
+ * executes on its actual picker rather than on a local client's selection.
+ * Resource pickups grant their full amount and do not pass through the
+ * worker-harvesting upkeep tax calculation. */
+BZ_ABILITY_PROC(CAbilityItemGold) {
+    edict_t *caster;
+    gameClient_t *owner;
+    float amount;
+    uint32_t balance, credited;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    if (!owner) return false;
+    amount = S_SpellData(call->item->code, 1, 1); /* DataA / Gold Given */
+    if (!(amount > 0.0f)) return false;
+    balance = owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+    credited = (uint32_t)MIN((double)amount, (double)(USHRT_MAX - balance));
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)(balance + credited);
+    if (credited) G_ResourceGainEvent(caster, PLAYERSTATE_RESOURCE_GOLD, (int32_t)credited);
+    return true;
+}
+
+/* Bundle of Lumber (AIlu): DataA is a direct resource change, not
+ * harvested income, so upkeep does not reduce it. Custom maps can author
+ * negative lumber values; clamp both ends of the player resource range. */
+BZ_ABILITY_PROC(CAbilityItemLumber) {
+    edict_t *caster;
+    gameClient_t *owner;
+    float amount;
+    uint32_t balance, result;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    if (!owner) return false;
+    amount = S_SpellData(call->item->code, 1, 1); /* DataA / Lumber Given */
+    if (isnan(amount)) return false;
+    balance = owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+    result = (uint32_t)MAX(0.0, MIN((double)USHRT_MAX, (double)balance + (double)amount));
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)result;
+    if (result > balance) G_ResourceGainEvent(caster, PLAYERSTATE_RESOURCE_LUMBER, (int32_t)(result - balance));
+    return true;
+}
+
+BZ_ABILITY_PROC(CAbilityItemSpeed) {
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    return item_speed_apply(item_use_caster(ent, call), call->item->code, false);
+}
+
+BZ_ABILITY_PROC(CAbilityItemSpeedAoe) {
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    return item_speed_apply(item_use_caster(ent, call), call->item->code, true);
+}
+
+bool S_ItemSpeedActive(edict_t const *unit) {
+    if (!unit || !unit->abilstatus) return false;
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t const *status = unit->abilstatus + i;
+        ability_t const *ability = status->level && status->data ? S_AbilityItem(status->data).ability : NULL;
+        if (ability && (ability->proc == CAbilityItemSpeed || ability->proc == CAbilityItemSpeedAoe)) return true;
+    }
+    return false;
+}
+
+/* Quake's itemlist decides what a touch picks up; here the AB_POWERUP row
+ * flag decides which item abilities are consumed on pickup. */
+abilityitem_t S_ItemPowerup(edict_t const *unit, edict_t const *item) {
+    cstring_t abilities = unit && G_IsItem(item) && item->data.ItemData && item->data.ItemData->powerup &&
+        item->data.ItemData->usable && G_InventoryCanUseItems(unit) ? G_ItemAbilityList(item) : NULL;
+    if (!abilities) return MAKE(abilityitem_t, 0);
+    PARSE_LIST(abilities, ability_name, parse_segment) {
+        abilityitem_t const powerup = S_AbilityItem(FS_SLKKey(ability_name));
+        if (powerup.ability && powerup.ability->flags & AB_POWERUP) return powerup;
+    }
+    return MAKE(abilityitem_t, 0);
+}
+
 /* Scroll of Protection / item defense AOE (AIda). Warcraft data carries the
  * defense amount in DataA, radius in Area, duration in Dur/HeroDur and the
  * visible status rawcode in BuffID. Keep the item itself as a thin ability
@@ -515,5 +759,63 @@ BZ_ITEM_PROC(AbilityItemChangeTOD) {
         return false;
     }
     G_SetFalseTimeOfDay(hour, minute, duration);
+    return true;
+}
+
+/* Stock Build Tiny abilities share the ordinary point-targeted item pipeline.
+ * Unlike worker construction, these items do not charge the building cost or
+ * install a builder.  The successful A_EXECUTE result lets the inventory
+ * caller consume the item only after a building has been created. */
+uint32_t S_TinyStructureUnitId(edict_t const *caster, uint32_t code, uint32_t level) {
+    uint32_t id = S_SpellUnitId(code, level);
+    bool overridden = G_AbilityHasUnitIdOverride(code);
+    /* Only the stock AIbg endpoint is race-dependent. The stock AbilityData
+     * row names the Human Town Hall; expand only that authored endpoint by
+     * owner race. Explicit W3A UnitID overrides remain exact.
+     * AIbl and every other Tiny Structure use their authored UnitID directly. */
+    if (code == MAKEFOURCC('A','I','b','g') && caster &&
+        !overridden &&
+        id == MAKEFOURCC('h','t','o','w')) {
+        gameClient_t const *owner = G_GetPlayerClientByNumber(caster->s.player);
+        if (owner) switch (owner->ps.race) {
+        case kPlayerRaceHuman: id = MAKEFOURCC('h','t','o','w'); break;
+        case kPlayerRaceUndead: id = MAKEFOURCC('u','n','p','l'); break;
+        case kPlayerRaceNightElf: id = MAKEFOURCC('e','t','o','l'); break;
+        case kPlayerRaceOrc: id = MAKEFOURCC('o','g','r','e'); break;
+        default: break;
+        }
+    }
+    return id;
+}
+
+BZ_ABILITY_PROC(CAbilityTinyStructure) {
+    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t level = code ? MAX(1u, S_SpellLevel(ent, code)) : 0;
+    uint32_t unit_id = code ? S_TinyStructureUnitId(ent, code, level) : 0;
+    vec2_t snapped;
+    if (msg != A_VALIDATE && msg != A_EXECUTE)
+        return CAbilitySimpleSpell(ent, msg, call);
+    if (!ent || !call || !call->target ||
+        call->target->type != SPELL_TARGET_POINT || !unit_id ||
+        !G_UnitIsBuilding(unit_id) || M_IsDead(ent) ||
+        G_EvaluateBuildPlacement(ent, unit_id, &call->target->point, &snapped) != PLACE_OK)
+        return false;
+    if (msg == A_VALIDATE) return true;
+    edict_t *building = SP_SpawnAtLocation(unit_id, ent->s.player, &snapped);
+    if (!building) return false;
+    /* A displacement failure is a failed cast: do not consume the item or
+     * leave a newly spawned, blocking structure behind. */
+    if (!G_DisplaceBuildOccupants(ent, building)) {
+        G_FreeEdict(building);
+        return false;
+    }
+    if (!G_StartTinyConstruction(ent, building, S_SpellDuration(code, level, false))) {
+        G_FreeEdict(building);
+        return false;
+    }
+    G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    if (building->inuse && building->construction &&
+        S_SpellDuration(code, level, false) <= 0.0f)
+        G_CompleteConstruction(building);
     return true;
 }

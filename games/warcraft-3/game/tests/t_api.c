@@ -282,7 +282,7 @@ TEST(wc3_api, pathfinding_compiled_literals_match_retail_words) {
 
 /* Save/load reconstructs source tokens and retains both stored words and future evaluations. */
 TEST(wc3_api, pathfinding_compiled_literals_survive_save_load) {
-    cstring_t path = "/tmp/openwarcraft3-wc3-compiled-literals-save.bin";
+    cstring_t path = Test_TempPath("openwarcraft3-wc3-compiled-literals-save.bin");
     reset_entities();
     setup_test_world();
     T_ASSERT(run_test_jass(
@@ -407,7 +407,7 @@ TEST(wc3_api, pathfinding_compiled_integer_literals_match_retail_words) {
 
 /* Source integer conversion reaches Move and remains live after source-token reconstruction. */
 TEST(wc3_api, pathfinding_compiled_integer_move_survives_save_load) {
-    cstring_t path = "/tmp/openwarcraft3-wc3-compiled-integer-save.bin";
+    cstring_t path = Test_TempPath("openwarcraft3-wc3-compiled-integer-save.bin");
     reset_entities();
     setup_test_world();
     T_ASSERT(run_test_jass(
@@ -896,6 +896,52 @@ TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
     G_RunEvents();
     jass_runevents(level.vm);
     T_FEQ(unit->health.value, 75.0f, 0.001f);
+}
+
+TEST(wc3_api, zero_life_writes_run_unit_death_lifecycle) {
+    edict_t *units[2] = { NULL, NULL };
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit stateUnit = null\n"
+        "  unit widgetUnit = null\n"
+        "  integer deaths = 0\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  set deaths = deaths + 1\n"
+        "endfunction\n"
+        "function verifyDeathCount takes nothing returns nothing\n"
+        "  call BJassAssert(deaths == 2, \"zero-life writes should publish both player death events\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set stateUnit = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  set widgetUnit = CreateUnit(Player(0), 'hfoo', 128.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "  call SetUnitState(stateUnit, ConvertUnitState(0), 0.0)\n"
+        "  call SetWidgetLife(widgetUnit, 0.0)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *unit = globals.edicts + i;
+        if (!unit->inuse || unit->class_id != MAKEFOURCC('h','f','o','o') || unit->s.player != 0) continue;
+        if (!units[0]) units[0] = unit;
+        else if (!units[1]) units[1] = unit;
+    }
+    T_NOT_NULL(units[0]);
+    T_NOT_NULL(units[1]);
+    if (!units[0] || !units[1]) return;
+    T_ASSERT(units[0]->svflags & SVF_DEADMONSTER);
+    T_ASSERT(units[1]->svflags & SVF_DEADMONSTER);
+
+    level.started = level.scriptsStarted = true;
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyDeathCount", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 TEST(wc3_api, unit_life_limit_event_queue_saturation_does_not_crash) {
@@ -1615,6 +1661,34 @@ TEST(wc3_api, leaderboard_display_uses_client_slot_for_mapped_player) {
     T_ASSERT(!G_IsLeaderboardDisplayed(board, &game.clients[0].ps));
 }
 
+TEST(wc3_api, leaderboard_changes_dirty_stacked_multiboard_for_assigned_client) {
+    leaderboard_t *board;
+    uint32_t const client_bit = 1u << 1;
+
+    setup_test_world();
+    game.clients[0].ps.number = 1;
+    game.clients[1].ps.number = 0;
+    board = G_AllocLeaderboard();
+    T_NOT_NULL(board);
+
+    G_SetPlayerLeaderboard(0, board);
+    T_ASSERT(level.multiboard_dirty_clients & client_bit);
+
+    level.multiboard_dirty_clients = 0;
+    G_MarkLeaderboardDirty(board);
+    T_ASSERT(level.multiboard_dirty_clients & client_bit);
+    T_ASSERT(!(level.multiboard_dirty_clients & 1u));
+
+    level.multiboard_dirty_clients = 0;
+    G_SetLeaderboardDisplayed(board, &game.clients[1].ps, true);
+    T_ASSERT(level.multiboard_dirty_clients & client_bit);
+
+    level.multiboard_dirty_clients = 0;
+    G_FreeLeaderboard(board);
+    T_ASSERT(level.multiboard_dirty_clients & client_bit);
+    T_EQ(level.player_leaderboards[0], -1);
+}
+
 TEST(wc3_api, version_queries_accept_typed_handles) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -1905,7 +1979,8 @@ static cstring_t campaign_progress_roc_cvar(cstring_t name, cstring_t fallback) 
     return !strcmp(name, "fs_expansion") ? "0" : fallback;
 }
 
-static char campaign_progress_test_path[] = "campaign-progress-native-test.orcp";
+/* Per-process: concurrent suites in one checkout must not share the progress file or its .tmp/.bak siblings. */
+#define campaign_progress_test_path Test_TempPath("campaign-progress-native-test.orcp")
 
 static void campaign_progress_test_user_path(cstring_t rel, string_t out, uint32_t out_size) {
     (void)rel;
@@ -2404,6 +2479,27 @@ TEST(wc3_api, camera_noise_is_evaluated_by_the_game_into_view_offsets) {
     G_RunClients();
     T_FEQ(Vector3_len(&gc->ps.viewoffset), 0.0f, 0.001f);
     T_FEQ(Vector3_len(&gc->ps.eyeoffset), 0.0f, 0.001f);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, reset_to_game_camera_clears_source_and_target_noise) {
+    gameClient_t *gc = &game.clients[0];
+
+    setup_test_world();
+    gc->ps.number = 0;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CameraSetTargetNoiseEx(12.0, 4.0, true)\n"
+        "  call CameraSetSourceNoiseEx(56.0, 7.0, false)\n"
+        "  call ResetToGameCamera(0.0)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(slot, CAMERA_NOISE_COUNT) {
+        T_FEQ(gc->camera.noise[slot].magnitude, 0.0f, 0.001f);
+        T_FEQ(gc->camera.noise[slot].velocity, 0.0f, 0.001f);
+        T_ASSERT(!gc->camera.noise[slot].vert_only);
+    }
     currentplayer = NULL;
 }
 
@@ -2996,7 +3092,7 @@ TEST(wc3_api, fog_modifier_save_restores_aliases_stopped_and_unreferenced_active
         "endfunction\n"));
     uint32_t index=test_fow_cell(0,0); G_FowUpdate();
     T_EQ(level.fow.players[0].visible[index],0); T_EQ(level.fow.players[0].explored[index],1);
-    cstring_t file="/tmp/wc3-fog166-registry.bin";
+    cstring_t file=Test_TempPath("wc3-fog166-registry.bin");
     T_ASSERT(WriteGame(file));
     jass_callbyname(level.vm,"verify",false);G_FowUpdate();
     T_EQ(level.fow.players[0].visible[index],1);
@@ -3519,7 +3615,7 @@ TEST(wc3_api, terrain_pathing_natives_preserve_other_bits_and_cells) {
 }
 
 TEST(wc3_api, terrain_pathing_natives_survive_save_and_restore_blight) {
-    cstring_t filename = "/tmp/openwarcraft3-terrain-pathing-save.bin";
+    cstring_t filename = Test_TempPath("openwarcraft3-terrain-pathing-save.bin");
     uint8_t cells[16*16] = {0}, flags = 0;
     vec2_t point = {144,176}, neighbor = {176,176};
     reset_entities(); setup_test_world();
@@ -4925,7 +5021,7 @@ TEST(wc3_api, issued_order_context_is_frozen_across_replacement_and_reentry) {
 }
 
 TEST(wc3_api, current_order_point_move_tracks_active_head_through_server_frames) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-current-order-point-save-test.bin";
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-current-order-point-save-test.bin");
     setup_test_world();
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -5016,7 +5112,7 @@ TEST(wc3_api, current_order_point_move_tracks_active_head_through_server_frames)
 }
 
 TEST(wc3_api, current_order_follow_tracks_active_head_through_server_frames) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-current-order-follow-save-test.bin";
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-current-order-follow-save-test.bin");
     setup_test_world();
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -5161,7 +5257,7 @@ TEST(wc3_api, current_order_follow_tracks_active_head_through_server_frames) {
 }
 
 TEST(wc3_api, current_order_repair_native_frames_queue_save_death_and_reuse) {
-    cstring_t filename = "/tmp/wc3-repair122-save.bin";
+    cstring_t filename = Test_TempPath("wc3-repair122-save.bin");
     slkTestData_t *rows, *old = building_install_repair_data(&rows);
     reset_entities(); setup_test_world();
     T_ASSERT(run_test_jass(
@@ -5256,7 +5352,7 @@ TEST(wc3_api, current_order_repair_native_frames_queue_save_death_and_reuse) {
 
 TEST(wc3_api, current_order_hold_is_retired_while_behavior_persists) {
     static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
-    cstring_t filename = "/tmp/openwarcraft3-wc3-current-order-hold-save-test.bin";
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-current-order-hold-save-test.bin");
     setup_test_world();
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -5402,7 +5498,7 @@ TEST(wc3_api, current_order_follow_target_removal_is_synchronous) {
 }
 
 TEST(wc3_api, current_order_patrol_owns_native_reversal_and_pending_activation) {
-    char const *filename = "/tmp/openwarcraft3-wc3-current-order-patrol-save-test.bin";
+    char const *filename = Test_TempPath("openwarcraft3-wc3-current-order-patrol-save-test.bin");
     setup_test_world();
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -6542,8 +6638,27 @@ TEST(wc3_api, customize_entity_marks_shared_control_hover_relation_friendly) {
 
     globals.CustomizeEntity(0, &ent, &state);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_ASSERT(state.flags & EF_ALLIED);
     T_ASSERT(!(state.flags & EF_HOSTILE));
     T_ASSERT(!(state.flags & EF_NEUTRAL));
+}
+
+TEST(wc3_api, customize_entity_marks_passive_allies_separately_from_neutrals) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 1 } };
+    ent.health.value = 100.0f;
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_ALLIED);
+    T_ASSERT(state.flags & EF_NEUTRAL);
+    T_ASSERT(!(state.flags & EF_HOSTILE));
+
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, false);
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(!(state.flags & EF_ALLIED));
+    T_ASSERT(!(state.flags & EF_NEUTRAL));
+    T_ASSERT(state.flags & EF_HOSTILE);
 }
 
 TEST(wc3_api, selection_relation_matches_enemy_neutral_and_shared_control) {
@@ -6801,6 +6916,147 @@ TEST(wc3_api, multiselect_order_matches_warsmash_priority_level_and_rawcode) {
     T_ASSERT(G_GetMainSelectedUnit(client) == higher_priority);
 }
 
+/* Selection policy tests use the same CVar callback as gameplay. */
+static cstring_t selection_limit_test_value;
+static cstring_t (*selection_limit_original_cvar)(cstring_t, cstring_t);
+static cstring_t selection_limit_test_cvar(cstring_t name, cstring_t fallback) {
+    if (!strcmp(name, "wc3_selection_limit")) return selection_limit_test_value;
+    return selection_limit_original_cvar ? selection_limit_original_cvar(name, fallback) : fallback;
+}
+
+TEST(wc3_api, selection_limit_defaults_to_24_and_accepts_only_classic_12) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    selection_limit_original_cvar = old_cvar;
+    gi.CvarString = selection_limit_test_cvar;
+    selection_limit_test_value = "24";
+    T_EQ(G_SelectionLimit(), 24);
+    selection_limit_test_value = "12";
+    T_EQ(G_SelectionLimit(), 12);
+    selection_limit_test_value = "garbage";
+    T_EQ(G_SelectionLimit(), 24);
+    selection_limit_test_value = "0";
+    T_EQ(G_SelectionLimit(), 24);
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_api, selection_limit_direct_insert_and_runtime_reduction) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *client = &game.clients[0];
+    edict_t *units[25];
+    selection_limit_original_cvar = old_cvar;
+    selection_limit_test_value = "24";
+    gi.CvarString = selection_limit_test_cvar;
+    client->ps.number = 0;
+    FOR_LOOP(i, 25) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)i * 32.0f, 0);
+        units[i]->s.player = 0;
+        units[i]->svflags |= SVF_MONSTER;
+        G_SelectEntity(client, units[i]);
+    }
+    edict_t *ordered[25];
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, 25), 24);
+    T_ASSERT(!G_IsEntitySelected(client, units[24]));
+
+    /* The periodic validation pass must remove extra authoritative members. */
+    selection_limit_test_value = "12";
+    G_UpdateClientSelections();
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, 25), 12);
+    T_ASSERT(!G_IsEntitySelected(client, units[12]));
+    G_SelectEntity(client, units[24]);
+    T_ASSERT(!G_IsEntitySelected(client, units[24]));
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_api, selection_limit_warns_once_for_unsupported_values) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    FILE *capture = tmpfile();
+    int saved_stderr = dup(STDERR_FILENO);
+    char diagnostic[1024] = { 0 };
+    uint32_t warnings = 0;
+
+    T_NOT_NULL(capture);
+    T_ASSERT(saved_stderr >= 0);
+    if (!capture || saved_stderr < 0) {
+        if (capture) fclose(capture);
+        if (saved_stderr >= 0) close(saved_stderr);
+        return;
+    }
+    selection_limit_original_cvar = old_cvar;
+    selection_limit_test_value = "18";
+    gi.CvarString = selection_limit_test_cvar;
+
+    fflush(stderr);
+    T_EQ(dup2(fileno(capture), STDERR_FILENO), STDERR_FILENO);
+    /* An unsupported value still resolves to the Reforged default, but the
+     * substitution is reported once instead of silently every frame. */
+    T_EQ(G_SelectionLimit(), 24);
+    T_EQ(G_SelectionLimit(), 24);
+    selection_limit_test_value = "12";
+    T_EQ(G_SelectionLimit(), 12);
+    fflush(stderr);
+    T_EQ(dup2(saved_stderr, STDERR_FILENO), STDERR_FILENO);
+    close(saved_stderr);
+    rewind(capture);
+    (void)fread(diagnostic, 1, sizeof(diagnostic) - 1, capture);
+    fclose(capture);
+    gi.CvarString = old_cvar;
+
+    for (cstring_t hit = diagnostic; (hit = strstr(hit, "wc3_selection_limit")) != NULL; hit++) warnings++;
+    T_EQ(warnings, 1);
+    T_ASSERT(strstr(diagnostic, "18") != NULL);
+}
+
+TEST(wc3_api, selection_limit_reduction_keeps_highest_priority_units) {
+    static UnitData_t hero_data, grunt_data;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *client = &game.clients[0];
+    bool const started = level.started, scripts_started = level.scriptsStarted;
+    edict_t *units[WC3_SELECTION_MAX];
+    edict_t *ordered[WC3_SELECTION_MAX];
+    edict_t *hero;
+
+    reset_entities(); setup_test_world();
+    /* The real frame scheduler runs script events, so give it a live VM. */
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    selection_limit_original_cvar = old_cvar;
+    selection_limit_test_value = "24";
+    gi.CvarString = selection_limit_test_cvar;
+    client->ps.number = 0;
+    /* The Hero takes the highest edict index so an index-ordered trim would
+     * drop it first; Warcraft keeps the highest selection priority instead. */
+    FOR_LOOP(i, WC3_SELECTION_MAX - 1) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)i * 32.0f, 0);
+        T_NOT_NULL(units[i]->data.UnitData);
+        grunt_data = *units[i]->data.UnitData;
+        grunt_data.priority = 1;
+        units[i]->data.UnitData = &grunt_data;
+    }
+    hero = units[WC3_SELECTION_MAX - 1] = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 64.0f);
+    T_NOT_NULL(hero->data.UnitData);
+    hero_data = *hero->data.UnitData;
+    hero_data.priority = 6;
+    hero->data.UnitData = &hero_data;
+    FOR_LOOP(i, WC3_SELECTION_MAX) {
+        units[i]->s.player = 0;
+        units[i]->svflags |= SVF_MONSTER;
+        G_SelectEntity(client, units[i]);
+    }
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, WC3_SELECTION_MAX), WC3_SELECTION_MAX);
+    T_ASSERT(ordered[0] == hero);
+
+    /* Lower the cap mid-game and let the real frame scheduler trim it. */
+    selection_limit_test_value = "12";
+    level.started = true; level.scriptsStarted = true;
+    globals.RunFrame();
+    level.started = started; level.scriptsStarted = scripts_started;
+
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, WC3_SELECTION_MAX), 12);
+    T_ASSERT(G_IsEntitySelected(client, hero));
+    T_ASSERT(ordered[0] == hero);
+    T_ASSERT(!G_IsEntitySelected(client, units[WC3_SELECTION_MAX - 2]));
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_api, selection_revalidation_clears_hidden_raw_selection_bit) {
     gameClient_t *client = &game.clients[0];
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -6838,6 +7094,98 @@ TEST(wc3_api, control_is_separate_from_selection_and_honors_shared_control) {
 
     G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_SHARED_CONTROL, true);
     T_ASSERT(G_UnitCanControl(client, &neutral));
+}
+
+TEST(wc3_api, advanced_shared_control_limits_resource_spending) {
+    gameClient_t *client = &game.clients[0];
+    edict_t own = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 0 } };
+    edict_t ally = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 1 } };
+    edict_t enemy = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 2 } };
+    uint32_t saved_forward = level.alliances[0][1];
+    uint32_t saved_reverse = level.alliances[1][0];
+    uint32_t saved_enemy = level.alliances[0][2];
+    uint32_t saved_client_number = client->ps.number;
+    own.health.value = ally.health.value = enemy.health.value = 100.0f;
+    client->ps.number = 0;
+
+    /* Explicitly establish the fixture, regardless of earlier test state. */
+    level.alliances[0][1] = 0;
+    level.alliances[1][0] = 0;
+    level.alliances[0][2] = 0;
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, false);
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    T_ASSERT(G_UnitCanSpendResources(client, &own));
+    T_ASSERT(!G_UnitCanControl(client, &ally));
+    T_ASSERT(!G_UnitCanSpendResources(client, &ally));
+    T_ASSERT(!G_UnitCanSpendResources(client, &enemy));
+
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, true);
+    T_ASSERT(G_UnitCanControl(client, &ally));
+    T_ASSERT(!G_UnitCanSpendResources(client, &ally));
+
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_ADVANCED_CONTROL, true);
+    T_ASSERT(G_UnitCanControl(client, &ally));
+    T_ASSERT(G_UnitCanSpendResources(client, &ally));
+
+    /* Advanced permission also grants ordinary orders on its own. */
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, false);
+    T_ASSERT(G_UnitCanControl(client, &ally));
+    T_ASSERT(G_UnitCanSpendResources(client, &ally));
+    T_EQ(G_SelectionRelation(0, &ally), SELECT_RELATION_FRIEND);
+
+    /* Sharing is directional; never accept the reverse grant. */
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    G_SetPlayerAlliance(test_player(1), test_player(0), ALLIANCE_SHARED_ADVANCED_CONTROL, true);
+    T_ASSERT(!G_UnitCanControl(client, &ally));
+    T_ASSERT(!G_UnitCanSpendResources(client, &ally));
+    G_SetPlayerAlliance(test_player(1), test_player(0), ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    /* A hostile owner stays unauthorized even with an advanced sharing bit. */
+    G_SetPlayerAlliance(test_player(0), test_player(2), ALLIANCE_SHARED_ADVANCED_CONTROL, true);
+    T_ASSERT(!G_UnitCanSpendResources(client, &enemy));
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, false);
+    level.alliances[0][1] = saved_forward;
+    level.alliances[1][0] = saved_reverse;
+    level.alliances[0][2] = saved_enemy;
+    client->ps.number = saved_client_number;
+    G_InvalidateAllUnitShortcuts();
+}
+
+/* Team Resources uses the same directional control grants as allied
+ * resource spending, but must not disclose an enemy's economy or show basic
+ * shared-control teammates.  Preserve the global alliance fixture. */
+TEST(wc3_api, team_resources_eligibility_requires_advanced_ally) {
+    uint32_t const forward = level.alliances[0][1];
+    uint32_t const reverse = level.alliances[1][0];
+    uint32_t const hostile = level.alliances[0][2];
+    uint32_t const neutral = level.alliances[0][PLAYER_NEUTRAL_AGGRESSIVE];
+
+    level.alliances[0][1] = 0;
+    level.alliances[1][0] = 0;
+    level.alliances[0][2] = 0;
+    level.alliances[0][PLAYER_NEUTRAL_AGGRESSIVE] = 0;
+    T_ASSERT(!G_CanViewTeamResources(0, 0));
+    T_ASSERT(!G_CanViewTeamResources(0, 1));
+    T_ASSERT(!G_CanViewTeamResources(MAX_PLAYERS, 1));
+    T_ASSERT(!G_CanViewTeamResources(0, MAX_PLAYERS));
+    T_ASSERT(!G_CanViewTeamResources(0, PLAYER_NEUTRAL_AGGRESSIVE));
+
+    level.alliances[0][1] = (1u << ALLIANCE_PASSIVE) |
+                            (1u << ALLIANCE_SHARED_CONTROL);
+    T_ASSERT(!G_CanViewTeamResources(0, 1));
+    level.alliances[0][1] |= 1u << ALLIANCE_SHARED_ADVANCED_CONTROL;
+    T_ASSERT(G_CanViewTeamResources(0, 1));
+    T_ASSERT(!G_CanViewTeamResources(1, 0));
+    /* An advanced control grant alone cannot turn a hostile owner into an ally. */
+    level.alliances[0][2] = 1u << ALLIANCE_SHARED_ADVANCED_CONTROL;
+    T_ASSERT(!G_CanViewTeamResources(0, 2));
+    level.alliances[0][1] &= ~(1u << ALLIANCE_PASSIVE);
+    T_ASSERT(!G_CanViewTeamResources(0, 1));
+
+    level.alliances[0][1] = forward;
+    level.alliances[1][0] = reverse;
+    level.alliances[0][2] = hostile;
+    level.alliances[0][PLAYER_NEUTRAL_AGGRESSIVE] = neutral;
 }
 
 TEST(wc3_api, customize_entity_rejects_non_unit_hover_health) {
@@ -7118,6 +7466,30 @@ TEST(wc3_api, hero_xp_map_main_uses_normal_progression) {
         "  call SetHeroXP(h, 100, false)\n"
         "  call BJassAssert(GetHeroXP(h) == 500, \"SetHeroXP lowered XP\")\n"
         "  call BJassAssert(GetHeroLevel(h) == 3, \"SetHeroXP lowered Hero level\")\n"
+        "endfunction\n"
+    ));
+}
+
+TEST(wc3_api, hero_strip_levels_jass_and_blizzard_level_wrapper) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit h = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 128.0, 0.0, 0.0)\n"
+        "  call BJassAssert(not UnitStripHeroLevel(u, 1), \"non-Hero can lose levels\")\n"
+        "  call BJassAssert(not UnitStripHeroLevel(h, 0), \"zero levels should fail\")\n"
+        "  call BJassAssert(not UnitStripHeroLevel(h, -1), \"negative levels should fail\")\n"
+        "  call SetHeroLevel(h, 4, false)\n"
+        "  call BJassAssert(GetHeroLevel(h) == 4, \"SetHeroLevel did not raise level\")\n"
+        "  call BJassAssert(UnitStripHeroLevel(h, 2), \"failed to strip two levels\")\n"
+        "  call BJassAssert(GetHeroLevel(h) == 2, \"wrong level after strip\")\n"
+        "  call BJassAssert(GetHeroXP(h) == 200, \"XP threshold after strip incorrect\")\n"
+        "  call SetHeroLevelBJ(h, 1, false)\n"
+        "  call BJassAssert(GetHeroLevel(h) == 1, \"BJ wrapper did not lower level\")\n"
+        "  call BJassAssert(not UnitStripHeroLevel(h, 99), \"level-1 Hero lost a level\")\n"
+        "  call SetHeroLevelBJ(h, 3, false)\n"
+        "  call BJassAssert(GetHeroLevel(h) == 3, \"BJ wrapper did not raise level\")\n"
+        "  call SetHeroLevelBJ(h, -100, false)\n"
+        "  call BJassAssert(GetHeroLevel(h) == 1, \"BJ wrapper did not clamp to level 1\")\n"
         "endfunction\n"
     ));
 }
@@ -8022,7 +8394,7 @@ TEST(wc3_api, random_natives_match_original_owner_words) {
 }
 
 TEST(wc3_api, random_owner_continues_identically_after_save) {
-    cstring_t file="/tmp/openwarcraft3-random-owner-save.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-random-owner-save.bin");
     uint32_t expected[2];
     reset_entities(); setup_test_world(); G_ClearHashtableRegistry();
     T_ASSERT(run_test_jass(
@@ -8608,8 +8980,8 @@ TEST(wc3_api, campaign_progress_natives_persist_stock_bj_unlocks) {
     wc3CampaignProgressKey_t mission_key;
 
     remove(campaign_progress_test_path);
-    remove("campaign-progress-native-test.orcp.tmp");
-    remove("campaign-progress-native-test.orcp.bak");
+    remove(Test_TempPath("campaign-progress-native-test.orcp.tmp"));
+    remove(Test_TempPath("campaign-progress-native-test.orcp.bak"));
     gi.UserPath = campaign_progress_test_user_path;
     gi.CvarString = campaign_progress_roc_cvar;
     level.campaign_select_on_end = false;
@@ -9336,6 +9708,14 @@ TEST(wc3_api, campaign_stub_natives_accept_calls_without_crash) {
         "endfunction\n"));
 }
 
+TEST(wc3_api, preload_refresh_boundaries_are_registered) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PreloadRefresh()\n"
+        "  call PreloadEndEx()\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_api, issue_418_campaign_natives_are_registered) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -9886,6 +10266,32 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     state.renderfx = 0;
     globals.CustomizeEntity(0, &ent, &state);
     T_NE(state.name, 0);
+}
+
+/* Missing Warcraft natives must execute through the production JASS dispatcher. */
+TEST(wc3_api, alarm_and_ai_native_registration) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(not UnitIgnoreAlarmToggled(null), \"null alarm state\")\n"
+        "  call BJassAssert(not UnitIgnoreAlarm(null, true), \"invalid alarm unit\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, captain_ai_natives_accept_null_script_player) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetAmphibious()\n"
+        "  call DisablePathing()\n"
+        "  call TeleportCaptain(1.0, 2.0)\n"
+        "  call CaptainAttack(1.0, 2.0)\n"
+        "  call CaptainGoHome()\n"
+        "  call CaptainVsUnits(null)\n"
+        "  call CaptainVsPlayer(null)\n"
+        "  call ClearCaptainTargets()\n"
+        "  call ResetCaptainLocs()\n"
+        "  call BJassAssert(not CaptainAtGoal(), \"no captain\")\n"
+        "  call BJassAssert(not CaptainIsHome(), \"no captain\")\n"
+        "endfunction\n"));
 }
 
 #endif /* BZ_TESTS */

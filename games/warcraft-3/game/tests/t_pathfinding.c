@@ -225,7 +225,7 @@ static void assert_retail_loaded_map(void) {
 }
 
 TEST(pathfinding, file_backed_wpm_matches_complete_retail_initial_hierarchy) {
-    char const *path="/tmp/wc3-retail-wpm-load-test.mpq";
+    char const *path=Test_TempPath("wc3-retail-wpm-load-test.mpq");
     unsigned count=384*256;
     uint8_t *file=malloc(count+16), *decoded=malloc(count);
     uint32_t header[]={0x5733504d,0,384,256};
@@ -453,7 +453,7 @@ TEST(wc3_pathfinding, point_move_arrival_commits_previous_velocity_then_stops) {
  * Restoring must reproduce the same pose/heading/velocity words and FIFO handoff. */
 TEST(wc3_pathfinding, point_move_arrival_replays_saved_velocity_and_queued_successor) {
     vec2_t target = {155.f, 128.f}, next = {188.f, 128.f};
-    cstring_t file = "/tmp/openwarcraft3-point-arrival-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-point-arrival-save.bin");
     reset_entities();
     setup_test_world();
     edict_t *unit = make_unit_at(128.f, 128.f);
@@ -1418,7 +1418,7 @@ TEST(pathfinding, waygate_source_overlap_preserves_publication_routes_and_saved_
             free(route.points);free(route.adaptive_points);free(route.group_points);
         }
         if(stage==2||stage==6){
-            cstring_t file="/tmp/wc3-waygate-marker-erasure.bin";
+            cstring_t file=Test_TempPath("wc3-waygate-marker-erasure.bin");
             T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
             size=G_GetMoveAdaptiveStateSize();state=malloc(size);T_NOT_NULL(state);
             if(state){T_ASSERT(G_GetMoveAdaptiveState(state,size));T_ASSERT(gate_overlap_bytes_hash(state,size)==retail_gate_overlap_stages[stage].state);free(state);}
@@ -3678,7 +3678,7 @@ TEST(pathfinding, retained_group_request_reuses_transform_and_invalidates_on_wor
     T_EQ(wc3_float_bits(point.y), wc3_float_bits(expected.y));
     /* Derived request keys are not saved. A restored plan retains its native
      * goal/footprint but recompiles the world request before accepting a hit. */
-    cstring_t file = "/tmp/wc3-group-request-cache.bin";
+    cstring_t file = Test_TempPath("wc3-group-request-cache.bin");
     vec2_t saved_goal = route->group_goal;
     T_ASSERT(route->group_geometry != 0);
     T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
@@ -3910,7 +3910,7 @@ TEST(wc3_pathfinding, ordinary_route_advances_match_original_buffer_consumers) {
         check_retail_route_consumer(unit,&goal,row->first,c);
         if(row->second>=0) {
             uint32_t number=unit->s.number;
-            cstring_t save="/tmp/wc3-route-consumer-continuation.bin";
+            cstring_t save=Test_TempPath("wc3-route-consumer-continuation.bin");
             T_ASSERT(WriteGame(save));
             FOR_LOOP(pass,2) {
                 if(pass) {

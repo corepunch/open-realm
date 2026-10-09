@@ -911,6 +911,42 @@ void G_SetUnitAnimation(edict_t *unit, cstring_t animname) {
         unit->animation = AnimationForPreparedProperties(unit->s.model, request, unit->animation_props, false);
 }
 
+/* Destructables do not normally run a unit move sequence. The JASS animation
+ * override owns their frames, including the transition-to-stand queue used by
+ * Blizzard.j elevators. Hold one-shots at their terminal authored pose. */
+void G_RunDestructableAnimation(edict_t *ent) {
+    animation_t const *anim;
+    uint32_t start, end, next;
+    if (!G_IsDestructable(ent) || !ent->animation_override || !(anim = ent->animation)) return;
+    start = anim->interval[0];
+    end = anim->interval[1];
+    if (end <= start) return;
+    if (ent->s.frame < start || ent->s.frame >= end) {
+        ent->s.frame = start;
+        return;
+    }
+    if ((anim->flags & 1) && ent->s.frame == end - 1 && !ent->queued_animation[0]) return;
+    next = ent->s.frame + (uint32_t)MAX(0.0f, FRAMETIME * ent->animation_speed);
+    if (next < end) {
+        ent->s.frame = next;
+        return;
+    }
+    if (ent->queued_animation[0]) {
+        char queued[WC3_ANIMATION_REQUEST_SIZE];
+        strlcpy(queued, ent->queued_animation, sizeof(queued));
+        ent->queued_animation[0] = '\0';
+        G_SetUnitAnimation(ent, queued);
+        if (ent->animation) {
+            ent->s.frame = ent->animation->interval[0];
+            return;
+        }
+        /* Unknown queued clip must not strand the existing terminal pose. */
+        ent->animation = anim;
+        ent->animation_request = AnimationInternText(anim->name, WC3_ANIMATION_REQUEST_SIZE);
+    }
+    ent->s.frame = (anim->flags & 1) ? end - 1 : start + (next - start) % (end - start);
+}
+
 void G_AddUnitAnimationProperties(edict_t *unit, cstring_t properties, bool add) {
     animationTagSet_t current = {0};
     animationTagSet_t changed = {0};

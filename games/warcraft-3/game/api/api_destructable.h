@@ -75,6 +75,9 @@ uint32_t EnumDestructablesInRect(jass_t *j) {
      * GroupEnumUnitsInRect + ForGroup; like GroupEnumUnitsInRect we ignore the
      * boolexpr filter (arg 2) for now. */
     extern edict_t *currentdestructable;
+    /* Actions may invoke this native recursively; preserve the outer enum
+     * widget so GetEnumDestructable/GetFilterDestructable keep their context. */
+    edict_t *previousdestructable = currentdestructable;
     box2_t *r = jass_checkhandle(j, 1, "rect");
     jassFunc_t const *actionFunc = jass_checkcode(j, 3);
     if (!r) {
@@ -90,7 +93,7 @@ uint32_t EnumDestructablesInRect(jass_t *j) {
             }
         }
     }
-    currentdestructable = NULL;
+    currentdestructable = previousdestructable;
     return 0;
 }
 uint32_t GetDestructableTypeId(jass_t *j) {
@@ -131,13 +134,22 @@ uint32_t GetDestructableMaxLife(jass_t *j) {
     return jass_pushnumber(j, d ? (float)d->health.max_value : 0);
 }
 uint32_t SetDestructableOccluderHeight(jass_t *j) {
-    //handle_t d = jass_checkhandle(j, 1, "destructable");
-    //(void)jass_checknumber(j, 2);
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    float const height = jass_checknumber(j, 2);
+    if (G_IsDestructable(d)) {
+        d->destructable->occluder_height = height;
+        if (height > 0.0f || d->targtype == TARG_TREE)
+            d->s.flags |= EF_FOW_BLOCKER;
+        else
+            d->s.flags &= ~EF_FOW_BLOCKER;
+        G_FowMarkBlockersDirty();
+        gi.LinkEntity(d);
+    }
     return 0;
 }
 uint32_t GetDestructableOccluderHeight(jass_t *j) {
-    //handle_t d = jass_checkhandle(j, 1, "destructable");
-    return jass_pushnumber(j, 0);
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    return jass_pushnumber(j, G_IsDestructable(d) ? d->destructable->occluder_height : 0.0f);
 }
 uint32_t DestructableRestoreLife(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
@@ -147,20 +159,29 @@ uint32_t DestructableRestoreLife(jass_t *j) {
     return 0;
 }
 uint32_t QueueDestructableAnimation(jass_t *j) {
-    //handle_t d = jass_checkhandle(j, 1, "destructable");
-    //cstring_t whichAnimation = jass_checkstring(j, 2);
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    cstring_t const animation = jass_checkstring(j, 2);
+    if (G_IsDestructable(d) && animation)
+        strlcpy(d->queued_animation, animation, sizeof(d->queued_animation));
     return 0;
 }
 uint32_t SetDestructableAnimation(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
     cstring_t animation = jass_checkstring(j, 2);
     if (G_IsDestructable(d) && animation) {
+        d->queued_animation[0] = '\0';
         G_SetUnitAnimation(d, animation);
-        if (d->animation) {
-            d->animation_override = true;
-            d->s.frame = d->animation->interval[0];
-        }
+        d->animation_override = d->animation != NULL;
+        if (d->animation) d->s.frame = d->animation->interval[0];
     }
+    return 0;
+}
+/* Destructables share the saved animation clock with units; the native only
+ * changes its rate, preserving the current MDX sequence and gameplay state. */
+uint32_t SetDestructableAnimationSpeed(jass_t *j) {
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    float speed = jass_checknumber(j, 2);
+    if (G_IsDestructable(d)) d->animation_speed = MAX(0.0f, speed);
     return 0;
 }
 /* Ghidra: ShowDestructable=FUN_003f8790 — show (flag!=0) calls the entity's

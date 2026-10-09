@@ -595,6 +595,7 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->s.model = G_RegisterModel(buffer);
     if (!edict->destructable) edict->destructable = G_AllocDestructable();
     assert(edict->destructable);
+    edict->destructable->occluder_height = row->occluderHeight;
     edict->destructable->alive_pathtex = M_LoadPathTex(path_tex);
     edict->destructable->death_pathtex = M_LoadPathTex(row->deathPathingTexture);
     edict->pathtex = edict->destructable->alive_pathtex;
@@ -820,6 +821,8 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     ps->stats[PLAYERSTATE_FOOD_CAP_CEILING] = (uint16_t)MIN(MAX(0, game.constants.foodCeiling), USHRT_MAX);
     ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
     ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
+    /* Neutral Hostile awards creep bounty by default; maps may override via SetPlayerState. */
+    ps->stats[PLAYERSTATE_GIVES_BOUNTY] = (playernum == PLAYER_NEUTRAL_AGGRESSIVE);
     ps->vieworigin = G_MakeServerOrigin(player ? player->startingPosition.x : 0.0f, player ? player->startingPosition.y : 0.0f, 0.0f);
     {
         gameCamera_t cam;
@@ -1300,6 +1303,8 @@ typedef struct {
     float     spacing;
     vec2_t *out;
     float    *angle;
+    unitExitReservation_t const *reserved;
+    uint32_t reservation_count;
 } unitExitCtx_t;
 
 static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int grid_y) {
@@ -1316,6 +1321,11 @@ static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int gr
     if (!SP_CanPlaceUnitAt(ctx->unit, &candidate)) {
         return false;
     }
+    FOR_LOOP(i, ctx->reservation_count) {
+        unitExitReservation_t const *spot = ctx->reserved + i;
+        if (Vector2_distance(&candidate, &spot->point) < ctx->unit->collision + spot->radius)
+            return false;
+    }
     *ctx->out = candidate;
     *ctx->angle = atan2f(candidate.y - ctx->producer->s.origin2.y,
                          candidate.x - ctx->producer->s.origin2.x);
@@ -1326,16 +1336,18 @@ static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int gr
  * exit point is found. Search deterministic 64-world-unit square rings, using
  * the trained unit's real collision radius against both the baked static
  * pathmap and dynamic unit circles. */
-bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, float *angle) {
+bool SP_FindUnitExitPositionReserved(edict_t *producer, edict_t *unit,
+                                    unitExitReservation_t const *reserved, uint32_t count,
+                                    vec2_t *out, float *angle) {
     uint32_t const max_candidates = 300;
     uint32_t tested = 0;
     unitExitCtx_t ctx;
 
-    if (!producer || !unit || !out || !angle) {
+    if (!producer || !unit || !out || !angle || (count && !reserved)) {
         return false;
     }
 
-    ctx = (unitExitCtx_t){ producer, unit, 64.0f, out, angle };
+    ctx = (unitExitCtx_t){ producer, unit, 64.0f, out, angle, reserved, count };
 
     for (int ring = 1; tested < max_candidates; ring++) {
         int const lo = -ring;
@@ -1355,4 +1367,9 @@ bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, floa
         }
     }
     return false;
+}
+
+/* Single-unit callers retain exactly the same candidate order and admission. */
+bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, float *angle) {
+    return SP_FindUnitExitPositionReserved(producer, unit, NULL, 0, out, angle);
 }

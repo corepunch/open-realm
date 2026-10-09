@@ -3,6 +3,7 @@
 #include "skills/s_skills.h"
 #include <stdarg.h>
 
+#define BOT_GROUP_FLEE_HOME_RADIUS 128.0f // world units; upstream compatibility tolerance for logical Captain queries without a physical actor
 #define BOT_GUARD_RETURN_RANGE 82.006f // world units; avoid resetting movement for guards already standing near their post
 #define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
 #define BOT_BUILD_SEARCH_RINGS 32 // 32-unit grid rings; searches 1024 world units around a town for legal placement
@@ -1239,7 +1240,8 @@ void G_BotTemporaryUnitReady(edict_t *unit) {
 /* Saved logical state uses entity indexes, never roster backing or VM pointers.
  * Physical Move state independently persists the same actor/member references. */
 typedef struct {
-    vec2_t home,goal;
+    vec2_t home,goal,position;
+    uint32_t position_valid;
     wc3Clock_t created,update_due;
     float request_range;
     uint32_t actor,count,home_set,full,state,policy_flags;
@@ -1254,7 +1256,8 @@ bool G_WriteCaptainState(FILE *file) {
         if (fwrite(policy,sizeof(policy),1,file)!=1) return false;
         FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
             botCaptain_t const *captain=bot->captains+c;
-            botCaptainSave_t record={.home=captain->home,.goal=captain->goal,.created=captain->created,
+            botCaptainSave_t record={.home=captain->home,.goal=captain->goal,.position=captain->position,
+                .position_valid=captain->position_valid,.created=captain->created,
                 .update_due=captain->update_due,.request_range=captain->request_range,.policy_flags=captain->policy_flags,.strength_count=captain->strength_count,
                 .actor=captain->home_actor ? (uint32_t)(captain->home_actor-g_edicts)+1 : 0,
                 .count=ARRAY_COUNT(captain->units),.home_set=captain->home_set,.full=captain->full,.state=captain->state};
@@ -1284,7 +1287,8 @@ bool G_ReadCaptainState(FILE *file) {
         FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
             botCaptainSave_t record;
             if (fread(&record,sizeof(record),1,file)!=1 || record.count>globals.num_edicts ||
-                record.actor>globals.num_edicts || record.home_set>1 || record.full>1 || record.state>BOT_CAPTAIN_RETREATING ||
+                record.actor>globals.num_edicts || record.home_set>1 || record.full>1 || record.position_valid>1 || record.state>BOT_CAPTAIN_RETREATING ||
+                !isfinite(record.position.x) || !isfinite(record.position.y) ||
                 !isfinite(record.home.x) || !isfinite(record.home.y) || !isfinite(record.goal.x) || !isfinite(record.goal.y) ||
                 !isfinite(record.created.time) || !isfinite(record.created.span) || record.created.span<0 ||
                 !isfinite(record.update_due.time) || !isfinite(record.update_due.span) || record.update_due.span<0 ||
@@ -1297,7 +1301,8 @@ bool G_ReadCaptainState(FILE *file) {
             /* Old arrays are process-owned, but old actor addresses already
              * denote restored edicts here. Do not retire those new actors. */
             gi.MemFree(captain->units_storage ? captain->units_storage : captain->units);
-            *captain=(botCaptain_t){.home=record.home,.goal=record.goal,.created=record.created,
+            *captain=(botCaptain_t){.home=record.home,.goal=record.goal,.position=record.position,
+                .position_valid=record.position_valid,.created=record.created,
                 .update_due=record.update_due,.request_range=record.request_range,.policy_flags=record.policy_flags,.strength_count=record.strength_count,
                 .home_actor=actor,.home_set=record.home_set,.full=record.full,.state=record.state};
             if (record.count) {
@@ -1568,7 +1573,10 @@ void G_BotSetCaptainHome(player_t *player, int32_t which, float x, float y) {
 
 void G_BotCaptainGoHome(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    if (bot) S_CaptainGoHome(bot->captains+BOT_CAPTAIN_ATTACK);
+    if (bot) {
+        bot->captains[BOT_CAPTAIN_ATTACK].position_valid=false;
+        S_CaptainGoHome(bot->captains+BOT_CAPTAIN_ATTACK);
+    }
 }
 
 /* Native9d1680 replaces the actor request at range200 and cancels retreat. */
@@ -1578,6 +1586,7 @@ void G_BotCaptainAttack(player_t *player,vec2_t const *point) {
     botCaptain_t *captain=bot->captains+BOT_CAPTAIN_ATTACK;
     captain->state=BOT_CAPTAIN_ACTIVE;
     captain->policy_flags&=~BOT_CAPTAIN_RETREAT_FLAG;
+    captain->position_valid=false;
     S_CaptainPointMove(captain,point,200);
 }
 
@@ -1595,6 +1604,76 @@ void G_BotCaptainGoalEvent(edict_t *actor) {
         float range=captain->request_range;
         S_CaptainPointMove(captain,&point,200);
         captain->request_range=range;
+    }
+}
+
+/* BZ_COMPAT_GUESS: TeleportCaptain relocates the *attack captain's logical*
+ * position without teleporting its member units, changing its home or
+ * destroying existing attack targets.  Retail in-flight effects are unknown. */
+void G_BotTeleportCaptain(player_t *player, float x, float y) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot || !isfinite(x) || !isfinite(y)) return;
+    botCaptain_t *captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    captain->position = MAKE(vec2_t, x, y);
+    captain->position_valid = true;
+}
+
+/* Read the Move-owned actor when available. Compatibility logical position
+ * from TeleportCaptain remains separate from member routing. */
+bool G_BotCaptainAtGoal(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    bool has_unit = false;
+    botCaptain_t *captain;
+    if (!bot) return false;
+    captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    if (captain->position_valid)
+        return Vector2_distance(&captain->position, &captain->goal) <= BOT_GROUP_FLEE_HOME_RADIUS;
+    if (captain->home_actor) return S_CaptainNearRequest(captain);
+    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+        vec2_t const *destination;
+        if (!G_BotUnitAlive(*member)) continue;
+        has_unit = true;
+        destination = &captain->goal;
+        if (Vector2_distance(&(*member)->s.origin2, destination) > BOT_GROUP_FLEE_HOME_RADIUS) return false;
+    }
+    return has_unit;
+}
+
+bool G_BotCaptainIsHome(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    bool has_unit = false;
+    if (!bot) return false;
+    botCaptain_t *captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    if (captain->position_valid)
+        return Vector2_distance(&captain->position, &captain->home) <= BOT_GROUP_FLEE_HOME_RADIUS;
+    if (captain->home_actor) return S_CaptainNearHome(captain);
+    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+        if (!G_BotUnitAlive(*member)) continue;
+        has_unit = true;
+        vec2_t const *destination = &captain->home;
+        if (Vector2_distance(&(*member)->s.origin2, destination) > BOT_GROUP_FLEE_HOME_RADIUS) return false;
+    }
+    if (has_unit) return true;
+    return false;
+}
+
+void G_BotClearCaptainTargets(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    botCaptain_t *captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    /* BZ_COMPAT_GUESS: clear logical targets only; existing member orders
+     * keep running, so do not claim the captain is idle while they fight. */
+    captain->position_valid = false;
+    captain->goal = captain->home;
+}
+
+void G_BotResetCaptainLocs(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
+        bot->captains[i].position = bot->captains[i].home;
+        bot->captains[i].position_valid = true;
+        bot->captains[i].goal = bot->captains[i].home;
     }
 }
 
@@ -1778,6 +1857,55 @@ bool G_BotSuicidePlayer(player_t *player, uint32_t target, bool check_full) {
     captain->state = BOT_CAPTAIN_ACTIVE;
     if (bot->stage_valid) captain->goal = bot->stage;
     return true;
+}
+
+/* BZ_COMPAT_GUESS: VsUnits targets enemy units only; VsPlayer also
+ * targets buildings. Select ONE visible enemy as captain objective, rather
+ * than repeatedly overwriting the shared goal with each soldier's target.
+ * G_FowPlayerCanHoverEntity requires CURRENT visibility for structures as
+ * well as units (CanSeeEntity deliberately includes explored buildings). */
+static void G_BotCaptainVsTarget(player_t *player, player_t *enemy, bool units_only) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    edict_t *best = NULL;
+    float best_distance = 0.0f;
+    bool any = false;
+    if (!bot || !enemy) return;
+    captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    FILTER_EDICTS(candidate, G_BotUnitAlive(candidate) &&
+        candidate->s.player == PLAYER_NUM(enemy) &&
+        ((candidate->svflags & SVF_MONSTER) || G_UnitIsStructure(candidate)) &&
+        (!units_only || !G_UnitIsStructure(candidate)) &&
+        !(candidate->svflags & SVF_NOCLIENT) &&
+        !S_UnitIsHiddenFromPlayer(candidate, PLAYER_NUM(player)) &&
+        G_FowPlayerCanHoverEntity(PLAYER_NUM(player), candidate)) {
+        FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+            float distance;
+            if (!G_BotUnitAlive(*member)) continue;
+            distance = Vector2_distance(&(*member)->s.origin2, &candidate->s.origin2);
+            if (!best || distance < best_distance) {
+                best = candidate;
+                best_distance = distance;
+            }
+        }
+    }
+    if (!best) return; /* Retain previous orders/goal when no valid target is visible. */
+    captain->position_valid = false;
+    captain->goal = best->s.origin2;
+    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+        if (!G_BotUnitAlive(*member)) continue;
+        order_attack(*member, best);
+        any = true;
+    }
+    if (any) captain->state = BOT_CAPTAIN_ACTIVE;
+}
+
+void G_BotCaptainVsPlayer(player_t *player, player_t *enemy) {
+    G_BotCaptainVsTarget(player, enemy, false);
+}
+
+void G_BotCaptainVsUnits(player_t *player, player_t *enemy) {
+    G_BotCaptainVsTarget(player, enemy, true);
 }
 
 /* MergeUnits reports whether the requested fused count already stands as live,
@@ -2006,26 +2134,15 @@ static bool G_BotBuyBestShopItem(player_t *player, edict_t *hero) {
     if (!client || G_FindFreeInventorySlot(hero) < 0) return false;
 
     FILTER_EDICTS(shop, shop->inuse && G_CanUseItemShop(client, shop) && G_BotHeroNearShop(hero, shop)) {
-        cstring_t items = shop->data.UnitProfile ? shop->data.UnitProfile->sellItems : NULL;
-        if (!items || G_FindShopPatron(client, shop) != hero) continue;
-        PARSE_LIST(items, item_name, parse_segment) {
-            uint32_t item_id;
-            ItemData_t const *data;
+        if (G_FindShopPatron(client, shop) != hero) continue;
+        FOR_LOOP(i, G_UpdateShopItemStock(shop)) {
+            uint32_t item_id = shop->stock->items[i].id;
+            ItemData_t const *data = G_ItemData(item_id);
             float distance;
-            bool stocked = false;
-            if (strlen(item_name) != 4) continue;
-            memcpy(&item_id, item_name, sizeof(item_id));
-            data = G_ItemData(item_id);
-            if (!data || !data->file || !G_ShopSellsItem(shop, item_id)) continue;
+            if (shop->stock->items[i].current <= 0 || !data || !data->file ||
+                !G_ShopItemRequirementsSatisfied(client, item_id, NULL, 0)) continue;
             if (client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < (uint32_t)MAX(0, data->goldcost) ||
                 client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] < (uint32_t)MAX(0, data->lumbercost)) continue;
-            FOR_LOOP(stock, shop->stock->item_count) {
-                if (shop->stock->items[stock].id == item_id && shop->stock->items[stock].current > 0) {
-                    stocked = true;
-                    break;
-                }
-            }
-            if (!stocked) continue;
             distance = Vector2_distance(&hero->s.origin2, &shop->s.origin2);
             if (!best_shop || data->prio > best_priority ||
                 (data->prio == best_priority && distance < best_distance) ||

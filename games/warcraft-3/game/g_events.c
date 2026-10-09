@@ -151,6 +151,12 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
     FOR_EACH_EVENT(e) {
         if (!G_EventSubjectIsCurrent(e)) continue;
         switch (e->type) {
+            case EVENT_DIALOG_CLICK:
+            case EVENT_DIALOG_BUTTON_CLICK:
+                if (evt->responseTo == e && evt->dialog_id == e->dialog_id &&
+                    (!e->button_id || evt->button_id == e->button_id))
+                    jass_calltriggerevent(level.vm, e->trigger, evt);
+                break;
             case EVENT_GAME_VICTORY:
                 break;
             case EVENT_GAME_END_LEVEL:

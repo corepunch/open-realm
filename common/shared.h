@@ -200,6 +200,10 @@ enum {
     FLAG(RF_BUILDING, 21),       /* WC3 structure; enables building-only presentation */
     FLAG(RF_GROUND_CONFORM, 22), /* presentation: conform entity Z to authored model ground surfaces */
     FLAG(RF_GROUND_SURFACE, 23), /* presentation: model may provide an authored walkable support surface */
+    FLAG(RF_UNIT, 24),           /* gameplay unit; prioritize in broad box-selection candidate queries */
+    FLAG(RF_ALLIED, 25),         /* recipient-relative ally; prioritize after the local player's units */
+    FLAG(RF_SELECTION_CIRCLE_ON_WATER, 26), /* draw this entity's ground overlays over supported water */
+    FLAG(RF_GROUND_SURFACE_SUPPORT, 27), /* WC3 renderer found a walkable destructable under this entity */
 };
 
 enum {
@@ -221,6 +225,9 @@ enum {
     FLAG(EF_RESOURCE_SOURCE, 13), /* resource source presentation metadata */
     FLAG(EF_RESOURCE_RETURN, 14), /* resource-return destination presentation metadata */
     FLAG(EF_HOVER_MANA, 15),      /* client may expose this entity's mana on world hover */
+    FLAG(EF_UNIT, 16),             /* gameplay actor; prioritize in broad box-selection candidate queries */
+    FLAG(EF_ALLIED, 17),          /* recipient-relative alliance, distinct from neutral relationship */
+    FLAG(EF_SELECTION_CIRCLE_ON_WATER, 18), /* WC3 authored water-supported selection overlay */
 };
 
 enum {
@@ -504,10 +511,12 @@ typedef enum {
     LAYER_GAME_0,
     LAYER_GAME_1,
     LAYER_GAME_2,
+    LAYER_GAME_3,
 } UILAYOUTLAYER;
 
 typedef enum {
     UI_WINDOW_OPEN,
+    UI_WINDOW_CLOSE, /* generic server-authored close: opcode and window ID only */
 } uiWindowOp_t;
 
 #define UI_WINDOW_MOVABLE (1u << 0) // flag bit; permits client-local pointer dragging; used by server-authored windows
@@ -516,6 +525,7 @@ typedef enum {
 #define UI_WINDOW_NO_PAUSE (1u << 3) // flag bit; modal input capture without acquiring the client-owned simulation pause
 #define UI_WINDOW_NO_ESCAPE (1u << 4) // flag bit; Escape is consumed without dismissing the window; used by mandatory result/decision windows
 #define MAX_LAYOUT_LAYERS 17
+_Static_assert(LAYER_GAME_3 < MAX_LAYOUT_LAYERS, "every UILAYOUTLAYER needs a client layout slot");
 #define UI_WINDOW_CLOSE_ACTION "close_window" // client action; closes the owning window without a server command
 #define UI_WINDOW_CLOSE_NOTIFY_ACTION "close_window_notify" // client action; closes locally and notifies server of modal release
 #define UI_WINDOW_CLOSE_COMMAND_PREFIX "close_window_command " // client action prefix; forwards suffix then closes the owning window
@@ -670,10 +680,10 @@ typedef enum {
 /* Packing layout for entityState_t.name.
  * CS_MAX_NAMES names total, ENT_NAMES_PER_CS per CS_GENERAL slot, ENT_NAME_SLOT_SIZE bytes each.
  * Wire slots use ASCII Unit Separator padding because configstrings cannot carry embedded NULs. The client restores separators
- * to NULs after receipt. Decode: i = name-1; slot = i>>4; sub = i&0xF. */
+ * to NULs after receipt. Decode: i = name-1; slot = i/ENT_NAMES_PER_CS; sub = i%ENT_NAMES_PER_CS. */
 #define CS_MAX_NAMES        256
-#define ENT_NAMES_PER_CS    16  /* names per configstring slot */
-#define ENT_NAME_SLOT_SIZE  16  /* bytes per name; ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN */
+#define ENT_NAMES_PER_CS    8   /* names per configstring slot */
+#define ENT_NAME_SLOT_SIZE  32  /* bytes per name; ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN */
 #define ENT_NAME_SEPARATOR  0x1f // ASCII byte; keeps fixed-width name records transmissible through C-string configstrings
 
 static inline bool entity_name_slot_empty(cstring_t slot) { return !*slot || (uint8_t)*slot == ENT_NAME_SEPARATOR; }
@@ -731,12 +741,12 @@ typedef struct entityState_s {
     uint16_t sound;
     uint32_t frame;
     uint8_t event;
-    uint16_t flags;
+    uint32_t flags;
     uint8_t renderfx;
     uint8_t ability;
     uint16_t pathing_width;   /* authored cursor/building pathing texture width in 32-unit cells */
     uint16_t pathing_height;  /* authored cursor/building pathing texture height in 32-unit cells */
-    uint32_t pathing_preview;  /* low16 ignore entity, bits16..23 prevented, bits24..31 required */
+    uint32_t pathing_preview;  /* low16 ignore entity, bits16..23 prevented predicates, bits24..31 required predicates */
     uint32_t splat;
 #ifdef WOW
     uint32_t appearance;
@@ -934,6 +944,10 @@ typedef enum {
     TE_TERRAIN_DEFORM,
     TE_TERRAIN_DEFORM_STOP,
     TE_TERRAIN_DEFORM_STOP_ALL,
+    /* Generic keyed world text lifecycle: id/generation, op byte (0 remove, 1 upsert),
+     * then visibility mask, position, attached entity, height offset, text, RGBA,
+     * font, lifetime/fade ms, UI velocity, and permanent flag. */
+    TE_TEXT_TAG,
 } tempEvent_t;
 
 typedef enum {
@@ -1030,8 +1044,19 @@ typedef enum {
 #define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
 #define UIFLAG_EXTEND_WIDESCREEN_X (1 << 13) // flag bit; client expands this frame horizontally across the full UI canvas
 #define UIFLAG_SPRITE_OVERLAY (1 << 16) // flag bit; draws an authored sprite after the containing layout artwork
+#define UIFLAG_TEXTURE_OVERLAY (1 << 19) // flag bit; draws a texture after the containing layout artwork
 #define UIFLAG_MINIMAP_PREVIEW (1 << 15) // flag bit; frame text names a static map preview; excludes fog, camera and input
 #define UIFLAG_ALERT_RED_PULSE (1 << 14) // flag bit; command-button art pulses red until frame.value absolute milliseconds; used for transient alerts
+/* Shared uiFrame_t.flagsvalue bits 9..19; bits 0..8 are the per-game FDF state
+ * bits (UIFLAG_PRESSED..UIFLAG_PASSTHROUGH in stb_fdf.h).  Distinct bits add up
+ * to exactly their bitwise union, so any overlap fails the build. */
+#define UIFLAG_SHARED_BITS(op) \
+    (UIFLAG_RADIAL_SHADE op UIFLAG_SIZE_TO_CONTENT op UIFLAG_ALTERNATE_ACTIVE op \
+     UIFLAG_SPRITE_STAT_SEQUENCE op UIFLAG_EXTEND_WIDESCREEN_X op UIFLAG_ALERT_RED_PULSE op \
+     UIFLAG_MINIMAP_PREVIEW op UIFLAG_SPRITE_OVERLAY op UIFLAG_ABILITY_ENGAGED op \
+     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY)
+_Static_assert(UIFLAG_SHARED_BITS(+) == UIFLAG_SHARED_BITS(|), "UIFLAG_* bits overlap");
+_Static_assert((UIFLAG_SHARED_BITS(|) & ((1 << 9) - 1)) == 0, "UIFLAG_* bits collide with FDF state bits 0..8");
 
 typedef enum {
     BACKDROP_TOP_LEFT_CORNER,
@@ -1207,7 +1232,7 @@ typedef struct {
     RESOURCE EdgeFile;//  "EscMenuBorder",
     RESOURCE Background;
     bool TileBackground:1;
-    bool BlendAll:1;
+    bool Opaque:1; /* background ignores texture alpha; zero keeps Q2 Draw_Pic blending */
     bool Mirrored:1;
 } uiBackdrop_t;
 

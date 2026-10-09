@@ -16,5 +16,9 @@ Art=TestUI\Textures\solid_white.blp
 [oven]
 Art=TestUI\Textures\solid_white.blp
 Hotkey=V
+[bad1]
+Art=TestUI\Textures\solid_white.blp
+Requires=bad
+
 [TWN2]
-DependencyOr=etoa
+DependencyOr=hkee,ostr,etoa,unp1

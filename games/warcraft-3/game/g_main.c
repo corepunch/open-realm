@@ -254,6 +254,18 @@ void G_UpdateTimeOfDay(void) {
     G_PublishTimeOfDayPhase();
 }
 
+/* TerrainArt\Water.slk "<tileset>Sha" height places the simulated water surface; the renderer reads the
+ * same row, so floating and flying units rest on the drawn surface (Outland's Abyss sits 1.5 tiles down). */
+void G_ApplyTilesetWaterHeight(mapInfo_t const *info) {
+    char const tileset = info ? info->mainGroundType : 0;
+    WaterData_t const *row = G_WaterData(MAKEFOURCC(tileset, 'S', 'h', 'a'));
+
+    if (!row->id)
+        fprintf(stderr, "G_LoadMap: no TerrainArt\\Water.slk row %cSha; water surface uses the raw W3E level\n",
+                tileset ? tileset : '?');
+    CM_W3SetWaterHeight(row->height);
+}
+
 static bool G_LoadMap(cstring_t mapFilename) {
     G_ReleaseLevel();
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
@@ -272,6 +284,7 @@ static bool G_LoadMap(cstring_t mapFilename) {
      * installing the map-selected object-data overlay. */
     UI_ResetHud();
     G_ApplyMapGameDataSet(CM_GetMapInfo());
+    G_ApplyTilesetWaterHeight(CM_GetMapInfo());
     /* Resolve presentation from the active map data set before publishing the
      * gameplay media contract. */
     cstring_t marker = Stb_IniCacheFind(&game.config.theme, "Default", "TargetPointConfirm");
@@ -380,6 +393,7 @@ static void InitConstants(void) {
     Stb_IniCacheLoadFiles(&game.config.misc, miscdata_files);
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
     InitMiscValue("MaxCollisionRadius", &game.constants.maxCollisionRadius);
+    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 maximum movement speed. */
     InitMiscValue("DecayTime", &game.constants.decayTime);
     InitMiscValue("BoneDecayTime", &game.constants.boneDecayTime);
     InitMiscValue("DissipateTime", &game.constants.dissipateTime);
@@ -1213,6 +1227,9 @@ static void G_RunFrame(void) {
 
     G_UpdateClientInfoPanels();
     G_UpdateClientResourceBars();
+    /* After the resource compare pass so Team Resources follows an owner's
+     * gold/lumber/food change in the same frame as that owner's console. */
+    G_UpdateMultiboards();
     G_UpdateClientUnitShortcuts();
 
     /* RemovePlayer queues its fallback result UI instead of writing it inline.
@@ -1524,6 +1541,8 @@ static void G_ClientBegin(edict_t *edict) {
     UI_WriteHoverLayout(edict);
     UI_WriteTimerDialogs(edict);
     UI_WriteLeaderboard(edict);
+    UI_WriteMultiboard(edict);
+    UI_JassDialogRestore(edict);
 
     G_AccumulatePlayerFood(client);
     /* Invalidate cache so the initial resource bar write always fires. */
@@ -1675,6 +1694,19 @@ static bool G_IsSnapshotPriorityEntity(uint32_t player, edict_t const *ent) {
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t *state) {
+    state->flags &= ~EF_SELECTION_CIRCLE_ON_WATER;
+    if (ent->data.UnitUI && ent->data.UnitUI->selectionCircleOnWater) {
+        float const ground_z = CM_GetHeightAtPoint(state->origin.x, state->origin.y);
+        float const water_z = CM_GetWaterHeightAtPoint(state->origin.x, state->origin.y);
+        float const support_z = water_z + state->ground_offset;
+
+        /* The UI field opts the unit into water-level rings. Publish the
+         * render hint only while the unit is actually supported by water;
+         * the client renderer stays independent of WC3 terrain data. */
+        if (water_z > ground_z + 0.01f && fabsf(state->origin.z - support_z) <= 1.0f)
+            state->flags |= EF_SELECTION_CIRCLE_ON_WATER;
+    }
+
     /* RF_HIDDEN also represents cargo/mines/revival placeholders. Only known
      * gameplay invisibility may be cleared in a client snapshot. Owners/shared
      * viewers see their invisible units; hostile viewers need true sight. */
@@ -1692,10 +1724,25 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         !(state->flags & EF_NOT_SELECTABLE) &&
         G_FowPlayerCanHoverEntity(player, ent);
 
-    state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL);
+    state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL | EF_ALLIED);
     state->name = 0;
     state->hover_value = 0;
     state->stats[ENT_CARGO] = 0;
+    /* World items have no health/mana hover bars, but their authored display
+     * name should still appear when the pointer rests on a visible pickup. */
+    if (G_IsItem((edict_t *)ent)) {
+        if (ent->item && ent->item->in_world && !(state->renderfx & RF_HIDDEN) &&
+            !(state->flags & EF_NOT_SELECTABLE) && G_FowPlayerCanHoverEntity(player, ent)) {
+            state->name = G_UnitNameConfigstring(G_ObjectName(ent->class_id));
+            /* The client's shared world-hover gate requires a positive health
+             * snapshot even for name-only entities. Items have no health bar,
+             * so publish a minimal presence value and keep the neutral pickup
+             * cursor behavior used for crates. */
+            state->stats[ENT_HEALTH] = 1;
+            state->flags |= EF_NEUTRAL;
+        }
+        return;
+    }
     /* Destructables are scenery, not units. Their live hover contract still
      * exposes the authored name and neutral Select cursor, without unit bars. */
     if (G_IsDestructable(ent)) {
@@ -1724,8 +1771,11 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
         if (relation == SELECT_RELATION_ENEMY) {
             state->flags |= EF_HOSTILE;
-        } else if (relation == SELECT_RELATION_NEUTRAL && hoverable) {
-            state->flags |= EF_NEUTRAL;
+        } else {
+            if (G_PlayerTreatsPlayerAsAlly(player, ent->s.player))
+                state->flags |= EF_ALLIED;
+            if (relation == SELECT_RELATION_NEUTRAL && hoverable)
+                state->flags |= EF_NEUTRAL;
         }
     }
     if (hoverable) {

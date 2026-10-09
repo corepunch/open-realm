@@ -1142,10 +1142,14 @@ class PathingMathTests(unittest.TestCase):
         self.assertEqual(len(fixture['cases']),1040)
         self.assertTrue(any(c['input'][2]>0 and c['expected'][:2]==[0,0] for c in fixture['cases']))
         for row in fixture['cases']:
+            native=row['native_expected']
+            expected=[w if w & 0x7fffffff == 0 else multiply(w,0x42000000) for w in native[:2]]+[native[2]]
+            # Keep the frozen arithmetic projection and independently check stored words.
+            self.assertEqual([multiply(w,0x42000000) for w in native[:2]]+[native[2]],row['expected'])
             for engine in self.engines:
                 words=(ctypes.c_uint32*6)(*row['input'])
                 engine.pathing_velocity_world_commit(words)
-                self.assertEqual([words[0],words[1],words[5]],row['expected'],row['input'])
+                self.assertEqual([words[0],words[1],words[5]],expected,row['input'])
                 self.assertEqual(list(words)[2:5],row['input'][2:5])
         live=json.loads((ROOT/'tools/ghidra/fixtures/retail-turn-velocity-1.27.json').read_text())
         for row in live['commits']:

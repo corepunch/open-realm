@@ -162,7 +162,7 @@ TEST(wc3_order_subscribers, saved_rank_and_pending_release_rebuild_exactly) {
     T_ASSERT(subscribers_persistent_setup());jass_callbyname(level.vm,"destroy",false);
     uint64_t rank=level.events.registration_sequence;uint32_t serial=level.triggers[1].release_sequence;
     wc3Clock_t deadline=level.triggers[1].release_deadline;
-    char const *save="/tmp/wc3-subscriber-pending.bin";
+    char const *save=Test_TempPath("wc3-subscriber-pending.bin");
     T_ASSERT(WriteGame(save));subscribers_drain();
     T_ASSERT(ReadGame(save));remove(save);
     T_EQ(level.events.registration_sequence,rank);T_EQ(level.triggers[1].release_sequence,serial);

@@ -788,9 +788,20 @@ void G_SetPlayerAlliance(player_t const *p1, player_t const *p2, PLAYERALLIANCE 
     /* Warcraft alliance state is directional: SetPlayerAlliance(source, other, ...)
      * changes only source -> other. Consumers such as fog and shared command
      * authority already read the matrix in that direction. */
-    if ((type == ALLIANCE_PASSIVE || type == ALLIANCE_SHARED_CONTROL) &&
+    if ((type == ALLIANCE_PASSIVE || type == ALLIANCE_SHARED_CONTROL ||
+         type == ALLIANCE_SHARED_ADVANCED_CONTROL) &&
         before != level.alliances[p1->number][p2->number]) {
+        gameClient_t *viewer = G_GetPlayerClientByNumber(p1->number);
+        /* Advanced sharing controls automatic Team Resources eligibility. */
+        FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS))
+            if (game.clients[i].ps.number == p1->number)
+                level.multiboard_dirty_clients |= 1u << i;
         G_InvalidateAllUnitShortcuts();
+        /* The source player may already be selecting the target's producer.
+         * Rebuild that command card on both grants and revocations, including
+         * advanced-only changes that do not alter basic selection authority. */
+        if (viewer && viewer->ps.number == p1->number)
+            G_InvalidateCommands(viewer);
     }
 }
 

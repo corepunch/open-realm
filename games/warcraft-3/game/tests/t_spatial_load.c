@@ -41,7 +41,7 @@ TEST(wc3_spatial_load, loaded_blocker_chain_uses_save_order) {
     T_EQ(items[2],peers[2]);T_EQ(items[3],peers[1]);
     uint64_t rank=G_GetMoveSpatialSerial();
     wc3Random_t random=level.pathing_random;
-    cstring_t file="/tmp/wc3-spatial-save-order.bin";
+    cstring_t file=Test_TempPath("wc3-spatial-save-order.bin");
     T_ASSERT(WriteGame(file));T_EQ(G_GetMoveSpatialSerial(),rank);
     T_ASSERT(ReadGame(file));T_EQ(G_GetMoveSpatialSerial(),5);
     T_ASSERT(!memcmp(&level.pathing_random,&random,sizeof(random)));
@@ -68,7 +68,7 @@ TEST(wc3_spatial_load, target_observation_changes_with_rebuilt_cell_order) {
     bool hit=false;
     uint8_t edges=G_TestMoveFineEdges(&query,(point2_t){16,10},false,&hit);
     T_ASSERT(hit);
-    cstring_t file="/tmp/wc3-spatial-load-target-order.bin";
+    cstring_t file=Test_TempPath("wc3-spatial-load-target-order.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));hit=false;
     T_EQ(G_TestMoveFineEdges(&query,(point2_t){16,10},false,&hit),edges);
     T_ASSERT(!hit);
@@ -92,7 +92,7 @@ TEST(wc3_spatial_load, clipped_rectangles_keep_pose_and_rebuild_raw_membership) 
         unit->s.origin2.x=32.25f;G_PublishMoveSpatialObject(unit);
         wc3RecordObject_t before=*G_GetMoveSpatialObject(unit->s.number);
         vec2_t point=unit->s.origin2;
-        cstring_t file="/tmp/wc3-spatial-load-clipped.bin";
+        cstring_t file=Test_TempPath("wc3-spatial-load-clipped.bin");
         T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
         wc3RecordObject_t const *after=G_GetMoveSpatialObject(unit->s.number);
         T_ASSERT(!memcmp(&after->box,&before.box,sizeof(before.box)));
@@ -148,7 +148,7 @@ TEST(wc3_spatial_load, four_active_routes_resume_word_identically) {
     spatialLoadFrame_t *reference=calloc(FRAMES,sizeof(*reference));
     T_NOT_NULL(reference);if(!reference)goto done;
     unsigned const times[]={2000,6000,12000};
-    cstring_t files[]={"/tmp/wc3-four-route-2000.bin","/tmp/wc3-four-route-6000.bin","/tmp/wc3-four-route-12000.bin"};
+    cstring_t files[]={Test_TempPath("wc3-four-route-2000.bin"),Test_TempPath("wc3-four-route-6000.bin"),Test_TempPath("wc3-four-route-12000.bin")};
     FOR_LOOP(pass,4) {
         if(pass)T_ASSERT(ReadGame(files[pass-1]));
         unsigned start=level.time/10;

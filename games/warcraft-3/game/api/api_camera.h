@@ -454,6 +454,10 @@ uint32_t ResetToGameCamera(jass_t *j) {
     }
     G_ClearCameraTarget(gc, "ResetToGameCamera");
     G_ClearCameraPan(gc);
+    /* Retail reset returns to ordinary gameplay camera control, including stopping
+     * scripted camera shake. Warcraft map wrappers commonly pair these calls, but
+     * ResetToGameCamera itself must leave no transient noise behind. */
+    memset(gc->camera.noise, 0, sizeof(gc->camera.noise));
     gc->camera.old_state = gc->camera.state;
     {
         gameCamera_t cam;

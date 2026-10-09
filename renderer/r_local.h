@@ -259,7 +259,6 @@ enum {
 #ifdef USE_SHADOWMAPS
     TEX_SHADOWMAP,
 #endif
-    TEX_WATER,
     TEX_FONT,
     TEX_WHITE,
     TEX_BLACK,
@@ -356,6 +355,7 @@ void R_LoadTextureMipLevel(texture_t *texture, texMip_t const *mip);
 void R_BindTexture(texture_t const *texture, uint32_t unit);
 void R_SetTextureWrap(texture_t const *texture, bool wrapS, bool wrapT);
 void R_DrawEntity(renderEntity_t const *edict, bool shad);
+void R_DrawSupportedEntityOverlays(void);
 void R_DrawSplatRects(void);
 void R_DrawTerrainShadows(void);
 bool MDLX_TraceModel(renderEntity_t const *edict, line3_t const *line, vec3_t *intersection);
@@ -423,6 +423,12 @@ model_t *R_LoadRegisteredModel(cstring_t modelFilename);
 void R_ReleaseRegisteredModel(model_t *model);
 void R_RegisterMapAssets(cstring_t mapFileName);
 bool R_MapAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate_size);
+typedef struct {
+    PATHSTR path[3]; /* ordered: map import (if scoped), game archive layer (if present), base path */
+    uint32_t count;
+    bool scoped;
+} assetCandidates_t;
+void R_AssetCandidates(cstring_t asset, assetCandidates_t *out);
 void R_SetMapAssetScope(cstring_t scope);
 void R_ShutdownModels(void);
 
@@ -458,7 +464,20 @@ void R_DrawCharScaled(float x, float y, int c, float scale);
 void R_DrawFill(rect_t const *rect, color32_t color);
 void R_DrawImage(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color);
 void R_DrawImageEx(drawImage_t const *drawImage);
+typedef struct {
+    texture_t const *texture;
+    SHADERTYPE shader;
+    BLEND_MODE alphamode;
+    float activeGlow, radialShade;
+    bool hasClip;
+    rect_t const *clip;
+    vertex_t const *vertices;
+    uint32_t vertexCount;
+    bool repeat;
+    bool opaque; /* GL_BLEND off: texture alpha ignored */
+} drawImageBatchParams_t;
 void R_DrawImageBatch(texture_t const *texture, SHADERTYPE shaderType, BLEND_MODE alphamode, float uActiveGlow, float uRadialShade, bool hasClip, rect_t const *clip, vertex_t const *vertices, uint32_t num_vertices, bool repeat);
+void R_DrawImageBatchEx(drawImageBatchParams_t const *params);
 void R_DrawMinimapScene(rect_t const *screen, cstring_t map);
 bool R_TraceMinimap(float x, float y, vec2_t *outWorld);
 bool R_WorldToMinimap(vec2_t const *world, vec2_t *outScreen);

@@ -77,7 +77,12 @@ void SV_CreateBaseline(void) {
     memset(sv.baselines, 0, sizeof(entityState_t) * ge->max_edicts);
     FOR_LOOP(entnum, ge->num_edicts) {
         edict_t *svent = EDICT_NUM(entnum);
-        sv.baselines[entnum] = svent->s;
+        /* Entities hidden from signon are not sent in baseline pages. Keep
+         * their server baseline empty too, so a later snapshot add is encoded
+         * against the empty baseline the client actually has. */
+        if (!(svent->svflags & SVF_NOCLIENT)) {
+            sv.baselines[entnum] = svent->s;
+        }
         svent->s.number = entnum;
     }
 }
@@ -278,8 +283,12 @@ void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
      * pre-created this address. Re-send the idempotent handshake response so
      * the client cannot remain on the loading plaque waiting for `new`. */
     if ((existing = SV_FindClientByAddr(from))) {
-        if (existing->state != cs_zombie)
-            Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
+        if (existing->state == cs_zombie) return;
+        /* client_connect starts a new session on both ends: the client restarts its netchan when it reads the reply,
+         * so the slot's must restart too, or each side drops the other's packets as stale. */
+        Netchan_Reset(&existing->netchan);
+        SV_ResetDeltaBase(existing);
+        Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
         return;
     }
     if ((Cvar_Integer("online_mode", 0) && from->type != NA_EOS && from->type != NA_LOOPBACK) ||
@@ -482,6 +491,10 @@ void SV_InitGame(void) {
         ge->Init();
     }
 
+    /* Q2 never reads a dead server's queue, so a local client's farewell can outlive SV_Shutdown.
+     * Q2 consumes it before the next handshake allocates a slot; our local client is admitted
+     * directly into slot 0, so drop the dead session's loopback datagrams at the boundary. */
+    NET_ClearLoopPackets(NS_SERVER);
     svs.initialized = true;
     svs.num_client_entities = ge->max_clients * MAX_PACKET_ENTITIES * UPDATE_BACKUP;
     svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);

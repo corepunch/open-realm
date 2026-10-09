@@ -107,7 +107,7 @@ TEST(wc3_repulsion_overlap, saved_owner_slots_rebuild_and_reject_invalid_chains)
         T_ASSERT(unit->movement.repulse.active);
     }
     level.repulse_phase=1;
-    cstring_t file="/tmp/wc3-repulsion-link-slots.bin";
+    cstring_t file=Test_TempPath("wc3-repulsion-link-slots.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));T_EQ(level.repulse_phase,1);
     T_EQ(level.repulse_head,units[2]);T_EQ(units[2]->movement.repulse.next,units[1]);
     S_SetUnitPaused(units[1],true);T_EQ(level.repulse_head,units[2]);T_EQ(units[2]->movement.repulse.next,units[0]);

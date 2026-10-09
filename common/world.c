@@ -893,6 +893,12 @@ void CM_ReadAbilities(handle_t archive) {
     SFileCloseFile(file);
 }
 
+void CM_ReadDestructables(handle_t archive) {
+    CM_ReadObjectData(archive, "war3map.w3b",
+                      &world.info.num_originalDestructables, &world.info.originalDestructables,
+                      &world.info.num_userCreatedDestructables, &world.info.userCreatedDestructables);
+}
+
 string_t FS_ReadArchiveFileIntoString(handle_t archive, cstring_t filename) {
     handle_t file;
     if (!SFileOpenFileEx(archive, filename, SFILE_OPEN_FROM_MPQ, &file)) {

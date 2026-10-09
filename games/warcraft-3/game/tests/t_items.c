@@ -405,6 +405,7 @@ TEST(wc3_items, roc_hero_inventory_does_not_read_attribute_bonus_as_capacity) {
     void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
     setup_test_world();
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     edict_t *player = &g_edicts[0], *hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     player->client->ps.race = kPlayerRaceUndead; G_SelectEntity(player->client, hero);
@@ -533,6 +534,589 @@ TEST(wc3_items, full_inventory_leaves_item_in_world) {
     T_NOT_NULL(extra->area.prev);
 }
 
+TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIgo\"\nC;Y2;X2;K\"AIgo\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"237\"\nE\n";
+    static ItemData_t gold_data = { .abilList = "AIgo", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit;
+    edict_t *item;
+    gameClient_t *owner;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    owner = G_GetPlayerClientByNumber(0);
+    T_NOT_NULL(owner);
+    if (!owner) {
+        G_SetSLKRows("AbilityData", old);
+        free_slk_rows(rows);
+        return;
+    }
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(unit, held, slot));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('p','g','o','l'), 32, 0);
+    item->data.ItemData = &gold_data;
+
+    T_ASSERT(G_CanPickupItem(unit, item));
+    T_ASSERT(G_InventoryCanUseItems(unit));
+    T_STREQ(G_ItemAbilityList(item), "AIgo");
+    T_EQ(FindAbilityForCommand("AIgo")->proc, CAbilityItemGold);
+    T_FEQ(S_SpellData(MAKEFOURCC('A','I','g','o'), 1, 1), 237.0f, 0.01f);
+    T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 337);
+    T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    T_ASSERT(G_FindFreeInventorySlot(unit) < 0);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, lumber_powerup_uses_authored_grant_without_inventory_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIlu\"\nC;Y2;X2;K\"AIlu\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"237\"\nE\n";
+    static ItemData_t lumber_data = { .abilList = "AIlu", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *item;
+    gameClient_t *owner;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    owner = G_GetPlayerClientByNumber(0);
+    T_NOT_NULL(owner);
+    if (!owner) {
+        G_SetSLKRows("AbilityData", old);
+        free_slk_rows(rows);
+        return;
+    }
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+    owner->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 50;
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(unit, held, slot));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('p','l','u','m'), 32, 0);
+    item->data.ItemData = &lumber_data;
+    T_ASSERT(G_CanPickupItem(unit, item));
+    T_EQ(FindAbilityForCommand("AIlu")->proc, CAbilityItemLumber);
+    T_FEQ(S_SpellData(MAKEFOURCC('A','I','l','u'), 1, 1), 237.0f, 0.01f);
+    T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 337);
+    T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    T_ASSERT(G_FindFreeInventorySlot(unit) < 0);
+
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 65500;
+    item = make_item_test_world_item(MAKEFOURCC('p','l','u','m'), 32, 0);
+    item->data.ItemData = &lumber_data;
+    T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], USHRT_MAX);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, lumber_powerup_negative_data_clamps_at_zero) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIlu\"\nC;Y2;X2;K\"AIlu\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"-237\"\nE\n";
+    static ItemData_t lumber_data = { .abilList = "AIlu", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *item;
+    gameClient_t *owner;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    owner = G_GetPlayerClientByNumber(0);
+    T_NOT_NULL(owner);
+    if (owner) {
+        owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+        item = make_item_test_world_item(MAKEFOURCC('p','l','u','m'), 32, 0);
+        item->data.ItemData = &lumber_data;
+        T_ASSERT(G_PickupItem(unit, item));
+        T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
+        T_ASSERT(item->item->pending_use_removal);
+    }
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, healing_rune_uses_authored_aoe_with_full_inventory) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"targs1\"\n"
+        "C;Y2;X1;K\"AIha\"\nC;Y2;X2;K\"AIha\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"237\"\nC;Y2;X5;K\"80\"\n"
+        "C;Y2;X6;K\"friend,hero,nonhero,ground,air,organic\"\nE\n";
+    static ItemData_t healing_data = { .abilList = "AIha", .powerup = true,
+                                       .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *nearby, *distant, *mechanical, *rune;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    picker = make_item_test_inventory_unit(0, 0);
+    nearby = make_item_test_inventory_unit(50, 0);
+    distant = make_item_test_inventory_unit(100, 0);
+    mechanical = make_item_test_inventory_unit(30, 0);
+    picker->s.player = nearby->s.player = distant->s.player = mechanical->s.player = 0;
+    picker->svflags |= SVF_MONSTER;
+    nearby->svflags |= SVF_MONSTER;
+    distant->svflags |= SVF_MONSTER;
+    mechanical->svflags |= SVF_MONSTER;
+    picker->targtype = nearby->targtype = distant->targtype = TARG_GROUND;
+    mechanical->targtype = TARG_MECHANICAL;
+    picker->health.value = 25.0f;
+    nearby->health.value = 50.0f;
+    distant->health.value = 25.0f;
+    mechanical->health.value = 25.0f;
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(picker, held, slot));
+    }
+    rune = make_item_test_world_item(MAKEFOURCC('r','h','e','3'), 32, 0);
+    rune->data.ItemData = &healing_data;
+    T_EQ(FindAbilityForCommand("AIha")->proc, CAbilityItemHealAoe);
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_FEQ(picker->health.value, 100.0f, 0.01f);
+    T_FEQ(nearby->health.value, 100.0f, 0.01f);
+    T_FEQ(distant->health.value, 25.0f, 0.01f);
+    T_FEQ(mechanical->health.value, 25.0f, 0.01f);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
+    T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
+
+    /* An unwounded group still triggers normal powerup consumption. */
+    picker->health.value = nearby->health.value = 100.0f;
+    rune = make_item_test_world_item(MAKEFOURCC('r','h','e','3'), 32, 0);
+    rune->data.ItemData = &healing_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_ASSERT(rune->item->pending_use_removal);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, mana_rune_restores_authored_aoe_without_inventory_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"targs1\"\n"
+        "C;Y2;X1;K\"APmr\"\nC;Y2;X2;K\"APmr\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"125\"\nC;Y2;X5;K\"120\"\n"
+        "C;Y2;X6;K\"friend,self,hero,nonhero,ground,air,organic\"\n"
+        "C;Y3;X1;K\"APmg\"\nC;Y3;X2;K\"APmg\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"300\"\nC;Y3;X5;K\"120\"\n"
+        "C;Y3;X6;K\"friend,self,hero,nonhero,ground,air,organic\"\nE\n";
+    static ItemData_t rune_data = { .abilList = "APmr", .powerup = true,
+                                    .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *nearby, *distant, *enemy, *mechanical, *rune;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    picker = make_item_test_inventory_unit(0, 0);
+    nearby = make_item_test_inventory_unit(50, 0);
+    distant = make_item_test_inventory_unit(150, 0);
+    enemy = make_item_test_inventory_unit(30, 0);
+    mechanical = make_item_test_inventory_unit(40, 0);
+    picker->s.player = nearby->s.player = distant->s.player = mechanical->s.player = 0;
+    enemy->s.player = 1;
+    picker->svflags |= SVF_MONSTER;
+    nearby->svflags |= SVF_MONSTER;
+    distant->svflags |= SVF_MONSTER;
+    enemy->svflags |= SVF_MONSTER;
+    mechanical->svflags |= SVF_MONSTER;
+    picker->targtype = nearby->targtype = distant->targtype = enemy->targtype = TARG_GROUND;
+    mechanical->targtype = TARG_MECHANICAL;
+    picker->mana.max_value = nearby->mana.max_value = distant->mana.max_value =
+        enemy->mana.max_value = mechanical->mana.max_value = 500.0f;
+    picker->mana.value = 10.0f;
+    nearby->mana.value = 450.0f;
+    distant->mana.value = enemy->mana.value = mechanical->mana.value = 10.0f;
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(picker, held, slot));
+    }
+    rune = make_item_test_world_item(MAKEFOURCC('r','m','a','n'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_EQ(FindAbilityForCommand("AImr")->proc, CAbilityItemManaAoe);
+    T_EQ(FindAbilityForCommand("APmr")->proc, CAbilityItemManaAoe);
+    T_EQ(FindAbilityForCommand("APmg")->proc, CAbilityItemManaAoe);
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_FEQ(picker->mana.value, 135.0f, 0.01f);
+    T_FEQ(nearby->mana.value, 500.0f, 0.01f);
+    T_FEQ(distant->mana.value, 10.0f, 0.01f);
+    T_FEQ(enemy->mana.value, 10.0f, 0.01f);
+    T_FEQ(mechanical->mana.value, 10.0f, 0.01f);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
+    T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
+
+    /* The greater rune uses its own authored amount, not the smaller rune's. */
+    rune_data.abilList = "APmg";
+    picker->mana.value = 10.0f;
+    rune = make_item_test_world_item(MAKEFOURCC('r','m','a','2'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_FEQ(picker->mana.value, 310.0f, 0.01f);
+    T_ASSERT(rune->item->pending_use_removal);
+
+    /* Full mana does not leave a supported powerup sitting on the ground. */
+    picker->mana.value = nearby->mana.value = 500.0f;
+    rune = make_item_test_world_item(MAKEFOURCC('r','m','a','2'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_ASSERT(rune->item->pending_use_removal);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"Area1\"\n"
+        "C;Y2;X1;K\"APrl\"\nC;Y2;X2;K\"AHre\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"140\"\n"
+        "C;Y3;X1;K\"APrr\"\nC;Y3;X2;K\"AHre\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"3\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"140\"\nE\n";
+    static ItemData_t rune_data = { .abilList = "APrr", .powerup = true,
+                                    .usable = true, .perishable = true };
+    static UnitData_t corpse_data = { .deathType = UNIT_DEATH_TYPE_RAISE };
+    static UnitBalance_t low_balance = { .level = 1 };
+    static UnitBalance_t high_balance = { .level = 3 };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *near_low, *near_high, *third, *distant, *enemy, *rune;
+    uint32_t charges_before;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    picker = make_item_test_inventory_unit(0, 0);
+    picker->s.player = 0;
+    picker->svflags |= SVF_MONSTER;
+    picker->targtype = TARG_GROUND;
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(picker, held, slot));
+    }
+
+#define MAKE_RES_CORPSE(var, x, owner_number, balance) do { \
+    (var) = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (x), 0); \
+    (var)->s.player = (owner_number); \
+    (var)->svflags |= SVF_MONSTER | SVF_DEADMONSTER; \
+    (var)->targtype = TARG_GROUND; \
+    (var)->data.UnitData = &corpse_data; \
+    (var)->data.UnitBalance = (balance); \
+    (var)->health.max_value = 100.0f; \
+    (var)->health.value = 0.0f; \
+} while (0)
+
+    MAKE_RES_CORPSE(near_low, 20, 0, &low_balance);
+    MAKE_RES_CORPSE(near_high, 100, 0, &high_balance);
+    MAKE_RES_CORPSE(third, 120, 0, &low_balance);
+    MAKE_RES_CORPSE(distant, 200, 0, &high_balance);
+    MAKE_RES_CORPSE(enemy, 30, 1, &high_balance);
+#undef MAKE_RES_CORPSE
+
+    T_ASSERT(G_UnitIsRaisableCorpse(near_low));
+    T_ASSERT(G_UnitIsRaisableCorpse(near_high));
+    T_EQ(FindAbilityForCommand("APrl")->proc, CAbilityItemResurrection);
+    T_EQ(FindAbilityForCommand("APrr")->proc, CAbilityItemResurrection);
+    rune = make_item_test_world_item(MAKEFOURCC('r','r','e','2'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_ASSERT(!M_IsDead(near_high));
+    T_ASSERT(!M_IsDead(near_low));
+    T_ASSERT(!M_IsDead(third));
+    T_FEQ(near_high->health.value, near_high->health.max_value, 0.01f);
+    T_ASSERT(M_IsDead(distant));
+    T_ASSERT(M_IsDead(enemy));
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
+    T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
+
+    /* With no eligible corpse, report failure and leave the rune on the ground. */
+    rune = make_item_test_world_item(MAKEFOURCC('r','r','e','2'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    charges_before = rune->item->charges;
+    T_ASSERT(!G_PickupItem(picker, rune));
+    T_ASSERT(rune->item->in_world);
+    T_ASSERT(!rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, charges_before);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* TFT Rune of Shielding: stock zero-duration BNss is an armed charge, not
+ * timed immunity; target enumeration uses authored Area and flags. */
+TEST(wc3_items, shielding_rune_arms_eligible_allies_with_full_inventory) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"BuffID1\"\nC;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"targs1\"\n"
+        "C;Y1;X7;K\"Dur1\"\n"
+        "C;Y2;X1;K\"ANse\"\nC;Y2;X2;K\"ANse\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"BNss\"\nC;Y2;X5;K\"110\"\n"
+        "C;Y2;X6;K\"ground,air,friend,self\"\nC;Y2;X7;K\"0\"\nE\n";
+    static ItemData_t data = { .abilList = "ANse", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *ally, *enemy, *outside, *rune;
+    uint32_t const shield = MAKEFOURCC('B','N','s','s');
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    picker = make_item_test_inventory_unit(0, 0);
+    ally = make_item_test_inventory_unit(60, 0);
+    enemy = make_item_test_inventory_unit(80, 0);
+    outside = make_item_test_inventory_unit(200, 0);
+    picker->s.player = ally->s.player = outside->s.player = 0;
+    enemy->s.player = 1;
+    picker->svflags |= SVF_MONSTER; ally->svflags |= SVF_MONSTER;
+    enemy->svflags |= SVF_MONSTER; outside->svflags |= SVF_MONSTER;
+    picker->targtype = ally->targtype = enemy->targtype = outside->targtype = TARG_GROUND;
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32 + slot, 0);
+        T_ASSERT(G_AddItemToSlot(picker, held, slot));
+    }
+    T_EQ(FindAbilityForCommand("ANse")->proc, CAbilitySpellShieldAoe);
+    rune = make_item_test_world_item(MAKEFOURCC('r','s','p','s'), 32, 0);
+    rune->data.ItemData = &data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_EQ(G_UnitStatusLevel(picker, shield), 1);
+    T_EQ(G_UnitStatusLevel(ally, shield), 1);
+    T_EQ(G_UnitStatusLevel(enemy, shield), 0);
+    T_EQ(G_UnitStatusLevel(outside, shield), 0);
+    T_EQ(unit_findstatus(ally, shield)->duration_ms, 0);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
+
+    /* Reapplication refreshes a single charge rather than stacking. */
+    rune = make_item_test_world_item(MAKEFOURCC('r','s','p','s'), 32, 0);
+    rune->data.ItemData = &data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_EQ(G_UnitStatusLevel(ally, shield), 1);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* An enemy-only negative unit spell consumes exactly one charge. The same
+ * guard must leave beneficial spells and physical nets untouched. */
+TEST(wc3_items, shielding_rune_intercepts_hostile_unit_spells_only) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs1\"\n"
+        "C;Y2;X1;K\"Acri\"\nC;Y2;X2;K\"Acri\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"enemy,ground\"\n"
+        "C;Y3;X1;K\"Ablo\"\nC;Y3;X2;K\"Ablo\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\"friend,ground\"\n"
+        "C;Y4;X1;K\"Aens\"\nC;Y4;X2;K\"Aens\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\"enemy,ground\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster, *victim;
+    uint32_t const shield = MAKEFOURCC('B','N','s','s');
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    caster = make_item_test_inventory_unit(0, 0);
+    victim = make_item_test_inventory_unit(50, 0);
+    caster->s.player = 1; victim->s.player = 0;
+    caster->svflags |= SVF_MONSTER; victim->svflags |= SVF_MONSTER;
+    caster->targtype = victim->targtype = TARG_GROUND;
+    unit_addstatus(victim, "BNss", 1);
+    T_ASSERT(!S_TryBlockSpellShield(caster, MAKEFOURCC('A','b','l','o'), victim));
+    T_ASSERT(!S_TryBlockSpellShield(caster, MAKEFOURCC('A','e','n','s'), victim));
+    T_EQ(G_UnitStatusLevel(victim, shield), 1);
+    T_ASSERT(S_TryBlockSpellShield(caster, MAKEFOURCC('A','c','r','i'), victim));
+    T_EQ(G_UnitStatusLevel(victim, shield), 0);
+    T_ASSERT(!S_TryBlockSpellShield(caster, MAKEFOURCC('A','c','r','i'), victim));
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y1;X8;K\"Area1\"\n"
+        "C;Y2;X1;K\"AIsp\"\nC;Y2;X2;K\"AIsp\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"4.25\"\nC;Y2;X5;K\"9.5\"\nC;Y2;X6;K\"Bspx\"\nC;Y2;X7;K\"hero,ground\"\n"
+        "C;Y3;X1;K\"APsa\"\nC;Y3;X2;K\"APsa\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"3.5\"\nC;Y3;X5;K\"7.5\"\nC;Y3;X6;K\"Bspx\"\nC;Y3;X7;K\"hero,ground\"\nC;Y3;X8;K\"90\"\n"
+        "E\n";
+    static ItemData_t speed_data = { .abilList = "AIsp", .powerup = true, .usable = true, .perishable = true };
+    static ItemData_t rune_data = { .abilList = "APsa", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit;
+    edict_t *item;
+    edict_t *recipient;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    item = make_item_test_world_item(MAKEFOURCC('p','s','p','d'), 32, 0);
+    item->data.ItemData = &speed_data;
+    game.constants.maxUnitSpeed = 431.0f;
+
+    T_ASSERT(G_CanPickupItem(unit, item));
+    T_ASSERT(G_InventoryCanUseItems(unit));
+    T_STREQ(G_ItemAbilityList(item), "AIsp");
+    T_EQ(FindAbilityForCommand("AIsp")->proc, CAbilityItemSpeed);
+    T_EQ(FindAbilityForCommand("APsa")->proc, CAbilityItemSpeedAoe);
+    T_ASSERT(G_PickupItem(unit, item));
+    status = unit_findstatus(unit, MAKEFOURCC('B','s','p','x'));
+    T_NOT_NULL(status);
+    if (status) {
+        T_EQ(status->duration_ms, 9500);
+        T_EQ(status->data, MAKEFOURCC('A','I','s','p'));
+        T_ASSERT(S_ItemSpeedActive(unit));
+        T_FEQ(unit_movedistance(unit), 10.0f * 431.0f / (float)FRAMETIME, 0.01f);
+        level.time = status->timestamp;
+        unit_updatestatuses(unit);
+        T_ASSERT(!S_ItemSpeedActive(unit));
+    }
+    T_ASSERT(item->item->pending_use_removal);
+
+    recipient = make_item_test_inventory_unit(50, 0);
+    recipient->s.player = 0;
+    recipient->svflags |= SVF_MONSTER;
+    recipient->targtype = TARG_GROUND;
+    item = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 0, 0);
+    item->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(unit, item));
+    status = unit_findstatus(recipient, MAKEFOURCC('B','s','p','x'));
+    T_NOT_NULL(status);
+    if (status) {
+        T_EQ(status->duration_ms, 7500);
+        T_EQ(status->data, MAKEFOURCC('A','P','s','a'));
+        T_ASSERT(S_ItemSpeedActive(recipient));
+    }
+    T_ASSERT(item->item->pending_use_removal);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, speed_powerup_without_valid_recipient_is_consumed) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y2;X1;K\"AIsp\"\nC;Y2;X2;K\"AIsp\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"4.25\"\nC;Y2;X5;K\"9.5\"\nC;Y2;X6;K\"Bspx\"\nC;Y2;X7;K\"organic\"\nE\n";
+    static ItemData_t speed_data = { .abilList = "AIsp", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *item;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    picker = make_item_test_inventory_unit(0, 0);
+    picker->s.player = 0;
+    picker->svflags |= SVF_MONSTER;
+    picker->targtype = TARG_MECHANICAL;
+    item = make_item_test_world_item(MAKEFOURCC('p','s','p','d'), 32, 0);
+    item->data.ItemData = &speed_data;
+
+    T_ASSERT(G_PickupItem(picker, item));
+    T_NULL(unit_findstatus(picker, MAKEFOURCC('B','s','p','x')));
+    T_ASSERT(item->item->pending_use_removal);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) T_NULL(picker->inventory[slot]);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, custom_speed_powerup_rawcode_gets_movement_cap) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y2;X1;K\"A0sp\"\nC;Y2;X2;K\"AIsp\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"6\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"Bspx\"\nC;Y2;X7;K\"hero,ground\"\nE\n";
+    static ItemData_t speed_data = { .abilList = "A0sp", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *item;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    item = make_item_test_world_item(MAKEFOURCC('p','s','p','d'), 32, 0);
+    item->data.ItemData = &speed_data;
+    game.constants.maxUnitSpeed = 431.0f;
+
+    T_ASSERT(G_PickupItem(unit, item));
+    status = unit_findstatus(unit, MAKEFOURCC('B','s','p','x'));
+    T_NOT_NULL(status);
+    if (status) T_EQ(status->data, MAKEFOURCC('A','0','s','p'));
+    T_ASSERT(S_ItemSpeedActive(unit));
+    T_FEQ(unit_movedistance(unit), 10.0f * 431.0f / (float)FRAMETIME, 0.01f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, full_inventory_order_pickup_accepts_only_powerups) {
+    static ItemData_t speed_data = { .abilList = "APsa", .powerup = true, .usable = true, .perishable = true };
+    edict_t *unit, *rune, *ordinary;
+
+    setup_test_world();
+    unit = make_item_test_inventory_unit(0, 0);
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(unit, held, slot));
+    }
+    rune = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), ITEM_PICKUP_RANGE + 100, 0);
+    rune->data.ItemData = &speed_data;
+    ordinary = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), ITEM_PICKUP_RANGE + 100, 0);
+
+    T_ASSERT(!G_OrderPickupItem(unit, ordinary));
+    T_ASSERT(G_OrderPickupItem(unit, rune));
+    T_ASSERT(unit->goalentity == rune);
+}
+
 TEST(wc3_items, reserved_client_connection_state_transitions_both_directions) {
     edict_t *player = &g_edicts[0];
     gameClient_t *client = player->client;
@@ -610,6 +1194,7 @@ TEST(wc3_items, inventory_panel_uses_race_cover_when_selected_unit_has_no_invent
     gameClient_t *client;
 
     setup_test_world();
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     player = &g_edicts[0]; client = player->client;
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     client->ps.race = kPlayerRaceHuman;
@@ -650,6 +1235,7 @@ TEST(wc3_items, footman_unit_inventory_stays_covered_until_human_backpack_is_res
     gameClient_t *client;
 
     setup_test_world();
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     player = &g_edicts[0]; client = player->client;
     footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     client->ps.race = kPlayerRaceHuman;
@@ -796,6 +1382,7 @@ TEST(wc3_items, inventory_panel_uses_local_player_race_not_selected_unit_race) {
     edict_t *player, *peasant; gameClient_t *client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     client->ps.race = kPlayerRaceOrc; G_SelectEntity(client, peasant);
     reset_inventory_panel_capture();
@@ -813,6 +1400,7 @@ TEST(wc3_items, inventory_panel_falls_back_to_default_skin_for_unknown_player_ra
     edict_t *player, *peasant; gameClient_t *client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     client->ps.race = kPlayerRaceNone; G_SelectEntity(client, peasant);
     reset_inventory_panel_capture();
@@ -830,6 +1418,7 @@ TEST(wc3_items, inventory_panel_marks_only_slots_outside_reduced_capacity) {
     edict_t *player, *unit; gameClient_t *client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
     client->ps.race = kPlayerRaceHuman; G_SelectEntity(client, unit);
     reset_inventory_panel_capture();
@@ -847,6 +1436,7 @@ TEST(wc3_items, inventory_panel_leaves_all_slots_visible_at_full_capacity) {
     edict_t *player, *unit; gameClient_t *client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     client->ps.race = kPlayerRaceHuman; G_SelectEntity(client, unit);
     reset_inventory_panel_capture();
@@ -864,6 +1454,7 @@ TEST(wc3_items, multiselect_inventory_panel_follows_focused_selected_unit) {
     gameClient_t *client;
 
     setup_test_world();
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     player = &g_edicts[0]; client = player->client;
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     inventory_unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 32, 0);
@@ -1019,6 +1610,41 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     T_ASSERT(!gate_buttons[2].disabled);
     T_ASSERT(G_ShopPurchaseItem(player, gate_shop, MAKEFOURCC('p','h','e','a')));
     T_EQ(hero->inventory[2]->class_id, MAKEFOURCC('p','h','e','a'));
+}
+
+TEST(wc3_items, malformed_item_requirement_fails_closed_for_ui_and_purchase) {
+    static UnitProfile_t profile = { .sellItems = "bad1" };
+    static UnitAbilities_t abilities = { .abilList = "Apit", .heroAbilList = "" };
+    edict_t *player, *hero, *shop;
+    gameCommandButton_t button[2];
+    shopItemButtonsParams_t params;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    player->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    hero = make_item_test_inventory_unit(0, 0);
+    hero->s.player = 0;
+    shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    shop->data.UnitProfile = &profile;
+    shop->data.UnitAbilities = &abilities;
+    shop->s.player = PLAYER_NEUTRAL_PASSIVE;
+    shop->collision = 32.0f;
+    shop->spawn_time = G_Time();
+    if (!shop->stock) shop->stock = G_AllocStock();
+    T_NOT_NULL(shop->stock);
+    shop->stock->item_slots = 11;
+    gi.LinkEntity(shop);
+    params = (shopItemButtonsParams_t){
+        .client = player->client, .shop = shop, .buttons = button, .max_buttons = 2
+    };
+
+    T_EQ(G_GetShopItemButtons(&params), 1);
+    T_ASSERT(button[0].disabled);
+    T_ASSERT(strstr(button[0].ubertip, "Invalid item requirement data") != NULL);
+    T_ASSERT(!G_ShopPurchaseItem(player, shop, MAKEFOURCC('b','a','d','1')));
+    T_EQ(shop->stock->items[0].current, 1);
+    T_NULL(hero->inventory[0]);
 }
 
 TEST(wc3_items, neutral_shop_purchases_authored_item_into_nearby_hero_inventory) {
@@ -1496,7 +2122,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     slkTestData_t *rows, *old;
     edict_t *player, *hero, *item, *mine = NULL, *approach = NULL;
     uint32_t hero_slot, item_slot;
-    cstring_t const save_path = "/tmp/openwarcraft3-point-item-approach-save.bin";
+    cstring_t const save_path = Test_TempPath("point-item-approach-save.bin");
     cstring_t far_click[] = { "point", "700", "0" };
     cstring_t replace_approach[] = { "button", "Amov" };
     cstring_t replace_click[] = { "point", "20", "0" };
@@ -1710,6 +2336,68 @@ TEST(wc3_items, pickup_event_detects_arthas_urn) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+/* Stock Blizzard.j creates new loot rather than moving a carried item.
+ * The synthetic MPQ provides only these real BJ wrappers and their native
+ * dependencies; production loads Blizzard.j from the installed game archive. */
+TEST(wc3_items, blizzard_unit_and_widget_drop_item_create_world_loot) {
+    edict_t *unit = NULL, *unit_drop = NULL, *widget_drop = NULL, *item_widget_drop = NULL;
+    uint32_t created = 0;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetRandomSeed(1)\n"
+        "  local unit source = CreateUnit(Player(0), 'Hpal', 128.0, 128.0, 0.0)\n"
+        "  local item first = UnitDropItem(source, 'spro')\n"
+        "  local item second = WidgetDropItem(source, 'ratf')\n"
+        "  local item third = WidgetDropItem(first, 'rde2')\n"
+        "  call BJassAssert(first != null, \"UnitDropItem failed to create a world item\")\n"
+        "  call BJassAssert(second != null, \"WidgetDropItem failed to create a world item\")\n"
+        "  call BJassAssert(third != null, \"WidgetDropItem rejected an item widget\")\n"
+        "  call BJassAssert(first != second and second != third, \"drops reused a handle\")\n"
+        "  call BJassAssert(GetItemDropID(first) == GetUnitTypeId(source), \"unit drop ID missing\")\n"
+        "  call BJassAssert(GetItemDropID(second) == 0, \"widget drop got a unit drop ID\")\n"
+        "  call BJassAssert(GetItemDropID(third) == 0, \"item widget drop got a unit drop ID\")\n"
+        "  call BJassAssert(GetItemType(first) == ITEM_TYPE_CHARGED, \"itemtype enum equality failed\")\n"
+        "  call BJassAssert(GetItemType(first) == ConvertItemType(1), \"itemtype values need value equality\")\n"
+        "  call BJassAssert(GetItemLevel(first) == 1, \"authored item level lost\")\n"
+        "  call BJassAssert(bj_stockAllowedCharged[1], \"unit drop did not update stock\")\n"
+        "  call BJassAssert(not bj_stockAllowedPermanent[1], \"widget drop updated stock\")\n"
+        "  call BJassAssert(GetItemX(first) >= 96.0 and GetItemX(first) <= 160.0, \"unit drop X out of range\")\n"
+        "  call BJassAssert(GetItemY(first) >= 96.0 and GetItemY(first) <= 160.0, \"unit drop Y out of range\")\n"
+        "  call BJassAssert(GetItemX(second) >= 96.0 and GetItemX(second) <= 160.0, \"widget drop X out of range\")\n"
+        "  call BJassAssert(GetItemY(second) >= 96.0 and GetItemY(second) <= 160.0, \"widget drop Y out of range\")\n"
+        "  call BJassAssert(GetItemX(third) >= GetItemX(first)-32.0 and GetItemX(third) <= GetItemX(first)+32.0, \"item-widget drop X out of range\")\n"
+        "  call BJassAssert(GetItemY(third) >= GetItemY(first)-32.0 and GetItemY(third) <= GetItemY(first)+32.0, \"item-widget drop Y out of range\")\n"
+        "  call BJassAssert(UnitDropItem(source, -1) == null, \"unit sentinel should return null\")\n"
+        "  call BJassAssert(WidgetDropItem(source, -1) == null, \"widget sentinel should return null\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = g_edicts + i;
+        if (!ent->inuse) continue;
+        if (ent->class_id == MAKEFOURCC('H','p','a','l')) unit = ent;
+        if (ent->class_id == MAKEFOURCC('s','p','r','o')) unit_drop = ent;
+        if (ent->class_id == MAKEFOURCC('r','a','t','f')) widget_drop = ent;
+        if (ent->class_id == MAKEFOURCC('r','d','e','2')) item_widget_drop = ent;
+        if (G_IsItem(ent)) created++;
+    }
+    T_NOT_NULL(unit);
+    T_NOT_NULL(unit_drop);
+    T_NOT_NULL(widget_drop);
+    T_NOT_NULL(item_widget_drop);
+    T_EQ(created, 3);
+    if (unit_drop && widget_drop && item_widget_drop) {
+        T_ASSERT(unit_drop->item->in_world && widget_drop->item->in_world && item_widget_drop->item->in_world);
+        T_NULL(unit_drop->item->carrier);
+        T_NULL(widget_drop->item->carrier);
+        T_NULL(item_widget_drop->item->carrier);
+        T_EQ(unit_drop->item->drop_id, MAKEFOURCC('H','p','a','l'));
+        T_EQ(widget_drop->item->drop_id, 0);
+        T_EQ(item_widget_drop->item->drop_id, 0);
+    }
+}
+
 TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
     edict_t *item = NULL;
     edict_t *unit;
@@ -1741,7 +2429,7 @@ TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
 }
 
 TEST(wc3_items, jass_set_item_drop_id_round_trips_save) {
-    cstring_t path = "/tmp/openwarcraft3-wc3-item-drop-id.bin";
+    cstring_t path = Test_TempPath("wc3-item-drop-id.bin");
     edict_t *item = NULL;
     uint32_t index;
 
@@ -2154,6 +2842,8 @@ TEST(wc3_items, soul_gem_approach_retains_same_hero_revived_by_synchronous_death
     T_NOT_NULL(grom);
     if (!grom) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
     grom->targtype = TARG_GROUND;
+    /* A frame-driven approach must retain vision of this distant enemy Hero. */
+    G_AddUnitForcedVisibility(grom, 0);
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
     if (!gem->item) gem->item = G_AllocItem();
@@ -2170,20 +2860,37 @@ TEST(wc3_items, soul_gem_approach_retains_same_hero_revived_by_synchronous_death
     thinker_slot = globals.num_edicts;
     G_ClientCommand(clent, 2, select);
     thinker = &globals.edicts[thinker_slot];
-    T_ASSERT(thinker->inuse && thinker->think == S_SpellTargetApproachThink);
+    T_ASSERT(thinker->inuse);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
     T_ASSERT(carrier->goalentity == grom);
     T_FEQ(S_SpellRange(MAKEFOURCC('A','I','s','o'), 1), 96.0f, 0.001f);
     T_ASSERT(Vector2_distance(&carrier->s.origin2, &grom->s.origin2) > S_SpellRange(MAKEFOURCC('A','I','s','o'), 1));
 
     G_SetHealth(grom, 0.0f);
     unit_die(grom, NULL);
-    /* Player death delivery is synchronous. The revival completes before
-     *the ordinary approach tick observes this same retained Hero identity. */
+    /* Death retires Move's subscribed approach synchronously (retail scenes
+     *54/55). A same-identity revival permits a fresh cast, not the old receiver. */
+    T_ASSERT(!thinker->inuse);
+    T_NULL(S_UnitTargetApproachReceiver(carrier));
+    T_NULL(carrier->goalentity);
+    G_UseItem(carrier, 0);
+    thinker_slot = globals.num_edicts;
+    G_ClientCommand(clent, 2, select);
+    thinker = &globals.edicts[thinker_slot];
+    T_ASSERT(thinker->inuse);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
     T_ASSERT(!M_IsDead(grom));
     T_ASSERT(grom->paused);
-    thinker->think(thinker);
+    carrier->think = monster_think;
+    bool const started = level.started, scripts = level.scriptsStarted;
+    level.started = level.scriptsStarted = true;
+    level.time += FRAMETIME;
+    globals.RunFrame();
+    level.started = started; level.scriptsStarted = scripts;
     T_ASSERT(thinker->inuse);
-    T_EQ(thinker->think,S_SpellTargetApproachThink);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
     T_ASSERT(carrier->goalentity==grom);
     T_ASSERT(!(grom->aiflags & AI_SOUL_TRAPPED));
     T_ASSERT(carrier->inventory[0] == gem);
@@ -2450,7 +3157,7 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
         "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X8;K\"6\"\nC;Y3;X9;K\"0\"\n"
         "C;Y3;X10;K\"1\"\nC;Y3;X11;K\"1\"\nC;Y3;X12;K\"1\"\n"
         "C;Y4;X1;K\"Asou\"\nC;Y4;X2;K\"Asou\"\nC;Y4;X7;K\"1\"\nE\n";
-    cstring_t const path = "/tmp/openwarcraft3-wc3-soul-gem-approach-save.bin";
+    cstring_t const path = Test_TempPath("wc3-soul-gem-approach-save.bin");
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     gameClient_t *client;
     edict_t *clent, *carrier, *target, *gem, *thinker;
@@ -2491,7 +3198,9 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     thinker_slot = globals.num_edicts;
     G_ClientCommand(clent, 2, select);
     thinker = &globals.edicts[thinker_slot];
-    T_ASSERT(thinker->inuse && thinker->think);
+    T_ASSERT(thinker->inuse);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
     T_ASSERT(thinker->spell_item == gem);
     T_EQ(thinker->channel->owner_spawn_time, carrier->spawn_time);
     T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
@@ -2499,18 +3208,26 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     bool const saved = WriteGame(path);
     T_ASSERT(saved);
     if (saved) {
-        /* g_save.c checks the append-only v47 roster identity directly; this
-         * round trip verifies the pending thinker pointer and its payload. */
-        thinker->think = NULL; thinker->spell_item = NULL;
+        /* Retail185 retains a receiver on Move's group instead of polling.
+         * Restore its callback binding and payload before advancing Move. */
+        thinker->spell_item = NULL;
         T_ASSERT(ReadGame(path));
         thinker = &globals.edicts[thinker_slot];
-        T_NOT_NULL(thinker->think);
-        T_EQ(thinker->think, S_SpellTargetApproachThink);
+        T_NULL(thinker->think);
+        T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
         T_ASSERT(thinker->spell_item == gem);
         T_EQ(thinker->channel->owner_spawn_time, carrier->spawn_time);
         T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
-        carrier->s.origin2.x = carrier->s.origin.x = 480.0f;
-        if (thinker->think) thinker->think(thinker);
+        G_AddUnitForcedVisibility(target, 0);
+        carrier->think = monster_think;
+        if (!level.vm) T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        bool const started = level.started, scripts = level.scriptsStarted;
+        level.started = level.scriptsStarted = true;
+        for (unsigned frame = 0; frame < 200 && thinker->inuse; frame++) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+        }
+        level.started = started; level.scriptsStarted = scripts;
         T_ASSERT(!thinker->inuse);
         T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
     }

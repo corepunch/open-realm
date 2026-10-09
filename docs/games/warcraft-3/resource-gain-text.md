@@ -87,8 +87,10 @@ The event source is the entity that owns the current transaction. Normal worker 
 This patch does **not** use floating text as a reason to redesign incomplete gameplay systems:
 
 - Wisp harvesting uses persistent periodic direct income, attached TargetArt at the authored DataC height, and the authored looped harvest sound on the same effect lifecycle.
-- Gold/lumber bounty semantics and their distinct Warsmash `Bounty` / `LumberBounty` styles remain separate work.
-- JASS `texttag` natives store simulation state (see [multiboard-and-texttag.md](multiboard-and-texttag.md)). `TE_FLOATING_TEXT` remains the one-shot resource-gain primitive; live texttag handles are not yet published through that path.
+- Unit-kill bounty is implemented independently from worker mining. The victim's owner's `PLAYERSTATE_GIVES_BOUNTY` enables authored UnitBalance gold/lumber dice payouts, credited to the killing unit's owner. The death lifecycle guard prevents a second reward; illusions, friendly kills, self-kills and unattributed deaths do not grant bounty.
+- Bounty labels use independent authored `BountyText*` / `LumberBountyText*` settings, anchor at the defeated unit, and are unicast to the recipient rather than broadcast. The recipient is resolved before any `gi.Write`: computer players are never `connected`, so their bounty text is skipped entirely instead of being written into the shared multicast buffer, where an unsent payload would leak into the next message delivered to another client. A successful gold payout additionally spawns the GoldCredit model using an owner-only effect. Missing Warcraft models do not invalidate gameplay credits.
+- Bounty bypasses `G_ApplyResourceIncome()`: retail upkeep taxes only gold returned from mines, so `G_AwardKillBounty()` credits the rolled gold/lumber in full (like Bundle of Gold / Lumber pickups) and clamps only to the 16-bit resource cap. Transmute `DataD` interactions still require verification. Display is the actually credited, resource-capped amount. The normal `GoldText*`/`LumberText*` mining paths are unaffected.
+- JASS `texttag` natives publish keyed presentation updates through `TE_TEXT_TAG` (see [multiboard-and-texttag.md](multiboard-and-texttag.md)). `TE_FLOATING_TEXT` remains the one-shot resource-gain primitive.
 - The resource label does not modify harvesting orders, carry state, camera, fog, selection, or HUD resource accounting.
 
 ## Regression coverage

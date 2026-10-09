@@ -57,11 +57,11 @@ TEST(wc3_movement, public_timed_life_matches_completed_retail_markers_and_saved_
     while(level.time<6050) {
         level.time+=FRAMETIME;globals.RunFrame();
         if(level.time==700) {
-            T_ASSERT(WriteGame("/tmp/wc3-timedlife156-pause.bin"));
+            T_ASSERT(WriteGame(Test_TempPath("wc3-timedlife156-pause.bin")));
             /* Teardown drains the discarded outgoing branch. This recorder
              * compares the saved continuation; old-owner callbacks have their own regression. */
             test_preload_marker=NULL;
-            T_ASSERT(ReadGame("/tmp/wc3-timedlife156-pause.bin"));remove("/tmp/wc3-timedlife156-pause.bin");
+            T_ASSERT(ReadGame(Test_TempPath("wc3-timedlife156-pause.bin")));remove(Test_TempPath("wc3-timedlife156-pause.bin"));
             test_preload_marker=TimedLifeMarker156;
         }
     }
@@ -86,8 +86,8 @@ TEST(wc3_movement, timed_life_records_grow_independently_of_script_timer_capacit
     }
     FOR_LOOP(i,64)S_ApplyTimedLife(units[0],MAKEFOURCC('B','T','L','F'),2);
     T_EQ(level.num_timers,0);
-    T_ASSERT(WriteGame("/tmp/wc3-timedlife156-growth.bin"));
-    T_ASSERT(ReadGame("/tmp/wc3-timedlife156-growth.bin"));remove("/tmp/wc3-timedlife156-growth.bin");
+    T_ASSERT(WriteGame(Test_TempPath("wc3-timedlife156-growth.bin")));
+    T_ASSERT(ReadGame(Test_TempPath("wc3-timedlife156-growth.bin")));remove(Test_TempPath("wc3-timedlife156-growth.bin"));
     G_FreeEdict(units[1]);edict_t *replacement=alloc_test_unit(MAKEFOURCC('h','R','T','E'),0,0);
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     while(level.time<50){level.time+=5;globals.RunFrame();}
@@ -140,13 +140,13 @@ TEST(wc3_movement, public_timed_life_factory_publishes_temporary_captain_ranges)
         T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),0x40220000);
     }
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED],0);
-    T_ASSERT(WriteGame("/tmp/wc3-timedlife156.bin"));T_ASSERT(ReadGame("/tmp/wc3-timedlife156.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-timedlife156.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-timedlife156.bin")));
     FOR_LOOP(i,9) {
         T_EQ(G_UnitAbilityLevel(units[i],FS_SLKKey(i==8 ? "BTLF" : buffs[i])),1);
         moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
         T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),0x40220000);
     }
-    remove("/tmp/wc3-timedlife156.bin");
+    remove(Test_TempPath("wc3-timedlife156.bin"));
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0);reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
 }

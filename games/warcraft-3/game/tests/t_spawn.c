@@ -234,7 +234,7 @@ TEST(wc3_spawn, attack_defaults_share_storage_and_mutations_isolate_instances) {
     T_ASSERT(unit_issueorder(second, "move", &destination));
     T_NULL(second->attack_overrides[0]); T_NULL(second->attack_overrides[1]);
     uint32_t first_id = first->s.number, second_id = second->s.number, third_id = third->s.number;
-    cstring_t file = "/tmp/openrealm-versioned-attack-defaults.bin";
+    cstring_t file = Test_TempPath("openrealm-versioned-attack-defaults.bin");
     T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
     first = g_edicts + first_id; second = g_edicts + second_id; third = g_edicts + third_id;
     T_EQ(S_AttackProfileRead(first, 0)->damageBase, 37);

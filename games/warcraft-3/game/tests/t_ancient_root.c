@@ -10,6 +10,8 @@ slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 #define TEST_AROO MAKEFOURCC('A', 'r', 'o', 'o')
+#define TEST_ARO1 MAKEFOURCC('A', 'r', 'o', '1')
+#define TEST_ARO2 MAKEFOURCC('A', 'r', 'o', '2')
 #define TEST_AHHB MAKEFOURCC('A', 'H', 'h', 'b')
 #define TEST_HBAR MAKEFOURCC('h', 'b', 'a', 'r')
 
@@ -30,17 +32,23 @@ static void ancient_capture_command_button(pfWriteType_t type, void const *value
 
 /* Distinct authored values prove the morph directions do not share a timer. */
 static char const ancient_root_tft[] =
-    "ID;PWXL;N;EBB;Y4;X10\n"
+    "ID;PWXL;N;EBB;Y6;X10\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
     "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"DataD1\"\n"
     "C;Y2;X1;K\"Aroo\"\nC;Y2;X2;K\"Aroo\"\nC;Y2;X3;K\"1\"\n"
     "C;Y2;X5;K\"2.25\"\nC;Y2;X6;K\"6.75\"\n"
-    "C;Y2;X7;K\"3\"\nC;Y2;X8;K\"3\"\nC;Y2;X10;K\"1\"\n"
+    "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"3\"\nC;Y2;X10;K\"1\"\n"
     "C;Y3;X1;K\"AHhb\"\nC;Y3;X2;K\"AHhb\"\nC;Y3;X3;K\"1\"\n"
     "C;Y3;X4;K\"ground\"\n"
     "C;Y4;X1;K\"AHst\"\nC;Y4;X2;K\"AHst\"\nC;Y4;X3;K\"1\"\n"
-    "C;Y4;X4;K\"structure\"\nE\n";
+    "C;Y4;X4;K\"structure\"\n"
+    "C;Y5;X1;K\"Aro2\"\nC;Y5;X2;K\"Aro2\"\nC;Y5;X3;K\"1\"\n"
+    "C;Y5;X5;K\"2.25\"\nC;Y5;X6;K\"6.75\"\n"
+    "C;Y5;X7;K\"2\"\nC;Y5;X8;K\"1\"\nC;Y5;X10;K\"1\"\n"
+    "C;Y6;X1;K\"Aro1\"\nC;Y6;X2;K\"Aro1\"\nC;Y6;X3;K\"1\"\n"
+    "C;Y6;X5;K\"2.25\"\nC;Y6;X6;K\"6.75\"\n"
+    "C;Y6;X7;K\"0\"\nC;Y6;X8;K\"3\"\nC;Y6;X10;K\"1\"\nE\n";
 
 /* ROC keeps AbilityData's row-major Data11..Data34 columns. */
 static char const ancient_root_roc[] =
@@ -121,7 +129,14 @@ TEST(wc3_ancient_root, roc_and_tft_use_separate_root_and_uproot_durations) {
 }
 
 TEST(wc3_ancient_root, missing_ability_data_does_not_start_morph) {
-    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    static char const missing_aro2[] =
+        "ID;PWXL;N;EBB;Y4;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"DataD1\"\n"
+        "C;Y2;X1;K\"Aroo\"\nC;Y2;X2;K\"Aroo\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X5;K\"2.25\"\nC;Y2;X6;K\"6.75\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"3\"\nC;Y2;X10;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(missing_aro2);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     edict_t *unit;
     reset_entities(); setup_test_world(); level.time = 1000;
@@ -229,6 +244,193 @@ TEST(wc3_ancient_root, shop_command_card_keeps_uproot_position_and_click_dispatc
     free_slk_rows(rows);
 }
 
+TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
+    static UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .damageDice = 1 }, .attack2 = { .damageDice = 1 } };
+    static UnitAbilities_t protector_abilities = { .abilList = "Aro2" };
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *target;
+    gameCommandButton_t buttons[12];
+    uint8_t count;
+    bool attack_button = false;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    unit = ancient_test_unit(true);
+    unit->ancient_root->ability = TEST_ARO2;
+    unit->data.UnitWeapons = &weapons;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 1)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 1)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+
+    T_EQ(S_AncientAttackMask(unit), 2);
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(S_UnitAttackSlotEnabled(unit, 1));
+    T_ASSERT(S_AttackCanTarget(unit, target));
+    T_ASSERT(S_OrderAttack(unit, target));
+    count = G_GetCommandButtons(unit, buttons, 12);
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
+    T_ASSERT(attack_button);
+    T_EQ(S_AttackProfileRead(unit, 1)->type, ATK_NORMAL); /* Rooted ranged weapon. */
+
+    unit->ancient_root->mode = ANCIENT_ROOTING;
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
+    unit->ancient_root->mode = ANCIENT_UPROOTING;
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
+
+    unit->ancient_root->mode = ANCIENT_UPROOTED;
+    unit->s.flags &= ~EF_BUILDING;
+    unit->aiflags &= ~AI_IMMOBILE;
+    unit->runtime.flags &= ~UNIT_BALANCE_BUILDING;
+    unit->movetype = MOVETYPE_STEP;
+    T_ASSERT(S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
+    T_ASSERT(S_AttackCanTarget(unit, target));
+    T_ASSERT(S_OrderAttack(unit, target));
+    T_EQ(S_AttackProfileRead(unit, 0)->type, ATK_NORMAL); /* Shared uprooted melee weapon. */
+    count = G_GetCommandButtons(unit, buttons, 12);
+    attack_button = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
+    T_ASSERT(attack_button);
+
+    /* Map-start rooted Protectors can be queried before the A_UPDATE hook has
+     * allocated ancient_root runtime state. Their authored Aro2 rooted attack
+     * mask must still govern server validation and the command card. */
+    unit->ancient_root->mode = ANCIENT_ROOTED;
+    unit->s.flags |= EF_BUILDING;
+    unit->aiflags |= AI_IMMOBILE;
+    unit->runtime.flags |= UNIT_BALANCE_BUILDING;
+    G_FreeAncientRoot(unit);
+    unit->data.UnitAbilities = &protector_abilities;
+    T_ASSERT(S_AncientIsRooted(unit));
+    T_ASSERT(S_UnitAttackSlotEnabled(unit, 1));
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(S_AttackCanTarget(unit, target));
+    T_ASSERT(S_OrderAttack(unit, target));
+    count = G_GetCommandButtons(unit, buttons, 12);
+    attack_button = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
+    T_ASSERT(attack_button);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_when_rooted) {
+    static UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .damageDice = 1 }, .attack2 = { .damageDice = 1 } };
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *target;
+    gameCommandButton_t buttons[12];
+    uint8_t count;
+    bool attack_button;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    unit = ancient_test_unit(true);
+    unit->ancient_root->ability = TEST_ARO1;
+    unit->data.UnitWeapons = &weapons;
+    S_AttackProfileWrite(unit, 0)->type = S_AttackProfileWrite(unit, 1)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = S_AttackProfileWrite(unit, 1)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+
+    T_EQ(S_AncientAttackMask(unit), 0);
+    T_EQ(S_AncientRetaliationAttackMask(unit), 3);
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
+    T_ASSERT(!S_AttackCanTarget(unit, target));
+    T_ASSERT(!S_OrderAttack(unit, target));
+    count = G_GetCommandButtons(unit, buttons, 12);
+    attack_button = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
+    T_ASSERT(!attack_button);
+
+    /* Damage-triggered retaliation follows the weapon profile even though
+     * players cannot issue an explicit rooted Attack order. */
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(unit, 1)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 1)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 1)->range = 256.0f;
+    S_AttackProfileWrite(unit, 1)->weapon = WPN_MISSILE;
+    S_AttackProfileWrite(target, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(target, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->data.UnitWeapons = &weapons;
+    T_Damage(unit, target, 1);
+    T_ASSERT(unit->goalentity == target);
+    T_EQ(unit->currentmove->proc, CAbilityAttack);
+    unit->wait = 0.0f;
+    unit->attack_cooldown_active = false;
+    unit->currentmove->think(unit);
+    T_STREQ(unit->currentmove->animation, "attack range");
+
+    unit->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
+    T_ASSERT(S_AncientIsRooted(unit));
+    T_EQ(S_AncientRetaliationAttackMask(unit), 3);
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(!S_AttackCanTarget(unit, target));
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+}
+
+/* An uprooted Protector only has Aro2 DataB's melee slot; an air attacker
+ * must not start a counterattack that attack_profile cannot carry out. */
+TEST(wc3_ancient_root, uprooted_protector_does_not_counterattack_with_rooted_weapon) {
+    static UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .damageDice = 1 }, .attack2 = { .damageDice = 1 } };
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *flyer, *footman;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    unit = ancient_test_unit(false);
+    unit->ancient_root->ability = TEST_ARO2;
+    unit->data.UnitWeapons = &weapons;
+    S_AttackProfileWrite(unit, 0)->type = S_AttackProfileWrite(unit, 1)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 1)->targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(unit, 1)->range = 256.0f;
+    S_AttackProfileWrite(unit, 1)->weapon = WPN_MISSILE;
+    flyer = alloc_test_unit(MAKEFOURCC('h','g','r','y'), 96.0f, 64.0f);
+    flyer->s.player = 1; flyer->svflags |= SVF_MONSTER; flyer->targtype = TARG_AIR;
+    footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32.0f, 64.0f);
+    footman->s.player = 1; footman->svflags |= SVF_MONSTER; footman->targtype = TARG_GROUND;
+
+    T_EQ(S_AncientAttackMask(unit), 1);
+    T_EQ(S_AncientRetaliationAttackMask(unit), 1);
+    T_Damage(unit, flyer, 1);
+    T_ASSERT(unit->goalentity != flyer);
+    T_ASSERT(!unit->currentmove || unit->currentmove->proc != CAbilityAttack);
+    T_Damage(unit, footman, 1);
+    T_ASSERT(unit->goalentity == footman);
+    T_EQ(unit->currentmove->proc, CAbilityAttack);
+
+    /* Walking to the root site keeps the uprooted form and its weapons; only
+     * the morph itself suppresses counterattacks. */
+    unit->ancient_root->mode = ANCIENT_ROOTING;
+    unit->ancient_root->approaching = true;
+    T_ASSERT(S_UnitAttackSlotEnabled(unit, 0));
+    T_EQ(S_AncientRetaliationAttackMask(unit), 1);
+    unit->ancient_root->approaching = false;
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_EQ(S_AncientRetaliationAttackMask(unit), 0);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_ancient_root, uproot_morph_rejects_orders_until_authored_hero_duration) {
     slkTestData_t *rows = parse_slk_string(ancient_root_tft);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
@@ -291,8 +493,8 @@ TEST(wc3_ancient_root, root_morph_rejects_orders_until_authored_duration) {
 
 static void ancient_assert_morph_save_restore(bool rooted) {
     cstring_t filename = rooted ?
-        "/tmp/openwarcraft3-wc3-save-ancient-rooting.bin" :
-        "/tmp/openwarcraft3-wc3-save-ancient-uprooting.bin";
+        Test_TempPath("wc3-save-ancient-rooting.bin") :
+        Test_TempPath("wc3-save-ancient-uprooting.bin");
     edict_t *unit, *goal;
     uint32_t end_time;
 

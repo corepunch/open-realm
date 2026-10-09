@@ -1,0 +1,5 @@
+[Asb1]
+Tip=Submerge
+Ubertip=Hide beneath the water.
+UnTip=Surface
+UnUbertip=Return to the surface.

@@ -123,6 +123,13 @@ typedef struct {
 /* Two order notifications for every world entity can precede one event pass.
  * A power-of-two bound also keeps ring indexing a mask in the hot dispatch. */
 #define MAX_EVENT_QUEUE 32768
+#define MAX_JASS_DIALOGS 64 // dialogs; bounds live handles, freed slots are reused; used by the JASS registry
+#define MAX_JASS_DIALOG_BUTTONS 256 // buttons; bounds live handles, freed slots are reused; used by the JASS registry
+#define JASS_DIALOG_SLOT_BITS 16 // bits; low id bits hold slot+1 (fits 256 buttons), high bits the reuse generation
+#define MAX_JASS_DIALOG_TEXT 512 // bytes; bounds retained dialog messages; used by save and UI serialization
+#define MAX_JASS_DIALOG_BUTTON_TEXT 192 // bytes; bounds retained choice labels; used by save and UI serialization
+#define MAX_JASS_DIALOG_UI_BUTTONS 12 // buttons; stock template has no scrolling container; excess choices are logged
+#define WC3_JASS_DIALOG_WINDOW 0x4A444C47u // window ID; JDLG tag identifies the modal JASS choice window
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
 #define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
 #define BZ_STRINGIFY_INNER(value) #value
@@ -266,6 +273,8 @@ typedef enum {
     CONSTRUCTION_ORC,
     CONSTRUCTION_UNDEAD,
     CONSTRUCTION_NIGHTELF,
+    CONSTRUCTION_NAGA,
+    CONSTRUCTION_TINY, /* item-owned autonomous construction */
 } constructionType_t;
 
 typedef struct {
@@ -824,6 +833,7 @@ typedef enum {
 #define AB_ENGINE_EVENTS (1u << 13) // bit 13; engine-wide lifecycle/order notifications reach this ability
 #define AB_QUEUEABLE    (1u << 14) // bit 14; the command button accepts the generic Shift queue modifier
 #define AB_PRIMARY_TIMER (1u << 15) // bit 15; receives primary-clock timer passes independent of server frames
+#define AB_POWERUP (1u << 16) // bit 16; item ability consumed on pickup without an inventory slot
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 #define AB_STATUS_POLICY (1u << 17) // bit 17; procedure classifies its attached buffs for public removal
 #define AB_TYPE_INIT (1u << 19) // explicit per-type initialization contract; direct init remains available
@@ -926,8 +936,10 @@ typedef enum {
     A_AUTO_COMBAT_END,   /* Generic combat ended; persistent behaviors may resume or restore their order. */
     A_UNIT_STAND,       /* Common stand installation; an owning ability may install its persistent stand behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
+    A_MOVE_START,       /* Move accepted a new target; call->move_target identifies it. */
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
-    A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
+    A_MOVE_BLOCKED,     /* Move reached terminal Hold after a blocked route; true consumes the transition. */
+    A_DAMAGED,          /* Positive post-mitigation damage applied to a surviving unit, before combat response. */
     A_COMBAT_ALERT,     /* Source notification before damage transformations or retaliation. */
     A_ALLY_COMBAT_ALERT, /* Victim broadcasts its source to eligible help responders. */
     A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
@@ -1050,6 +1062,8 @@ struct ability_call_s {
         abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
         struct { edict_t *target; cstring_t order; bool queued; vec2_t *point; } issued_target_order; /* Issuer target admission/dispatch; optional conversion output. */
+        edict_t *attacker; /* A_DAMAGED */
+        edict_t *move_target; /* A_MOVE_START */
         cstring_t classname;
         uint32_t level;
         bool enabled;
@@ -1168,6 +1182,28 @@ typedef struct {
 #define BZ_UNIT_TURN_SET 1u // bit; distinguishes scripted turn speed from authored speed; unitInfo_t.move_flags
 #define BZ_UNIT_WINDOW_SET 2u // bit; zero is a valid scripted movement window; unitInfo_t.move_flags
 #define BZ_UNIT_SPEED_SET 4u // bit; zero/negative scripted speeds must reach the authored clamp
+typedef struct {
+    bool inuse;
+    uint32_t id; /* (generation << JASS_DIALOG_SLOT_BITS) | (slot + 1); kept after release to advance on reuse */
+    uint32_t dialog_id;
+    int32_t hotkey;
+    bool quit;
+    bool score_screen;
+    char text[MAX_JASS_DIALOG_BUTTON_TEXT];
+} jassDialogButton_t;
+
+typedef struct {
+    bool inuse;
+    uint32_t id; /* (generation << JASS_DIALOG_SLOT_BITS) | (slot + 1); kept after release to advance on reuse */
+    uint32_t visible_players; /* client player numbers */
+    char message[MAX_JASS_DIALOG_TEXT];
+} jassDialog_t;
+
+typedef struct {
+    int32_t hotkey;
+    bool quit;
+    bool score_screen;
+} jassDialogButtonOptions_t;
 
 typedef struct gameevent_s {
     EVENTTYPE type;
@@ -1182,6 +1218,8 @@ typedef struct gameevent_s {
     bool has_point;
     event_t *responseTo;
     uint64_t response_sequence; /* Pins a registration across deferred delivery/reuse. */
+    uint32_t dialog_id, button_id;
+    uint32_t dialog_player; /* one-based player index; zero means no override */
 } gameEvent_t;
 
 typedef struct {
@@ -1251,6 +1289,7 @@ typedef struct {
 #define MAX_GAMECACHE_STRING 256 // chars; shared string cap for gamecache and hashtable string slots
 #define WC3_LAYER_TIMERDIALOG LAYER_GAME_0
 #define WC3_LAYER_LEADERBOARD LAYER_GAME_1
+#define WC3_LAYER_MULTIBOARD LAYER_GAME_3 // custom multiboard / Team Resources; LAYER_GAME_2 belongs to WC3_LAYER_COMMAND_ERROR
 #define MAX_EVENTS 1024 // handlers; region-event tokens allow safe reuse of retired handler slots
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
@@ -1263,6 +1302,8 @@ typedef struct {
 #else
 #define WC3_TUTORIAL_DEBUG_ENABLED() false
 #endif
+
+/* Focused diagnostics for UndeadX07c's periodic flame damage and texttags. */
 
 typedef struct {
     uint32_t handle_id; // runtime ordinal in level.groups; rebuilt from slot position on load
@@ -1408,7 +1449,9 @@ struct gmultiboarditem_s {
 
 struct gtexttag_s {
     bool inuse;
+    bool has_text, has_position;
     uint32_t visible_clients;
+    uint32_t generation;
     bool permanent;
     float height, height_offset;
     float x, y;
@@ -1647,6 +1690,7 @@ typedef struct {
     bool restore_hidden;
     uint32_t worker_release_time; /* Undead summon animation release time; 0 for other strategies */
     float progress;
+    float duration_ms; /* override of UnitBalance buildTime for Tiny Structures; 0 uses normal duration */
     bool paid;
     uint32_t payer;
     int32_t gold, lumber;
@@ -1834,6 +1878,7 @@ typedef struct {
     bool pathing_active;
     bool placement_solid;
     bool loot_processed;
+    float occluder_height; /* mutable elevator level, measured above the destructable origin */
 
     uint32_t editor_id;
     uint32_t item_table;
@@ -1878,9 +1923,14 @@ typedef struct {
     vec2_t origin; // position when channel started (movement cancels channel)
 } channel_t;
 
+typedef enum {
+    AURA_EFFECT_NONE,
+    AURA_EFFECT_RECIPIENT,
+    AURA_EFFECT_SOURCE
+} auraEffectRole_t;
+
 struct edict_s {
     entityState_t s;
-    uint32_t scheduled_think_frame; /* transient: prevent two owner thinks after a frame-local transition */
     gameClient_t *client;
     pathTex_t *pathtex;
     float collision;
@@ -1893,6 +1943,7 @@ struct edict_s {
     box2_t areabounds;
 
     // keep above in sync with server.h
+    uint32_t scheduled_think_frame; /* transient: prevent two owner thinks after a frame-local transition */
     uint32_t class_id;
     uint64_t own_seq; /* Current owned-pool insertion order; independent of edict address. */
     uint32_t variation;
@@ -1900,6 +1951,7 @@ struct edict_s {
     edict_t *build_preview; /* translucent Construction Site Indicator for an accepted build order */
     bool rally_indicator;
     uint32_t status_effect_code; /* presentation-only ownership identity; saved so removal can find effects after load */
+    auraEffectRole_t aura_effect_role; /* stable source/recipient identity; independent of alias and current art */
     construction_t *construction; /* pool slot; null if this unit is not under construction */
     bool training; /* spawned in a production queue but not yet completed */
     bool training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
@@ -1923,6 +1975,13 @@ struct edict_s {
         abilityPrimaryTimer_t request;
         float slope;
     } permanent_invisibility_fade;
+    /* Awan owns autonomous decisions, but ordinary Move owns the actual route. */
+    uint32_t wander_next_time;
+    uint32_t wander_random_state;
+    edict_t *wander_goal; /* active move, only when owned by Awan */
+    edict_t *wander_waypoint; /* private, stable destination while Awan is installed */
+    uint32_t wander_goal_generation;
+    uint32_t waypoint_generation; /* increments whenever the waypoint ring reuses this edict */
     shadowMeld_t *shadowmeld;
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */
     uint32_t shared_vision; /* players that receive this unit's ordinary sight via UnitShareVision */
@@ -1968,6 +2027,7 @@ struct edict_s {
     edictAbilities_s abilities;
     uint32_t autocast_code; /* one selected autocast ability; zero means disabled */
     avatar_t *avatar;
+    bool ignore_alarm; /* UnitIgnoreAlarm: suppress this unit's automatic attacked notifications */
     bool invulnerable;  // unit cannot take damage when true
     bool paused;        // unit AI and movement suspended when true
     bool stunned;       // unit AI and movement suspended by timed status
@@ -2119,6 +2179,7 @@ struct edict_s {
      * AddUnitAnimationProperties mutations. The request is retained separately
      * so a property change can reselect the same logical animation family. */
     unitAnimationText_t const *animation_request, *animation_props;
+    char queued_animation[WC3_ANIMATION_REQUEST_SIZE]; /* JASS follow-up to an authored destructable clip */
     unitbalance_t runtime;
     color32_t vertex_color;
     bool vertex_color_set;
@@ -2275,6 +2336,7 @@ struct gevent_s {
     gtimer_t *timer;
     struct jass_function const *filter;
     handle_t region;
+    uint32_t dialog_id, button_id; /* registration target, one-based */
     float range;
     uint32_t state;
     uint32_t limitop;
@@ -2401,6 +2463,8 @@ typedef struct {
     int32_t strength_count; /* Nativec0 roster deltas, not a health sum. */
     uint32_t policy_flags; /* Native6c: retreat2 and target-strength-ready1000. */
     wc3Clock_t update_due; /* Native repeating d01c1, one second from actor creation. */
+    vec2_t position; /* Compatibility logical TeleportCaptain position; physical tasks remain Move-owned. */
+    bool position_valid;
     botCaptainState_t state;
 } botCaptain_t;
 
@@ -2442,6 +2506,8 @@ typedef enum {
     BOT_RANDOM_PATHS     = 1 << 13,
     BOT_DEFEND_PLAYER    = 1 << 14,
     BOT_HEROES_BUY_ITEMS = 1 << 15,
+    BOT_AMPHIBIOUS = 1 << 16, /* AI routing policy; never modifies unit movement domains */
+    BOT_DISABLE_PATHING = 1 << 17, /* AI policy only; never ignore collision in orders */
 } botFlag_t;
 
 typedef struct {
@@ -2546,8 +2612,11 @@ struct level_locals {
     hashtable_t hashtables[MAX_HASHTABLES];
     region_t regions[MAX_REGIONS];
     uint32_t num_regions;
-    /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
+    /* Transient: client slots whose WC3_LAYER_MULTIBOARD layout (custom board or
+     * Team Resources) G_UpdateMultiboards rewrites this frame. */
     uint32_t multiboard_dirty_clients;
+    uint32_t multiboard_suppressed_clients; /* serialized local display suppression */
+    uint32_t team_resources_collapsed_clients; /* serialized local Team Resources panel state */
     uint32_t timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
     int32_t timer_dialog_last_index[MAX_CLIENTS]; /* transient player-number cache */
     int32_t timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
@@ -2616,6 +2685,9 @@ struct level_locals {
     bool script_paused;
     bool quest_paused;
     bool modal_paused;
+    jassDialog_t dialogs[MAX_JASS_DIALOGS];
+    jassDialogButton_t dialog_buttons[MAX_JASS_DIALOG_BUTTONS];
+    uint32_t dialog_count, dialog_button_count; /* high-water slot counts; free slots below are reused */
     timeOfDay_t timeofday;
     wc3EnvironmentFog_t environment_fog;
     box2_t camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
@@ -2816,7 +2888,14 @@ int32_t G_BotLastCommand(player_t *);
 int32_t G_BotLastData(player_t *);
 void G_BotPopCommand(player_t *);
 void G_BotSetCaptainHome(player_t *, int32_t, float, float);
+void G_BotTeleportCaptain(player_t *, float, float);
 void G_BotCaptainGoHome(player_t *);
+void G_BotCaptainVsPlayer(player_t *, player_t *);
+void G_BotCaptainVsUnits(player_t *, player_t *);
+void G_BotClearCaptainTargets(player_t *);
+void G_BotResetCaptainLocs(player_t *);
+bool G_BotCaptainAtGoal(player_t *);
+bool G_BotCaptainIsHome(player_t *);
 void G_BotSetStagePoint(player_t *, float, float);
 void G_BotShiftTownSpot(player_t *, float, float);
 bool G_BotSuicideUnits(player_t *, int32_t, uint32_t, int32_t);
@@ -2930,6 +3009,13 @@ uint32_t G_GetTerrainPathingStateSize(void);
 bool G_GetTerrainPathingState(uint8_t *data, uint32_t size);
 bool G_SetTerrainPathingState(uint8_t const *data, uint32_t size);
 void G_SetTerrainBlightCell(uint32_t x, uint32_t y, bool add);
+typedef struct {
+    vec2_t point;
+    float radius;
+} unitExitReservation_t;
+
+bool SP_FindUnitExitPositionReserved(edict_t *producer, edict_t *unit,
+    unitExitReservation_t const *reserved, uint32_t count, vec2_t *out, float *angle);
 bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, float *angle);
 edict_t *SP_SpawnAtLocation(uint32_t, uint32_t, vec2_t const *);
 edict_t *SP_SpawnAtLocationNoBirth(uint32_t, uint32_t, vec2_t const *);
@@ -3002,6 +3088,12 @@ multiboard_t *G_AllocMultiboard(void);
 void G_FreeMultiboard(multiboard_t *board);
 void G_SetMultiboardDisplayed(multiboard_t *board, player_t *player, bool displayed);
 bool G_IsMultiboardDisplayed(multiboard_t const *board, player_t const *player);
+void G_SuppressMultiboardDisplay(player_t *player, bool suppress);
+bool G_IsMultiboardSuppressed(player_t const *player);
+multiboard_t *G_VisibleMultiboard(uint32_t client_index);
+void G_MarkMultiboardPlayerDirty(uint32_t owner);
+void G_UpdateMultiboards(void);
+void UI_WriteMultiboard(edict_t *ent);
 void G_SetMultiboardMinimized(multiboard_t *board, player_t *player, bool minimized);
 bool G_IsMultiboardMinimized(multiboard_t const *board, player_t const *player);
 void G_MarkMultiboardDirty(multiboard_t const *board);
@@ -3013,6 +3105,7 @@ void G_MultiboardReleaseItem(multiboardItem_t *item);
 multiboard_t *G_MultiboardItemBoard(multiboardItem_t const *item);
 texttag_t *G_AllocTextTag(void);
 void G_FreeTextTag(texttag_t *tag);
+void G_TextTagPresentation(texttag_t *tag, bool remove);
 void G_SetTextTagVisible(texttag_t *tag, player_t *player, bool visible);
 bool G_IsTextTagVisible(texttag_t const *tag, player_t const *player);
 hashtable_t *G_AllocHashtable(void);
@@ -3081,6 +3174,7 @@ animation_t const *G_GetAnimationVariant(uint32_t modelindex, cstring_t animname
 bool         G_AnimationHasPrimary(animation_t const *animation, cstring_t primary);
 animation_t const *G_GetUnitAnimation(edict_t *unit, cstring_t animname);
 void         G_SetUnitAnimation(edict_t *unit, cstring_t animname);
+void         G_RunDestructableAnimation(edict_t *ent);
 void         G_ResetUnitAnimationProperties(edict_t *unit);
 void         G_ResetUnitAnimationPropertiesPrepared(edict_t *, unitAnimationDefaults_t *);
 cstring_t    G_UnitAnimationRequest(edict_t const *);
@@ -3399,12 +3493,16 @@ bool S_UnitHasAbilityFlags(edict_t const *, uint32_t);
 void S_ClearUnitEventPlans(void);
 void S_UnitTargetRemoved(edict_t *);
 void S_UnitTargetLost(edict_t *);
+bool S_UnitAbilityEventWithCall(edict_t *, abilityMsg_t, abilityCall_t const *);
 bool S_UnitAbilityMoveArrive(edict_t *);
 bool S_AncientIsRooted(edict_t const *);
 bool S_AncientHasRootAbility(edict_t const *);
+bool S_AncientCanShowRootedAttackCommand(edict_t const *);
 bool S_AncientCanReceiveOrder(edict_t const *);
 bool S_AncientAbilityAvailable(edict_t const *, ability_t const *);
 uint32_t S_AncientAttackMask(edict_t const *);
+uint32_t S_AncientRetaliationAttackMask(edict_t const *);
+bool S_AncientIsMorphing(edict_t const *);
 bool G_UnitIsStructure(edict_t const *);
 TARGTYPE G_UnitTargetType(edict_t const *);
 bool G_UnitHasBuildMenu(edict_t const *);
@@ -3465,6 +3563,7 @@ void G_EffectValidateTarget(edict_t *);
 
 // hud/hud_resource_text.c
 void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amount);
+void G_BountyGainEvent(edict_t *victim, uint32_t recipient, uint32_t resource_state, int32_t amount);
 
 // hud/hud_unit.c
 uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t max_buttons);
@@ -3514,7 +3613,9 @@ bool G_StartHumanConstruction(edict_t *builder, edict_t *building);
 bool G_StartOrcConstruction(edict_t *builder, edict_t *building);
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building);
 bool G_StartNightElfConstruction(edict_t *builder, edict_t *building);
-bool G_StartNightElfOverlayConstruction(edict_t *building);
+bool G_StartNagaConstruction(edict_t *builder, edict_t *building);
+bool G_StartNightElfOverlayConstruction(edict_t *builder, edict_t *building);
+bool G_StartTinyConstruction(edict_t *builder, edict_t *building, float duration_seconds);
 void G_RunConstructionFrame(edict_t *building);
 void G_UpdateConstructionAnimation(edict_t *building);
 void G_StopConstruction(edict_t *building);
@@ -3644,6 +3745,20 @@ void UI_ClearLayer(edict_t *, uint32_t);
 void UI_ShowGameResult(edict_t *, uint32_t);
 void UI_FlushPendingGameResults(void);
 void UI_HideGameResult(edict_t *);
+/* JASS interactive choice dialogs: the registry and click authority live in the game. */
+jassDialog_t *G_JassDialog(handle_t);
+jassDialogButton_t *G_JassDialogButton(handle_t);
+jassDialog_t *G_JassDialogById(uint32_t);
+jassDialogButton_t *G_JassDialogButtonById(uint32_t);
+jassDialog_t *G_JassDialogCreate(void);
+jassDialogButton_t *G_JassDialogAddButton(jassDialog_t *, cstring_t, jassDialogButtonOptions_t const *);
+void G_JassDialogDestroy(jassDialog_t *);
+void G_JassDialogClear(jassDialog_t *);
+void G_JassDialogDisplay(player_t *, jassDialog_t *, bool);
+void G_JassDialogClick(edict_t *, uint32_t, uint32_t);
+void UI_JassDialogShow(edict_t *, jassDialog_t const *);
+void UI_JassDialogHide(edict_t *);
+void UI_JassDialogRestore(edict_t *);
 void UI_ShowQuests(edict_t *);
 void UI_HideQuests(edict_t *);
 void UI_ShowAllies(edict_t *);
@@ -3702,6 +3817,7 @@ void G_SetMapAbilityOverrides(mapInfo_t const *);
 bool G_IsReignOfChaosMap(mapInfo_t const *);
 uint32_t G_MapGameDataSet(mapInfo_t const *);
 void G_MapGameDataPrefix(wc3MapGameDataPrefixParams_t const *params);
+void G_ApplyTilesetWaterHeight(mapInfo_t const *info);
 #ifdef BZ_TESTS
 typedef struct { cstring_t text; void *rows; uint32_t count; } slkTestData_t;
 bool G_SLKStoreOptional(cstring_t);
@@ -3786,6 +3902,8 @@ extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav c
 extern uint8_t g_numTreeFallSounds;
 
 // g_command.c
+#define WC3_SELECTION_MAX 24 // units; Reforged selection capacity, also bounds WC3 stack arrays
+uint32_t G_SelectionLimit(void);
 int32_t G_CompareSelectionOrder(edict_t const *, edict_t const *);
 uint32_t G_GetOrderedSelectedUnits(gameClient_t *, edict_t * *, uint32_t);
 void G_SelectEntity(gameClient_t *, edict_t *);
@@ -3800,6 +3918,8 @@ bool G_CycleSelectionSubgroup(gameClient_t *);
 void G_ResetSelectionFocus(gameClient_t *);
 bool G_UnitCanBeSelected(gameClient_t *, edict_t const *);
 bool G_UnitCanControl(gameClient_t *, edict_t const *);
+bool G_UnitCanSpendResources(gameClient_t *, edict_t const *);
+bool G_CanViewTeamResources(uint32_t viewer, uint32_t owner);
 selectionRelation_t G_SelectionRelation(uint32_t viewer, edict_t const *ent);
 edict_t *G_GetMainControllableUnit(gameClient_t *);
 void G_UpdateClientSelections(void);
@@ -3980,7 +4100,9 @@ uint32_t G_HeroXPForLevel(uint32_t level);
 uint32_t G_HeroLevelForXP(uint32_t xp);
 void G_HeroApplyLevel(edict_t *, uint32_t level);
 void G_HeroSetXP(edict_t *, uint32_t xp);
+bool G_HeroStripLevels(edict_t *, uint32_t levels);
 void G_GrantKillXP(edict_t *victim, edict_t *killer);
+void G_AwardKillBounty(edict_t *victim, edict_t *killer);
 bool G_ReviveHero(edict_t *, float x, float y);
 bool G_UnitIsRaisableCorpse(edict_t const *);
 bool G_UnitIsRaisableStoredCorpse(edict_t const *);
@@ -4084,6 +4206,7 @@ void S_MineOverlayRelease(edict_t *);
 edict_t *S_CreateBlightedGoldmine(uint32_t, vec2_t const *, float);
 void S_GoldMineSetResourceAmount(edict_t *, uint32_t);
 bool S_AcolyteHarvestOrder(edict_t *, edict_t *);
+bool S_AcolyteHarvestAutoStart(edict_t *);
 void S_AcolyteHarvestRelease(edict_t *);
 bool S_AcolyteHarvestIsActive(edict_t const *);
 bool S_EntangleCommandHidden(edict_t const *, uint32_t);
@@ -4233,6 +4356,8 @@ uint32_t G_ItemTypeFromClass(cstring_t cls);
 // g_stock.c / neutral shops
 bool G_IsItemShop(edict_t const *shop);
 bool G_IsUnitShop(edict_t const *shop);
+uint32_t G_UpdateShopItemStock(edict_t *shop);
+bool G_ShopItemRequirementsSatisfied(gameClient_t *client, uint32_t item_id, string_t reason, uint32_t reason_size);
 bool G_CanUseItemShop(gameClient_t *client, edict_t const *shop);
 bool G_CanUseUnitShop(gameClient_t *client, edict_t const *shop);
 float G_ShopActivationRadius(edict_t const *shop);

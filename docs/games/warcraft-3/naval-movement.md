@@ -60,6 +60,40 @@ unload placement remains unresolved retail work.
 
 ## Verification And Limits
 
+## Rendering
+
+Rendering height is separate from simulation pathability. Existing `M_CheckGround()` behavior remains authoritative:
+
+- `float` uses the water surface and ignores walkable bridge height;
+- `amph` uses the water surface only where terrain is swimmable and not walkable;
+- an amphibious unit on a walkable bridge is not presented as swimming.
+
+Do not use render-water detection to authorize movement.
+
+## Existing Consumers
+
+Movement/pathing consumers already call `M_UnitStaticPathingFlags()` rather than hard-coding ground routing. Fixing that policy therefore propagates to normal Move, Patrol, Attack/chase, attack-move waypoints, formation slots, spawn/unstuck placement, Way Gate placement, Blink-style point correction, construction approaches, and cargo transport movement.
+
+Repair's authored naval range bonus is already implemented separately in `skills/s_repair.c` for `movetp=float` targets.
+
+Naga Submerge uses the same terrain truth rather than inventing another water classifier. `Asb1`/`Asb2`/`Asb3`/`ANsu` may enter the submerged form only when `CM_TerrainPointIsSwimmable()` is true and `CM_TerrainPointIsWalkable()` is false. That is an ability activation rule, not an amphibious routing rule: ordinary `amph` units can still traverse walkable land and water exactly as described above.
+
+Cargo passenger placement already asks `G_FindUnitUnstuckPosition()` using the passenger, so the passenger's movement policy is authoritative. The current last-resort unload fallback still places the passenger at the transport position if no legal unstuck point exists. Retail-exact behavior for the no-legal-unload-position case remains unresolved and is deliberately not changed by the naval routing work.
+
+## Verification
+
+Automated coverage belongs in `games/warcraft-3/game/tests/t_pathfinding.c` and `t_movement.c`:
+
+- land rejects `float` while water accepts it;
+- `amph` accepts either land or water and rejects cells blocked to both;
+- movement type selects the expected router policy;
+- command-time amphibious destinations reject either a ground or sea unit while ground/sea movers ignore the opposite domain;
+- a `float` route detours through connected water around unswimmable land;
+- pathing-texture blocked pixels reject both ground and float routing;
+- float move-time collision ignores ground units and collides with sea units;
+- amphibious move-time collision collides with both ground and sea units;
+- existing water-height/bridge tests continue to cover `FLOAT` presentation.
+
 Asset-free tests cover all four independent mask bits, authored movement-type
 selection, real Move detours, widget footprint publication/release and command
 occupancy. The upstream connected-water detour test is retained. Bridge/altitude

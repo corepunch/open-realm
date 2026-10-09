@@ -15,7 +15,7 @@ map DataA–D.
 | `DataA` | 0.8 | goldCostFactor | `floor(UnitBalance.goldCost * DataA)` gold |
 | `DataB` | 0 | lumberCostFactor | lumber credit when non-zero |
 | `DataC` | 5 | maxCreepLv | reject when `UnitBalance.level > DataC` |
-| `DataD` | 1 | allowBounty | documented; normal death bounty path unresolved |
+| `DataD` | 1 | allowBounty | authored; normal death bounty now exists, but DataD-specific suppression remains unimplemented |
 | `BuffID` | `BNtm` | — | presentation; kill is instant |
 | `targs` | air,ground,enemy,neutral,nonhero | — | living enemy/neutral non-heroes |
 | `Cost` / `Cool` / `Rng` | 150 / 45 / 650 | — | mana, cooldown, range |

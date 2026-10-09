@@ -54,7 +54,7 @@ TEST(wc3_repulsion_policy, zero_authored_speed_keeps_repulsor_through_public_lif
         jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
         T_ASSERT(unit->movement.repulse.active);T_EQ(level.repulse_head,unit);
         T_EQ(unit->movement.repulse.state.packed,0x01000000u);
-        unsigned number=unit->s.number;cstring_t file="/tmp/wc3-immobile-repulsor.bin";
+        unsigned number=unit->s.number;cstring_t file=Test_TempPath("wc3-immobile-repulsor.bin");
         T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
         T_ASSERT(M_UnitMoveDisabled(unit));T_ASSERT(unit->movement.repulse.active);
         T_EQ(level.repulse_head,unit);T_EQ(unit->movement.repulse.state.packed,0x01000000u);
@@ -122,7 +122,7 @@ TEST(wc3_repulsion_policy, saved_channel_restores_disabled_membership_and_resume
     T_ASSERT(unit->movement.repulse.active);
     spell_begin_channel(unit, MAKEFOURCC('A','H','b','z'));
     T_ASSERT(!unit->movement.repulse.active);
-    cstring_t file = "/tmp/wc3-repulsion-channel-policy.bin";
+    cstring_t file = Test_TempPath("wc3-repulsion-channel-policy.bin");
     T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
     T_ASSERT(!unit->movement.repulse.active); T_NULL(level.repulse_head);
     S_SpellCancelChannel(unit);

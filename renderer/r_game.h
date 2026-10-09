@@ -35,6 +35,9 @@ void R_SetupTextureMatrix(void);
 void R_DrawMinimap(rect_t const *screen, cstring_t map);
 
 void R_RegisterMap(cstring_t mapFileName);
+/* Optional archive layer between map imports and base data for the loaded map. Returns the path that
+ * resolves `asset` inside that layer, or false when the layer does not contain it. */
+bool R_GameAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate_size);
 void R_SetupEnvironmentLighting(void);
 void R_ConformGroundSurfaces(viewDef_t *viewdef);
 void R_DrawWorld(void);

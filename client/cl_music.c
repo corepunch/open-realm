@@ -801,6 +801,8 @@ void CL_MusicSetThematicPosition(int32_t millisecs) {
     CL_MusicSeekDecoder(MAX(0, millisecs));
 }
 
+bool CL_MusicIsSuspended(void) { return cl_music.suspended; }
+
 void CL_MusicSuspend(void) {
     if (cl_music.source == CL_MUSIC_SOURCE_NONE || cl_music.suspended) return;
     CL_MusicFreezeFade();

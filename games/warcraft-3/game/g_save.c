@@ -8,6 +8,8 @@
 #include "shared/test.h"
 void reset_entities(void);
 void setup_test_world(void);
+slkTestData_t *parse_slk_string(char const *slk_text);
+void free_slk_rows(slkTestData_t *rows);
 #endif
 
 typedef enum {
@@ -82,8 +84,10 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format144 retains live unit release identities and their absolute clock keys. */
-static uint32_t const save_version = 146;
+/* Format147 combines the retail path state with upstream dialogue, aura,
+ * wander, texttag and destructable persistence. */
+static uint32_t const save_version = 147;
+#define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -185,6 +189,8 @@ typedef enum {
     JASS_HANDLE_GROUP,
     JASS_HANDLE_TIMER,
     JASS_HANDLE_TIMERDIALOG,
+    JASS_HANDLE_DIALOG,
+    JASS_HANDLE_BUTTON,
     JASS_HANDLE_LEADERBOARD,
     JASS_HANDLE_MULTIBOARD,
     JASS_HANDLE_MULTIBOARDITEM,
@@ -210,6 +216,8 @@ static struct { cstring_t type; jassHandleDomain_t domain; } const jass_handle_d
     { "group", JASS_HANDLE_GROUP },
     { "timer", JASS_HANDLE_TIMER },
     { "timerdialog", JASS_HANDLE_TIMERDIALOG },
+    { "dialog", JASS_HANDLE_DIALOG },
+    { "button", JASS_HANDLE_BUTTON },
     { "leaderboard", JASS_HANDLE_LEADERBOARD },
     { "multiboard", JASS_HANDLE_MULTIBOARD },
     { "multiboarditem", JASS_HANDLE_MULTIBOARDITEM },
@@ -219,6 +227,25 @@ static struct { cstring_t type; jassHandleDomain_t domain; } const jass_handle_d
     { "lightning", JASS_HANDLE_LIGHTNING },
     { "region", JASS_HANDLE_REGION },
     { "fogmodifier", JASS_HANDLE_FOGMODIFIER },
+};
+
+static field_t const jass_dialog_fields[] = {
+    TF(jassDialog_t, inuse, F_INT),
+    TF(jassDialog_t, id, F_INT),
+    TF(jassDialog_t, visible_players, F_INT),
+    TF(jassDialog_t, message, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const jass_dialog_button_fields[] = {
+    TF(jassDialogButton_t, inuse, F_INT),
+    TF(jassDialogButton_t, id, F_INT),
+    TF(jassDialogButton_t, dialog_id, F_INT),
+    TF(jassDialogButton_t, hotkey, F_INT),
+    TF(jassDialogButton_t, quit, F_INT),
+    TF(jassDialogButton_t, score_screen, F_INT),
+    TF(jassDialogButton_t, text, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const timer_dialog_fields[] = {
@@ -275,6 +302,8 @@ static field_t const save_event_fields[] = {
     F(gevent_s, timer, F_TIMER, 0, FIELD_NONE),
     F(gevent_s, filter, F_FUNCTION),
     F(gevent_s, region, F_REGION),
+    F(gevent_s, dialog_id, F_INT),
+    F(gevent_s, button_id, F_INT),
     F(gevent_s, range, F_FLOAT),
     F(gevent_s, state, F_INT),
     F(gevent_s, limitop, F_INT),
@@ -311,6 +340,9 @@ static field_t const save_game_event_fields[] = {
     F(gameevent_s, has_point, F_INT),
     F(gameevent_s, responseTo, F_EVENT, 0, FIELD_NONE),
     F(gameevent_s, response_sequence, F_INT, 2),
+    F(gameevent_s, dialog_id, F_INT),
+    F(gameevent_s, button_id, F_INT),
+    F(gameevent_s, dialog_player, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -433,7 +465,10 @@ static field_t const multiboard_item_fields[] = {
 
 static field_t const texttag_fields[] = {
     F(gtexttag_s, inuse, F_INT),
+    F(gtexttag_s, has_text, F_INT),
+    F(gtexttag_s, has_position, F_INT),
     F(gtexttag_s, visible_clients, F_INT),
+    F(gtexttag_s, generation, F_INT),
     F(gtexttag_s, permanent, F_INT),
     F(gtexttag_s, height, F_FLOAT),
     F(gtexttag_s, height_offset, F_FLOAT),
@@ -613,9 +648,15 @@ static field_t const level_fields[] = {
     FC(level_locals, triggers, F_STRUCT, MAX_TRIGGERS, trigger_fields, num_triggers),
     FC(level_locals, timers, F_STRUCT, MAX_TIMERS, timer_fields, num_timers),
     F(level_locals, timer_dialogs, F_STRUCT, MAX_TIMERDIALOGS, timer_dialog_fields),
+    F(level_locals, dialog_count, F_INT),
+    F(level_locals, dialog_button_count, F_INT),
+    F(level_locals, dialogs, F_STRUCT, MAX_JASS_DIALOGS, jass_dialog_fields),
+    F(level_locals, dialog_buttons, F_STRUCT, MAX_JASS_DIALOG_BUTTONS, jass_dialog_button_fields),
     F(level_locals, leaderboards, F_STRUCT, MAX_LEADERBOARDS, leaderboard_fields),
     F(level_locals, player_leaderboards, F_INT),
     F(level_locals, multiboards, F_STRUCT, MAX_MULTIBOARDS, multiboard_fields),
+    F(level_locals, multiboard_suppressed_clients, F_INT),
+    F(level_locals, team_resources_collapsed_clients, F_INT),
     F(level_locals, multiboard_items, F_STRUCT, MAX_MULTIBOARD_ITEMS, multiboard_item_fields),
     F(level_locals, texttags, F_STRUCT, MAX_TEXTTAGS, texttag_fields),
     F(level_locals, hashtables, F_STRUCT, MAX_HASHTABLES, hashtable_fields),
@@ -714,6 +755,7 @@ static field_t const item_fields[] = {
 
 static field_t const destructable_fields[] = {
     TF(destructable_t, blighted, F_INT),
+    TF(destructable_t, occluder_height, F_FLOAT),
     TF(destructable_t, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(destructable_t, death_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(destructable_t, drop_sets, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1111,6 +1153,13 @@ field_t edict_fields[] = {
     F(edict_s, permanent_invisibility_fade.request.sequence, F_INT),
     F(edict_s, permanent_invisibility_fade.request.active, F_INT),
     F(edict_s, permanent_invisibility_fade.slope, F_FLOAT),
+    F(edict_s, aura_effect_role, F_INT),
+    F(edict_s, wander_next_time, F_INT),
+    F(edict_s, wander_random_state, F_INT),
+    F(edict_s, wander_goal, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, wander_waypoint, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, wander_goal_generation, F_INT),
+    F(edict_s, waypoint_generation, F_INT),
     F(edict_s, forced_visibility_count, F_INT),
     F(edict_s, shared_vision, F_INT),
     F(edict_s, harvested_lumber, F_INT),
@@ -1288,27 +1337,54 @@ static uint32_t SaveHash(uint32_t hash, void const *data, size_t size) {
     return hash;
 }
 
+/* Footer checksum: four independent 64-bit FNV-style lanes over native words. Saves are raw native
+ * structs already, so native byte order costs no portability; the lanes keep multiplies pipelined. */
+typedef struct { uint64_t lane[4]; } saveChecksum_t;
+
+static void SaveChecksumInit(saveChecksum_t *sum) {
+    FOR_LOOP(i, 4) sum->lane[i] = 0xcbf29ce484222325ull + i;
+}
+
+/* Callers feed whole buffers; only the final call may end on a partial 32-byte block. */
+static void SaveChecksumUpdate(saveChecksum_t *sum, void const *data, size_t size) {
+    uint8_t const *bytes = data;
+    uint64_t word[4];
+    for (; size >= sizeof(word); size -= sizeof(word), bytes += sizeof(word)) {
+        memcpy(word, bytes, sizeof(word));
+        FOR_LOOP(i, 4) sum->lane[i] = (sum->lane[i] ^ word[i]) * 0x100000001b3ull;
+    }
+    while (size--) sum->lane[0] = (sum->lane[0] ^ *bytes++) * 0x100000001b3ull;
+}
+
+static uint32_t SaveChecksumFinal(saveChecksum_t const *sum) {
+    uint64_t hash = sum->lane[0];
+    for (int i = 1; i < 4; i++) hash = (hash ^ sum->lane[i]) * 0x100000001b3ull;
+    return (uint32_t)(hash ^ (hash >> 32));
+}
+
 /* A committed checksum rejects truncation and corruption before ReadGame mutates live state. */
 static bool WriteFooter(FILE *f) {
-    uint8_t bytes[4096];
+    static uint8_t bytes[1u << 16]; // multiple of the 32-byte checksum block
     long payload;
-    uint32_t checksum = 2166136261u;
+    saveChecksum_t checksum;
     saveFooter_t footer;
+    SaveChecksumInit(&checksum);
     if (fflush(f) || (payload = ftell(f)) < 0 || fseek(f, 0, SEEK_SET)) return false;
     while (payload > 0) {
         size_t size = MIN((size_t)payload, sizeof(bytes));
         if (fread(bytes, 1, size, f) != size) return false;
-        checksum = SaveHash(checksum, bytes, size); payload -= (long)size;
+        SaveChecksumUpdate(&checksum, bytes, size); payload -= (long)size;
     }
-    footer = (saveFooter_t){ checksum, save_commit };
+    footer = (saveFooter_t){ SaveChecksumFinal(&checksum), save_commit };
     return fseek(f, 0, SEEK_END) == 0 && SaveBytes(f, &footer, sizeof(footer));
 }
 
 static bool ReadFooter(FILE *f) {
-    uint8_t bytes[4096];
+    static uint8_t bytes[1u << 16]; // multiple of the 32-byte checksum block
     long payload;
-    uint32_t checksum = 2166136261u;
+    saveChecksum_t checksum;
     saveFooter_t footer;
+    SaveChecksumInit(&checksum);
     if (fseek(f, 0, SEEK_END) || (payload = ftell(f)) < (long)sizeof(footer)) return false;
     payload -= sizeof(footer);
     if (fseek(f, payload, SEEK_SET) || !LoadBytes(f, &footer, sizeof(footer)) || footer.commit != save_commit ||
@@ -1316,9 +1392,9 @@ static bool ReadFooter(FILE *f) {
     for (long remaining = payload; remaining > 0;) {
         size_t size = MIN((size_t)remaining, sizeof(bytes));
         if (fread(bytes, 1, size, f) != size) return false;
-        checksum = SaveHash(checksum, bytes, size); remaining -= (long)size;
+        SaveChecksumUpdate(&checksum, bytes, size); remaining -= (long)size;
     }
-    return checksum == footer.checksum && fseek(f, 0, SEEK_SET) == 0;
+    return SaveChecksumFinal(&checksum) == footer.checksum && fseek(f, 0, SEEK_SET) == 0;
 }
 
 /* Save files carry the canonical map path so the server can rebuild the map before restoring state. */
@@ -1513,6 +1589,16 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
     if (domain == JASS_HANDLE_TIMER) {
         return TimerIndex(value, id);
     }
+    if (domain == JASS_HANDLE_DIALOG) {
+        jassDialog_t *dialog = G_JassDialog(value);
+        if (!dialog) return false;
+        *id = dialog->id; return true;
+    }
+    if (domain == JASS_HANDLE_BUTTON) {
+        jassDialogButton_t *button = G_JassDialogButton(value);
+        if (!button) return false;
+        *id = button->id; return true;
+    }
     if (domain == JASS_HANDLE_TIMERDIALOG) {
         timerdialog_t *dialog = value;
         if (dialog < level.timer_dialogs || dialog >= level.timer_dialogs + MAX_TIMERDIALOGS || !dialog->inuse)
@@ -1610,6 +1696,8 @@ handle_t G_LoadJassHandle(cstring_t type, uint32_t id) {
         return group && group->inuse ? group : NULL;
     }
     if (domain == JASS_HANDLE_TIMER) return id < level.num_timers ? &level.timers[id] : NULL;
+    if (domain == JASS_HANDLE_DIALOG) return G_JassDialogById(id);
+    if (domain == JASS_HANDLE_BUTTON) return G_JassDialogButtonById(id);
     if (domain == JASS_HANDLE_TIMERDIALOG)
         return id < MAX_TIMERDIALOGS && level.timer_dialogs[id].inuse ? &level.timer_dialogs[id] : NULL;
     if (domain == JASS_HANDLE_LEADERBOARD)
@@ -2920,6 +3008,7 @@ static bool ReadPools(FILE *f) {
 
 bool WriteGame(cstring_t filename) {
     FILE *f = fopen(filename, "w+b");
+    if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
     saveHeader_t header = {
         .magic = save_magic, .version = save_version, .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
         .max_clients = game.max_clients, .script_identity = level.vm ? jass_programidentity(level.vm) : 0,
@@ -2993,6 +3082,7 @@ done:
 
 bool ReadGame(cstring_t filename) {
     FILE *f = fopen(filename, "rb");
+    if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
     saveHeader_t header = { 0 };
     bool current_nonregion_event_slots[MAX_EVENTS] = { 0 };
     uint32_t index;
@@ -3087,6 +3177,10 @@ bool ReadGame(cstring_t filename) {
     if (ActiveEventCount() != header.events) {
         fprintf(stderr, "WC3 LoadGame: event count mismatch saved=%u restored=%u\n",
                 (unsigned)header.events, (unsigned)ActiveEventCount());
+        fclose(f); return false;
+    }
+    if (level.dialog_count > MAX_JASS_DIALOGS || level.dialog_button_count > MAX_JASS_DIALOG_BUTTONS) {
+        fprintf(stderr, "WC3 LoadGame: dialog slot counts %u/%u exceed capacity\n", level.dialog_count, level.dialog_button_count);
         fclose(f); return false;
     }
     if (level.waypoints.count > MAX_WAYPOINTS ||
@@ -3207,6 +3301,8 @@ bool ReadGame(cstring_t filename) {
         G_MusicSyncClient(game.clients + i);
         UI_UpdateCursorPresentation(game.clients + i);
     }
+    /* Choice dialogs are re-sent by ClientBegin on the post-load reconnect (Q2 layouts start from the client's first
+     * frame); sending here too published the window twice. */
     /* svc_layout layers are client presentation state and are not serialized.
      * Force the restored timer-dialog model to republish on the next frame. */
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
@@ -3259,7 +3355,7 @@ TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {
 
 TEST(wc3_save, disabled_player_abilities_grow_and_round_trip) {
     static char const digits[] = "0123456789";
-    cstring_t const filename = "/tmp/openwarcraft3-wc3-disabled-abilities-save.bin";
+    cstring_t const filename = Test_TempPath("wc3-disabled-abilities-save.bin");
     enum { ABILITY_COUNT = 96 };
     gameClient_t *client;
     uint32_t abilities[ABILITY_COUNT];
@@ -3347,7 +3443,7 @@ TEST(wc3_save, thousands_of_pending_point_orders_survive_save) {
     }
     T_EQ(published,4096u);
     if(published!=4096) {reset_entities();return;}
-    cstring_t file="/tmp/wc3-thousands-point-events.bin";
+    cstring_t file=Test_TempPath("wc3-thousands-point-events.bin");
     T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
     T_EQ(level.events.read,0u); T_EQ(level.events.write,published);
     FOR_LOOP(i,published) {
@@ -3371,7 +3467,7 @@ TEST(wc3_save, owned_pool_order_survives_save_and_rejects_invalid_sequences) {
     G_SetUnitPlayer(first,1); G_SetUnitPlayer(first,0);
     uint64_t order=first->own_seq,next=level.next_unit_seq,peer=second->own_seq;
     T_ASSERT(order>peer);
-    cstring_t file="/tmp/wc3-owned-pool-order.bin";
+    cstring_t file=Test_TempPath("wc3-owned-pool-order.bin");
     T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
     T_EQ(first->own_seq,order); T_EQ(second->own_seq,peer); T_EQ(level.next_unit_seq,next);
     G_SetUnitPlayer(first,0); T_EQ(first->own_seq,order); T_EQ(level.next_unit_seq,next);
@@ -3535,7 +3631,7 @@ TEST(wc3_save, mixed_sparse_regions_reload_in_owner_order_and_retain_inverse_pix
 TEST(wc3_save, fine_work_bound_rejects_unreachable_saved_wrap_state) {
     bool saved_policy=level.move_fine_responsive;
     reset_entities();setup_test_world();S_ClearMoveFineRequests();
-    cstring_t file="/tmp/wc3-fine-work-bound.bin";
+    cstring_t file=Test_TempPath("wc3-fine-work-bound.bin");
     moveFineBudget_t *budget=level.move_fine_budgets;
     FOR_LOOP(mode,2) {
         level.move_fine_responsive=mode!=0;
@@ -3566,7 +3662,7 @@ TEST(wc3_save, responsive_fine_grant_and_policy_continue_after_restore) {
     T_EQ(budget->limit,4*(BZ_WC3_UNIT_FINE_WORK+1));
     T_ASSERT(S_AdmitUnitMoveFineRequest(units[0]));
     S_ChargeUnitMoveFineRequest(units[0],BZ_WC3_UNIT_FINE_WORK+1);
-    cstring_t file="/tmp/openwarcraft3-responsive-fine.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-responsive-fine.bin");
     T_ASSERT(WriteGame(file));
     S_ClearMoveFineRequests(); level.move_fine_responsive=false;
     T_ASSERT(ReadGame(file));
@@ -3592,7 +3688,7 @@ TEST(wc3_save, fine_request_fifo_and_interval_continue_after_restore) {
     reset_entities(); setup_test_world();
     edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
     edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
-    cstring_t file="/tmp/openwarcraft3-fine-request-fifo.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-fine-request-fifo.bin");
     level.pathing_counter=2000;
     level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
     level.move_fine_budgets[0].countdown=1;
@@ -3654,7 +3750,7 @@ TEST(wc3_save, rejects_invalid_fine_request_graphs) {
         if (i==10) level.move_fine_budgets[0].count=globals.num_edicts+1;
         if (i==11) second->inuse=false;
         T_ASSERT(!ValidMoveFineRequests());
-        T_ASSERT(!WriteGame("/tmp/openwarcraft3-invalid-fine-request.bin"));
+        T_ASSERT(!WriteGame(Test_TempPath("openwarcraft3-invalid-fine-request.bin")));
         second->inuse=true;
     }
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
@@ -3841,8 +3937,8 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
 }
 
 TEST(wc3_save, rejects_previous_combat_cargo_format_before_restoring_world) {
-    cstring_t filename = "/tmp/openwarcraft3-save-current-format.bin";
-    cstring_t old_filename = "/tmp/openwarcraft3-save-previous-combat-cargo-format.bin";
+    cstring_t filename = Test_TempPath("save-current-format.bin");
+    cstring_t old_filename = Test_TempPath("save-previous-combat-cargo-format.bin");
     saveHeader_t header;
     char map[sizeof(((saveHeader_t *)0)->map_path)];
     setup_test_world();
@@ -3863,8 +3959,8 @@ TEST(wc3_save, rejects_previous_combat_cargo_format_before_restoring_world) {
 }
 
 TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
-    cstring_t filename = "/tmp/openwarcraft3-save-current-layout.bin";
-    cstring_t bad_filename = "/tmp/openwarcraft3-save-layout-mismatch.bin";
+    cstring_t filename = Test_TempPath("save-current-layout.bin");
+    cstring_t bad_filename = Test_TempPath("save-layout-mismatch.bin");
     char map[sizeof(((saveHeader_t *)0)->map_path)];
     setup_test_world();
     reset_entities();
@@ -3876,115 +3972,23 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 }
 
 TEST(wc3_save, rejects_prior_save_versions) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-prior-format.bin";
-    cstring_t old_paths[] = {
-        "/tmp/openwarcraft3-wc3-save-version-39.bin",
-        "/tmp/openwarcraft3-wc3-save-version-40.bin",
-        "/tmp/openwarcraft3-wc3-save-version-41.bin",
-        "/tmp/openwarcraft3-wc3-save-version-42.bin",
-        "/tmp/openwarcraft3-wc3-save-version-43.bin",
-        "/tmp/openwarcraft3-wc3-save-version-44.bin",
-        "/tmp/openwarcraft3-wc3-save-version-45.bin",
-        "/tmp/openwarcraft3-wc3-save-version-46.bin",
-        "/tmp/openwarcraft3-wc3-save-version-47.bin",
-        "/tmp/openwarcraft3-wc3-save-version-48.bin",
-        "/tmp/openwarcraft3-wc3-save-version-49.bin",
-        "/tmp/openwarcraft3-wc3-save-version-50.bin",
-        "/tmp/openwarcraft3-wc3-save-version-51.bin",
-        "/tmp/openwarcraft3-wc3-save-version-52.bin",
-        "/tmp/openwarcraft3-wc3-save-version-53.bin",
-        "/tmp/openwarcraft3-wc3-save-version-54.bin",
-        "/tmp/openwarcraft3-wc3-save-version-55.bin",
-        "/tmp/openwarcraft3-wc3-save-version-56.bin",
-        "/tmp/openwarcraft3-wc3-save-version-57.bin",
-        "/tmp/openwarcraft3-wc3-save-version-58.bin",
-        "/tmp/openwarcraft3-wc3-save-version-59.bin",
-        "/tmp/openwarcraft3-wc3-save-version-60.bin",
-        "/tmp/openwarcraft3-wc3-save-version-61.bin",
-        "/tmp/openwarcraft3-wc3-save-version-62.bin",
-        "/tmp/openwarcraft3-wc3-save-version-63.bin",
-        "/tmp/openwarcraft3-wc3-save-version-64.bin",
-        "/tmp/openwarcraft3-wc3-save-version-65.bin",
-        "/tmp/openwarcraft3-wc3-save-version-66.bin",
-        "/tmp/openwarcraft3-wc3-save-version-67.bin",
-        "/tmp/openwarcraft3-wc3-save-version-68.bin",
-        "/tmp/openwarcraft3-wc3-save-version-69.bin",
-        "/tmp/openwarcraft3-wc3-save-version-70.bin",
-        "/tmp/openwarcraft3-wc3-save-version-71.bin",
-        "/tmp/openwarcraft3-wc3-save-version-72.bin",
-        "/tmp/openwarcraft3-wc3-save-version-73.bin",
-        "/tmp/openwarcraft3-wc3-save-version-74.bin",
-        "/tmp/openwarcraft3-wc3-save-version-75.bin",
-        "/tmp/openwarcraft3-wc3-save-version-76.bin",
-        "/tmp/openwarcraft3-wc3-save-version-77.bin",
-        "/tmp/openwarcraft3-wc3-save-version-78.bin",
-        "/tmp/openwarcraft3-wc3-save-version-79.bin",
-        "/tmp/openwarcraft3-wc3-save-version-80.bin",
-        "/tmp/openwarcraft3-wc3-save-version-81.bin",
-        "/tmp/openwarcraft3-wc3-save-version-82.bin",
-        "/tmp/openwarcraft3-wc3-save-version-83.bin",
-        "/tmp/openwarcraft3-wc3-save-version-84.bin",
-        "/tmp/openwarcraft3-wc3-save-version-85.bin",
-        "/tmp/openwarcraft3-wc3-save-version-86.bin",
-        "/tmp/openwarcraft3-wc3-save-version-87.bin",
-        "/tmp/openwarcraft3-wc3-save-version-88.bin",
-        "/tmp/openwarcraft3-wc3-save-version-89.bin",
-        "/tmp/openwarcraft3-wc3-save-version-90.bin",
-        "/tmp/openwarcraft3-wc3-save-version-91.bin",
-        "/tmp/openwarcraft3-wc3-save-version-92.bin",
-        "/tmp/openwarcraft3-wc3-save-version-93.bin",
-        "/tmp/openwarcraft3-wc3-save-version-94.bin",
-        "/tmp/openwarcraft3-wc3-save-version-95.bin",
-        "/tmp/openwarcraft3-wc3-save-version-96.bin",
-        "/tmp/openwarcraft3-wc3-save-version-97.bin",
-        "/tmp/openwarcraft3-wc3-save-version-98.bin",
-        "/tmp/openwarcraft3-wc3-save-version-99.bin",
-        "/tmp/openwarcraft3-wc3-save-version-100.bin",
-        "/tmp/openwarcraft3-wc3-save-version-101.bin",
-        "/tmp/openwarcraft3-wc3-save-version-102.bin",
-        "/tmp/openwarcraft3-wc3-save-version-103.bin",
-        "/tmp/openwarcraft3-wc3-save-version-109.bin",
-        "/tmp/openwarcraft3-wc3-save-version-110.bin",
-        "/tmp/openwarcraft3-wc3-save-version-111.bin",
-        "/tmp/openwarcraft3-wc3-save-version-112.bin",
-        "/tmp/openwarcraft3-wc3-save-version-114.bin",
-        "/tmp/openwarcraft3-wc3-save-version-115.bin",
-        "/tmp/openwarcraft3-wc3-save-version-116.bin",
-        "/tmp/openwarcraft3-wc3-save-version-117.bin",
-        "/tmp/openwarcraft3-wc3-save-version-118.bin",
-        "/tmp/openwarcraft3-wc3-save-version-119.bin",
-        "/tmp/openwarcraft3-wc3-save-version-120.bin",
-        "/tmp/openwarcraft3-wc3-save-version-123.bin",
-        "/tmp/openwarcraft3-wc3-save-version-124.bin",
-        "/tmp/openwarcraft3-wc3-save-version-125.bin",
-        "/tmp/openwarcraft3-wc3-save-version-126.bin",
-        "/tmp/openwarcraft3-wc3-save-version-127.bin",
-        "/tmp/openwarcraft3-wc3-save-version-128.bin",
-        "/tmp/openwarcraft3-wc3-save-version-129.bin",
-        "/tmp/openwarcraft3-wc3-save-version-130.bin",
-        "/tmp/openwarcraft3-wc3-save-version-131.bin",
-        "/tmp/openwarcraft3-wc3-save-version-132.bin",
-        "/tmp/openwarcraft3-wc3-save-version-134.bin",
-        "/tmp/openwarcraft3-wc3-save-version-135.bin",
-        "/tmp/openwarcraft3-wc3-save-version-136.bin",
-        "/tmp/openwarcraft3-wc3-save-version-139.bin",
-        "/tmp/openwarcraft3-wc3-save-version-140.bin",
-        "/tmp/openwarcraft3-wc3-save-version-141.bin",
-        "/tmp/openwarcraft3-wc3-save-version-142.bin",
-        "/tmp/openwarcraft3-wc3-save-version-143.bin",
-        "/tmp/openwarcraft3-wc3-save-version-144.bin",
-        "/tmp/openwarcraft3-wc3-save-version-145.bin",
-    };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145 };
+    PATHSTR filename;
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
+    /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
+    strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));
     reset_entities();
     setup_test_world();
     T_ASSERT(WriteGame(filename));
     FOR_LOOP(i, sizeof(old_versions) / sizeof(*old_versions)) {
-        T_ASSERT(write_save_fixture_header(filename, old_paths[i], old_versions[i], sizeof(edict_t)));
+        PATHSTR name;
+        cstring_t old_path;
+        snprintf(name, sizeof(name), "wc3-save-version-%u.bin", old_versions[i]);
+        old_path = Test_TempPath(name);
+        T_ASSERT(write_save_fixture_header(filename, old_path, old_versions[i], sizeof(edict_t)));
         T_NE(save_version, old_versions[i]);
-        T_ASSERT(!ReadGame(old_paths[i]));
-        remove(old_paths[i]);
+        T_ASSERT(!ReadGame(old_path));
+        remove(old_path);
     }
     remove(filename);
 }
@@ -4007,7 +4011,7 @@ TEST(wc3_save, cargo_unload_rejects_unallocated_goal_index) {
 }
 
 TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {
-    cstring_t filename = "/tmp/openwarcraft3-save-foreign-cargo-goal.bin";
+    cstring_t filename = Test_TempPath("save-foreign-cargo-goal.bin");
     setup_test_world();
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
@@ -4017,8 +4021,46 @@ TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {
     remove(filename);
 }
 
+TEST(wc3_save, elevator_occluder_and_pending_animation_round_trip) {
+    static cstring_t const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y2;X1;K\"DTrx\"\n"
+        "C;Y2;X2;K\"Doodads/Cinematic/ElevatorPuzzle/ElevatorPuzzle.mdx\"\n"
+        "E\n";
+    cstring_t const filename = Test_TempPath("save-elevator-state.bin");
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved;
+    edict_t *deck;
+    int index;
+
+    reset_entities();
+    setup_test_world();
+    saved = G_SetSLKRows("DestructableData", rows);
+    deck = G_Spawn();
+    index = (int)(deck - g_edicts);
+    deck->class_id = MAKEFOURCC('D', 'T', 'r', 'x');
+    deck->s.class_id = deck->class_id;
+    G_BindEntityData(deck);
+    deck->destructable = G_AllocDestructable();
+    deck->destructable->occluder_height = 256.0f;
+    strlcpy(deck->queued_animation, "stand third", sizeof(deck->queued_animation));
+    T_ASSERT(WriteGame(filename));
+    deck->destructable->occluder_height = 0.0f;
+    deck->queued_animation[0] = '\0';
+    T_ASSERT(ReadGame(filename));
+    deck = &g_edicts[index];
+    T_NOT_NULL(deck->destructable);
+    if (deck->destructable) T_FEQ(deck->destructable->occluder_height, 256.0f, 0.001f);
+    T_STREQ(deck->queued_animation, "stand third");
+    remove(filename);
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
-    cstring_t filename = "/tmp/openwarcraft3-save-current-combat-cargo.bin";
+    cstring_t filename = Test_TempPath("save-current-combat-cargo.bin");
     setup_test_world();
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
@@ -4056,7 +4098,7 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
 }
 
 TEST(wc3_save, rejects_unexpected_trailing_payload) {
-    cstring_t filename = "/tmp/openwarcraft3-save-extra-payload.bin";
+    cstring_t filename = Test_TempPath("save-extra-payload.bin");
     uint32_t const payload[] = { MAKEFOURCC('W','3','E','X'), 1, 0 };
     setup_test_world();
     reset_entities();
@@ -4075,7 +4117,7 @@ TEST(wc3_save, rejects_unexpected_trailing_payload) {
 }
 
 TEST(wc3_save, current_format_uses_current_entity_layout) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-current-envelope.bin";
+    cstring_t filename = Test_TempPath("wc3-save-current-envelope.bin");
     saveHeader_t header = { 0 };
     FILE *f;
 
@@ -4094,8 +4136,8 @@ TEST(wc3_save, current_format_uses_current_entity_layout) {
 }
 
 TEST(wc3_save, rejects_mismatched_entity_layout) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-waygate-current.bin";
-    cstring_t old_path = "/tmp/openwarcraft3-wc3-save-old-edict-size.bin";
+    cstring_t filename = Test_TempPath("wc3-save-waygate-current.bin");
+    cstring_t old_path = Test_TempPath("wc3-save-old-edict-size.bin");
 
     reset_entities();
     setup_test_world();
@@ -4113,7 +4155,7 @@ TEST(wc3_save, rejects_mismatched_entity_layout) {
 TEST(wc3_save, fine_player_rows_continue_independently_after_restore) {
     reset_entities(); setup_test_world();
     edict_t *units[MAX_PLAYERS][2];
-    cstring_t file="/tmp/openwarcraft3-fine-player-rows.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-fine-player-rows.bin");
     level.pathing_counter=2000;
     FOR_LOOP(i,MAX_PLAYERS) {
         moveFineBudget_t *budget=level.move_fine_budgets+i;
@@ -4155,13 +4197,13 @@ TEST(wc3_save, rejects_fine_queues_in_wrong_player_rows) {
         if (i==2) level.move_fine_budgets[1]=original;
         if (i==3) unit->movement.fine_class=MAX_PLAYERS;
         T_ASSERT(!ValidMoveFineRequests());
-        T_ASSERT(!WriteGame("/tmp/openwarcraft3-invalid-fine-player.bin"));
+        T_ASSERT(!WriteGame(Test_TempPath("openwarcraft3-invalid-fine-player.bin")));
     }
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
 }
 
 TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
-    cstring_t const filename = "/tmp/openwarcraft3-wc3-pools.bin";
+    cstring_t const filename = Test_TempPath("wc3-pools.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);

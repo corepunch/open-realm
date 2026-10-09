@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X32;Y17;D0
+B;X32;Y18;D0
 C;X1;Y1;K"unitID"
 C;X21;K"movetp"
 C;X28;K"isBuildOn"
@@ -62,4 +62,8 @@ C;X30;K0.6
 C;X31;K60
 C;X1;Y17;K"etoa"
 C;X32;K"nightelf"
+C;X1;Y18;K"nwlt"
+C;X21;K"foot"
+C;X30;K0.6
+C;X31;K60
 E

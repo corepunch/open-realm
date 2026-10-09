@@ -122,7 +122,7 @@ TEST(wc3_spell, inferno_procedure_and_flags) {
 }
 
 TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
-    cstring_t const path = "/tmp/openwarcraft3-point-spell-approach-save.bin";
+    cstring_t const path = Test_TempPath("point-spell-approach-save.bin");
     inFix_t fix; edict_t *approach, *summon; vec2_t point = { 1200, 0 };
     uint32_t const code = MAKEFOURCC('A','U','i','n');
     uint32_t caster_slot, approach_slot, frame;

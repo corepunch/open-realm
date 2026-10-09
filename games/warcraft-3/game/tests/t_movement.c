@@ -243,7 +243,7 @@ TEST(wc3_movement, load_rebuilds_search_owners_without_unsaved_query_history) {
     T_ASSERT(G_TestMoveAdaptiveSearch()->work.query_initialized);
     moveFineRoute_t const *route=&unit->movement.fine_route;
     uint32_t count=route->count,index=route->index,coarse=route->adaptive_count;
-    cstring_t file="/tmp/wc3-search-owner-load.bin";
+    cstring_t file=Test_TempPath("wc3-search-owner-load.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
     T_ASSERT(!G_TestMoveFineSearch()->query_initialized);
     T_ASSERT(!G_TestMoveAdaptiveSearch()->work.query_initialized);
@@ -317,7 +317,7 @@ TEST(wc3_movement, repulsion_reaches_idle_units_through_owner_scheduler) {
     T_EQ(wc3_float_bits(fly[0]->movement.repulse.state.vector[1]),1043093862u);
     T_EQ(level.pathing_random.sum,815324285u); T_EQ(level.pathing_random.index,1957431332u);
     T_EQ(fly[1]->movement.repulse.state.vector[0],0); T_EQ(fly[1]->movement.repulse.state.vector[1],0);
-    cstring_t file="/tmp/openwarcraft3-repulsion-save.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-repulsion-save.bin");
     T_ASSERT(WriteGame(file));
     FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
     vec2_t positions[2]={fly[0]->s.origin2,fly[1]->s.origin2};
@@ -385,7 +385,7 @@ TEST(wc3_movement, repulsion_owner_change_pause_and_removal) {
     jass_callbyname(level.vm,"retire",false); T_ASSERT(!jass_rterror_pending(level.vm));
     level.time+=100; globals.RunFrame();
     T_NULL(level.repulse_head); T_ASSERT(!fly[0]->movement.repulse.active);
-    cstring_t file="/tmp/wc3-repulse-paused-membership.bin";T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    cstring_t file=Test_TempPath("wc3-repulse-paused-membership.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     T_NULL(level.repulse_head);T_ASSERT(fly[0]->paused);T_ASSERT(!fly[0]->movement.repulse.active);
     jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(level.repulse_head==fly[0]);T_ASSERT(fly[0]->movement.repulse.active);
@@ -446,7 +446,7 @@ TEST(wc3_movement, retail_adaptive_long_move_reaches_engine) {
     FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
     T_ASSERT(unit->movement.path.valid);
     T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){272,304})>1);
-    cstring_t file="/tmp/openwarcraft3-adaptive-move-save.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-adaptive-move-save.bin");
     uint32_t continued[180][6];
     T_NOT_NULL(unit->movement.fine_route.adaptive_points);
     uint32_t coarse_count=unit->movement.fine_route.adaptive_count,coarse_index=unit->movement.fine_route.adaptive_index;
@@ -1153,7 +1153,7 @@ TEST(wc3_movement, public_long_move_clear_legs_and_saved_progress) {
     T_EQ(route->adaptive_index,0); /* The member routes to the group stage. */
     T_EQ(route->index,0); T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){136,152})>1);
     uint32_t continued[260][11],changes=0,prior=movement_test_coarse_route(unit)->group_index;
-    cstring_t file="/tmp/openwarcraft3-long-refills-save.bin"; T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("openwarcraft3-long-refills-save.bin"); T_ASSERT(WriteGame(file));
     FOR_LOOP(pass,2) {
         if (pass) T_ASSERT(ReadGame(file));
         FOR_LOOP(i,260) {
@@ -1347,7 +1347,7 @@ TEST(wc3_movement, public_move_budget_partial_refills_and_save) {
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
     T_ASSERT(unit->current_order_id!=0); T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){136,152})>1);
-    cstring_t file="/tmp/openwarcraft3-fine-budget-save.bin"; T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("openwarcraft3-fine-budget-save.bin"); T_ASSERT(WriteGame(file));
     uint32_t continued[600][9]; uint32_t refills=0; vec2_t prior=unit->movement.fine_route.points[0];
     FOR_LOOP(pass,2) {
         if (pass) T_ASSERT(ReadGame(file));
@@ -1702,7 +1702,7 @@ TEST(wc3_movement, retail_fine_route_wall_trajectory_words) {
         unit_stand(unit); jass_callbyname(level.vm,"go",false);
         level.scheduled_think=true; level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
         S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
-        cstring_t file="/tmp/openwarcraft3-retail-fine-route-save.bin";
+        cstring_t file=Test_TempPath("openwarcraft3-retail-fine-route-save.bin");
         FOR_LOOP(i,34) {
             level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
             S_PublishMovement(unit);S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
@@ -1794,7 +1794,7 @@ TEST(wc3_movement, retail_primary_owner_wall_trajectory_words) {
     unit_stand(unit); jass_callbyname(level.vm,"go",false);
     level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t file="/tmp/openwarcraft3-retail-primary-owner-route-save.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-retail-primary-owner-route-save.bin");
     FOR_LOOP(pass,2) {
         int first=pass?12:0;
         if (pass) { T_ASSERT(ReadGame(file)); T_NOT_NULL(unit->movement.fine_route.points); }
@@ -1853,7 +1853,7 @@ TEST(wc3_movement, public_pathing_toggle_keeps_occupancy_and_crosses_wall) {
     unit_changeangle(unit); T_ASSERT(!unit->movement.flow_direct);
     T_ASSERT(unit->movement.path.valid);
     T_EQ(movement_test_coarse_route(unit)->group_mask,2);
-    cstring_t file="/tmp/openwarcraft3-pathing-toggle-save.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-pathing-toggle-save.bin");
     T_ASSERT(WriteGame(file));
     uint32_t words[60][4]; bool crossed=false;
     FOR_LOOP(i,60) {
@@ -2051,7 +2051,7 @@ TEST(wc3_movement, selected_formation_yield_uses_saved_group_policy) {
         T_NOT_NULL(group);if(!group)continue;
         T_EQ(group->count,2);T_EQ(group->flags&8u,alt ? 8u : 0);
         T_EQ(unit->movement.group_id,peer->movement.group_id);
-        cstring_t file="/tmp/wc3-selected-yield162.bin";
+        cstring_t file=Test_TempPath("wc3-selected-yield162.bin");
         T_ASSERT(WriteGame(file));
         FOR_LOOP(pass,2) {
             if(pass)T_ASSERT(ReadGame(file));
@@ -2171,7 +2171,7 @@ TEST(wc3_movement, public_composed_yield_matches_retail_owner_streams) {
         move_test_group_route=yield163_before;move_test_motion_commit=yield163_after;
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
         unsigned saved=0;uint32_t save_counter=c==4 ? 1106 : c>=2 ? 1165 : 1133;
-        cstring_t file="/tmp/wc3-yield163-composed.bin";
+        cstring_t file=Test_TempPath("wc3-yield163-composed.bin");
         while(level.time<15000 && yield163_cursor<yield163_count && !yield163_mismatch){
             level.time+=5;globals.RunFrame();
             if(!saved && !yield163_mismatch && level.pathing_counter>=save_counter){
@@ -2245,7 +2245,7 @@ TEST(wc3_movement, public_dynamic_blockers_match_retail_owner_streams) {
         move_test_group_route=yield163_before;move_test_motion_commit=yield163_after;
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
         uint32_t const save_counters[]={1777,1771,1508,1505,1576,1653,1777,1505};
-        unsigned saved=0;bool written=false;cstring_t file="/tmp/wc3-dynamic163-composed.bin";
+        unsigned saved=0;bool written=false;cstring_t file=Test_TempPath("wc3-dynamic163-composed.bin");
         while(level.time<35000 && yield163_cursor<yield163_count && !yield163_mismatch){
             level.time+=5;globals.RunFrame();
             if(!saved && !yield163_mismatch && level.pathing_counter>=save_counters[c]){
@@ -2299,7 +2299,7 @@ TEST(wc3_movement, yield_removal_reuse_preserves_wait_and_saved_countdown) {
         uint32_t delay=long_wait ? 20 : 4,slot=blocker->s.number,spawn=blocker->spawn_time;
         T_EQ(waiter->movement.wait_delay,delay);T_EQ(waiter->movement.wait_blocker,blocker);
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
-        cstring_t file="/tmp/wc3-yield-reuse162.bin";T_ASSERT(WriteGame(file));
+        cstring_t file=Test_TempPath("wc3-yield-reuse162.bin");T_ASSERT(WriteGame(file));
         FOR_LOOP(pass,2) {
             if(pass)T_ASSERT(ReadGame(file));
             T_EQ(waiter->movement.wait_delay,delay);T_EQ(waiter->movement.wait_blocker,blocker);
@@ -2417,7 +2417,7 @@ TEST(wc3_movement, public_peer_retry_save_and_resume) {
     T_ASSERT(unit->movement.retry_count==6 || unit->movement.retry_count==7);
     uint32_t retry=unit->movement.retry_count,coarse=route->adaptive_count;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t file="/tmp/openwarcraft3-peer-retry-save.bin"; T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("openwarcraft3-peer-retry-save.bin"); T_ASSERT(WriteGame(file));
     uint32_t words[120][12];
     FOR_LOOP(pass,2) {
         bool resumed=false;
@@ -2504,7 +2504,7 @@ TEST(wc3_movement, public_waiting_heading_save_continuation) {
     unit->movement.clock_valid=false; unit->movement.velocity=(vec2_t){0};
     unit->movement.wait_delay=4; unit->s.angle=0.25f;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t file="/tmp/openwarcraft3-wait-heading-save.bin"; T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("openwarcraft3-wait-heading-save.bin"); T_ASSERT(WriteGame(file));
     uint32_t words[12][10]; bool moved=false;
     FOR_LOOP(pass,2) {
         if (pass) { T_ASSERT(ReadGame(file)); T_EQ(unit->movement.wait_delay,4); }
@@ -2559,7 +2559,7 @@ TEST(wc3_movement, public_move_yield_wait_and_save) {
     T_EQ(unit->movement.wait_delay,4); T_EQ(unit->movement.wait_blocker,peer);
     T_ASSERT(unit->movement.turn_blocked); T_EQ(peer->movement.wait_delay,0);
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t file="/tmp/openwarcraft3-moving-yield-save.bin"; T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("openwarcraft3-moving-yield-save.bin"); T_ASSERT(WriteGame(file));
     uint32_t words[6][8];
     FOR_LOOP(pass,2) {
         if (pass) {
@@ -2612,7 +2612,7 @@ TEST(wc3_movement, native_fine_pose_survives_save_and_reposition) {
     edict_t *unit = make_moving_unit(-2012, 568);
     uint8_t cells[16 * 16] = {0};
     box2_t bounds = {{-2048, 512}, {-1536, 1024}};
-    cstring_t file = "/tmp/openwarcraft3-native-fine-pose-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-native-fine-pose-save.bin");
     CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
     unit->unitinfo.MoveSpeed = 100; unit->movement.flow_direct = true;
     FOR_LOOP(i, 16) {
@@ -2679,7 +2679,7 @@ TEST(wc3_movement, public_axis_position_retains_original_write_and_next_step_wor
     cstring_t const calls[4] = {"same_x", "same_y", "shift_x", "shift_y"};
     uint8_t cells[16 * 16] = {0};
     box2_t bounds = {{-2048, 512}, {-1536, 1024}};
-    cstring_t file = "/tmp/openwarcraft3-public-axis-pose-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-public-axis-pose-save.bin");
     FOR_LOOP(i, 4) {
         reset_entities(); setup_test_world();
         memset(&level.waypoints, 0, sizeof(level.waypoints));
@@ -3077,7 +3077,7 @@ TEST(wc3_movement, primary_clock_and_previous_velocity_match_fixed_oblique_frame
 
 /* Exercise the production point-order owner and serializer at all three snapshot phases. */
 TEST(wc3_movement, primary_clock_public_move_save_pause_and_stop) {
-    cstring_t file = "/tmp/openwarcraft3-primary-clock-move.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-primary-clock-move.bin");
     FOR_LOOP(phase, 3) {
         reset_entities(); setup_test_world();
         /* This tests clock/Stop/region entry, so keep its1800-unit click inside
@@ -3188,7 +3188,7 @@ TEST(wc3_movement, primary_clock_public_move_save_pause_and_stop) {
 TEST(wc3_movement, forced_position_retires_move_and_queued_orders) {
     uint8_t cells[64 * 64] = {0};
     box2_t bounds = {{0,0},{2048,2048}};
-    cstring_t file = "/tmp/openwarcraft3-forced-position-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-forced-position-save.bin");
     reset_entities(); setup_test_world();
     memset(level.regions, 0, sizeof(level.regions)); level.num_regions = 0;
     memset(level.triggers, 0, sizeof(level.triggers)); level.num_triggers = 0;
@@ -3574,7 +3574,7 @@ TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes)
     mapInfo_t const *oldinfo=level.mapinfo;
     static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
     /* Ground walk-bit clip of scene44 WPM, x152..183/y56..71. */
-    cstring_t file="/tmp/openwarcraft3-spawn-motion-save.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-spawn-motion-save.bin");
     FOR_LOOP(c,8) {
         reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
         memset(cells,0,sizeof(cells));
@@ -3669,7 +3669,7 @@ TEST(wc3_movement, periodic_public_oblique_three_lifetimes_match_retail) {
     T_ASSERT(run_test_jass(script));
     unsigned cases=0,steps[3]={0}; edict_t *unit=NULL; int birth=-1; uint32_t clock=0;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t saves[]={"/tmp/wc3-public-oblique-first-leg.bin","/tmp/wc3-public-oblique-handoff.bin"};
+    cstring_t saves[]={Test_TempPath("wc3-public-oblique-first-leg.bin"),Test_TempPath("wc3-public-oblique-handoff.bin")};
     unsigned continuations=0;
     FOR_LOOP(pass,3) {
         if (pass) {
@@ -3827,7 +3827,7 @@ TEST(wc3_movement, periodic_public_twelve_members_match_retail) {
     edict_t *units[12]={0}; unsigned count=0,steps=0; uint32_t clocks[12]={0}; bool mismatch=false;
     FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<12) units[count]=ent; count++; }
     T_EQ(count,12); level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t saves[]={"/tmp/wc3-public-twelve-pending.bin","/tmp/wc3-public-twelve-partial.bin"};
+    cstring_t saves[]={Test_TempPath("wc3-public-twelve-pending.bin"),Test_TempPath("wc3-public-twelve-partial.bin")};
     unsigned resume[2]={0},suffixes=0;
     FOR_LOOP(pass,3) {
         if (pass) {
@@ -3917,7 +3917,7 @@ static void periodic_shared_pair_matches_retail(bool selected) {
         FOR_LOOP(i,2) G_SetEntitySelectionMask(units[i], 1);
     }
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t saves[]={"/tmp/wc3-public-pair-moving.bin","/tmp/wc3-public-pair-retry.bin"};
+    cstring_t saves[]={Test_TempPath("wc3-public-pair-moving.bin"),Test_TempPath("wc3-public-pair-retry.bin")};
     unsigned suffixes=0;
     FOR_LOOP(pass,3) {
         if (pass) {
@@ -4297,7 +4297,7 @@ TEST(wc3_movement, periodic_public_spawn_orders_match_retail_from_zero_clock) {
     edict_t *previous=NULL; uint32_t born=UINT32_MAX,clock=0;
     unsigned cases=0,steps[8]={0},saved_cases=0,saved_steps[8]={0};
     uint32_t saved_born=0,saved_clock=0,previous_index=0,saved_remaining=0;
-    cstring_t file="/tmp/openwarcraft3-public-spawn-phase.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-public-spawn-phase.bin");
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     FOR_LOOP(pass,2) {
         if (pass) {
@@ -4402,7 +4402,7 @@ TEST(wc3_movement, public_spawn_admission_matches_retail_and_resumes) {
         T_EQ(unit->current_order_id,0); T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
         if (c!=5) continue;
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
-        cstring_t file="/tmp/openwarcraft3-spawn-admission-save.bin";
+        cstring_t file=Test_TempPath("openwarcraft3-spawn-admission-save.bin");
         T_ASSERT(WriteGame(file)); uint32_t state[80][8];
         FOR_LOOP(pass,2) {
             if (pass) {
@@ -4446,9 +4446,9 @@ TEST(wc3_movement, public_stop_recovers_embedded_unit_with_bounded_query) {
     unit->collision=31; unit->stand=unit_stand; unit_stand(unit);
     jass_callbyname(level.vm,"prepare",false);
     T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560);
-    T_ASSERT(WriteGame("/tmp/openwarcraft3-embedded-stop-save.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("openwarcraft3-embedded-stop-save.bin")));
     for (unsigned pass=0;pass<2;pass++) {
-        if (pass) T_ASSERT(ReadGame("/tmp/openwarcraft3-embedded-stop-save.bin"));
+        if (pass) T_ASSERT(ReadGame(Test_TempPath("openwarcraft3-embedded-stop-save.bin")));
         jass_callbyname(level.vm,"enabled",false);
         T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(-1936));
         T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(-592));
@@ -4467,7 +4467,7 @@ TEST(wc3_movement, public_stop_recovers_embedded_unit_with_bounded_query) {
     jass_callbyname(level.vm,"enabled",false);
     T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560); T_EQ(unit->current_order_id,0);
     world.map=saved_map;
-    remove("/tmp/openwarcraft3-embedded-stop-save.bin"); reset_entities(); setup_test_world();
+    remove(Test_TempPath("openwarcraft3-embedded-stop-save.bin")); reset_entities(); setup_test_world();
 }
 
 void S_TestMoveRecoveryTrace(void (*)(void *,unsigned,edict_t const *),void *);
@@ -4532,16 +4532,16 @@ TEST(wc3_movement, public_pathing_toggle_controls_blocked_placement) {
     static cstring_t const names[]={"enabled","disabled","enabled","fractional","restored"};
     static vec2_t const expected[]={{-1936,-592},{-1936,-560},{-1936,-592},{-1935.875,-560.125},{-1936,-592}};
     for (unsigned pass=0;pass<2;pass++) {
-        if (pass) { T_ASSERT(ReadGame("/tmp/openwarcraft3-disabled-placement-save.bin")); T_ASSERT(unit->no_pathing); }
+        if (pass) { T_ASSERT(ReadGame(Test_TempPath("openwarcraft3-disabled-placement-save.bin"))); T_ASSERT(unit->no_pathing); }
         FOR_LOOP(i,5) {
             jass_callbyname(level.vm,names[i],false); T_ASSERT(!jass_rterror_pending(level.vm));
             T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(expected[i].x));
             T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(expected[i].y));
             T_EQ(unit->current_order_id,0); T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
-            if (!pass && i==3) T_ASSERT(WriteGame("/tmp/openwarcraft3-disabled-placement-save.bin"));
+            if (!pass && i==3) T_ASSERT(WriteGame(Test_TempPath("openwarcraft3-disabled-placement-save.bin")));
         }
     }
-    remove("/tmp/openwarcraft3-disabled-placement-save.bin"); reset_entities(); setup_test_world();
+    remove(Test_TempPath("openwarcraft3-disabled-placement-save.bin")); reset_entities(); setup_test_world();
 }
 
 TEST(wc3_movement, blocked_position_matches_original_ring_endpoints) {
@@ -4691,7 +4691,7 @@ TEST(wc3_movement, retail_velocity_guard_uses_fine_grid_scale) {
 /* Saved velocity must resume with the same cancellation words, not a fresh zero-velocity approximation. */
 TEST(wc3_movement, retail_velocity_resume_is_deterministic) {
     edict_t *unit = make_moving_unit(320, 320);
-    cstring_t file = "/tmp/openwarcraft3-retail-velocity-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-retail-velocity-save.bin");
     uint32_t expected[12][4];
     unit->unitinfo.MoveSpeed = 100; unit->s.angle = 0.125f; unit->movement.flow_direct = true;
     unit_moveindirection(unit);
@@ -4865,7 +4865,7 @@ TEST(wc3_movement, public_speed_disabled_owner_ignores_setter) {
 
 TEST(wc3_movement, public_speed_drop_clamps_existing_velocity_before_next_think) {
     reset_entities(); setup_test_world();
-    cstring_t file = "/tmp/openwarcraft3-speed-drop-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-speed-drop-save.bin");
     float old_minimum = game.constants.minUnitSpeed, old_maximum = game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed = 150; game.constants.maxUnitSpeed = 400;
     T_ASSERT(run_test_jass(
@@ -4999,7 +4999,7 @@ TEST(wc3_movement, public_boots_pickup_and_removal_reach_current_speed_and_steps
         }
         /* The last item has gone but its published cap remains until a setter.
          * Saving must retain that distinction as well as the following steps. */
-        cstring_t file = "/tmp/openwarcraft3-boots-published-speed-save.bin";
+        cstring_t file = Test_TempPath("openwarcraft3-boots-published-speed-save.bin");
         T_EQ(unit->movement.flat_speed_bonus, 60);
         T_ASSERT(WriteGame(file));
         uint32_t expected[8][4];
@@ -5127,7 +5127,7 @@ TEST(wc3_movement, public_speed_zero_survives_save_and_resumes_identically) {
     reset_entities(); setup_test_world();
     float old_minimum = game.constants.minUnitSpeed, old_maximum = game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed = 150; game.constants.maxUnitSpeed = 400;
-    cstring_t file = "/tmp/openwarcraft3-speed-zero-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-speed-zero-save.bin");
     T_ASSERT(run_test_jass(
         "globals\n unit speedUnit\nendglobals\n"
         "function main takes nothing returns nothing\n"
@@ -5243,7 +5243,7 @@ TEST(wc3_movement, scripted_point_order_turns_before_arriving) {
 /* Primitive override flags and the pre-turn decision travel in the ordinary edict save image. */
 TEST(wc3_movement, scripted_turn_state_survives_save_load) {
     edict_t *unit = make_scripted_turn_unit();
-    cstring_t file = "/tmp/openwarcraft3-scripted-turn-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-scripted-turn-save.bin");
     vec2_t const goal = {0, 512};
     T_NOT_NULL(unit);
     if (!unit) return;
@@ -7406,6 +7406,60 @@ TEST(wc3_movement, smart_attackable_wall_targets_gate) {
     gi.unicast = old_unicast;
 }
 
+TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
+    enum { CELLS = 16 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    static DestructableData_t const gate_data = {
+        .file = "Doodads/TestGate.mdx",
+        .walkable = false,
+    };
+    edict_t *attacker = make_moving_unit(80.0f, 80.0f);
+    edict_t *gate = make_smart_destructable(432.0f, 240.0f, &gate_data, TARG_WALL);
+    vec2_t const authored_gate_position = gate->s.origin2;
+    bool fallback_reached = false;
+
+    for (int y = 0; y < CELLS; ++y)
+        pathmap[y * CELLS + 7] = CM_PATHING_UNWALKABLE;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    attacker->collision = 16.0f;
+    attacker->unitinfo.MoveSpeed = 80.0f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_WALL;
+    S_AttackProfileWrite(attacker, 0)->range = 64.0f;
+    gi.LinkEntity(attacker);
+
+    T_ASSERT(S_OrderAttack(attacker, gate));
+    FOR_LOOP(frame, 200) {
+        attacker->currentmove->think(attacker);
+        CM_ProcessPathJobs(4096);
+        if (attacker->movement.flow_fallback_state == MOVE_FALLBACK_APPLIED) {
+            fallback_reached = true;
+            break;
+        }
+    }
+
+    T_ASSERT(fallback_reached);
+    FOR_LOOP(frame, 60) {
+        attacker->currentmove->think(attacker);
+        CM_ProcessPathJobs(4096);
+    }
+    /* The attacker starts off the gate's row, so only steering reaches the
+     * approach point in front of the wall (column 7 spans x 224..256). */
+    T_ASSERT(Vector2_distance(&attacker->s.origin2, &attacker->movement.flow_fallback_approach) < 16.0f);
+    /* Complete original16ee80 admits x=210.5/223.5 at radius16 beside this
+     * wall: class1 covers columns5/6, not a continuous collision circle. */
+    T_ASSERT(attacker->s.origin2.x < 224.0f);
+    T_ASSERT(G_MovePathPointIsPathable(&(pathAccelParams_t){
+        .from = &attacker->s.origin2, .radius = attacker->collision,
+        .blocked_flags = CM_PATHING_UNWALKABLE }));
+    T_FEQ(attacker->movement.flow_fallback_approach.y, authored_gate_position.y, 16.0f);
+    T_FEQ(gate->s.origin2.x, authored_gate_position.x, 0.01f);
+    T_FEQ(gate->s.origin2.y, authored_gate_position.y, 0.01f);
+    T_ASSERT(attacker->goalentity == gate);
+}
+
 TEST(wc3_movement, shift_smart_walkable_bridge_queues_clicked_ground_point) {
     static DestructableData_t const bridge_data = {
         .file = "Doodads/Terrain/WoodBridgeLarge45/WoodBridgeLarge45.mdx",
@@ -7659,6 +7713,31 @@ TEST(wc3_movement, wisp_harvest_persists_and_credits_periodic_lumber) {
     T_EQ(wisp->harvested_lumber, 0);
     T_FEQ(tree->health.value, 100.0f, 0.001f);
     T_FEQ(wisp->wait, 1.0f, 0.001f);
+
+    HARVEST_RANGE = old_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, autoharvestlumber_starts_wisp_harvest) {
+    slkTestData_t *rows, *old;
+    float const old_range = HARVEST_RANGE;
+    edict_t *wisp, *tree;
+
+    reset_entities();
+    setup_test_world();
+    rows = parse_slk_string(slk_wisp_harvest_test_data);
+    old = G_SetSLKRows("AbilityData", rows);
+    wisp = make_moving_unit(0.0f, 0.0f);
+    tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->s.player = 0;
+    HARVEST_RANGE = 128.0f;
+
+    T_ASSERT(unit_issueimmediateorder(wisp, "autoharvestlumber"));
+    T_EQ(wisp->goalentity, tree);
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityWispHarvest);
 
     HARVEST_RANGE = old_range;
     G_SetSLKRows("AbilityData", old);
@@ -8448,7 +8527,7 @@ TEST(wc3_movement, retry_members_follow_physical_ownership_without_scanning_scen
     T_ASSERT(move_retry_member_visits<=BZ_WC3_GROUP_ORDER_UNITS);
     G_FreeEdict(units[2]);
     T_EQ(move_retry_members(units[0]),2u);
-    cstring_t file="/tmp/wc3-retry-member-index.bin";
+    cstring_t file=Test_TempPath("wc3-retry-member-index.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     move_retry_member_visits=0;
     T_EQ(move_retry_members(units[0]),2u);
@@ -8703,7 +8782,7 @@ TEST(wc3_movement, public_group_points_survive_waypoint_capacity_and_restore) {
         T_EQ(units[i]->goalentity->s.origin2.x,goals[i].x);
         T_EQ(units[i]->goalentity->s.origin2.y,goals[i].y);
     }
-    cstring_t file="/tmp/wc3-waypoint-capacity.bin";
+    cstring_t file=Test_TempPath("wc3-waypoint-capacity.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     FOR_LOOP(i,MAX_WAYPOINTS*2)Waypoint_add(&(vec2_t){8,16});
     FOR_LOOP(i,COUNT) {
@@ -8776,6 +8855,7 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
     assert(bridge->destructable);
     bridge->destructable->placement_solid = true;
+    bridge->destructable->occluder_height = 32.0f; /* does not offset non-elevator bridges */
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain + 64.0f);
     G_RegisterGroundSurface(bridge);
@@ -8785,6 +8865,35 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     T_FEQ(unit->s.ground_offset, unit->unitinfo.FlyHeight, 0.01f);
 
     unit->s.origin.x = CM_PathCellWorldSize() * 2.0f;
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, CM_GetHeightAtPoint(unit->s.origin.x, unit->s.origin.y), 0.01f);
+}
+
+TEST(wc3_movement, elevator_level_controls_ground_unit_height_and_clears_on_exit) {
+    static DestructableData_t const elevator_data = { .walkable = true };
+    struct { uint16_t width, height; color32_t map[4]; } path = { .width = 2, .height = 2 };
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    edict_t *deck = G_Spawn();
+    float const terrain = CM_GetHeightAtPoint(0.0f, 0.0f);
+
+    deck->class_id = MAKEFOURCC('D', 'T', 'r', 'x');
+    deck->data.DestructableData = &elevator_data;
+    deck->destructable = G_AllocDestructable();
+    deck->destructable->placement_solid = true;
+    deck->pathtex = (pathTex_t *)&path;
+    deck->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain);
+    G_RegisterGroundSurface(deck);
+    FOR_LOOP(level_index, 3) {
+        deck->destructable->occluder_height = level_index * 128.0f;
+        M_CheckGround(unit);
+        T_FEQ(unit->s.origin.z, terrain + level_index * 128.0f, 0.01f);
+    }
+    unit->collision = 12.0f;
+    unit->s.radius = 100.0f; /* selection radius must not extend physical support */
+    unit->s.origin.x = CM_PathCellWorldSize() + 8.0f;
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, terrain + 256.0f, 0.01f);
+    unit->s.origin.x = CM_PathCellWorldSize() + 16.0f;
     M_CheckGround(unit);
     T_FEQ(unit->s.origin.z, CM_GetHeightAtPoint(unit->s.origin.x, unit->s.origin.y), 0.01f);
 }
@@ -8840,11 +8949,49 @@ TEST(wc3_movement, ground_surface_flag_clears_when_unregistered) {
     T_ASSERT(!(bridge->s.flags & EF_GROUND_SURFACE));
 }
 
+/* -0.75 tiles is a non-stock Water.slk height (-96 units) that keeps the encoded level exact. */
 static void set_uniform_test_water_height(float height) {
     war3mapVertex_t *vertices = (war3mapVertex_t *)world.map->vertices;
-    uint16_t const encoded = (uint16_t)(0x2000 + (height + WATER_HEIGHT_COR) * 4.0f);
+    uint16_t encoded;
+    CM_W3SetWaterHeight(-0.75f);
+    encoded = (uint16_t)(0x2000 + (height + 0.75f * TILE_SIZE) * 4.0f);
     uint32_t const count = world.map->width * world.map->height;
     FOR_LOOP(i, count) vertices[i].waterlevel = encoded;
+}
+
+TEST(wc3_movement, snapshot_marks_authored_water_selection_circle_only_on_water_support) {
+    static UnitUI_t water_circle_ui = { .selectionCircleOnWater = true };
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    entityState_t snapshot;
+    float water_z, ground_z;
+
+    T_NOT_NULL(globals.CustomizeEntity);
+    if (!globals.CustomizeEntity) return;
+
+    unit->data.UnitUI = &water_circle_ui;
+    unit->s.ground_offset = 5.0f;
+    set_uniform_test_water_height(64.0f);
+    water_z = CM_GetWaterHeightAtPoint(0.0f, 0.0f);
+    unit->s.origin.z = water_z + unit->s.ground_offset;
+    snapshot = unit->s;
+    globals.CustomizeEntity(0, unit, &snapshot);
+    T_ASSERT(snapshot.flags & EF_SELECTION_CIRCLE_ON_WATER);
+
+    /* The same authored unit on land must return to ordinary terrain rings. */
+    ground_z = CM_GetHeightAtPoint(0.0f, 0.0f);
+    unit->s.origin.z = ground_z + unit->s.ground_offset;
+    snapshot = unit->s;
+    snapshot.flags |= EF_SELECTION_CIRCLE_ON_WATER;
+    globals.CustomizeEntity(0, unit, &snapshot);
+    T_ASSERT(!(snapshot.flags & EF_SELECTION_CIRCLE_ON_WATER));
+
+    /* Water support alone does not opt a unit in when the object data says no. */
+    water_circle_ui.selectionCircleOnWater = false;
+    unit->s.origin.z = water_z + unit->s.ground_offset;
+    snapshot = unit->s;
+    globals.CustomizeEntity(0, unit, &snapshot);
+    T_ASSERT(!(snapshot.flags & EF_SELECTION_CIRCLE_ON_WATER));
+    water_circle_ui.selectionCircleOnWater = true;
 }
 
 TEST(wc3_movement, fly_height_is_added_to_support_surface) {
@@ -8921,7 +9068,7 @@ TEST(wc3_support, amphibious_refresh_retains_previous_deep_state) {
 TEST(wc3_support, deep_state_survives_save_before_second_refresh) {
     static UnitData_t const data = { .moveTypeName = "amph" };
     uint8_t cells[64 * 64];
-    cstring_t file = "/tmp/wc3-support-deep-refresh.bin";
+    cstring_t file = Test_TempPath("wc3-support-deep-refresh.bin");
     edict_t *unit = make_moving_unit(128, 128);
     uint32_t number = unit->s.number;
     unit->data.UnitData = &data;
@@ -9008,6 +9155,37 @@ TEST(wc3_support, native_ground_matrix_and_all_terrain_bytes) {
         /* The row on the stack must not survive into the next save or reset. */
         unit->data.UnitData = NULL;
     }
+}
+
+TEST(wc3_movement, tileset_water_slk_height_places_the_water_surface) {
+    cstring_t slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"waterID\"\nC;Y1;X2;K\"height\"\n"
+        "C;Y2;X1;K\"OSha\"\nC;Y2;X2;K-1.5\n"
+        "C;Y3;X1;K\"LSha\"\nC;Y3;X2;K-0.7\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved = G_SetSLKRows("WaterData", rows);
+    mapInfo_t info = { .mainGroundType = 'O' };
+    war3mapVertex_t *vertices;
+    float raw_level;
+
+    make_moving_unit(0.0f, 0.0f);
+    vertices = (war3mapVertex_t *)world.map->vertices;
+    FOR_LOOP(i, world.map->width * world.map->height) vertices[i].waterlevel = 0x2000 + 4 * 256;
+    raw_level = 256.0f;
+
+    /* Outland's Abyss surface sits 1.5 tiles below the authored W3E level; Lordaeron's 0.7. */
+    G_ApplyTilesetWaterHeight(&info);
+    T_FEQ(CM_W3WaterHeight(), -1.5f, 0.0001f);
+    T_FEQ(CM_GetWaterHeightAtPoint(0.0f, 0.0f), raw_level - 192.0f, 0.01f);
+    info.mainGroundType = 'L';
+    G_ApplyTilesetWaterHeight(&info);
+    T_FEQ(CM_GetWaterHeightAtPoint(0.0f, 0.0f), raw_level - 89.6f, 0.01f);
+    info.mainGroundType = 'Q'; /* No row: reported, and the raw W3E level is used. */
+    G_ApplyTilesetWaterHeight(&info);
+    T_FEQ(CM_GetWaterHeightAtPoint(0.0f, 0.0f), raw_level, 0.01f);
+
+    G_SetSLKRows("WaterData", saved); free_slk_rows(rows);
 }
 
 /* WPM water stays unwalkable; only the explicitly passable bridge lane may connect its banks. */
@@ -9363,7 +9541,7 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
         globals.RunFrame();
     }
     FOR_LOOP(i, 3) T_ASSERT(units[i]->s.origin2.x > -640);
-    cstring_t file = "/tmp/openwarcraft3-ranked-formation-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-ranked-formation-save.bin");
     uint32_t expected[8][3][8];
     T_ASSERT(WriteGame(file));
     FOR_LOOP(frame, 8) {
@@ -9599,7 +9777,7 @@ TEST(wc3_movement, combat_help_uses_spatial_order_authored_radius_and_saved_cool
     uint32_t serial=victim->combat_help.sequence,peer_serial=helpers[0]->attack_speed_cap.sequence;
     level.pathing_clock.time=1;T_Damage(victim,source,0);
     T_EQ(victim->combat_help.sequence,serial);T_EQ(helpers[0]->attack_speed_cap.sequence,peer_serial);
-    cstring_t file="/tmp/wc3-combat-help152.bin";
+    cstring_t file=Test_TempPath("wc3-combat-help152.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
     T_ASSERT(victim->combat_help.active);T_EQ(victim->combat_help.sequence,serial);
     T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(3.25f));
@@ -9711,7 +9889,7 @@ TEST(wc3_movement, attack_speed_cap_guard_expiry_save_and_reuse) {
     T_Damage(unit,source,0);T_ASSERT(unit->attack_speed_cap.active);
     T_EQ(wc3_float_bits(unit->attack_speed_cap.deadline.time),wc3_float_bits(3));
     uint32_t sequence=unit->attack_speed_cap.sequence;
-    cstring_t file="/tmp/wc3-attack-speed-cap151.bin";
+    cstring_t file=Test_TempPath("wc3-attack-speed-cap151.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
     T_ASSERT(unit->attack_speed_cap.active);T_EQ(unit->attack_speed_cap.sequence,sequence);
     abilityTimerRequest_t request;T_ASSERT(S_NextAbilityPrimaryTimer(&request));
@@ -9942,7 +10120,7 @@ TEST(wc3_movement, group_id_allocation_scales_with_requests_and_restores_reserve
     FOR_LOOP(i,128) T_EQ(move_allocate_group_id(),21u+i);
     T_ASSERT(move_group_id_visits-visits<=globals.num_edicts);
     /* ReadGame reconstructs the bound from restored authoritative IDs. */
-    cstring_t file="/tmp/wc3-group-id-bound.bin";
+    cstring_t file=Test_TempPath("wc3-group-id-bound.bin");
     level.next_move_group_id=16;
     unit->movement.previous_request_id=21;
     T_ASSERT(WriteGame(file));
@@ -10825,6 +11003,36 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
     free_slk_rows(rows);
 }
 
+/* UndeadX04's retail cleanup issues autoharvestgold to its newly created
+ * Acolytes after replacing the neutral mine with a Haunted Mine. */
+TEST(wc3_movement, autoharvestgold_assigns_acolyte_to_nearest_haunted_mine) {
+    slkTestData_t *rows, *old_abilities;
+    edict_t *parent, *haunted, *acolyte;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    haunted = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    acolyte = alloc_test_unit(MAKEFOURCC('u','a','c','o'), 180.0f, 0.0f);
+    setup_test_goldmine(parent, &test_goldmine_stock, 4500);
+    haunted->data.UnitAbilities = &test_haunted_mine;
+    haunted->s.player = acolyte->s.player = 0;
+    acolyte->data.UnitAbilities = &test_acolyte_harvest;
+    acolyte->stand = unit_stand;
+    acolyte->collision = 16.0f;
+    acolyte->unitinfo.MoveSpeed = 220.0f;
+    unit_stand(acolyte);
+    T_ASSERT(S_MineOverlayBind(haunted, parent));
+
+    T_ASSERT(unit_issueimmediateorder(acolyte, "autoharvestgold"));
+    T_EQ(acolyte->goalentity, haunted);
+    T_ASSERT(acolyte->currentmove && acolyte->currentmove->proc == CAbilityAcolyteHarvest);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 /* Map-loaded overlays must bind to the neutral mine at the same authored location. */
 TEST(wc3_movement, preplaced_haunted_mine_binds_to_neutral_parent) {
     slkTestData_t *rows, *old_abilities;
@@ -10872,6 +11080,74 @@ TEST(wc3_movement, scripted_haunted_mine_creation_binds_parent) {
     T_ASSERT(parent->s.renderfx & RF_HIDDEN);
     T_ASSERT(parent->paused);
 
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* BlightGoldMineForPlayer removes ngol before creating ugol. The replacement
+ * must retain the old mine's gold and restore an ordinary mine on destruction. */
+TEST(wc3_movement, replaced_goldmine_restores_after_haunted_mine_dies) {
+    slkTestData_t *rows, *old_abilities;
+    edict_t *old_mine, *haunted, *restored, *acolyte;
+    gameClient_t *client;
+    vec2_t point = { 256.0f, 256.0f };
+    uint32_t gold = 4321;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    client = &game.clients[0];
+    old_mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), point.x, point.y);
+    old_mine->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(old_mine, &test_goldmine_stock, gold);
+    /* Retail RemoveUnit hides now and frees after the current simulation
+     * tick. The new overlay must not bind to this mine while it is queued. */
+    G_DeferFreeEdict(old_mine);
+
+    haunted = S_CreateBlightedGoldmine(0, &point, 90.0f);
+    T_NOT_NULL(haunted);
+    if (!haunted) goto done;
+    T_NOT_NULL(haunted->mineoverlay);
+    if (!haunted->mineoverlay) goto done;
+    restored = haunted->mineoverlay->parent;
+    T_NOT_NULL(restored);
+    T_ASSERT(restored != old_mine);
+    S_GoldMineSetResourceAmount(haunted, gold);
+    T_EQ(restored->resources, gold);
+    T_ASSERT(G_IsDeferredFree(old_mine));
+    wc3_clock_advance(&level.pathing_clock, G_ClockMinimumDelay(), 0);
+    level.scheduled_frame = true;
+    G_RunDeferredFrees();
+    level.scheduled_frame = false;
+    T_ASSERT(!old_mine->inuse);
+    T_ASSERT(restored->inuse);
+    T_EQ(haunted->mineoverlay->parent, restored);
+
+    acolyte = alloc_test_unit(MAKEFOURCC('u','a','c','o'), point.x, point.y);
+    acolyte->data.UnitAbilities = &test_acolyte_harvest;
+    acolyte->s.player = client->ps.number;
+    acolyte->stand = unit_stand;
+    acolyte->collision = 16.0f;
+    acolyte->unitinfo.MoveSpeed = 220.0f;
+    unit_stand(acolyte);
+    T_ASSERT(unit_issuetargetorder(acolyte, "smart", haunted));
+    T_ASSERT(acolyte->currentmove && acolyte->currentmove->proc == CAbilityAcolyteHarvest);
+    acolyte->currentmove->think(acolyte);
+    T_ASSERT(S_AcolyteHarvestIsActive(acolyte));
+    level.time = 5000;
+    blight_mine_think(haunted);
+    T_EQ(restored->resources, gold - 10);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
+
+    unit_die(haunted, NULL);
+    T_ASSERT(M_IsDead(haunted));
+    T_ASSERT(restored->inuse);
+    T_ASSERT(!(restored->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!restored->paused);
+    T_EQ(restored->resources, gold - 10);
+    T_ASSERT(S_GoldMineCanHarvest(restored));
+
+done:
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }
@@ -11233,6 +11509,34 @@ TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_movement, harvest_order_boards_wisp_into_entangled_mine) {
+    slkTestData_t *rows, *old_abilities;
+    edict_t *parent, *mine, *wisp;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    mine->s.player = wisp->s.player = 0;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->construction = G_AllocConstruction();
+    T_NOT_NULL(mine->construction);
+    mine->health.value = mine->health.max_value = 1000.0f;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+
+    T_ASSERT(unit_issuetargetorder(wisp, "harvest", mine));
+    T_EQ(wisp->secondarygoal, mine);
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
+
+    G_FreeConstruction(mine);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_movement, autoharvestgold_immediate_order_boards_wisp_into_entangled_mine) {
     slkTestData_t *rows, *old_abilities;
     edict_t *parent, *mine, *wisp;
@@ -11336,7 +11640,7 @@ TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boar
 }
 
 TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
-    cstring_t const filename = "/tmp/openwarcraft3-wc3-entangle-lifecycle.bin";
+    cstring_t const filename = Test_TempPath("wc3-entangle-lifecycle.bin");
     uint32_t const ability = MAKEFOURCC('A','e','n','t');
     edict_t *clent, *caster, *parent, *overlay;
     gameClient_t *client;
@@ -11624,7 +11928,7 @@ TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
 }
 
 TEST(wc3_movement, zeppelin_unload_moves_to_selected_point_before_ejecting) {
-    cstring_t filename = "/tmp/openwarcraft3-zeppelin-unload-point-save.bin";
+    cstring_t filename = Test_TempPath("zeppelin-unload-point-save.bin");
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
     gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
@@ -11767,7 +12071,7 @@ TEST(wc3_movement, cargo_unload_ability_removal_clears_pending_arrival) {
 }
 
 TEST(wc3_movement, unload_all_round_trip_resumes_remaining_cargo) {
-    cstring_t filename = "/tmp/openwarcraft3-cargo-unload-save.bin";
+    cstring_t filename = Test_TempPath("cargo-unload-save.bin");
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
@@ -12098,7 +12402,7 @@ TEST(wc3_movement, projectile_fine_search_uses_shared_class15_and_preserves_owne
         T_ASSERT(!S_AdmitUnitMoveFineRequest(unit15));
         T_EQ(level.move_fine_budgets[15].count,2);
         unsigned number=missile->s.number;
-        cstring_t save="/tmp/wc3-missile-class15-queue.bin";
+        cstring_t save=Test_TempPath("wc3-missile-class15-queue.bin");
         T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
         missile=g_edicts+number;
         T_EQ(missile->s.player,3);T_EQ(missile->movement.fine_class,15);
@@ -12145,8 +12449,8 @@ TEST(wc3_movement, public_stop_retires_pending_fine_head_before_next_admission) 
         T_ASSERT(unit_issueimmediateorder(head,"stop"));
         T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
         T_ASSERT(!head->movement.fine_queued);T_NULL(head->movement.fine_prev);T_NULL(head->movement.fine_next);
-        T_ASSERT(WriteGame("/tmp/wc3-stop-fine-queue.bin"));
-        T_ASSERT(ReadGame("/tmp/wc3-stop-fine-queue.bin"));
+        T_ASSERT(WriteGame(Test_TempPath("wc3-stop-fine-queue.bin")));
+        T_ASSERT(ReadGame(Test_TempPath("wc3-stop-fine-queue.bin")));
         T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
         T_ASSERT(!head->movement.fine_queued);
         budget->work=0;
@@ -12163,7 +12467,7 @@ TEST(wc3_movement, public_stop_retires_pending_fine_head_before_next_admission) 
         T_ASSERT(!S_AdmitUnitMoveFineRequest(head));
         G_FreeEdict(head);T_EQ(level.move_fine_budgets[1].count,0);
     }
-    remove("/tmp/wc3-stop-fine-queue.bin");
+    remove(Test_TempPath("wc3-stop-fine-queue.bin"));
     level.started=false;reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
 }
 
@@ -12197,8 +12501,8 @@ TEST(wc3_movement, public_stop_retires_pending_member_coarse_head_before_next_ad
         T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
         T_ASSERT(!request->queued);T_NULL(request->prev);T_NULL(request->next);
         T_ASSERT(S_ValidateMoveCoarseRequests());
-        T_ASSERT(WriteGame("/tmp/wc3-stop-coarse-queue.bin"));
-        T_ASSERT(ReadGame("/tmp/wc3-stop-coarse-queue.bin"));
+        T_ASSERT(WriteGame(Test_TempPath("wc3-stop-coarse-queue.bin")));
+        T_ASSERT(ReadGame(Test_TempPath("wc3-stop-coarse-queue.bin")));
         T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
         T_ASSERT(!request->queued);T_ASSERT(S_ValidateMoveCoarseRequests());
         budget->work=0;
@@ -12215,7 +12519,7 @@ TEST(wc3_movement, public_stop_retires_pending_member_coarse_head_before_next_ad
         T_ASSERT(!S_AdmitMoveCoarseRequest(head,request,2));
         G_FreeEdict(head);T_EQ(level.move_coarse_budgets[1][2].count,0);
     }
-    remove("/tmp/wc3-stop-coarse-queue.bin");
+    remove(Test_TempPath("wc3-stop-coarse-queue.bin"));
     level.started=false;reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
 }
 
@@ -12293,7 +12597,7 @@ TEST(wc3_movement, public_mover_retirement_cancels_pending_and_active_owners) {
             G_TestFinishDeferredFrees();T_ASSERT(!victim->inuse);T_NULL(victim->movement.fine_route.points);
         } else {
             T_ASSERT(victim->inuse);T_ASSERT(victim->svflags&SVF_DEADMONSTER);
-            T_ASSERT(WriteGame("/tmp/wc3-retired-mover.bin"));T_ASSERT(ReadGame("/tmp/wc3-retired-mover.bin"));
+            T_ASSERT(WriteGame(Test_TempPath("wc3-retired-mover.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-retired-mover.bin")));
             T_EQ(victim->movement.group_id,0);T_ASSERT(!victim->movement.fine_queued);
             G_FreeEdict(victim);T_NULL(victim->movement.fine_route.points);
         }
@@ -12303,8 +12607,8 @@ TEST(wc3_movement, public_mover_retirement_cancels_pending_and_active_owners) {
             moveGroup_t *empty=NULL;
             FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse && level.move_groups[i]->id==group)empty=level.move_groups[i];
             T_NOT_NULL(empty);if(empty)T_EQ(empty->count,0);
-            T_ASSERT(WriteGame("/tmp/wc3-retired-mover.bin"));
-            T_ASSERT(ReadGame("/tmp/wc3-retired-mover.bin"));
+            T_ASSERT(WriteGame(Test_TempPath("wc3-retired-mover.bin")));
+            T_ASSERT(ReadGame(Test_TempPath("wc3-retired-mover.bin")));
             empty=NULL;
             FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse && level.move_groups[i]->id==group)empty=level.move_groups[i];
             T_NOT_NULL(empty);if(empty)T_EQ(empty->count,0);
@@ -12317,7 +12621,7 @@ TEST(wc3_movement, public_mover_retirement_cancels_pending_and_active_owners) {
                 T_ASSERT(!empty->route.group_admission.queued);
             }
         }
-        remove("/tmp/wc3-retired-mover.bin");
+        remove(Test_TempPath("wc3-retired-mover.bin"));
         level.started=false;
     }
     reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
@@ -12423,7 +12727,7 @@ TEST(wc3_movement, periodic_public_ownership_change_matches_retail_and_restore) 
         "call SetUnitMoveSpeed(mover,100)\n"
         "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
     T_ASSERT(run_test_jass(script)); level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t files[]={"/tmp/wc3-owner-before-change.bin","/tmp/wc3-owner-after-change.bin"};
+    cstring_t files[]={Test_TempPath("wc3-owner-before-change.bin"),Test_TempPath("wc3-owner-after-change.bin")};
     FOR_LOOP(pass,3) {
         if (pass) T_ASSERT(ReadGame(files[pass-1]));
         edict_t *unit=NULL;
@@ -12545,7 +12849,7 @@ TEST(wc3_movement, public_coarse_contention_saves_pending_two_player_orders) {
         T_ASSERT(level.move_coarse_budgets[p][0].count>0);
     }
     T_ASSERT(S_ValidateMoveCoarseRequests());
-    cstring_t file="/tmp/openwarcraft3-coarse-contention.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-coarse-contention.bin");
     T_ASSERT(WriteGame(file));
     uint32_t states[96][9]; wc3Random_t random={0};
     FOR_LOOP(pass,2) {
@@ -12596,7 +12900,7 @@ TEST(wc3_movement, responsive_public_crowd_starts_and_restores_deterministically
     T_EQ(count,1024); if(count!=1024) { reset_entities(); setup_test_world(); return; }
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     while(level.time<35) { level.time+=5; globals.RunFrame(); }
-    cstring_t file="/tmp/openwarcraft3-responsive-crowd.bin";
+    cstring_t file=Test_TempPath("openwarcraft3-responsive-crowd.bin");
     T_ASSERT(level.move_fine_budgets[0].count>0);
     T_ASSERT(WriteGame(file));
     wc3Random_t random={0};
@@ -12803,7 +13107,7 @@ static void selected_player_input_journeys(uint32_t const inputs[2][4],
         FOR_LOOP(i,2) G_SetEntitySelectionMask(units[i], 1u<<3);
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
         bool issued=false,mismatch=false;
-        cstring_t saves[]={"/tmp/wc3-selected-input-moving.bin","/tmp/wc3-selected-input-arrival.bin"};
+        cstring_t saves[]={Test_TempPath("wc3-selected-input-moving.bin"),Test_TempPath("wc3-selected-input-arrival.bin")};
         FOR_LOOP(pass,3) {
             if (pass) {
                 if (mismatch) break;
@@ -12946,7 +13250,7 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
             .units={units[0],units[1]},.inputs=inputs+c*input_count,.count=input_count};
         gi.LinkEntity=selected_queued_input_link;
         bool mismatch=false; unsigned saved_inputs[2]={0}; uint32_t saved_history[2][2]={{0}};
-        cstring_t saves[]={"/tmp/wc3-selected-queued-moving.bin","/tmp/wc3-selected-queued-arrival.bin"};
+        cstring_t saves[]={Test_TempPath("wc3-selected-queued-moving.bin"),Test_TempPath("wc3-selected-queued-arrival.bin")};
         FOR_LOOP(pass,3) {
             if (pass) {
                 if (mismatch) break;
@@ -13109,7 +13413,7 @@ TEST(wc3_movement, public_same_cell_routes_retain_single_points_and_saved_motion
     unsigned saved[5]={0},steps=0,suffix=0;bool mismatch=false;char files[5][MAX_PATH];
     FOR_LOOP(i,5) {
         int n=snprintf(files[i],sizeof(files[i]),"%s-%u.bin",
-            journal_path?journal_path:"/tmp/wc3-same-cell114",times[i]);
+            journal_path?journal_path:Test_TempPath("wc3-same-cell114"),times[i]);
         T_ASSERT(n>0 && n<(int)sizeof(files[i]));
         if(n<=0 || n>=(int)sizeof(files[i])){mismatch=true;files[i][0]=0;}
     }
@@ -13195,7 +13499,7 @@ TEST(wc3_movement, public_timer_timeout_drives_exact_motion_and_saved_continuati
     G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned const times[]={80,450,1100,2200};unsigned saved[4]={0},steps=0,suffix=0;
-    char files[4][64];FOR_LOOP(i,4)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-timer116-%u.bin",times[i]);
+    PATHSTR files[4];FOR_LOOP(i,4)snprintf(files[i],sizeof(files[i]),"%swc3-timer116-%u.bin",Test_TempPath(""),times[i]);
     bool mismatch=false;
     FOR_LOOP(pass,5) {
         if(mismatch)break;
@@ -13253,7 +13557,7 @@ TEST(wc3_movement, public_timer_getters_drive_motion_across_segments_pause_and_e
     G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned const times[]={11000,22500,299500,300500,305500};unsigned saved[5]={0},steps=0,suffix=0;
-    char files[5][64];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-timer117-%u.bin",times[i]);
+    PATHSTR files[5];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-timer117-%u.bin",Test_TempPath(""),times[i]);
     bool mismatch=false;
     FOR_LOOP(pass,6) {
         if(mismatch)break;
@@ -13311,7 +13615,7 @@ TEST(wc3_movement, public_timer_getters_drive_motion_across_callback_mutation_an
     G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned const times[]={5,95,145,255,505};unsigned saved[5]={0},steps=0,suffix=0;
-    char files[5][64];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-timer118-%u.bin",times[i]);
+    PATHSTR files[5];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-timer118-%u.bin",Test_TempPath(""),times[i]);
     bool mismatch=false;
     FOR_LOOP(pass,6) {
         if(mismatch)break;
@@ -13387,7 +13691,7 @@ static void check_metadata_scene_119(char const *script,uint32_t const (*records
     G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned const times[]={105,405,505,2005,2505};unsigned saved[5]={0},steps=0,suffix=0;
-    char files[5][64];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-metadata119-%u.bin",times[i]);
+    PATHSTR files[5];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-metadata119-%u.bin",Test_TempPath(""),times[i]);
     bool mismatch=false;
     FOR_LOOP(pass,6) {
         if(mismatch)break;
@@ -13546,10 +13850,10 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=false;
-    unsigned saved[16]={0},retry_saved[16]={0},repulse_saved[16]={0},suffix=0;char files[16][64];T_ASSERT(checkpoint_count<=16);
+    unsigned saved[16]={0},retry_saved[16]={0},repulse_saved[16]={0},suffix=0;PATHSTR files[16];T_ASSERT(checkpoint_count<=16);
     if(gate_retry.rows){gate_retry.index=0;gate_retry.mismatch=false;move_test_retry=record_gate_retry;}
     if(gate_repulse.rows){gate_repulse.index=0;gate_repulse.mismatch=false;move_test_repulse=record_gate_repulse;}
-    FOR_LOOP(i,checkpoint_count)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-%s-%u.bin",name,times[i]);
+    FOR_LOOP(i,checkpoint_count)snprintf(files[i],sizeof(files[i]),"%swc3-%s-%u.bin",Test_TempPath(""),name,times[i]);
     FOR_LOOP(pass,checkpoint_count+1) {
         if(mismatch)break;
         if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];gate_retry.index=retry_saved[pass-1];gate_repulse.index=repulse_saved[pass-1];}
@@ -13724,7 +14028,7 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
     FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if(count<2)units[count]=ent; count++; }
     T_EQ(count,2);
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t saves[]={"/tmp/wc3-follow-approach.bin","/tmp/wc3-follow-persistent.bin","/tmp/wc3-follow-target.bin"};
+    cstring_t saves[]={Test_TempPath("wc3-follow-approach.bin"),Test_TempPath("wc3-follow-persistent.bin"),Test_TempPath("wc3-follow-target.bin")};
     unsigned save_steps[]={50,reuse ? 348 : scenario==FOLLOW_SPEED ? 150 : scenario==FOLLOW_TRAVEL_XY ? 351 : 350,scenario==FOLLOW_SPEED ? 251 : 700};
     bool mismatch=count!=2;
     followCommitTrace_t trace={0}; follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
@@ -13860,7 +14164,7 @@ static void public_moving_radius_journey(bool matrix) {
     T_NOT_NULL(unit);level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
-    cstring_t files[]={"/tmp/wc3-chaos-enabled.bin","/tmp/wc3-chaos-commit.bin","/tmp/wc3-chaos-resized.bin","/tmp/wc3-chaos-arrival.bin"};
+    cstring_t files[]={Test_TempPath("wc3-chaos-enabled.bin"),Test_TempPath("wc3-chaos-commit.bin"),Test_TempPath("wc3-chaos-resized.bin"),Test_TempPath("wc3-chaos-arrival.bin")};
     unsigned save_steps[]={33,34,35,116},save_times[]={2000,2010,2040,0};
     FOR_LOOP(pass,5) {
     if(pass) {
@@ -13969,7 +14273,7 @@ static void public_group_radius_journey(unsigned scenario, uint32_t const (*moti
     follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     groupRadiusTrace_t radii_trace={0};group_radius_trace=&radii_trace;move_test_group_route=record_group_radius;
     unsigned steps=0,states=0;bool mismatch=actors!=2;
-    cstring_t files[]={"/tmp/wc3-group-before-radius.bin","/tmp/wc3-group-enabled-radius.bin","/tmp/wc3-group-rebound-radius.bin","/tmp/wc3-group-late-radius.bin"};
+    cstring_t files[]={Test_TempPath("wc3-group-before-radius.bin"),Test_TempPath("wc3-group-enabled-radius.bin"),Test_TempPath("wc3-group-rebound-radius.bin"),Test_TempPath("wc3-group-late-radius.bin")};
     unsigned save_times[]={1900,scenario==2 ? 1950 : 2000,2050,4000};
     unsigned saved_steps[4]={0},saved_states[4]={0},suffix_steps=0,suffix_states=0;
     FOR_LOOP(pass,5) {
@@ -14061,18 +14365,18 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};trace.units[0]=unit;trace.units[1]=peer;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
-    cstring_t files[8]={"/tmp/wc3-blocked-goal-before-partial.bin","/tmp/wc3-blocked-goal-retry.bin","/tmp/wc3-blocked-goal-forced.bin","/tmp/wc3-blocked-goal-final-turn.bin"};
+    cstring_t files[8]={Test_TempPath("wc3-blocked-goal-before-partial.bin"),Test_TempPath("wc3-blocked-goal-retry.bin"),Test_TempPath("wc3-blocked-goal-forced.bin"),Test_TempPath("wc3-blocked-goal-final-turn.bin")};
     if(captain) {
-        files[0]="/tmp/wc3-captain-home-1200.bin";files[1]="/tmp/wc3-captain-home-1500.bin";
-        files[2]="/tmp/wc3-captain-home-1800.bin";files[3]="/tmp/wc3-captain-home-1995.bin";
-        files[4]="/tmp/wc3-captain-home-2010.bin";files[5]="/tmp/wc3-captain-home-6255.bin";
-        files[6]="/tmp/wc3-captain-home-6270.bin";files[7]="/tmp/wc3-captain-home-6300.bin";
+        files[0]=Test_TempPath("wc3-captain-home-1200.bin");files[1]=Test_TempPath("wc3-captain-home-1500.bin");
+        files[2]=Test_TempPath("wc3-captain-home-1800.bin");files[3]=Test_TempPath("wc3-captain-home-1995.bin");
+        files[4]=Test_TempPath("wc3-captain-home-2010.bin");files[5]=Test_TempPath("wc3-captain-home-6255.bin");
+        files[6]=Test_TempPath("wc3-captain-home-6270.bin");files[7]=Test_TempPath("wc3-captain-home-6300.bin");
     }
     if(pair) {
-        files[0]="/tmp/wc3-captain-pair-1200.bin";files[1]="/tmp/wc3-captain-pair-1500.bin";
-        files[2]="/tmp/wc3-captain-pair-1800.bin";files[3]="/tmp/wc3-captain-pair-1995.bin";
-        files[4]="/tmp/wc3-captain-pair-2010.bin";files[5]="/tmp/wc3-captain-pair-6000.bin";
-        files[6]="/tmp/wc3-captain-pair-6500.bin";files[7]="/tmp/wc3-captain-pair-6525.bin";
+        files[0]=Test_TempPath("wc3-captain-pair-1200.bin");files[1]=Test_TempPath("wc3-captain-pair-1500.bin");
+        files[2]=Test_TempPath("wc3-captain-pair-1800.bin");files[3]=Test_TempPath("wc3-captain-pair-1995.bin");
+        files[4]=Test_TempPath("wc3-captain-pair-2010.bin");files[5]=Test_TempPath("wc3-captain-pair-6000.bin");
+        files[6]=Test_TempPath("wc3-captain-pair-6500.bin");files[7]=Test_TempPath("wc3-captain-pair-6525.bin");
     }
     unsigned saves=captain ? 8 : 4;
     unsigned save_times[]={captain ? 1200 : blocked ? 6000 : 5500,captain ? 1500 : blocked ? 7110 : 6630,captain ? 1800 : blocked ? 7140 : 6660,captain ? 1995 : blocked ? 7170 : 6690,2010,6255,6270,6300},saved_steps[8]={0},suffix_steps=0;
@@ -14152,9 +14456,9 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
             T_NULL(unit->movement.captain_home.actor);
             T_ASSERT(actor->inuse);T_ASSERT(peer->movement.captain_home.actor==actor);
             T_ASSERT(S_ValidateCaptainHomeActors(false));
-            T_ASSERT(WriteGame("/tmp/wc3-captain-pair-cancel.bin"));
+            T_ASSERT(WriteGame(Test_TempPath("wc3-captain-pair-cancel.bin")));
         }
-        remove("/tmp/wc3-captain-pair-cancel.bin");
+        remove(Test_TempPath("wc3-captain-pair-cancel.bin"));
         FOR_LOOP(i,6) {
             T_ASSERT(ReadGame(files[0]));
             edict_t *actor=unit->movement.captain_home.actor;
@@ -14165,9 +14469,9 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
             if(i==4)actor->movement.captain_actor_members=globals.num_edicts+1;
             if(i==5)*(uint8_t *)&unit->movement.captain_home.entered=2;
             T_ASSERT(!S_ValidateCaptainHomeActors(false));
-            T_ASSERT(!WriteGame("/tmp/wc3-captain-pair-invalid.bin"));
+            T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-pair-invalid.bin")));
         }
-        remove("/tmp/wc3-captain-pair-invalid.bin");
+        remove(Test_TempPath("wc3-captain-pair-invalid.bin"));
     }
     if(captain && !pair && !mismatch) {
         FOR_LOOP(i,3) {
@@ -14251,7 +14555,7 @@ TEST(wc3_movement, public_size2_passage_matches_original_fallback_and_failure) {
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     unsigned const save_times[]={1200,6000,11200,14055,14085,14115};
-    cstring_t files[]={"/tmp/wc3-passage-1200.bin","/tmp/wc3-passage-6000.bin","/tmp/wc3-passage-11200.bin","/tmp/wc3-passage-14055.bin","/tmp/wc3-passage-14085.bin","/tmp/wc3-passage-14115.bin"};
+    cstring_t files[]={Test_TempPath("wc3-passage-1200.bin"),Test_TempPath("wc3-passage-6000.bin"),Test_TempPath("wc3-passage-11200.bin"),Test_TempPath("wc3-passage-14055.bin"),Test_TempPath("wc3-passage-14085.bin"),Test_TempPath("wc3-passage-14115.bin")};
     unsigned saved_steps[6]={0},suffix_steps=0;
     FOR_LOOP(pass,7) {
         if(mismatch)break;
@@ -14317,8 +14621,8 @@ TEST(wc3_movement, public_overlap_matches_original_link_order_and_saved_continua
      * so those suffixes cannot use the uninterrupted movement oracle. Test
      * that changed consumer explicitly in wc3_spatial_load instead. */
     unsigned const times[]={1200,5995,12000,13000,18000};
-    char files[5][64];unsigned saved[5]={0},suffix=0;
-    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-overlap-%u.bin",times[i]);
+    PATHSTR files[5];unsigned saved[5]={0},suffix=0;
+    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-overlap-%u.bin",Test_TempPath(""),times[i]);
     FOR_LOOP(pass,6) {
         if(mismatch)break;
         if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
@@ -14373,8 +14677,8 @@ TEST(wc3_movement, public_chained_expression_move_matches_original_and_saved_con
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     unsigned const times[]={995,1000,1005,3000,10000,13000,14000,16000};
-    char files[8][64];unsigned saved[8]={0},suffix=0;
-    FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-expression-%u.bin",times[i]);
+    PATHSTR files[8];unsigned saved[8]={0},suffix=0;
+    FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"%swc3-expression-%u.bin",Test_TempPath(""),times[i]);
     FOR_LOOP(pass,9) {
         if(mismatch)break;
         if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
@@ -14536,8 +14840,8 @@ TEST(wc3_movement, public_terrain_edits_match_original_regional_publication_and_
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     unsigned const times[]={1995,2000,2005,3000,9995,10000,19995,20000};
-    char files[8][64];unsigned saved[8]={0},saved_stage[8]={0},suffix=0;
-    FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-terrain-cache-%u.bin",times[i]);
+    PATHSTR files[8];unsigned saved[8]={0},saved_stage[8]={0},suffix=0;
+    FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"%swc3-terrain-cache-%u.bin",Test_TempPath(""),times[i]);
     FOR_LOOP(pass,9) {
         if(mismatch)break;
         if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];terrain83_stage=saved_stage[pass-1];}
@@ -14718,8 +15022,8 @@ TEST(wc3_movement, public_speed_turn_stop_and_boundary_restart_match_original_an
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     unsigned const times[]={2495,2500,5495,5500,7540,11000,12000,15000,18000,21000,22000};
-    char files[11][64];unsigned saved[11]={0},saved_stage[11]={0},saved_marker[11]={0},suffix=0;
-    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"/tmp/wc3-movement-lifecycle-%u.bin",times[i]);
+    PATHSTR files[11];unsigned saved[11]={0},saved_stage[11]={0},saved_marker[11]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"%swc3-movement-lifecycle-%u.bin",Test_TempPath(""),times[i]);
     FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+1) {
         if(mismatch)break;
         if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];lifecycle84_stage=saved_stage[pass-1];lifecycle84_marker=saved_marker[pass-1];}
@@ -14909,8 +15213,8 @@ TEST(wc3_movement, region_callbacks_match_original_teleport_remove_and_saved_con
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     unsigned const times[]={4495,4540,13500,13540,13570,23395,23400,23430};
-    char files[8][64];unsigned saved[8]={0},saved_stage[8]={0},saved_marker[8]={0},suffix=0;
-    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"/tmp/wc3-region-callback-%u.bin",times[i]);
+    PATHSTR files[8];unsigned saved[8]={0},saved_stage[8]={0},saved_marker[8]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"%swc3-region-callback-%u.bin",Test_TempPath(""),times[i]);
     FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+4) {
         if(mismatch)break;
         unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
@@ -15062,8 +15366,8 @@ TEST(wc3_movement, pathing_pause_and_displacement_match_original_and_saved_conti
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     unsigned const times[]={3995,4000,8495,8500,10995,11000,11500,13500};
-    char files[8][64];unsigned saved[8]={0},saved_stage[8]={0},saved_marker[8]={0},suffix=0;
-    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"/tmp/wc3-movement-bypass-%u.bin",times[i]);
+    PATHSTR files[8];unsigned saved[8]={0},saved_stage[8]={0},saved_marker[8]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"%swc3-movement-bypass-%u.bin",Test_TempPath(""),times[i]);
     FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+4) {
         if(mismatch)break;
         unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
@@ -15235,8 +15539,8 @@ TEST(wc3_movement, teleport_and_movement_modes_match_original_and_saved_continua
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     unsigned const times[]={3995,4000,4010,8495,8500,11995,12000,12010,15000,16000};
-    char files[10][64];unsigned saved[10]={0},saved_stage[10]={0},saved_marker[10]={0},suffix=0;
-    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"/tmp/wc3-movement-mode-%u.bin",times[i]);
+    PATHSTR files[10];unsigned saved[10]={0},saved_stage[10]={0},saved_marker[10]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"%swc3-movement-mode-%u.bin",Test_TempPath(""),times[i]);
     FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+4) {
         if(mismatch)break;
         unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
@@ -15445,8 +15749,8 @@ TEST(wc3_movement, temporary_modifiers_match_original_velocity_and_saved_restora
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=modifier88_record_commit;
     unsigned steps=0,suffix=0;bool mismatch=!unit;
     unsigned const times[]={4445,4450,4500,8995,9000,10495,10500,13995,14000};
-    char files[(sizeof(times)/sizeof(*(times)))][64];unsigned saved[(sizeof(times)/sizeof(*(times)))]={0},saved_marker[(sizeof(times)/sizeof(*(times)))]={0},saved_buff[(sizeof(times)/sizeof(*(times)))]={0},saved_stage[(sizeof(times)/sizeof(*(times)))]={0};
-    FOR_LOOP(i,(sizeof(times)/sizeof(*(times))))snprintf(files[i],sizeof(files[i]),"/tmp/wc3-speed-modifier-%u.bin",times[i]);
+    PATHSTR files[(sizeof(times)/sizeof(*(times)))];unsigned saved[(sizeof(times)/sizeof(*(times)))]={0},saved_marker[(sizeof(times)/sizeof(*(times)))]={0},saved_buff[(sizeof(times)/sizeof(*(times)))]={0},saved_stage[(sizeof(times)/sizeof(*(times)))]={0};
+    FOR_LOOP(i,(sizeof(times)/sizeof(*(times))))snprintf(files[i],sizeof(files[i]),"%swc3-speed-modifier-%u.bin",Test_TempPath(""),times[i]);
     FOR_LOOP(pass,(sizeof(times)/sizeof(*(times)))+4) {
         if(mismatch)break;
         unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
@@ -15560,7 +15864,7 @@ static void public_captain_pool_journey(unsigned mode) {
     unsigned times[8]={995,1200,1500,1995,2010,6255,6270,6300},saved[8]={0};
     if(reuse)memcpy(times,(unsigned[]){495,995,1995,2100,2995,3010,7270,7300},sizeof(times));
     if(pair)memcpy(times,(unsigned[]){995,1200,1500,1995,2010,6000,6500,6525},sizeof(times));
-    char files[8][64]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-pool-%u-%u.bin",mode,i);
+    PATHSTR files[8]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"%swc3-captain-pool-%u-%u.bin",Test_TempPath(""),mode,i);
     unsigned steps=0,suffix=0; bool mismatch=false;
     FOR_LOOP(pass,9) {
         if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];T_NULL(level.bots[0].vm);}
@@ -15714,7 +16018,7 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     if(go_home_retry)memcpy(times,(unsigned[]){18030,23000,23820,23905,23910,23940,25000,27000},sizeof(times));
     if(go_home_refill)memcpy(times,(unsigned[]){23820,23905,23910,27000,27265,27270,27275,28000},sizeof(times));
     if(go_home_complete)memcpy(times,(unsigned[]){30000,31000,31495,31500,32000,40000,90000,119970},sizeof(times));
-    char files[8][64]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-roster-%u-%u.bin",members,i);
+    PATHSTR files[8]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"%swc3-captain-roster-%u-%u.bin",Test_TempPath(""),members,i);
     groupRadiusTrace_t radii_trace={0}; unsigned footprints=0,saved_footprints[8]={0};
     uint32_t const (*expected_footprints)[4]=go_home ? captain_go_home_footprints : stop_all ? captain_thirteen_cancel_all_footprints : early ? captain_thirteen_cancel_early_footprints : cancel ? captain_thirteen_cancel_late_footprints : phase==4 ? captain_thirteen_reentry_footprints : captain_thirteen_shared_footprints;
     unsigned footprint_count=go_home ? sizeof(captain_go_home_footprints)/sizeof(*captain_go_home_footprints) : stop_all ? sizeof(captain_thirteen_cancel_all_footprints)/sizeof(*captain_thirteen_cancel_all_footprints) : early ? sizeof(captain_thirteen_cancel_early_footprints)/sizeof(*captain_thirteen_cancel_early_footprints) : cancel ? sizeof(captain_thirteen_cancel_late_footprints)/sizeof(*captain_thirteen_cancel_late_footprints) : phase==4 ? sizeof(captain_thirteen_reentry_footprints)/sizeof(*captain_thirteen_reentry_footprints) : sizeof(captain_thirteen_shared_footprints)/sizeof(*captain_thirteen_shared_footprints);
@@ -15884,9 +16188,9 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
         uint32_t initialized=level.ai_vm_initialized;
         T_EQ(initialized,1);
         level.ai_vm_initialized|=1u<<MAX_PLAYERS;
-        T_ASSERT(!WriteGame("/tmp/wc3-captain-invalid-ai-players.bin"));
+        T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-invalid-ai-players.bin")));
         level.ai_vm_initialized=initialized;
-        remove("/tmp/wc3-captain-invalid-ai-players.bin");
+        remove(Test_TempPath("wc3-captain-invalid-ai-players.bin"));
     }
     if(phase==3 && !mismatch) {
         FOR_LOOP(i,6) {
@@ -15901,9 +16205,9 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
             if(i==4)unit->movement.captain_home.actor->movement.captain_actor_members=0;
             if(i==5)unit->movement.captain_home.member_index=trace.units[1]->movement.captain_home.member_index;
             T_ASSERT(!S_ValidateCaptainHomeActors(false));
-            T_ASSERT(!WriteGame("/tmp/wc3-captain-shared-invalid.bin"));
+            T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-shared-invalid.bin")));
         }
-        remove("/tmp/wc3-captain-shared-invalid.bin");
+        remove(Test_TempPath("wc3-captain-shared-invalid.bin"));
         T_ASSERT(ReadGame(files[2]));
         edict_t *unit=trace.units[12],*actor=unit->movement.captain_home.actor;
         T_NOT_NULL(actor); S_ReleaseCaptainHomeActor(actor);
@@ -15930,9 +16234,9 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
             if(i==4)unit->movement.captain_home.member_index=trace.units[1]->movement.captain_home.member_index;
             if(i==5)unit->movement.captain_home.due.time=NAN;
             T_ASSERT(!S_ValidateCaptainHomeActors(false));
-            T_ASSERT(!WriteGame("/tmp/wc3-captain-roster-invalid.bin"));
+            T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-roster-invalid.bin")));
         }
-        remove("/tmp/wc3-captain-roster-invalid.bin");
+        remove(Test_TempPath("wc3-captain-roster-invalid.bin"));
     }
     FOR_LOOP(i,8)remove(files[i]);
     move_test_motion_commit=NULL; follow_commit_trace=NULL; move_test_group_route=NULL; group_radius_trace=NULL;
@@ -16075,7 +16379,7 @@ TEST(wc3_movement, public_attack_prevention_changes_fresh_captain_ranges_and_sav
     T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APS8"),units[1]));
     T_ASSERT(S_UnitIsSilenced(units[1]));
     caster->data.UnitAbilities=NULL;
-    T_ASSERT(WriteGame("/tmp/wc3-prevention155.bin"));T_ASSERT(ReadGame("/tmp/wc3-prevention155.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-prevention155.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-prevention155.bin")));
     T_ASSERT(!S_UnitAttackSlotEnabled(units[1],0));T_ASSERT(S_UnitIsSilenced(units[1]));
     T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),0x404a0000);
     unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNp2")));
@@ -16107,7 +16411,7 @@ TEST(wc3_movement, public_attack_prevention_changes_fresh_captain_ranges_and_sav
     unit_updatestatuses(units[1]);
     T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
     T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
-    remove("/tmp/wc3-prevention155.bin");
+    remove(Test_TempPath("wc3-prevention155.bin"));
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0);reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
     G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
@@ -16166,7 +16470,7 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
         moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
         T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),words[i]);
     }
-    T_ASSERT(WriteGame("/tmp/wc3-captain-producers.bin"));T_ASSERT(ReadGame("/tmp/wc3-captain-producers.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
     captain.home_actor=units[0]->movement.captain_home.roster_actor;
     T_NOT_NULL(captain.home_actor);
     /* The fixture source is not a saved map script. Use the same owner API
@@ -16183,7 +16487,7 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
     T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),words[0]);
     T_ASSERT(S_IssueCaptainHomeMove(units[6],&captain));
     T_EQ(wc3_float_bits(move_find_group(units[6]->movement.group_id)->members[0].arrival_range),words[0]);
-    T_ASSERT(WriteGame("/tmp/wc3-captain-producers.bin"));T_ASSERT(ReadGame("/tmp/wc3-captain-producers.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
     T_EQ(wc3_float_bits(move_find_group(units[6]->movement.group_id)->members[0].arrival_range),words[0]);
     /* The concrete Mirror Image producer supplies the illusion bit. Execute
      * its effect directly because this fixture does not author its cast data. */
@@ -16205,7 +16509,7 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
         T_ASSERT(captain.home_actor->movement.captain_actor_siege);
         T_EQ(wc3_float_bits(move_find_group(image->movement.group_id)->members[0].arrival_range),words[i ? 7 : 1]);
     }
-    T_ASSERT(WriteGame("/tmp/wc3-captain-producers.bin"));T_ASSERT(ReadGame("/tmp/wc3-captain-producers.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
     FOR_LOOP(i,2)if(roster[8+i])
         T_EQ(wc3_float_bits(move_find_group(roster[8+i]->movement.group_id)->members[0].arrival_range),words[i ? 7 : 1]);
     /* Native9d0650 skips a removed Attack object during roster refresh,
@@ -16214,7 +16518,7 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
     T_ASSERT(!S_UnitHasLongRangeSiegeAttack(units[0]));
     T_ASSERT(S_IssueCaptainHomeMove(roster[8],&captain));
     T_ASSERT(!captain.home_actor->movement.captain_actor_siege);
-    remove("/tmp/wc3-captain-producers.bin");
+    remove(Test_TempPath("wc3-captain-producers.bin"));
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0);level.started=false;reset_entities();setup_test_world();
     G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
@@ -16265,8 +16569,8 @@ TEST(wc3_movement, public_captain_siege_roster_ranges) {
         T_NOT_NULL(units[i]);moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
         T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(expected[i]));
     }
-    T_ASSERT(WriteGame("/tmp/wc3-captain-ranges.bin"));
-    G_BotStop(0);T_ASSERT(ReadGame("/tmp/wc3-captain-ranges.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-ranges.bin")));
+    G_BotStop(0);T_ASSERT(ReadGame(Test_TempPath("wc3-captain-ranges.bin")));
     FOR_LOOP(i,6) {
         moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
         T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(expected[i]));
@@ -16277,8 +16581,8 @@ TEST(wc3_movement, public_captain_siege_roster_ranges) {
     S_AttackProfileWrite(units[2],0)->range=90;
     T_ASSERT(actor->movement.captain_actor_siege);
     T_EQ(wc3_float_bits(move_find_group(units[2]->movement.group_id)->members[0].arrival_range),wc3_float_bits(expected[2]));
-    T_ASSERT(WriteGame("/tmp/wc3-captain-ranges.bin"));
-    G_BotStop(0);T_ASSERT(ReadGame("/tmp/wc3-captain-ranges.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-ranges.bin")));
+    G_BotStop(0);T_ASSERT(ReadGame(Test_TempPath("wc3-captain-ranges.bin")));
     T_ASSERT(actor->movement.captain_actor_siege);
     T_EQ(S_AttackProfileRead(units[2],0)->range,90);
     T_EQ(wc3_float_bits(move_find_group(units[2]->movement.group_id)->members[0].arrival_range),wc3_float_bits(expected[2]));
@@ -16296,13 +16600,13 @@ TEST(wc3_movement, public_captain_siege_roster_ranges) {
     T_NOT_NULL(fresh_group);
     if(fresh_group)T_EQ(wc3_float_bits(fresh_group->members[0].arrival_range),0x41824000u);
     T_ASSERT(!actor->movement.captain_actor_siege);
-    T_ASSERT(WriteGame("/tmp/wc3-captain-ranges.bin"));T_ASSERT(ReadGame("/tmp/wc3-captain-ranges.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-ranges.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-ranges.bin")));
     T_ASSERT(!actor->movement.captain_actor_siege);
     *(uint8_t *)&actor->movement.captain_actor_siege=2;
-    T_ASSERT(!S_ValidateCaptainHomeActors(false));T_ASSERT(!WriteGame("/tmp/wc3-captain-ranges-invalid.bin"));
+    T_ASSERT(!S_ValidateCaptainHomeActors(false));T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-ranges-invalid.bin")));
     actor->movement.captain_actor_siege=false;
-    remove("/tmp/wc3-captain-ranges-invalid.bin");
-    remove("/tmp/wc3-captain-ranges.bin");
+    remove(Test_TempPath("wc3-captain-ranges-invalid.bin"));
+    remove(Test_TempPath("wc3-captain-ranges.bin"));
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0);level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
 }
@@ -16391,7 +16695,7 @@ static void public_captain_lifetime_journey(unsigned operation,uint32_t const (*
     groupRadiusTrace_t radii_trace={0};group_radius_trace=&radii_trace;move_test_group_route=record_captain_shared_radius;
     unsigned steps=0,footprint_steps=0,saved_steps[5]={0},saved_footprints[5]={0},suffix=0;
     unsigned times[]={10150,12000,14000,20000,30000};char files[5][80];
-    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-lifetime-%u-%u.bin",operation,i);
+    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-captain-lifetime-%u-%u.bin",Test_TempPath(""),operation,i);
     bool mismatch=false;edict_t *old_actor=NULL;uint32_t old_generation=0;
     FOR_LOOP(pass,6) {
         if(pass) {
@@ -16500,7 +16804,7 @@ TEST(wc3_movement, shared189_captain_pool_growth_radius_departure_and_saved_reus
     moveShared_t const *shared=S_FindMoveShared(id);T_NOT_NULL(shared);if(shared)T_EQ(shared->references,2);
     /* Empty physical owners retire at their normal owner boundary, before save. */
     level.time+=30;globals.RunFrame();level.time+=30;globals.RunFrame();
-    T_ASSERT(WriteGame("/tmp/wc3-shared189-growth.bin"));T_ASSERT(ReadGame("/tmp/wc3-shared189-growth.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-shared189-growth.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-shared189-growth.bin")));
     captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
     edict_t *largest=captain->units[0];float old_radius=largest->collision;largest->collision=63;
     level.time+=30;globals.RunFrame();shared=S_FindMoveShared(id);T_NOT_NULL(shared);
@@ -16519,7 +16823,7 @@ TEST(wc3_movement, shared189_captain_pool_growth_radius_departure_and_saved_reus
     S_CaptainPointMove(captain,&(vec2_t){400,-900},200);
     T_NOT_NULL(S_FindMoveShared(level.next_move_shared_id));T_EQ(ARRAY_COUNT(level.move_shared),high_water);
     T_NULL(S_FindMoveShared(id));T_ASSERT(S_ValidateMoveShared());
-    remove("/tmp/wc3-shared189-growth.bin");level.started=false;G_BotStop(0);reset_entities();setup_test_world();
+    remove(Test_TempPath("wc3-shared189-growth.bin"));level.started=false;G_BotStop(0);reset_entities();setup_test_world();
 }
 
 
@@ -16614,12 +16918,12 @@ TEST(wc3_movement, public_captain_partial_removal_preserves_remaining_roster_and
     T_EQ(first->movement.captain_home.member_index,0);T_EQ(last->movement.captain_home.member_index,1);
     T_EQ(first->movement.captain_home.roster_actor,actor);T_EQ(last->movement.captain_home.roster_actor,actor);
     T_ASSERT(S_ValidateCaptainHomeActors(false));T_ASSERT(S_ValidateMoveShared());
-    T_ASSERT(WriteGame("/tmp/wc3-captain-partial-retirement.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-partial-retirement.bin")));
     actor->movement.captain_actor_members=3;
-    T_ASSERT(!S_ValidateCaptainHomeActors(false));T_ASSERT(!WriteGame("/tmp/wc3-captain-invalid-retirement.bin"));
-    T_ASSERT(ReadGame("/tmp/wc3-captain-partial-retirement.bin"));
+    T_ASSERT(!S_ValidateCaptainHomeActors(false));T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-invalid-retirement.bin")));
+    T_ASSERT(ReadGame(Test_TempPath("wc3-captain-partial-retirement.bin")));
     T_EQ(actor->movement.captain_actor_members,2);T_ASSERT(S_ValidateCaptainHomeActors(false));
-    remove("/tmp/wc3-captain-partial-retirement.bin");remove("/tmp/wc3-captain-invalid-retirement.bin");
+    remove(Test_TempPath("wc3-captain-partial-retirement.bin"));remove(Test_TempPath("wc3-captain-invalid-retirement.bin"));
     G_BotStop(0);reset_entities();setup_test_world();
 }
 
@@ -16964,8 +17268,8 @@ TEST(wc3_movement, persistent_group_fog_retains_sample_until_refresh) {
         T_EQ(group->target_refresh,0);
         T_EQ(group->unseen_counter,i+1);
     }
-    T_ASSERT(WriteGame("/tmp/wc3-follow-hidden.bin"));
-    T_ASSERT(ReadGame("/tmp/wc3-follow-hidden.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-follow-hidden.bin")));
+    T_ASSERT(ReadGame(Test_TempPath("wc3-follow-hidden.bin")));
     group=level.move_groups[0];T_EQ(group->unseen_counter,3);
     T_EQ(group->target_refresh,0);T_EQ(group->goal.x,retained.x);
     group->target_refresh=2;
@@ -16977,7 +17281,7 @@ TEST(wc3_movement, persistent_group_fog_retains_sample_until_refresh) {
         if(i<2)T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(retained.x));
         else T_EQ(group->goal.x,800);
     }
-    remove("/tmp/wc3-follow-hidden.bin");G_FowShutdown();reset_entities();setup_test_world();
+    remove(Test_TempPath("wc3-follow-hidden.bin"));G_FowShutdown();reset_entities();setup_test_world();
 }
 
 /* Native5fc640 queries Adro class ownership, then16ce10 disables group warp
@@ -17009,8 +17313,8 @@ TEST(wc3_movement, target_drop_policy_is_captured_by_approach_follow_and_save) {
         if(codes[k])T_ASSERT(G_ActorRemoveSkill(target,codes[k]));
         T_EQ(group->flags&0xffffu,blocked?0x1010u:0x1000u);
         if(codes[k])T_ASSERT(G_ActorAddSkill(target,codes[k]));
-        T_ASSERT(WriteGame("/tmp/wc3-drop-group-policy.bin"));
-        T_ASSERT(ReadGame("/tmp/wc3-drop-group-policy.bin"));
+        T_ASSERT(WriteGame(Test_TempPath("wc3-drop-group-policy.bin")));
+        T_ASSERT(ReadGame(Test_TempPath("wc3-drop-group-policy.bin")));
         group=level.move_groups[0];T_EQ(group->flags&0xffffu,blocked?0x1010u:0x1000u);
         /* Complete the approach through ordinary Move callbacks, then inspect
          * the independently constructed persistent request. */
@@ -17028,7 +17332,7 @@ TEST(wc3_movement, target_drop_policy_is_captured_by_approach_follow_and_save) {
         T_NOT_NULL(persistent);
         if(persistent)T_EQ(persistent->flags&0xffffu,blocked?0x1811u:0x1801u);
     }
-    remove("/tmp/wc3-drop-group-policy.bin");reset_entities();setup_test_world();
+    remove(Test_TempPath("wc3-drop-group-policy.bin"));reset_entities();setup_test_world();
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
 }
 
@@ -17126,7 +17430,7 @@ TEST(wc3_movement, mixed_formation_retains_installed_rank_until_rebind) {
     FOR_LOOP(i,6)FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&group->members[i].offset)[k]),wc3_float_bits(members[i].offset[k]));
     T_EQ(units[0]->movement.formation_rank,0u);
     G_BindEntityData(units[0]);
-    cstring_t save="/tmp/wc3-installed-formation-rank.bin";
+    cstring_t save=Test_TempPath("wc3-installed-formation-rank.bin");
     T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);
     FOR_LOOP(i,6)T_EQ(units[i]->movement.formation_rank,i%4);
     T_ASSERT(G_TransformUnitType(units[0],types[3].newUnitID));
@@ -17275,7 +17579,7 @@ TEST(wc3_movement, selected_blocked_formation_matches_original_fresh_and_cached_
                 FOR_LOOP(k,15) {T_EQ(actual[k],tick[i][k]);if(actual[k]!=tick[i][k])fprintf(stderr,"Blocked capture%u member%u word%u actual=%08x expected=%08x\n",capture,i,k,actual[k],tick[i][k]);}
             }
             if (!t && capture==1) {
-                cstring_t file="/tmp/wc3-formation-blocked110.bin";
+                cstring_t file=Test_TempPath("wc3-formation-blocked110.bin");
                 uint32_t ids[6];FOR_LOOP(i,6)ids[i]=units[i]-g_edicts;
                 T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
                 FOR_LOOP(i,6)units[i]=g_edicts+ids[i];
@@ -17373,7 +17677,7 @@ TEST(wc3_movement, selected_point_retains_formation_toggle_policy) {
     T_EQ(group->count,6);T_EQ(group->flags&14u,14u);
     S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
     T_EQ(group->flags&14u,14u);
-    cstring_t file="/tmp/wc3-formation-policy.bin";
+    cstring_t file=Test_TempPath("wc3-formation-policy.bin");
     clent->client->menu.order_alt=true; /* transient modifier is never restored */
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
     T_ASSERT(!clent->client->menu.order_alt);
@@ -17587,7 +17891,7 @@ TEST(wc3_movement, formation_refresh_public_mutations_preserve_cached_layout_and
     formation_refresh_112=(typeof(formation_refresh_112)){0};test_preload_marker=formation_refresh_marker_112;
     T_ASSERT(run_test_jass(formation_refresh_script_112));
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t file="/tmp/wc3-formation-refresh112.bin";
+    cstring_t file=Test_TempPath("wc3-formation-refresh112.bin");
     while(level.time<5200) {
         level.time+=5;globals.RunFrame();
         if(level.time==4000) {
@@ -17722,7 +18026,7 @@ TEST(wc3_movement, delayed164_public_walled_smart_approach_matches_retail) {
         "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
     target164_unit=NULL;target164_cursor=0;target164_mismatch=false;move_test_group_begin=target164_before;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t file="/tmp/wc3-target164-approach.bin";
+    cstring_t file=Test_TempPath("wc3-target164-approach.bin");
     FOR_LOOP(pass,2) {
         bool saved=false;
         if(pass) {
@@ -17775,7 +18079,7 @@ TEST(wc3_movement, delayed164_denied_group_commits_stop_and_refresh_before_recov
     T_EQ(wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(before.grid[0]));
     T_EQ(wc3_float_bits(unit->movement.fine_pose.y),wc3_float_bits(before.grid[1]));
     T_ASSERT(group->route.group_admission.waiting);T_ASSERT(S_ValidateMoveCoarseRequests());
-    T_ASSERT(WriteGame("/tmp/wc3-target164-denied.bin"));T_ASSERT(ReadGame("/tmp/wc3-target164-denied.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-target164-denied.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-target164-denied.bin")));
     group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);
     if(group) {
         T_EQ(group->target_refresh,16);T_ASSERT(group->route.group_admission.waiting);
@@ -17783,7 +18087,7 @@ TEST(wc3_movement, delayed164_denied_group_commits_stop_and_refresh_before_recov
         level.scheduled_think=true;move_run_group_updates();level.scheduled_think=false;
         T_EQ(group->target_refresh,15);T_ASSERT(group->initialized);T_ASSERT(!group->route.group_admission.waiting);
     }
-    remove("/tmp/wc3-target164-denied.bin");reset_entities();setup_test_world();
+    remove(Test_TempPath("wc3-target164-denied.bin"));reset_entities();setup_test_world();
 }
 
 /* Public target teleport after a kept coarse search: premature samples are
@@ -17803,7 +18107,7 @@ TEST(wc3_movement, delayed164_group_discards_premature_sample_and_saves_cadence)
     T_EQ(group->route.group_admission.time,1108);T_ASSERT(group->initialized);
     group->target_refresh=0;
     vec2_t retained=group->goal,goal={1568,1312};S_SetUnitPosition(target,&goal);
-    cstring_t file="/tmp/wc3-target164-delayed.bin";
+    cstring_t file=Test_TempPath("wc3-target164-delayed.bin");
     FOR_LOOP(tick,18) {
         level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
         level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
@@ -17888,7 +18192,7 @@ TEST(wc3_movement, warp165_group_marker_classification_and_cold_save) {
     FOR_LOOP(i,3)warp165_before_state.units[i]=units[i];
     move_test_group_begin=warp165_before;
     unsigned marked=0,crossed=0;uint32_t seen_crossings=0;
-    cstring_t file="/tmp/wc3-warp165.bin";
+    cstring_t file=Test_TempPath("wc3-warp165.bin");
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     while(level.time<15000) {
         uint32_t counter=level.pathing_counter;
@@ -17997,7 +18301,7 @@ TEST(wc3_movement, warp165_multi_member_denial_retains_layout_until_recovery) {
         T_EQ(units[i]->movement.velocity.x,0);T_EQ(units[i]->movement.velocity.y,0);
         FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&units[i]->movement.fine_pose)[k]),wc3_float_bits(predicted[i].grid[k]));
     }
-    cstring_t file="/tmp/wc3-warp165-denied.bin";
+    cstring_t file=Test_TempPath("wc3-warp165-denied.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
     group=move_find_group(units[0]->movement.group_id);T_NOT_NULL(group);
     if(group) {
@@ -18160,7 +18464,7 @@ TEST(wc3_movement, target166_public_fog_follow_matches_retail_and_cold_save) {
         "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
     target166_unit=NULL;target166_cursor=0;target166_mismatch=false;move_test_group_begin=target166_before;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t file="/tmp/wc3-target166-fog.bin";
+    cstring_t file=Test_TempPath("wc3-target166-fog.bin");
     FOR_LOOP(pass,2) {
         bool saved=false;
         if(pass) {T_ASSERT(ReadGame(file));target166_cursor=210;}
@@ -18279,7 +18583,7 @@ TEST(wc3_movement, target167_ordered_subscriptions_survive_cold_save_and_scale) 
             T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_ASSERT(unit_issuetargetorder(unit,"move",target));
         }
         uint64_t rank=unit->movement.follow_sequence,next=level.next_follow_sequence;
-        cstring_t file="/tmp/wc3-target167-follow.bin";
+        cstring_t file=Test_TempPath("wc3-target167-follow.bin");
         if(pass) {
             T_ASSERT(WriteGame(file));S_ResetAbilityTimers();T_ASSERT(ReadGame(file));remove(file);
             T_EQ(unit->movement.follow_sequence,rank);T_EQ(level.next_follow_sequence,next);
@@ -18352,7 +18656,7 @@ TEST(wc3_movement, target167_save_rejects_invalid_follow_registration_identity) 
     other->svflags=SVF_MONSTER;other->movetype=MOVETYPE_STEP;other->stand=unit_stand;unit_stand(other);
     T_ASSERT(unit_issuetargetorder(other,"move",target));uint64_t distinct=other->movement.follow_sequence;
     other->movement.follow_sequence=sequence;T_ASSERT(!S_ValidateMoveFollows());
-    cstring_t file="/tmp/wc3-target167-invalid.bin";T_ASSERT(!WriteGame(file));remove(file);
+    cstring_t file=Test_TempPath("wc3-target167-invalid.bin");T_ASSERT(!WriteGame(file));remove(file);
     other->movement.follow_sequence=distinct;T_ASSERT(S_ValidateMoveFollows());
     S_SetFollowTarget(unit,NULL);unit->movement.follow_sequence=sequence;T_ASSERT(!S_ValidateMoveFollows());
     unit->movement.follow_sequence=0;G_FowShutdown();reset_entities();setup_test_world();
@@ -18476,7 +18780,7 @@ TEST(wc3_movement, target168_pending_fade_cold_save_and_exact_public_timer_deliv
     T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
     abilityPrimaryTimer_t request=target->permanent_invisibility_fade.request;
     uint16_t id=waypoint_identity(unit),other=waypoint_identity(target);
-    cstring_t file="/tmp/wc3-target168-fade.bin";
+    cstring_t file=Test_TempPath("wc3-target168-fade.bin");
     T_ASSERT(WriteGame(file));S_ResetAbilityTimers();reset_entities();
     T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+id-1;target=g_edicts+other-1;
     T_NOT_NULL(unit);T_NOT_NULL(target);
@@ -18669,7 +18973,7 @@ TEST(wc3_movement, formation169_selected_public_passage_matches_complete_retail_
     T_ASSERT(move_selectlocation(clent,&point));formation169_failed=false;
     move_test_group_begin=formation169_before;move_test_group_commit=formation169_committing;
     move_test_group_route=formation169_routed;move_test_group_regroup=formation169_regrouping;
-    cstring_t file="/tmp/wc3-formation169-passage.bin";
+    cstring_t file=Test_TempPath("wc3-formation169-passage.bin");
     FOR_LOOP(pass,2) {
         formation169_visit=pass ? 80 : 0;
         if(pass)T_ASSERT(ReadGame(file));
@@ -18771,7 +19075,7 @@ TEST(wc3_movement, formation170_public_selection_and_independent_orders_match_re
         formation170_first=input->first;
         move_test_group_begin=formation170_before;move_test_group_commit=formation169_committing;
         move_test_group_route=formation169_routed;move_test_group_regroup=formation169_regrouping;
-        cstring_t file="/tmp/wc3-formation170-selection.bin";unsigned saved_cursor=0;
+        cstring_t file=Test_TempPath("wc3-formation170-selection.bin");unsigned saved_cursor=0;
         FOR_LOOP(pass,2) {
             formation170_cursor=pass ? saved_cursor : 0;formation170_active=false;
             if(pass)T_ASSERT(ReadGame(file));
@@ -18820,7 +19124,7 @@ static void target182_observe(edict_t *unit) {
     target182.status=S_MoveTargetStatus(unit,target182.target);
     if(target182.action==2) {
         T_ASSERT(target182.target->target_loss_transient);
-        T_ASSERT(WriteGame("/tmp/wc3-target182-window.bin"));
+        T_ASSERT(WriteGame(Test_TempPath("wc3-target182-window.bin")));
         T_ASSERT(target182.target->target_loss_transient); /* Saving does not mutate the live window. */
     }
     if(target182.action==3 && !target182.nested) {
@@ -18929,8 +19233,8 @@ TEST(wc3_movement, target182_callback_save_does_not_persist_validation_window) {
     T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
     T_EQ(target182.count,1);T_EQ(target182.status,MOVE_TARGET_VALID);
     T_ASSERT(!target->target_loss_transient);move_test_target_lost=NULL;
-    S_ResetAbilityTimers();T_ASSERT(ReadGame("/tmp/wc3-target182-window.bin"));
-    remove("/tmp/wc3-target182-window.bin");
+    S_ResetAbilityTimers();T_ASSERT(ReadGame(Test_TempPath("wc3-target182-window.bin")));
+    remove(Test_TempPath("wc3-target182-window.bin"));
     T_ASSERT(!target->target_loss_transient);T_ASSERT(target->s.renderfx&RF_HIDDEN);
     T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_HIDDEN);
     T_EQ(unit->movement.follow_target,target);T_EQ(unit->current_order_id,G_OrderId("move"));
@@ -18973,7 +19277,7 @@ TEST(wc3_movement, follow186_air_members_and_targets_use_physical_owners) {
             T_EQ(group->target,target);T_EQ(group->count,1u);T_EQ(group->flags&0x1801u,0x1000u);
             T_EQ(unit->currentmove,&follow_move_walk);
             T_EQ(M_UnitStaticPathingFlags(unit),policy==1 ? CM_PATHING_UNWALKABLE : CM_PATHING_UNFLYABLE);
-            cstring_t file="/tmp/wc3-follow186-air.bin";
+            cstring_t file=Test_TempPath("wc3-follow186-air.bin");
             T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
             group=move_unit_group(unit);T_NOT_NULL(group);
             if(group)T_EQ(group->target,target);
@@ -19057,7 +19361,7 @@ TEST(wc3_movement, follow186_public_flying_smart_matches_raw_retail) {
         "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
     follow186_unit=NULL;follow186_cursor=0;follow186_mismatch=false;move_test_group_begin=follow186_before;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t file="/tmp/wc3-follow186-motion.bin";
+    cstring_t file=Test_TempPath("wc3-follow186-motion.bin");
     FOR_LOOP(pass,2) {
         bool saved=false;
         if(pass){T_ASSERT(ReadGame(file));follow186_cursor=150;}
@@ -19157,7 +19461,7 @@ TEST(wc3_movement, follow187_public_ground_following_air_smart_matches_raw_retai
         "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
     follow187_unit=NULL;follow187_cursor=follow187_target_cursor=0;follow187_mismatch=false;move_test_group_begin=follow187_before;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    cstring_t file="/tmp/wc3-follow187-motion.bin";
+    cstring_t file=Test_TempPath("wc3-follow187-motion.bin");
     unsigned target_saved_cursor=0;
     FOR_LOOP(pass,2) {
         bool saved=false;
@@ -19200,10 +19504,10 @@ TEST(wc3_movement, entry191_point_publishers_retain_canonical_arrival_range) {
     member=move_find_member(unit);T_NOT_NULL(member);
     if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);
     T_EQ(unit->goalentity->s.origin2.x,768);T_EQ(unit->current_order_id,G_OrderId("move"));
-    T_ASSERT(WriteGame("/tmp/wc3-entry191.bin"));T_ASSERT(ReadGame("/tmp/wc3-entry191.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-entry191.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-entry191.bin")));
     member=move_find_member(unit);T_NOT_NULL(member);
     if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);
-    remove("/tmp/wc3-entry191.bin");
+    remove(Test_TempPath("wc3-entry191.bin"));
     botCaptain_t *captain=shared_test_captain();if(!captain)return;
     S_CaptainPointMove(captain,&(vec2_t){512,-900},200);
     edict_t *actor=captain->home_actor;T_NOT_NULL(actor);

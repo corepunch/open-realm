@@ -57,6 +57,35 @@ static slkField_t const cliff_schema[] = {
     { NULL, 0, 0 },
 };
 
+typedef struct {
+    uint32_t id;
+    float height;
+    cstring_t texFile;
+    uint32_t numTex;
+    float texRate;
+    uint32_t color[4][4]; /* Smin, Smax, Dmin, Dmax; each R, G, B, A. */
+} w3WaterRow_t;
+
+#define WATER_COLOR_FIELDS(prefix, band) \
+    { prefix "_R", offsetof(w3WaterRow_t, color[band][0]), STB_SLK_INT }, \
+    { prefix "_G", offsetof(w3WaterRow_t, color[band][1]), STB_SLK_INT }, \
+    { prefix "_B", offsetof(w3WaterRow_t, color[band][2]), STB_SLK_INT }, \
+    { prefix "_A", offsetof(w3WaterRow_t, color[band][3]), STB_SLK_INT }
+
+static slkField_t const water_schema[] = {
+    { "", offsetof(w3WaterRow_t, id), STB_SLK_FOURCC },
+    { "height", offsetof(w3WaterRow_t, height), STB_SLK_FLOAT },
+    { "texFile", offsetof(w3WaterRow_t, texFile), STB_SLK_STR },
+    { "numTex", offsetof(w3WaterRow_t, numTex), STB_SLK_INT },
+    { "texRate", offsetof(w3WaterRow_t, texRate), STB_SLK_FLOAT },
+    WATER_COLOR_FIELDS("Smin", 0),
+    WATER_COLOR_FIELDS("Smax", 1),
+    WATER_COLOR_FIELDS("Dmin", 2),
+    WATER_COLOR_FIELDS("Dmax", 3),
+    { NULL, 0, 0 },
+};
+#undef WATER_COLOR_FIELDS
+
 static cstring_t modelNames[MODEL_COUNT] = {
     "UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx"
 };
@@ -382,6 +411,67 @@ void R_LoadBlightTexture(uint8_t tileset) {
 
 texture_t const *R_BlightTexture(void) {
     return g_blight_texture;
+}
+
+static wc3WaterStyle_t g_water_style;
+
+static color32_t R_WaterRowColor(uint32_t const *rgba) {
+    return (color32_t){ .r = (uint8_t)MIN(rgba[0], 255), .g = (uint8_t)MIN(rgba[1], 255),
+                        .b = (uint8_t)MIN(rgba[2], 255), .a = (uint8_t)MIN(rgba[3], 255) };
+}
+
+/* Water.slk is the authoritative per-tileset water art: Outland's "OSha" row is an opaque black
+ * TeamColor surface (the Abyss), not the Lordaeron Water texture. Keyed by "<tileset>Sha". Frames resolve
+ * through the tileset archive layer, so Ashenvale's A.mpq water replaces the base frames. */
+void R_LoadWaterStyle(uint8_t tileset) {
+    w3WaterRow_t *rows = NULL;
+    w3WaterRow_t const *row = NULL;
+    uint32_t const id = MAKEFOURCC(tileset, 'S', 'h', 'a');
+    uint32_t count;
+
+    memset(&g_water_style, 0, sizeof(g_water_style));
+    count = ri.LoadSlk("TerrainArt\\Water.slk", water_schema, (void **)&rows, sizeof(w3WaterRow_t));
+    FOR_LOOP(i, count) if (rows[i].id == id) { row = &rows[i]; break; }
+    if (!row) {
+        fprintf(stderr, "WC3 renderer: no TerrainArt\\Water.slk row %cSha for tileset %c; water is not drawn\n",
+                tileset, tileset);
+        FS_SLKFreeRows(water_schema, rows, count, sizeof(w3WaterRow_t));
+        return;
+    }
+    g_water_style.height = row->height;
+    g_water_style.frame_rate = row->texRate;
+    g_water_style.shallow_min = R_WaterRowColor(row->color[0]);
+    g_water_style.shallow_max = R_WaterRowColor(row->color[1]);
+    g_water_style.deep_min = R_WaterRowColor(row->color[2]);
+    g_water_style.deep_max = R_WaterRowColor(row->color[3]);
+    if (!row->texFile || !row->texFile[0] || !row->numTex) {
+        fprintf(stderr, "WC3 renderer: Water.slk row %cSha has no texture frames; water is not drawn\n", tileset);
+    } else {
+        if (row->numTex > WC3_MAX_WATER_FRAMES)
+            fprintf(stderr, "WC3 renderer: Water.slk row %cSha has %u frames; animating the first %u\n",
+                    tileset, row->numTex, WC3_MAX_WATER_FRAMES);
+        g_water_style.num_frames = MIN(row->numTex, WC3_MAX_WATER_FRAMES);
+        FOR_LOOP(i, g_water_style.num_frames) {
+            PATHSTR path;
+            snprintf(path, sizeof(path), "%s%02u.blp", row->texFile, i);
+            g_water_style.frames[i] = R_LoadTexture(path);
+            if (!g_water_style.frames[i] || g_water_style.frames[i] == tr.texture[TEX_PLACEHOLDER])
+                fprintf(stderr, "WC3 renderer: failed to load water frame %s for tileset %c\n", path, tileset);
+        }
+    }
+    FS_SLKFreeRows(water_schema, rows, count, sizeof(w3WaterRow_t));
+}
+
+/* Water.slk texRate is frames per second over numTex frames (Warsmash advances index += texRate * dt). */
+texture_t const *R_WaterFrame(wc3WaterStyle_t const *style, uint32_t time_ms) {
+    uint64_t frame;
+    if (!style || !style->num_frames) return NULL;
+    frame = style->frame_rate > 0 ? (uint64_t)((double)time_ms * style->frame_rate / 1000.0) : 0;
+    return style->frames[frame % style->num_frames];
+}
+
+wc3WaterStyle_t const *R_WaterStyle(void) {
+    return &g_water_style;
 }
 
 typedef struct {
@@ -804,7 +894,6 @@ void R_LoadAssets(void) {
         tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
         tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
     }
-    tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
 }
 
 void R_Init(void) {
@@ -1196,6 +1285,16 @@ void R_DrawAlphaSurfaces(void) {
     _W3M_DrawAlphaSurfaces();
     R_LightningDraw();
     R_WeatherEmit();
+
+    /* MDX blended geosets must composite over water. Opaque geosets were
+     * already rendered during the ordinary entity pass; RENDER_PHASE_ALPHA
+     * selects only transparent model layers and the alpha of tinted units. */
+    FOR_LOOP(i, tr.viewDef.num_entities) {
+        renderEntity_t const *entity = tr.viewDef.entities + i;
+        if ((entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX)
+            continue;
+        R_RenderModel(entity);
+    }
 }
 
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point) {
@@ -1276,6 +1375,8 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
         float authored_support = 0.0f;
         bool found_surface = false;
 
+        ent->flags &= ~RF_GROUND_SURFACE_SUPPORT;
+
         if (!(ent->flags & RF_GROUND_CONFORM) || (ent->flags & RF_HIDDEN) ||
             (ent->flags & RF_GROUND_SURFACE) || !ent->model) {
             continue;
@@ -1289,8 +1390,13 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
                 found_surface = true;
             }
         }
-        if (found_surface)
-            ent->origin.z = authored_support + ent->ground_offset;
+        if (found_surface) {
+            float support_z = authored_support + ent->ground_offset;
+            if (ent->ground_snapshot_valid)
+                support_z = MAX(support_z, ent->ground_snapshot_z);
+            ent->origin.z = support_z;
+            ent->flags |= RF_GROUND_SURFACE_SUPPORT;
+        }
     }
     if (surfaces != local_surfaces) ri.MemFree(surfaces);
 }
@@ -2110,6 +2216,8 @@ bool R_GetModelInfo(model_t *model, modelInfo_t *info) {
         return false;
     }
     memset(info, 0, sizeof(*info));
+    info->sequenceCount = (uint32_t)MAX(0, model->mdx->num_sequences);
+    FOR_EACH_LIST(mdxCamera_t, camera, model->mdx->cameras) info->cameraCount++;
 
     R_W3BuildModelTextureCache(model);
     if (model_texture_cache.model == model) {
@@ -2153,8 +2261,15 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     if (!entity || !entity->model || !entity->model->mdx || !viewdef) {
         return false;
     }
-    bool ok = MDLX_ExtractCamera(entity->model->mdx, entity->frame, aspect, &viewdef->viewProjectionMatrix,
-                                 &viewdef->lightMatrix);
+    mdxCameraView_t const view = {
+        .model = entity->model->mdx,
+        .frame = entity->frame,
+        .camera_index = entity->camera_index,
+        .aspect = aspect,
+        .output = &viewdef->viewProjectionMatrix,
+        .light = &viewdef->lightMatrix,
+    };
+    bool ok = MDLX_ExtractCamera(&view);
     Matrix4_identity(&viewdef->textureMatrix);
     return ok;
 }
@@ -2168,7 +2283,14 @@ bool R_GetModelAnimationDuration(model_t const *model, cstring_t anim, uint32_t 
 
     if (!model || model->modeltype != ID_MDLX || !model->mdx || !anim || !*anim || !duration)
         return false;
-    seq = MDLX_FindSequenceByName(model->mdx, anim);
+    if (anim[0] == '#') {
+        char *end;
+        unsigned long index = strtoul(anim + 1, &end, 10);
+        if (end == anim + 1 || *end || index >= (unsigned long)model->mdx->num_sequences) return false;
+        seq = model->mdx->sequences + index;
+    } else {
+        seq = MDLX_FindSequenceByName(model->mdx, anim);
+    }
     if (!seq || seq->interval[1] < seq->interval[0]) return false;
     *duration = seq->interval[1] - seq->interval[0];
     return true;

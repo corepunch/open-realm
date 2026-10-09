@@ -33,6 +33,24 @@ remains scheduled to resume after the caller continues.
 action's first wait to its caller; if the action has no wait, all of its writes
 are visible when the native returns.
 
+Enabled state only gates registered events. `TriggerEvaluate()` evaluates the
+trigger's conditions regardless of whether `DisableTrigger()` was called, and
+`TriggerExecute()` runs its actions explicitly. The event/timer bridge checks
+`trigger->disabled` before evaluating a registered callback. This matches
+Blizzard.j's `QueuedTriggerAddBJ`: its `TriggerExecuteBJ` helper evaluates the
+conditions and then explicitly executes the action, so maps can queue a trigger
+that they created disabled. `ConditionalTriggerExecute()` also uses explicit
+evaluation; a condition that needs to reject a disabled trigger can query
+`IsTriggerEnabled()` itself.
+
+UndeadX04 relies on this contract for the opening Base quest: the map disables
+`Dragonhawks Die Q` during initialization, then queues it after gameplay starts.
+Its dialogue action discovers the Base quest. Rejecting disabled triggers in
+`TriggerEvaluate()` caused the Blizzard.j queue helper to discard that entry.
+The regression `wc3_jass.disabled_triggers_allow_explicit_execution_but_ignore_events`
+checks that explicit disabled-trigger execution succeeds while disabled timer
+events remain suppressed and enabled timer events still fire.
+
 Nested immediate actions must preserve the active parent coroutine. In
 particular, if the parent calls `TriggerSleepAction()` after a nested
 `TriggerExecute()`, it must still yield and resume at that point. `jass_resume()`
@@ -203,3 +221,30 @@ make test-wc3-engine WC3_PATTERN='wc3_api.*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.*'
 make test-wc3-engine WC3_PATTERN='wc3_save.round_trip_jass_timers'
 ```
+
+## JASS interactive dialog choices
+
+`DialogDisplay` creates a player-scoped modal `svc_window` without pausing the
+simulation. A validated click publishes events targeted at the registered
+dialog and button, with the authoritative player ID and one-based clicked
+handle IDs. This response context is copied to a coroutine, so
+`GetClickedButton` / `GetClickedDialog` continue to work after a trigger wait.
+See [JASS choice dialogs](jass-dialogs.md) for lifecycle and limitations.
+
+
+### Merge integration: response identity and argument parsing
+
+Dialog click registrations must publish `response_sequence` together with
+`responseTo`. The queue validates both to reject removed/reused subscribers;
+leaving the sequence zero silently discards an otherwise valid click. Synchronous
+trigger context copies clicked-dialog/button/player values as well as ordinary
+unit/order values. Dialog coroutine/save regressions cover those observations.
+
+Logical operator recursion in `jparser.c` stops before a comma. The outer call
+owns the following argument and its closing delimiter; otherwise
+`BJassAssert(a and b, "message")` attaches the string to `b` and presents a malformed
+native argument list. `logical_call_arguments_preserve_outer_delimiters` exercises
+both logical operators in nested calls. Explicit `TriggerEvaluate` may evaluate
+a disabled trigger, while event delivery still suppresses its actions. Event
+evaluation counters advance before the disabled gate. Existing assertions for
+these separate entry points remain intact.

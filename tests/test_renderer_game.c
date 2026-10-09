@@ -9,11 +9,30 @@
 #define R_ReleaseModel R_TestProductionReleaseModel
 #define MDLX_DrawSpriteInstance R_TestCursorSprite
 #define MDLX_FindSequenceByName R_TestCursorSequence
+#define MDLX_TraceWalkableSurface R_TestWalkableSurfaceTrace
+#define MDLX_SetEntityAnimationFrame R_TestSetEntityAnimationFrame
+#define _W3M_DrawAlphaSurfaces R_TestWaterAlphaSurfacePass
+#define R_LightningDraw R_TestLightningDraw
+#define R_WeatherEmit R_TestWeatherEmit
 #include "../games/warcraft-3/renderer/r_game.c"
+#undef MDLX_TraceWalkableSurface
+#undef MDLX_SetEntityAnimationFrame
+#undef _W3M_DrawAlphaSurfaces
+#undef R_LightningDraw
+#undef R_WeatherEmit
+
+/* Keep the selection-ring production path in this headless test translation
+ * unit. The renderer imports below record whether it requests terrain-conformed
+ * or flat geometry, without needing a GL context. */
+#define R_GetEntityMatrix R_TestEntityMatrixFromEnts
+#include "../renderer/r_ents.c"
+#undef R_GetEntityMatrix
 
 #include "test.h"
 
 extern void R_TestUseProductionModelLoader(bool enabled);
+extern cstring_t R_TestLastTextureLoad(void);
+extern void R_TestSetTextureLoadResult(texture_t *texture);
 static uint32_t test_spn_render_count;
 static renderEntity_t test_spn_render_entity;
 static mat4_t test_spn_render_transform;
@@ -24,9 +43,15 @@ static uint32_t test_sound_count;
 static uint32_t test_splat_count;
 static vec2_t test_splat_origin;
 static float test_splat_radius;
+static uint32_t test_flat_splat_count;
+static float test_flat_splat_z;
 static color32_t test_splat_color;
 static vec2_t test_splat_uv_mins, test_splat_uv_maxs;
 static texture_t test_splat_texture;
+static float test_walkable_hit_z;
+static unsigned ground_trace_count;
+static bool test_walkable_origin;
+static uint32_t test_alpha_draw_order, test_water_alpha_order, test_unit_alpha_order;
 
 TEST(renderer_game, null_splat_sound_is_treated_as_an_empty_optional_field) {
     wc3SplatData_t splat = { .name = "EmptySplat", .blend_mode = "0", .sound = "NULL" };
@@ -213,7 +238,16 @@ void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4
     test_spn_render_count++;
     test_spn_render_entity = *entity;
     test_spn_render_transform = *transform;
+    if (tr.render_phase == RENDER_PHASE_ALPHA) {
+        test_unit_alpha_order = ++test_alpha_draw_order;
+    }
 }
+
+void R_TestWaterAlphaSurfacePass(void) {
+    test_water_alpha_order = ++test_alpha_draw_order;
+}
+void R_TestLightningDraw(void) {}
+void R_TestWeatherEmit(void) {}
 
 void R_RenderRectSplatUV(rectSplatParams_t const *params) {
     test_splat_count++;
@@ -231,6 +265,152 @@ void R_RenderSplat(vec2_t const *position, float radius, texture_t const *textur
     test_splat_origin = *position;
     test_splat_radius = radius;
     test_splat_color = color;
+}
+
+void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z,
+                           texture_t const *texture, splat_shader_t *shader, color32_t color) {
+    (void)mins; (void)maxs; (void)texture; (void)shader; (void)color;
+    test_flat_splat_count++;
+    test_flat_splat_z = z;
+}
+
+bool R_TestWalkableSurfaceTrace(renderEntity_t const *surface, line3_t const *line, vec3_t *hit) {
+    ground_trace_count++;
+    if (!surface || !(surface->flags & RF_GROUND_SURFACE) || !hit) return false;
+    if (test_walkable_origin) {
+        if (line->a.x != surface->origin.x) return false;
+        *hit = surface->origin;
+    } else hit->z = test_walkable_hit_z;
+    return true;
+}
+
+bool R_TestSetEntityAnimationFrame(model_t const *model, cstring_t anim, renderEntity_t *entity) {
+    (void)model; (void)anim; (void)entity;
+    return false;
+}
+
+TEST(renderer_game, water_supported_selection_ring_is_flat_at_water_surface) {
+    model_t model = { 0 };
+    renderEntity_t entity = {
+        .origin = { 64.0f, 96.0f, 128.0f }, /* water surface 8 units below unit origin */
+        .model = &model,
+        .flags = RF_SELECTED | RF_SELECTION_CIRCLE_ON_WATER,
+        .radius = 12.0f,
+        .ground_offset = 8.0f,
+    };
+    renderEntity_t *saved_entities = tr.viewDef.entities;
+    uint32_t saved_num_entities = tr.viewDef.num_entities;
+
+    test_splat_count = 0;
+    test_flat_splat_count = 0;
+    tr.viewDef.entities = &entity;
+    tr.viewDef.num_entities = 1;
+
+    /* The entity pass defers this overlay; the post-water pass emits it as a
+     * flat quad at its support water height, plus the one-unit depth bias. */
+    R_RenderSelectedCircle(&entity, (vec2_t const *)&entity.origin, false);
+    T_EQ(test_splat_count, 0);
+    T_EQ(test_flat_splat_count, 0);
+    R_DrawSupportedEntityOverlays();
+
+    T_EQ(test_splat_count, 0);
+    T_EQ(test_flat_splat_count, 1);
+    T_FEQ(test_flat_splat_z, 121.0f, 0.001f);
+
+    tr.viewDef.entities = saved_entities;
+    tr.viewDef.num_entities = saved_num_entities;
+}
+
+TEST(renderer_game, ordinary_selected_ring_still_uses_terrain_conforming_path) {
+    renderEntity_t entity = {
+        .origin = { 64.0f, 96.0f, 128.0f },
+        .flags = RF_SELECTED,
+        .radius = 12.0f,
+    };
+    vec2_t const origin = { entity.origin.x, entity.origin.y };
+
+    test_splat_count = 0;
+    test_flat_splat_count = 0;
+    R_RenderSelectedCircle(&entity, &origin, false);
+
+    T_EQ(test_splat_count, 1);
+    T_EQ(test_flat_splat_count, 0);
+    T_FEQ(test_splat_origin.x, entity.origin.x, 0.001f);
+    T_FEQ(test_splat_origin.y, entity.origin.y, 0.001f);
+}
+
+TEST(renderer_game, bridge_supported_selection_ring_uses_walkable_surface_height) {
+    model_t bridge_model = { 0 }, unit_model = { 0 };
+    renderEntity_t entities[] = {
+        { .origin = { 64.0f, 96.0f, 40.0f }, .model = &bridge_model,
+          .flags = RF_GROUND_SURFACE },
+        { .origin = { 64.0f, 96.0f, 0.0f }, .model = &unit_model,
+          .flags = RF_SELECTED | RF_GROUND_CONFORM, .radius = 12.0f, .ground_offset = 8.0f },
+    };
+    renderEntity_t *saved_entities = tr.viewDef.entities;
+    uint32_t saved_num_entities = tr.viewDef.num_entities;
+    viewDef_t view = { .entities = entities, .num_entities = 2 };
+
+    test_walkable_hit_z = 77.0f;
+    R_ConformGroundSurfaces(&view);
+    T_ASSERT(entities[1].flags & RF_GROUND_SURFACE_SUPPORT);
+    T_FEQ(entities[1].origin.z, 85.0f, 0.001f);
+
+    test_splat_count = 0;
+    test_flat_splat_count = 0;
+    tr.viewDef.entities = entities;
+    tr.viewDef.num_entities = 2;
+    R_DrawSupportedEntityOverlays();
+    T_EQ(test_splat_count, 0);
+    T_EQ(test_flat_splat_count, 1);
+    T_FEQ(test_flat_splat_z, 78.0f, 0.001f);
+
+    tr.viewDef.entities = saved_entities;
+    tr.viewDef.num_entities = saved_num_entities;
+}
+
+TEST(renderer_game, elevator_render_support_cannot_lower_authoritative_unit_height) {
+    model_t bridge_model = { 0 }, unit_model = { 0 };
+    renderEntity_t entities[] = {
+        { .origin = { 64.0f, 96.0f, 40.0f }, .model = &bridge_model, .flags = RF_GROUND_SURFACE },
+        { .origin = { 64.0f, 96.0f, 160.0f }, .model = &unit_model,
+          .flags = RF_GROUND_CONFORM, .ground_offset = 8.0f,
+          .ground_snapshot_z = 264.0f, .ground_snapshot_valid = true },
+    };
+    viewDef_t view = { .entities = entities, .num_entities = 2 };
+
+    test_walkable_hit_z = 77.0f; /* animated mesh is still below the raised deck */
+    R_ConformGroundSurfaces(&view);
+    T_ASSERT(entities[1].flags & RF_GROUND_SURFACE_SUPPORT);
+    T_FEQ(entities[1].origin.z, 264.0f, 0.001f);
+
+    /* A later lower snapshot may descend again; no sticky height is cached. */
+    entities[1].ground_snapshot_z = 64.0f;
+    entities[1].origin.z = 64.0f;
+    R_ConformGroundSurfaces(&view);
+    T_FEQ(entities[1].origin.z, 85.0f, 0.001f);
+}
+
+TEST(renderer_game, unit_alpha_models_draw_after_the_water_alpha_pass) {
+    mdxModel_t mdx = { 0 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = { .origin = { 10.0f, 20.0f, 30.0f }, .model = &model };
+    renderEntity_t *saved_entities = tr.viewDef.entities;
+    uint32_t saved_num_entities = tr.viewDef.num_entities;
+    render_phase_t saved_phase = tr.render_phase;
+
+    test_alpha_draw_order = test_water_alpha_order = test_unit_alpha_order = 0;
+    tr.viewDef.entities = &entity;
+    tr.viewDef.num_entities = 1;
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_DrawAlphaSurfaces();
+
+    T_ASSERT(test_water_alpha_order > 0);
+    T_ASSERT(test_unit_alpha_order > test_water_alpha_order);
+
+    tr.viewDef.entities = saved_entities;
+    tr.viewDef.num_entities = saved_num_entities;
+    tr.render_phase = saved_phase;
 }
 
 TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) {
@@ -734,17 +914,126 @@ TEST(renderer_cursor, resolves_all_retail_modes) {
     cursor_active_model = NULL; cursor_anim = NULL;
 }
 
-/* Geometry is stubbed here so this test isolates snapshot filtering, provider
- * order and height aggregation; actual MDX tracing remains unchanged. */
-static unsigned ground_trace_count;
-bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vec3_t *hit) {
-    ground_trace_count++;
-    if (line->a.x != ent->origin.x) return false;
-    *hit = ent->origin;
-    return true;
+TEST(renderer_terrain, water_style_reads_tileset_row_from_water_slk) {
+    refImport_t saved_imports = ri;
+    texture_t texture = {0};
+    wc3WaterStyle_t const *style = R_WaterStyle();
+
+    T_ASSERT(SFileOpenArchive("build/tests/tests.mpq", 0, 0, &test_renderer_archive));
+    if (!test_renderer_archive) return;
+    ri.FS_ReadFile = test_renderer_read; ri.FS_FreeFile = test_renderer_free;
+    ri.LoadSlk = test_renderer_load_slk; ri.MemAlloc = test_renderer_alloc; ri.MemFree = test_renderer_free;
+    R_TestSetTextureLoadResult(&texture);
+
+    /* Stock TFT Outland row: the Abyss is an opaque black TeamColor surface 1.5 tiles down. */
+    R_LoadWaterStyle('O');
+    T_STREQ(R_TestLastTextureLoad(), "ReplaceableTextures\\TeamColor\\TeamColor00.blp");
+    T_EQ(style->num_frames, 1); T_ASSERT(style->frames[0] == &texture);
+    T_FEQ(style->height, -1.5f, 0.0001f); T_FEQ(style->frame_rate, 12.0f, 0.0001f);
+    T_EQ(style->shallow_min.r, 0); T_EQ(style->shallow_min.a, 255);
+    T_EQ(style->deep_max.b, 0); T_EQ(style->deep_max.a, 255);
+
+    R_LoadWaterStyle('L'); /* Non-stock cells prove each band, channel and frame is read from its column. */
+    T_STREQ(R_TestLastTextureLoad(), "TestUI\\Textures\\TestWater02.blp");
+    T_EQ(style->num_frames, 3); T_FEQ(style->frame_rate, 15.0f, 0.0001f);
+    T_FEQ(style->height, -0.7f, 0.0001f);
+    T_EQ(style->shallow_min.r, 1); T_EQ(style->shallow_min.g, 2); T_EQ(style->shallow_min.b, 3);
+    T_EQ(style->shallow_min.a, 4);
+    T_EQ(style->shallow_max.r, 101); T_EQ(style->shallow_max.a, 104);
+    T_EQ(style->deep_min.g, 202); T_EQ(style->deep_min.a, 204);
+    T_EQ(style->deep_max.b, 253); T_EQ(style->deep_max.a, 254);
+
+    R_LoadWaterStyle('X'); /* No frames: reported, and water is not drawn; the surface height still applies. */
+    T_EQ(style->num_frames, 0); T_NULL(R_WaterFrame(style, 1000));
+    T_FEQ(style->height, -0.7f, 0.0001f);
+    R_LoadWaterStyle('?'); /* No row for the tileset. */
+    T_EQ(style->num_frames, 0); T_EQ(style->deep_max.a, 0);
+
+    R_TestSetTextureLoadResult(NULL);
+    SFileCloseArchive(test_renderer_archive); test_renderer_archive = NULL;
+    ri = saved_imports;
 }
 
+TEST(renderer_terrain, water_frames_advance_at_texrate_and_wrap) {
+    texture_t frames[3] = {0};
+    wc3WaterStyle_t style = { .frames = { &frames[0], &frames[1], &frames[2] }, .num_frames = 3, .frame_rate = 15.0f };
+
+    T_ASSERT(R_WaterFrame(&style, 0) == &frames[0]);
+    T_ASSERT(R_WaterFrame(&style, 66) == &frames[0]);   /* 0.99 frames */
+    T_ASSERT(R_WaterFrame(&style, 67) == &frames[1]);   /* 1.005 frames */
+    T_ASSERT(R_WaterFrame(&style, 134) == &frames[2]);
+    T_ASSERT(R_WaterFrame(&style, 200) == &frames[0]);  /* 3 frames wrap to the first */
+    style.num_frames = 1; /* Outland's single Abyss frame never changes. */
+    T_ASSERT(R_WaterFrame(&style, 123456) == &frames[0]);
+    style.frame_rate = 0; style.num_frames = 3;
+    T_ASSERT(R_WaterFrame(&style, 123456) == &frames[0]);
+}
+
+TEST(renderer_terrain, tileset_archive_layers_between_map_imports_and_base_data) {
+    refImport_t saved_imports = ri;
+    assetCandidates_t candidates;
+    PATHSTR candidate;
+    PATHSTR resolved;
+    void *buffer = NULL;
+    cstring_t const cliff = "ReplaceableTextures\\Cliff\\Cliff1.blp";
+
+    T_ASSERT(SFileOpenArchive("build/tests/tests.mpq", 0, 0, &test_renderer_archive));
+    if (!test_renderer_archive) return;
+    ri.FS_ReadFile = test_renderer_read; ri.FS_FreeFile = test_renderer_free;
+    ri.MemAlloc = test_renderer_alloc; ri.MemFree = test_renderer_free;
+
+    /* Retail resolves Outland's abyss cliffs from the nested O.mpq, not Lordaeron's base Cliff1. */
+    R_W3OpenTilesetArchive('O');
+    T_ASSERT(R_GameAssetCandidate(cliff, candidate, sizeof(candidate)));
+    T_STREQ(candidate, "O.mpq\\ReplaceableTextures\\Cliff\\Cliff1.blp");
+    T_ASSERT(test_renderer_read(candidate, &buffer) > 0); /* The FS resolves the layered path. */
+    test_renderer_free(buffer);
+    /* Destructable object data authors .tga, but MPQ cliff assets are BLP. */
+    T_ASSERT(R_GameAssetCandidate("ReplaceableTextures\\Cliff\\Cliff1.tga", candidate, sizeof(candidate)));
+    T_STREQ(candidate, "O.mpq\\ReplaceableTextures\\Cliff\\Cliff1.tga");
+    T_ASSERT(R_ReadTextureFile(candidate, resolved, &buffer) > 0);
+    test_renderer_free(buffer);
+    T_ASSERT(!R_GameAssetCandidate("ReplaceableTextures\\Cliff\\Cliff0.blp", candidate, sizeof(candidate)));
+
+    R_SetMapAssetScope("Maps\\Test.w3x"); /* Map imports outrank the tileset layer, which outranks base data. */
+    R_AssetCandidates(cliff, &candidates);
+    T_EQ(candidates.count, 3); T_ASSERT(candidates.scoped);
+    T_STREQ(candidates.path[0], "Maps\\Test.w3x\\ReplaceableTextures\\Cliff\\Cliff1.blp");
+    T_STREQ(candidates.path[1], "O.mpq\\ReplaceableTextures\\Cliff\\Cliff1.blp");
+    T_STREQ(candidates.path[2], cliff);
+    R_SetMapAssetScope(NULL);
+    R_AssetCandidates("ReplaceableTextures\\Cliff\\Cliff0.blp", &candidates);
+    T_EQ(candidates.count, 1); T_ASSERT(!candidates.scoped);
+
+    R_W3OpenTilesetArchive('Q'); /* No such tileset archive: reported, and nothing is layered. */
+    T_ASSERT(!R_GameAssetCandidate(cliff, candidate, sizeof(candidate)));
+
+    SFileCloseArchive(test_renderer_archive); test_renderer_archive = NULL;
+    ri = saved_imports;
+}
+
+TEST(renderer_terrain, cliff_types_store_absent_upper_tile_as_short_code) {
+    /* CliffTypes.slk writes "_" for "no upper tile"; R_CliffTileIsSet relies on the parsed ID having a zero byte. */
+    cstring_t slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"cliffID\"\nC;Y1;X2;K\"groundTile\"\nC;Y1;X3;K\"upperTile\"\n"
+        "C;Y2;X1;K\"CLdi\"\nC;Y2;X2;K\"Ldrt\"\nC;Y2;X3;K\"_\"\n"
+        "C;Y3;X1;K\"COrd\"\nC;Y3;X2;K\"Oaby\"\nC;Y3;X3;K\"Osmb\"\nE\n";
+    w3CliffType_t *rows = NULL;
+    uint32_t count = Stb_SlkLoadBuffer(slk, cliff_schema, (void **)&rows, sizeof(w3CliffType_t));
+    T_EQ(count, 2);
+    if (count == 2) {
+        T_EQ(rows[0].upperTile >> 24, 0);
+        T_EQ(rows[1].upperTile, MAKEFOURCC('O','s','m','b'));
+        T_EQ(rows[1].groundTile, MAKEFOURCC('O','a','b','y'));
+    }
+    FS_SLKFreeRows(cliff_schema, rows, count, sizeof(w3CliffType_t));
+}
+
+/* Geometry is stubbed here so this test isolates snapshot filtering, provider
+ * order and height aggregation; actual MDX tracing remains unchanged. */
 TEST(renderer_game, ground_support_compacts_providers_and_preserves_highest_hit) {
+    test_walkable_origin = true;
     model_t model = {0};
     renderEntity_t entities[260] = {0};
     viewDef_t view = { .entities = entities, .num_entities = 260 };
@@ -773,4 +1062,5 @@ TEST(renderer_game, ground_support_compacts_providers_and_preserves_highest_hit)
     T_EQ(entities[2].origin.z, 17);
     T_EQ(entities[257].origin.z, -10);
     T_EQ(entities[258].origin.z, -5);
+    test_walkable_origin = false;
 }

@@ -592,7 +592,7 @@ TEST(wc3_shadowmeld, explicit_hide_blocks_idle_automatic_attack_acquisition) {
 }
 
 TEST(wc3_save, shadowmeld_state_round_trips) {
-    cstring_t filename = "/tmp/openwarcraft3-shadowmeld-save.bin";
+    cstring_t filename = Test_TempPath("shadowmeld-save.bin");
     shadowmeldFix_t fix;
     uint32_t unit_number;
 

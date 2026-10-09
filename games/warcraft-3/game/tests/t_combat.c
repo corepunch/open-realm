@@ -688,6 +688,32 @@ TEST(wc3_combat, explicit_attack_continues_against_allied_target) {
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
 }
 
+TEST(wc3_combat, undead_campaign_arthas_can_attack_a_ground_unit) {
+    edict_t *arthas, *target;
+
+    setup_test_world(); reset_entities();
+    arthas = make_combat_unit(MAKEFOURCC('U','e','a','r'), 700.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 48.0f, 0.0f);
+    arthas->s.player = 0;
+    target->s.player = 1;
+    arthas->targtype = target->targtype = TARG_GROUND;
+    S_AttackProfileWrite(arthas, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(arthas, 0)->damageBase = 25;
+    S_AttackProfileWrite(arthas, 0)->damagePoint = 0.01f;
+    S_AttackProfileWrite(arthas, 0)->range = 100.0f;
+    S_AttackProfileWrite(arthas, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    arthas->wait = 40.0f; /* Birth's wait must not delay an explicit attack. */
+
+    T_ASSERT(S_OrderAttack(arthas, target));
+    T_ASSERT(arthas->currentmove && arthas->currentmove->proc == CAbilityAttack);
+    T_ASSERT(arthas->goalentity == target);
+    arthas->currentmove->think(arthas);
+    T_STREQ(arthas->currentmove->animation, "attack");
+    arthas->currentmove->think(arthas);
+
+    T_ASSERT(target->health.value < target->health.max_value);
+}
+
 TEST(wc3_combat, tdamage_lethal_calls_die) {
     edict_t *target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
@@ -1785,6 +1811,87 @@ TEST(wc3_combat, grant_kill_xp_building_killer_and_victim_rules) {
     Stb_IniCacheFree(&custom);
 }
 
+TEST(wc3_combat, bounty_awards_authored_fixed_gold_and_lumber_once_per_death) {
+    static UnitBalance_t const bounty = {
+        .goldBountyBase = 6, .lumberBountyBase = 4,
+        .maxHealth = 100.0f
+    };
+    edict_t *killer, *victim;
+    gameClient_t *receiver = game.clients, *owner = game.clients + 1;
+
+    setup_test_world();
+    killer = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100, 0, 0);
+    victim = make_combat_unit(MAKEFOURCC('n','k','o','b'), 100, 128, 0);
+    killer->s.player = 0; victim->s.player = 1;
+    victim->data.UnitBalance = &bounty;
+    receiver->ps.number = 0; owner->ps.number = 1;
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10;
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 10;
+    receiver->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
+    receiver->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
+    owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 1;
+
+    unit_die(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 16);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 14);
+    unit_die(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 16);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 14);
+}
+
+TEST(wc3_combat, bounty_requires_victim_flag_and_enemy_killer) {
+    static UnitBalance_t const bounty = { .goldBountyBase = 9, .maxHealth = 100.0f };
+    edict_t *killer, *victim;
+    gameClient_t *receiver = game.clients, *owner = game.clients + 1;
+
+    setup_test_world();
+    killer = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100, 0, 0);
+    victim = make_combat_unit(MAKEFOURCC('n','k','o','b'), 100, 128, 0);
+    killer->s.player = 0; victim->s.player = 1;
+    victim->data.UnitBalance = &bounty;
+    receiver->ps.number = 0; owner->ps.number = 1;
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    receiver->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
+    owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 0;
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
+    owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 1;
+    G_AwardKillBounty(victim, NULL);
+    G_AwardKillBounty(victim, victim);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 109);
+    victim->aiflags |= AI_ILLUSION;
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 109);
+}
+
+/* Retail upkeep taxes only gold returned from mines; a kill bounty is credited
+ * in full, the same way Bundle of Gold / Lumber pickups bypass the tax. */
+TEST(wc3_combat, bounty_clamps_to_resource_cap_and_bypasses_upkeep) {
+    static UnitBalance_t const bounty = { .goldBountyBase = 10, .lumberBountyBase = 5, .maxHealth = 100.0f };
+    edict_t *killer, *victim;
+    gameClient_t *receiver = game.clients, *owner = game.clients + 1;
+
+    setup_test_world();
+    killer = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100, 0, 0);
+    victim = make_combat_unit(MAKEFOURCC('n','k','o','b'), 100, 128, 0);
+    killer->s.player = 0; victim->s.player = 1;
+    victim->data.UnitBalance = &bounty;
+    receiver->ps.number = 0; owner->ps.number = 1;
+    owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 1;
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 65532;
+    receiver->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 70;
+    receiver->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 40;
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], USHRT_MAX);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5);
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 110);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 10);
+}
+
 TEST(wc3_combat, grant_kill_xp_applies_receiving_player_handicap) {
     edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
@@ -2184,6 +2291,72 @@ TEST(wc3_combat, hero_setxp_does_not_lower_xp_or_level) {
 
     T_EQ((int)h->hero.level, 3);
     T_EQ((int)h->hero.xp, 500);
+}
+
+TEST(wc3_combat, hero_strip_levels_recomputes_stats_and_preserves_tomes) {
+    edict_t *h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    h->hero.level = 1;
+    h->hero.str = 22; h->hero.agi = 13; h->hero.intel = 17;
+    h->hero.skillpoints = 1;
+    h->health.max_value = h->health.value = 650.0f;
+    h->mana.max_value = h->mana.value = 255.0f;
+    G_HeroSetXP(h, 650); /* Level 3, with partial XP progress. */
+    T_EQ(h->hero.level, 3);
+    h->hero.str += 3; /* Permanent tome/SetHeroStr bonus survives stripping. */
+    G_RecomputeHeroStats(h);
+    level.events.write = level.events.read = 0;
+
+    T_ASSERT(G_HeroStripLevels(h, 1));
+    T_EQ(h->hero.level, 2);
+    T_EQ(h->hero.xp, G_HeroXPForLevel(2));
+    T_EQ(h->hero.str, 27); /* 22 + trunc(2.7) + 3 */
+    T_EQ(h->hero.agi, 14); /* 13 + trunc(1.5) */
+    T_EQ(h->hero.intel, 18); /* 17 + trunc(1.8) */
+    T_EQ(h->hero.skillpoints, 2);
+    T_FEQ(h->health.max_value, 650.0f + 5 * 25.0f, 0.01f);
+    T_FEQ(h->mana.max_value, 255.0f + 1 * 15.0f, 0.01f);
+    T_EQ(level.events.write, 0); /* Stripping is not a level-up event. */
+
+    T_ASSERT(G_HeroStripLevels(h, UINT32_MAX));
+    T_EQ(h->hero.level, 1);
+    T_EQ(h->hero.xp, 0);
+    T_EQ(h->hero.str, 25);
+    T_EQ(h->hero.agi, 13);
+    T_EQ(h->hero.intel, 17);
+    T_EQ(h->hero.skillpoints, 1);
+    T_ASSERT(!G_HeroStripLevels(h, 1));
+    T_ASSERT(!G_HeroStripLevels(h, 0));
+    T_EQ(level.events.write, 0);
+}
+
+TEST(wc3_combat, hero_strip_levels_reconciles_spent_skill_ranks) {
+    UnitAbilities_t const tree = { .heroAbilList = "AHhb,AHtb" };
+    slkTestData_t *rows = parse_slk_string(slk_hero_skill_progression);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    edict_t *h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    uint32_t const holy = MAKEFOURCC('A','H','h','b');
+    uint32_t const thunder = MAKEFOURCC('A','H','t','b');
+
+    h->data.UnitAbilities = &tree;
+    h->hero.level = 1;
+    h->hero.str = 22; h->hero.agi = 13; h->hero.intel = 17;
+    h->hero.skillpoints = 1;
+    G_HeroSetXP(h, 500);
+    T_ASSERT(G_HeroLearnSkill(h, holy));
+    T_ASSERT(G_HeroLearnSkill(h, holy));
+    T_ASSERT(G_HeroLearnSkill(h, thunder));
+    T_EQ(h->hero.skillpoints, 0);
+    T_EQ(G_UnitAbilityLevel(h, holy), 2);
+    T_EQ(G_UnitAbilityLevel(h, thunder), 1);
+
+    T_ASSERT(G_HeroStripLevels(h, 2));
+    T_EQ(h->hero.level, 1);
+    T_EQ(h->hero.skillpoints, 0);
+    T_EQ(G_UnitAbilityLevel(h, holy), 1); /* Rank 2 requires level 3. */
+    T_EQ(G_UnitAbilityLevel(h, thunder), 0); /* Reclaim remaining spent point. */
+    T_ASSERT(G_HeroStripLevels(h, 0) == false);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* Attack timing: after damage point, the next swing must wait for both the
@@ -2597,7 +2770,7 @@ TEST(wc3_combat, backswing_still_blocks_attack_after_cooldown_during_chase) {
 }
 
 TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
-    cstring_t filename = "/tmp/openwarcraft3-attack-chase-cooldown.bin";
+    cstring_t filename = Test_TempPath("attack-chase-cooldown.bin");
     edict_t *attacker;
     edict_t *target;
     float const cooldown_remaining = 0.73f;
@@ -3024,7 +3197,7 @@ TEST(wc3_combat, endurance_provider_changes_are_immediate_and_saved) {
     unit_learnability(source,id);
     T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),117.f,0.0001f);
     uint32_t target_number=target->s.number,source_number=source->s.number;
-    cstring_t file="/tmp/wc3-endurance-provider-index.bin";
+    cstring_t file=Test_TempPath("wc3-endurance-provider-index.bin");
     target->die=source->die=unit_die; /* Save production callbacks, not the combat fixture's stub. */
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     target=g_edicts+target_number;source=g_edicts+source_number;

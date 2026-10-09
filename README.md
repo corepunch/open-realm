@@ -2,13 +2,13 @@
   <img width="480" height="320" src="https://github.com/user-attachments/assets/e4491ef4-fa69-4efd-814f-f7335d4c448a" />
 </p>
 
-# OpenWarcraft3
+# OpenRealm
 
-OpenWarcraft3 is an open-source, Quake-style engine and compatibility project for Blizzard-era game data. Warcraft III is the primary playable target and runs on Windows, Linux, macOS, and iPad; StarCraft II and World of Warcraft provide additional format and renderer targets.
+OpenRealm is an open-source, Quake-style engine and compatibility project for Blizzard-era game data. Warcraft III is the primary playable target and runs on Windows, Linux, macOS, and iPad; StarCraft II and World of Warcraft provide additional format and renderer targets.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![CI](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml) [![Platform: Windows, Linux, macOS, iPadOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20iPadOS-lightgrey)](#run-on-ipad) [![Language: C](https://img.shields.io/badge/Language-C-blue.svg)](#) [![Discord](https://img.shields.io/badge/Discord-join-blue?logo=discord)](https://discord.gg/MxkUMWsKGs)
 
-The project does not include retail game data. Use it only with data you legally own. OpenWarcraft3 is not affiliated with Blizzard Entertainment.
+The project does not include retail game data. Use it only with data you legally own. OpenRealm is not affiliated with Blizzard Entertainment.
 
 <p align="center">
   <img src="docs/images/screenshot1.jpg" width="31%" style="margin-right:2%;" />

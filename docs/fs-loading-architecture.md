@@ -24,8 +24,9 @@ catalog from these archives and optional loose-map metadata, without C map-name 
 `CM_LoadMapFormat` mounts the open map MPQ there so sheet/INI loaders see map-imported members. Clear with
 `FS_SetPriorityArchive(NULL)` on map teardown (`gi.SetPriorityArchive` from the game module).
 `SFileOpenFileEx` also recognizes an archive component inside the requested path and can open
-that file as a nested MPQ. A game renderer can use the generic map-asset scope to probe
-`<map/archive path>\<model-or-texture path>` before its ordinary asset path. Keep the full nested path as the cache
+that file as a nested MPQ. Renderer textures and models resolve through `R_AssetCandidates` in this order: the
+generic map-asset scope `<map/archive path>\<asset>`, then the game's optional archive layer
+(`R_GameAssetCandidate`; WC3 returns `<tileset>.mpq\<asset>`), then the ordinary asset path. Keep the full nested path as the cache
 identity; path-only caches otherwise let one map's imported resource satisfy a later map's lookup.
 
 WC3 voice WAV sectors commonly use an encrypted mixed compression stream: the first sector is zlib (`0x02`), while

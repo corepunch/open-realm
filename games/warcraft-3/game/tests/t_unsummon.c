@@ -370,7 +370,7 @@ TEST(wc3_spell, unsummon_reports_under_construction_from_command_strings) {
 }
 
 TEST(wc3_save, unsummon_live_channel_thinker_round_trips) {
-    cstring_t filename = "/tmp/openwarcraft3-unsummon-live.bin";
+    cstring_t filename = Test_TempPath("unsummon-live.bin");
     unsFix_t fix;
     edict_t *thinker;
     uns_setup(&fix);

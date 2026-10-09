@@ -61,6 +61,7 @@ typedef enum {
 } connstate_t;
 
 struct frame {
+    bool valid;               /* a snapshot has been applied since the session began */
     int serverframe;
     int servertime;
     int oldclientframe;
@@ -120,6 +121,10 @@ struct client_state {
      * MAX_CLIENT_ENTITIES slots every frame. */
     uint32_t active_entities[MAX_CLIENT_ENTITIES];
     uint32_t num_active;
+    /* Entities the snapshot carries without a model, for a looping sound or an event (SV_BuildClientFrame). With
+     * active_entities this is the whole snapshot, which frame history must rebuild and a full snapshot clears. */
+    uint32_t modelless_entities[MAX_CLIENT_ENTITIES];
+    uint32_t num_modelless;
     uint32_t time;
     struct {
         rect_t rect;
@@ -173,18 +178,22 @@ void CL_MusicSetPosition(int32_t millisecs);
 void CL_MusicSetThematicVolume(int32_t volume);
 void CL_MusicSetThematicPosition(int32_t millisecs);
 void CL_MusicSuspend(void);
+bool CL_MusicIsSuspended(void);
 void CL_MusicResumeFromSuspend(void);
 
 /* Optional full-screen movie playback (client/cl_movie.c). */
 void CL_MovieInit(void);
 void CL_Movie_f(void);
 void CL_QueueMovie(cstring_t path);
+void CL_QueueModelCinematic(cstring_t path);
+bool CL_PlayModelCinematic(cstring_t path);
 bool CL_PlayMovie(cstring_t path);
 bool CL_MovieActive(void);
 void CL_MovieUpdate(void);
 void CL_MovieDraw(void);
 bool CL_MovieKeyEvent(keyCode_t key, bool down);
 void CL_MovieShutdown(void);
+void CL_MovieCancel(void);
 vec2_t CL_ClampCameraPosition(vec2_t position);
 void CL_PredictCameraPosition(vec2_t position);
 static inline float cl_normalize_entity_scale(float scale) { return scale > 0.0f ? scale : 1.0f; }
@@ -197,6 +206,7 @@ void CL_UpdateConfigString(uint32_t index, cstring_t olds);
 void CL_RestartRefresh(void);
 // cl_parse.c
 void CL_ParseServerMessage(sizeBuf_t *msg);
+void CL_ResetFrameHistory(void);
 void CL_AddActiveEntity(uint32_t index);
 void CL_RemoveActiveEntity(uint32_t index);
 

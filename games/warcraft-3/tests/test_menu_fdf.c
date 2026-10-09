@@ -476,6 +476,27 @@ TEST(menu_fdf, compact_pool_preserves_capacity_and_reports_exhaustion) {
     T_ASSERT(sizeof(framePoint_t) <= sizeof(void *) + 8);
 }
 
+TEST(menu_fdf, failed_tree_clone_reclaims_partial_pool_allocations) {
+    frameDef_t *root, *child, *last = NULL, *frame;
+    uint32_t before = 0, after = 0;
+
+    reset_ui_state();
+    root = UI_Spawn(FT_FRAME, NULL);
+    child = UI_Spawn(FT_TEXT, root);
+    T_NOT_NULL(root); T_NOT_NULL(child);
+    while ((frame = UI_Spawn(FT_FRAME, NULL))) last = frame;
+    T_NOT_NULL(last);
+    UI_FreeFrameTree(last);
+    FOR_LOOP(i, MAX_UI_CLASSES) if (frames[i].inuse) ++before;
+
+    T_NULL(UI_CloneFrameTree(root, NULL));
+    FOR_LOOP(i, MAX_UI_CLASSES) if (frames[i].inuse) ++after;
+    T_EQ(after, before);
+    T_NOT_NULL(UI_Spawn(FT_FRAME, NULL));
+    T_NULL(UI_Spawn(FT_FRAME, NULL));
+    reset_ui_state();
+}
+
 TEST(menu_fdf, parse_nested_parent_child_relationship) {
     frameDef_t *root;
     frameDef_t *child;
@@ -617,6 +638,24 @@ TEST(menu_fdf, backdrop_flags_and_insets_are_parsed) {
     T_FEQ(frame->Backdrop.BackgroundInsets[1], 0.2f, 0.01f);
     T_FEQ(frame->Backdrop.BackgroundInsets[2], 0.3f, 0.01f);
     T_FEQ(frame->Backdrop.BackgroundInsets[3], 0.4f, 0.01f);
+}
+
+/* WC3 FDF semantics: a backdrop without BackdropBlendAll ignores texture alpha; with it the renderer blends. */
+TEST(menu_fdf, backdrop_blend_all_selects_renderer_opacity) {
+    cstring_t const names[] = { "OpaqueBD", "BlendBD" };
+    reset_ui_state();
+    parse_fdf("backdrop_opacity.fdf",
+              "Frame \"BACKDROP\" \"OpaqueBD\" { Width 0.1, Height 0.1, BackdropBackground \"EscMenuBackground\", }"
+              "Frame \"BACKDROP\" \"BlendBD\" { Width 0.1, Height 0.1, BackdropBackground \"EscMenuBackground\", BackdropBlendAll, }");
+    FOR_LOOP(i, 2) {
+        frameDef_t *frame = UI_FindFrame(names[i]);
+        if (!require_not_null(frame)) return;
+        captured_backdrop = (drawBackdrop_t){0};
+        captured_draw_calls = 0;
+        UI_DrawFrame(frame);
+        T_EQ(captured_draw_calls, 1);
+        T_EQ(captured_backdrop.flags & DRAW_BG_OPAQUE, i ? 0 : DRAW_BG_OPAQUE);
+    }
 }
 
 TEST(menu_fdf, vector_parser_accepts_f_suffixes) {

@@ -13,6 +13,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/ghidra'))
 from verify_wc3_pathing_grid import footprint_graph, ObjectInput
+from verify_wc3_pathing_numeric import bits
 
 
 class FineSearchTests(unittest.TestCase):
@@ -198,6 +199,20 @@ class FineSearchTests(unittest.TestCase):
                     cells[blocker[1] * width + blocker[0]] = fixture['query']
                 query = (ctypes.c_uint32 * 6)(radius, *pos, width, height, fixture['query'])
                 self.assertEqual(engine.pathing_footprint(query, cells), expected)
+
+    def test_wall_endpoints_use_retail_cells_instead_of_circle_clearance(self):
+        fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-footprint-endpoints-1.27.json').read_text())
+        width, height = fixture['dimensions']
+        self.assertEqual(len(fixture['wall_endpoints']), 4)
+        for engine in self.engines:
+            engine.pathing_footprint.argtypes = [ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint8)]
+            engine.pathing_footprint.restype = ctypes.c_uint32
+            for row in fixture['wall_endpoints']:
+                cells = (ctypes.c_uint8 * (width * height))()
+                for y in range(height): cells[y * width + 7] = fixture['query']
+                x, y = row['world_position']
+                query = (ctypes.c_uint32 * 6)(bits(row['radius_world'] / 32), bits(x / 32), bits(y / 32), width, height, fixture['query'])
+                self.assertEqual(engine.pathing_footprint(query, cells), row['result'])
 
     def test_original_sampled_segments_match_results_and_cell_order(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-sampled-segments-1.27.json').read_text())

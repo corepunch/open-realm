@@ -66,6 +66,7 @@ mapInfo_t const *CM_GetMapInfo(void);
 bool CM_ReadMapInfo(cstring_t filename, mapInfo_t *info);
 void CM_FreeMapInfo(mapInfo_t *info);
 void CM_ReadAbilities(handle_t archive);
+void CM_ReadDestructables(handle_t archive);
 vec2_t CM_GetNormalizedMapPosition(float x, float y);
 vec2_t CM_GetDenormalizedMapPosition(float x, float y);
 bool CM_ClosestPathablePoint(vec2_t const *location, vec2_t *out);

@@ -37,6 +37,16 @@ static float R_EntityRingZ(renderEntity_t const *entity) {
     return entity->origin.z - 1.0f;
 }
 
+static bool R_EntityNeedsSupportedOverlay(renderEntity_t const *entity) {
+    return !!(entity->flags & (RF_SELECTION_CIRCLE_ON_WATER | RF_GROUND_SURFACE_SUPPORT));
+}
+
+static float R_EntitySupportRingZ(renderEntity_t const *entity) {
+    /* WC3 supplies the water/deck support height in origin.z-ground_offset.
+     * Lift the overlay slightly to pass the support surface's depth test. */
+    return entity->origin.z - entity->ground_offset + 1.0f;
+}
+
 static bool R_EntityInView(renderEntity_t const *entity) {
     box3_t bounds;
     mat4_t matrix;
@@ -261,8 +271,10 @@ static void R_DrawEntityShadows(bool shad) {
 #endif
 }
 
-static void R_RenderSelectedCircle(renderEntity_t const *entity, vec2_t const *origin) {
+static void R_RenderSelectedCircle(renderEntity_t const *entity, vec2_t const *origin, bool supported_pass) {
     if (entity->flags & RF_SELECTED) {
+        bool const supported_overlay = R_EntityNeedsSupportedOverlay(entity);
+        if (supported_overlay != supported_pass) return;
         color32_t color;
         if (entity->flags & RF_HOSTILE) {
             color = MAKE(color32_t, 255, 80, 80, 255);
@@ -277,9 +289,12 @@ static void R_RenderSelectedCircle(renderEntity_t const *entity, vec2_t const *o
                 continue;
             vec2_t mins = { origin->x - radius, origin->y - radius };
             vec2_t maxs = { origin->x + radius, origin->y + radius };
-            /* Flying units carry their selection circle with them; ground units
-             * retain terrain-conforming rings for ramps and uneven terrain. */
-            if (entity->ground_offset > 0.0f)
+            /* Rings on water or walkable destructables are flat and deferred
+             * until after surfaces draw. Ordinary ground rings follow terrain. */
+            if (supported_overlay)
+                R_RenderFlatRectSplat(&mins, &maxs, R_EntitySupportRingZ(entity),
+                                      tr.texture[TEX_SELECTION_CIRCLE+i], R_SPLAT_SHADER(&tr.shader_splat), color);
+            else if (entity->ground_offset > 0.0f)
                 R_RenderFlatRectSplat(&mins, &maxs, R_EntityRingZ(entity),
                                       tr.texture[TEX_SELECTION_CIRCLE+i], R_SPLAT_SHADER(&tr.shader_splat), color);
             else
@@ -290,15 +305,20 @@ static void R_RenderSelectedCircle(renderEntity_t const *entity, vec2_t const *o
     }
 }
 
-static void R_RenderEntityIndicator(renderEntity_t const *entity, vec2_t const *origin) {
+static void R_RenderEntityIndicator(renderEntity_t const *entity, vec2_t const *origin, bool supported_pass) {
     if (!entity->indicator.a) return;
+    bool const supported_overlay = R_EntityNeedsSupportedOverlay(entity);
+    if (supported_overlay != supported_pass) return;
 
     float radius = R_SelectionRadius(entity);
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         if ((radius * 2) > selCircles[i]) continue;
         vec2_t mins = { entity->origin.x - radius, entity->origin.y - radius };
         vec2_t maxs = { entity->origin.x + radius, entity->origin.y + radius };
-        if (entity->ground_offset > 0.0f)
+        if (supported_overlay)
+            R_RenderFlatRectSplat(&mins, &maxs, R_EntitySupportRingZ(entity),
+                                  tr.texture[TEX_SELECTION_CIRCLE+i], R_SPLAT_SHADER(&tr.shader_splat), entity->indicator);
+        else if (entity->ground_offset > 0.0f)
             R_RenderFlatRectSplat(&mins, &maxs, R_EntityRingZ(entity),
                                   tr.texture[TEX_SELECTION_CIRCLE+i], R_SPLAT_SHADER(&tr.shader_splat), entity->indicator);
         else
@@ -309,13 +329,15 @@ static void R_RenderEntityIndicator(renderEntity_t const *entity, vec2_t const *
 }
 
 /* Subtle highlight circle for the entity under the mouse cursor. */
-static void R_RenderHoverHighlight(renderEntity_t const *entity) {
+static void R_RenderHoverHighlight(renderEntity_t const *entity, bool supported_pass) {
     if (entity->number != tr.viewDef.hover_entity || entity->number == 0) {
         return;
     }
     if (entity->flags & RF_SELECTED) {
         return; /* selection circle already visible, skip hover */
     }
+    bool const supported_overlay = R_EntityNeedsSupportedOverlay(entity);
+    if (supported_overlay != supported_pass) return;
     color32_t color;
     if (entity->flags & RF_HOSTILE) {
         color = MAKE(color32_t, 255, 80, 80, 128);   /* enemy: faint red */
@@ -330,7 +352,10 @@ static void R_RenderHoverHighlight(renderEntity_t const *entity) {
             continue;
         vec2_t mins = { entity->origin.x - radius, entity->origin.y - radius };
         vec2_t maxs = { entity->origin.x + radius, entity->origin.y + radius };
-        if (entity->ground_offset > 0.0f)
+        if (supported_overlay)
+            R_RenderFlatRectSplat(&mins, &maxs, R_EntitySupportRingZ(entity),
+                                  tr.texture[TEX_SELECTION_CIRCLE+i], R_SPLAT_SHADER(&tr.shader_splat), color);
+        else if (entity->ground_offset > 0.0f)
             R_RenderFlatRectSplat(&mins, &maxs, R_EntityRingZ(entity),
                                   tr.texture[TEX_SELECTION_CIRCLE+i], R_SPLAT_SHADER(&tr.shader_splat), color);
         else
@@ -355,7 +380,18 @@ void R_DrawEntity(renderEntity_t const *entity, bool shad) {
 
     R_RenderUberSplat(entity, (vec2_t const *)&entity->origin);
     R_RenderModel(entity);
-    R_RenderSelectedCircle(entity, (vec2_t const *)&entity->origin);
-    R_RenderHoverHighlight(entity);
-    R_RenderEntityIndicator(entity, (vec2_t const *)&entity->origin);
+    R_RenderSelectedCircle(entity, (vec2_t const *)&entity->origin, false);
+    R_RenderHoverHighlight(entity, false);
+    R_RenderEntityIndicator(entity, (vec2_t const *)&entity->origin, false);
+}
+
+void R_DrawSupportedEntityOverlays(void) {
+    FOR_LOOP(i, tr.viewDef.num_entities) {
+        renderEntity_t const *entity = tr.viewDef.entities + i;
+        if ((entity->flags & RF_HIDDEN) || !entity->model || !R_EntityNeedsSupportedOverlay(entity))
+            continue;
+        R_RenderSelectedCircle(entity, (vec2_t const *)&entity->origin, true);
+        R_RenderHoverHighlight(entity, true);
+        R_RenderEntityIndicator(entity, (vec2_t const *)&entity->origin, true);
+    }
 }

@@ -81,7 +81,7 @@ TEST(wc3_waygate, edge_queries_track_ownership_without_scanning_scenery) {
     box2_t bounds=CM_GetWorldBounds();
     T_EQ(edges[id].destination.x,(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_mul(wc3_grid_coordinate(768,bounds.min.x,32),.5f)))));
     T_EQ(edges[id].destination.y,(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_mul(wc3_grid_coordinate(512,bounds.min.y,32),.5f)))));
-    cstring_t file="/tmp/wc3-waygate-member-index.bin";
+    cstring_t file=Test_TempPath("wc3-waygate-member-index.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));S_WaygateBuildEdges(edges);
     waygate_edge_visits=0;FOR_LOOP(i,16)S_WaygateBuildEdges(edges);
     T_ASSERT(waygate_edge_visits<=16u);T_ASSERT(S_WaygateEdgeIsActive(id));
@@ -142,7 +142,7 @@ TEST(wc3_waygate, allocation_and_exhaustion_survive_save_and_reject_duplicate_ow
         T_ASSERT(G_ActorAddSkill(gates[i+1],BZ_TEST_WARP));
         S_WaygateSetActive(gates[i+1],true);
     }
-    cstring_t file="/tmp/wc3-waygate-edge-pool.bin";
+    cstring_t file=Test_TempPath("wc3-waygate-edge-pool.bin");
     T_ASSERT(S_ValidateWaygateIds());T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     FOR_LOOP(i,256){
         T_NOT_NULL(gates[i]->waygate);T_EQ(gates[i]->waygate->edge_id,i<255?i+1:0);
@@ -383,7 +383,7 @@ TEST(wc3_waygate, jass_natives_preserve_destination_and_boolean_activation) {
 }
 
 TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-waygate-save.bin";
+    cstring_t filename = Test_TempPath("wc3-waygate-save.bin");
     wayFix_t fix = waygate_setup(300.0f, 0.0f);
     uint32_t const gate_number = fix.gate->s.number;
     uint32_t const unit_number = fix.unit->s.number;
@@ -418,7 +418,7 @@ TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
 }
 
 TEST(wc3_save, rejects_invalid_waygate_entity_references) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-waygate-invalid-reference.bin";
+    cstring_t filename = Test_TempPath("wc3-waygate-invalid-reference.bin");
     wayFix_t fix = waygate_setup(300.0f, 0.0f);
     edict_t *target, *goal;
 

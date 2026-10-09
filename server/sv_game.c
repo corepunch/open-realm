@@ -164,6 +164,7 @@ void SV_InitGameProgs(void) {
     import.BoxEdicts = SV_AreaEdicts;
     import.MenuAction = MenuAction;
     import.QueueMovie = CL_QueueMovie;
+    import.QueueModelCinematic = CL_QueueModelCinematic;
     import.ClearWorld = SV_ClearWorld;
     import.LoadingFrame = CL_LoadingFrame;
     import.FrameCheckpoint = Com_FrameCheckpoint;

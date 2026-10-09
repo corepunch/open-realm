@@ -329,6 +329,27 @@ def main():
         assert read(fine + 0xa4)[0] == 0x02000000
         assert read(0)[0] == 0x12345678
         validation_cases += 1
+    # A 16-world-unit mover occupies class1's biased 2x2 cells. A circle
+    # clearance check would reject legal centers on the open side of this wall.
+    wall_endpoints = []
+    for x in (208.0, 210.5, 223.5, 224.0):
+        machine.mem_write(terrain, clear)
+        for y in range(16): write(terrain + (y * 16 + 7) * 4, 0x02ffffff)
+        floats(point, x / 32.0, 235.75 / 32.0)
+        floats(mover + 0x90, 0.5)
+        write(path + 0x9c, 0x02000000)
+        write(mover + 0x98, self_obj)
+        write(self_obj + 0x40, 0x20000000)
+        run(0x6f16ee80, separate, point)
+        result = machine.reg_read(UC_X86_REG_EAX)
+        assert result == int(x < 224.0), (x, result)
+        wall_endpoints.append(dict(world_position=[x, 235.75], radius_world=16.0, result=result))
+        if engine:
+            words = [struct.unpack('<I', struct.pack('<f', v))[0] for v in (0.5, x / 32.0, 235.75 / 32.0)]
+            query = (ctypes.c_uint32 * 6)(*words, 16, 16, 2)
+            bitmap = (ctypes.c_uint8 * 256)()
+            for y in range(16): bitmap[y * 16 + 7] = 2
+            assert engine.pathing_footprint(query, bitmap) == result, (x, result)
     dynamic_validation_cases = 0
     for self_present, flags, prior_mode, matches in itertools.product(
             [False, True], [0, 1, 0x10000000, 0x20000000, 0x40000000, 0x60000000, 0x80000000],
@@ -424,7 +445,7 @@ def main():
 
     report = dict(binary_sha256=digest, scope=__doc__, passed=True, filter_cases=filter_cases,
                   occupancy_bounds_cases=occupancy_bounds_cases, empty_rectangle=empty_rectangle,
-                  validation_cases=validation_cases, dynamic_validation_cases=dynamic_validation_cases,
+                  validation_cases=validation_cases, wall_endpoints=wall_endpoints, dynamic_validation_cases=dynamic_validation_cases,
                   enumeration_cases=enumeration_cases, cooldown_cases=cooldown_cases, pair_cases=pair_cases, pair_max_absolute_error=pair_error,
                   tail_cases=tail_cases, tail_max_absolute_error=tail_error,
                   random_direction_cases=random_cases, direction_max_absolute_error=direction_error,
@@ -438,7 +459,7 @@ def main():
         fixture = dict(binary_sha256=digest, dimensions=[16, 16], query=2,
                        radius_words=[word(value) for value in radii],
                        position_words=[[word(value) for value in pos] for pos in positions],
-                       blockers=blockers, results=endpoint_results,
+                       blockers=blockers, results=endpoint_results, wall_endpoints=wall_endpoints,
                        scope='complete original 16ee80 static terrain endpoints; dynamic self-suppression is separate')
         args.endpoint_fixture.parent.mkdir(parents=True, exist_ok=True)
         args.endpoint_fixture.write_text(json.dumps(fixture, indent=2) + '\n')

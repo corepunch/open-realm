@@ -245,6 +245,21 @@ static edict_t *review_thinker(edict_t *caster) {
     return NULL;
 }
 
+/* AHdr accepts enemy and friend targets. An enemy cast must still be blocked,
+ * and the committed blocked cast must not leave its channel active. */
+TEST(wc3_ability_lifecycle, spell_shield_blocks_hostile_mixed_target_channel) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    unit_addstatus(enemy, "BNss", 1);
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
+    T_EQ(G_UnitStatusLevel(enemy, FS_SLKKey("BNss")), 0);
+    T_ASSERT(!S_SpellIsChanneling(caster));
+    T_NULL(review_thinker(caster));
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Stock AHfs starts burning promptly; DataA is damage per full-damage pulse, not a 15-second delay. */
 TEST(wc3_ability_lifecycle, flame_strike_stock_data_burns_within_two_seconds) {
     edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
@@ -448,7 +463,7 @@ TEST(wc3_ability_lifecycle, blizzard_shards_precede_damage_by_eight_tenths) {
  * between presentation and impact must resume with damage rather than replaying
  * another shard phase. */
 TEST(wc3_ability_lifecycle, blizzard_damage_phase_survives_save_load) {
-    cstring_t path = "/tmp/openwarcraft3-blizzard-phase-save.bin";
+    cstring_t path = Test_TempPath("blizzard-phase-save.bin");
     edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
@@ -577,7 +592,7 @@ TEST(wc3_ability_lifecycle, mass_teleport_target_death_cancels) {
 /* A live Mass Teleport thinker must retain its callback, target incarnation,
  * pause ownership and deadline across the production save/load path. */
 TEST(wc3_ability_lifecycle, mass_teleport_continues_after_save_load) {
-    cstring_t path = "/tmp/openwarcraft3-mass-teleport-save.bin";
+    cstring_t path = Test_TempPath("mass-teleport-save.bin");
     edict_t *caster = review_setup(), *target = review_unit(0, 2000);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
@@ -873,7 +888,7 @@ TEST(wc3_ability_lifecycle, resurrection_retires_death_state_and_rejects_empty_c
 
 /* Saving a live drain preserves its owner/target pointers, callback, deadline and cast identity together. */
 TEST(wc3_ability_lifecycle, live_drain_continues_once_after_save_load) {
-    cstring_t path = "/tmp/openwarcraft3-skill-drain-save.bin";
+    cstring_t path = Test_TempPath("skill-drain-save.bin");
     edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));

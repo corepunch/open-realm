@@ -159,7 +159,7 @@ static void crowd_journey(bool ground,bool saved) {
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     unsigned end=ground ? 20200 : 15200;
     test_preload_marker=crowd_sample;
-    cstring_t file=ground ? "/tmp/wc3-ground-crowd.bin" : "/tmp/wc3-mixed-crowd.bin";
+    cstring_t file=ground ? Test_TempPath("wc3-ground-crowd.bin") : Test_TempPath("wc3-mixed-crowd.bin");
     while(level.time<end && !crowd_trace.failed) {
         unsigned found=0;
         FILTER_EDICTS(unit,unit->inuse && (unit->class_id&0xffffu)==MAKEFOURCC('h','S',0,0)) {

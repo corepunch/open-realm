@@ -208,7 +208,9 @@ the currently registered map as the renderer's generic map-asset scope, so ordin
 resolve with this order:
 
 1. `<current .w3m/.w3x>\<logical Warcraft asset path>`;
-2. the ordinary base-data path.
+2. `<tileset>.mpq\<logical path>` when the map's nested tileset archive contains it (cliffs, uber splats,
+   water frames; see [terrain-tiles-and-water.md](terrain-tiles-and-water.md#tileset-archives));
+3. the ordinary base-data path.
 
 The resolved scoped path is also the renderer cache key. This is required for consecutive maps that import
 different bytes under the same logical name; a `Textures\Foo.blp` cached for Human02 must not satisfy Human03's
@@ -222,7 +224,8 @@ model that falls back to the base path, including scope clearing at a registrati
 
 This is intentionally narrower than a full Warsmash-style data-source stack. The current transition still does
 **not** rebuild all WC3 SLK/TXT data from scratch for every unrelated reason, merge all `war3map.w3t/.w3b/.w3d/.w3q` object modifications,
-implement JASS `Preload`/`Preloader`, or expose staged byte/task loading progress. `war3map.w3u` now applies the
+load assets through JASS `Preload`/`Preloader` or preload-file generation (the `PreloadRefresh` and `PreloadEndEx`
+batch markers are no-ops), or expose staged byte/task loading progress. `war3map.w3u` now applies the
 registered `UnitBalance`/`UnitProfile`/`UnitUI` subset (including balance/stock values, Required Animation Names, and custom model
 paths), but the remaining Data/Weapons tables and full AbilityMetaData-driven `war3map.w3a` field coverage remain separate data-layer work;
 do not infer those capabilities from the renderer's map-import lookup. DotA 6.83d ships heroes, items, and

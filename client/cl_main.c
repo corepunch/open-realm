@@ -65,7 +65,16 @@ typedef struct {
 
 static clPendingMenuAction_t cl_pending_menu_action;
 static clPendingMenuAction_t cl_movie_deferred_action;
-static PATHSTR cl_pending_movie;
+/* Queued in authored order: scripts can request a movie followed by a model
+ * scene (or vice versa) before the same deferred map transition. */
+#define CL_MAX_QUEUED_CINEMATICS 8 // scenes; bounds deferred model and movie presentation until transition completion
+static struct {
+    bool model;
+    PATHSTR path;
+} cl_cinematic_queue[CL_MAX_QUEUED_CINEMATICS];
+static uint32_t cl_cinematic_queue_count;
+static bool cl_cinematic_paused;
+static bool cl_cinematic_previous_pause;
 
 void Cmd_ForwardToServer(cstring_t text) {
     if (cls.state <= ca_connected || *text == '-' || *text == '+') {
@@ -128,8 +137,13 @@ void CL_ClearState(void) {
 
     memset(&cl, 0, sizeof(struct client_state));
     CL_ControlGroupsReset();
+    CL_ResetFrameHistory();
 
     SZ_Clear (&cls.netchan.message);
+    /* A cleared session starts a new netchan session too. On client_connect the server has just restarted the slot's
+     * netchan (SV_Map rebuilds lobby slots, SV_DirectConnect a same-port reconnect); keeping the old sequence numbers
+     * made each side drop the other's packets as stale and deadlocked the UDP lobby-to-game start. */
+    Netchan_Reset(&cls.netchan);
 }
 
 /* Forward declarations for UI callbacks */
@@ -184,7 +198,20 @@ static void CL_MenuCommand(cstring_t command) {
     Cbuf_AddText("\n");
 }
 
+/* Q2 CL_Disconnect: always tell the server, even a local one about to shut down; the server
+ * discards a dead session's loopback datagrams when it next initializes. */
+static void CL_SendDisconnect(void) {
+    if (cls.state < ca_connected) return;
+    SZ_Clear(&cls.netchan.message);
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    MSG_WriteString(&cls.netchan.message, "disconnect");
+    Netchan_Transmit(NS_CLIENT, &cls.netchan);
+}
+
+static void CL_CancelCinematicSession(void);
+
 static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu) {
+    CL_CancelCinematicSession();
     Cbuf_ClearDefer();
     if (cls.state == ca_disconnected) {
         return;
@@ -192,12 +219,7 @@ static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu
 
     fprintf(stderr, "CL_Disconnect: %s\n", reason && *reason ? reason : "disconnected");
 
-    if (cls.state >= ca_connected) {
-        SZ_Clear(&cls.netchan.message);
-        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        MSG_WriteString(&cls.netchan.message, "disconnect");
-        Netchan_Transmit(NS_CLIENT, &cls.netchan);
-    }
+    CL_SendDisconnect();
 
     if (cls.netchan.remote_address.type == NA_EOS) Online_Leave();
     CL_ClearState();
@@ -541,7 +563,8 @@ void CL_BeginLoadingMap(cstring_t mapName) {
     SCR_BeginLoadingPlaque();
     /* New map baselines repopulate the compact active-entity list; drop any
      * stale entries from the previous map before they arrive. */
-    cl.num_active = 0;
+    cl.num_active = cl.num_modelless = 0;
+    CL_ResetFrameHistory();
 }
 
 int CL_ModelIndex(cstring_t modelName) {
@@ -673,47 +696,148 @@ void MenuAction(cstring_t action, cstring_t arg) {
     cl_pending_menu_action = pending;
 }
 
-void CL_QueueMovie(cstring_t path) {
+static void CL_QueueCinematic(cstring_t path, bool model) {
     if (!path || !*path) return;
-    if (cl_pending_movie[0]) {
-        fprintf(stderr, "CL_QueueMovie: replacing pending movie %s with %s\n", cl_pending_movie, path);
+    if (cl_cinematic_queue_count >= CL_MAX_QUEUED_CINEMATICS) {
+        fprintf(stderr, "CL_QueueCinematic: queue full, rejecting %s\n", path);
+        return;
     }
-    snprintf(cl_pending_movie, sizeof(cl_pending_movie), "%s", path);
+    cl_cinematic_queue[cl_cinematic_queue_count].model = model;
+    snprintf(cl_cinematic_queue[cl_cinematic_queue_count].path,
+             sizeof(cl_cinematic_queue[cl_cinematic_queue_count].path), "%s", path);
+    cl_cinematic_queue_count++;
 }
+
+void CL_QueueMovie(cstring_t path) { CL_QueueCinematic(path, false); }
+void CL_QueueModelCinematic(cstring_t path) { CL_QueueCinematic(path, true); }
+
+/* The client owns the session pause and deferred transition. A presentation
+ * renderer may only start/stop its own asset, never change the game session. */
+static void CL_CancelCinematicSession(void) {
+    CL_MovieCancel();
+    cl_cinematic_queue_count = 0;
+    memset(&cl_movie_deferred_action, 0, sizeof(cl_movie_deferred_action));
+    if (cl_cinematic_paused && SV_IsActive())
+        SV_SetPaused(cl_cinematic_previous_pause);
+    cl_cinematic_paused = false;
+    cl_cinematic_previous_pause = false;
+}
+
+static bool CL_HasModelCinematic(void) {
+    FOR_LOOP(i, cl_cinematic_queue_count)
+        if (cl_cinematic_queue[i].model) return true;
+    return false;
+}
+
+static bool CL_CanStartCinematic(bool transition_pending) {
+    /* Model scenes may run standalone. Movie files are transition interposers
+     * and must not interrupt the map's remaining scripted ending. */
+    return transition_pending || CL_HasModelCinematic();
+}
+
+/* A model ending scene precedes an unlock movie queued earlier by
+ * SetCinematicAvailableBJ. Preserve FIFO order within each presentation type. */
+static bool CL_PopCinematic(PATHSTR path, bool *model, bool allow_movie) {
+    uint32_t index = cl_cinematic_queue_count;
+    FOR_LOOP(i, cl_cinematic_queue_count)
+        if (cl_cinematic_queue[i].model) { index = i; break; }
+    if (index == cl_cinematic_queue_count) {
+        if (!allow_movie || !cl_cinematic_queue_count) return false;
+        index = 0;
+    }
+    *model = cl_cinematic_queue[index].model;
+    snprintf(path, sizeof(PATHSTR), "%s", cl_cinematic_queue[index].path);
+    cl_cinematic_queue_count--;
+    memmove(cl_cinematic_queue + index, cl_cinematic_queue + index + 1,
+            (cl_cinematic_queue_count - index) * sizeof(cl_cinematic_queue[0]));
+    return true;
+}
+
+/* Missing files are skipped, not allowed to hold a queued victory indefinitely. */
+static bool CL_StartNextCinematic(bool allow_movie) {
+    PATHSTR path;
+    bool model;
+    while (CL_PopCinematic(path, &model, allow_movie)) {
+        if (model ? CL_PlayModelCinematic(path) : CL_PlayMovie(path)) return true;
+    }
+    return false;
+}
+
+#ifdef BZ_TESTS
+TEST(client_cinematic, ending_model_precedes_unlock_movies_and_movies_wait_for_transition) {
+    PATHSTR path;
+    bool model;
+    cl_cinematic_queue_count = 0;
+    CL_QueueMovie("Movies\\OutroX.mpq");
+    T_ASSERT(!CL_CanStartCinematic(false));
+    CL_QueueModelCinematic("Doodads\\Cinematic\\ArthasIllidanFight\\ArthasIllidanFight.mdl");
+    T_ASSERT(CL_CanStartCinematic(false));
+    CL_QueueMovie("Movies\\later.mpq");
+    T_ASSERT(CL_PopCinematic(path, &model, false));
+    T_ASSERT(model);
+    T_STREQ(path, "Doodads\\Cinematic\\ArthasIllidanFight\\ArthasIllidanFight.mdl");
+    T_ASSERT(!CL_PopCinematic(path, &model, false));
+    T_EQ(cl_cinematic_queue_count, 2u);
+    T_ASSERT(CL_CanStartCinematic(true));
+    T_ASSERT(CL_PopCinematic(path, &model, true));
+    T_ASSERT(!model);
+    T_STREQ(path, "Movies\\OutroX.mpq");
+    T_ASSERT(CL_PopCinematic(path, &model, true));
+    T_STREQ(path, "Movies\\later.mpq");
+    T_ASSERT(!CL_PopCinematic(path, &model, true));
+}
+
+TEST(client_cinematic, queue_capacity_never_discards_existing_scenes) {
+    PATHSTR path;
+    bool model;
+    cl_cinematic_queue_count = 0;
+    FOR_LOOP(i, CL_MAX_QUEUED_CINEMATICS) CL_QueueMovie("movie.mpq");
+    CL_QueueModelCinematic("overflow.mdl");
+    T_EQ(cl_cinematic_queue_count, (uint32_t)CL_MAX_QUEUED_CINEMATICS);
+    FOR_LOOP(i, CL_MAX_QUEUED_CINEMATICS) {
+        T_ASSERT(CL_PopCinematic(path, &model, true));
+        T_STREQ(path, "movie.mpq");
+        T_ASSERT(!model);
+    }
+    T_ASSERT(!CL_PopCinematic(path, &model, true));
+}
+#endif
 
 static void CL_ProcessPendingMenuAction(void) {
     clPendingMenuAction_t pending;
 
     if (CL_MovieActive()) return;
-
-    if (cl_movie_deferred_action.type != CL_MENU_ACTION_NONE) {
+    if (cl_cinematic_paused) {
+        /* The previous scene completed/skipped. Keep the simulation frozen
+         * while the next queued scene starts; execute transition only at EOF. */
+        bool transition_pending = cl_movie_deferred_action.type != CL_MENU_ACTION_NONE;
+        if (CL_CanStartCinematic(transition_pending) &&
+            CL_StartNextCinematic(transition_pending)) return;
         pending = cl_movie_deferred_action;
         memset(&cl_movie_deferred_action, 0, sizeof(cl_movie_deferred_action));
-        if (SV_IsActive()) SV_SetPaused(false);
-        goto execute;
+        cl_cinematic_paused = false;
+        if (SV_IsActive()) SV_SetPaused(cl_cinematic_previous_pause);
+        cl_cinematic_previous_pause = false;
+        if (pending.type != CL_MENU_ACTION_NONE) goto execute;
     }
-    if (cl_pending_menu_action.type == CL_MENU_ACTION_NONE) return;
+    if (!CL_CanStartCinematic(cl_pending_menu_action.type != CL_MENU_ACTION_NONE)) return;
 
-    /* Clear first: the transition may initialize a new game module which can
-     * itself publish a later session action without being overwritten here. */
     pending = cl_pending_menu_action;
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
-
-    /* PlayCinematic is a session-boundary interposer: preserve the requested
-     * map/menu transition, freeze the outgoing simulation, then execute the
-     * transition only after the movie ends or is skipped. */
-    if (cl_pending_movie[0]) {
-        PATHSTR movie;
-        snprintf(movie, sizeof(movie), "%s", cl_pending_movie);
-        cl_pending_movie[0] = '\0';
+    if (cl_cinematic_queue_count) {
         cl_movie_deferred_action = pending;
+        cl_cinematic_paused = true;
+        cl_cinematic_previous_pause = SV_IsActive() && Cvar_Integer("paused", 0) != 0;
         if (SV_IsActive()) SV_SetPaused(true);
-        if (CL_PlayMovie(movie)) return;
-        if (SV_IsActive()) SV_SetPaused(false);
+        if (CL_StartNextCinematic(pending.type != CL_MENU_ACTION_NONE)) return;
+        /* Every queued asset failed. Restore the original scheduler state and
+         * perform the authored transition rather than freezing the campaign. */
+        if (SV_IsActive()) SV_SetPaused(cl_cinematic_previous_pause);
+        cl_cinematic_previous_pause = false;
+        cl_cinematic_paused = false;
         pending = cl_movie_deferred_action;
         memset(&cl_movie_deferred_action, 0, sizeof(cl_movie_deferred_action));
     }
-
 execute:
     switch (pending.type) {
     case CL_MENU_ACTION_MAP:
@@ -821,6 +945,28 @@ TEST(client_session, menu_action_menu_is_deferred_until_client_frame) {
     /* Client-owned leave buttons use this path so they cannot rebuild FDF/menu
      * state while the gameplay window input callback is still on the stack. */
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+}
+
+TEST(client_session, disconnect_always_tells_the_local_server_it_left) {
+    struct client_static old_cls = cls;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memset(&cls, 0, sizeof(cls));
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    cls.state = ca_connected;
+
+    /* Even when SV_Shutdown follows (mission exit), the stale packet is the server's to discard
+     * (server_net.stale_loopback_disconnect_does_not_drop_next_local_session). */
+    CL_SendDisconnect();
+    T_ASSERT(NET_GetLoopPacket(NS_SERVER, &from, &packet) > 0);
+    T_EQ(MSG_ReadByte(&packet), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&packet), "disconnect");
+
+    cls = old_cls;
 }
 
 static uint32_t cl_test_menu_shutdown_count;
@@ -1078,6 +1224,49 @@ TEST(client_session, connection_reply_requires_matching_protocol) {
     re.RegisterMap = old_register_map;
     memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
 }
+
+/* A UDP lobby that starts its game, or a same-port reconnect, rebuilds the server's slot and netchan at sequence 0 and
+ * announces it with client_connect. The client must restart its own netchan there too: otherwise it drops every server
+ * packet as stale and the server drops its "new" as acknowledging packets never sent. */
+TEST(client_session, connection_reply_restarts_sequenced_netchan) {
+    static struct netchan server;
+    static uint8_t packet[MAX_MSGLEN];
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    netadr_t const host = { .type = NA_IP, .ip = { 127, 0, 0, 1 }, .port = 0x1234 };
+    uint8_t bytes[128];
+    sizeBuf_t oob = { .data = bytes, .maxsize = sizeof(bytes) }, msg = { .data = packet, .maxsize = sizeof(packet) };
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestRegisterMap;
+    cls.netchan.remote_address = host;
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    Netchan_Reset(&cls.netchan);
+    memset(&server, 0, sizeof(server));
+    server.remote_address = host;
+    SZ_Init(&server.message, server.message_buf, MAX_MSGLEN);
+    cls.state = ca_connected;
+    FOR_LOOP(i, 4) { /* the lobby: both ends advance their sequences */
+        MSG_WriteByte(&server.message, svc_nop);
+        msg.cursize = Netchan_BuildPacket(&server, packet, sizeof(packet));
+        T_ASSERT(Netchan_Process(&cls.netchan, &msg));
+        CL_ClientCommand("lobby_say hi");
+        msg.cursize = Netchan_BuildPacket(&cls.netchan, packet, sizeof(packet));
+        T_ASSERT(Netchan_Process(&server, &msg));
+    }
+    Netchan_Reset(&server); /* SV_Map / SV_DirectConnect rebuild the slot */
+    MSG_WriteLong(&oob, -1); MSG_WriteString(&oob, "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION));
+    CL_ConnectionlessPacket(&host, &oob);
+    msg.cursize = Netchan_BuildPacket(&cls.netchan, packet, sizeof(packet));
+    T_ASSERT(Netchan_Process(&server, &msg));
+    T_EQ(MSG_ReadByte(&msg), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&msg), "new");
+    MSG_WriteByte(&server.message, svc_nop);
+    msg.cursize = Netchan_BuildPacket(&server, packet, sizeof(packet));
+    T_ASSERT(Netchan_Process(&cls.netchan, &msg));
+    re.RegisterMap = old_register_map;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
 #endif
 
 static void CL_ReadPacketMessage(netadr_t const *from, sizeBuf_t *msg, int length) {
@@ -1095,6 +1284,10 @@ static void CL_ReadPacketMessage(netadr_t const *from, sizeBuf_t *msg, int lengt
             CL_ConnectionlessPacket(from, msg);
             return;
         }
+    }
+    if (Netchan_IsSequenced(&cls.netchan)) {
+        /* Q2 netchan: only the connected server's sequenced packets count, and stale or duplicated ones are dropped. */
+        if (!NET_CompareAdr(from, &cls.netchan.remote_address) || !Netchan_Process(&cls.netchan, msg)) return;
     }
     CL_ParseServerMessage(msg);
 }
@@ -1235,6 +1428,8 @@ void CL_Connect(cstring_t host, unsigned short port) {
     }
     cls.netchan.remote_address = adr;
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    Netchan_Reset(&cls.netchan);
+    CL_ResetFrameHistory();
     Cbuf_CopyToDefer();
     cls.state = ca_connecting;
     // Send an out-of-band "connect" request; the server will register this
@@ -1248,6 +1443,7 @@ void CL_Connect(cstring_t host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
+    CL_CancelCinematicSession();
     CL_SuspendMenu();
     cl_menu_life = CL_MENU_UNLOADED;
     FOR_LOOP(modelIndex, MAX_MODELS) {

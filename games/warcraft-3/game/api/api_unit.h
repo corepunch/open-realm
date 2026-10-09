@@ -193,19 +193,28 @@ uint32_t ShowUnit(jass_t *j) {
     return 0;
 }
 
-JASS_API(SetUnitState,
-(edict_t, whichUnit, "unit"),
-(UNITSTATE, whichUnitState, "unitstate"),
-(number, newVal))
-{
+uint32_t SetUnitState(jass_t *j) {
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
+    float newVal = jass_checknumber(j, 3);
+    float oldLife;
     bool was_dead;
     if (!whichUnit || !whichUnitState) {
-        return;
+        return 0;
     }
     was_dead = M_IsDead(whichUnit);
-    if (*whichUnitState == WC3_UNIT_STATE_LIFE) G_SetHealth(whichUnit, newVal);
+    oldLife = whichUnit->health.value;
+    if (*whichUnitState == WC3_UNIT_STATE_LIFE) {
+        G_SetHealth(whichUnit, newVal);
+        /* A JASS life write to zero is a death transition. G_SetHealth updates
+         * the value and state-limit events; unit_die owns death events,
+         * animation, cleanup, and campaign triggers that react to death. */
+        if (oldLife > 0.0f && newVal <= 0.0f && !(whichUnit->svflags & SVF_DEADMONSTER) && whichUnit->die)
+            whichUnit->die(whichUnit, NULL);
+    }
     else (&whichUnit->health.value)[*whichUnitState] = newVal;
     if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichUnit)) G_FowMarkBlockersDirty();
+    return 0;
 }
 //uint32_t SetUnitState(jass_t *j) {
 //    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -314,6 +323,19 @@ uint32_t SetUnitUserData(jass_t *j) {
 uint32_t GetUnitUserData(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichUnit ? whichUnit->user_data : 0);
+}
+/* BZ_COMPAT_GUESS: retail does not document the return contract for null or
+ * repeated requests.  For a valid unit, report success.  The getter always
+ * reports the stored flag; this only mutes alarms, never retaliation/damage. */
+uint32_t UnitIgnoreAlarm(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    bool ignore = jass_checkboolean(j, 2);
+    if (unit && unit->inuse) unit->ignore_alarm = ignore;
+    return jass_pushboolean(j, unit && unit->inuse);
+}
+uint32_t UnitIgnoreAlarmToggled(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, unit && unit->inuse && unit->ignore_alarm);
 }
 uint32_t UnitSetUsesAltIcon(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -450,6 +472,27 @@ uint32_t AddHeroXP(jass_t *j) {
         /* Cap at INT32_MAX so GetHeroXP (signed return) never reads negative. */
         uint32_t sum = cur + add;
         G_HeroSetXP(whichHero, (sum < cur || sum > (uint32_t)INT32_MAX) ? (uint32_t)INT32_MAX : sum);
+    }
+    return 0;
+}
+uint32_t UnitStripHeroLevel(jass_t *j) {
+    edict_t *whichHero = jass_checkhandle(j, 1, "unit");
+    int32_t const levels = jass_checkinteger(j, 2);
+    return jass_pushboolean(j, levels > 0 && G_HeroStripLevels(whichHero, (uint32_t)levels));
+}
+uint32_t SetHeroLevelBJ(jass_t *j) {
+    edict_t *whichHero = jass_checkhandle(j, 1, "unit");
+    int32_t const newLevel = jass_checkinteger(j, 2);
+    /* The Blizzard.j wrapper uses SetHeroLevel for raises and the strip
+     * native for reductions. The third showEyeCandy argument applies only
+     * to the raise path and is currently a presentation TODO. */
+    if (!whichHero || !G_UnitIsHero(whichHero)) return 0;
+    if (newLevel < (int32_t)whichHero->hero.level) {
+        int64_t const remove = (int64_t)whichHero->hero.level - newLevel;
+        G_HeroStripLevels(whichHero, (uint32_t)MIN(remove, (int64_t)UINT32_MAX));
+    } else if (newLevel > (int32_t)whichHero->hero.level) {
+        uint32_t const target = MIN((uint32_t)newLevel, G_MaxHeroLevel());
+        G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, G_HeroXPForLevel(target)));
     }
     return 0;
 }

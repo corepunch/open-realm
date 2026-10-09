@@ -148,8 +148,9 @@ static void capture_sprite(drawSprite_t const *sprite) {
 
 TEST(client_layout, context_name_resolves_hover_entity_configstring) {
     uiFrame_t frame = { .stat = UI_STAT_CONTEXT_NAME };
-    uint32_t const entnum = 7, name = 3;
+    uint32_t const entnum = 7, name = ENT_NAMES_PER_CS + 1;
     uint32_t const ni = name - 1;
+    uint32_t const cs_index = CS_GENERAL + ni / ENT_NAMES_PER_CS;
 
     test_client_stubs_init();
     SCR_ClearLayer(NULL, LAYER_WORLD_HOVER);
@@ -157,8 +158,8 @@ TEST(client_layout, context_name_resolves_hover_entity_configstring) {
     cl.ents[entnum].current = (entityState_t){
         .model = 1, .name = name, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 255 },
     };
-    memset(cl.configstrings[CS_GENERAL], 0, sizeof(cl.configstrings[CS_GENERAL]));
-    snprintf(cl.configstrings[CS_GENERAL] + (ni & 0xF) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Footman");
+    memset(cl.configstrings[cs_index], 0, sizeof(cl.configstrings[cs_index]));
+    snprintf(cl.configstrings[cs_index] + (ni % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Footman");
 
     T_STREQ(SCR_GetStringValue(&frame), "Footman");
 }
@@ -176,7 +177,7 @@ TEST(client_layout, context_name_appends_live_hover_value) {
         .stats = { [ENT_HEALTH] = 255 },
     };
     memset(cl.configstrings[CS_GENERAL], 0, sizeof(cl.configstrings[CS_GENERAL]));
-    snprintf(cl.configstrings[CS_GENERAL] + (ni & 0xF) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Gold Mine");
+    snprintf(cl.configstrings[CS_GENERAL] + (ni % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Gold Mine");
 
     T_STREQ(SCR_GetStringValue(&frame), "Gold Mine\nGold: 12500");
     cl.ents[entnum].current.hover_value = 12491;
@@ -880,6 +881,30 @@ TEST(net, loopback_round_trip) {
     T_ASSERT(memcmp(msg.data, payload, sizeof(payload)) == 0);
     T_EQ(from.type, NA_LOOPBACK);
     T_EQ(NET_GetPacket(NS_SERVER, &from, &msg), 0);
+}
+
+TEST(net, loopback_clear_discards_only_the_named_receiver_queue) {
+    static uint8_t   msg_buf[MAX_MSGLEN];
+    static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
+    netadr_t adr = loopback_adr(), from;
+    uint8_t const to_server[] = { 0x11, 0x12 }, to_client[] = { 0x21 }, later[] = { 0x31, 0x32, 0x33 };
+
+    drain_loopback(NS_SERVER); drain_loopback(NS_CLIENT);
+    NET_SendPacket(NS_CLIENT, sizeof(to_server), to_server, adr);
+    NET_SendPacket(NS_CLIENT, sizeof(to_server), to_server, adr);
+    NET_SendPacket(NS_SERVER, sizeof(to_client), to_client, adr);
+
+    NET_ClearLoopPackets(NS_SERVER);
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &msg), 0);
+    T_EQ(NET_GetLoopPacket(NS_CLIENT, &from, &msg), (int)sizeof(to_client));
+    T_EQ(msg.data[0], 0x21);
+
+    /* The cleared queue keeps working for the next session. */
+    NET_SendPacket(NS_CLIENT, sizeof(later), later, adr);
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &msg), (int)sizeof(later));
+    T_ASSERT(memcmp(msg.data, later, sizeof(later)) == 0);
+    NET_ClearLoopPackets(NS_SERVER);
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &msg), 0);
 }
 
 TEST(net, loopback_multiple_packets_in_order) {
@@ -3459,12 +3484,12 @@ TEST(net, entity_delta_preserves_destructable_presentation_image) {
     T_EQ(out.image, 7);
 }
 
-/* Dead destructable remains rely on EF_NOT_SELECTABLE surviving snapshots, so
- * guard its round trip explicitly. */
-TEST(net, entity_delta_preserves_not_selectable_flag) {
+/* Selection filtering and candidate ordering depend on these flags surviving snapshots. */
+TEST(net, entity_delta_preserves_selection_candidate_flags) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .flags = EF_NOT_SELECTABLE }, out = { 0 };
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1,
+        .flags = EF_NOT_SELECTABLE | EF_UNIT | EF_ALLIED }, out = { 0 };
     uint32_t bits = 0;
     int number;
 
@@ -3475,6 +3500,8 @@ TEST(net, entity_delta_preserves_not_selectable_flag) {
 
     T_EQ(number, 9);
     T_ASSERT(out.flags & EF_NOT_SELECTABLE);
+    T_ASSERT(out.flags & EF_UNIT);
+    T_ASSERT(out.flags & EF_ALLIED);
 }
 
 TEST(net, entity_delta_preserves_wc3_resource_placement_flags) {
@@ -3567,6 +3594,25 @@ TEST(net, entity_delta_preserves_neutral_flag) {
 
     T_EQ(number, 9);
     T_ASSERT(out.flags & EF_NEUTRAL);
+}
+
+/* Water-supported selection circles are selected by WC3 object data, then
+ * carried to the universal renderer as recipient-authored entity state. */
+TEST(net, entity_delta_preserves_water_selection_circle_flag) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1,
+        .flags = EF_SELECTION_CIRCLE_ON_WATER }, out = { 0 };
+    uint32_t bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_SELECTION_CIRCLE_ON_WATER);
 }
 
 /* Ground-surface presentation flags are shared snapshot state: WC3 uses them

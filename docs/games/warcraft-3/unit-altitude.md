@@ -49,12 +49,15 @@ immediately until rate interpolation is implemented as a separate feature.
 | `amph` swimming (`SWIMMABLE && !WALKABLE`) | `max(terrain, water)` | yes |
 
 Water height comes from the W3E `waterlevel` field using the same bilinear interpolation and
-`WATER_HEIGHT_COR` decode as the renderer. Amphibious swimming classification uses the immutable terrain WPM, not
+`W3_WaterSurfaceHeight` decode as the renderer: the W3E level plus the tileset's `Water.slk` `height`
+(`G_ApplyTilesetWaterHeight` on map load; Outland -1.5 tiles). Amphibious swimming classification uses the immutable terrain WPM, not
 baked/static building obstacles; `CM_TerrainPointIsWalkable` and `CM_TerrainPointIsSwimmable` expose that distinction.
 
-Walkable destructables currently use their authored entity Z over the rectangular pathing-texture footprint. This is an
-OpenRealm approximation of Warsmash's rendered-model collision/raycast. Keep that distinction explicit if bridge
-collision is upgraded later.
+Walkable destructables normally use their authored entity Z over the rectangular pathing-texture footprint. The DTrx/DTrf
+elevators add their mutable `occluder_height` to that Z immediately, matching `ChangeElevatorHeight`; unit collision size
+extends the elevator support footprint so units can stand near the deck edge. Other bridges retain their authored Z.
+Renderer mesh conformance may raise a supported unit to the visible surface, but it cannot lower the server-authored
+altitude. See [Warcraft III elevators](elevators.md) for the elevator state and animation contract.
 
 ## Projectile Height
 
@@ -95,7 +98,8 @@ These related Warsmash features need broader renderer/network/pathing work and s
 
 - `FLOAT` swimability and full `AMPH` horizontal routing;
 - terrain slope pitch/roll from `elevRad`, `maxPitch`, and `maxRoll`;
-- `selZ`/selection-circle height and bridge/water-aware splat placement;
+- `selZ`-driven authored selection-circle height; water-supported and walkable-destructable selection, hover, and
+  indicator rings already use their support surface;
 - shadow bridge/water semantics;
 - gradual `SetUnitFlyHeight` rate interpolation and transform takeoff/landing timers.
 

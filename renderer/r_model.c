@@ -30,6 +30,17 @@ bool R_MapAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate
     return written > 0 && (uint32_t)written < candidate_size;
 }
 
+/* Shared asset lookup order: map import, then the game's archive layer, then base data. Retail WC3 has the
+ * same precedence for the map archive, the tileset archive and War3(x).mpq. */
+void R_AssetCandidates(cstring_t asset, assetCandidates_t *out) {
+    memset(out, 0, sizeof(*out));
+    if (!asset || !*asset) return;
+    out->scoped = R_MapAssetCandidate(asset, out->path[out->count], sizeof(out->path[0]));
+    if (out->scoped) out->count++;
+    if (R_GameAssetCandidate(asset, out->path[out->count], sizeof(out->path[0]))) out->count++;
+    snprintf(out->path[out->count++], sizeof(out->path[0]), "%s", asset);
+}
+
 void R_SetMapAssetScope(cstring_t scope) {
     r_map_asset_scope[0] = '\0';
     if (scope && *scope) snprintf(r_map_asset_scope, sizeof(r_map_asset_scope), "%s", scope);
@@ -72,12 +83,13 @@ static model_t *R_LoadRegisteredModelPath(cstring_t modelFilename, bool cache_mi
 
 /* Quake II keeps one renderer model entry per resolved filename and marks it during registration. */
 model_t *R_LoadRegisteredModel(cstring_t modelFilename) {
-    PATHSTR scoped;
+    assetCandidates_t candidates;
     model_t *model;
 
     if (!modelFilename || !*modelFilename) return R_LoadEmptyModel("<empty>", "empty filename");
-    if (R_MapAssetCandidate(modelFilename, scoped, sizeof(scoped))) {
-        model = R_LoadRegisteredModelPath(scoped, false);
+    R_AssetCandidates(modelFilename, &candidates);
+    FOR_LOOP(i, candidates.count - 1) {
+        model = R_LoadRegisteredModelPath(candidates.path[i], false);
         if (model) return model;
     }
     return R_LoadRegisteredModelPath(modelFilename, true);

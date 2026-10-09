@@ -43,15 +43,19 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 background music, `Music.slk`/skin lookup, `svc_music`, optional FFmpeg streaming | [docs/games/warcraft-3/music.md](docs/games/warcraft-3/music.md) |
 | WC3 MDX `EVTS` presentation events, `SND` sounds, `SPN` child models, `SPL`/`FPT` SplatData decals, `UBR` UberSplats, transient lifetimes | [docs/games/warcraft-3/mdx-event-objects.md](docs/games/warcraft-3/mdx-event-objects.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
+| WC3 critter wandering (`Awan`): idle scheduling, Move ownership events, flee, building clearance, save fields, scheduler-path tests | [docs/games/warcraft-3/critter-ai.md](docs/games/warcraft-3/critter-ai.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
 | WC3 group Attack, target chase, collision range, and remaining combat-movement gaps | [docs/games/warcraft-3/group-attack-chase-gaps.md](docs/games/warcraft-3/group-attack-chase-gaps.md) |
 | WC3 naval movement, FLOAT/AMPH water pathing, collision domains, bridge semantics | [docs/games/warcraft-3/naval-movement.md](docs/games/warcraft-3/naval-movement.md) |
+| WC3 alarm/captain AI natives and full-screen model cinematic compatibility | [docs/games/warcraft-3/campaign-ai-model-cinematic.md](docs/games/warcraft-3/campaign-ai-model-cinematic.md) |
 | WC3 JASS native coverage, callback contracts, state ownership | [games/warcraft-3/jass-native-coverage.md](games/warcraft-3/jass-native-coverage.md) |
 | WC3 AI next-upgrade cost queries and `ShiftTownSpot` construction placement state | [docs/games/warcraft-3/ai-upgrade-costs-and-town-spot.md](docs/games/warcraft-3/ai-upgrade-costs-and-town-spot.md) |
 | WC3 event-trigger queueing, synchronous `TriggerExecute`, coroutine context | [docs/games/warcraft-3/trigger-events.md](docs/games/warcraft-3/trigger-events.md) |
+| WC3 JASS choice dialogs, modal input, event context, remaining retail gaps | [docs/games/warcraft-3/jass-dialogs.md](docs/games/warcraft-3/jass-dialogs.md) |
 | WC3 timer-dialog mission countdowns, stock FDF HUD, local visibility, save/load identity | [docs/games/warcraft-3/timer-dialogs.md](docs/games/warcraft-3/timer-dialogs.md) |
 | WC3 leaderboards, counted-objective HUDs, per-player assignment, save/load identity | [docs/games/warcraft-3/leaderboards.md](docs/games/warcraft-3/leaderboards.md) |
-| WC3 multiboard/texttag JASS registries, local display bits, presentation gaps | [docs/games/warcraft-3/multiboard-and-texttag.md](docs/games/warcraft-3/multiboard-and-texttag.md) |
+| WC3 Team Resources HUD, multiboard sharing and advanced shared-control permission boundary | [docs/games/warcraft-3/team-resources.md](docs/games/warcraft-3/team-resources.md) |
+| WC3 multiboard/texttag JASS registries, single visible board, suppression, HUD limitations | [docs/games/warcraft-3/multiboard-and-texttag.md](docs/games/warcraft-3/multiboard-and-texttag.md) |
 | WC3 campaign map bulk runtime audit, per-map reports, commands | [docs/games/warcraft-3/map-audit.md](docs/games/warcraft-3/map-audit.md) |
 | WC3 DotA custom-map playability, protected-MPQ load, hashtable demand | [docs/games/warcraft-3/dota-map-playability.md](docs/games/warcraft-3/dota-map-playability.md) |
 | WC3 JASS group handle lifecycle, DestroyGroup slot reuse, save/load identity | [docs/games/warcraft-3/jass-groups.md](docs/games/warcraft-3/jass-groups.md) |
@@ -62,6 +66,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 game save/load format, Hero walk diagnostic, `F_CFUNCTION` C callbacks, and `field_t` synchronization | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
 | WC3 HUD texture/font indices vs names across `SV_Map` / save-load | [docs/games/warcraft-3/hud-media.md](docs/games/warcraft-3/hud-media.md) |
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
+| WC3 ground tile atlas layout, nested `<tileset>.mpq` texture layer, Water.slk water height/tint/animation | [docs/games/warcraft-3/terrain-tiles-and-water.md](docs/games/warcraft-3/terrain-tiles-and-water.md) |
 | WC3 environmental terrain fog / distance mist, `SetTerrainFogEx`, `DefaultZFog`, renderer handoff | [docs/games/warcraft-3/environmental-fog.md](docs/games/warcraft-3/environmental-fog.md) |
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |
 | WC3 Night Elf Hide/Shadow Meld, ambush order, fade/reveal rules, detection integration | [docs/games/warcraft-3/shadowmeld.md](docs/games/warcraft-3/shadowmeld.md) |
@@ -69,7 +74,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 natural neutral-creep sleep, `canSleep`, sleep natives, wake rules, and known camp gaps | [docs/games/warcraft-3/creep-sleep.md](docs/games/warcraft-3/creep-sleep.md) |
 | WC3 Stop guard position, automatic-combat return, explicit-order priority, and broader creep/JASS guard follow-up | [docs/games/warcraft-3/guard-position.md](docs/games/warcraft-3/guard-position.md) |
 | WC3 regeneration auras and Fountain health/mana alias/data flow | [docs/games/warcraft-3/regeneration-auras.md](docs/games/warcraft-3/regeneration-auras.md) |
-| WC3 aura target masks, RoC rank columns, and scenery overlay filtering | [docs/games/warcraft-3/aura-targets-and-overlays.md](docs/games/warcraft-3/aura-targets-and-overlays.md) |
+| WC3 aura target masks, RoC rank columns, source pattern vs recipient glow | [docs/games/warcraft-3/aura-targets-and-overlays.md](docs/games/warcraft-3/aura-targets-and-overlays.md) |
 | WC3 mutable Blight world state, Abli growth, placement/regen, JASS natives, save/load | [docs/games/warcraft-3/blight.md](docs/games/warcraft-3/blight.md) |
 | WC3 Barkskin modal autocast, authored armor status, expiry/death inverse | [docs/games/warcraft-3/barkskin.md](docs/games/warcraft-3/barkskin.md) |
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |
@@ -98,6 +103,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 mouse-edge scroll cursors, eight authored MDX directions, retail keyboard distinction | [docs/games/warcraft-3/scroll-cursors.md](docs/games/warcraft-3/scroll-cursors.md) |
 | WC3 retail cursor frame/sprite ownership, animation clocks, virtual xrefs, D3D draw chain, reusable Ghidra/Frida probes | [docs/games/warcraft-3/cursor-rendering.md](docs/games/warcraft-3/cursor-rendering.md) |
 | Client numbered control groups (`cl.groups`), WC3/SC2 binds, double-tap camera focus | [docs/games/warcraft-3/control-groups.md](docs/games/warcraft-3/control-groups.md) |
+| WC3 12/24 selection policy, authoritative trimming, compact HUD and client-side cap | [docs/games/warcraft-3/selection-limit.md](docs/games/warcraft-3/selection-limit.md) |
 | WC3 Shift command queuing, per-unit FIFO orders, target revalidation, replacement/Stop semantics | [docs/games/warcraft-3/order-queue.md](docs/games/warcraft-3/order-queue.md) |
 | WC3 point-order confirmation markers, transient feedback, support-surface grounding | [docs/games/warcraft-3/command-feedback.md](docs/games/warcraft-3/command-feedback.md) |
 | WC3 issued target/point-order JASS events, order/target/point callback context, campaign tutorial compatibility | [docs/games/warcraft-3/issued-target-order-events.md](docs/games/warcraft-3/issued-target-order-events.md) |
@@ -125,9 +131,11 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Required Animation Names (`animProps`/`uani`), alternate forms, `AddUnitAnimationProperties`, tagged MDX sequence selection | [docs/games/warcraft-3/unit-animation-properties.md](docs/games/warcraft-3/unit-animation-properties.md) |
 | WC3 resource-worker crowd routing and Human02 30-Peasant simulation | [docs/games/warcraft-3/worker-crowd-routing.md](docs/games/warcraft-3/worker-crowd-routing.md) |
 | WC3 inventory, world-item lifecycle, item UI presentation | [docs/games/warcraft-3/inventory-and-items.md](docs/games/warcraft-3/inventory-and-items.md) |
+| WC3 HumanX06 elevators: authored height state, wall blockers, and transition sequences | [docs/games/warcraft-3/elevators.md](docs/games/warcraft-3/elevators.md) |
 | WC3 Goblin Land Mines `AIpm`/`Amin`/`Amnx`, delayed death AOE, targeted-item charge completion | [docs/games/warcraft-3/land-mines.md](docs/games/warcraft-3/land-mines.md) |
 | WC3 ability/item presentation art, effect edict lifetimes, JASS effect handles, consumable charge semantics | [docs/games/warcraft-3/ability-and-item-effects.md](docs/games/warcraft-3/ability-and-item-effects.md) |
 | WC3 ability implementation from data, behavior, and focused evidence | [docs/games/warcraft-3/ability-implementation.md](docs/games/warcraft-3/ability-implementation.md) |
+| WC3 Tiny Structures, item-owned construction, shared placement cursor, racial Tiny Great Hall | [docs/games/warcraft-3/tiny-structures.md](docs/games/warcraft-3/tiny-structures.md) |
 | WC3 creep ability aliases, `code=` mapping, parent-owned registry rows | [docs/games/warcraft-3/creep-ability-aliases.md](docs/games/warcraft-3/creep-ability-aliases.md) |
 <| WC3 item orb damage via `CAbilityAttackBonus` and `S_OrbOnHit` BuffID state | [docs/games/warcraft-3/item-orbs.md](docs/games/warcraft-3/item-orbs.md) |
 | WC3 poison on-hit buff state (`Aven`/`Apoi`/`Apo2`), data-driven periodic DPS | [docs/games/warcraft-3/poison-attacks.md](docs/games/warcraft-3/poison-attacks.md) |
@@ -507,6 +515,7 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 ## PR Hygiene and Protocol Stability
 
 - **Add commits; never rewrite history or force-push.**
+- **Commit messages and PR descriptions describe only what the change does and why.** Do not name other games or engines (Quake 2, etc.) or justify the change by comparison with them; state the problem, the behavior now, and the tests. Reference-engine comparisons belong in code comments or docs only where they explain a contract.
 - **Network wire format stays bit-compatible unless explicitly approved.** Network flags and message layouts remain unchanged. Save formats follow the strict rejection policy above; bump their version when their contract changes. State network and save-format impact separately in the PR description.
 - **Note the baseline before fixing.** Run `make test` first and record pre-existing failures. Write each new test before its fix and confirm it fails.
 - **Build the matrix.** Finish with `make test` plus the affected engine suites, building with and without each relevant `DEBUG` define, and building every game target whose shared path changed (e.g. SC2 and WoW for `common/`/`client/`/`renderer/` changes).

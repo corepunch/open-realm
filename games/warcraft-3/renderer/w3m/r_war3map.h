@@ -27,6 +27,20 @@ vec3_t R_GetVertexPosition(war3map_t const *map, uint32_t x, uint32_t y, bool us
 void R_ResetBlightCache(void);
 void R_LoadBlightTexture(uint8_t tileset);
 texture_t const *R_BlightTexture(void);
+#define WC3_MAX_WATER_FRAMES 64 // textures; Water.slk numTex is 45 for stock water, 1 for Outland's Abyss
+/* One tileset's Water.slk "<tileset>Sha" row: animated surface frames and the shallow/deep depth tint bands. */
+typedef struct {
+    texture_t const *frames[WC3_MAX_WATER_FRAMES];
+    uint32_t num_frames;
+    float frame_rate; /* frames per second (texRate) */
+    color32_t shallow_min, shallow_max, deep_min, deep_max;
+    float height; /* tiles below the W3E water level; see W3_WaterSurfaceHeight */
+} wc3WaterStyle_t;
+void R_LoadWaterStyle(uint8_t tileset);
+texture_t const *R_WaterFrame(wc3WaterStyle_t const *style, uint32_t time_ms);
+void R_W3OpenTilesetArchive(uint8_t tileset);
+wc3WaterStyle_t const *R_WaterStyle(void);
+color32_t R_WaterDepthColor(wc3WaterStyle_t const *style, float depth);
 void R_UpdateBlightLayer(void);
 void R_InvalidateBlightLayer(void);
 void R_DrawBlightLayer(void);

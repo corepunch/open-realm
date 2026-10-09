@@ -24,6 +24,38 @@ For a carried item, the carrier's matching inventory slot must point back to
 the item. `G_AddItemToSlot`, `G_PickupItem`, `G_DropItemAt`, `G_DropItem`, and
 `G_RemoveItem` own the world/inventory relationship.
 
+## Blizzard.j Item Drop Helpers
+
+`UnitDropItem(unit, itemId)` and `WidgetDropItem(widget, itemId)` are **Blizzard.j
+script functions**, not the native `UnitDropItemPoint` inventory operation. OpenRealm
+loads the retail `Scripts\Blizzard.j` before the map script, so no separate C
+implementation or additional game-owned loot store is needed.
+
+- Both return `null` for item ID `-1`. Otherwise they roll independent
+  `GetRandomReal(position - 32, position + 32)` values for X and Y, call
+  `CreateItem`, and return the *new* world item. They do not remove or transfer
+  an item from inventory and do not trigger item-acquisition or -drop events.
+- `UnitDropItem` additionally sets `SetItemDropID(newItem, GetUnitTypeId(unit))`
+  and invokes `UpdateStockAvailability(newItem)`. That BJ helper compares the
+  authored `GetItemType` value against `ITEM_TYPE_PERMANENT`, `ITEM_TYPE_CHARGED`,
+  and `ITEM_TYPE_ARTIFACT` and enables the corresponding `bj_stockAllowed*`
+  array index using `GetItemLevel`.
+- `WidgetDropItem` intentionally does **not** set drop ID or update stock.
+  Its position getters accept units, destructables, and items as widgets,
+  including dying source widgets that remain accessible during death triggers.
+- `itemtype` is an enum-style JASS handle: distinct native handles with the
+  same itemtype value must compare equal. This is required for
+  `UpdateStockAvailability` to work; arbitrary entity/widget handles retain
+  identity-based comparisons.
+
+The synthetic test archive contains minimal matching Blizzard.j wrappers only
+for executable regression coverage; production behavior continues to use the
+installed game's Blizzard.j. `wc3_items.blizzard_unit_and_widget_drop_item_create_world_loot`
+checks offsets, handle separation, the `-1` sentinel, the unit-only drop ID,
+stock eligibility and creation without inventory occupancy. Destructable
+loot-trigger integration and source-lifetime edge cases remain separately
+subject to map/runtime coverage; these wrappers do not force pathable drops.
+
 ## Inventory Capability And Capacity
 
 Inventory is ability-defined, not hero-defined. `G_InventoryCapacity` scans the
@@ -425,7 +457,15 @@ permission. Detach/removal always reverses an effect that was already applied,
 even if `CanUseItems` changed while the item was carried, so permission changes
 cannot leak a permanent stat bonus.
 
-Still missing are automatic `powerup` acquisition/use, `cooldownID`/`ignoreCD`
+Automatic acquisition/use is implemented for the supported Speed (`AIsp`/`AIsa`/`APsa`), Gold (`AIgo`), Lumber (`AIlu`), Area Healing (`AIha`), Area Mana (`AImr`/`APmr`/`APmg`), and Resurrection (`APrl`/`APrr`) powerups: these items bypass inventory capacity, execute against the actual picking unit, publish pickup/use events, and are consumed without occupying a slot. An `AB_POWERUP` flag on the ability registry row is the single pickup decision. Most flagged powerups are consumed on touch even when no unit qualifies (for example a mechanical picker of a speed rune). Speed uses authored timed effects, and any rawcode whose AbilityData `code` is a speed procedure gets the `Misc.MaxUnitSpeed` cap; Gold and Lumber use their authored `DataA` resource grants (not upkeep-taxed harvesting income); `AIlu` also supports negative custom-map amounts clamped to zero; Area Healing uses authored `DataA`, `Area`, and target masks, consuming runes even if every valid recipient is at full health; Area Mana uses authored `DataA`, `Area`, and target masks to restore mana to nearby friendly units, capped at each recipient's maximum mana, and consumes even with no missing mana; Resurrection uses authored `DataA` and `Area`, permanently revives nearby friendly non-Hero/non-structure corpses at full life, and leaves the rune in the world with a failed-use message when no eligible corpse is nearby. Other powerup ability families remain on the normal inventory path until their gameplay handlers are implemented.
+
+Rune of Shielding (`rsps`, `ANse`) shares this slot-free pickup/use lifecycle.
+It applies a permanent one-charge `BNss` buff to eligible nearby allies and
+consumes even if none qualify. The shared hostile unit-target spell guard consumes
+the shield once, including for Thunder Bolt, Fire Bolt, and Death Coil missiles at impact. It does not grant the Amulet's
+`ANss` cooldown/rearming ability; physical nets and point/area/beneficial spells
+remain unaffected.
+ Still missing are general automatic `powerup` acquisition/use beyond that supported family, `cooldownID`/`ignoreCD`
 item cooldowns and disabled icons, held-item cursor art, slot swapping, and
 allied-unit giving. Soul Trap implements the stock target/capture/reveal/release
 flow; unusual custom `AIso` targets and their subsystem-specific behavior still

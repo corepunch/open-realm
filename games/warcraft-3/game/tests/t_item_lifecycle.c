@@ -62,7 +62,7 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
         "C;Y2;X1;K\"ratf\"\nC;Y2;X2;K\"AItg\"\nC;Y2;X3;K\"true\"\n"
         "C;Y3;X1;K\"rde2\"\nC;Y3;X2;K\"AIt6\"\nC;Y3;X3;K\"true\"\n"
         "C;Y4;X1;K\"spro\"\nC;Y4;X2;K\"AId1\"\nC;Y4;X3;K\"true\"\nE\n";
-    cstring_t path = "/tmp/openwarcraft3-item-alias-save.bin";
+    cstring_t path = Test_TempPath("item-alias-save.bin");
     uint32_t codes[] = { MAKEFOURCC('r','a','t','f'), MAKEFOURCC('r','d','e','2'), MAKEFOURCC('s','p','r','o') };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);

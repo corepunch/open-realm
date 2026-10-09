@@ -3,6 +3,16 @@
 
 #include "../g_local.h"
 #include "common/ui_constants.h"
+
+/* One svc_layout message replaces one client layer, so every server-authored
+ * HUD surface that may be visible at the same time needs its own layer. */
+_Static_assert(WC3_LAYER_MULTIBOARD != WC3_LAYER_COMMAND_ERROR &&
+               WC3_LAYER_MULTIBOARD != WC3_LAYER_LEADERBOARD &&
+               WC3_LAYER_MULTIBOARD != WC3_LAYER_TIMERDIALOG &&
+               WC3_LAYER_LEADERBOARD != WC3_LAYER_TIMERDIALOG &&
+               WC3_LAYER_COMMAND_ERROR != WC3_LAYER_LEADERBOARD &&
+               WC3_LAYER_COMMAND_ERROR != WC3_LAYER_TIMERDIALOG,
+               "WC3 game HUD layers must not share a LAYER_GAME_N slot");
 #include "../generated/console_ui.h"
 #include "../generated/resource_bar.h"
 #include "../generated/upper_button_bar.h"
@@ -42,7 +52,7 @@
 #define WC3_MESSAGE_LOG_TEXT_SIZE \
     (WC3_MESSAGE_LOG_MAX_ENTRIES * (WC3_MESSAGE_LOG_ENTRY_SIZE + 4) + 1)
 #define HUD_CONSOLE_WIDE_MAX 8 // frames; retail ConsoleUI.fdf authors four widescreen tiles; headroom for custom skins
-#define HUD_DEFERRED_IMAGES 8 // symbolic skin keys registered at write time, not parse time; class-gated chrome only
+#define HUD_DEFERRED_IMAGES 16 // handles; fits deferred console chrome and EscMenu background/state keys
 #define HUD_DEFERRED_IMAGE_BASE MAX_IMAGES // handle base; deferred handles never alias a live CS_IMAGES slot
 
 typedef struct {
@@ -160,6 +170,7 @@ void UI_WriteTimerDialogs(edict_t *ent);
 float UI_TimerDialogLeaderboardOffset(uint32_t client_num);
 void UI_LoadHudLeaderboards(void);
 void UI_WriteLeaderboard(edict_t *ent);
+float UI_LeaderboardMultiboardOffset(uint32_t player_num);
 void UI_WriteFrameValue(frameDef_t const *frame, float value);
 void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params);
 uint32_t UI_GetWrittenFrameNumber(frameDef_t const *frame);
@@ -183,7 +194,7 @@ cstring_t G_CommandButtonValue(cstring_t normal, cstring_t alternate, bool toggl
 bool G_CommandButtonToggleOn(edict_t *ent, abilityitem_t const *item, bool research, int toggle_state);
 void UI_FormatTooltip(cstring_t code, cstring_t tip, cstring_t ubertip, float manacost, string_t out, uint32_t out_size);
 uint32_t UI_ClassIdFromCode(cstring_t code);
-void UI_WriteBuildQueue(edict_t *ent);
+void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer);
 void UI_AddCancelButton(edict_t *ent);
 void UI_AddCommandButton(cstring_t code);
 void UI_AddCommandButtonExtended(cstring_t code, bool research, uint32_t level);

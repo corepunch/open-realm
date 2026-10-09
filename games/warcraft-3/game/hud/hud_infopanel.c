@@ -956,11 +956,13 @@ void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
                                   is_hero);
 }
 
+#define WC3_MULTISELECT_CLASSIC_CAPACITY 12 // units; the original 6x2 icon grid, larger selections need the 8x3 compact grid
+
 void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) {
     edict_t *focused = viewer ? G_GetMainSelectedUnit(viewer) : NULL;
     cstring_t highlight = Theme_String("SelectedSubgroupHighlight", NULL);
 
-    if (count > 12) count = 12;
+    if (count > G_SelectionLimit()) count = G_SelectionLimit();
     uint32_t size = sizeof(uiMultiselect_t) + sizeof(uiMultiselectItem_t) * count;
     uint8_t *buffer = gi.MemAlloc(size);
     uiMultiselect_t *multi = (uiMultiselect_t *)buffer;
@@ -970,8 +972,11 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) 
     multi->hp_bar = gi.ImageIndex("SimpleHpBarConsole");
     multi->mana_bar = gi.ImageIndex("SimpleManaBarConsole");
     multi->focus_highlight = highlight && *highlight ? gi.ImageIndex(highlight) : 0;
-    multi->offset = MAKE(vec2_t, 0.031f, 0.050f);
-    multi->numcolumns = 6;
+    /* The 8x3 Reforged-style layout fits inside the existing info panel.
+     * Keep original spacing at the classic capacity to preserve the classic HUD. */
+    bool const compact = count > WC3_MULTISELECT_CLASSIC_CAPACITY;
+    multi->offset = compact ? MAKE(vec2_t, 0.022f, 0.038f) : MAKE(vec2_t, 0.031f, 0.050f);
+    multi->numcolumns = compact ? 8 : 6;
     multi->numitems = count;
     FOR_LOOP(i, count) {
         multi->items[i].entity = ents[i]->s.number;
@@ -985,7 +990,8 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) 
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_MULTISELECT;
     frame.color = COLOR32_WHITE;
-    UI_SetFrameRect(&frame, 0.314f, 0.500f, 0.025f, 0.025f);
+    UI_SetFrameRect(&frame, 0.314f, 0.500f, compact ? 0.019f : 0.025f,
+                    compact ? 0.019f : 0.025f);
     UI_WriteProxyFrame(&frame, buffer, size);
     gi.MemFree(buffer);
 }
@@ -1027,7 +1033,7 @@ void UI_SendInfoPanel(edict_t *ent, edict_t * *selected, uint32_t count) {
     UI_WriteStart(LAYER_INFOPANEL);
     if (count == 1) {
         if (UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
-            UI_WriteBuildQueue(selected[0]);
+            UI_WriteBuildQueue(selected[0], ent->client);
         } else {
             UI_WriteSingleInfo(selected[0], ent->client);
         }
@@ -1061,6 +1067,13 @@ void Get_Commands_f(edict_t *ent) {
      * cursor through the build subsystem before the generic menu reset loses
      * the callback that identifies the active placement mode. */
     G_ClearBuildPlacementMode(ent);
+    /* The command bar can also be rebuilt while item-owned building
+     * targeting is active (selection change, Escape, interrupted order). */
+    if (ent->client->menu.on_location_selected) {
+        gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+        gi.Write(PF_ENTITY, &(entityState_t){0});
+        gi.unicast(ent);
+    }
     memset(&ent->client->menu, 0, sizeof(ent->client->menu));
     if (!selected || (!G_UnitCanControl(ent->client, selected) &&
                       !G_CanUseItemShop(ent->client, selected) &&
@@ -1088,6 +1101,37 @@ void Get_Commands_f(edict_t *ent) {
         }
     } else {
         count = G_GetCommandButtons(selected, buttons, 12);
+    }
+    /* Resource-consuming buttons must agree with the authoritative advanced-
+     * sharing check. Ordinary orders and hero skill points remain usable with
+     * basic control; production, research, upgrades, revival and the Build
+     * submenu (ui_builds is gated the same way) do not. */
+    if (!G_UnitCanSpendResources(ent->client, selected)) {
+        UnitProfile_t const *profile = G_UnitProfile(selected->class_id);
+        FOR_LOOP(i, count) {
+            bool production = buttons[i].building_upgrade != 0 ||
+                              !strncmp(buttons[i].command, "revive:", 7) ||
+                              !strcmp(buttons[i].command, STR_CmdCancelBuild) ||
+                              !strcmp(buttons[i].command, STR_CmdBuild) ||
+                              (!strcmp(buttons[i].command, STR_CmdCancel) &&
+                               selected->build && selected->build->revival &&
+                               selected->build->revival->reviving);
+            if (profile && strlen(buttons[i].command) == 4) {
+                cstring_t const lists[] = {profile->trains, profile->researches,
+                                          profile->upgrade};
+                FOR_LOOP(j, 3) {
+                    if (!lists[j]) continue;
+                    PARSE_LIST(lists[j], item, parse_segment) {
+                        if (strlen(item) == 4 && !memcmp(item, buttons[i].command, 4)) {
+                            production = true;
+                            break;
+                        }
+                    }
+                    if (production) break;
+                }
+            }
+            if (production) buttons[i].disabled = 1;
+        }
     }
     FOR_LOOP(i, count) {
         UI_WriteCommandButtonFrame(&buttons[i]);
@@ -1515,10 +1559,18 @@ void G_RefreshResourceBar(edict_t *ent) {
         lumber_rate == ent->client->resourcebar.lumber_rate)
         return;
 
-    UI_WriteStart(LAYER_CONSOLE);
-    UI_WriteConsoleBackdrop(ent->client, food_u, food_c);
-    UI_WriteMinimapFrame();
-    UI_WriteEnd(ent);
+    /* Allied Team Resources reads this player's economy; refresh eligible
+     * viewers on real changes, not on every frame.  Computer and departed
+     * owners have no console to redraw, but their cached values still feed
+     * the panels of allies holding advanced control. */
+    G_MarkMultiboardPlayerDirty(ps->number);
+
+    if (ent->client->connected) {
+        UI_WriteStart(LAYER_CONSOLE);
+        UI_WriteConsoleBackdrop(ent->client, food_u, food_c);
+        UI_WriteMinimapFrame();
+        UI_WriteEnd(ent);
+    }
 
     ent->client->resourcebar.quest_until = ent->client->quest_until;
     ent->client->resourcebar.canvas      = ent->client->canvas;
@@ -1531,9 +1583,9 @@ void G_RefreshResourceBar(edict_t *ent) {
 }
 
 /* Reserved player edicts are connected clients, not inuse world units. */
+/* Every player slot, not only connected clients: the compare pass is what
+ * notices a computer ally's spending for Team Resources. */
 void G_UpdateClientResourceBars(void) {
-    FOR_LOOP(i, game.max_clients) {
-        gameClient_t *client = &game.clients[i];
-        if (client->connected) G_RefreshResourceBar(G_GetPlayerEntityByNumber(client->ps.number));
-    }
+    FOR_LOOP(i, game.max_clients)
+        G_RefreshResourceBar(G_GetPlayerEntityByNumber(game.clients[i].ps.number));
 }

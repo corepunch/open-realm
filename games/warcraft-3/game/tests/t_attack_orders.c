@@ -103,7 +103,7 @@ TEST(wc3_attack_orders, target_head_save_replacement_and_automatic_combat) {
     }
     T_ASSERT(enemy->health.value<5000);
     T_ASSERT(actor->attack_cooldown_active);
-    cstring_t save = "/tmp/wc3-attack-orders173.bin";
+    cstring_t save = Test_TempPath("wc3-attack-orders173.bin");
     T_ASSERT(WriteGame(save)); T_ASSERT(unit_issueimmediateorder(actor,"stop"));
     T_ASSERT(ReadGame(save)); attack_orders_call("verifyAttack");
     T_EQ(actor->goalentity, enemy); remove(save);
@@ -164,7 +164,7 @@ TEST(wc3_attack_orders, queued_conversion_keeps_issue_position_across_save) {
     unitOrder_t const *queued=&actor->order_queue.entries[actor->order_queue.head];
     T_EQ(queued->target_type,UNIT_ORDER_TARGET_POINT); T_FEQ(queued->point.x,384,0);
     enemy->s.origin2.x=768; enemy->s.origin.x=768; gi.LinkEntity(enemy);
-    cstring_t save="/tmp/wc3-attack-queue173.bin";
+    cstring_t save=Test_TempPath("wc3-attack-queue173.bin");
     T_ASSERT(WriteGame(save)); T_ASSERT(ReadGame(save)); remove(save);
     FOR_LOOP(i,160) { if (!actor->order_queue.count) break; attack_orders_frames(1); }
     T_EQ(actor->order_queue.count,0); attack_orders_call("verifyAttack");
@@ -246,7 +246,7 @@ TEST(wc3_attack_orders, detached_swing_wait_survives_save_and_slot_reuse) {
     T_EQ(actor->current_order_id,G_OrderId("attack")); T_NULL(actor->goalentity);
     abilityPrimaryTimer_t timer=actor->attack_swing;
     T_ASSERT(timer.active);
-    cstring_t save="/tmp/wc3-attack-swing174.bin";
+    cstring_t save=Test_TempPath("wc3-attack-swing174.bin");
     T_ASSERT(WriteGame(save)); T_ASSERT(ReadGame(save)); remove(save);
     T_ASSERT(actor->attack_swing.active); T_EQ(actor->attack_swing.sequence,timer.sequence);
     T_FEQ(actor->attack_swing.deadline.time,timer.deadline.time,0);
@@ -325,7 +325,7 @@ TEST(wc3_attack_orders, once_queue_and_saved_swing_keep_their_head) {
     float health=enemy->health.value;
     T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},true,0,0));
     T_EQ(actor->current_order_id,G_OrderId("attackonce")); T_EQ(actor->order_queue.count,1);
-    cstring_t save="/tmp/wc3-attack-once175.bin";
+    cstring_t save=Test_TempPath("wc3-attack-once175.bin");
     T_ASSERT(WriteGame(save)); T_ASSERT(ReadGame(save)); remove(save);
     attack_orders_frames(3); T_EQ(actor->current_order_id,G_OrderId("attackonce"));
     attack_orders_frames(3); T_EQ(actor->current_order_id,G_OrderId("move"));
@@ -365,7 +365,7 @@ TEST(wc3_attack_orders, non_artillery_ground_approaches_authored_range_and_holds
     T_FEQ(actor->s.origin2.x,position.x,0); T_FEQ(actor->s.origin2.y,position.y,0);
     T_EQ(actor->current_order_id,G_OrderId("attackground")); T_EQ(actor->order_queue.count,1);
     FILTER_EDICTS(unit,unit->owner==actor && unit->movetype==MOVETYPE_FLYMISSILE) T_ASSERT(false);
-    cstring_t save="/tmp/wc3-attack-ground175.bin";
+    cstring_t save=Test_TempPath("wc3-attack-ground175.bin");
     T_ASSERT(WriteGame(save)); T_ASSERT(ReadGame(save)); remove(save);
     T_EQ(actor->current_order_id,G_OrderId("attackground")); T_EQ(actor->order_queue.count,1);
     attack_orders_frames(4); T_EQ(actor->current_order_id,G_OrderId("attackground"));
@@ -480,7 +480,7 @@ TEST(wc3_attack_orders, once_saved_approach_commits_one_hit_then_starts_queued_m
     attack_orders_call("once");
     T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},true,0,0));
     attack_orders_frames(4);T_FEQ(enemy->health.value,5000,0);
-    cstring_t save="/tmp/wc3-attack-once-approach175.bin";
+    cstring_t save=Test_TempPath("wc3-attack-once-approach175.bin");
     T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);
     T_EQ(actor->current_order_id,G_OrderId("attackonce"));
     FOR_LOOP(i,160) {

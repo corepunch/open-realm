@@ -163,22 +163,41 @@ static edict_t *make_test_destructable(float life, float x, float y) {
     return ent;
 }
 
+static uint32_t blight_image_index_calls;
+
+static int blight_test_image_index(cstring_t path) {
+    (void)path;
+    blight_image_index_calls++;
+    return 99;
+}
+
 TEST(wc3_destructable, blight_presentation_is_initial_and_one_way) {
+    static DestructableData_t const data = {
+        .textureFile = "ReplaceableTextures\\Cliff\\Cliff1.tga",
+    };
     vec2_t point = { 32.0f, 32.0f };
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
     edict_t *tree;
 
     setup_test_world();
     tree = make_test_destructable(100.0f, 32.0f, 32.0f);
+    tree->data.DestructableData = &data;
+    tree->s.image = 42;
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
     T_ASSERT(G_IsDestructable(tree));
+    blight_image_index_calls = 0;
+    gi.ImageIndex = blight_test_image_index;
     G_BlightInitializeDestructable(tree);
+    gi.ImageIndex = old_image_index;
     T_ASSERT(tree->destructable->blighted);
     T_ASSERT(tree->vertex_color_set);
     T_EQ(tree->vertex_color.r, 120);
     T_EQ(tree->vertex_color.g, 185);
     T_EQ(tree->vertex_color.b, 72);
     T_EQ(tree->vertex_color.a, 255);
+    T_EQ(tree->s.image, 42);
+    T_EQ(blight_image_index_calls, 0);
     G_SetBlightPoint(&point, false);
     T_ASSERT(tree->destructable->blighted);
 }
@@ -702,7 +721,7 @@ TEST(wc3_destructable, file_backed_bridge_terrain_stays_independent_through_save
     static DestructableData_t const data={.walkable=true};
     struct {uint16_t width,height; color32_t map[32*18];} texture={.width=32,.height=18};
     uint8_t cells[64*64];
-    cstring_t file="/tmp/wc3-bridge-terrain-authority.bin";
+    cstring_t file=Test_TempPath("wc3-bridge-terrain-authority.bin");
     FOR_LOOP(y,18)FOR_LOOP(x,32)
         texture.map[y*32+x]=(color32_t){.b=(y<2||y>=16)?255:0,.a=255};
     FOR_LOOP(k,3) {
@@ -1396,6 +1415,68 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_destructable, enum_filter_getter_tracks_and_restores_nested_destructables) {
+    static cstring_t const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"targType\"\n"
+        "C;Y1;X4;K\"HP\"\n"
+        "C;Y1;X5;K\"radius\"\n"
+        "C;Y2;X1;K\"B004\"\n"
+        "C;Y2;X2;K\"Doodads\\Test\\Test\"\n"
+        "C;Y2;X3;K\"debris\"\n"
+        "C;Y2;X4;K100\n"
+        "C;Y2;X5;K16\n"
+        "E\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved;
+
+    setup_test_world();
+    saved = G_SetSLKRows("DestructableData", rows);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  destructable outerDest = null\n"
+        "  destructable nestedDest = null\n"
+        "  rect outerRect = null\n"
+        "  rect nestedRect = null\n"
+        "  integer enumKills = 0\n"
+        "endglobals\n"
+        "function CheckNestedDestructable takes nothing returns nothing\n"
+        "  call BJassAssert(GetFilterDestructable() == GetEnumDestructable(), \"nested filter getter mismatch\")\n"
+        "  set nestedDest = GetFilterDestructable()\n"
+        "endfunction\n"
+        "function KillEnumeratedDestructable takes nothing returns nothing\n"
+        "  local destructable current = GetFilterDestructable()\n"
+        "  call BJassAssert(current == GetEnumDestructable(), \"filter getter did not expose enum destructable\")\n"
+        "  if nestedDest == null then\n"
+        "    set outerDest = current\n"
+        "    call EnumDestructablesInRect(nestedRect, null, function CheckNestedDestructable)\n"
+        "    call BJassAssert(GetFilterDestructable() == outerDest, \"nested enumeration lost outer destructable\")\n"
+        "  endif\n"
+        "  if GetDestructableLife(current) > 0.0 then\n"
+        "    set enumKills = enumKills + 1\n"
+        "    call KillDestructable(GetEnumDestructable())\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call CreateDestructable('B004', 0.0, 0.0, 0.0, 1.0, 0)\n"
+        "  call CreateDestructable('B004', 64.0, 0.0, 0.0, 1.0, 0)\n"
+        "  set outerRect = Rect(-16.0, -16.0, 80.0, 16.0)\n"
+        "  set nestedRect = Rect(48.0, -16.0, 80.0, 16.0)\n"
+        "  call EnumDestructablesInRect(outerRect, null, function KillEnumeratedDestructable)\n"
+        "  call BJassAssert(enumKills == 2, \"both destructables were not killed\")\n"
+        "  call BJassAssert(nestedDest != null, \"nested destructable was not enumerated\")\n"
+        "  call BJassAssert(GetEnumDestructable() == null, \"enum destructable leaked after enumeration\")\n"
+        "  call BJassAssert(GetFilterDestructable() == null, \"filter destructable leaked after enumeration\")\n"
+        "  call RemoveRect(outerRect)\n"
+        "  call RemoveRect(nestedRect)\n"
+        "endfunction\n"));
+
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
     static cstring_t const slk =
         "ID;PWXL;N;E\n"
@@ -1412,7 +1493,7 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
         "E\n";
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *saved;
-    edict_t *valid = NULL, *missing = NULL;
+    edict_t *valid = NULL, *missing = NULL, *fast = NULL;
 
     setup_test_world();
     saved = G_SetSLKRows("DestructableData", rows);
@@ -1420,12 +1501,31 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
         "globals\n"
         "  destructable validDest = null\n"
         "  destructable missingDest = null\n"
+        "  destructable fastDest = null\n"
         "endglobals\n"
         "function main takes nothing returns nothing\n"
         "  set validDest = CreateDestructable('B004', 64.0, 64.0, 0.0, 1.0, 0)\n"
         "  set missingDest = CreateDestructable('B004', 128.0, 64.0, 0.0, 1.0, 0)\n"
+        "  set fastDest = CreateDestructable('B004', 192.0, 64.0, 0.0, 1.0, 0)\n"
         "  call SetDestructableAnimation(validDest, \"stand alternate\")\n"
+        "  call QueueDestructableAnimation(validDest, \"stand\")\n"
+        "  call SetDestructableAnimationSpeed(validDest, 0.0)\n"
+        "  call SetDestructableAnimationSpeed(null, 2.0)\n"
+        "  call SetDestructableOccluderHeight(validDest, 256.0)\n"
+        "  call BJassAssert(GetDestructableOccluderHeight(validDest) == 256.0, \"elevator height not retained\")\n"
         "  call SetDestructableAnimation(missingDest, \"death alternate\")\n"
+        "  call SetDestructableAnimationSpeed(missingDest, 2.0)\n"
+        "  call SetDestructableAnimation(fastDest, \"stand alternate\")\n"
+        "  call SetDestructableAnimationSpeed(fastDest, 2.0)\n"
+        "endfunction\n"
+        "function halfSpeed takes nothing returns nothing\n"
+        "  call SetDestructableAnimationSpeed(validDest, 0.5)\n"
+        "endfunction\n"
+        "function resetSpeed takes nothing returns nothing\n"
+        "  call SetDestructableAnimationSpeed(validDest, 1.0)\n"
+        "endfunction\n"
+        "function negativeSpeed takes nothing returns nothing\n"
+        "  call SetDestructableAnimationSpeed(validDest, -1.0)\n"
         "endfunction\n"));
 
     FOR_LOOP(i, globals.num_edicts) {
@@ -1433,19 +1533,54 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
         if (!G_IsDestructable(ent) || ent->class_id != MAKEFOURCC('B', '0', '0', '4')) continue;
         if (ent->s.origin2.x == 64.0f) valid = ent;
         if (ent->s.origin2.x == 128.0f) missing = ent;
+        if (ent->s.origin2.x == 192.0f) fast = ent;
     }
-    T_NOT_NULL(valid); T_NOT_NULL(missing);
-    if (valid && missing) {
+    T_NOT_NULL(valid); T_NOT_NULL(missing); T_NOT_NULL(fast);
+    if (valid && missing && fast) {
         T_STREQ(G_UnitAnimationRequest(valid), "stand alternate");
+        T_STREQ(valid->queued_animation, "stand");
+        T_FEQ(valid->animation_speed, 0.0f, 0.001f);
+        T_FEQ(missing->animation_speed, 2.0f, 0.001f);
+        T_FEQ(fast->animation_speed, 2.0f, 0.001f);
+        T_FEQ(valid->destructable->occluder_height, 256.0f, 0.001f);
+        T_STREQ(G_UnitAnimationRequest(missing), "death alternate");
+        T_NULL(missing->animation);
+        T_ASSERT(!missing->animation_override);
         T_NOT_NULL(valid->animation);
+        T_NOT_NULL(fast->animation);
         if (valid->animation) {
             T_STREQ(valid->animation->name, "Stand Alternate");
             T_EQ(valid->s.frame, valid->animation->interval[0]);
             T_ASSERT(valid->animation_override);
+            /* A frozen clip must remain in place through the real scheduler. */
+            G_RunEntities();
+            T_EQ(valid->s.frame, valid->animation->interval[0]);
+            if (fast->animation)
+                T_EQ(fast->s.frame, fast->animation->interval[0] + (uint32_t)(FRAMETIME * 2.0f));
+            T_STREQ(valid->queued_animation, "stand");
+            jass_callbyname(level.vm, "halfSpeed", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_FEQ(valid->animation_speed, 0.5f, 0.001f);
+            G_RunEntities();
+            T_EQ(valid->s.frame, valid->animation->interval[0] + (uint32_t)(FRAMETIME * 0.5f));
+            valid->s.frame = valid->animation->interval[1] - 1;
+            /* Exercise the live per-frame dispatch, not only the queue helper. */
+            G_RunEntities();
+            T_STREQ(G_UnitAnimationRequest(valid), "stand");
+            T_STREQ(valid->queued_animation, "");
+            T_NOT_NULL(valid->animation);
+            if (valid->animation) T_EQ(valid->s.frame, valid->animation->interval[0]);
+            T_FEQ(valid->animation_speed, 0.5f, 0.001f); /* queued clip preserves the multiplier */
+            jass_callbyname(level.vm, "negativeSpeed", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_FEQ(valid->animation_speed, 0.0f, 0.001f);
+            jass_callbyname(level.vm, "resetSpeed", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_FEQ(valid->animation_speed, 1.0f, 0.001f);
         }
-        T_STREQ(G_UnitAnimationRequest(missing), "death alternate");
-        T_NULL(missing->animation);
-        T_ASSERT(!missing->animation_override);
     }
 
     G_SetSLKRows("DestructableData", saved);

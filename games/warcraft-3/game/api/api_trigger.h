@@ -239,14 +239,25 @@ uint32_t TriggerRegisterGameStateEvent(jass_t *j) {
     return jass_pushlighthandle(j, evt, "event");
 }
 uint32_t TriggerRegisterDialogEvent(jass_t *j) {
-    //trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //handle_t whichDialog = jass_checkhandle(j, 2, "dialog");
-    return jass_pushnullhandle(j, "event");
+    trigger_t *trigger = jass_checkhandle(j, 1, "trigger");
+    jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 2, "dialog"));
+    event_t *event;
+    if (!trigger || !dialog || !(event = G_MakeEvent(EVENT_DIALOG_CLICK)))
+        return jass_pushnullhandle(j, "event");
+    event->trigger = trigger;
+    event->dialog_id = dialog->id;
+    return jass_pushlighthandle(j, event, "event");
 }
 uint32_t TriggerRegisterDialogButtonEvent(jass_t *j) {
-    //trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //handle_t whichButton = jass_checkhandle(j, 2, "button");
-    return jass_pushnullhandle(j, "event");
+    trigger_t *trigger = jass_checkhandle(j, 1, "trigger");
+    jassDialogButton_t *button = G_JassDialogButton(jass_checkhandle(j, 2, "button"));
+    event_t *event;
+    if (!trigger || !button || !(event = G_MakeEvent(EVENT_DIALOG_BUTTON_CLICK)))
+        return jass_pushnullhandle(j, "event");
+    event->trigger = trigger;
+    event->dialog_id = button->dialog_id;
+    event->button_id = button->id;
+    return jass_pushlighthandle(j, event, "event");
 }
 uint32_t TriggerRegisterGameEvent(jass_t *j) {
     //trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");

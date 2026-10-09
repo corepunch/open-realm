@@ -110,6 +110,9 @@ static cstring_t give_resources_cheat_cvar(cstring_t name, cstring_t fallback) {
 
 static uint32_t multiselect_capture_count;
 static uint16_t multiselect_capture_flags[MAX_SELECTED_ENTITIES];
+static uint32_t multiselect_capture_columns;
+static vec2_t multiselect_capture_offset;
+static float multiselect_capture_item_width, multiselect_capture_item_height;
 static uint32_t selection_sync_count;
 static uint32_t selection_sync_entities[MAX_SELECTED_ENTITIES];
 static uint32_t selection_sync_entity_index;
@@ -169,6 +172,10 @@ static void selection_test_write(pfWriteType_t type, void const *data) {
             uiMultiselect_t const *multi = frame->buffer.data;
             uint32_t const available = (frame->buffer.size - sizeof(uiMultiselect_t)) / sizeof(uiMultiselectItem_t);
             multiselect_capture_count = MIN((uint32_t)multi->numitems, available);
+            multiselect_capture_columns = multi->numcolumns;
+            multiselect_capture_offset = multi->offset;
+            multiselect_capture_item_width = frame->size.width;
+            multiselect_capture_item_height = frame->size.height;
             FOR_LOOP(i, multiselect_capture_count)
                 multiselect_capture_flags[i] = multi->items[i].flags;
         }
@@ -965,6 +972,34 @@ TEST(wc3_game, attack_alert_is_remote_throttled_and_remembered) {
     gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
 }
 
+TEST(wc3_game, unit_ignore_alarm_suppresses_ping_without_changing_combat) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 2000.0f, 0.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 2100.0f, 0.0f);
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    victim->s.player = 0; attacker->s.player = 1;
+    game.clients[0].connected = true;
+    game.clients[0].camera.state.position = (vec2_t){0.0f, 0.0f};
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 0.0f;
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping;
+    gi.configstring = alert_test_configstring;
+    victim->ignore_alarm = true;
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 0);
+    T_ASSERT(!victim->paused);
+    T_ASSERT(!victim->invulnerable);
+    victim->ignore_alarm = false;
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 1);
+    gi.MinimapPing = saved_ping;
+    gi.configstring = saved_configstring;
+}
+
 TEST(wc3_game, attack_alert_shows_advisor_text_without_message_log_entry) {
     void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
     void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
@@ -1561,6 +1596,105 @@ TEST(wc3_game, multiselect_payload_marks_the_focused_unit_type_subgroup) {
     T_ASSERT(multiselect_capture_flags[2] & UI_MULTISELECT_ITEM_FOCUSED);
 }
 
+TEST(wc3_game, multiselect_payload_switches_to_compact_grid_above_twelve_units) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *selected[WC3_SELECTION_MAX];
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    FOR_LOOP(i, WC3_SELECTION_MAX) {
+        selected[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)(i * 32), 0);
+        selected[i]->svflags |= SVF_MONSTER;
+        selected[i]->s.player = 0;
+        G_SelectEntity(client, selected[i]);
+    }
+
+    /* 24 units overflow the classic 6x2 grid, so the payload must carry the
+     * 8x3 compact layout with its tighter item size and spacing. */
+    multiselect_capture_count = 0;
+    gi.Write = selection_test_write;
+    gi.unicast = selection_test_unicast;
+    UI_SendInfoPanel(player, selected, WC3_SELECTION_MAX);
+    T_EQ(multiselect_capture_count, WC3_SELECTION_MAX);
+    T_EQ(multiselect_capture_columns, 8);
+    T_FEQ(multiselect_capture_offset.x, 0.022f, 0.0001f);
+    T_FEQ(multiselect_capture_offset.y, 0.038f, 0.0001f);
+    T_FEQ(multiselect_capture_item_width, 0.019f, 0.0001f);
+    T_FEQ(multiselect_capture_item_height, 0.019f, 0.0001f);
+
+    /* 13 units is the first count that needs the compact grid. */
+    multiselect_capture_count = 0;
+    UI_SendInfoPanel(player, selected, 13);
+    T_EQ(multiselect_capture_count, 13);
+    T_EQ(multiselect_capture_columns, 8);
+
+    /* Exactly 12 keeps the classic layout the original HUD was drawn for. */
+    multiselect_capture_count = 0;
+    UI_SendInfoPanel(player, selected, 12);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    T_EQ(multiselect_capture_count, 12);
+    T_EQ(multiselect_capture_columns, 6);
+    T_FEQ(multiselect_capture_offset.x, 0.031f, 0.0001f);
+    T_FEQ(multiselect_capture_offset.y, 0.050f, 0.0001f);
+    T_FEQ(multiselect_capture_item_width, 0.025f, 0.0001f);
+    T_FEQ(multiselect_capture_item_height, 0.025f, 0.0001f);
+}
+
+TEST(wc3_game, select_command_caps_oversized_candidate_lists_at_the_selection_limit) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    enum { CANDIDATES = MAX_SELECTED_ENTITIES - 1 }; /* the parser's 64 tokens minus "select" */
+    edict_t *units[CANDIDATES];
+    char numbers[CANDIDATES][12];
+    cstring_t argv[CANDIDATES + 1] = { "select" };
+    uint32_t const counts[] = { 30, CANDIDATES };
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    client->connected = true;
+    FOR_LOOP(i, CANDIDATES) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)(i * 32), 0);
+        units[i]->svflags |= SVF_MONSTER;
+        units[i]->s.player = 0;
+        snprintf(numbers[i], sizeof(numbers[i]), "%u", units[i]->s.number);
+        argv[i + 1] = numbers[i];
+    }
+
+    /* A marquee can legitimately submit more eligible candidates than the
+     * authoritative cap. The server keeps the first 24 and acknowledges only
+     * those, so the client cache never retains rejected members. */
+    FOR_LOOP(c, sizeof(counts) / sizeof(counts[0])) {
+        uint32_t const argc = counts[c] + 1;
+
+        selection_sync_stage = 0;
+        selection_sync_count = 0;
+        selection_sync_entity_index = 0;
+        gi.Write = selection_test_write;
+        gi.unicast = selection_test_unicast;
+        G_ClientCommand(player, argc, argv);
+        gi.Write = old_write;
+        gi.unicast = old_unicast;
+
+        T_EQ(selection_sync_count, WC3_SELECTION_MAX);
+        T_EQ(selection_sync_entity_index, WC3_SELECTION_MAX);
+        FOR_LOOP(i, WC3_SELECTION_MAX) T_EQ(selection_sync_entities[i], units[i]->s.number);
+        T_ASSERT(G_IsEntitySelected(client, units[WC3_SELECTION_MAX - 1]));
+        T_ASSERT(!G_IsEntitySelected(client, units[WC3_SELECTION_MAX]));
+        T_ASSERT(!G_IsEntitySelected(client, units[counts[c] - 1]));
+    }
+    client->connected = false;
+}
+
 TEST(wc3_game, multiselect_info_panel_refreshes_when_membership_shrinks) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
@@ -2031,6 +2165,21 @@ TEST(wc3_game, hud_empty_text_frame_serializes_empty_text) {
     T_STREQ(wire.text, "");
 }
 
+/* The wire bit is opt-in opaque so zero-initialized WoW/SC2 backdrops keep Q2 alpha; WC3 sets it from FDF. */
+TEST(wc3_game, hud_backdrop_without_blend_all_serializes_opaque) {
+    FRAMEDEF frame = { .Type = FT_BACKDROP };
+    uiFrame_t wire = {0};
+    uint8_t typedata[sizeof(uiBackdrop_t)] = {0};
+    char textbuf[16] = {0};
+
+    FOR_LOOP(blend, 2) {
+        frame.Backdrop.BlendAll = blend;
+        UI_ResetFrameWriteList();
+        T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+        T_EQ(((uiBackdrop_t const *)typedata)->Opaque, !blend);
+    }
+}
+
 TEST(wc3_game, hud_single_line_fdf_text_serializes_declared_font_height) {
     FRAMEDEF frame = { .Type = FT_STRING };
     uiFrame_t wire = {0};
@@ -2221,6 +2370,23 @@ TEST(wc3_game, hud_simple_button_serializes_button_state) {
     T_STREQ(out.text, "KEY_MENU");
 
     UI_ClearTemplates();
+}
+
+TEST(wc3_game, hud_disabled_button_label_uses_authored_disabled_color) {
+    uint8_t typedata[128];
+    char textbuf[128];
+    uiFrame_t out;
+    frameDef_t button = { .Type = FT_GLUETEXTBUTTON, .disabled = true };
+    frameDef_t label = { .Type = FT_TEXT, .Parent = &button, .Text = "Disabled choice" };
+
+    label.Font.Color = COLOR32_WHITE;
+    /* Retail disables WC3 button labels with a light gray FontDisabledColor. */
+    label.Font.DisabledColor = (color32_t){ .r = 170, .g = 170, .b = 170, .a = 255 };
+    T_ASSERT(UI_BuildFrameForWrite(&label, &out, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    T_EQ(out.color.r, label.Font.DisabledColor.r);
+    T_EQ(out.color.g, label.Font.DisabledColor.g);
+    T_EQ(out.color.b, label.Font.DisabledColor.b);
+    T_EQ(out.color.a, label.Font.DisabledColor.a);
 }
 
 static PATHSTR hud_test_images[MAX_IMAGES];
@@ -2825,6 +2991,7 @@ TEST(wc3_game, hud_message_overlay_loads_authored_geometry) {
 
 TEST(wc3_game, hud_message_overlay_position_is_runtime_data) {
     vec2_t pos = { 0.20f, 0.10f };
+    UI_LoadHudMessage(); // geometry comes from the authored template, not from an earlier test
     FRAMEDEF frame = MessageFrame(&pos, "Runtime message");
     T_FEQ(frame.Width, 0.30f, 0.001f);
     T_FEQ(frame.Height, 0.145f, 0.001f);
@@ -2837,6 +3004,7 @@ TEST(wc3_game, hud_message_overlay_position_is_runtime_data) {
 
 TEST(wc3_game, hud_message_overlay_invalid_position_keeps_fdf_anchor) {
     vec2_t pos = { -1.0f, UI_BASE_HEIGHT + 1.0f };
+    UI_LoadHudMessage(); // the fallback anchor is the authored template, not state from an earlier test
     FRAMEDEF frame = MessageFrame(&pos, "Authored position");
     T_FEQ(frame.Points.x[FPP_MIN].offset, 0.05f, 0.001f);
     T_FEQ(frame.Points.y[FPP_MIN].offset, -0.30f, 0.001f);
@@ -2986,7 +3154,7 @@ TEST(wc3_game, spawn_slot_index_preserves_order_cooldown_wrap_and_restore) {
     level.time=11001;T_ASSERT(G_Spawn()==higher);
     level.time=11002;T_ASSERT(G_Spawn()==lower);
     G_FreeEdict(higher);
-    cstring_t file="/tmp/wc3-spawn-slot-index.bin";
+    cstring_t file=Test_TempPath("wc3-spawn-slot-index.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     level.time=12003;T_ASSERT(G_Spawn()==higher);
     /* Preserve the original unsigned cooldown predicate at time wrap. */
@@ -3994,7 +4162,7 @@ TEST(wc3_perf, crowded_unstuck_search) {
 }
 
 TEST(wc3_save, round_trip_edict_and_player_state) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-save-test.bin");
     questItem_t item = { .description = strdup("Find the key"), .completed = true, .inuse = true };
     quest_t quest = {
         .title = strdup("Open the Gate"),
@@ -4025,6 +4193,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     indicator->owner = &g_edicts[0];
     game.clients[0].rally_indicator = indicator;
     first->harvested_gold = 37;
+    first->ignore_alarm = true;
     first->shared_vision = (1u << 0) | (1u << 7);
     first->projectile_reflected = true;
     if (!first->sleep) first->sleep = G_AllocSleep();
@@ -4095,6 +4264,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     level.started = true;
     level.scriptsConfigured = true;
     level.scriptsStarted = true;
+    level.multiboard_suppressed_clients = 1u << 3;
+    level.team_resources_collapsed_clients = 1u << 5;
     game.clients[0].jass.race_pref = 2;
     game.clients[0].jass.controller = 1;
     strlcpy(game.clients[0].jass.name, "Jaina", sizeof(game.clients[0].jass.name));
@@ -4129,11 +4300,14 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].quest_dialog_open = true;
     game.clients[0].canvas = UI_CANVAS_WIDE;
     T_ASSERT(WriteGame(filename));
+    level.multiboard_suppressed_clients = 0;
+    level.team_resources_collapsed_clients = 0;
     level.cinefilter.displayed = true;
     PATHSTR saved_map;
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
     T_ASSERT(!strcasecmp(saved_map, level.map_path));
     first->harvested_gold = 0;
+    first->ignore_alarm = false;
     first->shared_vision = 0;
     first->projectile_reflected = false;
     first->sleep->can_sleep = false;
@@ -4182,6 +4356,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
     T_EQ(g_edicts[first - g_edicts].shared_vision, (1u << 0) | (1u << 7));
     T_ASSERT(g_edicts[first - g_edicts].projectile_reflected);
+    T_ASSERT(g_edicts[first - g_edicts].ignore_alarm);
     T_ASSERT(g_edicts[first - g_edicts].sleep->can_sleep);
     T_ASSERT(g_edicts[first - g_edicts].sleep->sleeping);
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);
@@ -4219,6 +4394,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(level.environment_fog.defaults.color.z, 0.6f, 0.001f);
     T_ASSERT(level.environment_fog.defaults_valid);
     T_ASSERT(level.started && level.scriptsConfigured && level.scriptsStarted);
+    T_EQ(level.multiboard_suppressed_clients, 1u << 3);
+    T_EQ(level.team_resources_collapsed_clients, 1u << 5);
     T_EQ(game.clients[0].jass.race_pref, 2);
     T_EQ(game.clients[0].jass.controller, 1);
     T_EQ(game.clients[0].ping, 77);
@@ -4298,7 +4475,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
 
 /* Load restores the Q2 server tick and the timer countdown cursor together. */
 TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-clock.bin";
+    cstring_t filename = Test_TempPath("wc3-save-clock.bin");
     gtimer_t *timer;
 
     T_ASSERT(level.map_path[0]);
@@ -4371,7 +4548,7 @@ static void prepare_save_field(edict_t *unit, cstring_t name) {
 /* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save. */
 #define SAVE_INT_FIELD_TEST(name, field, saved) \
 TEST(wc3_save, name) { \
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
+    cstring_t filename = Test_TempPath("wc3-save-" #name ".bin"); \
     field_t const *desc = find_save_field(#field); \
     reset_entities(); \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
@@ -4384,7 +4561,7 @@ TEST(wc3_save, name) { \
 
 #define SAVE_PTR_FIELD_TEST(name, schema, field, count) \
 TEST(wc3_save, name) { \
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
+    cstring_t filename = Test_TempPath("wc3-save-" #name ".bin"); \
     field_t const *desc = find_save_field(schema); \
     reset_entities(); \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
@@ -4399,7 +4576,7 @@ TEST(wc3_save, name) { \
 
 #define SAVE_FLOAT_FIELD_TEST(name, field, saved) \
 TEST(wc3_save, name) { \
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
+    cstring_t filename = Test_TempPath("wc3-save-" #name ".bin"); \
     field_t const *desc = find_save_field(#field); \
     reset_entities(); \
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
@@ -4415,10 +4592,17 @@ SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
 SAVE_INT_FIELD_TEST(field_current_order_id_round_trip, current_order_id, 851986)
+SAVE_INT_FIELD_TEST(field_aura_effect_role_round_trip, aura_effect_role, AURA_EFFECT_SOURCE)
+SAVE_INT_FIELD_TEST(field_wander_next_time_round_trip, wander_next_time, 9100)
+SAVE_INT_FIELD_TEST(field_wander_random_state_round_trip, wander_random_state, 0x1234567)
+SAVE_INT_FIELD_TEST(field_wander_goal_generation_round_trip, wander_goal_generation, 42)
+SAVE_INT_FIELD_TEST(field_waypoint_generation_round_trip, waypoint_generation, 43)
+SAVE_PTR_FIELD_TEST(field_wander_goal_round_trip, "wander_goal", wander_goal, 0)
+SAVE_PTR_FIELD_TEST(field_wander_waypoint_round_trip, "wander_waypoint", wander_waypoint, 0)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
 
 TEST(wc3_save, ability_owned_timed_summon_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-ability-owned-timed-summon.bin";
+    cstring_t filename = Test_TempPath("wc3-save-ability-owned-timed-summon.bin");
     edict_t *owner, *summon;
     heroabilitystatus_t *timed_life;
 
@@ -4452,7 +4636,7 @@ TEST(wc3_save, ability_owned_timed_summon_round_trip) {
 }
 
 TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-homing-spell-projectile.bin";
+    cstring_t filename = Test_TempPath("wc3-save-homing-spell-projectile.bin");
     uint32_t const ability = MAKEFOURCC('A', 'H', 't', 'b');
     edict_t *caster, *target, *missile;
 
@@ -4501,7 +4685,7 @@ TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
 }
 
 TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-flare-reveal-thinker.bin";
+    cstring_t filename = Test_TempPath("wc3-save-flare-reveal-thinker.bin");
     uint32_t const ability = MAKEFOURCC('A', 'f', 'l', 'a');
     edict_t *caster, *thinker;
 
@@ -4541,7 +4725,7 @@ TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
 }
 
 TEST(wc3_save, corpse_reservation_round_trip_preserves_owner_marker) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-corpse-reservation.bin";
+    cstring_t filename = Test_TempPath("wc3-save-corpse-reservation.bin");
     uint32_t const ability = MAKEFOURCC('A', 'u', 'c', 'a');
     edict_t *corpse;
     heroabilitystatus_t *reservation;
@@ -4570,7 +4754,7 @@ TEST(wc3_save, corpse_reservation_round_trip_preserves_owner_marker) {
 }
 
 TEST(wc3_save, owned_target_effect_round_trip_preserves_owner_and_target_generation) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-owned-target-effect.bin";
+    cstring_t filename = Test_TempPath("wc3-save-owned-target-effect.bin");
     uint32_t const ability = MAKEFOURCC('A', 'H', 'h', 'b');
     edict_t *owner, *target, *effect;
 
@@ -4614,7 +4798,7 @@ SAVE_FLOAT_FIELD_TEST(field_attack_cooldown_remaining_round_trip, attack_cooldow
 SAVE_INT_FIELD_TEST(field_attack_cooldown_end_time_round_trip, attack_cooldown_end_time, 12345)
 SAVE_INT_FIELD_TEST(field_attack_backswing_end_time_round_trip, attack_backswing_end_time, 12346)
 TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-artillery-profile.bin";
+    cstring_t filename = Test_TempPath("wc3-save-artillery-profile.bin");
     field_t const *desc = find_save_field("artillery");
     reset_entities();
     edict_t *projectile = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
@@ -4642,7 +4826,7 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
     uint32_t const formats[] = { 24, 25 };
 
     FOR_LOOP(i, sizeof(formats) / sizeof(formats[0])) {
-        char filename[96];
+        PATHSTR filename;
         edict_t *shop;
         field_t const *stock_desc;
         field_t const *items_desc;
@@ -4651,8 +4835,9 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         setup_test_world();
         reset_entities();
         ((mapInfo_t *)level.mapinfo)->fileFormat = formats[i];
-        snprintf(filename, sizeof(filename), "/tmp/openwarcraft3-wc3-shop-stock-%u.bin",
-                 (unsigned)formats[i]);
+        PATHSTR name;
+        snprintf(name, sizeof(name), "wc3-shop-stock-%u.bin", (unsigned)formats[i]);
+        snprintf(filename, sizeof(filename), "%s", Test_TempPath(name));
         shop = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
         level.stock.item_slots = 11;
         level.stock.unit_slots = 9;
@@ -4742,7 +4927,7 @@ TEST(wc3_save, attack_profiles_preserve_shared_defaults_and_owned_overrides) {
     S_AttackProfileWrite(first, 1)->rangeBuffer = 84;
     unitAttack_t shared = *S_AttackProfileRead(second, 0);
     T_NULL(second->attack_overrides[0]);
-    cstring_t file = "/tmp/openrealm-shared-attack-profiles.bin";
+    cstring_t file = Test_TempPath("openrealm-shared-attack-profiles.bin");
     T_ASSERT(WriteGame(file));
     T_ASSERT(ReadGame(file));
     first = g_edicts + first_id; second = g_edicts + second_id;
@@ -4771,7 +4956,7 @@ SAVE_FLOAT_FIELD_TEST(field_animation_speed_round_trip, animation_speed, 0.5f)
 SAVE_INT_FIELD_TEST(field_animation_override_round_trip, animation_override, 1)
 
 TEST(wc3_save, field_hero_shortcut_alert_is_runtime_only) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-hero-shortcut-alert.bin";
+    cstring_t filename = Test_TempPath("wc3-save-hero-shortcut-alert.bin");
     field_t const *desc = find_save_field("hero_shortcut_alert_until");
     edict_t *unit;
 
@@ -4788,7 +4973,7 @@ TEST(wc3_save, field_hero_shortcut_alert_is_runtime_only) {
 }
 
 TEST(wc3_save, blight_world_and_growth_state_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-blight.bin";
+    cstring_t filename = Test_TempPath("wc3-save-blight.bin");
     uint32_t const ability = MAKEFOURCC('A','b','l','1');
     vec2_t point = { 32.0f, 32.0f };
     edict_t *unit;
@@ -4820,7 +5005,7 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
 }
 
 TEST(wc3_save, field_collision_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-field-collision.bin";
+    cstring_t filename = Test_TempPath("wc3-save-field-collision.bin");
     field_t const *desc = find_save_field("collision");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
@@ -4831,7 +5016,7 @@ TEST(wc3_save, field_collision_round_trip) {
 }
 
 TEST(wc3_save, field_origin_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-field-origin.bin";
+    cstring_t filename = Test_TempPath("wc3-save-field-origin.bin");
     field_t const *desc = find_save_field("s.origin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
@@ -4844,7 +5029,7 @@ TEST(wc3_save, field_origin_round_trip) {
 
 /* Movement cancellation must compare against the saved cast position after restoring a live channel-> */
 TEST(wc3_save, field_channel_origin_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-channel-origin.bin";
+    cstring_t filename = Test_TempPath("wc3-save-channel-origin.bin");
     field_t const *desc = find_save_field("channel->origin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
@@ -4859,7 +5044,7 @@ TEST(wc3_save, field_channel_origin_round_trip) {
 }
 
 TEST(wc3_save, movement_guard_state_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-movement-guard.bin";
+    cstring_t filename = Test_TempPath("wc3-save-movement-guard.bin");
     field_t const *position = find_save_field("movement.guard_position");
     field_t const *state = find_save_field("movement.guard_state");
     field_t const *holding = find_save_field("movement.holding_position");
@@ -4885,7 +5070,7 @@ TEST(wc3_save, movement_guard_state_round_trip) {
 }
 
 TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-route-resume-runtime.bin";
+    cstring_t filename = Test_TempPath("wc3-save-route-resume-runtime.bin");
     int unit_index;
     edict_t *unit, *goal;
 
@@ -4922,7 +5107,7 @@ TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
 }
 
 TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-live-guard-return.bin";
+    cstring_t filename = Test_TempPath("wc3-save-live-guard-return.bin");
     int unit_index;
     edict_t *unit;
 
@@ -4964,7 +5149,7 @@ TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
 }
 
 TEST(wc3_save, field_vertex_tint_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-field-vertex-tint.bin";
+    cstring_t filename = Test_TempPath("wc3-save-field-vertex-tint.bin");
     edict_t *unit;
 
     reset_entities();
@@ -4982,7 +5167,7 @@ TEST(wc3_save, field_vertex_tint_round_trip) {
 
 
 TEST(wc3_save, lightning_registry_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-lightning.bin";
+    cstring_t filename = Test_TempPath("wc3-save-lightning.bin");
     edict_t *source_unit, *target_unit;
     gLightning_t *effect;
     vec3_t source = { 1.0f, 2.0f, 3.0f }, target = { 4.0f, 5.0f, 6.0f };
@@ -5024,7 +5209,7 @@ TEST(wc3_save, lightning_registry_round_trip) {
 }
 
 TEST(wc3_save, construction_payment_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-construction-payment.bin";
+    cstring_t filename = Test_TempPath("wc3-save-construction-payment.bin");
     edict_t *unit, *worker;
 
     reset_entities();
@@ -5032,7 +5217,7 @@ TEST(wc3_save, construction_payment_round_trip) {
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
     if (!unit->construction) unit->construction = G_AllocConstruction();
     assert(unit->construction);
-    unit->construction->type = CONSTRUCTION_ORC;
+    unit->construction->type = CONSTRUCTION_NAGA;
     unit->construction->worker = worker;
     unit->construction->worker_spawn_time = 1234;
     unit->construction->worker_inside = true;
@@ -5061,7 +5246,7 @@ TEST(wc3_save, construction_payment_round_trip) {
     unit->construction->gold = 0;
     unit->construction->lumber = 0;
     T_ASSERT(ReadGame(filename));
-    T_EQ(unit->construction->type, CONSTRUCTION_ORC);
+    T_EQ(unit->construction->type, CONSTRUCTION_NAGA);
     T_ASSERT(unit->construction->worker == worker);
     T_EQ(unit->construction->worker_spawn_time, 1234);
     T_ASSERT(unit->construction->worker_inside);
@@ -5077,8 +5262,46 @@ TEST(wc3_save, construction_payment_round_trip) {
     remove(filename);
 }
 
+/* Tiny Structures own their construction clock: the authored duration_ms,
+ * the CONSTRUCTION_TINY strategy and the self-linked build pointer that the
+ * info panel queue walks all have to survive a save in both archive variants. */
+TEST(wc3_save, tiny_construction_round_trips_in_roc_and_tft_map_state) {
+    uint32_t const formats[] = { 24, 25 };
+
+    FOR_LOOP(i, sizeof(formats) / sizeof(formats[0])) {
+        PATHSTR filename, name;
+        edict_t *building;
+
+        setup_test_world();
+        reset_entities();
+        ((mapInfo_t *)level.mapinfo)->fileFormat = formats[i];
+        snprintf(name, sizeof(name), "wc3-save-tiny-construction-%u.bin", (unsigned)formats[i]);
+        snprintf(filename, sizeof(filename), "%s", Test_TempPath(name));
+        building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
+        if (!building->construction) building->construction = G_AllocConstruction();
+        assert(building->construction);
+        building->construction->type = CONSTRUCTION_TINY;
+        building->construction->progress = 4000.0f;
+        building->construction->duration_ms = 9000.0f;
+        building->build = building;
+
+        T_ASSERT(WriteGame(filename));
+        building->construction->type = CONSTRUCTION_NONE;
+        building->construction->progress = 0.0f;
+        building->construction->duration_ms = 0.0f;
+        building->build = NULL;
+        T_ASSERT(ReadGame(filename));
+        T_ASSERT(building->construction);
+        T_EQ(building->construction->type, CONSTRUCTION_TINY);
+        T_FEQ(building->construction->progress, 4000.0f, 0.001f);
+        T_FEQ(building->construction->duration_ms, 9000.0f, 0.001f);
+        T_ASSERT(building->build == building);
+        remove(filename);
+    }
+}
+
 TEST(wc3_save, racial_gold_mine_state_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-racial-gold-mine.bin";
+    cstring_t filename = Test_TempPath("wc3-save-racial-gold-mine.bin");
     edict_t *parent, *overlay, *acolyte;
 
     reset_entities();
@@ -5124,7 +5347,7 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
 }
 
 TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-entangle-tree.bin";
+    cstring_t filename = Test_TempPath("wc3-save-entangle-tree.bin");
     field_t const *desc = find_save_field("mineoverlay->entangle_tree");
     edict_t *overlay, *tree;
 
@@ -5156,7 +5379,7 @@ TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
 SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction->primary_builder", construction->primary_builder, 0)
 SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "abilstatus->slots.source", abilstatus[3].source, 0)
 TEST(wc3_save, status_source_incarnation_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-status-source-incarnation.bin";
+    cstring_t filename = Test_TempPath("wc3-save-status-source-incarnation.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     edict_t *source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
@@ -5224,7 +5447,7 @@ SAVE_PTR_FIELD_TEST(field_build_preview_round_trip, "build_preview", build_previ
 #undef SAVE_INT_FIELD_TEST
 
 TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-soul-trap.bin";
+    cstring_t filename = Test_TempPath("wc3-save-soul-trap.bin");
     reset_entities(); setup_test_world();
     edict_t *carrier = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64.0f, 64.0f);
     edict_t *target = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 96.0f, 64.0f);
@@ -5268,7 +5491,7 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
 }
 
 TEST(wc3_save, clears_nested_process_owned_fields) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-nested-runtime.bin";
+    cstring_t filename = Test_TempPath("wc3-save-nested-runtime.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     if (!unit->militia) unit->militia = G_AllocMilitia();
@@ -5288,7 +5511,7 @@ TEST(wc3_save, clears_nested_process_owned_fields) {
 }
 
 TEST(wc3_save, round_trip_actor_abilities) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-abilities.bin";
+    cstring_t filename = Test_TempPath("wc3-save-abilities.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     unit->abilities.added[0] = MAKEFOURCC('A', '0', '0', '1'); ARRAY_COUNT(unit->abilities.added) = 1;
@@ -5322,7 +5545,7 @@ TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
 static void unknown_save_think(edict_t *ent) { (void)ent; }
 
 TEST(wc3_save, round_trip_entity_c_callbacks) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-cfunctions.bin";
+    cstring_t filename = Test_TempPath("wc3-save-cfunctions.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     edict_t *mine = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 1.0f, 0.0f);
@@ -5442,7 +5665,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
 }
 
 TEST(wc3_save, round_trip_nonchannel_identity_thinker_generations) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-identity-thinker.bin";
+    cstring_t filename = Test_TempPath("wc3-save-identity-thinker.bin");
     edict_t *owner, *target, *thinker;
 
     reset_entities(); setup_test_world();
@@ -5466,7 +5689,7 @@ TEST(wc3_save, round_trip_nonchannel_identity_thinker_generations) {
 }
 
 TEST(wc3_save, rejects_unknown_c_callback) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-unknown-cfunction.bin";
+    cstring_t filename = Test_TempPath("wc3-save-unknown-cfunction.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     unit->think = unknown_save_think;
@@ -5475,7 +5698,7 @@ TEST(wc3_save, rejects_unknown_c_callback) {
 }
 
 TEST(wc3_save, round_trip_region_event_filter_function) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-region-filter-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-region-filter-save-test.bin");
     levelEvents_t old_events = level.events;
     event_t *registration = NULL;
     handle_t expected_region, restored_region;
@@ -5574,7 +5797,7 @@ TEST(wc3_game, region_position_index_skips_unrelated_handlers_and_tracks_reuse) 
 }
 
 TEST(wc3_save, removed_region_event_survives_map_registry_recreation) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-removed-region-event-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-removed-region-event-save-test.bin");
     levelEvents_t old_events = level.events;
     uint32_t active_events = 0;
 
@@ -5618,7 +5841,7 @@ TEST(wc3_save, removed_region_event_survives_map_registry_recreation) {
 }
 
 TEST(wc3_save, queued_event_reference_round_trips_after_region_slot_retirement) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-region-event-slot-hole-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-region-event-slot-hole-save-test.bin");
     levelEvents_t old_events = level.events;
 
     reset_entities(); setup_test_world();
@@ -5633,10 +5856,12 @@ TEST(wc3_save, queued_event_reference_round_trips_after_region_slot_retirement) 
         "  set watchedRegion = CreateRegion()\n"
         "  call TriggerRegisterEnterRegion(watchedTrigger, watchedRegion, null)\n"
         "  set watchedUnit = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
-        "  call TriggerRegisterUnitStateEvent(watchedTrigger, watchedUnit, ConvertUnitState(0), ConvertLimitOp(1), 0.0)\n"
+        "  call TriggerRegisterUnitStateEvent(watchedTrigger, watchedUnit, ConvertUnitState(0), ConvertLimitOp(1), "
+        "50.0)\n"
         "  call RemoveRegion(watchedRegion)\n"
         "  call SetWidgetLife(watchedUnit, 100.0)\n"
-        "  call SetWidgetLife(watchedUnit, 0.0)\n"
+        /* Keep the event nonlethal so only the state-limit response is queued. */
+        "  call SetWidgetLife(watchedUnit, 50.0)\n"
         "endfunction\n"));
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(!level.events.handlers[0].inuse);
@@ -5652,7 +5877,7 @@ TEST(wc3_save, queued_event_reference_round_trips_after_region_slot_retirement) 
 }
 
 TEST(wc3_save, round_trip_game_state_event_condition) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-game-state-event-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-game-state-event-save-test.bin");
     levelEvents_t old_events = level.events;
     event_t handler = {
         .type = EVENT_GAME_STATE_LIMIT,
@@ -5676,7 +5901,7 @@ TEST(wc3_save, round_trip_game_state_event_condition) {
 }
 
 TEST(wc3_save, round_trip_variable_event_condition) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-variable-event-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-variable-event-save-test.bin");
     levelEvents_t old_events = level.events;
     event_t handler = {
         .type = EVENT_GAME_VARIABLE_LIMIT,
@@ -5698,7 +5923,7 @@ TEST(wc3_save, round_trip_variable_event_condition) {
 }
 
 TEST(wc3_save, round_trip_unread_event_queue) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-event-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-event-save-test.bin");
     levelEvents_t old_events = level.events;
     event_t handler = { .type = EVENT_UNIT_IN_RANGE };
     edict_t *subject, *source;
@@ -5737,7 +5962,7 @@ TEST(wc3_save, round_trip_unread_event_queue) {
 }
 
 TEST(wc3_save, issued_order_context_survives_unread_and_sleeping_callbacks) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-issued-order-context-save-test.bin";
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-issued-order-context-save-test.bin");
     reset_entities(); setup_test_world();
     /* Player events register on the reserved client edict, outside world use. */
     g_edicts[0].client = &game.clients[0];
@@ -5809,7 +6034,7 @@ TEST(wc3_save, issued_order_context_survives_unread_and_sleeping_callbacks) {
 }
 
 TEST(wc3_save, round_trip_active_move_group) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-move-group-save-test.bin";
+    cstring_t filename = Test_TempPath("openwarcraft3-wc3-move-group-save-test.bin");
     reset_entities(); setup_test_world();
     edict_t *clent = alloc_test_unit(0, 0, 0);
     clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
@@ -5844,7 +6069,7 @@ TEST(wc3_save, round_trip_active_move_group) {
 }
 
 TEST(wc3_save, round_trip_waypoint_references) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-waypoint-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-waypoint-save-test.bin");
     vec2_t destination = { 192.0f, 96.0f };
     edict_t *unit, *waypoint;
     uint32_t cursor, count;
@@ -5869,7 +6094,7 @@ TEST(wc3_save, round_trip_waypoint_references) {
 }
 
 TEST(wc3_save, round_trip_jass_globals) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-jass-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-jass-save-test.bin");
     T_ASSERT(run_test_jass(
         "type group extends handle\n"
         "type trigger extends handle\n"
@@ -6022,7 +6247,7 @@ TEST(wc3_save, round_trip_jass_globals) {
 }
 
 TEST(wc3_save, round_trip_timer_dialog_state_and_handle) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-timer-dialog-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-timer-dialog-save-test.bin");
     player_t *saved = currentplayer;
 
     currentplayer = NULL;
@@ -6074,7 +6299,7 @@ TEST(wc3_save, round_trip_timer_dialog_state_and_handle) {
 }
 
 TEST(wc3_save, round_trip_leaderboard_state_and_handle) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-leaderboard-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-leaderboard-save-test.bin");
     player_t *saved_currentplayer = currentplayer;
     currentplayer = NULL;
 
@@ -6118,7 +6343,7 @@ TEST(wc3_save, round_trip_leaderboard_state_and_handle) {
 }
 
 TEST(wc3_save, round_trip_weather_effect_state_and_handle) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-weather-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-weather-save-test.bin");
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -6156,7 +6381,7 @@ TEST(wc3_save, round_trip_weather_effect_state_and_handle) {
 }
 
 TEST(wc3_save, round_trip_jass_timers) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-jass-timer-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-jass-timer-save-test.bin");
     T_ASSERT(run_test_jass(
         "type timer extends handle\n"
         "type trigger extends handle\n"
@@ -6245,7 +6470,7 @@ TEST(wc3_save, round_trip_jass_timers) {
 }
 
 TEST(wc3_save, restores_triggers_and_events_created_after_main) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-late-trigger-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-late-trigger-save-test.bin");
     uint32_t main_triggers, main_events = 0, saved_triggers, saved_events = 0, skip, live_events;
     T_ASSERT(run_test_jass(
         "type trigger extends handle\n"
@@ -6300,7 +6525,7 @@ TEST(wc3_jass, timer_timeout_preserves_public_scalar_before_after_pause_and_save
         "function main takes nothing returns nothing\n"
         "set scalarTimer=CreateTimer()\ncall TimerStart(scalarTimer,0.0001,false,null)\n"
         "call check()\ncall PauseTimer(scalarTimer)\ncall check()\ncall ResumeTimer(scalarTimer)\ncall check()\nendfunction\n"));
-    cstring_t file="/tmp/wc3-timer-timeout116.bin";
+    cstring_t file=Test_TempPath("wc3-timer-timeout116.bin");
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
     jass_callbyname(level.vm,"check",true);jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -6344,7 +6569,7 @@ TEST(wc3_save, mixed_timer_domains_keep_sparse_membership_after_save) {
     T_EQ(G_TimerRemaining(level.timers+69),150u);T_ASSERT(level.timers[1].running);
     G_TimerResume(level.timers+64);level.time=1150;G_RunTimers();
     T_ASSERT(!level.timers[64].running);T_EQ(G_TimerRemaining(level.timers+69),50u);
-    cstring_t file="/tmp/wc3-mixed-timer117.bin";T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("wc3-mixed-timer117.bin");T_ASSERT(WriteGame(file));
     FOR_LOOP(i,70)G_TimerDestroy(level.timers+i);
     T_ASSERT(ReadGame(file));remove(file);
     T_EQ(G_TimerRemaining(level.timers+69),50u);T_ASSERT(level.timers[1].running);
@@ -6360,7 +6585,7 @@ TEST(wc3_save, mixed_timer_domains_keep_sparse_membership_after_save) {
 }
 
 TEST(wc3_save, timer_callback_restart_and_unconsumed_elapsed_round_trip) {
-    cstring_t file = "/tmp/openwarcraft3-timer-elapsed-save.bin";
+    cstring_t file = Test_TempPath("openwarcraft3-timer-elapsed-save.bin");
     cstring_t script = "globals\ntimer moverTimer\ninteger calls=0\nendglobals\n"
         "function on_tick takes nothing returns nothing\nset calls=calls+1\n"
         "if calls==1 then\ncall TimerStart(GetExpiredTimer(),0.2,false,function on_tick)\nendif\nendfunction\n"
@@ -6407,7 +6632,7 @@ TEST(wc3_save, timer_callback_restart_and_unconsumed_elapsed_round_trip) {
 /* Original240350 finishes the current direct call after expiry-trigger mutation;
  * public retirement and deferred storage cleanup are independently saved. */
 TEST(wc3_save, timer_expiry_condition_pause_and_pending_public_retirement) {
-    cstring_t file="/tmp/wc3-timer118-retirement.bin";
+    cstring_t file=Test_TempPath("wc3-timer118-retirement.bin");
     level.pathing_clock=(wc3Clock_t){0,0,300};level.time=0;level.scheduled_frame=false;
     T_ASSERT(run_test_jass(
         "globals\ntimer directTimer=null\ntimer retiredTimer=null\ninteger calls=0\nendglobals\n"
@@ -6466,6 +6691,70 @@ TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_jass, disabled_triggers_allow_explicit_execution_but_ignore_events) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger queuedTrigger = null\n"
+        "  trigger disabledEventTrigger = null\n"
+        "  trigger enabledEventTrigger = null\n"
+        "  timer disabledEventTimer = null\n"
+        "  timer enabledEventTimer = null\n"
+        "  integer queuedRuns = 0\n"
+        "  integer queuedConditionRuns = 0\n"
+        "  integer disabledEventRuns = 0\n"
+        "  integer enabledEventRuns = 0\n"
+        "endglobals\n"
+        "function QueueCondition takes nothing returns boolean\n"
+        "  set queuedConditionRuns = queuedConditionRuns + 1\n"
+        "  return true\n"
+        "endfunction\n"
+        "function QueuedAction takes nothing returns nothing\n"
+        "  set queuedRuns = queuedRuns + 1\n"
+        "endfunction\n"
+        "function DisabledEventAction takes nothing returns nothing\n"
+        "  set disabledEventRuns = disabledEventRuns + 1\n"
+        "endfunction\n"
+        "function EnabledEventAction takes nothing returns nothing\n"
+        "  set enabledEventRuns = enabledEventRuns + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set queuedTrigger = CreateTrigger()\n"
+        "  call TriggerAddCondition(queuedTrigger, Condition(function QueueCondition))\n"
+        "  call TriggerAddAction(queuedTrigger, function QueuedAction)\n"
+        "  call DisableTrigger(queuedTrigger)\n"
+        "  if TriggerEvaluate(queuedTrigger) then\n"
+        "    call TriggerExecute(queuedTrigger)\n"
+        "  endif\n"
+        "  call BJassAssert(queuedRuns == 1, \"queued disabled trigger action did not run\")\n"
+        "  set disabledEventTrigger = CreateTrigger()\n"
+        "  set disabledEventTimer = CreateTimer()\n"
+        "  call TriggerAddAction(disabledEventTrigger, function DisabledEventAction)\n"
+        "  call TriggerRegisterTimerExpireEvent(disabledEventTrigger, disabledEventTimer)\n"
+        "  call DisableTrigger(disabledEventTrigger)\n"
+        "  call TimerStart(disabledEventTimer, 0.0, false, null)\n"
+        "  set enabledEventTrigger = CreateTrigger()\n"
+        "  set enabledEventTimer = CreateTimer()\n"
+        "  call TriggerAddAction(enabledEventTrigger, function EnabledEventAction)\n"
+        "  call TriggerRegisterTimerExpireEvent(enabledEventTrigger, enabledEventTimer)\n"
+        "  call TimerStart(enabledEventTimer, 0.0, false, null)\n"
+        "endfunction\n"
+        "function VerifyDisabledTriggerPaths takes nothing returns nothing\n"
+        "  call BJassAssert(queuedRuns == 1, \"explicit queue ran more than once\")\n"
+        "  call BJassAssert(queuedConditionRuns == 1, \"disabled trigger condition was not evaluated exactly once\")\n"
+        "  call BJassAssert(disabledEventRuns == 0, \"disabled trigger responded to timer event\")\n"
+        "  call BJassAssert(enabledEventRuns == 1, \"enabled trigger missed timer event\")\n"
+        "endfunction\n"));
+
+    wc3_clock_advance(&level.pathing_clock, G_ClockMinimumDelay(), 0);
+    level.scheduled_frame = true;
+    G_RunTimers();
+    level.scheduled_frame = false;
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "VerifyDisabledTriggerPaths", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -6490,6 +6779,33 @@ TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
     T_ASSERT(!jass_rterror_pending(level.vm));
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyResumed", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_jass, coroutine_keeps_loop_index_changed_before_sleep) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer bj_forLoopAIndex = 1\n"
+        "  integer resumedLoopIndex = 0\n"
+        "endglobals\n"
+        "function LoopAction takes nothing returns nothing\n"
+        "  set bj_forLoopAIndex = bj_forLoopAIndex + 1\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set resumedLoopIndex = bj_forLoopAIndex\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call LoopAction()\n"
+        "endfunction\n"
+        "function verifyLoopYield takes nothing returns nothing\n"
+        "  call BJassAssert(resumedLoopIndex == 0, \"loop action continued before resume\")\n"
+        "endfunction\n"
+        "function verifyLoopResume takes nothing returns nothing\n"
+        "  call BJassAssert(resumedLoopIndex == 2, \"loop index changed before yield was lost on resume\")\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "verifyLoopYield", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyLoopResume", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
@@ -6530,7 +6846,7 @@ TEST(wc3_jass, sleep_in_boolean_expression_resumes_condition_and_branch) {
 }
 
 TEST(wc3_save, resumes_sleeping_jass_coroutine) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-jass-coroutine-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-jass-coroutine-save-test.bin");
     T_ASSERT(run_test_jass(
         "globals\n"
         "  integer coroutineStage = 0\n"
@@ -6556,7 +6872,7 @@ TEST(wc3_save, resumes_sleeping_jass_coroutine) {
 }
 
 TEST(wc3_save, preserves_research_event_context_across_sleeping_coroutine) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-research-context-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-research-context-save-test.bin");
     edict_t *producer;
     uint32_t const upgrade = MAKEFOURCC('R','h','m','e');
 
@@ -6595,7 +6911,7 @@ TEST(wc3_save, preserves_research_event_context_across_sleeping_coroutine) {
 }
 
 TEST(wc3_save, preserves_spell_point_context_across_sleeping_coroutine) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-spell-context-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-spell-context-save-test.bin");
     edict_t *caster;
     vec2_t point = { 123.0f, 234.0f };
 
@@ -6639,7 +6955,7 @@ TEST(wc3_save, preserves_spell_point_context_across_sleeping_coroutine) {
 }
 
 TEST(wc3_save, rejects_corruption_without_mutation) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-corrupt-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-corrupt-save-test.bin");
     edict_t *unit;
     FILE *f;
     uint8_t byte = 0;
@@ -6659,7 +6975,7 @@ TEST(wc3_save, rejects_corruption_without_mutation) {
 }
 
 TEST(wc3_save, rejects_script_identity_without_mutation) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-script-mismatch-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-script-mismatch-save-test.bin");
     char extra[] = "function AddedAfterSave takes nothing returns nothing\nendfunction\n";
     edict_t *unit;
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
@@ -6676,7 +6992,7 @@ TEST(wc3_save, rejects_script_identity_without_mutation) {
 /* A fully released unit has a stale edict pointer in its JASS global. Pending
  * releases retain the identity (wc3_unit_releases); finish the real drain here. */
 TEST(wc3_save, stale_unit_handle_becomes_null_after_load) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-stale-handle-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-stale-handle-save-test.bin");
     T_ASSERT(run_test_jass(
         "globals\n"
         "  unit killedUnit = null\n"
@@ -6700,7 +7016,7 @@ TEST(wc3_save, stale_unit_handle_becomes_null_after_load) {
 
 /* A removed unit must be removed from every live group before the group is saved. */
 TEST(wc3_save, removed_unit_is_removed_from_group_before_save) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-stale-group-save-test.bin";
+    cstring_t filename = Test_TempPath("wc3-stale-group-save-test.bin");
     T_ASSERT(run_test_jass(
         "type group extends handle\n"
         "type unit extends handle\n"
@@ -6771,3 +7087,22 @@ TEST(wc3_game, selection_index_visits_members_in_live_edict_order) {
 }
 
 #endif /* BZ_TESTS */
+
+#ifdef BZ_TESTS
+#ifndef _WIN32
+#include <unistd.h>
+TEST(wc3_test_utils, temp_paths_are_private_to_this_test_process) {
+    char expected[64];
+    cstring_t path = Test_TempPath("temp-path-probe.bin");
+    FILE *file;
+
+    /* Concurrent suites (other worktrees) must never share a fixture file. */
+    snprintf(expected, sizeof(expected), "/openwarcraft3-tests-%ld/temp-path-probe.bin", (long)getpid());
+    T_NOT_NULL(strstr(path, expected));
+    file = fopen(path, "wb");
+    T_NOT_NULL(file);
+    if (file) fclose(file);
+    T_EQ(remove(path), 0);
+}
+#endif
+#endif

@@ -526,8 +526,9 @@ drawing `LAYER_WORLD_HOVER`. Runtime-created units/buildings may allocate a new 
 game code changes a configstring and lets `SV_SendClientMessages()` reliably flush the new value to connected clients. Leaving the
 sync bit set produces the specific regression where pre-existing hover names work but a newly constructed building has an empty hover
 label. Health and mana use the
-corresponding context bindings over the snapshot's compressed stat bytes. A configstring is NUL-terminated on the wire, so its sixteen fixed-width name records use
-ASCII Unit Separator (`0x1f`) as padding and retain a single final NUL. `CL_ParseConfigString` converts the separators back to NULs
+corresponding context bindings over the snapshot's compressed stat bytes. A configstring is NUL-terminated on the wire, so its eight
+fixed-width name records use ASCII Unit Separator (`0x1f`) as padding and retain a single final NUL. Each record holds up to 31
+characters. `CL_ParseConfigString` converts the separators back to NULs
 after receipt, preserving ordinary fixed-offset C strings for renderer and UI consumers. Embedded NUL records truncate at the first
 name in `MSG_WriteString` and leave later hover names empty.
 
@@ -627,3 +628,7 @@ trained-unit exit placement against static footprints, nearest compatible lumber
 blocking Town Hall footprint, rejection of lumber-only drop-offs for gold, drop-off destruction retargeting, exact lethal tree trips with next-tree selection, dead-previous-tree same-forest retargeting, the no-live-tree stop path, capacity clamping, invulnerable-tree rejection, carried-resource gold/lumber visual switching and zero-carry visual clearing,
 non-lethal chops, and both sides of the immobility contract. The in-engine fixture
 `games/warcraft-3/tests/resources-src/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.
+
+## Unit-kill bounty
+
+A unit death may award gold/lumber to the killer's owner when the victim's owner has `PLAYERSTATE_GIVES_BOUNTY` enabled (Neutral Hostile defaults to enabled). `UnitBalance` provides `bountyplus`/`bountydice`/`bountysides` and their lumber counterparts; each die is rolled separately. This path is independent of Hero XP eligibility and does not reward friendly kills, self-kills, unattributed deaths or illusions. Bounty is credited in full, bypassing the upkeep income rate (retail upkeep taxes only mined gold; see `bounty_clamps_to_resource_cap_and_bypasses_upkeep` in `t_combat.c`), clamps stored 16-bit resources, and emits recipient-local `Bounty`/`LumberBounty` labels, plus the GoldCredit effect for positive gold awards. See [resource-gain-text.md](resource-gain-text.md). Transmute's `allowBounty` field and special kill-replacement semantics still need a retail-confirmed follow-up.

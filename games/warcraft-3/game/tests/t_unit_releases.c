@@ -196,7 +196,7 @@ TEST(wc3_unit_releases, tied_timer_registered_after_removal_observes_released_id
 TEST(wc3_unit_releases, cold_save_restores_absolute_deadlines_serials_and_callback_order) {
     T_ASSERT(releases_setup());wc3Clock_t saved,loaded;uint32_t serial,next;
     T_ASSERT(G_NextUnitRelease(&saved,&serial));uint32_t sequence=level.timer_sequence;
-    cstring_t file="/tmp/wc3-request-release181.bin";T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("wc3-request-release181.bin");T_ASSERT(WriteGame(file));
     G_ResetDeferredFrees();T_ASSERT(!G_NextUnitRelease(&loaded,&next));
     level.pathing_clock=(wc3Clock_t){.time=7,.epoch=2,.span=300};level.timer_sequence=900;
     T_ASSERT(ReadGame(file));T_ASSERT(G_NextUnitRelease(&loaded,&next));
@@ -210,7 +210,7 @@ TEST(wc3_unit_releases, cold_save_restores_absolute_deadlines_serials_and_callba
 TEST(wc3_unit_releases, load_discards_process_requests_absent_from_snapshot) {
     reset_entities();setup_test_world();level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
     edict_t *unit=G_Spawn();uint32_t slot=unit->s.number;
-    cstring_t file="/tmp/wc3-request-empty181.bin";T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("wc3-request-empty181.bin");T_ASSERT(WriteGame(file));
     G_DeferFreeEdict(unit);T_ASSERT(G_IsDeferredFree(unit));T_ASSERT(ReadGame(file));
     T_ASSERT(g_edicts[slot].inuse);T_ASSERT(!G_IsDeferredFree(g_edicts+slot));
     level.scheduled_frame=true;G_RunTimers();T_ASSERT(g_edicts[slot].inuse);remove(file);
@@ -222,7 +222,7 @@ TEST(wc3_unit_releases, cold_restore_after_wrap_keeps_rebased_release_and_borrow
     G_RebaseUnitReleases(300);level.pathing_clock=(wc3Clock_t){.epoch=1,.span=300};
     level.timer_clock=level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;
     wc3Clock_t before,after;uint32_t serial,next;T_ASSERT(G_NextUnitRelease(&before,&serial));
-    cstring_t file="/tmp/wc3-request-epoch181.bin";T_ASSERT(WriteGame(file));G_ResetDeferredFrees();
+    cstring_t file=Test_TempPath("wc3-request-epoch181.bin");T_ASSERT(WriteGame(file));G_ResetDeferredFrees();
     T_ASSERT(ReadGame(file));T_ASSERT(G_NextUnitRelease(&after,&next));
     T_EQ(wc3_float_bits(after.time),wc3_float_bits(before.time));T_EQ(after.epoch,1u);T_EQ(next,serial);
     G_RunDeferredFrees();T_ASSERT(g_edicts[slot].inuse);
@@ -267,7 +267,7 @@ TEST(wc3_unit_releases, load_flushes_only_old_owner_requests_within_point_two_se
         "local unit u\nlocal integer i=1\nloop\nexitwhen i>3\n"
         "set u=CreateUnit(Player(0),'hfoo',64.0*i,64.0,0.0)\n"
         "call UnitAddAbility(u,'Adef')\ncall SetUnitUserData(u,i)\nset i=i+1\nendloop\nendfunction\n"));
-    cstring_t file="/tmp/wc3-request-flush181.bin";T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("wc3-request-flush181.bin");T_ASSERT(WriteGame(file));
     ability_t const *defend=FindAbilityByClassname("Adef");T_NOT_NULL(defend);if(!defend)return;
     release_flush_parent=defend->proc;release_flush_trace=0;
     S_ReplaceAbilityProcedure(defend,release_flush_proc);

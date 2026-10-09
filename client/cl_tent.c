@@ -2,9 +2,9 @@
 
 #define MAX_MISSILES 64
 #define MAX_SPELL_IMPACTS 32
-#define MAX_FLOATING_TEXTS 64      /* entries; bounds simultaneous transient world labels */
+#define MAX_FLOATING_TEXTS 128     /* entries; fits 100 WC3 tags plus transient labels without dropping script text */
 #define MAX_ENTITY_INDICATORS 32     /* entries; repeated calls for one entity reuse its slot */
-#define FLOATING_TEXT_CAPACITY 32  /* bytes including terminator; numeric gains are much shorter */
+#define FLOATING_TEXT_CAPACITY 128 /* bytes including terminator; JASS texttags can contain full labels */
 #define SPELL_IMPACT_LIFETIME 800  /* ms — one-shot birth animation duration */
 #define ENTITY_INDICATOR_LIFETIME 1000 /* ms — retail AddIndicator flashes twice */
 #define ENTITY_INDICATOR_PERIOD 500    /* ms per flash cycle */
@@ -57,6 +57,11 @@ typedef struct {
     uint32_t fade_start;  /* ms from spawn */
     float velocity_x;  /* screen pixels per second */
     float velocity_y;  /* screen pixels per second; positive rises */
+    uint32_t texttag_id, texttag_generation;
+    uint32_t visible_clients;
+    uint32_t attached_entity;
+    float height_offset;
+    bool is_texttag, permanent, ui_velocity;
 } floatingText_t;
 
 struct {
@@ -88,6 +93,14 @@ static floatingText_t *CL_AllocFloatingText(void) {
         if (tents.texts[i].starttime < oldest->starttime) oldest = &tents.texts[i];
     }
     return oldest;
+}
+
+static floatingText_t *CL_FindTextTag(uint32_t id) {
+    FOR_LOOP(i, MAX_FLOATING_TEXTS) {
+        floatingText_t *text = &tents.texts[i];
+        if (text->active && text->is_texttag && text->texttag_id == id) return text;
+    }
+    return NULL;
 }
 
 static entityIndicator_t *CL_AllocIndicator(uint32_t entity) {
@@ -192,6 +205,53 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
                 text->velocity_y = MSG_ReadFloat(msg);
                 text->starttime = cl.time;
                 text->active = text->text[0] && text->lifetime > 0;
+            }
+            break;
+        case TE_TEXT_TAG:
+            {
+                int32_t id = MSG_ReadShort(msg);
+                uint32_t generation = (uint32_t)MSG_ReadLong(msg);
+                int32_t operation = MSG_ReadByte(msg);
+                floatingText_t *text;
+                uint32_t starttime = cl.time;
+                uint32_t packed;
+                int32_t font, lifetime, fade_start;
+
+                if (id < 0) break;
+                text = CL_FindTextTag((uint32_t)id);
+                if (operation == 0) {
+                    if (text && text->texttag_generation == generation) text->active = false;
+                    break;
+                }
+                if (operation != 1) break;
+                if (!text) text = CL_AllocFloatingText();
+                else if (text->texttag_generation == generation) starttime = text->starttime;
+                memset(text, 0, sizeof(*text));
+                text->texttag_id = (uint32_t)id;
+                text->texttag_generation = generation;
+                text->is_texttag = true;
+                text->visible_clients = (uint32_t)MSG_ReadLong(msg);
+                MSG_ReadPos(msg, &text->origin);
+                text->attached_entity = (uint32_t)MSG_ReadLong(msg);
+                text->height_offset = MSG_ReadFloat(msg);
+                MSG_ReadStringN(msg, text->text, sizeof(text->text));
+                packed = (uint32_t)MSG_ReadLong(msg);
+                text->color = MAKE(color32_t,
+                    packed & 0xffu, (packed >> 8) & 0xffu,
+                    (packed >> 16) & 0xffu, (packed >> 24) & 0xffu);
+                font = MSG_ReadShort(msg);
+                text->font = font > 0 && font < MAX_FONTSTYLES ? (uint32_t)font : 0;
+                lifetime = MSG_ReadLong(msg);
+                fade_start = MSG_ReadLong(msg);
+                text->lifetime = lifetime > 0 ? (uint32_t)lifetime : 0;
+                text->fade_start = fade_start > 0 ? (uint32_t)fade_start : 0;
+                text->fade_start = MIN(text->fade_start, text->lifetime);
+                text->velocity_x = MSG_ReadFloat(msg);
+                text->velocity_y = MSG_ReadFloat(msg);
+                text->permanent = MSG_ReadByte(msg) != 0;
+                text->ui_velocity = true;
+                text->starttime = starttime;
+                text->active = text->text[0] && text->font != 0;
             }
             break;
         case TE_TERRAIN_DEFORM:
@@ -328,9 +388,16 @@ void CL_DrawTEnts(void) {
 
         if (!text->active) continue;
         age = cl.time - text->starttime;
-        if (age >= text->lifetime) {
+        if (!text->permanent && text->lifetime && age >= text->lifetime) {
             text->active = false;
             continue;
+        }
+        if (text->is_texttag && (cl.playerstate.number >= 32 ||
+            !(text->visible_clients & (1u << cl.playerstate.number)))) continue;
+        if (text->is_texttag && text->attached_entity < MAX_CLIENT_ENTITIES &&
+            cl.ents[text->attached_entity].current.model) {
+            text->origin = cl.ents[text->attached_entity].current.origin;
+            text->origin.z += text->height_offset;
         }
         if (!text->font || !cl.fonts[text->font] || !SCR_ProjectWorldPoint(&text->origin, &screen))
             continue;
@@ -340,8 +407,13 @@ void CL_DrawTEnts(void) {
                     (float)(text->lifetime - text->fade_start);
         }
         seconds = (float)age / 1000.0f;
-        screen.x += text->velocity_x * seconds * pixel_x;
-        screen.y -= text->velocity_y * seconds * pixel_y;
+        if (text->ui_velocity) {
+            screen.x += text->velocity_x * seconds;
+            screen.y -= text->velocity_y * seconds;
+        } else {
+            screen.x += text->velocity_x * seconds * pixel_x;
+            screen.y -= text->velocity_y * seconds * pixel_y;
+        }
         color = text->color;
         color.a = (uint8_t)(color.a * MAX(0.0f, MIN(1.0f, alpha)));
         shadow = MAKE(color32_t, 0, 0, 0, color.a);
@@ -396,6 +468,88 @@ static uint32_t test_deform_starts, test_deform_stop_id, test_deform_stop_fade, 
 static void test_start_deform(terrainDeform_t const *deformation) { test_deform = *deformation; test_deform_starts++; }
 static void test_stop_deform(uint32_t id, uint32_t fade_ms) { test_deform_stop_id = id; test_deform_stop_fade = fade_ms; }
 static void test_stop_all_deforms(void) { test_deform_stop_alls++; }
+
+TEST(client_tent, texttag_updates_keep_identity_and_ignore_stale_removal) {
+    uint8_t buf[256];
+    sizeBuf_t sb = { .data = buf, .maxsize = sizeof(buf) };
+    floatingText_t saved_texts[MAX_FLOATING_TEXTS];
+    vec3_t const pos = { 12.0f, 34.0f, 56.0f };
+    uint32_t const old_time = cl.time;
+
+    memcpy(saved_texts, tents.texts, sizeof(saved_texts));
+    memset(tents.texts, 0, sizeof(tents.texts));
+    cl.time = 400;
+    MSG_WriteByte(&sb, TE_TEXT_TAG);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, 19);
+    MSG_WriteByte(&sb, 1);
+    MSG_WriteLong(&sb, 3);
+    MSG_WritePos(&sb, &pos);
+    MSG_WriteLong(&sb, -1);
+    MSG_WriteFloat(&sb, 40.0f);
+    MSG_WriteString(&sb, "150!");
+    MSG_WriteLong(&sb, (int32_t)0xff0000ffu);
+    MSG_WriteShort(&sb, 2);
+    MSG_WriteLong(&sb, 2000);
+    MSG_WriteLong(&sb, 1000);
+    MSG_WriteFloat(&sb, 0.0f);
+    MSG_WriteFloat(&sb, 0.03f);
+    MSG_WriteByte(&sb, 0);
+    CL_ParseTEnt(&sb);
+    T_EQ(sb.readcount, sb.cursize);
+    T_ASSERT(tents.texts[0].active);
+    T_ASSERT(tents.texts[0].is_texttag);
+    T_EQ(tents.texts[0].texttag_id, 4u);
+    T_EQ(tents.texts[0].texttag_generation, 19u);
+    T_STREQ(tents.texts[0].text, "150!");
+    T_EQ(tents.texts[0].visible_clients, 3u);
+    T_EQ(tents.texts[0].attached_entity, UINT32_MAX);
+    T_FEQ(tents.texts[0].height_offset, 40.0f, 0.001f);
+    T_EQ(tents.texts[0].lifetime, 2000u);
+    T_EQ(tents.texts[0].fade_start, 1000u);
+    T_FEQ(tents.texts[0].velocity_y, 0.03f, 0.0001f);
+    T_EQ(tents.texts[0].starttime, 400u);
+
+    sb.cursize = sb.readcount = 0;
+    cl.time = 750;
+    MSG_WriteByte(&sb, TE_TEXT_TAG);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, 19);
+    MSG_WriteByte(&sb, 1);
+    MSG_WriteLong(&sb, 1);
+    MSG_WritePos(&sb, &pos);
+    MSG_WriteLong(&sb, -1);
+    MSG_WriteFloat(&sb, 40.0f);
+    MSG_WriteString(&sb, "updated");
+    MSG_WriteLong(&sb, (int32_t)0xff0000ffu);
+    MSG_WriteShort(&sb, 2);
+    MSG_WriteLong(&sb, 2000);
+    MSG_WriteLong(&sb, 1000);
+    MSG_WriteFloat(&sb, 0.0f);
+    MSG_WriteFloat(&sb, 0.03f);
+    MSG_WriteByte(&sb, 0);
+    CL_ParseTEnt(&sb);
+    T_EQ(tents.texts[0].starttime, 400u);
+    T_STREQ(tents.texts[0].text, "updated");
+
+    sb.cursize = sb.readcount = 0;
+    MSG_WriteByte(&sb, TE_TEXT_TAG);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, 18);
+    MSG_WriteByte(&sb, 0);
+    CL_ParseTEnt(&sb);
+    T_ASSERT(tents.texts[0].active);
+    sb.cursize = sb.readcount = 0;
+    MSG_WriteByte(&sb, TE_TEXT_TAG);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, 19);
+    MSG_WriteByte(&sb, 0);
+    CL_ParseTEnt(&sb);
+    T_ASSERT(!tents.texts[0].active);
+
+    memcpy(tents.texts, saved_texts, sizeof(saved_texts));
+    cl.time = old_time;
+}
 
 /* The client is a pure courier for terrain-deformation events: it decodes the game's field order and hands
  * the descriptor to the renderer. The byte layout here mirrors G_SendTerrainDeformation in the WC3 game. */

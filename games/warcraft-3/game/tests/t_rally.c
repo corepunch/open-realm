@@ -427,12 +427,12 @@ TEST(wc3_rally, authored_ability_admits_native_replacement_and_rejection_preserv
     T_ASSERT(unit_issueorder(unit,"move",&goal));T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,true,0,0));
     T_ASSERT(!unit_issueorder(unit,"setrally",&point));
     T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(G_UnitQueuedOrderCount(unit),1);
-    T_ASSERT(WriteGame("/tmp/wc3-rally119.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-rally119.bin")));
     T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(unit_issueorder(unit,"setrally",&point));
-    T_ASSERT(ReadGame("/tmp/wc3-rally119.bin"));
+    T_ASSERT(ReadGame(Test_TempPath("wc3-rally119.bin")));
     T_ASSERT(!G_UnitHasRally(unit));T_EQ(unit->current_order_id,G_OrderId("move"));
     T_EQ(G_UnitQueuedOrderCount(unit),1);T_ASSERT(!unit_issueorder(unit,"setrally",&point));
-    T_EQ(G_UnitQueuedOrderCount(unit),1);remove("/tmp/wc3-rally119.bin");
+    T_EQ(G_UnitQueuedOrderCount(unit),1);remove(Test_TempPath("wc3-rally119.bin"));
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
 }
 

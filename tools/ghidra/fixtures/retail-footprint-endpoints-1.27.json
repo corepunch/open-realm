@@ -1366,5 +1366,39 @@
     0,
     0
   ],
-  "scope": "complete original 16ee80 static terrain endpoints; dynamic self-suppression is separate"
+  "scope": "complete original 16ee80 static terrain endpoints; dynamic self-suppression is separate",
+  "wall_endpoints": [
+    {
+      "world_position": [
+        208.0,
+        235.75
+      ],
+      "radius_world": 16.0,
+      "result": 1
+    },
+    {
+      "world_position": [
+        210.5,
+        235.75
+      ],
+      "radius_world": 16.0,
+      "result": 1
+    },
+    {
+      "world_position": [
+        223.5,
+        235.75
+      ],
+      "radius_world": 16.0,
+      "result": 1
+    },
+    {
+      "world_position": [
+        224.0,
+        235.75
+      ],
+      "radius_world": 16.0,
+      "result": 0
+    }
+  ]
 }

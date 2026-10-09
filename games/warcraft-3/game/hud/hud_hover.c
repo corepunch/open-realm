@@ -101,6 +101,10 @@ void UI_WriteHoverLayout(edict_t *ent) {
 
     frame.flags.type = FT_NAMETAG; frame.flagsvalue |= UIFLAG_SIZE_TO_CONTENT; frame.stat = UI_STAT_CONTEXT_NAME;
     frame.color = COLOR32_WHITE;
+    /* Let the measured label determine both dimensions; a fixed width clips
+     * longer names inside the otherwise content-sized backdrop. */
+    frame.size.width = 0.0f;
+    frame.size.height = 0.0f;
     frame.text = UI_HoverResourceLabel();
     uiNameTag_t data = MAKE(uiNameTag_t,
         .background = MAKE(uiBackdrop_t,
@@ -110,8 +114,7 @@ void UI_WriteHoverLayout(edict_t *ent) {
             .CornerSize = 0.010f,
             .BackgroundSize = 0.036f,
             .BackgroundInsets = { 0.0019f, 0.0019f, 0.0019f, 0.0019f },
-            .TileBackground = true,
-            .BlendAll = true),
+            .TileBackground = true),
         .text = MAKE(uiLabel_t,
             .font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE),
             .textalignx = FONT_JUSTIFYCENTER,

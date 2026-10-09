@@ -492,10 +492,32 @@ bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
     return G_AddItemToSlotInternal(unit, item, slot, true);
 }
 
+static void G_CompletePowerupUse(edict_t *unit, edict_t *item) {
+    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
+    G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
+    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_USE_ITEM, item);
+    G_PublishEventWithSource(unit, EVENT_UNIT_USE_ITEM, item);
+    item->item->charges = 0;
+    G_RetainConsumedItemForUseEvent(item);
+}
+
 bool G_PickupItem(edict_t *unit, edict_t *item) {
-    int32_t slot = G_FindFreeInventorySlot(unit);
+    abilityitem_t powerup = S_ItemPowerup(unit, item);
+    int32_t slot;
     bool added;
 
+    if (powerup.ability && G_CanPickupItem(unit, item)) {
+        abilityCall_t call = MAKE(abilityCall_t, .item = &powerup, .source_item = item, .source_item_spawn_time = item->spawn_time);
+        bool const used = S_AbilityMessage(unit, A_ITEM_USE, &call);
+        /* Resurrection is a validated use: with no legal corpse, WC3 reports
+         * failure and leaves the powerup in the world. Other supported runes
+         * keep their consume-on-touch behavior even when no target qualifies. */
+        if (!used && powerup.ability->proc == CAbilityItemResurrection) return false;
+        G_QueueOwnerSoundAlias(unit, "ItemGet");
+        G_CompletePowerupUse(unit, item);
+        return true;
+    }
+    slot = G_FindFreeInventorySlot(unit);
     if (slot < 0) {
         return false;
     }
@@ -522,7 +544,7 @@ static void G_PickupItemThink(edict_t *unit) {
         G_StopPickupOrder(unit);
         return;
     }
-    if (G_FindFreeInventorySlot(unit) < 0) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !S_ItemPowerup(unit, item).ability) {
         G_ShowInventoryFull(unit);
         G_StopPickupOrder(unit);
         return;
@@ -530,7 +552,8 @@ static void G_PickupItemThink(edict_t *unit) {
 
     distance = M_DistanceToGoal(unit);
     if (distance <= ITEM_PICKUP_RANGE) {
-        if (!G_PickupItem(unit, item) && G_FindFreeInventorySlot(unit) < 0) {
+        if (!G_PickupItem(unit, item) && G_FindFreeInventorySlot(unit) < 0 &&
+            !S_ItemPowerup(unit, item).ability) {
             G_ShowInventoryFull(unit);
         }
         G_StopPickupOrder(unit);
@@ -553,7 +576,7 @@ bool G_OrderPickupItem(edict_t *unit, edict_t *item) {
         (unit->aiflags & AI_IMMOBILE)) {
         return false;
     }
-    if (G_FindFreeInventorySlot(unit) < 0) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !S_ItemPowerup(unit, item).ability) {
         G_ShowInventoryFull(unit);
         return false;
     }
@@ -791,7 +814,7 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
         bool succeeded = false;
 
         if (!ability) continue;
-        clent->client->menu.ability_code = *((uint32_t const *)ability_name);
+        clent->client->menu.ability_code = FS_SLKKey(ability_name);
         if (ability->flags & AB_ITEM) {
             succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
         } else if (S_AbilityHasCommand(ability)) {

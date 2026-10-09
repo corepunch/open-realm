@@ -511,11 +511,15 @@ def main():
             assert read(mover+0x8c)[0]==engine_vel[5],(new_speed,new_heading,maximum,
                 hex(read(mover+0x8c)[0]),hex(engine_vel[5]))
         world_expected=[float_multiply(w,0x42000000) for w in read(mover+0x80,2)]+[read(mover+0x8c)[0]]
-        world_velocity_cases.append(dict(input=world_input,expected=world_expected))
+        native_expected=read(mover+0x80,2)+[read(mover+0x8c)[0]]
+        world_velocity_cases.append(dict(input=world_input,expected=world_expected,native_expected=native_expected))
         if engine:
             world_words=(ctypes.c_uint32*6)(*world_input)
             engine.pathing_velocity_world_commit(world_words)
-            assert [world_words[0],world_words[1],world_words[5]]==world_expected,(new_speed,new_heading,maximum,'world adapter')
+            # ScalarMultiply canonicalizes zero; stored velocity rescaling preserves its sign.
+            stored_expected=[w if w & 0x7fffffff == 0 else float_multiply(w,0x42000000) for w in native_expected[:2]]+[native_expected[2]]
+            assert [world_words[0],world_words[1],world_words[5]]==stored_expected,(new_speed,new_heading,maximum,'world adapter')
+            assert [float_multiply(w,0x3f800000) for w in stored_expected[:2]]+[stored_expected[2]]==world_expected
         integrated_old=(8+old_velocity[0]*.5,8+old_velocity[1]*.5)
         assert (scalar(mover+0x78),scalar(mover+0x7c))==integrated_old
         assert scalar(mover+0x70)==0.5 and read(mover+0x74)[0]==0
@@ -536,7 +540,7 @@ def main():
         assert scalar(mover+0x70)==0.75
         velocity_cases.append(dict(speed=new_speed,heading=scalar(heading_ptr),maximum=maximum,velocity=actual,facing_bits=read(mover+0x8c)[0],error=error))
     if args.world_velocity_fixture:
-        args.world_velocity_fixture.write_text(json.dumps(dict(version=1,binary_sha256=digest,columns=['old_vx_world','old_vy_world','speed_world','heading','limit_world','old_facing'],expected_columns=['vx_world','vy_world','facing'],cases=world_velocity_cases),separators=(',',':'))+'\n')
+        args.world_velocity_fixture.write_text(json.dumps(dict(version=1,binary_sha256=digest,columns=['old_vx_world','old_vy_world','speed_world','heading','limit_world','old_facing'],expected_columns=['vx_world','vy_world','facing'],native_expected_columns=['vx_fine','vy_fine','facing'],cases=world_velocity_cases),separators=(',',':'))+'\n')
     # Two-member speed commit through shared-cap selection and actual movers.
     group,members=system+0xe000,system+0xf000
     actors=[system+0x10000,system+0x10200]

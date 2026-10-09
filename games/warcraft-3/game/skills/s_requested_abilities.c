@@ -231,7 +231,8 @@ static void death_coil_projectile_hit(edict_t *missile) {
     cstring_t race = target && target->data.UnitData ? target->data.UnitData->race : NULL;
     bool applied = false;
 
-    if (caster && caster->inuse && S_SpellIsAliveTarget(target) && race) {
+    if (caster && caster->inuse && S_SpellIsAliveTarget(target) && race &&
+        !S_TryBlockSpellShield(caster, missile->class_id, target)) {
         if (!strcmp(race, STR_UNDEAD) && S_SpellIsFriend(caster, target)) {
             S_SpellHeal(target, missile->damage);
             applied = true;

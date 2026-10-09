@@ -10,7 +10,7 @@
 /* Warsmash and retail unit data treat Makeitems as merchandise alongside
  * Sellitems. In particular, the stock Ancient of Wonders authors its list as
  * Makeitems in NightElfUnitFunc.txt. */
-static cstring_t G_ShopItemList(edict_t const *shop) {
+static cstring_t G_GetShopItemList(edict_t const *shop) {
     static char items[2048];
     cstring_t sell = shop && shop->data.UnitProfile ? shop->data.UnitProfile->sellItems : NULL;
     cstring_t make = shop && shop->data.UnitProfile ? shop->data.UnitProfile->makeItems : NULL;
@@ -43,39 +43,30 @@ static cstring_t G_ShopRequirementName(gameClient_t const *client, uint32_t requ
     char token[64];
     cstring_t name;
 
-    if (alternatives && *alternatives) {
-        unitRace_t const player_race = G_ShopClientRace(client);
-        char first[64] = "";
+    unitRace_t const player_race = G_ShopClientRace(client);
+    if (alternatives && *alternatives && player_race != RACE_UNKNOWN) {
         for (uint32_t i = 0; G_CsvToken(alternatives, i, token, sizeof(token)); i++) {
             uint32_t alternative_id;
             UnitData_t const *data;
             UnitProfile_t const *profile;
 
             if (strlen(token) != 4) continue;
-            if (i == 0) strlcpy(first, token, sizeof(first));
             memcpy(&alternative_id, token, sizeof(alternative_id));
             data = G_UnitData(alternative_id);
-            if (player_race != RACE_UNKNOWN && WC3_RaceFromString(data ? data->race : NULL) != player_race)
-                continue;
+            if (WC3_RaceFromString(data ? data->race : NULL) != player_race) continue;
             profile = G_UnitProfile(alternative_id);
             name = profile && profile->name ? G_LevelString(profile->name) : NULL;
             if ((!name || !*name) && GetClassName(alternative_id))
                 name = FindConfigValue(GetClassName(alternative_id), "Name");
-            if (name && *name) return name;
-            if (player_race == RACE_UNKNOWN) break;
-        }
-        if (player_race == RACE_UNKNOWN && first[0]) {
-            uint32_t alternative_id;
-            memcpy(&alternative_id, first, sizeof(alternative_id));
-            return GetClassName(alternative_id);
+            return name && *name ? name : GetClassName(alternative_id);
         }
     }
     name = FindConfigValue(GetClassName(requirement_id), "Name");
     return name && *name ? name : GetClassName(requirement_id);
 }
 
-static bool G_ShopItemRequirementSatisfied(gameClient_t *client, uint32_t item_id,
-                                            string_t reason, uint32_t reason_size) {
+bool G_ShopItemRequirementsSatisfied(gameClient_t *client, uint32_t item_id,
+                                      string_t reason, uint32_t reason_size) {
     cstring_t requirements = FindConfigValue(GetClassName(item_id), "Requires");
     char requirement[64];
 
@@ -88,7 +79,8 @@ static bool G_ShopItemRequirementSatisfied(gameClient_t *client, uint32_t item_i
         if (strlen(requirement) != 4) {
             fprintf(stderr, "WC3 shop: invalid item Requires entry '%s' for item %.4s\n",
                     requirement, (cstring_t)&item_id);
-            continue;
+            if (reason && reason_size) snprintf(reason, reason_size, "Invalid item requirement data.");
+            return false;
         }
         memcpy(&requirement_id, requirement, sizeof(requirement_id));
         satisfied = G_PlayerRequirementCount(client, requirement_id) > 0;
@@ -100,7 +92,8 @@ static bool G_ShopItemRequirementSatisfied(gameClient_t *client, uint32_t item_i
                 if (strlen(alternative) != 4) {
                     fprintf(stderr, "WC3 shop: invalid DependencyOr entry '%s' for requirement %.4s\n",
                             alternative, (cstring_t)&requirement_id);
-                    continue;
+                    if (reason && reason_size) snprintf(reason, reason_size, "Invalid item requirement data.");
+                    return false;
                 }
                 memcpy(&alternative_id, alternative, sizeof(alternative_id));
                 if (G_PlayerRequirementCount(client, alternative_id) > 0) {
@@ -191,7 +184,7 @@ void G_SetStockSlots(edict_t *unit, bool items, int32_t slots) {
 /* Identifies live units whose authored merchandise makes them shops. */
 bool G_IsItemShop(edict_t const *shop) {
     if (!shop || !shop->inuse || !shop->class_id || M_IsDead((edict_t *)shop)) return false;
-    cstring_t items = G_ShopItemList(shop);
+    cstring_t items = G_GetShopItemList(shop);
     return (items && *items) || (shop->stock && shop->stock->items_initialized && shop->stock->item_count);
 }
 
@@ -376,7 +369,7 @@ static void G_InitItemStock(edict_t *shop) {
     memset(shop->stock->items, 0, sizeof(shop->stock->items));
     if (!G_IsItemShop(shop) || !shop->stock->item_slots) return;
 
-    items = G_ShopItemList(shop);
+    items = G_GetShopItemList(shop);
     limit = MIN(shop->stock->item_slots, (uint32_t)MAX_SHOP_STOCK);
     PARSE_LIST(items, item_name, parse_segment) {
         uint32_t item_id;
@@ -472,6 +465,13 @@ static int32_t G_FindShopItemStock(edict_t *shop, uint32_t item_id) {
         return (int32_t)i;
     }
     return -1;
+}
+
+/* Initializes and restocks the live merchandise; returns its entry count. */
+uint32_t G_UpdateShopItemStock(edict_t *shop) {
+    G_InitItemStock(shop);
+    FOR_LOOP(i, shop->stock->item_count) G_UpdateItemStockEntry(shop, i);
+    return shop->stock->item_count;
 }
 
 static void G_StartItemRestock(edict_t *shop, uint32_t index) {
@@ -719,10 +719,9 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
 
     if (!client || !buttons || !max_buttons || !G_CanUseItemShop(client, shop)) return 0;
     memset(buttons, 0, sizeof(*buttons) * max_buttons);
-    G_InitItemStock(shop);
     patron = G_FindShopPatron(client, shop);
 
-    FOR_LOOP(i, shop->stock->item_count) {
+    FOR_LOOP(i, G_UpdateShopItemStock(shop)) {
         char code[5] = {0};
         char requirement_reason[128] = {0};
         gameCommandButton_t *button;
@@ -730,7 +729,6 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
         uint32_t now;
 
         if (count >= max_buttons) break;
-        G_UpdateItemStockEntry(shop, i);
         memcpy(code, &shop->stock->items[i].id, 4);
         button = &buttons[count];
         if (!G_BuildCommandButton(shop, code, false, 0, button)) continue;
@@ -739,8 +737,8 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
         item = G_ItemData(shop->stock->items[i].id);
         if (shop->stock->items[i].maximum > 0) button->number = (uint32_t)MAX(0, shop->stock->items[i].current);
 
-        if (!G_ShopItemRequirementSatisfied(client, shop->stock->items[i].id,
-                                             requirement_reason, sizeof(requirement_reason))) {
+        if (!G_ShopItemRequirementsSatisfied(client, shop->stock->items[i].id,
+                                              requirement_reason, sizeof(requirement_reason))) {
             G_DisableShopButton(button, requirement_reason);
         } else if (!patron) {
             G_DisableShopButton(button, "No eligible purchaser is nearby.");
@@ -876,7 +874,7 @@ bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id) {
     if (!item || !item->file) return false;
     {
         char reason[128] = {0};
-        if (!G_ShopItemRequirementSatisfied(client, item_id, reason, sizeof(reason))) {
+        if (!G_ShopItemRequirementsSatisfied(client, item_id, reason, sizeof(reason))) {
             G_ShowCommandErrorText(clent, reason);
             return false;
         }

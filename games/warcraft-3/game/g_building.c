@@ -77,6 +77,10 @@ void G_ClearBuildPreview(edict_t *builder) {
 #define WC3_UNDEAD_BUILD_WORK_MS 2267 // milliseconds; Warsmash CBehaviorUndeadBuild summon-work window
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
+#define WC3_PATH_BLOCKVISION 0x10
+#define WC3_PATH_UNFLOAT     CM_PATHING_UNFLOATABLE
+#define WC3_PATH_UNAMPH      0x80 /* placement predicate: UNWALKABLE && UNSWIMMABLE */
+#define WC3_PATH_NAGA_SHALLOW 0x01 /* preview policy: allow shallow-water UNBUILDABLE */
 #define ID_UPGRADE_EFFECT_ATTACK_DAMAGE MAKEFOURCC('r', 'a', 't', 'x')
 #define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
 #define ID_UPGRADE_EFFECT_ATTACK_RANGE  MAKEFOURCC('r', 'a', 't', 'r')
@@ -110,6 +114,14 @@ static uint8_t G_PlacementFlags(cstring_t list) {
             flags |= WC3_PATH_UNBUILDABLE;
         } else if (!strcmp(token, "blighted")) {
             flags |= WC3_PATH_BLIGHTED;
+        } else if (!strcmp(token, "unflyable")) {
+            flags |= CM_PATHING_UNFLYABLE;
+        } else if (!strcmp(token, "blockvision")) {
+            flags |= WC3_PATH_BLOCKVISION;
+        } else if (!strcmp(token, "unfloat")) {
+            flags |= WC3_PATH_UNFLOAT;
+        } else if (!strcmp(token, "unamph")) {
+            flags |= WC3_PATH_UNAMPH;
         } else {
             /* TODO: decode the remaining Warcraft placement predicates from the
              * authoritative unit data instead of silently treating them as no-op. */
@@ -117,6 +129,29 @@ static uint8_t G_PlacementFlags(cstring_t list) {
         }
     }
     return flags;
+}
+
+static bool G_PlacementPathingPrevented(uint8_t pathing, uint8_t prevented, bool shallow_water) {
+    uint8_t simple = prevented & (uint8_t)~(WC3_PATH_UNAMPH | WC3_PATH_NAGA_SHALLOW);
+
+    /* Some shallow-water WPM cells carry UNBUILDABLE without the same
+     * UNWALKABLE signature. Only an actual water surface can exempt Naga
+     * placement from that authored/default bit. */
+    if ((prevented & WC3_PATH_NAGA_SHALLOW) && shallow_water) {
+        simple &= (uint8_t)~WC3_PATH_UNBUILDABLE;
+    }
+    if (pathing & simple) return true;
+    return (prevented & WC3_PATH_UNAMPH) &&
+           (pathing & CM_PATHING_UNWALKABLE) &&
+           (pathing & CM_PATHING_UNFLOATABLE);
+}
+
+static bool G_PlacementPathingRequired(uint8_t pathing, uint8_t required) {
+    uint8_t const simple = required & (uint8_t)~WC3_PATH_UNAMPH;
+    if ((pathing & simple) != simple) return false;
+    if (!(required & WC3_PATH_UNAMPH)) return true;
+    return (pathing & CM_PATHING_UNWALKABLE) &&
+           (pathing & CM_PATHING_UNFLOATABLE);
 }
 
 static uint32_t G_CsvToken(cstring_t list, uint32_t index, string_t out, uint32_t out_size) {
@@ -1252,11 +1287,22 @@ void G_RunBuildingUpgradeFrame(edict_t *building) {
 void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t *prevented, uint8_t *required) {
     UnitBalance_t const *balance = G_UnitBalance(building_id);
     UnitUI_t const *ui = G_UnitUI(building_id);
+    UnitData_t const *data = G_UnitData(building_id);
     cstring_t prevent = balance->preventPlace ? balance->preventPlace : ui->preventPlace;
     cstring_t require = balance->requirePlace ? balance->requirePlace : ui->requirePlace;
+    uint8_t prevented_flags = WC3_PATH_UNBUILDABLE | WC3_PATH_UNWALKABLE | G_PlacementFlags(prevent);
+
+    /* Naga structures can occupy shallow water: those cells are unwalkable
+     * but remain amphibious. Reject only cells blocked to both walkers and
+     * swimmers, while retaining the ordinary unbuildable restriction. */
+    if (WC3_RaceFromString(data->race) == RACE_NAGA && G_UnitIsBuilding(building_id)) {
+        prevented_flags &= (uint8_t)~WC3_PATH_UNWALKABLE;
+        prevented_flags |= WC3_PATH_UNAMPH;
+        prevented_flags |= WC3_PATH_NAGA_SHALLOW;
+    }
 
     if (prevented) {
-        *prevented = WC3_PATH_UNBUILDABLE | WC3_PATH_UNWALKABLE | G_PlacementFlags(prevent);
+        *prevented = prevented_flags;
     }
     if (required) {
         *required = G_PlacementFlags(require);
@@ -1345,7 +1391,7 @@ static bool G_BuildTooCloseToGoldMine(uint32_t building_id, vec2_t const *point)
 /* Move friendly mobile units clear of a newly baked footprint while retaining their active orders. */
 bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
     edict_t * *units;
-    vec2_t *positions;
+    unitExitReservation_t *positions;
     uint32_t count = 0;
 
     if (!builder || !building || !globals.num_edicts) return false;
@@ -1371,7 +1417,9 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
                 ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
 #endif
         float angle;
-        if (!SP_FindUnitExitPosition(building, ent, &positions[count], &angle)) {
+        /* Reserve candidates in the plan, without publishing speculative poses or
+         * changing units before every destination has been admitted. */
+        if (!SP_FindUnitExitPositionReserved(building, ent, positions, count, &positions[count].point, &angle)) {
 #ifdef WC3_DEBUG_BUILD
             fprintf(stderr, "WC3_BUILD displace-failed builder=%ld building=%ld unit=%ld reason=no-exit\n",
                     (long)(builder - g_edicts), (long)(building - g_edicts), (long)(ent - g_edicts));
@@ -1379,25 +1427,19 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
             gi.MemFree(positions); gi.MemFree(units); return false;
         }
         (void)angle;
+        positions[count].radius = ent->collision;
         units[count++] = ent;
-    }
-    FOR_LOOP(i, count) {
-        FOR_LOOP(j, i) {
-            if (Vector2_distance(&positions[i], &positions[j]) < units[i]->collision + units[j]->collision) {
-                gi.MemFree(positions); gi.MemFree(units); return false;
-            }
-        }
     }
     FOR_LOOP(i, count) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD displace-apply building=%ld unit=%ld old=(%.1f,%.1f) new=(%.1f,%.1f) move=%s project=%.4s goal=%ld\n",
                 (long)(building - g_edicts), (long)(units[i] - g_edicts),
-                units[i]->s.origin2.x, units[i]->s.origin2.y, positions[i].x, positions[i].y,
+                units[i]->s.origin2.x, units[i]->s.origin2.y, positions[i].point.x, positions[i].point.y,
                 units[i]->currentmove && units[i]->currentmove->animation ? units[i]->currentmove->animation : "<none>",
                 units[i]->build_project ? (cstring_t)&units[i]->build_project : "----",
                 units[i]->goalentity ? (long)(units[i]->goalentity - g_edicts) : -1L);
 #endif
-        move_start_displacement(units[i], &positions[i]);
+        move_start_displacement(units[i], &positions[i].point);
     }
     gi.MemFree(positions); gi.MemFree(units);
     return true;
@@ -1473,7 +1515,14 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
                 }
                 if (G_IsPointBlighted(&sample)) flags |= WC3_PATH_BLIGHTED;
                 else flags &= ~WC3_PATH_BLIGHTED;
-                if (flags & prevented) {
+                bool shallow_water = false;
+                if ((prevented & WC3_PATH_NAGA_SHALLOW) &&
+                    (flags & WC3_PATH_UNBUILDABLE) &&
+                    !(flags & (CM_PATHING_UNFLOATABLE | CM_PATHING_UNFLYABLE))) {
+                    shallow_water = CM_GetWaterHeightAtPoint(sample.x, sample.y) >
+                                    CM_GetHeightAtPoint(sample.x, sample.y);
+                }
+                if (G_PlacementPathingPrevented(flags, prevented, shallow_water)) {
                     if (pathtex) gi.MemFree(pathtex);
  #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING placement result=%d reason=terrain-blocked building=%.4s sample=(%.1f,%.1f) flags=0x%x prevented=0x%x\n",
@@ -1481,7 +1530,7 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
  #endif
                     return PLACE_TERRAIN_BLOCKED;
                 }
-                if ((flags & required) != required) {
+                if (!G_PlacementPathingRequired(flags, required)) {
                     buildPlacementResult_t const result =
                         (required & WC3_PATH_BLIGHTED) && !(flags & WC3_PATH_BLIGHTED)
                             ? PLACE_REQUIRES_BLIGHT
@@ -1538,7 +1587,7 @@ void G_UpdateConstructionAnimation(edict_t *building) {
     uint32_t first, last, span, frame;
 
     if (!building || !building->construction || !building->data.UnitBalance) return;
-    if (building->data.UnitBalance->buildTime <= 0) return;
+    if (building->data.UnitBalance->buildTime <= 0 && building->construction->duration_ms <= 0) return;
 
     /* Construction owns the birth sequence. Re-resolve it instead of relying
      * on whatever animation happened to be left on the entity by a previous
@@ -1549,7 +1598,8 @@ void G_UpdateConstructionAnimation(edict_t *building) {
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
     building->animation = anim;
 
-    duration = (float)building->data.UnitBalance->buildTime * 1000.0f;
+    duration = building->construction->duration_ms > 0 ? building->construction->duration_ms :
+               (float)building->data.UnitBalance->buildTime * 1000.0f;
     fraction = MAX(0.0f, MIN(1.0f, building->construction->progress / duration));
     first = anim->interval[0];
     last = anim->interval[1];
@@ -1577,7 +1627,8 @@ static bool G_ConstructionHasClassification(edict_t const *unit, cstring_t wante
     return false;
 }
 
-static bool G_StartConstruction(edict_t *building, constructionType_t type, bool paused) {
+static bool G_StartConstruction(edict_t *builder, edict_t *building, constructionType_t type, bool paused,
+                                bool worker_inside) {
     edictStat_s *hp;
 
     if (!building || !G_UnitIsStructure(building)) return false;
@@ -1596,6 +1647,7 @@ static bool G_StartConstruction(edict_t *building, constructionType_t type, bool
     building->construction->restore_hidden = false;
     building->construction->worker_release_time = 0;
     building->construction->progress = 0.0f;
+    building->construction->duration_ms = 0.0f;
     building->construction->paid = false;
     building->construction->payer = 0;
     building->construction->gold = 0;
@@ -1633,26 +1685,32 @@ static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool 
 }
 
 bool G_StartHumanConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(building, CONSTRUCTION_HUMAN, true)) return false;
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_HUMAN, true, false)) return false;
     building->construction->primary_builder = builder;
     return true;
 }
 
 bool G_StartOrcConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(building, CONSTRUCTION_ORC, false)) return false;
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_ORC, false, true)) return false;
     G_AssignConstructionWorker(building, builder, true);
     return true;
 }
 
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(building, CONSTRUCTION_UNDEAD, false)) return false;
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_UNDEAD, false, false)) return false;
     G_AssignConstructionWorker(building, builder, false);
     building->construction->worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
     return true;
 }
 
+bool G_StartNagaConstruction(edict_t *builder, edict_t *building) {
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_NAGA, false, true)) return false;
+    G_AssignConstructionWorker(building, builder, true);
+    return true;
+}
+
 bool G_StartNightElfConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false)) return false;
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false, true)) return false;
     G_AssignConstructionWorker(building, builder, true);
     if (G_ConstructionHasClassification(building, "ancient")) {
         building->construction->consumes_worker = true;
@@ -1665,8 +1723,21 @@ bool G_StartNightElfConstruction(edict_t *builder, edict_t *building) {
 
 /* Entangle Gold Mine creates a Night Elf building without consuming/owning a
  * Wisp. It still uses the same authoritative autonomous construction clock. */
-bool G_StartNightElfOverlayConstruction(edict_t *building) {
-    return G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false);
+bool G_StartNightElfOverlayConstruction(edict_t *builder, edict_t *building) {
+    return G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false, false);
+}
+
+/* Tiny Structures do not attach or consume a builder.  Their timer and
+ * construction state belong to the spawned building itself. */
+bool G_StartTinyConstruction(edict_t *builder, edict_t *building, float duration_seconds) {
+    if (!G_StartConstruction(builder, building, CONSTRUCTION_TINY, false, false)) return false;
+    building->construction->duration_ms = MAX(0.0f, duration_seconds) * 1000.0f;
+    building->build = building;
+    /* G_StartConstruction initially uses normal UnitBalance buildTime.
+     * Refresh the first presentation frame after applying this ability's
+     * authored duration, before construction is published to clients. */
+    G_UpdateConstructionAnimation(building);
+    return true;
 }
 
 static edict_t *G_ConstructionWorker(edict_t *building) {
@@ -1732,7 +1803,8 @@ void G_RunConstructionFrame(edict_t *building) {
     if (!building || !building->construction || building->paused ||
         !building->data.UnitBalance) return;
 
-    duration = MAX(1.0f, (float)building->data.UnitBalance->buildTime * 1000.0f);
+    duration = MAX(1.0f, building->construction->duration_ms > 0 ?
+                   building->construction->duration_ms : (float)building->data.UnitBalance->buildTime * 1000.0f);
     hp = &building->health;
     /* Check the cheat before the Human paused-strategy gate: construction
      * state, not a worker behavior, owns instant completion. */
@@ -1747,7 +1819,9 @@ void G_RunConstructionFrame(edict_t *building) {
     if (building->construction->paused) return;
     if (building->construction->type != CONSTRUCTION_ORC &&
         building->construction->type != CONSTRUCTION_UNDEAD &&
-        building->construction->type != CONSTRUCTION_NIGHTELF) return;
+        building->construction->type != CONSTRUCTION_NIGHTELF &&
+        building->construction->type != CONSTRUCTION_NAGA &&
+        building->construction->type != CONSTRUCTION_TINY) return;
 
     if (building->construction->type == CONSTRUCTION_UNDEAD &&
         building->construction->worker_release_time &&
@@ -1828,6 +1902,10 @@ bool G_CancelStructureConstruction(edict_t *building) {
         payer->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += gold;
         payer->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += lumber;
         building->construction->paid = false;
+        G_InvalidateCommands(payer);
+        G_MarkMultiboardPlayerDirty(payer->ps.number);
+        if (payer->connected)
+            G_RefreshResourceBar(G_GetPlayerEntityByNumber(payer->ps.number));
     }
 
     unit_die(building, NULL);
@@ -1863,9 +1941,8 @@ void G_CompleteConstruction(edict_t *building) {
     building->aiflags &= ~AI_HOLD_FRAME;
     if (building->build == building) building->build = NULL;
     G_SetHealth(building, building->health.max_value);
-	/* A Birth construction site is walk-through in retail.  Its authored
-	 * footprint becomes a static route obstacle only when the building is
-	 * complete. */
+    /* The real construction footprint was already solid. Rebuild the completed
+     * structure while retaining occupant poses and Move-owned escape orders. */
     CM_BakeStaticObstacles();
 	if (building->stand) building->stand(building);
 #ifdef WC3_DEBUG_AI

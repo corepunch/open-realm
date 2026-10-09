@@ -994,31 +994,32 @@ void IN_SelectUp(void) {
     } else {
         CL_ResetSelectClickChain();
         uint32_t selected[MAX_SELECTED_ENTITIES] = { 0 };
-        uint32_t num = re.EntitiesInRect(&cl.viewDef, &cl.selection.rect, CL_SelectionLimit(), selected);
+        uint32_t num = re.EntitiesInRect(&cl.viewDef, &cl.selection.rect,
+                                         CL_SELECTION_CANDIDATE_LIMIT, selected);
         if (num == 0)
             return;
-        if (num > CL_SelectionLimit()) {
-            num = CL_SelectionLimit();
-        }
+        num = MIN(num, CL_SELECTION_CANDIDATE_LIMIT);
         /* Shift+drag adds to the existing selection (deduped) instead of
-         * replacing it, matching WC3. */
+         * replacing it, matching WC3. The merge stops at the same candidate
+         * cap the command can carry, so no entry is gathered only to be
+         * dropped by CL_ApplySelectionCandidates. */
         if (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) {
-            uint32_t merged[MAX_SELECTED_ENTITIES];
+            uint32_t merged[CL_SELECTION_CANDIDATE_LIMIT];
             uint32_t mn = 0;
             FOR_LOOP(i, cl.selection.num_selected) {
-                if (mn < CL_SelectionLimit())
+                if (mn < CL_SELECTION_CANDIDATE_LIMIT)
                     merged[mn++] = cl.selection.entity_nums[i];
             }
             FOR_LOOP(i, num) {
                 bool dup = false;
                 FOR_LOOP(j, mn) if (merged[j] == selected[i]) { dup = true; break; }
-                if (!dup && mn < CL_SelectionLimit())
+                if (!dup && mn < CL_SELECTION_CANDIDATE_LIMIT)
                     merged[mn++] = selected[i];
             }
             num = mn;
             memcpy(selected, merged, sizeof(uint32_t) * mn);
         }
-        CL_ApplySelection(selected, num);
+        CL_ApplySelectionCandidates(selected, num);
     }
 }
 
@@ -1159,6 +1160,55 @@ static uint32_t CL_TestEntitiesInRect(viewDef_t const *view, rect_t const *rect,
     array[0] = 7; array[1] = 8; array[2] = 9;
     return 3;
 }
+static uint32_t marquee_test_capacity, marquee_test_hits;
+static uint32_t CL_TestManyEntitiesInRect(viewDef_t const *view, rect_t const *rect, uint32_t max, uint32_t *array) {
+    (void)view;
+    (void)rect;
+    marquee_test_capacity = max;
+    uint32_t const count = MIN(max, marquee_test_hits);
+    FOR_LOOP(i, count) array[i] = i + 1;
+    return count;
+}
+/* Parse "select N N N..." into its candidate numbers and return how many were sent. */
+static uint32_t CL_TestSelectCandidates(cstring_t command, uint32_t *out, uint32_t max_out) {
+    uint32_t count = 0;
+    cstring_t cursor = command + 6;
+    T_ASSERT(!strncmp(command, "select", 6));
+    while (*cursor == ' ') {
+        char *end;
+        uint32_t const value = (uint32_t)strtoul(cursor + 1, &end, 10);
+        T_ASSERT(end > cursor + 1);
+        if (count < max_out) out[count] = value;
+        count++;
+        cursor = end;
+    }
+    T_EQ(*cursor, '\0');
+    return count;
+}
+static void CL_TestMarqueeRelease(uint32_t hits, uint32_t num_selected, uint32_t const *selected, SDL_Keymod mods,
+                                  char *command) {
+    static uint8_t data[1024];
+    re.EntitiesInRect = CL_TestManyEntitiesInRect;
+    cls.state = ca_active;
+    cls.key_dest = key_game;
+    cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    input = (__typeof__(input)){ .focus = true };
+    cl.selection.in_progress = true;
+    cl.selection.rect = (rect_t){ .x = 100, .y = 100, .w = 200, .h = 200 };
+    cl.selection.num_selected = num_selected;
+    FOR_LOOP(i, num_selected) cl.selection.entity_nums[i] = selected[i];
+    SDL_SetModState(mods);
+    marquee_test_capacity = 0;
+    marquee_test_hits = hits;
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+
+    IN_SelectUp();
+
+    T_EQ(marquee_test_capacity, CL_SELECTION_CANDIDATE_LIMIT);
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    MSG_ReadString(&cls.netchan.message, command);
+    T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+}
 static bool CL_TestCameraUsesTerrainHeight(void) { return false; }
 static size2_t CL_TestWindowSize(void) { return (size2_t){ 1024, 768 }; }
 
@@ -1168,6 +1218,92 @@ static bool CL_TestSmartEntityOrder(viewDef_t const *view, float x, float y, uin
 }
 static bool CL_TestSmartLocationOrder(viewDef_t const *view, float x, float y, vec3_t *point) {
     (void)view; (void)x; (void)y; T_ASSERT(smart_trace_order == 1); *point = (vec3_t){ 123, 456, 0 }; return true;
+}
+
+TEST(client_input, marquee_submits_candidates_beyond_local_selection_limit) {
+    __typeof__(input) old_input = input;
+    __typeof__(cl.selection) old_sel = cl.selection;
+    sizeBuf_t old_msg = cls.netchan.message;
+    refExport_t saved = re;
+    viewDef_t old_view = cl.viewDef;
+    int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
+    int old_limit = Cvar_Integer("cl_selection_limit", 64);
+    SDL_Keymod old_mod = SDL_GetModState();
+    char command[512];
+    uint32_t candidates[MAX_SELECTED_ENTITIES];
+
+    Cvar_Set("cl_selection_limit", "24");
+
+    /* 30 eligible hits: the local cache keeps 24, the server receives all 30. */
+    CL_TestMarqueeRelease(30, 0, NULL, KMOD_NONE, command);
+    T_EQ(cl.selection.num_selected, 24);
+    T_EQ(CL_TestSelectCandidates(command, candidates, MAX_SELECTED_ENTITIES), 30);
+    T_EQ(candidates[0], 1);
+    T_EQ(candidates[29], 30);
+
+    /* 70 hits: the command parser has 64 tokens, so the marquee asks the
+     * renderer for 63 and never emits a 64th candidate. */
+    CL_TestMarqueeRelease(70, 0, NULL, KMOD_NONE, command);
+    T_EQ(cl.selection.num_selected, 24);
+    T_EQ(CL_TestSelectCandidates(command, candidates, MAX_SELECTED_ENTITIES), CL_SELECTION_CANDIDATE_LIMIT);
+    T_EQ(candidates[CL_SELECTION_CANDIDATE_LIMIT - 1], CL_SELECTION_CANDIDATE_LIMIT);
+
+    input = old_input;
+    cl.selection = old_sel;
+    cl.viewDef = old_view;
+    re = saved;
+    cls.netchan.message = old_msg;
+    cls.state = old_state;
+    cls.key_dest = old_dest;
+    cl.playerstate.client_ui_state = old_ui;
+    Cvar_SetValue("cl_selection_limit", old_limit);
+    SDL_SetModState(old_mod);
+}
+
+TEST(client_input, shift_marquee_merges_existing_selection_within_candidate_cap) {
+    __typeof__(input) old_input = input;
+    __typeof__(cl.selection) old_sel = cl.selection;
+    sizeBuf_t old_msg = cls.netchan.message;
+    refExport_t saved = re;
+    viewDef_t old_view = cl.viewDef;
+    int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
+    int old_limit = Cvar_Integer("cl_selection_limit", 64);
+    SDL_Keymod old_mod = SDL_GetModState();
+    char command[512];
+    uint32_t candidates[MAX_SELECTED_ENTITIES];
+    uint32_t existing[10] = { 1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 3 };
+
+    Cvar_Set("cl_selection_limit", "24");
+
+    /* Shift+drag keeps the current selection first, appends the new hits
+     * without duplicates (3 is already selected), and stops at the same 63
+     * candidate cap as a plain marquee rather than merging a 64th entry. */
+    CL_TestMarqueeRelease(60, 10, existing, KMOD_LSHIFT, command);
+    T_EQ(cl.selection.num_selected, 24);
+    T_EQ(CL_TestSelectCandidates(command, candidates, MAX_SELECTED_ENTITIES), CL_SELECTION_CANDIDATE_LIMIT);
+    FOR_LOOP(i, 10) T_EQ(candidates[i], existing[i]);
+    T_EQ(candidates[10], 1);
+    T_EQ(candidates[11], 2);
+    T_EQ(candidates[12], 4);
+    T_EQ(candidates[CL_SELECTION_CANDIDATE_LIMIT - 1], 54);
+    FOR_LOOP(i, 24) T_EQ(cl.selection.entity_nums[i], candidates[i]);
+
+    /* A small merge below the cap sends every unique member. */
+    CL_TestMarqueeRelease(5, 10, existing, KMOD_LSHIFT, command);
+    T_EQ(cl.selection.num_selected, 14);
+    T_EQ(CL_TestSelectCandidates(command, candidates, MAX_SELECTED_ENTITIES), 14);
+    T_EQ(candidates[13], 5);
+
+    input = old_input;
+    cl.selection = old_sel;
+    cl.viewDef = old_view;
+    re = saved;
+    cls.netchan.message = old_msg;
+    cls.state = old_state;
+    cls.key_dest = old_dest;
+    cl.playerstate.client_ui_state = old_ui;
+    Cvar_SetValue("cl_selection_limit", old_limit);
+    SDL_SetModState(old_mod);
 }
 
 /* Exercise the wire command without letting transient input state leak into later suites. */

@@ -39,9 +39,32 @@ struct color32 MakeColor(float r, float g, float b, float a) {
     };
 }
 
+/* Water.slk colors interpolate across two depth bands; depth is in tiles below the water surface.
+ * Band edges follow HiveWE/Warsmash: shallow from 10/128 to 64/128, deep from 64/128 to 72/128. */
+color32_t R_WaterDepthColor(wc3WaterStyle_t const *style, float depth) {
+    float const min_depth = 10.f / 128, deep_level = 64.f / 128, max_depth = 72.f / 128;
+    color32_t const *from = &style->shallow_min, *to = &style->shallow_max;
+    float t;
+    depth = MIN(MAX(depth, 0), 1);
+    if (depth <= deep_level) {
+        t = MAX(0, depth - min_depth) / (deep_level - min_depth);
+    } else {
+        from = &style->deep_min; to = &style->deep_max;
+        t = MIN(depth - deep_level, max_depth - deep_level) / (max_depth - deep_level);
+    }
+    return (color32_t) {
+        .r = (uint8_t)lroundf(LerpNumber(from->r, to->r, t)),
+        .g = (uint8_t)lroundf(LerpNumber(from->g, to->g, t)),
+        .b = (uint8_t)lroundf(LerpNumber(from->b, to->b, t)),
+        .a = (uint8_t)lroundf(LerpNumber(from->a, to->a, t)),
+    };
+}
+
+/* Tile atlases are four cells tall; an extended atlas is twice as wide and adds 16 variations on its right
+ * half. The cell size follows the texture, not a fixed 64 pixels: Outland_Abyss is a 64x64 4x4 atlas. */
 void SetTileUV(war3mapVertex_t const *mv, uint32_t tile, vertex_t *vertices, texture_t const *texture) {
-    float u = 1.f/(texture->width / 64);
-    float v = 1.f/(texture->height / 64);
+    float u = texture->width > texture->height ? 0.125f : 0.25f;
+    float v = 0.25f;
     float ux = 0.0f;
     
     if (tile == 15 && texture->width > texture->height) {
@@ -89,7 +112,7 @@ float GetWar3MapVertexHeight(war3mapVertex_t const *vert) {
 }
 
 float GetWar3MapVertexWaterLevel(war3mapVertex_t const *vert) {
-    return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
+    return W3_WaterSurfaceHeight(vert->waterlevel, R_WaterStyle()->height);
 }
 
 void GetTileVertices(uint32_t x, uint32_t y, war3map_t const *war3Map, war3mapVertex_t *vertices) {

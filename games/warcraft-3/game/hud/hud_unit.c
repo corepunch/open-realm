@@ -306,6 +306,49 @@ static void G_AddCommandButton(edict_t *ent,
     }
 }
 
+/* Campaign Naga production rows reuse Buttonpos=0,0 for every trained unit.
+ * Keep the first authored occupant and move later colliding commands into
+ * free command-card cells so all production choices remain reachable. */
+static void G_ResolveNagaCommandButtonCollisions(edict_t *ent,
+                                                gameCommandButton_t *buttons,
+                                                uint8_t count) {
+    UnitData_t const *data;
+
+    if (!ent || !ent->data.UnitData || !buttons || !count) return;
+    data = ent->data.UnitData;
+    if (WC3_RaceFromString(data->race) != RACE_NAGA) return;
+
+    FOR_LOOP(i, count) {
+        bool collision = false;
+        FOR_LOOP(j, i) {
+            if (buttons[i].x == buttons[j].x && buttons[i].y == buttons[j].y) {
+                collision = true;
+                break;
+            }
+        }
+        if (!collision) continue;
+
+        bool placed = false;
+        FOR_LOOP(y, 3) {
+            FOR_LOOP(x, 4) {
+                bool occupied = false;
+                FOR_LOOP(j, i) {
+                    if (buttons[j].x == x && buttons[j].y == y) {
+                        occupied = true;
+                        break;
+                    }
+                }
+                if (occupied) continue;
+                buttons[i].x = (uint8_t)x;
+                buttons[i].y = (uint8_t)y;
+                placed = true;
+                break;
+            }
+            if (placed) break;
+        }
+    }
+}
+
 static bool G_IsImplementedAbility(cstring_t code) {
     ability_t const *ability = FindAbilityForCommand(code);
     return S_AbilityHasCommand(ability);
@@ -478,10 +521,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     if (ent->currentmove && ent->currentmove->think == ai_birth && !G_UnitIsStructure(ent)) {
         return 0;
     }
-    if (ent->ancient_root && (ent->ancient_root->mode == ANCIENT_UPROOTING ||
-        (ent->ancient_root->mode == ANCIENT_ROOTING && !ent->ancient_root->approaching))) {
-        return 0;
-    }
+    if (S_AncientIsMorphing(ent)) return 0;
 
     if (b->speed > 0 && !(ent->aiflags & AI_IMMOBILE)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdMove, false, 0);
@@ -493,7 +533,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
          * enabled the building attack: it cancels the current attack/order. */
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
-    if ((!S_AncientHasRootAbility(ent) || !S_AncientIsRooted(ent)) &&
+    if (S_AncientCanShowRootedAttackCommand(ent) &&
         ((w->attack1.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 0)) ||
          (w->attack2.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 1))) && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
@@ -633,6 +673,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancel, false, 0);
     }
 
+    G_ResolveNagaCommandButtonCollisions(ent, buttons, count);
     return count;
 }
 
@@ -724,8 +765,12 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
             }
         } else {
             cstring_t build_name = GetClassName(build->class_id);
+            /* Tiny Structures author their own construction clock; the
+             * progress bar used to run on the unit's buildTime instead. */
             duration = (build->revival && build->revival->reviving)
                 ? (uint32_t)(G_HeroReviveTime(build) * 1000.0f)
+                : (build->construction && build->construction->duration_ms > 0.0f)
+                ? (uint32_t)build->construction->duration_ms
                 : (build->data.UnitBalance ? (uint32_t)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
             if (count == 0) {
                 int32_t cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;

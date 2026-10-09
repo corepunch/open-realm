@@ -15,3 +15,18 @@ Art=TestUI\Textures\solid_white.blp
 
 [Astd]
 Art=TestUI\Textures\solid_white.blp
+
+[CmdBuild]
+Art=TestUI\Textures\solid_white.blp
+
+[CmdBuildHuman]
+Art=TestUI\Textures\solid_white.blp
+
+[CmdBuildOrc]
+Art=TestUI\Textures\solid_white.blp
+
+[CmdBuildUndead]
+Art=TestUI\Textures\solid_white.blp
+
+[CmdBuildNightElf]
+Art=TestUI\Textures\solid_white.blp

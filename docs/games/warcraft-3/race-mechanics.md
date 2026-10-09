@@ -2,7 +2,7 @@
 
 ## Scope
 
-The shared WC3 simulation should own common state such as construction progress, food accounting, resources, unit lifetime, and pathing, while race-specific abilities/behaviors own the different state machines used by Human, Orc, Undead, and Night Elf units.
+The shared WC3 simulation should own common state such as construction progress, food accounting, resources, unit lifetime, and pathing, while race-specific abilities/behaviors own the different state machines used by Human, Orc, Undead, Night Elf, and Naga units.
 
 This document records the source comparison used for OpenRealm's race-specific construction and economy work and the remaining race-mechanic gaps. It is deliberately narrower than a general unit-data reference: a mechanic is listed here when two races perform the same RTS concept through materially different simulation state.
 
@@ -12,6 +12,7 @@ Reference behavior was compared against the bundled Warsmash sources:
 - `CBehaviorOrcBuild.java`
 - `CBehaviorUndeadBuild.java`
 - `CBehaviorNightElfBuild.java`
+- `CAbilityNagaBuild.java`
 - `CUnit.java`
 - `CAbilityOverlayedMine.java`
 - `CAbilityBlightedGoldMine.java`
@@ -33,21 +34,22 @@ OpenRealm stores an explicit `constructionType_t` on the unfinished building. Th
 | Undead | Acolyte remains visible for the summon work window | building-owned autonomous clock | Acolyte is released after the summon window; building continues |
 | Night Elf, non-Ancient | Wisp is hidden, paused, invulnerable inside construction | building-owned autonomous clock | Wisp is released beside the building |
 | Night Elf, Ancient | Wisp is hidden inside construction and its Food Used is removed | building-owned autonomous clock | Wisp is consumed |
+| Naga | Mur'gul builder is hidden, paused, invulnerable inside construction | building-owned autonomous clock | builder is released beside the building |
 
-All strategies begin at 10% maximum life and hold the Birth animation to authoritative construction progress. Human remains paused unless a valid Human Repair participant advances it. Orc, Undead, and Night Elf construction advance once per simulation frame through `G_RunConstructionFrame()` and add the corresponding fraction of `(max_life - start_life)` rather than deriving HP from absolute progress; damage to an unfinished building therefore remains damage.
+All strategies begin at 10% maximum life and hold the Birth animation to authoritative construction progress. Human remains paused unless a valid Human Repair participant advances it. Orc, Undead, Night Elf, and Naga construction advance once per simulation frame through `G_RunConstructionFrame()` and add the corresponding fraction of `(max_life - start_life)` rather than deriving HP from absolute progress; damage to an unfinished building therefore remains damage.
 
-`skills/s_build.c` chooses the Human path only when `UnitData.race` is Human and the builder exposes the existing Human Repair capability, and otherwise dispatches the three other standard strategies from `UnitData.race`. Unknown/custom workers retain the legacy construction fallback rather than silently being assigned a standard-race lifecycle.
+`skills/s_build.c` honours Warcraft's authored Naga build ability before race fallback: a worker that owns `AGbu`, including a custom alias whose base resolves to `AGbu`, enters `CONSTRUCTION_NAGA` even when `UnitData.race` is not Naga. Human Repair and the remaining stock race strategies continue through their existing dispatch, while unknown/custom workers without a recognized construction style retain the legacy construction fallback.
 
 ## Worker ownership and lifetime
 
-`edict.construction.primary_builder` remains the Human Repair owner. Race strategies that temporarily own a worker use the separate `edict.construction.worker` reference plus its `spawn_time`; these are distinct because Human can have multiple Repair participants while Orc/Night Elf construction has one internal worker and Undead only retains the summoner for the opening work animation.
+`edict.construction.primary_builder` remains the Human Repair owner. Race strategies that temporarily own a worker use the separate `edict.construction.worker` reference plus its `spawn_time`; these are distinct because Human can have multiple Repair participants while Orc/Night Elf/Naga construction has one internal worker and Undead only retains the summoner for the opening work animation.
 
 An internal worker is `RF_HIDDEN`, paused, and temporarily invulnerable. `RF_HIDDEN` makes it hollow to OpenRealm collision/pathing and keeps it out of ordinary selection/idle-worker presentation. Its pre-construction invulnerability state is restored when released.
 
 `G_StopConstruction()` is the common non-completion teardown. It:
 
 1. cancels Human Repair participants;
-2. releases an Orc/Night Elf worker or an unfinished Ancient Wisp;
+2. releases an Orc/Night Elf/Naga worker or an unfinished Ancient Wisp;
 3. releases an Undead summoner if its short summon window is still active;
 4. restores an Ancient Wisp's authored Food Used when construction does not finish;
 5. clears construction state and the held Birth animation.
@@ -55,6 +57,20 @@ An internal worker is `RF_HIDDEN`, paused, and temporarily invulnerable. `RF_HID
 Both unit death and direct `G_FreeEdict()`/`RemoveUnit` call this path. Direct removal must not strand a hidden/paused worker.
 
 On successful Ancient completion, the Wisp has already relinquished its Food Used and is removed instead of released. For cancellation/destruction the Wisp survives and its authored `UnitBalance.foodUsed` is restored.
+
+## Naga construction and terrain predicates
+
+Warsmash gives Naga a distinct `AGbu` / `CAbilityNagaBuild`, but that ability deliberately reuses `CBehaviorOrcBuild`. OpenRealm mirrors the worker-inside lifecycle while retaining `CONSTRUCTION_NAGA` as a distinct simulation identity: the Mur'gul builder is hidden, paused, and temporarily invulnerable while the unfinished structure advances autonomously, then the shared completion/cancellation/destruction path restores the worker.
+
+Building terrain legality remains data-driven. The common `preventPlace` / `requirePlace` parser understands Warcraft/Warsmash `unwalkable`, `unbuildable`, `unflyable`, `blockvision`, `blighted`, `unfloat`, and compound `unamph`. `unamph` is true only when a cell is both unwalkable and unswimmable; the same predicate rule is used by authoritative placement and the client preview grid. Naga construction does not bypass these pathing rules. OpenRealm's existing default building masks still apply, so stock shallow-water parity should be verified from the authored Naga object data before relaxing a global placement policy.
+
+## Naga Submerge
+
+`Asb1`, `Asb2`, `Asb3`, and `ANsu` use Warcraft's paired `submerge` / `unsubmerge` orders. The ability row supplies the normal unit type in Data A and the submerged unit type in UnitID, so the runtime transforms the same edict between authored forms rather than hard-coding Myrmidon, Royal Guard, or Snap Dragon rawcodes. Entering Submerge is legal only on terrain that is swimmable and not walkable; attempting it elsewhere reports the Warcraft command-error key `Cantsubmergethere`. Surfacing is the inverse transform.
+
+The submerged state is stored as an ability status so the alternate command state and save snapshot remain attached to the same unit identity. The submerged form uses `RF_HIDDEN` through the existing gameplay-invisibility visibility path: owners/shared vision can still receive the unit while hostile viewers require ordinary detection. The alternate unit row remains authoritative for movement speed, attacks, model, and other submerged-form stats. Exact retail morph animation/effect timing is presentation follow-up work rather than a reason to duplicate those stats in ability code.
+
+The normal Warcraft UI skin/error-string selector remains four-race indexed. Campaign Naga interface responses should therefore come from the same map/game-interface override mechanisms used by Warcraft campaign content; OpenRealm must not invent a fifth built-in `war3skins` race category merely because `RACE_NAGA` exists in gameplay data.
 
 ## Undead summon window
 
@@ -70,7 +86,7 @@ Do not infer Ancient status from rawcodes or model names.
 
 ## Repair boundary
 
-Only `CONSTRUCTION_HUMAN` may use Human Repair as a construction clock. Standard Repair and Human `Arep` must reject active Orc, Undead, and Night Elf construction so Repair cannot accidentally become a second progress source.
+Only `CONSTRUCTION_HUMAN` may use Human Repair as a construction clock. Standard Repair and Human `Arep` must reject active Orc, Undead, Night Elf, and Naga construction so Repair cannot accidentally become a second progress source.
 
 Completed buildings continue through the ordinary Repair behavior documented in [Building Construction](building-construction.md).
 
@@ -90,12 +106,18 @@ Haunted and Entangled mines instead use `edict.mineoverlay.parent` plus the pare
 ordinary mine while it exists, but never copies its `resources`; death or `RemoveUnit` restores the parent. Normal `isBuildOn`
 construction binds an Undead overlay to the exact mine found by authoritative placement. `Aent` creates the authored Night Elf
 resulting UnitID at the target mine and starts the autonomous Night Elf construction clock without attaching a Wisp.
+When a map script removes a neutral mine before creating a Haunted Mine, `RemoveUnit` defers freeing that edict until the current
+tick ends. Preplaced overlay binding skips deferred mines and creates a live parent at the same location, preserving the replacement's
+gold and allowing Haunted Mine death to restore a working ordinary mine.
 
 Undead Acolytes use `Aaha` rather than conventional Harvest. `Abgm` DataC and DataD define the number and radius of fixed ring slots.
 An Acolyte walks into ability range, selects the nearest free slot, snaps to its deterministic ring point, remains visible in
 `stand work`, and owns `{mine, mine_spawn_time, slot}` until retasked, killed, removed, or the mine disappears. `Abgm` DataA/DataB
 drive direct gold income from the parent. The current Warsmash source uses integer `maxMiners / activeMiners` when stretching the
 interval; OpenRealm intentionally preserves that integer behavior rather than substituting fractional scaling.
+The stock `autoharvestgold` immediate order also starts this `Aaha` behavior by selecting the nearest valid Haunted Mine owned by
+the Acolyte. Undead campaign setup uses that targetless order after `BlightGoldMineForPlayer` creates the Haunted Mine; the same
+order remains supported for `Ahar` workers and Entangled Mine Wisps.
 
 Night Elf Entangled Mines reuse the existing `Aenc` cargo contract. Mining Wisps are hidden/paused cargo occupants, and the mine uses
 first-through-fifth secondary animation tags for occupancy. `Aegm` DataA/DataB advance a persistent round-robin slot index before
@@ -151,13 +173,14 @@ Undead corpse mechanics now share authored raisability and lifetime state: `deat
 
 Undead worker conversion/destruction mechanics are also implemented at the broad-race level: `Auns` now channels authored `DataB` demolition damage, grants temporary `Buns` spell immunity, and returns the `DataA` resource pool progressively only for HP removed by Unsummon; `Asac`/`Alam` now queue the fixed Shade result at a Sacrificial Pit using the Shade's authored build time while hiding the Acolyte and preserving its food slot. See [Unsummon](unsummon.md) and [Undead Sacrifice](sacrifice.md). Remaining work in these two mechanics is presentation/command-error polish plus upgraded-building accumulated-cost parity for Unsummon.
 
-The principal remaining Night Elf race-mechanics gap is full Ancient Root/Uproot classification, footprint, ability, attack, defense, and movement transitions. The current `Aroo` handler remains a placeholder `no_pathing`/movetype toggle; it must not be treated as retail-compatible merely because the rawcode is recognized. Root/Uproot needs one shared dynamic structure/attack-state seam so targeting, Repair, combat, pathing, and command availability change atomically.
+The principal remaining Night Elf race-mechanics gap is full Ancient Root/Uproot classification, footprint, ability, attack, defense, and movement transitions. The current `Aroo` handler remains a placeholder `no_pathing`/movetype toggle; it must not be treated as retail-compatible merely because the rawcode is recognized. Stable rooted and uprooted attack slots follow each root ability's authored `AbilityData` `DataA`/`DataB` masks: `Aro2` (Ancient Protector) permits a rooted attack, while `Aro1` and `Aroo` do not. The server resolves that mask from the authored root ability even before the per-unit root state is initialized, using the current structure/mobile state to select rooted versus uprooted data. Attack slots remain disabled during the actual root/unroot morph. Root/Uproot still needs one shared dynamic structure/attack-state seam so targeting, Repair, combat, pathing, and command availability change atomically.
 
 ## Verification
 
 After building, focused automated coverage should include:
 
 ```sh
+make test-wc3-engine WC3_PATTERN='wc3_ancient_root.*'
 make test-wc3-engine WC3_PATTERN='wc3_building.*'
 make test-wc3-engine WC3_PATTERN='wc3_combat.*acquisition*'
 make test-wc3-engine WC3_PATTERN='wc3_save.*construction*'

@@ -69,7 +69,7 @@ The following existing abilities now use the common resolver rather than owning 
 
 - Holy Light: `WC3_EFFECT_TARGET` on the affected unit.
 - Blink: `WC3_EFFECT_SPECIAL` before relocation and `WC3_EFFECT_AREA_EFFECT` after relocation.
-- Devotion Aura: persistent `WC3_EFFECT_TARGET` on the caster.
+- Devotion Aura and Unholy Aura: the ability `TargetArt` is one persistent `WC3_EFFECT_TARGET` on the owner (the ground pattern). The winning buff `TargetArt` is a second persistent `WC3_EFFECT_TARGET` on each recipient (the soft glow). ROC has no `BuffID` column, so recipients already show the ability art and the owner does not spawn a second copy. See [Aura Targets And Overlays](aura-targets-and-overlays.md).
 - regeneration auras (`Aoar`, `Aabr`, `Aarm`, including Fountain aliases): the
   selected recipient `buffID` supplies persistent `WC3_EFFECT_TARGET` art while the
   recipient remains inside the live aura.
@@ -149,7 +149,18 @@ inventory click
     -> charge/perishable completion
 ```
 
-Failed uses do not publish use-item events and do not consume a charge. For example, a healing item at full health returns failure. Targeted item commands preserve the source item and its spawn generation while the shared spell path walks into range, so cancellation, a rejected target, or a stale/moved item cannot consume a charge accidentally.
+Speed-family powerups are a deliberate exception to inventory-slot insertion: `AIsp`/`AIsa`/`APsa` resolve directly against the acquiring unit, use authored `Area`/`Dur`/`HeroDur`/`BuffID`/target-mask data, and retain the consumed item handle until queued pickup/use events release it. The active status drives movement to `Misc.MaxUnitSpeed` (including `war3mapMisc.txt` overrides) for its lifetime. `AIlu` Bundle of Lumber grants the authored `DataA` directly to the acquiring player (including negative custom-map amounts) without harvesting upkeep. `AIha` Healing Runes and `AImr`/`APmr`/`APmg` Mana Runes share that slot-free pickup/use lifecycle and apply authored immediate AoE healing or mana restoration to valid friendly units without requiring wounded or mana-depleted recipients. The `APrl`/`APrr` Resurrection Runes inherit Resurrection data from `AHre` and use authored `DataA`/`Area` to revive the requested number of nearby friendly ordinary corpses at full life, preferring higher-level corpses and then nearer equal-level corpses; Heroes retain altar revival and structures remain excluded. When no eligible corpse is nearby, they report the failed use and remain in the world. Other unsupported powerup families are not auto-consumed.
+
+Rune of Shielding (`rsps`/`ANse`) grants authored `BuffID` (`BNss` in TFT) to eligible
+nearby allies within authored `Area`. The status is an untimed, nonstacking
+one-use shield. `S_TryBlockSpellShield` consumes it on supported hostile
+unit-target spell resolution, including Thunder Bolt, Fire Bolt, and Death Coil impacts, while
+Ensnare, Web, Finger of Death, beneficial spells, and point/area spells bypass it.
+`ANss` Amulet recharge is still TODO; additional custom missile impact paths and
+persistent buff TargetArt ownership remain separate coverage gaps.
+
+
+Failed uses do not publish use-item events and do not consume a charge. For example, a single-target healing item used on a full-health target returns failure; the `AIha` area-healing powerup follows the separate behavior described above. Targeted item commands preserve the source item and its spawn generation while the shared spell path walks into range, so cancellation, a rejected target, or a stale/moved item cannot consume a charge accidentally.
 
 `G_ConsumeItemCharge` remains the ordinary charge helper. `G_CompleteItemUse` adds event-context lifetime semantics: when a successful use consumes the final charge of a perishable item, the item leaves the carrier immediately but its handle remains valid until queued use-item events and any sleeping JASS response coroutine are finished. This is required for retail-style `GetManipulatedItem()` conditions such as Orc08's Soul Gem trigger. Non-perishable items decrement to zero and remain present.
 
@@ -240,7 +251,7 @@ The following are deliberately outside this implementation slice:
 - Earthquake `Oeq4`/`Final Area` semantics, the retail meaning of `UberSplatData.BlendMode=1`, `BOea`'s contribution, and overlapping-Earthquake stacking remain unverified;
 - generic buff `TargetArt`/`Targetattach` creation and lifetime binding remain unimplemented, including the authored `BOeq` overhead model;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;
-- automatic `powerup` acquisition/use;
+- automatic `powerup` acquisition/use outside the implemented Speed (`AIsp`/`AIsa`/`APsa`), Gold (`AIgo`), Lumber (`AIlu`), Area Healing (`AIha`), and Area Mana (`AImr`/`APmr`/`APmg`) families;
 - spell cast-point/backswing timing changes;
 - a fully generalized missile-art/arc object separate from existing projectile simulation.
 - save/load rebinding for independent effect-edict animation callbacks and persistent effect ownership.

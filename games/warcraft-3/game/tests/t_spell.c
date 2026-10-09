@@ -242,8 +242,8 @@ TEST(wc3_spell, approach185_captures_target_range_and_completes_once) {
         if(kind==4) {
             uint32_t ci=caster-g_edicts,ti=target-g_edicts,pi=pending-g_edicts;
             FOR_LOOP(tick,5) {level.time+=30;globals.RunFrame();}
-            T_ASSERT(WriteGame("/tmp/wc3-spell185-approach.bin"));
-            T_ASSERT(ReadGame("/tmp/wc3-spell185-approach.bin"));
+            T_ASSERT(WriteGame(Test_TempPath("wc3-spell185-approach.bin")));
+            T_ASSERT(ReadGame(Test_TempPath("wc3-spell185-approach.bin")));
             caster=g_edicts+ci;target=g_edicts+ti;pending=g_edicts+pi;
             group=spell185_group(caster);T_NOT_NULL(group);
             if(group) {
@@ -251,7 +251,7 @@ TEST(wc3_spell, approach185_captures_target_range_and_completes_once) {
                 T_ASSERT(group->complete==S_SpellTargetApproachComplete);
                 T_FEQ(group->members[0].arrival_range,5.09375f,0);
             }
-            remove("/tmp/wc3-spell185-approach.bin");
+            remove(Test_TempPath("wc3-spell185-approach.bin"));
         }
         float effect=0;
         FOR_LOOP(tick,200) {
@@ -325,7 +325,7 @@ TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_ori
         "C;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"17\"\nC;Y2;X5;K\"13\"\nC;Y2;X6;K\"2.75\"\n"
         "C;Y2;X7;K\"2.75\"\nC;Y2;X8;K\"33\"\nC;Y2;X9;K\"77\"\nE\n";
-    cstring_t save = "/tmp/openwarcraft3-wind-walk-save.bin";
+    cstring_t save = Test_TempPath("wind-walk-save.bin");
     UnitAbilities_t abilities = { .abilList = "AOwk" };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *caster = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
@@ -1146,6 +1146,44 @@ TEST(wc3_spell, creep_command_and_war_drums_auras_share_damage_consumer) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Stock creep Command Aura carries air,ground,friend,self and no `neutral`
+ * token. The token describes a target that is neutral relative to the source
+ * (another owner's Neutral-typed slot); the source's own slot type must not
+ * turn its same-owner creeps into non-friends. */
+TEST(wc3_spell, neutral_owned_aura_source_still_buffs_same_owner_creeps) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"ACac\"\nC;Y2;X2;K\"ACac\"\nC;Y2;X3;K\"air,ground,friend,self\"\n"
+        "C;Y2;X4;K\"300\"\nC;Y2;X5;K\"0.2\"\nC;Y2;X6;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    edict_t *fellow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    edict_t *sheep = alloc_test_unit(MAKEFOURCC('n','s','h','e'), 120, 0);
+    edict_t *human = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 140, 0);
+    UnitAbilities_t abilities = { .abilList = "ACac" };
+
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_AGGRESSIVE].playerType = kPlayerTypeNeutral;
+    ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_PASSIVE].playerType = kPlayerTypeNeutral;
+    source->data.UnitAbilities = &abilities;
+    source->s.player = fellow->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    sheep->s.player = PLAYER_NEUTRAL_PASSIVE;
+    human->s.player = 0;
+    source->targtype = fellow->targtype = sheep->targtype = human->targtype = TARG_GROUND;
+
+    T_FEQ(S_CommandAuraAttackBonus(fellow), 0.2f, 0.001f);
+    T_FEQ(S_CommandAuraAttackBonus(source), 0.2f, 0.001f);
+    /* Another owner's Neutral slot is still neutral relative to the creep, even
+     * though Neutral Passive is passive-allied with every slot by default. */
+    T_FEQ(S_CommandAuraAttackBonus(sheep), 0.0f, 0.001f);
+    /* Neutral Hostile has no alliance with player slots. */
+    T_FEQ(S_CommandAuraAttackBonus(human), 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, hero_aura_aliases_honor_authored_target_masks) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X7\n"
@@ -1173,6 +1211,91 @@ TEST(wc3_spell, hero_aura_aliases_honor_authored_target_masks) {
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+}
+
+TEST(wc3_spell, aura_targets_follow_source_team_alliances_and_neutral_mask) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K900\nC;Y2;X5;K4\nC;Y2;X6;K\"Biml\"\nC;Y2;X7;K1\n"
+        "C;Y3;X1;K\"YHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X3;K\"ground,neutral,organic\"\n"
+        "C;Y3;X4;K900\nC;Y3;X5;K7\nC;Y3;X6;K\"Biml\"\nC;Y3;X7;K1\nE\n";
+    uint32_t const ally_code = MAKEFOURCC('X','H','a','d');
+    uint32_t const neutral_code = MAKEFOURCC('Y','H','a','d');
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *neutral_source = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 2000, 200);
+    edict_t *ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    edict_t *enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 120, 0);
+    edict_t *neutral = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 140, 0);
+    edict_t *neutral_outside_mask = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500, 200);
+
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[3].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_PASSIVE].playerType = kPlayerTypeNeutral;
+    G_SetPlayerAlliance(&game.clients[1].ps, &game.clients[2].ps, ALLIANCE_PASSIVE, true);
+    source->s.player = 1;
+    source->heroabilities[0] = MAKE(heroability_t, .code = ally_code, .level = 1);
+    neutral_source->s.player = 1;
+    neutral_source->svflags |= SVF_MONSTER;
+    neutral_source->heroabilities[0] = MAKE(heroability_t, .code = neutral_code, .level = 1);
+    ally->s.player = 2;
+    enemy->s.player = 3;
+    neutral->s.player = PLAYER_NEUTRAL_PASSIVE;
+    neutral->s.origin2.x = 2000;
+    neutral_outside_mask->s.player = PLAYER_NEUTRAL_PASSIVE;
+    ally->targtype = enemy->targtype = neutral->targtype = neutral_outside_mask->targtype = TARG_GROUND;
+    ally->armor_value = enemy->armor_value = neutral->armor_value = neutral_outside_mask->armor_value = 2.0f;
+
+    T_FEQ(S_DevotionArmorBonus(ally), 4.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(enemy), 0.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(neutral), 7.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(neutral_outside_mask), 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Human02 and Human03 create these recipients under Player(PLAYER_NEUTRAL_PASSIVE).
+ * Keep their campaign regression tied to Devotion's stock friend/self mask. */
+static void devotion_aura_does_not_target_campaign_neutral(uint32_t hero_code, uint8_t owner, uint32_t unit_code) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area3\"\nC;Y1;X5;K\"DataA3\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"AHad\"\nC;Y2;X2;K\"AHad\"\n"
+        "C;Y2;X3;K\"air,ground,friend,self,vuln,invu\"\n"
+        "C;Y2;X4;K900\nC;Y2;X5;K3\nC;Y2;X6;K3\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *devotion = make_hero(hero_code, 500, 200, 0, 0);
+    edict_t *recipient = alloc_test_unit(unit_code, 100, 0);
+    edict_t *friendly = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 120, 0);
+
+    ((mapInfo_t *)level.mapinfo)->players[owner].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_PASSIVE].playerType = kPlayerTypeNeutral;
+    devotion->s.player = friendly->s.player = owner;
+    devotion->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','d'), .level = 3);
+    recipient->s.player = PLAYER_NEUTRAL_PASSIVE;
+    recipient->targtype = friendly->targtype = TARG_GROUND;
+
+    T_FEQ(S_DevotionArmorBonus(friendly), 3.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(recipient), 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, human02_devotion_aura_excludes_neutral_sheep) {
+    devotion_aura_does_not_target_campaign_neutral(
+        MAKEFOURCC('H','u','t','h'), 9, MAKEFOURCC('n','s','h','e'));
+}
+
+TEST(wc3_spell, human03_devotion_aura_excludes_neutral_villagers) {
+    devotion_aura_does_not_target_campaign_neutral(
+        MAKEFOURCC('H','a','r','t'), 1, MAKEFOURCC('n','v','i','l'));
 }
 
 TEST(wc3_spell, devotion_aura_does_not_affect_static_scenery) {
@@ -1389,6 +1512,232 @@ TEST(wc3_spell, devotion_aura_recipient_presents_authored_buff_and_target_art) {
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+}
+
+/* TFT AHad.BuffID is BHad. BHad.TargetArt is the soft recipient glow;
+ * AHad.TargetArt is the rune that stays on the aura source. */
+TEST(wc3_spell, devotion_aura_source_shows_pattern_and_recipient_keeps_glow) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"BHad\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"BHad\"\nC;Y3;X7;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    cstring_t pattern_art = G_AbilityEffectArt(MAKEFOURCC('A','H','a','d'), WC3_EFFECT_TARGET, 0);
+    cstring_t glow_art = G_AbilityEffectArt(MAKEFOURCC('B','H','a','d'), WC3_EFFECT_TARGET, 0);
+    int pattern = G_RegisterModel(pattern_art);
+    int glow = G_RegisterModel(glow_art);
+    int source_pattern, source_glow, target_pattern, target_glow;
+
+    T_NOT_NULL(pattern_art);
+    T_NOT_NULL(glow_art);
+    T_ASSERT(pattern > 0 && glow > 0 && pattern != glow);
+    level.time = level.framenum = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    source->think = target->think = monster_think;
+
+    G_RunEntities();
+    source_pattern = source_glow = target_pattern = target_glow = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->goalentity != effect->owner ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
+        if (effect->owner == source && effect->s.model == pattern) source_pattern++;
+        if (effect->owner == source && effect->s.model == glow) source_glow++;
+        if (effect->owner == target && effect->s.model == pattern) target_pattern++;
+        if (effect->owner == target && effect->s.model == glow) target_glow++;
+    }
+    T_EQ(source_pattern, 1);
+    T_EQ(source_glow, 1);
+    T_EQ(target_pattern, 0);
+    T_EQ(target_glow, 1);
+
+    /* A second refresh rebinds live effects and must not stack another copy. */
+    level.time = AURA_UPDATE_MS;
+    level.framenum++;
+    G_RunEntities();
+    source_pattern = source_glow = target_glow = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->goalentity != effect->owner ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
+        if (effect->owner == source && effect->s.model == pattern) source_pattern++;
+        if (effect->owner == source && effect->s.model == glow) source_glow++;
+        if (effect->owner == target && effect->s.model == glow) target_glow++;
+    }
+    T_EQ(source_pattern, 1);
+    T_EQ(source_glow, 1);
+    T_EQ(target_glow, 1);
+
+    target->s.origin2.x = 2000.0f;
+    level.time = AURA_UPDATE_MS * 2;
+    level.framenum++;
+    G_RunEntities();
+    target_glow = source_pattern = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
+        if (effect->owner == target && effect->goalentity == target) target_glow++;
+        if (effect->owner == source && effect->s.model == pattern && effect->goalentity == source) source_pattern++;
+    }
+    T_EQ(target_glow, 0);
+    T_EQ(source_pattern, 1);
+
+    source->heroabilities[0].level = 0;
+    S_MarkAuraSource(source);
+    level.time = AURA_UPDATE_MS * 3;
+    level.framenum++;
+    G_RunEntities();
+    source_pattern = source_glow = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->owner != source || effect->goalentity != source ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
+        if (effect->s.model == pattern) source_pattern++;
+        if (effect->s.model == glow) source_glow++;
+    }
+    T_EQ(source_pattern, 0);
+    T_EQ(source_glow, 0);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* RoC AbilityData has no BuffID. Recipients fall back to ability TargetArt,
+ * and the caster must not spawn a second copy of that same model. */
+TEST(wc3_spell, devotion_aura_roc_fallback_does_not_stack_on_source) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    cstring_t art = G_AbilityEffectArt(MAKEFOURCC('A','H','a','d'), WC3_EFFECT_TARGET, 0);
+    int model = G_RegisterModel(art);
+    int source_n, target_n;
+
+    T_NOT_NULL(art);
+    T_ASSERT(model > 0);
+    level.time = level.framenum = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    source->think = target->think = monster_think;
+
+    G_RunEntities();
+    source_n = target_n = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->goalentity != effect->owner ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d') || effect->s.model != model) continue;
+        if (effect->owner == source) source_n++;
+        if (effect->owner == target) target_n++;
+    }
+    T_EQ(source_n, 1);
+    T_EQ(target_n, 1);
+
+    level.time = AURA_UPDATE_MS;
+    level.framenum++;
+    G_RunEntities();
+    source_n = target_n = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->goalentity != effect->owner ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d') || effect->s.model != model) continue;
+        if (effect->owner == source) source_n++;
+        if (effect->owner == target) target_n++;
+    }
+    T_EQ(source_n, 1);
+    T_EQ(target_n, 1);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Count attached presentation, excluding effects already playing their death sequence. */
+static uint32_t hero_aura_art_count(edict_t *unit, uint32_t base, uint32_t model) {
+    uint32_t count = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *fx = g_edicts + i;
+        if (fx->inuse && fx->owner == unit && fx->goalentity == unit &&
+            fx->summon_ability == base && (uint32_t)fx->s.model == model) count++;
+    }
+    return count;
+}
+
+/* Removing a custom alias must retire its rune while a nearby aura keeps the recipient glow alive. */
+static void custom_hero_aura_removal(cstring_t base, cstring_t alias, cstring_t buff) {
+    static cstring_t const format =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"%s\"\nC;Y2;X2;K\"%s\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"%s\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"%s\"\nC;Y3;X2;K\"%s\"\nC;Y3;X6;K\"%s\"\nC;Y3;X7;K\"1\"\nE\n";
+    char slk[1024];
+    uint32_t const code = FS_SLKKey(base), rawcode = FS_SLKKey(alias);
+    cstring_t path = Test_TempPath("custom-hero-aura.bin");
+
+    snprintf(slk, sizeof(slk), format, alias, base, buff, base, base, buff);
+    FOR_LOOP(saved, 2) {
+        slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+        edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+        edict_t *other = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 100, 0);
+        uint32_t pattern = G_RegisterModel(G_AbilityEffectArt(rawcode, WC3_EFFECT_TARGET, 0));
+        uint32_t glow = G_RegisterModel(G_AbilityEffectArt(FS_SLKKey(buff), WC3_EFFECT_TARGET, 0));
+
+        T_ASSERT(pattern && glow && pattern != glow);
+        T_NE(pattern, (uint32_t)G_RegisterModel(G_AbilityEffectArt(code, WC3_EFFECT_TARGET, 0)));
+        level.time = level.framenum = 0;
+        source->s.player = other->s.player = 0;
+        source->targtype = other->targtype = TARG_GROUND;
+        other->svflags |= SVF_MONSTER;
+        T_ASSERT(G_ActorAddSkill(source, rawcode));
+        T_ASSERT(G_ActorAddSkill(other, rawcode));
+        source->think = other->think = monster_think;
+        G_RunEntities();
+        T_EQ(hero_aura_art_count(source, code, pattern), 1);
+        T_EQ(hero_aura_art_count(source, code, glow), 1);
+
+        if (saved) {
+            T_ASSERT(WriteGame(path));
+            G_ResetHeroPassiveCaches();
+            T_ASSERT(ReadGame(path));
+            remove(path);
+        }
+        T_ASSERT(G_ActorRemoveSkill(source, rawcode));
+        FOR_LOOP(step, 3) {
+            level.time += AURA_UPDATE_MS; level.framenum++;
+            G_RunEntities();
+            T_EQ(hero_aura_art_count(source, code, pattern), 0);
+            T_EQ(hero_aura_art_count(source, code, glow), 1);
+            T_EQ(hero_aura_art_count(other, code, pattern), 1);
+        }
+        T_ASSERT(G_ActorRemoveSkill(other, rawcode));
+        level.time += AURA_UPDATE_MS; level.framenum++;
+        G_RunEntities();
+        T_EQ(hero_aura_art_count(source, code, glow), 0);
+        T_EQ(hero_aura_art_count(other, code, pattern), 0);
+        G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    }
+}
+
+TEST(wc3_spell, devotion_aura_custom_art_is_removed_while_another_source_keeps_glow) {
+    custom_hero_aura_removal("AHad", "XHfx", "BHad");
+}
+
+TEST(wc3_spell, unholy_aura_custom_art_is_removed_while_another_source_keeps_glow) {
+    custom_hero_aura_removal("AUau", "XUfx", "BUau");
 }
 
 TEST(wc3_spell, unholy_aura_percent_regen_and_recipient_presentation) {
@@ -2756,10 +3105,10 @@ TEST(wc3_spell, defend_orders_replace_busy_head_and_reject_repeated_or_disabled_
     T_ASSERT(!unit_issueimmediateorder(unit,"defend"));T_ASSERT(S_UnitHasStatus(unit,code));
     T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->goalentity,destination);
     T_EQ(unit->currentmove,move);T_EQ(unit->movement.group_id,group);T_EQ(G_UnitQueuedOrderCount(unit),1);
-    T_ASSERT(WriteGame("/tmp/wc3-defend119-save.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-defend119-save.bin")));
     T_ASSERT(unit_issueimmediateorder(unit,"undefend"));T_ASSERT(!S_UnitHasStatus(unit,code));
     T_EQ(unit->current_order_id,0);T_EQ(G_UnitQueuedOrderCount(unit),0);
-    T_ASSERT(ReadGame("/tmp/wc3-defend119-save.bin"));
+    T_ASSERT(ReadGame(Test_TempPath("wc3-defend119-save.bin")));
     T_ASSERT(S_UnitHasStatus(unit,code));T_EQ(unit->current_order_id,G_OrderId("move"));
     T_EQ(G_UnitQueuedOrderCount(unit),1);T_ASSERT(!unit_issueimmediateorder(unit,"defend"));
     T_ASSERT(unit_issueimmediateorder(unit,"undefend"));
@@ -2771,7 +3120,7 @@ TEST(wc3_spell, defend_orders_replace_busy_head_and_reject_repeated_or_disabled_
     T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(G_UnitQueuedOrderCount(unit),1);
     G_SetPlayerAbilityAvailable(&game.clients[0],code,true);
     T_ASSERT(unit_issueimmediateorder(unit,"defend"));T_EQ(unit->current_order_id,0);
-    remove("/tmp/wc3-defend119-save.bin");G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    remove(Test_TempPath("wc3-defend119-save.bin"));G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
 }
 
 TEST(wc3_spell, defend_command_applies_primary_direction_to_controllable_selection) {
@@ -3098,7 +3447,7 @@ TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_l
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
         "C;Y2;X1;K\"BEer\"\nC;Y2;X2;K\"BEer\"\n"
         "C;Y2;X3;K\"TestUI\\\\Models\\\\anim_pulse.mdx\"\nE\n";
-    cstring_t const save_path = "/tmp/openwarcraft3-roots-visual-save.bin";
+    cstring_t const save_path = Test_TempPath("roots-visual-save.bin");
     slkTestData_t *ability_rows = parse_slk_string(ability_slk), *old_ability;
     slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff;
     edict_t *caster, *target, *effect = NULL;
@@ -3411,6 +3760,16 @@ TEST(wc3_spell, death_coil_uses_projectile_and_rejects_self_or_full_health_ally)
     if (missile) missile->currentmove->endfunc(missile);
     T_FEQ(enemy->health.value, 400, 0.001f);
 
+    /* Mixed friend/enemy target masks still block enemy Death Coil at impact. */
+    unit_addstatus(enemy, "BNss", 1);
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdc"), enemy)); missile = NULL;
+    FILTER_EDICTS(ent, ent->owner == caster && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    T_EQ(G_UnitStatusLevel(enemy, MAKEFOURCC('B','N','s','s')), 1);
+    if (missile) missile->currentmove->endfunc(missile);
+    T_FEQ(enemy->health.value, 400, 0.001f);
+    T_EQ(G_UnitStatusLevel(enemy, MAKEFOURCC('B','N','s','s')), 0);
+
     /* A reused target edict must not let an in-flight coil affect a new incarnation. */
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdc"), enemy)); missile = NULL;
     FILTER_EDICTS(ent, ent->owner == caster && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
@@ -3446,17 +3805,17 @@ TEST(wc3_spell, divine_shield_applies_authored_buff_for_its_duration) {
     T_ASSERT(caster->invulnerable); T_EQ(G_UnitStatusLevel(caster, FS_SLKKey("BHds")), 1);
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
-    T_ASSERT(WriteGame("/tmp/openwarcraft3-divine-shield-save.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("divine-shield-save.bin")));
     if (!caster->channel) caster->channel = G_AllocChannel();
     assert(caster->channel);
     caster->channel->code = 0; if (thinker) thinker->think = NULL;
-    T_ASSERT(ReadGame("/tmp/openwarcraft3-divine-shield-save.bin"));
+    T_ASSERT(ReadGame(Test_TempPath("divine-shield-save.bin")));
     FILTER_EDICTS(ent, ent->owner == caster && ent->think == divine_shield_think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
     if (thinker) { level.time = thinker->spawn_time; G_RunEntity(thinker); }
     unit_updatestatuses(caster);
     T_ASSERT(!caster->invulnerable); T_EQ(G_UnitStatusLevel(caster, FS_SLKKey("BHds")), 0);
-    remove("/tmp/openwarcraft3-divine-shield-save.bin");
+    remove(Test_TempPath("divine-shield-save.bin"));
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

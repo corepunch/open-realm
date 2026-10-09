@@ -72,7 +72,7 @@ TEST(wc3_random_streams, all_purposes_and_owner_resume_after_save) {
     wc3Random_t saved[45];uint32_t next[45];
     FOR_LOOP(i,45)FOR_LOOP(n,i+1)wc3_random_next(level.purpose_random+i);
     memcpy(saved,level.purpose_random,sizeof(saved));wc3Random_t owner=level.pathing_random;
-    cstring_t file="/tmp/openrealm-purpose172.bin";T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("openrealm-purpose172.bin");T_ASSERT(WriteGame(file));
     FOR_LOOP(i,45)next[i]=wc3_random_next(level.purpose_random+i);
     wc3_random_next(&level.pathing_random);
     T_ASSERT(ReadGame(file));remove(file);streams172_check(saved);
@@ -101,7 +101,7 @@ TEST(wc3_random_streams, public_item_choices_only_advance_their_owned_stream) {
         T_EQ(level.purpose_random[i].index,retail_streams172[0].streams[i].index);
     }
     T_EQ(level.pathing_random.sum,owner.sum);T_EQ(level.pathing_random.index,owner.index);
-    cstring_t file="/tmp/openrealm-item-purpose172.bin";T_ASSERT(WriteGame(file));
+    cstring_t file=Test_TempPath("openrealm-item-purpose172.bin");T_ASSERT(WriteGame(file));
     jass_callbyname(level.vm,"next",false);
     uint32_t expected[2];FOR_LOOP(i,2)expected[i]=streams172_result(i);
     wc3Random_t after=level.purpose_random[35];

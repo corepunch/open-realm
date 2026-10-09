@@ -39,6 +39,7 @@ enum {
     DRAW_TILE      = 1 << 2,
     DRAW_MIRRORED  = 1 << 3,
     DRAW_EDGE_2X2  = 1 << 4, /* edge texture uses WoW 2×2 quadrant UV layout */
+    DRAW_BG_OPAQUE = 1 << 5, /* FDF backdrop without BackdropBlendAll ignores texture alpha */
 };
 
 /* Text drawing parameters */
@@ -152,6 +153,7 @@ typedef struct {
 #endif
     uint32_t frame;
     uint32_t oldframe;
+    uint32_t camera_index; /* dedicated model-cinematic scene; zero for ordinary portraits */
     uint32_t flags;
     uint8_t health;        /* compressed 0..255 snapshot health ratio */
     uint16_t effect_flags;
@@ -161,6 +163,8 @@ typedef struct {
     float radius;
     float splatsize;
     float ground_offset; /* current altitude above an authored ground/support surface */
+    float ground_snapshot_z; /* authoritative current snapshot Z, before client interpolation */
+    bool ground_snapshot_valid;
 #ifndef USE_SHADOWMAPS
     texture_t const *shadow;
     rect_t shadow_rect;
@@ -232,6 +236,8 @@ typedef struct {
 } viewDef_t;
 
 struct modelInfo_s {
+    uint32_t sequenceCount; /* MDX model-cinematic playback metadata */
+    uint32_t cameraCount;
     uint32_t textureCount;
     cstring_t texturePaths[MODELINFO_MAX_TEXTURES];
     rect_t textureUVRect;

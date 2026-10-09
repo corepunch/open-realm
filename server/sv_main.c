@@ -85,15 +85,20 @@ static void SV_AppendConfigString(sizeBuf_t *msg, uint32_t i) {
 
 static bool SV_QueueConfigString(client_t *client, uint32_t i) {
     uint32_t size = SV_ConfigStringWireSize(i);
-    uint32_t limit = SV_SignonLimit(&client->netchan);
+    sizeBuf_t *reliable = Netchan_Reliable(&client->netchan);
+    /* One reliable batch shares a datagram with at most a startup reply, which SV_SignonLimit shrinks to make room. */
+    uint32_t limit = MIN(SV_DatagramLimit(&client->netchan), reliable->maxsize);
 
     if (size + 32 > limit) {
         fprintf(stderr, "SV_QueueConfigString: configstring %u exceeds message limit\n", (unsigned)i);
         return false;
     }
-    if (client->netchan.message.cursize && client->netchan.message.cursize + size + 32 > limit)
+    /* Live configstrings are the reliable stream: resent until acknowledged, so a lost packet cannot drop a name. */
+    if (reliable->cursize && reliable->cursize + size + 32 > limit) {
         Netchan_Transmit(NS_SERVER, &client->netchan);
-    SV_AppendConfigString(&client->netchan.message, i);
+        if (reliable->cursize) return false; // previous batch still in flight; retry next frame
+    }
+    SV_AppendConfigString(reliable, i);
     return true;
 }
 
@@ -118,9 +123,20 @@ void SV_QueuePendingConfigStrings(void) {
     }
 }
 
-static void SV_SendClientDatagram(client_t *client) {
-    SV_BuildClientFrame(client);
-    SV_WriteFrameToClient(client);
+void SV_SendClientDatagram(client_t *client) {
+    uint32_t bytes;
+    /* A modem still draining the last snapshot skips this one; the next delta is against what it acknowledged. */
+    if (SV_ClientLinkBusy(client)) {
+        bytes = Netchan_Transmit(NS_SERVER, &client->netchan);
+    } else {
+        SV_BuildClientFrame(client);
+        bytes = SV_WriteFrameToClient(client);
+    }
+    /* Q2 "rate": the link stays busy until everything sent has drained at the client's modem speed, reliable stream
+     * and netchan headers included (only the snapshot message used to be charged). */
+    uint32_t const rate = (uint32_t)Cvar_Integer("sv_rate", 0);
+    if (rate && bytes && Netchan_IsSequenced(&client->netchan))
+        client->rate_clear_msec = MAX(svs.realtime, client->rate_clear_msec) + (uint32_t)((uint64_t)bytes * 1000 / rate);
 }
 
 /* Flush any un-synced config strings to all clients, then send a per-frame
@@ -133,7 +149,7 @@ static void SV_SendClientMessages(void) {
             SV_SendClientDatagram(client);
         } else if (client->state == cs_connected || client->state == cs_spawned) {
             /* Q2 sends pending messages or a one-second keepalive while a client has no gameplay frames. */
-            if (client->netchan.message.cursize || svs.realtime >= sv.keepalive) {
+            if (client->netchan.message.cursize || Netchan_Reliable(&client->netchan)->cursize || svs.realtime >= sv.keepalive) {
                 if (!client->netchan.message.cursize) MSG_WriteByte(&client->netchan.message, svc_nop);
                 Netchan_Transmit(NS_SERVER, &client->netchan);
             }
@@ -153,6 +169,10 @@ static void SV_ProcessPacket(netadr_t *from, sizeBuf_t *net_message, int r) {
     }
     client_t *client = SV_FindClientByAddr(from);
     if (client && client->state != cs_zombie && client->state != cs_free) {
+        if (Netchan_IsSequenced(&client->netchan)) {
+            if (!Netchan_Process(&client->netchan, net_message)) return;
+            SV_AcknowledgeFrames(client);
+        }
         SV_ParseClientMessage(net_message, client);
     }
 }
@@ -171,14 +191,8 @@ static void SV_ReadPackets(void) {
     while ((r = NET_GetLoopPacket(NS_SERVER, &from, &net_message)) != 0) {
         SV_ProcessPacket(&from, &net_message, r);
     }
-    if (sv.state == ss_dead) {
-        while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
-            SV_ProcessPacket(&from, &net_message, r);
-        }
-    } else {
-        while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
-            SV_ProcessPacket(&from, &net_message, r);
-        }
+    while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
+        SV_ProcessPacket(&from, &net_message, r);
     }
 }
 

@@ -5,6 +5,29 @@ void build_build(edict_t *ent);
 void repair_build_legacy(edict_t *ent, edict_t *building);
 void repair_build_primary(edict_t *ent, edict_t *building);
 
+#define BZ_NAGA_BUILD MAKEFOURCC('A', 'G', 'b', 'u')
+
+static bool build_actor_has_base_ability(edict_t *ent, uint32_t base_code) {
+    char alias[5] = { 0 };
+
+    if (!ent || !base_code) return false;
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+            uint32_t code = 0;
+            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
+            memcpy(&code, token, 4);
+            if (G_AbilityCode(code) == base_code) return true;
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        uint32_t const code = ent->abilities.added[i];
+        if (!code) continue;
+        memcpy(alias, &code, 4);
+        if (G_ActorHasSkill(ent, alias) && G_AbilityCode(code) == base_code) return true;
+    }
+    return false;
+}
+
 static void G_BuildError(edict_t *clent, cstring_t text) {
     if (!clent || !text || !*text) return;
     G_ShowCommandErrorText(clent, text);
@@ -449,9 +472,9 @@ void build_build(edict_t *ent) {
         return;
     }
 
-    /* Retail's Birth construction site reserves placement but remains
-     * walk-through.  Displacement uses the authored footprint directly; the
-     * static obstacle is baked only after Birth completes. */
+    /* The preview is walk-through; the real footprint blocks routes from
+     * construction start. Schedule occupant escape without replacing orders
+     * before the construction initializer rebakes that footprint. */
     if (!G_DisplaceBuildOccupants(ent, building)) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD spawned-displace-incomplete worker=%ld building=%ld id=%.4s\n",
@@ -459,15 +482,21 @@ void build_build(edict_t *ent) {
 #endif
     }
     race = WC3_RaceFromString(ent->data.UnitData ? ent->data.UnitData->race : NULL);
-    /* Repair is shared by worker data, but only Human construction uses the
-     * external Repair clock; Orc Peons must enter the hidden worker-owned path. */
-    if (race == RACE_HUMAN && G_UnitHasHumanRepair(ent)) {
+    /* AGbu is Warcraft's authored Naga build style. Honour it (including custom
+     * aliases that resolve to AGbu) before race fallback so custom-map workers
+     * keep the worker-inside Naga lifecycle without requiring race=naga. */
+    if (build_actor_has_base_ability(ent, BZ_NAGA_BUILD)) {
+        construction_started = G_StartNagaConstruction(ent, building);
+    } else if (race == RACE_HUMAN && G_UnitHasHumanRepair(ent)) {
+        /* Repair is shared by worker data, but only Human construction uses the
+         * external Repair clock; Orc Peons must enter the hidden worker-owned path. */
         construction_started = G_StartHumanConstruction(ent, building);
     } else {
         switch (race) {
         case RACE_ORC: construction_started = G_StartOrcConstruction(ent, building); break;
         case RACE_UNDEAD: construction_started = G_StartUndeadConstruction(ent, building); break;
         case RACE_NIGHTELF: construction_started = G_StartNightElfConstruction(ent, building); break;
+        case RACE_NAGA: construction_started = G_StartNagaConstruction(ent, building); break;
         default: break;
         }
     }
@@ -528,6 +557,7 @@ bool build_menu_send_builder(edict_t *clent, vec2_t const *location) {
         return false;
     }
     builder = G_GetMainSelectedUnit(clent->client);
+    if (!G_UnitCanSpendResources(clent->client, builder)) return false;
     owner = builder ? G_GetPlayerClientByNumber(builder->s.player) : NULL;
     if (!owner || owner->ps.number != builder->s.player) {
 #ifdef WC3_DEBUG_MINING
@@ -613,6 +643,7 @@ void build_menu_selectlocation(edict_t *ent, uint32_t building_id) {
 
     if (!ent || !ent->client) return;
     worker = G_GetMainSelectedUnit(ent->client);
+    if (!G_UnitCanSpendResources(ent->client, worker)) return;
     owner = worker ? G_GetPlayerClientByNumber(worker->s.player) : NULL;
     if (!owner || owner->ps.number != worker->s.player || !G_WorkerCanBuild(worker, building_id)) return;
     state = G_GetBuildCommandState(owner, worker, building_id, reason, sizeof(reason));
@@ -645,7 +676,8 @@ void ui_builds(gameClient_t *client) {
     edict_t *ent = G_GetMainSelectedUnit(client);
     gameClient_t *owner = ent ? G_GetPlayerClientByNumber(ent->s.player) : NULL;
     cstring_t builds = ent ? G_UnitProfile(ent->class_id)->builds : NULL;
-    if (!ent || !owner || owner->ps.number != ent->s.player || !builds)
+    if (!G_UnitCanSpendResources(client, ent) || !owner ||
+        owner->ps.number != ent->s.player || !builds)
         return;
     PARSE_LIST(builds, build, parse_segment) {
         uint32_t building_id = 0;

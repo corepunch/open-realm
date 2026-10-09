@@ -14,6 +14,16 @@ AreaEffectArt=TestUI\Models\ui_panel.mdx
 [AIda]
 TargetArt=TestUI\Models\anim_pulse.mdx
 
+// Ability TargetArt is the ground rune. Buff TargetArt is the recipient glow.
+[AHad]
+TargetArt=TestUI\Models\panel_sprite.mdx
+
+[BHad]
+TargetArt=TestUI\Models\anim_pulse.mdx
+
+[XHfx]
+TargetArt=TestUI\Models\ui_panel.mdx
+
 [Arep]
 Art=TestUI\Textures\gather.blp
 Buttonpos=1,1

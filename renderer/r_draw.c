@@ -125,6 +125,67 @@ static void R_ResetUIScissor(void) {
     R_Call(glScissor, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
 }
 
+void R_DrawImageBatchEx(drawImageBatchParams_t const *params)
+{
+    if (!params || !params->vertices || !params->vertexCount) {
+        return;
+    }
+
+    spriteProg_t *shader = R_SpriteShader(params->shader);
+    
+    mat4_t ui_matrix, model_matrix;
+    rect_t const scene = R_UISceneRect();
+    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
+    Matrix4_identity(&model_matrix);
+    
+    R_Call(glDisable, GL_CULL_FACE);
+
+    shader->state.viewProjection = ui_matrix;
+    shader->state.model = model_matrix;
+    shader->state.activeGlow = params->activeGlow;
+    shader->state.radialShade = params->radialShade;
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertex_t) * params->vertexCount, params->vertices, GL_DYNAMIC_DRAW);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_FALSE);
+    if (params->opaque) {
+        R_Call(glDisable, GL_BLEND);
+    } else {
+        R_Call(glEnable, GL_BLEND);
+        /* BLEND_MODE_NONE historically still uses source alpha for UI textures. */
+        R_SetBlending(params->alphamode);
+    }
+    R_BindTexture(params->texture, 0);
+    
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    if (params->repeat) {
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    } else {
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    R_Call(glDisable, GL_CULL_FACE);
+    if (params->hasClip) {
+        R_SetUIClipScissor(params->clip);
+    }
+    R_StatsDraw(GL_TRIANGLES, params->vertexCount, 1);
+    R_ApplyShader(shader);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, params->vertexCount);
+    if (params->hasClip) {
+        R_ResetUIScissor();
+    }
+
+    if (params->opaque) {
+        R_Call(glEnable, GL_BLEND);
+    }
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
 void R_DrawImageBatch(texture_t const *texture,
                       SHADERTYPE shaderType,
                       BLEND_MODE alphamode,
@@ -136,57 +197,18 @@ void R_DrawImageBatch(texture_t const *texture,
                       uint32_t num_vertices,
                       bool repeat)
 {
-    if (!vertices || !num_vertices) {
-        return;
-    }
-
-    spriteProg_t *shader = R_SpriteShader(shaderType);
-    
-    mat4_t ui_matrix, model_matrix;
-    rect_t const scene = R_UISceneRect();
-    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
-    Matrix4_identity(&model_matrix);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-
-    shader->state.viewProjection = ui_matrix;
-    shader->state.model = model_matrix;
-    shader->state.activeGlow = uActiveGlow;
-    shader->state.radialShade = uRadialShade;
-    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertex_t) * num_vertices, vertices, GL_DYNAMIC_DRAW);
-    R_Call(glDisable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glEnable, GL_BLEND);
-    
-    R_SetBlending(alphamode);
-    R_BindTexture(texture, 0);
-    
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-//    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    if (repeat) {
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    } else {
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    if (hasClip) {
-        R_SetUIClipScissor(clip);
-    }
-    R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
-    R_ApplyShader(shader);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
-    if (hasClip) {
-        R_ResetUIScissor();
-    }
-
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_DrawImageBatchEx(&(drawImageBatchParams_t){
+        .texture = texture,
+        .shader = shaderType,
+        .alphamode = alphamode,
+        .activeGlow = uActiveGlow,
+        .radialShade = uRadialShade,
+        .hasClip = hasClip,
+        .clip = clip,
+        .vertices = vertices,
+        .vertexCount = num_vertices,
+        .repeat = repeat,
+    });
 }
 
 void R_DrawImageEx(drawImage_t const *drawImage) {

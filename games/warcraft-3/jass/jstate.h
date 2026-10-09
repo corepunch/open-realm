@@ -150,5 +150,6 @@ extern jassType_t jass_types[];
 /* Current local-player selector/unit set during coroutine dispatch. Defined in jdo.c. */
 extern player_t *currentplayer;
 extern edict_t *currentunit;
+extern edict_t *currentenumunit;
 
 #endif /* jstate_h */

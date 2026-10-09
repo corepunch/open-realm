@@ -333,22 +333,24 @@ wordExtractor_t(parse_comparison_expression) {
     return left;
 }
 
-wordExtractor_t(parse_logical_expression) {
+/* Operator recursion must stop before a comma. The following argument belongs
+ * to the outer call, not the right-hand logical operand's argument list. */
+wordExtractor_t(parse_logic_operators) {
     token_t *left = parse_comparison_expression(p);
     if (is_logic_operator(p, peek_token(p))) {
         token_t *oper = parse_operator_token(p);
-        token_t *right = parse_logical_expression(p);
+        token_t *right = parse_logic_operators(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
         return oper;
     }
-    if (eat_token(p, ",")) {
-        left->next = parse_logical_expression(p);
-        return left;
-    }
-    if (eat_token(p, ")") || eat_token(p, "]")) {
-        return left;
-    }
+    return left;
+}
+
+wordExtractor_t(parse_logical_expression) {
+    token_t *left = parse_logic_operators(p);
+    if (eat_token(p, ",")) left->next = parse_logical_expression(p);
+    else { eat_token(p, ")") || eat_token(p, "]"); }
     return left;
 }
 

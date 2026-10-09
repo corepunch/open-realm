@@ -52,7 +52,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 144, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 147, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -64,7 +64,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - ordinary fine-cell memberships after the pools: object count, owning-edict indexes and logical rectangles in entity save order; load rebuilds per-cell insertion ranks by prepending in that order;
 - basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
-- a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
+- a `W3OK` commit footer and a checksum over the complete preceding payload. Since version 74 the checksum folds native 64-bit words into four FNV-style lanes. The previous byte-wise FNV-1a dominated save/load time at about 6 MB per file.
 
 `WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
 
@@ -264,6 +264,25 @@ Version 40 added the region registry and region/event context. Its rejection of 
 
 Version 77 adds Stop guard movement state to the entity record: `guard_position` and one `guard_state` enum (`NONE`, `IDLE`, `COMBAT`, or `RETURNING`). The exact-version guard rejects earlier saves because their entity records lack these fields.
 Upstream version 65 makes delayed ability-edict identity snapshots mandatory for owner/target-bound thinkers. Pocket Factory, Graveyard/Exhume production, Stasis Trap, Divine Shield, and Lightning Shield persist `channel->owner_spawn_time` (and Lightning Shield `target_spawn_time`) so a recycled edict slot cannot inherit an older delayed effect. Version 64 saves are rejected rather than loading those thinkers without generation guards.
+Version 71 persists local Team Resources collapse state in addition to multiboard display suppression by client slot from version 70. Older saves are rejected, following the normal no-migration policy.
+
+Version 72 adds `edict_t.aura_effect_role`, the stable source/recipient identity
+of Devotion and Unholy Aura presentation edicts. The role is serialized as
+`F_INT` beside `summon_ability`; cache rebuilds use it even after a custom aura
+alias has been removed. Version 71 and earlier saves are rejected. The custom
+aura removal tests save both live effects, clear the runtime cache, restore,
+and remove the skill while a second provider continues supplying the glow.
+See [Aura Targets And Overlays](aura-targets-and-overlays.md).
+
+Version 75 includes the persistent `edict_t.ignore_alarm` per-unit flag and rejects version 74 saves. The existing `wc3_save.round_trip_edict_and_player_state` suite now checks suppression survives a save/load.
+
+Version 76 persists texttag presentation readiness and slot generations, alongside the existing text and unit anchor. The `wc3_save.texttag_presentation_state_round_trips` regression checks those fields and the anchor survive save/load; version 75 saves are rejected.
+
+Version 74 changes only the footer checksum to the word-wise `SaveChecksum`. Save and load streams also use a 1 MB stdio buffer. Version 73 and earlier saves are rejected.
+
+Version 67 adds `construction_t.duration_ms` so autonomous item-created Tiny Structures resume using their ability-authored build duration, independently of the unit's normal build time. Exact-version readers reject older layouts. `wc3_save.tiny_construction_round_trips_in_roc_and_tft_map_state` covers the `CONSTRUCTION_TINY` type, mid-progress `duration_ms`, and the building's self-linked `build` pointer in both archive variants.
+
+Version 65 makes delayed ability-edict identity snapshots mandatory for owner/target-bound thinkers. Pocket Factory, Graveyard/Exhume production, Stasis Trap, Divine Shield, and Lightning Shield persist `channel->owner_spawn_time` (and Lightning Shield `target_spawn_time`) so a recycled edict slot cannot inherit an older delayed effect. Version 64 saves are rejected rather than loading those thinkers without generation guards.
 
 Upstream version 64 removes redundant Sacrifice/Polymorph `active` and destructable `initialized` fields. Their pool pointer represents ownership directly; Polymorph death releases its inverse record while keeping death presentation. Version 63 saves are rejected because those serialized pool layouts changed.
 
@@ -1470,3 +1489,21 @@ removal and actor goal events now reach the recovered non-combat policy rather
 than a health/power persistence heuristic. `CaptainAttack` is registered.
 Failing-first engine regressions, exact speed/update retail captures and scope
 limits are in [Captain policy](retail-pathfinding-captain-policy.md).
+
+### Upstream synchronization: format147
+
+The October9 merge combines the retained retail movement/scheduler layout
+(format146) with upstream dialogue context, aura source/recipient identity,
+wander state, queued destructable animation, texttag readiness/generations and
+word-wise buffered checksums. Format147 rejects both predecessors; the JASS
+snapshot is version10, retaining the borrowed retail timer clock together
+with dialogue event context. Compatibility TeleportCaptain logical positions
+are included in the existing Captain save block. Physical Captain movement
+continues through Move's retained actor rather than a per-member route cache.
+
+The transient `scheduled_think_frame` belongs below the engine-owned edict
+prefix. Keep every field through `areabounds` byte-identical to
+`server/server.h`; the October9 entity-state changes exposed a misplaced
+scheduler field that made server linking read the wrong liveness and bounds.
+The merged acquisition regressions exercise real `gi.LinkEntity`/`BoxEdicts`
+calls, including Hero and structure priority.

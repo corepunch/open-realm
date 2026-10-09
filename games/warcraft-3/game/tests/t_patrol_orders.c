@@ -112,7 +112,7 @@ TEST(wc3_patrol_orders, saved_rotated_pair_retains_activation_origin_and_fifo_or
     T_FEQ(second.point.x,256,0);T_FEQ(second.point.y,320,0);
     T_FEQ(second.continuation.x,actor->s.origin2.x,0);
     T_FEQ(second.continuation.y,actor->s.origin2.y,0);
-    cstring_t save="/tmp/wc3-patrol-rotation176.bin";
+    cstring_t save=Test_TempPath("wc3-patrol-rotation176.bin");
     T_ASSERT(WriteGame(save));T_ASSERT(unit_issueimmediateorder(actor,"stop"));
     T_EQ(queue->count,0);T_ASSERT(ReadGame(save));remove(save);
     T_EQ(queue->count,2);
@@ -159,7 +159,7 @@ TEST(wc3_patrol_orders, combat_resumes_same_leg_before_starting_queued_move) {
     T_ASSERT(enemy->health.value<5000);
     T_EQ(actor->current_order_id,WC3_ORDER_ID_PATROL_TWO_POINTS);
     T_EQ(actor->order_queue.count,1);
-    cstring_t save="/tmp/wc3-patrol-combat176.bin";
+    cstring_t save=Test_TempPath("wc3-patrol-combat176.bin");
     T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);
     T_EQ(actor->movement.patrol_target,endpoint);T_EQ(actor->goalentity,enemy);
     G_DeferFreeEdict(enemy);T_EQ(actor->current_order_id,WC3_ORDER_ID_PATROL_TWO_POINTS);

@@ -103,7 +103,7 @@ TEST(wc3_range_listeners, cold_save_restores_phase_serials_and_retained_occupant
     T_ASSERT(range_setup(true,false));range_advance(1.125f);range_check("check_pair");
     wc3Clock_t before,after;uint32_t serial,loaded;
     T_ASSERT(G_NextRangeRequest(&before,&serial));
-    cstring_t file="/tmp/wc3-range-listener180.bin";
+    cstring_t file=Test_TempPath("wc3-range-listener180.bin");
     T_ASSERT(WriteGame(file));G_ResetRangeListeners();T_ASSERT(!G_NextRangeRequest(&after,&loaded));
     T_ASSERT(ReadGame(file));T_ASSERT(G_NextRangeRequest(&after,&loaded));
     T_EQ(wc3_float_bits(before.time),wc3_float_bits(after.time));T_EQ(serial,loaded);
@@ -204,7 +204,7 @@ TEST(wc3_range_listeners, dense_4096_occupants_are_retained_once_and_reconciled_
     range_advance(1.125f);range_check("verify");range_advance(1.25f);range_check("verify");
     for(uint32_t i=0;i<4096;i+=2)G_FreeEdict(units[i]);
     range_advance(1.5f);range_check("verify");
-    cstring_t file="/tmp/wc3-dense-range180.bin";T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    cstring_t file=Test_TempPath("wc3-dense-range180.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     range_advance(1.625f);range_check("verify");remove(file);
 }
 
@@ -237,7 +237,7 @@ TEST(wc3_range_listeners, cold_save_restores_partially_completed_release_chain) 
     level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;level.timer_clock=due;
     G_FireTriggerRelease();wc3Clock_t before;uint32_t saved;
     T_ASSERT(G_NextRangeRequest(&before,&saved));
-    cstring_t file="/tmp/wc3-range-release180.bin";T_ASSERT(WriteGame(file));G_ResetRangeListeners();
+    cstring_t file=Test_TempPath("wc3-range-release180.bin");T_ASSERT(WriteGame(file));G_ResetRangeListeners();
     T_ASSERT(ReadGame(file));T_ASSERT(G_NextRangeRequest(&due,&serial));
     T_EQ(wc3_float_bits(due.time),wc3_float_bits(before.time));T_EQ(serial,saved);
     range_advance(1.5f);range_check("check_empty");T_ASSERT(!G_NextRangeRequest(&due,&serial));remove(file);
@@ -277,7 +277,7 @@ TEST(wc3_range_listeners, cold_ui_load_keeps_absolute_retail_poll_deadline_and_s
     level.pathing_clock.time=wc3_float(0x41f05e1f);
     wc3Clock_t before,after;uint32_t saved,serial;T_ASSERT(G_NextRangeRequest(&before,&saved));
     T_EQ(wc3_float_bits(before.time),0x41f0ffffu);
-    cstring_t file="/tmp/wc3-request-range181.bin";T_ASSERT(WriteGame(file));G_ResetRangeListeners();
+    cstring_t file=Test_TempPath("wc3-request-range181.bin");T_ASSERT(WriteGame(file));G_ResetRangeListeners();
     level.pathing_clock=(wc3Clock_t){.time=70,.epoch=1,.span=300};
     T_ASSERT(ReadGame(file));T_ASSERT(G_NextRangeRequest(&after,&serial));
     T_EQ(wc3_float_bits(level.pathing_clock.time),0x41f05e1fu);

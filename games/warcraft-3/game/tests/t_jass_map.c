@@ -305,6 +305,20 @@ TEST(wc3_jass_map, bjassassert_true_passes) {
     ));
 }
 
+/* A comma terminates the whole logical expression. It must not attach the
+ * following string to the right operand or consume a nested call's delimiter. */
+TEST(wc3_jass_map, logical_call_arguments_preserve_outer_delimiters) {
+    T_ASSERT(run_test_jass(
+        "function check takes boolean condition, string message returns boolean\n"
+        "  call BJassAssert(condition, message)\n"
+        "  return condition\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(check(1 < 2 and 2 < 3, \"and argument\"), \"nested call\")\n"
+        "  call BJassAssert(check(1 > 2 or 3 > 2, \"or argument\"), \"second call\")\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_jass_map, bjassassert_false_is_caught) {
     T_ASSERT(run_test_jass_error(
         "function main takes nothing returns nothing\n"
@@ -1752,6 +1766,19 @@ TEST(wc3_jass_map, play_cinematic_queues_classic_movie_asset_path) {
     ));
     T_STREQ(cinematic_movie_path, "Movies\\HumanEd.mpq");
     gi.QueueMovie = old_queue_movie;
+}
+
+TEST(wc3_jass_map, model_cinematic_queues_original_mdl_asset_path) {
+    void (*old_queue_model)(cstring_t) = gi.QueueModelCinematic;
+    cinematic_movie_path[0] = '\0';
+    gi.QueueModelCinematic = capture_cinematic_movie;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PlayModelCinematic(\"Doodads\\\\Cinematic\\\\ArthasIllidanFight\\\\ArthasIllidanFight.mdl\")\n"
+        "endfunction\n"
+    ));
+    T_STREQ(cinematic_movie_path, "Doodads\\Cinematic\\ArthasIllidanFight\\ArthasIllidanFight.mdl");
+    gi.QueueModelCinematic = old_queue_model;
 }
 
 TEST(wc3_jass_map, neutral_remove_records_result_without_victory_or_defeat_event) {

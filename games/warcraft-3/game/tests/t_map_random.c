@@ -76,7 +76,7 @@ TEST(wc3_map_random, actual_load_seeds_before_races_main_and_first_owner) {
         T_ASSERT(unit->s.origin2.y>y);T_EQ(startup_stamps,i+1);
         /* Save an actual live map; load must retain setup identity and current
          * generator position, without stamping or restarting main(). */
-        cstring_t path="/tmp/openrealm-startup171.bin";
+        cstring_t path=Test_TempPath("openrealm-startup171.bin");
         uint32_t sum=level.pathing_random.sum,index=level.pathing_random.index,flags=level.setup.map_flags;
         T_ASSERT(WriteGame(path));level.setup.random_seed=0;level.setup.map_flags=0;
         T_ASSERT(ReadGame(path));remove(path);

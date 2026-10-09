@@ -214,7 +214,7 @@ static void CL_WindowDebugLayout(clientWindow_t const *window) {
                 "rect=(%.4f,%.4f %.4fx%.4f) color=(%u,%u,%u,%u) "
                 "bg=%u path=\"%s\" loaded=%p edge=%u path=\"%s\" loaded=%p "
                 "cornerFlags=%d corner=%.4f bgSize=%.4f insets=(%.4f,%.4f,%.4f,%.4f) "
-                "tile=%u blend=%u mirrored=%u\n",
+                "tile=%u opaque=%u mirrored=%u\n",
                 (unsigned)window->id, (unsigned)frame->number, (unsigned)frame->parent,
                 r->x, r->y, r->w, r->h,
                 (unsigned)frame->color.r, (unsigned)frame->color.g,
@@ -226,7 +226,7 @@ static void CL_WindowDebugLayout(clientWindow_t const *window) {
                 (int)bd->CornerFlags, bd->CornerSize, bd->BackgroundSize,
                 bd->BackgroundInsets[0], bd->BackgroundInsets[1],
                 bd->BackgroundInsets[2], bd->BackgroundInsets[3],
-                (unsigned)bd->TileBackground, (unsigned)bd->BlendAll, (unsigned)bd->Mirrored);
+                (unsigned)bd->TileBackground, (unsigned)bd->Opaque, (unsigned)bd->Mirrored);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *frame = SCR_Frame(i);

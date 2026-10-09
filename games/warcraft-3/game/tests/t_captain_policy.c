@@ -80,7 +80,7 @@ TEST(wc3_bot, captain_occupied_home_and_campaign_removals_use_counts_not_life) {
     T_EQ(wc3_float_bits(actor->unitinfo.MoveSpeed),0x43fa0000u);
     wc3Clock_t due=captain->update_due;
     uint32_t flags=captain->policy_flags;
-    cstring_t file="/tmp/wc3-captain-policy159.bin";
+    cstring_t file=Test_TempPath("wc3-captain-policy159.bin");
     T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
     T_EQ(captain->policy_flags,flags);T_EQ(captain->strength_count,2);
     T_EQ(wc3_float_bits(captain->update_due.time),wc3_float_bits(due.time));
@@ -171,7 +171,7 @@ TEST(wc3_bot, captain_repeated_point_request_retains_member_range_after_upgrade_
         T_EQ(units[i]->movement.captain_home.actor,actor);
         T_EQ(wc3_float_bits(units[i]->movement.captain_home.due.time),wc3_float_bits(due[i].time));
     }
-    cstring_t file="/tmp/wc3-captain-reissue193.bin";
+    cstring_t file=Test_TempPath("wc3-captain-reissue193.bin");
     T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
     G_BotCaptainAttack(player,&(vec2_t){1600,1900});
     FOR_LOOP(i,13) {
@@ -238,7 +238,7 @@ TEST(wc3_bot, captain_range_producers_retain_walk_and_refresh_on_natural_departu
     botCaptain_t *captain=level.bots[0].captains;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     uint32_t fresh[]={0x404c0000,0x40240000,0x41260000,0x41670000};
-    cstring_t file="/tmp/wc3-captain-departure193.bin";
+    cstring_t file=Test_TempPath("wc3-captain-departure193.bin");
     FOR_LOOP(kind,4) {
         /* Each member returns through the actual one-second listener. */
         uint32_t deadline=level.time+20000;
@@ -316,7 +316,7 @@ TEST(wc3_bot, captain_nonhome_speed_uses_live_minimum_and_retained_save_state) {
     S_SetUnitMoveSpeed(units[0],180);
     G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
     T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x4310c858u);
-    cstring_t file="/tmp/wc3-captain-speed160.bin";
+    cstring_t file=Test_TempPath("wc3-captain-speed160.bin");
     T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
     T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x4310c858u);
     S_CaptainPointMove(captain,&captain->goal,200);
@@ -379,7 +379,7 @@ TEST(wc3_bot, captain_large_roster_preserves_admission_batches_and_cold_save) {
         /* Completed retail repeats: the twenty-fifth member takes the factor
          * above one; there is no post-multiplier clamp back to the minimum. */
         T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),count==24 ? 0x43870000u : 0x438877a6u);
-        cstring_t file="/tmp/wc3-captain-large161.bin";
+        cstring_t file=Test_TempPath("wc3-captain-large161.bin");
         T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));remove(file);
         T_EQ(ARRAY_COUNT(captain->units),count);
         T_ASSERT(S_ValidateCaptainHomeActors(false));

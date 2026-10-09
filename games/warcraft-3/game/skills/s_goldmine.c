@@ -722,7 +722,10 @@ void S_MineOverlayBindPreplaced(void) {
         FOR_LOOP(j, globals.num_edicts) {
             edict_t *parent = &globals.edicts[j];
             float distance;
-            if (parent == overlay || !parent->inuse || !S_GoldMineIsMine(parent) ||
+            /* RemoveUnit defers the old mine's free until tick end, so it can
+             * still be inuse beside the newly spawned replacement here. */
+            if (parent == overlay || !parent->inuse || G_IsDeferredFree(parent) ||
+                !S_GoldMineIsMine(parent) ||
                 goldmine_is_overlay_type(parent) || parent->s.player != PLAYER_NEUTRAL_PASSIVE) continue;
             distance = Vector2_distance(&overlay->s.origin2, &parent->s.origin2);
             if (distance > WC3_MINE_OVERLAY_MATCH_RADIUS || distance >= best_distance) continue;
@@ -1104,6 +1107,24 @@ bool S_AcolyteHarvestOrder(edict_t *worker, edict_t *mine) {
     return true;
 }
 
+/* The stock autoharvestgold order used by Undead campaign setup has no target.
+ * Resolve it to the nearest live Haunted Mine owned by this Acolyte. */
+bool S_AcolyteHarvestAutoStart(edict_t *worker) {
+    edict_t *best = NULL;
+    float best_dist = FLT_MAX;
+
+    if (!worker || (worker->aiflags & AI_IMMOBILE) ||
+        !goldmine_actor_ability_alias(worker, MAKEFOURCC('A','a','h','a'))) return false;
+    FILTER_EDICTS(mine, haunted_mine_valid_for(worker, mine)) {
+        float const distance = Vector2_distance(&worker->s.origin2, &mine->s.origin2);
+        if (distance < best_dist) {
+            best = mine;
+            best_dist = distance;
+        }
+    }
+    return best && S_AcolyteHarvestOrder(worker, best);
+}
+
 void blight_mine_think(edict_t *mine) {
     uint32_t alias, maximum, active, multiplier, interval_ms, now;
     int32_t gold_per_interval, gold;
@@ -1312,7 +1333,7 @@ static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool insta
     entangled = SP_SpawnAtLocation(resulting_type, caster->s.player, &target->s.origin2);
     if (!entangled) return false;
     bound = S_MineOverlayBind(entangled, target);
-    started = bound && (instant || G_StartNightElfOverlayConstruction(entangled));
+    started = bound && (instant || G_StartNightElfOverlayConstruction(caster, entangled));
     if (!started) {
         S_MineOverlayRelease(entangled);
         G_FreeEdict(entangled);

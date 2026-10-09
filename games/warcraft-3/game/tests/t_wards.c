@@ -236,7 +236,7 @@ static edict_t *mine_timer(edict_t const *mine) {
 }
 
 TEST(wc3_save, land_mine_and_rally_indexes_rebuild_after_restore) {
-    cstring_t save = "/tmp/openwarcraft3-mine-rally-index-save.bin";
+    cstring_t save = Test_TempPath("openwarcraft3-mine-rally-index-save.bin");
     wardFix_t fix; ward_setup(&fix);
     edict_t *mine = mine_fixture(64, 64);
     edict_t *thinker = mine_timer(mine);
@@ -576,7 +576,7 @@ TEST(wc3_spell, authored_ghost_initializes_on_unit_spawn_event) {
 }
 
 TEST(wc3_save, ghost_runtime_invisibility_round_trips) {
-    cstring_t save = "/tmp/openwarcraft3-ghost-save.bin";
+    cstring_t save = Test_TempPath("ghost-save.bin");
     wardFix_t fix;
     abilityitem_t item = S_AbilityItem(MAKEFOURCC('A','g','h','o'));
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);

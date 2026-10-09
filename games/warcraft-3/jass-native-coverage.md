@@ -19,6 +19,12 @@ calling strict `jass_checkcode()`; non-null handlers still require the exact
 fast-forward or ESC skip. HiveWorkshop's timer reset examples confirm the same
 native behavior, commonly followed by `PauseTimer` when resetting getter state.
 
+`PreloadRefresh` and `PreloadEndEx` are registered no-op boundaries so maps can
+advance through preload batches without aborting their JASS trigger. They do
+not load assets; `Preload`, `Preloader`, and preload-file generation remain
+unimplemented. `wc3_api.preload_refresh_boundaries_are_registered` guards the
+map-script call contract.
+
 The AI-only `UnitInvis(unit)` native reports intrinsic active invisibility through `S_UnitHasInvisibilityState()`; it
 does not incorporate owner/shared vision or detector coverage. Stock `common.ai` calls it separately from
 `IsUnitDetected(target, ai_player)`. The latter and `IsUnitInvisible(unit, player)` remain placeholders in
@@ -76,6 +82,13 @@ and saved continuations initially match retail through23.8s. Changed-destination
 wait reset extends the verified continuation through27.2s; one-point fine refills,
 autonomous occupied-home admission, empty/larger rosters and general retreat
 policy remain open. See [the implementation and exact scope](../../docs/games/warcraft-3/retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain).
+`GetFilterDestructable()` and `GetEnumDestructable()` resolve the currently
+enumerated destructable while an `EnumDestructablesInRect` action runs. The
+enumerator saves and restores that context so a nested enumeration does not
+clobber the outer callback. Its non-null `boolexpr` filter argument is still
+ignored; `EnumDestructablesInRectAll` passes null, which is sufficient for
+UndeadX04's wall-destruction trigger. The nested-context regression is
+`wc3_destructable.enum_filter_getter_tracks_and_restores_nested_destructables`.
 
 `GetUpgradeGoldCost` and retail `GetUpgradeWoodCost` now query the current AI player's next researched level and reuse the authoritative `UpgradeData.slk` base/mod cost helpers; invalid or maxed upgrades return zero. `ShiftTownSpot` owns a persistent `bot_t` construction-search override consumed only by AI building placement, leaving town halls, workers, harvesting, and captain state untouched. See [AI Upgrade Costs And Town Spot](../../docs/games/warcraft-3/ai-upgrade-costs-and-town-spot.md).
 
@@ -88,7 +101,7 @@ covers Blizzard.j's `UnitAddIndicatorBJ`, whose wrapper calls the generic `AddIn
 
 `SetUnitColor` publishes a per-unit replaceable team-color override without changing unit ownership. The presentation payload is packed into `effect_flags` as `playercolor + 1`, while persistent explicit-unit state carries a separate override flag so `PLAYER_COLOR_RED` remains distinct from the zero/default owner-color state across game-cache restore. `SetPlayerColor` also updates existing units still displaying the player's previous color, and `SetUnitOwner` honors its `changeColor` argument. Initial unit presentation resolves Warcraft's `utco`/`utcc` and `war3mapUnits.doo` custom-color precedence before falling back to the owner's configured player color. Ranged missiles, unit-attached model effects, selected portraits, placement previews, and rally indicators now consume the same resolved/configured color paths rather than falling back to the owner slot number; see [Team Colors](../../docs/games/warcraft-3/team-colors.md).
 
-`SetUnitVertexColor` now retains a persistent clamped RGBA override in WC3 game state and publishes visible overrides through the existing per-frame game datagram rather than widening `entityState_t`. The client keeps an explicit-validity tint cache so alpha `0` is distinct from the renderer's historical "unset tint" sentinel, then the MDX renderer reuses its existing per-instance geoset-colour multiply and translucent-layer path. `SetWaterBaseColor`, general JASS text tags, authored `UnitUI.slk` RGB defaults, and invisibility-alpha parity remain separate gaps. See [Unit Vertex Color](../../docs/games/warcraft-3/unit-vertex-color.md).
+`SetUnitVertexColor` now retains a persistent clamped RGBA override in WC3 game state and publishes visible overrides through the existing per-frame game datagram rather than widening `entityState_t`. The client keeps an explicit-validity tint cache so alpha `0` is distinct from the renderer's historical "unset tint" sentinel, then the MDX renderer reuses its existing per-instance geoset-colour multiply and translucent-layer path. `SetTextTagPos`, `SetWaterBaseColor`, authored `UnitUI.slk` RGB defaults, and invisibility-alpha parity remain separate gaps; implemented JASS texttag presentation is described in [Multiboard And TextTag](../../docs/games/warcraft-3/multiboard-and-texttag.md). See [Unit Vertex Color](../../docs/games/warcraft-3/unit-vertex-color.md).
 
 `SetTerrainFogEx` and `ResetTerrainFog` now own persistent WC3 environmental distance-fog state and publish it through the generic `CS_SCENE_FOG` presentation contract. `SetTerrainFogEx` retains style/start/end/density/RGB, while `ResetTerrainFog` restores the merged `[DefaultZFog]` RoC/TFT row. The renderer currently uses Warsmash-compatible linear start/end blending for every enabled style; legacy `SetTerrainFog`, true exponential equations, and particle fog remain separate gaps. See [Environmental Terrain Fog](../../docs/games/warcraft-3/environmental-fog.md).
 
@@ -120,10 +133,11 @@ The five classic Way Gate natives are implemented in `api_unit.h`: `WaygateGetDe
 
 The Warcraft Blight native family is no longer a placeholder. `SetBlight`, `SetBlightRect`, `SetBlightPoint`, and `SetBlightLoc` mutate the same game-owned `level.blight` state used by building placement and Blight-only regeneration; `IsPointBlighted` queries that state directly. The setter `player` argument is validated but Blight remains global terrain state, matching the player-less query contract. See [Blight](../../docs/games/warcraft-3/blight.md). Client terrain presentation and preview synchronization are implemented separately from this native simulation coverage and are not validated by these native tests.
 
-`KillUnit` must use the normal unit-death transition rather than only writing life to zero. The transition selects the
-model's `Death` sequence, publishes unit/player death events, clears orders and selection, updates pathing/FOW state,
-and starts the corpse/decay lifecycle. Bypassing `unit_die()` therefore leaves unit death events, presentation,
-and gameplay cleanup inconsistent with the native contract.
+`KillUnit`, `SetUnitState(UNIT_STATE_LIFE, 0)`, and `SetWidgetLife(widget, 0)` must use the normal death transition
+rather than only writing life to zero. For units, the transition selects the model's `Death` sequence, publishes
+unit/player death events, clears orders and selection, updates pathing/FOW state, and starts the corpse/decay lifecycle.
+For destructables, it runs the destructable death path. Bypassing the owning death callback leaves death events,
+presentation, and gameplay cleanup inconsistent with the native contract.
 
 Known examples include:
 
@@ -184,9 +198,9 @@ DotA 6.83d's compiled map script references 525 natives, 137 of them unregistere
 The patch-1.24 hashtable family (`InitHashtable`, `GetHandleId`, `StringHash`, typed
 `Save*`/`Load*`/`HaveSaved*`/`RemoveSaved*`/`Flush*`) is registered in
 `api_hashtable.h` with a host-owned `level.hashtables[]` registry and typed nested-handle
-save/load (current format version 49; hashtable payload introduced in format version 31). Multiboard/texttag DotA surfaces are registered as
-server-owned state ([multiboard-and-texttag.md](../../docs/games/warcraft-3/multiboard-and-texttag.md)); HUD/client
-draw remains deferred. Remaining DotA holes are shop events and hero attributes. See
+save/load (the hashtable payload was introduced in format version 31). Multiboard/texttag DotA surfaces are registered as
+server-owned state ([multiboard-and-texttag.md](../../docs/games/warcraft-3/multiboard-and-texttag.md)); multiboards use the
+server-authored HUD and texttags publish keyed generic world-text events. Remaining DotA holes are shop events and hero attributes. See
 [DotA Custom-Map Playability](../../docs/games/warcraft-3/dota-map-playability.md) and [Save/Load](../../docs/games/warcraft-3/save-load.md).
 
 `EndGame`, `ChangeLevel`, `RestartGame`, and `DisplayLoadDialog` cross the existing `gi.MenuAction` session boundary.
@@ -200,6 +214,16 @@ the Human campaign before a long final cinematic and calls `CustomVictoryBJ` onl
 [campaign-progress.md](../../docs/games/warcraft-3/campaign-progress.md). The `doScoreScreen` parameter is consumed but score-screen presentation
 is not implemented yet.
 
+`PlayModelCinematic` now queues the authored MDL path to an isolated MDX
+model scene in the client; this works even when no new map/menu action follows.
+It advances non-looping model sequences with embedded cameras and defers
+session transitions until playback completes or is skipped. Sequence start,
+exact music, native JASS blocking and MRF morph effects are not retail-exact;
+see [Campaign AI and model cinematics](../../docs/games/warcraft-3/campaign-ai-model-cinematic.md)
+for `BZ_COMPAT_GUESS` details. `UnitIgnoreAlarm` suppresses the attacked
+notification from flagged victims; `SetAmphibious`, `TeleportCaptain`, and
+associated captain operations are registered with documented approximations.
+
 `PlayCinematic` now queues `Movies\<name>.mpq` through `gi.QueueMovie`. When the script subsequently requests a map/menu
 session action, the client pauses the outgoing simulation, plays the pre-rendered movie through the optional FFmpeg
 backend, then resumes that deferred action after EOF or Escape. Builds without `FFMPEG=1` leave the native harmless and
@@ -210,7 +234,7 @@ movie unlock persistence and camera-button rows remain follow-up work. See [pre-
 `GetGameDifficulty()` state. Campaign map startup seeds both values from `wc3_campaign_difficulty`; scripts may then
 change current and default difficulty independently.
 
-Still incomplete: the generic `Dialog*` / dialog-button event natives, `DialogAddQuitButton`, actual score-screen
+The generic `Dialog*` and dialog/button event natives now have bounded registries, server-authoritative click dispatch, and local modal-window presentation. `DialogAddQuitButton` creates handles but its quit policy remains incomplete; see [JASS dialogs](../../docs/games/warcraft-3/jass-dialogs.md). Still incomplete: actual score-screen
 presentation, Reduce Difficulty/observer-on-death result policy, and result-dialog ownership of single-player modal
 pausing. The existing `PauseGame` / modal path should be reused for that work rather than adding a second pause model.
 
@@ -444,6 +468,10 @@ so trigger publication and snapshots remain consistent.
   `s.origin`, so collision, pathing, visibility, and snapshots agree.
 - Kill and remove are distinct: kill runs death behavior and events; remove
   releases the entity without fabricating a death.
+- `SetDestructableAnimationSpeed` sets each destructable's existing saved
+  `animation_speed` multiplier (default 1.0, zero freezes). The scripted
+  animation scheduler advances the MDX frame and retains the factor across
+  queued sequences; see [Breakable Destructables](../../docs/games/warcraft-3/breakable-destructables.md#destructable-animation-speed-jass).
 - Item ownership is the inventory holder or explicit owning player defined by
   the item contract, not merely `edict.s.player` unless that field is kept in
   sync by every inventory transition.
@@ -452,6 +480,13 @@ so trigger publication and snapshots remain consistent.
   charges on a carried item refreshes the selected-unit inventory layer.
 - `SetItemDropID` stores the mutable unit rawcode metadata on the item instance;
   it has no immediate inventory or world-drop side effect.
+- Retail Blizzard.j implements `UnitDropItem` and `WidgetDropItem` in script;
+  they create new items at independent random ±32 X/Y offsets. Only the unit
+  helper assigns `SetItemDropID` and calls Blizzard.j's
+  `UpdateStockAvailability`. `GetItemType` is a value-style `itemtype` enum
+  handle, so its equality with `ITEM_TYPE_*` constants must compare enum values,
+  rather than newly allocated handle pointers. A test-fixture Blizzard.j subset
+  exercises both helpers and their distinct stock/drop-ID behavior.
 - `widget` life operations share the damage/life representation across units,
   items, and destructables and clamp against the runtime maximum.
 
@@ -464,6 +499,11 @@ shared mutation clamps subtraction at zero and refreshes the owner's command
 state. `SetHeroXP`, `AddHeroXP`, and `SetHeroLevel` share the raise-only Hero XP
 transition; every crossed level publishes both `EVENT_PLAYER_HERO_LEVEL` and
 `EVENT_UNIT_HERO_LEVEL`, and `GetLevelingUnit()` resolves to that Hero.
+`UnitStripHeroLevel` uses a separate level-loss transition, clamps to level 1,
+reconciles XP/attributes/points/learned ranks, and returns whether the level
+changed. The engine's `SetHeroLevelBJ` entry routes decreases to this native.
+Retail skill-rank tie-break order and unusual scripted point budgets remain
+unverified; see the [Hero progression contract](../../docs/games/warcraft-3/hero-abilities.md).
 `GetUnitAbilityLevel` reads the runtime learned rank. Generic runtime ability
 addition/removal/level mutation remains separate work because OpenRealm does
 not yet own a general per-unit dynamic ability collection.

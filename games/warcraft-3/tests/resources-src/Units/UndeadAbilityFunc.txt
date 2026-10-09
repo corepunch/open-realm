@@ -3,3 +3,13 @@ EffectArt=TestUI\Models\anim_pulse.mdx
 
 [Buns]
 Targetart=TestUI\Models\anim_pulse.mdx
+
+// Stock aura art differs from the custom alias and the recipient glow.
+[AUau]
+TargetArt=TestUI\Models\panel_sprite.mdx
+
+[BUau]
+TargetArt=TestUI\Models\anim_pulse.mdx
+
+[XUfx]
+TargetArt=TestUI\Models\ui_panel.mdx

@@ -158,7 +158,7 @@ TEST(wc3_object_categories, pickup_drop_and_save_preserve_item_occupancy) {
     edict_t *hero=alloc_test_unit(MAKEFOURCC('H','p','a','l'),304,304);
     edict_t *item=SP_SpawnAtLocation(MAKEFOURCC('s','p','r','o'),0,&(vec2_t){304,304});
     T_ASSERT(G_AddItemToSlot(hero,item,0));
-    cstring_t carried_file="/tmp/wc3-category-carried-save.bin";
+    cstring_t carried_file=Test_TempPath("wc3-category-carried-save.bin");
     T_ASSERT(WriteGame(carried_file));T_ASSERT(ReadGame(carried_file));remove(carried_file);
     /* Inspect before any spatial query can flush a deferred publication. */
     T_NULL(G_GetMoveSpatialObject(item-g_edicts));
@@ -168,7 +168,7 @@ TEST(wc3_object_categories, pickup_drop_and_save_preserve_item_occupancy) {
     T_EQ(G_GetMoveSpatialObject(item-g_edicts)->box.min.x,9);
     T_EQ(G_GetMoveSpatialObject(item-g_edicts)->box.max.x,10);
     T_ASSERT(!category_test_endpoint(source,9.5f,9.5f,0x10));
-    cstring_t file="/tmp/wc3-category-item-save.bin";T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    cstring_t file=Test_TempPath("wc3-category-item-save.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     T_ASSERT(!category_test_endpoint(source,9.5f,9.5f,0x10));
     T_ASSERT(G_AddItemToSlot(hero,item,0));T_ASSERT(category_test_endpoint(source,9.5f,9.5f,0x10));
     remove(file);reset_entities();setup_test_world();

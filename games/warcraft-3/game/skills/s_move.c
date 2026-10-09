@@ -2938,6 +2938,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                             S_SetMoveGoal(self->goalentity, &self->goalentity->secondarygoal, NULL);
                             self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                         }
+                        self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                     }
                     return;
                 }
@@ -3289,6 +3290,9 @@ edict_t *Waypoint_add(vec2_t const *spot) {
     entity_set_put(&waypoint_available,index,false);
     level.waypoints.cursor=index>=level.waypoints.base && index<level.waypoints.base+MAX_WAYPOINTS ?
         (index-level.waypoints.base+1)%MAX_WAYPOINTS : 0;
+    /* Wander pins waypoint reuse independently of the edict generation. */
+    waypoint->waypoint_generation++;
+    if (!waypoint->waypoint_generation) waypoint->waypoint_generation = 1;
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
     waypoint->heatmap2 = 0;
@@ -3407,10 +3411,14 @@ void S_RefreshUnitSupport(edict_t *self, bool force) {
         pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
         if (!surface->inuse || surface->destructable->dead ||
             !surface->destructable->placement_solid || !pathtex) continue;
-        if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f ||
-            fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f) continue;
-        if (surface->s.origin.z > height) {
-            height = surface->s.origin.z;
+        bool const elevator = surface->class_id == MAKEFOURCC('D','T','r','x') ||
+            surface->class_id == MAKEFOURCC('D','T','r','f');
+        float const overlap = elevator ? MAX(0.0f, self->collision) : 0.0f;
+        if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f + overlap ||
+            fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f + overlap) continue;
+        float const deck = surface->s.origin.z + (elevator ? surface->destructable->occluder_height : 0.0f);
+        if (deck > height) {
+            height = deck;
             support_flags |= WC3_SUPPORT_ON_DECK;
         }
     }
@@ -3666,6 +3674,7 @@ void move_start_displacement(edict_t *self, vec2_t const *target) {
 static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     if (M_UnitMoveDisabled(ent)) return 0;
     if (ent->movement.captain_actor_type) return ent->unitinfo.MoveSpeed;
+    if (S_ItemSpeedActive(ent)) return game.constants.maxUnitSpeed;
     unitStatusQuery_t statuses;
     G_BeginUnitStatusQuery(ent,&statuses);
     float speed = (ent->unitinfo.move_flags & BZ_UNIT_SPEED_SET) || ent->unitinfo.MoveSpeed > 0
@@ -4112,6 +4121,10 @@ static void move_hold(edict_t *ent) {
      * Continue a Shift chain instead of stranding pending commands behind the
      * legacy hold pose. */
     if (G_UnitStartNextQueuedOrder(ent)) return;
+    /* Before switching to the terminal Hold state (and A_MOVE_LEAVE),
+     * let an internal Wander Move return to idle. Ordinary orders retain
+     * their existing Hold behaviour. */
+    if (S_UnitAbilityEvent(ent, A_MOVE_BLOCKED)) return;
     ent->build = NULL;
     ent->s.renderfx &= ~RF_NO_UBERSPLAT;
     ent->s.ability = 0;
@@ -4378,6 +4391,10 @@ void order_move(edict_t *self, edict_t *target) {
         return;
     if (self->movement.clock_valid) unit_commit_current_pose(self);
     move_cancel_displacement(self);
+    {
+        abilityCall_t call = MAKE(abilityCall_t, .move_target = target);
+        S_UnitAbilityEventWithCall(self, A_MOVE_START, &call);
+    }
     S_SetMoveGoal(self, &self->goalentity, target);
     self->attack_target_spawn_time = 0;
     S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);

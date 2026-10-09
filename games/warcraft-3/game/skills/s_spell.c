@@ -393,6 +393,37 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
              S_UnitIsInvisibleToPlayer(target, caster->s.player));
 }
 
+/* Spell Shield intercepts hostile unit-targeted spells at resolution. Launched
+ * bolts defer the check until impact so shield state can change in flight. */
+bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
+    ability_t const *ability = S_SpellAbilityForCode(code);
+    abilityLevel_t const *row;
+    heroabilitystatus_t *status;
+
+    if (!caster || !target || !ability ||
+        (ability->target_type != SPELL_TARGET_UNIT && ability->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+        !S_SpellIsEnemy(caster, target) || !S_SpellIsAliveTarget(target)) return false;
+    /* Physical nets and Finger of Death bypass Spell Shield. */
+    if (ability->proc == CAbilityEnsnare || ability->proc == CAbilityWeb ||
+        ability->proc == CAbilityFingerOfDeath) return false;
+    row = G_AbilityLevel(code, S_SpellLevel(caster, code));
+    /* Mixed masks (for example Death Coil and Siphon Mana) have hostile and
+     * friendly branches. The target's actual relationship selects the branch. */
+    if (!row || !row->targs || !S_SpellTargetHasToken(row->targs, "enemy", NULL)) return false;
+    status = unit_findstatus(target, MAKEFOURCC('B', 'N', 's', 's'));
+    if (!status) return false;
+    unit_expirestatus(target, status);
+    unit_refreshstatusflags(target);
+    G_InvalidateUnitInfoPanel(target);
+    return true;
+}
+
+bool S_SpellShieldImpactDeferred(uint32_t code) {
+    ability_t const *ability = S_SpellAbilityForCode(code);
+    return ability && (ability->proc == CAbilityThunderBolt || ability->proc == CAbilityFireBolt ||
+                       ability->proc == CAbilityDeathCoil);
+}
+
 /* The authored targs mask without the unit-target visibility rule: area effects reach
  * units the caster cannot see. */
 bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
@@ -796,10 +827,12 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
                               .source_item_spawn_time = params->source_item_spawn_time);
 
     spell_commit(params->caster, params->code, params->level, active_approach);
-    if (params->spell->flags & AB_CHANNEL)
+    bool const blocked = !S_SpellShieldImpactDeferred(params->code) &&
+        S_TryBlockSpellShield(params->caster, params->code, params->target);
+    if (!blocked && (params->spell->flags & AB_CHANNEL))
         spell_begin_channel(params->caster, params->code);
-    spell_publish_effect(params->caster, params->code, st);
-    bool const executed = S_AbilityMessage(params->caster, A_EXECUTE, &call);
+    if (!blocked) spell_publish_effect(params->caster, params->code, st);
+    bool const executed = blocked || S_AbilityMessage(params->caster, A_EXECUTE, &call);
     if (executed && params->source_item) G_CompleteItemUse(params->caster, params->source_item);
     /* Existing unit spells historically accepted the order once validation and
      * commit succeeded even if a handler returned false from A_EXECUTE. Item
@@ -1017,6 +1050,42 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     return true;
 }
 
+/* Build Tiny uses the same game-authored cursor entity as ordinary worker
+ * placement.  The generic client already renders its snapped model and
+ * red/green pathing footprint.  Only the game chooses which building it is. */
+static bool spell_is_tiny_structure(ability_t const *spell) {
+    return spell && spell->proc == CAbilityTinyStructure;
+}
+
+static void spell_tiny_cursor_clear(edict_t *clent) {
+    entityState_t empty = {0};
+    if (!clent || !clent->client) return;
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &empty);
+    gi.unicast(clent);
+}
+
+static bool spell_tiny_cursor_show(edict_t *clent, edict_t *caster, uint32_t code) {
+    entityState_t cursor;
+    gameClient_t *owner;
+    uint32_t building;
+    if (!clent || !clent->client || !caster) return false;
+    building = S_TinyStructureUnitId(caster, code, MAX(1u, S_SpellLevel(caster, code)));
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    if (!building || !G_UnitIsBuilding(building) || !owner) return false;
+    FillUnitData(&cursor, building, "stand");
+    cursor.player = caster->s.player;
+    G_SetEntityTeamColor(&cursor, owner->ps.color);
+    cursor.pathing_preview = EntityPathingPreviewPack(
+        caster->s.number,
+        EntityPathingPreviewPrevented(cursor.pathing_preview),
+        EntityPathingPreviewRequired(cursor.pathing_preview));
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &cursor);
+    gi.unicast(clent);
+    return true;
+}
+
 /* Called when user clicks a location for a POINT-target spell. */
 static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
@@ -1040,7 +1109,8 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
         if (!spell_begin_target_approach(caster, code, NULL, point,
                                          source_item, source_item_spawn_time)) return false;
         spell_order_accepted(caster, spell);
-        S_SpellCursorSplat(clent, 0.0f);
+        if (spell_is_tiny_structure(spell)) spell_tiny_cursor_clear(clent);
+        else S_SpellCursorSplat(clent, 0.0f);
         G_SendPointConfirmation(clent, point, false);
         return true;
     }
@@ -1048,7 +1118,8 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     if (!spell_execute_point_target(clent, caster, code, level, spell, point,
                                     source_item, source_item_spawn_time, NULL)) return false;
     spell_order_accepted(caster, spell);
-    S_SpellCursorSplat(clent, 0.0f);
+    if (spell_is_tiny_structure(spell)) spell_tiny_cursor_clear(clent);
+    else S_SpellCursorSplat(clent, 0.0f);
     G_SendPointConfirmation(clent, point, false);
     return true;
 }
@@ -1143,6 +1214,7 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
     spell_commit(caster, code, level, NULL);
+    if (!S_SpellShieldImpactDeferred(code) && S_TryBlockSpellShield(caster, code, unit)) return true;
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
@@ -1467,9 +1539,19 @@ void spell_cmd(edict_t *clent) {
         clent->client->menu.on_entity_selected = spell_unit_target_selected;
         break;
     case SPELL_TARGET_POINT: {
+        /* Resolve the Tiny cursor before opening target mode: the Cancel
+         * button used to be added first, so an unresolvable cursor (an AIbg
+         * row without a UnitID) left a dead Cancel button with no
+         * on_location_selected handler behind it. */
+        if (spell_is_tiny_structure(spell) && !spell_tiny_cursor_show(clent, caster, code)) {
+            fprintf(stderr, "spell_cmd: Tiny Structure '%.4s' has no buildable UnitID\n", (cstring_t)&code);
+            return;
+        }
         UI_AddCancelButton(clent);
-        float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
-        S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
+        if (!spell_is_tiny_structure(spell)) {
+            float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
+            S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
+        }
         clent->client->menu.on_location_selected = spell_point_target_selected;
         break;
     }

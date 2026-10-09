@@ -61,7 +61,7 @@ static edict_t *review_order_unit(float x, uint32_t owner) {
 }
 
 TEST(wc3_order_lifecycle, unused_queue_is_sparse_and_wrapped_entries_survive_save) {
-    cstring_t file = "/tmp/wc3-sparse-order-ring.bin";
+    cstring_t file = Test_TempPath("wc3-sparse-order-ring.bin");
     reset_entities(); setup_test_world();
     edict_t *unit = review_order_unit(0, 0);
     T_NULL(unit->order_queue.entries);
@@ -824,7 +824,7 @@ TEST(wc3_order_lifecycle, follow_combat_target_loss_preserves_head_until_enemy_l
 }
 
 TEST(wc3_order_lifecycle, follow_incarnation_and_combat_removal_survive_save_before_drain) {
-    cstring_t file = "/tmp/wc3-follow-retirement117.bin";
+    cstring_t file = Test_TempPath("wc3-follow-retirement117.bin");
     /* alloc_test_unit supplies transient weapon rows; restore must resolve a
      * real authored row instead. The fixture MPQ has no UnitWeapons.slk. */
     slkTestData_t *weapons = parse_slk_string(
