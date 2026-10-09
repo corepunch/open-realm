@@ -155,6 +155,7 @@ netField_t playerStateFields[] = {
     /* Append fields so existing player-state delta bit assignments stay stable. */
     { NETF(player_t, cinefilter_image), NFT_LONG },
     { NETF(player_t, cinefilter_color), NFT_LONG },
+    { NETF(player_t, cinefilter_blendmode), NFT_LONG },
     /* Map metadata moved to the WoW map-info configstring; only small generic presentation values remain here. */
     { NULL }
 };
