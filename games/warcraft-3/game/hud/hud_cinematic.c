@@ -307,5 +307,7 @@ void UI_WriteCinematicLayer(edict_t *ent) {
         hud.cinematic.CinematicDialogueText->Font.Color = COLOR32_WHITE;
     }
 
+    UI_SetCurrentClient(client);
     UI_WriteLayout(ent, hud.cinematic.CinematicPanel, LAYER_CINEMATIC);
+    UI_SetCurrentClient(NULL);
 }
