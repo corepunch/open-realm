@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff215 implements the independent Show Map visibility policy, deferred native
+submission and Save152 continuation without bypassing invisibility detection.
+Two original repeats and an unhooked control also expose a retained-approach
+reissue branch for the next engine chunk. TARGET-03.1/03.2 remain open; see
+[global visibility policy](retail-pathfinding-engine.md#show-map-retains-a-separate-visibility-policy-payoff215).
+
 Payoff214 closes BASE-01.1: native UI point coordinates and flags now have a
 complete serialization/decoded-dispatch/unit-admission trace. Public engine
 commands preserve the same fractional coordinates through unchanged retail

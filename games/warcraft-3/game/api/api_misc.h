@@ -1944,7 +1944,9 @@ uint32_t SetDoodadAnimationRect(jass_t *j) {
     return 0;
 }
 uint32_t Cheat(jass_t *j) {
-    //cstring_t cheatStr = jass_checkstring(j, 1);
+    cstring_t text = jass_checkstring(j, 1);
+    if (text && !strcasecmp(text, "iseedeadpeople"))
+        G_QueueShowMapCheat();
     return 0;
 }
 uint32_t IsNoVictoryCheat(jass_t *j) {

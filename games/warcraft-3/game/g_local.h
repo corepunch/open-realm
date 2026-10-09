@@ -2673,6 +2673,8 @@ struct level_locals {
     quest_t quests[MAX_QUESTS];
     uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
+    bool show_map_cheat;
+    uint32_t pending_show_map_cheats;
     blightGrid_t blight;
     cineFilter_t cinefilter;
     uint32_t framenum;
@@ -2940,6 +2942,8 @@ void G_FowSendFull(edict_t *ent);
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayerCanTrackUnit(uint32_t player, edict_t const *ent);
+void G_QueueShowMapCheat(void);
+void G_RunShowMapCheats(void);
 bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner);
 bool G_UnitSharesVisionWith(edict_t const *unit, uint32_t viewer);
 void G_SetUnitSharedVision(edict_t *unit, uint32_t viewer, bool share);

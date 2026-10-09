@@ -14560,3 +14560,75 @@ at load, and Payoff213 restores proximity and fine requests once each. The test
 now separately checks unchanged saved release keys and callback order, followed
 by the two new maintenance serials and their load+0.1 deadline. This corrects an
 engine-test assumption; no captured retail expectation is replaced.
+
+
+## Show Map retains a separate visibility policy (Payoff215)
+
+Retail's `Cheat("iseedeadpeople")` submits `CNetCommandCheatShowMap`, rather
+than changing visibility inside the native call. The chain is Jass_Cheat/1f8a20
+→ Console_ExecuteCommandText/196f40 → Cheat_SubmitShowMapCommand/37b340
+→ synchronized command2f/a002f → Cheat_ToggleShowMap/37a4e0, registered by
+37abf0. Both repeated original traces see the handler through32d660. Immediate
+script fog getters retain their old values; later markers observe the command.
+The debug registration string `Telemetry` is not the working public cheat: a
+public call with that text has no effect in these captures.
+
+The toggle changes bit200 of the TLS13 policy record independently of the two
+fog flags. Its enabling edge calls Vision_SetFogMaskEnabled/24f9c0 with
+`enabled=0,clear=1`, then Vision_SetFogEnabled/24f930 with `enabled=0`.
+The former clears the ushort plane at vision-owner+2c; the latter clears+30.
+FogMaskEnable/1fe5e0 instead supplies `clear=0`. Enabling scripted fog again
+therefore does not undo Show Map's separate policy. The effective policy producer
+66fdd0 adds visibility-query bit1 for that global state. This bypasses fog, but
+not invisibility detection: instant Apiv with both reveal masks zero still fails
+admission. The capture uses an explicit `adur=0` map override; it does not assert
+stock Apiv fade timing.
+
+OpenRealm now submits this recognized cheat to a game-owned pending counter and
+drains it at the next simulation-frame boundary. It preserves synchronous native
+getter behavior, deterministic toggle order and the independent global policy.
+An even pair still clears both visibility planes on its enabling edge; the local
+drain clears once because no callback observes intermediate toggles. Save152
+persists active policy and pending submissions, and rejects earlier layouts.
+Detection checks still precede the fog bypass. Exact retail multiplayer network
+turn latency, other cheats and the complete console token grammar are outside
+this implementation.
+
+Two read-only original repeats plus an observer-free control have identical
+selected policy/public sequences:66 visibility queries,4 toggle callbacks and63
+public markers in total. The dedicated observer uses entry hooks only, no native
+calls or memory writes. Earlier heavier observers crashed retail; those attempts
+remain archived, and their cause is not established. The completed smaller
+observer and unhooked control establish this bounded sequence instead.
+780 original instruction encodings validate against the original PE. Nine names
+and comments plus five explicit ABI declarations are saved in Ghidra and mirrored
+in MapPathfinding.java and its type fixture.
+
+The traces also reach the previously unobserved retained-approach reissue branch:
+5ff490 runs after loss, queries visibility at5ff689, and retains public Smart
+while moving toward a stored point. This is a separate TARGET-03.2 engine gap.
+The admission regression explicitly stops before adding invisibility, so it
+cannot be mistaken for proof that an active approach should cancel. TARGET-03.1
+and03.2 remain open for their wider policy table and retained-order lifetimes.
+No prior retail expectations or complete motion fixtures were replaced.
+
+The first two engine regressions failed10 assertions before the fix. The final
+three production-path regressions check53 assertions per Classic/TFT edition,
+including independent fog flags, detection, deferred getters, pending/active
+save continuation and paired-toggle clearing. Affected target tests pass33 tests
+and26928 assertions per edition; the fog tests and206 save tests also pass.
+This is focused validation, one implementation commit after the full Payoff214
+checkpoint. Ten Python mutation tests reject altered evidence and provenance.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 python3 \
+  tools/ghidra/verify_wc3_pathing_target_policy215.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --report /tmp/target-policy215-new.json
+```
+
+The [frozen policy contract](../../../tools/ghidra/fixtures/retail-target-policy215-1.27.json)
+and compressed raw bundle retain both repeats and the unhooked control. Original
+maps, failed attempts, Ghidra instruction/type exports and focused validation live
+under `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.1/`.
+See also [remaining target policies](retail-pathfinding-todo.md#target-03--visibility-policies).

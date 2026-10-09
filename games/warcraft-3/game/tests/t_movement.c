@@ -20067,4 +20067,103 @@ TEST(wc3_e2e, disconnected_crossing_routes_retries_and_final_ownership) {
     }
 }
 
+
+/* TARGET-03 global ShowMap policy is independent of scripted fog flags.
+ * Native Cheat submits a command; it must not change the calling script's
+ * immediate getters. The local game drains submissions at its frame boundary. */
+static void target215_frame(void) {
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time+=5;globals.RunFrame();
+}
+
+static fogModifier_t *target215_setup(edict_t **unit,edict_t **target) {
+    target166_setup(unit,target);(*target)->s.player=PLAYER_NEUTRAL_PASSIVE;
+    fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return NULL;
+    *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={672,256},.radius=900};
+    G_FogModifierStart(fog);T_ASSERT(!G_FowPlayerCanTrackUnit(0,*target));
+    T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
+        "function cheat takes nothing returns nothing\ncall Cheat(\"iseedeadpeople\")\nendfunction\n"
+        "function fog takes nothing returns nothing\ncall FogEnable(true)\ncall FogMaskEnable(true)\nendfunction\n"
+        "function unknown takes nothing returns nothing\ncall Cheat(\"Telemetry\")\nendfunction\n"
+        "function add takes nothing returns nothing\ncall UnitAddAbility(target,'Apiv')\nendfunction\n"
+        "function undo takes nothing returns nothing\ncall UnitRemoveAbility(target,'Apiv')\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,672,256,1,null)\nset target=FirstOfGroup(g)\ncall DestroyGroup(g)\nendfunction\n"));
+    return fog;
+}
+
+TEST(wc3_movement, target215_show_map_retains_fogged_follow_and_detection_gates) {
+    edict_t *unit,*target;fogModifier_t *fog=target215_setup(&unit,&target);if(!fog)return;
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;Y2;X2;K\"Apiv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"0\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(!unit_issuetargetorder(unit,"smart",target));
+    jass_callbyname(level.vm,"cheat",false);
+    T_EQ(game.clients[0].ps.rdflags&(RDF_NOFOG|RDF_NOFOGMASK),0);
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+    target215_frame();
+    T_EQ(game.clients[0].ps.rdflags&(RDF_NOFOG|RDF_NOFOGMASK),RDF_NOFOG|RDF_NOFOGMASK);
+    jass_callbyname(level.vm,"fog",false);
+    T_EQ(game.clients[0].ps.rdflags&(RDF_NOFOG|RDF_NOFOGMASK),0);
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_VALID);
+    uint32_t group=unit->movement.group_id;
+    FOR_LOOP(i,5)target166_tick();
+    T_EQ(unit->movement.group_id,group);T_EQ(unit->movement.follow_target,target);
+    /* Isolate admission; retained approach reissue is a distinct TARGET-03.2 branch. */
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    jass_callbyname(level.vm,"add",false);
+    T_ASSERT(S_PermanentInvisibilityActive(target));
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));T_EQ(unit->current_order_id,0);
+    T_ASSERT(!unit_issuetargetorder(unit,"smart",target));
+    jass_callbyname(level.vm,"undo",false);
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,target));T_EQ(unit->current_order_id,0);
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    jass_callbyname(level.vm,"cheat",false);target215_frame();
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+    T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_LOST);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target215_show_map_pending_and_active_policy_survive_save) {
+    edict_t *unit,*target;fogModifier_t *fog=target215_setup(&unit,&target);if(!fog)return;
+    jass_callbyname(level.vm,"cheat",false);
+    cstring_t file=Test_TempPath("wc3-target215-show-map.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));target215_frame();
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+    jass_callbyname(level.vm,"fog",false);
+    T_ASSERT(WriteGame(file));
+    jass_callbyname(level.vm,"cheat",false);target215_frame();
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+    T_ASSERT(ReadGame(file));
+    T_EQ(game.clients[0].ps.rdflags&(RDF_NOFOG|RDF_NOFOGMASK),0);
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+    jass_callbyname(level.vm,"unknown",false);target215_frame();
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+    jass_callbyname(level.vm,"cheat",false);target215_frame();
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+    T_ASSERT(!jass_rterror_pending(level.vm));remove(file);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target215_paired_submissions_clear_planes_without_leaving_policy_enabled) {
+    edict_t *unit,*target;fogModifier_t *fog=target215_setup(&unit,&target);if(!fog)return;
+    uint32_t index=G_FowWorldToCellY(256)*level.fow.width+G_FowWorldToCellX(672);
+    T_EQ(level.fow.players[0].explored[index],1);
+    jass_callbyname(level.vm,"cheat",false);jass_callbyname(level.vm,"cheat",false);
+    T_EQ(level.fow.players[0].explored[index],1);
+    uint32_t counter=level.pathing_counter;
+    G_RunShowMapCheats();
+    T_EQ(level.pathing_counter,counter);T_EQ(level.fow.players[0].explored[index],0);
+    T_EQ(level.fow.players[0].visible[index],0);T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+    T_EQ(game.clients[0].ps.rdflags&(RDF_NOFOG|RDF_NOFOGMASK),0);
+    G_RunShowMapCheats();T_EQ(level.fow.players[0].explored[index],0);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
 #endif

@@ -16711,6 +16711,91 @@
         }
       ],
       "evidence": "Payoff214: thiscall ECX handler record, stack4 decoded action,RET4. Loads callback handler14 and userdata18; invokes callback with ECX action,EDX userdata. Original return32d660 enters6b9f70 for Net command12. Registered by6bdc20/6bdd00; ordinary/Alt publish6b93a0->680320 mode1,dispatch1; Shift uses append693490 instead."
+    },
+    {
+      "address": "6f1f8a20",
+      "name": "Jass_Cheat",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "text",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff215 TARGET-03.1: cdecl stack4 encoded string handle; resolve06e8d0, ignore null/empty, pass textECX and EDX0 to console thunk. Public iseedeadpeople constructs37b340 synchronously but applies37a4e0 only after native return through synchronized32d660. Telemetry does not toggle in the public native controls."
+    },
+    {
+      "address": "6f24f9c0",
+      "name": "Vision_SetFogMaskEnabled",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "vision",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "clear",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff215: thiscallECX vision owner; stack4 enabled,8 clear;RET8. enabled0 && clear!=0 zeroes ushort plane+2c, dimensions68/6c; writes enabled+10. NativeFogMaskEnable1fe5e0 supplies clear0; ShowMap37a4e0 supplies clear1."
+    },
+    {
+      "address": "6f24f930",
+      "name": "Vision_SetFogEnabled",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "vision",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff215: thiscallECX vision owner; stack4 enabled;RET4. enabled0 zeroes ushort plane+30, dimensions68/6c; writes enabled+14. NativeFogEnable1fe5b0 and synchronizedShowMap37a4e0 are distinct producers; toggling fog does not inverse TLS200."
+    },
+    {
+      "address": "6f1fe5e0",
+      "name": "Jass_FogMaskEnable",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff215: registered20820f; cdecl stack4 enabled. Supplies clear0 to24f9c0 on current world vision owner. Does not write TLS show-map policy200."
+    },
+    {
+      "address": "6f1fe5b0",
+      "name": "Jass_FogEnable",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff215: registered208237; cdecl stack4 enabled. Calls24f930 on current world vision owner. Does not write TLS show-map policy200."
     }
   ],
   "globals": [

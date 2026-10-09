@@ -1907,7 +1907,34 @@ void G_FowUpdate(void) {
    without its actors. */
 static bool G_FowPlayerFogDisabled(uint32_t player) {
     gameClient_t *client = G_GetPlayerClientByNumber(player);
-    return client && (client->ps.rdflags & RDF_NOFOG);
+    return level.show_map_cheat || (client && (client->ps.rdflags & RDF_NOFOG));
+}
+
+/* Retail37a4e0 toggles TLS200 independently of FogEnable/FogMaskEnable.
+ * Script Cheat submits a synchronized command; do not publish inside its
+ * native call. The local simulation drains these at the next frame boundary.
+ * Even pairs still clear the planes on their enabling edge. */
+void G_QueueShowMapCheat(void) {
+    level.pending_show_map_cheats++;
+}
+
+void G_RunShowMapCheats(void) {
+    uint32_t count=level.pending_show_map_cheats;
+    level.pending_show_map_cheats=0;
+    if(!count)return;
+    bool clear=!level.show_map_cheat || count>1;
+    level.show_map_cheat^=(count&1)!=0;
+    FOR_LOOP(i,game.max_clients)
+        SET_FLAG(game.clients[i].ps.rdflags,RDF_NOFOG|RDF_NOFOGMASK,level.show_map_cheat);
+    /* No callback can observe intermediate submissions in this drain. Clear
+     * once if any enabling edge occurred, including an even toggle count. */
+    if(clear && G_FowReady()) {
+        /*24f9c0(enabled0,clear1),24f930(enabled0) clear both planes.
+         * Invalidate ordered checkpoints before the ordinary sight pass. */
+        FOR_LOOP(player,MAX_PLAYERS)FOR_LOOP(cell,G_FowCellCount())
+            G_FowSetCellState(&level.fow.players[player],cell,WC3_FOG_STATE_MASKED);
+        fow_sight_valid=0;
+    }
 }
 
 /* Hover information is interactive gameplay state, so unlike explored

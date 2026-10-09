@@ -1152,6 +1152,7 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
+    G_RunShowMapCheats();
     bool register_owner=!level.pathing_owner_clock_valid;
     if (register_owner) {
         level.pathing_owner_deadline=level.pathing_clock;
