@@ -116,7 +116,7 @@
           "offset": 28,
           "name": "count",
           "type": "u32",
-          "evidence": "16d550 assembly and 156 pruning cases"
+          "evidence": "16d550 assembly and 156 pruning cases Payoff194:16c390 captures original count for forward0x2c completion traversal; callbacks invalidate rows without immediate compaction. Public Channel mutation retains completed owner through1140, then16c150 preparation prunes it at1141."
         }
       ]
     },

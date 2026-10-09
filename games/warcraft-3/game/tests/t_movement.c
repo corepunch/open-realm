@@ -3782,6 +3782,26 @@ TEST(wc3_movement, public_group_long_route_regroups_and_respects_pause) {
 }
 
 
+typedef struct {
+    edict_t *units[14];
+    uint32_t rows[52][7];
+    unsigned count;
+} followCommitTrace_t;
+static followCommitTrace_t *follow_commit_trace;
+
+static void record_follow_commit(edict_t *unit) {
+    followCommitTrace_t *trace=follow_commit_trace;
+    unsigned i=0;
+    while(i<sizeof(trace->units)/sizeof(*trace->units) && trace->units[i]!=unit)i++;
+    T_ASSERT(i<sizeof(trace->units)/sizeof(*trace->units));
+    T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
+    if (i>=sizeof(trace->units)/sizeof(*trace->units) || trace->count>=sizeof(trace->rows)/sizeof(*trace->rows)) return;
+    uint32_t words[]={i,wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    memcpy(trace->rows[trace->count++],words,sizeof(words));
+}
+
 TEST(wc3_movement, periodic_public_twelve_members_match_retail) {
     uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
     FOR_LOOP(i,12) { old_prefs[i]=game.clients[i].jass.race_pref; old_races[i]=game.clients[i].ps.race; }
@@ -3828,6 +3848,8 @@ TEST(wc3_movement, periodic_public_twelve_members_match_retail) {
     FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<12) units[count]=ent; count++; }
     T_EQ(count,12); level.started=level.scriptsConfigured=level.scriptsStarted=true;
     cstring_t saves[]={Test_TempPath("wc3-public-twelve-pending.bin"),Test_TempPath("wc3-public-twelve-partial.bin")};
+    followCommitTrace_t trace={0};memcpy(trace.units,units,sizeof(units));
+    follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned resume[2]={0},suffixes=0;
     FOR_LOOP(pass,3) {
         if (pass) {
@@ -3836,22 +3858,17 @@ TEST(wc3_movement, periodic_public_twelve_members_match_retail) {
             if (pass==1) { T_EQ(level.move_fine_budgets[0].count,1); T_EQ(level.move_fine_budgets[0].head,units[11]); }
         }
         while (level.time<30000 && count==12 && !mismatch) {
-            /* Preserve the actual pre-visit member order, including swap removal. */
-            edict_t *visiting[12]; unsigned n=0;
-            FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) if (level.move_groups[g]->inuse)
-                FOR_LOOP(i,level.move_groups[g]->count) visiting[n++]=level.move_groups[g]->members[i].unit;
-            level.time+=5; globals.RunFrame();
-            FOR_LOOP(v,n) {
-                edict_t *unit=visiting[v]; unsigned member=0;
-                while (member<12 && units[member]!=unit) member++;
-                T_ASSERT(member<12); if (member>=12) continue;
-                uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
-                if (now==clocks[member]) continue;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            /* Observe actual commits after retail reverse preparation pruning,
+             * rather than predicting their order from the previous owner. */
+            FOR_LOOP(v,trace.count) {
+                uint32_t const *actual=trace.rows[v];unsigned member=actual[0];
+                T_ASSERT(member<12);if(member>=12)continue;
+                uint32_t now=actual[1];
+                if(now==clocks[member])continue;
                 clocks[member]=now;
-                if (now==0x3f7ffff0u) continue;
-                T_ASSERT(steps<1953); if (steps>=1953) { mismatch=true; break; }
-                uint32_t actual[]={member,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
-                    wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+                if(now==0x3f7ffff0u)continue;
+                T_ASSERT(steps<1953);if(steps>=1953){mismatch=true;break;}
                 uint32_t const *expected=public_twelve_motion[steps++];
                 if (pass) suffixes++;
                 FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if (actual[k]!=expected[k]) mismatch=true; }
@@ -3864,12 +3881,33 @@ TEST(wc3_movement, periodic_public_twelve_members_match_retail) {
         }
         T_EQ(steps,1953); FOR_LOOP(i,12) if (units[i]) T_EQ(units[i]->current_order_id,0);
     }
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
     T_EQ(suffixes,3906-resume[0]-resume[1]); remove(saves[0]); remove(saves[1]);
     T_ASSERT(!jass_rterror_pending(level.vm));
     game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
     level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
     level.setup.map_flags=old_flags;
     FOR_LOOP(i,12) { game.clients[i].jass.race_pref=old_prefs[i]; game.clients[i].ps.race=old_races[i]; }
+}
+
+/* Frozen phase-begin rows belong after preparation and route admission.
+ * Completion leaves invalid rows until then; frame-end is a different boundary. */
+static void record_public_pair_before(moveGroup_t const *group,edict_t *singleton) {
+    if(!group)return;
+    uint32_t age=group->age;
+    T_ASSERT(age<60);if(age>=60)return;
+    uint32_t const *state=public_pair_group_before[age];
+    T_EQ(group->flags,state[0]);T_EQ(age,state[1]);
+    T_EQ(group->completion_counter,state[2]);T_EQ(group->count,state[3]);
+    T_EQ(wc3_float_bits(group->point.x),state[4]);T_EQ(wc3_float_bits(group->point.y),state[5]);
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t const *member=group->members+i;
+        uint32_t const *row=public_pair_members_before[age][i];
+        T_EQ(wc3_float_bits(member->offset.x),row[0]);T_EQ(wc3_float_bits(member->offset.y),row[1]);
+        T_EQ(wc3_float_bits(member->destination.x),row[2]);T_EQ(wc3_float_bits(member->destination.y),row[3]);
+        T_EQ(wc3_float_bits(wc3_div(member->speed,32)),row[4]);T_EQ(wc3_float_bits(member->heading),row[5]);
+        T_EQ(member->flags,row[6]);T_EQ(member->forced_arrival,row[7]);
+    }
 }
 
 static void periodic_shared_pair_matches_retail(bool selected) {
@@ -3918,6 +3956,7 @@ static void periodic_shared_pair_matches_retail(bool selected) {
     }
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     cstring_t saves[]={Test_TempPath("wc3-public-pair-moving.bin"),Test_TempPath("wc3-public-pair-retry.bin")};
+    move_test_group_route=record_public_pair_before;
     unsigned suffixes=0;
     FOR_LOOP(pass,3) {
         if (pass) {
@@ -3930,7 +3969,6 @@ static void periodic_shared_pair_matches_retail(bool selected) {
             if (pass==2) { T_EQ(units[0]->movement.retry_count,1); T_ASSERT(units[0]->movement.fine_route.partial); }
         }
         while (level.time<30000 && count==2) {
-            bool committed=false;
             level.time+=5; globals.RunFrame();
             if (selected && level.time==1000) T_ASSERT(move_selectlocation(clent,&(vec2_t){-1936,-720}));
             FOR_LOOP(i,2) {
@@ -3939,7 +3977,6 @@ static void periodic_shared_pair_matches_retail(bool selected) {
                 clocks[i]=now;
                 if (now==0x3f7ffff0u) continue; /* Public admission materializes the idle pose. */
                 T_ASSERT(steps<115); if (steps>=115) continue;
-                committed=true;
                 uint32_t const *expected=public_pair_motion[steps++];
                 if (pass) suffixes++;
                 T_EQ(i,expected[0]); T_EQ(now,expected[1]);
@@ -3956,30 +3993,11 @@ static void periodic_shared_pair_matches_retail(bool selected) {
                     T_ASSERT(WriteGame(saves[steps==30 ? 0 : 1]));
                 }
             }
-            if (committed && ARRAY_COUNT(level.move_groups) && level.move_groups[0]->inuse) {
-                moveGroup_t const *group=level.move_groups[0]; uint32_t next=group->age+1;
-                T_ASSERT(next<60);
-                if (next<60) {
-                    uint32_t const *state=public_pair_group_before[next];
-                    T_EQ(group->flags,state[0]); T_EQ(next,state[1]);
-                    T_EQ(group->completion_counter,state[2]); T_EQ(group->count,state[3]);
-                    T_EQ(wc3_float_bits(group->point.x),state[4]); T_EQ(wc3_float_bits(group->point.y),state[5]);
-                    FOR_LOOP(i,group->count) {
-                        moveGroupMember_t const *member=group->members+i;
-                        unsigned index=member->unit==units[0] ? 0 : 1;
-                        uint32_t const *row=public_pair_members_before[next][index];
-                        T_EQ(wc3_float_bits(member->offset.x),row[0]); T_EQ(wc3_float_bits(member->offset.y),row[1]);
-                        T_EQ(wc3_float_bits(member->destination.x),row[2]); T_EQ(wc3_float_bits(member->destination.y),row[3]);
-                        T_EQ(wc3_float_bits(wc3_div(member->speed,32)),row[4]);
-                        T_EQ(wc3_float_bits(member->heading),row[5]); T_EQ(member->flags,row[6]);
-                        T_EQ(member->forced_arrival,row[7]);
-                    }
-                }
-            }
         }
         T_EQ(steps,115); FOR_LOOP(i,2) T_EQ(units[i]->current_order_id,0);
         FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
     }
+    move_test_group_route=NULL;
     T_EQ(suffixes,87); remove(saves[0]); remove(saves[1]);
     T_ASSERT(!jass_rterror_pending(level.vm));
     game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
@@ -13328,26 +13346,6 @@ TEST(wc3_movement, selected_independent_shift_inputs_match_original_complete_jou
             selected_independent_cases[c].count,1,SELECTED_START_INDEPENDENT,(unsigned const[]){200,400});
 }
 
-typedef struct {
-    edict_t *units[14];
-    uint32_t rows[52][7];
-    unsigned count;
-} followCommitTrace_t;
-static followCommitTrace_t *follow_commit_trace;
-
-static void record_follow_commit(edict_t *unit) {
-    followCommitTrace_t *trace=follow_commit_trace;
-    unsigned i=0;
-    while(i<sizeof(trace->units)/sizeof(*trace->units) && trace->units[i]!=unit)i++;
-    T_ASSERT(i<sizeof(trace->units)/sizeof(*trace->units));
-    T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
-    if (i>=sizeof(trace->units)/sizeof(*trace->units) || trace->count>=sizeof(trace->rows)/sizeof(*trace->rows)) return;
-    uint32_t words[]={i,wc3_float_bits(unit->movement.pose_clock.time),
-        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
-        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
-    memcpy(trace->rows[trace->count++],words,sizeof(words));
-}
-
 /* Test-only adapter: observe the committed production state, never expected rows.
  * Actor lifetimes follow producer rawcodes, independently of edict slot reuse. */
 static FILE *same_cell_journal;
@@ -17941,6 +17939,7 @@ TEST(wc3_movement, spell185_public_approach_matches_live_motion) {
     unit_stand(unit);unit_stand(target);
     level.pathing_clock=(wc3Clock_t){wc3_float(0x3ffffff0),0,300};level.pathing_counter=1090;
     T_ASSERT(G_IssueUnitTargetOrder(unit,"holybolt",target,false,0));
+    uint32_t physical=unit->movement.group_id;
     bool mismatch=false;
     FOR_LOOP(i,sizeof(spell185_motion)/sizeof(*spell185_motion)) {
         uint32_t const *row=spell185_motion[i];
@@ -17961,7 +17960,102 @@ TEST(wc3_movement, spell185_public_approach_matches_live_motion) {
     T_ASSERT(!mismatch);T_EQ(unit->movement.group_id,0);
     T_FEQ(unit->s.origin2.x,676.1099f,.0001f);T_FEQ(unit->s.origin2.y,310.8699f,.0001f);
     T_FEQ(target->health.value,137,0);T_FEQ(unit->mana.value,187,0);
+    /* Native16c150 returns after callbacks without destroying this owner. */
+    moveGroup_t const *empty=move_find_group(physical);T_NOT_NULL(empty);
+    if(empty){T_EQ(empty->count,1);T_NULL(empty->members[0].unit);T_EQ(empty->members[0].spawn,0);}
+    cstring_t file=Test_TempPath("wc3-completion194.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    T_NOT_NULL(move_find_group(physical));
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();T_NULL(move_find_group(physical));
+    remove(file);
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);reset_entities();setup_test_world();
+}
+
+
+static edict_t *completion194_unit(float x,float y) {
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),x,y);
+    unit->movetype=MOVETYPE_STEP;unit->stand=unit_stand;unit->die=unit_die;
+    unit->health.value=unit->health.max_value=250;unit->collision=0;
+    unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+    unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    unit_stand(unit);return unit;
+}
+static edict_t *completion194_units[3],*completion194_future,*completion194_new;
+static unsigned completion194_callbacks,completion194_numbers[3];
+static uint32_t completion194_counter,completion194_new_first;
+static vec2_t completion194_stopped_pose;
+static void completion194_stand(edict_t *unit) {
+    if(completion194_callbacks<3)completion194_numbers[completion194_callbacks]=unit->s.number;
+    completion194_callbacks++;
+    unit_stand(unit);
+    if(unit!=completion194_units[0])return;
+    completion194_counter=level.pathing_counter;
+    G_FreeEdict(completion194_units[2]);
+    T_ASSERT(unit_issueimmediateorder(completion194_future,"stop"));
+    completion194_stopped_pose=completion194_future->s.origin2;
+    completion194_new=completion194_unit(900,900);
+    T_ASSERT(unit_issueorder(completion194_new,"move",&(vec2_t){1500,900}));
+}
+static void completion194_group_visit(moveGroup_t const *group) {
+    if(group->count && group->members[0].unit==completion194_new && !completion194_new_first)
+        completion194_new_first=level.pathing_counter;
+}
+
+/* Drive the actual group completion callbacks: one callback removes a later
+ * member, stops a not-yet-visited owner and admits a fresh physical group. */
+TEST(wc3_movement, completion194_callbacks_keep_member_order_and_owner_frontier) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    completion194_callbacks=completion194_counter=completion194_new_first=0;completion194_new=NULL;
+    completion194_future=completion194_unit(128,1600);
+    T_ASSERT(unit_issueorder(completion194_future,"move",&(vec2_t){1800,1600}));
+    uint32_t future_id=completion194_future->movement.group_id;
+    vec2_t point={528,528};
+    groupPointOrder_t request={.count=3,.point=&point,.order="move",
+        .order_id=G_OrderId("move"),.issuer_player=0};
+    FOR_LOOP(i,3) {
+        edict_t *unit=completion194_units[i]=completion194_unit(528,464+64*i);
+        unit->collision=0;
+        request.units[i]=(typeof(request.units[i])){unit,unit->spawn_time};
+    }
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    uint32_t id=completion194_units[0]->movement.group_id;
+    moveGroup_t const *admitted=move_find_group(id);T_NOT_NULL(admitted);
+    if(!admitted || admitted->count!=3) { T_ASSERT(false);reset_entities();setup_test_world();return; }
+    /* Admission owns member ordering; completion must preserve that order. */
+    FOR_LOOP(i,3)completion194_units[i]=admitted->members[i].unit;
+    FOR_LOOP(i,3)completion194_units[i]->stand=completion194_stand;
+    move_test_group_begin=completion194_group_visit;
+    FOR_LOOP(frame,100) {
+        level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        if(completion194_counter)break;
+    }
+    move_test_group_begin=NULL;
+    T_EQ(completion194_callbacks,2);T_ASSERT(completion194_counter!=0);
+    T_EQ(completion194_numbers[0],completion194_units[0]->s.number);
+    T_EQ(completion194_numbers[1],completion194_units[1]->s.number);
+    T_EQ(completion194_new_first,0);
+    T_EQ(completion194_future->movement.group_id,0);T_NULL(move_find_group(future_id));
+    T_EQ(completion194_future->s.origin2.x,completion194_stopped_pose.x);
+    T_EQ(completion194_future->s.origin2.y,completion194_stopped_pose.y);
+    moveGroup_t const *retained=move_find_group(id);T_NOT_NULL(retained);
+    if(retained) {
+        T_EQ(retained->count,3);
+        FOR_LOOP(i,retained->count) {
+            T_NULL(retained->members[i].unit);
+            T_EQ(retained->members[i].spawn,0);
+        }
+    }
+    FOR_LOOP(i,2)completion194_units[i]->stand=unit_stand;
+    move_test_group_begin=completion194_group_visit;
+    level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+    level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    move_test_group_begin=NULL;
+    T_NULL(move_find_group(id));T_EQ(completion194_new_first,completion194_counter+1);
+    reset_entities();setup_test_world();
 }
 
 static unsigned target164_cursor;
@@ -18208,7 +18302,7 @@ TEST(wc3_movement, warp165_group_marker_classification_and_cold_save) {
         FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&group->point)[k]),wc3_float_bits(((float *)&retained_point)[k]));
         FOR_LOOP(i,group->count) {
             moveGroupMember_t *member=group->members+i;
-            if(!warp165_markers(&member->unit->movement.fine_route))continue;
+            if(!member->unit || !warp165_markers(&member->unit->movement.fine_route))continue;
             marked++;T_ASSERT(member->flags&0x80000u);
             if(member->unit->movement.fine_pose.x>50) {
                 unsigned n=0;while(n<3 && units[n]!=member->unit)n++;
@@ -18237,7 +18331,7 @@ TEST(wc3_movement, warp165_group_marker_classification_and_cold_save) {
             T_ASSERT(group && group->route.warp_markers);
             if(group)FOR_LOOP(i,group->count) {
                 moveGroupMember_t *member=group->members+i;
-                if(warp165_markers(&member->unit->movement.fine_route)) {
+                if(member->unit && warp165_markers(&member->unit->movement.fine_route)) {
                     T_ASSERT(member->unit->movement.fine_route.warp_markers);
                     T_ASSERT(member->flags&0x80000u);
                     /* The held early exit still mirrors the retained path. */
@@ -18256,6 +18350,7 @@ TEST(wc3_movement, warp165_group_marker_classification_and_cold_save) {
     moveGroup_t *group=move_find_group(units[0]->movement.group_id);T_NOT_NULL(group);
     if(group)FOR_LOOP(i,group->count) {
         moveGroupMember_t *member=group->members+i;
+        if(!member->unit)continue;
         T_EQ(warp165_markers(&member->unit->movement.fine_route),0u);
         member->flags|=0x280000u;move_group_decide(group,member);
         T_ASSERT(!(member->flags&0x80000u));
@@ -18379,7 +18474,13 @@ static void target166_hidden_arrival(bool persistent) {
     uint32_t original=unit->movement.group_id,visits=0;
     while(unit->current_order_id && visits<160) {target166_tick();visits++;}
     T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_NULL(unit->goalentity);
-    T_EQ(unit->movement.group_id,0);T_NULL(move_find_group(original));
+    T_EQ(unit->movement.group_id,0);
+    /* Both approach and persistent completion invalidate now;16c150 retires
+     * at next preparation after either owning target task has stopped. */
+    moveGroup_t const *retained=move_find_group(original);T_NOT_NULL(retained);
+    if(retained){T_EQ(retained->count,1);T_NULL(retained->members[0].unit);}
+    target166_tick();
+    T_NULL(move_find_group(original));
     T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
     T_ASSERT(visits>0 && visits<160);
     G_FogModifierStop(fog);G_FowUpdate();

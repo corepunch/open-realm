@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "154 executable original oracle contracts;430 total entries.",
+  "scope": "154 executable original oracle contracts;431 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -46983,6 +46983,173 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-completion-callback-mutation194",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/research/completion194_verify.py",
+        "--archive",
+        "{archive}/research/SCHED-02.4/captures194/",
+        "--expected",
+        "tools/ghidra/fixtures/retail-completion-callback194-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "report": "completion-callback-mutation194-live.json",
+      "expected_exit": 0,
+      "expected_status": "live-completion-callback-mutation",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 126
+        },
+        "owner_intervals": {
+          "equal": 400
+        },
+        "completed_members": {
+          "equal": 2
+        },
+        "mutation_counter": {
+          "equal": 1140
+        },
+        "current_frontier_visits": {
+          "equal": 2
+        },
+        "new_owner_delay": {
+          "equal": 1
+        },
+        "completed_owner_delay": {
+          "equal": 1
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Actual public Channel callback mutation inside group completion: complete repeated owner frontier, group retirement and canonical member unbinding, with observer-free public control.",
+      "exclusions": [
+        "Initial EFFECT mutation outside the owner tick is diagnostic, excluded.",
+        "Engine regression uses actual stand callbacks; complete public Channel/cast/effect timing remains separately scoped.",
+        "Full private stale-member layout replacement remains GROUP-04.6; engine preserves owner lifetime with compacted logical bindings."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/SCHED-02.4/captures194/live2.jsonl",
+        "sha256": "4a44515fca687d800519deb9884e5c4c4ec7fbee30db4e25aa41723d101a39c9",
+        "bytes": 266073,
+        "metadata": {
+          "task": "payoff194",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+            "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+            "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+            "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+            "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+            "completion194_observer.js": "1f512ad0a809d9c361694322db3fd12006f72c371768912eab513bfc2a5f8726",
+            "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+            "map": "9edba86e8d9c7aa5628afb54a3165ce91cfb1ddcb1df4ade11c5d75627cf96c9"
+          },
+          "map": "Maps/RS-Completion194b.w3m",
+          "seconds": 110.0,
+          "continue_at": 20.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "C194 ",
+          "always": false,
+          "lite": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/SCHED-02.4/captures194/live3.jsonl",
+            "sha256": "83e397a2b08e8dd07a7eb0907ff6b3051f8f18d8be85d7422cb88a4ca47c46ed",
+            "bytes": 266073,
+            "metadata": {
+              "task": "payoff194",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "completion194_observer.js": "1f512ad0a809d9c361694322db3fd12006f72c371768912eab513bfc2a5f8726",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "9edba86e8d9c7aa5628afb54a3165ce91cfb1ddcb1df4ade11c5d75627cf96c9"
+              },
+              "map": "Maps/RS-Completion194b.w3m",
+              "seconds": 110.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "C194 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/SCHED-02.4/captures194/control.jsonl",
+            "sha256": "509875ebd76c444b9a29fba0781dc35e9e32e8f0b1d8091725582062a41b5aa7",
+            "bytes": 1447,
+            "metadata": {
+              "task": "payoff194",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "completion194_observer.js": "1f512ad0a809d9c361694322db3fd12006f72c371768912eab513bfc2a5f8726",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "9edba86e8d9c7aa5628afb54a3165ce91cfb1ddcb1df4ade11c5d75627cf96c9"
+              },
+              "map": "Maps/RS-Completion194b.w3m",
+              "seconds": 110.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "C194 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -47048,7 +47215,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "b172256323cd249d63d0b6d1a2c807c844e7937e20de7bb3b6bbd9ce411ebf23"
+      "sha256": "807b27e4612e5fbf859b0b35d5ba5c16267857fc80d671a24b0a7fc3dec3fa2f"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -47881,7 +48048,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "7d0b4b1ced97f0312e0d7a2a61ee73fddcf46186297f9fb3fe3f294ce4109a7c"
+      "sha256": "59088ae0d306215f47be08bcaa616a11049b6ad7aba111b0b0c86c8672f62595"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -48737,7 +48904,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "183eb8db7ac9477493b1078aeca7e0e03ed58547a49581b47d0a544baf04939e"
+      "sha256": "b5a75d4579af75630d33ab48c5837f591fa22d09779bca9a5b5893916f44ddb8"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -49173,7 +49340,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "8e2745eacf71bb6dc064d74d3260f7b15c1eb781b93883fcf0c6308161eac500"
+      "sha256": "cb61b29972de40e0ff31e829f3cf780456c95f4adef43bc1245e2692f26ceb96"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -49429,7 +49596,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "86fdc92457349a88245290c33f21c7041c18bd2f93a7528793daa6bf6c49884c"
+      "sha256": "eddd6771fbdf6e9dd1fc21133a8449dd460ade36c2cc0842bb07dc7f143bd94c"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -49673,7 +49840,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "6247195e8ed721a5e8d79e87e69ec232db96f7c79b0c3b0fd86b1c011e96d285"
+      "sha256": "8c8b45bbf87ac1b3e8ce094dc67f113b1014ed83195bc3b8ee3bfec5e7ae98c6"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -49681,15 +49848,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "67e49f88b61b9b144d3c59203d3a6c121389dd62527d0c1892ebb9accade463e"
+      "sha256": "d46cd361fb47d18fb5baad75ce07a7b28f0f83e785d888d345a78d91524406f9"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "d6b23212345c4db88c08e5f0dac59c11a3a443cce2442b49ad25af26036a4061"
+      "sha256": "e59e165cd5e4e77fd750fca37dc4b4ecda4b982c31347f30c203865954be7784"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "2e1340529eb7b87607278d439cd17eddfa2ec5633850a54258bd0e2eda809cf1"
+      "sha256": "dd854b92e0bd52513a94eaabb99937e89e6606ae2107bc643985239cbe6cecd6"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -51450,6 +51617,30 @@
     {
       "path": "tests/test_wc3_pathfinding_captain_retention.py",
       "sha256": "91d6f303cec6e7d3cbdd32a95a4666ca2445959a2bdad552cf45be1923190f16"
+    },
+    {
+      "path": "tools/frida/research/completion194_make_map.py",
+      "sha256": "d2631c902b3b1d8ff237576cc815bd75cfaadc9a6acfe980ff69a95b4a6a2b9c"
+    },
+    {
+      "path": "tools/frida/research/completion194_probe.j",
+      "sha256": "d1ef559d80e76e90c62deccb1e9905a92bb98e6286c1f096c9203c40670f1fcd"
+    },
+    {
+      "path": "tools/frida/research/completion194_observer.js",
+      "sha256": "1f512ad0a809d9c361694322db3fd12006f72c371768912eab513bfc2a5f8726"
+    },
+    {
+      "path": "tools/frida/research/completion194_verify.py",
+      "sha256": "6106dfbb7a5071071880049b4c1017e28bb74aad063a3e69d39aeffba011231a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-completion-callback194-1.27.json",
+      "sha256": "4027078ed498ecd73173d459664595e31fc501126040cc9599e8f32faa8c1b1f"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_completion_mutation.py",
+      "sha256": "24427d63d9f90d370491848ff499a714791faa99f6863b214c5e503a8dc18f4a"
     }
   ]
 }

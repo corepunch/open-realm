@@ -716,7 +716,6 @@ void S_ClearMoveGroups(void) {
     move_shared_index_data=NULL;move_shared_index_count=move_shared_first_free=0;
 }
 
-/* Swap removal preserves the original surviving-row order contract. */
 static void move_complete_receiver(moveGroup_t *group, edict_t *unit, bool arrived) {
     edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
     void (*complete)(edict_t *,edict_t *,bool)=group->complete;
@@ -729,12 +728,20 @@ static void move_detach_group(edict_t *unit) {
     moveGroup_t *group=move_unit_group(unit);
     if (!group) return;
     FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time) {
-        group->members[i]=group->members[--group->count];
+        /*16d4e0 invalidates before callbacks;16d1c0 swaps invalid rows in
+         * reverse order at the next preparation. Swapping during a forward
+         * completion scan changes the surviving members' encounter order. */
+        if (group->ticking) {
+            group->members[i].unit=NULL;
+            group->members[i].spawn=0;
+        } else group->members[i]=group->members[--group->count];
         /* Empty owners retain allocations/FIFO position until their next visit.
          * Their borrowed target is no longer needed by any member. Drop it
          * here so a removal/save needs neither a dangling reference nor a scan
          * of all physical groups. */
-        if (!group->count) {
+        bool live=false;
+        FOR_LOOP(j,group->count) if (group->members[j].unit) {live=true;break;}
+        if (!live) {
             group->target = NULL;
             group->target_spawn = group->target_refresh = 0;
             group->flags &= ~0x1000u;
@@ -2414,7 +2421,7 @@ static uint32_t move_retry_members(edict_t const *self) {
             move_retry_member_visits++;
 #endif
             edict_t const *peer=group->members[i].unit;
-            if(peer->inuse && peer->movement.group_id==group->id)count++;
+            if(peer && peer->inuse && peer->movement.group_id==group->id)count++;
         }
         return count;
     }
@@ -4692,6 +4699,7 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
         bool nearby=false;
         FOR_LOOP(i,peer->count) {
             edict_t *other=peer->members[i].unit;
+            if (!other) continue;
             if (other->movement.previous_request_id!=unit->movement.previous_request_id) continue;
             wc3GridPose_t pose; unit_predicted_pose(other,&pose);
             float dx=wc3_sub(source.grid[0],pose.grid[0]),dy=wc3_sub(source.grid[1],pose.grid[1]);
@@ -4701,6 +4709,7 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
         if (!nearby) continue;
         FOR_LOOP(i,peer->count) {
             edict_t *other=peer->members[i].unit;
+            if (!other) continue;
             group->members[group->count++]=(moveGroupMember_t){.unit=other,.spawn=other->spawn_time,
                 .arrival_range=wc3_point_arrival_range(0)};
             other->movement.group_id=group->id;
@@ -5196,19 +5205,23 @@ static void move_run_group_updates(void) {
         if (!group->inuse || group->sequence!=owners[g].sequence) continue;
         MOVE_OWNER_PHASE(MOVE_PHASE_GROUP,group->id);
         group->ticking=true;
-        for (uint32_t i=0;i<group->count;) {
+        /*16d1c0 prunes from the last captured row toward the first. */
+        for (uint32_t i=group->count;i>0;) {
+            i--;
             moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
-            if (!unit->inuse || unit->spawn_time!=member->spawn || G_IsDeferredFree(unit) || (!unit->movement.captain_actor_type && M_IsDead(unit)) ||
+            if (!unit || !unit->inuse || unit->spawn_time!=member->spawn || G_IsDeferredFree(unit) || (!unit->movement.captain_actor_type && M_IsDead(unit)) ||
                 unit->movement.group_id!=group->id ||
                 (unit->currentmove!=&move_move_walk && (!group->target || unit->currentmove!=&follow_move_walk)) ||
                 !unit->goalentity) {
-                if (unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
+                if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
                     unit->movement.group_id=0;
-                move_complete_receiver(group,unit,false);
+                if (unit) move_complete_receiver(group,unit,false);
                 group->members[i]=group->members[--group->count]; continue;
             }
-            if (!S_UnitCanTranslate(unit)) { unit->stand(unit); continue; }
-            i++;
+            if (!S_UnitCanTranslate(unit)) {
+                unit->stand(unit);
+                group->members[i]=group->members[--group->count];
+            }
         }
         if (!group->count) { move_release_group(group); continue; }
         if (group->individual) {
@@ -5219,8 +5232,9 @@ static void move_run_group_updates(void) {
         }
         if (group->target && (!group->target->inuse || group->target->spawn_time!=group->target_spawn ||
                 G_IsDeferredFree(group->target) || (!group->target->movement.captain_actor_type && M_IsDead(group->target)))) {
-            while(group->count) {
-                edict_t *unit=group->members[group->count-1].unit;
+            for(uint32_t i=group->count;i>0;) {
+                edict_t *unit=group->members[--i].unit;
+                if (!unit) continue;
                 S_SetFollowTarget(unit,NULL); S_SetMoveGoal(unit, &unit->goalentity, NULL); unit_stand(unit);
             }
             move_release_group(group); continue;
@@ -5344,8 +5358,10 @@ static void move_run_group_updates(void) {
             if (!(group->flags&1) || group->unseen_counter>32) group->completion_counter++;
         } else move_group_regroup(group);
         if (count) group->completion_counter=0;
-        while (count) {
-            edict_t *unit=finished[--count];
+        /* Original16c390 visits ready rows from first to last. A callback may
+         * remove/reorder later members, so retain the decision frontier. */
+        FOR_LOOP(i,count) {
+            edict_t *unit=finished[i];
             if (unit->movement.group_id==group->id) {
                 edict_t *target=group->target;
                 if(group->receiver) {
@@ -5397,7 +5413,8 @@ static void move_run_group_updates(void) {
         }
         if (group->cooldown) group->cooldown--;
         group->ticking=false;
-        if (!group->count) move_release_group(group);
+        /*16c150 retains an owner emptied by completion callbacks. Its next
+         * preparation visit retires it, after shared publication. */
     }
     /* Retain the generation snapshot arena until map teardown. */
 }

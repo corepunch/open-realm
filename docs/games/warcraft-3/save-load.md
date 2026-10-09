@@ -52,7 +52,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 147, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 148, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -1507,3 +1507,14 @@ prefix. Keep every field through `areabounds` byte-identical to
 scheduler field that made server linking read the wrong liveness and bounds.
 The merged acquisition regressions exercise real `gi.LinkEntity`/`BoxEdicts`
 calls, including Hero and structure priority.
+
+### Completion rows: format148
+
+Move invalidates a completed member identity before synchronous completion
+callbacks, retaining that row until the next owner preparation. Preparation
+prunes backward with tail swaps; immediate forward compaction changes survivor
+order. Format148 stores null/zero identities alongside retained member values
+and accepts those slots on restore, while rejecting null/nonzero generations,
+nonfinite fields and invalid live ownership. Runtime `ticking` remains unsaved.
+Earlier formats are rejected; network layouts are unchanged. See
+[completion boundaries](retail-pathfinding-engine.md#completion-callbacks-preserve-traversal-and-retirement-boundaries-payoff194).

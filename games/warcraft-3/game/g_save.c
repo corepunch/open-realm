@@ -84,9 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format147 combines the retail path state with upstream dialogue, aura,
- * wander, texttag and destructable persistence. */
-static uint32_t const save_version = 147;
+/* Format148 retains invalid completed member rows until owner preparation. */
+static uint32_t const save_version = 148;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -2308,7 +2307,9 @@ static bool ValidMoveFineRequests(void) {
     return queued==total;
 }
 
-/* Members must be live and generation-matched exactly once. An empty ordinary
+/* Live members must be generation-matched exactly once. Completed rows retain
+ * their position with a null identity until reverse preparation pruning.
+ * An empty ordinary
  * owner remains valid until its next Move visit, including across save/load.
  * The JASS collection is independent: destroying it does not cancel this Move. */
 static bool ValidMoveGroup(moveGroup_t const *group) {
@@ -2338,18 +2339,22 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
     } else if (group->target_spawn || group->target_refresh || (group->flags&0x1000)) return false;
     FOR_LOOP(i,group->count) {
         moveGroupMember_t const *member=group->members+i;
-        uintptr_t ptr=(uintptr_t)member->unit,base=(uintptr_t)g_edicts;
-        if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
-        edict_t const *unit=member->unit;
-        if (!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=member->spawn ||
-            unit->movement.group_id!=group->id || !unit->goalentity ||
-            !isfinite(member->offset.x) || !isfinite(member->offset.y) ||
+        if (!isfinite(member->offset.x) || !isfinite(member->offset.y) ||
             !isfinite(member->destination.x) || !isfinite(member->destination.y) ||
             !isfinite(member->world_destination.x) || !isfinite(member->world_destination.y) ||
             !isfinite(member->speed) || member->speed<0 || !isfinite(member->heading) ||
             !isfinite(member->arrival_range) || member->arrival_range<0 ||
             *(uint8_t const *)&member->arrived>1 || *(uint8_t const *)&member->in_range>1 ||
             *(uint8_t const *)&member->forced_arrival>1) return false;
+        if (!member->unit) {
+            if (member->spawn || group->receiver) return false;
+            continue;
+        }
+        uintptr_t ptr=(uintptr_t)member->unit,base=(uintptr_t)g_edicts;
+        if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
+        edict_t const *unit=member->unit;
+        if (!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=member->spawn ||
+            unit->movement.group_id!=group->id || !unit->goalentity) return false;
         if (group->target) {
             if (group->target->movement.captain_actor_type) {
                 if (!unit->movement.captain_home.active || unit->movement.captain_home.actor!=group->target) return false;
@@ -3855,7 +3860,7 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         raw.route.points=raw.route.adaptive_points=raw.route.group_points=(vec2_t *)(uintptr_t)1;
         if (i==1) raw.count=0;
         if (i==2) raw.members[0].spawn++;
-        if (i==3) raw.members[0].unit=NULL;
+        if (i==3) {raw.members[0].unit=NULL;raw.members[0].spawn=1;} /* Invalid tombstone generation. */
         if (i==4) raw.members[1]=raw.members[0];
         if (i==5) raw.id++;
         if (i==6) raw.goal.x=NAN;

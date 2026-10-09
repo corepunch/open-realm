@@ -13429,3 +13429,138 @@ row extracts and the pre-merge WIP backup are retained under
 `/GitHub/wc3-analysis/runtime/upstream-sync-20261009/`. This synchronization closes
 no additional retail TODOs. The saved Payoff194 work and peer research are
 restored separately after committing the validated merge.
+
+## Completion callbacks preserve traversal and retirement boundaries (Payoff194)
+
+`SCHED-02.4` covers mutations made by a real callback while the physical owner
+is ticking. Original `PathGroup_CompleteReadyMembers` (`6f16c390`) captures the
+member vector and count, then walks forward with a44-byte stride. Each
+`PathGroup_FinishMember` (`6f16d4e0`, stack member, `__stdcall`, `RET4`)
+invalidates that row's canonical mover identity and resolved pointer before
+calling the mover's stop/detach/notification path. Callback effects are
+synchronous; they do not extend the current owner traversal frontier.
+
+### Public retail witness
+
+`completion194_probe.j` issues public Holy Light and an independent peer Move.
+Its registered `EVENT_UNIT_SPELL_CHANNEL` callback removes the peer and replaces
+the caster's order with a point Move. Function-entry/return observers confirm
+that Channel executes inside `16d4e0`, `16c150` and `15aa80`, at counter1140.
+The callback interrupts the cast: CAST and EFFECT never fire. An earlier
+attempt that mutated at EFFECT ran outside the owner tick and is retained as
+an excluded diagnostic, not evidence for this leaf.
+
+Two complete read-only repeats and an independent observer-free control agree
+on126 public markers. Both observed streams agree on400 complete owner
+intervals, all group visits and both eventual member completions. The frozen
+fixture retains the whole stream, not only selected mutation rows. Only the
+process-specific resolved mover address is converted to a boolean; canonical
+identity words remain exact.
+
+| Observation | Counter1140 | Counter1141 |
+|---|---|---|
+| Existing cast owner | Completes; remains on owner list | Empty preparation retires it |
+| Removed peer's owner | Its later preparation retires it | Absent |
+| New point-Move owner | Prepended; receives no current visit | First visit |
+
+The owner loop prefetches the next intrusive node before dispatch. Original
+`16c150` returns after completion callbacks and cooldown processing; it does
+**not** immediately destroy an owner emptied by those callbacks. Destruction
+belongs to the next empty preparation visit. These are distinct from ordinary
+cancellation between ticks, whose delayed group lifetime was already preserved
+by Payoff107.
+
+### Engine correction and production-path regressions
+
+`move_run_group_updates` formerly popped ready completions from a stack, so
+simultaneous callbacks ran in reverse stored member order. It also destroyed a
+newly empty completed owner at the end of that same visit. The engine now
+walks the captured ready decisions forward, checking current physical group
+identity before dispatch, and retains the emptied owner for its next scheduled
+preparation. Detachment during an owner tick invalidates a row in place. The
+next preparation scans backward and swaps each invalid row with the tail, as
+`16d1c0` does. Forward callback dispatch with immediate swap removal reordered
+survivors: the unchanged mixed thirteen-member Captain capture first diverged
+at commit5247 (17,010 ms). Deferred reverse pruning restores the whole journey. The existing generation snapshot continues to exclude new groups
+from the current owner pass. Both changes stay inside Move; no order-ID
+exceptions, alternate simulation clocks or new scheduler scans are introduced.
+
+`completion194_callbacks_keep_member_order_and_owner_frontier` creates an
+older moving owner and a three-member public group already occupying its
+formation slots. The first actual stand-completion callback removes a later
+member, issues public Stop to the not-yet-visited older owner, and creates and
+orders a fresh mover. Assertions cover stored callback order, suppression of
+the removed member, same-tick retirement of the stopped owner, retained empty
+completed owner and next-tick first visit of the new owner. The test takes its
+member identities from actual admission; it does not assume request ordering
+or force arrived flags. Co-located members would reach different formation
+slots on different ticks and cannot witness simultaneous callback ordering.
+
+The original callback regression fails three assertions before the fix. An
+additional retained-row assertion fails with forward dispatch plus immediate
+compaction. The saved spell-owner regression also fails before the fix.
+
+The existing `spell185_public_approach_matches_live_motion` still compares all
+50 native pose/velocity/range rows through actual Holy Light approach and
+completion. It now saves/loads while the empty completed owner is retained,
+then verifies retirement on the next real owner update. Format148 retains
+null-identity member slots and rejects earlier saves. The network is unchanged.
+
+This proves Move's callback ordering and scheduling contract. The engine
+mutation test uses actual C stand callbacks; it does not certify a newly
+implemented public Channel/CAST/EFFECT timeline. Broader spell timing remains
+`ORDER-01.13`. The engine now preserves invalid slots produced during owner
+ticks through the next preparation, including save/load. Between-tick
+cancellation still compacts logical bindings immediately; complete private
+member-layout parity remains `GROUP-04.6`.
+
+Older pair tests compared frame-end state to captured pre-decision rows, and
+the twelve-member test predicted commit order from previous membership. They
+now observe the actual route/pre-decision and motion-commit boundaries. Every
+frozen group/member and numerical expectation remains unchanged. Invalid-save
+coverage distinguishes a valid null/zero completed identity from a corrupt
+null/nonzero identity; it continues to reject malformed live generations.
+The hidden-approach regression now observes the retained invalid row before
+next-visit retirement; the Way Gate marker observer ignores invalid identities
+when inspecting active member routes. A coredump confirmed that the old marker
+observer, rather than production movement, dereferenced the newly retained
+null row. Existing trajectory, marker and classification assertions remain.
+
+### Reproduction and evidence
+
+Frozen captures and saved Ghidra/readback evidence are under
+`research/SCHED-02.4/captures194/`. `MapPathfinding.java` includes the four
+function annotations; the typed schema records the original captured member
+count. The existing verified FinishMember ABI is unchanged.
+
+```sh
+python3 tools/frida/research/completion194_verify.py \
+  --expected tools/ghidra/fixtures/retail-completion-callback194-1.27.json \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research/SCHED-02.4/captures194 \
+  --output /tmp/completion194-fresh-report.json
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test 'wc3_movement.completion194*'
+build/bin/openwarcraft3-tests -data build/tests -tft +dedicated 1 \
+  +test 'wc3_movement.spell185_public*'
+```
+
+The verifier requires a fresh report and rejects incomplete intervals, an
+outside-owner mutation, immediate new-owner visitation, early completed-owner
+release, a surviving removed peer or a still-resolved completed member.
+Focused Classic/TFT validation accompanies this chunk; full repository
+validation remains on the authorized approximately12-commit cadence.
+
+Payoff194 validation after upstream integration: production and test libraries
+build successfully. Four movement shards per edition exercise428 cases. The
+retirement assertions and invalid-row marker observer identified by that pass
+are corrected and pass targeted Classic/TFT reruns: hidden-target4 cases /
+6,976 assertions, Way Gate2 /293, callback1 /24 and Holy Light1 /315. The
+unchanged Captain23-case journeys pass2,606,567 assertions per edition,
+AI recruitment5 /107,025, save205 /37,987 and Captain policy24 /1,033.
+The pair and twelve-member cases retain all original words and pass their
+normal-frame/save continuations. Python completion/public-pair/corpus checks
+pass39 tests. Fresh strict retail pair/completion reports pass; both working
+and staged431-entry inventories retain valid source/fixture fingerprints.
+Validation logs and reports: `/GitHub/wc3-analysis/runtime/payoff194/`.
+No full repository sweep is added to this chunk; the prior merge passed it,
+and the next sweep follows the authorized approximately12-commit cadence.
