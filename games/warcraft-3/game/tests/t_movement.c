@@ -13899,7 +13899,11 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
     T_EQ(steps,motion_count);T_ASSERT(!jass_rterror_pending(level.vm));
     if(!mismatch)FOR_LOOP(i,unit_count) {
         T_NOT_NULL(trace.units[i]);
-        if(trace.units[i])T_EQ(trace.units[i]->current_order_id,0);
+        /* Facing207 tick3 captures idle PauseUnit before any angular request:
+         * public head is851973. Random101 intentionally ends with Stop then
+         * PauseUnit; its frozen motion/retry/RNG words remain unchanged. */
+        if(trace.units[i])T_EQ(trace.units[i]->current_order_id,
+            trace.units[i]->paused ? MOVE_ORDER_SUSPENDED : 0);
     }
     move_test_motion_commit=NULL;follow_commit_trace=NULL;move_test_retry=NULL;move_test_repulse=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);

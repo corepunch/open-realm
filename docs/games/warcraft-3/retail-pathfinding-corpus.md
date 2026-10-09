@@ -1988,3 +1988,28 @@ The complete engine owner-pass regression verifies admission, cooldown and
 occupancy rather than relying on isolated pair results. Recorded seed/parity
 inputs do not certify map-start seed production. See
 [complete overlap integration](retail-pathfinding-overlap.md).
+
+## Public timed-facing ownership (Payoff207)
+
+`oracle-facing207` checks the new angular producer within open FORM-01.3. Two
+read-only full scenes and an unhooked control preserve89 public markers,
+174 physical decisions and381 independent visual-settling visits. Original
+headers are regenerated only for byte comparison; the runner never updates them.
+Actual engine tests run the whole public scene and its Save150 suffix in both
+editions. The frozen contract and exclusions are in
+`retail-facing207-1.27.json`; x86 ABI/field notes are in
+`retail-facing207-ghidra-1.27.json`. See
+[timed-facing implementation](retail-pathfinding-engine.md#timed-facing-cohorts-retain-physical-and-visual-headings-payoff207).
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --only oracle-facing207 --output /tmp/facing207-fresh
+```
+
+The report directory must be new. The archived evidence lives under
+`runtime/payoff207/` and includes immutable map/source snapshots. Failed and
+exploratory captures are not accepted inputs. The inventory has444 entries
+following this addition; the historical inventory breakdown above is unchanged.

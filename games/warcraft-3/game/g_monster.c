@@ -686,6 +686,7 @@ static void unit_construct_visuals(unitConstruction_t *construction) {
      * and instead block via their pathing footprint (set from pathtex below). */
     self->collision = traits->collision;
     S_SetMoveFormationRank(self, construction->captured.UnitData->formationRank);
+    S_SetMoveVisualPolicy(self, construction->captured.UnitData->orientationInterpolation);
 //    printf("%.4s\n", &self->class_id);
     self->targtype = traits->target;
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_VISUALS, self, &construction->captured);

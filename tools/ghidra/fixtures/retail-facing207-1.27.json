@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "task": "FORM-01.3 angular producer / payoff207",
+  "build": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "archive_pins": {
+    "runtime/payoff207/observe-7.jsonl": "a632bb7af13cccbc3f8ff9367262bf2d896ae257905f0902a27366947e7e702c",
+    "runtime/payoff207/observe-8.jsonl": "355dbd5393cda02e94e8c8490be31944061c3a9e54a8833b264b0cbd4b225fe2",
+    "runtime/payoff207/control-1.jsonl": "0af5aa445e45d3e54b37d5e36479d107bddf6884f5a4369a9e2c334d473322eb",
+    "runtime/payoff207/observe-7-preload.txt": "4450d8be898e51932d8ed935b9e9a4019f94270dd2a29b4f5f30f4b2989d6016",
+    "runtime/payoff207/observe-8-preload.txt": "452b6a8ddf61436cbc27ce0a03339e8e3dadc2449387b8ae7b926dbf539d568c",
+    "runtime/payoff207/control-1-preload.txt": "22d651af182a68c2c15e6e4ae05ca1720c273d923a3c3fd63eaf6dfcd4ffc5bf",
+    "runtime/payoff207/Facing207.w3m": "a909c7025d5835d05afafe3e224472e2c35ba7d24bee43644eec99baeef72c19",
+    "runtime/payoff207/Facing207.j": "10b710e5fc7556d5b4323152cf9b0869a92aa55c2c9a8e8b3fb0a1fc74b34da6",
+    "runtime/payoff207/Facing207.wpm": "166ff49c3509548c9fceaa834b390c0017e88712ab8b47a58760e8ec916203f6",
+    "runtime/payoff207/Facing207.json": "4c1542e106b5e4dc320e956c1b9b33084479e09859dec3ef1f985632362ef24f",
+    "runtime/payoff207/sources/swing199_capture.py": "bc856087b04d78845dba8fdd61da16b4554e6396783130a90835c708d3a610d7",
+    "runtime/payoff207/sources/spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+    "runtime/payoff207/sources/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "runtime/payoff207/sources/facing207_probe.j": "a5278632a745fbc5e834a3f3f11e7908f4915d4836c5d4279c58e31cf5547458",
+    "runtime/payoff207/sources/facing207_observer.js": "b834d9aaa56e2f2abc48f94ad7b96caf5c4412333c306e39a2865ef2ff557faa",
+    "runtime/payoff207/207requestasm.json": "e5ac74aa02049561132ecf77ccd0442d05b12b0ee40a750412f6aeff970ec097",
+    "runtime/payoff207/207cohortcode.json": "3edad47c31ea078f5300cdd6711d7a391670815d1802d6754200e23a0d679119",
+    "runtime/payoff207/207constants.json": "047f72be36d2257d5ac228f4398cd4f7a7331a40e6f68472f9539f811fdfb9ed",
+    "runtime/payoff207/207immediatecode.json": "603ce837e2a3175f0fa8537caeffa2463d510860088c043728c6e05b6f4a525a",
+    "runtime/payoff207/207seedcode.json": "3583e79b48601b7da67c750da6735071b9e39b15ecab08a394c66d7f899f25e8",
+    "runtime/payoff207/207visual-final.json": "67d9cacf7046a115cda649d9499cc60e04e56681e5514f0b667d68a089f23e71",
+    "runtime/payoff207/207-abi-instructions.json": "b314f68efa831e6951a3bbf2d08cdd4e097a62a6ce3f89f8ff138103554b609a",
+    "runtime/payoff207/207-profile-refs.json": "2743ac63941ab02157dbc65085e6682e520e6433b50d50ffc943c18f9fbec33d",
+    "runtime/payoff207/207-installed-profile.json": "421b6aac1af354140edfeeaa934ed27cc8585cfd817f1aa577c7d24621b541f7",
+    "runtime/payoff207/207-constructor-policy.json": "a1444b1100b378fefa5aa87bb3f5f3e70f20680d342c35e751399b740a7bbd0c"
+  },
+  "captures": [
+    "runtime/payoff207/observe-7.jsonl",
+    "runtime/payoff207/observe-8.jsonl"
+  ],
+  "control": "runtime/payoff207/control-1.jsonl",
+  "physical_count": 174,
+  "physical_sha256": "815116d4efe203d6b2c66b6669e15bfb0f9904a0156dc665df3c7f29313b2105",
+  "visual_count": 381,
+  "visual_counts": [
+    182,
+    92,
+    38,
+    26,
+    43
+  ],
+  "visual_sha256": "958913275416d060dfcc458cd0a42c702dfd5da12b6bb8e8ab8a5a0d9ec2ff31",
+  "public_markers": 89,
+  "engine_tests": [
+    "wc3_facing.public_timed_cohorts_match_original_and_saved_suffix",
+    "wc3_facing.timed_native_retains_pose_and_authored_turn_at_admission",
+    "wc3_facing.paused_idle_head_resumes_without_canceling_angular_owner"
+  ],
+  "pins": {
+    "games/warcraft-3/game/tests/retail_facing207.h": "f71583567b9551775788674053bf358b6fd2107bc8c5fc15ed87c8f034b07327",
+    "games/warcraft-3/game/tests/retail_facing_visual207.h": "faae38aa85fa0386896480df52e897b6216233fe9719c2d2e41ee787d2fd0e01",
+    "games/warcraft-3/game/tests/t_facing.c": "9d11b0971531d5e652e8bb4258d596bdc3cd87030ae23ae7c80d53ed36df0717",
+    "tools/frida/research/facing207_probe.j": "a5278632a745fbc5e834a3f3f11e7908f4915d4836c5d4279c58e31cf5547458",
+    "tools/frida/research/facing207_observer.js": "b834d9aaa56e2f2abc48f94ad7b96caf5c4412333c306e39a2865ef2ff557faa",
+    "tools/frida/research/facing207_fixture.py": "fe2efe2c11e0709d26bd21157351195eb63633b2a72dcf435df8596538a1ed0c"
+  },
+  "exclusions": [
+    "FORM-01.3 stays open for d0176/captain/static-only policy producers and broader bit10 effects.",
+    "Physical and visual fields are compared; renderer snapshot migration and exact public degree conversion are not certified.",
+    "Visual visits compare per independent mover; original intrusive-list global visit order is not reproduced.",
+    "Only installed visual policy0 is live witnessed here; other policy rows follow original004210 static initialization.",
+    "Engine save150 suffix is tested; retail UI save/load for angular cohorts is not captured.",
+    "Failed observe3 and exploratory observer variants are excluded from accepted evidence.",
+    "Observer-free control records public Preload output only; its historical observer file was not installed."
+  ],
+  "expectation_audit": {
+    "changed": "public_gate_journey final-head helper only; frozen Random101 motion/retry/RNG header unchanged",
+    "retail_witness": "runtime/payoff207/observe-7.jsonl tick3 sample u4 paused idle before angular request; public head851973; repeat8 and unhooked control1 agree",
+    "prior_scene": "random_interleave_script tick500 performs GroupImmediateOrder(stop), then pauses both units permanently",
+    "unchanged_fixture": "games/warcraft-3/game/tests/retail_random_interleave.h"
+  }
+}

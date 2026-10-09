@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format149 retains bounded variable-capacity queued-order rings. */
-static uint32_t const save_version = 149;
+/* Format150 retains bridge-owned angular cohorts and their temporary turn rate. */
+static uint32_t const save_version = 150;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -903,6 +903,8 @@ static field_t const move_group_fields[] = {
     TF(moveGroup_t, inuse, F_INT),
     TF(moveGroup_t, initialized, F_INT),
     TF(moveGroup_t, individual, F_INT),
+    TF(moveGroup_t, turning, F_INT),
+    TF(moveGroup_t, turn_rate, F_FLOAT),
     TF(moveGroup_t, ticking, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, newer, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, older, F_IGNORE, 0, FIELD_RUNTIME),
@@ -967,6 +969,11 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, pose_clock.epoch, F_INT),
     TF(edictMovement_s, pose_clock.span, F_FLOAT),
     TF(edictMovement_s, clock_valid, F_INT),
+    TF(edictMovement_s, visual_facing, F_FLOAT),
+    TF(edictMovement_s, visual_speed, F_FLOAT),
+    TF(edictMovement_s, visual_valid, F_INT),
+    TF(edictMovement_s, visual_active, F_INT),
+    TF(edictMovement_s, visual_policy, F_INT),
     TF(edictMovement_s, region_position, F_VECTOR),
     TF(edictMovement_s, region_valid, F_INT),
     TF(edictMovement_s, wait_delay, F_INT),
@@ -2290,7 +2297,10 @@ static bool ValidMoveFineRequests(void) {
     }
     FOR_LOOP(i,globals.num_edicts) {
         edict_t const *unit=g_edicts+i;
-        if (*(uint8_t const *)&unit->movement.fine_queued>1 || unit->movement.fine_class>=MAX_PLAYERS || unit->movement.formation_rank>15) return false;
+        if (*(uint8_t const *)&unit->movement.fine_queued>1 || unit->movement.fine_class>=MAX_PLAYERS || unit->movement.formation_rank>15 ||
+            unit->movement.visual_policy>15 || *(uint8_t const *)&unit->movement.visual_valid>1 ||
+            *(uint8_t const *)&unit->movement.visual_active>1 || !isfinite(unit->movement.visual_facing) ||
+            !isfinite(unit->movement.visual_speed)) return false;
         if (unit->movement.fine_queued) queued++;
         else if (unit->movement.fine_prev || unit->movement.fine_next) return false;
     }
@@ -2306,7 +2316,10 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
     if (!group->id || !group->sequence || group->sequence>level.next_move_group_sequence ||
         group->count>BZ_WC3_GROUP_ORDER_UNITS || group->cooldown>66 ||
         *(uint8_t const *)&group->inuse!=1 || *(uint8_t const *)&group->initialized>1 || group->ticking ||
-        *(uint8_t const *)&group->individual>1 ||
+        *(uint8_t const *)&group->individual>1 || *(uint8_t const *)&group->turning>1 ||
+        !isfinite(group->turn_rate) ||
+        (group->turning && (group->individual || group->count>1 || group->target || group->shared_id ||
+            !(group->flags&0x200u) || group->turn_rate<wc3_float(0x3456bf95))) ||
         (group->individual && (group->count>1 || group->shared_id || group->target)) ||
         !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
         !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
@@ -2344,7 +2357,7 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
         if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
         edict_t const *unit=member->unit;
         if (!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=member->spawn ||
-            unit->movement.group_id!=group->id || !unit->goalentity) return false;
+            unit->movement.group_id!=group->id || (!group->turning && !unit->goalentity)) return false;
         if (group->target) {
             if (group->target->movement.captain_actor_type) {
                 if (!unit->movement.captain_home.active || unit->movement.captain_home.actor!=group->target) return false;
@@ -3992,7 +4005,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
+    uint32_t const old_versions[] = { 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

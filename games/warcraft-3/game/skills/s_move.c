@@ -45,7 +45,9 @@ typedef struct {
     wc3GridPose_t pose;
 } moveStep_t;
 
-static entitySet_t move_timer_members;
+static entitySet_t move_timer_members, move_visual_members;
+static void move_visual_track(edict_t *);
+static void move_visual_update(void);
 typedef struct { uint16_t target,prev,next; } moveFollowLink_t;
 typedef struct { uint16_t head,tail,count; } moveFollowList_t;
 typedef struct { uint64_t sequence; uint32_t incarnation; uint16_t index; } moveFollowDelivery_t;
@@ -68,6 +70,7 @@ void S_TrackMoveTimers(edict_t const *ent) {
 #ifdef BZ_TESTS
 /* Read-only observer of scheduled Move commits, before same-clock map timers. */
 static void (*move_test_motion_commit)(edict_t *unit);
+static void (*move_test_visual_commit)(edict_t *unit,float before_facing,float before_speed);
 static void (*move_test_group_route)(moveGroup_t const *group, edict_t *singleton);
 static void (*move_test_group_begin)(moveGroup_t const *group);
 enum { MOVE_PHASE_SCHEDULER, MOVE_PHASE_PUBLISH, MOVE_PHASE_RADIUS, MOVE_PHASE_GROUP, MOVE_PHASE_DECIDE, MOVE_PHASE_COMMIT, MOVE_PHASE_SEPARATE };
@@ -702,6 +705,7 @@ void S_ClearMoveGroups(void) {
     S_ClearMoveCoarseRequests();
     memset(move_unit_groups,0,sizeof(move_unit_groups));
     move_group_id_bound=0;move_group_id_bound_valid=false;
+    move_visual_members=(entitySet_t){0};
     move_group_head=NULL;move_group_first_free=0;move_group_order_valid=false;
     memset(move_pose_cache,0,sizeof(move_pose_cache));
     /* Atomic teardown also handles a partially rejected save. It must not
@@ -1665,6 +1669,7 @@ void S_RunMoveTimers(void) {
         S_TrackMoveTimers(ent);
         if(ent->goalentity && ent->currentmove==&move_move_walk)
             S_IssueMoveOrder(ent,ent->goalentity,order);
+        else if(!order && ent->current_order_id==MOVE_ORDER_SUSPENDED)ent->current_order_id=0;
     }
     for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
         edict_t *ent=g_edicts+i;
@@ -1962,6 +1967,7 @@ static void move_repulse_owner_update(void) {
 void S_SetUnitPaused(edict_t *self, bool paused) {
     if (!self || self->paused == paused) return;
     if (paused) {
+        move_visual_track(self);
         uint32_t order=self->current_order_id;
         bool point=self->currentmove==&move_move_walk && self->goalentity &&
             (order==G_OrderId("move") || order==G_OrderId("smart"));
@@ -1973,7 +1979,8 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
             unit_commit_current_pose(self);
             self->movement.velocity=(vec2_t){0};self->movement.clock_valid=false;
         }
-    } else if(self->movement.pause_order_id) {
+        if(!order)self->current_order_id=MOVE_ORDER_SUSPENDED;
+    } else if(self->movement.pause_order_id || self->current_order_id==MOVE_ORDER_SUSPENDED) {
         self->movement.pause_resume_pending=true;
         S_TrackMoveTimers(self);
         self->movement.pause_deadline=level.pathing_clock;
@@ -2136,6 +2143,7 @@ static vec2_t unit_step_heading(edict_t *self, float angle, moveStep_t *step) {
 
 /* Retail160060 commits facing from velocity. Only accepted candidates retain the previewed fine pose. */
 static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
+    move_visual_track(self);
     wc3Velocity_t const *v = &step->velocity;
     self->movement.velocity = (vec2_t){v->vel[0], v->vel[1]};
     float grid_x = wc3_mul(v->vel[0], wc3_float(0x3d000000));
@@ -2258,6 +2266,72 @@ bool unit_snap_to_point_ignore_units(edict_t *self, vec2_t const *point) {
     return true;
 }
 
+/*05aa80 returns c8, not physical8c. SetUnitFacingTimed consumes this
+ * separately settled value; only active movers are visited after group commits. */
+float S_UnitFacing(edict_t *unit) {
+    if(!unit->movement.visual_valid) {
+        unit->movement.visual_facing=unit->s.angle;
+        unit->movement.visual_speed=0;unit->movement.visual_valid=true;
+    }
+    return unit->movement.visual_facing;
+}
+
+static void move_visual_track(edict_t *unit) {
+    S_UnitFacing(unit);unit->movement.visual_active=true;
+    uintptr_t index=((uintptr_t)unit-(uintptr_t)g_edicts)/sizeof(*unit);
+    if(g_edicts && index<MAX_ENTITIES)entity_set_put(&move_visual_members,index,true);
+}
+
+static void move_visual_update(void) {
+    /*004210 initializes these16 rows through the software decimal parser. */
+    static char const *const authored[16][4]={
+        {"0.07","0.2","0.2","0.25"},{"0.03","0.1","0.2","0.25"},
+        {"0.015","0.4","0.8","0.25"},{"0.005","0.1","1.2","0.5"},
+        {"0.04","0.15","1.2","0.6"},{"0.05","0.18","1.2","0.6"},
+        {"0.1","0.3","0.8","0.4"},{"0.003","0.08","1.2","0.5"},
+        {"0.001","0.05","1.4","0.5"},
+        {"0.07","0.2","0.2","0.25"},{"0.07","0.2","0.2","0.25"},
+        {"0.07","0.2","0.2","0.25"},{"0.07","0.2","0.2","0.25"},
+        {"0.07","0.2","0.2","0.25"},{"0.07","0.2","0.2","0.25"},
+        {"0.07","0.2","0.2","0.25"}};
+    static float policies[16][4];static bool initialized;
+    if(!initialized) {FOR_LOOP(i,16)FOR_LOOP(k,4)policies[i][k]=wc3_decimal(authored[i][k]);initialized=true;}
+    for(uint32_t i=entity_set_next(&move_visual_members,0);i<globals.num_edicts;i=entity_set_next(&move_visual_members,i+1)) {
+        edict_t *unit=g_edicts+i;
+        if(!unit->inuse || G_IsDeferredFree(unit)) {entity_set_put(&move_visual_members,i,false);continue;}
+#ifdef BZ_TESTS
+        float before_facing=unit->movement.visual_facing,before_speed=unit->movement.visual_speed;
+#endif
+        float delta=wc3_turn_error(unit->s.angle,unit->movement.visual_facing);
+        float magnitude=wc3_float(wc3_float_bits(delta)&0x7fffffffu);
+        if(magnitude<wc3_float(0x3a83126f)) {
+            unit->movement.visual_facing=unit->s.angle;unit->movement.visual_speed=0;
+            unit->movement.visual_active=false;entity_set_put(&move_visual_members,i,false);
+#ifdef BZ_TESTS
+            if(move_test_visual_commit)move_test_visual_commit(unit,before_facing,before_speed);
+#endif
+            continue;
+        }
+        unsigned type=unit->movement.visual_policy;
+        float const *policy=policies[type];
+        float speed=wc3_add(unit->movement.visual_speed,delta>=0 ? policy[0] : -policy[0]);
+        float cap=MIN(magnitude,policy[1]),factor=magnitude>=policy[2] ? 1 : wc3_div(magnitude,policy[2]);
+        factor=MAX(0,MIN(1,factor));
+        if(factor!=1) {
+            float power;
+            if(!wc3_pow(factor,policy[3],&power))gi.error("Move: visual heading power did not terminate");
+            cap=wc3_mul(cap,power);
+        }
+        float step=MIN(cap,wc3_float(wc3_float_bits(speed)&0x7fffffffu));
+        if(speed<0)step=-step;
+        unit->movement.visual_speed=step;
+        unit->movement.visual_facing=wc3_facing_angle(wc3_add(unit->movement.visual_facing,step));
+#ifdef BZ_TESTS
+        if(move_test_visual_commit)move_test_visual_commit(unit,before_facing,before_speed);
+#endif
+    }
+}
+
 /* Retail's stock constructor and native setter share normalization and the minimum turn rate. */
 float unit_turnspeed(edict_t const *self) {
     if (self->unitinfo.move_flags & BZ_UNIT_TURN_SET) return self->unitinfo.TurnSpeed;
@@ -2272,8 +2346,10 @@ float unit_propwindow(edict_t const *self) {
 
 /* Use retail's scalar turn update instead of accumulating host sin/cos rotation error. */
 static void unit_turn_toward(edict_t *self, float target) {
+    move_visual_track(self);
     wc3Motion_t motion = { .heading = self->s.angle, .error = wc3_turn_error(target, self->s.angle),
-        .turn = unit_turnspeed(self), .window = unit_propwindow(self) };
+        .turn = move_deciding_group && move_deciding_group->turning ?
+            move_deciding_group->turn_rate : unit_turnspeed(self), .window = unit_propwindow(self) };
     /* Retail stops from the error before turning; testing the new angle allowed premature travel. */
     self->movement.turn_blocked = !wc3_motion_update(&motion);
     self->s.angle = motion.heading;
@@ -4845,6 +4921,37 @@ static void move_start_point_group(edict_t *actor,vec2_t const *home,float range
     move_group_seed_route(group); group->ticking=false;
 }
 
+/* Native2151b0 ->05c0e0 publishes a bridge-owned physical request. It retains
+ * the public head and old velocity; the next owner visit commits that velocity
+ * before stopping translation. The tiny point is authoritative, so a moving
+ * unit may turn toward a different heading after that final translation. */
+void S_SetUnitFacingTimed(edict_t *unit,float degrees,float duration) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit))return;
+    float angle=wc3_mul(degrees,wc3_float(0x3c8efa35));
+    if(duration<=wc3_float(0x3dcccccd)) {
+        move_visual_track(unit);
+        unit->s.angle=wc3_facing_angle(angle);return;
+    }
+    float visits=wc3_div(duration,wc3_decimal("0.03"));
+    float turn=wc3_float(wc3_float_bits(wc3_div(wc3_turn_error(angle,S_UnitFacing(unit)),visits))&0x7fffffffu);
+    if(!(fabsf(wc3_sub(visits,0))>=wc3_float(0x3456bf95)) ||
+       !(fabsf(wc3_sub(turn,0))>=wc3_float(0x3456bf95)))return;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    vec2_t point={wc3_add(pose.grid[0],wc3_mul(wc3_float(0x3c23d70a),wc3_cos(angle))),
+        wc3_add(pose.grid[1],wc3_mul(wc3_float(0x3c23d70a),wc3_sin(angle)))};
+    move_detach_group(unit);
+    moveGroup_t *group=move_alloc_group();
+    group->inuse=true;group->turning=true;group->turn_rate=turn;
+    group->id=move_allocate_group_id();group->flags=0x10200u;
+    group->point=point;group->radius=unit->collision;
+    group->goal=(vec2_t){wc3_world_coordinate(point.x,pose.origin[0],32),
+        wc3_world_coordinate(point.y,pose.origin[1],32)};
+    group->route.group_goal=point;group->route.group_index=UINT32_MAX;
+    group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
+        .arrival_range=wc3_float(0x3efae148)};
+    unit->movement.group_id=group->id;move_unit_groups[unit-g_edicts]=group;
+}
+
 static void move_captain_actor_point(edict_t *actor,vec2_t const *home,float range) {
     move_leave(actor);
     S_IssueMoveOrder(actor,Waypoint_add(home),G_OrderId("move"));
@@ -4917,6 +5024,10 @@ void S_CaptainGoHome(botCaptain_t *captain) {
 
 /* Native171070 installs the profile;16cb80 consumes its low rank nibble.
  * Rebinding object-data pointers alone must not change a live mover's row. */
+void S_SetMoveVisualPolicy(edict_t *unit,uint32_t policy) {
+    unit->movement.visual_policy=policy&15u;
+}
+
 void S_SetMoveFormationRank(edict_t *unit, uint32_t rank) {
     unit->movement.formation_rank=rank&15u;
 }
@@ -4970,6 +5081,17 @@ static void move_group_classify(moveGroup_t *group) {
 }
 
 static bool move_group_route(moveGroup_t *group) {
+    /*16de50 disables acceleration for bypass cohorts;167120 appends the
+     * retained destination directly. This request consumes no coarse work. */
+    if(group->turning) {
+        if(!group->initialized) {
+            G_ReserveMoveRouteBuffer(&group->route.group_points,&group->route.group_capacity,1);
+            group->route.group_points[0]=(vec2_t){wc3_mul(group->point.x,.5f),wc3_mul(group->point.y,.5f)};
+            group->route.group_count=1;group->route.group_index=0;
+            group->initialized=true;group->flags|=0x30000u;group->age=0;
+        }
+        return true;
+    }
     wc3GridPose_t pose;
     edict_t *source=move_group_source(group,&pose); if (!source) return false;
     /* Original16c940 scans the live resolved members when routing samples a
@@ -5043,11 +5165,11 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
         /* Native16a790 temporarily replaces b0 with runtime .49 during
          * unseen pursuit, then restores the retained authored arrival range. */
         .heading=unit->s.angle,.range=!group->unseen_counter ? member->arrival_range : wc3_float(0x3efae148),
-        .flags=member->forced_arrival ? 0x10000 : 0};
+        .flags=member->forced_arrival || group->turning ? 0x10000 : 0};
     /* Original16a790 replaces arrival10000 from this visit's result. A cached
      * slot may cease to be reached after SetUnitX/Y or physical displacement. */
     member->flags&=~0x10000u;
-    if (unit->paused || unit->stunned) {
+    if (!group->turning && (unit->paused || unit->stunned)) {
         member->arrived=member->in_range=false; member->speed=0; member->heading=unit->s.angle;
         return;
     }
@@ -5290,14 +5412,14 @@ static void move_group_prepare_members(moveGroup_t *group) {
         moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
         if (!unit || !unit->inuse || unit->spawn_time!=member->spawn || G_IsDeferredFree(unit) || (!unit->movement.captain_actor_type && M_IsDead(unit)) ||
             unit->movement.group_id!=group->id ||
-            (unit->currentmove!=&move_move_walk && (!group->target || unit->currentmove!=&follow_move_walk)) ||
-            !unit->goalentity) {
+            (!group->turning && ((unit->currentmove!=&move_move_walk && (!group->target || unit->currentmove!=&follow_move_walk)) ||
+             !unit->goalentity))) {
             if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
                 unit->movement.group_id=0;
             if (unit) move_complete_receiver(group,unit,false);
             group->members[i]=group->members[--group->count]; continue;
         }
-        if (!S_UnitCanTranslate(unit)) {
+        if (!group->turning && !S_UnitCanTranslate(unit)) {
             unit->stand(unit);
             group->members[i]=group->members[--group->count];
         }
@@ -5430,7 +5552,7 @@ static void move_run_group_updates(void) {
         moveGroupMember_t *finished[BZ_WC3_GROUP_ORDER_UNITS]; uint32_t count=0;
         FOR_LOOP(i,group->count) {
             moveGroupMember_t *member=group->members+i; edict_t *unit=member->unit;
-            if (unit->paused || unit->stunned) continue;
+            if (!group->turning && (unit->paused || unit->stunned)) continue;
             cstring_t animation=member->speed>0 ? "walk" : "stand";
             if (!G_AnimationHasPrimary(unit->animation,animation)) unit_setanimation(unit,animation);
             moveStep_t step={.velocity={.vel={unit->movement.velocity.x,unit->movement.velocity.y},
@@ -5649,7 +5771,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         }
         return true;
     case A_OWNER_BEGIN: move_update_fine_budget(); MOVE_OWNER_PHASE(MOVE_PHASE_SCHEDULER,0); return true;
-    case A_OWNER_UPDATE: move_run_group_updates(); move_repulse_owner_update(); return true;
+    case A_OWNER_UPDATE: move_run_group_updates(); move_visual_update(); move_repulse_owner_update(); return true;
     case A_CHANNEL_STATE_CHANGED:
         /* 48ef40/48bca0 refresh after publishing the channel-work flag. */
         move_repulse_init(ent); return true;
@@ -5664,12 +5786,16 @@ BZ_ABILITY_PROC(CAbilityMove) {
         if(ent)return 0;
         move_follow_reset();
         move_repulse_clear_links();
-        move_timer_members=(entitySet_t){0};return true;
+        move_timer_members=move_visual_members=(entitySet_t){0};return true;
     case A_TIMERS_REBUILD:
         if(ent)return 0;
         move_follow_rebuild();
         move_timer_members=(entitySet_t){0};
-        FOR_LOOP(i,globals.num_edicts) S_TrackMoveTimers(g_edicts+i);
+        move_visual_members=(entitySet_t){0};
+        FOR_LOOP(i,globals.num_edicts) {
+            S_TrackMoveTimers(g_edicts+i);
+            entity_set_put(&move_visual_members,i,g_edicts[i].inuse && g_edicts[i].movement.visual_active);
+        }
         return true;
     case A_PRIMARY_TIMER:
         S_RunMoveTimers(); return true;

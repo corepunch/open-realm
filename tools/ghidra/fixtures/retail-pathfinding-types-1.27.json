@@ -317,6 +317,12 @@
           "evidence": "16d990/169e10"
         },
         {
+          "offset": 116,
+          "name": "turn_override",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff207:16bdb0 copies requestfc to group74;16a790 installs temporary moverb8 for flag200 then restores. Seven ordinary SetUnitFacingTimed requests and174 repeated complete physical decisions."
+        },
+        {
           "offset": 124,
           "name": "shared_parameters",
           "type": "ptr:WC3PathSharedPrefix",
@@ -16374,6 +16380,178 @@
         }
       ],
       "evidence": "Payoff193: ECX COrderTarget prefix, plain RET, pointer result EAX. Identity58(slot)/5c(generation); sentinel AND=-1 returnsNULL, otherwise original061320 resolves its payload. Both9d87d0 duplicate admission and9d16c0 member preparation use this actual target identity; physical destination coordinates are not the duplicate key."
+    },
+    {
+      "address": "6f2151b0",
+      "name": "Jass_SetUnitFacingTimed",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "degrees",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "duration",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff207 FORM-01.3 angular producer: cdecl handle plus scalar-angle pointer and duration pointer. COMISS compares duration with cd53c4=3dcccccd; <= uses215170. Above threshold reads bridge virtual1c/05aa80 visualc8, wraps delta173720, divides by duration/software decimal0.03, guards2e-7 and submits05c0e0. Authored JASS0.1 is3dccccce and takes timed branch. Seven repeated public requests; engine174 exact physical decisions,381 visual visits plus saved suffix."
+    },
+    {
+      "address": "6f215170",
+      "name": "Jass_SetUnitFacing",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "degrees",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff207 FORM-01.3 angular producer: cdecl handle plus angle pointer. Software multiply cd5444=3c8efa35 then bridge05a7a0 with synchronization0. Physical angle changes immediately;171170 links visual owner, public visual getter settles later. Probe initial315 and zero-duration180 are ordinary natives."
+    },
+    {
+      "address": "6f05c0e0",
+      "name": "MoveBridge_BeginFacingRequest",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "heading",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "turn",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "receiver",
+          "type": "ptr:void",
+          "storage": 12
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 16
+        }
+      ],
+      "evidence": "Payoff207 FORM-01.3 angular producer: ECX bridge; stack4 heading pointer,8 turn pointer,c completion receiver,10 callback; RET10. Predicted fine pose plus0.01cos/sin, point16db30, turn16d810, retain mover, bypass20016dd00 then publish16bcf0. Independent angular request preserves public head/old velocity; paused and idle movers turn. New Move cancels it."
+    },
+    {
+      "address": "6f05aa80",
+      "name": "MoveBridge_QueryVisualFacing",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "out",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff207 FORM-01.3 angular producer: ECX bridge; stack4 output scalar, RET4. Resolve canonical054530 then MOV ECX,[EAX+c8] at05aa8e; not physical8c. Seven read-only getter-out witnesses match timed input. Engine public GetUnitFacing and timed slope consume independently settled c8."
+    },
+    {
+      "address": "6f16d810",
+      "name": "MoveRequest_SetTurnOverride",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        },
+        {
+          "name": "turn",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff207 FORM-01.3 angular producer: ECX canonical request; stack4 scalar pointer, RET4. Copy pointed bits into requestfc.16bdb0 copiesfc to physical group74;16a790 temporarily installs it as moverb8 and restores authored turn after decision. Scalar2e-7 minimum is native admission, not a scene special case."
+    },
+    {
+      "address": "6f171170",
+      "name": "Mover_SetFacing",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "heading",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff207 FORM-01.3 angular producer: ECX mover; stack4 scalar pointer, RET4. Normalize physical8c with15ffd0, then insert visual heading owner170800 when links4/8 absent. No direct visualc8 write. Native215170 supplies synchronization0 to bridge."
+    },
+    {
+      "address": "6f171010",
+      "name": "Mover_SetVisualPolicy",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "policy",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff207 FORM-01.3 angular producer: ECX mover; stack4 unsigned policy, RET4. d8=(d8&fffff0ff)|((policy&ff)<<8).1705c0 consumes low nibble(d8>>8)&15. Original004210 initializes16 software-scalar easing rows; only stock row0 is live witnessed in207."
+    },
+    {
+      "address": "6f05c6b0",
+      "name": "MoveBridge_SetVisualPolicy",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "policy",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff207 FORM-01.3 angular producer: ECX unit mover bridge; stack4 unsigned policy, RET4. Canonical resolve054530 then171010.698c80 Unit forwarding virtual and9d71b0 captain forwarding are static callers; broad captain producer lifetime not closed."
     }
   ],
   "globals": [

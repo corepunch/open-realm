@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **271 done / 336 tasks; 65 remaining.**
 
+Payoff207 integrates public timed-facing angular cohorts and their independent
+visual heading, with174 repeated physical decisions,381 visual visits, unhooked
+public output and actual engine Save150 continuations. FORM-01.3 remains open
+for its wider producers. Existing numerical fixtures stay unchanged. See
+[timed-facing ownership](retail-pathfinding-engine.md#timed-facing-cohorts-retain-physical-and-visual-headings-payoff207).
+
 Payoff206 closes E2E-01.2: dynamic insertion/removal, terrain edits and yielding
 join ground Smart and fogged pursuit in the combined baseline. Three unchanged
 Frida contracts and eight actual engine fresh/save journeys repeat twice per
@@ -1357,7 +1363,7 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 
 - [x] **FORM-01.1** The authored formation-rank setter and rank bits are mapped and tested. Evidence: [formation rank][formation-rank]; this does not close live group creation or other policy flags.
 - [x] **FORM-01.2** [Payoff108](retail-pathfinding-engine.md#mixed-authored-ranks-install-before-formation-layout): two complete public40-sample mixed-rank producers repeat191 ordered installation/bucket/layout observations. Six creation ranks0/1/2/3/0/1 produce buckets[0,4]/[1,5]/[2]/[3]; same-mover Chaos installs3 and changes the corresponding bucket, fresh rank3 separately installs3. Engine caches the installed rank before callbacks, refreshes on type rebind, consumes it in both layouts and persists/validates Save110. DLL-parsed spacing40b00001 fixes five public offset words; all twelve initial offsets match. Actual group regression first fails twelve coordinates, then passes with save/type regressions. Focused Classic/TFT90,455 assertions each, frozen repeat/source/negative checks, O0/O2 supplied/public C oracles and saved Ghidra mappings/labels accompany the change; broader refresh-to-motion and flag producers remain open.
-- [ ] **FORM-01.3** Trace spacing bit20 and remaining formation-policy flags to callers; publish one producer-built witness per reachable value. Payoff149 integrates captured Cargo Drop class ownership and group no-warp routing with repeated public native consumer evidence, alias/negative controls and engine save regressions; static-only producer compositions and stock flying Follow remain open. See [target gate policy](retail-pathfinding-target-warp.md).
+- [ ] **FORM-01.3** Trace spacing bit20 and remaining formation-policy flags to callers; publish one producer-built witness per reachable value. Payoff149 integrates captured Cargo Drop class ownership and group no-warp routing with repeated public native consumer evidence, alias/negative controls and engine save regressions; static-only producer compositions and stock flying Follow remain open. See [target gate policy](retail-pathfinding-target-warp.md). Payoff207 integrates repeated public2151b0/05c0e0 angular request ownership and independently settled visual heading, with engine fresh/save parity; d0176/captain/static-only producers remain open.
 
 ### FORM-02 — Layout geometry
 

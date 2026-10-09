@@ -14124,3 +14124,69 @@ Initial pursuit remains active at capture end; tunnel cannot-path retirement and
 native crowd denial-only limits remain explicit. This adds acceptance coverage,
 not a new policy or live run. Scope and commands:
 [dynamic and pursuit variants](retail-pathfinding-e2e-baselines.md#dynamic-blocker-and-pursuit-variants-payoff206).
+
+## Timed-facing cohorts retain physical and visual headings (Payoff207)
+
+`SetUnitFacingTimed` now creates the bridge-owned angular request recovered from
+`2151b0 -> 05c0e0`, rather than assigning the requested angle immediately. It
+retains the public task and old velocity, uses a per-cohort turn override and
+keeps the authored turn speed unchanged. Idle and paused units turn too. A Move
+replacement cancels the angular request through ordinary group ownership.
+Bypass requests retain a single direct adaptive point and consume no coarse
+search work; no scenario coordinates or unit rawcodes enter production code.
+
+The native slope consumes **visual heading at mover+c8**, returned by `05aa80`,
+rather than physical heading at `+8c`. The engine now retains those separately.
+After group commits and before separation, Move visits an active entity set,
+applying the software-scalar acceleration, cap and power easing recovered from
+`1705c0`. The sixteen immutable policy rows are prepared once from the original
+`004210` decimal inputs. Settled units leave the set. Only policy0 is live
+witnessed here; other rows have static initializer evidence. Renderer snapshot
+migration and exact public radians-to-degrees conversion remain uncertified.
+
+Two complete read-only captures, `runtime/payoff207/observe-7.jsonl` and
+`observe-8.jsonl`, match **174 physical decisions** and **381 visual visits**.
+The physical contract includes owner counter/flags/age, captured turn override,
+formation point, direct route state, member destination/speed/heading/flags and
+before/after fine pose, velocity and facing. Visual visits compare before/after
+c8/cc and physical8c per independent mover; this does not certify global visual
+intrusive-list order. All **89 public markers** match an observer-free control.
+The same public JASS scene runs in the actual engine, with a Save150 continuation
+through live angular and settling state, in both Classic and TFT.
+
+The duration threshold is the native float word `3dcccccd`. Authored JASS `0.1`
+parses as `3dccccce`, so that probe takes the timed branch. Duration0 uses the
+immediate physical setter and later visual settling. A moving unit commits its
+old translation once, which can move it past the tiny retained goal; its final
+heading need not equal the requested ninety degrees. These effects follow the
+shared numerical movement/arrival algorithms, without special cases.
+
+Idle `PauseUnit` also exposes suspension head851973 before any angular request.
+Delayed resume restores head0 without canceling the live angular cohort. The
+older Random101 fixture deliberately ends with Stop then permanent PauseUnit;
+its final-head helper expected0 for all units. That helper now requires the
+retail suspension head for paused units. **Its frozen motion/retry/RNG header
+is unchanged**, as are every previous numerical expectation and both new
+original-generated word headers.
+
+Save150 stores angular ownership/override and logical visual state; load rebuilds
+only derived active-set membership. Invalid rates, policy rows, active bits and
+member ownership are rejected. Save149 is incompatible. This proves the engine
+suffix, not original UI save/load for angular requests. Failing-first admission
+and pause regressions preceded the fixes. Final angular checks pass **3 tests /
+14,308 assertions per edition**; the neighboring434-test movement run differed
+only at the two audited paused final-head assertions. Random101 then passes
+**289,213 assertions per edition**, retaining1,361 original commits and12,667
+saved suffix commits. Save checks pass206 tests /38,024 assertions.
+
+The strict acceptance entry is `oracle-facing207`. It checks unchanged archive,
+map, producer and observer pins; complete observed visits and unhooked output;
+byte-identical headers regenerated from retail only; and fresh actual-game
+Classic/TFT test identities, assertions and saves. Ghidra has saved11 function
+annotations, eight instruction-checked x86 prototypes and group+74 turn override;
+`MapPathfinding.java` and the type schema mirror these owned changes.
+
+This integrates the angular producer within **FORM-01.3**, which stays open for
+the remaining d0176/captain/static-only producers and broader policy effects.
+The TODO count stays271/336,65 remaining. Failed observe3 and exploratory
+observer variants remain diagnostics, outside accepted evidence.

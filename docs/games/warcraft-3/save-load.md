@@ -1,5 +1,10 @@
 # Warcraft III Save/Load
 
+Save150 retains bridge-owned angular cohorts, temporary turn overrides and
+logical visual-facing state. Load rebuilds the derived active visual set;
+invalid scalar/policy/member records are rejected. Save149 and older layouts
+are incompatible. See [timed-facing ownership](retail-pathfinding-engine.md#timed-facing-cohorts-retain-physical-and-visual-headings-payoff207).
+
 Save149 retains bounded variable-capacity queued-order rings. Capacity, head and
 count are scalar edict state; the sparse stream writes the allocated scalar
 entries and rebuilds its process pointer. Invalid bounds and missing backing
@@ -58,7 +63,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 149, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 150, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;

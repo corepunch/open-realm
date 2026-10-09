@@ -48367,6 +48367,61 @@
         "Ground Smart approach does not cover all TARGET-02 ability/movement families. Hidden arrival does not close all TARGET-03 visibility/loss producers.",
         "Saved engine continuations compare with uninterrupted retail captures, not retail saves. No whole-world, full-RNG, all-scenario determinism or frame-budget claim."
       ]
+    },
+    {
+      "id": "oracle-facing207",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_facing.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "facing207.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "physical_visits": {
+          "equal": 174
+        },
+        "visual_visits": {
+          "equal": 381
+        },
+        "public_markers": {
+          "equal": 89
+        },
+        "engine_editions": {
+          "equal": 2
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "FORM-01.3 public timed-facing angular producer. Unchanged read-only physical and independently settled visual streams, repeated native scene and observer-free public output. Actual engine fresh/save continuum in Classic and TFT.",
+      "exclusions": [
+        "FORM-01.3 stays open for d0176/captain/static-only policy producers and broader bit10 effects.",
+        "Physical and visual fields are compared; renderer snapshot migration and exact public degree conversion are not certified.",
+        "Visual visits compare per independent mover; original intrusive-list global visit order is not reproduced.",
+        "Only installed visual policy0 is live witnessed here; other policy rows follow original004210 static initialization.",
+        "Engine save150 suffix is tested; retail UI save/load for angular cohorts is not captured.",
+        "Failed observe3 and exploratory observer variants are excluded from accepted evidence.",
+        "Observer-free control records public Preload output only; its historical observer file was not installed."
+      ]
     }
   ],
   "fixtures": [
@@ -48432,7 +48487,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "807b27e4612e5fbf859b0b35d5ba5c16267857fc80d671a24b0a7fc3dec3fa2f"
+      "sha256": "4244513808f8afc54f6e57c58bdbfbf8584f568fdf0ca540b27f6fba89f8e630"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -49265,7 +49320,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e15bde5a7e1b832af17ae91af1af91d4967f25928081d79cfe8096320b973e86"
+      "sha256": "2b5aa65190d2a6d55023cde5fc6125ffaad46d10317bd770fc5c83a04db1a458"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50121,7 +50176,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "f1077088208b05c50f41ac7e955f1a78c144c50b687ba9957694e2f68570eb88"
+      "sha256": "fd04839b88c7c4e4477f07a7201325e1a093038a47d95b86ed996e5f87e92869"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -50557,7 +50612,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "2f9cb1a18b6930efb4e0c66dab10a7bf4306d617de129174347a7c326f89f7b9"
+      "sha256": "37376a72905c0ac37e12d57b1ebe8d4ba6dbb3227684df3525fe4c756987554f"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -50565,7 +50620,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "72c2df16a2b4366ed27651df1a46233430a8ceaf0064cdf346150561fcc60053"
+      "sha256": "51845fdc9c0246c17d652920f9f84b2d7be5dc47a51301e0e461bf9469bc9871"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -50813,7 +50868,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "a4ffffd23f7748b4a5d42eb3401c6d72ecb6c35ac593d2dd7f77286bff602f08"
+      "sha256": "47886cb64620ad31b0898b0f59dca24715d504b0b8f4aadd1a02d483784d2c2f"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -51057,7 +51112,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "7f6d596c9a6393740f18687093da6048a3f08cbfe7724f684519a2c4f4abdf35"
+      "sha256": "2c380b945269968400f36841ffac301f280b064cffb70adec50a6b03bc2e79b7"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51065,15 +51120,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "add6c20876bb0a75cd3e2e994f5b1edbd3d4abf7f362e24535113d9625c4d7f3"
+      "sha256": "a7fa6f403bb6351c0141d61462441101d8a098d7de82a7dcaa0c7ccd43e6eb80"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ce80f0d002889edf599295c060031a5b6addc2cbc284d30b1e56eedef1d76d93"
+      "sha256": "7d416747fe31e08d1af98b12be9c833d76e19373c0b24d2b7edb24b59b64a5cf"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "07fc4c6e6f57e51ae6238b509ba000d196a91cf3bc97c000cb3f9f3799ca3ef3"
+      "sha256": "88675d7adfede01b64969b4b7db4393f6c016a0d695092bc2471ea2612ca0556"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52365,7 +52420,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "27f041d59ffd97a37037d74f42c3697b3718100825f96c84f502a9eb87fb3193"
+      "sha256": "9e3b2c6152759070316cae466ead6cc396cacd86073131d666e47bc39ce51698"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -53106,6 +53161,46 @@
     {
       "path": "tests/test_wc3_pathing_e2e_dynamic.py",
       "sha256": "47ea33b347e5adf8444ade1c78abe09c3d7b5dd1761b8076a4f2fc5c24e52ecd"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_facing.py",
+      "sha256": "05b9c4fdce7c35cd912af0312db88825ade7f4eb47d7710e6b206a0a491e5f3a"
+    },
+    {
+      "path": "tools/frida/research/facing207_fixture.py",
+      "sha256": "fe2efe2c11e0709d26bd21157351195eb63633b2a72dcf435df8596538a1ed0c"
+    },
+    {
+      "path": "tools/frida/research/facing207_observer.js",
+      "sha256": "b834d9aaa56e2f2abc48f94ad7b96caf5c4412333c306e39a2865ef2ff557faa"
+    },
+    {
+      "path": "tools/frida/research/facing207_probe.j",
+      "sha256": "a5278632a745fbc5e834a3f3f11e7908f4915d4836c5d4279c58e31cf5547458"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-facing207-1.27.json",
+      "sha256": "2c97de5d2ceaed0e754f99b04450da9b19f61303712780b28ce468996c962120"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-facing207-ghidra-1.27.json",
+      "sha256": "f5ccaa1425e47759b725b2f4e339295bb63f6f93ab752fba64e9421ba680f35f"
+    },
+    {
+      "path": "tests/test_wc3_pathing_facing.py",
+      "sha256": "85a6b10c31eae1bb4b40bb00a3fb986c7ff8fb5d1b2777da3ef22ab4df397edf"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_facing207.h",
+      "sha256": "f71583567b9551775788674053bf358b6fd2107bc8c5fc15ed87c8f034b07327"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_facing_visual207.h",
+      "sha256": "faae38aa85fa0386896480df52e897b6216233fe9719c2d2e41ee787d2fd0e01"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_facing.c",
+      "sha256": "9d11b0971531d5e652e8bb4258d596bdc3cd87030ae23ae7c80d53ed36df0717"
     }
   ]
 }

@@ -125,7 +125,7 @@ uint32_t GetUnitFacing(jass_t *j) {
     if (!whichUnit) {
         return jass_pushnumber(j, 0);
     }
-    float facingAngle = whichUnit->s.angle;
+    float facingAngle = S_UnitFacing(whichUnit);
     jass_pushnumber(j, RAD2DEG(facingAngle));
     return 1;
 }
@@ -133,15 +133,15 @@ uint32_t GetUnitFacing(jass_t *j) {
 uint32_t SetUnitFacing(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     float facingAngle = jass_checknumber(j, 2);
-    if (whichUnit) whichUnit->s.angle = DEG2RAD(facingAngle);
+    S_SetUnitFacingTimed(whichUnit, facingAngle, 0);
     return 0;
 }
 
 uint32_t SetUnitFacingTimed(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     float facingAngle = jass_checknumber(j, 2);
-//    float duration = jass_checknumber(j, 3);
-    if (whichUnit) whichUnit->s.angle = DEG2RAD(facingAngle);
+    float duration = jass_checknumber(j, 3);
+    S_SetUnitFacingTimed(whichUnit, facingAngle, duration);
     return 0;
 }
 

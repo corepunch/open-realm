@@ -92,6 +92,8 @@ typedef struct moveGroup_s {
     uint64_t shared_id; /* Native group7c shared parameters, zero when unbound. */
     bool inuse, initialized, ticking;
     bool individual; /* Physical singleton schedules the unit-owned route. */
+    bool turning; /* Bridge-owned angular cohort, independent of the public task. */
+    float turn_rate; /* Native request+fc/group+74 per-decision angular override. */
     vec2_t goal, point;
     edict_t *target;
     uint32_t target_spawn;
@@ -2097,6 +2099,9 @@ struct edict_s {
         vec2_t pose_world; /* last published world pair; detects explicit external position writes */
         wc3Clock_t pose_clock; /* time origin of the retained fine pose */
         bool clock_valid;
+        float visual_facing, visual_speed; /* Native mover c8/cc, independent of physical heading. */
+        bool visual_valid, visual_active;
+        uint32_t visual_policy; /* Installed orientInterp low nibble, native d8 bits8..11. */
         vec2_t region_position; /* Last owner/explicit-writer region sample, independent of presentation prediction. */
         bool region_valid;
         struct {
@@ -3209,6 +3214,8 @@ void unit_refreshstatusflags(edict_t *);
 
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
 float unit_turnspeed(edict_t const *);
+float S_UnitFacing(edict_t *);
+void S_SetUnitFacingTimed(edict_t *, float degrees, float duration);
 float unit_propwindow(edict_t const *);
 void unit_moveindirection(edict_t *);
 void unit_moveindirection_ignore_units(edict_t *);
@@ -3404,6 +3411,7 @@ bool S_AdmitMoveCoarseRequest(edict_t *, moveCoarseRequest_t *, unsigned policy)
 void S_ChargeMoveCoarseRequest(moveCoarseRequest_t *, uint32_t work);
 void S_CancelMoveCoarseRequest(moveCoarseRequest_t *);
 void S_SetMoveCoarseTarget(moveCoarseRequest_t *, bool target);
+void S_SetMoveVisualPolicy(edict_t *,uint32_t);
 void S_SetMoveFormationRank(edict_t *, uint32_t);
 unsigned S_MoveSchedulingClass(edict_t const *);
 void S_InitMoveProjectile(edict_t *);
