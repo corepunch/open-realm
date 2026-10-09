@@ -14091,3 +14091,15 @@ existing original numerical fixtures remain unchanged. This adds a BZ_TESTS-only
 route observer and a strict combined acceptance runner; no gameplay policy or
 performance improvement is claimed. Full scope, negative controls and commands
 are in [cross-feature baselines](retail-pathfinding-e2e-baselines.md).
+
+## Pending removal retires separation before notifications (Payoff204)
+
+Move now removes its repulsor in `A_UNIT_REMOVING` and gates configuration
+refreshes on the existing generation-checked deferred-removal lifetime. This
+fixes stale membership and owner/type/pause resurrection without new instance
+state. Head/middle/tail removal, target callbacks, duplicate removal and pending
+save/load pass in Classic/TFT; unlink remains constant time. Two complete
+enabled read-only retail repeats and one observer-free continuation agree at
+the public pending-removal boundary. Retail's later temporary recreation during
+final retirement is retained as an explicit exclusion, so SEP-01.2 remains
+open. Evidence, limits and commands: [removal separation](retail-pathfinding-removal.md).

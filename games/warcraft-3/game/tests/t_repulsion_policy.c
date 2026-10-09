@@ -24,6 +24,103 @@ static edict_t *policy_unit(UnitBalance_t const *balance, UnitData_t const *data
     return unit;
 }
 
+static unsigned policy_removal_notifications;
+
+static intptr_t policy_removal_observer(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
+    if (msg != A_TARGET_REMOVED) return false;
+    edict_t *target = call->removed_target;
+    policy_removal_notifications++;
+    T_ASSERT(target->inuse); T_ASSERT(G_IsDeferredFree(target));
+    T_ASSERT(!target->movement.repulse.active);
+    T_NULL(move_repulse_links[target-g_edicts]);
+    T_ASSERT(ent->movement.repulse.active);
+    return true;
+}
+
+/* Public RemoveUnit must retire separation before notifying surviving owners.
+ * Owner/type/pause refreshes cannot recreate it while its identity is pending. */
+TEST(wc3_repulsion_policy, removal_retires_membership_before_callbacks_and_survives_save) {
+    FOR_LOOP(removed, 3) {
+        reset_entities(); setup_test_world();
+        mapInfo_t const *saved=level.mapinfo; mapInfo_t info=*saved;
+        int enabled=2,selector=17,category=17,rank=17;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&enabled},
+            {.modID=MAKEFOURCC('u','r','p','p'),.type=mod_int,.data=&selector},
+            {.modID=MAKEFOURCC('u','r','p','g'),.type=mod_int,.data=&category},
+            {.modID=MAKEFOURCC('u','r','p','r'),.type=mod_int,.data=&rank}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','R','E','M'),
+            .numbeOfModifications=4,.modifications=mods};
+        info.num_userCreatedUnits=1; info.userCreatedUnits=&custom; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+        T_ASSERT(run_test_jass("globals\nunit a\nunit b\nunit c\nunit target\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set a=CreateUnit(Player(0),'hREM',304,304,0)\n"
+            "set b=CreateUnit(Player(0),'hREM',432,304,0)\n"
+            "set c=CreateUnit(Player(0),'hREM',560,304,0)\nendfunction\n"
+            "function removeA takes nothing returns nothing\nset target=a\ncall RemoveUnit(target)\nendfunction\n"
+            "function removeB takes nothing returns nothing\nset target=b\ncall RemoveUnit(target)\nendfunction\n"
+            "function removeC takes nothing returns nothing\nset target=c\ncall RemoveUnit(target)\nendfunction\n"
+            "function refresh takes nothing returns nothing\n"
+            "call SetUnitOwner(target,Player(1),false)\n"
+            "call PauseUnit(target,true)\ncall PauseUnit(target,false)\nendfunction\n"
+            "function removeAgain takes nothing returns nothing\ncall RemoveUnit(target)\nendfunction\n"));
+        edict_t *units[3] = {0}; unsigned count = 0;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) {
+            if (count < 3) units[count] = ent;
+            count++;
+        }
+        T_EQ(count,3);
+        if (count != 3) {
+            reset_entities(); G_SetMapUnitOverrides(NULL); level.mapinfo=saved;
+            break;
+        }
+        FOR_LOOP(i,3) T_ASSERT(units[i]->movement.repulse.active);
+        edict_t *target=units[removed], *observer=units[(removed+1)%3];
+        edict_t *survivors[2]; unsigned n=0;
+        for (unsigned i=3; i-- > 0;) if (i != removed) survivors[n++]=units[i];
+        umove_t watching={.animation="stand",.proc=policy_removal_observer};
+        M_SetMove(observer,&watching); policy_removal_notifications=0;
+        unsigned visits=move_test_repulse_unlink_visits;
+        wc3Random_t random=level.pathing_random;
+        cstring_t functions[]={"removeA","removeB","removeC"};
+        jass_callbyname(level.vm,functions[removed],false);
+        T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(policy_removal_notifications,1);
+        T_ASSERT(G_IsDeferredFree(target)); T_ASSERT(!target->movement.repulse.active);
+        T_EQ(move_test_repulse_unlink_visits-visits,1);
+        T_EQ(memcmp(&level.pathing_random,&random,sizeof(random)),0);
+        T_EQ(level.repulse_head,survivors[0]);
+        T_EQ(survivors[0]->movement.repulse.next,survivors[1]);
+        T_NULL(survivors[1]->movement.repulse.next);
+        jass_callbyname(level.vm,"refresh",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(!target->movement.repulse.active); T_NULL(move_repulse_links[target-g_edicts]);
+        /* A rebind notification at the same real lifetime barrier is also ineligible. */
+        S_UnitAbilityEvent(target,A_UNIT_TYPE_CHANGED);
+        T_ASSERT(!target->movement.repulse.active);
+        jass_callbyname(level.vm,"removeAgain",false);
+        T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(policy_removal_notifications,1);
+        T_EQ(level.repulse_head,survivors[0]);
+        T_EQ(survivors[0]->movement.repulse.next,survivors[1]);
+        unit_stand(observer); /* Restore a registered task before serialization. */
+        unsigned slot=target->s.number;
+        cstring_t file=Test_TempPath("wc3-removal-repulsion-policy.bin");
+        T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file)); remove(file);
+        target=g_edicts+slot;
+        T_ASSERT(G_IsDeferredFree(target)); T_ASSERT(!target->movement.repulse.active);
+        T_EQ(level.repulse_head,survivors[0]);
+        T_EQ(survivors[0]->movement.repulse.next,survivors[1]);
+        wc3Clock_t due; uint32_t sequence;
+        T_ASSERT(G_NextUnitRelease(&due,&sequence));
+        level.pathing_clock=due; G_RunDeferredFrees();
+        T_ASSERT(!target->inuse); T_ASSERT(!G_IsDeferredFree(target));
+        T_EQ(level.repulse_head,survivors[0]);
+        T_EQ(survivors[0]->movement.repulse.next,survivors[1]);
+        T_NULL(survivors[1]->movement.repulse.next);
+        reset_entities(); G_SetMapUnitOverrides(NULL); level.mapinfo=saved;
+    }
+    reset_entities(); setup_test_world();
+}
+
 /* Native66fc50 tests suppression, not whether the authored Move ability exists.
  * A stationary repulsor remains a candidate and owns its own update state. */
 TEST(wc3_repulsion_policy, zero_authored_speed_keeps_repulsor_through_public_lifecycle) {

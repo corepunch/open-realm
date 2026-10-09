@@ -48190,6 +48190,68 @@
         "Fresh constructed-route streams are compared; saved suffixes retain existing complete motion/retry checks.",
         "Whole-world state, original save/load, full RNG parity, other lanes and remaining cross-feature variants retain their tasks."
       ]
+    },
+    {
+      "id": "oracle-removal-separation204",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_removal.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "removal-separation204.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "removals": {
+          "equal": 6
+        },
+        "nested_refresh_boundaries": {
+          "equal": 8
+        },
+        "public_markers": {
+          "equal": 44
+        },
+        "native_stages": {
+          "equal": 286
+        },
+        "original_predicate_cases": {
+          "equal": 432
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "SEP-01.2 pending-removal producer: complete enabled Frida repetitions/control, fresh unchanged original eligibility and actual Classic/TFT callback/owner/pause/list/save removal regression.",
+      "exclusions": [
+        "Full counted-work producers remain open.",
+        "Native final-retirement release briefly recreates separation before destruction; retained in captures and outside this engine integration.",
+        "No full RNG/trajectory/arbitrary callback admission or original save/load claim.",
+        "Engine duplicate-removal/type-refresh/save assertions have no new retail public witness here."
+      ]
     }
   ],
   "fixtures": [
@@ -49088,7 +49150,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "5659c0b15092673c54bbf27e30b3163b21e3e0a02731c17bab6c3216b8403adb"
+      "sha256": "e527c4764c575e17aad933192840d860a72ff714b15e1a7be5e3dbd23ff44d61"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -49924,7 +49986,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_policy.c",
-      "sha256": "7629476ec40dfaf10f515dcca98e3fc1dbd5c64430a90e671bba133d1402d161"
+      "sha256": "0213ed5fde47713d68ded4e622c7b2df50fa2f43a8d2ee8d13c0b89d3fb73e74"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_repulsion.h",
@@ -49944,7 +50006,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "85e3bfc3b41ee349dbbd771b6507a1f30116a738a4c62c4f5e665d3badf1e46d"
+      "sha256": "f1077088208b05c50f41ac7e955f1a78c144c50b687ba9957694e2f68570eb88"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -50880,7 +50942,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "642188992c4f8e9bfb3f6f108254debc854f23e2ec796d0a6806d60d7bf15673"
+      "sha256": "2dd19a26a88f0a989b763276d317934d8c5146657f6203102abe129fe480e562"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -50892,11 +50954,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "29e0ec89e97ddf6289cdd7fd9a22a8192091b7f4618e379bc59e1c299b46c95e"
+      "sha256": "10d9c76dd893a3c0eefb2fc5d077947b420b4599d230607b4b9ac37f8483de3b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "2bf369c3dde40d32695ec163125390067580f81caad4aad9b82380a75ba26d1a"
+      "sha256": "c0f6315a86c86534c54a6b1632e5fe76780d25f50548fa3a4b85b059ef42389e"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52772,7 +52834,7 @@
     },
     {
       "path": "tools/frida/research/swing199_capture.py",
-      "sha256": "abd4bf8fa1637aa98374dde880f99ce09bc7932a5432a8bf343e93a16f6b7ead"
+      "sha256": "bc856087b04d78845dba8fdd61da16b4554e6396783130a90835c708d3a610d7"
     },
     {
       "path": "tools/frida/research/swing199_verify.py",
@@ -52841,6 +52903,42 @@
     {
       "path": "tests/test_wc3_pathing_e2e.py",
       "sha256": "e73570e513c6bbcc82cec132d6cb60c4c0db848778bbcc60c612908144e23d73"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_removal.py",
+      "sha256": "3747459761171060ef2000c3ecfe8f5037acea16e0e1276490decf7305ed5a81"
+    },
+    {
+      "path": "tools/frida/research/removal204_verify.py",
+      "sha256": "68cd88c2dfb5626b41f4fe8d8ef14f1d47e173bc077ae6071449bc4643f4154a"
+    },
+    {
+      "path": "tools/frida/research/removal204_expected.py",
+      "sha256": "c53cf3424bc05da380d7473a8895b6f0eefb7edbc53d61571e2dab0c0c0a7d32"
+    },
+    {
+      "path": "tools/frida/research/removal204_make_map.py",
+      "sha256": "3b66a13389bde7bf23adf5ec44aaa59273d219e9459474afd18fe15ad7229ef6"
+    },
+    {
+      "path": "tools/frida/research/removal204_probe.j",
+      "sha256": "f9872a842fbffd405a743e50ad8ddbacb8298bdda4391b47f5e9cd1d85c47664"
+    },
+    {
+      "path": "tools/frida/research/removal204_observer.js",
+      "sha256": "2fe8cdc87cdbf2979c04c978993061d84ae775adf868a942b17b9297957f2164"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-removal-separation204-1.27.json.gz",
+      "sha256": "3d00f3045426639f669144e10d4e0a8954006b83a9dc24165c0ed3929240563b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-removal-separation204-ghidra-1.27.json",
+      "sha256": "1903632eab75fa93ea2c22b521c10114b02b81e4ecadd571c5735a2b455e02a2"
+    },
+    {
+      "path": "tests/test_wc3_pathing_removal.py",
+      "sha256": "93c8d0085f0f8d7112b01b6a5e9556ff5b52806e3c45c16fd1a4b270ab9019e9"
     }
   ]
 }

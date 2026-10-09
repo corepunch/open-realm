@@ -1785,7 +1785,9 @@ static void move_repulse_init(edict_t *self) {
     UnitBalance_t const *balance = self->data.UnitBalance;
     /* Native66fc50 is independent of the authored Move ability: zero-speed
      * units still own separation, participate in queries and can be displaced. */
-    if (!balance || !balance->repulse || self->paused ||
+    /* Removal owns suppression before callbacks, like native694690/688d90.
+     * Its generation-checked lifetime also gates owner/type/pause refreshes. */
+    if (!balance || !balance->repulse || G_IsDeferredFree(self) || self->paused ||
         S_SpellIsChanneling(self)) return;
     move_repulse_prepare_links();
     uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,S_UnitMechanicalCritter(self));
@@ -5705,6 +5707,9 @@ BZ_ABILITY_PROC(CAbilityMove) {
         /* RemoveUnit cancels its task now; the mover and its route storage
          * remain owned until deferred removal, as in native694690/171340. */
         move_leave(ent);
+        /* Separation becomes unavailable before target-removal callbacks;
+         * waiting for A_UNIT_REMOVE leaves a canceled owner in the live list. */
+        move_repulse_unlink(ent);
         move_cancel_displacement(ent);
         S_SetMoveGoal(ent, &ent->goalentity, NULL);
         S_SetFollowTarget(ent,NULL);

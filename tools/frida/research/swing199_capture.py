@@ -25,6 +25,8 @@ def main():
     ap.add_argument('--marker-prefix', default='S199 ')
     ap.add_argument('--observer', default='swing199_observer.js')
     ap.add_argument('--observer-config', default='{}', help='extra JSON merged into the observer config')
+    ap.add_argument('--task', default='GROUP-03.2 / payoff199', help='capture provenance label')
+    ap.add_argument('--probe', type=Path, default=HERE / 'swing199_probe.j', help='actual public probe source to pin')
     ap.add_argument('--mode', choices=('observe', 'control'), required=True)
     ap.add_argument('--remote', required=True)
     ap.add_argument('--x11-display', required=True)
@@ -68,7 +70,7 @@ def main():
                   prefix=args.marker_prefix)
     config.update(json.loads(args.observer_config))
     map_path = data / args.map.replace('\\', '/')
-    sources = [Path(__file__), HERE / args.observer, HERE / 'group032_make_map.py', HERE / 'swing199_probe.j', HERE / 'spell184_capture.py']
+    sources = [Path(__file__), HERE / args.observer, HERE / 'group032_make_map.py', args.probe, HERE / 'spell184_capture.py']
     if args.input_helper:
         sources += [args.input_helper, args.input_helper.with_suffix('.c'), Path(str(args.input_helper)+'.so')]
     provenance = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
@@ -113,7 +115,7 @@ def main():
                     state['complete'] = True
         try:
             pid = device.spawn([path + r'\war3.exe', '-window', '-loadfile', args.map], cwd=path)
-            record(dict(event='metadata', task='GROUP-03.2 / payoff199', mode=args.mode, sha256=HASH, pid=pid, owned=True,
+            record(dict(event='metadata', task=args.task, mode=args.mode, sha256=HASH, pid=pid, owned=True,
                         source_sha256=provenance, map=args.map, seconds=args.seconds, continue_at=args.continue_at,
                         display=args.x11_display, remote=args.remote, env=args.env, input=plan, input_seconds=args.input_seconds,
                         frida=frida.__version__, **config))
