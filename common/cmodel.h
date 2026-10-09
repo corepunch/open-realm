@@ -100,6 +100,8 @@ bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target,
 /* Distance from a world point to the target entity's authored no-walk
  * pathing footprint. Returns FLT_MAX when the target has no usable footprint. */
 float CM_DistanceToPathingFootprint(struct edict_s const *target, vec2_t const *point);
+float CM_DistanceToPathingFootprintFlags(struct edict_s const *target, vec2_t const *point,
+                                         uint8_t blocked_flags);
 box2_t CM_GetWorldBounds(void);
 
 /* WoW-only: all WorldSafeLocs entries for the current map.  Populated during

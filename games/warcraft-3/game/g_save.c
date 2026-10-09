@@ -89,7 +89,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 74 replaces the byte-wise FNV footer checksum with the word-wise SaveChecksum. */
 /* Version 75 records the per-unit UnitIgnoreAlarm flag in serialized edicts. */
 /* Version 76 persists texttag presentation readiness and slot generations. */
-static uint32_t const save_version = 76;
+/* Version 77 persists Wisp tree egress ownership and its local exit target. */
+static uint32_t const save_version = 77;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -737,6 +738,11 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, patrol_b, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, follow_target, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, wisp_egress_tree, F_EDICT, 0, FIELD_NONE),
+    F(edictMovement_s, wisp_egress_tree_spawn_time, F_INT),
+    F(edictMovement_s, wisp_egress_target, F_VECTOR),
+    F(edictMovement_s, wisp_egress_active, F_INT),
+    F(edictMovement_s, wisp_egress_target_valid, F_INT),
     F(edictMovement_s, holding_position, F_INT),
     F(edictMovement_s, guard_position, F_VECTOR),
     F(edictMovement_s, guard_state, F_INT),
@@ -2432,7 +2438,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));
@@ -2534,11 +2540,19 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     unit->movement.cargo_unload_ability = MAKEFOURCC('A','t','d','p');
     unit->movement.cargo_unload_goal = goal;
     unit->movement.cargo_unload_goal_spawn_time = goal->spawn_time;
+    unit->movement.wisp_egress_tree = goal;
+    unit->movement.wisp_egress_tree_spawn_time = goal->spawn_time;
+    unit->movement.wisp_egress_target = (vec2_t){ -32.0f, 48.0f };
+    unit->movement.wisp_egress_active = true;
+    unit->movement.wisp_egress_target_valid = true;
     unit->unitinfo.PropWindow = 0.0f;
     T_ASSERT(WriteGame(filename));
     unit->attack_cooldown_active = false;
     unit->movement.cargo_unload_pending = false;
     unit->movement.cargo_unload_goal = NULL;
+    unit->movement.wisp_egress_tree = NULL;
+    unit->movement.wisp_egress_active = false;
+    unit->movement.wisp_egress_target_valid = false;
     unit->unitinfo.PropWindow = 1.0f;
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + index;
@@ -2553,6 +2567,12 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     T_EQ(unit->movement.cargo_unload_ability, MAKEFOURCC('A','t','d','p'));
     T_EQ(unit->movement.cargo_unload_goal, goal);
     T_EQ(unit->movement.cargo_unload_goal_spawn_time, goal->spawn_time);
+    T_ASSERT(unit->movement.wisp_egress_active);
+    T_ASSERT(unit->movement.wisp_egress_target_valid);
+    T_EQ(unit->movement.wisp_egress_tree, goal);
+    T_EQ(unit->movement.wisp_egress_tree_spawn_time, goal->spawn_time);
+    T_FEQ(unit->movement.wisp_egress_target.x, -32.0f, 0.001f);
+    T_FEQ(unit->movement.wisp_egress_target.y, 48.0f, 0.001f);
     remove(filename);
 }
 
