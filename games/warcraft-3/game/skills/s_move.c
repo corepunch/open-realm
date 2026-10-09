@@ -1788,15 +1788,15 @@ static void move_repulse_init(edict_t *self) {
     if (!balance || !balance->repulse || self->paused ||
         S_SpellIsChanneling(self)) return;
     move_repulse_prepare_links();
-    uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,false);
+    uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,S_UnitMechanicalCritter(self));
     self->movement.repulse.state.packed = wc3_repulse_policy(0,balance->repulseParam,category,balance->repulsePrio);
     self->movement.repulse.active = true;
     self->movement.repulse.next = level.repulse_head;
     if(level.repulse_head)move_repulse_links[level.repulse_head-g_edicts]=&self->movement.repulse.next;
     level.repulse_head=self;move_repulse_links[self-g_edicts]=&level.repulse_head;
     move_repulse_link_head=level.repulse_head;
-    /* Mechanical Critter's flag60 bit0 producer and counted work suppression
-     * remain in SEP-01.2; merely adding Amec must not force category15. */
+    /* Counted work suppression remains in SEP-01.2. Mechanical Critter's
+     * latent category changes only at this real configuration boundary. */
 }
 
 /* Predict from the committed fine pose without consuming its clock or velocity. */
@@ -2074,7 +2074,9 @@ bool S_MoveThroughPortal(edict_t *self,vec2_t const *fine) {
  * Applying the normal setter to an already inverted requested pose loses the
  * original initialization cancellation and publishes different fractional XY. */
 void S_InitUnitPosition(edict_t *self, vec2_t const *requested) {
-    if (M_UnitMoveDisabled(self)) return;
+    /* Factory placement belongs to the physical mover, independently of the
+     * implicit Move ability. A zero-speed critter still commits the original
+     * sentinel cancellation (Payoff201 public authored-speed-zero witness). */
     vec2_t old = self->s.origin2, point;
     if (!G_FindUnitPlacementPosition(self,requested,&point))
         fprintf(stderr,"WC3 CreateUnit: no legal point for %08x at (%.9g, %.9g); retaining requested position\n",self->class_id,requested->x,requested->y);

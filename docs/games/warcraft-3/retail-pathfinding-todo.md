@@ -57,6 +57,11 @@ work closes no additional retail research tasks. See
 
 **268 done / 336 tasks; 68 remaining.**
 
+Payoff201 advances SEP-01.2: Mechanical Critter now owns its latent category
+through the real item/buff lifecycle. Repeated retail/control scenes and engine
+RNG/pose/owner/removal/save regressions agree; counted suppression stays open.
+See [Mechanical Critter](retail-pathfinding-engine.md#mechanical-critter-retains-a-latent-separation-category-payoff201).
+
 Payoff200 closes GROUP-03.4.6 and GROUP-03.4.6.2 after auditing their completed
 engine/retail child contracts. Complete thirteen-member mixed/homogeneous,
 cancellation/reuse and saved journeys still match unchanged fixtures; broader
@@ -1358,7 +1363,7 @@ complete neighbor traversal, ordering and original full application remain requi
 ### SEP-01 — Repulsion producers
 
 - [x] **SEP-01.1** Authored Footman-disabled/Gryphon-enabled controls distinguish path blocking from opt-in repulsion. Evidence: [repulsion controls][repulsion]; mixed policy combinations remain open.
-- [ ] **SEP-01.2** Trace nonzero config selectors and category/rank/mask overrides from authored/runtime producers; publish eligible/disabled cases for each. Payoff147 removes the invalid movement-eligibility gate from repulsor creation:432 complete native predicate cases, repeated integer-authored zero-speed ground/fly public controls,859 observer-free markers and engine owner/pause/save regression. Counted suppression and the Mechanical Critter gameplay override remain open. See [independent separation owners](retail-pathfinding-engine.md#zero-speed-units-retain-independent-separation-owners).
+- [ ] **SEP-01.2** Trace nonzero config selectors and category/rank/mask overrides from authored/runtime producers; publish eligible/disabled cases for each. Payoff147 removes the invalid movement-eligibility gate from repulsor creation:432 complete native predicate cases, repeated integer-authored zero-speed ground/fly public controls,859 observer-free markers and engine owner/pause/save regression. Payoff201 integrates the Mechanical Critter gameplay override through real item use, purpose33 selection in UnitUI order, persistent Bmec ownership, public buff removal and saved latent-category refresh. Counted suppression remains open. See [Mechanical Critter](retail-pathfinding-engine.md#mechanical-critter-retains-a-latent-separation-category-payoff201). See [independent separation owners](retail-pathfinding-engine.md#zero-speed-units-retain-independent-separation-owners).
 - [x] **SEP-01.3** Exercise the resulting policy table across supported movement types and owners; assert candidate eligibility before displacement. Payoff127 integrates the repeated36-case live matrix,65,536 original packed-policy cases and valid-state inert-row controls. Production regressions check eligibility independently of selector arithmetic across foot/fly/hover/amph/horse and owners0/1/2/15, then channel/type/pause/save transitions. Move now retires/recreates repulsors at channel and type changes; repulseParam is parsed as an integer without lossy conversion. Extra flag/work producers remain SEP-01.2. See [engine integration](retail-pathfinding-engine.md#separation-policy-refresh-follows-channel-and-type-lifecycle). Research handoff: [SEP-01.3](retail-pathfinding-handoffs/SEP-01.3/HANDOFF.md).
 
 - [x] **SEP-01.4** Split the shipped settings/category prerequisites from01.2: execute the full004790 initializer with pinned CRT, record all16 rows, verify actual CUnit owner getter/category1024 cases, persist Ghidra structures/names/ABI and integrate authored selector/group/rank into Move. Evidence: [engine repulsion port](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units), custom configuration1/group19/rank3 SLK regression. Runtime override/extra disable semantics remain01.2; all movement/owner policy matrix remains01.3.

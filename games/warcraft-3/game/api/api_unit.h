@@ -1098,7 +1098,14 @@ uint32_t UnitAddAbility(jass_t *j) {
 uint32_t UnitRemoveAbility(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     uint32_t abilityId = jass_checkinteger(j, 2);
-    return jass_pushboolean(j, S_RemoveTimedLife(whichUnit,abilityId) || G_ActorRemoveSkill(whichUnit, abilityId));
+    if (S_RemoveTimedLife(whichUnit,abilityId)) return jass_pushboolean(j,true);
+    heroabilitystatus_t *status = unit_findstatus(whichUnit,abilityId);
+    if (status) {
+        unit_expirestatus(whichUnit,status);
+        unit_refreshstatusflags(whichUnit);
+        return jass_pushboolean(j,true);
+    }
+    return jass_pushboolean(j,G_ActorRemoveSkill(whichUnit,abilityId));
 }
 uint32_t UnitMakeAbilityPermanent(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

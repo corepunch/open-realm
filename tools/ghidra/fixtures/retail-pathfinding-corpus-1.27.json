@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "157 executable original oracle contracts;437 total entries.",
+  "scope": "157 executable original oracle contracts;438 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -47787,6 +47787,299 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-mechanical-critter-category201",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/research/mechanical201_verify.py",
+        "--archive",
+        "{archive}/research/SEP-01.2/captures201/",
+        "--expected",
+        "tools/ghidra/fixtures/retail-mechanical-critter201-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "report": "mechanical-critter-category201.json",
+      "expected_exit": 0,
+      "expected_status": "live-mechanical-critter-category",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "scenes": {
+          "equal": 2
+        },
+        "observations": {
+          "equal": 5
+        },
+        "controls": {
+          "equal": 2
+        },
+        "public_markers": {
+          "equal": 114
+        },
+        "producer_rows": {
+          "equal": 178
+        },
+        "position_queries": {
+          "equal": 112
+        },
+        "critter_position_words": {
+          "equal": 82
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Public Mechanical Critter item attachment/use, purpose33 candidate order and latent separation category; repeated/control scenes plus engine actual item/owner/buff-removal/save regression.",
+      "exclusions": [
+        "Observer is read-only; native upper24 setter stack bytes ignored by original AL setters are normalized only, raw files pinned.",
+        "Custom profile registration, further inventory-display queries, nonzero-duration generic summon lifetime, UnitEc targeting and separation Unit198 suppression remain open.",
+        "Engine uses actual UI G_UseItem; JASS UnitUseItem remains a separate native coverage gap."
+      ],
+      "inputs": {
+        "capture": "research/SEP-01.2/captures201/live-b3.jsonl",
+        "sha256": "0d0e81680190e3c9fc268ca138b46a1dfcdb0569954caa718dde690cbbe527f7",
+        "bytes": 10690,
+        "metadata": {
+          "task": "SEP-01.2 / payoff201",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+            "mechanical201_observer.js": "0f01b0b158eb862ef79d03fa22314df2704bed845ccea769bfd11760f5aaaedb",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+            "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+            "map": "4422d7bba0592b99ab4881592467d2b0cf60d42dd5649fdce621687e13621ae5"
+          },
+          "map": "Maps\\RS-Mechanical201b.w3m",
+          "seconds": 100.0,
+          "continue_at": 30,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "M201 "
+        }
+      },
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/SEP-01.2/captures201/live-b4.jsonl",
+            "sha256": "4a246ba858433283f921aef949affad3807b80882a3d85381d01e69c0ce3cf34",
+            "bytes": 10692,
+            "metadata": {
+              "task": "SEP-01.2 / payoff201",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+                "mechanical201_observer.js": "0f01b0b158eb862ef79d03fa22314df2704bed845ccea769bfd11760f5aaaedb",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "map": "4422d7bba0592b99ab4881592467d2b0cf60d42dd5649fdce621687e13621ae5"
+              },
+              "map": "Maps\\RS-Mechanical201b.w3m",
+              "seconds": 100.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "M201 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/SEP-01.2/captures201/control-b1.jsonl",
+            "sha256": "30e76e22f2607f3e8617d1334702bd72f62341262d27105c74f3c719a54efa8b",
+            "bytes": 1333,
+            "metadata": {
+              "task": "SEP-01.2 / payoff201",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+                "mechanical201_observer.js": "ecfb12f9dd8ae1bd3e4704f39eff5759c5b2903ebf2bf872967ed94adddce28b",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "map": "4422d7bba0592b99ab4881592467d2b0cf60d42dd5649fdce621687e13621ae5"
+              },
+              "map": "Maps\\RS-Mechanical201b.w3m",
+              "seconds": 85.0,
+              "continue_at": 30,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "env": "C",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "M201 "
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/SEP-01.2/captures201/live-c1.jsonl",
+            "sha256": "408a80cb642dd8bb77834040cb9619fb275c088cc81ef33ab6fccfc7de8e02d6",
+            "bytes": 10865,
+            "metadata": {
+              "task": "SEP-01.2 / payoff201",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+                "mechanical201_observer.js": "82b212f48768f0d141d230cdc1ff795bd705201af4fd9dae3b03992d8e089c30",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "map": "de13b4404cbb1eb3c1fba9e9801fb30a0c2269ef84d881553f065152be06fb5a"
+              },
+              "map": "Maps\\RS-Mechanical201c.w3m",
+              "seconds": 100.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "M201 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/SEP-01.2/captures201/live-c2.jsonl",
+            "sha256": "d3a6bfc62ace8177208fe9a21ef1159e8bc1fb7224ce8ac09d8dbce73c852362",
+            "bytes": 10866,
+            "metadata": {
+              "task": "SEP-01.2 / payoff201",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+                "mechanical201_observer.js": "82b212f48768f0d141d230cdc1ff795bd705201af4fd9dae3b03992d8e089c30",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "map": "de13b4404cbb1eb3c1fba9e9801fb30a0c2269ef84d881553f065152be06fb5a"
+              },
+              "map": "Maps\\RS-Mechanical201c.w3m",
+              "seconds": 100.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "M201 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/SEP-01.2/captures201/control-c1.jsonl",
+            "sha256": "0f843982ee6ceb1ee064122c89ecd86ebb1d9e185bb7c638099fc0fa3450610c",
+            "bytes": 1333,
+            "metadata": {
+              "task": "SEP-01.2 / payoff201",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "mechanical201_capture.py": "3f3687771c0b579ae130abe4a5fba4b689d12fdae17b703ddbca1b68ad46e259",
+                "mechanical201_observer.js": "82b212f48768f0d141d230cdc1ff795bd705201af4fd9dae3b03992d8e089c30",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "map": "de13b4404cbb1eb3c1fba9e9801fb30a0c2269ef84d881553f065152be06fb5a"
+              },
+              "map": "Maps\\RS-Mechanical201c.w3m",
+              "seconds": 100.0,
+              "continue_at": 30,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "env": "C",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "M201 "
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/SEP-01.2/captures201/live-c3-words.jsonl",
+            "sha256": "b67bc9b1ef955732ade55540386f54d47b74b9e7780ddd87d086b37b9c067731",
+            "bytes": 18723,
+            "metadata": {
+              "task": "SEP-01.2 / payoff201",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "mechanical201_capture.py": "df9ae892a78ee4faf4acda2f2e615e12545f37bdb4efd10345abd180e942760e",
+                "mechanical201_observer.js": "02fa89254ae10788e0023d76ddb9631fbba8605bc0c17156122255c3a3206c50",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "mechanical201_make_map.py": "8bdd4879a978c5814bf65e9c46753f45761926c02441f331a4b99abfabfb023f",
+                "mechanical201_probe.j": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "map": "de13b4404cbb1eb3c1fba9e9801fb30a0c2269ef84d881553f065152be06fb5a"
+              },
+              "map": "Maps\\RS-Mechanical201c.w3m",
+              "seconds": 100.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "M201 ",
+              "pose_words": true
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -48685,7 +48978,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "736db689228eaa36ab21dea9094388cf8bdca7fea1f65660cc9320a4d943310b"
+      "sha256": "105cf6269d98d57c503f256f3850e467e0885680fe2fce2438e7c7efb28e1708"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -49541,7 +49834,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "23d1cf2aa68989fc02cefd9953cabd97e29a8730af4c8ad0e2061b3f5ce7a67a"
+      "sha256": "9b90c17d7a96773b944c2bd6a4c4a831611bfd9f9826919bf4ae4797c200d9d6"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -50477,7 +50770,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "57c89eebf9a49e96de96443515e3fdfbc8467ee0a5a067dc75c2b8fe50bdf434"
+      "sha256": "8353417775c724510c01c062586db1228ec41cd777b0384d5244f6f721211594"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -50489,11 +50782,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "311c393b46911cb67a226e5c80cd3804f78b57711a60268f6405034a4c539eb9"
+      "sha256": "d97f90478e4fe42ebe7e643f9851d261cb6e32a29da72015e567f7849bf6a424"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "65b9f9ef9f5ac0dadee7edaa0e2103d3ad6c2db4eafba322ca286d6fbe2cd1d8"
+      "sha256": "1fc8563ed6999edd8c3652bd0d4a42a08ca2ad4b14c561371af0013483395157"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -50505,7 +50798,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "9ae155f3735332be182b383c72d809fcaa19e554f93c0b24d361676a8b02040a"
+      "sha256": "1c35da788d5627c9f8f5f3ab9532b1a267ab717033b25fce38bac7e1c19eca04"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -51381,7 +51674,7 @@
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_random.h",
-      "sha256": "17bf4ae1e4ff03398eafcd3bb6933608369f60d8280ddec36e044763ecf048c0"
+      "sha256": "1832999ecdfa9eb0539b77918da869468d2ddcf83f43b89c54c4c848c226e47c"
     },
     {
       "path": "games/warcraft-3/game/api/api_misc.h",
@@ -51701,7 +51994,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "d5080db98fcf4ae7e691dcfb33d96514abf50c7200c05a5c876441b99373c9d7"
+      "sha256": "5306a3b80f86835ece625339fd710869492dc6ab4f930da36c0be52c8bffda99"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -51785,7 +52078,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "3c0d643554458942b359a15dbbb8333d2a17d7b630b68cb9bd9a824b546df623"
+      "sha256": "27f041d59ffd97a37037d74f42c3697b3718100825f96c84f502a9eb87fb3193"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -52374,6 +52667,30 @@
     {
       "path": "tools/frida/research/swing199_verify.py",
       "sha256": "f35aecd9fc2a4e3de5f45c2d6f38dac72812049784503b9da4b83ad7bab49cd7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-mechanical-critter201-1.27.json",
+      "sha256": "7b3f18f92bfbec97c05bf41261725388beabd8d74963af8d038326fae695c5ce"
+    },
+    {
+      "path": "tools/frida/research/mechanical201_capture.py",
+      "sha256": "df9ae892a78ee4faf4acda2f2e615e12545f37bdb4efd10345abd180e942760e"
+    },
+    {
+      "path": "tools/frida/research/mechanical201_observer.js",
+      "sha256": "02fa89254ae10788e0023d76ddb9631fbba8605bc0c17156122255c3a3206c50"
+    },
+    {
+      "path": "tools/frida/research/mechanical201_probe.j",
+      "sha256": "1cb0fd1731a79bf26f39b3cd8e50f395826bbd6ce9eac370fd690735c6da8ae2"
+    },
+    {
+      "path": "tools/frida/research/mechanical201_make_map.py",
+      "sha256": "8bdd4879a978c5814bf65e9c46753f45761926c02441f331a4b99abfabfb023f"
+    },
+    {
+      "path": "tools/frida/research/mechanical201_verify.py",
+      "sha256": "c42e612cb9f7a4108c0117a10b1d38c4f8d4ead935e1eb96df2bbfb4abb0b188"
     }
   ]
 }

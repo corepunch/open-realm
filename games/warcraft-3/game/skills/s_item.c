@@ -476,6 +476,85 @@ static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     return NULL;
 }
 
+/* 672dd0 traverses profiles in UnitUI registration order. Count/select avoids
+ * allocating the native temporary vector and consumes exactly one purpose33
+ * draw only when the candidate set is nonempty. */
+static bool mechanical_critter_candidate(UnitUI_t const *ui, char tileset) {
+    UnitData_t const *data = G_UnitData(ui->id);
+    UnitBalance_t const *balance = G_UnitBalance(ui->id);
+    cstring_t tilesets = balance->tilesets ? balance->tilesets : ui->tilesets;
+    return data->race && !strcmp(data->race,"critters") &&
+        !balance->goldCost && !balance->lumberCost &&
+        S_UnitMovementType(data) != UNIT_MOVE_FLY &&
+        (!tileset || (tilesets && (strchr(tilesets,'*') || strchr(tilesets,tileset))));
+}
+
+static uint32_t mechanical_critter_choose(void) {
+    char tileset = level.mapinfo->mainGroundType;
+    uint32_t count = 0, selected;
+    FOR_LOOP(i,g_UnitUICount) if (mechanical_critter_candidate(g_UnitUI+i,tileset)) count++;
+    if (!count && tileset) {
+        tileset = 0;
+        FOR_LOOP(i,g_UnitUICount) if (mechanical_critter_candidate(g_UnitUI+i,tileset)) count++;
+    }
+    if (!count) return 0;
+    selected = wc3_random_range(level.purpose_random+WC3_RANDOM_CRITTERS,count);
+    FOR_LOOP(i,g_UnitUICount) {
+        if (!mechanical_critter_candidate(g_UnitUI+i,tileset)) continue;
+        if (!selected--) return g_UnitUI[i].id;
+    }
+    return 0;
+}
+
+/* The owned status carries the latent flag through save/load. A learned Amec
+ * ability or an unrelated Bmec status cannot manufacture the category. Reads
+ * never allocate, and apply/remove deliberately do not refresh separation. */
+bool S_UnitMechanicalCritter(edict_t const *unit) {
+    if (unit) FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t const *status = unit->abilstatus+i;
+        if (status->level && status->code == MAKEFOURCC('B','m','e','c') &&
+            status->data && G_AbilityCode(status->data) == MAKEFOURCC('A','m','e','c')) return true;
+    }
+    return false;
+}
+
+BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    uint32_t code, unit_id, count;
+    float sine, cosine;
+    vec2_t point;
+    if (msg == A_STATUS_REMOVE || msg == A_STATUS_REPLACE) {
+        if (call && call->status.slot) call->status.slot->data = 0;
+        return true;
+    }
+    if (msg == A_ITEM_ADD) {
+        (void)mechanical_critter_choose(); /* Native attachment/display preparation. */
+        return true;
+    }
+    if (msg != A_ITEM_USE) return CAbilityPassive(ent,msg,call);
+    if (!call || !call->item || !(caster = item_use_caster(ent,call))) return false;
+    code = call->item->code;
+    row = G_AbilityLevel(code,1);
+    if (!row || !(unit_id = mechanical_critter_choose())) return false;
+    count = wc3_int_bits(wc3_float_bits(S_SpellData(code,1,1)));
+    wc3_sincos(caster->s.angle,&sine,&cosine);
+    point.x = wc3_add(caster->s.origin2.x,wc3_mul(row->area,cosine));
+    point.y = wc3_add(caster->s.origin2.y,wc3_mul(row->area,sine));
+    FOR_LOOP(i,count) {
+        edict_t *summon = unit_create(caster->s.player,unit_id,&point,
+            wc3_div(caster->s.angle,wc3_float(0x3c8efa35)));
+        if (!summon) continue;
+        summon->owner = caster; summon->summon_ability = code;
+        G_SpawnAbilityEffectTarget(code,WC3_EFFECT_TARGET,0,summon,NULL,true);
+        unit_addtimedstatus(summon,"Bmec",1,S_SpellDuration(code,1,false));
+        heroabilitystatus_t *status = unit_findstatus(summon,MAKEFOURCC('B','m','e','c'));
+        if (status) status->data = code;
+        G_PublishSummonEvents(caster,summon);
+    }
+    return true;
+}
+
 /* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.
  * The authored ability supplies duration, area, target mask and BuffID.  WC3
  * treats the active speed status as maximum movement speed rather than as a

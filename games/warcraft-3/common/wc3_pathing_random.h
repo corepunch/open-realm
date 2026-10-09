@@ -5,7 +5,7 @@
 
 typedef struct { uint32_t sum, index; } wc3Random_t;
 #define BZ_WC3_RANDOM_STREAMS 45 // game-purpose states; original CRandData has45 two-word generators
-enum { WC3_RANDOM_ITEMS = 35 }; /* ChooseRandomItem/ItemEx share this catalog stream. */
+enum { WC3_RANDOM_CRITTERS = 33, WC3_RANDOM_ITEMS = 35 };
 
 /* 1.27's prime-period lookup words at game.dll+ a92f10. */
 static uint32_t const wc3_random_words[61] = {

@@ -13959,3 +13959,112 @@ PATH=/GitHub/wc3-analysis/verify-venv/bin:$PATH python3 tools/ghidra/run_wc3_pat
 Logs and the failed/resolved archive check remain in
 `/GitHub/wc3-analysis/runtime/payoff200`. This documentation-only closure does
 not consume an implementation-commit interval toward the full-suite checkpoint.
+
+## Mechanical Critter retains a latent separation category (Payoff201)
+
+SEP-01.2's Mechanical Critter producer is implemented; the independent counted
+suppression at Unit+198 remains open. Start from the
+[producer handoff](retail-pathfinding-handoffs/SEP-01.2/HANDOFF.md).
+The original item creates a critter and applies Unit+60 bit0. Neither applying
+nor removing Bmec rebuilds separation. The next genuine configuration refresh
+reads the current flag; simply learning Amec does not set it.
+
+Two bounded public scenes use `UnitAddItemById('mcri')`, `UnitUseItem`, owner
+changes and `UnitRemoveAbility('Bmec')`. Each has two read-only observed runs
+and one observer-free control. Stock critters do not enable separation; the
+second map changes only stock necr's authored W3U fields: urpo=1, urpp=0,
+urpg=3, urpr=2, umvs=0, ucol=16. It exposes the complete packed-word sequence:
+
+| Observation | Flag | Owner | Packed separation |
+|---|---:|---:|---:|
+| Initial configuration, before Mechanical application | 0 | 0 | 20300000 |
+| Mechanical application returns | 1 | 0 | 20300000 |
+| Owner change rebuilds separation | 1 | 1 | 2f300000 |
+| Public Bmec removal returns | 0 | 1 | 2f300000 |
+| Next owner change rebuilds separation | 0 | 2 | 22300000 |
+
+Both scenes repeat89 normalized producer/marker events exactly, and each
+observed run matches all57 final public Preload markers from its control.
+The frozen [fixture](../../../tools/ghidra/fixtures/retail-mechanical-critter201-1.27.json)
+retains both scenes separately. Native selector/category/rank setter arguments
+consume AL; their uninitialized upper24 stack bits are retained in raw captures
+and excluded from semantic comparison. Low cooldown bits in unit samples stay
+exact. No original game-code calls or data writes are made by the observer.
+
+A fifth observed run additionally hooks the original public `GetUnitX`204100
+and `GetUnitY`204140 returns, without calling either from the observer.
+It retains all89 producer events and57 control markers, and records112 raw
+position queries. All82 nonnull critter returns (41 per axis) are exactly
+4431f000 /44000000, proving711.75 /512 beyond the Preload decimal rounding.
+These raw queries and their complete capture are separately pinned in the
+new fixture; the earlier repeat streams are preserved unchanged.
+
+Saved Ghidra mappings and readback identify:
+
+- 57f410: Mechanical slot3e4 sets Unit+60 bit0, acquires the separate Unit+ec
+  contribution and attaches CBuffMechanicalCritter. No693d50 refresh.
+- 58dfa0: buff slot33c clears the flag and releases Unit+ec. No693d50 refresh.
+- 59ad90 /672dd0: choose any-level, ground/float-admitted, non-flying critter
+  for the map tileset; retry without tileset filtering only if empty.
+- 688f70: build profiles in UnitUI row order. New profiles append via68b5d0;
+  UnitData/UnitBalance table order is not the chooser's encounter order.
+- 58cbc0: inherited summon executor chooses one type per cast, reads Area and
+  wrapped-integer DataA count, applies the owning ability before summon events.
+
+Eligibility is authored race=critters, gold/lumber costs both zero, allowed
+movement type and tilesets containing the current tileset or `*`. Only a
+nonempty vector consumes purpose33. The public scene produces the same six
+candidates twice in UnitUI order: nfro,nech,necr,nrac,ndog,nshe; attachment/display
+preparation chooses index5 and actual use chooses index2. The engine uses two
+ordered passes with indexed metadata lookup, no temporary candidate allocation
+and no rawcode list. The actual selected type is reused for the authored count.
+
+`CAbilityMechanicalCritter` owns item attachment/use and Bmec inverse. Its
+existing sparse status origin stores the latent flag through save/load;
+`S_UnitMechanicalCritter` reads it without allocation. Move reads that flag
+only at its normal repulsor configuration boundary. JASS `UnitRemoveAbility`
+now removes an attached status through the generic owner inverse, retaining
+timed life's existing special contract. No new edict fields, save version,
+network fields, per-frame polling or immediate repulsor refresh are introduced.
+
+The failing-first production regression in `t_mechanical_critter.c` drives
+real inventory pickup and `G_UseItem`, independent authored tables with UI/data
+orders deliberately different, excluded cost/fly/tileset rows, purpose33 state
+and all44 other streams, exact initial XY, owner refresh, save/load and public
+Bmec removal. It caught a separate placement bug: `S_InitUnitPosition` skipped
+zero-speed units because it used implicit Move eligibility. Physical factory
+placement is independent of that ability; removing the gate matches retail's
+711.75,512 from512,512 facing0 and Area200. Existing numerical fixtures remain
+unchanged. Classic/TFT each pass222 affected item/unit/repulsion/public-spawn
+tests with18,575 assertions; the new lifecycle test contributes108 assertions.
+The37 corpus Python checks and a fresh strict capture report pass.
+
+The stock zero-duration scene certifies this pathfinding producer, not the
+entire Mechanical Critter spell. Custom profile-registration timing, further
+inventory-display queries, complete nonzero-duration generic summon behavior
+and the broader targeting meaning of Unit+ec are not certified. Unit+ec is
+**not** separation suppression Unit+198. JASS `UnitUseItem` remains an unrelated
+native coverage gap; the engine regression uses the implemented UI item-use
+entry. SEP-01.2 stays open for counted suppression,68 TODOs remain.
+
+Raw accepted scenes, maps, source versions and saved Ghidra readback:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SEP-01.2/captures201`.
+The original game.dll SHA256 is d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236.
+Failed exploratory captures remain in `/GitHub/wc3-analysis/runtime/payoff201`:
+two early observers crashed the owned process by hooking a mid-instruction
+append point; a later observer retained Frida's recycled return-value wrapper
+and produced read errors. Accepted observers hook the whole append function,
+flush the last candidate before growth/free and copy its pointer value.
+Failures are excluded from the frozen fixture. The connected-player fixture
+setup and a red test with the original missing registration are recorded in
+red5.log; green3 exposed the exact position mismatch, green4 resolves it.
+
+```sh
+# Rebuild the authored variant from the frozen stock scene (new output only).
+python3 tools/frida/research/mechanical201_make_map.py --base /GitHub/wc3-analysis/reports/pathfinding-1.27/research/SEP-01.2/captures201/RS-Mechanical201b.w3m --tool build/bin/mpqtool --output /tmp/RS-Mechanical201c-new.w3m
+# Run under the shared live.sh lock, substituting B/C environment arguments.
+/GitHub/wc3-analysis/reports/pathfinding-1.27/research/_env/live.sh /home/lofcz/.local/share/uv/tools/frida-tools/bin/python tools/frida/research/mechanical201_capture.py --data '{DATA}' --map 'Maps\RS-Mechanical201c.w3m' --preload rs-mechanical201.txt --start-file rs-mechanical201-start.txt --mode observe --remote '{REMOTE}' --x11-display '{DISPLAY}' --env '{ENV}' --seconds 100 --continue-at 30 --output /tmp/mechanical201-fresh.jsonl
+# Fresh archive verification; output must not already exist.
+python3 tools/frida/research/mechanical201_verify.py --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research/SEP-01.2/captures201 --expected tools/ghidra/fixtures/retail-mechanical-critter201-1.27.json --output /tmp/mechanical201-fresh-report.json
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_items.mechanical201*'
+```

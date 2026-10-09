@@ -17,6 +17,24 @@ from run_wc3_pathfinding_corpus import (DEFAULT_MANIFEST,load_manifest,check_rep
 
 
 class CorpusTests(unittest.TestCase):
+    def test_mechanical201_preserves_ordered_selection_and_latent_category(self):
+        sys.path.insert(0,str(ROOT/'tools/frida/research'))
+        from mechanical201_verify import stages
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-mechanical-critter201-1.27.json').read_text())
+        for scene in fixture['scenes']:
+            self.assertEqual(len(stages(scene['stages'])),89)
+            self.assertEqual(len(scene['public_markers']),57)
+        rows=fixture['scenes'][1]['stages']
+        altered=copy.deepcopy(rows)
+        next(r for r in altered if r['event']=='apply-end')['unit']['sep']=0x2f300000
+        with self.assertRaises(ValueError):stages(altered)
+        altered=copy.deepcopy(rows)
+        next(r for r in altered if r['event']=='candidate')['code']=0
+        with self.assertRaises(ValueError):stages(altered)
+        altered=copy.deepcopy(rows)
+        next(r for r in altered if r['event']=='range-begin')['index']=35
+        with self.assertRaises(ValueError):stages(altered)
+
     def test_explicit_swing199_keeps_windup_and_non_swing_producers_distinct(self):
         sys.path.insert(0,str(ROOT/'tools/frida/research'))
         from swing199_verify import stages
@@ -134,7 +152,7 @@ class CorpusTests(unittest.TestCase):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),157)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),159)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),160)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))

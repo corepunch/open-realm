@@ -388,7 +388,7 @@ static ability_t abilitylist[] = {
     // TODO: Ashs a_spell  /* Wand of Shadowsight */
     // TODO: Aret CAbilityResurrection  /* Tome of Retraining */
     // TODO: ANpr a_button  /* Staff of Preservation */
-    // TODO: Amec a_button  /* Mechanical Critter */
+    { "Amec", CAbilityMechanicalCritter, AB_ITEM | AB_STATUS_EVENTS }, /* Mechanical Critter */
     // TODO: ANss a_bounce  /* Spell Shield */
     { "ANse", CAbilitySpellShieldAoe, AB_ITEM | AB_POWERUP }, /* Rune of Shielding */
     // TODO: Aspb a_bounce  /* Spell Book */

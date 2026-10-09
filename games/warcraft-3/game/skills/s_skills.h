@@ -226,6 +226,8 @@ BZ_ABILITY_PROC(CAbilityExperienceMod);
 BZ_ABILITY_PROC(CAbilityLevelMod);
 BZ_ABILITY_PROC(CAbilityItemDefenseAoe);
 BZ_ABILITY_PROC(CAbilityItemHealAoe);
+BZ_ABILITY_PROC(CAbilityMechanicalCritter);
+bool S_UnitMechanicalCritter(edict_t const *unit);
 BZ_ABILITY_PROC(CAbilityItemManaAoe);
 BZ_ABILITY_PROC(CAbilityItemResurrection);
 BZ_ABILITY_PROC(CAbilityItemGold);
