@@ -878,6 +878,67 @@ static cstring_t skip_cutscene_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
 }
 
+static cstring_t cinefilter_render_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "skip_cutscene") ? "0" : fallback;
+}
+
+static cstring_t cinefilter_skip_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "skip_cutscene") ? "1" : fallback;
+}
+
+TEST(wc3_api, cinefilter_interpolates_and_publishes_player_state) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t saved_client = game.clients[0];
+    uint32_t saved_max_clients = game.max_clients;
+    uint32_t saved_time = level.time;
+    cineFilter_t saved_filter = level.cinefilter;
+    edict_t *player;
+    vec3_t saved_origin;
+
+    gi.CvarString = cinefilter_render_cvar;
+    game.max_clients = 1;
+    game.clients[0].connected = false;
+    game.clients[0].ps.number = 0;
+    player = G_GetPlayerEntityByNumber(0);
+    saved_origin = player ? player->s.origin : (vec3_t){ 0 };
+    level.cinefilter = (cineFilter_t){
+        .texture = 73,
+        .displayed = true,
+        .start = { .color = MAKE(color32_t, 10, 20, 30, 40), .time = 0 },
+        .end = { .color = MAKE(color32_t, 110, 120, 130, 200), .time = 2000 },
+    };
+    level.time = 1000;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_image, 73);
+    T_EQ(game.clients[0].ps.cinefilter_color.r, 60);
+    T_EQ(game.clients[0].ps.cinefilter_color.g, 70);
+    T_EQ(game.clients[0].ps.cinefilter_color.b, 80);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 60);
+
+    level.time = 2000;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_color.r, 110);
+    T_EQ(game.clients[0].ps.cinefilter_color.g, 120);
+    T_EQ(game.clients[0].ps.cinefilter_color.b, 130);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 100);
+
+    level.cinefilter.displayed = false;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_image, 0);
+
+    level.cinefilter.displayed = true;
+    gi.CvarString = cinefilter_skip_cvar;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_image, 0);
+
+    game.clients[0] = saved_client;
+    if (player) player->s.origin = saved_origin;
+    game.max_clients = saved_max_clients;
+    level.time = saved_time;
+    level.cinefilter = saved_filter;
+    gi.CvarString = old_cvar;
+}
+
 static cstring_t group_debug_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_group_debug") ? "1" : fallback;
 }
