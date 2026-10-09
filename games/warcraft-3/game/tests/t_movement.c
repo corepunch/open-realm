@@ -2659,34 +2659,47 @@ TEST(wc3_movement, wisp_harvest_move_order_leaves_tree) {
     slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     float const old_range = HARVEST_RANGE;
+    UnitData_t wisp_data;
     edict_t *wisp = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(0.0f, 0.0f, 100.0f);
+    edict_t *blocking_tree = make_harvest_tree(64.0f, 0.0f, 100.0f);
+    pathTex_t *tree_path = gi.MemAlloc(sizeof(*tree_path) + 9 * sizeof(color32_t));
     vec2_t destination = { 256.0f, 0.0f };
     edict_t *effect = alloc_test_unit(MAKEFOURCC('e','f','f','t'), 0.0f, 0.0f);
 
-    /* Model the live tree's baked UNWALKABLE footprint around its origin.
-     * The Wisp starts on that footprint, as it does while attached to a tree. */
-    FOR_LOOP(y, 3) FOR_LOOP(x, 3)
-        pathmap[(30 + x) + (30 + y) * CELLS] = CM_PATHING_UNWALKABLE;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
     CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    /* Wisps use the air pathing layer: tree clearance is UNFLYABLE (green
+     * pathing texture channel), not the ground UNWALKABLE channel. */
+    wisp_data = *wisp->data.UnitData;
+    wisp_data.moveTypeName = "fly";
+    wisp->data.UnitData = &wisp_data;
     wisp->collision = 16.0f;
     wisp->unitinfo.MoveSpeed = 220.0f;
     tree->destructable->placement_solid = true;
     tree->destructable->pathing_active = true;
+    tree_path->width = tree_path->height = 3;
+    FOR_LOOP(i, 9) tree_path->map[i] = (color32_t){0, 255, 0, 255};
+    tree->pathtex = blocking_tree->pathtex = tree_path;
+    tree->destructable->alive_pathtex = blocking_tree->destructable->alive_pathtex = tree_path;
+    tree->destructable->placement_solid = blocking_tree->destructable->placement_solid = true;
+    tree->destructable->pathing_active = blocking_tree->destructable->pathing_active = true;
+    CM_BakeStaticObstacles();
     T_ASSERT(tree->destructable && !tree->destructable->dead && tree->destructable->placement_solid);
     T_ASSERT(!CM_PointIsPathableForRadiusFlags(&wisp->s.origin2, wisp->collision,
-                                                CM_PATHING_UNWALKABLE));
+                                                M_UnitStaticPathingFlags(wisp)));
     HARVEST_RANGE = 128.0f;
     T_ASSERT(unit_issuetargetorder(wisp, "smart", tree));
     wisp->currentmove->think(wisp); /* attach to the tree */
     T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityWispHarvest);
     T_STREQ(wisp->currentmove->animation, "stand lumber");
     effect->owner = wisp;
+    effect->goalentity = tree;
+    effect->damage = tree->spawn_time;
     effect->summon_ability = MAKEFOURCC('A','w','h','a');
     effect->s.flags |= EF_NOT_SELECTABLE;
 
@@ -2695,15 +2708,28 @@ TEST(wc3_movement, wisp_harvest_move_order_leaves_tree) {
     T_STREQ(wisp->currentmove->animation, "walk");
     T_ASSERT(wisp->goalentity != tree);
     T_ASSERT(!effect->inuse);
+    T_ASSERT(wisp->movement.wisp_egress_active);
+    T_ASSERT(wisp->movement.wisp_egress_tree == tree);
 
-    for (int i = 0; i < 40; i++) {
+    CM_ProcessPathJobs(4096);
+    if (wisp->currentmove && wisp->currentmove->think)
+        wisp->currentmove->think(wisp);
+    T_ASSERT(wisp->movement.wisp_egress_target_valid);
+    T_ASSERT(Vector2_distance(&wisp->movement.wisp_egress_target, &tree->s.origin2) <= 80.0f);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&wisp->movement.wisp_egress_target,
+        wisp->collision, M_UnitStaticPathingFlags(wisp)));
+
+    for (int i = 0; i < 39; i++) {
         CM_ProcessPathJobs(4096);
         if (wisp->currentmove && wisp->currentmove->think)
             wisp->currentmove->think(wisp);
     }
     T_ASSERT(Vector2_distance(&wisp->s.origin2, &tree->s.origin2) > 64.0f);
     T_ASSERT(CM_PointIsPathableForRadiusFlags(&wisp->s.origin2, wisp->collision,
-                                               CM_PATHING_UNWALKABLE));
+                                               M_UnitStaticPathingFlags(wisp)));
+    T_ASSERT(!wisp->movement.wisp_egress_active);
+    /* The nearby exit is completed before the ordinary Move path resumes;
+     * any later detour around the adjacent tree belongs to normal routing. */
 
     HARVEST_RANGE = old_range;
     G_SetSLKRows("AbilityData", old);

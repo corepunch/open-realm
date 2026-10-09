@@ -1786,6 +1786,10 @@ struct edict_s {
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
         uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
         bool worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
+        edict_t *wisp_egress_tree;   /* harvested tree whose footprint a Wisp is currently leaving */
+        uint32_t wisp_egress_tree_spawn_time;
+        vec2_t wisp_egress_target;   /* nearest local point clear of the harvested tree footprint */
+        bool wisp_egress_active, wisp_egress_target_valid;
         edict_t *attackmove_waypoint;  // resume attack-move after a combat detour
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
@@ -3415,6 +3419,7 @@ bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
 bool move_is_active_order_walk(edict_t const *);
 void move_start_displacement(edict_t *, vec2_t const *);
+void M_StartWispTreeEgress(edict_t *, edict_t *);
 void move_cancel_displacement(edict_t *);
 bool move_displacement_active(edict_t const *);
 bool move_displacement_reached(edict_t *);

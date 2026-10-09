@@ -374,17 +374,75 @@ static float point_segment_distance(vec2_t const *a, vec2_t const *b, vec2_t con
     return Vector2_distance(&closest, p);
 }
 
-/* Trees place Wisps at their origin while harvesting, which may be inside the
- * tree's baked UNWALKABLE footprint. Let a Wisp progress toward its current
- * order until it reaches legal ground; ordinary static validation resumes as
- * soon as its current position is pathable. */
-static bool move_wisp_can_escape_static(edict_t const *self, vec2_t const *cand,
-                                        uint8_t blocked_flags) {
-    if (!G_ActorHasSkill(self, "Awha") || !self->goalentity || self->goalentity == self ||
-        CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags))
-        return false;
-    return Vector2_distance(cand, &self->goalentity->s.origin2) + 0.001f <
-        Vector2_distance(&self->s.origin2, &self->goalentity->s.origin2);
+static bool move_wisp_egress_tree_valid(edict_t const *self) {
+    edict_t const *tree;
+    return self && self->movement.wisp_egress_active &&
+        (tree = self->movement.wisp_egress_tree) && tree->inuse &&
+        tree->spawn_time == self->movement.wisp_egress_tree_spawn_time && tree->pathtex;
+}
+
+/* Test a short egress corridor. Static pathing is a combined map, so permit a
+ * blocked sample only where the harvested tree's own authored footprint covers
+ * it. Terrain and any other tree/building remain authoritative blockers. */
+static bool move_wisp_egress_corridor_clear(edict_t const *self, edict_t const *tree,
+                                             vec2_t const *target, uint8_t flags) {
+    float const step = MAX(2.0f, CM_PathCellWorldSize() * 0.25f);
+    float const length = Vector2_distance(&self->s.origin2, target);
+    int const samples = MAX(1, (int)ceilf(length / step));
+    FOR_LOOP(i, samples + 1) {
+        float const t = (float)i / (float)samples;
+        vec2_t const p = { self->s.origin2.x + (target->x - self->s.origin2.x) * t,
+                            self->s.origin2.y + (target->y - self->s.origin2.y) * t };
+        if (CM_PointIsPathableForRadiusFlags(&p, self->collision, flags)) continue;
+        float const tree_dist = CM_DistanceToPathingFootprintFlags(tree, &p, flags);
+        if (!CM_TerrainPointIsWalkable(&p) || tree_dist > self->collision + CM_PathCellWorldSize())
+            return false;
+        FOR_LOOP(n, globals.num_edicts) {
+            edict_t const *other = EDICT_NUM(n);
+            if (other == tree || !other->inuse || !other->pathtex ||
+                (other->s.renderfx & RF_HIDDEN)) continue;
+            float const other_dist = CM_DistanceToPathingFootprintFlags(other, &p, flags);
+            /* Adjacent tree footprints may touch the spawn point. They do not
+             * own that overlapping sample while it is still inside the
+             * harvested tree, but become blockers as the corridor approaches
+             * their footprint more closely than the harvested one. */
+            if (other_dist + 1.0f < tree_dist && other_dist <= self->collision + CM_PathCellWorldSize())
+                return false;
+        }
+    }
+    return true;
+}
+
+static bool move_wisp_egress_choose_target(edict_t *self, uint8_t flags) {
+    edict_t *tree = self->movement.wisp_egress_tree;
+    float const cell = MAX(4.0f, CM_PathCellWorldSize() * 0.5f);
+    float const radius = (float)MAX(tree->pathtex->width, tree->pathtex->height) * CM_PathCellWorldSize() * 0.5f +
+        self->collision + CM_PathCellWorldSize() * 2.0f;
+    float best = FLT_MAX;
+    vec2_t chosen = {0, 0};
+    bool found = false;
+    for (float y = tree->s.origin2.y - radius; y <= tree->s.origin2.y + radius; y += cell) {
+        for (float x = tree->s.origin2.x - radius; x <= tree->s.origin2.x + radius; x += cell) {
+            vec2_t const p = {x, y};
+            float const d = Vector2_distance(&self->s.origin2, &p);
+            if (d >= best || !CM_PointIsPathableForRadiusFlags(&p, self->collision, flags)) continue;
+            if (!move_wisp_egress_corridor_clear(self, tree, &p, flags)) continue;
+            best = d;
+            chosen = p;
+            found = true;
+        }
+    }
+    self->movement.wisp_egress_target_valid = found;
+    if (found) self->movement.wisp_egress_target = chosen;
+    return found;
+}
+
+void M_StartWispTreeEgress(edict_t *self, edict_t *tree) {
+    if (!self || !tree || !tree->inuse || !tree->pathtex || !G_ActorHasSkill(self, "Awha")) return;
+    self->movement.wisp_egress_tree = tree;
+    self->movement.wisp_egress_tree_spawn_time = tree->spawn_time;
+    self->movement.wisp_egress_active = true;
+    self->movement.wisp_egress_target_valid = false;
 }
 
 /* Is the position 'cand' free for 'self' (static world + other units)?  On a
@@ -400,9 +458,15 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
         return true;
 
     /* Static world: terrain + baked building footprints (pathmap.original). */
-    if (!CM_PointIsPathableForRadiusFlags(cand, self->collision, blocked_flags) &&
-        !move_wisp_can_escape_static(self, cand, blocked_flags))
+    bool const wisp_egress = move_wisp_egress_tree_valid(self) &&
+        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags);
+    if (wisp_egress) {
+        if (!move_wisp_egress_corridor_clear(self, self->movement.wisp_egress_tree, cand, blocked_flags)) {
+            return false;
+        }
+    } else if (!CM_PointIsPathableForRadiusFlags(cand, self->collision, blocked_flags)) {
         return false;
+    }
     /* WC3's pathing grid rejects a swept step that cuts a diagonal corner. Keep
      * the escape case for units spawned inside stale/changed pathing, where the
      * endpoint remains the authoritative legal position. */
@@ -494,8 +558,7 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
 static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
-    bool const wisp_egress = G_ActorHasSkill(self, "Awha") && self->goalentity &&
-        self->goalentity != self &&
+    bool const wisp_egress = move_wisp_egress_tree_valid(self) &&
         !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags);
 
     if (self->aiflags & AI_IMMOBILE) {
@@ -515,12 +578,19 @@ static void unit_moveindirection_policy(edict_t *self,
         return;
     }
 
-    /* The regular router cannot produce a legal starting node when the unit
-     * is already inside static pathing. A Wisp just released from a tree uses
-     * its order direction for the short egress until it reaches a valid node. */
+    /* The router cannot produce a legal starting node from inside a harvested
+     * tree. Egress to a nearby globally pathable point, then resume the order. */
     if (wisp_egress) {
-        vec2_t const delta = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
+        if (!self->movement.wisp_egress_target_valid ||
+            !CM_PointIsPathableForRadiusFlags(&self->movement.wisp_egress_target, self->collision, blocked_flags))
+            move_wisp_egress_choose_target(self, blocked_flags);
+        if (!self->movement.wisp_egress_target_valid) return;
+        vec2_t const delta = Vector2_sub(&self->movement.wisp_egress_target, &self->s.origin2);
         self->movement.heading = atan2f(delta.y, delta.x);
+    } else if (self->movement.wisp_egress_active) {
+        self->movement.wisp_egress_tree = NULL;
+        self->movement.wisp_egress_active = false;
+        self->movement.wisp_egress_target_valid = false;
     }
 
     /* Runtime PropWindow follows SetUnitPropWindow's native radians contract;
@@ -544,7 +614,8 @@ static void unit_moveindirection_policy(edict_t *self,
     vec2_t const facing_dir = MAKE(vec2_t, cosf(self->s.angle), sinf(self->s.angle));
     vec2_t const heading_dir = MAKE(vec2_t, cosf(self->movement.heading), sinf(self->movement.heading));
     vec2_t const origin = self->s.origin2;
-    vec2_t const progress_goal = self->movement.displacement_active ? self->movement.displacement_target :
+    vec2_t const progress_goal = self->movement.wisp_egress_active && self->movement.wisp_egress_target_valid ?
+        self->movement.wisp_egress_target : self->movement.displacement_active ? self->movement.displacement_target :
         self->goalentity ? self->goalentity->s.origin2 : self->s.origin2;
     vec2_t const by_facing = Vector2_mad(&self->s.origin2, dist,
                                           &facing_dir);
@@ -824,6 +895,31 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         return;
     if (move_displacement_steer(self, policy))
         return;
+    if (move_wisp_egress_tree_valid(self)) {
+        uint8_t const flags = M_UnitStaticPathingFlags(self);
+        if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, flags)) {
+            self->movement.wisp_egress_tree = NULL;
+            self->movement.wisp_egress_active = false;
+            self->movement.wisp_egress_target_valid = false;
+        } else {
+            if (!self->movement.wisp_egress_target_valid ||
+                !CM_PointIsPathableForRadiusFlags(&self->movement.wisp_egress_target,
+                                                   self->collision, flags))
+                move_wisp_egress_choose_target(self, flags);
+            if (self->movement.wisp_egress_target_valid) {
+                vec2_t const dir = Vector2_sub(&self->movement.wisp_egress_target, &self->s.origin2);
+                self->movement.flow_direct = true;
+                self->movement.flow_generation = 0;
+                self->movement.flow_unreachable = false;
+                unit_apply_heading(self, &dir, policy);
+            }
+            return;
+        }
+    } else if (self->movement.wisp_egress_active) {
+        self->movement.wisp_egress_tree = NULL;
+        self->movement.wisp_egress_active = false;
+        self->movement.wisp_egress_target_valid = false;
+    }
     if (move_fallback_steer(self, policy))
         return;
     self->movement.route_resume_active = false;
