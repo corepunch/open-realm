@@ -27,8 +27,8 @@ typedef struct {
 } visibleEntityCandidate_t;
 
 /* Determine whether a client should receive updates for the given entity.
- * Always true for the client's own player-owned entities; otherwise based
- * on a simple distance check against the client's camera position. */
+ * Games with visibility rules own that decision; otherwise, always send the
+ * client's own entities and use a simple distance check for other entities. */
 static bool SV_CanClientSeeEntity(client_t const *client, edict_t const *edict) {
 #ifdef WOW
     (void)client;
@@ -36,11 +36,11 @@ static bool SV_CanClientSeeEntity(client_t const *client, edict_t const *edict) 
     return true;
 #else
     edict_t *clent = client->edict;
-    if (edict->s.player == clent->client->ps.number)
-        return true;
     if (ge->CanSeeEntity) {
         return ge->CanSeeEntity(clent->client->ps.number, edict);
     }
+    if (edict->s.player == clent->client->ps.number)
+        return true;
     if (fabs(edict->s.origin.x - clent->client->ps.vieworigin.x) > VISUAL_DISTANCE)
         return false;
     if (fabs(edict->s.origin.y - clent->client->ps.vieworigin.y) > VISUAL_DISTANCE)
