@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**261 done / 336 tasks; 75 remaining.**
+**262 done / 336 tasks; 74 remaining.**
+
+Payoff192 closes ORDER-04.4: cold original point factories and wrappers grow
+through 513 simultaneous objects, execute 2052 final releases and reuse without
+allocation. Repeated public Move bursts match the observer-free control. Engine
+queues now return empty storage to the existing constant-time pool after cancel
+or final dispatch; failing-first queue/reuse and save regressions pass.
+See [cold factories and queue storage](retail-pathfinding-engine.md#cold-point-factories-and-empty-queue-storage-payoff192).
 
 Payoff191 closes BASE-01.2: repeated public JASS and Captain AI requests reach
 the common point bridge with distinct owners. Move now retains the retail
@@ -1146,7 +1153,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 - [x] **ORDER-04.1** Eight last-reference release cycles and six factory reuses pass. Evidence: [payload reclamation][reclamation]; preallocated pools and supplied registration, no populated relations/negative domain.
 - [ ] **ORDER-04.2** Construct and release an object with populated relations/children through the real factory; assert child/reference cleanup and free-list recovery.
 - [ ] **ORDER-04.3** Exercise bridge guard failure, stale identity and both handle domains; assert rejection and reference balance.
-- [ ] **ORDER-04.4** Grow an empty factory/pool through its allocator boundary; assert first construction and final payload/wrapper release.
+- [x] **ORDER-04.4** Grow an empty factory/pool through its allocator boundary; assert first construction and final payload/wrapper release. [Payoff192](retail-pathfinding-engine.md#cold-point-factories-and-empty-queue-storage-payoff192): cold original COrderPoint(58/1), CTaskPoint(50/64) and wrapper(bc/512) storage grows through513 simultaneous pairs per class,2052 final clock releases and allocation-free exact LIFO reuse. Supplied class/registry bindings are explicit. Two public129-unit Move bursts retain258 complete task lifetimes,270 markers and exact repeat/control streams. Engine reclaims empty queue buckets after cancellation/final dispatch; failing-first129-unit/stale-target/replacement tests and wrapped/empty save round-trips pass both schemas.
 
 ### ORDER-05 — Deferred requests
 

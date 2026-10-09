@@ -81,7 +81,7 @@ TEST(wc3_order_lifecycle, unused_queue_is_sparse_and_wrapped_entries_survive_sav
     T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, &last, NULL, 3, 7, 999));
     T_ASSERT(WriteGame(file));
     G_ClearUnitOrderQueue(unit);
-    T_EQ(unit->order_queue.entries, storage);
+    T_NULL(unit->order_queue.entries);
     T_EQ(unit->order_queue.count, 0);
     T_ASSERT(ReadGame(file));
     T_EQ(unit->order_queue.head, 1); T_EQ(unit->order_queue.count, MAX_UNIT_ORDER_QUEUE);
@@ -93,10 +93,65 @@ TEST(wc3_order_lifecycle, unused_queue_is_sparse_and_wrapped_entries_survive_sav
         T_ASSERT(G_UnitStartNextQueuedOrder(unit));
     }
     T_EQ(unit->order_queue.head, 0); T_EQ(unit->order_queue.count, 0);
-    T_NOT_NULL(unit->order_queue.entries);
+    T_NULL(unit->order_queue.entries);
+    T_ASSERT(WriteGame(file));
+    T_ASSERT(ReadGame(file));
+    T_NULL(unit->order_queue.entries);
     G_FreeEdict(unit);
     T_NULL(unit->order_queue.entries);
     remove(file);
+    reset_entities(); setup_test_world();
+}
+
+/* Cold allocation, ordered cancellation and final dispatch must return storage
+ * without retaining a bucket on every unit that once received Shift orders. */
+TEST(wc3_order_lifecycle, pool192_empty_queues_release_storage_and_reuse_lifo) {
+    enum { COUNT = 129 };
+    edict_t *units[COUNT];
+    unitOrder_t *slots[COUNT];
+    reset_entities(); setup_test_world();
+    FOR_LOOP(i, COUNT) {
+        units[i] = review_order_unit(0, 0);
+        T_NULL(units[i]->order_queue.entries);
+        T_ASSERT(G_QueueUnitOrder(units[i], "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0, 0));
+        slots[i] = units[i]->order_queue.entries;
+        T_NOT_NULL(slots[i]);
+        FOR_LOOP(j, i) T_NE(slots[i], slots[j]);
+    }
+    FOR_LOOP(i, COUNT) {
+        T_ASSERT(unit_issueimmediateorder(units[i], "stop"));
+        T_NULL(units[i]->order_queue.entries);
+        T_EQ(units[i]->order_queue.count, 0);
+        T_EQ(units[i]->order_queue.head, 0);
+    }
+    FOR_LOOP(i, COUNT) {
+        T_ASSERT(G_QueueUnitOrder(units[i], "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0, 0));
+        T_EQ(units[i]->order_queue.entries, slots[COUNT - 1 - i]);
+    }
+    FOR_LOOP(i, COUNT) {
+        T_ASSERT(G_UnitStartNextQueuedOrder(units[i]));
+        T_NULL(units[i]->order_queue.entries);
+        T_ASSERT(units[i]->movement.holding_position);
+        T_ASSERT(!G_UnitStartNextQueuedOrder(units[i]));
+        G_ClearUnitOrderQueue(units[i]);
+        T_NULL(units[i]->order_queue.entries);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, pool192_discarded_target_and_replacement_release_storage) {
+    reset_entities(); setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *target = review_order_unit(256, 1);
+    vec2_t point = {512, 0};
+    T_ASSERT(G_QueueUnitOrder(unit, "attack", UNIT_ORDER_TARGET_ENTITY, NULL, target, 0, 0, 0));
+    T_NOT_NULL(unit->order_queue.entries);
+    target->spawn_time++;
+    T_ASSERT(!G_UnitStartNextQueuedOrder(unit));
+    T_NULL(unit->order_queue.entries);
+    T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0, 0));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &point, false, 0, 0));
+    T_NULL(unit->order_queue.entries);
+    T_EQ(unit->current_order_id, G_OrderId("move"));
     reset_entities(); setup_test_world();
 }
 

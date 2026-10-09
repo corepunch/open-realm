@@ -758,7 +758,8 @@ static bool unit_queue_pop(edict_t *self, unitOrder_t *out) {
     memset(&queue->entries[queue->head], 0, sizeof(queue->entries[queue->head]));
     queue->head = (queue->head + 1) % UNIT_ORDER_STORAGE_CAPACITY;
     queue->count--;
-    if (!queue->count) queue->head = 0;
+    /* The caller owns the copied command before any successor callback runs. */
+    if (!queue->count) G_FreeUnitOrders(self);
     return true;
 }
 
@@ -771,7 +772,9 @@ void G_ClearUnitOrderQueue(edict_t *self) {
         uint32_t const slot = (queue->head + i) % UNIT_ORDER_STORAGE_CAPACITY;
         S_UnitQueuedOrderEvent(self, &queue->entries[slot], A_QUEUE_ORDER_CANCEL);
     }
-    if (queue->entries) memset(queue->entries, 0, sizeof(unitOrderStorage_t));
+    /* Cancellation callbacks finish while their borrowed entries remain live.
+     * Return the bucket once; allocation clears it before its next owner. */
+    G_FreeUnitOrders(self);
     queue->head = queue->count = 0;
 }
 

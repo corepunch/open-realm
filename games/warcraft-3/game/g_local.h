@@ -795,7 +795,7 @@ typedef struct {
 } unitOrderStorage_t;
 
 typedef struct {
-    unitOrder_t *entries; /* allocate on first queued order; preserve ring slot addresses */
+    unitOrder_t *entries; /* stable while queued; return storage after the final command releases it */
     uint32_t head;
     uint32_t count;
 } unitOrderQueue_t;

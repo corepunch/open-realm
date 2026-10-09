@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "153 executable original oracle contracts;427 total entries.",
+  "scope": "154 executable original oracle contracts;429 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -46607,6 +46607,212 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "oracle-cold-order-pool-growth",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_pool_growth.py",
+        "--binary",
+        "{binary}",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-order-pool-growth192-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "cold-order-pool192.json",
+      "expected_exit": 0,
+      "expected_status": "bounded-original-order-pool-growth",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "classes": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Original static initializer prefixes, cold Storm-backed COrderPoint/CTaskPoint/wrapper growth to513 simultaneous pairs,2052 real deferred final releases and exact allocation-free LIFO reuse.",
+      "exclusions": [
+        "Supplied class lookup and canonical registry identity bindings.",
+        "Static initializer stops before CRT atexit registration.",
+        "Empty subscriptions, relationships and child lists; public producer evidence is separate."
+      ]
+    },
+    {
+      "id": "live-point-task-pool-lifetimes",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/research/pool192_verify.py",
+        "--archive",
+        "{archive}/research/ORDER-04.4/captures192/",
+        "--expected",
+        "tools/ghidra/fixtures/retail-point-pool-lifetimes192-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "report": "point-pool192-live.json",
+      "expected_exit": 0,
+      "expected_status": "live-point-task-pool-lifetimes",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 270
+        },
+        "constructions": {
+          "equal": 258
+        },
+        "final_payload_releases": {
+          "equal": 258
+        },
+        "final_wrapper_returns": {
+          "equal": 258
+        },
+        "task_growth_blocks": {
+          "equal": 2
+        },
+        "wrapper_growth_blocks": {
+          "equal": 5
+        },
+        "second_burst_task_allocations": {
+          "equal": 0
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Repeated public129-unit JASS Move/Stop/Remove bursts: complete actual CTaskPoint construction, binding, raw growth, zero-reference reclaim and wrapper return; exact public control.",
+      "exclusions": [
+        "Public JASS produces CTaskPoint; COrderPoint cold growth is a separate supplied-binding oracle.",
+        "Live class registration already owns reusable raw capacity; cold oracle independently starts all relevant pools empty.",
+        "One repeat has a19-byte auxiliary diagnostic allocation inside allocator; it is retained in raw capture and excluded from raw block counts by exact allocation size and grow flag."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/ORDER-04.4/captures192/live1.jsonl",
+        "sha256": "993cc4f84246f7b610cbf859c26e6005b067d50f97ba7d2f06b20f4e1f847533",
+        "bytes": 107712,
+        "metadata": {
+          "task": "payoff192",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+            "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+            "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+            "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+            "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+            "pool192_observer.js": "8cebd963fb36f3736969972203df8afd154e0a89539c7d4c16b8763888b50d80",
+            "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+            "map": "94a4af3d81c6241dd79fb212a2ce06ab508c67bd4e950716a7c25284d3406c73"
+          },
+          "map": "Maps/RS-Pool192.w3m",
+          "seconds": 110.0,
+          "continue_at": 20.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "P192 ",
+          "always": false,
+          "lite": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/ORDER-04.4/captures192/live2.jsonl",
+            "sha256": "c9befbfe440d5684bfab3b5d56a0a7efbc46020bfc82b2796be176b051237683",
+            "bytes": 107624,
+            "metadata": {
+              "task": "payoff192",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "pool192_observer.js": "8cebd963fb36f3736969972203df8afd154e0a89539c7d4c16b8763888b50d80",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "94a4af3d81c6241dd79fb212a2ce06ab508c67bd4e950716a7c25284d3406c73"
+              },
+              "map": "Maps/RS-Pool192.w3m",
+              "seconds": 110.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "P192 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ORDER-04.4/captures192/control.jsonl",
+            "sha256": "28525bfc6187955ed6a942e14bbc324143fee7b10b078d9fbdc0fa51463fdd87",
+            "bytes": 1437,
+            "metadata": {
+              "task": "payoff192",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "pool192_observer.js": "8cebd963fb36f3736969972203df8afd154e0a89539c7d4c16b8763888b50d80",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "94a4af3d81c6241dd79fb212a2ce06ab508c67bd4e950716a7c25284d3406c73"
+              },
+              "map": "Maps/RS-Pool192.w3m",
+              "seconds": 110.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "P192 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -47505,7 +47711,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "d11f6ca37da5eef0eb8ff629065e3b75e3fd71e5e2de9fd5cb90bab3141206d0"
+      "sha256": "548b54cd17329e9a250748729092271c21ae59b897ea03329d3804b70ab9c444"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -48805,7 +49011,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "a3ab58d830ba21a8bd0d1d423e4d787df20727c90621c38c54c15dc3b9b19b29"
+      "sha256": "7f001676d8ec29ee718d4e5d19e741d522d0536d6f06c86948b09e2685ca97b4"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -49297,7 +49503,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "789302cb692891adc69ae917f402c2ffbe3d48b9bd5f4e39417d5790cf94f61e"
+      "sha256": "1f5b739bcd6061f864ee80b56d045cb4787c9ab9b3e1710aa91fcfb359b17cff"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -49309,11 +49515,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "1905dbabe9682825959c3b36c3cb59f62ac7256ba6a4c5a9c60b0fb52ee208b0"
+      "sha256": "536c459ace47d13d1b947e62c82be8d36de3b411a5a8b8df9dfff83c6e5db955"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "3527d07ed197f53836a69b597e786a45a7581930f48f641cb4eb9daa2fb4fcea"
+      "sha256": "ed53622e4bb9e117aabc785b30f54eb6fdf031c1d61b58735474383b1639f2a7"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -50261,7 +50467,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "a0db0e7a3b3822c7a39e81d33303c41f2315058d04dc3b9f0f401b8c710b00ba"
+      "sha256": "fa77381c4c184d7a95cb3654ed220130fd2a4d6674652072897cbf5aedf4b928"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -50397,7 +50603,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
-      "sha256": "d9c16a75eee292669f0673e52b2cb3d99b531cb721766ee3b05a9eca402888f1"
+      "sha256": "b9ce966fe14f9620d4bbd85c2e4a2246b97da1f9498f38c7bc550b330e7f1c8c"
     },
     {
       "path": "games/warcraft-3/game/tests/t_patrol_orders.c",
@@ -51010,6 +51216,42 @@
     {
       "path": "tests/test_wc3_pathfinding_point_entry.py",
       "sha256": "b8084cc9190fbb696bee921a47053b0185b96a9ed11c934994cf932aeafdb6dc"
+    },
+    {
+      "path": "tools/frida/research/pool192_observer.js",
+      "sha256": "8cebd963fb36f3736969972203df8afd154e0a89539c7d4c16b8763888b50d80"
+    },
+    {
+      "path": "tools/frida/research/pool192_probe.j",
+      "sha256": "9de93618e7098c5015712797905d614df71b07c385ddcd2385f2a32bc539420c"
+    },
+    {
+      "path": "tools/frida/research/pool192_make_map.py",
+      "sha256": "0bba53396257a0f093dc935421aa41520ae8d2b3aab36a1d41e0789dca6da51a"
+    },
+    {
+      "path": "tools/frida/research/pool192_verify.py",
+      "sha256": "c6705153e794ce9f3c70f905c741a45572187713e1c797fc0b5ecfaceeb09df4"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_order_pool_growth.py",
+      "sha256": "a2344692cc4a603d63414f85fdcd4196d01b796a629f7f40596f2570ab04efeb"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-order-pool-growth192-1.27.json",
+      "sha256": "bf6d37c07337d6ff8017d933e9b4d367122ccf136a3c7b56250c714072b4d692"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-point-pool-lifetimes192-1.27.json",
+      "sha256": "55f34d0145ac3f50a0ca11c0d10d8b0280a8d6b4fe88ab98d8a8ce720a75db84"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-order-pool-growth-ghidra192-1.27.json",
+      "sha256": "5630af62bc4956def93e0ec338d65556e806390221296cd19eaff5f96a2978d2"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_order_pool.py",
+      "sha256": "12317ef04c4535a232c0685db6bd736b7f7a23a3644d8cec7e40831d75cc6372"
     }
   ]
 }

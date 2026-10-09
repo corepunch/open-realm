@@ -13153,3 +13153,81 @@ python tools/frida/research/base191_verify.py \
   --expected tools/ghidra/fixtures/retail-point-entry191-1.27.json \
   --archive "$WC3_ARCHIVE/research/BASE-01.2/captures191" --output /tmp/point-entry191.json
 ```
+
+## Cold point factories and empty queue storage (Payoff192)
+
+ORDER-04.4 now has cold allocator evidence alongside a public producer witness.
+The original static initializers distinguish three storage policies:
+
+| Owner | Payload stride | Elements per raw block | Raw allocation bytes |
+|---|---:|---:|---:|
+| COrderPoint factory `6fd70e14`, initializer `015630` | 88 | 1 | 92 |
+| CTaskPoint factory `6fd70f1c`, initializer `0158a0` | 80 | 64 | 5124 |
+| CAgentBaseAbs pool at `d3c82c+34`, acquire `057470` | 188 | 512 | 96260 |
+
+`057350` first takes a constructed wrapper from pool+14; otherwise it gets a
+raw element through `06a320`, constructs the wrapper at raw+4 and publishes its
+vtable. Constructed live+18 differs from raw allocated+8. Returning a wrapper
+through `0576b0` pushes raw onto +14 and decrements only constructed live.
+Reclaimed raw payloads use the separate +10 free chain. Both chains retain
+backing blocks and reuse the latest returned object first.
+
+[The cold original oracle](../../../tools/ghidra/verify_wc3_pathing_order_pool_growth.py)
+starts each class factory and wrapper pool empty, executes the original static
+initializer prefix, creates 513 simultaneous payload/wrapper pairs and schedules
+all releases through actual `0557b0`/`052380`. COrderPoint grows 513 raw blocks;
+CTaskPoint grows nine; each independent wrapper pool grows two. Final reference,
+identity invalidation, registry unlink and wrapper return all execute through
+original callbacks. A second 513-object lifetime consumes exactly the reverse
+actual release order without another allocation. Across both classes this verifies
+2052 final payload/wrapper releases. The frozen result is
+[retail-order-pool-growth192](../../../tools/ghidra/fixtures/retail-order-pool-growth192-1.27.json).
+
+Only Storm memory imports supply host storage. Class lookup and canonical registry
+identity bindings are supplied, as in the earlier lifetime oracle. The static
+initializer stops before CRT atexit registration. No empty-pool allocation is
+replaced by a preallocated payload or wrapper; nonempty relationships and class
+registration remain separately scoped. Raw free-chain insertion overwrites the
+destroyed payload's vtable word; expecting every returned vtable word to be zero
+would incorrectly reject any multi-element free chain.
+
+[The public map](../../../tools/frida/research/pool192_make_map.py) issues two
+129-unit JASS Move bursts, with Stop between them and RemoveUnit afterward.
+[Read-only observation](../../../tools/frida/research/pool192_observer.js) records
+258 actual CTaskPoint constructions, binds, zero-reference reclaims and wrapper
+returns per capture. The two complete normalized streams are identical. All 270
+public markers also match an observer-free control. Each run crosses two new
+CTaskPoint blocks and five wrapper blocks; the second task burst needs no new
+block. Public JASS reaches CTaskPoint directly here; this does not certify the
+player UI's COrderPoint producer, which remains BASE-01.1. One repeat also allocates
+a 19-byte diagnostic name inside the raw allocator; the original capture retains
+it, and the verifier distinguishes it from raw block growth using both the free
+head condition and exact block byte count.
+
+Captures, public Preload files and reproducible map metadata are archived at
+`research/ORDER-04.4/captures192` under the established retail archive. Their hashes,
+source provenance and normalized stream are frozen in
+[retail-point-pool-lifetimes192](../../../tools/ghidra/fixtures/retail-point-pool-lifetimes192-1.27.json).
+Saved Ghidra functions/comments and mapper rows include both static initializers,
+wrapper acquire/allocate, both point factories and wrapper return; existing typed
+`WC3PathPoolPrefix` fields suffice for this contract.
+
+The engine uses its existing address-stable, constant-time sparse command pool.
+`unit_queue_pop` first copies the command to the caller, then returns storage on
+the final pop, before successor dispatch. `G_ClearUnitOrderQueue` completes all
+cancellation callbacks while borrowed entries are live, then returns the bucket.
+An empty unit no longer retains a 17-entry bucket or clears that whole bucket
+again on every later replacement. Backing pool storage remains available for
+reuse; this is neither a resident-memory release nor a new retail address model.
+Order, callback and RNG timing are unchanged. Saved logical queue fields and
+format are unchanged; active wrapped rings and reclaimed empty queues both
+round-trip correctly.
+
+The new 129-unit pool/reuse and stale-target/replacement regressions failed 517
+of 10070 assertions before the fix and pass in Classic and TFT. The wrapped-ring
+save regression now also saves and reloads a reclaimed empty queue. Focused
+order-lifecycle, patrol, attack, queued-building and all 195 save tests pass in
+both schemas. Seven verifier tests reject missing growth, incomplete reuse,
+live-reference reclaim, unfinished wrapper ownership and missing/duplicated
+public lifetime boundaries. This lifecycle change does not establish the overall
+spawn or pathfinding frame-time target.
