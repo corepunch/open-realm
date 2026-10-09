@@ -145,7 +145,7 @@ netField_t playerStateFields[] = {
     { NETF(player_t, rdflags), NFT_LONG },
     { NETF(player_t, uiflags), NFT_LONG },
     { NETF(player_t, client_ui_state), NFT_LONG },
-    /* cinematic_portrait, team, color, race are consecutive BYTEs; one int32_t keeps the 32-bit mask. */
+    /* portrait-present flag, team, color, race are consecutive BYTEs; full portrait model index is a 16-bit stat. */
     { NETF(player_t, cinematic_portrait), NFT_LONG },
     { NETF(player_t, name), NFT_DUPTEXT },
     { NETF(player_t, start_location), NFT_LONG },

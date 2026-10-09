@@ -936,6 +936,7 @@ static void G_RunClients(void) {
             G_SetPlayerText(client, PLAYERTEXT_SPEAKER, "");
             G_SetPlayerText(client, PLAYERTEXT_DIALOGUE, "");
             client->ps.cinematic_portrait = 0;
+            client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] = 0;
             client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR] = 0;
             client->cinematic_end_time = 0;
             client->cinematic_voice_end_time = 0;

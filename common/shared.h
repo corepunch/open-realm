@@ -558,6 +558,7 @@ typedef enum {
     UI_PLAYERSTAT_CURSOR_INTERACTION,  /* opaque game-owned pointer interaction */
     UI_PLAYERSTAT_CURSOR_IMAGE, /* registered game-owned cursor image; zero clears it */
     UI_PLAYERSTAT_CURSOR_FLAGS, /* generic pointer input policies */
+    UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL = 29, /* full 16-bit registered model index; 0 = none */
 } UIPLAYERSTAT;
 
 typedef enum {
@@ -612,6 +613,8 @@ enum { CURSOR_INPUT_MINIMAP_POINT = 1u << 0 };
 
 _Static_assert(UI_PLAYERSTAT_CURSOR_FLAGS < MAX_STATS,
                "presentation stats must fit playerState.stats[]");
+_Static_assert(UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL < MAX_STATS,
+               "cinematic portrait model index must fit playerState.stats[]");
 
 /* Controller input is independent of whether the player edict has a visible model. */
 #define BZ_INPUT_MAX_MSEC 250 // milliseconds; bounds one controller movement sample after stalls
@@ -650,7 +653,7 @@ struct playerState_s {
     uint32_t rdflags;                  // refdef flags (underwater tint, etc.)
     uint32_t uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline
     uint32_t client_ui_state;          // coarse UI mode: CLIENT_UI_LOADING/GAME/CINEMATIC; state machine, not a bitfield like uiflags
-    uint8_t cinematic_portrait;        // model index, 0 = none; packed with team/color/race as one NFT_LONG
+    uint8_t cinematic_portrait;        // portrait-present flag; packed with team/color/race as one NFT_LONG
     uint8_t team;                      // alliance group (1-based, 0 = none); not the same as color
     uint8_t color;                     // cosmetic color slot (0 = red, 1 = blue, …)
     uint8_t race;                      // playerRace_t

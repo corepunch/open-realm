@@ -78,7 +78,7 @@ is part of the normal edict schema and follows the existing `goalentity` /
 
 The version 3 layout expands the fixed-size `GAMECLIENT` cinematic camera state with target Z offset, near/far clipping planes, and target-controller orientation inheritance. Version 2 saves are rejected because the raw client record layout changed; this prevents older saves from being misread with shifted fields.
 
-The version 4 layout packs `PLAYER.cinematic_portrait`, `team`, `color`, and `race` as consecutive `BYTE`s (one `NFT_LONG` on the wire), drops `PLAYER.camera_bounds` (the rectangle lives on `level`), and writes `level.camera_bounds` with the other level clocks. Version 3 saves are rejected because both the raw `GAMECLIENT` record and the level stream changed.
+The version 4 layout packs the portrait-present flag, `team`, `color`, and `race` as consecutive `BYTE`s (one `NFT_LONG` on the wire); the full portrait model index travels in the existing 16-bit player stat array. Older saves recover portrait indices that fit in the legacy byte. It also drops `PLAYER.camera_bounds` (the rectangle lives on `level`) and writes `level.camera_bounds` with the other level clocks. Version 3 saves are rejected because both the raw `GAMECLIENT` record and the level stream changed.
 
 Version 10 extends the authoritative `level.timeofday` record with the Warsmash-style temporary/false clock (`hour`, `minute`,
 remaining simulation ticks, active, initialized), so a loaded save cannot silently resume the canonical day/night cycle while a saved
