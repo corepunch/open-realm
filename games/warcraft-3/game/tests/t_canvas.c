@@ -175,6 +175,20 @@ TEST(wc3_canvas, esc_menu_art_resolves_for_each_race_and_fits_deferred_table) {
     canvas_teardown();
 }
 
+TEST(wc3_canvas, cinematic_layer_restores_previous_skin_context) {
+    gameClient_t client = { 0 }, previous = { 0 };
+    edict_t ent = { 0 };
+
+    canvas_setup();
+    client.ps.race = kPlayerRaceNightElf;
+    ent.client = &client;
+    ui_current_client = &previous;
+    UI_WriteCinematicLayer(&ent);
+    T_EQ(ui_current_client, &previous);
+    ui_current_client = NULL;
+    canvas_teardown();
+}
+
 TEST(wc3_canvas, console_write_authors_extension_tiles_for_wide_clients_only) {
     edict_t *ent = &g_edicts[0];
     gameClient_t *client = ent->client;

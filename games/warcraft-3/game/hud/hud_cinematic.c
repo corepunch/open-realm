@@ -262,6 +262,7 @@ void UI_ClearTextMessages(edict_t *ent) {
 
 void UI_WriteCinematicLayer(edict_t *ent) {
     gameClient_t *client;
+    gameClient_t *previous_client;
     player_t *ps;
 
     if (!ent || !ent->client) return;
@@ -307,7 +308,8 @@ void UI_WriteCinematicLayer(edict_t *ent) {
         hud.cinematic.CinematicDialogueText->Font.Color = COLOR32_WHITE;
     }
 
+    previous_client = ui_current_client;
     UI_SetCurrentClient(client);
     UI_WriteLayout(ent, hud.cinematic.CinematicPanel, LAYER_CINEMATIC);
-    UI_SetCurrentClient(NULL);
+    UI_SetCurrentClient(previous_client);
 }
