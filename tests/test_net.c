@@ -54,6 +54,7 @@ void SCR_LayoutDrawListBox(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawOverlay(handle_t layout);
+void SCR_DrawScreenField(uint32_t msec);
 void SCR_LayoutDrawLoadingBar(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutClampSelectionRect(rect_t *rect);
 bool SCR_LayoutModalActive(void);
@@ -1943,6 +1944,38 @@ TEST(net, cinematic_fade_covers_widescreen_canvas) {
     T_EQ(test_fade_color.a, 255);
 }
 
+TEST(client_screen, cinematic_filter_covers_only_world_viewport) {
+    rect_t const world_viewport = { 0.12f, 0.18f, 0.72f, 0.64f };
+    float const canvas_w = UI_BASE_HEIGHT * (1280.0f / 720.0f);
+
+    test_client_stubs_init();
+    test_client_stubs_set_canvas_policy(UI_CANVAS_EXPAND_CENTER);
+    test_client_stubs_set_window_size(1280, 720);
+    test_client_stubs_set_cvar("r_hud", "0");
+    cls.state = ca_active;
+    cls.key_dest = key_game;
+    cl.viewDef.viewport = world_viewport;
+    cl.pics[513] = (texture_t *)(uintptr_t)513;
+    cl.playerstate.cinefilter_image = 513;
+    cl.playerstate.cinefilter_color = MAKE(color32_t, 28, 84, 173, 96);
+    test_fade_draws = 0;
+    re.BeginFrame = capture_begin_frame;
+    re.EndFrame = capture_end_frame;
+    re.DrawImage = capture_fade_image;
+
+    SCR_DrawScreenField(16);
+
+    T_EQ(test_fade_draws, 1);
+    T_FEQ(test_fade_rect.x, world_viewport.x * canvas_w, 0.0001f);
+    T_FEQ(test_fade_rect.y, (1.0f - world_viewport.y - world_viewport.h) * UI_BASE_HEIGHT, 0.0001f);
+    T_FEQ(test_fade_rect.w, world_viewport.w * canvas_w, 0.0001f);
+    T_FEQ(test_fade_rect.h, world_viewport.h * UI_BASE_HEIGHT, 0.0001f);
+    T_EQ(test_fade_color.r, 28);
+    T_EQ(test_fade_color.g, 84);
+    T_EQ(test_fade_color.b, 173);
+    T_EQ(test_fade_color.a, 96);
+}
+
 TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -2683,6 +2716,29 @@ TEST(net, playerinfo_view_offsets_roundtrip_into_camera_sample) {
     T_FEQ(cl.viewDef.camerastate[0].eyeoffset.z, 56.5f, 0.001f);
     /* The previous sample keeps the old (zero) offsets so the renderer can interpolate the change. */
     T_FEQ(cl.viewDef.camerastate[1].viewoffset.z, 0.0f, 0.001f);
+}
+
+TEST(net, playerinfo_cinematic_filter_state_roundtrips) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    player_t from = { 0 }, to = { 0 }, out = { 0 };
+    uint32_t bits;
+    int number;
+
+    to.number = 1;
+    to.cinefilter_image = 513;
+    to.cinefilter_color = MAKE(color32_t, 28, 84, 173, 96);
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(out.cinefilter_image, 513);
+    T_EQ(out.cinefilter_color.r, 28);
+    T_EQ(out.cinefilter_color.g, 84);
+    T_EQ(out.cinefilter_color.b, 173);
+    T_EQ(out.cinefilter_color.a, 96);
+    T_EQ(sb.readcount, sb.cursize);
 }
 
 TEST(net, environment_variant_stat_roundtrips) {
