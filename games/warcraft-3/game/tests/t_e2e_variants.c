@@ -14,9 +14,13 @@ static void wc3_repulsion_crowds_ground_control_saved_mid_order_matches_complete
 static void wc3_movement_retail_group_gate_traversal_skip_and_only_edge_failure_match_all_motion_fn(void);
 static void wc3_movement_retail_chained_gates_all_activation_combinations_match_all_motion_fn(void);
 
-/* A category cannot silently pass when its underlying journey is empty. */
+static void reset_test_state(void);
+
+/* A category cannot silently pass when its underlying journey is empty.
+ * Nested journeys need the same VM/trigger reset as registered test cases. */
 static void e2e_journey(void (*run)(void)) {
     int asserts=test_asserts,failures=test_failures;
+    reset_test_state();
     run();
     T_ASSERT(test_asserts>asserts); T_EQ(test_failures,failures);
 }
@@ -68,6 +72,46 @@ TEST(wc3_e2e206, pursuit_refresh_visibility_and_saved_owner_state) {
         e2e_journey(wc3_movement_target166_public_fog_follow_matches_retail_and_cold_save_fn);
         e2e_journey(wc3_movement_target166_hidden_approach_ends_at_cached_arrival_fn);
         e2e_journey(wc3_movement_target166_hidden_persistent_follow_ends_at_cached_arrival_fn);
+    }
+}
+
+/* Keep the literal original assertions inside their production-path journeys.
+ * These categories compose SCHED-04 and ORDER-06 with public successors. */
+static void wc3_movement_retail_coarse_and_fine_contention_matches_captured_owner_window_fn(void);
+static void wc3_movement_public_coarse_contention_saves_pending_two_player_orders_fn(void);
+static void wc3_cancel_public_stop_and_replacement_match_turning_and_saved_suffix_fn(void);
+static void wc3_cancel_waiting_and_active_replacements_retain_survivor_fifo_and_storage_fn(void);
+static void wc3_interrupt_pending_removal_retains_all_order_shapes_and_saved_head_fn(void);
+static void wc3_interrupt_actual_spell_completion_replaces_owner_and_releases_removed_peers_once_fn(void);
+static void wc3_patrol_orders_queued_move_runs_at_leg_end_then_return_leg_resumes_fn(void);
+static void wc3_patrol_orders_saved_rotated_pair_retains_activation_origin_and_fifo_order_fn(void);
+static void wc3_patrol_orders_combat_resumes_same_leg_before_starting_queued_move_fn(void);
+static void wc3_movement_recovery197_blocked_completion_dispatches_saved_successor_fn(void);
+
+TEST(wc3_e2e210, player_contention_retains_ordered_admission_and_saved_queues) {
+    bool responsive=level.move_fine_responsive;
+    FOR_LOOP(repeat,2) {
+        e2e_journey(wc3_movement_retail_coarse_and_fine_contention_matches_captured_owner_window_fn);
+        e2e_journey(wc3_movement_public_coarse_contention_saves_pending_two_player_orders_fn);
+    }
+    level.move_fine_responsive=responsive;
+}
+
+TEST(wc3_e2e210, cancellation_and_completion_release_preserve_successor_ownership) {
+    FOR_LOOP(repeat,2) {
+        e2e_journey(wc3_cancel_public_stop_and_replacement_match_turning_and_saved_suffix_fn);
+        e2e_journey(wc3_cancel_waiting_and_active_replacements_retain_survivor_fifo_and_storage_fn);
+        e2e_journey(wc3_interrupt_pending_removal_retains_all_order_shapes_and_saved_head_fn);
+        e2e_journey(wc3_interrupt_actual_spell_completion_replaces_owner_and_releases_removed_peers_once_fn);
+    }
+}
+
+TEST(wc3_e2e210, queued_orders_follow_arrival_combat_and_blocked_completion) {
+    FOR_LOOP(repeat,2) {
+        e2e_journey(wc3_patrol_orders_queued_move_runs_at_leg_end_then_return_leg_resumes_fn);
+        e2e_journey(wc3_patrol_orders_saved_rotated_pair_retains_activation_origin_and_fifo_order_fn);
+        e2e_journey(wc3_patrol_orders_combat_resumes_same_leg_before_starting_queued_move_fn);
+        e2e_journey(wc3_movement_recovery197_blocked_completion_dispatches_saved_successor_fn);
     }
 }
 #endif

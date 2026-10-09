@@ -14345,3 +14345,52 @@ Use a fresh report path. Rebuild the public map with archived
 `group032_make_map.py --probe tools/frida/research/interrupt209_probe.j`
 and the original campaign base. `interrupt209_fixture.py` generates only the
 engine test scene from that same probe; no expected retail values are rewritten.
+
+## Contention cancellation and successors share the end-to-end baseline (Payoff210)
+
+Three combined categories run ten actual game journeys twice in Classic and TFT.
+They join independent coarse/fine player admission, public96-unit pending queues,
+Stop/replacement while waiting, moving or turning, completion/removal callbacks,
+and queued successors after Patrol arrival, combat and blocked recovery. Each
+journey retains its existing assertions, ownership checks and saved continuation.
+The responsive scheduler is disabled for the original-budget comparison and its
+previous policy is restored afterward.
+
+The strict runner revalidates both complete Scheduler102 captures:25,902 ordered
+events and288 paths repeat exactly. All516 frozen owner-window rows still match
+the engine header. One request remains pending at the original completion marker;
+this boundary is retained. Cancel208, Interrupt209 and Patrol176 original
+contracts are rerun with their existing pins and exclusions. No original
+expectation is rewritten, no new Ghidra mapping is claimed, and no new whole-world
+or performance equivalence follows from this composition.
+
+Repeating public callbacks followed by saving exposed a harness defect: nested
+journeys bypassed the registered BeforeEach reset and retained trigger callbacks
+after their JASS VM was replaced. The E2E helper now applies that same reset before
+every nested journey. The failing combined run is retained as a diagnostic;
+production gameplay and retail expectations are unchanged by this harness fix.
+
+Fresh acceptance passes three categories/45,396 assertions per edition. Earlier
+E2E205 categories pass3/2,117,900 and E2E206 categories2/854,608 per edition;
+44 Python evidence/corpus checks pass. Exact scheduling is scoped to the captured
+owner window; public96-unit saved/RNG checks establish engine determinism rather
+than complete retail trajectories. Ground-target CHANNEL, Patrol motion and
+observer restrictions remain those of their child contracts. No new retail UI
+save/load, multiplayer or frame-budget claim is made.
+
+`oracle-e2e-orders210` binds these unchanged originals to fresh actual-game logs,
+JUnit identities and nonempty assertion totals. It rejects weakened child checks,
+missing scheduling repeats and partial/empty engine categories. E2E-01.3 closes;
+the backlog is274/336 done,62 remaining. This focused chunk is4/12 since the last
+full checkpoint; the full suite is not repeated here.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+python3 tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --only oracle-e2e-orders210 --output /tmp/e2e-orders210-fresh
+```
+
+Use a new output directory. The runner compares frozen expectations and never
+regenerates them on disk.

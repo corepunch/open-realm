@@ -48544,6 +48544,74 @@
         "Engine minimal-data/nonstock spell fixture checks lifecycle and ownership; full retail numerical trajectories remain covered separately.",
         "Private member tombstone representation and arbitrary reentrant FIFO edits are separate leaves."
       ]
+    },
+    {
+      "id": "oracle-e2e-orders210",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_e2e_orders.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "e2e-orders210.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "categories": {
+          "equal": 3
+        },
+        "retail_contracts": {
+          "equal": 3
+        },
+        "engine_repeats_per_edition": {
+          "equal": 2
+        },
+        "engine_editions": {
+          "equal": 2
+        },
+        "original": {
+          "length": 3
+        },
+        "engine": {
+          "length": 2
+        },
+        "scheduler": {
+          "equal": {
+            "observations": 2,
+            "events": 25902,
+            "paths": 288,
+            "pending_at_completion": 1,
+            "engine_rows": 516,
+            "digest": "f4ee770e3a43f068bdf267d75104cdcb88bd890cb26e68c726aacae9f14dc093"
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "E2E-01.3 combined two-player coarse/fine contention, waiting/active/angular cancellation, completion/release replacement and next-order Patrol/combat/blocked recovery. Ten actual engine journeys repeated twice per edition; original full scheduling repeats and unchanged cancellation/interruption/Patrol contracts are revalidated.",
+      "exclusions": [
+        "No new live gameplay claim; existing original expectations and child exclusions remain unchanged.",
+        "Contention runs the original budget policy (responsive scheduling disabled); faster deterministic scheduling remains an explicitly different engine policy.",
+        "Exact engine scheduling covers the captured owner window. Public96-unit saved/RNG continuation checks engine determinism, not complete numerical retail trajectory parity.",
+        "Pending at the retail30-second marker is retained, not silently replaced by a later empty queue.",
+        "Ground unit-target arrival CHANNEL only; full spell lifecycle, other target shapes, private member rows and arbitrary reentrant FIFO edits remain excluded.",
+        "Patrol witnesses retain physical-motion and observer limits of their child contract. No whole-world, multiplayer, frame-budget or all-scenario determinism claim.",
+        "Saved engine suffixes are compared with uninterrupted expectations; no new original retail UI save/load is claimed."
+      ]
     }
   ],
   "fixtures": [
@@ -51234,7 +51302,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "e623b71997749a79539160e2db482ed2ddda63dd6c23cffeb2caba60945aa3bf"
+      "sha256": "3821f0259f4351ebf49a22455ff303ebbfdb2f806fb611e9ac08b64da2594e05"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51246,11 +51314,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "5f171755ccd58ddc7315c7297917f6d2ca40d44434825f23f8fbed82e787b31f"
+      "sha256": "cefe29cbda28c07d625897afd29313d10ea69b6a6cef553ab495dccf8c3073da"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "18a1531ea945471207d76525425828c6cfefcae8772c60b5f445ec418b9e391f"
+      "sha256": "673acc5eefc5ef5ebd38c9d7807e46d606be07e688a7e85ce68b481e08b99774"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -53254,7 +53322,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_e2e_variants.c",
-      "sha256": "d7e00d7c613b5c882be576748ea61ea69df891a914348bbd58f2526609364fd3"
+      "sha256": "5dd3e45070ebcbea22a69769b46af43ee5f9b11f36724f47a61c5d7ed92d6cbe"
     },
     {
       "path": "tests/test_wc3_pathing_e2e_variants.py",
@@ -53423,6 +53491,38 @@
     {
       "path": "tests/test_wc3_pathing_interrupt.py",
       "sha256": "c3a776e97077849b1c9368842782110f8b3d68597396bc51383c0db1c588994e"
+    },
+    {
+      "path": "tools/ghidra/research/e2e210_contract.py",
+      "sha256": "98badfe7a3826a57bec7f7a99c332a3652b09611186f33657b5e26858f648f04"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_e2e_orders.py",
+      "sha256": "c19224bd2a422471c3eda2e2a7fafe31b34fcee3525a05d539653308dd56b444"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-e2e-orders210-1.27.json",
+      "sha256": "1295aa08cd360253a7db15ea005844e0b12498591f225d1101e3fd114f1d15db"
+    },
+    {
+      "path": "tests/test_wc3_pathing_e2e_orders.py",
+      "sha256": "2a97bac426374c0407f292187116822cd9a94441dae80fe8ca0b64acec35f15e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-scheduler-contention-1.27.json",
+      "sha256": "9e4a5917302aa3a1e3d6f9d8e119fe5110d0dd9af63a2e3b4f30bad9b316b0f4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-scheduler-contention-1.27.jsonl.gz",
+      "sha256": "0c90046cb55fc2e5b929e7277112e00f82851530ebbb660569238751bc86fcf8"
+    },
+    {
+      "path": "tools/frida/verify_wc3_scheduler_trace.py",
+      "sha256": "8fb5e28112e311698dd5543d0bab6838e627dda3e4e55b91b70f009e7994f601"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_scheduler_contention.h",
+      "sha256": "b62dfce3b0985ed406afcd5564f9c49f89b6fd81f567a62745d692d97222e91a"
     }
   ]
 }

@@ -2069,3 +2069,19 @@ python3 tools/ghidra/run_wc3_pathfinding_corpus.py \
 
 The output directory must be new. The inventory now has446 entries; historical
 inventory breakdowns remain unchanged.
+
+## Combined contention cancellation and successors (Payoff210)
+
+`oracle-e2e-orders210` closes E2E-01.3 by composing ten existing production
+journeys into three categories, repeated twice per edition. It revalidates both
+complete original Scheduler102 streams and the unchanged Cancel208, Interrupt209
+and Patrol176 contracts before running fresh engine assertions and saved suffixes.
+The516 scheduling rows and pending-at-marker request are retained exactly.
+No old numerical fixture is regenerated or expectation weakened.
+
+The binding is `retail-e2e-orders210-1.27.json`; the runner requires fresh reports,
+binary/source/archive pins and nonempty Classic/TFT category identities. Existing
+child observer/motion/lifecycle restrictions remain explicit. See
+[combined variants](retail-pathfinding-engine.md#contention-cancellation-and-successors-share-the-end-to-end-baseline-payoff210)
+for reproduction and coverage limits. The inventory now has447 entries;
+historical inventory breakdowns remain unchanged.
