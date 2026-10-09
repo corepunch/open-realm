@@ -15,6 +15,62 @@ static int32_t terrain_deform_capture_values[32];
 static float terrain_deform_capture_floats[16];
 static uint32_t terrain_deform_capture_count, terrain_deform_capture_float_count;
 
+static bool spell_cursor_clear_seen;
+static bool spell_cursor_splat_seen;
+static bool spell_cursor_image_clear;
+static float spell_cursor_capture_radius;
+
+static void spell_cursor_capture_write(pfWriteType_t type, void const *data) {
+    if (type == PF_BYTE) {
+        spell_cursor_splat_seen = *(int32_t const *)data == svc_cursor_splat;
+    } else if (spell_cursor_splat_seen && type == PF_SHORT) {
+        spell_cursor_image_clear = *(int32_t const *)data == 0;
+    } else if (spell_cursor_splat_seen && type == PF_FLOAT) {
+        spell_cursor_capture_radius = *(float const *)data;
+        spell_cursor_clear_seen = spell_cursor_image_clear && spell_cursor_capture_radius == 0.0f;
+        spell_cursor_splat_seen = false;
+    }
+}
+
+static char const spell_cursor_test_slk[] =
+    "ID;PWXL;N;EBB;Y2;X8\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Cost1\"\n"
+    "C;Y1;X4;K\"Cool1\"\nC;Y1;X5;K\"Rng1\"\nC;Y1;X6;K\"DataA1\"\n"
+    "C;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"levels\"\n"
+    "C;Y2;X1;K\"AEbl\"\nC;Y2;X2;K\"AEbl\"\nC;Y2;X3;K\"10\"\n"
+    "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"1000\"\nC;Y2;X6;K\"1000\"\n"
+    "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"1\"\nE\n";
+
+static edict_t *spell_cursor_test_begin(slkTestData_t **rows, slkTestData_t **old) {
+    static UnitAbilities_t abilities;
+    edict_t *clent, *caster;
+
+    reset_entities(); setup_test_world();
+    *rows = parse_slk_string(spell_cursor_test_slk);
+    *old = G_SetSLKRows("AbilityData", *rows);
+    abilities = (UnitAbilities_t){ .abilList = "AEbl" };
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->inuse = true;
+    clent->client->connected = true;
+    clent->client->ps.number = 0;
+    caster = alloc_test_unit(MAKEFOURCC('E','w','d','n'), 0, 0);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = clent->client->ps.number;
+    caster->svflags |= SVF_MONSTER;
+    caster->stand = unit_stand;
+    caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','E','b','l'), .level = 1);
+    G_SelectEntity(clent->client, caster);
+    clent->client->menu.ability_code = MAKEFOURCC('A','E','b','l');
+    spell_cursor_clear_seen = false;
+    spell_cursor_splat_seen = false;
+    spell_cursor_image_clear = false;
+    spell_cursor_capture_radius = 0.0f;
+    gi.Write = spell_cursor_capture_write;
+    spell_cmd(clent);
+    return clent;
+}
+
 static void terrain_deform_capture_write(pfWriteType_t type, void const *data) {
     uint32_t slot = terrain_deform_capture_count++;
     if (slot < sizeof(terrain_deform_capture_types) / sizeof(terrain_deform_capture_types[0])) {
@@ -4232,6 +4288,42 @@ TEST(wc3_spell, point_order_name_routes_blink_and_carries_spell_point) {
     T_FEQ(level.events.queue[0].point.y, point.y, 0.001f);
     T_EQ((uint32_t)level.events.queue[0].value, MAKEFOURCC('A','E','b','l'));
 
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, cancel_point_target_mode_clears_spell_cursor_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    slkTestData_t *rows, *old;
+    edict_t *clent = spell_cursor_test_begin(&rows, &old);
+
+    T_ASSERT(S_SpellPointTargetMode(clent));
+    T_ASSERT(spell_cursor_capture_radius > 0.0f);
+    spell_cursor_clear_seen = false;
+    gi.Write = spell_cursor_capture_write;
+    T_ASSERT(G_CancelTargetMode(clent));
+    gi.Write = old_write;
+
+    T_ASSERT(spell_cursor_clear_seen);
+    T_NULL(clent->client->menu.on_location_selected);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, command_card_refresh_clears_spell_cursor_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    slkTestData_t *rows, *old;
+    edict_t *clent = spell_cursor_test_begin(&rows, &old);
+
+    T_ASSERT(S_SpellPointTargetMode(clent));
+    T_ASSERT(spell_cursor_capture_radius > 0.0f);
+    spell_cursor_clear_seen = false;
+    gi.Write = spell_cursor_capture_write;
+    Get_Commands_f(clent);
+    gi.Write = old_write;
+
+    T_ASSERT(spell_cursor_clear_seen);
+    T_NULL(clent->client->menu.on_location_selected);
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }

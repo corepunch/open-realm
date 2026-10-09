@@ -1070,6 +1070,7 @@ void Get_Commands_f(edict_t *ent) {
     /* The command bar can also be rebuilt while item-owned building
      * targeting is active (selection change, Escape, interrupted order). */
     if (ent->client->menu.on_location_selected) {
+        if (S_SpellPointTargetMode(ent)) S_SpellCursorSplat(ent, 0.0f);
         gi.Write(PF_BYTE, &(int32_t){svc_cursor});
         gi.Write(PF_ENTITY, &(entityState_t){0});
         gi.unicast(ent);
