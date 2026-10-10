@@ -2842,6 +2842,52 @@ TEST(wc3_spell, creep_disease_cloud_alias_ticks_authored_area_damage) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Two Disease Cloud emitters must own different Bapl slots and retain their
+ * own tick phases; leaving the aura must not remove an existing infection. */
+TEST(wc3_spell, disease_cloud_independent_sources_and_refresh) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"targs\"\n"
+        "C;Y1;X6;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Aap1\"\nC;Y2;X2;K\"Aapl\"\nC;Y2;X3;K\"100\"\n"
+        "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"ground,enemy,organic\"\nC;Y2;X6;K\"13\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *first = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    edict_t *second = make_hero(MAKEFOURCC('o','g','r','u'), 100, 40, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
+    UnitAbilities_t abilities = { .abilList = "Aap1" };
+    heroabilitystatus_t *a, *b;
+    uint32_t next_a;
+    first->data.UnitAbilities = second->data.UnitAbilities = &abilities;
+    first->s.player = second->s.player = 0;
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100;
+    S_RunAbilityUpdates(first);
+    a = unit_findstatussource(target, MAKEFOURCC('B','a','p','l'), first);
+    T_NOT_NULL(a);
+    T_EQ(a->stack_policy, WC3_STATUS_STACK_INDEPENDENT);
+    next_a = a->next_tick;
+    S_RunAbilityUpdates(second);
+    b = unit_findstatussource(target, MAKEFOURCC('B','a','p','l'), second);
+    T_NOT_NULL(b);
+    T_NE(a, b);
+    T_NE(a->instance_id, b->instance_id);
+    T_EQ(a->next_tick, next_a);
+    S_RunAbilityUpdates(first);
+    T_EQ(unit_findstatussource(target, a->code, first), a);
+    T_EQ(a->next_tick, next_a); /* Same-source exposure does not reset DPS. */
+    level.time += 1000;
+    unit_updatestatuses(target);
+    T_FEQ(target->health.value, 74.0f, 0.001f);
+    unit_removestatus(target, a, STATUS_REMOVE_DISPEL);
+    T_NULL(unit_findstatussource(target, MAKEFOURCC('B','a','p','l'), first));
+    T_EQ(unit_findstatussource(target, MAKEFOURCC('B','a','p','l'), second), b);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, creep_orb_of_annihilation_adds_authored_attack_damage) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X3\n"
