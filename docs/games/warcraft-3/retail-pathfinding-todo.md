@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff220 integrates queued target Move fallback after issue-time-visible units
+become invisible, dead, removed or fogged before activation. Two genuine Shift
+retail repeats and an unhooked control preserve packet points and913 public
+markers; failing-first engine/save regressions cover slot reuse and widget
+boundaries. Wider TARGET-03.1/03.2 remain open. See
+[queued target fallback](retail-pathfinding-engine.md#queued-move-retains-its-fallback-point-through-target-loss-payoff220).
+
 Payoff219 unifies fresh and retained visible-waypoint selection under the
 retail counted self-record scope. A32-case failing-first production regression
 and fresh original96-case replay retain the existing frozen expectations.

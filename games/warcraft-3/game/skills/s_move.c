@@ -5797,7 +5797,15 @@ BZ_ABILITY_PROC(CAbilityMove) {
         edict_t *target=call->issued_target_order.target;
         if (!target || !(target->svflags&SVF_MONSTER)) return ABILITY_ORDER_UNHANDLED;
         moveTargetResult_t status=S_MoveTargetStatus(ent,target);
-        if(status==MOVE_TARGET_VALID)return ABILITY_ORDER_UNHANDLED;
+        if(status==MOVE_TARGET_VALID) {
+            /* The packet keeps an issue-time fallback independently of its
+             * target identity, including targets lost while queued. */
+            if(call->issued_target_order.point) {
+                wc3GridPose_t point;unit_predicted_pose(target,&point);
+                *call->issued_target_order.point=(vec2_t){point.world[0],point.world[1]};
+            }
+            return ABILITY_ORDER_UNHANDLED;
+        }
         /* Native207160 consumes Move's unseen result through its point
          * fallback. Normalize before FIFO admission so queued Move retains
          * the issue-time point, without subscribing to the target's lifetime. */
@@ -5832,8 +5840,24 @@ BZ_ABILITY_PROC(CAbilityMove) {
          * next physical-owner update or a replacement target can be created. */
         S_UnitTargetRemoved(ent);
         return true;
-    case A_QUEUE_ORDER_START:
-        return move_start_queued_group(ent,call->queued_order);
+    case A_QUEUE_ORDER_START: {
+        unitOrder_t const *queued=call->queued_order;
+        if(queued->target_type==UNIT_ORDER_TARGET_ENTITY && queued->target_is_unit &&
+           !strcmp(queued->order,"move")) {
+            edict_t *target=queued->target_number<globals.num_edicts ?
+                globals.edicts+queued->target_number : NULL;
+            if(target && target->spawn_time==queued->target_spawn_time &&
+               S_MoveTargetStatus(ent,target)==MOVE_TARGET_VALID)
+                return S_IssueFollowOrder(ent,target,G_OrderId(queued->order));
+            /* Original5fd270 uses the order's retained48/50 words after
+             * optional-target validation, including a failed identity lookup. */
+            edict_t *waypoint=Waypoint_add(&queued->point);
+            if(!waypoint)return false;
+            S_IssueMoveOrder(ent,waypoint,G_OrderId(queued->order));
+            return ent->currentmove==&move_move_walk && ent->goalentity;
+        }
+        return move_start_queued_group(ent,queued);
+    }
     case A_GROUP_POINT_ORDER:
         return move_group_point_order(call->group_order,0) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_ORDER_ACCEPTED:

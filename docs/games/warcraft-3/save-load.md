@@ -1,5 +1,11 @@
 # Warcraft III Save/Load
 
+Save155 retains queued target Move's issue-time point and unit class independently
+of its target incarnation. Load before activation preserves fallback after target
+loss, and a recycled slot cannot replace that target. Save154 and earlier layouts
+are rejected. The network contract is unchanged. See
+[queued Move](retail-pathfinding-engine.md#queued-move-retains-its-fallback-point-through-target-loss-payoff220).
+
 Save154 retains `shared_reveal`, the alliance expansion captured by the last
 UnitShareVision call. Load preserves it even if alliances have since changed;
 a later share call refreshes it. Save153 and earlier layouts are incompatible.
@@ -84,7 +90,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 154, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 155, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;

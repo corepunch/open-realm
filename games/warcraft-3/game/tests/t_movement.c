@@ -20448,4 +20448,92 @@ TEST(wc3_movement, target218_revealed_hostile_move_retains_physical_target) {
 }
 
 
+/* Retail220: a visible target queued behind Move is resolved on activation;
+ * target loss uses the retained order point, never the removed unit's pose. */
+TEST(wc3_movement, target220_queued_visible_move_retains_issue_point_and_falls_back_on_loss) {
+    FOR_LOOP(kind,6) {
+        edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);
+        T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+        T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){320,1856}));
+        edict_t *head=unit->goalentity;
+        T_ASSERT(G_IssueUnitTargetOrder(unit,"move",target,true,0));
+        T_EQ(unit->goalentity,head);T_EQ(unit->order_queue.count,1);
+        if(unit->order_queue.count) {
+            unitOrder_t const *queued=unit->order_queue.entries+unit->order_queue.head;
+            T_EQ(queued->target_type,UNIT_ORDER_TARGET_ENTITY);T_ASSERT(queued->target_is_unit);
+            T_EQ(wc3_float_bits(queued->point.x),0x44dc0000u);
+            T_EQ(wc3_float_bits(queued->point.y),0x44800000u);
+        }
+        fogModifier_t *fog=NULL;
+        if(kind==1)target217_call("add");
+        if(kind==2)G_DeferFreeEdict(target);
+        if(kind==3)target->health.value=0;
+        if(kind==4) {
+            fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
+            *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1760,1024},.radius=768};
+            G_FogModifierStart(fog);G_FowUpdate();
+        }
+        if(kind==5) {
+            target->spawn_time++;
+            S_SetUnitAxisPosition(target,0,1840);S_SetUnitAxisPosition(target,1,1408);
+        }
+        cstring_t file=Test_TempPath("wc3-target220-pending.bin");
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        T_ASSERT(G_UnitStartNextQueuedOrder(unit));T_EQ(unit->order_queue.count,0);
+        T_EQ(unit->current_order_id,G_OrderId("move"));
+        if(!kind)T_EQ(unit->movement.follow_target,target);
+        else {
+            T_NULL(unit->movement.follow_target);T_NOT_NULL(unit->goalentity);
+            if(unit->goalentity) {
+                T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x),0x44dc0000u);
+                T_EQ(wc3_float_bits(unit->goalentity->s.origin2.y),0x44800000u);
+            }
+        }
+        T_ASSERT(WriteGame(file));uint32_t expected[24][6];
+        FOR_LOOP(i,24) {
+            target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            expected[i][0]=wc3_float_bits(pose.grid[0]);expected[i][1]=wc3_float_bits(pose.grid[1]);
+            expected[i][2]=wc3_float_bits(unit->movement.velocity.x);expected[i][3]=wc3_float_bits(unit->movement.velocity.y);
+            expected[i][4]=unit->current_order_id;expected[i][5]=unit->movement.group_id;
+        }
+        T_ASSERT(ReadGame(file));remove(file);
+        FOR_LOOP(i,24) {
+            target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            T_EQ(wc3_float_bits(pose.grid[0]),expected[i][0]);T_EQ(wc3_float_bits(pose.grid[1]),expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x),expected[i][2]);T_EQ(wc3_float_bits(unit->movement.velocity.y),expected[i][3]);
+            T_EQ(unit->current_order_id,expected[i][4]);T_EQ(unit->movement.group_id,expected[i][5]);
+        }
+        if(fog)G_FogModifierDestroy(fog);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, target220_retained_packet_point_survives_removed_target_without_rebinding_widgets) {
+    FOR_LOOP(widget,2) {
+        edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);
+        if(widget)target->svflags&=~SVF_MONSTER;
+        T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){320,1856}));
+        /* The genuine UI packet point differs from the selected unit's pose.
+         * A producer that has cursor coordinates must retain those exact words. */
+        vec2_t point={wc3_float(0x44c82976),wc3_float(0x448526c6)};
+        T_ASSERT(G_QueueUnitOrder(unit,"move",UNIT_ORDER_TARGET_ENTITY,&point,target,0,0,0));
+        point=(vec2_t){-17.25f,83.5f};
+        G_DeferFreeEdict(target);
+        cstring_t file=Test_TempPath("wc3-target220-packet.bin");
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        if(widget) {
+            /* This evidence concerns optional unit targets, not destructables
+             * or items. Their existing stale-identity rejection is preserved. */
+            T_ASSERT(!G_UnitStartNextQueuedOrder(unit));
+        } else {
+            T_ASSERT(G_UnitStartNextQueuedOrder(unit));T_NULL(unit->movement.follow_target);
+            T_NOT_NULL(unit->goalentity);if(unit->goalentity) {
+                T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x),0x44c82976u);
+                T_EQ(wc3_float_bits(unit->goalentity->s.origin2.y),0x448526c6u);
+            }
+        }
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
 #endif

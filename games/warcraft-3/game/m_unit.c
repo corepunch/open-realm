@@ -814,10 +814,12 @@ bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t targ
                         .order_id=order_id,.group_speed=group_speed};
     snprintf(queued.order,sizeof(queued.order),"%s",order);
     if (point) queued.point=*point;
+    else if(target)queued.point=target->s.origin2;
     if (target) {
         uint32_t number=target->s.number;
         if (number>=globals.num_edicts || globals.edicts+number!=target) return false;
         queued.target_number=number;queued.target_spawn_time=target->spawn_time;
+        queued.target_is_unit=(target->svflags&SVF_MONSTER)!=0;
     }
     return G_AppendUnitOrder(self,&queued);
 }
@@ -1020,12 +1022,12 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (S_GoldMineWorkerIsInside(self)) {
         return false;
     }
+    vec2_t point=target->s.origin2;
     /* Validate/intercept through the owner before clearing pending work. A
      * same-target interaction can retain its current task and public head. */
     {
         ability_t const *owner = FindAbilityByOrder(order);
         abilityProc_t const active = self->currentmove ? self->currentmove->proc : NULL;
-        vec2_t point;
         abilityCall_t call = {.issued_target_order = {target, order, queue, &point}};
         intptr_t result = ABILITY_ORDER_UNHANDLED;
         if (owner) result = owner->proc(self, A_TARGET_ORDER_ADMIT, &call);
@@ -1075,7 +1077,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
 
     if (queue && G_UnitHasActiveOrder(self)) {
-        bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
+        bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY, &point, target,
                                                issuer_player, 0.0f, 0);
         if (accepted) unit_publish_target_order(self, order, target, issuer_player);
         return accepted;
@@ -1181,6 +1183,12 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
                 return true;
             }
         } else if (queued.target_type == UNIT_ORDER_TARGET_ENTITY) {
+            /* Resolve ability-specific fallback before generic lifetime
+             * rejection: Move retains a point even after its target is gone. */
+            if (S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START)) {
+                S_UnitAbilityOrderAccepted(self,queued.order);
+                return true;
+            }
             edict_t *target;
             if (queued.target_number >= globals.num_edicts) continue;
             target = globals.edicts + queued.target_number;

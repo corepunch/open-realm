@@ -17117,6 +17117,79 @@
           "storage": 20
         }
       ]
+    },
+    {
+      "address": "6f692120",
+      "name": "Unit_CreatePointTask",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Payoff220: x86 ECX unit, stack4 code,8 X ptr,c Y ptr,10 range ptr,14 retained context; RET14. Genuine queued target loss calls this helper with d016b and exact retained packet coordinate words. The first stack argument is task code, not a unit pointer.",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "code",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "ptr:u32",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "ptr:u32",
+          "storage": 12
+        },
+        {
+          "name": "range",
+          "type": "ptr:u32",
+          "storage": 16
+        },
+        {
+          "name": "owner_context",
+          "type": "ptr:void",
+          "storage": 20
+        }
+      ]
+    },
+    {
+      "address": "6f6926b0",
+      "name": "Unit_CreateTargetTask",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Payoff220: recovered descriptive name Unit_CreateTargetTask. ECX unit, stack4 task code,8 target,c range ptr,10 retained context; RET10. Still-visible queued Move creates d0173 here at5fd7b1; lost optional unit takes692120 instead. This helper accepts multiple target classes, so target remains void pointer.",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "code",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 8
+        },
+        {
+          "name": "range",
+          "type": "ptr:u32",
+          "storage": 12
+        },
+        {
+          "name": "owner_context",
+          "type": "ptr:void",
+          "storage": 16
+        }
+      ]
     }
   ],
   "globals": [

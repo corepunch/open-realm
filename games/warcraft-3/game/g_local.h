@@ -796,6 +796,7 @@ typedef struct {
      * queue teardown can remove presentation without storing process pointers. */
     uint32_t target_number;
     uint32_t target_spawn_time;
+    bool target_is_unit; /* Captured class survives removal and slot reuse. */
     uint32_t issuer_player;
     uint32_t order_id; /* rawcode payload for delayed orders such as construction */
     float group_speed;

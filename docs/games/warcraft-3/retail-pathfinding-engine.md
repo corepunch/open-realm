@@ -14871,3 +14871,65 @@ Maps, exploratory versions, static readback and validation live under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.1/payoff218/`.
 This is focused validation, the fourth implementation commit after Payoff214's
 full checkpoint. TARGET-03.1/03.2 remain open for their wider contracts.
+
+## Queued Move retains its fallback point through target loss (Payoff220)
+
+A target order waiting behind an executing Move is not yet an active Follow
+subscription. The unit can disappear while that order remains in the user FIFO.
+When it activates, original `5fd270` resolves and validates the optional unit
+again. An invisible, dead, removed or fogged unit falls back to point task
+`d016b`, using the original order's `48/50` coordinates. Moving the target before
+removing it does not change those coordinates. A still-visible target instead
+creates persistent target task `d0173`.
+
+Two read-only original captures submit genuine selected Shift+Move clicks,
+retain the old executing head with user count `1 -> 2`, mutate targets at scene
+tick80 and activate the queued order at102. All six accepted scenes agree on
+queue identity relationships, task selection and point words. The five loss
+scenes call `692120` from `5fd95d`; the visible control calls `6926b0` from
+`5fd7b1`. The original cursor words `44c82976/448526c6` differ from the target
+center `44c80000/44800000`. An unhooked control agrees on all913 post-mutation
+public position/order markers. These are decimal `R2S` observations, not a claim
+of word-exact sampled motion.
+
+The new frozen fixture is `retail-queued-target220-1.27.json` plus its compressed
+original capture bundle. `verify_wc3_pathing_queued_target220.py` checks the
+original982 instruction encodings, owned input/source provenance, repeated
+native relationships, task words, public output and actual Classic/TFT engine
+regressions. Twelve Python mutation tests reject changed packet/task points,
+lost admission identity, replaced executing heads, missing activation, missing
+controls and incomplete or instrumented-control evidence. Calibration variants
+a/b/c are retained outside the accepted bundle. Scene0 is calibration; scenes1
+through6 supply the accepted loss cases and visible control.
+
+OpenRealm now retains both the issue-time point and unit class in the sparse
+queued order. Native admission asks Move for the predicted target point;
+producers with an existing cursor packet keep their supplied point verbatim.
+At activation, Move resolves the captured incarnation before generic stale-target
+rejection: a visible live unit starts Follow, while an unavailable unit starts
+the retained point Move. It never adopts a recycled slot's replacement. Other
+widget classes retain their existing dispatch/rejection behavior. Queue admission
+and activation remain O(1); no world scan or eager target subscription is added.
+
+Two failing-first production regressions cover visibility loss, death, removal,
+fog, slot reuse, the visible control, exact captured packet words, non-unit
+negative control and saved continuations. The clean previous-behavior run fails
+30 of1021 assertions. Save155 persists the captured class alongside the existing
+point and incarnation, and rejects Save154 and earlier formats. There is no
+network protocol change.
+
+Native target-pose capture and an explicit cursor packet remain distinct input
+contracts. Explicit Move cursor-to-entity UI ingress is still a separate gap;
+this chunk does not claim it is fixed. Wider Smart/combat/item/structure and
+visibility-policy compositions keep TARGET-03.1/03.2 open. No existing frozen
+expectation is rewritten to agree with the engine.
+
+Validation: each Classic/TFT mode passes429 focused tests /158,086 assertions
+(target movement44, Follow3, order2, lifecycle43, interruption2, units129 and
+save206). The new two-test oracle passes1021 assertions per mode. Twelve evidence
+mutation tests and37 corpus tests pass. All455 prior corpus entries are unchanged;
+1301 staged source pins agree. The fresh queued-target oracle is verified.
+Production and test game builds pass. This is the sixth focused implementation
+commit after Payoff214's full-suite checkpoint; no new full-suite run is claimed.
+Reports, clean red and original captures are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/payoff220/`.
