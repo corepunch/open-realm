@@ -15622,3 +15622,96 @@ original instruction/xref export are reproduced by
 `tools/ghidra/research/Work229Evidence.java` and mirrored in `MapPathfinding.java`.
 Raw accepted/exploratory captures and validation logs are archived under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-02.2/payoff229/`.
+
+## File-backed footprints preserve retail axes and categories (Payoff244)
+
+The complete mixed Footman/FLOAT/Gryphon/Footman Alt+Shift journey exposed a
+resource-decoding error before the group algorithms. The frozen Work243 map
+contains LT06, a large wooden bridge, at requested `(1024,640)`. Its asymmetric
+`PathTextures\CityBridgeLarge0.tga` is **32×18** in the archive. The original
+footprint is **18×32**, rasterized at quarter-turn1 after fixedRot90 and public
+position snapping. Repeated read-only raster observations freeze all576 decoded
+category bytes; both complete hierarchy snapshots agree at all four levels and
+four lanes.
+
+The original chain is `21e790 → 70dd90 → 70d9b0`. The image decoder normalizes
+TGA origin bit5: bottom-origin rows are reversed and top-origin rows preserved.
+The footprint constructor deliberately reverses the width/height output
+arguments, then reads normalized image pixel `(y,x)` for footprint pixel `(x,y)`.
+This transposition also applies to square images. BGRA file channels retain their
+byte order. The constructor's category conversion tests red and blue bit0:
+red contributes`d2`, blue`08`, and any nonzero green`04` plus resource flag64 bit0.
+The collection still owns the separate`c2/10/08` region identities; placement10
+belongs to red, not blue.
+
+`LoadTGA` now constructs these footprint coordinates directly, in one O(pixels)
+pass without an intermediate image or another allocation. `S_PublishMoveRegions`
+uses the recovered channel conversion. Destructable facing no longer adds an
+aspect-ratio quarter-turn: that adjustment had partly concealed the missing
+transposition. Native`252b30` selects the cardinal facing independently of image
+shape. This change does not certify arbitrary-angle caller policy; its existing
+nearest-quarter selection remains outside the cardinal fixture. Renderer image
+loading is separate and unchanged.
+
+The regression loads the actual minimal archive resources through
+`M_LoadPathTex`. The previous loader fails the unchanged retail journey before
+selected input, with10 assertions failing across the two runs. With the resource
+axes corrected, all850 ordered motion commits per run match: member identity,
+pose clock, fine position, velocity and facing. The final production regression
+also resumes each run through cold saves at2s and9s, preserving the same frozen
+850 commits. Those checkpoints cover pending Shift admission and later fresh
+policy0 reconstruction. Four complete original UI captures contain3400 motion
+commits and3420 physical-owner visits; the two additional repeats independently
+confirm the decoded texture and hierarchy. No observer-free UI timing control is
+claimed.
+
+The existing Human06 masks were checked against the original TGAs before their
+fixture setup changed: every literal mask equals the normalized file rows. The
+masks and world-space crossing expectations remain intact. Tests now load the
+three small original TGAs and check every decoded pixel against the transposed
+frozen mask. Only the private turn assertion changes from the previous
+aspect-ratio adjustment to the native cardinal turn. Synthetic narrow support
+fixtures now declare their dimensions in footprint coordinates. No retail
+trajectory or world-space expected result was regenerated from engine output.
+
+The old death-texture link-count assertion was engine-derived and incorrect:
+red-only`(B,G,R)=(0,0,1)` decodes to`d2`, matching both`c2` and`10`. The original
+loop independently proves two death links, so accumulated counts are5 after
+death and8 after restore, rather than4/7. The original bounds oracle230 remains
+unchanged; its test now supplies the captured turn directly in footprint axes.
+
+An isolated original-instruction oracle executes the complete integer loop
+`21e8f0..21e93e` over216 materialized BGRA combinations, including even red/blue
+values and low nonzero green. It verifies transposition, category bytes and the
+flight flag. It does not execute the complete decoder, allocator or constructor.
+The engine regression publishes these pixels through the actual static-widget
+producer and compares its retained inverse-raster data directly.
+
+Reproduce the frozen captures, instruction guards, original category loop and
+focused Classic/TFT engine checks with:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_work244.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/work244-fresh.json
+python3 -m unittest tests.test_wc3_pathfinding_work244
+```
+
+The verifier regenerates both literal headers from original evidence and rejects
+changed clock, velocity, texture or hierarchy expectations. Ghidra saves five
+mapped functions, the108-byte footprint layout and instruction/xref evidence through
+`tools/ghidra/research/Work244Evidence.java`, mirrored in `MapPathfinding.java`.
+Accepted captures, rejected early observer attempts, original texture bytes and
+failing/passing checks are retained under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff244/`.
+
+GROUP-04.6 remains open for wider canonical lifetime/category ownership and
+intermediate-state coverage. These complete mixed journeys close its earlier
+trajectory-validation gap, without declaring the entire task complete. No
+simulation, network or save layout changes, throughput win, or4096-unit frame
+budget acceptance are claimed.
+
+Focused acceptance passes95 engine tests /122,640 assertions per Classic/TFT
+mode, plus10 evidence-mutation checks. Both production and test game modules
+build. This is implementation commit6 of12 after the successful full-suite
+checkpoint238; the full repository suite is not claimed for this chunk.

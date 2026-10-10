@@ -8925,7 +8925,7 @@ TEST(wc3_movement, elevator_level_controls_ground_unit_height_and_clears_on_exit
 
 TEST(wc3_movement, rectangular_bridge_support_bounds_follow_quarter_turns) {
     static DestructableData_t const bridge_data = { .walkable = true };
-    struct { uint16_t width, height; color32_t map[15]; } bridge_path = { .width = 5, .height = 3 };
+    struct { uint16_t width, height; color32_t map[15]; } bridge_path = { .width = 3, .height = 5 };
 
     FOR_LOOP(angle, 4) {
         bool const vertical = !(angle & 1);
@@ -13572,6 +13572,116 @@ TEST(wc3_movement, selected243_nested_shift_preserves_outer_ready_rows) {
         jass_callbyname(level.vm,"cleanup",false);T_ASSERT(!jass_rterror_pending(level.vm));
     }
     reset_entities();setup_test_world();
+}
+
+#include "fixtures/retail_selected_motion244.h"
+#include "fixtures/retail_path_texture244.h"
+static struct {void (*link)(edict_t *);edict_t *client,*units[4];uint32_t const *input;bool issued;} selected244;
+static void selected244_input_link(edict_t *unit) {
+    selected244.link(unit);
+    if(selected244.issued || wc3_float_bits(level.pathing_clock.time)!=selected244.input[0])return;
+    selected244.issued=true;T_EQ(level.pathing_counter,selected244.input[1]);
+    FOR_LOOP(i,4)G_SetEntitySelectionMask(selected244.units[i],1u<<3);
+    selected244.client->client->menu.order_queued=true;selected244.client->client->menu.order_alt=true;
+    vec2_t point={wc3_float(selected244.input[2]),wc3_float(selected244.input[3])};
+    T_ASSERT(move_selectlocation(selected244.client,&point));
+}
+TEST(wc3_movement, selected244_complete_mixed_alt_shift_motion) {
+    float radii[]={31,48,8},speeds[]={270,350,320},turns[]={wc3_decimal("0.6"),wc3_decimal("0.2"),wc3_decimal("0.4")},windows[]={60,15,61};char *movement[]={"foot","float","fly"};
+    unitModification_t mods[3][5];unitData_t types[3];
+    FOR_LOOP(i,3) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=radii+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=speeds+i};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=movement[i]};
+        mods[i][3]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','r'),.type=mod_real,.data=turns+i};
+        mods[i][4]=(unitModification_t){.modID=MAKEFOURCC('u','p','r','w'),.type=mod_real,.data=windows+i};
+        types[i]=(unitData_t){.originalUnitID=i==2 ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o'),
+            .newUnitID=MAKEFOURCC('h','U'+i,'4','4'),.numbeOfModifications=5,.modifications=mods[i]};
+    }
+    mapInfo_t const *saved=level.mapinfo;mapInfo_t info=*saved;info.num_userCreatedUnits=3;info.userCreatedUnits=types;
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;E\nB;X6;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"file\"\nC;X3;K\"walkable\"\n"
+        "C;X4;K\"flyH\"\nC;X5;K\"fixedRot\"\nC;X6;K\"pathTex\"\n"
+        "C;X1;Y2;K\"LT06\"\nC;X2;K\"Doodads\\Terrain\\WoodBridgeLarge0\"\nC;X3;K1\n"
+        "C;X4;K256\nC;X5;K90\nC;X6;K\"PathTextures\\CityBridgeLarge0.tga\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("DestructableData",rows);
+    FOR_LOOP(c,2) FOR_LOOP(restore,3) {
+        FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        static uint8_t cells[128*128];CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});CM_SetupTestPathmap(128,128,cells);
+        static war3mapVertex_t vertices[33*33];
+        FOR_LOOP(i,33*33)vertices[i]=(war3mapVertex_t){.accurate_height=0x2000,.waterlevel=8550,.level=2};
+        static war3map_t terrain;terrain=(war3map_t){.width=33,.height=33,.vertices=vertices};world.map=&terrain;
+        pathTex_t *texture=M_LoadPathTex("PathTextures\\CityBridgeLarge0.tga");T_NOT_NULL(texture);
+        T_EQ(texture->width,18);T_EQ(texture->height,32);
+        edict_t *bridge=G_Spawn();bridge->class_id=MAKEFOURCC('L','T','0','6');G_BindEntityData(bridge);
+        bridge->destructable=G_AllocDestructable();bridge->destructable->placement_solid=true;
+        bridge->destructable->pathing_active=true;bridge->pathtex=bridge->destructable->alive_pathtex=texture;
+        bridge->s.origin=(vec3_t){1024,640,0};bridge->s.scale=1;
+        G_ApplyDestructableCreationPose(bridge);G_RegisterGroundSurface(bridge);gi.LinkEntity(bridge);CM_BakeStaticObstacles();
+        moveRegionSave_t region;S_GetMoveRegionState(bridge-g_edicts,&region);
+        T_EQ(region.width,18);T_EQ(region.height,32);T_EQ(region.turn,1);
+        FOR_LOOP(j,576)T_EQ(region.pixels[j],selected244_categories[j]);
+        level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+        level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+        uint32_t old_flags=level.setup.map_flags,old_prefs[12];level.setup.map_flags|=0x8000u;
+        FOR_LOOP(i,12){old_prefs[i]=game.clients[i].jass.race_pref;game.clients[i].jass.race_pref=i<4?1:32;}
+        G_InitMapRandom();level.setup.map_flags=old_flags;FOR_LOOP(i,12)game.clients[i].jass.race_pref=old_prefs[i];
+        T_ASSERT(run_test_jass("globals\nunit array u\ninteger ticks=0\nendglobals\n"
+            "function tick takes nothing returns nothing\nset ticks=ticks+1\nif ticks==5 then\ncall IssuePointOrder(u[0],\"move\",2000,1500)\nendif\nendfunction\n"
+            "function main takes nothing returns nothing\nset u[0]=CreateUnit(Player(3),'hU44',512,512,0)\n"
+            "set u[1]=CreateUnit(Player(3),'hV44',608,512,0)\nset u[2]=CreateUnit(Player(3),'hW44',512,800,0)\n"
+            "set u[3]=CreateUnit(Player(3),'hU44',608,800,0)\ncall TimerStart(CreateTimer(),0.1,true,function tick)\nendfunction\n"));
+        edict_t *units[4]={0};unsigned count=0;
+        FILTER_EDICTS(ent,ent->inuse && (ent->class_id==types[0].newUnitID || ent->class_id==types[1].newUnitID || ent->class_id==types[2].newUnitID))if(count<4)units[count++]=ent;
+        T_EQ(count,4);if(count!=4)continue;
+        G_FinishMovePathingInitialization();
+        /* Native 16c150's first visit observes the final post-main hierarchy. */
+        uint32_t state_size=G_GetMoveAdaptiveStateSize(),offset=0;
+        uint8_t *state=malloc(state_size);T_ASSERT(G_GetMoveAdaptiveState(state,state_size));
+        FOR_LOOP(depth,4) {
+            point2_t dims=G_GetMoveAdaptiveMapSize(depth);uint32_t n=dims.x*dims.y;
+            FOR_LOOP(lane,4) {
+                uint64_t hash=UINT64_C(14695981039346656037);
+                FOR_LOOP(j,n)hash=(hash^state[offset++])*UINT64_C(1099511628211);
+                T_EQ(hash,selected244_hierarchy[depth][lane]);
+            }
+        }
+        free(state);
+        edict_t *clent=alloc_test_unit(0,0,0);clent->client=game.clients+3;clent->client->ps.number=3;
+        selected244=(typeof(selected244)){.link=gi.LinkEntity,.client=clent,.input=selected244_inputs[c]};
+        FOR_LOOP(i,4)selected244.units[i]=units[i];
+        gi.LinkEntity=selected244_input_link;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        unsigned steps=0;bool mismatch=false,loaded=false;
+        while(level.time<24000 && steps<850 && !mismatch) {
+            level.time+=5;globals.RunFrame();
+            if(restore && !loaded && level.time>=(restore==1 ? 2000 : 9000)) {
+                cstring_t save=Test_TempPath("wc3-selected244.bin");
+                T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);loaded=true;
+                /* Network presentation is rebound by the host after a cold load. */
+                clent->client=game.clients+3;clent->client->ps.number=3;
+            }
+            unsigned visited=0;
+            while(steps<850) {
+                uint32_t const *expected=selected244_motion[c][steps];unsigned i=expected[0];edict_t *unit=units[i];
+                uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+                if(now!=expected[1]) {
+                    if(unit->movement.pose_clock.time>wc3_add(wc3_float(expected[1]),.1f)) {T_EQ(now,expected[1]);mismatch=true;fprintf(stderr,"244 missed clock case%u step%u unit%u now=%08x expected=%08x\n",c,steps,i,now,expected[1]);}
+                    break;
+                }
+                T_ASSERT(!(visited&(1u<<i)));visited|=1u<<i;steps++;
+                uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+                FOR_LOOP(k,7) {
+                    T_EQ(actual[k],expected[k]);
+                    if(actual[k]!=expected[k])mismatch=true;
+                }
+            }
+        }
+        gi.LinkEntity=selected244.link;T_ASSERT(selected244.issued);T_EQ(steps,850);
+        T_EQ(loaded,restore!=0);level.started=false;
+    }
+    reset_entities();G_SetSLKRows("DestructableData",old_rows);free_slk_rows(rows);G_SetMapUnitOverrides(NULL);level.mapinfo=saved;setup_test_world();
 }
 
 /*687a60 counts queued user command identities as well as the active head. */

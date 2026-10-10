@@ -514,6 +514,43 @@ TEST(wc3_collision, load_tga_grayscale_with_id_field_skips_id_bytes) {
     gi.MemFree(tex);
 }
 
+#include "fixtures/retail_path_texture244.h"
+TEST(wc3_collision, decoded_texture_categories244_match_original_loop) {
+    uint8_t buf[18+216*3]={0};test_tga_hdr_t *hdr=(test_tga_hdr_t *)buf;
+    *hdr=(test_tga_hdr_t){.image_type=2,.width=6,.height=36,.pixel_size=24,.attributes=0x20};
+    memcpy(buf+18,texture244_colors,sizeof(texture244_colors));
+    reset_collision_world();
+    pathTex_t *texture=LoadTGA(buf,sizeof(buf));T_NOT_NULL(texture);if(!texture)return;
+    edict_t *widget=G_Spawn();widget->pathtex=texture;widget->s.origin2=(vec2_t){512,512};
+    widget->s.model=1;gi.LinkEntity(widget);CM_BakeStaticObstacles();
+    moveRegionSave_t region;S_GetMoveRegionState(widget-g_edicts,&region);
+    T_EQ(region.width,36);T_EQ(region.height,6);T_EQ(S_GetMoveRegions(widget-g_edicts)->count,4);
+    T_NOT_NULL(region.pixels);
+    if(region.pixels)FOR_LOOP(i,216)T_EQ(region.pixels[i],texture244_categories[i]);
+    reset_entities();gi.MemFree(texture);setup_test_world();
+}
+
+/* 70d9b0 normalizes bit5; 21e790 swaps dimensions and transposes BGRA. */
+TEST(wc3_collision, load_tga_transposes_normalized_footprint) {
+    FOR_LOOP(format,3) FOR_LOOP(top,2) {
+        uint8_t buf[64]={0};test_tga_hdr_t *hdr=(test_tga_hdr_t *)buf;
+        unsigned bytes=format ? format+2 : 1;
+        *hdr=(test_tga_hdr_t){.image_type=format ? 2 : 3,.width=2,.height=3,
+            .pixel_size=bytes*8,.attributes=top ? 0x20 : 0};
+        FOR_LOOP(i,6) FOR_LOOP(k,bytes)buf[sizeof(*hdr)+i*bytes+k]=10*i+k+1;
+        pathTex_t *tex=LoadTGA(buf,sizeof(*hdr)+6*bytes);T_NOT_NULL(tex);
+        if(!tex)continue;
+        T_EQ(tex->width,3);T_EQ(tex->height,2);
+        FOR_LOOP(y,3) FOR_LOOP(x,2) {
+            unsigned source=((top ? y : 2-y)*2+x)*10;
+            color32_t pixel=tex->map[x*3+y];
+            T_EQ(pixel.r,source+1);T_EQ(pixel.g,source+(format ? 2 : 1));
+            T_EQ(pixel.b,source+(format ? 3 : 1));T_EQ(pixel.a,bytes==4 ? source+4 : 255);
+        }
+        gi.MemFree(tex);
+    }
+}
+
 TEST(wc3_collision, load_tga_colormap_not_supported_returns_null) {
     uint8_t buf[64] = {0};
     test_tga_hdr_t *hdr = (test_tga_hdr_t *)buf;

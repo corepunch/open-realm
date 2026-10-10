@@ -367,7 +367,7 @@ TEST(wc3_fine_spatial, widget_region_bounds_match_original_producer_and_cached_r
         /* Use the actual destructable orientation producer, without snapping
          * this supplied point:0642f0 consumes the already captured centre. */
         widget->destructable=G_AllocDestructable();
-        widget->s.angle=((int)row->turn-(row->width!=row->height))*0x1.921fb6p0f;
+        widget->s.angle=row->turn*0x1.921fb6p0f;
         S_PublishMoveRegions(widget);
         wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
         wc3RegionCollection_t const *regions=S_GetMoveRegions(widget-g_edicts);

@@ -118,9 +118,10 @@ void S_PublishMoveRegions(edict_t const *owner) {
     state->pixels=wc3_records_memory(state->pixels,MAX(1,size));bool flight=false;
     FOR_LOOP(i,size) {
         color32_t pixel=texture ? texture->map[i] : (color32_t){0,0,255,255};
-        /* LoadTGA retains file BGRA bytes. Existing engine path textures also
-         * permit boolean red; authored blue marks item and building regions. */
-        state->pixels[i]=(pixel.b ? 0xc2 : 0)|(pixel.r ? 0x18 : 0)|(pixel.g>127 ? 4 : 0);
+        /* 21e790: file red/blue test bit0; any green byte blocks flight.
+         * The placement10 region belongs to red, independently of blue08. */
+        state->pixels[i]=((pixel.b&1) ? 0xd2 : 0)|((pixel.r&1) ? 8 : 0)|(pixel.g ? 4 : 0);
+        if(!texture)state->pixels[i]=0xc2; /* Collision-only fallback is not an image decoder. */
         flight|=(state->pixels[i]&4)!=0;
     }
     wc3_regions_resize(&move_fine_spatial,&state->collection,owner-g_edicts,flight ? 4 : 3);

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "198 executable original/evidence contracts;479 total entries.",
+  "scope": "199 executable original/evidence contracts;480 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -50396,6 +50396,65 @@
         "Native instruction guards and 24 executed original comparator pairs accompany live readiness and physical binding evidence; no full route/velocity trajectory equivalence is claimed.",
         "Idle packet admission and later reconstruction are certified separately. Broader persistent canonical lifetime, target variants and arbitrary nested callback graphs remain GROUP-04.6."
       ]
+    },
+    {
+      "id": "oracle-work244",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work244.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work244.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 4
+        },
+        "public_markers": {
+          "equal": 968
+        },
+        "motion_commits": {
+          "equal": 3400
+        },
+        "owner_visits": {
+          "equal": 3420
+        },
+        "decoded_pixels": {
+          "equal": 576
+        },
+        "category_cases": {
+          "equal": 216
+        },
+        "instructions": {
+          "equal": 756
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "GROUP-04.6 full mixed Alt+Shift journeys: file-backed native footprint axes/categories, all850 commits per repeat and two cold-save continuations; wider canonical lifetime remains open.",
+      "exclusions": [
+        "Four read-only original UI captures; no observer-free UI timing control claimed.",
+        "Two frozen 850-commit mixed ground/FLOAT/flight Alt+Shift journeys; engine also resumes at2s and9s. Z/rendering and other group compositions remain outside this fixture.",
+        "Original category oracle executes only21e8f0..21e93e over a materialized BGRA image, not the complete decoder/constructor.",
+        "Canonical group lifetime/category scopes in GROUP-04.6 remain open."
+      ]
     }
   ],
   "fixtures": [
@@ -50461,7 +50520,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "5cdb509c830a84a19b55f82420138505daaa68805d350fc978f994c265741883"
+      "sha256": "28b7fbb107c90b4f5b82cf3a9e7e2ad38463c8248ba27763e4dcecbe50f5c537"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -51294,7 +51353,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "4d95e137c737072cc00f2c22ce8ad7bbc257adfb243f7c36f31c1a314e9cdf39"
+      "sha256": "a5b298c8c0bf72ae9f4bc199807f09ab8cc0ca83a5dea863aef9100f4bcfd6eb"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -52358,7 +52417,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "8de0832a19e74b195dc6ebb2850f3b04bef9d017948da113eabaffe8694eb5c1"
+      "sha256": "2dfdd43973d5e2849696209a23585d5b7e1572c26035651693979236a744f534"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -52562,7 +52621,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_fine_spatial.c",
-      "sha256": "8a02805ff4a39b42a0a0d8e77ef4de7a4d88f218cc413447baa5b514319bede8"
+      "sha256": "c1f629d582b69503808fba342abf7c6aefe02b7e94d32b9bde147c3cda55849e"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_cell.h",
@@ -52614,7 +52673,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_destructable.c",
-      "sha256": "bf397e16ec102daded0bf5c13060d1e08e9fb32256c2fc315e2b6e7f43a5bfc7"
+      "sha256": "84d7b5a366c4cdedf1c6de7872be422c6cc2c531d313046bdf9e044b3f1beb6c"
     },
     {
       "path": "tools/frida/verify_wc3_map_load_trace.py",
@@ -52842,7 +52901,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "497dd0bbbd7154fe8eb3a39faaca1d87d8d82273351b794b85443c76f6175d0d"
+      "sha256": "5bbfd2792161c53463370fc33cd9887bfb3d613a4fa8be42212607e8500019ae"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -53086,7 +53145,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "e5bc6c384ff98decaefd3fbbd6f4a888abf9b628de20ce48792f35cfca238f1b"
+      "sha256": "c4bd138e7eed7224f4bf625a287b66d7ae9267304fdebde898d8c491d872b716"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -53098,11 +53157,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "7749bf0284fad3de10671e2fd92ccaff9e143cbeace2156b9751cae8827a8fbd"
+      "sha256": "af2e508f3447dbd2ebed2d99b0ec082951425e39133d8c927793f0c94096a2a0"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "573f6d2bdc63722d542f72279ad16c94131f64e8c19d15461c2c09072fd7e7c8"
+      "sha256": "185318763893b0fb7125e58ee3d1a1937b3d6e7bbc41d972ab93a3e83d69f6d5"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -53894,7 +53953,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_collision.c",
-      "sha256": "70b61e429dac1dea209c8fa86c863b88117a02da58a52e0e5057b340e0da7319"
+      "sha256": "f4eab7dae14a9e11d77f2ae1f491524bfcd6d90ee4899cf8783f0af23e694732"
     },
     {
       "path": "games/warcraft-3/game/tests/t_jass_map.c",
@@ -56467,6 +56526,50 @@
     {
       "path": "tools/frida/research/work243_observer.js",
       "sha256": "ae305a283498ee2d61f7fa48a7e7197e89dc88199d87aaafc8b985344297511a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work244-1.27.json",
+      "sha256": "920ecccd3101f3cc78ac1fef70e2ff59a4e9af86fd23c3edc23470f043407858"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work244-1.27.json.gz",
+      "sha256": "4ed72d242efb92f7596bc70166482ad2e82d18c912017ab5de4ee72f978e8044"
+    },
+    {
+      "path": "tools/frida/research/work244_observer.js",
+      "sha256": "c347de947736dd5e78d28584ddde29db51c23e6a6f977af10abf11f68a201eff"
+    },
+    {
+      "path": "tools/ghidra/research/Work244Evidence.java",
+      "sha256": "2cd004d986043a3c68e240ec9308008efb57e19e88ea39c192661b64f1d4b19c"
+    },
+    {
+      "path": "tools/ghidra/research/work244_texture_oracle.py",
+      "sha256": "d329da8713a440650d2f4f68ade086d77015e431e1988229a6b056baf3f42a56"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/PathTextures/CityBridgeExtraLarge0.tga",
+      "sha256": "4622908f5ce83a8a3dd8cacc22d020e7eb14e15ace7101c9847c445623e05400"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/PathTextures/CityBridgeExtraLarge90.tga",
+      "sha256": "7f2c1b0b11473e961fa1cd4c5f0b8ce1dcbcec8131c11d82825bbcae787f74f7"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/PathTextures/CityBridgeLarge0.tga",
+      "sha256": "48de12e58e60f774a7f2d027ccdfa210231ffb95de5b22b0958afc6d2a659000"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/PathTextures/CityBridgeLarge135.tga",
+      "sha256": "42ed98ef7f1f10b67f96a4bbb320e1714f307f1e9f87186537f6165a09f09b20"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_selected_motion244.h",
+      "sha256": "97f810821825e8162c89f9ccdbece0b7507b3ac9aac818ec03bff17736675843"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_path_texture244.h",
+      "sha256": "48b3e5ff69f29bcfb5e0299f5c93fdcc19caeddd195bc02b1337424006f8c70f"
     }
   ]
 }

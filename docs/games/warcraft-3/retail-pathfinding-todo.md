@@ -56,6 +56,11 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **279 done / 336 tasks; 57 remaining.**
+Payoff244 fixes file-backed footprint axes and category decoding, with complete
+mixed Alt+Shift trajectories and cold-save continuations against frozen retail
+commits. Existing bridge masks and world-space expectations are preserved.
+GROUP-04.6 retains wider ownership work; no task closure is claimed. See
+[file-backed footprints](retail-pathfinding-engine.md#file-backed-footprints-preserve-retail-axes-and-categories-payoff244).
 Payoff243 fixes mixed busy/idle Shift admission: idle recipients retain prepared
 class policy and attachment order; later busy activation reconstructs policy0.
 Four complete retail captures and cold-save regressions accompany the engine

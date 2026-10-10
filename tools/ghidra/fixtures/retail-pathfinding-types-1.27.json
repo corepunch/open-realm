@@ -5265,8 +5265,20 @@
     },
     {
       "name": "WC3PathTexturePrefix",
-      "length": 16,
+      "length": 108,
       "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "21e790/22e9c0;Payoff244"
+        },
+        {
+          "offset": 4,
+          "name": "references",
+          "type": "u32",
+          "evidence": "21e790/22e9c0;Payoff244"
+        },
         {
           "offset": 8,
           "name": "width",
@@ -5278,6 +5290,48 @@
           "name": "height",
           "type": "i32",
           "evidence": "22f1d0;Payoff230"
+        },
+        {
+          "offset": 16,
+          "name": "half_width",
+          "type": "WC3PathScalar",
+          "evidence": "21e790/22e9c0;Payoff244"
+        },
+        {
+          "offset": 20,
+          "name": "half_height",
+          "type": "WC3PathScalar",
+          "evidence": "21e790/22e9c0;Payoff244"
+        },
+        {
+          "offset": 24,
+          "name": "category_capacity",
+          "type": "u32",
+          "evidence": "21e790/22e9c0;Payoff244"
+        },
+        {
+          "offset": 28,
+          "name": "category_count",
+          "type": "u32",
+          "evidence": "21e790/22e9c0;Payoff244"
+        },
+        {
+          "offset": 32,
+          "name": "categories",
+          "type": "ptr:u8",
+          "evidence": "21e790/22e9c0;Payoff244"
+        },
+        {
+          "offset": 100,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "21e790/22e9c0;Payoff244"
+        },
+        {
+          "offset": 104,
+          "name": "constructor_argument",
+          "type": "u32",
+          "evidence": "21e790/22e9c0;Payoff244"
         }
       ]
     }

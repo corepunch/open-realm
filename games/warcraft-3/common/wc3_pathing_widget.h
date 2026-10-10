@@ -4,10 +4,11 @@
 #include "wc3_math.h"
 #include <math.h>
 
-/* Existing engine texture orientation policy. The authored cardinal pair is
- * retail-verified; arbitrary-angle raster selection remains MAP-02/FOOT. */
+/* Footprints are already transposed by the game loader (21e790). Facing
+ * selects the raster quarter-turn independently of the image aspect ratio. */
 static inline unsigned wc3_widget_texture_turn(float angle, unsigned width, unsigned height) {
-    int quarter=(width!=height)+(int)lroundf(angle/0x1.921fb6p0f);
+    (void)width; (void)height;
+    int quarter=(int)lroundf(angle/0x1.921fb6p0f);
     return ((quarter%4)+4)%4;
 }
 

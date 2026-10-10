@@ -133,12 +133,20 @@ typedef struct {
 } human06_bridge_pathtex_t;
 
 static human06_bridge_pathtex_t make_human06_bridge_pathtex(human06_bridge_fixture_t const *fixture) {
-    human06_bridge_pathtex_t pathtex = { .width = fixture->width, .height = fixture->height };
-
-    FOR_LOOP(y, fixture->height) FOR_LOOP(x, fixture->width) {
-        pathtex.map[x + y * fixture->width] = MAKE(color32_t, .r = 255, .g = 255,
-            .b = fixture->mask[x + y * fixture->width] == '.' ? 0 : 255, .a = 255);
-    }
+    cstring_t files[]={"PathTextures\\CityBridgeLarge135.tga",
+        "PathTextures\\CityBridgeExtraLarge0.tga","PathTextures\\CityBridgeExtraLarge90.tga"};
+    pathTex_t *decoded=M_LoadPathTex(files[fixture-human06_bridge_fixtures]);
+    human06_bridge_pathtex_t pathtex={0};T_NOT_NULL(decoded);
+    if(!decoded)return pathtex;
+    pathtex.width=decoded->width;pathtex.height=decoded->height;
+    T_EQ(pathtex.width,fixture->height);T_EQ(pathtex.height,fixture->width);
+    memcpy(pathtex.map,decoded->map,pathtex.width*pathtex.height*sizeof(color32_t));
+    /* Keep the previous frozen masks: they are normalized image rows. Retail
+     * transposes those rows into footprint coordinates (21e790). */
+    FOR_LOOP(y,fixture->height) FOR_LOOP(x,fixture->width)
+        T_EQ(pathtex.map[y+x*fixture->height].b,
+            fixture->mask[x+y*fixture->width]=='.' ? 0 : 255);
+    gi.MemFree(decoded);
     return pathtex;
 }
 
@@ -498,10 +506,13 @@ TEST(wc3_destructable, death_and_restore_retire_regions_without_inverse_links) {
     wc3RegionCollection_t const *collection=S_GetMoveRegions(dest-g_edicts);
     T_EQ(collection->count,3);T_EQ(map->records,3);
     uint32_t ids[3];memcpy(ids,collection->objects,sizeof(ids));
-    T_ASSERT(G_KillDestructable(dest,NULL));T_EQ(map->records,4);
+    T_ASSERT(G_KillDestructable(dest,NULL));T_EQ(map->records,5);
     FOR_LOOP(i,3){T_EQ(wc3_records_object(map,ids[i])->stamp,UINT32_MAX);T_EQ(wc3_records_object(map,ids[i])->refs,1);}
     uint32_t death=collection->objects[0];T_ASSERT(death!=ids[0]);
-    T_ASSERT(G_RestoreDestructable(dest,10,false));T_EQ(map->records,7);
+    /* Original21e790: red1 produces d2, hence both c2 and placement10 links. */
+    T_EQ(wc3_records_object(map,collection->objects[1])->refs,1);
+    T_EQ(wc3_records_object(map,collection->objects[1])->category,0x01000010);
+    T_ASSERT(G_RestoreDestructable(dest,10,false));T_EQ(map->records,8);
     T_EQ(wc3_records_object(map,death)->stamp,UINT32_MAX);
     FOR_LOOP(word,(map->width*map->height+31)/32)T_EQ(map->dirty[word],0);
     S_CompactMoveFineSpatial();T_EQ(map->records,3);
@@ -914,7 +925,7 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
         bridge->targtype = TARG_BRIDGE; G_RegisterGroundSurface(bridge); CM_BakeStaticObstacles();
         transform = CM_GetPathTexTransform(bridge);
 
-        T_EQ(transform.turn, (angle + 1) % 4);
+        T_EQ(transform.turn, angle);
         T_EQ(transform.width, vertical ? 22 : 32);
         T_EQ(transform.height, vertical ? 32 : 22);
         T_ASSERT(CM_LineIsWalkableForRadius(&from, &to, 0.0f));
@@ -943,7 +954,7 @@ TEST(wc3_destructable, gate_path_texture_rotation_covers_all_quarter_turns) {
 
         transform = CM_GetPathTexTransform(gate);
 
-        T_EQ(transform.turn, (angle + 1) % 4);
+        T_EQ(transform.turn, angle);
         T_EQ(transform.width, !(angle & 1) ? 22 : 32);
         T_EQ(transform.height, !(angle & 1) ? 32 : 22);
     }
@@ -955,8 +966,8 @@ TEST(wc3_destructable, non_gate_path_texture_orientation_follows_facing_in_pathi
         color32_t map[3];
     } path_blocker_texture_t;
     static path_blocker_texture_t const pathtex = {
-        .width = 3,
-        .height = 1,
+        .width = 1,
+        .height = 3,
         .map = { { 0, 0, 1, 255 }, { 0, 0, 1, 255 }, { 0, 0, 1, 255 } },
     };
 
@@ -1010,8 +1021,8 @@ TEST(wc3_destructable, non_destructable_path_texture_keeps_axis_aligned_contract
     transform = CM_GetPathTexTransform(building);
 
     T_EQ(transform.turn, 0);
-    T_EQ(transform.width, 32);
-    T_EQ(transform.height, 22);
+    T_EQ(transform.width, pathtex.width);
+    T_EQ(transform.height, pathtex.height);
 }
 
 TEST(wc3_destructable, completed_death_holds_authored_final_frame) {
