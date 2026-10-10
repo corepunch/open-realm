@@ -1,4 +1,7 @@
 #include "s_skills.h"
+#ifdef BZ_TESTS
+#include "test.h"
+#endif
 
 #include <ctype.h>
 #include <float.h>
@@ -1366,16 +1369,62 @@ cstring_t S_SpellBuffToken(cstring_t list, uint32_t index) {
  * Existing ability procedures still own application and removal; the shared
  * resolver owns aggregation.  Use per-buff families to avoid accidentally
  * merging unrelated Warcraft stacking rules. */
-static void status_authored_modifier(heroabilitystatus_t *slot, uint32_t index,
+/* Update exactly the contributor owned by authored AbilityData, never a
+ * caller's custom contribution. Stable descriptor indices are not assumed. */
+static bool status_authored_modifier(heroabilitystatus_t *slot,
                                      wc3_status_modifier_type_t type, float value) {
     wc3_status_modifier_t modifier = {
         .type = type, .family = slot->code,
-        .policy = WC3_STATUS_MOD_STRONGEST_POSITIVE, .value = value
+        .policy = value < 0.0f ? WC3_STATUS_MOD_STRONGEST_NEGATIVE :
+                                 WC3_STATUS_MOD_STRONGEST_POSITIVE,
+        .value = value, .owner = WC3_STATUS_MOD_OWNER_AUTHORED
     };
-    /* Negative families select their most detrimental value. */
-    if (value < 0.0f) modifier.policy = WC3_STATUS_MOD_STRONGEST_NEGATIVE;
-    (void)unit_status_setmodifier(slot, index, &modifier);
+    uint32_t index;
+    /* An authored refresh must update its existing descriptor in place. */
+    FOR_LOOP(i, MIN(slot->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
+        wc3_status_modifier_t const *current = slot->modifiers + i;
+        if (current->owner == WC3_STATUS_MOD_OWNER_AUTHORED && current->type == (uint32_t)type)
+            return unit_status_setmodifier(slot, i, &modifier);
+    }
+    index = slot->modifier_count;
+    /* Never evict an external descriptor to make room for an authored one. */
+    return index < WC3_STATUS_MAX_MODIFIERS && unit_status_setmodifier(slot, index, &modifier);
 }
+
+
+#ifdef BZ_TESTS
+TEST(wc3_spell, authored_modifier_refresh_keeps_external_contributors) {
+    heroabilitystatus_t slot = { .level = 1, .code = MAKEFOURCC('B','i','n','f') };
+    wc3_status_modifier_t custom = {
+        .type = WC3_STATUS_MOD_ARMOR_FLAT, .policy = WC3_STATUS_MOD_ADD, .value = 7.0f
+    };
+    T_ASSERT(status_authored_modifier(&slot, WC3_STATUS_MOD_ARMOR_FLAT, 2.0f));
+    T_ASSERT(unit_status_setmodifier(&slot, 1, &custom));
+    T_ASSERT(status_authored_modifier(&slot, WC3_STATUS_MOD_ARMOR_FLAT, 5.0f));
+    T_EQ(slot.modifier_count, 2);
+    T_EQ(slot.modifiers[0].owner, WC3_STATUS_MOD_OWNER_AUTHORED);
+    T_FEQ(slot.modifiers[0].value, 5.0f, 0.001f);
+    T_EQ(slot.modifiers[1].owner, 0);
+    T_FEQ(slot.modifiers[1].value, 7.0f, 0.001f);
+}
+
+TEST(wc3_spell, authored_modifier_full_slot_does_not_evict_custom_contributors) {
+    heroabilitystatus_t slot = { .level = 1, .code = MAKEFOURCC('B','i','n','f') };
+    FOR_LOOP(i, WC3_STATUS_MAX_MODIFIERS) {
+        wc3_status_modifier_t custom = {
+            .type = WC3_STATUS_MOD_ARMOR_FLAT, .policy = WC3_STATUS_MOD_ADD,
+            .value = (float)i + 1.0f
+        };
+        T_ASSERT(unit_status_setmodifier(&slot, i, &custom));
+    }
+    T_ASSERT(!status_authored_modifier(&slot, WC3_STATUS_MOD_ARMOR_FLAT, 8.0f));
+    T_EQ(slot.modifier_count, WC3_STATUS_MAX_MODIFIERS);
+    FOR_LOOP(i, WC3_STATUS_MAX_MODIFIERS) {
+        T_EQ(slot.modifiers[i].owner, 0);
+        T_FEQ(slot.modifiers[i].value, (float)i + 1.0f, 0.001f);
+    }
+}
+#endif
 
 static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t ability) {
     uint32_t rank;
@@ -1387,8 +1436,6 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     case MAKEFOURCC('B','f','z','y'): case MAKEFOURCC('B','U','h','f'):
     case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
     case MAKEFOURCC('B','i','n','f'): case MAKEFOURCC('B','f','a','e'):
-        /* Never overwrite descriptors belonging to another provider. */
-        if (slot->modifier_count) return;
         break;
     default: return;
     }
@@ -1396,37 +1443,37 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     switch (slot->code) {
     case MAKEFOURCC('B','c','r','i'):
         if (!ability) ability = MAKEFOURCC('A','c','r','i');
-        status_authored_modifier(slot, 0, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 1));
-        status_authored_modifier(slot, 1, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
-        status_authored_modifier(slot, 2, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT, -S_SpellData(ability, rank, 3));
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT, -S_SpellData(ability, rank, 3));
         break;
     case MAKEFOURCC('B','b','l','o'):
         if (!ability) ability = MAKEFOURCC('A','b','l','o');
-        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
-        status_authored_modifier(slot, 1, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, S_SpellData(ability, rank, 2));
         break;
     case MAKEFOURCC('B','f','z','y'):
         ability = MAKEFOURCC('A','f','z','y');
-        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
-        status_authored_modifier(slot, 1, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 2));
         break;
     case MAKEFOURCC('B','U','h','f'):
     case MAKEFOURCC('B','u','h','f'):
         ability = MAKEFOURCC('A','u','h','f');
-        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
         break;
     case MAKEFOURCC('B','s','p','o'):
         ability = MAKEFOURCC('A','s','p','o');
-        status_authored_modifier(slot, 0, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
-        status_authored_modifier(slot, 1, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
         break;
     case MAKEFOURCC('B','i','n','f'):
         ability = MAKEFOURCC('A','i','n','f');
-        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ARMOR_FLAT, S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT, S_SpellData(ability, rank, 2));
         break;
     case MAKEFOURCC('B','f','a','e'):
         ability = MAKEFOURCC('A','f','a','e');
-        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 1));
         break;
     default: return;
     }

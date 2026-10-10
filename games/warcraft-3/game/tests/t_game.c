@@ -5015,15 +5015,25 @@ TEST(wc3_save, status_source_incarnation_round_trip) {
     slot->stack_policy = WC3_STATUS_STACK_INDEPENDENT;
     slot->source = source;
     slot->source_spawn_time = source->spawn_time;
+    slot->modifier_count = 1;
+    slot->modifiers[0] = (wc3_status_modifier_t){
+        .type = WC3_STATUS_MOD_ARMOR_FLAT, .family = slot->code,
+        .policy = WC3_STATUS_MOD_ADD, .value = 2.0f,
+        .owner = WC3_STATUS_MOD_OWNER_AUTHORED
+    };
     unit->next_status_instance_id = 20;
     T_ASSERT(WriteGame(filename));
     slot->source = NULL;
     slot->source_spawn_time = 0;
+    slot->modifiers[0].owner = 0;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(slot->source == source);
     T_EQ(slot->source_spawn_time, source->spawn_time);
     T_EQ(slot->instance_id, 19);
     T_EQ(slot->stack_policy, WC3_STATUS_STACK_INDEPENDENT);
+    T_EQ(slot->modifier_count, 1);
+    T_EQ(slot->modifiers[0].owner, WC3_STATUS_MOD_OWNER_AUTHORED);
+    T_FEQ(slot->modifiers[0].value, 2.0f, 0.001f);
     T_EQ(unit->next_status_instance_id, 20);
     source->spawn_time++;
     T_NULL(S_SpellStatusSource(slot));

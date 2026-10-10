@@ -1367,7 +1367,11 @@ typedef struct {
     uint32_t family;  /* nonzero identifier for strongest-wins resolution */
     uint32_t policy;  /* wc3_status_modifier_policy_t */
     float value;
+    /* 0: external/custom provider; 1: stock AbilityData authored contributor. */
+    uint32_t owner;
 } wc3_status_modifier_t;
+
+#define WC3_STATUS_MOD_OWNER_AUTHORED 1u
 
 /* Classification is deliberately explicit; zero means unclassified legacy status. */
 typedef enum {
