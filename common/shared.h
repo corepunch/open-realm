@@ -228,7 +228,6 @@ enum {
     FLAG(EF_UNIT, 16),             /* gameplay actor; prioritize in broad box-selection candidate queries */
     FLAG(EF_ALLIED, 17),          /* recipient-relative alliance, distinct from neutral relationship */
     FLAG(EF_SELECTION_CIRCLE_ON_WATER, 18), /* WC3 authored water-supported selection overlay */
-    FLAG(EF_HOVER_RING, 19),      /* client may highlight this entity on pointer hover without a nameplate */
 };
 
 enum {
