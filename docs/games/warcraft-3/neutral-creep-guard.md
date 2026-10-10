@@ -1,6 +1,6 @@
-# Neutral Hostile creep guard — Stage A
+# Neutral Hostile creep guard — stages A–E and audit fixes
 
-Stage A introduces per-unit Neutral Hostile guard anchors distinct from the
+The integrated implementation introduces per-unit Neutral Hostile guard anchors distinct from the
 player Stop guard state. Spawn/creation XY becomes the creep's anchor, and
 ordinary automatic acquisition or damage retaliation can own a guard chase.
 Explicit accepted orders take precedence and discard automatic chase ownership;
@@ -19,8 +19,10 @@ Once beyond the hard radius, or outside the soft radius without a qualifying
 hit for the configured timeout, automatic combat disengages and starts an
 ordinary point Move toward the anchor. The existing movement system handles
 pathfinding and arrival. The return phase suppresses acquisition because a
-Move is active. If the Move ends early or becomes blocked, the unit re-enters
-idle rather than starting an infinite path retry loop. Script orders and queued
+Move is active. If a return Move ends before arrival, the guard remains in return policy
+and retries at most three actual movement attempts, with a one-second
+simulation-time backoff. Temporary immobility postpones attempts without
+consuming the failure budget. Script orders and queued
 orders remain higher-priority than automated return.
 
 The guard anchor, timestamps and state flags are included in the game save
@@ -95,3 +97,11 @@ player Stop-guard implementation, not creep guard movement.
 For changed executable code, run the affected build and `make test` before
 merging, in accordance with `CONTRIBUTING.md`. No local compilation or test
 execution was performed while preparing this follow-up patch.
+
+## Merge verification
+
+Run the affected game target and `make test` after applying the complete
+patch chain. The retry regression drives `monster_think`, while full live
+waypoint save/load and native-dispatch tests remain to be added before
+claiming end-to-end coverage. Stage D AI guard-post natives cover a subset
+of retail guard-position behaviour.

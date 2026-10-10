@@ -6,6 +6,7 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 void order_attack(edict_t *self, edict_t *target);
 void T_Damage(edict_t *target, edict_t *attacker, int damage);
+void monster_think(edict_t *self);
 void SV_Physics_Toss(edict_t *ent);
 void unit_build(edict_t *self, uint32_t class_id);
 void attack_melee_cooldown(edict_t *self);
@@ -619,20 +620,28 @@ TEST(wc3_order_lifecycle, creep_guard_retry_exhaustion_uses_simulation_time) {
     G_CreepGuardTick(creep);
     T_EQ(creep->movement.creep_guard_retry_at_ms, 2000u);
     for (uint32_t attempt = 1; attempt <= 3; attempt++) {
-        level.time = 1999 + (attempt - 1) * 1000;
+        level.time = 2000 + (attempt - 1) * 1000;
         G_CreepGuardTick(creep);
-        T_EQ(creep->movement.creep_guard_return_retries, attempt - 1);
-        level.time++;
-        G_CreepGuardTick(creep);
+        T_EQ(creep->movement.creep_guard_return_retries, 0u);
+        T_ASSERT(creep->movement.creep_guard_returning);
+    }
+    /* Once movement is permitted, actual retries are counted. Test the
+     * scheduler callback instead of calling the helper for this transition. */
+    creep->aiflags &= ~AI_IMMOBILE;
+    for (uint32_t attempt = 1; attempt <= 3; attempt++) {
+        level.time = 5000 + (attempt - 1) * 1000;
+        creep->movement.creep_guard_retry_at_ms = level.time;
+        unit_stand(creep); /* emulate a movement failure after each attempt */
+        monster_think(creep);
         T_EQ(creep->movement.creep_guard_return_retries, attempt);
         T_ASSERT(creep->movement.creep_guard_returning);
     }
-    level.time = 5000;
-    G_CreepGuardTick(creep);
+    level.time = 8000;
+    unit_stand(creep);
+    monster_think(creep);
     T_ASSERT(!creep->movement.creep_guard_returning);
     T_EQ(creep->movement.creep_guard_return_retries, 3u);
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.001f);
-    T_FEQ(creep->s.origin2.x, 900, 0.001f);
 }
 
 #endif

@@ -510,11 +510,17 @@ void G_CreepGuardTick(edict_t *unit) {
         }
         if ((int32_t)(level.time - unit->movement.creep_guard_retry_at_ms) < 0)
             return;
-        unit->movement.creep_guard_return_retries++;
-        unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
+        /* Temporary disables postpone the attempt, but do not spend its
+         * bounded failure budget. A three-second root is not three path
+         * failures. Use the simulation clock for the next eligible check. */
         if ((unit->aiflags & AI_IMMOBILE) || unit->paused || unit->stunned ||
             S_UnitIsCycloned(unit) || unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED) ||
-            S_PurgeIsImmobilized(unit)) return;
+            S_PurgeIsImmobilized(unit)) {
+            unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
+            return;
+        }
+        unit->movement.creep_guard_return_retries++;
+        unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
         edict_t *point = Waypoint_add(&unit->movement.creep_guard_origin);
         if (point) order_move(unit, point);
         return;

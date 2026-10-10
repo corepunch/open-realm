@@ -161,14 +161,15 @@ void M_MoveFrame(edict_t *self) {
  * invokes the active umove_t think callback (e.g. ai_walk, ai_melee). */
 void monster_think(edict_t *self) {
     S_RunAbilityUpdates(self);
+    /* A blocked return can leave no active Move. Still run the guard policy
+     * so its retry timer can recover when movement becomes available. */
+    G_CreepGuardTick(self);
     if (!self->currentmove)
         return;
     if (self->paused || self->stunned) {
         if (self->paused && self->animation_override) M_MoveFrame(self);
         return;
     }
-    G_CreepGuardTick(self);
-    if (!self->currentmove) return;
     M_MoveFrame(self);
     if (self->currentmove->think) {
         self->currentmove->think(self);
