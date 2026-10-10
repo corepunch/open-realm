@@ -14706,3 +14706,93 @@ control. Original maps, static/type exports, failed exploratory attempts and
 validation logs live under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/`.
 TARGET-03.1/03.2 remain open for the wider reachable policy/lifetime matrix.
+
+
+## Unit sharing captures a reveal mask (Payoff217)
+
+`UnitShareVision` has two distinct consumers: ordinary sight distribution and
+per-unit reveal. The engine previously implemented only the former. An invisible
+target therefore rejected Smart even after its owner explicitly shared that
+unit with the mover. `G_SetUnitSharedVision` now retains the direct recipients
+in `shared_vision` and their mutation-time alliance expansion in `shared_reveal`.
+Queries read the captured mask in constant time. Changing an alliance alone
+must not rebuild it; an idempotent share call must rebuild it.
+
+Original Jass_UnitShareVision/218fd0 resolves its handles and calls
+CUnit_SetSharedVision/699540. That resolves or creates Unit13c/140's reveal
+source, updates its recipient through699500, then calls69d1d0 and66be80.
+CUnit_RefreshRevealMasks/66be80 obtains the base u16 through686670, stores it at
+Unit148 and14c, and expands sources0..11 using each source player's two sharing
+masks. Neutral recipients retain direct bits without this alliance expansion.
+699b20 tests `(Unit148 | Unit14c) & (1 << viewer)` as the visibility fallback.
+The separate counted and ability-owned source contributions are statically
+identified but their wider lifetimes remain TARGET-03.1 work.
+
+Two entry-only read-only eight-scene original captures and an unhooked control
+agree on all62 public markers each, including positions. The local viewer is
+player3 in these maps, not player0. The following observed values distinguish
+captured expansion from live alliance queries:
+
+| Public operation | Base / expanded mask | Visible / Invisible | Smart |
+| --- | --- | --- | --- |
+| Invisible target before sharing | 0 / 0 | false / true | rejected |
+| Share directly with player3 | 8 / 15 | true / false | accepted |
+| Share with player1, then share player1's vision with player3 | 2 / 7 | false / true | rejected |
+| Establish that alliance first, then share the unit with player1 | 2 / 15 | true / false | accepted |
+| Revoke the alliance after that share | 2 / 15 | true / false | retained |
+| Repeat the same enabled share call | 2 / 7 | false / true | public head retained |
+| Disable the unit share | 0 / 0 | false / true | public head retained |
+
+The direct cases repeat with ordinary terrain visibility and scripted fog.
+Sharing bypasses both invisibility and the target cell. Disabling sharing emits
+no synchronous TargetLost; the existing movement owners validate the retained
+pursuit normally. The raw bundle includes40 loss events per observed run from
+invisibility, world retirement and cleanup, rather than attributing them to
+unshare. Query and movement-fallback sequences match exactly across repeats;
+presentation-driven fallback counts vary and are retained without a determinism
+claim. There are1468 observed queries and36 share calls across the two runs.
+
+The public getters also share one original contract: Jass_IsUnitVisible/2068d0
+calls Unit's vtablefc with flags0/mode4; Jass_IsUnitInvisible/2064f0 inverts the
+same result. Both return false for invalid handles. `IsUnitVisible` previously
+returned a stub false; `IsUnitInvisible` tested only an invisibility effect.
+They now use the full tracking query. An ordinary fogged unit can consequently
+return true from IsUnitInvisible without having an invisibility ability.
+The internal effect-only predicate remains separate, with per-unit reveal
+allowing ordinary attack and snapshot consumers to see the shared unit.
+IsUnitDetected/IsUnitFogged have different native paths and are outside this
+change.
+
+Save154 writes the captured expansion as logical unit state. Reconstructing it
+from current alliances would change a saved stale mask. The production
+regressions drive JASS sharing, alliance changes, actual Smart admission,
+revocation, fog, invalid handles and a cold save before the refresh; existing
+save checks reject incompatible older layouts. Three new regressions pass72
+assertions in each edition. Against the previous engine they fail35 of72 assertions using only repository
+test assets. The red run and corrected synthetic alliance input are archived
+with validation.
+Prior movement fixtures and their numerical expectations are unchanged.
+
+Eight recovered function names/comments, eight explicit x86 ABIs and three
+reveal fields are saved in Ghidra and mirrored in MapPathfinding.java and the
+portable type fixture. The frozen verifier checks437 original instruction
+encodings and the source provenance of both observed runs and the control.
+Eleven mutation tests reject missing calls, changed masks, altered flags,
+missing observers/controls, forged provenance and changed public markers.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 python3 \
+  tools/ghidra/verify_wc3_pathing_target_reveal217.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --report /tmp/target-reveal217-new.json
+```
+
+The [frozen reveal contract](../../../tools/ghidra/fixtures/retail-target-reveal217-1.27.json)
+and compressed raw bundle retain the complete c captures. Maps, exploratory
+versions, static/type readbacks and validation live under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.1/payoff217/`.
+Full engine numerical trajectory equality and retail UI-save restoration of a
+stale mask are not claimed. Wider flags, initialization gates, counted reveal
+producers and policy/lifetime compositions keep TARGET-03.1/03.2 open.
+This is focused validation, the third implementation commit after Payoff214's
+full checkpoint.

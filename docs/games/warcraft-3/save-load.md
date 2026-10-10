@@ -1,5 +1,10 @@
 # Warcraft III Save/Load
 
+Save154 retains `shared_reveal`, the alliance expansion captured by the last
+UnitShareVision call. Load preserves it even if alliances have since changed;
+a later share call refreshes it. Save153 and earlier layouts are incompatible.
+See [unit reveal](retail-pathfinding-engine.md#unit-sharing-captures-a-reveal-mask-payoff217).
+
 Save153 retains `movement.follow_order_point` separately from the live Follow
 target and its sampled group destination. Loading before target loss therefore
 reissues the same original point for an approach; loading afterward resumes the
@@ -79,7 +84,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 153, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 154, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;

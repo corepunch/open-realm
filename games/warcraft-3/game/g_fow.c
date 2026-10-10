@@ -491,6 +491,15 @@ void G_SetUnitSharedVision(edict_t *unit, uint32_t viewer, bool share) {
     if (!unit || viewer >= MAX_PLAYERS) return;
     if (share) unit->shared_vision |= 1u << viewer;
     else unit->shared_vision &= ~(1u << viewer);
+    /* Native699540 -> 66be80 refreshes even for an unchanged recipient bit.
+     * Alliance edits alone leave the previously expanded reveal mask intact.
+     * Neutral recipients retain their direct bit but do not expand alliances. */
+    unit->shared_reveal = unit->shared_vision;
+    FOR_LOOP(owner, PLAYER_NEUTRAL_AGGRESSIVE) {
+        if (!(unit->shared_vision & (1u << owner))) continue;
+        FOR_LOOP(player, MAX_PLAYERS)
+            if (G_FowPlayersShareVision(player, owner)) unit->shared_reveal |= 1u << player;
+    }
 }
 
 void G_AddUnitForcedVisibility(edict_t *unit, uint32_t viewer) {
@@ -505,6 +514,7 @@ void G_RemoveUnitForcedVisibility(edict_t *unit, uint32_t viewer) {
 
 bool G_UnitIsForcedVisibleToPlayer(edict_t const *unit, uint32_t viewer) {
     if (!unit || viewer >= MAX_PLAYERS) return false;
+    if (unit->shared_reveal & (1u << viewer)) return true;
     FOR_LOOP(owner, MAX_PLAYERS)
         if (unit->forced_visibility_count[owner] && G_FowPlayersShareVision(viewer, owner)) return true;
     return false;

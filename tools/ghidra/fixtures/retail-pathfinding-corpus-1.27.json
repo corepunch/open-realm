@@ -48944,6 +48944,64 @@
         "Existing persistent cancellation and fade timing fixtures remain unchanged. Engine timer tests explicitly use distant Move to exercise persistent cancellation without movement-owner visits.",
         "Failed startup controls and exploratory observer errors are retained in the external research archive and excluded from the accepted original bundle."
       ]
+    },
+    {
+      "id": "oracle-target-reveal217",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_target_reveal217.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "target-reveal217.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "queries": {
+          "equal": 1468
+        },
+        "shares": {
+          "equal": 36
+        },
+        "losses": {
+          "equal": 80
+        },
+        "public_markers": {
+          "equal": 186
+        },
+        "instructions": {
+          "equal": 437
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "TARGET-03.1 UnitShareVision reveal masks, mutation-time alliance expansion and full public visibility getters. Two original repeats and unhooked control, instruction encodings and actual Classic/TFT save/movement regressions. Wider policy and queued/combat compositions remain open.",
+      "exclusions": [
+        "Eight public UnitShareVision scenes cover direct/indirect recipients, fog, alliance ordering and refresh. Other counted/ability reveal producers, world-readiness and nonzero query flags remain open under TARGET-03.1.",
+        "Only movement-owner fallback caller66fe40 is deterministic in these captures. Rendering fallback counts vary with presentation and remain in the raw bundle without sequence equality claims.",
+        "Unshare emits no synchronous TargetLost and retains publicSmart. Full engine numerical trajectory equality and retail UI-save stale-mask restoration are not claimed; engine cold-save preservation is regression-tested.",
+        "Apiv duration0 is controlled object data. Earlier a/b experiments and their observer limitations remain external exploratory evidence, excluded from this accepted c contract."
+      ]
     }
   ],
   "fixtures": [
@@ -49009,7 +49067,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "0e3730b04717f5e1a03709b628e5acba454c3bb9fbef9ac9b6609e84316a4f09"
+      "sha256": "ca48764465ac0608eadcaf49d5cac66138ab286ad2ebe46a5415f8ada73806d9"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -49842,7 +49900,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "5390a418a44281d85692cac3dd0e959ffc66d1735e10e3a690c2f55e9f9c79c5"
+      "sha256": "d4b62998cc6aab1c7edccabe93c043d518b490d2f683cce1dc33a490296c47ef"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51134,7 +51192,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "441ff6810e22064e1ca9e100391b56b1975fb66b5201af2cebfd55309e4b995a"
+      "sha256": "0e523d61da6037fc29a043562a82b0b7e296f0a6289025852505b2a51a55e7f2"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -51142,7 +51200,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "b9fcabe2bb3f53e1ae33b48b9b742b310a94d58c7d145923f38a9832b2b0b802"
+      "sha256": "6f76eb7e495543526213849e9fcb688411137af8ad43fa3d5a6d5739989a4eb4"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51390,7 +51448,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "57eced5e020bfd947b7cb7c2c4fb8ebbe26879b96a93717b68736c12a7c76364"
+      "sha256": "584a251096bba1e5f3d82f19ebc2cf5a6d4eb81bb66fcce8ad36e72bf22ffafc"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -51598,7 +51656,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_fow.c",
-      "sha256": "edf375f48aaadc4c5de28815fbe172d665247c5b4fffe7580de3598e2454dd20"
+      "sha256": "bb8c9f4188a95bcb8192124de9ef9cc902cd28124b4ecf412e6cda0e55e85aa0"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_group_target_speed.h",
@@ -51634,7 +51692,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "ff75570820d07634511f9e482bc524d85d24808e9e7464225605212e5c744e37"
+      "sha256": "0db41d94d7e76104d02f8d3ce7ceb5c83a09f642221ca936bd2d76e7f0cf1909"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51642,15 +51700,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "c8bde64efcd684e7c1917801532dccce70c2bd454b00d30fc055f0597332a18c"
+      "sha256": "24a4885bdf4c8cc9116d869225db68fbc6265b6a624ccc1400c22670f1eec22b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "d4fe5fd288de6cef539d00481c5f7010e7b8a3e593db6f24f5a6f4b8f9defb2a"
+      "sha256": "8d1d4684cbeb9e0e87fcbc5c8d3bfc27d9969b3de79af82a4c8debc055b9f7fc"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "753ff89274cfa023ae4505e05d07b7d09b948f05d54b246c27ad83ff7d1b10b4"
+      "sha256": "849e5656c29caff40ed75e20b7073f7adcf8734ddaa7b70182df9fa1a33ac174"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52942,7 +53000,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "9e3b2c6152759070316cae466ead6cc396cacd86073131d666e47bc39ce51698"
+      "sha256": "3e617b3a7c6243b18f4a099849ddcbe3ea925a209a098cfdb08dc7aca045cebe"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -54043,6 +54101,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-target-reissue216-1.27.json.gz",
       "sha256": "044bca73fe0869ea7fffd53f47f05dcab1ab2480968198179f3e7d3cc4559b09"
+    },
+    {
+      "path": "tools/frida/research/target217_capture.py",
+      "sha256": "bf1e146bae656c4d91dfcfcae3899f52855835a49b97be1d3ba1975e4383b708"
+    },
+    {
+      "path": "tools/frida/research/target217_observer.js",
+      "sha256": "4c9ffcf27c21946f9df4fd2ac6d220cbb28b01323d9f4c7dd378e9155697d38f"
+    },
+    {
+      "path": "tools/frida/research/target217_make_map.py",
+      "sha256": "5d695e7996837121761f293c105e18dc3645d6a2f1f3b4ea702b46635c2d5e4f"
+    },
+    {
+      "path": "tools/frida/research/target217_probe.j",
+      "sha256": "38950fa2fb42765f12b06216f07603c95bd8f30bbb456d72cdf25a81410514db"
+    },
+    {
+      "path": "tools/ghidra/research/Target217Evidence.java",
+      "sha256": "e13c9bb56f88af4db69ff5000fd1fb9f93a63820c423e039ab6cc1da1e20c5fb"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_target_reveal217.py",
+      "sha256": "6847e8642ce3914834fbb7f5bd08c55660f72d88fb67ae0fc84e95902a17ed61"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_target_reveal217.py",
+      "sha256": "0a01e3fc00a682fe2f24dfdf0e3ed131a05cd1edabc968900d5414a17b51047a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-reveal217-1.27.json",
+      "sha256": "244ff736df1b5fa8a56ba47fc98b8deff72fb187244d4d6c83168a4be4041784"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-reveal217-1.27.json.gz",
+      "sha256": "d38b4c5e99b8e3facfce87f2d112c5ba21cfd4f0892d5cd8c3ed5afab257f471"
     }
   ]
 }

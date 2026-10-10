@@ -20266,4 +20266,86 @@ TEST(wc3_movement, target216_near_orders_complete_approach_before_loss) {
     }
 }
 
+/* Retail217: unit-specific sharing reveals invisible targets; its expanded
+ * player mask is captured when UnitShareVision refreshes, not at each query. */
+static slkTestData_t *target217_setup(edict_t **unit,edict_t **target,slkTestData_t **old) {
+    slkTestData_t *rows=target216_setup(unit,target,old);
+    T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
+        "function add takes nothing returns nothing\ncall UnitAddAbility(target,'Apiv')\nendfunction\n"
+        "function remove takes nothing returns nothing\ncall UnitRemoveAbility(target,'Apiv')\nendfunction\n"
+        "function invalid takes nothing returns nothing\n"
+        "call BJassAssert(not IsUnitVisible(null,Player(0)),\"null visible\")\n"
+        "call BJassAssert(not IsUnitInvisible(null,Player(0)),\"null invisible\")\n"
+        "call BJassAssert(not IsUnitVisible(target,null),\"null viewer visible\")\n"
+        "call BJassAssert(not IsUnitInvisible(target,null),\"null viewer invisible\")\nendfunction\n"
+        "function share takes nothing returns nothing\ncall UnitShareVision(target,Player(0),true)\nendfunction\n"
+        "function undo takes nothing returns nothing\ncall UnitShareVision(target,Player(0),false)\nendfunction\n"
+        "function other takes nothing returns nothing\ncall UnitShareVision(target,Player(1),true)\nendfunction\n"
+        "function alliance takes nothing returns nothing\ncall SetPlayerAlliance(Player(1),Player(0),ConvertAllianceType(5),true)\nendfunction\n"
+        "function revoke takes nothing returns nothing\ncall SetPlayerAlliance(Player(1),Player(0),ConvertAllianceType(5),false)\nendfunction\n"
+        "function revealed takes nothing returns nothing\n"
+        "call BJassAssert(IsUnitVisible(target,Player(0)),\"shared unit is visible\")\n"
+        "call BJassAssert(not IsUnitInvisible(target,Player(0)),\"shared unit is not invisible\")\nendfunction\n"
+        "function obscured takes nothing returns nothing\n"
+        "call BJassAssert(not IsUnitVisible(target,Player(0)),\"unshared invisible unit is not visible\")\n"
+        "call BJassAssert(IsUnitInvisible(target,Player(0)),\"unshared unit is invisible\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,1760,1024,1,null)\nset target=FirstOfGroup(g)\ncall DestroyGroup(g)\nendfunction\n"));
+    return rows;
+}
+static void target217_call(cstring_t name) {
+    jass_callbyname(level.vm,name,false);T_ASSERT(!jass_rterror_pending(level.vm));
+}
+TEST(wc3_movement, target217_direct_shared_vision_admits_invisible_target_and_revokes_without_loss_event) {
+    FOR_LOOP(fogged,2) {
+        edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);
+        target217_call("add");
+        fogModifier_t *fog=NULL;
+        if(fogged) {
+            fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
+            *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1760,1024},.radius=768};
+            G_FogModifierStart(fog);G_FowUpdate();
+        }
+        T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));target217_call("obscured");
+        T_ASSERT(!unit_issuetargetorder(unit,"smart",target));
+        target217_call("share");T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+        target217_call("revealed");T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+        T_EQ(unit->movement.follow_target,target);
+        target217_call("undo");T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));target217_call("obscured");
+        /*699540 does not emit TargetLost. Follow stays until ordinary owners
+         * validate arrival at the last sampled point. */
+        T_EQ(unit->current_order_id,G_OrderId("smart"));T_EQ(unit->movement.follow_target,target);
+        if(fog)G_FogModifierDestroy(fog);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+TEST(wc3_movement, target217_shared_reveal_retains_alliance_snapshot_across_save_until_refresh) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);
+    target217_call("add");target217_call("other");target217_call("alliance");
+    T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));target217_call("obscured");
+    target217_call("other");T_ASSERT(G_FowPlayerCanTrackUnit(0,target));target217_call("revealed");
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    target217_call("revoke");T_ASSERT(G_FowPlayerCanTrackUnit(0,target));target217_call("revealed");
+    cstring_t file=Test_TempPath("wc3-target217-reveal.bin");T_ASSERT(WriteGame(file));
+    uint16_t id=waypoint_identity(unit),other=waypoint_identity(target);
+    reset_entities();T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+id-1;target=g_edicts+other-1;
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,target));target217_call("revealed");
+    target217_call("other");T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));target217_call("obscured");
+    T_EQ(unit->current_order_id,G_OrderId("smart"));T_EQ(unit->movement.follow_target,target);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target217_public_visibility_inverse_includes_fog_and_invalid_handles) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);
+    target217_call("invalid");target217_call("revealed");
+    fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
+    *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1760,1024},.radius=768};
+    G_FogModifierStart(fog);G_FowUpdate();
+    T_ASSERT(!S_UnitIsInvisibleToPlayer(target,0));target217_call("obscured");
+    target217_call("share");target217_call("revealed");
+    target217_call("undo");target217_call("obscured");
+    G_FogModifierDestroy(fog);G_FowUpdate();target217_call("revealed");
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
 #endif

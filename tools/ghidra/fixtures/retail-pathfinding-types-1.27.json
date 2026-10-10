@@ -845,6 +845,24 @@
           "evidence": "Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Increment Unit114 counted contributions; only transition0->1 constructs a fade. Zero fade calls68b780 synchronously; nonzero clears128/12c handles, sets Scalar118 near-zero if belowcd53a0, adds reciprocal fade slope and upward1 listener d01d4. Subsequent contributions only679db0. Positive isolated fade consumer words verified separately; overlapping full-owner composition remains open. Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Decrement Unit114; only last contribution clears Unit5c01000000 before optional revealed notification. Zero fade refreshes68b780 without TargetLost when114=0. Nonzero removal installs negative slope and downward0 listener. Do not infer inverse TargetLost or automatic Follow resumption."
         },
         {
+          "offset": 316,
+          "name": "reveal_source",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff217:699540/686670 resolve Unit13c/140 through061320; payload24 contains recipient bits and2c holds counted source contributions."
+        },
+        {
+          "offset": 328,
+          "name": "reveal_mask_base",
+          "type": "u32",
+          "evidence": "Payoff217:66be80 stores686670 u16. Two original public repeats witness direct8 and indirect2; unshare0.699b20 ORs148|14c."
+        },
+        {
+          "offset": 332,
+          "name": "reveal_mask",
+          "type": "u32",
+          "evidence": "Payoff217:66be80 expands sources0..11 at mutation. Public masks15 stay15 after alliance revoke, repeatshare refreshes7. No query-time recalculation; original unshare emits no TargetLost."
+        },
+        {
           "offset": 356,
           "name": "mover_bridge",
           "type": "WC3UnitMoverBridge",
@@ -16859,6 +16877,173 @@
         }
       ],
       "evidence": "Payoff216: fastcall ECXcommand,EDXplayer; stack4source,8target,c scalarX*,10 scalarY*,14 association,18 retained argument;RET18. Original5ff6eb loss caller supplies retained public command and stored point when flags0 visibility fails, with targetNULL. Pre-pushed0/1 are for691c70, not constructor arguments. Calls689a60 on a newly allocated ordt payload."
+    },
+    {
+      "address": "6f218fd0",
+      "name": "Jass_UnitShareVision",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "player_handle",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff217: cdecl handle resolution, then699540(unit,player,enabled); original registration209cc2. Repeated eight-scene public217 captures prove direct reveal, cached alliance expansion, repeat-call refresh and no synchronous TargetLost on unshare."
+    },
+    {
+      "address": "6f699540",
+      "name": "CUnit_SetSharedVision",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "player",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff217: thiscall ECXunit, stack4player/8enabled,RET8. Resolves/creates13c identity payload, changes recipient through699500, then69d1d0 and66be80. Every call refreshes even idempotenttrue. Public217 direct masks8/15, alliance-before-share2/15, share-before-alliance2/7; revocation retains2/15 until repeatshare refreshes2/7."
+    },
+    {
+      "address": "6f699500",
+      "name": "UnitReveal_SetRecipient",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "source",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "player",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff217: thiscall ECXmask owner,stack4player/8enabled,RET8. OR recipient bit at+24; clearing respects counted contributions at+2c+4*player. Counted-source interactions are statically recovered, outside this public UnitShareVision contract."
+    },
+    {
+      "address": "6f686670",
+      "name": "CUnit_GetRevealSourceMask",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff217: Resolves Unit13c/140 and reads payload24, conditionally combines separate ability-owned source when Unit20 bit400000 is set. Public217 controls exercise UnitShareVision; other ability producers remain open."
+    },
+    {
+      "address": "6f66be80",
+      "name": "CUnit_RefreshRevealMasks",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff217: Gets686670 u16 into Unit148 and14c; expands base sources0..11 via player25ba40/056a40 and2331c0 masks. Public217 verifies mask capture at mutation, no query-time recomputation, repeat-call refresh after alliance revoke. Neutral direct bits retain base without expansion."
+    },
+    {
+      "address": "6f2068d0",
+      "name": "Jass_IsUnitVisible",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "player_handle",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff217: cdecl unit/player handles; invalid either returnsfalse. Calls Unit vtablefc(player,flags0,mode4). Public217 visibility and Smart admission agree for invisible targets with direct/alliance-expanded per-unit reveal."
+    },
+    {
+      "address": "6f2064f0",
+      "name": "Jass_IsUnitInvisible",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "player_handle",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff217: cdecl unit/player handles; invalid either returnsfalse. Inverts the same Unit vtablefc(player,flags0,mode4) query as2068d0. Includes fog visibility rather than only an invisibility ability flag."
+    },
+    {
+      "address": "6f66ee10",
+      "name": "CUnit_IsVisibleToPlayer",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "player",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "mode",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff217: thiscall unit,stack4player/8flags/cmode,RETc. Requires initialized game/world; TLS200 modifies flags; world visibility failure falls back to699b20 reveal. Native visible/invisible useflags0/mode4."
     }
   ],
   "globals": [

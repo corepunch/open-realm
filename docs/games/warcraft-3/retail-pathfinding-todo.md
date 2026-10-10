@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff217 integrates UnitShareVision's captured reveal mask, alliance-order
+semantics, idempotent refresh, full public visibility getters and Save154.
+Two eight-scene original repeats match an unhooked control; actual Smart/fog/
+revocation/cold-save regressions pass without rewriting existing fixtures.
+Wider TARGET-03.1/03.2 stay open; see
+[unit reveal](retail-pathfinding-engine.md#unit-sharing-captures-a-reveal-mask-payoff217).
+
 Payoff216 integrates retained Smart approach point reissue and distant Move's
 initial persistent phase, with two new original repeats, an unhooked control,
 Save153 and failing-first production regressions. Prior persistent cancellation

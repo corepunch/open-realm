@@ -591,6 +591,7 @@ bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player) {
  * deliberately outside this predicate. */
 bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player) {
 	if (!unit || !unit->inuse || player >= MAX_PLAYERS) return false;
+	if (G_UnitIsForcedVisibleToPlayer(unit, player)) return false;
 	if (unit->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, unit->s.player)) return false;
 	if (!S_PermanentInvisibilityActive(unit) && !S_GhostActive(unit) && !S_ShadowMeldActive(unit) && !S_UnitUsesInvisibilityRenderFlag(unit)) return false;
 	return !S_UnitIsDetectedByPlayer(unit, player);

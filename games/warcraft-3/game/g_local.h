@@ -1993,6 +1993,7 @@ struct edict_s {
     shadowMeld_t *shadowmeld;
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */
     uint32_t shared_vision; /* players that receive this unit's ordinary sight via UnitShareVision */
+    uint32_t shared_reveal; /* UnitShareVision's captured alliance expansion; not a live query */
     uint32_t harvested_lumber;
     uint32_t harvested_gold;
     militia_t *militia;

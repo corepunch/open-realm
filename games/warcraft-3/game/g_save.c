@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format153 retains the target order point independently of its live target. */
-static uint32_t const save_version = 153;
+/* Format154 retains UnitShareVision's captured, potentially stale alliance mask. */
+static uint32_t const save_version = 154;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1162,6 +1162,7 @@ field_t edict_fields[] = {
     F(edict_s, waypoint_generation, F_INT),
     F(edict_s, forced_visibility_count, F_INT),
     F(edict_s, shared_vision, F_INT),
+    F(edict_s, shared_reveal, F_INT),
     F(edict_s, harvested_lumber, F_INT),
     F(edict_s, harvested_gold, F_INT),
     F(edict_s, heatmap2, F_INT),
