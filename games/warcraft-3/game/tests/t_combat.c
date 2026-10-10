@@ -3545,6 +3545,40 @@ TEST(wc3_combat, timed_stun_status_expires_without_touching_pause) {
     T_ASSERT(ent->paused);
 }
 
+TEST(wc3_combat, status_replace_reinitializes_existing_slot) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *slot;
+    level.time = 1000;
+    unit_addtimedstatus(ent, "Bstu", 1, 5.0f);
+    slot = unit_findstatus(ent, MAKEFOURCC('B','s','t','u'));
+    T_NOT_NULL(slot);
+    slot->data = MAKEFOURCC('A','x','x','x');
+    slot->rank = 3;
+    slot->next_tick = 2500;
+    unit_addtimedstatus(ent, "Bstu", 2, 10.0f);
+    T_EQ(slot->level, 2);
+    T_EQ(slot->timestamp, 11000);
+    T_EQ(slot->data, 0);
+    T_EQ(slot->rank, 0);
+    T_EQ(slot->next_tick, 0);
+    T_ASSERT(ent->stunned);
+}
+
+TEST(wc3_combat, scripted_status_removal_preserves_independent_stun) {
+    edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t *slot;
+    level.time = 1000;
+    unit_addtimedstatus(ent, "Bstu", 1, 10.0f);
+    unit_addtimedstatus(ent, "Beng", 1, 10.0f);
+    slot = unit_findstatus(ent, MAKEFOURCC('B','e','n','g'));
+    T_NOT_NULL(slot);
+    unit_removestatus(ent, slot, STATUS_REMOVE_SCRIPT);
+    unit_refreshstatusflags(ent);
+    T_ASSERT(ent->stunned);
+    T_NOT_NULL(unit_findstatus(ent, MAKEFOURCC('B','s','t','u')));
+    T_ASSERT(!unit_findstatus(ent, MAKEFOURCC('B','e','n','g')));
+}
+
 TEST(wc3_combat, timed_life_status_kills_unit) {
     edict_t *ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     _die_call_count = 0;

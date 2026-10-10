@@ -510,7 +510,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
                 if (S_StatusIsUndispellable(&target->abilstatus[i])) continue;
-                unit_expirestatus(target, target->abilstatus + i);
+                unit_removestatus(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
                 removed++;
             }
         }

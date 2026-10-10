@@ -71,7 +71,7 @@ static heroabilitystatus_t *spirit_link_slot(edict_t *unit) {
 static void spirit_link_strip(edict_t *unit) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSPL)
-			memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
+			unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_SCRIPT);
 }
 
 /* Flat redirected share: never fatal — clamp to 1 HP and clear Bspl. */

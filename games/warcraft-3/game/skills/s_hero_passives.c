@@ -827,7 +827,7 @@ static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
 static void mana_shield_remove(edict_t *unit, uint32_t buff) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == buff)
-            memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
+            unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_SCRIPT);
     G_InvalidateUnitInfoPanel(unit);
 }
 

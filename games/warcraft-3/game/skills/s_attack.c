@@ -366,7 +366,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     G_AlertHeroShortcutDamage(target);
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (target->abilstatus[i].level && target->abilstatus[i].code == MAKEFOURCC('B','U','s','l'))
-            memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+            unit_removestatus(target, target->abilstatus + i, STATUS_REMOVE_SCRIPT);
     unit_updatestatuses(target);
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);
