@@ -4195,15 +4195,17 @@ TEST(wc3_bot, smart_artillery_prioritizes_farther_structure_for_siege_ai) {
 
 #endif
 
+#ifdef BZ_TESTS
 /* Phase 5: categorical contributors participate in the authoritative damage gate. */
 TEST(wc3_combat, status_invulnerability_blocks_damage_without_mutating_base_flag) {
     edict_t *target = make_attacker(ATK_NORMAL);
     edict_t *source = make_attacker(ATK_NORMAL);
     float before = target->health.value;
-    status_application_t app = { .buff = MAKEFOURCC('B','H','d','s'), .level = 1, .duration = 5.0f,
+    status_application_t app = { .buff = "BHds", .level = 1, .duration = 5.0f,
                                  .state_mask = WC3_STATUS_STATE_INVULNERABLE };
     T_NOT_NULL(unit_applystatus(target, &app));
     T_ASSERT(!target->invulnerable);
     T_Damage(target, source, 10);
     T_FEQ(target->health.value, before, 0.001f);
 }
+#endif

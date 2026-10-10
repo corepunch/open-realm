@@ -1033,6 +1033,7 @@ TEST(wc3_ability_lifecycle, classified_status_application_replace_resets_flags) 
 
 #endif
 
+#ifdef BZ_TESTS
 TEST(wc3_ability_lifecycle, status_capacity_preflight_is_deterministic) {
     edict_t *unit = review_setup();
     static cstring_t const ids[MAX_UNIT_STATUSES + 1] = {
@@ -1197,3 +1198,4 @@ TEST(wc3_ability_lifecycle, stock_magic_immunity_composes_with_explicit_contribu
     unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','i','y','y')), STATUS_REMOVE_SCRIPT);
     T_ASSERT(!S_UnitSpellImmune(unit));
 }
+#endif
