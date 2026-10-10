@@ -67,8 +67,7 @@ static edict_t *spell_cursor_test_begin(slkTestData_t **rows, slkTestData_t **ol
     spell_cursor_image_clear = false;
     spell_cursor_capture_radius = 0.0f;
     gi.Write = spell_cursor_capture_write;
-    spell_cmd(clent);
-    clent->client->menu.ability_code = MAKEFOURCC('A','E','b','l');
+    G_ClientCommand(clent, 2, (cstring_t[]){ "button", "AEbl" });
     return clent;
 }
 
