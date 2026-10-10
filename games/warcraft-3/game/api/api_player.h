@@ -720,7 +720,8 @@ uint32_t PauseCompAI(jass_t *j) {
     return 0;
 }
 uint32_t RemoveAllGuardPositions(jass_t *j) {
-    //handle_t num = jass_checkhandle(j, 1, "player");
+    player_t *player = jass_checkhandle(j, 1, "player");
+    if (player) G_BotRemoveAllGuardPositions(player);
     return 0;
 }
 uint32_t SetBlight(jass_t *j) {

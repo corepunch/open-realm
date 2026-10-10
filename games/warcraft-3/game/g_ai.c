@@ -316,6 +316,27 @@ void G_CreepGuardInit(edict_t *unit) {
     unit->movement.creep_guard_returning = false;
 }
 
+/* Script controls the auto-guard policy, never the player's Stop anchor.
+ * Existing explicit orders remain in place. Re-enabling uses the current
+ * position as the anchor only if this unit never had a creep anchor. */
+void G_CreepGuardSetEnabled(edict_t *unit, bool enabled) {
+    if (!unit) return;
+    enabled = enabled && unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE &&
+        !(unit->runtime.flags & UNIT_BALANCE_BUILDING);
+    if (!enabled) {
+        unit->movement.creep_guard_enabled = false;
+        G_CreepGuardExplicitOrder(unit);
+        return;
+    }
+    if (!unit->movement.creep_guard_enabled) {
+        unit->movement.creep_guard_last_hit_ms = level.time;
+        unit->movement.creep_guard_outside_ms = 0;
+        unit->movement.creep_guard_auto_combat = false;
+        unit->movement.creep_guard_returning = false;
+    }
+    unit->movement.creep_guard_enabled = true;
+}
+
 void G_CreepGuardAutoCombat(edict_t *unit) {
     if (!unit || !unit->movement.creep_guard_enabled ||
         unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE ||

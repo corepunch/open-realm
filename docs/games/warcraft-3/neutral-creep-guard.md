@@ -36,3 +36,10 @@ guard behaviour through the JASS natives is reserved for Stage D.
 - Stage B will handle coordinated assistance and natural-sleep wake propagation.
 - Run `make test` and relevant neutral camp map fixtures before merging. This
   patch was prepared without a local build or test run.
+
+## Stage D: script guard controls
+
+- `SetUnitCreepGuard(unit, bool)` is registered and controls Stage A's neutral-hostile automatic creep-leash policy. Disabling it clears automatic-combat/return bookkeeping without issuing another order or modifying Stop guard state. Re-enabling retains the unit's original anchor. Non-neutral-hostile units and buildings do not become creep guards.
+- `RemoveGuardPosition(unit)`, `RecycleGuardPosition(unit)` and `RemoveAllGuardPositions(player)` now operate on the separate computer-AI guard-post roster. Removing discards the assigned post; recycling vacates it for existing AI replacement processing; removing all clears that player's AI guard-post roster. Units not assigned to an active post are ignored. They do **not** disable Neutral Hostile creep leashes.
+- **Compatibility limit:** Warcraft editor wording describes AI preplaced-unit guard positions and replacement semantics. OpenRealm's existing bot roster only contains `G_BotAddGuardPost` positions; it does not yet represent all automatically registered preplaced-unit posts, Hero/peon exclusions or full retail guard recycling. The three roster natives therefore implement the supported subset, not complete retail semantics. Some historical reports also indicate `SetUnitCreepGuard` is ineffective for Neutral Hostile owners in retail; its OpenRealm behaviour is an explicit interoperability choice pending in-game comparison.
+- Explicit trigger orders continue to outrank automatic camp orders via `G_CreepGuardExplicitOrder`.
