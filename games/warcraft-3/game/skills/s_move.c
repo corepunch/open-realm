@@ -4804,6 +4804,7 @@ static bool move_queue_group_point(groupPointOrder_t const *request) {
 }
 
 static void move_group_seed_route(moveGroup_t *group);
+static void move_group_publish_ready(moveGroup_t *group);
 
 /* Smart and nearby target Move approach once before persistent Follow.
  * Distant explicit Move begins persistent without an intermediate owner. */
@@ -4991,10 +4992,10 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
         {wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)}};
     /*013490 initializes the world radius used by selector8 in5fa950. */
     S_VisitMoveCircle(center,wc3_div(MOVE_PREVIOUS_COHORT_RADIUS,32),move_queued_cohort_candidate,&query);
-    /* TODO GROUP-04.6: accelerated preferred-distance, range90 and wider
-     * neighbor producer policies need original witnesses before extension. */
-    move_group_seed_route(group);
-    group->ticking=false;
+    /*5faaf0 attaches old peers to a fresh request; their ready attempts wait
+     * for this source.16bcf0 then partitions all ready rows again. Old group
+     * membership does not bypass the current predicted-distance predicate. */
+    move_group_publish_ready(group);
     return true;
 }
 

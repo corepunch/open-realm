@@ -13499,6 +13499,91 @@ TEST(wc3_movement, partition235_nested_admission_keeps_replacement_owner) {
     reset_entities();setup_test_world();
 }
 
+#include "fixtures/retail_queued_partition236.h"
+TEST(wc3_movement, queued236_activation_repartitions_inherited_rows) {
+    unsigned tested=0;
+    FOR_LOOP(r,sizeof(queued236_rows)/sizeof(*queued236_rows)) {
+        typeof(*queued236_rows) const *row=queued236_rows+r;
+        /* The original callback matrix also supplies candidates outside its
+         * caller's1000-world circle. Exercise the public query only inside it. */
+        if(row->position==1 || row->position==5)continue;
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *units[]={cohort232_unit(256,512),cohort232_unit(512,512),cohort232_unit(1024,512)};
+        vec2_t goal={1536,512};groupPointOrder_t order={.point=&goal,.order="move",.order_id=G_OrderId("move"),.count=1};
+        order.units[0]=(typeof(*order.units)){units[0],units[0]->spawn_time};T_ASSERT(G_IssueGroupPointOrder(&order));
+        order.count=2;
+        FOR_LOOP(i,2)order.units[i]=(typeof(*order.units)){units[i+1],units[i+1]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&order));T_EQ(move_unit_group(units[1]),move_unit_group(units[2]));
+        order.count=3;order.queued=true;
+        FOR_LOOP(i,3)order.units[i]=(typeof(*order.units)){units[i],units[i]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&order));
+        wc3Clock_t clock=level.pathing_clock;level.pathing_clock=(wc3Clock_t){10,0,300};
+        typeof(*queued236_positions) const *positions=queued236_positions+row->position;
+        FOR_LOOP(i,3) {
+            vec2_t previous=units[i]->s.origin2;
+            S_SetUnitAxisPosition(units[i],0,positions->x[i]*32);G_UnitPositionChanged(units[i],&previous);
+            units[i]->movement.pose_valid=true;units[i]->movement.pose_world=units[i]->s.origin2;
+            units[i]->movement.fine_pose=(vec2_t){positions->x[i],16};
+            units[i]->movement.velocity=(vec2_t){positions->velocity[i]*32,0};
+            units[i]->movement.pose_clock=(wc3Clock_t){8,0,300};units[i]->movement.clock_valid=true;
+            units[i]->movement.adaptive_disabled=!(row->preferred&(1u<<i));
+        }
+        uint64_t history=units[0]->movement.previous_request_id;
+        T_ASSERT(G_UnitStartNextQueuedOrder(units[0]));
+        unsigned at=0;
+        FOR_LOOP(g,row->count) {
+            moveGroup_t *group=move_unit_group(units[row->members[at]]);T_NOT_NULL(group);
+            if(!group)break;
+            T_EQ(group->count,row->sizes[g]);T_EQ(group->flags&0x100,0);T_ASSERT(!group->ticking);
+            FOR_LOOP(i,row->sizes[g]) {
+                edict_t *unit=units[row->members[at+i]];
+                T_EQ(group->members[i].unit,unit);T_EQ(move_unit_group(unit),group);
+                T_EQ(unit->movement.previous_request_id,history);
+            }
+            at+=row->sizes[g];
+        }
+        T_EQ(at,3);tested++;level.pathing_clock=clock;
+    }
+    T_EQ(tested,32);reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, queued236_relocated_peer_split_saves_and_cancels_independently) {
+    reset_entities();setup_test_world();
+    uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\nunit c\nendglobals\n"
+        "function relocate takes nothing returns nothing\ncall SetUnitX(c,2880)\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hpea',256,512,0)\nset b=CreateUnit(Player(0),'hpea',512,512,0)\n"
+        "set c=CreateUnit(Player(0),'hpea',1024,512,0)\nendfunction\n"));
+    edict_t *units[3]={0};FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','p','e','a')) {
+        if(ent->s.origin2.x==256)units[0]=ent;
+        if(ent->s.origin2.x==512)units[1]=ent;
+        if(ent->s.origin2.x==1024)units[2]=ent;
+    }
+    FOR_LOOP(i,3)T_NOT_NULL(units[i]);
+    if(units[0] && units[1] && units[2]) {
+        vec2_t goal={1536,512};groupPointOrder_t order={.point=&goal,.order="move",.order_id=G_OrderId("move"),.count=1};
+        order.units[0]=(typeof(*order.units)){units[0],units[0]->spawn_time};T_ASSERT(G_IssueGroupPointOrder(&order));
+        order.count=2;FOR_LOOP(i,2)order.units[i]=(typeof(*order.units)){units[i+1],units[i+1]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&order));moveGroup_t *old=move_unit_group(units[1]);T_EQ(old,move_unit_group(units[2]));
+        order.count=3;order.queued=true;FOR_LOOP(i,3)order.units[i]=(typeof(*order.units)){units[i],units[i]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&order));jass_callbyname(level.vm,"relocate",false);
+        T_EQ(move_unit_group(units[2]),old);T_ASSERT(G_UnitStartNextQueuedOrder(units[0]));
+        moveGroup_t *near=move_unit_group(units[0]),*far=move_unit_group(units[2]);T_NOT_NULL(near);T_NOT_NULL(far);T_NE(near,far);
+        if(near && far) {
+            T_EQ(near->count,2);T_EQ(far->count,1);T_EQ(move_unit_group(units[1]),near);T_EQ(near->request_id,far->request_id);
+            cstring_t save=Test_TempPath("wc3-queued236.bin");T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+            near=move_unit_group(units[0]);far=move_unit_group(units[2]);T_NOT_NULL(near);T_NOT_NULL(far);T_NE(near,far);
+            T_EQ(move_unit_group(units[1]),near);T_ASSERT(unit_issueimmediateorder(units[1],"stop"));T_EQ(move_unit_group(units[1]),NULL);
+            T_EQ(move_unit_group(units[0]),near);T_EQ(move_unit_group(units[2]),far);remove(save);
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
     reset_entities(); setup_test_world();
     edict_t *clent=alloc_test_unit(0,0,0),*units[2];

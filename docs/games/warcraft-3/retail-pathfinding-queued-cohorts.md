@@ -323,3 +323,63 @@ This is a ready-member partition payoff for GROUP-04.6. Persistent canonical
 candidate/readiness lifetime, busy recovery, all request exclusion scopes and
 broader callback/trajectory parity remain open. No performance target or
 whole-journey equality is claimed here.
+
+## Queued activation repartitions inherited members (Payoff236)
+
+`5faaf0` attaches the activating source to a fresh canonical request first,
+then copies resolved old physical rows in their retained order. Attachment
+through `169620` stores the identity independently of readiness: a pending
+ready word at `ac+4*i` is `ffffffff`. Each peer's `89cd10` marks it ready and
+invokes wrapper virtual `c` (`249b60`). While the source remains pending,
+`169c50` reports a conflict and `16bcf0` releases fine exclusions and returns
+`-1`. The peers still belong to their original physical owner at this boundary.
+Source readiness subsequently runs the ordinary ordered distance partition.
+An inherited physical group is not an exemption from the current predicate.
+
+OpenRealm queued activation now calls the same `move_group_publish_ready`
+routine as direct admission. A displaced old peer can receive a separate
+physical owner, with the common request identity retained. Default queued
+reconstruction does not inherit captain bit100 or the original UI formation
+policy. The bounded twelve-row traversal and lazy per-request geometry setup
+remain unchanged; this adds no scan of the existing physical group registry.
+Save layout and network contracts are unchanged.
+
+`work236_oracle.py` executes complete original callback, native request/mover/
+path/group factories, old-row preparation, readiness and publication for48
+cases. Native `16d1c0` resolves the old rows; native `16dd70` alone deliberately
+clears the resolved pointer. The cases cover all eight path-policy masks,
+transitive joins, geometric/adaptive boundaries and predicted old velocity.
+Both pending and successful publication restore every fine exclusion counter.
+Supplied inputs are the unit history/category, callback neighbor, owner clock,
+empty cached hierarchy and VM publication gate. Only Storm storage imports use
+host adapters. Sixteen supplied-neighbor cases lie outside the public1000-world
+circle; the production-query engine matrix intentionally covers the other32.
+
+Two complete read-only captures of the existing frozen selected queued corridor
+show one peer-ready pending publication, then source readiness and one successful
+physical publication each. Each has305 public markers. The observer tracks the
+canonical request beyond the neighbor-search return; restricting every hook to
+that search misses the final source publication. The initial two narrow-scope
+captures are archived separately and do not certify that final boundary. These
+repeats have no new observer-free control and do not establish a crowded public
+retail relocation journey or wall-clock input equivalence.
+
+The failing-first engine matrix initially has60 partition failures; the extra
+spawn/save test initially uses the local Footman fixture, whose omitted collision
+cell produces radius0 and no fine membership. It therefore tests no neighbor
+join. The accepted spawn/save test uses the existing authored Peasant radius16
+fixture through CreateUnit and SetUnitX. No authored data or retail expectation
+is changed. It covers inherited ownership before activation, physical split,
+cold save/load and independent Stop. Original function/xref/instruction evidence
+is saved by `Work236Evidence.java` and mapped in `MapPathfinding.java`.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work236.py \
+  --binary /path/to/retail/game.dll --report /tmp/work236-fresh.json
+```
+
+Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff236/`.
+This is implementation10/12 in the focused-validation cadence. Persistent
+canonical readiness, busy recovery and wider callback lifetimes still keep
+GROUP-04.6 open. No overall performance or complete retail fidelity is claimed.

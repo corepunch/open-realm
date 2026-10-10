@@ -56,6 +56,12 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **278 done / 336 tasks; 58 remaining.**
+Payoff236 repartitions inherited queued members after source readiness using
+retail's ordinary ordered distance predicate. Complete original callback/factory
+cases, repeated pending/source-ready observations and production queue/save
+regressions accompany the fix. GROUP-04.6 retains canonical lifetime work. See
+[queued repartition](retail-pathfinding-queued-cohorts.md#queued-activation-repartitions-inherited-members-payoff236).
+
 Payoff235 partitions ready members with retail's ordered transitive distance
 rule and independent physical owners, preserving shared request identity and
 parameters. Complete original cases, repeated public/control captures and
