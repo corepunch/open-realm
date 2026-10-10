@@ -1271,4 +1271,16 @@ TEST(wc3_ability_lifecycle, status_deferred_removal_reconciles_after_batch) {
     T_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','a')));
 }
 
+TEST(wc3_ability_lifecycle, explicit_root_state_blocks_translation_without_disarming) {
+    edict_t *unit = review_setup();
+    heroabilitystatus_t *slot = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bqro", .level = 1, .duration = 8.0f,
+        .state_mask = WC3_STATUS_STATE_ROOTED
+    });
+    T_NOT_NULL(slot);
+    T_ASSERT(!S_UnitCanTranslate(unit));
+    unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(S_UnitCanTranslate(unit));
+}
+
 #endif

@@ -1482,7 +1482,14 @@ heroabilitystatus_t *S_SpellApplyTimedLife(edict_t *unit, uint32_t level, float 
 /* Ordinary target buffs add the standard authored TargetArt on top of the
  * shared timed-status lifecycle. */
 heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {
-    heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, level, duration);
+    /* Pass the actual ability identity before installing authored modifiers.
+     * Calling the generic wrapper first would populate descriptors from a
+     * stock alias, leaving the custom caster's Data fields ignored. */
+    status_application_t app = { .buff = buff, .level = level, .duration = duration,
+                                 .source_ability = code, .rank = level };
+    heroabilitystatus_t *status;
+    if (!target || !buff || strlen(buff) < 4) return NULL;
+    status = unit_applystatus(target, &app);
     if (!status) return NULL;
     status_apply_authored_modifiers(status, code);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
