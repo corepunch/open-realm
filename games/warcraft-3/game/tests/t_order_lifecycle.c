@@ -656,4 +656,48 @@ TEST(wc3_order_lifecycle, creep_guard_retry_exhaustion_uses_simulation_time) {
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.001f);
 }
 
+/* Explicit immediate orders must cancel return ownership without changing its
+ * independently stored original anchor. */
+TEST(wc3_order_lifecycle, creep_guard_stop_and_hold_cancel_return) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->s.origin2.x = 900;
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    creep->movement.creep_guard_retry_at_ms = 2000;
+    T_ASSERT(unit_issueimmediateorder(creep, "stop"));
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    T_ASSERT(unit_issueimmediateorder(creep, "holdposition"));
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_explicit_point_move_cancels_return) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    vec2_t destination = { 220, 0 };
+    G_CreepGuardInit(creep);
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    T_ASSERT(G_IssueUnitPointOrder(creep, "move", &destination, false, creep->s.player, 0.0f));
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_owner_transfer_reconciles_policy) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    G_SetUnitPlayer(creep, 0);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    creep->s.origin2.x = 320;
+    G_SetUnitPlayer(creep, PLAYER_NEUTRAL_AGGRESSIVE);
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_FEQ(creep->movement.creep_guard_origin.x, 320, 0.01f);
+}
+
 #endif

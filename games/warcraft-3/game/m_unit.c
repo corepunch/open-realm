@@ -1071,6 +1071,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
                                                issuer_player, group_speed, 0);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
         }
@@ -1211,6 +1212,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!strcmp(order, "stop")) {
         G_ClearUnitOrderQueue(self);
         order_stop(self);
+        G_CreepGuardExplicitOrder(self);
         S_UnitAbilityOrderAccepted(self, order);
         G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         return true;
@@ -1218,6 +1220,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         }
@@ -1229,6 +1232,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
         bool const accepted = S_AbilityMessage(self, A_ORDER, &call);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
             return true;
@@ -1239,6 +1243,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         if (spell_code) {
             bool const accepted = S_CastNoTargetSpell(self, spell_code);
             if (accepted) {
+                G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
                 G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
             }

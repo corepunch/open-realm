@@ -176,7 +176,21 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
         G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_CAP, -unit->food->made);
         G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, unit->food->made);
     }
+    /* Do not let an AI-owned return Move continue under the new owner. */
+    if (unit->movement.creep_guard_enabled &&
+        unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING)
+        order_stop(unit);
     unit->s.player = player;
+    /* A converted creep must not carry autonomous combat/return orders across
+     * ownership. New Neutral Hostile units anchor at their conversion position;
+     * units leaving Neutral Hostile discard the policy. */
+    if (old_player == PLAYER_NEUTRAL_AGGRESSIVE || player == PLAYER_NEUTRAL_AGGRESSIVE) {
+        G_CreepGuardExplicitOrder(unit);
+        if (player == PLAYER_NEUTRAL_AGGRESSIVE)
+            G_CreepGuardInit(unit);
+        else
+            G_CreepGuardSetEnabled(unit, false);
+    }
     G_PublishChangeOwnerEvents(unit, old_player);
     G_InvalidateCommands(old_client);
     G_InvalidateCommands(new_client);

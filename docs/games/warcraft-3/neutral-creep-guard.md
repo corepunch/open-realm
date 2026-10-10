@@ -63,3 +63,11 @@ building sale aggression, missed/absorbed hit leash refresh, exact high-level
 target scoring, and multiplayer order replay. Passing unit tests will not by
 itself establish retail parity. Build the affected WC3 target and run `make test`
 before committing, per `CONTRIBUTING.md`.
+
+## Explicit orders and ownership transitions
+
+Accepted immediate Stop/Hold Position and active no-target abilities, accepted
+queued point moves, and direct UI Move clear autonomous creep-guard ownership.
+Internal ability-order notifications do not. Ownership changes into Neutral
+Hostile initialize a new guard anchor at the conversion location; transfers
+out disable the policy. Neither path changes the independent Stop anchor.
