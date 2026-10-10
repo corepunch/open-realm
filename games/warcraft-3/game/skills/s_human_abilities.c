@@ -75,6 +75,8 @@ bool S_UnitSpellImmune(edict_t const *unit) {
  * Bam2 absorption is not targeting immunity: leftover damage after the shell breaks still applies. */
 bool S_SpellDamage(edict_t *target, edict_t *caster, int damage) {
     if (!target || S_UnitSpellImmune(target)) return false;
+    if (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL))
+        damage = (int)((float)damage * 1.66f);
     damage = S_AntiMagicShellAbsorb(target, damage);
     if (damage <= 0) return false;
     T_Damage(target, caster, damage); return true;

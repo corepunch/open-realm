@@ -110,6 +110,8 @@ void divine_shield_think(edict_t *ent) {
         return;
     }
     if (G_Time() < ent->spawn_time) return;
+    /* Preserve innate/scripted invulnerability; independent status contributors
+     * remain authoritative through unit_hasstatusstate after this thinker ends. */
     caster->invulnerable = ent->resources;
     G_FreeEdict(ent);
 }
