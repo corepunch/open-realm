@@ -321,3 +321,13 @@ status may free a slot for the slow. Tests exercise the production spell
 handlers with authored fixture data rather than introducing global capacity
 rollback or all-or-nothing area semantics. They do not cover every area spell
 or projectile impact-time capacity change.
+
+## Delayed-status producer allocation safeguards
+
+Aerial Shackles preflights the victim's authored target buff before cast commit,
+then requires successful insertion before activating its channel thinker or
+first damage tick. It reserves the thinker first and frees it if status
+insertion fails. Item Defense AoE counts only recipients whose timed status
+was successfully applied; an entirely full area does not report successful
+status application. Other multi-target spells retain their individually
+documented best-effort behavior.

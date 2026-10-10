@@ -733,8 +733,8 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
 
     FILTER_EDICTS(target, ITEM_DEFENSE_AOE_TARGET(target)) {
         float duration = S_SpellHeroDuration(code, level, target);
-        S_SpellApplyTimedTargetStatus(target, code, level, buff, duration);
-        affected++;
+        if (S_SpellApplyTimedTargetStatus(target, code, level, buff, duration))
+            affected++;
     }
 #undef ITEM_DEFENSE_AOE_TARGET
 
