@@ -331,3 +331,12 @@ insertion fails. Item Defense AoE counts only recipients whose timed status
 was successfully applied; an entirely full area does not report successful
 status application. Other multi-target spells retain their individually
 documented best-effort behavior.
+
+## Channelled status instance ownership
+
+Aerial Shackles captures the applied target status `instance_id` in its
+channel thinker. Periodic damage and cancellation cleanup verify that exact
+instance rather than relying on the buff rawcode alone. Dispel or replacement
+ends the old thinker without damaging the target or clearing its replacement
+buff. Shackles remains a single rawcode-owned ability family; independent
+simultaneous sources are not enabled.

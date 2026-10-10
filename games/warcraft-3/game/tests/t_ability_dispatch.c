@@ -131,4 +131,50 @@ TEST(wc3_ability_dispatch, shackles_locks_target_until_its_channel_ends) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Replacing the buff while the old thinker exists must not let that thinker
+ * damage the target or remove the newer buff during channel cleanup. */
+TEST(wc3_ability_dispatch, shackles_old_thinker_does_not_own_replacement_status) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\nC;Y1;X4;K\"Rng1\"\n"
+        "C;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\nC;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"Amls\"\nC;Y2;X2;K\"Amls\"\nC;Y2;X3;K\"air,enemy\"\nC;Y2;X4;K\"800\"\n"
+        "C;Y2;X5;K\"10\"\nC;Y2;X6;K\"10\"\nC;Y2;X7;K\"30\"\nC;Y2;X8;K\"Bmlc,Bmlt\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    UnitAbilities_t list = { .abilList = "Amls" };
+    edict_t *caster, *target, *thinker = NULL;
+    heroabilitystatus_t *slot;
+    uint32_t new_instance;
+    float before;
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    caster = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    caster->data.UnitAbilities = &list; caster->s.player = 0; target->s.player = 1;
+    caster->svflags |= SVF_MONSTER;
+    target->svflags |= SVF_MONSTER; target->targtype = TARG_AIR;
+    target->health.value = target->health.max_value = 1000;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Amls"), target));
+    FILTER_EDICTS(ent, ent->owner == caster && ent->think == human_ability_think) {
+        thinker = ent; break;
+    }
+    T_NOT_NULL(thinker);
+    slot = unit_findstatus(target, FS_SLKKey("Bmlt"));
+    T_NOT_NULL(slot);
+    T_EQ(thinker->variation, slot->instance_id);
+    T_ASSERT(unit_addtimedstatus(target, "Bmlt", 1, 10.0f));
+    slot = unit_findstatus(target, FS_SLKKey("Bmlt"));
+    T_NOT_NULL(slot);
+    new_instance = slot->instance_id;
+    T_NE(thinker->variation, new_instance);
+    before = target->health.value;
+    G_RunEntity(thinker);
+    T_FEQ(target->health.value, before, 0.001f);
+    slot = unit_findstatus(target, FS_SLKKey("Bmlt"));
+    T_NOT_NULL(slot);
+    T_EQ(slot->instance_id, new_instance);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 #endif
