@@ -113,6 +113,10 @@ and TargetArt ownership are not all reconstructible from a status snapshot.
 
 The serialized classification advances save format 81 to 82.
 
+Modifier queries now combine strongest families in bounded stack storage while
+visiting statuses once. Categorical-state lookup remains a bounded linear scan
+of the fixed status array.
+
 ## Persistent status TargetArt
 
 `WC3_STATUS_BUFF_TARGET_ART` opts a status into lifecycle-owned TargetArt.

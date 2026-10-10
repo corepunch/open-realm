@@ -42,6 +42,12 @@ unit-type bind; add coverage there when introducing another persistent ledger.
 
 ## Damage paths are intentionally distinct
 
+Status-owned modifier resolution visits the fixed status slots and their
+descriptors once, combining strongest-wins families in bounded stack storage.
+This avoids nested status scans in movement, armor, and attack-rate queries.
+Expired or removed owners are excluded immediately, allowing the next
+strongest contributor to become effective without a separate inverse update.
+
 `T_Damage(target, source, amount)` applies an already calculated amount. It
 handles hard invulnerability, Mana Shield, Spirit Link, damage events, health,
 and death. It does not apply weapon-type multipliers or armor.

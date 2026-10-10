@@ -451,7 +451,8 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) &&
                   (take_positive ? S_SpellIsFriend(caster, unit) : S_SpellIsEnemy(caster, unit)) &&
                   Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) { receiver = unit; break; }
-    if (!receiver) receiver = caster;
+    if (!receiver && take_positive) receiver = caster;
+    if (!receiver) return;
     snapshot = *source_slot;
     /* Install before retiring the source: full slots must never destroy the buff. */
     app = (status_application_t) {

@@ -1516,6 +1516,13 @@ bool unit_status_setmodifier(heroabilitystatus_t *status, uint32_t index,
 }
 
 float unit_status_modifier_total(edict_t const *unit, wc3_status_modifier_type_t type) {
+    typedef struct {
+        uint32_t family;
+        uint32_t policy;
+        float value;
+        bool used;
+    } modifierFamily_t;
+    modifierFamily_t families[MAX_UNIT_STATUSES * WC3_STATUS_MAX_MODIFIERS] = { 0 };
     float result = 0.0f;
     if (!unit || type > WC3_STATUS_MOD_MANA_REGEN_FLAT) return 0.0f;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -1523,40 +1530,30 @@ float unit_status_modifier_total(edict_t const *unit, wc3_status_modifier_type_t
         if (!status->level || (status->timestamp && status->timestamp <= G_Time())) continue;
         FOR_LOOP(j, MIN(status->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
             wc3_status_modifier_t const *mod = status->modifiers + j;
-            bool seen = false;
-            float strongest;
+            uint32_t key;
+            uint32_t probe;
             if (mod->type != (uint32_t)type) continue;
             if (mod->policy == WC3_STATUS_MOD_ADD || !mod->family) {
                 result += mod->value;
                 continue;
             }
-            /* Evaluate each non-stacking family once across all active slots. */
-            FOR_LOOP(a, i + 1) {
-                heroabilitystatus_t const *previous = unit->abilstatus + a;
-                if (!previous->level || (previous->timestamp && previous->timestamp <= G_Time())) continue;
-                FOR_LOOP(b, MIN(previous->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
-                    wc3_status_modifier_t const *other = previous->modifiers + b;
-                    if (other->type == mod->type && other->family == mod->family &&
-                        other->policy == mod->policy && (a < i || b < j)) seen = true;
+            key = (mod->family * 2654435761u ^ (uint32_t)type * 17u ^ mod->policy) & 63u;
+            for (probe = 0; probe < sizeof(families) / sizeof(families[0]); probe++) {
+                modifierFamily_t *family = families + ((key + probe) & 63u);
+                if (!family->used) {
+                    family->used = true; family->family = mod->family;
+                    family->policy = mod->policy; family->value = mod->value;
+                    break;
                 }
+                if (family->family != mod->family || family->policy != mod->policy) continue;
+                if ((mod->policy == WC3_STATUS_MOD_STRONGEST_POSITIVE && mod->value > family->value) ||
+                    (mod->policy == WC3_STATUS_MOD_STRONGEST_NEGATIVE && mod->value < family->value))
+                    family->value = mod->value;
+                break;
             }
-            if (seen) continue;
-            strongest = mod->value;
-            FOR_LOOP(a, MAX_UNIT_STATUSES) {
-                heroabilitystatus_t const *candidate = unit->abilstatus + a;
-                if (!candidate->level || (candidate->timestamp && candidate->timestamp <= G_Time())) continue;
-                FOR_LOOP(b, MIN(candidate->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
-                    wc3_status_modifier_t const *other = candidate->modifiers + b;
-                    if (other->type != mod->type || other->family != mod->family ||
-                        other->policy != mod->policy) continue;
-                    if ((mod->policy == WC3_STATUS_MOD_STRONGEST_POSITIVE && other->value > strongest) ||
-                        (mod->policy == WC3_STATUS_MOD_STRONGEST_NEGATIVE && other->value < strongest))
-                        strongest = other->value;
-                }
-            }
-            result += strongest;
         }
     }
+    FOR_LOOP(i, sizeof(families) / sizeof(families[0])) if (families[i].used) result += families[i].value;
     return result;
 }
 
@@ -1603,13 +1600,23 @@ void unit_status_enabletargetart(edict_t *ent, heroabilitystatus_t *status, cstr
 
 void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_reason_t reason) {
     uint32_t origin;
+    bool other_targetart_owner = false;
     if (!ent || !status || !status->level) return;
     S_HumanStatusExpired(ent, status->code, status->level);
     origin = status->source_ability ? status->source_ability : status->data;
     UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE, reason);
     /* Callback can remove its own TargetArt; this second cleanup is safe and
      * ensures ordinary expiry/dispel/replacement also retires owned visuals. */
-    if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
+    if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART) FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *other = ent->abilstatus + i;
+        if (other != status && other->level && other->code == status->code &&
+            (other->buff_flags & WC3_STATUS_BUFF_TARGET_ART) &&
+            (!other->timestamp || other->timestamp > G_Time())) {
+            other_targetart_owner = true;
+            break;
+        }
+    }
+    if ((status->buff_flags & WC3_STATUS_BUFF_TARGET_ART) && !other_targetart_owner)
         G_DestroyStatusEffectTarget(status->code, ent);
     memset(status, 0, sizeof(*status));
 }

@@ -2221,6 +2221,9 @@ TEST(wc3_unit, status_modifiers_stack_by_family_and_retire_with_slot) {
     T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.4f, 0.001f);
     b->level = 0; /* simulate expired/removed owner */
     T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.1f, 0.001f);
+    b->level = 1;
+    b->timestamp = 1; /* expired strongest source falls back immediately */
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.1f, 0.001f);
     T_ASSERT(!unit_status_setmodifier(a, WC3_STATUS_MAX_MODIFIERS, &weak));
 }
 
