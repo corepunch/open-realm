@@ -686,19 +686,57 @@ TEST(wc3_ability_lifecycle, siphon_mana_stun_before_tick_preserves_resources) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-/* A fatal Life Drain health pulse must not also transfer mana afterwards. */
-TEST(wc3_ability_lifecycle, life_drain_lethal_pulse_does_not_drain_mana) {
+/* Keep the standard neutral-drain fixture unchanged. These tests explicitly
+ * enable Life Drain DataB so a missing mid-pulse guard is observable. */
+static slkTestData_t *review_life_drain_with_mana_data(void) {
+    char fixture[sizeof(review_slk)];
+    char *cell;
+    memcpy(fixture, review_slk, sizeof(fixture));
+    cell = strstr(fixture, "C;Y5;X10;K\"0\"\n");
+    T_NOT_NULL(cell);
+    if (!cell) return NULL;
+    /* Replace one digit in the Life Drain DataB1 cell (0 -> 7). */
+    cell[strlen("C;Y5;X10;K\"")] = '7';
+    return parse_slk_string(fixture);
+}
+
+/* A live Life Drain pulse must use its nonzero mana component. This makes
+ * the fatal-pulse guard test meaningful rather than vacuously passing. */
+TEST(wc3_ability_lifecycle, life_drain_nonfatal_pulse_transfers_authored_mana) {
     edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
-    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
-    enemy->health.value = 10;
+    slkTestData_t *rows = review_life_drain_with_mana_data(), *old = G_SetSLKRows("AbilityData", rows);
+    float before_target, before_caster;
+    caster->mana.value = 20;
     enemy->mana.value = 90;
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
     edict_t *thinker = review_thinker(caster);
     T_NOT_NULL(thinker);
+    before_target = enemy->mana.value;
+    before_caster = caster->mana.value;
+    level.time += 1000;
+    if (thinker->inuse) G_RunEntity(thinker);
+    T_ASSERT(!M_IsDead(enemy));
+    T_ASSERT(enemy->mana.value < before_target);
+    T_ASSERT(caster->mana.value > before_caster);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A fatal Life Drain health pulse must not also transfer mana afterwards. */
+TEST(wc3_ability_lifecycle, life_drain_lethal_pulse_does_not_drain_mana) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = review_life_drain_with_mana_data(), *old = G_SetSLKRows("AbilityData", rows);
+    enemy->health.value = 10;
+    caster->mana.value = 20;
+    enemy->mana.value = 90;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
+    edict_t *thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    float before_caster = caster->mana.value;
     level.time += 1000;
     if (thinker->inuse) G_RunEntity(thinker);
     T_ASSERT(M_IsDead(enemy));
     T_FEQ(enemy->mana.value, 90, .001f);
+    T_FEQ(caster->mana.value, before_caster, .001f);
     T_ASSERT(!thinker->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
