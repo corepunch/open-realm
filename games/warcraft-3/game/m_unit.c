@@ -1440,6 +1440,37 @@ void unit_statusdeath(edict_t *ent) {
     }
 }
 
+/* Legacy Warcraft buff identities provide their categorical contributions even
+ * when applied by the old unit_addtimedstatus() API. Keep this in the status
+ * owner rather than duplicating rawcode checks in movement/spell consumers.
+ * The explicit state_mask remains available for custom/app-authored states. */
+static uint32_t unit_builtin_status_states(uint32_t code) {
+    switch (code) {
+    case MAKEFOURCC('B','s','t','u'):
+    case MAKEFOURCC('B','s','t','a'):
+    case MAKEFOURCC('B','p','o','s'):
+        return WC3_STATUS_STATE_STUNNED;
+    case MAKEFOURCC('B','U','s','l'):
+        return WC3_STATUS_STATE_STUNNED | WC3_STATUS_STATE_SLEEPING;
+    case MAKEFOURCC('B','N','s','i'):
+    case MAKEFOURCC('B','N','s','o'):
+        return WC3_STATUS_STATE_SILENCED;
+    case MAKEFOURCC('B','E','e','r'):
+    case MAKEFOURCC('B','e','n','s'):
+    case MAKEFOURCC('B','e','n','a'):
+    case MAKEFOURCC('B','e','n','g'):
+    case MAKEFOURCC('B','w','e','a'):
+    case MAKEFOURCC('B','w','e','b'):
+        return WC3_STATUS_STATE_ROOTED;
+    case MAKEFOURCC('B','H','a','v'):
+    case MAKEFOURCC('B','a','m','s'):
+    case MAKEFOURCC('B','u','n','s'):
+        return WC3_STATUS_STATE_MAGIC_IMMUNE;
+    default:
+        return 0;
+    }
+}
+
 /* Query only live contributions; expired slots must never grant a state
  * while waiting for their next authoritative cleanup update. Multiple slots
  * compose by OR, so removing one cannot remove another's contribution. */
@@ -1448,7 +1479,7 @@ bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
     if (!ent || !mask || (mask & (mask - 1u))) return false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
-        if (!status->level || !(status->state_mask & mask)) continue;
+        if (!status->level || !((status->state_mask | unit_builtin_status_states(status->code)) & mask)) continue;
         if (!status->timestamp || status->timestamp > G_Time()) return true;
     }
     return false;
@@ -1461,9 +1492,8 @@ void unit_refreshstatusflags(edict_t *ent) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
-        if (unit_status_stuns(status->code) ||
-            ((status->state_mask & WC3_STATUS_STATE_STUNNED) &&
-             (!status->timestamp || status->timestamp > G_Time()))) stunned = true;
+        if ((status->state_mask | unit_builtin_status_states(status->code)) & WC3_STATUS_STATE_STUNNED)
+            if (!status->timestamp || status->timestamp > G_Time()) stunned = true;
         UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_REFRESH, STATUS_REMOVE_SCRIPT);
     }
     ent->stunned = stunned;

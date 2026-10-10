@@ -294,6 +294,8 @@ bool S_StatusIsEnsnare(uint32_t code) {
 }
 
 bool S_UnitIsEnsnared(edict_t const *unit) {
+    /* Ensnare/Web remain distinct from Entangling Roots (which also disarms).
+     * They are bound status families, so avoid making ROOTED mean Ensnared. */
     if (unit) FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (S_StatusIsEnsnare(unit->abilstatus[i].code) && S_UnitHasStatus(unit, unit->abilstatus[i].code)) return true;
     return false;

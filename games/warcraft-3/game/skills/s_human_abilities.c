@@ -68,8 +68,7 @@ bool S_UnitSpellImmune(edict_t const *unit) {
     };
     if (!unit) return false;
     FOR_LOOP(i, sizeof(passive) / sizeof(*passive)) if (G_UnitAbilityLevel(unit, passive[i])) return true;
-    return G_UnitStatusLevel(unit, BZ_AVATAR_BUFF) || G_UnitStatusLevel(unit, BZ_ANTI_MAGIC_SHELL_BUFF) ||
-           G_UnitStatusLevel(unit, MAKEFOURCC('B','u','n','s')) || S_PossessionSpellImmune(unit);
+    return unit_hasstatusstate(unit, WC3_STATUS_STATE_MAGIC_IMMUNE) || S_PossessionSpellImmune(unit);
 }
 
 /* Spell impacts recheck immunity because a missile may have launched before Avatar was cast.

@@ -1875,7 +1875,7 @@ bool move_is_active_order_walk(edict_t const *ent) {
 }
 
 bool S_UnitIsEntanglingRooted(edict_t const *unit) {
-    return unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r'));
+    return unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')); /* Distinct from generic ROOTED: Roots also disarms. */
 }
 
 /* Move owns translation eligibility. False means the unit cannot change
