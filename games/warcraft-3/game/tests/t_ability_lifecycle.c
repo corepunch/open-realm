@@ -1408,4 +1408,23 @@ TEST(wc3_ability_lifecycle, explicit_root_state_blocks_translation_without_disar
     T_ASSERT(S_UnitCanTranslate(unit));
 }
 
+
+TEST(wc3_ability_lifecycle, physical_statuses_resist_magical_dispels) {
+    edict_t *unit = review_setup();
+    static cstring_t const physical[] = { "Bens", "Bena", "Bwea", "Bweb", "Bpoi", "Bpsd", "Bapl" };
+    FOR_LOOP(i, sizeof(physical) / sizeof(physical[0])) {
+        heroabilitystatus_t *slot = S_SpellApplyTimedStatus(unit, physical[i], 1, 10.0f);
+        T_NOT_NULL(slot);
+        slot->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL;
+        T_ASSERT(unit_status_can_dispel(slot));
+        T_ASSERT(!unit_status_can_magic_dispel(slot));
+        T_ASSERT(!unit_status_can_steal(slot));
+    }
+    {
+        heroabilitystatus_t *legacy = S_SpellApplyTimedStatus(unit, "Bq01", 1, 10.0f);
+        T_NOT_NULL(legacy);
+        T_ASSERT(unit_status_can_magic_dispel(legacy));
+    }
+}
+
 #endif

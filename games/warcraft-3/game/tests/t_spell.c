@@ -2781,6 +2781,13 @@ TEST(wc3_spell, creep_disease_cloud_alias_ticks_authored_area_damage) {
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE; target->svflags |= SVF_MONSTER;
     target->targtype = TARG_GROUND; target->health.value = target->health.max_value = 100;
     S_RunAbilityUpdates(source);
+    {
+        heroabilitystatus_t *slot = unit_findstatus(target, MAKEFOURCC('B','a','p','l'));
+        T_NOT_NULL(slot);
+        T_ASSERT(slot->buff_flags & WC3_STATUS_BUFF_PHYSICAL);
+        T_ASSERT(!(slot->buff_flags & WC3_STATUS_BUFF_MAGICAL));
+        T_ASSERT(!unit_status_can_magic_dispel(slot));
+    }
     level.time += 1000; unit_updatestatuses(target);
     T_FEQ(target->health.value, 87, 0.001f);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -4913,6 +4920,19 @@ TEST(wc3_spell, poison_on_hit_applies_buff_pair_with_authored_duration) {
 	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','p','s','d')));
 	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','p','b')));
 	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','p','d')));
+	{
+		static uint32_t const physical_buffs[] = {
+			MAKEFOURCC('B','p','o','i'), MAKEFOURCC('B','p','s','d'),
+			MAKEFOURCC('B','I','p','b'), MAKEFOURCC('B','I','p','d')
+		};
+		FOR_LOOP(i, sizeof(physical_buffs) / sizeof(physical_buffs[0])) {
+			heroabilitystatus_t *slot = unit_findstatus(target, physical_buffs[i]);
+			T_NOT_NULL(slot);
+			T_ASSERT(slot->buff_flags & WC3_STATUS_BUFF_PHYSICAL);
+			T_ASSERT(!(slot->buff_flags & WC3_STATUS_BUFF_MAGICAL));
+			T_ASSERT(!unit_status_can_magic_dispel(slot));
+		}
+	}
 	T_ASSERT(S_UnitHasStatus(hero, MAKEFOURCC('B','p','o','i')));
 	level.time += 3000; unit_updatestatuses(target); unit_updatestatuses(hero);
 	T_ASSERT(!S_UnitHasStatus(hero, MAKEFOURCC('B','p','o','i')));

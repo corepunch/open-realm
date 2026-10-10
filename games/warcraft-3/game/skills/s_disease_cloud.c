@@ -51,12 +51,17 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
                 .source_ability = ability.alias, .data = ability.alias,
                 .source = ent, .rank = ability.level,
                 .stack_policy = WC3_STATUS_STACK_INDEPENDENT,
-                .buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL
+                .buff_flags = FS_SLKKey(buff) == MAKEFOURCC('B','a','p','l') ?
+                    WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL : 0
             };
             slot = unit_applystatus(target, &app);
             if (!slot) continue; /* Full: do not evict another infection. */
             slot->next_tick = G_Time() + DISEASE_TICK_MS;
         }
+        /* Also normalize a reused pre-classification save record. */
+        if (slot->code == MAKEFOURCC('B','a','p','l'))
+            slot->buff_flags = (slot->buff_flags & ~(WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE)) |
+                               WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL;
     }
     return true;
 }

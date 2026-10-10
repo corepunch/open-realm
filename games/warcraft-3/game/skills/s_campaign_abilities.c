@@ -386,7 +386,13 @@ static void ensnare_execute(edict_t *caster, spellTarget_t st, abilityitem_t con
     if (!buff || strlen(buff) < 4) buff = spell->ability->proc == CAbilityWeb ? "Bwea" : "Bens";
     slot = S_SpellApplyTimedStatus(st.entity, buff, level,
                                      S_SpellResistantDuration(spell->code, level, st.entity));
-    if (slot) slot->data = spell->code;
+    if (!slot) return; /* A failed allocation must not start a ground-bind transition. */
+    slot->data = spell->code;
+    /* Ensnare/Web are physical binds, not removable by magical dispels.
+     * Limit classification to stock identities; custom BuffIDs retain policy. */
+    if (S_StatusIsEnsnare(slot->code))
+        slot->buff_flags = (slot->buff_flags & ~(WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE)) |
+                           WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL;
     ensnare_begin_land(st.entity, spell->code, level);
     ensnare_refresh(st.entity);
     st.entity->goalentity = NULL;
