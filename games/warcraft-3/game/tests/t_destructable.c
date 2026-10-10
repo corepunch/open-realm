@@ -26,6 +26,36 @@ bool G_TestFixOrc07BridgeRestoreScript(char *script);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
+static int destructable_test_model_index(cstring_t filename) {
+    return filename && *filename ? 1 : 0;
+}
+
+TEST(wc3_destructable, spawn_uses_authored_selection_circle_size_and_radius_fallback) {
+    static cstring_t const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"radius\"\n"
+        "C;Y1;X4;K\"selcircsize\"\nC;Y1;X5;K\"maxHealth\"\nC;Y1;X6;K\"targetType\"\n"
+        "C;Y2;X1;K\"Tst1\"\nC;Y2;X2;K\"Test\"\nC;Y2;X3;K80\n"
+        "C;Y2;X4;K240\nC;Y2;X5;K100\nC;Y2;X6;K\"debris\"\n"
+        "C;Y3;X1;K\"Tst2\"\nC;Y3;X2;K\"Test\"\nC;Y3;X3;K80\n"
+        "C;Y3;X5;K100\nC;Y3;X6;K\"debris\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *saved = G_SetSLKRows("DestructableData", rows);
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    edict_t *authored, *fallback;
+
+    reset_entities(); setup_test_world();
+    gi.ModelIndex = destructable_test_model_index;
+    authored = G_Spawn(); authored->class_id = MAKEFOURCC('T','s','t','1'); SP_CallSpawn(authored);
+    fallback = G_Spawn(); fallback->class_id = MAKEFOURCC('T','s','t','2'); SP_CallSpawn(fallback);
+
+    T_FEQ(authored->s.radius, 120.0f, 0.001f);
+    T_FEQ(fallback->s.radius, 80.0f, 0.001f);
+
+    gi.ModelIndex = old_model_index;
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_destructable, unknown_entity_without_data_is_not_destructable) {
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('d', 'u', 'm', 'y') };
     T_ASSERT(!G_IsDestructable(&ent));
