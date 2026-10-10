@@ -35,15 +35,27 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
     buff = row->buffID && strlen(row->buffID) >= 4 ? row->buffID : "Bapl";
     FILTER_EDICTS(target, target != ent && S_SpellAllowsTarget(ability.alias, ent, target) &&
                   Vector2_distance(&ent->s.origin2, &target->s.origin2) <= row->area) {
-        heroabilitystatus_t *slot = unit_findstatus(target, FS_SLKKey(buff));
-        if (!slot || !S_UnitHasStatus(target, slot->code)) {
-            slot = S_SpellApplyTimedStatus(target, buff, ability.level, row->data[0].number);
-            if (!slot) continue;
-            slot->data = ability.alias; slot->source_ability = ability.alias; slot->rank = ability.level;
-            slot->source = ent; slot->source_spawn_time = ent->spawn_time;
+        /* Each infector owns its own infection: another source's Bapl must
+         * neither suppress this application nor have its pulse phase reset. */
+        heroabilitystatus_t *slot = unit_findstatussource(target, FS_SLKKey(buff), ent);
+        if (slot && slot->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+            slot->source_ability == ability.alias) {
+            /* Same-source exposure refreshes lifetime, not the tick deadline.
+             * Never replace this slot, which would dispatch inverse callbacks. */
+            uint32_t duration_ms = (uint32_t)(row->data[0].number * 1000.0f);
+            slot->timestamp = G_Time() + duration_ms;
+            slot->duration_ms = duration_ms;
+        } else {
+            status_application_t app = {
+                .buff = buff, .level = ability.level, .duration = row->data[0].number,
+                .source_ability = ability.alias, .data = ability.alias,
+                .source = ent, .rank = ability.level,
+                .stack_policy = WC3_STATUS_STACK_INDEPENDENT,
+                .buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL
+            };
+            slot = unit_applystatus(target, &app);
+            if (!slot) continue; /* Full: do not evict another infection. */
             slot->next_tick = G_Time() + DISEASE_TICK_MS;
-        } else if (S_SpellStatusSource(slot) == ent) {
-            slot->timestamp = G_Time() + (uint32_t)(row->data[0].number * 1000.0f);
         }
     }
     return true;

@@ -280,3 +280,13 @@ only when the returned slot has the expected buff identity; a custom BuffID is
 left unclassified. Existing transferable flags on Bloodlust, Faerie Fire and
 Inner Fire are unchanged. No physical-only family is newly classified; those
 require an explicit ability-by-ability semantic audit.
+
+## Independent Disease Cloud infections
+
+Disease Cloud (`Aapl`, including alias `Aap1`) now uses independent `Bapl`
+status instances keyed by source incarnation. Each emitter owns its own duration
+and one-second damage schedule; re-exposure to the same source refreshes
+only that instance without resetting its pulse deadline. Dispel or expiry
+of one instance does not remove another source's infection. Allocation
+failure leaves existing infections intact; the generic HUD remains
+rawcode-deduplicated. Other poison families remain legacy/rawcode-owned.
