@@ -1959,7 +1959,9 @@ TEST(wc3_spell, requested_active_callback_families_change_simulation) {
 	T_ASSERT(M_IsDead(third));
 
 	test_execute_code(caster, "AOcl", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = first));
-	T_FEQ(first->health.value, 399.0f, 0.001f);
+	/* Banish makes the first target Ethereal, so Chain Lightning deals 166% damage. */
+	T_ASSERT(unit_hasstatusstate(first, WC3_STATUS_STATE_ETHEREAL));
+	T_FEQ(first->health.value, 333.0f, 0.001f);
 	T_FEQ(second->health.value, 500.0f, 0.001f);
 	{
 		edict_t *thinker = NULL;
