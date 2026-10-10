@@ -406,6 +406,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
     G_AddHealth(target, -damage);
     G_CreepGuardDamaged(target);
+    G_CreepGuardCallForHelp(target, attacker);
     /* Only a survivor reacts to the hit. A killing blow goes straight to die();
      * dispatching first would let Awan start a flee Move that death tears down. */
     {

@@ -307,6 +307,48 @@ void G_CreepGuardDamaged(edict_t *unit) {
         unit->movement.creep_guard_last_hit_ms = level.time;
 }
 
+/* Stage B: assistance is triggered by a concrete surviving unit's damage, not
+ * by each AI think. Compare permanent guard anchors so pursuing creeps cannot
+ * merge adjacent camps into an unbounded alert chain. The exact retail camp
+ * clustering algorithm remains unresolved; this is a bounded local fallback. */
+void G_CreepGuardCallForHelp(edict_t *victim, edict_t *attacker) {
+    float radius;
+    if (!victim || !attacker || !victim->movement.creep_guard_enabled ||
+        victim->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(victim) ||
+        !attacker->inuse || M_IsDead(attacker) ||
+        !S_SpellIsEnemy(victim, attacker)) return;
+    radius = creep_guard_misc("CreepCallForHelp", 600.0f);
+    if (radius <= 0.0f) return;
+    /* One event fan-out, never recursive: each responder receives an ordinary
+     * automatic combat order, not a second camp notification. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ally = g_edicts + i;
+        if (ally == victim || !ally->inuse || !ally->movement.creep_guard_enabled ||
+            ally->s.player != victim->s.player || M_IsDead(ally) ||
+            ally->movement.creep_guard_returning ||
+            (ally->aiflags & AI_IMMOBILE) ||
+            G_UnitQueuedOrderCount(ally) ||
+            !ally->currentmove ||
+            (ally->currentmove->think != ai_stand && !G_UnitIsSleeping(ally)) ||
+            !unit_has_attack(ally) ||
+            Vector2_distance(&ally->movement.creep_guard_origin,
+                             &victim->movement.creep_guard_origin) > radius ||
+            Vector2_distance(&ally->s.origin2, &victim->s.origin2) > radius ||
+            !S_SpellIsEnemy(ally, attacker) ||
+            !S_AttackCanTarget(ally, attacker)) continue;
+        /* Wake only natural ACsp sleepers. Dreadlord Sleep and other disabling
+         * effects remain governed by their own attack eligibility checks. */
+        if (G_UnitIsSleeping(ally)) G_UnitWakeUp(ally);
+        if (S_UnitAbilityEvent(ally, A_NO_RETALIATE) ||
+            S_UnitAbilityEvent(ally, A_NO_ACQUIRE)) continue;
+        S_UnitAbilityEvent(ally, A_AUTO_COMBAT_START);
+        order_attack(ally, attacker);
+        if (ally->goalentity == attacker && ally->currentmove &&
+            ally->currentmove->proc == CAbilityAttack)
+            G_CreepGuardAutoCombat(ally);
+    }
+}
+
 void G_CreepGuardExplicitOrder(edict_t *unit) {
     if (!unit) return;
     unit->movement.creep_guard_auto_combat = false;

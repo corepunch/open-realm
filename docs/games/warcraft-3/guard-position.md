@@ -54,3 +54,21 @@ Warcraft also exposes a broader AI/creep guard-position system (`SetUnitCreepGua
 - forced relocation does not rewrite a generic retail creep guard point, whereas Hold Position remains a non-anchor policy. Keep those systems separate.
 
 Implement the broader creep/JASS guard layer as a follow-up on top of the shared guard-return movement primitive rather than changing Stop semantics again.
+
+## Neutral Hostile camp assistance (Stage B)
+
+After a surviving Neutral Hostile takes positive attack damage, the game broadcasts
+a **single, non-recursive** help event to idle, eligible, attack-capable Neutral
+Hostile neighbors. The radius is read from `[Misc] CreepCallForHelp` (600
+world units fallback). To avoid pulling neighboring camps through moving units,
+responders must be within radius both by their fixed Stage A guard anchors and
+by current world position. Responders validate hostility and legal attack targets,
+respect queued orders, and use the existing attack/order and Stage A leash paths.
+Natural `ACsp` sleepers wake through `G_UnitWakeUp`; magical Sleep is not cleared.
+
+**Compatibility limits:** This bounded proximity policy is not proof of retail
+camp identity: the true `CreepCampPathingCellDistance` connectivity, map-authored
+groups, multiple indirect alert triggers, attacking a sleeping creep without
+positive damage, and nighttime re-sleep scheduling remain future verification
+work. The explicit command/guard natives are reserved for Stage D. No per-tick
+world scan is added: only a confirmed surviving positive-damage event broadcasts.
