@@ -1436,6 +1436,7 @@ heroabilitystatus_t *unit_findstatussource(edict_t *ent, uint32_t code, edict_t 
     if (ent) FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (status->level && status->code == code && status->source == source &&
+            (!status->timestamp || status->timestamp > G_Time()) &&
             (!source || status->source_spawn_time == source->spawn_time)) return status;
     }
     return NULL;
@@ -1619,6 +1620,10 @@ void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_
     if ((status->buff_flags & WC3_STATUS_BUFF_TARGET_ART) && !other_targetart_owner)
         G_DestroyStatusEffectTarget(status->code, ent);
     memset(status, 0, sizeof(*status));
+    /* Keep derived locks and HUD synchronized for script/dispel/death callers,
+     * not only the periodic expiry loop. Removal callbacks have completed. */
+    unit_refreshstatusflags(ent);
+    G_InvalidateUnitInfoPanel(ent);
 }
 
 /* Compatibility API: existing explicit callers historically use this for all
@@ -1677,10 +1682,8 @@ void unit_updatestatuses(edict_t *ent) {
     }
 }
 
-/* Pure preflight for producers: check before consuming mana/resources or
- * modifying the caster. Same-code applications reuse the existing slot even
- * when all eight slots are occupied. Independent same-code sources require
- * separate ownership/visibility semantics and remain unsupported for now. */
+/* Pure preflight for producers: validate before resource commit.
+ * Default and independent records do not replace each other's owners. */
 wc3_status_apply_check_t unit_status_checkapplication(edict_t const *ent, status_application_t const *app) {
     uint32_t code;
     bool free_slot = false;

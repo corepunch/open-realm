@@ -1229,4 +1229,28 @@ TEST(wc3_ability_lifecycle, unrelated_status_application_keeps_custom_modifiers)
     T_FEQ(unit_status_modifier_total(target, WC3_STATUS_MOD_ARMOR_FLAT), 3.0f, 0.001f);
 }
 
+
+TEST(wc3_ability_lifecycle, scripted_status_removal_updates_derived_stun_immediately) {
+    edict_t *unit = review_setup();
+    heroabilitystatus_t *slot = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bstu", .level = 1, .duration = 8.0f
+    });
+    T_NOT_NULL(slot);
+    T_ASSERT(unit->stunned);
+    unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit->stunned);
+}
+
+TEST(wc3_ability_lifecycle, status_source_lookup_does_not_return_expired_record) {
+    edict_t *unit = review_setup(), *source = review_unit(0, 100);
+    heroabilitystatus_t *slot = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bqpo", .level = 1, .duration = 8.0f,
+        .stack_policy = WC3_STATUS_STACK_INDEPENDENT, .source = source
+    });
+    T_NOT_NULL(slot);
+    T_EQ(unit_findstatussource(unit, slot->code, source), slot);
+    slot->timestamp = G_Time();
+    T_NULL(unit_findstatussource(unit, slot->code, source));
+}
+
 #endif

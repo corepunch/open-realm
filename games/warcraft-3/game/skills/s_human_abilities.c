@@ -449,10 +449,21 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
         }
     }
     if (!source_slot) return;
+    /* Skip full or already-buffed recipients instead of abandoning a transfer
+     * when the first eligible nearby unit cannot accept the status. */
+    memcpy(buff_id, &source_slot->code, 4);
+    buff_id[4] = '\0';
     FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) &&
                   (take_positive ? S_SpellIsFriend(caster, unit) : S_SpellIsEnemy(caster, unit)) &&
-                  Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) { receiver = unit; break; }
-    if (!receiver && take_positive) receiver = caster;
+                  Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) {
+        if (unit_status_checkapplication(unit, &(status_application_t){
+            .buff = buff_id, .level = source_slot->level
+        }) == WC3_STATUS_APPLY_FREE_SLOT) { receiver = unit; break; }
+    }
+    if (!receiver && take_positive && caster != st.entity && S_SpellIsAliveTarget(caster) &&
+        unit_status_checkapplication(caster, &(status_application_t){
+            .buff = buff_id, .level = source_slot->level
+        }) == WC3_STATUS_APPLY_FREE_SLOT) receiver = caster;
     if (!receiver) return;
     snapshot = *source_slot;
     /* The application API requires a terminated string, not a four-byte rawcode. */
