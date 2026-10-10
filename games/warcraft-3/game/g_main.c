@@ -1692,9 +1692,12 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
             state->name = G_UnitNameConfigstring(G_LevelString(name));
             state->stats[ENT_HEALTH] = compress_stat(&ent->health);
             state->flags |= EF_NEUTRAL;
-            /* The TFT destructable data marks breakables selectable. Use that
-             * authored property for health hover instead of rawcode families. */
-            if (!ent->invulnerable && ent->data.DestructableData->selectable)
+            /* TFT authors breakable selectability explicitly. ROC predates
+             * that column, where the debris target contract is the available
+             * gate after normal destructable attackability checks. */
+            if (!ent->invulnerable &&
+                (ent->data.DestructableData->selectable ||
+                 atoi(gi.CvarString ? gi.CvarString("fs_expansion", "0") : "0") == 0))
                 state->flags |= EF_HOVER_HEALTH;
         }
         return;
