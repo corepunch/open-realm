@@ -1198,4 +1198,35 @@ TEST(wc3_ability_lifecycle, stock_magic_immunity_composes_with_explicit_contribu
     unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','i','y','y')), STATUS_REMOVE_SCRIPT);
     T_ASSERT(!S_UnitSpellImmune(unit));
 }
+TEST(wc3_ability_lifecycle, default_status_does_not_replace_independent_source) {
+    edict_t *target = review_setup(), *source = review_unit(0, 100);
+    status_application_t app = { .buff = "Bqpo", .level = 1, .duration = 10.0f,
+        .stack_policy = WC3_STATUS_STACK_INDEPENDENT, .source = source };
+    heroabilitystatus_t *independent = unit_applystatus(target, &app);
+    heroabilitystatus_t *legacy;
+    T_NOT_NULL(independent);
+    app.stack_policy = WC3_STATUS_STACK_DEFAULT;
+    app.source = NULL;
+    T_EQ(unit_status_checkapplication(target, &app), WC3_STATUS_APPLY_FREE_SLOT);
+    legacy = unit_applystatus(target, &app);
+    T_NOT_NULL(legacy);
+    T_NE(legacy, independent);
+    T_EQ(independent->stack_policy, WC3_STATUS_STACK_INDEPENDENT);
+    T_EQ(independent->source, source);
+    T_EQ(unit_status_checkapplication(target, &app), WC3_STATUS_APPLY_REUSE);
+}
+
+TEST(wc3_ability_lifecycle, unrelated_status_application_keeps_custom_modifiers) {
+    edict_t *target = review_setup();
+    status_application_t app = { .buff = "Bqpo", .level = 1, .duration = 10.0f };
+    heroabilitystatus_t *custom = unit_applystatus(target, &app);
+    wc3_status_modifier_t mod = { .type = WC3_STATUS_MOD_ARMOR_FLAT,
+        .policy = WC3_STATUS_MOD_ADD, .value = 3.0f };
+    T_NOT_NULL(custom);
+    T_ASSERT(unit_status_setmodifier(custom, 0, &mod));
+    T_NOT_NULL(S_SpellApplyTimedStatus(target, "Bq01", 1, 3.0f));
+    T_EQ(custom->modifier_count, 1);
+    T_FEQ(unit_status_modifier_total(target, WC3_STATUS_MOD_ARMOR_FLAT), 3.0f, 0.001f);
+}
+
 #endif
