@@ -383,3 +383,63 @@ Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payo
 This is implementation10/12 in the focused-validation cadence. Persistent
 canonical readiness, busy recovery and wider callback lifetimes still keep
 GROUP-04.6 open. No overall performance or complete retail fidelity is claimed.
+
+## Ordinary ground and flight selections share the primary request (Payoff237)
+
+The second context request in `6b8c10` is selected by authored movement bits
+`Unit+1fc == 10h`: FLOAT, not flight. `685340` maps foot/fly/horse/hover/float/
+amph/unbuild to1/2/4/8/10h/20h/40h. Ordinary ground and flying selections attach
+to the same primary canonical request. With Alt, a non-FLOAT unit instead uses
+the third special request when current-flight flag `Unit+5c & 20000000h` is set
+and forced-ground count `Unit+200 <= 0`. Missing optional requests fall back to
+the primary. FLOAT takes precedence over that special-flight branch.
+`6ba800` agrees with this classification. Older main/air descriptions in the
+mapping are superseded by the explicit Payoff237 comments; historical context
+field names do not establish movement-category meaning.
+
+OpenRealm now sends ordinary non-FLOAT selected movers through the existing
+shared point-order producer, including mixed ground/flyer and all-flyer groups.
+This preserves one requested point, shared history, queued context and physical
+owner rather than assigning independent formation slots. Alt flight splitting
+and mixed FLOAT admission remain on the earlier producer and keep GROUP-04.6
+open. The bounded selection scan remains linear in at most twelve candidates;
+there is no scan of the physical-group registry or new per-unit allocation.
+Save layout and network contracts are unchanged.
+
+`work237_oracle.py` executes288 complete original `6b8c10` scopes across eight
+movement categories, current-flight flags, three forced-ground counts, ordinary/
+Alt policies and three optional-request configurations. Native wrapper, canonical
+and mover constructors retain pending readiness. Supplied inputs are the unit
+bridge/category/counters and request context; only Storm storage is adapted.
+The canonical factory entry is `89c890`. Two rejected scratch runs incorrectly
+started at its interior `89c8a0`; they are archived and supply no expectations.
+
+Two ordinary and two Alt read-only public captures select two Footmen and two
+Gryphons. Each has82 markers, four attachments, four canonical retains and four
+recursive binds. Ordinary packets have flags8 and produce one four-member
+physical owner. Alt packets have flags18h and produce two two-member owners,
+with primary/special request identities and bind flags0eh. The observer neither
+writes game memory nor calls game functions. There is no fresh observer-free
+control or whole-journey timing claim. `Work237a.w3m` is built by replacing only
+the probe script in frozen Work235b; its SHA256 is
+`4b5e9b8d713090cf3bbf3ff95f2a74b38d856d7f6e7caee94b18974b765fc1cb`.
+
+The failing-first mixed/all-flight regression initially reports94 failures in154
+assertions. Its final fixture uses authored Footman/Gryphon metadata so cold
+save/load retains the movement category. Immediate and Shift orders, common
+coordinates/history, saved physical ownership and independent Stop pass in both
+Classic/TFT. No earlier retail expectation or authored data is rewritten.
+Alt captures certify the next integration's input contract, not implemented
+Alt parity. `Work237Evidence.java` saves six functions, xrefs and341 instruction
+encodings, with portable corrections in `MapPathfinding.java`.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work237.py \
+  --binary /path/to/retail/game.dll --report /tmp/work237-fresh.json
+```
+
+Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff237/`.
+This is implementation11/12 in the focused-validation cadence. Canonical
+lifetime, busy recovery and the remaining selected request producers remain
+open. No overall performance or complete retail fidelity is claimed.

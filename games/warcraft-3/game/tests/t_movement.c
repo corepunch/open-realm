@@ -13174,6 +13174,44 @@ TEST(wc3_movement, selected_point_move_owns_shared_physical_group) {
     reset_entities(); setup_test_world();
 }
 
+TEST(wc3_movement, selected237_ground_and_flight_share_primary_request) {
+    FOR_LOOP(flight,2)FOR_LOOP(queued,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *clent=alloc_test_unit(0,0,0),*units[4];
+        clent->client=game.clients;clent->client->ps.number=0;clent->client->menu.order_queued=false;
+        FOR_LOOP(i,4) {
+            bool flying=i>=2 || flight;
+            uint32_t type=flying ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o');
+            units[i]=alloc_test_unit(type,512+96*(i&1),512+288*(i/2));
+            units[i]->collision=16;units[i]->s.model=1;units[i]->svflags|=SVF_MONSTER;
+            units[i]->stand=unit_stand;units[i]->movetype=MOVETYPE_STEP;unit_stand(units[i]);
+            if(flying)units[i]->aiflags|=AI_FLYING;
+            G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+        }
+        vec2_t point={1536,1536};T_ASSERT(move_selectlocation(clent,&point));
+        moveGroup_t *group=move_unit_group(units[0]);T_NOT_NULL(group);
+        if(group) {T_EQ(group->count,4);FOR_LOOP(i,4){T_EQ(move_unit_group(units[i]),group);T_EQ(group->goal.x,point.x);T_EQ(group->goal.y,point.y);}}
+        if(queued) {
+            clent->client->menu.order_queued=true;point=(vec2_t){512,2048};T_ASSERT(move_selectlocation(clent,&point));
+            uint64_t history=units[0]->movement.previous_request_id;
+            FOR_LOOP(i,4) {
+                T_EQ(units[i]->movement.previous_request_id,history);T_EQ(move_unit_group(units[i]),group);
+                T_EQ(units[i]->order_queue.count,1);
+                if(units[i]->order_queue.count) {unitOrder_t const *order=units[i]->order_queue.entries+units[i]->order_queue.head;T_EQ(order->point.x,point.x);T_EQ(order->point.y,point.y);}
+            }
+        }
+        cstring_t save=Test_TempPath("wc3-selected237.bin");T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+        group=move_unit_group(units[0]);T_NOT_NULL(group);if(group)T_EQ(group->count,4);
+        FOR_LOOP(i,4)T_EQ(move_unit_group(units[i]),group);
+        T_ASSERT(unit_issueimmediateorder(units[3],"stop"));T_EQ(move_unit_group(units[3]),NULL);
+        FOR_LOOP(i,3)T_EQ(move_unit_group(units[i]),group);
+        remove(save);
+    }
+    reset_entities();setup_test_world();
+}
+
 /* Pending selected requests retain common coordinates and survive independent cancellation. */
 /*5fa950/67e790: selector8 is a centre-only circle;013490 supplies1000.
  *5faaf0 stops on its first compatible physical owner, in widget query order. */

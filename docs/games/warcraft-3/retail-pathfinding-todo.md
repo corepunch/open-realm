@@ -56,6 +56,12 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **278 done / 336 tasks; 58 remaining.**
+Payoff237 routes ordinary ground/flying selections through one primary request,
+correcting the mistaken FLOAT/flight classification. Complete original attachment
+cases, ordinary/Alt retail repeats and failing-first selected order/save tests
+accompany the fix. GROUP-04.6 retains Alt/FLOAT producer and canonical lifetime
+work. See [mixed selections](retail-pathfinding-queued-cohorts.md#ordinary-ground-and-flight-selections-share-the-primary-request-payoff237).
+
 Payoff236 repartitions inherited queued members after source readiness using
 retail's ordinary ordered distance predicate. Complete original callback/factory
 cases, repeated pending/source-ready observations and production queue/save

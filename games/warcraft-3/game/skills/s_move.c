@@ -5898,18 +5898,22 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     if (num_units == 0) {
         return false;
     }
-    /* Native NetUnit.cpp prepares shared requests before ordinary ground point admission.
-     * Reuse the verified cohort owner instead of assigning an ID to independent walkers.
-     * TODO GROUP-04.6: air/mixed-lane and larger selection producers remain open. */
+    /*6b8c10 attaches ordinary flyers and ground units to the SAME primary
+     * request. Its second request tests authored FLOAT, not AI_FLYING.
+     * Alt's separate current-flight policy and mixed float requests remain
+     * on the legacy producer until their complete admission is integrated. */
     if (num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
-        bool ground=true; uint8_t mask=M_UnitStaticPathingFlags(units[0]);
-        FOR_LOOP(i,num_units) if ((units[i]->aiflags&AI_FLYING) || M_UnitStaticPathingFlags(units[i])!=mask) ground=false;
+        bool ground=true,primary=true;uint8_t mask=M_UnitStaticPathingFlags(units[0]);
+        FOR_LOOP(i,num_units) {
+            if((units[i]->aiflags&AI_FLYING) || M_UnitStaticPathingFlags(units[i])!=mask)ground=false;
+            if(S_UnitMovementProfile(units[i]->data.UnitData)->bits==wc3_movement_profile(UNIT_MOVE_FLOAT)->bits)primary=false;
+        }
         bool queued=clent->client->menu.order_queued;
         bool idle=true;
         FOR_LOOP(i,num_units) {
             if (G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) idle=false;
         }
-        if (ground) {
+        if (ground || (primary && !clent->client->menu.order_alt)) {
             groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.formation_toggle=clent->client->menu.order_alt,.issuer_player=clent->client->ps.number};
             FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
             bool accepted=G_IssueGroupPointOrder(&request);
