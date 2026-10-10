@@ -8640,6 +8640,14 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     T_NE(state.name, 0);
 }
 
+static cstring_t hover_test_expansion(cstring_t name, cstring_t fallback) {
+    return name && !strcmp(name, "fs_expansion") ? "1" : fallback;
+}
+
+static cstring_t hover_test_roc(cstring_t name, cstring_t fallback) {
+    return name && !strcmp(name, "fs_expansion") ? "0" : fallback;
+}
+
 TEST(wc3_api, customize_entity_selectable_debris_publishes_hover_health) {
     enum { RAWCODE_COUNT = 7 };
     static DestructableData_t row = { .file = "Gate.mdx", .displayName = "Ancient Elven Gate", .selectable = true };
@@ -8649,9 +8657,12 @@ TEST(wc3_api, customize_entity_selectable_debris_publishes_hover_health) {
         MAKEFOURCC('A','T','g','3'), MAKEFOURCC('L','T','g','1'), MAKEFOURCC('L','T','g','2'),
     };
     destructable_t destructable_state = { 0 };
+    cstring_t (*old_cvar_string)(cstring_t, cstring_t) = gi.CvarString;
     edict_t ent = { .inuse = true, .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
         .data = { .DestructableData = &row }, .destructable = &destructable_state,
         .health = { .value = 500, .max_value = 500 } };
+
+    gi.CvarString = hover_test_expansion;
 
     FOR_LOOP(i, RAWCODE_COUNT) {
         entityState_t state = { .number = 7, .model = 11 };
@@ -8666,6 +8677,13 @@ TEST(wc3_api, customize_entity_selectable_debris_publishes_hover_health) {
     entityState_t state = { .number = 7, .model = 11 };
     globals.CustomizeEntity(0, &ent, &state);
     T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+
+    gi.CvarString = hover_test_roc;
+    ent.invulnerable = false;
+    state = (entityState_t){ .number = 7, .model = 11 };
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    gi.CvarString = old_cvar_string;
 
     row.selectable = true;
     ent.invulnerable = true;

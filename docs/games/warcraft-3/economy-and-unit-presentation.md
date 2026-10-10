@@ -519,11 +519,10 @@ shipping a project-owned FDF. `UI_WriteHoverLayout` sends the frame tree once fr
 paths or per-unit dimensions into C.
 
 Destructables publish separate hover capabilities. Only attackable `TARG_DEBRIS` destructables receive a world-hover name. Other
-destructable target classes, including trees,
-walls, bridge ramps, and decorations, do not publish hover labels. Vulnerable, attackable `TARG_DEBRIS` destructables publish
-`EF_HOVER_HEALTH` when their TFT `DestructableData.slk` `selectable` field is true. This covers the NightElfX03 `ATg3` Iron Gate
-and Prologue02 `LTg1`/`LTg2` gates without enumerating rawcode families. The `selectable` field is TFT-only; ROC rows omit it.
-The TFT
+destructable target classes, including trees, walls, bridge ramps, and decorations, do not publish hover labels. Vulnerable,
+attackable `TARG_DEBRIS` destructables publish `EF_HOVER_HEALTH` when their TFT `DestructableData.slk` `selectable` field is true.
+ROC omits that TFT-only field, so attackable debris uses the classic debris target contract there. This covers NightElfX03 `ATg3`
+and Prologue02 `LTg1`/`LTg2` gates without enumerating rawcode families. The TFT
 `Units\\DestructableData.slk` row for
 `DTg1` authors `selcircsize=512`; spawned destructable selection
 circles use half that authored size as `entityState_t.radius` (256), while `DestructableData.radius` remains the gameplay collision
