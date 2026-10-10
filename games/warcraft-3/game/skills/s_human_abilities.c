@@ -149,8 +149,17 @@ static uint32_t shackles_buff(uint32_t code, uint32_t rank) {
 }
 
 static bool aerial_shackles_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    return st.entity && st.entity->targtype == TARG_AIR && S_SpellIsEnemy(caster, st.entity) &&
-        shackles_buff(spell->code, S_SpellLevel(caster, spell->code));
+    uint32_t level, buff;
+    wc3_status_apply_check_t check;
+    if (!caster || !spell || !st.entity || !S_SpellIsAliveTarget(st.entity) ||
+        st.entity->targtype != TARG_AIR || !S_SpellIsEnemy(caster, st.entity)) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = shackles_buff(spell->code, level);
+    if (!buff) return false;
+    check = unit_status_checkapplication(st.entity, &(status_application_t){
+        .buff = GetClassName(buff), .level = level
+    });
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 static bool control_magic_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -394,13 +403,23 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
 
 static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    edict_t *thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
-    thinker->resources = shackles_buff(spell->code, level);
-    thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1); thinker->spawn_time = G_Time() +
-        (uint32_t)(S_SpellHeroDuration(spell->code, level, st.entity) * 1000.0f);
+    uint32_t buff = shackles_buff(spell->code, level);
+    float duration;
+    edict_t *thinker;
+    if (!st.entity || !buff) return;
+    duration = S_SpellHeroDuration(spell->code, level, st.entity);
+    /* Reserve the thinker before status mutation; if status insertion fails,
+     * discard it before it can begin a channel or deal its first damage tick. */
+    thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
+    if (!thinker) return;
+    if (!S_SpellApplyTimedStatus(st.entity, GetClassName(buff), level, duration)) {
+        G_FreeEdict(thinker);
+        return;
+    }
+    thinker->resources = buff;
+    thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1);
+    thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->think = human_ability_think;
-    (void)S_SpellApplyTimedStatus(st.entity, GetClassName(thinker->resources), level,
-                                  S_SpellHeroDuration(spell->code, level, st.entity));
     human_ability_think(thinker);
 }
 
