@@ -397,6 +397,9 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);
 
+    /* Notify the camp while the victim is still alive: killing blows must
+     * alert surviving allies too. This is a single non-recursive fan-out. */
+    G_CreepGuardCallForHelp(target, attacker);
     if (target->health.value <= damage) {
         G_SetHealth(target, 0);
         unit_leavecombat(target);
@@ -406,7 +409,6 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
     G_AddHealth(target, -damage);
     G_CreepGuardDamaged(target);
-    G_CreepGuardCallForHelp(target, attacker);
     /* Only a survivor reacts to the hit. A killing blow goes straight to die();
      * dispatching first would let Awan start a flee Move that death tears down. */
     {

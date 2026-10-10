@@ -1,3 +1,4 @@
+#include <float.h>
 #include "g_local.h"
 #include "skills/s_skills.h"
 
@@ -302,7 +303,7 @@ static float creep_guard_misc(cstring_t key, float fallback) {
     double parsed;
     if (!value || !*value) return fallback;
     parsed = strtod(value, &end);
-    return end == value || *end || !isfinite(parsed) || parsed < 0.0 ? fallback : (float)parsed;
+    return end == value || *end || !isfinite(parsed) || parsed < 0.0 || parsed > FLT_MAX ? fallback : (float)parsed;
 }
 
 void G_CreepGuardInit(edict_t *unit) {
@@ -312,6 +313,8 @@ void G_CreepGuardInit(edict_t *unit) {
     unit->movement.creep_guard_origin = unit->s.origin2;
     unit->movement.creep_guard_last_hit_ms = level.time;
     unit->movement.creep_guard_outside_ms = 0;
+    unit->movement.creep_guard_return_retries = 0;
+    unit->movement.creep_guard_retry_at_ms = 0;
     unit->movement.creep_guard_auto_combat = false;
     unit->movement.creep_guard_returning = false;
 }
@@ -332,6 +335,8 @@ void G_CreepGuardSetEnabled(edict_t *unit, bool enabled) {
         unit->movement.creep_guard_last_hit_ms = level.time;
         unit->movement.creep_guard_outside_ms = 0;
         unit->movement.creep_guard_auto_combat = false;
+        unit->movement.creep_guard_return_retries = 0;
+        unit->movement.creep_guard_retry_at_ms = 0;
         unit->movement.creep_guard_returning = false;
     }
     unit->movement.creep_guard_enabled = true;
@@ -434,7 +439,14 @@ void G_CreepGuardExplicitOrder(edict_t *unit) {
     unit->movement.creep_guard_auto_combat = false;
     unit->movement.creep_guard_returning = false;
     unit->movement.creep_guard_outside_ms = 0;
+    unit->movement.creep_guard_return_retries = 0;
+    unit->movement.creep_guard_retry_at_ms = 0;
 }
+
+/* Retry a failed homeward Move at most three times, once per simulation
+ * second. Never force-teleport a blocked creep or override script orders. */
+#define CREEP_GUARD_RETURN_RETRIES 3u
+#define CREEP_GUARD_RETRY_DELAY_MS 1000u
 
 static bool creep_guard_begin_return(edict_t *unit) {
     edict_t *point;
@@ -442,16 +454,19 @@ static bool creep_guard_begin_return(edict_t *unit) {
     unit->movement.creep_guard_auto_combat = false;
     unit->movement.creep_guard_outside_ms = 0;
     unit->movement.creep_guard_returning = true;
+    unit->movement.creep_guard_return_retries = 0;
+    unit->movement.creep_guard_retry_at_ms = 0;
     unit_leavecombat(unit);
     unit->goalentity = NULL;
     unit->attack_target_spawn_time = 0;
     point = Waypoint_add(&unit->movement.creep_guard_origin);
-    if (!point) {
-        unit->movement.creep_guard_returning = false;
+    if (point) order_move(unit, point);
+    /* order_move can reject movement (root, Cyclone, etc). Keep the return
+     * policy active and let the tick retry when movement is possible. */
+    if (!point || !unit->currentmove || unit->currentmove->proc != CAbilityMove) {
+        unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
         if (unit->stand) unit->stand(unit);
-        return true;
     }
-    order_move(unit, point);
     return true;
 }
 
@@ -473,17 +488,42 @@ void G_CreepGuardTick(edict_t *unit) {
         unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(unit)) return;
     distance = Vector2_distance(&unit->s.origin2, &unit->movement.creep_guard_origin);
     if (unit->movement.creep_guard_returning) {
-        if (distance <= 4.0f || !unit->currentmove ||
-            unit->currentmove->think == ai_stand) {
+        if (distance <= 4.0f) {
             unit->movement.creep_guard_returning = false;
             unit->movement.creep_guard_outside_ms = 0;
+            unit->movement.creep_guard_return_retries = 0;
+            unit->movement.creep_guard_retry_at_ms = 0;
+            return;
         }
+        /* Retry only when the return Move has stopped. A blocked or rooted
+         * unit cannot consume infinite waypoints each frame. */
+        if (unit->currentmove && unit->currentmove->proc == CAbilityMove &&
+            unit->currentmove->think != ai_stand)
+            return;
+        if (unit->movement.creep_guard_return_retries >= CREEP_GUARD_RETURN_RETRIES) {
+            unit->movement.creep_guard_returning = false;
+            return;
+        }
+        if (!unit->movement.creep_guard_retry_at_ms) {
+            unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
+            return;
+        }
+        if ((int32_t)(level.time - unit->movement.creep_guard_retry_at_ms) < 0)
+            return;
+        unit->movement.creep_guard_return_retries++;
+        unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
+        if ((unit->aiflags & AI_IMMOBILE) || unit->paused || unit->stunned ||
+            S_UnitIsCycloned(unit) || unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED) ||
+            S_PurgeIsImmobilized(unit)) return;
+        edict_t *point = Waypoint_add(&unit->movement.creep_guard_origin);
+        if (point) order_move(unit, point);
         return;
     }
     if (!unit->movement.creep_guard_auto_combat || !unit->currentmove ||
         unit->currentmove->proc != CAbilityAttack) return;
     soft = creep_guard_misc("GuardDistance", 600.0f);
     hard = creep_guard_misc("MaxGuardDistance", 1000.0f);
+    if (hard < soft) hard = soft;
     seconds = creep_guard_misc("GuardReturnTime", 5.0f);
     /* The map value is in seconds but the simulation clock uses uint32
      * milliseconds. Clamp before conversion to avoid undefined float-to-int

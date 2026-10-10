@@ -80,3 +80,11 @@ world scan is added: only a confirmed surviving positive-damage event broadcasts
 - Real building construction start invokes a one-shot guard-anchor-bounded notification using the map-overridable `BuildingPlacementNotifyRadius` Misc key (600 fallback). The notification does not occur for previews, progress ticks or pre-existing buildings.
 - Neutral building usage/item-sale notification remains deferred: retail sale-specific radii and eligibility are not yet verified. Do not convert proximity or purchase UI clicks into blanket creep aggression.
 - Test manually with flying scout, Ensnare/Web grounded flyer, nearby completed building versus newly started construction, low-level and level-7 mixed targets, and campaign script-ordered creeps. No automatic compilation or runtime validation has been performed.
+
+### Guard lifecycle audit corrections (Stage E follow-up)
+
+- A positive post-mitigation hit, including a killing blow, sends one camp assistance notification before death teardown. The victim still receives damage/retaliation callbacks only when surviving.
+- A return Move that terminates away from its anchor remains in return policy. After a one-second simulation-time backoff the creep retries, at most three times; exhaustion ends the attempt without teleporting. Scripted orders clear recovery state. Immobilization does not cause a busy retry loop.
+- `creep_guard_return_retries` and `creep_guard_retry_at_ms` persist through save/load. Save format version is now 86, rejecting earlier layouts according to repository policy.
+- Non-finite, negative or float-overflowing Misc values use the documented defaults; the hard leash is never shorter than the soft leash.
+- More comprehensive save-during-return and full scheduler coverage remain desirable; the patch has not been compiled or tested here.

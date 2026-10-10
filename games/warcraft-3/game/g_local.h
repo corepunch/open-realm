@@ -1910,6 +1910,8 @@ struct edict_s {
         vec2_t creep_guard_origin;
         uint32_t creep_guard_last_hit_ms;
         uint32_t creep_guard_outside_ms;
+        uint32_t creep_guard_return_retries;
+        uint32_t creep_guard_retry_at_ms;
         bool creep_guard_enabled;
         bool creep_guard_auto_combat;
         bool creep_guard_returning;

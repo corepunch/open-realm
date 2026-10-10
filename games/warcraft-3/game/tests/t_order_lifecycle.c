@@ -558,4 +558,35 @@ TEST(wc3_order_lifecycle, creep_guard_damage_refreshes_only_eligible_unit) {
     T_EQ(creep->movement.creep_guard_last_hit_ms, 2000u);
 }
 
+TEST(wc3_order_lifecycle, creep_guard_return_retries_stop_after_bounded_failures) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->s.origin2.x = 900;
+    creep->movement.creep_guard_returning = true;
+    /* Simulate interrupted return at stand; do not enter a busy retry loop. */
+    level.time = 1000;
+    G_CreepGuardTick(creep);
+    T_ASSERT(creep->movement.creep_guard_returning);
+    T_EQ(creep->movement.creep_guard_return_retries, 0u);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 2000u);
+    G_CreepGuardExplicitOrder(creep);
+    T_ASSERT(!creep->movement.creep_guard_returning);
+    T_EQ(creep->movement.creep_guard_return_retries, 0u);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_arrival_clears_retry_state) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->movement.creep_guard_returning = true;
+    creep->movement.creep_guard_return_retries = 2;
+    creep->movement.creep_guard_retry_at_ms = 1000;
+    G_CreepGuardTick(creep);
+    T_ASSERT(!creep->movement.creep_guard_returning);
+    T_EQ(creep->movement.creep_guard_return_retries, 0u);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
+}
+
 #endif
