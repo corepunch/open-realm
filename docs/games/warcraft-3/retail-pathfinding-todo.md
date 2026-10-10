@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff219 unifies fresh and retained visible-waypoint selection under the
+retail counted self-record scope. A32-case failing-first production regression
+and fresh original96-case replay retain the existing frozen expectations.
+MAP-04.2 remains open for the wider scope audit. See
+[fresh selection](retail-pathfinding-exclusions.md#fresh-waypoint-selection-shares-the-counted-scope-payoff219).
+
 Payoff218 integrates unseen Move-to-point normalization, issue-time Shift
 capture and visible hostile Follow. New original repeats/control prove the
 native fallback. The older Smart refusal expectations remain valid; only the

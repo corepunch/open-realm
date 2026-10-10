@@ -859,6 +859,21 @@ static wc3RecordObject_t *move_hold_self(movePathQuery_t const *input) {
 }
 static void move_release_self(wc3RecordObject_t *self) {if(self)self->flags--;}
 
+/*167bf0 owns every visible-waypoint query, including the first selection
+ * immediately after a fine search. Fresh and retained routes share the same
+ * captured-record lifetime; search suppression has already been released. */
+static uint32_t move_select_visible_waypoint(movePathQuery_t const *input,moveFineGraph_t *graph,
+        wc3FineSegment_t const *segment,wc3FineRoute_t route) {
+    bool counted=graph->counted_scope;
+    move_trace_object_scope(MOVE_SCOPE_WAYPOINT,0,input);
+    wc3RecordObject_t *self=move_hold_self(input);graph->counted_scope=true;
+    move_trace_object_scope(MOVE_SCOPE_WAYPOINT,1,input);
+    uint32_t index=wc3_segment_waypoint(segment,route);
+    move_release_self(self);graph->counted_scope=counted;
+    move_trace_object_scope(MOVE_SCOPE_WAYPOINT,2,input);
+    return index;
+}
+
 /* Counted consumers read the held record; remaining placement/line adapters
  * keep their local suppression until their owning scopes are integrated. */
 static wc3FineObject_t move_fine_cell_object(void *data,wc3RecordObject_t const *object) {
@@ -1712,7 +1727,8 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     graph.cell_epoch=0; /* Cached search cells were evaluated under suppression. */
     wc3FineSegment_t query = { .start = {a.x, a.y},
         .cls = (unsigned)graph.size - 1, .cell = move_cell_ok, .data = &graph };
-    uint32_t chosen = wc3_segment_waypoint(&query, (wc3FineRoute_t){move_fine_points, count - 1});
+    uint32_t chosen = move_select_visible_waypoint(input,&graph,&query,
+        (wc3FineRoute_t){move_fine_points,count-1});
     wc3FineVector_t point = move_fine_points[chosen];
     /* Preserve admitted world words when the selected point is the exact goal. */
     *out = complete && point.x == b.x && point.y == b.y && chosen == 0
@@ -1833,12 +1849,8 @@ bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *input,moveFineRoute
         if (!route->index) return false;
         moveFineGraph_t graph = move_foot_shape(&input->geometry); move_query_objects(&graph,input,NULL);
         wc3FineSegment_t segment = {.start={source.x,source.y},.cls=(unsigned)graph.size-1,.cell=move_cell_ok,.data=&graph};
-        move_trace_object_scope(MOVE_SCOPE_WAYPOINT,0,input);
-        wc3RecordObject_t *self=move_hold_self(input);graph.counted_scope=true;
-        move_trace_object_scope(MOVE_SCOPE_WAYPOINT,1,input);
-        route->index = wc3_segment_waypoint(&segment,(wc3FineRoute_t){route->points,route->index});
-        move_release_self(self);
-        move_trace_object_scope(MOVE_SCOPE_WAYPOINT,2,input);
+        route->index = move_select_visible_waypoint(input,&graph,&segment,
+            (wc3FineRoute_t){route->points,route->index});
         point = route->points[route->index];
     }
     *out = move_world_from_grid(point.x,point.y);

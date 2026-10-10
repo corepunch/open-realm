@@ -1787,6 +1787,36 @@ TEST(pathfinding, fine_consumers_hold_captured_self_and_restore_every_result) {
     reset_entities();setup_test_world();
 }
 
+/* Fresh queries must use the same167bf0 hold as cached waypoint advancement.
+ * The native consumer fixture supplies the held/restored counter contract;
+ * route construction still runs through the production fine search. */
+TEST(pathfinding, fresh_waypoint219_holds_self_after_fine_search_and_restores_outer_depth) {
+    FOR_LOOP(i,96) {
+        retailExclusionConsumer_t const *row=retail_exclusion_consumers+i;
+        if(row->kind!=MOVE_SCOPE_WAYPOINT)continue;
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64]={0};if(row->blocked)cells[16*64+row->block_x]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        vec2_t source={12.25f*32,16.75f*32},goal={20.25f*32,16.75f*32},fine={12.25f,16.75f},point={20.25f,16.75f},selected;
+        edict_t *unit=make_unit_at(source.x,source.y),*target=make_unit_at(960,960);
+        unit->collision=8+row->cls*16;target->collision=8;
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(target);
+        wc3RecordObject_t *self=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+        self->flags=row->outer;
+        movePathQuery_t query={.geometry={&source,&goal,unit->collision,2},.mover=row->absent?NULL:unit,
+            .target=target,.units=true,.fine=&fine,.fine_target=&point};
+        objectScopeTrace_t trace={row,unit,0};G_TestMoveObjectScopeTrace(check_object_scope_stage,&trace);
+        T_ASSERT(G_BuildUnitMoveLocalRoute(&query,NULL,&selected));
+        G_TestMoveObjectScopeTrace(NULL,NULL);T_EQ(trace.stages,3);T_EQ(self->flags,row->after);
+        /* An absent self with no outer hold remains a real blocker. */
+        if(!row->blocked && (!row->absent || row->outer)) {
+            T_EQ(wc3_float_bits(selected.x),wc3_float_bits(goal.x));
+            T_EQ(wc3_float_bits(selected.y),wc3_float_bits(goal.y));
+        }
+    }
+    S_ClearMoveFineRequests();reset_entities();setup_test_world();
+}
+
 static retailBlockerScope202_t const *blocker_scope202_expected;
 static unsigned blocker_scope202_resolves;
 

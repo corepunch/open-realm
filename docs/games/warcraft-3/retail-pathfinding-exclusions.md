@@ -304,3 +304,49 @@ contract/export tests, fresh strict blocker-scope oracle and439-entry/1156-pin
 staged corpus also pass. Production/test builds are warning-free. Full repository
 validation remains on the agreed cadence; this is implementation commit8/12
 since the full merge checkpoint, with Payoff200 documentation-only.
+
+
+## Fresh waypoint selection shares the counted scope (Payoff219)
+
+The first visible-waypoint selection immediately after a fine search now uses
+exactly the same captured self-record scope as retained-route advancement.
+Previously, the search released its self/target counters and the fresh selector
+fell back to the old query-local self overlay. That overlay did not implement
+the authoritative spatial counter contract established by original `167bf0`.
+
+`move_select_visible_waypoint` captures and increments the actual self record,
+performs selection, then decrements that captured record and restores the
+caller's prior counted-scope state. The target remains live. Null self acquires
+nothing, and an existing outer hold survives. Both callers use this one helper.
+It introduces no allocation, world scan, persistent field or save-format change.
+
+A new production regression builds fresh fine routes before selection across
+all32 waypoint rows of the existing96-case native consumer matrix. It observes
+the raw record counter and cell predicate at entry, while held and after release,
+covering all four footprint classes, clear/blocked terrain, null self and outer
+depths0/1. Against the previous implementation it fails32 of120 assertions,
+one missing scope observation per row. Expected clear-route goal words remain
+unchanged; an absent self with no outer hold remains a genuine blocker.
+
+The unmodified original DLL was freshly executed for all96 consumer cases plus
+96 observer-free controls. Its exported consumer fixture is byte-identical to
+`retail-exclusion-consumers-1.27.json`, SHA256
+`f3393e78cf64f85fcc8551d5cf9e3b604f9d78f42fb095ac2151b13fcfaa800e`.
+No frozen expected value was changed. Existing saved Ghidra evidence and the
+original scope captures establish the contract; this chunk claims no new live
+capture or public reachability result. Ghidra's167bf0 note and MapPathfinding.java
+record the engine integration. MAP-04.2 remains open for its wider scope audit.
+
+Validation reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-04.2/payoff219/`.
+This is the fifth focused implementation commit after Payoff214's full checkpoint.
+
+
+Focused Classic and TFT validation each passes393 tests and3,913,526 assertions:
+32 spatial tests,96 routing tests,59 target/Follow/resource/route cases and206
+save cases. The new test accounts for536 passing assertions. Eight evidence
+mutation tests and37 corpus tests pass, and a fresh strict `oracle-exclusions`
+report verifies the original requests, consumers, exits and archived captures.
+Production and test targets build without warnings. An optional broad movement
+run timed out at300 seconds and has no complete report; it is explicitly not
+counted as validation. Broad validation remains on the authorized batch cadence.

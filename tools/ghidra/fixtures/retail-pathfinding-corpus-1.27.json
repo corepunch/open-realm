@@ -49959,7 +49959,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "898baf9dfa8fb9304c76d940043c6eec170ca110d170c163b396aab8ef042c35"
+      "sha256": "92aa827939a20f17b9915e7011b5e8f8e78b329ea52e4fdcf67f954d17018cd9"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51247,7 +51247,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "66139ca238ef9e62dbe8074dbb52c578f48930a6775be7111b463d895e87639f"
+      "sha256": "53bc599fc33efa9de6a89676aa40071abc453d2b5050eb7a031219a98fa3c65c"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -51311,7 +51311,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_pathfinding.c",
-      "sha256": "38f95f2fcdfbf025f67f9b0c873d3762e8f289485d7e066d5c319b99d399d2b2"
+      "sha256": "346f820a8f61373981a28ddd7ac74f7433ab7883c89e141f0154e9e5558c440c"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
@@ -51767,7 +51767,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "1000fca1c519e04caec5803c3da38f0a1117d3fd2852ed0befe243db7de1e174"
+      "sha256": "21cbc2c96edc08e4f3575e0124c5380c683d7e22cb2bcdff5946e129aeb65bae"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
