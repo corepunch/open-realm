@@ -978,7 +978,10 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             accepted = S_AcolyteHarvestOrder(self, target);
         else if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
             accepted = harvest_gold_order(self, target);
-        if (accepted) S_UnitAbilityOrderAccepted(self, order);
+        if (accepted) {
+            G_CreepGuardExplicitOrder(self);
+            S_UnitAbilityOrderAccepted(self, order);
+        }
         return accepted;
     }
     {
@@ -992,6 +995,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             G_ClearUnitOrderQueue(self);
             accepted = S_IssueUnitTargetSpell(self, spell_code, target);
             if (accepted) {
+                G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
                 unit_publish_target_order(self, order, target, issuer_player);
             }
@@ -1008,13 +1012,17 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (queue && G_UnitHasActiveOrder(self)) {
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
                                                issuer_player, 0.0f, 0);
-        if (accepted) unit_publish_target_order(self, order, target, issuer_player);
+        if (accepted) {
+            G_CreepGuardExplicitOrder(self);
+            unit_publish_target_order(self, order, target, issuer_player);
+        }
         return accepted;
     }
     if (!queue) G_ClearUnitOrderQueue(self);
     {
         bool const accepted = unit_issuetargetorder_now(self, order, target);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             unit_publish_target_order(self, order, target, issuer_player);
         }
@@ -1046,6 +1054,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
             G_ClearUnitOrderQueue(self);
             accepted = S_IssuePointTargetSpell(self, spell_code, point);
             if (accepted) {
+                G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
                 G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                           issuer_player, order);
@@ -1062,6 +1071,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
                                                issuer_player, group_speed, 0);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
         }
@@ -1071,6 +1081,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     {
         bool const accepted = unit_issueorder_now(self, order, point, group_speed);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
@@ -1134,6 +1145,13 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     float temporary_attack1, temporary_attack2;
     uint32_t old_flags;
     bool source_building, target_building;
+    /* SP_SpawnUnit initializes guards for new entities; a morph is not a spawn.
+     * Snapshot just the guard-owned fields, not the entire movement state. */
+    vec2_t creep_guard_origin;
+    uint32_t creep_guard_last_hit_ms, creep_guard_outside_ms;
+    uint32_t creep_guard_return_retries, creep_guard_retry_at_ms;
+    bool creep_guard_enabled;
+    creepGuardPhase_t creep_guard_phase;
 
     if (!unit || !type || !G_UnitUI(type)->modelFile) return false;
     source_building = G_UnitIsBuilding(unit->class_id);
@@ -1149,6 +1167,13 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     temporary_attack1 = unit->attack1.temporaryDamageBonus;
     temporary_attack2 = unit->attack2.temporaryDamageBonus;
     old_flags = unit->s.flags;
+    creep_guard_origin = unit->movement.creep_guard_origin;
+    creep_guard_last_hit_ms = unit->movement.creep_guard_last_hit_ms;
+    creep_guard_outside_ms = unit->movement.creep_guard_outside_ms;
+    creep_guard_return_retries = unit->movement.creep_guard_return_retries;
+    creep_guard_retry_at_ms = unit->movement.creep_guard_retry_at_ms;
+    creep_guard_enabled = unit->movement.creep_guard_enabled;
+    creep_guard_phase = unit->movement.creep_guard_phase;
 
     G_ClearUnitFood(unit);
     if (source_building && unit->pathtex) {
@@ -1169,6 +1194,15 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     unit->temporary_health_bonus = 0.0f;
     unit->temporary_mana_bonus = 0.0f;
     SP_SpawnUnit(unit);
+    /* A transformation retains the same handle, owner, and guard post. Do not
+     * silently recapture its current position or re-enable a disabled guard. */
+    unit->movement.creep_guard_origin = creep_guard_origin;
+    unit->movement.creep_guard_last_hit_ms = creep_guard_last_hit_ms;
+    unit->movement.creep_guard_outside_ms = creep_guard_outside_ms;
+    unit->movement.creep_guard_return_retries = creep_guard_return_retries;
+    unit->movement.creep_guard_retry_at_ms = creep_guard_retry_at_ms;
+    unit->movement.creep_guard_enabled = creep_guard_enabled;
+    unit->movement.creep_guard_phase = creep_guard_phase;
     G_ApplyTemporaryMaxHealthBonus(unit, temporary_health);
     G_ApplyTemporaryMaxManaBonus(unit, temporary_mana);
     G_SetHealth(unit, MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio)));
@@ -1201,6 +1235,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!strcmp(order, "stop")) {
         G_ClearUnitOrderQueue(self);
         order_stop(self);
+        G_CreepGuardExplicitOrder(self);
         S_UnitAbilityOrderAccepted(self, order);
         G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         return true;
@@ -1208,6 +1243,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         }
@@ -1219,6 +1255,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
         bool const accepted = S_AbilityMessage(self, A_ORDER, &call);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
             return true;
@@ -1229,6 +1266,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         if (spell_code) {
             bool const accepted = S_CastNoTargetSpell(self, spell_code);
             if (accepted) {
+                G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
                 G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
             }
@@ -1280,6 +1318,10 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     } else fprintf(stderr, "WC3 CreateUnit: no legal spawn point for %c%c%c%c player %u at (%.1f, %.1f); retaining requested position\n",
                    unitid & 255, (unitid >> 8) & 255, (unitid >> 16) & 255, (unitid >> 24) & 255,
                    player, location->x, location->y);
+    /* SP_SpawnUnit captured the requested location before the unstuck search.
+     * Guard the actual final spawn point, not an obstructed requested point. */
+    if (unit->movement.creep_guard_enabled)
+        unit->movement.creep_guard_origin = unit->s.origin2;
     if (unit->stand) {
         unit->stand(unit);
     }

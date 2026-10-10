@@ -512,6 +512,7 @@ jassModule_t jass_funcs[] = {
     { "SetUnitTurnSpeed", SetUnitTurnSpeed },
     { "SetUnitPropWindow", SetUnitPropWindow },
     { "SetUnitAcquireRange", SetUnitAcquireRange },
+    { "SetUnitCreepGuard", SetUnitCreepGuard },
     { "GetUnitAcquireRange", GetUnitAcquireRange },
     { "GetUnitTurnSpeed", GetUnitTurnSpeed },
     { "GetUnitPropWindow", GetUnitPropWindow },

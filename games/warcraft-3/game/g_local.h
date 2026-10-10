@@ -693,6 +693,12 @@ typedef enum {
     GUARD_RETURNING,
 } unitGuardState_t;
 
+typedef enum {
+    CREEP_GUARD_IDLE,
+    CREEP_GUARD_COMBAT,
+    CREEP_GUARD_RETURNING
+} creepGuardPhase_t;
+
 /* Independent policies consumed by ability command and cast dispatch. */
 #define AB_PASSIVE      (1u << 0)  // bit 0; passive command policy; used in ability flags
 #define AB_TOGGLE       (1u << 1)  // bit 1; reversible on/off action; used in ability flags
@@ -1906,6 +1912,14 @@ struct edict_s {
          * that point temporarily, then returns once the combat detour ends. */
         vec2_t guard_position;
         unitGuardState_t guard_state;
+        /* Neutral Hostile's spawn anchor is independent of player Stop. */
+        vec2_t creep_guard_origin;
+        uint32_t creep_guard_last_hit_ms;
+        uint32_t creep_guard_outside_ms;
+        uint32_t creep_guard_return_retries;
+        uint32_t creep_guard_retry_at_ms;
+        bool creep_guard_enabled;
+        creepGuardPhase_t creep_guard_phase;
         bool explicit_allied_attack;
         bool cargo_unload_pending; /* Drop ability: unload after point-move arrival */
         uint32_t cargo_unload_ability; /* initiating concrete AbilityData rawcode */
@@ -2570,6 +2584,9 @@ void G_BotRemoveSiege(player_t *);
 int32_t G_BotCaptainReadiness(player_t *, bool);
 bool G_BotAddDefenders(player_t *, int32_t, uint32_t);
 void G_BotAddGuardPost(player_t *, uint32_t, float, float);
+void G_BotRemoveGuardPosition(edict_t *);
+void G_BotRecycleGuardPosition(edict_t *);
+void G_BotRemoveAllGuardPositions(player_t *);
 void G_BotFillGuardPosts(player_t *);
 void G_BotReturnGuardPosts(player_t *);
 void G_BotHeroLevelUp(edict_t *);
@@ -3557,6 +3574,15 @@ bool move_displacement_reached(edict_t *);
 void order_stop(edict_t *);
 void order_stop_cleanup(edict_t *);
 void order_stop_queued(edict_t *);
+void G_CreepGuardInit(edict_t *);
+void G_CreepGuardAutoCombat(edict_t *);
+void G_CreepGuardSetEnabled(edict_t *, bool);
+void G_CreepGuardDamaged(edict_t *);
+void G_CreepGuardCallForHelp(edict_t *, edict_t *);
+void G_CreepGuardConstructionStarted(edict_t *);
+void G_CreepGuardTick(edict_t *);
+bool G_CreepGuardCombatEnd(edict_t *);
+void G_CreepGuardExplicitOrder(edict_t *);
 void G_SetUnitGuardPosition(edict_t *);
 void G_ClearUnitGuardPosition(edict_t *);
 void order_attackmove(edict_t *, edict_t *);

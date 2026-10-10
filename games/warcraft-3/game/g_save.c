@@ -97,7 +97,10 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 82 adds explicit status dispel and transfer classification. */
 /* Version 83 adds status instance identities and explicit stacking policy. */
 /* Version 84 persists modifier descriptor ownership (authored vs custom). */
-static uint32_t const save_version = 84;
+/* Version 85 persists neutral hostile creep guard state. */
+/* Version 86 persists creep guard return recovery state. */
+/* Version 87 stores a single creep guard lifecycle phase. */
+static uint32_t const save_version = 87;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -753,6 +756,13 @@ static field_t const movement_fields[] = {
     F(edictMovement_s, holding_position, F_INT),
     F(edictMovement_s, guard_position, F_VECTOR),
     F(edictMovement_s, guard_state, F_INT),
+    F(edictMovement_s, creep_guard_origin, F_VECTOR),
+    F(edictMovement_s, creep_guard_last_hit_ms, F_INT),
+    F(edictMovement_s, creep_guard_outside_ms, F_INT),
+    F(edictMovement_s, creep_guard_return_retries, F_INT),
+    F(edictMovement_s, creep_guard_retry_at_ms, F_INT),
+    F(edictMovement_s, creep_guard_enabled, F_INT),
+    F(edictMovement_s, creep_guard_phase, F_INT),
     F(edictMovement_s, explicit_allied_attack, F_INT),
     F(edictMovement_s, cargo_unload_pending, F_INT),
     F(edictMovement_s, cargo_unload_ability, F_INT),
@@ -2469,7 +2479,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

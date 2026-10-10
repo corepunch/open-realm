@@ -1408,6 +1408,46 @@ void G_BotAddGuardPost(player_t *player, uint32_t class_id, float x, float y) {
                                    .replacements_used = 0);
 }
 
+/* JASS AI guard-post operations affect bot posts, not creep pursuit.
+ * Only assigned posts are eligible; arbitrary units and players without an
+ * active bot are safe no-ops. */
+void G_BotRemoveGuardPosition(edict_t *unit) {
+    bot_t *bot;
+    uint32_t count;
+    if (!unit) return;
+    bot = G_BotState(unit->s.player);
+    if (!bot) return;
+    count = ARRAY_COUNT(bot->guards);
+    for (uint32_t i = 0; i < count; ++i) {
+        if (bot->guards[i].unit != unit) continue;
+        if (i + 1 < count)
+            memmove(bot->guards + i, bot->guards + i + 1,
+                    (count - i - 1) * sizeof(*bot->guards));
+        ARRAY_COUNT(bot->guards) = count - 1;
+        return;
+    }
+}
+
+void G_BotRecycleGuardPosition(edict_t *unit) {
+    bot_t *bot;
+    if (!unit) return;
+    bot = G_BotState(unit->s.player);
+    if (!bot) return;
+    FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) {
+        if (post->unit != unit) continue;
+        /* Permit regular FillGuardPosts logic to reclaim a spare or train a
+         * replacement; the slot's position and class are preserved. */
+        post->unit = NULL;
+        post->replacement_pending = false;
+        return;
+    }
+}
+
+void G_BotRemoveAllGuardPositions(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (bot) ARRAY_COUNT(bot->guards) = 0;
+}
+
 static bool G_BotGuardHasUnit(bot_t *bot, edict_t *unit) {
     FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) if (post->unit == unit) return true;
     return false;

@@ -6,6 +6,8 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 void order_attack(edict_t *self, edict_t *target);
 void T_Damage(edict_t *target, edict_t *attacker, int damage);
+void G_RunEntities(void);
+void monster_think(edict_t *self);
 void SV_Physics_Toss(edict_t *ent);
 void unit_build(edict_t *self, uint32_t class_id);
 void attack_melee_cooldown(edict_t *self);
@@ -502,6 +504,260 @@ TEST(wc3_order_lifecycle, queued_player_order_outranks_guard_return) {
     T_ASSERT(unit->movement.guard_state == GUARD_NONE);
     T_EQ(G_UnitQueuedOrderCount(unit), 0);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
+}
+
+TEST(wc3_order_lifecycle, neutral_creep_guard_keeps_spawn_anchor_independent_of_stop) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+    creep->s.origin2.x = 256;
+    G_SetUnitGuardPosition(creep);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+    T_FEQ(creep->movement.guard_position.x, 256, 0.01f);
+}
+
+TEST(wc3_order_lifecycle, explicit_order_drops_only_creep_auto_combat) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_CreepGuardAutoCombat(creep);
+    T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_COMBAT);
+    G_CreepGuardExplicitOrder(creep);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT);
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+}
+
+TEST(wc3_order_lifecycle, internal_order_notification_does_not_cancel_creep_guard) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_CreepGuardAutoCombat(creep);
+    S_UnitAbilityOrderAccepted(creep, "attack");
+    T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_COMBAT);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_native_disable_keeps_anchor_and_explicit_order) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_CreepGuardAutoCombat(creep);
+    G_CreepGuardSetEnabled(creep, false);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+    creep->s.origin2.x = 350;
+    G_CreepGuardSetEnabled(creep, true);
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+}
+
+/* Disabling an active autonomous return must stop the Move, but it must not
+ * assign a new player Stop guard position or move the original creep anchor. */
+TEST(wc3_order_lifecycle, disable_creep_guard_cancels_active_return_move) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_SetUnitGuardPosition(creep);
+    creep->s.origin2.x = creep->s.origin.x = 900;
+    gi.LinkEntity(creep);
+    G_CreepGuardAutoCombat(creep);
+    T_ASSERT(G_CreepGuardCombatEnd(creep));
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_RETURNING);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+
+    G_CreepGuardSetEnabled(creep, false);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc != CAbilityMove);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.001f);
+    T_FEQ(creep->movement.guard_position.x, 128, 0.001f);
+    level.time += 5000;
+    G_CreepGuardTick(creep);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc != CAbilityMove);
+}
+
+/* Disabling future automatic guarding must not interrupt a script-owned Move. */
+TEST(wc3_order_lifecycle, disable_creep_guard_preserves_explicit_move) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    vec2_t const destination = { 400, 0 };
+    G_CreepGuardInit(creep);
+    T_ASSERT(G_IssueUnitPointOrder(creep, "move", &destination, false, creep->s.player, 0.0f));
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+    edict_t *goal = creep->goalentity;
+    G_CreepGuardSetEnabled(creep, false);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+    T_ASSERT(creep->goalentity == goal);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_damage_refreshes_only_eligible_unit) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    level.time = 2000;
+    G_CreepGuardDamaged(creep);
+    T_EQ(creep->movement.creep_guard_last_hit_ms, 2000u);
+    G_CreepGuardSetEnabled(creep, false);
+    level.time = 3000;
+    G_CreepGuardDamaged(creep);
+    T_EQ(creep->movement.creep_guard_last_hit_ms, 2000u);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_return_retries_stop_after_bounded_failures) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->s.origin2.x = 900;
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    /* Simulate interrupted return at stand; do not enter a busy retry loop. */
+    level.time = 1000;
+    G_CreepGuardTick(creep);
+    T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
+    T_EQ(creep->movement.creep_guard_return_retries, 0u);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 2000u);
+    G_CreepGuardExplicitOrder(creep);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
+    T_EQ(creep->movement.creep_guard_return_retries, 0u);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_arrival_clears_retry_state) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    creep->movement.creep_guard_return_retries = 2;
+    creep->movement.creep_guard_retry_at_ms = 1000;
+    G_CreepGuardTick(creep);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
+    T_EQ(creep->movement.creep_guard_return_retries, 0u);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
+}
+
+/* Exercise the production post-mitigation damage path: a lethal blow must
+ * alert a surviving idle camp member before the victim is torn down. */
+TEST(wc3_order_lifecycle, lethal_creep_hit_alerts_surviving_camp_member) {
+    setup_test_world();
+    edict_t *victim = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    edict_t *ally = review_order_unit(192, PLAYER_NEUTRAL_AGGRESSIVE);
+    edict_t *attacker = review_order_unit(240, 0);
+    G_CreepGuardInit(victim);
+    G_CreepGuardInit(ally);
+    T_ASSERT(ally->movement.creep_guard_phase != CREEP_GUARD_COMBAT);
+    T_Damage(victim, attacker, (int)victim->health.value + 100);
+    T_ASSERT(M_IsDead(victim));
+    T_ASSERT(ally->movement.creep_guard_phase == CREEP_GUARD_COMBAT);
+    T_ASSERT(ally->goalentity == attacker);
+    T_ASSERT(ally->currentmove && ally->currentmove->proc == CAbilityAttack);
+}
+
+/* Drive the actual tick through each deadline with an immobilized creep so
+ * Move never becomes active. This catches unbounded, every-frame retries. */
+TEST(wc3_order_lifecycle, creep_guard_retry_exhaustion_uses_simulation_time) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->s.origin2.x = 900;
+    creep->aiflags |= AI_IMMOBILE;
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    level.time = 1000;
+    G_CreepGuardTick(creep);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 2000u);
+    for (uint32_t attempt = 1; attempt <= 3; attempt++) {
+        level.time = 2000 + (attempt - 1) * 1000;
+        G_CreepGuardTick(creep);
+        T_EQ(creep->movement.creep_guard_return_retries, 0u);
+        T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
+    }
+    /* Once movement is permitted, actual retries are counted. Test the
+     * scheduler callback instead of calling the helper for this transition. */
+    creep->aiflags &= ~AI_IMMOBILE;
+    for (uint32_t attempt = 1; attempt <= 3; attempt++) {
+        level.time = 5000 + (attempt - 1) * 1000;
+        creep->movement.creep_guard_retry_at_ms = level.time;
+        unit_stand(creep); /* emulate a movement failure after each attempt */
+        creep->think = monster_think;
+        G_RunEntities();
+        T_EQ(creep->movement.creep_guard_return_retries, attempt);
+        T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
+    }
+    level.time = 8000;
+    unit_stand(creep);
+    creep->think = monster_think;
+    G_RunEntities();
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
+    T_EQ(creep->movement.creep_guard_return_retries, 3u);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.001f);
+}
+
+/* Explicit immediate orders must cancel return ownership without changing its
+ * independently stored original anchor. */
+TEST(wc3_order_lifecycle, creep_guard_stop_and_hold_cancel_return) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->s.origin2.x = 900;
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    creep->movement.creep_guard_retry_at_ms = 2000;
+    T_ASSERT(unit_issueimmediateorder(creep, "stop"));
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    T_ASSERT(unit_issueimmediateorder(creep, "holdposition"));
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_explicit_point_move_cancels_return) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    vec2_t destination = { 220, 0 };
+    G_CreepGuardInit(creep);
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    T_ASSERT(G_IssueUnitPointOrder(creep, "move", &destination, false, creep->s.player, 0.0f));
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+}
+
+/* Ownership transfer aborts an AI return without recording a new Stop
+ * guard anchor at the creep's displaced position. */
+TEST(wc3_order_lifecycle, creep_guard_owner_transfer_preserves_stop_anchor) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_SetUnitGuardPosition(creep);
+    creep->s.origin2.x = creep->s.origin.x = 900;
+    gi.LinkEntity(creep);
+    G_CreepGuardAutoCombat(creep);
+    T_ASSERT(G_CreepGuardCombatEnd(creep));
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+
+    G_SetUnitPlayer(creep, 0);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc != CAbilityMove);
+    T_FEQ(creep->movement.guard_position.x, 128, 0.001f);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_owner_transfer_reconciles_policy) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    G_SetUnitPlayer(creep, 0);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    creep->s.origin2.x = 320;
+    G_SetUnitPlayer(creep, PLAYER_NEUTRAL_AGGRESSIVE);
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_FEQ(creep->movement.creep_guard_origin.x, 320, 0.01f);
 }
 
 #endif

@@ -161,6 +161,9 @@ void M_MoveFrame(edict_t *self) {
  * invokes the active umove_t think callback (e.g. ai_walk, ai_melee). */
 void monster_think(edict_t *self) {
     S_RunAbilityUpdates(self);
+    /* A blocked return can leave no active Move. Still run the guard policy
+     * so its retry timer can recover when movement becomes available. */
+    G_CreepGuardTick(self);
     if (!self->currentmove)
         return;
     if (self->paused || self->stunned) {
@@ -479,6 +482,7 @@ void SP_SpawnUnit(edict_t *self) {
         self->think = blight_mine_think;
     }
     self->svflags |= SVF_MONSTER;
+    G_CreepGuardInit(self);
     /* Buildings use a single immobility contract so smart orders, combat, and
      * future movement paths cannot rotate or translate them independently. */
     if (self->runtime.flags & UNIT_BALANCE_BUILDING) self->aiflags |= AI_IMMOBILE;

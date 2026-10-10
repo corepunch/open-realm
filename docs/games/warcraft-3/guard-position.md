@@ -46,11 +46,45 @@ This prevents an old Stop location from unexpectedly taking control after a late
 
 ## Retail guard-system follow-up
 
-Warcraft also exposes a broader AI/creep guard-position system (`SetUnitCreepGuard`, `RemoveGuardPosition`, `RecycleGuardPosition`) and neutral-creep leash constants such as GuardDistance, MaxGuardDistance, and GuardReturnTime. Those behaviors are related but are not folded into this player Stop patch:
+Warcraft also exposes a broader AI/creep guard-position system and neutral-creep
+leash constants. The integrated implementation is described in
+[neutral-creep-guard.md](neutral-creep-guard.md). `SetUnitCreepGuard`,
+`RemoveGuardPosition`, and `RecycleGuardPosition` are implemented, but the
+computer-AI guard-post natives currently support the existing bot roster rather
+than full retail preplaced-guard replacement semantics. The Neutral Hostile
+leash remains independent of the player Stop anchor.
 
-- `RemoveGuardPosition` and `RecycleGuardPosition` are still JASS placeholders in OpenRealm.
-- `SetUnitCreepGuard` is declared by `common.txt` but does not yet have a native implementation here.
-- neutral-creep 600/1000/5-style leash timing needs its own owner/AI policy and damage-timestamp state rather than being guessed onto player units.
-- forced relocation does not rewrite a generic retail creep guard point, whereas Hold Position remains a non-anchor policy. Keep those systems separate.
+## Neutral Hostile camp assistance (Stage B)
 
-Implement the broader creep/JASS guard layer as a follow-up on top of the shared guard-return movement primitive rather than changing Stop semantics again.
+After a surviving Neutral Hostile takes positive attack damage, the game broadcasts
+a **single, non-recursive** help event to idle, eligible, attack-capable Neutral
+Hostile neighbors. The radius is read from `[Misc] CreepCallForHelp` (600
+world units fallback). To avoid pulling neighboring camps through moving units,
+responders must be within radius both by their fixed Stage A guard anchors and
+by current world position. Responders validate hostility and legal attack targets,
+respect queued orders, and use the existing attack/order and Stage A leash paths.
+Natural `ACsp` sleepers wake through `G_UnitWakeUp`; magical Sleep is not cleared.
+
+**Compatibility limits:** This bounded proximity policy is not proof of retail
+camp identity: the true `CreepCampPathingCellDistance` connectivity, map-authored
+groups, multiple indirect alert triggers, attacking a sleeping creep without
+positive damage, and nighttime re-sleep scheduling remain future verification
+work. The guard natives are implemented in the separate Neutral Hostile
+subsystem, with documented retail-compatibility limits. No per-tick
+world scan is added: only a confirmed surviving positive-damage event broadcasts.
+
+### Stage C: retail creep acquisition special cases (2026-10-10)
+
+- Autonomous Neutral Hostile guard scans omit airborne flyovers and finished buildings; explicit attacks, retaliation and provoked construction attacks still use the normal legal-target checks. A ground-bound flyer is not filtered by the flyover exception.
+- Level 7+ guard scans rank wounded Heroes first, then wounded units or Heroes, then other eligible targets, using distance as a tie-breaker. This is a documented approximation of retail preference, **not** a verified exact retail scoring algorithm.
+- Real building construction start invokes a one-shot guard-anchor-bounded notification using the map-overridable `BuildingPlacementNotifyRadius` Misc key (600 fallback). The notification does not occur for previews, progress ticks or pre-existing buildings.
+- Neutral building usage/item-sale notification remains deferred: retail sale-specific radii and eligibility are not yet verified. Do not convert proximity or purchase UI clicks into blanket creep aggression.
+- Test manually with flying scout, Ensnare/Web grounded flyer, nearby completed building versus newly started construction, low-level and level-7 mixed targets, and campaign script-ordered creeps. No automatic compilation or runtime validation has been performed.
+
+### Guard lifecycle audit corrections (Stage E follow-up)
+
+- A positive post-mitigation hit, including a killing blow, sends one camp assistance notification before death teardown. The victim still receives damage/retaliation callbacks only when surviving.
+- A return Move that terminates away from its anchor remains in return policy. After a one-second simulation-time backoff the creep retries, at most three times; exhaustion ends the attempt without teleporting. Scripted orders clear recovery state. Immobilization does not cause a busy retry loop.
+- `creep_guard_return_retries` and `creep_guard_retry_at_ms` persist through save/load. The integrated lifecycle phase uses save format version 87, rejecting earlier layouts according to repository policy.
+- Non-finite, negative or float-overflowing Misc values use the documented defaults; the hard leash is never shorter than the soft leash.
+- The integrated subsystem includes a real return-Move save round-trip and scheduler regression; pathfinder callback and retail parity checks remain follow-up work. See [neutral-creep-guard.md](neutral-creep-guard.md).

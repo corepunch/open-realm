@@ -1295,12 +1295,21 @@ uint32_t UnitAddIndicator(jass_t *j) {
     G_SendWidgetIndicator(whichUnit, color, currentplayer);
     return 0;
 }
+/* Creep leash opt-in/out is separate from AI's replaceable guard-post roster. */
+uint32_t SetUnitCreepGuard(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    bool enabled = jass_checkboolean(j, 2);
+    if (unit) G_CreepGuardSetEnabled(unit, enabled);
+    return 0;
+}
 uint32_t RemoveGuardPosition(jass_t *j) {
-    //handle_t hUnit = jass_checkhandle(j, 1, "unit");
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    if (unit) G_BotRemoveGuardPosition(unit);
     return 0;
 }
 uint32_t RecycleGuardPosition(jass_t *j) {
-    //handle_t hUnit = jass_checkhandle(j, 1, "unit");
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    if (unit) G_BotRecycleGuardPosition(unit);
     return 0;
 }
 uint32_t CreateUnit(jass_t *j) {

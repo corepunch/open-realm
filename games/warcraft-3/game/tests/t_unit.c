@@ -1865,6 +1865,44 @@ TEST(wc3_unit, stoneform_order_requires_authored_ability_ownership) {
     T_EQ(ent->class_id, MAKEFOURCC('u','g','a','r'));
 }
 
+/* Morphing an existing creep must not treat its current position as a new
+ * guard spawn. Exercise the production transform path with authored test data. */
+TEST(wc3_unit, creep_transform_preserves_guard_anchor_and_active_phase) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    edict_t *creep = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    G_CreepGuardInit(creep);
+    creep->s.origin2.x = 512.0f;
+    creep->movement.creep_guard_phase = CREEP_GUARD_COMBAT;
+    creep->movement.creep_guard_last_hit_ms = 1234;
+    creep->movement.creep_guard_outside_ms = 2345;
+    T_ASSERT(G_TransformUnitType(creep, MAKEFOURCC('h','f','o','o')));
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_COMBAT);
+    T_FEQ(creep->movement.creep_guard_origin.x, 64.0f, 0.001f);
+    T_EQ(creep->movement.creep_guard_last_hit_ms, 1234u);
+    T_EQ(creep->movement.creep_guard_outside_ms, 2345u);
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+TEST(wc3_unit, creep_transform_does_not_reenable_disabled_guard) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    edict_t *creep = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    G_CreepGuardInit(creep);
+    G_CreepGuardSetEnabled(creep, false);
+    creep->s.origin2.x = 512.0f;
+    T_ASSERT(G_TransformUnitType(creep, MAKEFOURCC('h','f','o','o')));
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_FEQ(creep->movement.creep_guard_origin.x, 64.0f, 0.001f);
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
 TEST(wc3_unit, stoneform_uses_authored_transform_endpoints_in_both_directions) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
     reset_test_entities(); setup_test_world();
