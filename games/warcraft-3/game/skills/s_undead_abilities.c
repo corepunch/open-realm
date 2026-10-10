@@ -670,40 +670,59 @@ void possession_two_think(edict_t *thinker) {
         possession_takeover(caster, target);
 }
 
+/* Possession Two owns both sides of the channel. Reusing another channel's
+ * Bpos/Bpoc record would replace its owner; require fresh slots on both sides.
+ * Validate before spell_commit and repeat before applying either status. */
+static bool possession_two_capacity(edict_t *caster, edict_t *target, abilityitem_t const *spell,
+                                    char target_buff[5], char caster_buff[5]) {
+    uint32_t level;
+    cstring_t buffs;
+    if (!caster || !target || !spell) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buffs = G_AbilityLevel(spell->code, level)->buffID;
+    memcpy(target_buff, "Bpos", 5);
+    memcpy(caster_buff, "Bpoc", 5);
+    if (buffs && sscanf(buffs, "%4[^,],%4s", target_buff, caster_buff) != 2) return false;
+    return unit_status_checkapplication(target, &(status_application_t){
+        .buff = target_buff, .level = level }) == WC3_STATUS_APPLY_FREE_SLOT &&
+        unit_status_checkapplication(caster, &(status_application_t){
+        .buff = caster_buff, .level = level }) == WC3_STATUS_APPLY_FREE_SLOT;
+}
+
+static bool possession_two_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    char target_buff[5], caster_buff[5];
+    return possession_validate(caster, st, spell) &&
+        possession_two_capacity(caster, st.entity, spell, target_buff, caster_buff);
+}
+
 static void possession_two_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float duration = S_SpellResistantDuration(spell->code, level, st.entity);
     float damage_mult = S_SpellData(spell->code, level, 2);
     float invuln = S_SpellData(spell->code, level, 3);
     float magic_imm = S_SpellData(spell->code, level, 4);
-    cstring_t buffs = G_AbilityLevel(spell->code, level)->buffID;
-    char target_buff[5] = "Bpos", caster_buff[5] = "Bpoc";
+    char target_buff[5], caster_buff[5];
     edict_t *thinker;
-    heroabilitystatus_t *slot;
+    heroabilitystatus_t *target_slot, *caster_slot;
 
-    if (!st.entity) return;
-    if (buffs && sscanf(buffs, "%4[^,],%4s", target_buff, caster_buff) != 2)
-        fprintf(stderr, "WC3 Possession: BuffID expected Bpos,Bpoc for %08x\n", spell->code);
-
-    /* Both status owners must fit before creating the channel thinker or
-     * applying the temporary target invulnerability. */
-    wc3_status_apply_check_t target_check = unit_status_checkapplication(st.entity,
-        &(status_application_t){ .buff = target_buff, .level = level });
-    wc3_status_apply_check_t caster_check = unit_status_checkapplication(caster,
-        &(status_application_t){ .buff = caster_buff, .level = level });
-    if ((target_check != WC3_STATUS_APPLY_FREE_SLOT && target_check != WC3_STATUS_APPLY_REUSE) ||
-        (caster_check != WC3_STATUS_APPLY_FREE_SLOT && caster_check != WC3_STATUS_APPLY_REUSE)) return;
+    if (!possession_two_capacity(caster, st.entity, spell, target_buff, caster_buff)) return;
+    /* Acquire both status records before creating a thinker or changing target
+     * invulnerability. A second failure must undo only our newly owned slot. */
+    target_slot = S_SpellApplyTimedStatus(st.entity, target_buff, level, duration);
+    if (!target_slot) return;
+    caster_slot = S_SpellApplyTimedStatus(caster, caster_buff, level, duration);
+    if (!caster_slot) {
+        unit_removestatus(st.entity, target_slot, STATUS_REMOVE_SCRIPT);
+        return;
+    }
+    target_slot->data = magic_imm > 0.0f ? BZ_POS_MAGIC_IMMUNE : 0;
+    caster_slot->data = (uint32_t)(damage_mult * 1000.0f + 0.5f);
 
     thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->damage = invuln > 0.0f ? 1 : 0;
     thinker->invulnerable = st.entity->invulnerable;
     thinker->think = possession_two_think;
-
-    slot = S_SpellApplyTimedStatus(st.entity, target_buff, level, duration);
-    if (slot) slot->data = magic_imm > 0.0f ? BZ_POS_MAGIC_IMMUNE : 0;
-    slot = S_SpellApplyTimedStatus(caster, caster_buff, level, duration);
-    if (slot) slot->data = (uint32_t)(damage_mult * 1000.0f + 0.5f);
     if (invuln > 0.0f) st.entity->invulnerable = true;
 }
 
@@ -736,7 +755,7 @@ BZ_ABILITY_PROC(CAbilityPossessionTwo) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
-    case A_VALIDATE: return possession_validate(ent, target, call ? call->item : NULL);
+    case A_VALIDATE: return possession_two_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: possession_two_execute(ent, target, call ? call->item : NULL); return true;
     default: return CAbilityPossession(ent, msg, call);
     }
