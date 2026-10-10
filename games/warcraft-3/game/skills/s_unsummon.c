@@ -289,17 +289,23 @@ static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
     if (!caster || !code) return;
     for (uint32_t i = 1; i < globals.num_edicts; i++) {
         edict_t *thinker = g_edicts + i;
-        if (!thinker->inuse || thinker->think != unsummon_think || thinker->owner != caster ||
-            thinker->class_id != code) continue;
-        if (!thinker->unsummon->approaching) {
+        if (!thinker->inuse || thinker->think != unsummon_think ||
+            thinker->class_id != code || !thinker->unsummon ||
+            !thinker->unsummon->approaching || S_SpellChannelOwner(thinker) != caster)
             continue;
+        /* S_SpellCancelChannel clears code before A_CANCEL, but preserves serial.
+         * A retired approach thinker must not cancel a later cast of this code.
+         * Started demolition is intentionally independent of later cancellation. */
+        if (!caster->channel || !thinker->channel ||
+            thinker->channel->serial != caster->channel->serial) continue;
+        {
+            edict_t *target = S_SpellChannelTarget(thinker);
+            if (target) unsummon_remove_status(target);
         }
-        edict_t *target = S_SpellChannelTarget(thinker);
-        if (target) unsummon_remove_status(target);
         thinker->unsummon->target = NULL;
         thinker->unsummon->approaching = false;
         thinker->goalentity = NULL;
-        if (thinker->owner == caster) unsummon_cancel_approach(caster);
+        unsummon_cancel_approach(caster);
     }
 }
 
