@@ -894,7 +894,6 @@ static float attack_speed_divisor(edict_t *self) {
                           : 0.02f;
     float total_bonus = (float)self->hero.agi * agi_bonus +
                       unit_status_modifier_total(self, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT)
-                      + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
                       - S_DefendAttackReduction(self) - S_CreepAttackSpeedReduction(self) - S_SlowAuraAttackReduction(self);
     total_bonus += S_EnduranceAttackBonus(self);
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
