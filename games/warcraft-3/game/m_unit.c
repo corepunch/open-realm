@@ -1599,10 +1599,26 @@ void unit_status_enabletargetart(edict_t *ent, heroabilitystatus_t *status, cstr
     G_SpawnStatusEffectTarget(status->code, ent, attach_point ? attach_point : "origin");
 }
 
-void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_reason_t reason) {
+/* A_STATUS_REMOVE owners can perform nested cleanup. Keep the original slot
+ * readable for callbacks, but never enter removal for the same slot twice. */
+typedef struct status_removal_guard_s {
+    edict_t *entity;
+    heroabilitystatus_t *slot;
+    struct status_removal_guard_s *previous;
+} status_removal_guard_t;
+static status_removal_guard_t *status_removal_stack;
+
+static void unit_removestatus_core(edict_t *ent, heroabilitystatus_t *status,
+                                   status_remove_reason_t reason, bool reconcile) {
     uint32_t origin;
     bool other_targetart_owner = false;
+    status_removal_guard_t guard;
     if (!ent || !status || !status->level) return;
+    for (status_removal_guard_t *it = status_removal_stack; it; it = it->previous)
+        if (it->entity == ent && it->slot == status) return;
+    guard = (status_removal_guard_t){ .entity = ent, .slot = status,
+                                    .previous = status_removal_stack };
+    status_removal_stack = &guard;
     S_HumanStatusExpired(ent, status->code, status->level);
     origin = status->source_ability ? status->source_ability : status->data;
     UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE, reason);
@@ -1620,10 +1636,19 @@ void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_
     if ((status->buff_flags & WC3_STATUS_BUFF_TARGET_ART) && !other_targetart_owner)
         G_DestroyStatusEffectTarget(status->code, ent);
     memset(status, 0, sizeof(*status));
-    /* Keep derived locks and HUD synchronized for script/dispel/death callers,
-     * not only the periodic expiry loop. Removal callbacks have completed. */
-    unit_refreshstatusflags(ent);
-    G_InvalidateUnitInfoPanel(ent);
+    status_removal_stack = guard.previous;
+    if (reconcile) {
+        unit_refreshstatusflags(ent);
+        G_InvalidateUnitInfoPanel(ent);
+    }
+}
+
+void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_reason_t reason) {
+    unit_removestatus_core(ent, status, reason, true);
+}
+
+void unit_removestatus_deferred(edict_t *ent, heroabilitystatus_t *status, status_remove_reason_t reason) {
+    unit_removestatus_core(ent, status, reason, false);
 }
 
 /* Compatibility API: existing explicit callers historically use this for all
@@ -1663,7 +1688,7 @@ void unit_updatestatuses(edict_t *ent) {
                 militia_expired = true;
             }
             unit_timed_status_log("expire", ent, status);
-            unit_removestatus(ent, status, STATUS_REMOVE_EXPIRE);
+            unit_removestatus_deferred(ent, status, STATUS_REMOVE_EXPIRE);
             changed = true;
         } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_TICK, STATUS_REMOVE_SCRIPT);
     }
@@ -1753,7 +1778,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
             } else {
                 /* Replace must retire the old owner's effects before the new
                  * instance becomes visible (Refresh/Stack must not). */
-                unit_removestatus(ent, status, STATUS_REMOVE_REPLACED);
+                unit_removestatus_deferred(ent, status, STATUS_REMOVE_REPLACED);
                 status->code = code;
                 status->instance_id = ++ent->next_status_instance_id;
                 if (!status->instance_id) status->instance_id = ++ent->next_status_instance_id;

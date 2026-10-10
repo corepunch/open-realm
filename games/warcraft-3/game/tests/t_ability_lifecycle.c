@@ -1253,4 +1253,22 @@ TEST(wc3_ability_lifecycle, status_source_lookup_does_not_return_expired_record)
     T_NULL(unit_findstatussource(unit, slot->code, source));
 }
 
+
+TEST(wc3_ability_lifecycle, status_deferred_removal_reconciles_after_batch) {
+    edict_t *unit = review_setup();
+    heroabilitystatus_t *first, *second;
+    T_ASSERT(unit_addtimedstatus(unit, "Bstu", 1, 10.0f));
+    T_ASSERT(unit_addtimedstatus(unit, "Bsta", 1, 10.0f));
+    first = unit_findstatus(unit, MAKEFOURCC('B','s','t','u'));
+    second = unit_findstatus(unit, MAKEFOURCC('B','s','t','a'));
+    T_NOT_NULL(first); T_NOT_NULL(second);
+    T_ASSERT(unit->stunned);
+    unit_removestatus_deferred(unit, first, STATUS_REMOVE_DISPEL);
+    unit_removestatus_deferred(unit, second, STATUS_REMOVE_DISPEL);
+    unit_refreshstatusflags(unit);
+    T_ASSERT(!unit->stunned);
+    T_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','u')));
+    T_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','a')));
+}
+
 #endif
