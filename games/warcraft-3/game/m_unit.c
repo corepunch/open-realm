@@ -1660,6 +1660,27 @@ void unit_updatestatuses(edict_t *ent) {
     }
 }
 
+/* Pure preflight for producers: check before consuming mana/resources or
+ * modifying the caster. Same-code applications reuse the existing slot even
+ * when all eight slots are occupied. Independent same-code sources require
+ * separate ownership/visibility semantics and remain unsupported for now. */
+wc3_status_apply_check_t unit_status_checkapplication(edict_t const *ent, status_application_t const *app) {
+    uint32_t code;
+    bool free_slot = false;
+    if (!ent || !app || !app->buff || !app->buff[0] ||
+        strlen(app->buff) < 4 || !app->level)
+        return WC3_STATUS_APPLY_INVALID;
+    memcpy(&code, app->buff, sizeof(code));
+    if (!code) return WC3_STATUS_APPLY_INVALID;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = ent->abilstatus + i;
+        if (status->level && status->code == code)
+            return WC3_STATUS_APPLY_REUSE;
+        if (!status->level) free_slot = true;
+    }
+    return free_slot ? WC3_STATUS_APPLY_FREE_SLOT : WC3_STATUS_APPLY_FULL;
+}
+
 heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *app) {
     cstring_t skill = app ? app->buff : NULL;
     uint32_t level = app ? app->level : 0;
@@ -1670,7 +1691,9 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     heroabilitystatus_t *slot = NULL;
     cstring_t stacktype;
 
-    if (!ent || !skill || !*skill || level == 0) {
+    /* Fail before any removal or state mutation when allocation is impossible. */
+    wc3_status_apply_check_t const preflight = unit_status_checkapplication(ent, app);
+    if (preflight == WC3_STATUS_APPLY_INVALID || preflight == WC3_STATUS_APPLY_FULL) {
         return NULL;
     }
 

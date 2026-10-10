@@ -1031,6 +1031,28 @@ TEST(wc3_ability_lifecycle, classified_status_application_replace_resets_flags) 
 
 #endif
 
+TEST(wc3_ability_lifecycle, status_capacity_preflight_is_deterministic) {
+    edict_t *unit = review_setup();
+    static cstring_t const ids[MAX_UNIT_STATUSES + 1] = {
+        "Bq01", "Bq02", "Bq03", "Bq04", "Bq05", "Bq06", "Bq07", "Bq08", "Bq09"
+    };
+    status_application_t app = { .level = 1, .duration = 10.0f };
+    T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_INVALID);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        app.buff = ids[i];
+        T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_FREE_SLOT);
+        T_NOT_NULL(unit_applystatus(unit, &app));
+    }
+    app.buff = ids[MAX_UNIT_STATUSES];
+    T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_FULL);
+    T_ASSERT(unit_applystatus(unit, &app) == NULL);
+    T_EQ(G_UnitStatusLevel(unit, *((uint32_t const *)ids[0])), 1);
+    app.buff = ids[0];
+    T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_REUSE);
+    T_NOT_NULL(unit_applystatus(unit, &app));
+    T_EQ(G_UnitStatusLevel(unit, *((uint32_t const *)ids[0])), 1);
+}
+
 TEST(wc3_ability_lifecycle, status_application_separates_owner_from_payload) {
     edict_t *target = review_setup(), *source = review_unit(0, 100);
     status_application_t app = {
