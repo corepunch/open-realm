@@ -51,3 +51,18 @@ ignore expired statuses, restoring normal eligibility as the slot expires.
 alongside the historical entity boolean. Divine Shield retains its existing
 thinker and boolean restoration for save and script compatibility. Integer
 damage rounding and cross-family parity should be checked against retail data.
+
+## Status-owned numeric modifiers
+
+Each live status slot may own up to four typed numeric contributions. The
+resolver adds independent values and selects the strongest value once for each
+nonzero family and modifier type. Strongest policies require a family ID;
+family zero is reserved for independent additions. Ability code still decides
+which gameplay values and stacking families apply.
+
+Removal and expiry stop contributions with their owner. Refresh retains its
+existing descriptors; Replace clears the old slot before initializing the new
+one. Phase 6 introduces the resolver without wiring it into existing combat or
+movement arithmetic, avoiding double application during the migration.
+
+The serialized modifier descriptors advance save format 80 to 81.

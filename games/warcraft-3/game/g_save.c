@@ -93,7 +93,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 78 changes cinematic portrait state from a model byte to a presence flag plus 16-bit stat. */
 /* Version 79 adds explicit status source ability identity and payload separation. */
 /* Version 80 adds categorical state contributions to WC3 status records. */
-static uint32_t const save_version = 80;
+/* Version 81 adds status-owned numeric modifier descriptors. */
+static uint32_t const save_version = 81;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -2462,7 +2463,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

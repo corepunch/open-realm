@@ -1340,6 +1340,35 @@ typedef enum {
     WC3_STATUS_STATE_ETHEREAL      = 1u << 6
 } wc3_status_state_t;
 
+/* Status-owned numeric contributions.  The shared resolver performs only
+ * arithmetic; each ability remains responsible for interpreting its data.
+ * Family zero is reserved for independent/additive contributions. */
+#define WC3_STATUS_MAX_MODIFIERS 4
+
+typedef enum {
+    WC3_STATUS_MOD_MOVE_SPEED_PERCENT,
+    WC3_STATUS_MOD_MOVE_SPEED_FLAT,
+    WC3_STATUS_MOD_ATTACK_SPEED_PERCENT,
+    WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT,
+    WC3_STATUS_MOD_ATTACK_DAMAGE_FLAT,
+    WC3_STATUS_MOD_ARMOR_FLAT,
+    WC3_STATUS_MOD_HP_REGEN_FLAT,
+    WC3_STATUS_MOD_MANA_REGEN_FLAT
+} wc3_status_modifier_type_t;
+
+typedef enum {
+    WC3_STATUS_MOD_ADD,
+    WC3_STATUS_MOD_STRONGEST_POSITIVE,
+    WC3_STATUS_MOD_STRONGEST_NEGATIVE
+} wc3_status_modifier_policy_t;
+
+typedef struct {
+    uint32_t type;    /* wc3_status_modifier_type_t */
+    uint32_t family;  /* nonzero identifier for strongest-wins resolution */
+    uint32_t policy;  /* wc3_status_modifier_policy_t */
+    float value;
+} wc3_status_modifier_t;
+
 typedef struct heroabilitystatus_s {
     uint32_t code;
     uint32_t level;
@@ -1348,6 +1377,8 @@ typedef struct heroabilitystatus_s {
     uint32_t data; /* legacy ability rawcode or ability-specific numeric payload; retain unchanged */
     uint32_t source_ability; /* explicit applying ability rawcode; zero means legacy/unattributed */
     uint32_t state_mask; /* composable categorical contributors owned by this slot */
+    uint32_t modifier_count;
+    wc3_status_modifier_t modifiers[WC3_STATUS_MAX_MODIFIERS];
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
 } heroabilitystatus_t;
@@ -2766,6 +2797,11 @@ void incinerate_explode_think(edict_t *);
 void monsoon_think(edict_t *);
 void unit_refreshstatusflags(edict_t *);
 bool unit_hasstatusstate(edict_t const *, wc3_status_state_t);
+/* Modifier descriptors belong to live status slots. These APIs do not yet
+ * feed combat/movement arithmetic; ability migrations do that in phase 7. */
+bool unit_status_setmodifier(heroabilitystatus_t *, uint32_t index, wc3_status_modifier_t const *);
+float unit_status_modifier_total(edict_t const *, wc3_status_modifier_type_t);
+
 
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
 void unit_moveindirection(edict_t *);

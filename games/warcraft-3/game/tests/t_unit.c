@@ -2199,4 +2199,44 @@ TEST(wc3_unit, different_units_have_independent_response_gates) {
     T_EQ(b->sound.pending, 12);
 }
 
+TEST(wc3_unit, status_modifiers_stack_by_family_and_retire_with_slot) {
+    edict_t unit = { 0 };
+    heroabilitystatus_t *a = &unit.abilstatus[0];
+    heroabilitystatus_t *b = &unit.abilstatus[1];
+    heroabilitystatus_t *c = &unit.abilstatus[2];
+    wc3_status_modifier_t weak = {
+        .type = WC3_STATUS_MOD_MOVE_SPEED_PERCENT, .family = 1,
+        .policy = WC3_STATUS_MOD_STRONGEST_NEGATIVE, .value = -0.2f
+    };
+    wc3_status_modifier_t strong = weak;
+    wc3_status_modifier_t additive = {
+        .type = WC3_STATUS_MOD_MOVE_SPEED_PERCENT, .policy = WC3_STATUS_MOD_ADD,
+        .value = 0.1f
+    };
+    a->level = b->level = c->level = 1;
+    strong.value = -0.5f;
+    T_ASSERT(unit_status_setmodifier(a, 0, &weak));
+    T_ASSERT(unit_status_setmodifier(b, 0, &strong));
+    T_ASSERT(unit_status_setmodifier(c, 0, &additive));
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.4f, 0.001f);
+    b->level = 0; /* simulate expired/removed owner */
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.1f, 0.001f);
+    T_ASSERT(!unit_status_setmodifier(a, WC3_STATUS_MAX_MODIFIERS, &weak));
+}
+
+TEST(wc3_unit, status_modifiers_ignore_other_types_and_support_positive_families) {
+    edict_t unit = { 0 };
+    wc3_status_modifier_t first = {
+        .type = WC3_STATUS_MOD_ARMOR_FLAT, .family = 19,
+        .policy = WC3_STATUS_MOD_STRONGEST_POSITIVE, .value = 2.0f
+    };
+    wc3_status_modifier_t second = first;
+    unit.abilstatus[0].level = unit.abilstatus[1].level = 1;
+    second.value = 4.0f;
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[0], 0, &first));
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[1], 0, &second));
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_ARMOR_FLAT), 4.0f, 0.001f);
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.0f, 0.001f);
+}
+
 #endif /* BZ_TESTS */

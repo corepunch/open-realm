@@ -1489,6 +1489,67 @@ bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
     return false;
 }
 
+/* Strongest-only families are resolved separately from independent additions.
+ * A slot's values are consulted only while the owning status is live, so
+ * removal/expiry/replace cannot leave a stale numeric contribution behind.
+ * A nonzero family must use one consistent policy for a given modifier type.
+ */
+bool unit_status_setmodifier(heroabilitystatus_t *status, uint32_t index,
+                             wc3_status_modifier_t const *modifier) {
+    if (!status || !status->level || !modifier || index >= WC3_STATUS_MAX_MODIFIERS ||
+        modifier->type > WC3_STATUS_MOD_MANA_REGEN_FLAT ||
+        modifier->policy > WC3_STATUS_MOD_STRONGEST_NEGATIVE ||
+        (modifier->policy != WC3_STATUS_MOD_ADD && !modifier->family) || !isfinite(modifier->value)) return false;
+    status->modifiers[index] = *modifier;
+    if (status->modifier_count <= index) status->modifier_count = index + 1;
+    return true;
+}
+
+float unit_status_modifier_total(edict_t const *unit, wc3_status_modifier_type_t type) {
+    float result = 0.0f;
+    if (!unit || type > WC3_STATUS_MOD_MANA_REGEN_FLAT) return 0.0f;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = unit->abilstatus + i;
+        if (!status->level || (status->timestamp && status->timestamp <= G_Time())) continue;
+        FOR_LOOP(j, MIN(status->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
+            wc3_status_modifier_t const *mod = status->modifiers + j;
+            bool seen = false;
+            float strongest;
+            if (mod->type != (uint32_t)type) continue;
+            if (mod->policy == WC3_STATUS_MOD_ADD || !mod->family) {
+                result += mod->value;
+                continue;
+            }
+            /* Evaluate each non-stacking family once across all active slots. */
+            FOR_LOOP(a, i + 1) {
+                heroabilitystatus_t const *previous = unit->abilstatus + a;
+                if (!previous->level || (previous->timestamp && previous->timestamp <= G_Time())) continue;
+                FOR_LOOP(b, MIN(previous->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
+                    wc3_status_modifier_t const *other = previous->modifiers + b;
+                    if (other->type == mod->type && other->family == mod->family &&
+                        other->policy == mod->policy && (a < i || b < j)) seen = true;
+                }
+            }
+            if (seen) continue;
+            strongest = mod->value;
+            FOR_LOOP(a, MAX_UNIT_STATUSES) {
+                heroabilitystatus_t const *candidate = unit->abilstatus + a;
+                if (!candidate->level || (candidate->timestamp && candidate->timestamp <= G_Time())) continue;
+                FOR_LOOP(b, MIN(candidate->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
+                    wc3_status_modifier_t const *other = candidate->modifiers + b;
+                    if (other->type != mod->type || other->family != mod->family ||
+                        other->policy != mod->policy) continue;
+                    if ((mod->policy == WC3_STATUS_MOD_STRONGEST_POSITIVE && other->value > strongest) ||
+                        (mod->policy == WC3_STATUS_MOD_STRONGEST_NEGATIVE && other->value < strongest))
+                        strongest = other->value;
+                }
+            }
+            result += strongest;
+        }
+    }
+    return result;
+}
+
 /* Derived locks come only from statuses that actually remain; owners
  * reconcile their own flight/height state through A_STATUS_REFRESH. */
 void unit_refreshstatusflags(edict_t *ent) {
