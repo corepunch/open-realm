@@ -39,3 +39,15 @@ consumers and Ethereal behavior are migrated in subsequent phases.
 
 Adding serialized `state_mask` advances save format 79 to 80; prior formats
 remain rejected.
+
+## Ethereal and status invulnerability
+
+`BHbn` contributes ETHEREAL. Ethereal attackers cannot make ordinary attacks;
+physical attacks cannot damage Ethereal targets, while Magic attacks and spell
+damage receive the Warcraft 66% bonus. Banish slows movement by 50%. Queries
+ignore expired statuses, restoring normal eligibility as the slot expires.
+
+`BHds` contributes INVULNERABLE, and the damage gate checks status contributors
+alongside the historical entity boolean. Divine Shield retains its existing
+thinker and boolean restoration for save and script compatibility. Integer
+damage rounding and cross-family parity should be checked against retail data.

@@ -1480,6 +1480,8 @@ static float unit_effective_speed(edict_t *ent) {
     speed = unit_apply_earthquake_speed(ent, speed);
     speed *= 1.0f - S_PurgeMoveReduction(ent);
     speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
+    /* Retail Banish slows movement by 50%; other ethereal sources need not. */
+    if (S_UnitHasStatus(ent, MAKEFOURCC('B','H','b','n'))) speed *= 0.5f;
     speed *= 1.0f + S_EnduranceMoveBonus(ent);
     return speed;
 }

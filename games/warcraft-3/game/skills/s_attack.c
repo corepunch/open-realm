@@ -192,7 +192,8 @@ static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
 }
 
 static bool can_attack(edict_t const *ent) {
-    if (S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
+    if (unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
+        S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
     if (!attack_mask_has_weapon(ent, attack_retaliation_mask(ent))) return false;
     return !ent->currentmove || ent->currentmove->proc != CAbilityAttack;
@@ -204,7 +205,11 @@ static bool can_attack(edict_t const *ent) {
 static bool attack_can_target_mask(edict_t const *attacker, edict_t const *target, uint32_t mask) {
     uint32_t flag;
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
-        !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target)) return false;
+        !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target) ||
+        unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) ||
+        (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) &&
+         !(((mask & 1u) && attacker->attack1.type == ATK_MAGIC) ||
+           ((mask & 2u) && attacker->attack2.type == ATK_MAGIC)))) return false;
     if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
     if (target->destructable) return G_DestructableCanBeAttackedBy(attacker, target);
     if (M_IsDead((edict_t *)target)) return false;
@@ -323,6 +328,12 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
                                   ? game.constants.defenseArmor
                                   : 0.06f;
     float dmg = (float)base * mult;
+    /* Ethereal receivers reject physical attack damage, and amplify magic attacks.
+     * Source: Blizzard Warcraft III spell basics (66% bonus). */
+    if (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL)) {
+        if (atk != ATK_MAGIC && atk != ATK_SPELLS) return 0;
+        dmg *= 1.66f;
+    }
     float armor = G_UnitArmorValue(target);
     if (armor >= 0.0f)
         dmg = dmg / (1.0f + armor * armor_coefficient);
@@ -339,7 +350,9 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
 void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     bool instant_kill;
 
-    if (!target || target->invulnerable || S_UnitIsCycloned(target) || M_IsDead(target)) {
+    if (!target || target->invulnerable ||
+        unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE) ||
+        S_UnitIsCycloned(target) || M_IsDead(target)) {
         return;
     }
     /* Instant-kill follows the same combat path for units and attackable destructables; the old
@@ -397,6 +410,9 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
 }
 
 void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
+    if (unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL)) return;
+    if (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) &&
+        attack_profile(attacker, target)->type != ATK_MAGIC) return;
     if (S_EvasionRoll(target)) return;
     { float const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (float)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
