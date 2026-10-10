@@ -1474,12 +1474,12 @@ static float unit_effective_speed(edict_t *ent) {
     uint32_t level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
     speed *= 1.0f + S_UnholyMoveBonus(ent);
-    speed *= 1.0f + S_BloodlustMoveBonus(ent);
+    /* Status-owned movement contributions are resolved once, not per spell. */
     speed *= S_HumanMoveFactor(ent);
-    speed *= 1.0f - S_CrippleMoveReduction(ent);
+    speed *= MAX(0.0f, 1.0f + unit_status_modifier_total(ent, WC3_STATUS_MOD_MOVE_SPEED_PERCENT));
     speed = unit_apply_earthquake_speed(ent, speed);
     speed *= 1.0f - S_PurgeMoveReduction(ent);
-    speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
+    /* Slow Poison is included in the shared modifier total above. */
     /* Retail Banish slows movement by 50%; other ethereal sources need not. */
     if (S_UnitHasStatus(ent, MAKEFOURCC('B','H','b','n'))) speed *= 0.5f;
     speed *= 1.0f + S_EnduranceMoveBonus(ent);

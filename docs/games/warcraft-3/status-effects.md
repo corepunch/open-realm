@@ -66,3 +66,13 @@ one. Phase 6 introduces the resolver without wiring it into existing combat or
 movement arithmetic, avoiding double application during the migration.
 
 The serialized modifier descriptors advance save format 80 to 81.
+
+## Owned authored modifier migration
+
+Cripple, Bloodlust, Slow Poison, Inner Fire, and Faerie Fire populate the
+status-owned descriptors. Movement, attack speed, attack damage, and armor
+consumers use the shared resolver for those contributions and remove their
+previous ability-specific adds to prevent double application. Contributions
+are combined before the shared speed multiplier; other ability bonuses retain
+their existing consumers. Retail stacking and rounding still need parity
+verification.

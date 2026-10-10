@@ -1402,8 +1402,9 @@ float G_UnitArmorValue(edict_t const *ent) {
             armor += G_AbilityLevel(MAKEFOURCC('A', 'I', 'd', 'a'), status->level)->data[0].number;
         }
     }
-    return armor + S_DevotionArmorBonus((edict_t *)ent) + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent) +
-        S_FaerieArmorDelta(ent) + S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent) +
+    return armor + unit_status_modifier_total(ent, WC3_STATUS_MOD_ARMOR_FLAT) +
+        S_DevotionArmorBonus((edict_t *)ent) + S_SpikedArmorBonus(ent) +
+        S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent) +
         S_ManaFlareArmorBonus(ent);
 }
 

@@ -1362,12 +1362,64 @@ cstring_t S_SpellBuffToken(cstring_t list, uint32_t index) {
     }
 }
 
+/* Translate supported authored buff data into owned numeric contributions.
+ * Existing ability procedures still own application and removal; the shared
+ * resolver owns aggregation.  Use per-buff families to avoid accidentally
+ * merging unrelated Warcraft stacking rules. */
+static void status_authored_modifier(heroabilitystatus_t *slot, uint32_t index,
+                                     wc3_status_modifier_type_t type, float value) {
+    wc3_status_modifier_t modifier = {
+        .type = type, .family = slot->code,
+        .policy = WC3_STATUS_MOD_STRONGEST_POSITIVE, .value = value
+    };
+    /* Negative families select their most detrimental value. */
+    if (value < 0.0f) modifier.policy = WC3_STATUS_MOD_STRONGEST_NEGATIVE;
+    (void)unit_status_setmodifier(slot, index, &modifier);
+}
+
+static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t ability) {
+    uint32_t rank;
+    if (!slot || !slot->level) return;
+    rank = slot->rank ? slot->rank : slot->level;
+    slot->modifier_count = 0;
+    memset(slot->modifiers, 0, sizeof(slot->modifiers));
+    switch (slot->code) {
+    case MAKEFOURCC('B','c','r','i'):
+        if (!ability) ability = MAKEFOURCC('A','c','r','i');
+        status_authored_modifier(slot, 0, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, 1, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, 2, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT, -S_SpellData(ability, rank, 3));
+        break;
+    case MAKEFOURCC('B','b','l','o'):
+        if (!ability) ability = MAKEFOURCC('A','b','l','o');
+        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, 1, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, S_SpellData(ability, rank, 2));
+        break;
+    case MAKEFOURCC('B','s','p','o'):
+        ability = MAKEFOURCC('A','s','p','o');
+        status_authored_modifier(slot, 0, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, 1, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
+        break;
+    case MAKEFOURCC('B','i','n','f'):
+        if (!ability) ability = MAKEFOURCC('A','i','n','f');
+        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ARMOR_FLAT, S_SpellData(ability, rank, 2));
+        break;
+    case MAKEFOURCC('B','f','a','e'):
+        if (!ability) ability = MAKEFOURCC('A','f','a','e');
+        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 1));
+        break;
+    default: break;
+    }
+}
+
 /* Lowest common timed-status lifecycle: apply/replace the authored status and
  * return its authoritative slot.  Presentation and payload remain caller-owned. */
 heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, uint32_t level, float duration) {
     if (!target || !buff || strlen(buff) < 4) return NULL;
     unit_addtimedstatus(target, buff, level, duration);
-    return unit_findstatus(target, FS_SLKKey(buff));
+    heroabilitystatus_t *status = unit_findstatus(target, FS_SLKKey(buff));
+    if (status) status_apply_authored_modifiers(status, status->source_ability);
+    return status;
 }
 
 /* BTLF is lifecycle ownership rather than an ordinary dispellable buff.
@@ -1382,6 +1434,7 @@ heroabilitystatus_t *S_SpellApplyTimedLife(edict_t *unit, uint32_t level, float 
 heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {
     heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, level, duration);
     if (!status) return NULL;
+    status_apply_authored_modifiers(status, code);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     return status;
 }
