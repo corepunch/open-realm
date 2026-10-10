@@ -668,6 +668,41 @@ TEST(wc3_ability_lifecycle, life_drain_transfers_health_from_manaless_target) {
     T_ASSERT(cast); T_FEQ(hp, 970, .001f); T_FEQ(healed, 530, .001f);
 }
 
+/* The channel's next pulse must not drain either resource after a stun. */
+TEST(wc3_ability_lifecycle, siphon_mana_stun_before_tick_preserves_resources) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
+    edict_t *thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    float target_mana = enemy->mana.value, caster_mana = caster->mana.value;
+    T_ASSERT(unit_addtimedstatus(caster, "Bstu", 1, 2.0f));
+    level.time += 1000;
+    if (thinker->inuse) G_RunEntity(thinker);
+    T_ASSERT(!thinker->inuse);
+    T_FEQ(enemy->mana.value, target_mana, .001f);
+    T_FEQ(caster->mana.value, caster_mana, .001f);
+    T_ASSERT(!caster->channel || !caster->channel->code);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A fatal Life Drain health pulse must not also transfer mana afterwards. */
+TEST(wc3_ability_lifecycle, life_drain_lethal_pulse_does_not_drain_mana) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    enemy->health.value = 10;
+    enemy->mana.value = 90;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
+    edict_t *thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    level.time += 1000;
+    if (thinker->inuse) G_RunEntity(thinker);
+    T_ASSERT(M_IsDead(enemy));
+    T_FEQ(enemy->mana.value, 90, .001f);
+    T_ASSERT(!thinker->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Tranquility is AB_CHANNEL even though it needs no target-selection click. */
 TEST(wc3_ability_lifecycle, no_target_tranquility_establishes_channel) {
     edict_t *caster = review_setup();

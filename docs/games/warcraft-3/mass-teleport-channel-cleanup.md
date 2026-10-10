@@ -13,3 +13,12 @@ pre-existing pause is preserved through the thinker's `wait` snapshot.
 Regression coverage is in `mass_teleport_old_thinker_preserves_recast_destination_pause`.
 The test deliberately simulates a second channel identity after cancellation
 so cooldown policy does not obscure stale-cleanup behavior.
+
+## Siphon Mana and Life Drain channel pulses
+
+The shared drain thinker resolves caster and target incarnations and checks the
+channel serial before each scheduled pulse. Life Drain must revalidate the
+channel and living target after applying its health-damage component: the damage
+can kill the target or invoke cancellation through gameplay events. A cancelled
+or fatal health pulse must not proceed to its mana-transfer component. The
+regression tests cover pre-pulse stun and lethal Life Drain.

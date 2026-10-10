@@ -32,6 +32,14 @@ void siphon_mana_think(edict_t *ent) {
         amount = MIN(before, S_SpellData(code, rank, 1) * ent->velocity);
         if (amount > 0 && S_SpellDamage(target, caster, (int)amount))
             S_SpellHeal(caster, MAX(0, before - target->health.value));
+        /* Damage may kill the target or dispatch a trigger that interrupts this
+         * channel. Do not continue draining mana from a dead/stale target or
+         * let a retired thinker affect a replacement cast in the same pulse. */
+        if (!S_SpellChannelActive(ent) || !S_SpellIsAliveTarget(target) ||
+            S_SpellChannelTarget(ent) != target) {
+            S_SpellEndChannel(ent);
+            return;
+        }
         amount = MIN(target->mana.value, S_SpellData(code, rank, 2) * ent->velocity);
         target->mana.value -= amount;
         caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + amount);
