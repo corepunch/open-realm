@@ -35,8 +35,12 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = melee_buff(spell, level);
     if (!st.entity || !buff) return;
-    S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+    heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
                                   S_SpellHeroDuration(spell->code, level, st.entity));
+    if (status && status->code == MAKEFOURCC('B','b','l','o'))
+        status->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
+    else if (status && status->code == MAKEFOURCC('B','f','a','e'))
+        status->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
 }
 
 static bool melee_status_capacity(edict_t *target, abilityitem_t const *spell) {

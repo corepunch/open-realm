@@ -4331,9 +4331,12 @@ TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	T_EQ(roa.ability->proc, CAbilityRoar);
 	test_execute_code(caster, "Ablo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','b','l','o')));
+	T_ASSERT(unit_status_can_steal(unit_findstatus(ally, MAKEFOURCC('B','b','l','o'))));
 	T_FEQ(S_BloodlustAttackBonus(ally), 0.4f, 0.001f); T_FEQ(S_BloodlustMoveBonus(ally), 0.25f, 0.001f);
 	test_execute_code(caster, "Afae", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
-	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','f','a','e'))); T_FEQ(G_UnitArmorValue(enemy), 2.0f, 0.001f);
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','f','a','e')));
+	T_ASSERT(unit_status_can_steal(unit_findstatus(enemy, MAKEFOURCC('B','f','a','e'))));
+	T_FEQ(G_UnitArmorValue(enemy), 2.0f, 0.001f);
 	test_execute_code(caster, "Arej", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','r','e','j'))); T_FEQ(S_RejuvHealRate(ally), 400.0f / 12.0f, 0.01f);
 	test_execute_code(caster, "Aroa", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
