@@ -46,8 +46,9 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
 static bool melee_status_capacity(edict_t *caster, edict_t *target, abilityitem_t const *spell) {
     uint32_t const level = S_SpellLevel(caster, spell->code);
     cstring_t const buff = melee_buff(spell, level);
-    return buff && unit_status_checkapplication(target, &(status_application_t){ .buff = buff, .level = level }) !=
-        WC3_STATUS_APPLY_FULL;
+    wc3_status_apply_check_t const check = buff ? unit_status_checkapplication(target,
+        &(status_application_t){ .buff = buff, .level = level }) : WC3_STATUS_APPLY_INVALID;
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 static bool bloodlust_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -63,13 +64,14 @@ static bool faerie_validate(edict_t *caster, spellTarget_t st, abilityitem_t con
 static bool rejuv_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level;
     cstring_t buff;
+    wc3_status_apply_check_t check;
     if (!spell || !st.entity || !S_SpellIsAliveTarget(st.entity) || !S_SpellIsFriend(caster, st.entity))
         return false;
     level = S_SpellLevel(caster, spell->code);
     buff = melee_buff(spell, level);
-    return buff && unit_status_checkapplication(st.entity, &(status_application_t){
-        .buff = buff, .level = level
-    }) != WC3_STATUS_APPLY_FULL;
+    if (!buff) return false;
+    check = unit_status_checkapplication(st.entity, &(status_application_t){ .buff = buff, .level = level });
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 /* Name=Bloodlust
