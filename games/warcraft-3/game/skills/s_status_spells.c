@@ -112,10 +112,10 @@ static void poison_tick(edict_t *target, heroabilitystatus_t *slot) {
     source = slot->source;
     if (!source || !source->inuse || source->spawn_time != slot->source_spawn_time) return;
     damage = MAX(0.0f, S_SpellData(slot->data, slot->rank, 1));
-    while (slot->level && slot->next_tick <= G_Time() && slot->next_tick < slot->timestamp) {
+    while (unit_status_take_due_tick(slot, POISON_TICK_MS, G_Time())) {
         /* Damage updates victim statuses too; advance before applying it so the
          * recursive update cannot repeat this pulse. */
-        slot->next_tick += POISON_TICK_MS;
+        /* Deadline already advanced by the shared scheduler helper. */
         if (damage > 0.0f) S_SpellDamage(target, source, (int)damage);
         if (M_IsDead(target)) break;
     }

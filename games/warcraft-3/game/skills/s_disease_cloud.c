@@ -10,10 +10,10 @@ static void disease_tick(edict_t *target, heroabilitystatus_t *slot) {
         unit_expirestatus(target, slot);
         return;
     }
-    while (slot->level && slot->next_tick <= G_Time() && slot->next_tick < slot->timestamp) {
+    while (unit_status_take_due_tick(slot, DISEASE_TICK_MS, G_Time())) {
         uint32_t code = slot->data, rank = slot->rank;
         /* T_Damage updates statuses too: advance before damage to prevent recursive ticks. */
-        slot->next_tick += DISEASE_TICK_MS;
+        /* Deadline already advanced by the shared scheduler helper. */
         S_SpellDamage(target, source, (int)S_SpellData(code, rank, 2));
         if (M_IsDead(target)) break;
     }

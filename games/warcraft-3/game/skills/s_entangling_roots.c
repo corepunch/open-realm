@@ -15,9 +15,9 @@ static void entangling_roots_tick(edict_t *target, heroabilitystatus_t *slot) {
     source = S_SpellStatusSource(slot);
     if (!source) return;
     damage = MAX(0.0f, S_SpellData(slot->data, slot->rank, 1));
-    while (slot->level && slot->next_tick <= G_Time() && slot->next_tick < slot->timestamp) {
+    while (unit_status_take_due_tick(slot, ENTANGLING_ROOTS_TICK_MS, G_Time())) {
         /* Damage can recurse through unit_updatestatuses(); advance first. */
-        slot->next_tick += ENTANGLING_ROOTS_TICK_MS;
+        /* Deadline already advanced by the shared scheduler helper. */
         if (damage > 0.0f) S_SpellDamage(target, source, (int)damage);
         if (M_IsDead(target)) break;
     }

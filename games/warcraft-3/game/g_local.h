@@ -2788,6 +2788,10 @@ void unit_stand_no_queue(edict_t *);
 void unit_entercombat(edict_t *, edict_t *);
 void unit_leavecombat(edict_t *);
 bool unit_affectingcombat(edict_t *);
+/* Consume one due pulse. Advances its deadline before the caller applies damage,
+ * avoiding a duplicate pulse when damage recursively updates statuses.
+ * A zero deadline is unscheduled; expiry is exclusive. */
+bool unit_status_take_due_tick(heroabilitystatus_t *, uint32_t interval_ms, uint32_t now_ms);
 void unit_updatestatuses(edict_t *);
 void unit_expirestatus(edict_t *, heroabilitystatus_t *);
 void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
