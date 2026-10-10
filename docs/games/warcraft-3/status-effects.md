@@ -76,3 +76,13 @@ previous ability-specific adds to prevent double application. Contributions
 are combined before the shared speed multiplier; other ability bonuses retain
 their existing consumers. Retail stacking and rounding still need parity
 verification.
+
+## Shared periodic deadline consumption
+
+Poison Attack, Disease Cloud, and Entangling Roots consume one-second pulses
+through `unit_status_take_due_tick()`. It advances the deadline before ability
+damage, preventing recursive status updates from repeating the same pulse.
+It rejects unscheduled and expired deadlines, while retaining catch-up timing
+after skipped simulation frames. Ability code continues to own source checks,
+damage values, and removal semantics. Existing `next_tick` serialization is
+unchanged; tests cover due, catch-up, recursion, expiry, and invalid deadlines.

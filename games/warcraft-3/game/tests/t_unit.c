@@ -2239,4 +2239,37 @@ TEST(wc3_unit, status_modifiers_ignore_other_types_and_support_positive_families
     T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.0f, 0.001f);
 }
 
+TEST(wc3_unit, status_periodic_scheduler_advances_before_callback_and_stops_at_expiry) {
+    heroabilitystatus_t slot = {0};
+    slot.level = 1;
+    slot.timestamp = 5500;
+    slot.next_tick = 1000;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 999));
+    T_ASSERT(unit_status_take_due_tick(&slot, 1000, 1000));
+    T_EQ(slot.next_tick, 2000);
+    /* Recursive status updates during damage cannot consume the same pulse. */
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 1000));
+    T_ASSERT(unit_status_take_due_tick(&slot, 1000, 4500));
+    T_EQ(slot.next_tick, 3000);
+    T_ASSERT(unit_status_take_due_tick(&slot, 1000, 4500));
+    T_ASSERT(unit_status_take_due_tick(&slot, 1000, 4500));
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 4500));
+    T_EQ(slot.next_tick, 5000);
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 6000));
+}
+
+TEST(wc3_unit, status_periodic_scheduler_rejects_unscheduled_expired_or_invalid_ticks) {
+    heroabilitystatus_t slot = {0};
+    slot.level = 1;
+    slot.timestamp = 3000;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 2000));
+    slot.next_tick = 3000;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 3000));
+    slot.next_tick = 2000;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 0, 2000));
+    slot.level = 0;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 2000));
+    T_ASSERT(!unit_status_take_due_tick(NULL, 1000, 2000));
+}
+
 #endif /* BZ_TESTS */
