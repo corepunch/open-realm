@@ -60,6 +60,7 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
         slot = S_SpellApplyTimedStatus(target, buff, level, duration);
         if (!slot) return true;
         slot->data = spell->code;
+        slot->source_ability = spell->code;
         slot->rank = level;
         slot->source = ent;
         slot->source_spawn_time = ent->spawn_time;

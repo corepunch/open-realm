@@ -40,7 +40,7 @@ BZ_ABILITY_PROC(CAbilityCyclone) {
     slot = S_SpellApplyTimedStatus(target->entity, buff, level,
                                     S_SpellResistantDuration(call->item->code, level, target->entity));
     /* Timed-status replacement clears payload; restore the applying rawcode. */
-    if (slot) slot->data = call->item->code;
+    if (slot) { slot->data = call->item->code; slot->source_ability = call->item->code; }
     target->entity->goalentity = NULL;
     target->entity->currentmove = &holdpos_move_stand;
     return true;

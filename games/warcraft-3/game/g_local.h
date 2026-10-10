@@ -1333,10 +1333,23 @@ typedef struct heroabilitystatus_s {
     uint32_t level;
     uint32_t timestamp;
     uint32_t duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
-    uint32_t data; /* applying ability rawcode or ability-specific numeric payload */
+    uint32_t data; /* legacy ability rawcode or ability-specific numeric payload; retain unchanged */
+    uint32_t source_ability; /* explicit applying ability rawcode; zero means legacy/unattributed */
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
 } heroabilitystatus_t;
+
+/* Status application is authoritative for identity and source metadata.  The
+ * legacy data payload is intentionally independent of source_ability. */
+typedef struct {
+    cstring_t buff;
+    uint32_t level;
+    float duration;
+    uint32_t source_ability;
+    uint32_t data;
+    edict_t *source;
+    uint32_t rank;
+} status_application_t;
 
 typedef struct {
     uint32_t code;       /* normalized AbilityData.code rawcode; zero means unused slot */
@@ -3358,6 +3371,7 @@ bool unit_additemtoslot(edict_t *, edict_t *, uint32_t);
 bool unit_additem(edict_t *, edict_t *);
 void unit_addstatus(edict_t *, cstring_t, uint32_t);
 void unit_addtimedstatus(edict_t *, cstring_t, uint32_t, float);
+heroabilitystatus_t *unit_applystatus(edict_t *, status_application_t const *);
 uint32_t G_UnitStatusLevel(edict_t const *, uint32_t);
 bool unit_statusshowstimedbar(uint32_t);
 float unit_statusremainingfraction(heroabilitystatus_t const *);

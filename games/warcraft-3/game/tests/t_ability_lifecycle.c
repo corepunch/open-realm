@@ -993,3 +993,28 @@ TEST(wc3_ability_lifecycle, flame_strike_custom_interval_can_tick_twice_per_fram
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 #endif
+
+TEST(wc3_ability_lifecycle, status_application_separates_owner_from_payload) {
+    edict_t *target = review_setup(), *source = review_unit(0, 100);
+    status_application_t app = {
+        .buff = "Bixx", .level = 1, .duration = 6.0f,
+        .source_ability = MAKEFOURCC('A','H','f','s'),
+        .data = 125, .source = source, .rank = 2
+    };
+    heroabilitystatus_t *slot = unit_applystatus(target, &app);
+    T_NOT_NULL(slot);
+    T_EQ(slot->source_ability, app.source_ability);
+    T_EQ(slot->data, 125);
+    T_EQ(slot->source, source);
+    T_EQ(slot->source_spawn_time, source->spawn_time);
+    T_EQ(slot->rank, 2);
+    T_ASSERT(slot->timestamp > G_Time());
+    app.data = 250;
+    app.source_ability = 0;
+    app.source = NULL;
+    slot = unit_applystatus(target, &app); /* Replace defaults in stock data. */
+    T_NOT_NULL(slot);
+    T_EQ(slot->data, 250);
+    T_EQ(slot->source_ability, 0);
+    T_EQ(slot->source, NULL);
+}
