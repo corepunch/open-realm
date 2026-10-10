@@ -1050,11 +1050,17 @@ void G_GameResultDebug(cstring_t format, ...) {
     fputc('\n', stderr);
 }
 
+static bool G_IsCampaignMapPath(cstring_t path);
+
 void G_RequestEndGame(bool do_score_screen) {
     /* Score-screen transport is not implemented yet. Keep the argument at the
      * game/session boundary so EndGame(true) does not get baked into HUD code. */
-    G_GameResultDebug("request EndGame score_screen=%u", (unsigned)do_score_screen);
-    if (level.campaign_select_on_end) {
+    cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
+    bool campaign_select = level.campaign_select_on_end ||
+        (G_IsSinglePlayer() && G_IsCampaignMapPath(map));
+    G_GameResultDebug("request EndGame score_screen=%u campaign_select=%u map=%s",
+        (unsigned)do_score_screen, (unsigned)campaign_select, map ? map : "(null)");
+    if (campaign_select) {
         level.campaign_select_on_end = false;
         gi.MenuAction("menu", "menu_single_player_campaign");
         return;
@@ -1064,7 +1070,7 @@ void G_RequestEndGame(bool do_score_screen) {
 
 static bool G_IsCampaignMapPath(cstring_t path) {
     if (!path) return false;
-    /* Campaign prefixes identify maps that should return to the campaign selector. */
+    /* Campaign prefixes identify single-player maps that should return to the campaign selector. */
     FOR_LOOP(i, sizeof(wc3_campaign_paths) / sizeof(wc3_campaign_paths[0]))
         if (!strncasecmp(path, wc3_campaign_paths[i], strlen(wc3_campaign_paths[i]))) return true;
     return false;
@@ -1094,8 +1100,14 @@ void G_RequestRestartGame(bool do_score_screen) {
 }
 
 void G_RequestLoadGameMenu(void) {
-    G_GameResultDebug("request LoadGameMenu");
-    gi.MenuAction("menu", "menu_loadgame");
+    G_GameResultDebug("request LoadGameMenu result_dialog=1");
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t *client = game.clients + i;
+        edict_t *ent;
+        if (!client->connected) continue;
+        ent = G_GetPlayerEntityByNumber(client->ps.number);
+        if (ent) UI_ShowGameMenuLoad(ent, true);
+    }
 }
 
 void G_RequestLoadGameNamed(cstring_t name) {

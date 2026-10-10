@@ -1070,7 +1070,7 @@ uint32_t DialogClear(jass_t *j) {
 uint32_t DialogSetMessage(jass_t *j) {
     jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
     cstring_t message = jass_checkstring(j, 2);
-    if (dialog) snprintf(dialog->message, sizeof(dialog->message), "%s", message ? G_LevelString(message) : "");
+    G_JassDialogSetMessage(dialog, message);
     return 0;
 }
 uint32_t DialogAddButton(jass_t *j) {

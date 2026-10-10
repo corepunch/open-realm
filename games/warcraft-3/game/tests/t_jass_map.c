@@ -1632,10 +1632,16 @@ TEST(wc3_jass_map, force_campaign_select_defers_until_endgame) {
 
 TEST(wc3_jass_map, endgame_without_campaign_select_returns_to_main_menu) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
+    bool old_campaign_select = level.campaign_select_on_end;
+    char old_map[MAX_PATHLEN];
 
+    strlcpy(old_map, level.map_path, sizeof(old_map));
     victory_menu_action[0] = '\0';
     victory_menu_arg[0] = '\0';
+    level.mapinfo = NULL;
     level.campaign_select_on_end = false;
+    strlcpy(level.map_path, "Maps\\Melee\\Test.w3m", sizeof(level.map_path));
     gi.MenuAction = capture_victory_menu_action;
 
     G_RequestEndGame(false);
@@ -1643,6 +1649,34 @@ TEST(wc3_jass_map, endgame_without_campaign_select_returns_to_main_menu) {
     T_STREQ(victory_menu_action, "menu");
     T_STREQ(victory_menu_arg, "menu_main");
 
+    level.mapinfo = old_mapinfo;
+    level.campaign_select_on_end = old_campaign_select;
+    strlcpy(level.map_path, old_map, sizeof(level.map_path));
+    gi.MenuAction = old_menu_action;
+}
+
+TEST(wc3_jass_map, endgame_campaign_map_returns_to_campaign_select) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
+    bool old_campaign_select = level.campaign_select_on_end;
+    char old_map[MAX_PATHLEN];
+
+    strlcpy(old_map, level.map_path, sizeof(old_map));
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+    level.mapinfo = NULL;
+    level.campaign_select_on_end = false;
+    strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
+    gi.MenuAction = capture_victory_menu_action;
+
+    G_RequestEndGame(false);
+
+    T_STREQ(victory_menu_action, "menu");
+    T_STREQ(victory_menu_arg, "menu_single_player_campaign");
+
+    level.mapinfo = old_mapinfo;
+    level.campaign_select_on_end = old_campaign_select;
+    strlcpy(level.map_path, old_map, sizeof(level.map_path));
     gi.MenuAction = old_menu_action;
 }
 

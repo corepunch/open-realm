@@ -164,6 +164,90 @@ TEST(wc3_dialog, clicking_publishes_only_matching_registrations) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_dialog, paused_choice_action_runs_synchronously) {
+    jassDialog_t *dialog;
+    jassDialogButton_t *button;
+    bool old_script_paused;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " dialog route = null\n"
+        " integer choices = 0\n"
+        "endglobals\n"
+        "function onDialog takes nothing returns nothing\n"
+        " set choices = choices + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        " local trigger t = CreateTrigger()\n"
+        " set route = DialogCreate()\n"
+        " call DialogAddButton(route, \"Continue\", 0)\n"
+        " call TriggerRegisterDialogEvent(t, route)\n"
+        " call TriggerAddAction(t, function onDialog)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        " call BJassAssert(choices == 1, \"paused choice action must run before click returns\")\n"
+        "endfunction\n"));
+    dialog = G_JassDialog(level.dialogs);
+    button = G_JassDialogButton(level.dialog_buttons);
+    T_NOT_NULL(dialog); T_NOT_NULL(button);
+    game.clients[0].ps.number = 0;
+    g_edicts[0].client = game.clients;
+    dialog->visible_players = 1;
+    old_script_paused = level.script_paused;
+    level.script_paused = true;
+
+    G_JassDialogClick(g_edicts, dialog->id, button->id);
+
+    T_EQ(level.events.read, level.events.write);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.script_paused = old_script_paused;
+}
+
+TEST(wc3_dialog, displaying_choice_suppresses_pending_result_fallback) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+    int (*old_image)(cstring_t) = gi.ImageIndex;
+    stbIniCache_t old_theme = game.config.theme, theme = { 0 };
+    cstring_t theme_text = "[Default]\nEscMenuBackground=DialogBackground.blp\nEscMenuBorder=DialogBorder.blp\n";
+    jassDialog_t *dialog;
+
+    setup_test_world();
+    UI_ClearTemplates();
+    dialog = G_JassDialogCreate();
+    T_NOT_NULL(dialog);
+    T_NOT_NULL(G_JassDialogAddButton(dialog, "Restart", NULL));
+    game.clients[0].ps.number = 0;
+    game.clients[0].connected = true;
+    game.clients[0].jass.pending_game_result = 2;
+    game.clients[0].jass.pending_game_result_event = 17;
+    g_edicts[0].client = game.clients;
+    T_ASSERT(Stb_IniCacheLoadBuffer(&theme, theme_text));
+    game.config.theme = theme;
+    gi.Write = dialog_test_capture_write;
+    gi.unicast = dialog_test_unicast;
+    gi.FontIndex = dialog_test_font;
+    gi.ImageIndex = dialog_test_image;
+    dialog_open_count = dialog_write_state = 0;
+
+    G_JassDialogDisplay(&game.clients[0].ps, dialog, true);
+
+    T_EQ(game.clients[0].jass.pending_game_result, 0u);
+    T_EQ(game.clients[0].jass.pending_game_result_event, 0u);
+    T_EQ(dialog_open_count, 1u);
+    T_EQ(dialog->visible_players, 1u);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    gi.ImageIndex = old_image;
+    UI_ClearTemplates();
+    Stb_IniCacheFree(&game.config.theme);
+    game.config.theme = old_theme;
+}
+
 TEST(wc3_dialog, click_visibility_uses_player_number_not_client_slot) {
     jassDialog_t *dialog;
     jassDialogButton_t *button;

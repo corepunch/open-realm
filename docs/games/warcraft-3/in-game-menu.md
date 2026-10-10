@@ -30,8 +30,8 @@ authored `EscMenuOptionsPanel` Sound page, whose checkboxes and sliders edit cli
 [server-authored cvar controls](../../architecture/client-windows.md#server-authored-cvar-controls); OK accepts, while Cancel
 and Escape restore the values from before the page was opened. Help and Tips remain visibly disabled. OpenRealm enables the authored `RestartButton` for single-player missions, labels it `Restart Mission`, and
 routes it through the existing deferred current-map reload used by `RestartGame`; multiplayer keeps the button visible but disabled.
-Current Warsmash also disables `PauseButton`; OpenRealm deliberately retains its newer pause-menu behavior and labels that button
-`Resume Game`, with the same close action as Return.
+Current Warsmash disables `PauseButton`. OpenRealm hides that duplicate control and keeps `ReturnButton` as the menu's single
+resume action.
 
 ## OpenRealm Data Flow
 

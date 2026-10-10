@@ -398,9 +398,10 @@ Esc-menu backdrop art at the authored dialog bounds; on victory, Quit is re-anch
 small gap so both actions stay inside that window. The result is not Escape-dismissable because its explicit buttons
 own the Blizzard.j/session continuation.
 
-The fallback exists because the stock Blizzard.j result path still cannot build its normal ScriptDialogs: generic
-`DialogCreate` / `DialogAddButton` / `DialogDisplay` and dialog-button event support remain incomplete. It therefore
-does not try to recreate every campaign/melee policy. It uses Warcraft `GAMEOVER_*` global strings where available,
+The native fallback remains for result paths that do not display a script-authored dialog. When a JASS choice dialog
+is displayed for a player with a pending result fallback, that dialog takes ownership and the native fallback is
+suppressed. This prevents both result presentations from appearing together. The native fallback does not try to
+recreate every campaign/melee policy. It uses Warcraft `GAMEOVER_*` global strings where available,
 uses Restart/Load/Quit Mission for the supported single-player defeat subset, uses Continue/Continue Game for
 victory, and routes those executable actions through game/session boundaries. Observer continuation remains deferred
 until observer-on-death simulation policy exists.
@@ -422,9 +423,11 @@ under the active VM. `MenuAction` therefore copies the resolved map/menu argumen
 after the enclosing `SV_Frame` has returned. Keep `CustomVictoryOkBJ` itself synchronous so its `PauseGame(false)`
 executes, but keep the actual world replacement deferred.
 
-`EndGame(doScoreScreen)` currently returns to the frontend and consumes but cannot yet honor `doScoreScreen`; there
+`EndGame(doScoreScreen)` returns single-player campaign maps to the campaign selector and other sessions to the main
+menu, consuming an explicit `ForceCampaignSelectScreen` request as well. It cannot yet honor `doScoreScreen`; there
 is no score-screen controller. `ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
-`DisplayLoadDialog` enters the frontend load-game screen, and `ForceCampaignSelectScreen` returns to
+`DisplayLoadDialog` opens the in-game save/load panel; cancelling a result-dialog load returns to the game menu with
+Return to Game disabled and Escape consumed. `ForceCampaignSelectScreen` returns to
 `menu_single_player_campaign`. On single-player victory, the fallback Continue button delegates to Blizzard.j's
 `CustomVictoryOkBJ`, preserving its `bj_changeLevelMapName` decision instead of guessing the next map in HUD code.
 Because `CustomVictoryDialogBJ` has already paused single-player simulation, this fallback invocation is synchronous:
@@ -436,7 +439,7 @@ For result-lifecycle diagnosis, `wc3_game_result_debug 1` enables game-module `W
 deferral (`event_queue`, `cinematic`, or `disconnected`), paused-result event draining/cinematic override, FDF binding,
 server layout emission, and result-button session actions. Pair it with the shared `ui_layout_debug 1` transport trace when client receipt/storage must also be observed;
 that generic trace logs every UI layer and the server-side result breadcrumb identifies the numeric result layer to correlate.
-Both diagnostics are runtime-gated and keep Warcraft-specific knowledge out of shared client code.
+`wc3_dialog_debug 1` adds `WC3_DIALOG` breadcrumbs for JASS dialog creation, labels, visibility, generated button state, and callbacks. Use it to trace the script-authored choice path. All three diagnostics are runtime-gated and keep Warcraft-specific knowledge out of shared client code.
 
 Single-player result pausing is also intentionally still missing. Result UI should reuse the existing WC3 pause/modal
 ownership path rather than suppressing `SV_Frame` or creating a second clock-freeze mechanism. `PauseGame` and
