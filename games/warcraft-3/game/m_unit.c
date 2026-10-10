@@ -1582,6 +1582,17 @@ bool unit_status_can_dispel(heroabilitystatus_t const *status) {
     return !S_StatusIsUndispellable(status);
 }
 
+/* Dispel Magic, Purge and Abolish Magic are magical dispels. Explicitly
+ * physical-only effects cannot be removed by these abilities. Unclassified
+ * legacy statuses keep their existing dispellability until producers are
+ * explicitly categorized. Ambiguous dual classification fails closed. */
+bool unit_status_can_magic_dispel(heroabilitystatus_t const *status) {
+    uint32_t kind;
+    if (!unit_status_can_dispel(status)) return false;
+    kind = status->buff_flags & (WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_PHYSICAL);
+    return kind == 0 || kind == WC3_STATUS_BUFF_MAGICAL;
+}
+
 /* A transferred status must be explicitly opted in.  Never steal a generic
  * status with unknown payload, callbacks, source or periodic state. */
 bool unit_status_can_steal(heroabilitystatus_t const *status) {

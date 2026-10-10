@@ -1014,6 +1014,27 @@ TEST(wc3_ability_lifecycle, classified_status_dispel_and_transfer_policy) {
     T_ASSERT(!unit_status_can_dispel(slot));
 }
 
+/* Magical dispels must not strip explicit physical-only statuses; legacy
+ * unclassified records retain their previous behavior. */
+TEST(wc3_ability_lifecycle, magical_dispel_respects_physical_classification) {
+    edict_t *unit = review_setup();
+    status_application_t app = { .buff = "Bixx", .level = 1, .duration = 5.0f };
+    heroabilitystatus_t *slot = unit_applystatus(unit, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_status_can_magic_dispel(slot)); /* legacy compatibility */
+    slot->buff_flags = WC3_STATUS_BUFF_PHYSICAL;
+    T_ASSERT(unit_status_can_dispel(slot));
+    T_ASSERT(!unit_status_can_magic_dispel(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_MAGICAL;
+    T_ASSERT(unit_status_can_magic_dispel(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_PHYSICAL;
+    T_ASSERT(!unit_status_can_magic_dispel(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_UNDISPELLABLE | WC3_STATUS_BUFF_MAGICAL;
+    T_ASSERT(!unit_status_can_magic_dispel(slot));
+    unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_status_can_magic_dispel(slot));
+}
+
 TEST(wc3_ability_lifecycle, classified_status_application_replace_resets_flags) {
     edict_t *unit = review_setup();
     status_application_t app = {

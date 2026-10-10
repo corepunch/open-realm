@@ -69,7 +69,7 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *s = st.entity->abilstatus + i;
         if (!s->level || !s->timestamp) continue;
-        if (!unit_status_can_dispel(s)) continue;
+        if (!unit_status_can_magic_dispel(s)) continue;
         unit_removestatus_deferred(st.entity, s, STATUS_REMOVE_DISPEL);
     }
     unit_refreshstatusflags(st.entity);
