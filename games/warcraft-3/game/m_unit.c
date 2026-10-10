@@ -1145,6 +1145,13 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     float temporary_attack1, temporary_attack2;
     uint32_t old_flags;
     bool source_building, target_building;
+    /* SP_SpawnUnit initializes guards for new entities; a morph is not a spawn.
+     * Snapshot just the guard-owned fields, not the entire movement state. */
+    vec2_t creep_guard_origin;
+    uint32_t creep_guard_last_hit_ms, creep_guard_outside_ms;
+    uint32_t creep_guard_return_retries, creep_guard_retry_at_ms;
+    bool creep_guard_enabled;
+    creepGuardPhase_t creep_guard_phase;
 
     if (!unit || !type || !G_UnitUI(type)->modelFile) return false;
     source_building = G_UnitIsBuilding(unit->class_id);
@@ -1160,6 +1167,13 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     temporary_attack1 = unit->attack1.temporaryDamageBonus;
     temporary_attack2 = unit->attack2.temporaryDamageBonus;
     old_flags = unit->s.flags;
+    creep_guard_origin = unit->movement.creep_guard_origin;
+    creep_guard_last_hit_ms = unit->movement.creep_guard_last_hit_ms;
+    creep_guard_outside_ms = unit->movement.creep_guard_outside_ms;
+    creep_guard_return_retries = unit->movement.creep_guard_return_retries;
+    creep_guard_retry_at_ms = unit->movement.creep_guard_retry_at_ms;
+    creep_guard_enabled = unit->movement.creep_guard_enabled;
+    creep_guard_phase = unit->movement.creep_guard_phase;
 
     G_ClearUnitFood(unit);
     if (source_building && unit->pathtex) {
@@ -1180,6 +1194,15 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     unit->temporary_health_bonus = 0.0f;
     unit->temporary_mana_bonus = 0.0f;
     SP_SpawnUnit(unit);
+    /* A transformation retains the same handle, owner, and guard post. Do not
+     * silently recapture its current position or re-enable a disabled guard. */
+    unit->movement.creep_guard_origin = creep_guard_origin;
+    unit->movement.creep_guard_last_hit_ms = creep_guard_last_hit_ms;
+    unit->movement.creep_guard_outside_ms = creep_guard_outside_ms;
+    unit->movement.creep_guard_return_retries = creep_guard_return_retries;
+    unit->movement.creep_guard_retry_at_ms = creep_guard_retry_at_ms;
+    unit->movement.creep_guard_enabled = creep_guard_enabled;
+    unit->movement.creep_guard_phase = creep_guard_phase;
     G_ApplyTemporaryMaxHealthBonus(unit, temporary_health);
     G_ApplyTemporaryMaxManaBonus(unit, temporary_mana);
     G_SetHealth(unit, MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio)));

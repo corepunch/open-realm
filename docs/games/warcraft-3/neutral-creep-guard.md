@@ -89,3 +89,11 @@ Regressions exercise collision-corrected CreateUnit placement, an active
 return Move disabled mid-flight, preservation of an explicit Move, and
 owner transfer without resetting the Stop anchor.
 Run the affected build and `make test` locally before merging.
+
+## Unit transformations
+
+`G_TransformUnitType` rebinds the same unit through `SP_SpawnUnit` rather than
+creating a new creep. It restores the existing Neutral Hostile guard anchor,
+enabled policy, lifecycle phase, and retry/damage timestamps after rebinding so
+a morph away from the original position does not relocate its home or re-enable
+a deliberately disabled guard. Newly created units still initialize normally.
