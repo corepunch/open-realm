@@ -1523,12 +1523,16 @@ float unit_status_modifier_total(edict_t const *unit, wc3_status_modifier_type_t
         float value;
         bool used;
     } modifierFamily_t;
-    modifierFamily_t families[MAX_UNIT_STATUSES * WC3_STATUS_MAX_MODIFIERS] = { 0 };
+    /* Most units have no strongest-wins modifiers. Do not zero this
+     * table until the first applicable strongest-wins contribution. */
+    modifierFamily_t families[MAX_UNIT_STATUSES * WC3_STATUS_MAX_MODIFIERS];
+    bool have_families = false;
     float result = 0.0f;
     if (!unit || type > WC3_STATUS_MOD_MANA_REGEN_FLAT) return 0.0f;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = unit->abilstatus + i;
-        if (!status->level || (status->timestamp && status->timestamp <= G_Time())) continue;
+        if (!status->level || !status->modifier_count ||
+            (status->timestamp && status->timestamp <= G_Time())) continue;
         FOR_LOOP(j, MIN(status->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
             wc3_status_modifier_t const *mod = status->modifiers + j;
             uint32_t key;
@@ -1537,6 +1541,10 @@ float unit_status_modifier_total(edict_t const *unit, wc3_status_modifier_type_t
             if (mod->policy == WC3_STATUS_MOD_ADD || !mod->family) {
                 result += mod->value;
                 continue;
+            }
+            if (!have_families) {
+                memset(families, 0, sizeof(families));
+                have_families = true;
             }
             key = (mod->family * 2654435761u ^ (uint32_t)type * 17u ^ mod->policy) & 63u;
             for (probe = 0; probe < sizeof(families) / sizeof(families[0]); probe++) {
@@ -1554,7 +1562,9 @@ float unit_status_modifier_total(edict_t const *unit, wc3_status_modifier_type_t
             }
         }
     }
-    FOR_LOOP(i, sizeof(families) / sizeof(families[0])) if (families[i].used) result += families[i].value;
+    if (have_families)
+        FOR_LOOP(i, sizeof(families) / sizeof(families[0]))
+            if (families[i].used) result += families[i].value;
     return result;
 }
 

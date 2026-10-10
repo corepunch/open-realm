@@ -48,6 +48,12 @@ This avoids nested status scans in movement, armor, and attack-rate queries.
 Expired or removed owners are excluded immediately, allowing the next
 strongest contributor to become effective without a separate inverse update.
 
+The strongest-wins hash table is initialized lazily: units with no applicable
+strongest-wins modifiers avoid zeroing the 64-entry table and skip its final
+reduction pass. Additive modifiers still accumulate directly; strongest-family
+selection, expiration filtering, and numeric semantics are unchanged. This is
+a per-query fast path, not a cached value, so no invalidation is required.
+
 `T_Damage(target, source, amount)` applies an already calculated amount. It
 handles hard invulnerability, Mana Shield, Spirit Link, damage events, health,
 and death. It does not apply weapon-type multipliers or armor.
