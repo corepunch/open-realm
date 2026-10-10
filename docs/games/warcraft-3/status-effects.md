@@ -21,3 +21,21 @@ or count. Source pointers retain their spawn generation for safe validation.
 
 Adding the serialized source identity changes the save layout; save format 79
 rejects earlier versions.
+
+## Composable categorical contributors
+
+`status_application_t.state_mask` installs categorical contributors on an
+individual status slot. `unit_hasstatusstate(unit, state)` accepts one state
+bit and returns true if any live slot supplies it; expired slots are ignored
+before cleanup. Removing or replacing a slot retires only its contribution.
+Refresh and Stack retain the existing owner and state mask.
+
+The state vocabulary includes STUNNED, ROOTED, SILENCED, SLEEPING,
+MAGIC_IMMUNE, INVULNERABLE, and ETHEREAL. These are separate from ability
+rawcodes and do not imply innate unit classifications or script-controlled
+flags. Existing rawcode-derived stun remains supported; explicit STUNNED
+contributors also update the `ent->stunned` cache on status refresh. Gameplay
+consumers and Ethereal behavior are migrated in subsequent phases.
+
+Adding serialized `state_mask` advances save format 79 to 80; prior formats
+remain rejected.

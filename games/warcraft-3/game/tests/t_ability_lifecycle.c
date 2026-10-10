@@ -1018,3 +1018,50 @@ TEST(wc3_ability_lifecycle, status_application_separates_owner_from_payload) {
     T_EQ(slot->source_ability, 0);
     T_EQ(slot->source, NULL);
 }
+
+/* Phase 3: status contributors are independent of buff rawcode and do not
+ * reinterpret legacy numeric status payloads. */
+TEST(wc3_ability_lifecycle, status_state_contributors_compose_and_expire) {
+    edict_t *target = review_setup();
+    status_application_t first = {
+        .buff = "Bixx", .level = 1, .duration = 8.0f,
+        .state_mask = WC3_STATUS_STATE_INVULNERABLE | WC3_STATUS_STATE_SILENCED,
+        .data = 125
+    };
+    status_application_t second = {
+        .buff = "Biyy", .level = 1, .duration = 8.0f,
+        .state_mask = WC3_STATUS_STATE_INVULNERABLE
+    };
+    heroabilitystatus_t *a = unit_applystatus(target, &first);
+    heroabilitystatus_t *b;
+    T_NOT_NULL(a);
+    b = unit_applystatus(target, &second);
+    T_NOT_NULL(b);
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE));
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_SILENCED));
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL));
+    T_EQ(a->data, 125);
+    unit_removestatus(target, a, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE));
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_SILENCED));
+    unit_removestatus(target, b, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE));
+}
+
+TEST(wc3_ability_lifecycle, status_state_replace_and_refresh) {
+    edict_t *target = review_setup();
+    status_application_t app = {
+        .buff = "Bixx", .level = 1, .duration = 6.0f,
+        .state_mask = WC3_STATUS_STATE_ROOTED
+    };
+    heroabilitystatus_t *slot = unit_applystatus(target, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_ROOTED));
+    app.state_mask = WC3_STATUS_STATE_ETHEREAL;
+    slot = unit_applystatus(target, &app); /* Replace (default policy). */
+    T_NOT_NULL(slot);
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_ROOTED));
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL));
+    slot->timestamp = G_Time(); /* Simulate elapsed lifetime before update. */
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL));
+}
