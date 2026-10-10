@@ -8640,24 +8640,38 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     T_NE(state.name, 0);
 }
 
-TEST(wc3_api, customize_entity_gate_family_publishes_hover_health) {
-    enum { GATE_RAWCODE_COUNT = 4 };
-    static DestructableData_t const row = { .file = "Gate.mdx", .displayName = "Ancient Elven Gate" };
-    static uint32_t const gates[GATE_RAWCODE_COUNT] = {
+TEST(wc3_api, customize_entity_selectable_debris_publishes_hover_health) {
+    enum { RAWCODE_COUNT = 7 };
+    static DestructableData_t row = { .file = "Gate.mdx", .displayName = "Ancient Elven Gate", .selectable = true };
+    static uint32_t const debris[RAWCODE_COUNT] = {
         MAKEFOURCC('D','T','g','1'), MAKEFOURCC('D','T','g','3'),
         MAKEFOURCC('D','T','g','5'), MAKEFOURCC('D','T','g','7'),
+        MAKEFOURCC('A','T','g','3'), MAKEFOURCC('L','T','g','1'), MAKEFOURCC('L','T','g','2'),
     };
     destructable_t destructable_state = { 0 };
     edict_t ent = { .inuse = true, .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
         .data = { .DestructableData = &row }, .destructable = &destructable_state,
         .health = { .value = 500, .max_value = 500 } };
 
-    FOR_LOOP(i, GATE_RAWCODE_COUNT) {
+    FOR_LOOP(i, RAWCODE_COUNT) {
         entityState_t state = { .number = 7, .model = 11 };
-        ent.class_id = gates[i];
+        ent.class_id = debris[i];
         globals.CustomizeEntity(0, &ent, &state);
         T_ASSERT(state.flags & EF_HOVER_HEALTH);
     }
+
+    /* Selectability, not a recognized gate prefix, owns the bar. */
+    ent.class_id = MAKEFOURCC('X','x','x','x');
+    row.selectable = false;
+    entityState_t state = { .number = 7, .model = 11 };
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+
+    row.selectable = true;
+    ent.invulnerable = true;
+    state = (entityState_t){ .number = 7, .model = 11 };
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
 }
 
 TEST(wc3_api, customize_entity_non_debris_destructables_have_no_hover_label) {
