@@ -435,11 +435,13 @@ static void CL_RegisterCameraControls(void) {
     Cvar_Get("cl_camera_pan_plane", "0", 0);
 }
 
-static bool CL_CanHoverHealthEntity(uint32_t entnum) {
+static bool CL_CanHoverableEntity(uint32_t entnum) {
     if (!entnum || entnum >= MAX_CLIENT_ENTITIES) {
         return false;
     }
-    return CL_EntityAllowsWorldHover(&cl.ents[entnum].current);
+    entityState_t const *state = &cl.ents[entnum].current;
+    return CL_EntityAllowsWorldHover(state) &&
+           (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOVER_RING));
 }
 
 static void CL_UpdateHover(float x, float y) {
@@ -452,7 +454,7 @@ static void CL_UpdateHover(float x, float y) {
     }
     if (!CL_MouseOverGameplayUIAt((int)x, (int)y))
         trace_hit = re.TraceEntity(&cl.viewDef, x, y, &entnum);
-    if (trace_hit && (!Cvar_Integer("cl_hover_health_only", 1) || CL_CanHoverHealthEntity(entnum)))
+    if (trace_hit && (!Cvar_Integer("cl_hover_health_only", 1) || CL_CanHoverableEntity(entnum)))
         cl.hover_entity = entnum;
     else
         cl.hover_entity = 0;
@@ -1665,11 +1667,20 @@ static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, uint32_t
 }
 
 TEST(client_input, hover_ring_capability_allows_pointer_highlight_without_name_or_bars) {
-    entityState_t state = { .model = 1, .stats = { [ENT_HEALTH] = 255 }, .flags = EF_HOVER_RING };
+    entityState_t state = { .model = 1, .flags = EF_HOVER_RING };
 
     T_ASSERT(CL_EntityAllowsWorldHover(&state));
     T_EQ(state.name, 0);
     T_ASSERT(!(state.flags & (EF_HOVER_HEALTH | EF_HOVER_MANA)));
+    T_ASSERT(CL_CanHoverableEntity(7) == false);
+    cl.ents[7].current = state;
+    T_ASSERT(CL_CanHoverableEntity(7));
+    cl.ents[7].current.flags |= EF_NOT_SELECTABLE;
+    T_ASSERT(!CL_CanHoverableEntity(7));
+    cl.ents[7].current = (entityState_t){ .model = 1, .stats = { [ENT_HEALTH] = 255 } };
+    T_ASSERT(!CL_CanHoverableEntity(7));
+    cl.ents[7].current.flags |= EF_HOVER_HEALTH;
+    T_ASSERT(CL_CanHoverableEntity(7));
     state.flags = 0;
     T_ASSERT(!CL_EntityAllowsWorldHover(&state));
 }
