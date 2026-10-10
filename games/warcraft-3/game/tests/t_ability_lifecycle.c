@@ -992,6 +992,43 @@ TEST(wc3_ability_lifecycle, flame_strike_custom_interval_can_tick_twice_per_fram
     level.time = 2500; G_RunEntity(thinker); T_FEQ(enemy->health.value, 940, .001f);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
+/* Phase 9: zero flags deliberately preserve old timed-buff dispel behavior,
+ * while explicit classification gates transfer separately from removal. */
+TEST(wc3_ability_lifecycle, classified_status_dispel_and_transfer_policy) {
+    edict_t *unit = review_setup();
+    status_application_t app = { .buff = "Bixx", .level = 1, .duration = 5.0f };
+    heroabilitystatus_t *slot = unit_applystatus(unit, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_status_can_dispel(slot));
+    T_ASSERT(!unit_status_can_steal(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL |
+                       WC3_STATUS_BUFF_TRANSFERABLE;
+    T_ASSERT(unit_status_can_dispel(slot));
+    T_ASSERT(unit_status_can_steal(slot));
+    slot->buff_flags |= WC3_STATUS_BUFF_UNDISPELLABLE;
+    T_ASSERT(!unit_status_can_dispel(slot));
+    T_ASSERT(!unit_status_can_steal(slot));
+    unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_status_can_dispel(slot));
+}
+
+TEST(wc3_ability_lifecycle, classified_status_application_replace_resets_flags) {
+    edict_t *unit = review_setup();
+    status_application_t app = {
+        .buff = "Bixx", .level = 1, .duration = 5.0f,
+        .buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_TRANSFERABLE
+    };
+    heroabilitystatus_t *slot = unit_applystatus(unit, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_status_can_steal(slot));
+    app.buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
+    slot = unit_applystatus(unit, &app);
+    T_NOT_NULL(slot);
+    T_EQ(slot->buff_flags, app.buff_flags);
+    T_ASSERT(unit_status_can_dispel(slot));
+    T_ASSERT(!unit_status_can_steal(slot));
+}
+
 #endif
 
 TEST(wc3_ability_lifecycle, status_application_separates_owner_from_payload) {

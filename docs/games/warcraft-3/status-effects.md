@@ -86,3 +86,20 @@ It rejects unscheduled and expired deadlines, while retaining catch-up timing
 after skipped simulation frames. Ability code continues to own source checks,
 damage values, and removal semantics. Existing `next_tick` serialization is
 unchanged; tests cover due, catch-up, recursion, expiry, and invalid deadlines.
+
+## Dispel and transfer policy
+
+`buff_flags` explicitly classifies positive/negative, magical/physical,
+undispellable, and transferable status semantics. Zero flags preserve the
+existing timed-status dispel rules, including Timed Life and authored Cyclone
+exceptions. Purge and Dispel Magic share `unit_status_can_dispel()`.
+
+Spell Steal transfers only statuses explicitly marked positive and
+transferable. The initial opted-in family is Inner Fire. The receiver slot is
+allocated before removing the original, so capacity failure leaves the source
+untouched. The transfer preserves level, remaining duration, source ability,
+payload, state and numeric modifiers, while attributing the new application to
+the stealing caster. Other statuses remain unsupported until their periodic,
+TargetArt, callback, and source semantics can be safely reconstructed.
+
+The serialized classification advances save format 81 to 82.
