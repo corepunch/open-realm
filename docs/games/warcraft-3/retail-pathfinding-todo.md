@@ -56,6 +56,10 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **280 done / 336 tasks; 56 remaining.**
+Payoff246 removes target-goal world round trips with canonical fine group
+storage and exact routing keys. Two retail repeats/control and captured-sample
+cold-save regressions preserve the numerical contract. TARGET-02.1 remains
+open for its broader coverage. See [fine group destinations](retail-pathfinding-engine.md#physical-groups-retain-exact-fine-destinations-payoff246).
 Payoff245 closes FORM-01.3: the policy-producer inventory now has integrated
 coverage, including sentinel target owners that turn without route searches.
 Repeated retail/control captures, a complete original facing oracle and engine

@@ -1590,7 +1590,11 @@ bool G_UnitMoveGroupDestinationStatus(movePathQuery_t const *input, moveFineRout
     /* A route consumes a task destination, not a new public order every tick.
      * Reuse only the exact request under the same world transform. Changed
      * requests still clip before comparing, retaining equivalent destinations. */
-    if (retained && route->group_geometry == geometry->revision &&
+    if (input->fine_target) {
+        /*16cd30 ->16ce10 retains fine words. Distinct fine destinations can
+         * share the same rounded world key, so explicit fine input wins. */
+        goal=*input->fine_target;
+    } else if (retained && route->group_geometry == geometry->revision &&
         !memcmp(&route->group_request, input->geometry.target, sizeof(vec2_t))) {
         goal = route->group_goal;
     } else {

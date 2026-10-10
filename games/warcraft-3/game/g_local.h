@@ -94,7 +94,7 @@ typedef struct moveGroup_s {
     bool individual; /* Physical singleton schedules the unit-owned route. */
     bool turning; /* Bridge-owned angular cohort, independent of the public task. */
     float turn_rate; /* Native request+fc/group+74 per-decision angular override. */
-    vec2_t goal, point;
+    vec2_t goal, point; /* Native fine destination and selected formation point. */
     edict_t *target;
     uint32_t target_spawn;
     /* Optional ability-owned completion receiver. Cancellation calls it with

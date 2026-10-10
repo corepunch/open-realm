@@ -1195,6 +1195,17 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     unit_commit_world(self,cand); G_PublishMoveSpatialObject(self);
 }
 
+/* Group destinations remain in native fine coordinates. World projection is
+ * only for APIs whose input contract is world space, never retained state. */
+static vec2_t move_point_fine(vec2_t const *point) {
+    box2_t bounds=CM_GetWorldBounds();
+    return (vec2_t){wc3_grid_coordinate(point->x,bounds.min.x,32),wc3_grid_coordinate(point->y,bounds.min.y,32)};
+}
+static vec2_t move_point_world(vec2_t const *point) {
+    box2_t bounds=CM_GetWorldBounds();
+    return (vec2_t){wc3_world_coordinate(point->x,bounds.min.x,32),wc3_world_coordinate(point->y,bounds.min.y,32)};
+}
+
 /* Preserve native low bits on unchanged axes; world position writers reproject changed axes. */
 static void unit_grid_pose(edict_t const *self, wc3GridPose_t *pose) {
     box2_t const bounds = CM_GetWorldBounds();
@@ -1454,10 +1465,10 @@ static edict_t **move_captain_collect_roster(edict_t *actor) {
 static void move_captain_shared_point(edict_t *actor,edict_t **roster,uint32_t members,vec2_t const *home,bool logical) {
     /* Retail queued AI point orders preserve an already active identical
      * request. A completed physical task remains eligible for new admission. */
-    bool unchanged=members>0;
+    bool unchanged=members>0;vec2_t goal=move_point_fine(home);
     FOR_LOOP(i,members) {
         edict_t *ent=roster[i]; moveGroup_t const *group=move_unit_group(ent);
-        if (!group || group->target || !group->shared_id || group->goal.x!=home->x || group->goal.y!=home->y)
+        if (!group || group->target || !group->shared_id || group->goal.x!=goal.x || group->goal.y!=goal.y)
             unchanged=false;
     }
     if (unchanged) return;
@@ -4903,7 +4914,7 @@ static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool
     if (S_UnitHasAbilityFlags(target,AB_MOVE_TARGET_NO_WARP)) group->flags|=0x10u;
     group->radius=unit->collision; group->request_id=unit->movement.previous_request_id;
     wc3GridPose_t pose; unit_predicted_pose(target,&pose);
-    group->goal=(vec2_t){pose.world[0],pose.world[1]};
+    group->goal=(vec2_t){pose.grid[0],pose.grid[1]};
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
         .arrival_range=range};
     unit->movement.group_id=group->id;
@@ -4993,9 +5004,7 @@ static bool move_queued_cohort_candidate(void *data,edict_t *other) {
         S_UnitMovementProfile(other->data.UnitData)->bits!=S_UnitMovementProfile(unit->data.UnitData)->bits)return true;
     moveGroup_t *peer=move_unit_group(other),*group=query->group;
     if(!peer || peer==group || peer->count>=BZ_WC3_GROUP_ORDER_UNITS)return true;
-    box2_t bounds=CM_GetWorldBounds();
-    if(wc3_grid_coordinate(peer->goal.x,bounds.min.x,32)!=query->fine_goal.x ||
-        wc3_grid_coordinate(peer->goal.y,bounds.min.y,32)!=query->fine_goal.y)return true;
+    if(peer->goal.x!=query->fine_goal.x || peer->goal.y!=query->fine_goal.y)return true;
     /*5faaf0: source first, then every retained old row in its original order.
      * Once one candidate qualifies, other cohorts are not considered. */
     FOR_LOOP(i,peer->count) {
@@ -5026,7 +5035,7 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     }
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
-    group->request_id=unit->movement.previous_request_id; group->goal=queued->point; group->age=UINT32_MAX;
+    group->request_id=unit->movement.previous_request_id; group->goal=move_point_fine(&queued->point); group->age=UINT32_MAX;
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
         .arrival_range=wc3_point_arrival_range(0)};
     group->radius=unit->collision; unit->movement.group_id=group->id;
@@ -5035,8 +5044,7 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     box2_t bounds=CM_GetWorldBounds();
     float center[]={wc3_grid_coordinate(source.world[0],bounds.min.x,32),
         wc3_grid_coordinate(source.world[1],bounds.min.y,32)};
-    moveQueuedCohort_t query={unit,group,
-        {wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)}};
+    moveQueuedCohort_t query={unit,group,group->goal};
     /*013490 initializes the world radius used by selector8 in5fa950. */
     S_VisitMoveCircle(center,wc3_div(MOVE_PREVIOUS_COHORT_RADIUS,32),move_queued_cohort_candidate,&query);
     /*5faaf0 attaches old peers to a fresh request; their ready attempts wait
@@ -5114,10 +5122,10 @@ static moveGroup_t *move_group_create_request(groupPointOrder_t const *request,u
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=context ? context : move_allocate_group_id();
     group->request_id=group->id;
-    group->goal=*request->point; group->age=UINT32_MAX;
+    group->goal=move_point_fine(request->point); group->age=UINT32_MAX;
     if (target) {
         wc3GridPose_t pose; unit_predicted_pose(target,&pose);
-        group->goal=(vec2_t){pose.world[0],pose.world[1]};
+        group->goal=(vec2_t){pose.grid[0],pose.grid[1]};
         group->target=target; group->target_spawn=target->spawn_time;
     }
     /* Native89caf0 sets canonical2/4/8 from packet10;16bdb0 copies
@@ -5283,8 +5291,7 @@ static edict_t *move_group_source(moveGroup_t const *group,wc3GridPose_t *select
     if(!group->count)return NULL;
     uint32_t index=0;
     if(!(group->flags&0x200)) {
-        box2_t bounds=CM_GetWorldBounds();
-        float goal[]={wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
+        float goal[]={group->goal.x,group->goal.y};
         float best[]={FLT_MAX,FLT_MAX};uint32_t nearest[]={0,UINT32_MAX};
         FOR_LOOP(i,group->count) {
             edict_t *unit=group->members[i].unit;wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
@@ -5302,8 +5309,7 @@ static edict_t *move_group_source(moveGroup_t const *group,wc3GridPose_t *select
  * before the next owner pass can predict a moving member at a later clock. */
 static void move_group_seed_route(moveGroup_t *group) {
     wc3GridPose_t pose;
-    vec2_t center={0},goal={wc3_grid_coordinate(group->goal.x,CM_GetWorldBounds().min.x,32),
-        wc3_grid_coordinate(group->goal.y,CM_GetWorldBounds().min.y,32)};
+    vec2_t center={0},goal=group->goal;
     FOR_LOOP(i,group->count) {
         unit_predicted_pose(group->members[i].unit,&pose);
         center.x=wc3_add(center.x,pose.grid[0]);center.y=wc3_add(center.y,pose.grid[1]);
@@ -5323,7 +5329,7 @@ static void move_group_seed_route(moveGroup_t *group) {
 static void move_start_point_group(edict_t *actor,vec2_t const *home,float range) {
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
-    group->goal=*home; group->age=UINT32_MAX; group->radius=actor->collision;
+    group->goal=move_point_fine(home); group->age=UINT32_MAX; group->radius=actor->collision;
     group->members[group->count++]=(moveGroupMember_t){.unit=actor,.spawn=actor->spawn_time,
         .arrival_range=wc3_point_arrival_range(range)};
     actor->movement.group_id=group->id;move_unit_groups[actor-g_edicts]=group;
@@ -5377,8 +5383,7 @@ void S_BeginUnitFacingRequest(edict_t *unit,moveFacingRequest_t const *request) 
     group->inuse=true;group->turning=true;group->turn_rate=request->turn;
     group->id=move_allocate_group_id();group->flags=0x10200u;
     group->point=point;group->radius=unit->collision;
-    group->goal=(vec2_t){wc3_world_coordinate(point.x,pose.origin[0],32),
-        wc3_world_coordinate(point.y,pose.origin[1],32)};
+    group->goal=point;
     group->route.group_goal=point;group->route.group_index=UINT32_MAX;
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
         .arrival_range=wc3_float(0x3efae148)};
@@ -5520,14 +5525,7 @@ static bool move_group_route(moveGroup_t *group) {
     /*16de50 disables acceleration for bypass cohorts;167120 appends the
      * retained destination directly. This request consumes no coarse work. */
     if(group->flags&0x200) {
-        /* Angular admission already owns the exact fine point. Reconstructing
-         * it from the presentation/world goal loses bits at negative bounds. */
-        vec2_t point=group->point;
-        if(!group->turning) {
-            box2_t bounds=CM_GetWorldBounds();
-            point=(vec2_t){wc3_grid_coordinate(group->goal.x,bounds.min.x,32),
-                wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
-        }
+        vec2_t point=group->goal;
         if(!group->initialized || point.x!=group->point.x || point.y!=group->point.y) {
             group->point=point;group->route.group_goal=point;
             G_ReserveMoveRouteBuffer(&group->route.group_points,&group->route.group_capacity,1);
@@ -5547,15 +5545,17 @@ static bool move_group_route(moveGroup_t *group) {
     moveShared_t const *shared=move_group_shared(group);
     if (shared) group->radius=shared->radius;
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
-    movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
-        .mover=source,.target=group->target,.units=true,.fine=&fine,.coarse_mask=S_UnitMoveCoarseMask(source),
+    vec2_t goal=move_point_world(&group->goal);
+    movePathQuery_t query={.geometry={&from,&goal,group->radius,M_UnitStaticPathingFlags(source)},
+        .mover=source,.target=group->target,.units=true,.fine=&fine,
+        .fine_target=group->target ? &group->goal : NULL,.coarse_mask=S_UnitMoveCoarseMask(source),
         .no_warp=(group->flags&0x10u)!=0,.group_path=true};
     uint32_t revision=group->route.group_revision;
     bool cached=group->route.group_count && group->route.group_index<group->route.group_count;
     bool rebuilt;
     if (!G_UnitMoveGroupDestinationStatus(&query,&group->route,&point,&rebuilt)) {
         if(!group->route.group_admission.waiting)
-            fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,group->goal.x,group->goal.y);
+            fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,goal.x,goal.y);
         return false;
     }
     if (!rebuilt && cached && group->initialized && point.x==group->point.x && point.y==group->point.y && revision==group->route.group_revision) return true;
@@ -5669,7 +5669,8 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     } else if (progress) {
         unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true;
     } else {
-        if ((route_result=unit_accel_direction(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC},&direction))) {
+        vec2_t goal=move_point_world(&group->goal);
+        if ((route_result=unit_accel_direction(unit,(moveRoutePoint_t){&goal,unit->collision,MOVE_AVOID_GENERIC},&direction))) {
             progress=move_group_advance_endpoint(group,member,&pose,&direction);
             if (progress==2) {
                 unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
@@ -5933,23 +5934,19 @@ static void move_run_group_updates(void) {
             G_UnitRegionPositionChanged(unit,&point);
         }
         group->age++;
-        vec2_t sampled=group->initialized ? group->route.group_goal :
-            (vec2_t){wc3_grid_coordinate(group->goal.x,CM_GetWorldBounds().min.x,32),
-                     wc3_grid_coordinate(group->goal.y,CM_GetWorldBounds().min.y,32)};
+        vec2_t sampled=group->initialized ? group->route.group_goal : group->goal;
         bool visible=!group->target || group->target->movement.captain_actor_type ||
             G_FowPlayerCanTrackUnit(group->members[0].unit->s.player,group->target);
         group->unseen_counter=visible ? 0 : group->unseen_counter+1;
         if (group->target && visible && !group->target_refresh) {
             wc3GridPose_t pose; unit_predicted_pose(group->target,&pose);
             sampled=(vec2_t){pose.grid[0],pose.grid[1]};
-            box2_t bounds=CM_GetWorldBounds();
-            vec2_t old=group->initialized ? group->route.group_goal :
-                (vec2_t){wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
+            vec2_t old=group->initialized ? group->route.group_goal : group->goal;
             /* A group path only searches coarse routes: its fine timestamp
              * stays zero. A premature sample is discarded, then reloaded;
              * it is not held as a new destination for the next visit. */
             if (move_destination_changed(old,sampled) && move_destination_ready(0,group->route.group_admission.time))
-                group->goal=(vec2_t){pose.world[0],pose.world[1]};
+                group->goal=(vec2_t){pose.grid[0],pose.grid[1]};
             group->target_refresh=-1;
         }
         if (!move_group_route(group)) {

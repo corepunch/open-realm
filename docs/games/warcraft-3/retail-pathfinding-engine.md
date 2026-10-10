@@ -15782,3 +15782,55 @@ capture provenance, then runs the affected Classic/TFT engine regressions.
 saves the recovered query names/semantics in Ghidra. Raw captures, failed attempts,
 map/build metadata and test reports are archived under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/FORM-01.3/payoff245/`.
+
+## Physical groups retain exact fine destinations (Payoff246)
+
+Retail `16cd30` predicts the target in fine coordinates, adds its fine offset,
+and passes the exact vector to `16ce10`. `16db00`, `16de50` and `168b80` retain
+that representation through construction, representative selection and path
+publication. The engine previously projected sampled destinations to world
+coordinates, then inverted that projection while seeding and routing groups.
+That loses low bits when the map origin is far from zero.
+
+Two read-only public Smart captures on a flat arena with origin `-8192,-8192`
+have identical normalized sample/route events. The observer-free control has
+the same74 public markers. Each observation contains450 paired sampler/route
+visits and13 target refresh vectors whose words change under the former
+world round trip. Two route visits retain the previous destination under the
+existing changed-cell gate; a sample is not automatically a newly admitted goal.
+The15 unique sampled vectors are frozen in `retail_target246.h`, directly from
+retail rather than from engine output.
+
+Move now stores the existing `moveGroup_t.goal` in native fine coordinates.
+Target admission, formation seeding, representative comparisons, refresh and
+angular bypass all consume it directly. There is no additional destination
+field or target subtype workaround. World-only APIs receive a temporary
+projection; ordinary point-order clipping stays at its existing routing
+admission boundary. Explicit `movePathQuery_t.fine_target` takes precedence
+over the derived world request cache, since two distinct fine points can
+round to the same world position. Save162 persists the new goal contract and
+rejects prior formats. The network contract is unchanged.
+
+Failing-first regressions expose both the lost target words and world-cache
+aliasing. Production-owner tests admit Smart through the public order path,
+replay all15 captured samples through ordinary and bypass routing, and cold
+save/restore each destination. Existing tests of the private goal field now
+convert their unchanged authored world input to its new fine representation;
+no prior retail expected fixture was rewritten.
+
+Run `tools/ghidra/verify_wc3_pathing_work246.py` against the hash-locked retail
+DLL. It checks the full portable capture bundle, map/source provenance,
+repeat/control equality, sampled-to-route input equality, original instruction
+bytes and Classic/TFT regressions. Saved Ghidra comments and
+`Work246Evidence.java` preserve the recovered data flow. Archive:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-02.1/payoff246/`.
+
+Focused acceptance passes96 tests and1,266,545 assertions in each of Classic
+and TFT, including the unchanged queued, periodic, formation and Captain Go
+Home trajectories. Six new Python evidence checks and37 corpus checks pass.
+No full repository sweep is claimed for this implementation commit.
+
+This closes the concrete fine-coordinate retention gap. It does not close
+TARGET-02.1's remaining target-family, visibility, formation-offset or complete
+trajectory coverage. The tests replay captured coordinates into production
+owners; they do not claim an exact end-to-end public Smart journey.

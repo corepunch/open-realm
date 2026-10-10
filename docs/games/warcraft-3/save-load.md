@@ -1,5 +1,10 @@
 # Warcraft III Save/Load
 
+Save162 retains physical group destinations in native fine coordinates, including
+target samples and angular requests. Save161 and earlier versions are rejected
+rather than interpreting their world-coordinate goal as a fine destination.
+The network contract is unchanged. See [exact group destinations](retail-pathfinding-engine.md#physical-groups-retain-exact-fine-destinations-payoff246).
+
 Save161 persists the completed map-start flyer support field as logical grid
 values, dimensions, origin and cell size. Load validates sizes before allocation
 and rejects non-finite or truncated values. Removing initial widgets does not

@@ -28,6 +28,7 @@
 #include "../../common/wc3_pathing_records.h"
 #include "fixtures/retail_flight_support228.h"
 #include "fixtures/retail_facing245.h"
+#include "fixtures/retail_target246.h"
 #include "games/warcraft-3/common/terrain.h"
 #include "games/warcraft-3/common/wc3_pathing_segment.h"
 #include "retail_public_oblique.h"
@@ -3996,8 +3997,8 @@ static void periodic_shared_pair_matches_retail(bool selected) {
                 if (!pass && (steps==30 || steps==113)) {
                     T_EQ(ARRAY_COUNT(level.move_groups),1);
                     T_EQ(level.move_groups[0]->count,steps==30 ? 2 : 1);
-                    T_EQ(wc3_float_bits(level.move_groups[0]->goal.x),wc3_float_bits(-1936));
-                    T_EQ(wc3_float_bits(level.move_groups[0]->goal.y),wc3_float_bits(-720));
+                    T_EQ(wc3_float_bits(level.move_groups[0]->goal.x),wc3_float_bits(move_point_fine(&(vec2_t){-1936,-720}).x));
+                    T_EQ(wc3_float_bits(level.move_groups[0]->goal.y),wc3_float_bits(move_point_fine(&(vec2_t){-1936,-720}).y));
                     T_ASSERT(WriteGame(saves[steps==30 ? 0 : 1]));
                 }
             }
@@ -8527,7 +8528,7 @@ TEST(wc3_movement, group_point_request_owns_destination_during_moving_admission)
         if(!o) {
             moveGroup_t const *group=move_find_group(units[0]->movement.group_id);
             T_NOT_NULL(group);T_EQ(group->count,request.count);
-            T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(expected.x));
+            T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(move_point_fine(&expected).x));
         }
     }
     reset_entities();setup_test_world();
@@ -13193,7 +13194,7 @@ TEST(wc3_movement, selected237_ground_and_flight_share_primary_request) {
         }
         vec2_t point={1536,1536};T_ASSERT(move_selectlocation(clent,&point));
         moveGroup_t *group=move_unit_group(units[0]);T_NOT_NULL(group);
-        if(group) {T_EQ(group->count,4);FOR_LOOP(i,4){T_EQ(move_unit_group(units[i]),group);T_EQ(group->goal.x,point.x);T_EQ(group->goal.y,point.y);}}
+        if(group) {T_EQ(group->count,4);FOR_LOOP(i,4){T_EQ(move_unit_group(units[i]),group);T_EQ(group->goal.x,move_point_fine(&point).x);T_EQ(group->goal.y,move_point_fine(&point).y);}}
         if(queued) {
             clent->client->menu.order_queued=true;point=(vec2_t){512,2048};T_ASSERT(move_selectlocation(clent,&point));
             uint64_t history=units[0]->movement.previous_request_id;
@@ -13242,7 +13243,7 @@ TEST(wc3_movement, selected238_alt_owns_separate_flight_requests) {
             T_NE(primary->request_id,special->request_id);T_EQ(primary->flags&14u,14u);T_EQ(special->flags&14u,14u);
             /* Flight's final candidate precedes the final ground candidate. */
             T_ASSERT(primary->sequence>special->sequence);
-            FOR_LOOP(i,4) {moveGroup_t *g=move_unit_group(units[i]);T_NOT_NULL(g);if(g){T_EQ(g->goal.x,point.x);T_EQ(g->goal.y,point.y);}}
+            FOR_LOOP(i,4) {moveGroup_t *g=move_unit_group(units[i]);T_NOT_NULL(g);if(g){T_EQ(g->goal.x,move_point_fine(&point).x);T_EQ(g->goal.y,move_point_fine(&point).y);}}
         }
         if(queued) {
             clent->client->menu.order_queued=true;point=(vec2_t){512,2048};request.queued=true;T_ASSERT(G_IssueGroupPointOrder(&request));
@@ -13329,7 +13330,7 @@ TEST(wc3_movement, selected240_all_native_request_classes) {
         FOR_LOOP(g,row->count) {
             moveGroup_t *owner=move_unit_group(units[row->members[offset]]);T_NOT_NULL(owner);
             if(owner) {
-                T_EQ(owner->count,row->sizes[g]);T_EQ(owner->goal.x,goal.x);T_EQ(owner->goal.y,goal.y);T_EQ(owner->flags&14u,row->flags[g]&14u);T_ASSERT(owner->sequence>sequence);sequence=owner->sequence;
+                T_EQ(owner->count,row->sizes[g]);T_EQ(owner->goal.x,move_point_fine(&goal).x);T_EQ(owner->goal.y,move_point_fine(&goal).y);T_EQ(owner->flags&14u,row->flags[g]&14u);T_ASSERT(owner->sequence>sequence);sequence=owner->sequence;
                 FOR_LOOP(i,row->sizes[g]) {T_EQ(owner->members[i].unit,units[row->members[offset+i]]);T_EQ(move_unit_group(units[row->members[offset+i]]),owner);}
             }
             offset+=row->sizes[g];
@@ -13375,7 +13376,7 @@ TEST(wc3_movement, selected240_float_queue_history_and_save) {
         T_EQ(S_UnitMovementProfile(units[1]->data.UnitData)->bits,wc3_movement_profile(UNIT_MOVE_FLOAT)->bits);
         FOR_LOOP(i,4) {T_EQ(units[i]->movement.previous_request_id,history[i]);if(units[i]->order_queue.count)T_ASSERT(G_UnitStartNextQueuedOrder(units[i]));}
         T_NE(move_unit_group(units[0]),move_unit_group(units[1]));T_EQ(move_unit_group(units[0]),move_unit_group(units[3]));
-        FOR_LOOP(i,4) {moveGroup_t *group=move_unit_group(units[i]);T_NOT_NULL(group);if(group){T_EQ(group->goal.x,goal.x);T_EQ(group->goal.y,goal.y);}T_EQ(units[i]->movement.previous_request_id,history[i]);}
+        FOR_LOOP(i,4) {moveGroup_t *group=move_unit_group(units[i]);T_NOT_NULL(group);if(group){T_EQ(group->goal.x,move_point_fine(&goal).x);T_EQ(group->goal.y,move_point_fine(&goal).y);}T_EQ(units[i]->movement.previous_request_id,history[i]);}
         T_ASSERT(unit_issueimmediateorder(units[1],"stop"));T_EQ(move_unit_group(units[1]),NULL);
         FOR_LOOP(i,4)if(i!=1)T_NOT_NULL(move_unit_group(units[i]));
         remove(save);
@@ -13413,7 +13414,7 @@ TEST(wc3_movement, selected238_alt_callbacks_keep_candidate_order_and_replacemen
         FOR_LOOP(i,4)T_EQ(units[i]->user_data,replace && i==0 ? 5 : i+1);
         T_EQ(move_unit_group(units[1]),move_unit_group(units[2]));
         T_NE(move_unit_group(units[0]),move_unit_group(units[1]));
-        if(replace) {moveGroup_t *nested=move_unit_group(units[0]);T_NOT_NULL(nested);if(nested){T_EQ(nested->count,1);T_EQ(nested->goal.x,1024);T_EQ(nested->goal.y,1024);}}
+        if(replace) {moveGroup_t *nested=move_unit_group(units[0]);T_NOT_NULL(nested);if(nested){T_EQ(nested->count,1);T_EQ(nested->goal.x,move_point_fine(&(vec2_t){1024,1024}).x);T_EQ(nested->goal.y,move_point_fine(&(vec2_t){1024,1024}).y);}}
         else T_EQ(move_unit_group(units[0]),move_unit_group(units[3]));
         jass_callbyname(level.vm,"cleanup",false);T_ASSERT(!jass_rterror_pending(level.vm));
     }
@@ -13566,7 +13567,7 @@ TEST(wc3_movement, selected243_nested_shift_preserves_outer_ready_rows) {
         T_EQ(move_unit_group(units[1]),move_unit_group(units[2]));
         T_NE(move_unit_group(units[0]),move_unit_group(units[1]));
         moveGroup_t *nested=move_unit_group(units[0]);T_NOT_NULL(nested);
-        if(nested){T_EQ(nested->count,1);T_EQ(nested->goal.x,1024);T_EQ(nested->goal.y,1024);T_EQ(nested->flags&14u,0);}
+        if(nested){T_EQ(nested->count,1);T_EQ(nested->goal.x,move_point_fine(&(vec2_t){1024,1024}).x);T_EQ(nested->goal.y,move_point_fine(&(vec2_t){1024,1024}).y);T_EQ(nested->flags&14u,0);}
         T_NE(move_unit_group(units[0]),move_unit_group(units[3]));
         FOR_LOOP(i,4)if(i)T_EQ(move_unit_group(units[i])->flags&14u,14);
         T_EQ(units[0]->order_queue.count,0);
@@ -13856,7 +13857,7 @@ TEST(wc3_movement, source233_matches_original_preference_prediction_and_bypass) 
     FOR_LOOP(r,sizeof(source233_rows)/sizeof(source233_rows[0])) {
         typeof(*source233_rows) const *row=source233_rows+r;
         typeof(*source233_positions) const *positions=source233_positions+row->position;
-        group.flags=row->flags;group.goal=(vec2_t){positions->goal[0]*32,positions->goal[1]*32};
+        group.flags=row->flags;group.goal=(vec2_t){positions->goal[0],positions->goal[1]};
         FOR_LOOP(i,3) {
             edict_t *unit=units[i];unit->s.origin2=(vec2_t){positions->position[i][0]*32,positions->position[i][1]*32};
             unit->movement.pose_valid=true;unit->movement.pose_world=unit->s.origin2;
@@ -13984,7 +13985,7 @@ TEST(wc3_movement, partition235_matches_complete_native_cohort_recursion) {
         }
         edict_t *units[3];moveGroup_t *group=move_alloc_group();
         group->inuse=group->ticking=true;group->id=move_allocate_group_id();
-        group->count=3;group->goal=(vec2_t){4096,4096};group->flags=row->flags;group->age=UINT32_MAX;
+        group->count=3;group->goal=move_point_fine(&(vec2_t){4096,4096});group->flags=row->flags;group->age=UINT32_MAX;
         wc3Clock_t clock=level.pathing_clock;level.pathing_clock=(wc3Clock_t){10,0,300};
         FOR_LOOP(i,3) {
             edict_t *unit=units[i]=cohort232_unit(positions->position[i][0]*32,positions->position[i][1]*32);
@@ -14082,7 +14083,7 @@ TEST(wc3_movement, partition235_nested_admission_keeps_replacement_owner) {
     FOR_LOOP(i,3)T_NOT_NULL(units[i]);
     if(units[0] && units[1] && units[2]) {
         moveGroup_t *replacement=move_unit_group(units[0]);T_NOT_NULL(replacement);
-        if(replacement){T_EQ(replacement->count,1);T_EQ(replacement->goal.x,1024);T_EQ(replacement->goal.y,1024);}
+        if(replacement){T_EQ(replacement->count,1);T_EQ(replacement->goal.x,move_point_fine(&(vec2_t){1024,1024}).x);T_EQ(replacement->goal.y,move_point_fine(&(vec2_t){1024,1024}).y);}
         T_NE(move_unit_group(units[1]),replacement);T_NE(move_unit_group(units[2]),replacement);
         T_EQ(units[0]->current_order_id,G_OrderId("move"));
     }
@@ -18491,7 +18492,7 @@ TEST(wc3_movement, persistent_group_fog_retains_sample_until_refresh) {
         S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
         T_EQ(group->unseen_counter,0);
         if(i<2)T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(retained.x));
-        else T_EQ(group->goal.x,800);
+        else T_EQ(group->goal.x,move_point_fine(&(vec2_t){800,0}).x);
     }
     remove(Test_TempPath("wc3-follow-hidden.bin"));G_FowShutdown();reset_entities();setup_test_world();
 }
@@ -19070,7 +19071,7 @@ static void formation_refresh_marker_112(cstring_t text) {
         moveGroup_t *group=move_find_group(units[0]->movement.group_id);
         T_NOT_NULL(group);if(!group)return;T_EQ(group->count,5);
         T_NE(group->id,formation_refresh_112.old_id);
-        T_EQ(group->goal.x,1536);T_EQ(group->goal.y,1792);T_ASSERT(group->initialized);
+        T_EQ(group->goal.x,move_point_fine(&(vec2_t){1536,1792}).x);T_EQ(group->goal.y,move_point_fine(&(vec2_t){1536,1792}).y);T_ASSERT(group->initialized);
         FOR_LOOP(i,group->count)T_EQ(group->members[i].unit->movement.group_id,group->id);
     }
     formation_refresh_112.stages++;
@@ -19692,7 +19693,7 @@ TEST(wc3_movement, delayed164_group_discards_premature_sample_and_saves_cadence)
         if(tick<17) {
             T_EQ(group->goal.x,retained.x);T_EQ(group->goal.y,retained.y);
             T_EQ(group->target_refresh,16-tick);
-        } else {T_EQ(group->goal.x,goal.x);T_EQ(group->goal.y,goal.y);T_EQ(group->target_refresh,16);}
+        } else {T_EQ(group->goal.x,move_point_fine(&goal).x);T_EQ(group->goal.y,move_point_fine(&goal).y);T_EQ(group->target_refresh,16);}
         if(tick==7) {
             T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
             group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);if(!group)break;
@@ -22029,7 +22030,7 @@ TEST(wc3_movement, target223_loss_during_attack_chase_retains_head_for_point_rec
         T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->currentmove->proc,CAbilityAttack);
         moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
         if(group) {
-            T_NE(group->id,id);T_NULL(group->target);T_EQ(group->goal.x,pose.world[0]);T_EQ(group->goal.y,pose.world[1]);
+            T_NE(group->id,id);T_NULL(group->target);T_EQ(group->goal.x,pose.grid[0]);T_EQ(group->goal.y,pose.grid[1]);
             T_EQ(group->members[0].arrival_range,wc3_point_arrival_range(wc3_add(wc3_add(137,43),50)));
             T_ASSERT(unit->goalentity && (unit->goalentity->svflags&SVF_MOVE_WAYPOINT));
             if(kind==0)jass_callbyname(level.vm,"show",false);
@@ -22087,14 +22088,14 @@ TEST(wc3_movement, target223_point_recovery_freezes_queried_pose_through_save_st
             if(queued)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1280,1536},true,0,0));
             jass_callbyname(level.vm,"hide",false);group=move_unit_group(unit);T_NOT_NULL(group);
             if(group) {
-                T_NULL(group->target);T_EQ(group->goal.y,1280);
+                T_NULL(group->target);T_EQ(group->goal.y,move_point_fine(&(vec2_t){0,1280}).y);
                 T_EQ(group->members[0].arrival_range,wc3_point_arrival_range(wc3_add(wc3_add(233,31),50)));
                 T_EQ(unit->order_queue.count,queued);T_EQ(unit->current_order_id,G_OrderId("attack"));
                 S_SetUnitPaused(unit,true);uint64_t rank=group->sequence;
                 cstring_t file=Test_TempPath("wc3-target223-recovery.bin");
                 T_ASSERT(WriteGame(file));S_ResetAbilityTimers();T_ASSERT(ReadGame(file));remove(file);
                 group=move_unit_group(unit);T_NOT_NULL(group);
-                if(group) {T_EQ(group->sequence,rank);T_EQ(group->goal.y,1280);T_ASSERT(ValidMoveGroup(group));}
+                if(group) {T_EQ(group->sequence,rank);T_EQ(group->goal.y,move_point_fine(&(vec2_t){0,1280}).y);T_ASSERT(ValidMoveGroup(group));}
                 T_NULL(unit->attack_target);T_EQ(unit->attack_target_sequence,0);T_ASSERT(unit->paused);
                 S_SetUnitPaused(unit,false);
                 if(!queued) {
@@ -22297,6 +22298,68 @@ TEST(wc3_movement, target224_far_blink_after_range_entry_releases_target_without
     T_NULL(unit->goalentity);T_ASSERT(S_ValidateAttackTargets());
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
     G_FowShutdown();reset_entities();setup_test_world();
+}
+
+
+/* Retail16cd30/16ce10 retain fine words: equal world projections need not
+ * represent equal destinations. No world-coordinate cache may merge them. */
+TEST(wc3_movement, target246_exact_fine_goal_survives_world_projection_alias) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{-8192,-8192},{-6144,-6144}});
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),-8000,-8000);
+    unit->movetype=MOVETYPE_STEP;unit->movement.adaptive_disabled=true;
+    vec2_t source={6,6},goal={wc3_float(0x41500001),wc3_float(0x41a80001)},out;
+    vec2_t world=G_TestMoveWorldGrid(goal,true);
+    movePathQuery_t query={.geometry={&unit->s.origin2,&world,16,CM_PATHING_UNWALKABLE},
+        .mover=unit,.fine=&source,.fine_target=&goal,.group_path=true};
+    moveFineRoute_t route={0};bool rebuilt=false;
+    T_ASSERT(G_UnitMoveGroupDestinationStatus(&query,&route,&out,&rebuilt));T_ASSERT(rebuilt);
+    T_EQ(wc3_float_bits(out.x),wc3_float_bits(goal.x));
+    T_EQ(wc3_float_bits(out.y),wc3_float_bits(goal.y));
+    goal.x=wc3_float(0x41500002);goal.y=wc3_float(0x41a80002);
+    vec2_t alias=G_TestMoveWorldGrid(goal,true);
+    T_EQ(wc3_float_bits(alias.x),wc3_float_bits(world.x));
+    T_EQ(wc3_float_bits(alias.y),wc3_float_bits(world.y));
+    T_ASSERT(G_UnitMoveGroupDestinationStatus(&query,&route,&out,&rebuilt));T_ASSERT(rebuilt);
+    T_EQ(wc3_float_bits(out.x),wc3_float_bits(goal.x));
+    T_EQ(wc3_float_bits(out.y),wc3_float_bits(goal.y));
+    T_ASSERT(G_UnitMoveGroupDestinationStatus(&query,&route,&out,&rebuilt));T_ASSERT(!rebuilt);
+    free(route.group_points);reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target246_physical_group_retains_predicted_fine_goal) {
+    FOR_LOOP(sample,sizeof(target246_samples)/sizeof(*target246_samples)) FOR_LOOP(bypass,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{-8192,-8192},{-6144,-6144}});
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),-8000,-8000);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),-7776,-7520);
+        unit->movetype=target->movetype=MOVETYPE_STEP;unit->svflags=target->svflags=SVF_MONSTER;
+        unit->stand=target->stand=unit_stand;unit_stand(unit);unit_stand(target);
+        vec2_t fine={wc3_float(target246_samples[sample][0]),wc3_float(target246_samples[sample][1])};
+        target->s.origin2=move_point_world(&fine);
+        target->movement.fine_pose=fine;target->movement.pose_world=target->s.origin2;
+        target->movement.pose_valid=true;target->movement.pose_clock=level.pathing_clock;
+        T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group && bypass) {group->flags|=0x200;move_group_seed_route(group);}
+        if(group) {
+            T_ASSERT(move_group_route(group));
+            T_EQ(wc3_float_bits(group->route.group_goal.x),wc3_float_bits(fine.x));
+            T_EQ(wc3_float_bits(group->route.group_goal.y),wc3_float_bits(fine.y));
+            cstring_t file=Test_TempPath("wc3-target246-fine-goal.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            group=move_unit_group(unit);T_NOT_NULL(group);
+            if(group) {
+                T_EQ(wc3_float_bits(group->route.group_goal.x),wc3_float_bits(fine.x));
+                T_EQ(wc3_float_bits(group->route.group_goal.y),wc3_float_bits(fine.y));
+                T_ASSERT(move_group_route(group));
+                T_EQ(wc3_float_bits(group->route.group_goal.x),wc3_float_bits(fine.x));
+            }
+        }
+    }
+    reset_entities();setup_test_world();
 }
 
 #endif
