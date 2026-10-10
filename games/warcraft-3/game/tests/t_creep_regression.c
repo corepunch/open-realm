@@ -229,6 +229,14 @@ TEST(wc3_spell, creep_regression_incinerate_delayed_third_party_death_and_rings)
     S_ResolveAttackHit(fix.caster, fix.target, 10);
     T_Damage(fix.target, full, 1000);
     T_ASSERT(M_IsDead(fix.target)); T_ASSERT(fix.target->aiflags & AI_CORPSE_UNRAISABLE);
+    T_NULL(unit_findstatus(fix.target, FS_SLKKey("BNic")));
+    /* Death callbacks can be reached again through nested damage. A consumed
+     * mark must never spawn another scheduled explosion. */
+    unit_statusdeath(fix.target);
+    { uint32_t explosions = 0;
+      FILTER_EDICTS(ent, ent->think == incinerate_explode_think) explosions++;
+      T_EQ(explosions, 1);
+    }
     FILTER_EDICTS(ent, ent->think == incinerate_explode_think) { blast = ent; break; }
     T_ASSERT(blast != NULL);
     if (blast) {

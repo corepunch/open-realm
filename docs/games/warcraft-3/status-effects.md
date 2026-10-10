@@ -248,3 +248,13 @@ it searches later eligible source statuses when earlier ones have no receiver.
 A post-validation change can still cause a no-op, as with other delayed spells.
 Transfer remains restricted to the reviewed simple status families; arbitrary
 ability callback state and visual reconstruction are not newly supported.
+
+## Incinerate death consumption
+
+Incinerate records the originating ability explicitly on its hit mark. Its
+`A_STATUS_DEATH` callback consumes the mark through deferred lifecycle removal
+before immediate explosion damage, preventing nested death dispatch from
+spawning another blast. Invalidated sources also retire the mark through the
+shared lifecycle without creating an explosion. The dying unit is not refreshed
+during death dispatch; ordinary expiry and dispel continue to use their normal
+removal paths.
