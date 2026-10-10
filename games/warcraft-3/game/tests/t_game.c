@@ -2060,6 +2060,49 @@ TEST(wc3_game, portrait_live_stats_refresh_reserved_connected_client_edict) {
     T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA], 21);
 }
 
+TEST(wc3_game, selected_unit_status_invalidation_resends_info_panel) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *unit, *other;
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->connected = true;
+    client->ps.number = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->s.player = 0;
+    G_SelectEntity(client, unit);
+    /* Simulate a panel already serialized, then status application invalidates
+     * it. The next ordinary refresh must not accept the old cache as current. */
+    client->infopanel.entity = unit->s.number;
+    client->infopanel.hp = (int32_t)unit->health.value;
+    client->infopanel.xp = (int32_t)unit->hero.xp;
+    G_InvalidateUnitInfoPanel(unit);
+    T_EQ(client->infopanel.entity, UINT32_MAX);
+
+    gi.Write = selection_test_write;
+    gi.unicast = selection_test_unicast;
+    multiselect_capture_count = 0;
+    G_RefreshInfoPanel(player);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(client->infopanel.entity, unit->s.number);
+    T_EQ(client->infopanel.xp, (int32_t)unit->hero.xp);
+
+    other = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    other->s.player = 0;
+    G_SelectEntity(client, other);
+    client->infopanel.entity = 0;
+    client->infopanel.hp = 2;
+    G_InvalidateUnitInfoPanel(unit);
+    T_EQ(client->infopanel.entity, 0);
+    T_EQ(client->infopanel.hp, 2);
+}
+
 TEST(wc3_game, loading_rows_support_roc_and_tft_schema) {
     static const struct { cstring_t row, model; uint32_t seq; bool valid; } cases[] = {
         { "WESTRING_LOADINGSCREEN_HUMAN01,0,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl",
