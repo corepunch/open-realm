@@ -310,3 +310,14 @@ reused according to the normal status stacking policy. Area buffs such as Roar
 retain per-target partial-success semantics, and Purge may dispel even if its
 subsequent slow status cannot be allocated; these have separate ability-level
 failure semantics.
+
+## Area status partial-success regression coverage
+
+Roar remains a best-effort area cast: when one friendly target has no status
+capacity, other eligible friendly targets still receive the authored buff and
+damage bonus. Purge dispels eligible effects before installing its slow; a full
+array of undispellable statuses remains intact, while removing a dispellable
+status may free a slot for the slow. Tests exercise the production spell
+handlers with authored fixture data rather than introducing global capacity
+rollback or all-or-nothing area semantics. They do not cover every area spell
+or projectile impact-time capacity change.
