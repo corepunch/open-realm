@@ -70,7 +70,8 @@ Natural `ACsp` sleepers wake through `G_UnitWakeUp`; magical Sleep is not cleare
 camp identity: the true `CreepCampPathingCellDistance` connectivity, map-authored
 groups, multiple indirect alert triggers, attacking a sleeping creep without
 positive damage, and nighttime re-sleep scheduling remain future verification
-work. The explicit command/guard natives are reserved for Stage D. No per-tick
+work. The guard natives are implemented in the separate Neutral Hostile
+subsystem, with documented retail-compatibility limits. No per-tick
 world scan is added: only a confirmed surviving positive-damage event broadcasts.
 
 ### Stage C: retail creep acquisition special cases (2026-10-10)
@@ -85,6 +86,6 @@ world scan is added: only a confirmed surviving positive-damage event broadcasts
 
 - A positive post-mitigation hit, including a killing blow, sends one camp assistance notification before death teardown. The victim still receives damage/retaliation callbacks only when surviving.
 - A return Move that terminates away from its anchor remains in return policy. After a one-second simulation-time backoff the creep retries, at most three times; exhaustion ends the attempt without teleporting. Scripted orders clear recovery state. Immobilization does not cause a busy retry loop.
-- `creep_guard_return_retries` and `creep_guard_retry_at_ms` persist through save/load. Save format version is now 86, rejecting earlier layouts according to repository policy.
+- `creep_guard_return_retries` and `creep_guard_retry_at_ms` persist through save/load. The integrated lifecycle phase uses save format version 87, rejecting earlier layouts according to repository policy.
 - Non-finite, negative or float-overflowing Misc values use the documented defaults; the hard leash is never shorter than the soft leash.
-- More comprehensive save-during-return and full scheduler coverage remain desirable; the patch has not been compiled or tested here.
+- The integrated subsystem includes a real return-Move save round-trip and scheduler regression; pathfinder callback and retail parity checks remain follow-up work. See [neutral-creep-guard.md](neutral-creep-guard.md).

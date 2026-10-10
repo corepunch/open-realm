@@ -556,6 +556,46 @@ TEST(wc3_order_lifecycle, creep_guard_native_disable_keeps_anchor_and_explicit_o
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
 }
 
+/* Disabling an active autonomous return must stop the Move, but it must not
+ * assign a new player Stop guard position or move the original creep anchor. */
+TEST(wc3_order_lifecycle, disable_creep_guard_cancels_active_return_move) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_SetUnitGuardPosition(creep);
+    creep->s.origin2.x = creep->s.origin.x = 900;
+    gi.LinkEntity(creep);
+    G_CreepGuardAutoCombat(creep);
+    T_ASSERT(G_CreepGuardCombatEnd(creep));
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_RETURNING);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+
+    G_CreepGuardSetEnabled(creep, false);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc != CAbilityMove);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.001f);
+    T_FEQ(creep->movement.guard_position.x, 128, 0.001f);
+    level.time += 5000;
+    G_CreepGuardTick(creep);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc != CAbilityMove);
+}
+
+/* Disabling future automatic guarding must not interrupt a script-owned Move. */
+TEST(wc3_order_lifecycle, disable_creep_guard_preserves_explicit_move) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    vec2_t const destination = { 400, 0 };
+    G_CreepGuardInit(creep);
+    T_ASSERT(G_IssueUnitPointOrder(creep, "move", &destination, false, creep->s.player, 0.0f));
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+    edict_t *goal = creep->goalentity;
+    G_CreepGuardSetEnabled(creep, false);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+    T_ASSERT(creep->goalentity == goal);
+}
+
 TEST(wc3_order_lifecycle, creep_guard_damage_refreshes_only_eligible_unit) {
     setup_test_world();
     edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
@@ -683,6 +723,26 @@ TEST(wc3_order_lifecycle, creep_guard_explicit_point_move_cancels_return) {
     T_ASSERT(G_IssueUnitPointOrder(creep, "move", &destination, false, creep->s.player, 0.0f));
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
     T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+}
+
+/* Ownership transfer aborts an AI return without recording a new Stop
+ * guard anchor at the creep's displaced position. */
+TEST(wc3_order_lifecycle, creep_guard_owner_transfer_preserves_stop_anchor) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_SetUnitGuardPosition(creep);
+    creep->s.origin2.x = creep->s.origin.x = 900;
+    gi.LinkEntity(creep);
+    G_CreepGuardAutoCombat(creep);
+    T_ASSERT(G_CreepGuardCombatEnd(creep));
+    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
+
+    G_SetUnitPlayer(creep, 0);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_ASSERT(creep->currentmove && creep->currentmove->proc != CAbilityMove);
+    T_FEQ(creep->movement.guard_position.x, 128, 0.001f);
 }
 
 TEST(wc3_order_lifecycle, creep_guard_owner_transfer_reconciles_policy) {

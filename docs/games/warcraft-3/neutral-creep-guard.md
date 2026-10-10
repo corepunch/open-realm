@@ -71,3 +71,21 @@ queued point moves, and direct UI Move clear autonomous creep-guard ownership.
 Internal ability-order notifications do not. Ownership changes into Neutral
 Hostile initialize a new guard anchor at the conversion location; transfers
 out disable the policy. Neither path changes the independent Stop anchor.
+
+## Final spawn placement and guard disabling
+
+`unit_create()` can move a requested spawn to a nearby legal point after
+`SP_SpawnUnit()` initializes the creep guard. For eligible Neutral Hostile
+units, the final CreateUnit position replaces the initial guard anchor after
+the unstuck search; later Move orders and normal displacement do not.
+
+Disabling `SetUnitCreepGuard(unit, false)` cancels an active AI-owned return
+Move through Stop cleanup without recording a new player Stop anchor.
+An explicitly ordered Move is not interrupted, and already-idle guards do
+not receive a new Stop order. Ownership transfers use the same non-recording
+Stop cleanup when an autonomous return is active.
+
+Regressions exercise collision-corrected CreateUnit placement, an active
+return Move disabled mid-flight, preservation of an explicit Move, and
+owner transfer without resetting the Stop anchor.
+Run the affected build and `make test` locally before merging.

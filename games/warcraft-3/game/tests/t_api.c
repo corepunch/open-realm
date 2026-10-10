@@ -3287,6 +3287,29 @@ TEST(wc3_api, createunit_avoids_live_unit_collision) {
     }
 }
 
+/* Creation initializes guard policy before CreateUnit's collision-based
+ * unstuck search. The guard anchor must follow the final legal location. */
+TEST(wc3_api, neutral_creep_createunit_anchor_uses_resolved_spawn) {
+    vec2_t const requested = { 256.0f, 256.0f };
+    edict_t *blocker, *creep;
+
+    reset_entities(); setup_test_world();
+    blocker = unit_create(0, BZ_WC3_UNIT_PEASANT, &requested, 0);
+    T_NOT_NULL(blocker);
+    if (!blocker) return;
+    blocker->s.model = 1;
+    blocker->collision = 16.0f;
+    gi.LinkEntity(blocker);
+
+    creep = unit_create(PLAYER_NEUTRAL_AGGRESSIVE, BZ_WC3_UNIT_PEASANT, &requested, 0);
+    T_NOT_NULL(creep);
+    if (!creep) return;
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_ASSERT(Vector2_distance(&creep->s.origin2, &requested) > 0.01f);
+    T_FEQ(creep->movement.creep_guard_origin.x, creep->s.origin2.x, 0.001f);
+    T_FEQ(creep->movement.creep_guard_origin.y, creep->s.origin2.y, 0.001f);
+}
+
 TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};

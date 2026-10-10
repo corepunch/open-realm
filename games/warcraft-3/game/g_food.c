@@ -176,10 +176,11 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
         G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_CAP, -unit->food->made);
         G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, unit->food->made);
     }
-    /* Do not let an AI-owned return Move continue under the new owner. */
+    /* Ownership transfer must cancel an AI-owned return without resetting
+     * the independent Stop guard anchor to the creep's current position. */
     if (unit->movement.creep_guard_enabled &&
         unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING)
-        order_stop(unit);
+        order_stop_cleanup(unit);
     unit->s.player = player;
     /* A converted creep must not carry autonomous combat/return orders across
      * ownership. New Neutral Hostile units anchor at their conversion position;

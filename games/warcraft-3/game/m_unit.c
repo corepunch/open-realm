@@ -1295,6 +1295,10 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     } else fprintf(stderr, "WC3 CreateUnit: no legal spawn point for %c%c%c%c player %u at (%.1f, %.1f); retaining requested position\n",
                    unitid & 255, (unitid >> 8) & 255, (unitid >> 16) & 255, (unitid >> 24) & 255,
                    player, location->x, location->y);
+    /* SP_SpawnUnit captured the requested location before the unstuck search.
+     * Guard the actual final spawn point, not an obstructed requested point. */
+    if (unit->movement.creep_guard_enabled)
+        unit->movement.creep_guard_origin = unit->s.origin2;
     if (unit->stand) {
         unit->stand(unit);
     }

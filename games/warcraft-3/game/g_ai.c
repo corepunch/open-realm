@@ -326,8 +326,14 @@ void G_CreepGuardSetEnabled(edict_t *unit, bool enabled) {
     enabled = enabled && unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE &&
         !(unit->runtime.flags & UNIT_BALANCE_BUILDING);
     if (!enabled) {
+        /* The return Move is owned by creep AI. Disabling that policy must
+         * cancel its active order, but leave any explicitly issued Move and
+         * the independent Stop guard anchor alone. */
+        bool const returning = unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING;
         unit->movement.creep_guard_enabled = false;
         G_CreepGuardExplicitOrder(unit);
+        if (returning && unit->currentmove && unit->currentmove->proc == CAbilityMove)
+            order_stop_cleanup(unit);
         return;
     }
     if (!unit->movement.creep_guard_enabled) {
