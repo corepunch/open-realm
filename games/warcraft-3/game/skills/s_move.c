@@ -1835,7 +1835,7 @@ void S_PredictUnitFinePointAt(edict_t const *self,wc3Clock_t const *clock,float 
  * adding target then source radii. Source-minus-point truncation, the minimum
  * radius and squared near-equality are observable at adjacent float inputs.
  * Read fine positions only; querying must not commit either mover's clock. */
-bool S_UnitTargetInMoveRange(edict_t const *self,edict_t const *target,float range) {
+static bool move_target_in_range(edict_t const *self,edict_t const *target,float range,bool predict) {
     if(!self || !target)return false;
     uint32_t word=wc3_float_bits(range);
     range=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
@@ -1843,8 +1843,14 @@ bool S_UnitTargetInMoveRange(edict_t const *self,edict_t const *target,float ran
     float source_radius=wc3_mul(self->collision,wc3_float(0x3d000000));
     range=MAX(wc3_float(0x3efae148),wc3_add(wc3_add(range,target_radius),source_radius));
     float source[2],point[2],squared=0;
-    S_PredictUnitFinePointAt(self,&level.pathing_clock,source);
-    S_PredictUnitFinePointAt(target,&level.pathing_clock,point);
+    if(predict) {
+        S_PredictUnitFinePointAt(self,&level.pathing_clock,source);
+        S_PredictUnitFinePointAt(target,&level.pathing_clock,point);
+    } else {
+        wc3GridPose_t first,second;
+        unit_grid_pose(self,&first);unit_grid_pose(target,&second);
+        FOR_LOOP(k,2){source[k]=first.grid[k];point[k]=second.grid[k];}
+    }
     FOR_LOOP(k,2) {
         float delta=wc3_sub(source[k],point[k]);
         squared=wc3_add(squared,wc3_mul(delta,delta));
@@ -1852,6 +1858,16 @@ bool S_UnitTargetInMoveRange(edict_t const *self,edict_t const *target,float ran
     float limit=wc3_mul(range,range);
     return limit>squared ||
         wc3_float(wc3_float_bits(wc3_sub(squared,limit))&0x7fffffffu)<wc3_float(0x3a83126f);
+}
+
+bool S_UnitTargetInMoveRange(edict_t const *self,edict_t const *target,float range) {
+    return move_target_in_range(self,target,range,true);
+}
+
+/* Original05b580 prediction selector0: Blink retention reads committed fine
+ * centers. It must not integrate velocity or publish either mover. */
+bool S_UnitTargetInCommittedMoveRange(edict_t const *self,edict_t const *target,float range) {
+    return move_target_in_range(self,target,range,false);
 }
 
 /* Original05b440 predicts the source, adds only its collision radius and

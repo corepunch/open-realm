@@ -20949,3 +20949,102 @@ TEST(wc3_movement, target223_replacement_attack_releases_previous_physical_targe
 }
 
 #endif
+
+
+#ifdef BZ_TESTS
+/* Native49b420 tests the committed centers only during Blink's800000 window.
+ * The transient target is excluded from point capture at either Attack phase. */
+static slkTestData_t *target224_blink(edict_t **unit,edict_t **target,slkTestData_t **old) {
+    target166_setup(unit,target);target222_arm(*unit,*target,137);
+    char const slk[]="ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"Cost1\"\nC;X4;K\"Cool1\"\n"
+        "C;X5;K\"Rng1\"\nC;X6;K\"DataA1\"\nC;X7;K\"DataB1\"\nC;X8;K\"levels\"\n"
+        "C;Y2;X1;K\"AEbl\"\nC;X2;K\"AEbl\"\nC;X3;K0\nC;X4;K0\nC;X5;K4000\n"
+        "C;X6;K4000\nC;X7;K0\nC;X8;K1\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk);*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(G_ActorAddSkill(*target,MAKEFOURCC('A','E','b','l')));(*target)->mana.value=1000;
+    T_ASSERT(unit_issuetargetorder(*unit,"attack",*target));(*unit)->currentmove->think(*unit);
+    T_ASSERT(S_UnitTargetChaseActive(*unit,CAbilityAttack));
+    return rows;
+}
+
+TEST(wc3_movement, target224_initial_attack_near_blink_retains_but_far_blink_ends) {
+    FOR_LOOP(far,2) {
+        edict_t *unit,*target;slkTestData_t *old,*rows=target224_blink(&unit,&target,&old);
+        uint64_t id=unit->movement.group_id,rank=unit->attack_target_sequence;
+        vec2_t point=far ? (vec2_t){1984,1984} : (vec2_t){1024,256};
+        attack_target_visits=0;
+        T_ASSERT(unit_issueorder(target,"blink",&point));
+        T_EQ(attack_target_visits,1);T_ASSERT(!target->target_loss_transient);
+        if(far) {
+            T_EQ(unit->current_order_id,0);T_NULL(unit->attack_target);T_EQ(unit->movement.group_id,0);
+        } else {
+            T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->attack_target,target);
+            T_EQ(unit->attack_target_sequence,rank);T_EQ(unit->movement.group_id,id);
+        }
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, target224_ordinary_far_relocation_does_not_publish_blink_loss) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target224_blink(&unit,&target,&old);
+    target223_script();uint64_t id=unit->movement.group_id,rank=unit->attack_target_sequence;
+    T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,672,256,1,null)\nset target=FirstOfGroup(g)\n"
+        "call DestroyGroup(g)\ncall SetUnitPosition(target,1984,1984)\nendfunction\n"));
+    T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->attack_target,target);
+    T_EQ(unit->attack_target_sequence,rank);T_EQ(unit->movement.group_id,id);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+
+TEST(wc3_movement, target224_committed_and_predicted_ranges_match_original_object_cases) {
+#include "fixtures/retail_object_range184.h"
+    reset_entities();setup_test_world();
+    edict_t *units[2]={alloc_test_unit(MAKEFOURCC('h','R','T','E'),0,0),
+        alloc_test_unit(MAKEFOURCC('h','R','T','E'),0,0)};
+    box2_t bounds=CM_GetWorldBounds();level.pathing_clock=(wc3Clock_t){.time=1};
+    FOR_LOOP(i,sizeof(retail_range184)/sizeof(*retail_range184)) {
+        typeof(*retail_range184) *row=retail_range184+i;
+        FOR_LOOP(k,2) {
+            edict_t *unit=units[k];
+            unit->movement.fine_pose=(vec2_t){wc3_float(row->point[k][0]),wc3_float(row->point[k][1])};
+            unit->s.origin2=(vec2_t){bounds.min.x+unit->movement.fine_pose.x*32,
+                bounds.min.y+unit->movement.fine_pose.y*32};
+            unit->movement.pose_world=unit->s.origin2;unit->movement.pose_valid=true;
+            unit->movement.velocity=(vec2_t){wc3_float(row->velocity[k][0])*32,wc3_float(row->velocity[k][1])*32};
+            /* An active clock must not cause prediction for selector0. */
+            unit->movement.clock_valid=true;unit->movement.pose_clock=(wc3Clock_t){.time=wc3_float(row->old[k])};
+            unit->collision=wc3_float(row->radius[k])*32;
+        }
+        edict_t before[2]={*units[0],*units[1]};wc3Clock_t clock=level.pathing_clock;
+        edict_t *target=row->same ? units[0] : units[1];
+        T_EQ(row->predict ? S_UnitTargetInMoveRange(units[0],target,wc3_float(row->reach)) :
+            S_UnitTargetInCommittedMoveRange(units[0],target,wc3_float(row->reach)),row->accepted);
+        T_EQ(memcmp(units[0],before,sizeof(*units[0])),0);T_EQ(memcmp(units[1],before+1,sizeof(*units[1])),0);
+        T_EQ(memcmp(&clock,&level.pathing_clock,sizeof(clock)),0);
+    }
+    T_ASSERT(!S_UnitTargetInCommittedMoveRange(NULL,units[1],2000));
+    T_ASSERT(!S_UnitTargetInCommittedMoveRange(units[0],NULL,2000));
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target224_far_blink_after_range_entry_releases_target_without_point_recovery) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target224_blink(&unit,&target,&old);
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    S_SetUnitAxisPosition(target,0,384);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+    S_SetUnitAxisPosition(target,0,1984);S_SetUnitAxisPosition(target,1,1984);
+    attack_walk(unit);unit->currentmove->think(unit);T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+    vec2_t point={1984,1856};T_ASSERT(unit_issueorder(target,"blink",&point));
+    T_NULL(unit->attack_target);T_EQ(unit->movement.group_id,0);T_EQ(unit->current_order_id,0);
+    T_NULL(unit->goalentity);T_ASSERT(S_ValidateAttackTargets());
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+#endif

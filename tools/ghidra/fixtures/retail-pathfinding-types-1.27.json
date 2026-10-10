@@ -16117,7 +16117,7 @@
       "name": "CAbilityBlink_MoveCaster",
       "returns": "void",
       "convention": "__thiscall",
-      "evidence": "Payoff182: original4c95c0 copies f8/100 into scalar locals, commits relocation via Unit virtual180, sets widget20.800000 at4c9622, calls651010(Unit,-1,-1), clears the same bit at4c9634, then publishes relocation completion6510b0. RET8 at4c9648, despite no reads of the two stack arguments: record unused words, not plain RET. Actual original90 controlled body/packet/validation cases match, and complete public TARGET03 archives retain Smart across reachable Blink.",
+      "evidence": "Payoff182: original4c95c0 copies f8/100 into scalar locals, commits relocation via Unit virtual180, sets widget20.800000 at4c9622, calls651010(Unit,-1,-1), clears the same bit at4c9634, then publishes relocation completion6510b0. RET8 at4c9648, despite no reads of the two stack arguments: record unused words, not plain RET. Actual original90 controlled body/packet/validation cases match, and complete public TARGET03 archives retain Smart across reachable Blink.\nPayoff224: public learned level3 Warden Blink at near/far points supplies800000 Attack-specific retention guard. Far Blink excludes recovery point capture via49d353; it is not ordinary teleport or Move TargetLost semantics.",
       "parameters": [
         {
           "name": "ability",
@@ -16141,7 +16141,7 @@
       "name": "MoveBridge_IsTargetInConfiguredRange",
       "returns": "u32",
       "convention": "__thiscall",
-      "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RETc; ECX bridge; stack4 requested scalar pointer,8 target bridge, c integer prediction selector.948 complete native object cases, including independent clock domains;822 exported domain-zero engine cases. No invalid-handle false fallback.",
+      "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RETc; ECX bridge; stack4 requested scalar pointer,8 target bridge, c integer prediction selector.948 complete native object cases, including independent clock domains;822 exported domain-zero engine cases. No invalid-handle false fallback.\nPayoff224: prediction selector0 at49b555 reads stored mover+78/7c centers, no elapsed query. Only nonzero selector enters161040/05bdd0. Configured Blink range is d6fb40 initialized by013500 to float2000. Both source and target fine collision radii still added, then minimum.49 and squared near equality3a83126f. Engine new committed API shares exact arithmetic with the existing predicted API.",
       "parameters": [
         {
           "name": "bridge",
@@ -17287,7 +17287,7 @@
       "name": "Attack_OnTargetLost",
       "returns": "void",
       "convention": "__thiscall",
-      "evidence": "Payoff222: Attack dispatch d01a4. Resolves task target6c/70 and validates4968e0(target,0,&slot), detection-only. Invalid sets flags20 bit40000 before49d280(0,0). Invisibility with TrueSight scene3 remains valid; both stock-Apiv combat controls (scenes2/3, without/with extra TrueSight) validate0 in this producer; they do not establish undetected-loss behavior. Move's5fb940 is not invoked by Attack's loss validation.\nPayoff223: controlled live shared-vision-off repeats/control distinguish Apiv undetected dd, TrueSight valid0, ShowUnit false aa, death dd, removal aa. At49b5b7 visibility argument0 retains detection-only semantics. Invalid sets40000 and calls49d280 at49b594. Earlier222 Apiv controls inherited shared vision and remain correctly limited. Engine now delivers indexed Attack subscriptions separately from retained Move parents.",
+      "evidence": "Payoff222: Attack dispatch d01a4. Resolves task target6c/70 and validates4968e0(target,0,&slot), detection-only. Invalid sets flags20 bit40000 before49d280(0,0). Invisibility with TrueSight scene3 remains valid; both stock-Apiv combat controls (scenes2/3, without/with extra TrueSight) validate0 in this producer; they do not establish undetected-loss behavior. Move's5fb940 is not invoked by Attack's loss validation.\nPayoff223: controlled live shared-vision-off repeats/control distinguish Apiv undetected dd, TrueSight valid0, ShowUnit false aa, death dd, removal aa. At49b5b7 visibility argument0 retains detection-only semantics. Invalid sets40000 and calls49d280 at49b594. Earlier222 Apiv controls inherited shared vision and remain correctly limited. Engine now delivers indexed Attack subscriptions separately from retained Move parents.\nPayoff224: public near/far Blink repeats/control. Unit target+ec positive invalidates first. When target widget20 bit800000 is set,49b555 calls05b580 with d6fb40=2000world and prediction0 (committed fine centers plus both radii). Near1 continues detection-only4968e0 validation0, retaining chase/head. Far0 bypasses validation, sets40000 and recovers. Engine uses committed predicate only inside the existing Blink transient window; ordinary SetUnitPosition is not this producer.",
       "parameters": [
         {
           "name": "ability",
@@ -17301,7 +17301,7 @@
       "name": "Attack_RecoverTargetTask",
       "returns": "void",
       "convention": "__thiscall",
-      "evidence": "Payoff222: active flag4 controls recovery. Bit40000 can capture the real target point and max enabled weapon range+target radius+50, release target/windup497e20, stop/recover, then prepend internal d016c point task. Fog-arrival invalidation without40000 does not use that fallback. Full recovery/task-stack engine integration remains open.\nPayoff223: four invalidation scenes capture actual predicted target XY through058900/05a970, range4985c0 maximum enabled weapon +05aa20 target radius +RuntimeFifty, then497e20 release before692120 caller49d490 prepends d016c. Public Attack head remains identical during task creation and retires after point recovery. TrueSight valid control creates no recovery. Engine integrates ground-unit chase recovery; complete initial/turn-only, flyers, structures and Blink exception remain open.",
+      "evidence": "Payoff222: active flag4 controls recovery. Bit40000 can capture the real target point and max enabled weapon range+target radius+50, release target/windup497e20, stop/recover, then prepend internal d016c point task. Fog-arrival invalidation without40000 does not use that fallback. Full recovery/task-stack engine integration remains open.\nPayoff223: four invalidation scenes capture actual predicted target XY through058900/05a970, range4985c0 maximum enabled weapon +05aa20 target radius +RuntimeFifty, then497e20 release before692120 caller49d490 prepends d016c. Public Attack head remains identical during task creation and retires after point recovery. TrueSight valid control creates no recovery. Engine integrates ground-unit chase recovery; complete initial/turn-only, flyers, structures and Blink exception remain open.\nPayoff224 correction/clarification:49d338 unit cast overwrites stack+c with the resolved TARGET unit. Decompiler target_event aliases that local, not just the incoming null argument.49d353 tests resolved target widget20 bit800000; a Blink target is excluded from point capture. Public far Blink during initial approach and after range entry both release/end, no692120 caller49d490. Engine must not apply ordinary loss point recovery to any Blink-window target.",
       "parameters": [
         {
           "name": "ability",
@@ -17352,6 +17352,14 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f013500",
+      "name": "Attack_InitBlinkRetentionRange",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__cdecl",
+      "parameters": [],
+      "evidence": "Payoff224: registered CRT initializer: EDX=2000,ECX=d6fb40,tailjmp070d80 integer-to-software-scalar. No stack arguments/plain RET through converter, EAX output pointer. Read-only live range witnesses confirm d6fb40=44fa0000. Sole use49b54e in Attack Blink retention."
     }
   ],
   "globals": [
@@ -17774,6 +17782,12 @@
       "name": "Patrol_MinimumDistanceSquared",
       "type": "WC3PathScalar",
       "evidence": "ORDER-01.18: initializer 6f013530 MOV EDX,2710; MOV ECX,6fd6fb28; JMP 070d80 (integer->scalar 10000.0). 5fe2e4 MOVSS/COMISS: issued Patrol expands only when dist2(unit,point) >= this. Live: 60 and 99.99 units -> head 0 at issue; exactly 100 -> 851991."
+    },
+    {
+      "address": "6fd6fb40",
+      "name": "Attack_BlinkRetentionRange",
+      "type": "WC3PathScalar",
+      "evidence": "Payoff224:013500 EDX2000 ->070d80 startup converter; runtime44fa0000 observed at49b555. Selector0 committed-center range."
     }
   ]
 }

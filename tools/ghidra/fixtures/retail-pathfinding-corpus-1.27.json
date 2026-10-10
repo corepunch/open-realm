@@ -49282,6 +49282,57 @@
         "Engine integrates indexed Attack TargetLost and ground-unit chase point recovery. Flyers, structures/destructables, Blink exceptions and complete initial/turn-only/task-stack timing remain open.",
         "No prior retail fixture is changed. TARGET-03.2 remains open until its remaining policy matrix is complete."
       ]
+    },
+    {
+      "id": "oracle-attack-blink224",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_attack_blink224.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "attack-blink224.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "scenes": {
+          "equal": 4
+        },
+        "public_markers": {
+          "equal": 2385
+        },
+        "instructions": {
+          "equal": 549
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "TARGET-03.2 Attack Blink committed range, near retention and far release without point recovery. Two complete four-scene public retail observations and unhooked control,549 original instruction encodings, original range cases and actual Classic/TFT regressions. Wider visibility/task timing remains open.",
+      "exclusions": [
+        "Public controls compare R2S markers; no full Attack motion word-equality claim.",
+        "Ordinary relocation retains Attack; Blink uses committed range and excludes point recovery during its transient window.",
+        "Broader TARGET-03.2 policies remain open. No existing retail fixture is replaced."
+      ]
     }
   ],
   "fixtures": [
@@ -49347,7 +49398,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "8c8e74cb3474d3f07d7a2b17d9d05c7c4792fbce17e46f3007da925450599a40"
+      "sha256": "3b54b4e1ea58865754987e4a9bddc935f5538963e8487ff5120164063c8719c0"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -50180,7 +50231,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "9a2f87cfdac2741da8aeb5751520b676170bdcc304ea2025b17a1b5b7eee93b7"
+      "sha256": "16bd96219a69c51761667c060d997f96cc683364c0d3b27c026ccc00d8627256"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51036,7 +51087,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "b74c2a5cebc19fd0df44b5023de9c1dc1dfe3fbb8097d9698130010bc062380b"
+      "sha256": "45da5b79705b6437cc1211488896161b09ec3606a1aae4ad5e98131cdc667ff5"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51480,7 +51531,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "58e2835d852a064624dfecbcf10651a29737cc9d48f6f21ee05b5114d99879c4"
+      "sha256": "064a3453bbc9607ab191988a6a6ccf0761001e3151e2624d3f24f840d421dd40"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51728,7 +51779,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "27fee080a943e8912940fefc2e05ddc4178c8b16e6d9c907829dda0479eceb59"
+      "sha256": "db6fabd54ec587fe0627278651450cf647ab96e1c67c5f2bda5d3c05264552fd"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -51972,7 +52023,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "53f188763decf10bfd2c8c67cc84e2c5dab407c6013af248a98e8c763a60c2ac"
+      "sha256": "785cff19739ad4686d4c5bc3356b9466daafbc9a28786561b3b1baea69a07ee3"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51984,11 +52035,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "711de6862e366cf34a225f69db56323350ec8b14f011c693ecdf3ed2d958c6a2"
+      "sha256": "ebfe5aab205f357fd137f2ba6a0bb6bcedb608dad833c5f6fd648d77168f9f17"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "9dcf0d2df08ccfc77a3b1c4e121b4574ff140c3be1486bd1287ed4cb5664e46d"
+      "sha256": "782243b1e8fa3f90c7750fa9a33ee7a66d0e847f779d7c5d9ed9b1e816b913ea"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -51996,7 +52047,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "92d2c2c87c2d34fc7c4f1f0ac7e32053409c6f38f96334faecbb04c1347f41cb"
+      "sha256": "0c07b16994c560df2f08a4396c1508b7403b1eab3585f0ae97b864ab5ef7c04b"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -54597,6 +54648,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-attack-recovery223-1.27.json.gz",
       "sha256": "5f0dca8bc88b2fddadf86bd495a8b3440c71f2c0b070fda232f9ee86426bfe02"
+    },
+    {
+      "path": "tools/frida/research/target224_capture.py",
+      "sha256": "4bd5ea76e207f31ae2da085b03fd8c4ec0b616286c79593690619572301b4227"
+    },
+    {
+      "path": "tools/frida/research/target224_observer.js",
+      "sha256": "a04bb377ce8b6686e973182fbc88a78680133015bae119d43a6fd1a5fa472020"
+    },
+    {
+      "path": "tools/frida/research/target224_make_map.py",
+      "sha256": "e69752b155542382bb1e7b5d44881ac5ad5c3b89d9f316ac75bcb0f509e0b9d3"
+    },
+    {
+      "path": "tools/frida/research/target224_probe.j",
+      "sha256": "aa564486cdea22714e7ecc2139137da0d78580f31f6b02316e8387ddb5653363"
+    },
+    {
+      "path": "tools/ghidra/research/Target224Evidence.java",
+      "sha256": "8f124cc399c1136678acc120ea111aef6f42b12cccf6f07d7defebf3306c1167"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_attack_blink224.py",
+      "sha256": "ae1b89e21387f27ea61ff5919f7260b71838060965fa9c5d6079833d692617a2"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_attack_blink224.py",
+      "sha256": "1ce2ccef4ad21489a3b77f24c18e3b5e5a7a7a17d2ea859865a490c16d7432a2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-blink224-1.27.json",
+      "sha256": "ddbc21a7a3598a42d09b1d3ff18efd93c851ce0b5b52cbadb107264dcf0a2a23"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-blink224-1.27.json.gz",
+      "sha256": "4247aef1ca058951e85b0536f7ec5a7069279f998a6a85325e016dbb023d6131"
     }
   ]
 }

@@ -15178,3 +15178,64 @@ remains open for its wider policy matrix, complete initial/turn-only task timing
 flyers, structures/destructables and Blink exceptions. Passing policy/regression
 checks does not establish word-exact complete Attack motion or a performance
 budget result. No existing retail fixture is replaced.
+
+## Attack Blink loss uses committed range and excludes point recovery (Payoff224)
+
+Attack now preserves retail's Blink-specific TargetLost policy. Near Blink keeps
+its target subscription, public head and physical chase. Far Blink releases the
+target and finishes through the existing independent swing/FIFO completion
+path. Ordinary SetUnitPosition does not publish this Blink loss and retains
+Attack. No rawcode exception or new saved field is introduced; Save157 remains
+unchanged.
+
+Original `49b555` calls `05b580` with prediction selector0 and runtime scalar
+`d6fb40`. The registered initializer `013500` at CRT slot `a7e47c` converts integer
+2000 through `070d80`; read-only runtime witnesses confirm `44fa0000`. The test
+uses committed fine centers, adds target then source collision radii, clamps
+the minimum radius and retains the squared near-equality comparison. It does
+not query elapsed time or predict either mover. Move exposes a committed-range
+API sharing the existing predicted API's arithmetic. All822 frozen original
+object cases pass, including selector0 with active clocks and nonzero velocity;
+none modifies entities or the clock. The full original range oracle is rerun,
+including948 object cases and795 complete shared-spell wrapper calls, with its
+previous JSON/C expectations unchanged.
+
+A decompiler alias concealed the other necessary rule. At `49d338` the unit
+cast overwrites stack+c with the **resolved target unit**; the later variable
+named target_event is not simply the incoming null argument. `49d353..35a`
+checks that resolved unit's transient800000 flag and excludes a Blink target
+from point capture. Far Blink therefore bypasses normal validation, sets40000,
+releases the target and ends without a `692120` recovery point. This holds both
+during initial approach and after entering combat range. Applying ordinary
+TargetLost point recovery here would incorrectly prolong the Attack order.
+
+Two complete read-only retail observations and an unhooked control agree on795
+public markers each across four scenes: near Blink, far Blink during initial
+approach, far Blink after range entry and ordinary far relocation. Learned
+level3 Warden Blink supplies the actual public producer. The new regression
+first fails three engine assertions for the far Blink case. Four production
+regressions then pass3335 assertions per Classic/TFT edition, covering both
+Blink phases, retained registration/group identity, ordinary relocation and
+all822 original range cases. Focused target/Follow/order/lifecycle/interrupt/
+unit/food/save/combat/group/spell/dispatch validation passes1113 tests /200,083
+assertions per edition. Production/test builds and12 evidence mutation tests
+pass. No full repository suite or new performance measurement is claimed.
+
+Frozen evidence is
+[`retail-attack-blink224-1.27.json`](../../../tools/ghidra/fixtures/retail-attack-blink224-1.27.json)
+with its compressed capture bundle. Its verifier checks549 original instruction
+encodings, the exact committed range selector/word, near validation, far
+validation bypass/release, absence of Blink point recovery and public outcomes.
+Ghidra comments, initializer ABI, constant label and xrefs are saved and mirrored
+in MapPathfinding.java/the type fixture. Reproducers are
+`tools/frida/research/target224_{capture.py,observer.js,make_map.py,probe.j}`;
+`Target224Evidence.java` exports original instructions. Captures, exploratory
+three-scene repeats, map/source pins, failing-first log and final validation are
+archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/payoff224/`.
+
+This is implementation commit10/12 since checkpoint214. TARGET-03.2 remains
+open for its wider policy/task/timing matrix. R2S marker agreement is not a
+word-exact complete Attack trajectory claim. All459 prior corpus entries and
+all existing retail fixtures remain unchanged; this adds the460th entry and
+179th original-code oracle.

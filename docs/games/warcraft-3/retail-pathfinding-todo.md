@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff224 fixes Attack Blink loss: committed-center retention range, near-chase
+retention and far-target release without ordinary point recovery. Repeated
+retail/control evidence and failing-first engine regressions preserve existing
+fixtures. Wider TARGET-03.2 remains open; no new TODO is added.
+See [Attack Blink policy](retail-pathfinding-engine.md#attack-blink-loss-uses-committed-range-and-excludes-point-recovery-payoff224).
+
 Payoff223 adds independent indexed Attack TargetLost subscriptions and physical
 point recovery while retaining the public Attack head/FIFO. Controlled original
 invisibility/detection, hide, death and removal repeats match an unhooked control;

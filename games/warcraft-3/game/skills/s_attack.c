@@ -161,6 +161,7 @@ static void attack_deliver_target_lost(edict_t *target) {
  * deadline. These indexes are derived; only deadline/serial/active are saved. */
 /* Native startup001d70 /001c80 and Math_RoundHalf; these are not map tuning. */
 #define ATTACK_MINIMUM_CHASE_RANGE 32.0f /* Native00b5d0 ->d6bf64. */
+#define ATTACK_BLINK_RETENTION_RANGE 2000.0f /* Native013500 ->d6fb40. */
 #define ATTACK_TARGET_RECOVERY_MARGIN 50.0f /* Native49d280 Math_RuntimeFifty. */
 #define ATTACK_AI_HELP_RADIUS 900.0f
 #define ATTACK_HELP_SUPPRESSION 3.0f
@@ -1239,10 +1240,17 @@ void S_AttackRecoveryComplete(edict_t *receiver,edict_t *unit,bool arrived) {
 
 static void attack_target_lost(edict_t *unit,edict_t *target) {
     if(!unit->currentmove || unit->currentmove->proc!=CAbilityAttack || unit->goalentity!=target)return;
+    /*49b51a..55a: Blink alone tests committed centers with both radii.
+     *49d353..35a excludes the transient target from point capture even when
+     * the later task chain could admit it. Retain the independent swing wait. */
+    if(target->target_loss_transient &&
+       !S_UnitTargetInCommittedMoveRange(unit,target,ATTACK_BLINK_RETENTION_RANGE)) {
+        attack_finish_after_combat(unit,target,"blink_out_of_range");return;
+    }
     /*49b420 validates detection, not fog. A valid target keeps the same owner. */
     if(!G_IsDeferredFree(target) && S_AttackCanTarget(unit,target) &&
        unit->attack_target_spawn_time==target->spawn_time)return;
-    if(S_UnitTargetChaseActive(unit,CAbilityAttack) && target->inuse &&
+    if(!target->target_loss_transient && S_UnitTargetChaseActive(unit,CAbilityAttack) && target->inuse &&
        unit->attack_target_spawn_time==target->spawn_time) {
         /*49d280 queries the actual predicted pose, never Move's fog-frozen
          * sample or the order's issue-time coordinate. Add target radius only;
