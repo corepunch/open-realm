@@ -4844,7 +4844,9 @@ acquired:
 typedef struct {edict_t *unit;uint32_t spawn;} moveRequestCandidate_t;
 typedef struct {
     moveRequestCandidate_t candidates[BZ_WC3_GROUP_ORDER_UNITS];
-    uint32_t count,attached,ready,id,flags;
+    uint32_t count,attached,ready,id,history,flags;
+    moveGroup_t *inherited;
+    uint64_t inherited_sequence;
     vec2_t goal;
     bool published;
 } movePointRequest_t;
@@ -5046,7 +5048,7 @@ void S_EndUnitTargetChase(edict_t *unit,abilityProc_t owner) {
 }
 
 enum {MOVE_PREVIOUS_COHORT_RADIUS=1000};
-typedef struct {edict_t *source;moveGroup_t *group;vec2_t fine_goal;} moveQueuedCohort_t;
+typedef struct {edict_t *source;movePointRequest_t *request;} moveQueuedCohort_t;
 static bool move_queued_cohort_candidate(void *data,edict_t *other) {
     moveQueuedCohort_t *query=data;edict_t *unit=query->source;
 #ifdef BZ_TESTS
@@ -5056,20 +5058,22 @@ static bool move_queued_cohort_candidate(void *data,edict_t *other) {
         M_IsDead(other) || IS_HOLLOW(other) ||
         other->movement.previous_request_id!=unit->movement.previous_request_id ||
         S_UnitMovementProfile(other->data.UnitData)->bits!=S_UnitMovementProfile(unit->data.UnitData)->bits)return true;
-    moveGroup_t *peer=move_unit_group(other),*group=query->group;
-    if(!peer || peer==group || peer->count>=BZ_WC3_GROUP_ORDER_UNITS)return true;
-    if(peer->goal.x!=query->fine_goal.x || peer->goal.y!=query->fine_goal.y)return true;
-    /*5faaf0: source first, then every retained old row in its original order.
-     * Once one candidate qualifies, other cohorts are not considered. */
+    moveGroup_t *peer=move_unit_group(other);movePointRequest_t *request=query->request;
+    if(!peer || peer->count>=BZ_WC3_GROUP_ORDER_UNITS)return true;
+    if(peer->goal.x!=request->goal.x || peer->goal.y!=request->goal.y)return true;
+    request->inherited=peer;request->inherited_sequence=peer->sequence;
+    /*5faaf0 attaches every resolved old row before any readiness attempt.
+     * Pending source admission must retain the old physical owner and its rows.
+     * Normal reverse preparation prunes those rows after successful rebinding. */
     FOR_LOOP(i,peer->count) {
-        edict_t *member=peer->members[i].unit;
-        if(!member || member==unit)continue;
-        group->members[group->count++]=(moveGroupMember_t){.unit=member,.spawn=member->spawn_time,
-            .arrival_range=wc3_point_arrival_range(0)};
-        member->movement.group_id=group->id;move_unit_groups[member-g_edicts]=group;
-        if(member->collision>group->radius)group->radius=member->collision;
+        moveGroupMember_t const *row=peer->members+i;edict_t *member=row->unit;
+        if(!member || member==unit || !member->inuse || member->spawn_time!=row->spawn ||
+            G_IsDeferredFree(member) || move_unit_group(member)!=peer)continue;
+        move_request_attach(request,member);
     }
-    move_release_group(peer);return false;
+    /* The source occupies slot zero. No callback runs while attaching peers. */
+    for(unsigned i=1;i<request->count;i++)move_request_ready(request,request->candidates[i].unit);
+    return false;
 }
 
 static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
@@ -5081,24 +5085,20 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
         move_group_admission.point.x==queued->point.x && move_group_admission.point.y==queued->point.y ?
         move_group_admission.request : NULL;
     if(prepared)return true;
-    moveGroup_t *group=move_alloc_group();
-    group->inuse=group->ticking=true; group->id=move_allocate_group_id();
-    group->request_id=unit->movement.previous_request_id; group->goal=move_point_fine(&queued->point); group->age=UINT32_MAX;
-    group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
-        .arrival_range=wc3_point_arrival_range(0)};
-    group->radius=unit->collision; unit->movement.group_id=group->id;
-    move_unit_groups[unit-g_edicts]=group;
+    movePointRequest_t request={.id=move_allocate_group_id(),
+        .history=unit->movement.previous_request_id,.goal=move_point_fine(&queued->point)};
+    move_request_attach(&request,unit);
     wc3GridPose_t source;unit_predicted_pose(unit,&source);
     box2_t bounds=CM_GetWorldBounds();
     float center[]={wc3_grid_coordinate(source.world[0],bounds.min.x,32),
         wc3_grid_coordinate(source.world[1],bounds.min.y,32)};
-    moveQueuedCohort_t query={unit,group,group->goal};
+    moveQueuedCohort_t query={unit,&request};
     /*013490 initializes the world radius used by selector8 in5fa950. */
     S_VisitMoveCircle(center,wc3_div(MOVE_PREVIOUS_COHORT_RADIUS,32),move_queued_cohort_candidate,&query);
     /*5faaf0 attaches old peers to a fresh request; their ready attempts wait
      * for this source.16bcf0 then partitions all ready rows again. Old group
      * membership does not bypass the current predicted-distance predicate. */
-    move_group_publish_ready(group);
+    move_request_ready(&request,unit);
     return true;
 }
 
@@ -5115,6 +5115,11 @@ typedef struct {
 static void move_group_bind_ready(moveGroup_t *group,moveReadyCohort_t *ready,unsigned index) {
     moveGroupMember_t member=ready->members[index];
     ready->remaining&=~(1u<<index);
+    moveGroup_t *previous=move_unit_group(member.unit);
+    if(previous && previous!=group)FOR_LOOP(i,previous->count) {
+        moveGroupMember_t *old=previous->members+i;
+        if(old->unit==member.unit && old->spawn==member.spawn)old->retired=true;
+    }
     group->members[group->count++]=member;
     member.unit->movement.group_id=group->id;move_unit_groups[member.unit-g_edicts]=group;
     group->radius=MAX(group->radius,member.unit->collision);
@@ -5292,7 +5297,10 @@ static int move_request_publish(movePointRequest_t *request) {
      * recipient returns. Preserve its new owner rather than reclaim it. */
     FOR_LOOP(i,request->count)if(request->ready&(1u<<i)) {
         edict_t *unit=move_request_member(request,i);
-        if(unit && (unit->currentmove!=&move_move_walk || move_unit_group(unit))) {
+        moveGroup_t *owner=unit ? move_unit_group(unit) : NULL;
+        bool inherited=owner && owner==request->inherited && owner->inuse &&
+            owner->sequence==request->inherited_sequence;
+        if(unit && !inherited && (unit->currentmove!=&move_move_walk || owner)) {
             request->attached&=~(1u<<i);request->ready&=~(1u<<i);
         }
     }
@@ -5314,7 +5322,7 @@ static int move_request_publish(movePointRequest_t *request) {
         result=0;
         if(ready.remaining) {
             moveGroup_t *group=move_alloc_group();
-            group->inuse=group->ticking=true;group->id=request->id;group->request_id=request->id;
+            group->inuse=group->ticking=true;group->id=request->id;group->request_id=request->history;
             group->age=UINT32_MAX;group->goal=request->goal;group->flags=request->flags;
             result=move_group_partition_ready(group,&ready);
         }
@@ -5372,6 +5380,7 @@ static bool move_group_selected_point_order(groupPointOrder_t const *request) {
     }
     FOR_LOOP(k,CLASSES)if(remaining[k])
         prepared[k]=(movePointRequest_t){.id=move_allocate_group_id(),.goal=move_point_fine(request->point),.flags=request->formation_toggle ? 14u : 0};
+    FOR_LOOP(k,CLASSES)prepared[k].history=prepared[k].id;
     FOR_LOOP(i,request->count)move_request_attach(prepared+slots[i],request->units[i].unit);
     unsigned indices[BZ_WC3_GROUP_ORDER_UNITS];
     uint32_t keys[BZ_WC3_GROUP_ORDER_UNITS][7];

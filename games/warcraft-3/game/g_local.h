@@ -73,6 +73,7 @@ typedef struct {
     vec2_t offset, destination, world_destination;
     float speed, heading, arrival_range;
     bool arrived, in_range, forced_arrival;
+    bool retired; /* Identity retained until owner preparation after rebinding. */
 } moveGroupMember_t;
 
 /* Shared request parameters have their own lifetime across physical batches.

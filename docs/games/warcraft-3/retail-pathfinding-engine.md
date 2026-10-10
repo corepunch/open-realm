@@ -15925,3 +15925,52 @@ publishes its existing enqueue event. This chunk preserves that existing engine
 contract and does **not** certify busy FIFO event equivalence. Save inside an
 admission callback, full target/captain scopes and arbitrary notification
 reentrancy remain unverified. GROUP-04.6 and MAP-04.2 remain open.
+
+## Queued reconstruction keeps inherited owners until source readiness (Payoff249)
+
+`5faaf0` constructs a canonical request with its source pending, attaches every
+resolved row from the first compatible old cohort, then marks the inherited
+peers ready in a separate loop. Each readiness call attempts publication. These
+pending attempts hold all fine objects, including the source, and restore every
+counter without changing any physical owner. Only source readiness permits
+`16bcf0` to partition and bind the new physical cohorts.
+
+The engine delayed FIFO path now uses the same bounded canonical request as
+selected immediate admission. It preserves retained generations and distinguishes
+previous request history from the new physical identity. Querying remains spatial;
+there is no scan of unrelated cohorts. Request storage and the two peer passes
+are bounded by the twelve-candidate retail limit.
+
+`170fa0` only replaces the mover's group identity. It does not release the old
+cohort or erase its rows. The normal reverse owner preparation subsequently
+rejects their former bindings. The engine retains those rows and their owner
+until that pass. A retired-row marker distinguishes these inactive identities
+for strict persistence; it does not make them eligible for movement or callbacks.
+Save format163 retains the marker, including after removal of a transferred unit,
+and rejects format162 and earlier. Invalid active ownership and generations
+continue to fail validation.
+
+Two read-only genuine Shift-input captures on the unchanged queued corridor map
+each retain305 public markers and eight exclusion boundaries. Their pending and
+successful scopes agree exactly after identity normalization. The complete native
+callback/publication matrix repeats48 cases with48 independent observer-free
+controls: all12 boundaries per case preserve old ownership until source readiness,
+all fine counters restore, and old count2 becomes0 only when original owner
+preparation runs. The earlier Work236 physical partitions remain an independent,
+unchanged expectation.
+
+The failing-first engine scope regression failed12 of168 assertions before the
+change. It now checks eight public position/preference combinations and the
+retained old rows; the existing32-case public queued partition matrix and real
+JASS relocation/save/removal regression also exercise production code. Sixteen
+native matrix cases deliberately supply a peer outside the caller's1000-world
+circle and remain excluded from public-query parity claims.
+
+Evidence and fresh verification are in
+[the queued scope contract](../../../tools/ghidra/fixtures/retail-work249-1.27.json),
+[the literal native scope fixture](../../../games/warcraft-3/game/tests/fixtures/retail_queued_scope249.h),
+and `GROUP-04.6/payoff249/` in the research archive. Six Ghidra annotations and
+903 original instructions/xrefs are saved and mirrored in `MapPathfinding.java`.
+Full captain/target-region scope coverage, arbitrary notification reentrancy and
+the known busy issued-event chronology gap remain open. This chunk does not
+claim whole-engine fidelity or achievement of the performance budget.

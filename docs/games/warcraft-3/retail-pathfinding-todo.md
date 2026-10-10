@@ -56,6 +56,14 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **280 done / 336 tasks; 56 remaining.**
+Payoff249 replaces delayed queued physical reconstruction with canonical
+pending attachments and readiness scopes. Inherited owners remain until source
+readiness; old rows retire during normal preparation and survive save/removal.
+Two retail repeats,48 native cases/48 controls and failing-first engine
+regressions retain earlier partition/motion expectations. GROUP-04.6/MAP-04.2
+remain open for wider owners and event boundaries. See
+[queued reconstruction](retail-pathfinding-engine.md#queued-reconstruction-keeps-inherited-owners-until-source-readiness-payoff249).
+
 Payoff248 separates selected canonical attachments/readiness from physical
 cohorts, removes premature physical binding and holds pending fine exclusions
 through busy/success publication. Failing-first engine checks, two read-only

@@ -14161,7 +14161,7 @@ TEST(wc3_movement, queued236_relocated_peer_split_saves_and_cancels_independentl
         vec2_t goal={1536,512};groupPointOrder_t order={.point=&goal,.order="move",.order_id=G_OrderId("move"),.count=1};
         order.units[0]=(typeof(*order.units)){units[0],units[0]->spawn_time};T_ASSERT(G_IssueGroupPointOrder(&order));
         order.count=2;FOR_LOOP(i,2)order.units[i]=(typeof(*order.units)){units[i+1],units[i+1]->spawn_time};
-        T_ASSERT(G_IssueGroupPointOrder(&order));moveGroup_t *old=move_unit_group(units[1]);T_EQ(old,move_unit_group(units[2]));
+        T_ASSERT(G_IssueGroupPointOrder(&order));moveGroup_t *old=move_unit_group(units[1]);T_EQ(old,move_unit_group(units[2]));uint32_t old_id=old->id;
         order.count=3;order.queued=true;FOR_LOOP(i,3)order.units[i]=(typeof(*order.units)){units[i],units[i]->spawn_time};
         T_ASSERT(G_IssueGroupPointOrder(&order));jass_callbyname(level.vm,"relocate",false);
         T_EQ(move_unit_group(units[2]),old);T_ASSERT(G_UnitStartNextQueuedOrder(units[0]));
@@ -14169,9 +14169,19 @@ TEST(wc3_movement, queued236_relocated_peer_split_saves_and_cancels_independentl
         if(near && far) {
             T_EQ(near->count,2);T_EQ(far->count,1);T_EQ(move_unit_group(units[1]),near);T_EQ(near->request_id,far->request_id);
             cstring_t save=Test_TempPath("wc3-queued236.bin");T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+            old=move_find_group(old_id);T_NOT_NULL(old);
+            if(old){T_EQ(old->count,2);FOR_LOOP(i,2){T_EQ(old->members[i].unit,units[i+1]);T_ASSERT(old->members[i].retired);}}
             near=move_unit_group(units[0]);far=move_unit_group(units[2]);T_NOT_NULL(near);T_NOT_NULL(far);T_NE(near,far);
             T_EQ(move_unit_group(units[1]),near);T_ASSERT(unit_issueimmediateorder(units[1],"stop"));T_EQ(move_unit_group(units[1]),NULL);
-            T_EQ(move_unit_group(units[0]),near);T_EQ(move_unit_group(units[2]),far);remove(save);
+            T_EQ(move_unit_group(units[0]),near);T_EQ(move_unit_group(units[2]),far);
+            /* Payoff249: removal after rebinding must not promote or discard
+             * a retained old identity before its owner's preparation. */
+            uint32_t retired_spawn=old->members[1].spawn;
+            G_FreeEdict(units[2]);T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+            old=move_find_group(old_id);T_NOT_NULL(old);
+            if(old){T_EQ(old->count,2);T_EQ(old->members[1].spawn,retired_spawn);T_ASSERT(old->members[1].retired);
+                move_group_prepare_members(old);T_EQ(old->count,0);}
+            remove(save);
         }
     }
     reset_entities();setup_test_world();
@@ -22480,7 +22490,7 @@ TEST(wc3_movement, request248_native_pending_drop_and_nested_exclusion_depth) {
         CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
         vec2_t point={1536,1536};
         movePointRequest_t request={.id=move_allocate_group_id(),.goal={48,48}};
-        scope248=(typeof(scope248)){.row=r};
+        request.history=request.id;scope248=(typeof(scope248)){.row=r};
         FOR_LOOP(i,3) {
             edict_t *unit=scope248.units[i]=cohort232_unit(512+i*96,512);
             S_IssueMoveOrder(unit,Waypoint_add(&point),G_OrderId("move"));
@@ -22508,6 +22518,64 @@ TEST(wc3_movement, request248_native_pending_drop_and_nested_exclusion_depth) {
             wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),scope248.units[i]-g_edicts);
             if(record)record->flags=0;
         }
+    }
+    reset_entities();setup_test_world();
+}
+
+
+#include "fixtures/retail_queued_scope249.h"
+static struct {unsigned visits;edict_t *units[3];moveGroup_t *old;} queued249;
+static void queued249_scope(movePointRequest_t const *request,unsigned stage) {
+    unsigned index=queued249.visits++;
+    T_EQ(stage,index%4);T_ASSERT(index<12);if(index>=12)return;
+    typeof(*queued249_scopes) const *expected=queued249_scopes+index;
+    T_EQ(request->count,3);T_EQ(request->attached,expected->attached);T_EQ(request->ready,expected->ready);
+    unsigned inherited=0;
+    FOR_LOOP(i,3) {
+        T_EQ(request->candidates[i].unit,queued249.units[i]);
+        wc3RecordObject_t const *object=G_GetMoveSpatialObject(queued249.units[i]-g_edicts);
+        T_NOT_NULL(object);if(object)T_EQ(object->flags,expected->counters[i]);
+        if(move_unit_group(queued249.units[i])==queued249.old)inherited|=1u<<i;
+    }
+    T_EQ(inherited,expected->inherited);
+    if(index<10)T_NULL(move_unit_group(queued249.units[0]));
+}
+TEST(wc3_movement, queued249_pending_source_preserves_inherited_owners_and_scopes) {
+    FOR_LOOP(position,6)if(position!=1 && position!=5)FOR_LOOP(preferred,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        queued249=(typeof(queued249)){0};edict_t **units=queued249.units;
+        FOR_LOOP(i,3)units[i]=cohort232_unit(256+i*256,512);
+        vec2_t goal={1536,512};groupPointOrder_t order={.point=&goal,.order="move",.order_id=G_OrderId("move"),.count=1};
+        order.units[0]=(typeof(*order.units)){units[0],units[0]->spawn_time};T_ASSERT(G_IssueGroupPointOrder(&order));
+        order.count=2;FOR_LOOP(i,2)order.units[i]=(typeof(*order.units)){units[i+1],units[i+1]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&order));queued249.old=move_unit_group(units[1]);T_EQ(move_unit_group(units[2]),queued249.old);
+        order.count=3;order.queued=true;FOR_LOOP(i,3)order.units[i]=(typeof(*order.units)){units[i],units[i]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&order));wc3Clock_t clock=level.pathing_clock;
+        level.pathing_clock=(wc3Clock_t){10,0,300};
+        typeof(*queued236_positions) const *positions=queued236_positions+position;
+        FOR_LOOP(i,3) {
+            S_SetUnitAxisPosition(units[i],0,positions->x[i]*32);G_PublishMoveSpatialObject(units[i]);
+            units[i]->movement.pose_valid=true;units[i]->movement.pose_world=units[i]->s.origin2;
+            units[i]->movement.fine_pose=(vec2_t){positions->x[i],16};
+            units[i]->movement.velocity=(vec2_t){positions->velocity[i]*32,0};
+            units[i]->movement.pose_clock=(wc3Clock_t){8,0,300};units[i]->movement.clock_valid=true;
+            units[i]->movement.adaptive_disabled=!preferred;
+        }
+        uint32_t history=units[0]->movement.previous_request_id;
+        move_test_request_scope=queued249_scope;T_ASSERT(G_UnitStartNextQueuedOrder(units[0]));
+        move_test_request_scope=NULL;T_EQ(queued249.visits,12);
+        FOR_LOOP(i,3) {
+            moveGroup_t *group=move_unit_group(units[i]);T_NOT_NULL(group);
+            if(group){T_NE(group,queued249.old);T_EQ(group->request_id,history);}
+            wc3RecordObject_t const *object=G_GetMoveSpatialObject(units[i]-g_edicts);
+            T_NOT_NULL(object);if(object)T_EQ(object->flags,0);
+        }
+        T_ASSERT(queued249.old->inuse);T_EQ(queued249.old->count,2);
+        FOR_LOOP(i,2){T_EQ(queued249.old->members[i].unit,units[i+1]);T_ASSERT(queued249.old->members[i].retired);}
+        move_group_prepare_members(queued249.old);T_EQ(queued249.old->count,0);
+        level.pathing_clock=clock;
     }
     reset_entities();setup_test_world();
 }

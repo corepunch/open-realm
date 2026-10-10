@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format162 retains physical group goals in native fine coordinates. */
-static uint32_t const save_version = 162;
+/* Format163 retains transferred member identities until owner preparation. */
+static uint32_t const save_version = 163;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -886,6 +886,7 @@ static field_t const move_member_fields[] = {
     TF(moveGroupMember_t, arrived, F_INT),
     TF(moveGroupMember_t, in_range, F_INT),
     TF(moveGroupMember_t, forced_arrival, F_INT),
+    TF(moveGroupMember_t, retired, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -2363,14 +2364,23 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
             !isfinite(member->speed) || member->speed<0 || !isfinite(member->heading) ||
             !isfinite(member->arrival_range) || member->arrival_range<0 ||
             *(uint8_t const *)&member->arrived>1 || *(uint8_t const *)&member->in_range>1 ||
-            *(uint8_t const *)&member->forced_arrival>1) return false;
+            *(uint8_t const *)&member->forced_arrival>1 || *(uint8_t const *)&member->retired>1) return false;
         if (!member->unit) {
-            if (member->spawn || group->receiver) return false;
+            if (member->spawn || member->retired || group->receiver) return false;
             continue;
         }
         uintptr_t ptr=(uintptr_t)member->unit,base=(uintptr_t)g_edicts;
         if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
         edict_t const *unit=member->unit;
+        FOR_LOOP(j,i) if (group->members[j].unit==unit && group->members[j].spawn==member->spawn) return false;
+        /* A transferred row keeps its captured identity, even if the actor
+         * has since been removed/reused. It owns no mover or callbacks. The
+         * normal preparation pass rejects its former physical binding. */
+        if(member->retired) {
+            if(group->receiver || (unit->inuse && unit->spawn_time==member->spawn &&
+                unit->movement.group_id==group->id))return false;
+            continue;
+        }
         if (!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=member->spawn ||
             unit->movement.group_id!=group->id || (!group->turning && !unit->goalentity)) return false;
         if (group->target) {
@@ -2593,7 +2603,8 @@ static bool ReadMoveGroups(FILE *f) {
             moveGroup_t const *other=level.move_groups[j];
             if (other->id==group->id || other->sequence==group->sequence) goto failed;
             FOR_LOOP(m,group->count) FOR_LOOP(n,other->count)
-                if (group->members[m].unit && group->members[m].unit==other->members[n].unit) goto failed;
+                if (!group->members[m].retired && !other->members[n].retired &&
+                    group->members[m].unit && group->members[m].unit==other->members[n].unit) goto failed;
         }
     }
     return true;
@@ -3914,7 +3925,7 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     T_ASSERT(G_IssueGroupPointOrder(&request)); T_EQ(ARRAY_COUNT(level.move_groups),1);
     moveGroup_t original=*level.move_groups[0];
     S_ClearMoveGroups();
-    FOR_LOOP(i,25) {
+    FOR_LOOP(i,27) {
         FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
         moveGroup_t raw=original; uint32_t count=i==0 ? globals.num_edicts+1 : i==13 ? 2 : 1;
         raw.route.points=raw.route.adaptive_points=raw.route.group_points=(vec2_t *)(uintptr_t)1;
@@ -3935,6 +3946,8 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         if (i==22) *(uint8_t *)&raw.individual=2;
         if (i==23) raw.individual=true; /* A private route cannot own two members. */
         if (i==24) {raw.count=1;raw.individual=true;raw.target=second;raw.flags|=0x1000;}
+        if (i==25) *(uint8_t *)&raw.members[0].retired=2;
+        if (i==26) raw.members[0].retired=true; /* Still bound: not a retired identity. */
         if (i>=7 && i<13) { raw.route.group_count=1; raw.route.group_index=0; }
         if (i==7) raw.route.group_count=BZ_WC3_ACC_ROUTE_NODES+1;
         if (i==8) raw.route.group_index=1;
@@ -4038,7 +4051,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
+    uint32_t const old_versions[] = { 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));
