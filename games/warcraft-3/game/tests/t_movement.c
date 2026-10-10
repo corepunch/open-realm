@@ -12100,6 +12100,22 @@ TEST(wc3_movement, cargo_unload_ability_removal_clears_pending_arrival) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_movement, cargo_unload_releases_script_pause_suppression) {
+    slkTestData_t *rows=parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    setup_test_world();
+    edict_t *transport=cargo_unload_transport();
+    edict_t *passenger=transport->cargo->units[0];
+    S_SetUnitPaused(passenger,false);
+    S_SetUnitPaused(passenger,true);
+    T_EQ(passenger->movement.repulse.disable_depth,1);
+    cargo_drop_all(transport);
+    T_ASSERT(!passenger->paused);
+    T_ASSERT(!passenger->movement.repulse.pause_suppression);
+    T_EQ(passenger->movement.repulse.disable_depth,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 TEST(wc3_movement, unload_all_round_trip_resumes_remaining_cargo) {
     cstring_t filename = Test_TempPath("cargo-unload-save.bin");
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);

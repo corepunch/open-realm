@@ -454,7 +454,7 @@ static void mass_teleport_cleanup(edict_t *thinker) {
 
     if (!thinker) return;
     if (target && thinker->wait < 0.5f)
-        target->paused = false;
+        S_SetUnitPauseFlag(target,false);
     G_DestroyOwnedEffects(thinker);
 }
 
@@ -547,7 +547,7 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
         G_SpawnOwnedAbilityEffectAtPoint(thinker, spell->code, WC3_EFFECT_AREA_EFFECT, 0, &ent->s.origin2);
         G_SpawnOwnedAbilityEffectAtPoint(thinker, spell->code, WC3_EFFECT_AREA_EFFECT, 0, &target->s.origin2);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, ent, NULL, true);
-        target->paused = true;
+        S_SetUnitPauseFlag(target,true);
         mass_teleport_think(thinker);
         return true;
     }

@@ -15393,3 +15393,84 @@ logs and validation are archived under
 Checkpoint226 passes full `make test`: Classic and TFT each complete3313
 tests/16,729,664 assertions, and all1144 Python pathfinding checks pass. This
 accepts implementation commit12/12 since checkpoint214 and resets the cadence.
+
+## Inside construction owns absence and work separately (Payoff227)
+
+Inside construction now has explicit world-presence ownership, independent of
+scripted pause. The Move owner counts its two separation contributions: retiring
+world presence and beginning construction work. Removing a repulsor clears only
+membership, preserving those contributions. Owner changes and other eligibility
+refreshes therefore cannot accidentally re-enable an inside worker. The worker
+remains publicly unpaused until the script pauses it; its world absence prevents
+physics and normal world interaction without repurposing `edict.paused`.
+
+Original `69c5c0` acquires the first Unit198 contribution and retires world
+presence. Shared inside-build entry `544140` acquires the second at `5441b8`,
+stores the resolved parent's identity at abilityb0/b4 and acquires invulnerability.
+Its ABI is ECX ability, three stack words, RET12: parent at stack4, task at stack8,
+and an unused third word. The shared inverse `566dd0` has plainRET. It releases
+world absence through `69c5e0` at `566e5b`, then active work through `6785c0` at
+`566e94`. Original INC/DEC wrap signed32 storage; eligibility rejects positive
+depth. No saturation or arbitrary fixed depth replaces those owner operations.
+
+The public lifecycle distinguishes exits. Killing the unfinished building calls
+`543c50` and reaches the inverse with return `543c7b`. Real completion calls
+`543e50`, returning from the inverse to `543e7e`. Both release both contributions.
+A script pause issued while inside remains effective on return: normal world
+suspension then owns one contribution until unpause. Public `RemoveUnit` on the
+building delivers neither inverse in the observed scenes. Its builder stays
+hidden with both contributions held through owner change, unpause and an accepted
+Move order. The engine drops retired parent pointers while preserving that worker
+state. Direct internal destruction retains its existing teardown contract.
+Accepted suspended orders remain in the typed FIFO without starting movement.
+
+The producer creates authored Peon and Mur'gul Slave clones with integer repulse2,
+selector17/group17/rank17, plus repulse0 controls. Four death scenes, two real
+2-second completion scenes and two forced-removal scenes cover scripted
+pause/resume, owner transfer and a checked accepted Move. Two read-only native
+observations agree on all388 ordered events after removing process identities
+only. Each has550 live markers; its saved547 markers match the unhooked control.
+The verifier checks all488 instruction encodings from15 complete original bodies
+against the pinned game.dll, then compares72 engine phases for eligibility,
+packed policy, public pause/hidden state and signed suppression depth.
+
+The failing-first regression recorded104 failures out of310 assertions. Classic
+and TFT now each pass318 assertions, including two cold saves per scene and final
+worker retirement/list validation. Additional restoration regressions cover
+Undead summoner release and cargo unloading after scripted pause. Other systems
+that set the shared pause flag now use `S_SetUnitPauseFlag`: it preserves their
+existing flag behavior while releasing an already-owned scripted pause
+contribution when the flag is cleared. It does not invent counted owners for
+unresearched internal holds. Sacrifice, Mass Teleport and mine-overlay restoration
+use the same operation. This prevents a stale positive count after an existing
+unpause path. The two older construction tests that assumed
+`worker->paused` were engine-only expectations, disproved by public IsUnitPaused;
+they now assert construction ownership and an unpaused worker. No prior frozen
+retail expected fixture or any of the462 previous corpus entries was replaced.
+Exploratory cancel orders returned false and are archived as failed attempts;
+they are not evidence of cancellation. `KillUnit` and `RemoveUnit` witnesses use
+a real construct-start event to identify the structure.
+
+Save160 persists construction absence, pause ownership and the signed count;
+Save159 and earlier layouts are rejected. The added fields fit existing padding:
+entity size remains2760 bytes and repulsor storage remains32 bytes. Updates and
+intrusive membership changes take constant work, without a new allocation or
+entity scan. This is not a new total-frame performance measurement.
+
+Eight function signatures/comments, three count-transition labels, a partial
+`WC3InsideBuildPrefix`, Unit198 evidence and existing xrefs are saved in Ghidra
+and mirrored in MapPathfinding.java/the type fixture. Static derived entry
+`5441e0` and consumed-worker branch `543eb0` are recorded without claiming a new
+public Night Elf/neutral lifecycle capture. The phase comparison also does not
+certify complete engine Build heads, position trajectories, all suspended FIFO
+scheduling or the native final worker-retirement interval. Broader producers keep
+SEP-01.2 open; this chunk adds no TODO.
+
+The frozen evidence is
+[`retail-work227-1.27.json`](../../../tools/ghidra/fixtures/retail-work227-1.27.json)
+and its compressed complete-capture bundle. Reproducers are
+`tools/frida/research/work227_{capture.py,observer.js,make_map.py,probe.j}`;
+`Work227Evidence.java` exports the fixed original function set. Captures, maps,
+failing-first logs and focused verification are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SEP-01.2/payoff227/`.
+This is implementation commit1/12 after the successful Payoff226 full checkpoint.

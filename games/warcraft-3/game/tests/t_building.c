@@ -3969,6 +3969,106 @@ repair_work_done:
     setup_test_world();
 }
 
+static void building_inside_policy_stage(unsigned profile, cstring_t stage, edict_t const *worker) {
+    fprintf(stderr,"W227 engine profile=%u stage=%s enable=%u policy=%08x paused=%u hidden=%u depth=%d\n",
+        profile,stage,worker->movement.repulse.active,
+        worker->movement.repulse.active?worker->movement.repulse.state.packed:0,
+        worker->paused,!!(worker->s.renderfx&RF_HIDDEN),worker->movement.repulse.disable_depth);
+}
+
+TEST(wc3_building, inside_construction_owns_counted_suppression_independently_of_pause) {
+    FOR_LOOP(profile,8) {
+        reset_entities();setup_test_world();
+        mapInfo_t const *saved=level.mapinfo;mapInfo_t info=*saved;
+        int enabled=(profile==1||profile==3)?0:2,policy=17,build_time=(profile==4||profile==5)?2:100;
+        unitModification_t worker_mods[]={
+            {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&enabled},
+            {.modID=MAKEFOURCC('u','r','p','p'),.type=mod_int,.data=&policy},
+            {.modID=MAKEFOURCC('u','r','p','g'),.type=mod_int,.data=&policy},
+            {.modID=MAKEFOURCC('u','r','p','r'),.type=mod_int,.data=&policy}};
+        unitModification_t building_mod={.modID=MAKEFOURCC('u','b','l','d'),.type=mod_int,.data=&build_time};
+        unitData_t types[]={
+            {.originalUnitID=MAKEFOURCC('h','p','e','a'),.newUnitID=MAKEFOURCC('h','W','2','7'),
+                .numbeOfModifications=4,.modifications=worker_mods},
+            {.originalUnitID=MAKEFOURCC('h','b','a','r'),.newUnitID=MAKEFOURCC('h','B','2','7'),
+                .numbeOfModifications=1,.modifications=&building_mod}};
+        info.num_userCreatedUnits=2;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        T_ASSERT(run_test_jass("globals\nunit worker\nunit target\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set worker=CreateUnit(Player(0),'hW27',304,304,0)\n"
+            "set target=CreateUnit(Player(0),'hB27',400,304,0)\nendfunction\n"
+            "function freeze takes nothing returns nothing\ncall PauseUnit(worker,true)\nendfunction\n"
+            "function resume takes nothing returns nothing\ncall PauseUnit(worker,false)\nendfunction\n"
+            "function killTarget takes nothing returns nothing\ncall KillUnit(target)\nendfunction\n"
+            "function removeTarget takes nothing returns nothing\ncall RemoveUnit(target)\nset target=null\nendfunction\n"
+            "function transfer takes nothing returns nothing\ncall SetUnitOwner(worker,Player(1),true)\nendfunction\n"
+            "function move takes nothing returns nothing\nif IssuePointOrder(worker,\"move\",1280,304) then\ncall SetUnitUserData(worker,1)\nelse\ncall SetUnitUserData(worker,-1)\nendif\nendfunction\n"
+            "function removeWorker takes nothing returns nothing\ncall RemoveUnit(worker)\nendfunction\n"));
+        edict_t *worker=NULL,*target=NULL;
+        FILTER_EDICTS(ent,ent->inuse) {
+            if(ent->class_id==types[0].newUnitID)worker=ent;
+            if(ent->class_id==types[1].newUnitID)target=ent;
+        }
+        T_NOT_NULL(worker);T_NOT_NULL(target);
+        if(worker&&target) {
+            building_inside_policy_stage(profile,"created",worker);
+            bool naga=profile==2||profile==3||profile==5||profile==7;
+            T_ASSERT(naga?G_StartNagaConstruction(worker,target):G_StartOrcConstruction(worker,target));
+            T_ASSERT(!worker->paused);T_ASSERT(worker->construction_held);
+            T_ASSERT(!G_UnitIsWorldActive(worker));T_ASSERT(!worker->movement.repulse.active);
+            T_EQ(worker->movement.repulse.disable_depth,2);
+            building_inside_policy_stage(profile,"inside",worker);
+            unsigned worker_slot=worker->s.number,target_slot=target->s.number;
+            cstring_t file=Test_TempPath("wc3-construction-suppression227.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            worker=g_edicts+worker_slot;target=g_edicts+target_slot;
+            T_ASSERT(worker->construction_held);T_EQ(worker->movement.repulse.disable_depth,2);
+            jass_callbyname(level.vm,"freeze",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(worker->paused);T_EQ(worker->movement.repulse.disable_depth,2);
+            building_inside_policy_stage(profile,"paused",worker);
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(!worker->paused);T_ASSERT(!worker->movement.repulse.active);
+            T_EQ(worker->movement.repulse.disable_depth,2);
+            building_inside_policy_stage(profile,"resumed",worker);
+            bool completion=profile==4||profile==5,removed=profile>=6;
+            if(!completion)jass_callbyname(level.vm,"freeze",false);
+            building_inside_policy_stage(profile,"paused_again",worker);
+            if(completion) {
+                FOR_LOOP(tick,100) {if(!target->construction)break;G_RunConstructionFrame(target);}
+                T_NULL(target->construction);
+            } else if(removed) {
+                jass_callbyname(level.vm,"removeTarget",false);
+                wc3Clock_t due;uint32_t sequence;T_ASSERT(G_NextUnitRelease(&due,&sequence));
+                level.pathing_clock=due;G_RunDeferredFrees();T_ASSERT(!target->inuse);
+            } else {
+                jass_callbyname(level.vm,"killTarget",false);T_ASSERT(M_IsDead(target));
+            }
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->construction_held,removed);T_EQ(!!(worker->s.renderfx&RF_HIDDEN),removed);
+            T_EQ(worker->paused,!completion);T_EQ(worker->movement.repulse.disable_depth,removed?2:completion?0:1);
+            building_inside_policy_stage(profile,"target_exit",worker);
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);worker=g_edicts+worker_slot;
+            T_EQ(worker->construction_held,removed);T_EQ(worker->paused,!completion);
+            jass_callbyname(level.vm,"transfer",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            building_inside_policy_stage(profile,"owner_changed",worker);
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.disable_depth,removed?2:0);
+            T_EQ(worker->movement.repulse.active,!removed&&enabled);
+            building_inside_policy_stage(profile,"unpaused",worker);
+            vec2_t before=worker->s.origin2;
+            jass_callbyname(level.vm,"move",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->user_data,1);
+            if(removed) {G_RunEntity(worker);T_EQ(worker->s.origin2.x,before.x);T_EQ(worker->s.origin2.y,before.y);}
+            building_inside_policy_stage(profile,"move",worker);
+            jass_callbyname(level.vm,"removeWorker",false);
+            wc3Clock_t due;uint32_t sequence;T_ASSERT(G_NextUnitRelease(&due,&sequence));
+            level.pathing_clock=due;G_RunDeferredFrees();T_ASSERT(!worker->inuse);T_ASSERT(S_RestoreMoveRepulsors());
+        }
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;
+    }
+    setup_test_world();
+}
+
 TEST(wc3_building, construction_sound_label_drives_snapshot_loop_until_stop) {
     static cstring_t const slk =
         "ID;PWXL;N;E\n"
@@ -4124,7 +4224,8 @@ TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
     T_ASSERT(building->construction->worker == worker);
     T_ASSERT(building->construction->worker_inside);
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
-    T_ASSERT(worker->paused);
+    T_ASSERT(!worker->paused);
+    T_ASSERT(worker->construction_held);
     T_ASSERT(worker->invulnerable);
     T_ASSERT(worker->build == building);
     T_FEQ(building->health.value, 100.0f, 0.001f);
@@ -4158,7 +4259,8 @@ TEST(wc3_building, naga_construction_hides_worker_and_progresses_autonomously) {
     T_ASSERT(building->construction->worker_inside);
     T_ASSERT(!building->construction->consumes_worker);
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
-    T_ASSERT(worker->paused);
+    T_ASSERT(!worker->paused);
+    T_ASSERT(worker->construction_held);
     T_ASSERT(worker->invulnerable);
     T_FEQ(building->health.value, 100.0f, 0.001f);
 
@@ -4363,6 +4465,19 @@ TEST(wc3_building, orc_construction_restores_worker_state_after_cancel) {
     T_ASSERT(worker->paused);
     T_ASSERT(worker->invulnerable);
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+}
+
+TEST(wc3_building, undead_worker_restore_releases_script_pause_suppression) {
+    setup_test_world();
+    edict_t *worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,0);
+    T_ASSERT(G_StartUndeadConstruction(worker,building));
+    S_SetUnitPaused(worker,true);
+    T_EQ(worker->movement.repulse.disable_depth,1);
+    G_StopConstruction(building);
+    T_ASSERT(!worker->paused);
+    T_ASSERT(!worker->movement.repulse.pause_suppression);
+    T_EQ(worker->movement.repulse.disable_depth,0);
 }
 
 TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) {

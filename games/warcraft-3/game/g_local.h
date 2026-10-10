@@ -2050,6 +2050,7 @@ struct edict_s {
     bool no_pathing;    // own query disabled; occupancy category remains active
     bool timed_life_paused; /* UnitPauseTimedLife: freeze BTLF expiry while set */
     bool target_loss_transient; /* Blink's synchronous validation window; never saved. */
+    bool construction_held; /* Construction owns absence independently of scripted pause. */
     uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
     sleep_t *sleep;
     channel_t *channel;
@@ -2065,7 +2066,12 @@ struct edict_s {
     uint32_t current_order_id; /* Active user command, distinct from pending FIFO and issued-event history. */
     waygate_t *waygate;
     struct edictMovement_s {
-        struct edictRepulse_s { wc3Repulse_t state; edict_t *next; bool active; } repulse;
+        struct edictRepulse_s {
+            wc3Repulse_t state;
+            edict_t *next;
+            bool active, pause_suppression;
+            int32_t disable_depth; /* Native Unit198 counted owner contributions. */
+        } repulse;
         uint32_t support_flags; /* Unit280: deck2 and prior-refresh deep-water20; saved before the next height query. */
         vec2_t support_point; /* Unit284/288; ordinary physics does not force another same-position query. */
         bool support_valid;
@@ -3276,6 +3282,10 @@ void S_StopUnitMovement(edict_t *);
 void S_PublishMovement(edict_t *);
 void S_RunMoveTimers(void);
 void S_SetUnitPaused(edict_t *, bool);
+void S_SetUnitPauseFlag(edict_t *, bool);
+void S_AcquireUnitSeparationSuppression(edict_t *);
+void S_ReleaseUnitSeparationSuppression(edict_t *);
+void S_RefreshUnitPauseSuppression(edict_t *);
 uint32_t M_RefreshHeatmap(edict_t *, float);
 uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
 uint8_t M_UnitStaticPathingFlags(edict_t const *);
@@ -3682,6 +3692,7 @@ bool G_StartTinyConstruction(edict_t *builder, edict_t *building, float duration
 void G_RunConstructionFrame(edict_t *building);
 void G_UpdateConstructionAnimation(edict_t *building);
 void G_StopConstruction(edict_t *building);
+void G_DetachRemovedConstructionWorker(edict_t *building);
 bool G_CancelStructureConstruction(edict_t *building);
 void G_CompleteConstruction(edict_t *building);
 bool G_UnitHasHumanRepair(edict_t *ent);

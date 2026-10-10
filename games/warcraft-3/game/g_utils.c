@@ -36,9 +36,9 @@ static void DeferredFreeInsert(uint32_t slot) {
     DeferredFreePut(index,slot);
 }
 
-/* A trapped unit keeps its identity but is absent from normal world interaction. */
+/* Trapped and inside-construction units retain identity without world presence. */
 bool G_UnitIsWorldActive(edict_t const *ent) {
-    return ent && ent->inuse && !(ent->aiflags & AI_SOUL_TRAPPED);
+    return ent && ent->inuse && !ent->construction_held && !(ent->aiflags & AI_SOUL_TRAPPED);
 }
 
 /* Hidden actors leave fine occupancy; showing them is a new publication.
@@ -197,6 +197,7 @@ void G_DeferFreeEdictAt(edict_t *ent,wc3Clock_t const *clock) {
     G_ClearUnitOrderQueue(ent);
     ent->current_order_id = 0;
     S_UnitAbilityEvent(ent, A_UNIT_REMOVING);
+    G_DetachRemovedConstructionWorker(ent);
     S_UnitTargetRemoved(ent);
     /* Removal replaces the old task. Keeping its callback in the scheduled
      * owner set would execute canceled movement before deferred storage free. */

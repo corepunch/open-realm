@@ -764,3 +764,12 @@ ordinary Repair's distinct eligibility and the shared inverse across pause,
 Stop, replacement Move, target retirement and cold saves. Repeated original
 captures freeze24 policy phases; broader counted suppression keeps SEP-01.2
 open. See [primary construction work](retail-pathfinding-engine.md#primary-human-construction-owns-separation-suppression-payoff226).
+
+## Inside construction contribution owners
+
+Payoff227 integrates counted inside-construction absence/work ownership,
+scripted pause independence, and distinct KillUnit/completion versus RemoveUnit
+inverses. Two complete native repeats and an unhooked control freeze72 policy,
+pause/hidden and depth phases; Classic/TFT engine save/owner/order regressions
+pass. Remaining counted producers keep SEP-01.2 open. See
+[inside construction](retail-pathfinding-engine.md#inside-construction-owns-absence-and-work-separately-payoff227).

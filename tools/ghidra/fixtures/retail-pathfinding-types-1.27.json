@@ -878,7 +878,7 @@
           "offset": 408,
           "name": "separation_disable_depth",
           "type": "u32",
-          "evidence": "688d90 increments;6785c0 decrements; both refresh693d50.66fc50 rejects signed value>=1.69c490/69c580 suspension-state transitions are actual direct callers."
+          "evidence": "688d90 increments;6785c0 decrements; both refresh693d50.66fc50 rejects signed value>=1.69c490/69c580 suspension-state transitions are actual direct callers. Payoff227: inside world absence and active work own distinct contributions; two public Orc/Naga lifecycle repeats and unhooked control verify normal depth2 and balanced death/completion inverses; forced building removal retains both."
         },
         {
           "offset": 412,
@@ -5092,6 +5092,36 @@
           "name": "agility_per_level",
           "type": "WC3PathScalar",
           "evidence": "528b00 software product with level-1"
+        }
+      ]
+    },
+    {
+      "name": "WC3InsideBuildPrefix",
+      "length": 184,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "544140/566dd0 shared inside construction owner"
+        },
+        {
+          "offset": 32,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "544140 sets work4;566dd0 tests absence40000000/work4;543eb0 consumes worker200"
+        },
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "544140 owning Unit for counted suppression"
+        },
+        {
+          "offset": 176,
+          "name": "parent",
+          "type": "WC3PathIdentity",
+          "evidence": "544140 resolves incoming canonical parent0c/10 and copies resolved14/18;543c50/543e50 clear to-1"
         }
       ]
     }
@@ -17526,6 +17556,168 @@
         }
       ],
       "evidence": "Payoff225: thiscall ECX Hero,stack4 signed integer delta,stack8 unused word,RET8. Add to base+a8, refresh attack statistics; if owning Unit+1ec Move exists invoke52aad0; refresh armor. Native SetHeroAgi changes base while retaining item agility; item insertion/removal publishes corresponding signed delta."
+    },
+    {
+      "address": "6f544140",
+      "name": "InsideBuild_BeginWork",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InsideBuildPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        },
+        {
+          "name": "task",
+          "type": "ptr:void",
+          "storage": 8
+        },
+        {
+          "name": "unused",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff227 SEP-01.2: ECX ability, stack4 parent Unit pointer, stack8 task pointer, stack12 unused word, RET12/void. Resolve parent canonical identity0c/10 into abilityb0/b4 (resolved14/18); publish task42fe30. Ability20|4, Unit5c clears1;5441b8 acquires independent Unit198 work contribution after69c5c0 already retired world presence.48e4e0(1) iterates selected abilities;48b850(1) acquires invulnerability. Public Orc/Naga builds reach this shared body; worker depth2, hidden1 and IsUnitPaused false. Two repeats/control agree; no public NightElf/neutral lifecycle certification."
+    },
+    {
+      "address": "6f566dd0",
+      "name": "InsideBuild_EndWork",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InsideBuildPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff227 SEP-01.2: ECX ability, plainRET/void. Compute return placement through owner virtual180. If ability20.40000000 set, clear it and566e5b calls69c5e0 to release world absence; clear Unit60.20. If ability20.4 set, clear it and566e94 calls6785c0 to release work, then pop internal task/dispatch. Real KillUnit(building) caller543c7b and completion543e7e deliver both inverses. RemoveUnit(building) delivers neither in these eight public scenes; preserve native retained worker suppression."
+    },
+    {
+      "address": "6f543c50",
+      "name": "InsideBuild_AbortWork",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InsideBuildPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unused_a",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "unused_b",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff227 SEP-01.2: ECX ability, stack4/8 unused words in this body, RET8/void. Release invulnerability via48ecd0(1), selected abilities48e4e0(0), then566dd0; clear parentb0/b4. Live KillUnit(building) reaches566dd0 return543c7b synchronously. Rejected JASS cancel orders are not cancellation witnesses."
+    },
+    {
+      "address": "6f543e50",
+      "name": "InsideBuild_CompleteWork",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InsideBuildPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "completion_argument",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff227 SEP-01.2: ECX ability, stack4 completion argument forwarded in EDX to43a710, RET4/void.48ecd0(1),48e4e0(0),566dd0 at543e79; publish43a710(0), clear parentb0/b4. Public two-second Orc/Naga structures deliver both suppression inverses; scripted pause remains independent."
+    },
+    {
+      "address": "6f543eb0",
+      "name": "InsideBuild_EndOrConsumeWorker",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InsideBuildPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unused",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff227 SEP-01.2: ECX ability, stack4 unused word, RET4/void. Clear ability20.3c00, release invulnerability/selected abilities. If ability20.200, queue worker removal694690(1,0); otherwise566dd0. Static derived-owner evidence only; no new public consumed-Wisp certification."
+    },
+    {
+      "address": "6f5441e0",
+      "name": "InsideBuild_BeginDerivedWork",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InsideBuildPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        },
+        {
+          "name": "task",
+          "type": "ptr:void",
+          "storage": 8
+        },
+        {
+          "name": "forwarded",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff227 SEP-01.2: ECX ability, stack4 parent, stack8 task, stack12 forwarded word, RET12/void. Calls544140 with all three stack words, then branches on parent Unit248.80 and ability consume flags, including food update. Static shared inheritance evidence; broader derived-producer lifecycle remains open."
+    },
+    {
+      "address": "6f69c5c0",
+      "name": "Unit_BeginConstructionAbsence",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff227 SEP-01.2: ECX Unit, plainRET/void. Acquire688d90 then retire world presence6882e0(0,1). This owns the first Unit198 contribution before544140 acquires work. Public inside builder is hidden but not paused; scripted PauseUnit updates its public flag without acquiring an ordinary world suspension count."
+    },
+    {
+      "address": "6f69c5e0",
+      "name": "Unit_EndConstructionAbsence",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff227 SEP-01.2: ECX Unit, tail-JMP owner virtual80/void. Release6785c0 then show/return through Unit virtual80.566dd0 releases work independently afterward. KillUnit and completion return builders; RemoveUnit building leaves absence/work held through owner change, public unpause and accepted Move in original captures."
     }
   ],
   "globals": [

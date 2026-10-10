@@ -194,7 +194,7 @@ static void cargo_add_unit(edict_t *transport, edict_t *unit) {
     /* Cargo membership precedes TargetLost, so the observer sees loaded a9
      * rather than ordinary hidden aa before Load returns. */
     S_UnitTargetLost(unit);
-    unit->paused = true;
+    S_SetUnitPauseFlag(unit,true);
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
     cargo_update_entangled_animation(transport, old_count);
@@ -235,7 +235,7 @@ static edict_t *cargo_drop_unit(edict_t *transport, uint32_t index) {
         bool const was_corpse = S_CorpseCargoIsStored(unit);
         cargo_place_unloaded_unit(transport, unit);
         G_SetEntityHidden(unit,false);
-        unit->paused = false;
+        S_SetUnitPauseFlag(unit,false);
         unit->aiflags &= ~AI_CORPSE_IN_CARGO;
         if (was_corpse) G_RestartCorpseBoneDecayAfterCargo(unit);
     }

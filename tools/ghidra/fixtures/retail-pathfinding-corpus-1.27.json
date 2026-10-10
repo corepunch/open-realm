@@ -49447,6 +49447,63 @@
         "Broader counted suppression, other work producers and final removal retirement remain open in SEP-01.2. No prior retail expected fixture changed.",
         "No performance target certified. Work queries are constant time and existing buildwork allocation stays24 bytes."
       ]
+    },
+    {
+      "id": "oracle-work227",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work227.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work227.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 1641
+        },
+        "native_events": {
+          "equal": 776
+        },
+        "work_phases": {
+          "equal": 72
+        },
+        "instructions": {
+          "equal": 488
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "SEP-01.2 inside Orc/Naga construction counted world/work suppression, pause independence and distinct building death/completion/removal. Repeated native observations/control plus Classic/TFT engine save, owner and suspended Move.",
+      "exclusions": [
+        "Public producers: Orc Peon and Naga Mur'gul Slave build; repulse integer2/selector17/group17/rank17 with repulse0 controls. Real KillUnit, RemoveUnit and two-second completion distinguish inverses. Rejected cancel-order explorations are not cancellation evidence.",
+        "Separation eligibility/policy, signed suppression depth and public pause/hidden state are compared in72 phases. Complete public order/position/native sequences are frozen, but engine whole trajectories, raw Build heads and complete order FIFO scheduling are not certified by this integration.",
+        "Native RemoveUnit(building) leaves the builder held; KillUnit and completion release both contributions. Final deferred worker destruction interval remains captured but excluded from the engine phase comparison.",
+        "Ghidra544140 has THREE stack args and RET12; parent stack4 and task stack8 are used, stack12 is unused in this body.566dd0 has plainRET. Shared derived5441e0 and consume543eb0 have static evidence only, not public NightElf/neutral lifecycle certification.",
+        "Save160 persists construction absence and counted pause/separation ownership. Engine cold saves are checked; no new retail UI-save claim. No existing retail expectations replaced; broader counted producers keep SEP-01.2 open.",
+        "State transitions and intrusive membership take constant work, with no per-transition allocation. No new performance measurement or total frame budget claim."
+      ]
     }
   ],
   "fixtures": [
@@ -49512,7 +49569,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "178b627e7aaa2bd0aa3375f5e26ee9ba6a22a1332e3f12014adfaab10b24f1d9"
+      "sha256": "9531f35ec8b7684e7b4a5499811b5eaedc965be1fc99ee0f0b39b7cb596e4cb6"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -50345,7 +50402,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "c573cb9273c1203abd90c9ff895db7510f7ff22be1cc707224058365b646a8aa"
+      "sha256": "13d9b092035b4554f08a90c63c2851b0ef683d1447336cf75e35e811f44db2b3"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51201,7 +51258,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "e4b2b429cf72e197794f06146f0787d92f68b4d3d934060dede87371a83a71f3"
+      "sha256": "f10df152a3426509e058913b85943a1ba15b9c170d50e4a980aaa9d280534e40"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51637,7 +51694,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "5dc2a79545cddcc8574530f7a045746b936cd9a71af32e99a236e27a02bdded5"
+      "sha256": "7b4de5918b1e26898807aa7f4d5f499ca752172e9cd9af1d265a1a3c4cbf58e5"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -51645,7 +51702,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "67ef086b7a767b44bbe5bd5d4744168fb856fcb5b10f1d9417dac66c379116ee"
+      "sha256": "e1cd3d0473d5ebd0e53923ff8dc2ecad074284048b9f9d24fb2f5a1b6316a163"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51893,7 +51950,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "db6fabd54ec587fe0627278651450cf647ab96e1c67c5f2bda5d3c05264552fd"
+      "sha256": "a6cb1a1f2cc5b9534e2d7af83dd9f02c27eca746156ffcc17032adb27cc8b2b7"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -52137,7 +52194,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "0530229a9a25562588a514a05b1617de24d03c6d5f7d623705f122ea700bd7cc"
+      "sha256": "3dc6c50fefc056b92349157bb81cb1073d7f1c4ca9cdca90d18e0e71757fcd78"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52145,15 +52202,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "8a91b817c2f34abdac0bd72f9186c86a088822fa45d3cc5703474657105a1203"
+      "sha256": "eaa0160bd747d018e49ca21bd8c9e3476f34e9d1e7c81b3ef91fccfef52d50f2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "eaeeab312f8453851e5dfe715d4cc1aadbe07961f5adbfe4e3d4ed509c024354"
+      "sha256": "0ae6e583a53e5ad9737797d6132efe0f0b33b8f3778f38f63c877e6ceb72dec3"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "ddc14ad9c03a22f704c5ea3a58d82ce9b0ef328576b0b27634411973949fd14f"
+      "sha256": "47ed2c69c90ab37ac2b077050a72542d0e1eabbe8d89e1621ce27a116093ddc9"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52213,7 +52270,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
-      "sha256": "a4ded08c7cc817eb04496d2ddcb4b55a703bc161e3e2092fca75842f51314f68"
+      "sha256": "f18775d2492a0c392b21b2ea53a89ed51cf1d2a425f18938ee545b061c0c03d7"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_attack_help.py",
@@ -53101,7 +53158,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "1ea7fb9dfbb0163ea41683133189e3bbaea436765703932ac67ebcc536e27be5"
+      "sha256": "2b37e63876e4565e46a1fb3bbd252d14fb23cd32b72f376b2ca03029cb400f4a"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -53233,7 +53290,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_building.c",
-      "sha256": "cbf1a93a81e457b4826beebcc2ff7f63c0d57deb97bbafb4ddaee8f1c1b07246"
+      "sha256": "32f270018cc401c525f2d1947d4b1010973073b14f533548a029488e991f7224"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
@@ -54882,6 +54939,42 @@
     {
       "path": "games/warcraft-3/game/skills/s_repair.c",
       "sha256": "25d108be97101020aaae34280b6cc1399453494ed418d22cf20d6dedba61f84a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work227.py",
+      "sha256": "f08cfe862352902eb32b556264d5626f9214bc7bc7e1816dc2c707cce73390bc"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work227.py",
+      "sha256": "362960e8b4cdcde7dc84d4d68581b1e848109298408c9b95ccbe78a1d1691c15"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work227-1.27.json",
+      "sha256": "8d87b5a1ff19964db821f68cc9d19e02cf7502d46747372cfbfd844dc32f08d5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work227-1.27.json.gz",
+      "sha256": "0cb04d675a477c233b85f9ff78ad407193618ee78238995dc633aa1bf006c3e1"
+    },
+    {
+      "path": "tools/frida/research/work227_capture.py",
+      "sha256": "56c73c7300a836011dfc43ec7965f5ced27148ad3b82b5e8a8287d9a206d4fd7"
+    },
+    {
+      "path": "tools/frida/research/work227_observer.js",
+      "sha256": "df56bf4b72f3a101dccc3d22c660e1621619e566f0c74eed5ed21b9bef5af253"
+    },
+    {
+      "path": "tools/frida/research/work227_make_map.py",
+      "sha256": "88ce63f9c61ff55080d3a43ef89ecd38d617ba7e73d03d5af3c8b27ec5cc194a"
+    },
+    {
+      "path": "tools/frida/research/work227_probe.j",
+      "sha256": "6a9d68c1c58bbbb38a5e971017d9a15a8f37bcc4953a003c404185a2d64ffdce"
+    },
+    {
+      "path": "tools/ghidra/research/Work227Evidence.java",
+      "sha256": "26ffd6698d006284846309204ecd31e00549cd7ac7a1cd303b1c7c32862ae4c2"
     }
   ]
 }

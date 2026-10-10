@@ -693,7 +693,7 @@ bool S_MineOverlayBind(edict_t *overlay, edict_t *parent) {
     overlay->mineoverlay->income_time = 0;
     overlay->mineoverlay->active_interval_index = 0;
     G_SetEntityHidden(parent,true);
-    parent->paused = true;
+    S_SetUnitPauseFlag(parent,true);
     G_InvalidateUnitShortcutsForUnit(parent);
     if (parent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(parent);
@@ -839,7 +839,7 @@ void S_MineOverlayRelease(edict_t *overlay) {
     overlay->mineoverlay->active_interval_index = 0;
     if (!parent) return;
     G_SetEntityHidden(parent,false);
-    parent->paused = false;
+    S_SetUnitPauseFlag(parent,false);
     G_InvalidateUnitShortcutsForUnit(parent);
     if (parent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(parent);

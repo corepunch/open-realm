@@ -1,5 +1,10 @@
 # Warcraft III Save/Load
 
+Save160 retains inside-construction world absence and counted separation/pause
+ownership. Cold saves preserve the distinct building death, completion and
+forced-removal inverses. Save159 and earlier layouts are rejected. See
+[inside construction](retail-pathfinding-engine.md#inside-construction-owns-absence-and-work-separately-payoff227).
+
 Save159 retains Repair's work phase independently of its retained order.
 Primary Human construction remains separation-disabled after load, while
 ordinary Repair remains eligible. Pause and the common work inverse release

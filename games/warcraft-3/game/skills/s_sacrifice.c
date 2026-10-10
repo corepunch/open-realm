@@ -73,7 +73,7 @@ static void sacrifice_release_worker(edict_t *item) {
     if (!item || !item->sacrifice || !(worker = item->sacrifice->worker)) return;
     if (worker->inuse && worker->spawn_time == item->sacrifice->worker_spawn_time) {
         if (!item->sacrifice->restore_hidden) G_SetEntityHidden(worker,false);
-        worker->paused = item->sacrifice->restore_paused;
+        S_SetUnitPauseFlag(worker,item->sacrifice->restore_paused);
         G_InvalidateUnitShortcutsForUnit(worker);
     }
 }
@@ -133,7 +133,7 @@ bool G_QueueSacrifice(edict_t *producer, edict_t *worker, uint32_t result_id) {
     restore_hidden = (worker->s.renderfx & RF_HIDDEN) != 0;
     result->sacrifice->restore_hidden = restore_hidden;
     G_SetEntityHidden(worker,true);
-    worker->paused = true;
+    S_SetUnitPauseFlag(worker,true);
     G_InvalidateUnitShortcutsForUnit(worker);
 
     unit_add_build_queue(producer, result);

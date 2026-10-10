@@ -1678,8 +1678,13 @@ static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool 
     S_SetMoveGoal(worker, &worker->goalentity, building);
     if (!inside) return;
 
+    /* Native69c5c0 retires world presence;544140 acquires work separately.
+     * Neither operation is scripted PauseUnit. */
+    worker->construction_held = true;
+    S_RefreshUnitPauseSuppression(worker);
+    S_AcquireUnitSeparationSuppression(worker);
     G_SetEntityHidden(worker,true);
-    worker->paused = true;
+    S_AcquireUnitSeparationSuppression(worker);
     worker->invulnerable = true;
     G_InvalidateUnitShortcutsForUnit(worker);
 }
@@ -1774,7 +1779,10 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
         return;
     }
 
-    worker->paused = building->construction->restore_paused;
+    if(inside) {
+        worker->construction_held = false;
+        S_ReleaseUnitSeparationSuppression(worker); /*69c5e0: world presence. */
+    } else S_SetUnitPauseFlag(worker,building->construction->restore_paused);
     worker->invulnerable = building->construction->restore_invulnerable;
     if (building->construction->restore_hidden) G_SetEntityHidden(worker,true);
     else G_SetEntityHidden(worker,false);
@@ -1790,10 +1798,28 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
             worker->s.angle = angle - M_PI;
         }
     }
+    if(inside) {
+        S_ReleaseUnitSeparationSuppression(worker); /*566dd0: active work. */
+        S_RefreshUnitPauseSuppression(worker);
+    }
     gi.LinkEntity(worker);
     worker->build = NULL;
     if (worker->goalentity == building) S_SetMoveGoal(worker, &worker->goalentity, NULL);
     if (worker->stand) worker->stand(worker);
+}
+
+/* Public RemoveUnit retires the building without delivering the inside-work
+ * inverse (KillUnit and completion do deliver it). Drop dead parent pointers,
+ * retaining the worker-owned absence/work contributions until worker removal. */
+void G_DetachRemovedConstructionWorker(edict_t *building) {
+    if(!building || !building->construction || !building->construction->worker_inside)return;
+    edict_t *worker=G_ConstructionWorker(building);
+    building->construction->worker=NULL;
+    building->construction->worker_spawn_time=0;
+    building->construction->worker_inside=false;
+    if(!worker)return;
+    if(worker->build==building)worker->build=NULL;
+    if(worker->goalentity==building)S_SetMoveGoal(worker,&worker->goalentity,NULL);
 }
 
 void G_RunConstructionFrame(edict_t *building) {

@@ -808,7 +808,7 @@ bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t targ
     if (!self || !unit_order_name_valid(order)) return false;
     /*693490 counts the active user head. A suspended head lives in this ring
      * instead, so only an executing head consumes the extra user slot. */
-    uint32_t limit=MAX_UNIT_ORDER_QUEUE+(G_IsDeferredFree(self) || !G_UnitHasActiveOrder(self));
+    uint32_t limit=MAX_UNIT_ORDER_QUEUE+(G_IsDeferredFree(self) || self->construction_held || !G_UnitHasActiveOrder(self));
     if(self->order_queue.count>=limit)return false;
     unitOrder_t queued={.target_type=target_type,.issuer_player=issuer_player,
                         .order_id=order_id,.group_speed=group_speed};
@@ -987,7 +987,7 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     return false;
 }
 
-/* A removal task still owns execution. Retain the user head in the typed FIFO
+/* Removal or inside construction still owns execution. Retain the user head in the typed FIFO
  * until release; common native693490 never dispatches this suspended order. */
 static bool unit_retain_suspended_order(edict_t *self, cstring_t order,
         unitOrderTargetType_t shape, vec2_t const *point, edict_t *target,
@@ -1010,7 +1010,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) {
         return false;
     }
-    if(G_IsDeferredFree(self)) {
+    if(G_IsDeferredFree(self) || self->construction_held) {
         if(self->aiflags&AI_IMMOBILE ||
            (strcmp(order,"move") && strcmp(order,"smart") && strcmp(order,"attack")))return false;
         return unit_retain_suspended_order(self,order,UNIT_ORDER_TARGET_ENTITY,NULL,target,queue,issuer_player,0);
@@ -1096,9 +1096,9 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
 bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
                            bool queue, uint32_t issuer_player, float group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
-    /* Removal leaves an internal task that suspends the new user chain. The
+    /* Removal and inside construction suspend the new user chain. The
      * order is retained without execution or notification (original693490). */
-    if(G_IsDeferredFree(self)) {
+    if(G_IsDeferredFree(self) || self->construction_held) {
         if(M_IsDead(self) || self->aiflags&AI_IMMOBILE ||
             (strcmp(order,"move") && strcmp(order,"smart") && strcmp(order,"attack") && strcmp(order,"patrol")))
             return false;
@@ -1168,7 +1168,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
 bool G_UnitStartNextQueuedOrder(edict_t *self) {
     unitOrder_t queued;
 
-    if (!self || M_IsDead(self) || G_IsDeferredFree(self) || !S_AncientCanReceiveOrder(self)) return false;
+    if (!self || M_IsDead(self) || (G_IsDeferredFree(self) || self->construction_held) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
         if (queued.owner_context) {
             if (S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START)) {
@@ -1329,7 +1329,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self))
         return false;
-    if(G_IsDeferredFree(self)) {
+    if(G_IsDeferredFree(self) || self->construction_held) {
         if(strcmp(order,"stop") && strcmp(order,"holdposition"))return false;
         return unit_retain_suspended_order(self,order,UNIT_ORDER_TARGET_NONE,NULL,NULL,false,self->s.player,0);
     }

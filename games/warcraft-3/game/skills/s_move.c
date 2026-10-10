@@ -1784,7 +1784,10 @@ static void move_repulse_unlink(edict_t *self) {
         if(*link)move_repulse_links[*link-g_edicts]=link;
         move_repulse_links[index]=NULL;move_repulse_link_head=level.repulse_head;
     }
-    memset(&self->movement.repulse,0,sizeof(self->movement.repulse));
+    /* Membership teardown must not erase independent suppression owners. */
+    self->movement.repulse.state=(wc3Repulse_t){0};
+    self->movement.repulse.next=NULL;
+    self->movement.repulse.active=false;
 }
 
 /* Original1710e0 replaces the old repulsor and inserts the new object at the list head. */
@@ -1795,7 +1798,8 @@ static void move_repulse_init(edict_t *self) {
      * units still own separation, participate in queries and can be displaced. */
     /* Removal owns suppression before callbacks, like native694690/688d90.
      * Its generation-checked lifetime also gates owner/type/pause refreshes. */
-    if (!balance || !balance->repulse || G_IsDeferredFree(self) || self->paused ||
+    if (!balance || !balance->repulse || G_IsDeferredFree(self) ||
+        self->movement.repulse.disable_depth > 0 || !G_UnitIsWorldActive(self) || self->paused ||
         S_SpellIsChanneling(self) || S_RepairSuppressesSeparation(self)) return;
     move_repulse_prepare_links();
     uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,S_UnitMechanicalCritter(self));
@@ -1805,8 +1809,38 @@ static void move_repulse_init(edict_t *self) {
     if(level.repulse_head)move_repulse_links[level.repulse_head-g_edicts]=&self->movement.repulse.next;
     level.repulse_head=self;move_repulse_links[self-g_edicts]=&level.repulse_head;
     move_repulse_link_head=level.repulse_head;
-    /* Counted work suppression remains in SEP-01.2. Mechanical Critter's
-     * latent category changes only at this real configuration boundary. */
+    /* Mechanical Critter's latent category changes only at this real
+     * configuration boundary. Broader suppression producers remain SEP-01.2. */
+}
+
+/* Native688d90/6785c0 count independent owners. Signed INC/DEC wrap; only
+ * positive depth suppresses configuration. Refresh at each transition. */
+void S_AcquireUnitSeparationSuppression(edict_t *self) {
+    self->movement.repulse.disable_depth=(int32_t)((uint32_t)self->movement.repulse.disable_depth+1);
+    move_repulse_init(self);
+}
+
+void S_ReleaseUnitSeparationSuppression(edict_t *self) {
+    self->movement.repulse.disable_depth=(int32_t)((uint32_t)self->movement.repulse.disable_depth-1);
+    move_repulse_init(self);
+}
+
+/* An absent construction worker records scripted pause but has no suspended
+ * world task. Its pause contribution begins when construction returns it. */
+void S_RefreshUnitPauseSuppression(edict_t *self) {
+    bool held=self->paused && !self->construction_held && !G_IsDeferredFree(self);
+    if(held==self->movement.repulse.pause_suppression)return;
+    self->movement.repulse.pause_suppression=held;
+    if(held)S_AcquireUnitSeparationSuppression(self);
+    else S_ReleaseUnitSeparationSuppression(self);
+}
+
+/* Internal holds keep their existing flag semantics. A restoration must also
+ * release any scripted pause contribution already owned by this unit. It does
+ * not acquire a new counted owner for an unresearched internal hold. */
+void S_SetUnitPauseFlag(edict_t *self, bool paused) {
+    self->paused=paused;
+    if(self->movement.repulse.pause_suppression)S_RefreshUnitPauseSuppression(self);
 }
 
 /* Predict from the committed fine pose without consuming its clock or velocity. */
@@ -2030,8 +2064,9 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
     if(paused)S_SuspendRepairWork(self);
     /* Native66fc50 disables separation while suspension depth54 or scripted
      * flag5c.200000 is set;693d50 retires/recreates the repulsor at transition. */
-    if(paused)move_repulse_unlink(self);
-    else move_repulse_init(self);
+    int32_t depth=self->movement.repulse.disable_depth;
+    S_RefreshUnitPauseSuppression(self);
+    if(depth==self->movement.repulse.disable_depth)move_repulse_init(self);
 }
 
 /* A different behavior must not inherit the previous Move's prediction velocity. */
@@ -6033,6 +6068,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         ent->movement.fine_class=ent->s.player;
         move_repulse_init(ent); return true;
     case A_UNIT_REMOVING:
+        S_RefreshUnitPauseSuppression(ent);
         /* RemoveUnit cancels its task now; the mover and its route storage
          * remain owned until deferred removal, as in native694690/171340. */
         move_leave(ent);
