@@ -989,6 +989,7 @@ typedef enum {
     A_TIMERS_REBUILD,   /* Reconstruct membership from restored authoritative unit state. */
     A_TARGET_ORDER_ADMIT, /* Registered/active owner validates before FIFO mutation; may intercept the current target. */
     A_CHANNEL_STATE_CHANGED, /* Published channel begin/end; behavior owners refresh their runtime policy. */
+    A_UNIT_WORK_STATE_CHANGED, /* Work owner published its separation eligibility, including its inverse. */
     A_UNIT_OWNED,       /* Read-only intrinsic ownership query; no initialization or allocation. */
     A_STATUS_REPLACE,   /* Applying owner may release its contribution before a status payload is replaced. */
     A_UNIT_RETIRE,      /* Death/removal commits an inactive unit before ability detach; identity remains valid. */
@@ -1730,6 +1731,7 @@ typedef struct {
 typedef struct {
     uint32_t ability;
     bool primary;
+    bool working; /* Work phase survives save; pause retains the order but ends this phase. */
     float gold_accum;
     float lumber_accum;
     uint32_t target_spawn_time; /* Repair-owned target generation, retained through saved work. */
@@ -3687,6 +3689,8 @@ bool S_OrderRepair(edict_t *ent, edict_t *target, uint32_t preferred);
 bool S_SetRepairAutocast(edict_t *ent, bool enabled);
 bool S_RepairSmart(edict_t *ent, edict_t *target);
 void S_CancelRepair(edict_t *ent);
+bool S_RepairSuppressesSeparation(edict_t const *ent);
+void S_SuspendRepairWork(edict_t *ent);
 void G_SetPlayerTechMaxAllowed(gameClient_t *client, uint32_t techid, int32_t maximum);
 int32_t G_GetPlayerTechMaxAllowed(gameClient_t *client, uint32_t techid);
 void G_SetPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t level_value);

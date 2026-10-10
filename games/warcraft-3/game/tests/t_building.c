@@ -3845,6 +3845,130 @@ TEST(wc3_building, human_construction_start_sets_explicit_state_and_start_life) 
     T_FEQ(building->health.value, 100.0f, 0.001f);
 }
 
+static void building_work_policy_stage(unsigned profile, cstring_t stage, edict_t const *worker) {
+    fprintf(stderr,"W226 engine profile=%u stage=%s enable=%u policy=%08x\n", profile, stage,
+        worker->movement.repulse.active, worker->movement.repulse.active ? worker->movement.repulse.state.packed : 0);
+}
+
+/* Native409630 sets Unit20.40000000 only for the primary Human construction
+ * branch. Ordinary Repair remains eligible; Pause's inverse cannot recreate a
+ * construction worker's repulsor before Repair_StopWorkOwner clears work. */
+TEST(wc3_building, repair_work_separation_follows_primary_owner_and_saved_inverse) {
+    FOR_LOOP(profile,3) {
+        reset_entities(); setup_test_world();
+        slkTestData_t *rows, *old=building_install_repair_data(&rows);
+        mapInfo_t const *saved=level.mapinfo; mapInfo_t info=*saved;
+        int enabled=profile==2?0:2,policy=17;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&enabled},
+            {.modID=MAKEFOURCC('u','r','p','p'),.type=mod_int,.data=&policy},
+            {.modID=MAKEFOURCC('u','r','p','g'),.type=mod_int,.data=&policy},
+            {.modID=MAKEFOURCC('u','r','p','r'),.type=mod_int,.data=&policy}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','p','e','a'),.newUnitID=MAKEFOURCC('h','W','2','6'),
+            .numbeOfModifications=4,.modifications=mods};
+        int build_time=100;
+        unitModification_t build_mod={.modID=MAKEFOURCC('u','b','l','d'),.type=mod_int,.data=&build_time};
+        unitData_t custom_types[]={custom,{.originalUnitID=MAKEFOURCC('h','b','a','r'),.newUnitID=MAKEFOURCC('h','B','2','6'),
+            .numbeOfModifications=1,.modifications=&build_mod}};
+        info.num_userCreatedUnits=2;info.userCreatedUnits=custom_types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        T_ASSERT(run_test_jass("globals\nunit worker\nunit target\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set worker=CreateUnit(Player(0),'hW26',304,304,0)\n"
+            "set target=CreateUnit(Player(0),'hB26',400,304,0)\n"
+            "call SetUnitState(target,ConvertUnitState(0),100)\nendfunction\n"
+            "function repair takes nothing returns nothing\ncall IssueTargetOrder(worker,\"repair\",target)\nendfunction\n"
+            "function freeze takes nothing returns nothing\ncall PauseUnit(worker,true)\nendfunction\n"
+            "function resume takes nothing returns nothing\ncall PauseUnit(worker,false)\nendfunction\n"
+            "function stop takes nothing returns nothing\ncall IssueImmediateOrder(worker,\"stop\")\nendfunction\n"
+            "function move takes nothing returns nothing\ncall IssuePointOrder(worker,\"move\",128,304)\nendfunction\n"
+            "function removeTarget takes nothing returns nothing\ncall RemoveUnit(target)\nendfunction\n"
+            "function replaceTarget takes nothing returns nothing\n"
+            "set target=CreateUnit(Player(0),'hB26',400,304,0)\n"
+            "call SetUnitState(target,ConvertUnitState(0),100)\nendfunction\n"
+            "function removeWorker takes nothing returns nothing\ncall RemoveUnit(worker)\nendfunction\n"));
+        edict_t *worker=NULL,*target=NULL;
+        FILTER_EDICTS(ent,ent->inuse) {
+            if(ent->class_id==custom.newUnitID)worker=ent;
+            if(ent->class_id==MAKEFOURCC('h','B','2','6'))target=ent;
+        }
+        T_NOT_NULL(worker);T_NOT_NULL(target);
+        if(worker && target) {
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            building_work_policy_stage(profile,"created",worker);
+            if(profile)T_ASSERT(G_StartHumanConstruction(worker,target));
+            jass_callbyname(level.vm,"repair",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_NOT_NULL(worker->buildwork);T_EQ(worker->build,target);
+            if(!worker->buildwork)goto repair_work_done;
+            T_EQ(worker->buildwork->primary,profile!=0);
+            T_STREQ(worker->currentmove->animation,"stand work");
+            T_EQ(worker->movement.repulse.active,profile==0);
+            building_work_policy_stage(profile,"work",worker);
+            jass_callbyname(level.vm,"freeze",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(!worker->movement.repulse.active);
+            building_work_policy_stage(profile,"paused",worker);
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            worker->currentmove->think(worker);
+            T_EQ(worker->movement.repulse.active,profile==0);
+            building_work_policy_stage(profile,"resumed_work",worker);
+            unsigned worker_slot=worker->s.number,target_slot=target->s.number;
+            cstring_t file=Test_TempPath("wc3-repair-work-separation.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            worker=g_edicts+worker_slot;target=g_edicts+target_slot;
+            T_EQ(worker->build,target);T_EQ(worker->movement.repulse.active,profile==0);
+            /* Load preserves the work owner; a later pause refresh must also
+             * consult that owner instead of only the channel code. */
+            jass_callbyname(level.vm,"freeze",false);
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            worker->currentmove->think(worker);
+            T_EQ(worker->movement.repulse.active,profile==0);
+            jass_callbyname(level.vm,"stop",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_NULL(worker->build);T_EQ(worker->buildwork->ability,0);
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            if(enabled)T_EQ(worker->movement.repulse.state.packed,0x10110000u);
+            building_work_policy_stage(profile,"stopped",worker);
+            jass_callbyname(level.vm,"repair",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.active,profile==0);
+            building_work_policy_stage(profile,"restarted",worker);
+            jass_callbyname(level.vm,"move",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_NULL(worker->build);T_EQ(worker->movement.repulse.active,enabled!=0);
+            T_EQ(worker->current_order_id,G_OrderId("move"));
+            jass_callbyname(level.vm,"repair",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.active,profile==0);
+            jass_callbyname(level.vm,"removeTarget",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            if(worker->currentmove && worker->currentmove->think)worker->currentmove->think(worker);
+            T_NULL(worker->build);T_EQ(worker->buildwork->ability,0);
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            building_work_policy_stage(profile,"target_removed",worker);
+            jass_callbyname(level.vm,"move",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->movement.repulse.active,enabled!=0);
+            building_work_policy_stage(profile,"move",worker);
+            /* Removing the work owner must release it before Move destroys
+             * membership. The inverse itself refreshes separation, so running
+             * it after Move's remove notification leaves a freed list head. */
+            jass_callbyname(level.vm,"replaceTarget",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            target=NULL;
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==MAKEFOURCC('h','B','2','6'))target=ent;
+            T_NOT_NULL(target);
+            if(profile)T_ASSERT(G_StartHumanConstruction(worker,target));
+            jass_callbyname(level.vm,"repair",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(worker->buildwork->working);
+            jass_callbyname(level.vm,"removeWorker",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_ASSERT(G_IsDeferredFree(worker));T_ASSERT(!worker->movement.repulse.active);
+            wc3Clock_t due;uint32_t sequence;
+            T_ASSERT(G_NextUnitRelease(&due,&sequence));
+            level.pathing_clock=due;G_RunDeferredFrees();
+            T_ASSERT(!worker->inuse);T_NULL(level.repulse_head);
+            T_ASSERT(S_RestoreMoveRepulsors());
+        }
+repair_work_done:
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;
+        building_restore_repair_data(old,rows);
+    }
+    setup_test_world();
+}
+
 TEST(wc3_building, construction_sound_label_drives_snapshot_loop_until_stop) {
     static cstring_t const slk =
         "ID;PWXL;N;E\n"

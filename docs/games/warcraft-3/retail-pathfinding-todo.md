@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff226 integrates primary Human construction's separation work phase,
+ordinary Repair's distinct eligibility and the shared inverse across pause,
+Stop, replacement Move, target retirement and cold saves. Repeated original
+captures freeze24 policy phases; broader counted suppression keeps SEP-01.2
+open. See [primary construction work](retail-pathfinding-engine.md#primary-human-construction-owns-separation-suppression-payoff226).
+
+
+
 Payoff225 integrates Hero agility into default and mutable movement speeds,
 retaining cached contribution deltas across public speed overrides, item edits,
 level changes and cold saves. Nine original repeat/control captures freeze

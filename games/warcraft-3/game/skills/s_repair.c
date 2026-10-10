@@ -73,6 +73,26 @@ static edict_t *repair_owned_target(edict_t *ent) {
         target->spawn_time == ent->buildwork->target_spawn_time ? target : NULL;
 }
 
+bool S_RepairSuppressesSeparation(edict_t const *ent) {
+    return ent && ent->buildwork && ent->buildwork->primary && ent->buildwork->working;
+}
+
+/* Native409630's primary Human construction branch publishes work; ordinary
+ * Repair and additional builders do not set Unit20.40000000. */
+static void repair_begin_work(edict_t *ent) {
+    if (ent->buildwork->working) return;
+    ent->buildwork->working = true;
+    if (ent->buildwork->primary) S_UnitAbilityEvent(ent, A_UNIT_WORK_STATE_CHANGED);
+}
+
+/* Native436e10 clears work before retiring the target identities. Pause also
+ * takes this inverse, retaining the order until its work phase starts again. */
+void S_SuspendRepairWork(edict_t *ent) {
+    if (!ent || !ent->buildwork || !ent->buildwork->working) return;
+    ent->buildwork->working = false;
+    S_UnitAbilityEvent(ent, A_UNIT_WORK_STATE_CHANGED);
+}
+
 static bool repair_list_has_token(cstring_t list, cstring_t full, cstring_t short_name) {
     if (!list || !*list || !full || !*full) return false;
     PARSE_LIST(list, item, parse_segment) {
@@ -174,6 +194,7 @@ static void repair_release(edict_t *ent) {
     if (ent->buildwork->primary && building && building->construction && building->construction->primary_builder == ent) {
         building->construction->primary_builder = NULL;
     }
+    S_SuspendRepairWork(ent);
     ent->build = NULL;
     assert(ent->buildwork);
     ent->buildwork->primary = false;
@@ -390,6 +411,7 @@ static void repair_set_work(edict_t *ent) {
         unit_setmove(ent, &repair_generic_move_work);
     else
         unit_setmove(ent, &repair_move_work);
+    repair_begin_work(ent);
 }
 
 static bool repair_prepare_approach(edict_t *ent) {
@@ -430,6 +452,7 @@ static bool repair_prepare_approach(edict_t *ent) {
 }
 
 static bool repair_set_walk(edict_t *ent) {
+    S_SuspendRepairWork(ent);
     if (!repair_prepare_approach(ent)) {
         repair_stop_reason(ent, "no_approach");
         return false;
@@ -489,6 +512,8 @@ static void ai_repair(edict_t *ent) {
         repair_set_walk(ent);
         return;
     }
+
+    repair_begin_work(ent);
 
     data = repair_data(ent);
     hp = &building->health;

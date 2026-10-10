@@ -1,5 +1,11 @@
 # Warcraft III Save/Load
 
+Save159 retains Repair's work phase independently of its retained order.
+Primary Human construction remains separation-disabled after load, while
+ordinary Repair remains eligible. Pause and the common work inverse release
+the phase. Save158 and earlier versions are rejected. See
+[construction work](retail-pathfinding-engine.md#primary-human-construction-owns-separation-suppression-payoff226).
+
 Save158 retains the Hero's last published movement contribution and reversible
 item agility. A public speed override survives load, and subsequent item/level
 changes publish only their contribution delta. Save157 and earlier layouts are

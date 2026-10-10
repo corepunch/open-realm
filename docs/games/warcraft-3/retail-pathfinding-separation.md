@@ -756,3 +756,11 @@ Do not classify the first32–96 world units of blocked-start relocation as
 repulsion: disabled controls show it too. Do not claim a native first-blocker
 identity from reconstructed overlap causes, or completion for the four mixed
 orders unfinished at the captured tick302 boundary.
+
+## Primary construction work integration
+
+Payoff226 integrates primary Human construction's separation work phase,
+ordinary Repair's distinct eligibility and the shared inverse across pause,
+Stop, replacement Move, target retirement and cold saves. Repeated original
+captures freeze24 policy phases; broader counted suppression keeps SEP-01.2
+open. See [primary construction work](retail-pathfinding-engine.md#primary-human-construction-owns-separation-suppression-payoff226).

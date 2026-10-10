@@ -15325,3 +15325,71 @@ complete retail trajectory, arbitrary overflow behavior or performance target
 is certified. Reads and ordinary contribution updates are constant time; level
 removal preserves the original sequential work. All460 prior corpus entries
 remain unchanged; this adds entry461 and the180th executable evidence contract.
+
+## Primary Human construction owns separation suppression (Payoff226)
+
+Repair now owns an explicit work phase in its existing sparse state. A primary
+Human construction worker disables separation when work starts. Ordinary Repair
+keeps its repulsor. Pause ends work while retaining the order; the next valid
+work visit starts the phase again. Stop, replacement Move, target retirement
+and completion release it through the common Repair inverse. Eligibility checks
+consult that owner alongside channel, pause and pending removal, so an unrelated
+refresh cannot re-enable an active primary worker.
+
+The distinction comes from original `409630`: its primary Human branch sets
+ability flags20.800000 and Unit20.4000 at `409822`, then calls `48ef40` at
+`40983c` to set Unit20.40000000. Ordinary Repair and the additional-worker branch
+omit that work bit. The common inverse `436e10` calls `48bca0` at `436eb4` before
+retiring target identities. That inverse refreshes separation even when ordinary
+Repair did not set the bit on entry. Counted suppression at Unit198 remains a
+separate owner. Native Pause first ends work, then acquires its suspension count;
+resume releases the count and briefly publishes eligibility before primary work
+starts again. The complete captured sequence is preserved.
+
+The new builder uses Peasant clones with integer repulse2/selector17/group17/
+rank17 and a repulse0 control. Ordinary Repair, primary Human construction and
+disabled construction each cover Pause/resume, Stop, restart, target removal and
+Move. Two read-only retail observations agree on198 ordered native events and
+221 live markers each; the saved218-marker sequence agrees with the observer-free
+control. All696 exported original instruction encodings are checked against the
+pinned binary. Frida tail-JMP return trampolines are tagged explicitly rather
+than reported as native callsites. Original caller fields are otherwise retained.
+
+The production regression first failed six eligibility assertions. Classic/TFT
+now each pass159 assertions and emit24 policy/eligibility phases that the verifier
+compares directly with the original capture. It also checks cold saves and a
+replacement Move while work is active. The custom building has a nonzero authored
+build time so advancing work cannot accidentally complete a zero-duration fixture.
+Fixture JASS uses ConvertUnitState(0), since the small common.j lacks the retail
+UNIT_STATE_LIFE global; this changes the producer, not the expected health.
+
+A second failing-first check caught an engine teardown ordering bug: final
+G_FreeEdict ran the Repair inverse after Move removed its repulsor. The inverse
+could reinsert a soon-freed unit and leave an invalid list head. Repair now ends
+work before A_UNIT_REMOVE detaches Move storage. Public RemoveUnit plus the
+deferred-release clock reproduces the failure for ordinary and primary workers;
+the repulse0 control remains empty. Four list/restore assertions failed before
+the fix. This establishes the engine cleanup invariant, not the explicitly
+excluded final native retirement interval.
+
+Save159 persists `buildwork.working` and rejects Save158 and earlier. The field
+uses existing padding: buildwork remains24 bytes. Reads and state transitions
+take constant work; there is no new allocation, scan or rawcode exception.
+Engine save checks establish engine continuation, not native UI-save parity.
+The public pause scheduler and complete position trajectories are not certified
+by this phase-policy comparison. Additional counted-work producers, broader work
+families and the final removal interval keep SEP-01.2 open; no new TODO is split.
+All prior retail expected fixtures and461 prior corpus entries remain unchanged.
+
+Evidence is frozen in
+[`retail-work226-1.27.json`](../../../tools/ghidra/fixtures/retail-work226-1.27.json)
+and its compressed capture bundle. Reproducers are
+`tools/frida/research/work226_{capture.py,observer.js,make_map.py,probe.j}`;
+`Work226Evidence.java` exports the fixed original function set. Four comments,
+three branch labels, the Repair flags field and xrefs are saved in Ghidra and
+mirrored in MapPathfinding.java/the type fixture. Captures, maps, failing-first
+logs and validation are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SEP-01.2/payoff226/`.
+Checkpoint226 passes full `make test`: Classic and TFT each complete3313
+tests/16,729,664 assertions, and all1144 Python pathfinding checks pass. This
+accepts implementation commit12/12 since checkpoint214 and resets the cadence.

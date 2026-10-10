@@ -110,6 +110,9 @@ void G_FreeEdict(edict_t *ent) {
         G_SetHealth(ent,0);
         S_UnitAbilityEvent(ent,A_UNIT_RETIRE);
     }
+    /* Repair's work inverse refreshes separation. Finish it before Move
+     * detaches storage, so cleanup cannot reinsert a retiring repulsor. */
+    if (ent->buildwork && ent->buildwork->ability) S_CancelRepair(ent);
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
     G_BotRemoveCaptainUnit(ent);
     /* Direct JASS RemoveUnit must release transient construction/upgrade state
@@ -121,7 +124,6 @@ void G_FreeEdict(edict_t *ent) {
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);
     S_CargoReleaseUnit(ent);
     if (ent->cargo && ent->cargo->count > 0) cargo_drop_all(ent);
-    if (ent->buildwork && ent->buildwork->ability) S_CancelRepair(ent);
     /* Remove both the active accepted-build indicator and any owner-only
      * indicators attached to delayed Shift-build queue entries. Direct
      * RemoveUnit must not leave construction placeholders behind. */

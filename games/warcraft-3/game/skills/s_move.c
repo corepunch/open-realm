@@ -1796,7 +1796,7 @@ static void move_repulse_init(edict_t *self) {
     /* Removal owns suppression before callbacks, like native694690/688d90.
      * Its generation-checked lifetime also gates owner/type/pause refreshes. */
     if (!balance || !balance->repulse || G_IsDeferredFree(self) || self->paused ||
-        S_SpellIsChanneling(self)) return;
+        S_SpellIsChanneling(self) || S_RepairSuppressesSeparation(self)) return;
     move_repulse_prepare_links();
     uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,S_UnitMechanicalCritter(self));
     self->movement.repulse.state.packed = wc3_repulse_policy(0,balance->repulseParam,category,balance->repulsePrio);
@@ -2027,6 +2027,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
         FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
     }
     self->paused=paused;
+    if(paused)S_SuspendRepairWork(self);
     /* Native66fc50 disables separation while suspension depth54 or scripted
      * flag5c.200000 is set;693d50 retires/recreates the repulsor at transition. */
     if(paused)move_repulse_unlink(self);
@@ -5921,7 +5922,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
             A_PRIMARY_TIMER, A_ORDER_ACCEPTED, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
             A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED, A_TARGET_LOST,
             A_TARGET_OWNER_CHANGED,
-            A_CHANNEL_STATE_CHANGED);
+            A_CHANNEL_STATE_CHANGED, A_UNIT_WORK_STATE_CHANGED);
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
             .limit = unit_effective_speed(ent) };
@@ -5974,6 +5975,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_OWNER_BEGIN: move_update_fine_budget(); MOVE_OWNER_PHASE(MOVE_PHASE_SCHEDULER,0); return true;
     case A_OWNER_UPDATE: move_run_group_updates(); move_visual_update(); move_repulse_owner_update(); return true;
     case A_CHANNEL_STATE_CHANGED:
+    case A_UNIT_WORK_STATE_CHANGED:
         /* 48ef40/48bca0 refresh after publishing the channel-work flag. */
         move_repulse_init(ent); return true;
     case A_UNIT_TYPE_CHANGING:

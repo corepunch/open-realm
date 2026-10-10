@@ -49389,6 +49389,64 @@
         "Preparation/performance not remeasured. Independent field access is constant time; removed levels publish in native sequential order.",
         "No existing frozen retail expectations changed. Engine save158 stores contribution/item portion; native UI save/load not exercised in this producer."
       ]
+    },
+    {
+      "id": "oracle-work226",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work226.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work226.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 654
+        },
+        "native_events": {
+          "equal": 396
+        },
+        "work_phases": {
+          "equal": 24
+        },
+        "instructions": {
+          "equal": 696
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "SEP-01.2 primary Human construction work, ordinary Repair and authored disabled controls. Repeated original phases plus Classic/TFT engine pause, Stop, replacement Move, target removal and saved work.",
+      "exclusions": [
+        "Primary Human construction work eligibility and the common Repair inverse; ordinary Repair and authored disabled controls.",
+        "Engine pause/save/Move replacement checks establish ownership and work-phase policy, not complete retail scheduler timing or trajectories.",
+        "Native UI save/load not exercised. Engine save159 retains work-phase state; prior versions are rejected.",
+        "Native pause resumes through a temporary eligible refresh before construction work starts again. All original events are retained.",
+        "Known tail JMP hooks can expose Frida return trampolines: tagged interceptor-tail-transfer, not represented as native callers.",
+        "Broader counted suppression, other work producers and final removal retirement remain open in SEP-01.2. No prior retail expected fixture changed.",
+        "No performance target certified. Work queries are constant time and existing buildwork allocation stays24 bytes."
+      ]
     }
   ],
   "fixtures": [
@@ -49454,7 +49512,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "f3ba9c5bcb8f982d737e33a1a4e4d326b11683a8419c24ee9da8e38b7df9c5ca"
+      "sha256": "178b627e7aaa2bd0aa3375f5e26ee9ba6a22a1332e3f12014adfaab10b24f1d9"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -50287,7 +50345,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "88cbd7ace730e34d6e91cc76f66c5754c5c12b103c1ce567514791031ea705f5"
+      "sha256": "c573cb9273c1203abd90c9ff895db7510f7ff22be1cc707224058365b646a8aa"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51143,7 +51201,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "f8b4adf7392b23f1ccfbd54399a711b2286b89ed5b9e5dc7de1981e26b6f3277"
+      "sha256": "e4b2b429cf72e197794f06146f0787d92f68b4d3d934060dede87371a83a71f3"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51579,7 +51637,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "fd45d7c50b8105a5493bac233376aeb76e64cc083b579811ec9d48675e697355"
+      "sha256": "5dc2a79545cddcc8574530f7a045746b936cd9a71af32e99a236e27a02bdded5"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -51587,7 +51645,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "01c1f113d21c6b926992435a8a75f5ca87a62818a0045d0b1862e2d4c6e48f66"
+      "sha256": "67ef086b7a767b44bbe5bd5d4744168fb856fcb5b10f1d9417dac66c379116ee"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -52079,7 +52137,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "e187373db58ebf0641ec2a97b5962d14ab24972e9d34f1578e2748d56bf6ac21"
+      "sha256": "0530229a9a25562588a514a05b1617de24d03c6d5f7d623705f122ea700bd7cc"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52087,15 +52145,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "cc26a24ad4f965d90dedb4f70c7417fa136389fdfc12df07deb280db4c080b3e"
+      "sha256": "8a91b817c2f34abdac0bd72f9186c86a088822fa45d3cc5703474657105a1203"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "e47db8746b11255a30210b72052d736df0c93cf690b5e0a80005eb573a7a38cb"
+      "sha256": "eaeeab312f8453851e5dfe715d4cc1aadbe07961f5adbfe4e3d4ed509c024354"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "e6a045bbd79982aab395567a760a7b3ac1f33d1f51a3f88bbd9942e1b5a067b5"
+      "sha256": "ddc14ad9c03a22f704c5ea3a58d82ce9b0ef328576b0b27634411973949fd14f"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52155,7 +52213,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
-      "sha256": "4122d9f2318bb29a522ff12f2504357a04a0452dc8496e3e63c426800e9fbf85"
+      "sha256": "a4ded08c7cc817eb04496d2ddcb4b55a703bc161e3e2092fca75842f51314f68"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_attack_help.py",
@@ -53175,7 +53233,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_building.c",
-      "sha256": "36387525b3eb295f8208137785bca0fc4ad6ba423da454246ebfa3ac122527a8"
+      "sha256": "cbf1a93a81e457b4826beebcc2ff7f63c0d57deb97bbafb4ddaee8f1c1b07246"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
@@ -54784,6 +54842,46 @@
     {
       "path": "games/warcraft-3/game/g_gamecache.c",
       "sha256": "7fbffecdc1ae14348905fcaa0e43b95ace30ff5a03ce73ba4688e67f4c5ad40e"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work226.py",
+      "sha256": "9e41e7c32bbfcd59b7500d8057e14d3885d058f2f218b9a1bfc9f7decb150578"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work226.py",
+      "sha256": "b9c33f8b7c1a650a8a34c0b82209cbd8d3f79bba745b55b9195af71d84c0dcaa"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work226-1.27.json",
+      "sha256": "e20855d224de5a121d925116b58c08922d61c5ac0c30f6b860ccb454a1c24175"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work226-1.27.json.gz",
+      "sha256": "f5648332b5376157a01b642ac029047204679d501181fe5461cd894f2db8ded6"
+    },
+    {
+      "path": "tools/frida/research/work226_capture.py",
+      "sha256": "864133e270948f829c27bf4649a3770333b1d771a9b90b5b982de66f74d8727d"
+    },
+    {
+      "path": "tools/frida/research/work226_observer.js",
+      "sha256": "70451e0c3d80d4caf024aa047fe7d61f31f5be591949e9447b11ff016133e126"
+    },
+    {
+      "path": "tools/frida/research/work226_make_map.py",
+      "sha256": "54151704fe728d3b66c09744fa19a183da0f14d575997c7a601a7de6eabd8624"
+    },
+    {
+      "path": "tools/frida/research/work226_probe.j",
+      "sha256": "62545cfacc4fa17d0bcfaf2743d22d6f70b2626abf623f66c95781032463efc9"
+    },
+    {
+      "path": "tools/ghidra/research/Work226Evidence.java",
+      "sha256": "ead1287ff6ba793b50ff2fc1da4af040f4609343ecb693de9df8d394dc54240d"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/s_repair.c",
+      "sha256": "25d108be97101020aaae34280b6cc1399453494ed418d22cf20d6dedba61f84a"
     }
   ]
 }
