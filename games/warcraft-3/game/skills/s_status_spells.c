@@ -11,6 +11,17 @@ static cstring_t status_buff(abilityitem_t const *spell, uint32_t level) {
     return buff ? buff : status_buff_fallback(spell->code);
 }
 
+static bool status_can_allocate(edict_t *caster, edict_t *target, abilityitem_t const *spell) {
+    uint32_t level;
+    cstring_t buff;
+    wc3_status_apply_check_t result;
+    if (!caster || !target || !spell) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = status_buff(spell, level);
+    result = unit_status_checkapplication(target, &(status_application_t){ .buff = buff, .level = level });
+    return result == WC3_STATUS_APPLY_FREE_SLOT || result == WC3_STATUS_APPLY_REUSE;
+}
+
 static void status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = status_buff(spell, level);
@@ -24,8 +35,8 @@ static void status_execute(edict_t *caster, spellTarget_t st, abilityitem_t cons
  * Ubertip="Reduces movement speed by <Acri,DataA1,%>%, attack rate by <Acri,DataB1,%>%, and damage by <Acri,DataC1,%>% of a target enemy unit. |nLasts <Acri,Dur1> seconds."
  */
 static bool cripple_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity);
+    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity) &&
+        status_can_allocate(caster, st.entity, spell);
 }
 
 BZ_VALIDATED_SPELL_PROC(AbilityCripple, cripple_validate, status_execute)
@@ -59,8 +70,8 @@ bool S_UnitIsSilenced(edict_t const *unit) {
 }
 
 static bool soul_burn_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity);
+    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity) &&
+        status_can_allocate(caster, st.entity, spell);
 }
 
 BZ_VALIDATED_SPELL_PROC(AbilitySoulBurn, soul_burn_validate, status_execute)

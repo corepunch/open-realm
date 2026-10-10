@@ -30,9 +30,18 @@ BZ_ABILITY_PROC(CAbilityCyclone) {
     if ((msg != A_VALIDATE && msg != A_EXECUTE) || !call || !call->item || !call->target)
         return CAbilitySimpleSpell(ent, msg, call);
     target = call->target;
-    if (msg == A_VALIDATE)
-        return target->type == SPELL_TARGET_UNIT && target->entity &&
-               S_SpellAllowsTarget(call->item->code, ent, target->entity);
+    if (msg == A_VALIDATE) {
+        wc3_status_apply_check_t result;
+        if (target->type != SPELL_TARGET_UNIT || !target->entity ||
+            !S_SpellAllowsTarget(call->item->code, ent, target->entity)) return false;
+        level = S_SpellLevel(ent, call->item->code);
+        buff = S_SpellBuffId(call->item->code, level);
+        if (!buff || strlen(buff) < 4) buff = "Bcyc";
+        result = unit_status_checkapplication(target->entity, &(status_application_t){
+            .buff = buff, .level = level
+        });
+        return result == WC3_STATUS_APPLY_FREE_SLOT || result == WC3_STATUS_APPLY_REUSE;
+    }
     if (target->type != SPELL_TARGET_UNIT || !target->entity) return false;
     level = S_SpellLevel(ent, call->item->code);
     buff = S_SpellBuffId(call->item->code, level);
@@ -41,6 +50,7 @@ BZ_ABILITY_PROC(CAbilityCyclone) {
                                     S_SpellResistantDuration(call->item->code, level, target->entity));
     /* Timed-status replacement clears payload; restore the applying rawcode. */
     if (slot) { slot->data = call->item->code; slot->source_ability = call->item->code; }
+    if (!slot) return false; /* Do not interrupt movement on allocation failure at impact time. */
     target->entity->goalentity = NULL;
     target->entity->currentmove = &holdpos_move_stand;
     return true;
