@@ -39,14 +39,21 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
                                   S_SpellHeroDuration(spell->code, level, st.entity));
 }
 
+static bool melee_status_capacity(edict_t *target, abilityitem_t const *spell) {
+    uint32_t const level = S_SpellLevel(target, spell->code);
+    cstring_t const buff = melee_buff(spell, level);
+    return buff && unit_status_checkapplication(target, &(status_application_t){ .buff = buff, .level = level }) !=
+        WC3_STATUS_APPLY_FULL;
+}
+
 static bool bloodlust_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity);
+    return spell && st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity) &&
+        melee_status_capacity(st.entity, spell);
 }
 
 static bool faerie_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity);
+    return spell && st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity) &&
+        melee_status_capacity(st.entity, spell);
 }
 
 static bool rejuv_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {

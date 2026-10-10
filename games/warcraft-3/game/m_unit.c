@@ -1690,9 +1690,10 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     uint32_t duration_ms;
     heroabilitystatus_t *slot = NULL;
     cstring_t stacktype;
+    wc3_status_apply_check_t preflight;
 
     /* Fail before any removal or state mutation when allocation is impossible. */
-    wc3_status_apply_check_t const preflight = unit_status_checkapplication(ent, app);
+    preflight = unit_status_checkapplication(ent, app);
     if (preflight == WC3_STATUS_APPLY_INVALID || preflight == WC3_STATUS_APPLY_FULL) {
         return NULL;
     }
