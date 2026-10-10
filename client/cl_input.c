@@ -440,8 +440,8 @@ static bool CL_CanHoverableEntity(uint32_t entnum) {
         return false;
     }
     entityState_t const *state = &cl.ents[entnum].current;
-    return CL_EntityAllowsWorldHover(state) &&
-           (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA));
+    /* Names are an independent hover capability; requiring a bar hid name-only entities. */
+    return CL_EntityAllowsWorldHover(state);
 }
 
 static void CL_UpdateHover(float x, float y) {
@@ -1664,6 +1664,33 @@ static uint32_t hover_trace_calls;
 static vec2_t hover_trace_point;
 static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, uint32_t *number) {
     (void)view; hover_trace_calls++; hover_trace_point = (vec2_t){ x, y }; *number = 7; return true;
+}
+
+TEST(client_input, name_only_entity_survives_default_hover_filter) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    refExport_t saved = re;
+    float old_hover_only = Cvar_Value("cl_hover_health_only", 1);
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    re.TraceEntity = CL_TestHoverEntity; re.GetWindowSize = CL_TestWindowSize;
+    Cvar_SetValue("cl_hover_health_only", 1);
+    cl.ents[7].current = (entityState_t){ .number = 7, .model = 1, .name = 1 };
+    cl.ents[7].current.stats[ENT_HEALTH] = 1;
+    T_ASSERT(CL_EntityAllowsWorldHover(&cl.ents[7].current));
+    CL_UpdateHover(101, 202);
+    T_EQ(cl.hover_entity, 7);
+    cl.ents[7].current.name = 0;
+    CL_UpdateHover(101, 202);
+    T_EQ(cl.hover_entity, 0);
+    cl.ents[7].current.flags = EF_HOVER_HEALTH;
+    CL_UpdateHover(101, 202);
+    T_EQ(cl.hover_entity, 7);
+    cl.ents[7].current.flags |= EF_NOT_SELECTABLE;
+    CL_UpdateHover(101, 202);
+    T_EQ(cl.hover_entity, 0);
+    cl = *old_cl; MemFree(old_cl); cls = old_cls; re = saved;
+    Cvar_SetValue("cl_hover_health_only", old_hover_only);
 }
 
 TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {

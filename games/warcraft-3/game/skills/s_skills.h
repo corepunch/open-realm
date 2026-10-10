@@ -441,6 +441,7 @@ void S_PolymorphRemove(edict_t *unit);
 int S_BlackArrowDamage(edict_t *attacker, int damage);
 void S_BlackArrowDeath(edict_t *attacker, edict_t *target);
 void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage);
+bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t const *target);
 void S_ResolveArtilleryHit(edict_t *attacker, edict_t *target, int raw_damage);
 void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
                                 struct artillery_s const *profile);

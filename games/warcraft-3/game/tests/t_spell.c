@@ -5157,6 +5157,52 @@ TEST(wc3_spell, poison_dataa_ticks_through_entity_scheduler_and_preserves_same_s
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, ethereal_secondary_targets_reject_physical_attacks) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Area1\"\n"
+        "C;Y2;X1;K\"Amgl\"\nC;Y2;X2;K\"Amgl\"\nC;Y2;X3;K\"2\"\nC;Y2;X4;K\"200\"\n"
+        "C;Y3;X1;K\"ANca\"\nC;Y3;X2;K\"ANca\"\nC;Y3;X3;K\"0.4\"\nC;Y3;X4;K\"200\"\n"
+        "C;Y4;X1;K\"Asth\"\nC;Y4;X2;K\"Asth\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    uint32_t codes[] = { MAKEFOURCC('A','m','g','l'), MAKEFOURCC('A','N','c','a'), MAKEFOURCC('A','s','t','h') };
+    FOR_LOOP(i, 3) {
+        edict_t *attacker = make_hero(MAKEFOURCC('e','h','u','n'), 300, 0, 0, 0);
+        edict_t *primary = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+        edict_t *nearby = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 60, 0);
+        attacker->s.player = 0; primary->s.player = nearby->s.player = 1;
+        attacker->attack1.type = ATK_NORMAL;
+        attacker->attack1.targetsAllowed = G_TargetFlagForType(TARG_GROUND);
+        attacker->attack2.type = ATK_MAGIC;
+        attacker->attack2.targetsAllowed = G_TargetFlagForType(TARG_GROUND);
+        attacker->attack1.areaFull = attacker->attack1.areaMedium = attacker->attack1.areaSmall = 200;
+        primary->svflags |= SVF_MONSTER; nearby->svflags |= SVF_MONSTER;
+        primary->targtype = nearby->targtype = TARG_GROUND;
+        ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+        ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+        memset(level.alliances, 0, sizeof(level.alliances));
+        primary->health.value = primary->health.max_value = 500;
+        nearby->health.value = nearby->health.max_value = 500;
+        attacker->heroabilities[0] = MAKE(heroability_t, .code = codes[i], .level = 1);
+        heroabilitystatus_t *slot = S_SpellApplyTimedStatus(nearby, "BHbn", 1, 10);
+        T_NOT_NULL(slot);
+        T_ASSERT(unit_hasstatusstate(nearby, WC3_STATUS_STATE_ETHEREAL));
+        S_ResolveAttackHit(attacker, primary, 50);
+        T_FEQ(primary->health.value, 450, 0.001f);
+        T_FEQ(nearby->health.value, 500, 0.001f);
+        unit_expirestatus(nearby, slot);
+        S_ResolveAttackHit(attacker, primary, 50);
+        T_FEQ(primary->health.value, 400, 0.001f);
+        T_FEQ(nearby->health.value, i == 1 ? 480 : 450, 0.001f);
+        T_NOT_NULL(S_SpellApplyTimedStatus(nearby, "BHbn", 1, 10));
+        attacker->attack1.type = ATK_MAGIC;
+        S_ResolveAttackHit(attacker, primary, 50);
+        T_FEQ(primary->health.value, 350, 0.001f);
+        T_FEQ(nearby->health.value, i == 1 ? 460 : 400, 0.001f);
+    }
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, moon_glaive_bounces_attack_to_nearby_enemy) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X4\n"

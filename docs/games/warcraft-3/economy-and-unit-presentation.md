@@ -494,10 +494,16 @@ parallel width/stride.
 
 ### World-unit hover health
 
-WC3 world hover is presentation-only and remains separate from selection. `client/cl_input_w3.c` ray-picks the world on mouse motion,
-then accepts only snapshot entities carrying the generic `EF_HOVER_HEALTH` capability. `G_CustomizeEntity` authors that bit per client
-for living `SVF_MONSTER` units/buildings that are selectable and actively visible. This stricter visibility check intentionally differs
+WC3 world hover is presentation-only and remains separate from selection. `client/cl_input.c` ray-picks the world on mouse motion,
+then uses `CL_EntityAllowsWorldHover` under the default `cl_hover_health_only=1` filter. A model, positive snapshot health, and
+selectability are required, together with a name or `EF_HOVER_HEALTH`/`EF_HOVER_MANA`. Names are an independent capability:
+world items and invulnerable units without mana publish names without bar flags. Do not add a second bar-only filter in input.
+`G_CustomizeEntity` authors the bar bits per client for living, selectable and actively visible units/buildings.
+This stricter visibility check intentionally differs
 from `G_FowPlayerCanSeeEntity`: explored buildings may remain networked while shrouded, but must not expose current HP through hover.
+
+`client_input.name_only_entity_survives_default_hover_filter` drives the actual hover update with the default cvar and covers
+name-only entities, no-capability rejection, bar-only entities, and nonselectable rejection.
 
 The presentation path is:
 

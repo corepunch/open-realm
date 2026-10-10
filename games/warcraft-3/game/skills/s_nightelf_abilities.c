@@ -35,6 +35,7 @@ void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
     for (uint32_t i = 1; i < total; i++) {
         edict_t *next = NULL;
         FILTER_EDICTS(other, other != attacker && S_SpellIsAliveTarget(other) &&
+                      S_AttackHitAllowed(attacker, primary, other) &&
                       S_SpellIsEnemy(attacker, other) &&
                       Vector2_distance(&other->s.origin2, &current->s.origin2) <= range) {
             bool seen = false;

@@ -73,6 +73,9 @@ spell effects (stun, etc.) may proceed. Fully absorbed hits return false.
 
 `Aams` targs are `air,ground` (no allegiance filter). `Aam2` targs include
 `friend,self`, so enemies are invalid.
+Cast-capacity validation must delegate allegiance to `S_SpellAllowsTarget`; a hardcoded friendship check would incorrectly reject
+ROC-style unrestricted shells and custom `enemy` masks. `anti_magic_shell_respects_authored_enemy_target_mask` casts an authored
+enemy-only shell through `S_CastUnitTargetSpell`; the Aam2 test also verifies that a friendly-only mask rejects the same cast.
 
 ## Diagnostic Workflow
 

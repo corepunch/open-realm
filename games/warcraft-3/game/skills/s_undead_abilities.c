@@ -20,8 +20,9 @@ static bool anti_magic_shell_validate(edict_t *caster, spellTarget_t st, ability
     uint32_t level;
     cstring_t buff;
     wc3_status_apply_check_t check;
+    /* Authored targs owns allegiance; the former friend check rejected valid Aams targets. */
     if (!caster || !spell || st.type != SPELL_TARGET_UNIT || !st.entity ||
-        !S_SpellIsAliveTarget(st.entity) || !S_SpellIsFriend(caster, st.entity) ||
+        !S_SpellIsAliveTarget(st.entity) ||
         !S_SpellAllowsTarget(spell->code, caster, st.entity)) return false;
     level = S_SpellLevel(caster, spell->code);
     buff = anti_magic_shell_buff(spell, level);

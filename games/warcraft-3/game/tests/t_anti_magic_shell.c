@@ -40,6 +40,22 @@ static amsFix_t ams_setup(cstring_t slk, uint32_t code) {
 
 static void ams_done(amsFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
+TEST(wc3_spell, anti_magic_shell_respects_authored_enemy_target_mask) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Rng1\"\nC;Y1;X6;K\"Dur1\"\n"
+        "C;Y1;X7;K\"HeroDur1\"\nC;Y1;X8;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"Aams\"\nC;Y2;X2;K\"Aams\"\nC;Y2;X3;K\"air,ground,enemy\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"500\"\nC;Y2;X6;K\"90\"\n"
+        "C;Y2;X7;K\"90\"\nC;Y2;X8;K\"Bams,Bam2\"\nE\n";
+    amsFix_t fix = ams_setup(slk, BZ_AMS);
+    T_ASSERT(S_SpellAllowsTarget(BZ_AMS, fix.caster, fix.enemy));
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AMS, fix.enemy));
+    T_ASSERT(S_UnitSpellImmune(fix.enemy));
+    ams_done(fix);
+}
+
 static uint32_t ams_remaining(edict_t const *unit) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BAM2) return unit->abilstatus[i].data;
@@ -120,6 +136,7 @@ TEST(wc3_spell, anti_magic_shell_aam2_absorbs_authored_spell_damage) {
 
     T_EQ(S_AbilityItem(BZ_AAM2).ability->proc, CAbilityAntiMagicShell);
     T_ASSERT(!S_SpellAllowsTarget(BZ_AAM2, fix.caster, fix.enemy));
+    T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_AAM2, fix.enemy));
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AAM2, fix.ally));
     T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAM2), 1);
     T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAMS), 0);

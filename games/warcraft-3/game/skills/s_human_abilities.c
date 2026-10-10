@@ -809,6 +809,7 @@ void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
     uint32_t count = 0, limit = barrage ? (uint32_t)S_SpellData(MAKEFOURCC('A','r','o','c'), barrage, 3) : UINT_MAX;
     if (radius <= 0.0f) return;
     FILTER_EDICTS(other, count < limit && other != target && S_SpellIsAliveTarget(other) && S_SpellIsEnemy(attacker, other) &&
+                  S_AttackHitAllowed(attacker, target, other) &&
                   (!flak || other->targtype == TARG_AIR) && Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius) {
         float distance = Vector2_distance(&other->s.origin2, &target->s.origin2), splash = damage;
         if (flak) splash = distance <= S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 1) ?

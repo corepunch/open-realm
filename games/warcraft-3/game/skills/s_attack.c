@@ -420,10 +420,15 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
 }
 
+/* Secondary hits carry the primary weapon's type, not a different weapon selected for the victim.
+ * Previously only the primary hit rejected physical damage against Ethereal. */
+bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t const *target) {
+    return !unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) &&
+           (!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) || attack_profile(attacker, primary)->type == ATK_MAGIC);
+}
+
 void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
-    if (unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL)) return;
-    if (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) &&
-        attack_profile(attacker, target)->type != ATK_MAGIC) return;
+    if (!S_AttackHitAllowed(attacker, target, target)) return;
     if (S_EvasionRoll(target)) return;
     { float const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (float)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
@@ -459,7 +464,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     if (cleave_level) {
         float radius = S_SpellNumber(cleave_code, ABILITY_NUMBER_AREA, cleave_level);
         float fraction = S_SpellData(cleave_code, cleave_level, 1);
-        FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) &&
+        FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) && S_AttackHitAllowed(attacker, target, other) &&
                       S_SpellIsEnemy(attacker, other) &&
                       Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius)
             T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
