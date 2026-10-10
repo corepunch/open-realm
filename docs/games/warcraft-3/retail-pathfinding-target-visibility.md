@@ -450,3 +450,64 @@ Classic and TFT each pass349 tests /268,724 assertions.
 Focused validation follows the authorized twelve-commit cadence; full
 checkpoint250 already passed. Raw evidence is archived under
 `research/TARGET-03.1/payoff251/` in the original-analysis workspace.
+
+## Authoritative fog publication and reacquisition (Payoff252)
+
+Retail fog is an ordered primary-clock request, not per-frame derived work.
+`008260` constructs4/10 using the shipped scalar helpers: the period is
+`3eccccce`, which differs from a host0.4 literal. `28ba80` arms embedded UI
+control280 for event80269; `289260` rearms before tail-calling `251ac0`.
+Map start1e5d77 registers it, and teardown1dfb11 cancels it. The CRC loop
+`24f570` is unrelated to fog scheduling; its16-row grouping is not an
+incremental visibility algorithm.
+
+Two new read-only five-scene repeats and an unhooked control have identical
+1,067 public markers each. Each observed run records245 authoritative fog
+compositions with identical owner counters. In the short-fog Follow scene,
+DestroyFogModifier runs at1300, fog composition at1304, and the first visible
+Follow sampler at1305. It resets unseen14 to0 while retaining countdown2;
+reacquisition does not bypass the next destination sampling deadline.
+All618 follower and624 target raw rows match both earlier archived retail
+observations. The frozen expected fixtures were not regenerated from the engine.
+
+The engine dispatches fog through the existing ordered primary timer merge,
+including exact scalar deadlines, registration serials and300-second rebasing.
+It retains the completed plane between requests, rather than rebuilding it at
+the end of every server frame. This removes repeated fog work and fixes early
+reacquisition. It does not establish a measured frame-rate improvement.
+
+A save during the hidden window exposed a second omission: completed visibility
+and exploration were absent from saves. Retail250d00/250120 save/load their
+four original planes. Engine Save164 now saves logical current visibility and
+exploration, consumed-viewer membership, the next fog deadline and its serial.
+Load reconstructs row/packed caches and marks client deltas dirty without
+recomposing visibility; ClientBegin preserves the restored plane. Save163 and
+older formats are rejected. Network messages are unchanged.
+
+The failing-first public-JASS replay now compares every follower owner row
+1108..1474 and target row1091..1474, then repeats from a cold save at follower
+row190 while the modifier remains active. Additional checks cover deferred Stop
+publication, epoch rebasing, plane restoration and corrupt/truncated state.
+The complete raw fixture remains available beyond this bounded engine gate.
+A separate original point-task restart at1482 first diverges in the target at1483
+and in the follower destination at1495; it is explicitly excluded, not rewritten.
+TARGET-03.2 remains open. Existing synchronous modifier-start application is
+unchanged; these deadline-aligned scenes do not certify off-deadline Start.
+
+Reproduce the focused contract with:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_fog252.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/fog252-fresh.json
+```
+
+The capture bundle and specification are
+`tools/ghidra/fixtures/retail-fog252-1.27.json{,.gz}`. Native instructions,
+callers and a partial fog-plane structure are reproducible through
+`tools/ghidra/research/Work252Evidence.java` and recorded in
+`MapPathfinding.java`. The external archive is
+`research/TARGET-03.2/payoff252/`. Its first two attempts reached the inherited
+campaign shadow-map size error and were interrupted; they are excluded. The new
+map changes only `war3map.shd` to64x64 zero bytes, leaving probe, pathing, terrain
+and object data byte-identical. The accepted observations are3/4 and control1.

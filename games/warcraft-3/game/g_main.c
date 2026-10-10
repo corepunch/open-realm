@@ -1171,6 +1171,7 @@ static void G_RunFrame(void) {
     G_BeginEntityFrame();
     level.time = level.pathing_msec;
     level.scheduled_frame = true;
+    G_StartFowUpdates();
     G_StartScripts();
     /* Native initial map timers precede the path-owner registration. Later
      * restarts receive new serials; equal deadlines use that same ordering. */
@@ -1249,7 +1250,6 @@ static void G_RunFrame(void) {
     G_SolveCollisions();
     G_RunDeferredFrees();
     G_RunConsumedItemFrees();
-    G_FowUpdate();
     G_UpdateClientSelections();
     G_FowSendDeltas();
     /* Optional live-map diagnostic: walk the player Hero, save, load, compare. */
@@ -1560,7 +1560,8 @@ static void G_ClientBegin(edict_t *edict) {
     UI_WriteUnitShortcutLayer(edict);
 
     G_FowConnectPlayer(client->ps.number);
-    G_FowUpdate();
+    /* A loaded map already owns completed planes and a pending fog request. */
+    if(!level.fow_clock_valid)G_FowUpdate();
     G_FowSendFull(edict);
     G_BlightMarkClientFull(edict);
 

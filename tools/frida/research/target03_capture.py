@@ -36,6 +36,7 @@ def main():
     ap.add_argument('--preload', default='rs-target03.txt')
     ap.add_argument('--task', default='TARGET-03.2')
     ap.add_argument('--always', action='store_true', help='observer records outside scene windows too')
+    ap.add_argument('--extension', type=Path, help='read-only observer defining installTargetExtension(base, hook, out, counter)')
     ap.add_argument('--lite', action='store_true', help='compact observer rows for crowd scenes')
     ap.add_argument('--output', type=Path, required=True, help='new JSONL path')
     args = ap.parse_args()
@@ -56,6 +57,8 @@ def main():
     sources = [Path(__file__), HERE / 'target021_observer.js', HERE / 'target03_vis_observer.js', HERE / 'target03_probe.j',
                HERE / 'target021_make_map.py']
     provenance = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
+    if args.extension:
+        provenance[args.extension.name] = hashlib.sha256(args.extension.read_bytes()).hexdigest()
     provenance['map'] = hashlib.sha256(map_path.read_bytes()).hexdigest()
     generated = data / 'CustomMapData' / args.preload
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -99,8 +102,12 @@ def main():
                 if source.count(anchor) != 1:
                     raise RuntimeError('visibility extension anchor differs')
                 source = source.replace(anchor, anchor + '    installTarget03Visibility(base, hook, (e, r) => out(e, r), counter);\n', 1)
+                extension = ''
+                if args.extension:
+                    source = source.replace(anchor, anchor + '    installTargetExtension(base, hook, out, counter);\n', 1)
+                    extension = args.extension.read_text()
                 script = session.create_script('const config = ' + json.dumps(config) + ';\n' + source + '\n' +
-                                               (HERE / 'target03_vis_observer.js').read_text())
+                                               (HERE / 'target03_vis_observer.js').read_text() + '\n' + extension)
                 script.on('message', message)
                 script.load()
             device.resume(pid)

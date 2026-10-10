@@ -408,6 +408,16 @@ static void TimerFireScalar(gtimer_t *timer) {
     timer->scalar_deadline=due;timer->scalar_deadline.time=wc3_add(due.time,timer->scalar_period);
     TimerHeapInsert(timer);
 }
+/* Original008260 computes4/10;28ba80 owns event80269 on the primary clock.
+ * Rearm before composing, so callbacks and equal-deadline requests retain the
+ * same registration ordering. Visibility queries read the completed plane. */
+void G_StartFowUpdates(void) {
+    if(level.fow_clock_valid)return;
+    level.fow_deadline=level.pathing_clock;
+    level.fow_deadline.time=wc3_add(level.fow_deadline.time,wc3_div(4,10));
+    level.fow_sequence=++level.timer_sequence;
+    level.fow_clock_valid=true;
+}
 static void TimerDrain(float limit,bool before_owner) {
     for(;;) {
         gtimer_t *timer=level.timer_heap_count ? level.timers+level.timer_heap[0] : NULL;
@@ -423,7 +433,8 @@ static void TimerDrain(float limit,bool before_owner) {
         bool removing=G_NextUnitRelease(&unit_release,&unit_sequence);
         wc3Clock_t range;uint32_t range_sequence;
         bool polling=G_NextRangeRequest(&range,&range_sequence);
-        if(!spatial && !timer && !owned && !releasing && !removing && !polling)break;
+        bool fog=level.fow_clock_valid;
+        if(!spatial && !timer && !owned && !releasing && !removing && !polling && !fog)break;
         float due=spatial ? maintenance.time : timer ? timer->scalar_deadline.time : FLT_MAX;
         uint32_t serial=spatial ? sequence : timer ? timer->scalar_sequence : UINT32_MAX;
         if(owned && ((!spatial && !timer) || ability.deadline.time<due ||
@@ -442,8 +453,18 @@ static void TimerDrain(float limit,bool before_owner) {
             (range.time==due && range_sequence<serial))) {
             due=range.time;serial=range_sequence;owned=false;spatial=false;releasing=false;removing=false;
         } else polling=false;
+        if(fog && (level.fow_deadline.time<due ||
+            (level.fow_deadline.time==due && level.fow_sequence<serial))) {
+            due=level.fow_deadline.time;serial=level.fow_sequence;
+            owned=false;spatial=false;releasing=false;removing=false;polling=false;
+        } else fog=false;
         if(due>limit || (before_owner && due==limit && serial>level.pathing_owner_sequence))break;
-        if(polling) {
+        if(fog) {
+            wc3Clock_t saved=level.timer_clock;level.timer_clock=level.fow_deadline;
+            level.fow_deadline.time=wc3_add(level.fow_deadline.time,wc3_div(4,10));
+            level.fow_sequence=++level.timer_sequence;
+            G_FowUpdate();level.timer_clock=saved;
+        } else if(polling) {
             wc3Clock_t saved=level.timer_clock;level.timer_clock=range;
             G_FireRangeRequest();level.timer_clock=saved;
         } else if(removing) {
@@ -473,6 +494,10 @@ static void RunRequestsTo(wc3Clock_t target,wc3Clock_t const *before) {
         G_RebaseTriggerReleases(now.span);
         G_RebaseUnitReleases(now.span);
         G_RebaseRangeRequests(now.span);
+        if(level.fow_clock_valid) {
+            level.fow_deadline.time=wc3_sub(level.fow_deadline.time,now.span);
+            level.fow_deadline.epoch++;
+        }
         FOR_LOOP(i,level.timer_heap_count) {
             gtimer_t *timer=level.timers+level.timer_heap[i];
             timer->scalar_deadline.time=wc3_sub(timer->scalar_deadline.time,now.span);timer->scalar_deadline.epoch++;

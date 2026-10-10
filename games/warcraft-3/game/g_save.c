@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format163 retains transferred member identities until owner preparation. */
-static uint32_t const save_version = 163;
+/* Format164 retains completed fog planes and their next ordered request. */
+static uint32_t const save_version = 164;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -597,6 +597,11 @@ static field_t const level_fields[] = {
     F(level_locals, pathing_owner_deadline.epoch, F_INT),
     F(level_locals, pathing_owner_deadline.span, F_FLOAT),
     F(level_locals, pathing_owner_clock_valid, F_INT),
+    F(level_locals, fow_deadline.time, F_FLOAT),
+    F(level_locals, fow_deadline.epoch, F_INT),
+    F(level_locals, fow_deadline.span, F_FLOAT),
+    F(level_locals, fow_sequence, F_INT),
+    F(level_locals, fow_clock_valid, F_INT),
     F(level_locals, pathing_phase, F_INT),
     F(level_locals, pathing_due, F_INT),
     F(level_locals, scheduled_frame, F_IGNORE, 0, FIELD_RUNTIME),
@@ -3099,6 +3104,7 @@ bool WriteGame(cstring_t filename) {
     if (!WriteTerrainPathing(f)) { fprintf(stderr, "WC3 SaveGame: failed at terrain pathing state\n"); goto done; }
     if (!WriteMoveAdaptive(f)) { fprintf(stderr,"WC3 SaveGame: failed at adaptive publication state\n"); goto done; }
     if (!WriteBlight(f)) { fprintf(stderr, "WC3 SaveGame: failed at blight state\n"); goto done; }
+    if (!G_WriteFowState(f)) { fprintf(stderr,"WC3 SaveGame: failed at fog planes\n"); goto done; }
     if (!G_WriteFogModifiers(f)) { fprintf(stderr,"WC3 SaveGame: failed at fog modifiers\n"); goto done; }
     if (!WriteGroups(f)) goto done;
     FOR_LOOP(i, game.max_clients) {
@@ -3220,6 +3226,10 @@ bool ReadGame(cstring_t filename) {
        level.timer_source_clock.span<=0)) {
         fprintf(stderr,"WC3 LoadGame: invalid timer publication clock\n");fclose(f);return false;
     }
+    if(level.fow_clock_valid && (!isfinite(level.fow_deadline.time) ||
+       !isfinite(level.fow_deadline.span) || level.fow_deadline.span<=0)) {
+        fprintf(stderr,"WC3 LoadGame: invalid fog publication clock\n");fclose(f);return false;
+    }
     ClearRuntimeFields(&level, level_fields, FIELD_RUNTIME);
     G_ResetMoveRegionEvents();
     G_ResetEventSubscribers();
@@ -3253,6 +3263,7 @@ bool ReadGame(cstring_t filename) {
     if (!ReadTerrainPathing(f)) { fprintf(stderr, "WC3 LoadGame: failed at terrain pathing state\n"); fclose(f); return false; }
     if (!ReadMoveAdaptive(f)) { fprintf(stderr,"WC3 LoadGame: failed at adaptive publication state\n"); fclose(f); return false; }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
+    if (!G_ReadFowState(f)) { fprintf(stderr,"WC3 LoadGame: failed at fog planes\n"); fclose(f); return false; }
     G_ResetJassGroupDebug();
     if (!G_ReadFogModifiers(f)) { fprintf(stderr,"WC3 LoadGame: failed at fog modifiers\n"); fclose(f); return false; }
     if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
@@ -4051,7 +4062,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
+    uint32_t const old_versions[] = { 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

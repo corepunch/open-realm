@@ -1,5 +1,11 @@
 # Warcraft III Save/Load
 
+Save164 retains completed visibility/exploration planes and the next ordered
+fog request. Loading preserves the plane until that request fires, including
+cold saves during pursuit fog loss. Row/geometry caches and client dirty flags
+are rebuilt separately. Save163 and earlier layouts are rejected; the network
+contract is unchanged. See [fog publication](retail-pathfinding-target-visibility.md#authoritative-fog-publication-and-reacquisition-payoff252).
+
 Save162 retains physical group destinations in native fine coordinates, including
 target samples and angular requests. Save161 and earlier versions are rejected
 rather than interpreting their world-coordinate goal as a fine destination.

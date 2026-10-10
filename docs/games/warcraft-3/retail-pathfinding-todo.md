@@ -56,6 +56,11 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **281 done / 336 tasks; 55 remaining.**
+Payoff252 fixes early fog reacquisition through the ordered primary fog event
+and saves completed visibility/exploration with its deadline and serial. Exact
+bounded retail replay and cold-save regressions retain all original fixture words.
+TARGET-03.2 remains open for broader policies and the separately exposed native
+point-task restart. See [fog publication](retail-pathfinding-target-visibility.md#authoritative-fog-publication-and-reacquisition-payoff252).
 Payoff251 closes TARGET-03.1: original visibility-policy matrix and lifecycle
 producer mapping, preserved reachable branch table, named shared engine query
 and self/hidden/dead optional Move normalization with immediate/Shift/save

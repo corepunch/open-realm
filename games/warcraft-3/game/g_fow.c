@@ -1778,6 +1778,70 @@ void G_FowInit(void) {
     }
 }
 
+/* Visibility is completed simulation state between primary fog requests.
+ * Save logical cells, never pointers, geometry caches or pending client deltas.
+ * One byte retains both independent planes, including scripted exploration. */
+bool G_WriteFowState(FILE *file) {
+    uint32_t dimensions[2]={0};
+    if(G_FowReady()) {dimensions[0]=level.fow.width;dimensions[1]=level.fow.height;}
+    if(fwrite(dimensions,sizeof(dimensions),1,file)!=1)return false;
+    if(!dimensions[0])return true;
+    uint32_t cells=G_FowCellCount();
+    uint8_t *data=gi.MemAlloc(cells);
+    if(!data)return false;
+    bool ok=true;
+    FOR_LOOP(player,MAX_PLAYERS) {
+        fowPlayerGrid_t const *grid=&level.fow.players[player];
+        uint8_t connected=grid->client_connected;
+        FOR_LOOP(i,cells) {
+            bool visible=grid->visible[i],explored=grid->explored[i];
+#ifdef WC3_FOW_PACKED_MASK
+            if(g_fow_fast) {
+                visible=G_FowPackedAt(grid->packed_visible,grid,i%dimensions[0],i/dimensions[0]);
+                explored=G_FowPackedAt(grid->packed_explored,grid,i%dimensions[0],i/dimensions[0]);
+            }
+#endif
+            data[i]=visible|(explored<<1);
+        }
+        if(fwrite(&connected,1,1,file)!=1 || fwrite(data,1,cells,file)!=cells) {ok=false;break;}
+    }
+    gi.MemFree(data);return ok;
+}
+
+bool G_ReadFowState(FILE *file) {
+    uint32_t dimensions[2];
+    if(fread(dimensions,sizeof(dimensions),1,file)!=1)return false;
+    if(!dimensions[0] && !dimensions[1]) {G_FowShutdown();return true;}
+    box2_t bounds=CM_GetWorldBounds();
+    uint32_t width=MAX(1,(uint32_t)ceilf((bounds.max.x-bounds.min.x)/FOW_CELL_SIZE));
+    uint32_t height=MAX(1,(uint32_t)ceilf((bounds.max.y-bounds.min.y)/FOW_CELL_SIZE));
+    if(dimensions[0]!=width || dimensions[1]!=height)return false;
+    G_FowInit();if(!G_FowReady())return false;
+    uint32_t cells=G_FowCellCount();
+    uint8_t *data=gi.MemAlloc(cells);
+    if(!data)return false;
+    bool ok=true;
+    FOR_LOOP(player,MAX_PLAYERS) {
+        fowPlayerGrid_t *grid=&level.fow.players[player];
+        uint8_t connected;
+        if(fread(&connected,1,1,file)!=1 || connected>1 || fread(data,1,cells,file)!=cells) {ok=false;break;}
+        grid->client_connected=connected;
+        FOR_LOOP(i,cells) {
+            if(data[i]>3) {ok=false;break;}
+            grid->visible[i]=data[i]&1;grid->explored[i]=(data[i]>>1)&1;
+            grid->visible_rows[i/width]|=grid->visible[i];
+#ifdef WC3_FOW_PACKED_MASK
+            uint32_t word=(i/width)*grid->packed_stride+(i%width)/16;
+            uint16_t bit=1u<<((i%width)&15);
+            if(grid->visible[i])grid->packed_visible[word]|=bit;
+            if(grid->explored[i])grid->packed_explored[word]|=bit;
+#endif
+        }
+        if(!ok)break;
+    }
+    gi.MemFree(data);return ok;
+}
+
 /* Mark a player grid as consumed before its first authoritative update. */
 void G_FowConnectPlayer(uint32_t player) {
     if (player < MAX_PLAYERS)

@@ -2705,6 +2705,9 @@ struct level_locals {
     wc3Clock_t pathing_clock;
     wc3Clock_t pathing_owner_deadline;
     bool pathing_owner_clock_valid;
+    wc3Clock_t fow_deadline;
+    uint32_t fow_sequence;
+    bool fow_clock_valid;
     bool move_fine_responsive; /* Saved simulation policy, selected at map start. */
     wc3Random_t pathing_random;
     wc3Random_t purpose_random[BZ_WC3_RANDOM_STREAMS]; /* CRandData: game-owned, never per-unit or client-local. */
@@ -2996,6 +2999,8 @@ fogModifier_t *G_FogModifierById(uint32_t id);
 void G_FogModifierDestroy(fogModifier_t *mod);
 bool G_WriteFogModifiers(FILE *file);
 bool G_ReadFogModifiers(FILE *file);
+bool G_WriteFowState(FILE *file);
+bool G_ReadFowState(FILE *file);
 void G_FogModifierStart(fogModifier_t *mod);
 void G_FogModifierStop(fogModifier_t *mod);
 uint32_t G_FowWorldToCellX(float x);
@@ -3172,6 +3177,7 @@ void G_TimerResumeAt(gtimer_t *, wc3Clock_t const *);
 void G_RebuildTimerQueue(void);
 void G_RunTimers(void);
 void G_RunTimersBeforePathOwner(wc3Clock_t const *);
+void G_StartFowUpdates(void);
 void G_StartProjectilePresentation(edict_t *ent);
 void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, struct jass_function const *handler);
 void G_TimerStartScalar(gtimer_t *timer, float timeout, bool periodic, struct jass_function const *handler);

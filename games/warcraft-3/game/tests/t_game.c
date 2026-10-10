@@ -3428,6 +3428,79 @@ TEST(wc3_game, fow_grid_uses_two_by_two_cells_per_tile) {
     G_FowShutdown();
 }
 
+TEST(wc3_game, fow_primary_request_publishes_stopped_modifier_at_next_deadline) {
+    reset_entities();setup_test_world();G_FowInit();G_FowConnectPlayer(0);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.scheduled_frame=true;
+    level.fow_clock_valid=false;G_StartFowUpdates();
+    T_EQ(wc3_float_bits(level.fow_deadline.time),0x3eccccceu);
+    fogModifier_t *mod=G_FogModifierCreate();
+    T_NOT_NULL(mod);
+    *mod=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_VISIBLE,.center={64,64},.radius=128};
+    G_FogModifierStart(mod);
+    uint32_t index=G_FowWorldToCellY(64)*level.fow.width+G_FowWorldToCellX(64);
+    T_ASSERT(level.fow.players[0].visible[index]);
+    G_FogModifierStop(mod);
+    level.pathing_clock.time=wc3_float(0x3e800000);G_RunTimers();
+    T_ASSERT(level.fow.players[0].visible[index]);
+    uint32_t serial=level.fow_sequence;
+    level.pathing_clock.time=wc3_float(0x3eccccce);G_RunTimers();
+    T_ASSERT(!level.fow.players[0].visible[index]);
+    T_ASSERT(level.fow.players[0].explored[index]);
+    T_EQ(wc3_float_bits(level.fow_deadline.time),0x3f4cccceu);
+    T_ASSERT(level.fow_sequence>serial);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_game, fow_primary_request_rebases_without_publishing_early) {
+    reset_entities();setup_test_world();G_FowInit();G_FowConnectPlayer(0);
+    level.pathing_clock=(wc3Clock_t){299.75f,0,300};level.scheduled_frame=true;
+    G_StartFowUpdates();
+    fogModifier_t *mod=G_FogModifierCreate();
+    T_NOT_NULL(mod);
+    *mod=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_VISIBLE,.center={64,64},.radius=128};
+    G_FogModifierStart(mod);G_FogModifierStop(mod);
+    uint32_t index=G_FowWorldToCellY(64)*level.fow.width+G_FowWorldToCellX(64);
+    float after=wc3_sub(level.fow_deadline.time,300);
+    /* Cross the epoch through the normal five-millisecond publication step. */
+    level.pathing_clock.time=299.999f;
+    level.timer_clock=level.pathing_clock;level.timer_source_clock=level.pathing_clock;
+    level.timer_clock_valid=true;
+    G_RunTimers();
+    T_EQ(level.fow_deadline.epoch,1u);T_EQ(level.fow_deadline.time,after);
+    level.pathing_clock=(wc3Clock_t){0.125f,1,300};G_RunTimers();
+    T_ASSERT(level.fow.players[0].visible[index]);
+    level.pathing_clock.time=after;G_RunTimers();
+    T_ASSERT(!level.fow.players[0].visible[index]);
+    T_EQ(level.fow_deadline.time,wc3_add(after,wc3_div(4,10)));
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_save, fog_completed_planes_restore_without_early_recomposition) {
+    reset_entities();setup_test_world();G_FowInit();G_FowConnectPlayer(0);
+    fogWrite_t fog={.player=0,.state=WC3_FOG_STATE_VISIBLE};
+    vec2_t center={64,64};G_FowSetStateRadius(&fog,&center,96);
+    uint32_t cells=level.fow.width*level.fow.height;
+    uint8_t *visible=malloc(cells),*explored=malloc(cells);
+    T_ASSERT(visible && explored);if(!visible || !explored){free(visible);free(explored);return;}
+    memcpy(visible,level.fow.players[0].visible,cells);memcpy(explored,level.fow.players[0].explored,cells);
+    FILE *file=tmpfile();T_NOT_NULL(file);if(!file){free(visible);free(explored);return;}
+    T_ASSERT(G_WriteFowState(file));G_FowUpdate();
+    T_ASSERT(memcmp(visible,level.fow.players[0].visible,cells)!=0);
+    rewind(file);T_ASSERT(G_ReadFowState(file));
+    T_ASSERT(!memcmp(visible,level.fow.players[0].visible,cells));
+    T_ASSERT(!memcmp(explored,level.fow.players[0].explored,cells));
+    T_ASSERT(level.fow.players[0].client_connected);
+    T_ASSERT(!level.fow.players[1].client_connected);
+    /* Truncation, a foreign shape and invalid cell bits must be rejected. */
+    uint32_t shape[2]={level.fow.width,level.fow.height};
+    rewind(file);shape[0]++;fwrite(shape,sizeof(shape),1,file);rewind(file);T_ASSERT(!G_ReadFowState(file));
+    rewind(file);shape[0]--;fwrite(shape,sizeof(shape),1,file);fputc(0,file);fputc(4,file);
+    rewind(file);T_ASSERT(!G_ReadFowState(file));fclose(file);
+    file=tmpfile();T_NOT_NULL(file);
+    if(file){fwrite(shape,sizeof(shape),1,file);rewind(file);T_ASSERT(!G_ReadFowState(file));fclose(file);}
+    free(visible);free(explored);G_FowShutdown();reset_entities();setup_test_world();
+}
+
 TEST(wc3_game, fow_revealer_marks_visible_and_explored) {
     reset_entities();
     G_FowInit();
