@@ -1395,20 +1395,37 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
         status_authored_modifier(slot, 0, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
         status_authored_modifier(slot, 1, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, S_SpellData(ability, rank, 2));
         break;
+    case MAKEFOURCC('B','f','z','y'):
+        ability = MAKEFOURCC('A','f','z','y');
+        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, 1, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 2));
+        break;
+    case MAKEFOURCC('B','U','h','f'):
+    case MAKEFOURCC('B','u','h','f'):
+        ability = MAKEFOURCC('A','u','h','f');
+        status_authored_modifier(slot, 0, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
+        break;
     case MAKEFOURCC('B','s','p','o'):
         ability = MAKEFOURCC('A','s','p','o');
         status_authored_modifier(slot, 0, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
         status_authored_modifier(slot, 1, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
         break;
     case MAKEFOURCC('B','i','n','f'):
-        if (!ability) ability = MAKEFOURCC('A','i','n','f');
+        ability = MAKEFOURCC('A','i','n','f');
         status_authored_modifier(slot, 0, WC3_STATUS_MOD_ARMOR_FLAT, S_SpellData(ability, rank, 2));
         break;
     case MAKEFOURCC('B','f','a','e'):
-        if (!ability) ability = MAKEFOURCC('A','f','a','e');
+        ability = MAKEFOURCC('A','f','a','e');
         status_authored_modifier(slot, 0, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 1));
         break;
     default: break;
+    }
+}
+
+static void status_refresh_authored_modifiers(edict_t *unit) {
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *slot = unit->abilstatus + i;
+        if (slot->level) status_apply_authored_modifiers(slot, slot->source_ability);
     }
 }
 
@@ -1418,7 +1435,10 @@ heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, ui
     if (!target || !buff || strlen(buff) < 4) return NULL;
     unit_addtimedstatus(target, buff, level, duration);
     heroabilitystatus_t *status = unit_findstatus(target, FS_SLKKey(buff));
-    if (status) status_apply_authored_modifiers(status, status->source_ability);
+    if (status) {
+        status_refresh_authored_modifiers(target);
+        status = unit_findstatus(target, FS_SLKKey(buff));
+    }
     return status;
 }
 
