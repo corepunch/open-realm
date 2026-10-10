@@ -11,8 +11,13 @@ previous owner; Refresh and Stack retain their existing status instance.
 ## Source identity and application
 
 `unit_applystatus(unit, &app)` accepts a `status_application_t` and returns the
-live slot or `NULL` for invalid input or capacity exhaustion. The old insertion
-functions remain wrappers. `source_ability` identifies the owning procedure
+live slot or `NULL` for invalid input or capacity exhaustion. The legacy
+insertion functions return `false` for invalid input or a full bounded
+container, so callers can propagate allocation failure. The generic spell
+wrapper returns the exact slot produced by insertion rather than re-looking up
+a rawcode after failure. Producers that spend mana, start cooldowns, or make
+irreversible changes still need a preflight in validation and must handle a
+failed final application. `source_ability` identifies the owning procedure
 separately from `data`, which remains a legacy rawcode or ability payload.
 Callbacks prefer `source_ability`, falling back to legacy `data` while older
 ability families are migrated. Replacement sets the new identity and payload;

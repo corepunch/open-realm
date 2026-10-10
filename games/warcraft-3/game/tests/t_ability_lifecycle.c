@@ -1046,6 +1046,7 @@ TEST(wc3_ability_lifecycle, status_capacity_preflight_is_deterministic) {
     app.buff = ids[MAX_UNIT_STATUSES];
     T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_FULL);
     T_ASSERT(unit_applystatus(unit, &app) == NULL);
+    T_ASSERT(!unit_addtimedstatus(unit, ids[MAX_UNIT_STATUSES], 1, 10.0f));
     T_EQ(G_UnitStatusLevel(unit, *((uint32_t const *)ids[0])), 1);
     app.buff = ids[0];
     T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_REUSE);
