@@ -338,7 +338,7 @@ void G_CreepGuardSetEnabled(edict_t *unit, bool enabled) {
 }
 
 void G_CreepGuardAutoCombat(edict_t *unit) {
-    if (!unit || !unit->movement.creep_guard_enabled ||
+    if (!unit || !unit->inuse || M_IsDead(unit) || !unit->movement.creep_guard_enabled ||
         unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE ||
         unit->movement.creep_guard_returning) return;
     if (!unit->movement.creep_guard_auto_combat)
@@ -347,7 +347,8 @@ void G_CreepGuardAutoCombat(edict_t *unit) {
 }
 
 void G_CreepGuardDamaged(edict_t *unit) {
-    if (unit && unit->movement.creep_guard_enabled &&
+    if (unit && unit->inuse && !M_IsDead(unit) &&
+        unit->movement.creep_guard_enabled &&
         unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE)
         unit->movement.creep_guard_last_hit_ms = level.time;
 }
@@ -468,7 +469,7 @@ bool G_CreepGuardCombatEnd(edict_t *unit) {
 void G_CreepGuardTick(edict_t *unit) {
     float distance, soft, hard, seconds;
     uint32_t now;
-    if (!unit || !unit->movement.creep_guard_enabled ||
+    if (!unit || !unit->inuse || !unit->movement.creep_guard_enabled ||
         unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(unit)) return;
     distance = Vector2_distance(&unit->s.origin2, &unit->movement.creep_guard_origin);
     if (unit->movement.creep_guard_returning) {
@@ -484,6 +485,11 @@ void G_CreepGuardTick(edict_t *unit) {
     soft = creep_guard_misc("GuardDistance", 600.0f);
     hard = creep_guard_misc("MaxGuardDistance", 1000.0f);
     seconds = creep_guard_misc("GuardReturnTime", 5.0f);
+    /* The map value is in seconds but the simulation clock uses uint32
+     * milliseconds. Clamp before conversion to avoid undefined float-to-int
+     * overflow on malformed or extreme custom-map Misc values. */
+    if (seconds > (float)(UINT32_MAX / 1000u))
+        seconds = (float)(UINT32_MAX / 1000u);
     now = level.time;
     if (distance <= soft) {
         unit->movement.creep_guard_outside_ms = 0;

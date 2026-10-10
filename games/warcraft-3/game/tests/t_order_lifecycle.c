@@ -528,4 +528,34 @@ TEST(wc3_order_lifecycle, explicit_order_drops_only_creep_auto_combat) {
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
 }
 
+TEST(wc3_order_lifecycle, creep_guard_native_disable_keeps_anchor_and_explicit_order) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_CreepGuardAutoCombat(creep);
+    G_CreepGuardSetEnabled(creep, false);
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_ASSERT(!creep->movement.creep_guard_auto_combat);
+    T_ASSERT(!creep->movement.creep_guard_returning);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+    creep->s.origin2.x = 350;
+    G_CreepGuardSetEnabled(creep, true);
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_ASSERT(!creep->movement.creep_guard_auto_combat);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+}
+
+TEST(wc3_order_lifecycle, creep_guard_damage_refreshes_only_eligible_unit) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    level.time = 2000;
+    G_CreepGuardDamaged(creep);
+    T_EQ(creep->movement.creep_guard_last_hit_ms, 2000u);
+    G_CreepGuardSetEnabled(creep, false);
+    level.time = 3000;
+    G_CreepGuardDamaged(creep);
+    T_EQ(creep->movement.creep_guard_last_hit_ms, 2000u);
+}
+
 #endif

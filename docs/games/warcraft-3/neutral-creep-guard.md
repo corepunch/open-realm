@@ -43,3 +43,27 @@ guard behaviour through the JASS natives is reserved for Stage D.
 - `RemoveGuardPosition(unit)`, `RecycleGuardPosition(unit)` and `RemoveAllGuardPositions(player)` now operate on the separate computer-AI guard-post roster. Removing discards the assigned post; recycling vacates it for existing AI replacement processing; removing all clears that player's AI guard-post roster. Units not assigned to an active post are ignored. They do **not** disable Neutral Hostile creep leashes.
 - **Compatibility limit:** Warcraft editor wording describes AI preplaced-unit guard positions and replacement semantics. OpenRealm's existing bot roster only contains `G_BotAddGuardPost` positions; it does not yet represent all automatically registered preplaced-unit posts, Hero/peon exclusions or full retail guard recycling. The three roster natives therefore implement the supported subset, not complete retail semantics. Some historical reports also indicate `SetUnitCreepGuard` is ineffective for Neutral Hostile owners in retail; its OpenRealm behaviour is an explicit interoperability choice pending in-game comparison.
 - Explicit trigger orders continue to outrank automatic camp orders via `G_CreepGuardExplicitOrder`.
+
+## Stage E: persistence, lifecycle and determinism
+
+- Guard fields introduced in Stage A are persisted through `g_save.c`'s
+  `edictMovement_s` field table. Stage E advances the save envelope to version
+  85 and adds version 84 to the explicit rejection cases: older save layouts
+  must not be silently treated as compatible.
+- Reject inactive/dead creep guard auto-combat and damage updates. A dying or
+  freed unit must not restart an automatic chase while effects resolve.
+- Clamp `GuardReturnTime` before converting seconds into unsigned milliseconds.
+  Custom maps may supply extreme positive values; normal 5-second and map
+  overrides remain unchanged. Timers continue to use `level.time` rather than
+  wall-clock time, preserving deterministic game-frame scheduling.
+- Added targeted tests for disabling/re-enabling creep guarding without
+  relocating its anchor and for disabled creeps ignoring damage clock updates.
+- Existing return behaviour deliberately gives up on blocked or completed
+  Move rather than retrying forever. Further return pathing/reacquisition and
+  full saved-in-flight combat tests require simulation fixtures.
+
+**Still requiring integration coverage:** save/load during return with a live
+waypoint, repeated interrupted returns, multiple simultaneous camps, paused or
+stunned guards, owner conversions, custom map Misc values, multiplayer order
+replay, neutral-building-use provocation and retail target score parity. Stage E
+provides hardening and focused tests, not proof of full retail equivalence.
