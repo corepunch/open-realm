@@ -1583,12 +1583,24 @@ bool unit_status_can_steal(heroabilitystatus_t const *status) {
         (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_TRANSFERABLE);
 }
 
+/* Opt-in only: many existing abilities/aura systems already manage their own
+ * visuals. The buff rawcode, not its source ability, resolves TargetArt. */
+void unit_status_enabletargetart(edict_t *ent, heroabilitystatus_t *status, cstring_t attach_point) {
+    if (!ent || !status || !status->level) return;
+    status->buff_flags |= WC3_STATUS_BUFF_TARGET_ART;
+    G_SpawnStatusEffectTarget(status->code, ent, attach_point ? attach_point : "origin");
+}
+
 void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_reason_t reason) {
     uint32_t origin;
     if (!ent || !status || !status->level) return;
     S_HumanStatusExpired(ent, status->code, status->level);
     origin = status->source_ability ? status->source_ability : status->data;
     UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE, reason);
+    /* Callback can remove its own TargetArt; this second cleanup is safe and
+     * ensures ordinary expiry/dispel/replacement also retires owned visuals. */
+    if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
+        G_DestroyStatusEffectTarget(status->code, ent);
     memset(status, 0, sizeof(*status));
 }
 
@@ -1704,6 +1716,8 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
                     status->duration_ms = 0;
                 }
             }
+            if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
+                G_SpawnStatusEffectTarget(status->code, ent, "origin");
             unit_refreshstatusflags(ent);
             unit_timed_status_log("refresh", ent, status);
             G_InvalidateUnitInfoPanel(ent);
@@ -1729,6 +1743,8 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     slot->source_spawn_time = app->source ? app->source->spawn_time : 0;
     slot->rank = app->rank;
     slot->next_tick = 0;
+    if (slot->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
+        G_SpawnStatusEffectTarget(slot->code, ent, "origin");
     unit_refreshstatusflags(ent);
     unit_timed_status_log("add", ent, slot);
     G_InvalidateUnitInfoPanel(ent);

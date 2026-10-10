@@ -3128,6 +3128,7 @@ TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_l
         effect = found;
     }
     T_NOT_NULL(effect);
+    T_ASSERT(unit_findstatus(target, MAKEFOURCC('B','E','e','r'))->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
     target_number = target->s.number;
 
     T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
@@ -3150,7 +3151,7 @@ TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_l
         }
         T_EQ(count, 1);
     }
-    unit_expirestatus(target, unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+    unit_removestatus(target, unit_findstatus(target, MAKEFOURCC('B','E','e','r')), STATUS_REMOVE_SCRIPT);
     T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
     T_EQ(effect->status_effect_code, 0);
 
