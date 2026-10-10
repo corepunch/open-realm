@@ -278,8 +278,7 @@ magical without adding transfer eligibility: Rejuvenation (`Brej`) and Roar
 Cripple (`Bcri`) and Soul Burn (`BNso`) are negative. These tags are applied
 only when the returned slot has the expected buff identity; a custom BuffID is
 left unclassified. Existing transferable flags on Bloodlust, Faerie Fire and
-Inner Fire are unchanged. No physical-only family is newly classified; those
-require an explicit ability-by-ability semantic audit.
+Inner Fire are unchanged. Physical-only families are listed below.
 
 ## Independent Disease Cloud infections
 
@@ -290,6 +289,17 @@ only that instance without resetting its pulse deadline. Dispel or expiry
 of one instance does not remove another source's infection. Allocation
 failure leaves existing infections intact; the generic HUD remains
 rawcode-deduplicated. Other poison families remain legacy/rawcode-owned.
+
+## Physical-only Warcraft ability statuses
+
+Stock Ensnare/Web binds (`Bens`, `Bena`, `Beng`, `Bwea`, `Bweb`), poison
+attack tokens (`Bpoi`, `Bpsd`, `BIpb`, `BIpd`) and Disease Cloud infection
+(`Bapl`) are classified as negative physical statuses at their owning
+application sites. Magical dispel abilities leave them in place, while generic
+status removal remains available for expiry, scripted removal and death.
+Custom BuffIDs remain unclassified so stock semantics are not imposed on map
+content. These physical classifications do not make the effects eligible for
+Spell Steal.
 
 ## Possession Two status allocation transaction
 

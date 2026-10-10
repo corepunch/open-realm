@@ -101,6 +101,13 @@ TEST(wc3_spell, ensnare_ground_bens_blocks_move) {
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.ground));
     T_EQ(G_UnitStatusLevel(fix.ground, BZ_BENS), 1);
+    {
+        heroabilitystatus_t *slot = unit_findstatus(fix.ground, BZ_BENS);
+        T_NOT_NULL(slot);
+        T_ASSERT(slot->buff_flags & WC3_STATUS_BUFF_PHYSICAL);
+        T_ASSERT(!(slot->buff_flags & WC3_STATUS_BUFF_MAGICAL));
+        T_ASSERT(!unit_status_can_magic_dispel(slot));
+    }
     T_ASSERT(S_UnitIsEnsnared(fix.ground));
     T_ASSERT(!(fix.ground->aiflags & AI_FLYING));
     T_FEQ(fix.ground->unitinfo.FlyHeight, 0, 0.001f);

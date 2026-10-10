@@ -181,6 +181,14 @@ static void poison_apply(edict_t *attacker, edict_t *target, uint32_t code, uint
          * owns the poison pulse so a Bpoi/Bpsd pair does not double DataA DPS.
          * Same-source refresh keeps its existing pulse deadline; a new source
          * starts a fresh one-second phase. */
+        /* Poison attack tokens are physical; never grant spell-transfer
+         * eligibility. Custom BuffIDs are left unclassified. */
+        if (slot && (slot->code == MAKEFOURCC('B','p','o','i') ||
+                     slot->code == MAKEFOURCC('B','p','s','d') ||
+                     slot->code == MAKEFOURCC('B','I','p','b') ||
+                     slot->code == MAKEFOURCC('B','I','p','d')))
+            slot->buff_flags = (slot->buff_flags & ~(WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE)) |
+                               WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL;
         if (slot && buff_index == 0) {
             slot->data = code;
             slot->source_ability = code;
