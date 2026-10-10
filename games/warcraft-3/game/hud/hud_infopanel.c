@@ -1390,11 +1390,17 @@ void G_InvalidateUnitInfoPanel(edict_t *unit) {
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
         if (client->connected && G_IsEntitySelected(client, unit)) {
-            client->infopanel.entity = 0;
             /* -1 means the queue layer was already serialized. Preserve the
              * existing cache representation, but make that queue panel dirty
              * so an upgrade/construction state change is sent next frame. */
-            if (client->infopanel.hp == -1) client->infopanel.hp = 0;
+            if (client->infopanel.hp == -1) {
+                client->infopanel.hp = 0;
+            } else if (client->infopanel.entity == unit->s.number) {
+                /* UINT32_MAX is outside the entity-number range. Reuse the
+                 * entity cache key to invalidate only a currently displayed
+                 * single-unit panel without changing the save layout. */
+                client->infopanel.entity = UINT32_MAX;
+            }
         }
     }
 }
