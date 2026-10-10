@@ -2837,6 +2837,8 @@ void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t)
 void unit_removestatus_deferred(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
 void unit_status_enabletargetart(edict_t *, heroabilitystatus_t *, cstring_t attach_point);
 bool unit_status_can_dispel(heroabilitystatus_t const *);
+/* Magical dispels reject explicitly physical-only statuses; legacy unclassified buffs retain compatibility. */
+bool unit_status_can_magic_dispel(heroabilitystatus_t const *);
 bool unit_status_can_steal(heroabilitystatus_t const *);
 heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);
 heroabilitystatus_t *unit_findstatussource(edict_t *, uint32_t, edict_t const *);

@@ -258,3 +258,14 @@ spawning another blast. Invalidated sources also retire the mark through the
 shared lifecycle without creating an explosion. The dying unit is not refreshed
 during death dispatch; ordinary expiry and dispel continue to use their normal
 removal paths.
+
+## Explicit magical dispel eligibility
+
+Dispel Magic, Purge and Abolish Magic use `unit_status_can_magic_dispel()`.
+It preserves historical handling for unclassified legacy timed statuses,
+removes explicitly magical statuses when otherwise eligible, and skips
+explicitly physical-only or ambiguously dual-classified statuses. Explicit
+undispellability and authored special cases still take precedence. The more
+general `unit_status_can_dispel()` continues to define baseline status
+eligibility for non-magical lifecycle consumers. New status producers must set
+the correct classification to opt into the stronger distinction.
