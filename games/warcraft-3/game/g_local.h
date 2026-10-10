@@ -1377,7 +1377,9 @@ typedef enum {
     WC3_STATUS_BUFF_MAGICAL = 1u << 2,
     WC3_STATUS_BUFF_PHYSICAL = 1u << 3,
     WC3_STATUS_BUFF_UNDISPELLABLE = 1u << 4,
-    WC3_STATUS_BUFF_TRANSFERABLE = 1u << 5
+    WC3_STATUS_BUFF_TRANSFERABLE = 1u << 5,
+    /* Opt-in persistent TargetArt owned by the status lifecycle, not the caster. */
+    WC3_STATUS_BUFF_TARGET_ART = 1u << 6
 } wc3_status_buff_flag_t;
 
 typedef struct heroabilitystatus_s {
@@ -2808,6 +2810,7 @@ bool unit_status_take_due_tick(heroabilitystatus_t *, uint32_t interval_ms, uint
 void unit_updatestatuses(edict_t *);
 void unit_expirestatus(edict_t *, heroabilitystatus_t *);
 void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
+void unit_status_enabletargetart(edict_t *, heroabilitystatus_t *, cstring_t attach_point);
 bool unit_status_can_dispel(heroabilitystatus_t const *);
 bool unit_status_can_steal(heroabilitystatus_t const *);
 heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);

@@ -31,14 +31,6 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
         entangling_roots_tick(ent, call->status.slot);
         return true;
     }
-    if (msg == A_STATUS_REFRESH && call && call->status.slot) {
-        G_SpawnStatusEffectTarget(call->status.slot->code, ent, "origin");
-        return true;
-    }
-    if (msg == A_STATUS_REMOVE && call && call->status.slot) {
-        G_DestroyStatusEffectTarget(call->status.slot->code, ent);
-        return true;
-    }
     if (msg == A_STATUS_DEATH && call && call->status.slot) {
         unit_expirestatus(ent, call->status.slot);
         return true;
@@ -68,7 +60,7 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
         /* Roots interrupt active channels but are not a stun/silence: the
          * victim may still issue otherwise legal spell casts afterwards. */
         S_SpellCancelChannel(target);
-        G_SpawnStatusEffectTarget(slot->code, target, "origin");
+        unit_status_enabletargetart(target, slot, "origin");
         return true;
     }
     return CAbilitySimpleSpell(ent, msg, call);

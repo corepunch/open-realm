@@ -103,3 +103,17 @@ the stealing caster. Other statuses remain unsupported until their periodic,
 TargetArt, callback, and source semantics can be safely reconstructed.
 
 The serialized classification advances save format 81 to 82.
+
+## Persistent status TargetArt
+
+`WC3_STATUS_BUFF_TARGET_ART` opts a status into lifecycle-owned TargetArt.
+`unit_status_enabletargetart()` marks an applied slot and creates the effect;
+status application reuses the existing buff-target deduplication helper, and
+removal destroys it after the inverse callback, regardless of removal reason.
+The flag reuses serialized `buff_flags`, so this addition does not change the
+save layout.
+
+Entangling Roots uses this shared owner instead of managing its TargetArt in
+ability callbacks. Other effects remain independently owned until explicitly
+migrated. Persistent effects are deduplicated by buff and target incarnation;
+per-source multiplicity and looping sounds need separate lifecycle handling.
