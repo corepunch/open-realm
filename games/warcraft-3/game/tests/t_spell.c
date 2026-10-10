@@ -4358,8 +4358,15 @@ TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	T_FEQ(G_UnitArmorValue(enemy), 2.0f, 0.001f);
 	test_execute_code(caster, "Arej", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','r','e','j'))); T_FEQ(S_RejuvHealRate(ally), 400.0f / 12.0f, 0.01f);
+	T_EQ(unit_findstatus(ally, MAKEFOURCC('B','r','e','j'))->buff_flags &
+		(WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL),
+		WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL);
+	T_ASSERT(!unit_status_can_steal(unit_findstatus(ally, MAKEFOURCC('B','r','e','j'))));
 	test_execute_code(caster, "Aroa", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','r','o','a'))); T_FEQ(S_RoarDamageBonus(ally), 0.25f, 0.001f);
+	T_EQ(unit_findstatus(ally, MAKEFOURCC('B','r','o','a'))->buff_flags &
+		(WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL),
+		WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL);
 
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
