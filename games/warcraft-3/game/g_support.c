@@ -1,6 +1,40 @@
 #include "g_local.h"
 #include "games/warcraft-3/common/wc3_math.h"
 
+/* Terrain/deck consumers share one authoritative model query. A prepared mesh
+ * miss must stay a miss; only the existing unprepared/animated path uses the
+ * footprint rectangle until those model poses are implemented. */
+bool S_GetWalkableSupport(vec2_t point,float overlap,float *height) {
+    bool hit=false;float highest=-FLT_MAX;
+    for (edict_t *surface=level.ground_surfaces;surface;surface=surface->ground_next) {
+        if(!surface->inuse||surface->destructable->dead||!surface->destructable->placement_solid)continue;
+        float deck;
+        int mesh=G_WalkableModelHeight(surface,point,&deck);
+        if(!mesh)continue;
+        if(mesh<0) {
+            if(!surface->pathtex)continue;
+            pathTexTransform_t transform=CM_GetPathTexTransform(surface);
+            float cell=CM_PathCellWorldSize();
+            bool elevator=surface->class_id==MAKEFOURCC('D','T','r','x')||surface->class_id==MAKEFOURCC('D','T','r','f');
+            float extra=elevator?overlap:0;
+            if(fabsf(point.x-surface->s.origin.x)>transform.width*cell*.5f+extra||
+                fabsf(point.y-surface->s.origin.y)>transform.height*cell*.5f+extra)continue;
+            deck=surface->s.origin.z+(elevator?surface->destructable->occluder_height:0);
+        }
+        if(!hit||deck>highest)highest=deck;
+        hit=true;
+    }
+    if(hit)*height=highest;
+    return hit;
+}
+
+float S_GetLocationSupport(vec2_t point) {
+    float height=CM_GetHeightAtPoint(point.x,point.y),deck;
+    if(S_GetWalkableSupport(point,0,&deck)&&deck>height)height=deck;
+    float water=CM_GetWaterHeightAtPoint(point.x,point.y);
+    return water>height?water:height;
+}
+
 /* Terrain+7a4: map-start flyer support is independent of live ground support.
  * Keep one immutable completed field, shared by every flyer. */
 typedef struct {

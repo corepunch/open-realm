@@ -3597,26 +3597,11 @@ void S_RefreshUnitSupport(edict_t *self, bool force) {
     unitMovementType_t const type = S_UnitMovementType(self->data.UnitData);
     float height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
     float deck_height = -FLT_MAX;
-    float const cell = CM_PathCellWorldSize();
     uint8_t terrain_flags = 0;
     uint32_t support_flags = 0;
-
-    for (edict_t *surface = level.ground_surfaces; surface; surface = surface->ground_next) {
-        pathTex_t const *pathtex = surface->pathtex;
-        pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
-        if (!surface->inuse || surface->destructable->dead ||
-            !surface->destructable->placement_solid || !pathtex) continue;
-        bool const elevator = surface->class_id == MAKEFOURCC('D','T','r','x') ||
-            surface->class_id == MAKEFOURCC('D','T','r','f');
-        float const overlap = elevator ? MAX(0.0f, self->collision) : 0.0f;
-        if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f + overlap ||
-            fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f + overlap) continue;
-        float const deck = surface->s.origin.z + (elevator ? surface->destructable->occluder_height : 0.0f);
-        deck_height = MAX(deck_height,deck);
-        if (deck > height) {
-            height = deck;
-            support_flags |= WC3_SUPPORT_ON_DECK;
-        }
+    if (S_GetWalkableSupport(self->s.origin2,MAX(0.0f,self->collision),&deck_height) && deck_height>height) {
+        height=deck_height;
+        support_flags|=WC3_SUPPORT_ON_DECK;
     }
     float air;
     if (type == UNIT_MOVE_FLY && unit_is_flying(self) && S_GetFlightSupport(self->s.origin2,&air)) {

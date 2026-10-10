@@ -880,6 +880,7 @@ void SP_SpawnFreshUnit(edict_t *self) { SpawnUnit(self, true); }
 void G_RegisterGroundSurface(edict_t *ent) {
     if (!G_IsDestructable(ent) || !ent->data.DestructableData->walkable) return;
     G_UnregisterGroundSurface(ent);
+    G_PrepareWalkableModel(ent->s.model);
     ent->ground_next = level.ground_surfaces;
     level.ground_surfaces = ent;
     if (!ent->destructable->dead && ent->destructable->placement_solid)
@@ -887,6 +888,7 @@ void G_RegisterGroundSurface(edict_t *ent) {
 }
 
 void G_UnregisterGroundSurface(edict_t *ent) {
+    if (ent) G_ForgetWalkableModel(ent);
     edict_t * *link = &level.ground_surfaces;
     while (*link && *link != ent) link = &(*link)->ground_next;
     if (*link) *link = ent->ground_next;

@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**277 done / 336 tasks; 59 remaining.**
+**278 done / 336 tasks; 58 remaining.**
+
+Payoff229 closes MAP-02.2: shared rigid walkable geometry now drives unit and
+JASS support. The combined cliff/water/LT06 fixture preserves all4096 authored
+cells and matches all40 frozen movement-lane heights/source flags word-exactly.
+Two read-only captures retain383 distinct mesh queries; original triangle,
+transform and sphere kernels supply2867 exact cases. See
+[authoritative walkable meshes](retail-pathfinding-engine.md#authoritative-rigid-walkable-meshes-payoff229).
 
 Payoff228 integrates the shared map-start flyer support field, exact SSE
 interpolation/max/average order, authored water-decimal conversion and saved
@@ -968,7 +975,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 ### MAP-02 — Initial loading
 
 - [x] **MAP-02.1** Load one file-backed WPM/map through deserialization and map creation; compare decoded masks, fine cells and hierarchy against the no-file fixture. Evidence: [complete file-backed initialization](retail-pathfinding-engine.md#file-backed-maps-retain-native-hierarchy-allocation), two full actual Storm/WPM/constructor/hierarchy returns,98304 native decoded cells and145848 classifications per run. Production MPQ reader and direct adapter match all movement masks and allocated hierarchy cells; engine corrects allocation padding, zero untouched cells and coarse ground mask6. Existing negative-origin/corner/image/failure/reload scopes remain their named tasks; no added IDs.
-- [ ] **MAP-02.2** Add one cliff, one water boundary and one bridge fixture; assert each supported movement lane's initial cells and support-height source.
+- [x] **MAP-02.2** Add one cliff, one water boundary and one bridge fixture; assert each supported movement lane's initial cells and support-height source. Payoff229: combined4096-cell/40-lane fixture, exact shared flyer field and authoritative LT06 mesh; [engine evidence](retail-pathfinding-engine.md#authoritative-rigid-walkable-meshes-payoff229).
 - [x] **MAP-02.3** Load two overlapping authored pathing textures in both creation orders; assert object/fine/hierarchy state after loading. Evidence: [authored widget creation](retail-pathfinding-engine.md#authored-widget-creation-preserves-snapped-pose-and-rotation), complete public LTlt/LTg1 file-backed creation in both orders,18 repeated1024-cell/four-level snapshots. Engine corrects float fixedRot and public clamp/parity snapping before linking, preserves overlap/removal and hidden generated-script binding; all literal native grids match. No new task IDs.
 
 ### MAP-03 — Invalidation producers

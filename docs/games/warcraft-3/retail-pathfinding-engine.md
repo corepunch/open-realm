@@ -15553,3 +15553,72 @@ Reproduce without changing frozen expectations:
   --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
   --report /tmp/work228-fresh.json
 ```
+
+## Authoritative rigid walkable meshes (Payoff229)
+
+MAP-02.2's cliff/water/bridge fixture now reaches the actual mesh in the game
+module. `g_model.c` loads walkable geometry once per registered model, independently
+of the SEQS-only reader used by ordinary unit creation. Immutable selectable
+triangles are shared; a sparse cache retains each bridge's transformed triangles
+and sequence sphere. Position, facing, scale or model changes rebuild the pose;
+sequence changes refresh its sphere. Removal releases the derived instance cache,
+and model/map reset releases all definitions and poses. These pointers are neither
+saved nor sent over the network; no save or network layout changes are introduced.
+
+The original chain is `782a80 → 785d20 → 1a3880 → 18c9e0 → 18bbe0 → 125520 →
+125aa0`. The sphere gate uses the current sequence's extent midpoint, transformed
+center and scaled radius, and the original finite-segment distance rule. The
+triangle kernel is an infinite ray: it accepts negative distances, uses a
+`2^-22` determinant threshold, inclusive barycentric edges and separate float
+rounding at each SSE operation. Its `u` and distance dot products use Y/X/Z order.
+The old generic segment intersection fails 959 assertions against 1,837 original
+instruction cases. Another 512 transforms and 518 sphere-distance cases are
+frozen directly from unchanged original instructions.
+
+Stock LT06's decorative geoset has selectable bit4 and is skipped. Its support
+geoset has 128 vertices, 192 indices and 64 triangles. Authored MDX primitive
+codes4/5/6 become native triangle/strip/fan codes3/4/5. At its admitted pose
+`(1024,672,-192)`, the Stand matrix uses the already-retail-converted angle,
+without a degrees/radians round trip. All transformed vertex words and 383
+distinct live query results from two read-only captures are retained. Both
+captures preserve all193 public markers; the unchanged observer-free control
+frozen by Payoff228 supplies the same193 markers.
+
+`S_GetWalkableSupport` now owns the shared query for unit support and
+`S_GetLocationSupport`. JASS `GetLocationZ` previously returned terrain alone;
+it now takes the higher terrain/deck surface and then higher water, as retail
+`64f7e0` does. A prepared mesh miss stays a miss rather than becoming an inferred
+flat deck. The production regressions exercise `M_CheckGround`, JASS location
+queries, transformed-pose reuse, changed height, removal/death and malformed
+geometry. The combined fixture retains every authored WPM byte and checks all
+40 frozen movement-type/point combinations, their exact settled Z words, deck
+source and deep-water flag. The prior MAP-02.2 expectations are read unchanged.
+
+Geometry parsing is O(model input) once per walkable type; transformation is
+O(triangles) only when its instance pose changes. Distant queries use the cached
+native sphere and do no triangle work. Nearby queries retain exact triangle
+arithmetic; this does not certify the global 4096-unit frame budget. Ordinary
+unit construction continues to load sequence data alone.
+
+Animated bone tracks, animated/material visibility and special node inheritance
+remain outside this rigid-pose implementation. Those cases retain the existing
+footprint support path and emit an explicit diagnostic. They are not certified
+by the initial cliff/water/LT06 fixture; arbitrary moving/deforming walkable
+surfaces still need their own retail evidence and implementation. The existing
+support-position invalidation policy is unchanged.
+
+Reproduce with:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_work229.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/work229-fresh.json
+python3 -m unittest tests.test_wc3_pathfinding_work229
+```
+
+The frozen fixture/bundle are `tools/ghidra/fixtures/retail-work229-1.27.json[.gz]`.
+Ghidra's saved functions, labels, partial `WC3PreparedModelGeoset` layout and
+original instruction/xref export are reproduced by
+`tools/ghidra/research/Work229Evidence.java` and mirrored in `MapPathfinding.java`.
+Raw accepted/exploratory captures and validation logs are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-02.2/payoff229/`.

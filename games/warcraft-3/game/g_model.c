@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "games/warcraft-3/common/wc3_math.h"
 #include <ctype.h>
 #include <stdlib.h>
 #ifdef BZ_TESTS
@@ -212,13 +213,74 @@ TEST(wc3_model, empty_mdlx_sequence_name_does_not_break_animation_loading) {
 }
 #endif
 
+/* 125aa0 uses scalar SSE float operations. Keep each rounding and the native
+ * dot-product order; ordinary segment/plane intersection is not equivalent. */
+static float model_add(float a,float b) { volatile float r=a+b; return r; }
+static float model_sub(float a,float b) { volatile float r=a-b; return r; }
+static float model_mul(float a,float b) { volatile float r=a*b; return r; }
+static float model_div(float a,float b) { volatile float r=a/b; return r; }
+static vec3_t model_cross(vec3_t a,vec3_t b) {
+    return (vec3_t){model_sub(model_mul(a.y,b.z),model_mul(a.z,b.y)),
+        model_sub(model_mul(a.z,b.x),model_mul(a.x,b.z)),
+        model_sub(model_mul(a.x,b.y),model_mul(a.y,b.x))};
+}
+static bool model_ray_triangle(vec3_t origin,vec3_t direction,
+    triangle3_t const *triangle,float *distance) {
+    vec3_t a = triangle->a, b = triangle->b, c = triangle->c;
+    vec3_t e1 = {model_sub(b.x,a.x),model_sub(b.y,a.y),model_sub(b.z,a.z)};
+    vec3_t e2 = {model_sub(c.x,a.x),model_sub(c.y,a.y),model_sub(c.z,a.z)};
+    vec3_t p = model_cross(direction,e2);
+    *distance = INFINITY;
+    float det = model_add(model_add(model_mul(p.x,e1.x),model_mul(p.y,e1.y)),model_mul(p.z,e1.z));
+    if (fabsf(model_sub(det,0)) < 0x1p-22f) return false;
+    float inverse = model_div(1,det);
+    vec3_t t = {model_sub(origin.x,a.x),model_sub(origin.y,a.y),model_sub(origin.z,a.z)};
+    vec3_t q = model_cross(t,e1);
+    float u = model_mul(model_add(model_add(model_mul(t.y,p.y),model_mul(t.x,p.x)),model_mul(t.z,p.z)),inverse);
+    float v = model_mul(model_add(model_add(model_mul(direction.x,q.x),model_mul(direction.y,q.y)),model_mul(direction.z,q.z)),inverse);
+    if (!(u >= 0 && u <= 1 && v >= 0 && v <= 1 && model_add(v,u) <= 1)) return false;
+    *distance = model_mul(model_add(model_add(model_mul(q.y,e2.y),model_mul(q.x,e2.x)),model_mul(q.z,e2.z)),inverse);
+    return true;
+}
+
+/* 18a670: squared distance to the finite segment, including its rounded
+ * projection residual. The mesh kernel itself accepts an infinite ray. */
+static float model_ray_distance(vec3_t point,vec3_t a,vec3_t b,float *fraction) {
+    vec3_t delta={model_sub(point.x,a.x),model_sub(point.y,a.y),model_sub(point.z,a.z)};
+    vec3_t line={model_sub(b.x,a.x),model_sub(b.y,a.y),model_sub(b.z,a.z)};
+    float dot=model_add(model_add(model_mul(line.y,delta.y),model_mul(line.x,delta.x)),model_mul(line.z,delta.z));
+    *fraction=0;
+    if (dot>=0) {
+        float length=model_add(model_add(model_mul(line.y,line.y),model_mul(line.x,line.x)),model_mul(line.z,line.z));
+        if (dot<=length) {
+            *fraction=model_div(dot,length);
+            line.x=model_mul(line.x,*fraction);line.y=model_mul(line.y,*fraction);line.z=model_mul(line.z,*fraction);
+        } else *fraction=1;
+        delta.x=model_sub(delta.x,line.x);delta.y=model_sub(delta.y,line.y);delta.z=model_sub(delta.z,line.z);
+    }
+    return model_add(model_add(model_mul(delta.y,delta.y),model_mul(delta.x,delta.x)),model_mul(delta.z,delta.z));
+}
+
 /* ---- model cache ---- */
 
 #define G_MAX_MODELS MAX_MODELS
 
+typedef struct { uint32_t first, last; } modelTrackSpan_t;
+typedef struct {
+    triangle3_t *triangles;
+    uint32_t count;
+    modelTrackSpan_t *animated;
+    uint32_t num_animated;
+    bool dynamic_visibility, warned, has_bounds;
+    float radius;
+    vec3_t center;
+} modelWalkMesh_t;
+
 typedef struct { uint32_t first, count; } animationVariantSpan_t;
 typedef struct {
     animation_t *animations;
+    modelWalkMesh_t *walkmesh;
+    bool walkmesh_loaded;
     animationVariantSpan_t *variants;
     uint32_t *variant_indices;
     uint32_t        num_animations;
@@ -297,6 +359,280 @@ static uint8_t *ReadModelFile(cstring_t filename, uint32_t *out_size) {
     }
     return data;
 }
+
+/* Walkable geometry is loaded only for registered ground surfaces. Ordinary
+ * unit animation lookup keeps the SEQS-only archive reader above. */
+static uint32_t model_u32(uint8_t const *p) { uint32_t n; memcpy(&n,p,4); return n; }
+static float model_f32(uint8_t const *p) { float n; memcpy(&n,p,4); return n; }
+static void model_free_walkmesh(modelWalkMesh_t *mesh) {
+    if (!mesh) return;
+    gi.MemFree(mesh->triangles); gi.MemFree(mesh->animated); gi.MemFree(mesh);
+}
+static bool model_walkmesh_geoset(modelWalkMesh_t *mesh,uint8_t const *data,uint32_t size) {
+    uint8_t const *vertices=NULL,*indices=NULL,*types=NULL,*counts=NULL;
+    uint32_t nv=0,ni=0,nt=0,nc=0,flags=0;
+    uint32_t offset=4;
+    while (offset+8<=size) {
+        uint32_t tag=model_u32(data+offset),count=model_u32(data+offset+4),stride=4;
+        offset+=8;
+        switch (tag) {
+        case MAKEFOURCC('V','R','T','X'): case MAKEFOURCC('N','R','M','S'): stride=12;break;
+        case MAKEFOURCC('P','V','T','X'): stride=2;break;
+        case MAKEFOURCC('G','N','D','X'): stride=1;break;
+        case MAKEFOURCC('U','V','B','S'): stride=8;break;
+        case MAKEFOURCC('U','V','A','S'): continue;
+        case MAKEFOURCC('M','A','T','S'):
+            if (count>(size-offset)/4 || size-offset-count*4<44) return false;
+            flags=model_u32(data+offset+count*4+8);
+            goto compile;
+        case MAKEFOURCC('P','T','Y','P'):case MAKEFOURCC('P','C','N','T'):
+        case MAKEFOURCC('M','T','G','C'):break;
+        default:return false;
+        }
+        if (count>(size-offset)/stride) return false;
+        switch (tag) {
+        case MAKEFOURCC('V','R','T','X'):vertices=data+offset;nv=count;break;
+        case MAKEFOURCC('P','V','T','X'):indices=data+offset;ni=count;break;
+        case MAKEFOURCC('P','T','Y','P'):types=data+offset;nt=count;break;
+        case MAKEFOURCC('P','C','N','T'):counts=data+offset;nc=count;break;
+        }
+        offset+=count*stride;
+    }
+    return false;
+compile:
+    if (flags&4) return true;
+    if (!vertices || !indices || !types || !counts || nt!=nc) return false;
+    uint32_t used=0,total=0;
+    FOR_LOOP(i,nt) {
+        uint32_t primitive=model_u32(types+i*4),n=model_u32(counts+i*4);
+        if (n>ni-used || primitive<4 || primitive>6) return false;
+        total+=primitive==4?n/3:n>2?n-2:0; used+=n;
+    }
+    if (total>UINT32_MAX-mesh->count) return false;
+    triangle3_t *all=gi.MemAlloc((size_t)(mesh->count+total)*sizeof(*all));
+    if (mesh->count) memcpy(all,mesh->triangles,mesh->count*sizeof(*all));
+    used=0;
+    FOR_LOOP(i,nt) {
+        uint32_t primitive=model_u32(types+i*4),n=model_u32(counts+i*4);
+        for (uint32_t j=2;j<n;j+=primitive==4?3:1) {
+            uint32_t offsets[3]={primitive==6?0:j-2,j-1,j};
+            triangle3_t t;
+            FOR_LOOP(k,3) {
+                uint16_t index;memcpy(&index,indices+(used+offsets[k])*2,2);
+                if (index>=nv) {gi.MemFree(all);return false;}
+                memcpy((vec3_t*)&t+k,vertices+index*12,12);
+                vec3_t const *v=(vec3_t*)&t+k;
+                if (!isfinite(v->x)||!isfinite(v->y)||!isfinite(v->z)) {gi.MemFree(all);return false;}
+            }
+            all[mesh->count++]=t;
+        }
+        used+=n;
+    }
+    gi.MemFree(mesh->triangles);mesh->triangles=all;return true;
+}
+static bool model_walkmesh_nodes(modelWalkMesh_t *mesh,uint8_t const *data,uint32_t size,bool bone) {
+    for (uint32_t offset=0;offset<size;) {
+        if (size-offset<96) return false;
+        uint32_t n=model_u32(data+offset);
+        if (size-offset>=96 && (model_u32(data+offset+92)&~0x100u))mesh->dynamic_visibility=true;
+        if (n<96||n>size-offset|| (bone && size-offset-n<8)) return false;
+        for (uint32_t i=offset+96;i<offset+n;) {
+            if (offset+n-i<16) return false;
+            uint32_t tag=model_u32(data+i),count=model_u32(data+i+4),interp=model_u32(data+i+8),global=model_u32(data+i+12);
+            uint32_t dim=tag==MAKEFOURCC('K','G','R','T')?4:3;
+            if (tag!=MAKEFOURCC('K','G','T','R')&&tag!=MAKEFOURCC('K','G','R','T')&&tag!=MAKEFOURCC('K','G','S','C')) return false;
+            if (interp>3) return false;
+            uint32_t stride=4+dim*4*(interp>=2?3:1);i+=16;
+            if (count>(offset+n-i)/stride) return false;
+            if (count) {
+                modelTrackSpan_t *spans=gi.MemAlloc((mesh->num_animated+1)*sizeof(*spans));
+                if (mesh->num_animated)memcpy(spans,mesh->animated,mesh->num_animated*sizeof(*spans));
+                spans[mesh->num_animated++]=(modelTrackSpan_t){global==UINT32_MAX?model_u32(data+i):0,
+                    global==UINT32_MAX?model_u32(data+i+(count-1)*stride):UINT32_MAX};
+                gi.MemFree(mesh->animated);mesh->animated=spans;
+            }
+            i+=count*stride;
+        }
+        offset+=n+(bone?8:0);
+    }
+    return true;
+}
+static modelWalkMesh_t *model_load_walkmesh(uint8_t const *data,uint32_t size) {
+    if (size<4||memcmp(data,"MDLX",4)) return NULL;
+    modelWalkMesh_t *mesh=gi.MemAlloc(sizeof(*mesh));memset(mesh,0,sizeof(*mesh));
+    for (uint32_t offset=4;offset<size;) {
+        if (size-offset<8) goto invalid;
+        uint32_t tag=model_u32(data+offset),n=model_u32(data+offset+4);offset+=8;
+        if (n>size-offset) goto invalid;
+        uint8_t const *p=data+offset;
+        if (tag==MAKEFOURCC('G','E','O','S')) {
+            for (uint32_t i=0;i<n;) {
+                if (n-i<4) goto invalid;
+                uint32_t span=model_u32(p+i);
+                if (span<4||span>n-i||!model_walkmesh_geoset(mesh,p+i,span)) goto invalid;
+                i+=span;
+            }
+        } else if (tag==MAKEFOURCC('M','O','D','L')&&n>=368) {
+            mesh->radius=model_f32(p+340);
+            mesh->center=(vec3_t){model_mul(model_add(model_f32(p+344),model_f32(p+356)),.5f),
+                model_mul(model_add(model_f32(p+348),model_f32(p+360)),.5f),
+                model_mul(model_add(model_f32(p+352),model_f32(p+364)),.5f)};
+            mesh->has_bounds=true;
+        } else if (tag==MAKEFOURCC('B','O','N','E')||tag==MAKEFOURCC('H','E','L','P')) {
+            if (!model_walkmesh_nodes(mesh,p,n,tag==MAKEFOURCC('B','O','N','E'))) goto invalid;
+        } else if (tag==MAKEFOURCC('G','E','O','A')) {
+            /* Animated visibility needs its own retail pose implementation. */
+            mesh->dynamic_visibility=true;
+        } else if (tag==MAKEFOURCC('M','T','L','S')) {
+            for (uint32_t i=0;i<n;) {
+                if (n-i<20)goto invalid;
+                uint32_t span=model_u32(p+i);
+                if (span<20||span>n-i||model_u32(p+i+12)!=MAKEFOURCC('L','A','Y','S'))goto invalid;
+                uint32_t layers=model_u32(p+i+16),j=i+20;
+                FOR_LOOP(k,layers) {
+                    if(i+span-j<28)goto invalid;
+                    uint32_t len=model_u32(p+j);
+                    if(len<28||len>i+span-j)goto invalid;
+                    if(len!=28||!(model_f32(p+j+24)>0))mesh->dynamic_visibility=true;
+                    j+=len;
+                }
+                if (j!=i+span) mesh->dynamic_visibility=true;
+                i+=span;
+            }
+        }
+        offset+=n;
+    }
+    return mesh;
+invalid:
+    model_free_walkmesh(mesh);return NULL;
+}
+
+typedef struct modelWalkPose_s {
+    struct modelWalkPose_s *next;
+    edict_t const *entity;
+    modelWalkMesh_t const *mesh;
+    vec3_t origin;
+    float angle,scale,radius;
+    vec3_t center;
+    animation_t const *bounds_animation;
+    bool has_bounds;
+    triangle3_t *triangles;
+} modelWalkPose_t;
+static modelWalkPose_t *walkposes[256];
+#ifdef BZ_TESTS
+static uint32_t walkmesh_transforms,walkmesh_queries;
+#endif
+
+void G_ForgetWalkableModel(edict_t const *ent) {
+    modelWalkPose_t **link=&walkposes[ent->s.number&255];
+    while (*link && (*link)->entity!=ent) link=&(*link)->next;
+    if (*link) {
+        modelWalkPose_t *pose=*link;*link=pose->next;
+        gi.MemFree(pose->triangles);gi.MemFree(pose);
+    }
+}
+static void model_clear_walkposes(void) {
+    FOR_LOOP(i,256)while (walkposes[i]) {
+        modelWalkPose_t *pose=walkposes[i];walkposes[i]=pose->next;
+        gi.MemFree(pose->triangles);gi.MemFree(pose);
+    }
+}
+static modelWalkMesh_t *model_get_walkmesh(uint32_t index) {
+    if (!index||index>=G_MAX_MODELS)return NULL;
+    g_cmodel_t *model=&g_models[index];
+    if (!model->walkmesh_loaded) {
+        model->walkmesh_loaded=true;
+        uint32_t size=0;
+        uint8_t *data=ReadModelFile(model->filename,&size);
+        if (data)model->walkmesh=model_load_walkmesh(data,size);
+        gi.MemFree(data);
+        if (!model->walkmesh)fprintf(stderr,"Walkable model: cannot read MDLX geometry '%s'\n",model->filename);
+    }
+    return model->walkmesh;
+}
+void G_PrepareWalkableModel(uint32_t index) {model_get_walkmesh(index);}
+static vec3_t model_transform_point(vec3_t v,float const *m) {
+    return (vec3_t){
+        model_add(model_add(model_add(model_mul(m[3],v.y),model_mul(v.x,m[0])),model_mul(m[6],v.z)),m[9]),
+        model_add(model_add(model_add(model_mul(m[1],v.x),model_mul(m[4],v.y)),model_mul(m[7],v.z)),m[10]),
+        model_add(model_add(model_add(model_mul(m[2],v.x),model_mul(m[5],v.y)),model_mul(m[8],v.z)),m[11])};
+}
+/* -1 retains the pre-existing support path for unprepared/animated models;
+ * zero means a prepared mesh was queried and missed, never a flat-deck hit. */
+int G_WalkableModelHeight(edict_t const *ent,vec2_t point,float *height) {
+    modelWalkMesh_t *mesh=model_get_walkmesh(ent->s.model);
+    if (!mesh)return -1;
+    bool dynamic=mesh->dynamic_visibility;
+    uint32_t frame_start=ent->animation?ent->animation->interval[0]:ent->s.frame;
+    uint32_t frame_end=ent->animation?ent->animation->interval[1]:ent->s.frame;
+    FOR_LOOP(i,mesh->num_animated)
+        if(mesh->animated[i].first<=frame_end && mesh->animated[i].last>=frame_start)dynamic=true;
+    if (dynamic) {
+        if(!mesh->warned)fprintf(stderr,"Walkable model: animated support is not yet implemented for '%s'\n",g_models[ent->s.model].filename);
+        mesh->warned=true;return -1;
+    }
+    if(!mesh->count)return 0;
+    modelWalkPose_t *pose=walkposes[ent->s.number&255];
+    while(pose && pose->entity!=ent)pose=pose->next;
+    if (!pose) {
+        pose=gi.MemAlloc(sizeof(*pose));memset(pose,0,sizeof(*pose));
+        pose->entity=ent;pose->next=walkposes[ent->s.number&255];walkposes[ent->s.number&255]=pose;
+    }
+    bool pose_changed=pose->mesh!=mesh||memcmp(&pose->origin,&ent->s.origin,sizeof(vec3_t))||pose->angle!=ent->s.angle||pose->scale!=ent->s.scale;
+    if (pose_changed) {
+        float sine=sinf(ent->s.angle),cosine=cosf(ent->s.angle),scale=ent->s.scale;
+        float m[12]={model_mul(cosine,scale),model_mul(sine,scale),0,
+            model_mul(-sine,scale),model_mul(cosine,scale),0,0,0,scale,
+            ent->s.origin.x,ent->s.origin.y,ent->s.origin.z};
+        if(pose->mesh!=mesh) {
+            gi.MemFree(pose->triangles);pose->triangles=gi.MemAlloc(mesh->count*sizeof(triangle3_t));
+        }
+        FOR_LOOP(i,mesh->count) {
+            triangle3_t const *in=&mesh->triangles[i];triangle3_t *out=&pose->triangles[i];
+            out->a=model_transform_point(in->a,m);out->b=model_transform_point(in->b,m);out->c=model_transform_point(in->c,m);
+        }
+        pose->mesh=mesh;pose->origin=ent->s.origin;pose->angle=ent->s.angle;pose->scale=ent->s.scale;
+#ifdef BZ_TESTS
+        walkmesh_transforms++;
+#endif
+    }
+    if (pose_changed || pose->bounds_animation!=ent->animation) {
+        pose->has_bounds=ent->animation||mesh->has_bounds;
+        pose->bounds_animation=ent->animation;
+        animation_t const *anim=ent->animation;
+        vec3_t center=mesh->center;
+        float radius=mesh->radius;
+        if (anim) {
+            center=(vec3_t){model_mul(model_add(anim->min.x,anim->max.x),.5f),
+                model_mul(model_add(anim->min.y,anim->max.y),.5f),
+                model_mul(model_add(anim->min.z,anim->max.z),.5f)};
+            radius=anim->radius;
+        }
+        float sine=sinf(ent->s.angle),cosine=cosf(ent->s.angle),scale=ent->s.scale;
+        float m[12]={model_mul(cosine,scale),model_mul(sine,scale),0,
+            model_mul(-sine,scale),model_mul(cosine,scale),0,0,0,scale,
+            ent->s.origin.x,ent->s.origin.y,ent->s.origin.z};
+        pose->center=model_transform_point(center,m);pose->radius=model_mul(radius,scale);
+    }
+    if (pose->has_bounds) {
+        float fraction;
+        float distance=model_ray_distance(pose->center,(vec3_t){point.x,point.y,2560},(vec3_t){point.x,point.y,-2560},&fraction);
+        if (!(distance<=model_mul(pose->radius,pose->radius)))return 0;
+    }
+    float closest=FLT_MAX;bool hit=false;
+    FOR_LOOP(i,mesh->count) {
+        float distance;
+#ifdef BZ_TESTS
+        walkmesh_queries++;
+#endif
+        if(model_ray_triangle((vec3_t){point.x,point.y,2560},(vec3_t){0,0,-1},&pose->triangles[i],&distance)&&distance<closest) {
+            closest=distance;hit=true;
+        }
+    }
+    if(hit)*height=model_sub(2560,closest);
+    return hit;
+}
+
 
 /* MDLX chunk offsets let simulation read sequence data without inflating
  * geometry, textures or animation tracks. Visit every header to retain the
@@ -987,6 +1323,7 @@ void G_AddUnitAnimationProperties(edict_t *unit, cstring_t properties, bool add)
 }
 
 void G_FreeModels(void) {
+    model_clear_walkposes();
     FOR_LOOP(i, sizeof(animation_selections) / sizeof(*animation_selections)) {
         while (animation_selections[i]) {
             animationSelection_t *entry = animation_selections[i];
@@ -995,6 +1332,7 @@ void G_FreeModels(void) {
         }
     }
     FOR_LOOP(i, G_MAX_MODELS) {
+        model_free_walkmesh(g_models[i].walkmesh);
         if(g_models[i].variants)gi.MemFree(g_models[i].variants);
         if (g_models[i].animations) {
             gi.MemFree(g_models[i].animations);
@@ -1163,5 +1501,226 @@ TEST(wc3_model, repeated_model_animation_selection_reuses_decoded_properties) {
     T_ASSERT(G_GetAnimationForProperties(index,"stand",NULL)==g_models[index].animations+1);
     T_EQ(animation_selection_visits,4);
     G_FreeModels();
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "tests/fixtures/retail_walkmesh229.h"
+TEST(wc3_model, walkable_ray_triangle_matches_original_instructions) {
+    FOR_LOOP(i,sizeof(walkmesh229_triangles)/sizeof(*walkmesh229_triangles)) {
+        vec3_t input[5]; float distance = 0; uint32_t bits;
+        memcpy(input,walkmesh229_triangles[i].input,sizeof(input));
+        triangle3_t triangle; memcpy(&triangle,&input[2],sizeof(triangle));
+        bool accepted = model_ray_triangle(input[0],input[1],&triangle,&distance);
+        memcpy(&bits,&distance,sizeof(bits));
+        T_EQ(accepted,walkmesh229_triangles[i].hit);
+        T_EQ(bits,walkmesh229_triangles[i].distance);
+    }
+}
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_model, walkable_mesh_supplies_authoritative_ground_height) {
+    extern void reset_entities(void),setup_test_world(void);
+    extern edict_t *alloc_test_unit(uint32_t,float,float);
+    reset_entities(); setup_test_world(); G_FreeModels();
+    uint32_t const index = G_MAX_MODELS-1;
+    modelWalkMesh_t *mesh = gi.MemAlloc(sizeof(*mesh)); memset(mesh,0,sizeof(*mesh));
+    mesh->triangles = gi.MemAlloc(sizeof(triangle3_t)); mesh->count = 1;
+    memcpy(mesh->triangles,walkmesh229_triangles[0].input[2],sizeof(triangle3_t));
+    g_models[index].walkmesh=mesh; g_models[index].walkmesh_loaded=true;
+    vec3_t point; memcpy(&point,walkmesh229_triangles[0].input[0],sizeof(point));
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'),point.x,point.y);
+    edict_t *bridge = G_Spawn();
+    static DestructableData_t const data = {.walkable=true};
+    struct {uint16_t width,height; color32_t map[4];} path = {.width=2,.height=2};
+    bridge->class_id=MAKEFOURCC('L','T','0','6'); bridge->data.DestructableData=&data;
+    bridge->destructable=G_AllocDestructable(); bridge->destructable->placement_solid=true;
+    bridge->pathtex=(pathTex_t*)&path; bridge->s.model=index; bridge->s.scale=1;
+    G_RegisterGroundSurface(bridge);
+    float expected; uint32_t distance=walkmesh229_triangles[0].distance;
+    memcpy(&expected,&distance,sizeof(expected)); expected=2560-expected;
+    M_CheckGround(unit); T_FEQ(unit->s.origin.z,expected,0);
+    T_ASSERT(unit->movement.support_flags & WC3_SUPPORT_ON_DECK);
+    G_FreeModels(); reset_entities(); setup_test_world();
+}
+#endif
+#ifdef BZ_TESTS
+TEST(wc3_model, location_z_observes_walkable_support) {
+    extern void reset_entities(void),setup_test_world(void);
+    extern bool run_test_jass(cstring_t);
+    reset_entities();setup_test_world();
+    edict_t *bridge=G_Spawn();
+    static DestructableData_t const data={.walkable=true};
+    struct {uint16_t width,height; color32_t map[4];} path={.width=2,.height=2};
+    bridge->class_id=MAKEFOURCC('L','T','0','6');bridge->data.DestructableData=&data;
+    bridge->destructable=G_AllocDestructable();bridge->destructable->placement_solid=true;
+    bridge->pathtex=(pathTex_t*)&path;bridge->s.origin.z=64;
+    G_RegisterGroundSurface(bridge);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local location p=Location(0.0,0.0)\n"
+        "call BJassAssert(GetLocationZ(p)==64.0,\"location deck height\")\n"
+        "call RemoveLocation(p)\nendfunction\n"));
+    war3mapVertex_t *vertices=(war3mapVertex_t*)world.map->vertices;
+    CM_W3SetWaterHeight(0);
+    FOR_LOOP(i,world.map->width*world.map->height)vertices[i].waterlevel=0x2000+4*96;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local location p=Location(0.0,0.0)\n"
+        "call BJassAssert(GetLocationZ(p)==96.0,\"location higher water\")\n"
+        "call RemoveLocation(p)\nendfunction\n"));
+    reset_entities();setup_test_world();
+}
+#endif
+#ifdef BZ_TESTS
+TEST(wc3_model, walkable_transform_and_sphere_match_original_instructions) {
+    FOR_LOOP(i,sizeof(walkmesh229_transforms)/sizeof(*walkmesh229_transforms)) {
+        vec3_t input;float matrix[12];
+        memcpy(&input,walkmesh229_transforms[i].input,sizeof(input));
+        memcpy(matrix,walkmesh229_transforms[i].matrix,sizeof(matrix));
+        vec3_t output=model_transform_point(input,matrix);
+        T_ASSERT(!memcmp(&output,walkmesh229_transforms[i].output,sizeof(output)));
+    }
+    FOR_LOOP(i,sizeof(walkmesh229_distances)/sizeof(*walkmesh229_distances)) {
+        vec3_t input[3];float fraction;uint32_t bits;
+        memcpy(input,walkmesh229_distances[i].input,sizeof(input));
+        float distance=model_ray_distance(input[0],input[1],input[2],&fraction);
+        memcpy(&bits,&distance,4);T_EQ(bits,walkmesh229_distances[i].distance);
+        memcpy(&bits,&fraction,4);T_EQ(bits,walkmesh229_distances[i].fraction);
+    }
+}
+static void model_test_word(uint8_t *data,uint32_t *offset,uint32_t word) {
+    memcpy(data+*offset,&word,4);*offset+=4;
+}
+static uint32_t model_test_bridge(uint8_t *data,uint32_t flags) {
+    uint32_t n=12;
+    memcpy(data,"MDLXGEOS",8);
+    model_test_word(data,&n,0); /* geoset inclusive size */
+    model_test_word(data,&n,MAKEFOURCC('V','R','T','X'));model_test_word(data,&n,128);
+    memcpy(data+n,walkmesh229_vertices,sizeof(walkmesh229_vertices));n+=sizeof(walkmesh229_vertices);
+    model_test_word(data,&n,MAKEFOURCC('P','T','Y','P'));model_test_word(data,&n,1);model_test_word(data,&n,4);
+    model_test_word(data,&n,MAKEFOURCC('P','C','N','T'));model_test_word(data,&n,1);model_test_word(data,&n,192);
+    model_test_word(data,&n,MAKEFOURCC('P','V','T','X'));model_test_word(data,&n,192);
+    memcpy(data+n,walkmesh229_indices,sizeof(walkmesh229_indices));n+=sizeof(walkmesh229_indices);
+    model_test_word(data,&n,MAKEFOURCC('M','A','T','S'));model_test_word(data,&n,1);model_test_word(data,&n,1);
+    model_test_word(data,&n,0);model_test_word(data,&n,0);model_test_word(data,&n,flags);
+    FOR_LOOP(i,8)model_test_word(data,&n,0); /* default extent and no sequence extents */
+    uint32_t span=n-12;memcpy(data+12,&span,4);span=n-12;memcpy(data+8,&span,4);
+    return n;
+}
+TEST(wc3_model, prepared_bridge_matches_live_retail_mesh_and_reuses_geometry) {
+    extern void reset_entities(void),setup_test_world(void);
+    extern edict_t *alloc_test_unit(uint32_t,float,float);
+    reset_entities();setup_test_world();G_FreeModels();
+    uint8_t data[4096]={0};uint32_t n=model_test_bridge(data,0);
+    uint32_t index=G_MAX_MODELS-1;
+    modelWalkMesh_t *mesh=model_load_walkmesh(data,n);T_NOT_NULL(mesh);
+    if(!mesh)return;
+    T_EQ(mesh->count,64);
+    g_models[index].walkmesh=mesh;g_models[index].walkmesh_loaded=true;
+    static DestructableData_t const row={.walkable=true};
+    static animation_t const stand={.interval={133,1333},.radius=646.2139892578125f,
+        .min={-311.3429870605469f,-512.9569702148438f,-134.29400634765625f},
+        .max={310.8680114746094f,511.1050109863281f,446.9490051269531f}};
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0),*bridge=G_Spawn();
+    bridge->class_id=MAKEFOURCC('L','T','0','6');bridge->data.DestructableData=&row;
+    bridge->destructable=G_AllocDestructable();bridge->destructable->placement_solid=true;
+    bridge->s.model=index;bridge->s.scale=1;bridge->s.angle=wc3_degrees_to_radians(90);
+    bridge->s.origin=(vec3_t){1024,672,-192};bridge->animation=(animation_t*)&stand;
+    G_RegisterGroundSurface(bridge);
+    uint32_t transforms=walkmesh_transforms,queries=walkmesh_queries;
+    FOR_LOOP(i,sizeof(walkmesh229_points)/sizeof(*walkmesh229_points)) {
+        vec2_t point;float height;uint32_t bits;
+        memcpy(&point,walkmesh229_points[i].point,sizeof(point));
+        int hit=G_WalkableModelHeight(bridge,point,&height);T_EQ(hit,walkmesh229_points[i].hit);
+        if(hit) {memcpy(&bits,&height,4);T_EQ(bits,walkmesh229_points[i].height);}
+        unit->s.origin2=point;M_CheckGround(unit);
+        float ground=CM_GetHeightAtPoint(point.x,point.y);
+        T_FEQ(unit->s.origin.z,hit&&height>ground?height:ground,0);
+        T_EQ((unit->movement.support_flags&WC3_SUPPORT_ON_DECK)!=0,hit&&height>ground);
+    }
+    T_EQ(walkmesh_transforms,transforms+1);
+    T_ASSERT(walkmesh_queries-queries<2*64*(sizeof(walkmesh229_points)/sizeof(*walkmesh229_points)));
+    modelWalkPose_t *pose=walkposes[bridge->s.number&255];T_NOT_NULL(pose);
+    if(pose) FOR_LOOP(i,64)FOR_LOOP(k,3) {
+        uint16_t vertex=walkmesh229_indices[i*3+k];
+        T_ASSERT(!memcmp((vec3_t*)&pose->triangles[i]+k,walkmesh229_transformed+vertex*3,12));
+    }
+    bridge->s.origin.z+=32;float height;
+    T_EQ(G_WalkableModelHeight(bridge,(vec2_t){1024,640},&height),1);
+    T_EQ(walkmesh_transforms,transforms+2);
+    modelTrackSpan_t span={2000,3000};
+    mesh->animated=gi.MemAlloc(sizeof(span));memcpy(mesh->animated,&span,sizeof(span));mesh->num_animated=1;
+    animation_t death={.interval={2000,3000}};bridge->animation=&death;
+    T_EQ(G_WalkableModelHeight(bridge,(vec2_t){1024,640},&height),-1);
+    bridge->animation=(animation_t*)&stand;
+    T_EQ(G_WalkableModelHeight(bridge,(vec2_t){1024,640},&height),1);
+    bridge->destructable->dead=true;M_CheckGround(unit);
+    T_ASSERT(!(unit->movement.support_flags&WC3_SUPPORT_ON_DECK));
+    G_UnregisterGroundSurface(bridge);T_NULL(walkposes[bridge->s.number&255]);
+    G_FreeModels();reset_entities();setup_test_world();
+    n=model_test_bridge(data,4);mesh=model_load_walkmesh(data,n);T_NOT_NULL(mesh);
+    if(mesh){T_EQ(mesh->count,0);model_free_walkmesh(mesh);}
+    FOR_LOOP(i,n) {mesh=model_load_walkmesh(data,i);if(i==4)T_NOT_NULL(mesh);else T_NULL(mesh);model_free_walkmesh(mesh);}
+}
+#endif
+#ifdef BZ_TESTS
+TEST(wc3_model, cliff_water_bridge_fixture_matches_all_retail_support_lanes) {
+    extern void reset_entities(void),setup_test_world(void);
+    extern edict_t *alloc_test_unit(uint32_t,float,float);
+    extern slkTestData_t *parse_slk_string(cstring_t);
+    extern void free_slk_rows(slkTestData_t *);
+    extern unsigned G_TestMoveTerrainByte(unsigned,unsigned);
+    extern void CM_SetupTestWorldBounds(box2_t const *);
+    extern void CM_SetupTestPathmap(unsigned,unsigned,uint8_t const *);
+    reset_entities();setup_test_world();G_FreeModels();
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,walkmesh229_terrain);
+    war3mapVertex_t *v=world.map->vertices;
+    FOR_LOOP(y,17)FOR_LOOP(x,17) {
+        bool water=y<=10 && x>=4 && x<=12;
+        v[y*17+x]=(war3mapVertex_t){.accurate_height=water?
+            0x2000-4*((x==4||x==5||x==11||x==12)?64:192):0x2000,
+            .waterlevel=8550,.water=water,.level=y>=12&&x>=8?3:2};
+    }
+    slkTestData_t *water=parse_slk_string("ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"waterID\"\nC;Y1;X2;K\"height\"\n"
+        "C;Y2;X1;K\"LSha\"\nC;Y2;X2;K-0.7\nE\n");
+    slkTestData_t *saved_water=G_SetSLKRows("WaterData",water);
+    G_ApplyTilesetWaterHeight(&(mapInfo_t){.mainGroundType='L'});
+    S_InitFlightSupport();
+    stbIniCache_t saved_misc=game.config.misc;game.config.misc=(stbIniCache_t){0};
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.misc,"[FlyerMap]\nMaximizeRadius=6\nSmoothLevels=3\n"));
+    uint8_t data[4096]={0};uint32_t n=model_test_bridge(data,0),index=G_MAX_MODELS-1;
+    g_models[index].walkmesh=model_load_walkmesh(data,n);g_models[index].walkmesh_loaded=true;
+    T_NOT_NULL(g_models[index].walkmesh);
+    static DestructableData_t const row={.walkable=true,.flyHeight=256,.fixedRot=90};
+    static animation_t const stand={.interval={133,1333},.radius=646.2139892578125f,
+        .min={-311.3429870605469f,-512.9569702148438f,-134.29400634765625f},
+        .max={310.8680114746094f,511.1050109863281f,446.9490051269531f}};
+    struct {uint16_t width,height; color32_t map[32*18];} texture={.width=32,.height=18};
+    FOR_LOOP(y,18)FOR_LOOP(x,32)texture.map[y*32+x]=(color32_t){.b=y<2||y>=16?255:0,.a=255};
+    edict_t *bridge=G_Spawn();bridge->class_id=MAKEFOURCC('L','T','0','6');bridge->data.DestructableData=&row;
+    bridge->destructable=G_AllocDestructable();bridge->destructable->placement_solid=true;
+    bridge->pathtex=bridge->destructable->alive_pathtex=(pathTex_t*)&texture;
+    bridge->s.model=index;bridge->s.scale=1;bridge->s.origin=(vec3_t){1024,640,-192};
+    bridge->animation=(animation_t*)&stand;G_ApplyDestructableCreationPose(bridge);G_RegisterGroundSurface(bridge);
+    CM_BakeStaticObstacles();G_FinishMovePathingInitialization();
+    FOR_LOOP(y,64)FOR_LOOP(x,64)T_EQ(G_TestMoveTerrainByte(x,y),walkmesh229_terrain[y*64+x]);
+    FOR_LOOP(i,sizeof(walkmesh229_support)/sizeof(*walkmesh229_support)) {
+        UnitData_t profile={.moveTypeName=walkmesh229_support[i].type,.moveHeight=360};
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),walkmesh229_support[i].x,walkmesh229_support[i].y);
+        unit->data.UnitData=&profile;
+        bool flying=!strcmp(profile.moveTypeName,"fly");
+        if(flying){unit->aiflags|=AI_FLYING;unit->unitinfo.FlyHeight=360;}
+        M_CheckGround(unit);M_CheckGround(unit);
+        T_EQ(wc3_float_bits(unit->s.origin.z),walkmesh229_support[i].height);
+        T_EQ((unit->movement.support_flags&WC3_SUPPORT_ON_DECK)!=0,walkmesh229_support[i].deck);
+        T_EQ((unit->movement.support_flags&WC3_SUPPORT_IN_DEEP_WATER)!=0,walkmesh229_support[i].deep);
+        G_FreeEdict(unit);
+    }
+    G_SetSLKRows("WaterData",saved_water);free_slk_rows(water);
+    Stb_IniCacheFree(&game.config.misc);game.config.misc=saved_misc;
+    G_FreeModels();reset_entities();setup_test_world();
 }
 #endif

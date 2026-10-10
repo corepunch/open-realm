@@ -187,5 +187,5 @@ uint32_t GetLocationY(jass_t *j) {
 }
 uint32_t GetLocationZ(jass_t *j) {
     vec2_t const *whichLocation = jass_checkhandle(j, 1, "location");
-    return jass_pushnumber(j, whichLocation ? CM_GetHeightAtPoint(whichLocation->x, whichLocation->y) : 0);
+    return jass_pushnumber(j, whichLocation ? S_GetLocationSupport(*whichLocation) : 0);
 }

@@ -3184,6 +3184,8 @@ void G_ClearEdictStorage(uint32_t count);
 void G_MarkEdictStorageUsed(uint32_t count);
 void G_MarkFreeEdict(edict_t *);
 void M_CheckGround (edict_t *);
+bool S_GetWalkableSupport(vec2_t point,float overlap,float *height);
+float S_GetLocationSupport(vec2_t point);
 void S_InitFlightSupport(void);
 void S_ClearFlightSupport(void);
 void S_FinalizeFlightSupport(void);
@@ -3224,6 +3226,9 @@ void         G_StoreUnitAnimationProperties(edict_t *, cstring_t);
 void         G_ClearUnitAnimationText(void);
 void         G_AddUnitAnimationProperties(edict_t *unit, cstring_t properties, bool add);
 void         G_FreeModels(void);
+void G_PrepareWalkableModel(uint32_t model);
+void G_ForgetWalkableModel(edict_t const *ent);
+int G_WalkableModelHeight(edict_t const *ent,vec2_t point,float *height);
 
 // g_ai.c
 void ai_birth(edict_t *);

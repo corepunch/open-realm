@@ -5178,6 +5178,66 @@
           "evidence": "7474d0/743810 original operand; Payoff228. Payoff228: 7474d0 writes terrain+7a4; 743810 reads width/height/cells/values; capacity/count/quantum from 747522..74755e original allocator operands."
         }
       ]
+    },
+    {
+      "name": "WC3PreparedModelGeoset",
+      "length": 296,
+      "fields": [
+        {
+          "offset": 12,
+          "name": "vertices",
+          "type": "u32",
+          "evidence": "18bbe0 original operands; Payoff229"
+        },
+        {
+          "offset": 16,
+          "name": "vertex_count",
+          "type": "u32",
+          "evidence": "18bbe0 original operands; Payoff229"
+        },
+        {
+          "offset": 76,
+          "name": "vertex_groups",
+          "type": "u32",
+          "evidence": "18bbe0 original operands; Payoff229"
+        },
+        {
+          "offset": 200,
+          "name": "primitive_group_count",
+          "type": "u32",
+          "evidence": "18bbe0 original operands; Payoff229"
+        },
+        {
+          "offset": 204,
+          "name": "primitive_groups",
+          "type": "u32",
+          "evidence": "18bbe0 original operands; Payoff229"
+        },
+        {
+          "offset": 224,
+          "name": "indices",
+          "type": "u32",
+          "evidence": "18bbe0 original operands; Payoff229"
+        },
+        {
+          "offset": 260,
+          "name": "matrix_mode",
+          "type": "u32",
+          "evidence": "18bbe0 original operands; Payoff229"
+        },
+        {
+          "offset": 284,
+          "name": "material_id",
+          "type": "u32",
+          "evidence": "18bbe0 original operands; Payoff229"
+        },
+        {
+          "offset": 292,
+          "name": "selectable_flags",
+          "type": "u32",
+          "evidence": "18bbe0 original operands; Payoff229"
+        }
+      ]
     }
   ],
   "methods": [
