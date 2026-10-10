@@ -239,3 +239,12 @@ before creating its channel thinker; this is an impact-time defensive check,
 not a complete two-target transactional allocation. Area Roar continues to
 allow partial recipient success rather than rejecting the entire cast when
 some nearby units are full.
+
+## Spell Steal eligibility hardening
+
+Spell Steal now validates a transferable source and a receiver with a free
+status slot before the cast commits. The same selection policy runs at impact:
+it searches later eligible source statuses when earlier ones have no receiver.
+A post-validation change can still cause a no-op, as with other delayed spells.
+Transfer remains restricted to the reviewed simple status families; arbitrary
+ability callback state and visual reconstruction are not newly supported.
