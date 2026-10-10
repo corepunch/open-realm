@@ -14933,3 +14933,73 @@ Production and test game builds pass. This is the sixth focused implementation
 commit after Payoff214's full-suite checkpoint; no new full-suite run is claimed.
 Reports, clean red and original captures are archived under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/payoff220/`.
+
+## Target owner changes recover the current task before returning (Payoff221)
+
+Changing a followed unit's owner is a separate notification from TargetLost.
+Retail `Unit_SetPlayerOwner` publishes the script owner event, then delivers
+`d01a2` to Move's retained target subscription before returning. It does not
+call `Unit_DispatchTargetLost`. Same-owner calls return without notification.
+
+`CAbilityMove_OnTargetOwnerChanged` at `6f5fdfd0` clears the related order and
+retained target, then invokes recovery with argument zero. Recovery preserves
+an important distinction between the current internal task and public order:
+
+| Public producer / current task | Result before `SetUnitOwner` returns |
+|---|---|
+| Smart, established Follow; target becomes friendly | Follow and public head end |
+| Smart, established Follow; target becomes hostile | Follow and public head end |
+| Explicit Move, established Follow | Follow and public head end |
+| Smart, target paused during the transfer | Follow and public head end |
+| Same-owner target assignment | Existing Follow and subscription remain |
+| Smart, still in its initial approach | Approach ends; pending Follow starts with the same public head and target |
+| Transfer that target again after the continuation starts | Established Follow ends |
+| Transfer the follower itself | Its ordinary owner-change cancellation ends the public head |
+
+The approach result is established by the new capture, not inferred from the
+older persistent-only owner-transfer scene. Its recovery reaches arrival,
+pops the approach task and dispatches the retained target continuation. This
+renews the target subscription and creates a new physical Follow. Treating
+all transfers as unconditional cancellation would be incorrect. Restoring the
+original target owner does not revive an already completed public head.
+
+The engine now delivers `A_TARGET_OWNER_CHANGED` after the script owner event.
+Move reuses its ordered per-target subscription index and captured registration
+frontier; delivery costs O(number of subscribers), without a map-wide entity
+scan. A newly renewed continuation is excluded from the active delivery pass.
+Recovery stops the old physical owner and clears local path state before
+admitting the continuation. An established Follow clears its retained target
+before completing the public head. The save layout and network contract are
+unchanged; cold load rebuilds the existing ordered subscriptions.
+
+Evidence is frozen in
+[`retail-target-owner221-1.27.json`](../../../tools/ghidra/fixtures/retail-target-owner221-1.27.json)
+and its compressed original capture bundle. Two read-only Frida observations
+and one unhooked control agree on all **496 public markers** each across seven
+scenes, including the synchronous before/after native boundary. The verifier
+checks actual subscriber identity, target clear/recovery/arrival order, approach
+head retention, same-owner non-delivery, absence of TargetLost during transfer
+and **934 original instruction encodings**. Public position strings are R2S
+observations; they are not a new word-exact motion claim. Reproducers are
+`tools/frida/research/target221_{make_map.py,capture.py,observer.js,probe.j}`;
+raw captures/maps/sources are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/payoff221/`.
+Ghidra's handler name, explicit ECX/stack signature and five function comments
+are saved and mirrored in `MapPathfinding.java` and the type fixture.
+
+The new production-path regression drives public JASS `SetUnitOwner`, with
+save/load before and after transfer, and passes **135 assertions** per edition.
+The initial regression failed 30 assertions; 29 concern the missing owner
+notification/continuation behavior. One additional assertion assumed the
+follower's internal goal must become null on its own owner transfer; it was
+withdrawn because the retail probe establishes public cancellation, not that
+engine-only bookkeeping field. The frozen retail expectations were unchanged.
+Focused Classic and TFT validation each passes **451 tests / 158,355 assertions**
+(target, Follow, orders, lifecycle, interruption, units, food and save). Twelve
+Python evidence mutation checks and the fresh corpus oracle pass. All **456
+prior corpus entries** remain identical. This is implementation commit **7/12**
+since full checkpoint214; no new full-suite result is claimed.
+
+TARGET-03.2 remains open for the complete Attack/fog/reacquisition matrix and
+wider ability-parent compositions. This change closes its owner-transfer
+integration gap without creating another TODO or weakening prior evidence.

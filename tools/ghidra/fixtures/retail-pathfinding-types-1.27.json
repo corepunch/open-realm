@@ -17190,6 +17190,25 @@
           "storage": 16
         }
       ]
+    },
+    {
+      "address": "6f5fdfd0",
+      "name": "CAbilityMove_OnTargetOwnerChanged",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Payoff221: d01a2 delivery at5fdc81; ECX Move and stack event, RET4. Clears related order5fbfc0 and retained target5fbea0 before5fb190(0) recovery. Two public seven-scene repeats plus an unhooked control match496 markers each. Persistent Smart/explicit Move end synchronously for friendly and hostile transfers, including paused targets; same-owner transfer does not deliver. Nonpersistent Smart approach pops into its retained d0173 Follow continuation with the same public head/target; a subsequent transfer ends that Follow. No651010 TargetLost occurs inside transfer. The engine now uses separate indexed owner-change delivery; wider automatic combat parents remain open.",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [

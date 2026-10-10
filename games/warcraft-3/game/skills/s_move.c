@@ -3286,7 +3286,7 @@ static void move_follow_rebuild(void) {
 /* Capture only this target's subscribers. Registration identities allow a
  * callback to remove/reissue a later subscriber, or nest delivery, without
  * delivering a newly appended subscription in the already-running pass. */
-static void move_follow_target_lost(edict_t *target) {
+static void move_follow_target_event(edict_t *target,abilityMsg_t message) {
     uint16_t id=waypoint_identity(target);
     if(!id || !move_follow_lists[id-1].count)return;
     uint32_t count=move_follow_lists[id-1].count,pos=0;
@@ -3301,10 +3301,12 @@ static void move_follow_target_lost(edict_t *target) {
         if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
            unit->movement.follow_sequence!=delivery[i].sequence || unit->movement.follow_target!=target)continue;
 #ifdef BZ_TESTS
-        move_follow_visits++;
-        if(move_test_target_lost)move_test_target_lost(unit);
+        if(message==A_TARGET_LOST) {
+            move_follow_visits++;
+            if(move_test_target_lost)move_test_target_lost(unit);
+        }
 #endif
-        abilityCall_t call={.lost_target=target};CAbilityMove(unit,A_TARGET_LOST,&call);
+        abilityCall_t call={.lost_target=target};CAbilityMove(unit,message,&call);
     }
 }
 
@@ -5825,6 +5827,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
             A_GROUP_POINT_ORDER, A_OWNER_BEGIN, A_OWNER_UPDATE, A_UNIT_TYPE_CHANGING,
             A_PRIMARY_TIMER, A_ORDER_ACCEPTED, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
             A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED, A_TARGET_LOST,
+            A_TARGET_OWNER_CHANGED,
             A_CHANNEL_STATE_CHANGED);
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
@@ -5963,9 +5966,28 @@ BZ_ABILITY_PROC(CAbilityMove) {
         clent->client->menu.supports_order_queue = true;
         return true;
     }
+    case A_TARGET_OWNER_CHANGED:
+        if(!call)return false;
+        if(!ent) {move_follow_target_event(call->lost_target,msg);return true;}
+        if(ent->movement.follow_target!=call->lost_target)return false;
+        /*5fdfd0 clears retained target, then recovers the current task. A
+         * Smart approach has a pending Follow continuation; its recovery
+         * admits that continuation synchronously against the new owner.
+         * Persistent Follow has no continuation and completes the head. */
+        {
+            moveGroup_t *group=move_unit_group(ent);
+            if(move_is_following(ent) && group && !(group->flags&1) &&
+               S_MoveTargetStatus(ent,call->lost_target)==MOVE_TARGET_VALID) {
+                move_leave(ent);S_RecoverStoppedUnitPosition(ent);
+                move_reset_local_path(ent);
+                move_start_follow_group(ent,call->lost_target,true);
+                return true;
+            }
+        }
+        return CAbilityMove(ent,A_TARGET_REMOVED,&(abilityCall_t){.removed_target=call->lost_target});
     case A_TARGET_LOST:
         if(!call)return false;
-        if(!ent) {move_follow_target_lost(call->lost_target);return true;}
+        if(!ent) {move_follow_target_event(call->lost_target,msg);return true;}
         if(ent->movement.follow_target!=call->lost_target ||
            S_MoveTargetStatus(ent,call->lost_target)==MOVE_TARGET_VALID)return false;
         /*5ff490 snapshots the public head and internal task before recovery.

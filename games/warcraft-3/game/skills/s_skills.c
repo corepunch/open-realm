@@ -1511,6 +1511,11 @@ void S_UnitTargetLost(edict_t *target) {
     unit_dispatch_engine_event_abilities(NULL,A_TARGET_LOST,&call);
 }
 
+void S_UnitTargetOwnerChanged(edict_t *target) {
+    abilityCall_t call={.lost_target=target};
+    unit_dispatch_engine_event_abilities(NULL,A_TARGET_OWNER_CHANGED,&call);
+}
+
 /* Notify active behavior owners after semantic removal, before deferred memory reclamation. */
 void S_UnitTargetRemoved(edict_t *target) {
     abilityCall_t call = MAKE(abilityCall_t, .removed_target = target);

@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff221 integrates target owner-change delivery separately from TargetLost.
+Repeated retail captures prove persistent Follow completion and Smart approach
+continuation, including same-owner and paused controls. Public native/save
+regressions pass without modifying prior expectations; broader TARGET-03.2 stays
+open. See [owner-change recovery](retail-pathfinding-engine.md#target-owner-changes-recover-the-current-task-before-returning-payoff221).
+
 Payoff220 integrates queued target Move fallback after issue-time-visible units
 become invisible, dead, removed or fogged before activation. Two genuine Shift
 retail repeats and an unhooked control preserve packet points and913 public

@@ -20508,6 +20508,60 @@ TEST(wc3_movement, target220_queued_visible_move_retains_issue_point_and_falls_b
     }
 }
 
+/* Target owner changes deliver d01a2 independently of visibility/TargetLost.
+ * Persistent Follow cancels for either relationship; an approach advances
+ * to its retained Follow continuation. Same-owner calls do not notify. */
+TEST(wc3_movement, target221_public_owner_transfer_retires_follow_synchronously) {
+    FOR_LOOP(kind,7) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        S_SetUnitAxisPosition(unit,0,kind==4 ? 320 : 1536);
+        S_SetUnitAxisPosition(unit,1,1024);
+        S_SetUnitAxisPosition(target,0,1760);S_SetUnitAxisPosition(target,1,1024);
+        target->s.player=PLAYER_NEUTRAL_PASSIVE;
+        level.alliances[0][PLAYER_NEUTRAL_PASSIVE]|=1u<<ALLIANCE_PASSIVE;
+        level.alliances[PLAYER_NEUTRAL_PASSIVE][0]|=1u<<ALLIANCE_PASSIVE;
+        level.alliances[0][2]|=1u<<ALLIANCE_PASSIVE;
+        level.alliances[2][0]|=1u<<ALLIANCE_PASSIVE;
+        G_FowUpdate();
+        char script[2200];snprintf(script,sizeof(script),
+            "globals\nunit source\nunit target\nendglobals\n"
+            "function transfer takes nothing returns nothing\ncall SetUnitOwner(%s,Player(%u),false)\nendfunction\n"
+            "function restore takes nothing returns nothing\ncall SetUnitOwner(target,Player(15),false)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+            "call GroupEnumUnitsInRange(g,1760,1024,1,null)\nset target=FirstOfGroup(g)\ncall GroupClear(g)\n"
+            "call GroupEnumUnitsInRange(g,%u,1024,1,null)\nset source=FirstOfGroup(g)\ncall DestroyGroup(g)\nendfunction\n",
+            kind==6 ? "source" : "target",kind==2 ? 15 : kind==1 ? 1 : 2,kind==4 ? 320 : 1536);
+        T_ASSERT(run_test_jass(script));
+        T_ASSERT(unit_issuetargetorder(unit,kind==3 ? "move" : "smart",target));
+        if(kind!=4)FOR_LOOP(i,30)target166_tick();
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)continue;
+        T_EQ((group->flags&1)!=0,kind!=4);
+        if(kind==5)S_SetUnitPaused(target,true);
+        uint32_t id=group->id;uint64_t registration=unit->movement.follow_sequence;
+        cstring_t file=Test_TempPath("wc3-target221-owner.bin");
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+        move_follow_visits=0;target217_call("transfer");
+        T_EQ(move_follow_visits,0); /* Owner change is not TargetLost. */
+        if(kind==2) {
+            T_EQ(unit->movement.group_id,id);T_EQ(unit->movement.follow_target,target);
+            T_EQ(unit->movement.follow_sequence,registration);T_EQ(unit->current_order_id,G_OrderId("smart"));
+        } else if(kind==4) {
+            T_EQ(unit->current_order_id,G_OrderId("smart"));T_EQ(unit->movement.follow_target,target);
+            T_NE(unit->movement.group_id,id);T_ASSERT(unit->movement.follow_sequence>registration);
+            group=move_unit_group(unit);T_NOT_NULL(group);T_ASSERT(group && (group->flags&1));
+        } else {
+            T_EQ(unit->current_order_id,0);T_EQ(unit->movement.group_id,0);
+            T_NULL(unit->movement.follow_target);if(kind!=6)T_NULL(unit->goalentity);
+            T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+        }
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+        target217_call("restore");S_SetUnitPaused(target,false);
+        FOR_LOOP(i,10)target166_tick();
+        if(kind!=2){T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);}
+        remove(file);G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
 TEST(wc3_movement, target220_retained_packet_point_survives_removed_target_without_rebinding_widgets) {
     FOR_LOOP(widget,2) {
         edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);

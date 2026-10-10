@@ -49121,6 +49121,63 @@
         "Input timing before mutation and runtime agent identities may differ. Queue identity relationships, activation tick, point/task words and post-mutation public output must agree.",
         "Observer is read-only, control is unhooked. Failed calibration variants a/b/c are archived and excluded; no forced-write witnesses."
       ]
+    },
+    {
+      "id": "oracle-target-owner221",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_target_owner221.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "target-owner221.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "scenes": {
+          "equal": 7
+        },
+        "deliveries": {
+          "equal": 10
+        },
+        "public_markers": {
+          "equal": 1488
+        },
+        "instructions": {
+          "equal": 934
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "TARGET-03.2 target ownership-transfer subscription and recovery. Two seven-scene public repeats, unhooked control,934 native instruction encodings and actual Classic/TFT engine/save regression; Smart approach continuation differs from persistent Follow completion.",
+      "exclusions": [
+        "Public coordinates are retail R2S observations, not word-exact motion claims.",
+        "Owner transfer acts on the subscribed Move task: approach continuation advances, persistent Follow ends. Smart automatic combat and other ability parents remain outside this contract.",
+        "Only public SetUnitOwner/PauseUnit and order producers; no memory writes or game calls from observers.",
+        "The seven scenes cover friendly/hostile/same-owner target transfer, explicit Move, Smart approach, paused target and mover transfer.",
+        "Source transfer proves public cancellation, not the identity/value of engine-only goal bookkeeping.",
+        "Existing static/corpus expectations are preserved. This does not by itself close the complete TARGET-03.2 Attack/fog/reacquisition matrix."
+      ]
     }
   ],
   "fixtures": [
@@ -49186,7 +49243,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "6a79b573934ada4d7977856cbc67cf6fe717e69c7dd4936bfc8e525f44f75bc7"
+      "sha256": "7694b788f0d8bc85e92dc1fb50359156cd568c1dcfe500bb7e86973be3deb5f4"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -50019,7 +50076,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "8cf882e2446f7516725132b3444208a9929feb862f518848af7be3289f607953"
+      "sha256": "078eae48572a0311f0f28446915c23631188872937cbd47093a08576c30c67a0"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50875,7 +50932,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "e84710991b3775707d24dcbdd8a894a586cac1c6e4b68828dd2c657438cd50b9"
+      "sha256": "dd4c9a91943ac0828e7181ccb1080f40040f7fa0f5fafc416dd1ade0617fd71e"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51319,7 +51376,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "740a1ef7bb9f95da58aabf18f2979ae3ada1220a7ddf1adfaa161678a4ff281f"
+      "sha256": "aefed8e05d2a081e87047e59834216d17ef9a378e3dd2379be79db38ebec845f"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51567,7 +51624,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "b12c44a0f1c2e4cae370d2d9ae7ba332119fcdc6084c0b3fada82acb0bbc4dee"
+      "sha256": "a43439b70fca644424402df149da3efdda04ae64ef57e2a0cb64469b07791f14"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -51811,7 +51868,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "6bda764ef169e140a53308937893f3d69a69185691925be25dd643c62c306e5a"
+      "sha256": "ca0b10019dd1d90604dec2dbd13426375cdd8c0b5ef76fe07159062b97e0d185"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51823,11 +51880,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "022042fc67f66d030d931621efe6f90b414d500f8bf595434869380c094921be"
+      "sha256": "fb0c4f8923eedc15b89282fd34c07b66bb6f8ff6b52fbb9f4d796a24266141bf"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "d3a09d67720df8fe785afc1eeef618732c47f85b41e7da8f399b3981ebb095c0"
+      "sha256": "c1783c54c4114683c75cd57737d0777f56bd73c8f444ca7a727ecb07521ca475"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -51839,7 +51896,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "9f891bca9348d4690786041db5f49ac5bad86614485b87d2bf26bc9953aae6c2"
+      "sha256": "2ec3de646952d7e1ccec66c938f5980cab7134f0e0ebd733feb01d225c7386a0"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -51951,7 +52008,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
-      "sha256": "9619110e5143d88eaf52bd00c8d58dc3e7e2e3d43027045a48bea004444e2607"
+      "sha256": "8bcf774b987b47b5393735311e08766fb5b0436149c49a976a70e31e3c47c172"
     },
     {
       "path": "games/warcraft-3/game/g_spawn.c",
@@ -54328,6 +54385,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-queued-target220-1.27.json.gz",
       "sha256": "22f3c93fd77280abbbbf0099316c3651e52862f2b3a78f7af2454c5d2b2ad2b5"
+    },
+    {
+      "path": "tools/frida/research/target221_capture.py",
+      "sha256": "efb970f5a1b81a7bac1cfec6b0e85b5e38ba92556524f8fd278842265e7bc75e"
+    },
+    {
+      "path": "tools/frida/research/target221_observer.js",
+      "sha256": "e881fdad700a8240e269e133b18d95587578b441e5187d1736ae23484c60a104"
+    },
+    {
+      "path": "tools/frida/research/target221_make_map.py",
+      "sha256": "60edf7d4aac9b964d30303e43e4ca1b250692be39900ed17f7ee4fb7c0ad4b57"
+    },
+    {
+      "path": "tools/frida/research/target221_probe.j",
+      "sha256": "69a6903146b773f5f3afa6c5ec600e1731dc95b83d8596b9581dca9e87544ee3"
+    },
+    {
+      "path": "tools/ghidra/research/Target221Evidence.java",
+      "sha256": "64a61a9bfb4751253dbf11bc81f67b034950cd606883ca419de8e8e5eeb3031a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_target_owner221.py",
+      "sha256": "f5e10edf91dacd14dbe1a3bd8df97d300b510c8b1882a52141ab5f25a5cd33af"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_target_owner221.py",
+      "sha256": "9f0f016490ce98f3db6d87783f7c9c0d580a42ae41af1636f2285fbb093f8463"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-owner221-1.27.json",
+      "sha256": "67e351d18778b39fda10b8e6d29e3c06941521d8c76f57964f3af4c7c8a68c94"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-owner221-1.27.json.gz",
+      "sha256": "8ad3fa2995a9cb9fb42a5fe0ec371b469ced610df01034404172de33f1c43b7c"
     }
   ]
 }
