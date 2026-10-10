@@ -1417,6 +1417,15 @@ static intptr_t unit_dispatch_authored_abilities(edict_t *ent, abilityMsg_t msg,
     return unit_dispatch_authored_abilities_mode(ent, msg, payload, stop_first, include_innate, include_channel, false, NULL);
 }
 
+/*687b30 queries every authored owner and keeps the unsigned minimum.
+ * UINT32_MAX means no override; the movement owner supplies the distance fallback. */
+uint32_t S_UnitPointOrderPriority(edict_t *ent,uint32_t order,vec2_t const *point) {
+    uint32_t minimum=UINT32_MAX;
+    abilityCall_t call=MAKE(abilityCall_t,.point_priority={order,point,&minimum});
+    unit_dispatch_authored_abilities(ent,A_POINT_ORDER_PRIORITY,&call,false,false,false);
+    return minimum;
+}
+
 /* Only the zeroed factory uses this entry. Type rebinds and lifecycle cleanup
  * retain full dispatch; ordinary result and rawcode deduplication stay intact. */
 bool S_InitFreshUnitAbilities(edict_t *ent) {

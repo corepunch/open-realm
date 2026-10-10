@@ -5140,6 +5140,42 @@ static void move_group_publish_sequence(moveGroup_t *group) {
     move_group_head=group;
 }
 
+/*6bcc40 compares retained nine-word candidate rows. Unsigned subtraction
+ * preserves native signed32 wrap without undefined C signed overflow. */
+static int32_t move_compare_point_candidates(uint32_t const a[7],uint32_t const b[7]) {
+    uint32_t difference=((int32_t)b[0]<1)-((int32_t)a[0]<1);
+    if(!difference)difference=b[4]-a[4];
+    if(!difference)difference=a[2]-b[2];
+    if(!difference)difference=a[1]-b[1];
+    if(!difference)difference=b[5]-a[5];
+    if(!difference)difference=a[3]-b[3];
+    if(!difference)difference=a[6]-b[6];
+    return (int32_t)difference;
+}
+
+static uint32_t move_point_order_score(edict_t *unit,uint32_t order,vec2_t const *point) {
+    uint32_t score=S_UnitPointOrderPriority(unit,order,point);
+    if(score!=UINT32_MAX)return score;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    float dx=wc3_sub(point->x,pose.world[0]),dy=wc3_sub(point->y,pose.world[1]);
+    float squared=wc3_add(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy)),0);
+    return wc3_int_bits(wc3_float_bits(wc3_mul(squared,wc3_float(0x3dcccccd))));
+}
+
+/* Attachment order belongs to the canonical request. Sorted admission changes
+ * callback chronology, not that member order. Re-read after callbacks: nested
+ * replacement/removal may have compacted the physical owner's live members. */
+static void move_group_restore_attachment_order(moveGroup_t *group,groupPointOrder_t const *request) {
+    moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];unsigned count=0;
+    FOR_LOOP(i,request->count)FOR_LOOP(k,group->count) {
+        moveGroupMember_t const *member=group->members+k;
+        if(member->unit==request->units[i].unit && member->spawn==request->units[i].spawn)
+            members[count++]=*member;
+    }
+    if(count!=group->count)gi.error("Move: selected request lost its attachment identity");
+    memcpy(group->members,members,count*sizeof(*members));
+}
+
 /*6b8c10/89cd10: prepare populated requests before callbacks, retain request-row
  * order, and publish each class when ready. Forced grounding already clears
  * AI_FLYING through the ability owner; authored fly alone is insufficient. */
@@ -5157,13 +5193,38 @@ static bool move_group_selected_point_order(groupPointOrder_t const *request) {
         if(request->queued)contexts[k]=move_allocate_group_id();
         else groups[k]=move_group_create_request(request,0,NULL);
     }
-    bool any=false;
+    unsigned indices[BZ_WC3_GROUP_ORDER_UNITS];
+    uint32_t keys[BZ_WC3_GROUP_ORDER_UNITS][7];
+    edict_t *focus=request->selection_owner ? G_GetMainSelectedUnit(request->selection_owner->client) : NULL;
     FOR_LOOP(i,request->count) {
-        unsigned slot=slots[i];
+        indices[i]=i;
+        if(request->selection_owner) {
+            edict_t *unit=request->units[i].unit;
+            uint32_t *key=keys[i];
+            key[0]=unit->movement.repulse.disable_depth;
+            key[1]=G_CountUnitOrders(unit,request->order_id);key[2]=G_CountUnitOrders(unit,0);
+            key[3]=move_point_order_score(unit,request->order_id,request->point);
+            key[4]=2; /* Native point-validation row, distinct from target validation. */
+            key[5]=focus && focus->class_id==unit->class_id;key[6]=unit->s.number;
+        }
+    }
+    /* At most twelve UI candidates; fixed stack storage and at most66 comparisons.
+     * All keys precede callbacks, as in6ba800 -> qsort ->6b93a0. */
+    if(request->selection_owner)for(unsigned n=1;n<request->count;n++) {
+        unsigned index=indices[n],j=n;
+        while(j && move_compare_point_candidates(keys[index],keys[indices[j-1]])<0) {
+            indices[j]=indices[j-1];j--;
+        }
+        indices[j]=index;
+    }
+    bool any=false;
+    FOR_LOOP(n,request->count) {
+        unsigned i=indices[n],slot=slots[i];
         if(request->queued) {if(move_queue_group_candidate(request,i,contexts[slot]))any=true;}
         else {
             if(move_group_admit_candidate(groups[slot],request,i))any=true;
             if(!--remaining[slot]) {
+                move_group_restore_attachment_order(groups[slot],request);
                 move_group_publish_sequence(groups[slot]);
                 move_group_publish_ready(groups[slot]);
             }
@@ -5962,7 +6023,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
         FOR_LOOP(i,num_units) {
             if (G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) idle=false;
         }
-        groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.formation_toggle=clent->client->menu.order_alt,.issuer_player=clent->client->ps.number};
+        groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.formation_toggle=clent->client->menu.order_alt,.issuer_player=clent->client->ps.number,.selection_owner=clent};
         FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
         bool accepted=G_IssueGroupPointOrder(&request);
         if (accepted) G_SendPointConfirmation(clent,location,false);

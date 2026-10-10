@@ -790,6 +790,21 @@ bool G_UnitHasActiveOrder(edict_t const *self) {
            !move_is_terminal_hold(self);
 }
 
+/*687a60 traverses user heads, including the current command. A suspended
+ * head is already in the FIFO and must not be counted twice. Zero matches all. */
+uint32_t G_CountUnitOrders(edict_t const *self,uint32_t order) {
+    if(!self)return 0;
+    uint32_t count=0;
+    if(!G_IsDeferredFree(self) && !self->construction_held && self->current_order_id &&
+       (!order || self->current_order_id==order))count++;
+    unitOrderQueue_t const *queue=&self->order_queue;
+    FOR_LOOP(i,queue->count) {
+        unitOrder_t const *entry=queue->entries+(queue->head+i)%queue->capacity;
+        if(!order || entry->order_id==order)count++;
+    }
+    return count;
+}
+
 /* Internal continuations have the same FIFO representation and observation
  * order as user commands, with one reserved physical slot. */
 bool G_AppendUnitOrder(edict_t *self, unitOrder_t const *order) {

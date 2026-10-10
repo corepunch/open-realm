@@ -632,3 +632,90 @@ Payoff238/239/240 against the final production/test modules; the corpus contains
 195 original/evidence oracles and476 entries. A first neighbor command omitted
 its wildcard and matched zero tests; it is rejected, not included in these totals.
 Only this validation paragraph and its corpus pins were added after those runs.
+
+## Selected admission priority preserves attachment membership (Payoff241)
+
+The selected point producer attaches candidates first (`6b8c10`), builds all
+nine-word admission rows (`6ba800`), sorts them (`6bcc40`), then publishes orders
+(`6b93a0`). Attachment iteration and callback admission are separate sequences.
+The comparator priorities are:
+
+| Priority | Native input | Direction |
+|---|---|---|
+| 1 | Unit198 separation-suppression depth `<1` | Unsuppressed first |
+| 2 | Row4 validation kind | Descending |
+| 3 | Row2 current plus pending user heads | Ascending |
+| 4 | Row1 heads matching this order ID | Ascending |
+| 5 | Row5 primary selection subgroup membership | Descending |
+| 6 | Row3 unsigned point score | Ascending |
+| 7 | Unit canonical identity at+c | Ascending |
+
+Subtraction returns signed32 results with native wrap. Unit198 is **not** an
+active-order count. `687a60` follows the current/pending user-order identity chain;
+order ID zero counts all heads. Engine `G_CountUnitOrders` owns this accounting,
+including suspended heads already held in the FIFO.
+
+`687b30` first takes the unsigned minimum of authored ability-vtable220 queries;
+ffffffff means no override. Its fallback queries the mover's predicted world
+position through `058900`, sets both Z terms to zero, evaluates
+`((dx*dx+dy*dy)+0)*0.1` using software scalar word3dcccccd, then converts with
+wrapped integer semantics. Engine ability owners receive the typed
+`A_POINT_ORDER_PRIORITY` minimum query; Move owns the numerical fallback.
+Specific retail ability overrides remain to be mapped and implemented.
+
+`2908c0` takes the **selection manager in ECX and Unit on the stack**, returning
+with RET4. It queries manager1c0's primary subgroup through290820. The earlier
+inferred fastcall Unit signature was wrong. Ghidra now retains the corrected
+signature, the36-byte `WC3NetPointCandidateRow` structure, ten annotated function
+bodies/xrefs and1,163 checked instruction encodings; MapPathfinding.java retains
+portable mappings and these evidence limits.
+
+Four read-only captures retain328 complete public markers and six actual UI
+packets: one ordinary idle, one Alt idle, and two ordinary-then-Alt mixed repeats.
+For Footman/Destroyer/Gryphon/Footman, the initial publication is0,3,1,2. After
+stopping the Footmen while the Destroyer retains an active head, publication is
+0,3,2,1. The mixed repeats have different current-clock scores; each is retained
+individually. All36 ordered public candidate pairs execute through the original
+comparator and agree. A separate198-pair native oracle covers each key and
+signed-wrap boundaries. There is no new observer-free control.
+
+The engine captures keys before callbacks and sorts only UI admission. Script
+and Captain producers retain their explicit row order. Before each class becomes
+ready, the engine gathers its surviving members in original attachment order,
+rechecking generation after nested replacement/removal callbacks. Fixed stack
+storage serves at most twelve candidates: sorting needs at most66 comparisons,
+and the bounded member gather allocates nothing. The physical primary cohort
+therefore remains0,2,3 for ordinary selection, or0,3 for Alt, independently of
+callback order. Focused rawcode grouping uses the existing selection owner;
+wider Hero/subgroup classification and canonical identity reuse remain open.
+
+The public regression fails7/32 assertions before the fix. The expanded fixture
+supplies actual retail query poses and verifies exact numerical scores, idle or
+active heads, sorted callbacks, physical publication and attachment membership;
+it does not claim complete scene construction or mixed movement parity. Its two
+tests pass316 assertions. Existing238/240 native readiness fixtures are unchanged:
+their tests now invoke the explicit producer-row boundary which those kernels
+supply, instead of imposing that readiness order on the sorting UI producer.
+This corrects the harness scope, preserving every original kernel expectation.
+
+Selected and queued neighboring suites pass26 tests/85,230 assertions per
+Classic/TFT, including unchanged public movement journeys, Shift, interruption,
+nested replacement and save/load. Fourteen evidence-mutation checks pass. Network
+and save contracts are unchanged. This is implementation3/12 after checkpoint238;
+full-suite validation is reserved for the agreed batch checkpoint.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work241.py \
+  --binary /path/to/retail/game.dll --report /tmp/work241-fresh.json
+```
+
+Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff241/`.
+GROUP-04.6 remains open for broader canonical lifetime, dynamic category changes,
+ability-specific score priorities and full multi-class queued trajectories.
+
+Final focused validation also passes150 neighboring research checks and37 corpus
+checks. Fresh strict reports accept unchanged238/239/240 plus241 against the final
+modules. The staged corpus has196 executable contracts and477 entries; its fixture
+inventory passes. Only this validation paragraph and corresponding corpus hashes
+were updated after those strict runs.

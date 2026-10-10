@@ -56,6 +56,12 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **279 done / 336 tasks; 57 remaining.**
+Payoff241 integrates retail selected admission priorities while retaining canonical
+attachment membership.198 original comparator pairs, six actual UI packets and
+failing-first callback/publication regressions accompany exact point-score and
+queue/save checks. GROUP-04.6 retains wider canonical lifetime and priority-owner
+work. See [selected admission priority](retail-pathfinding-queued-cohorts.md#selected-admission-priority-preserves-attachment-membership-payoff241).
+
 Payoff240 replaces the mixed FLOAT legacy fallback with up to three prepared
 request classes, preserving clicked points, independent history and queue/save
 ownership.48 complete original readiness scopes and repeated actual UI affinity

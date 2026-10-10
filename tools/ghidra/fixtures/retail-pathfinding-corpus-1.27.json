@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "195 executable original/evidence contracts;476 total entries.",
+  "scope": "196 executable original/evidence contracts;477 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -50233,6 +50233,63 @@
         "No new observer-free control, complete movement comparison, worker/performance claims or save-layout change.",
         "Full candidate sorting, dynamic categories, busy canonical lifetime and complete multi-class trajectories remain GROUP-04.6."
       ]
+    },
+    {
+      "id": "oracle-work241",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work241.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work241.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 4
+        },
+        "public_markers": {
+          "equal": 328
+        },
+        "public_packets": {
+          "equal": 6
+        },
+        "comparator_cases": {
+          "equal": 198
+        },
+        "public_comparisons": {
+          "equal": 36
+        },
+        "instructions": {
+          "equal": 1163
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "GROUP-04.6 selected UI candidate priorities: original comparator, exact captured point scores, sorted callback/publication chronology and distinct canonical attachment order; idle and mixed current heads, nested replacement, queue/save/Stop regression integration.",
+      "exclusions": [
+        "Complete original comparator pairs and six actual UI packets certify bounded selected Move admission, not all order validation kinds or ability-specific score overrides.",
+        "One idle ordinary and one idle Alt capture plus two mixed ordinary-then-Alt repeats; no new observer-free control. Mixed current-clock scores differ across repeats and remain individually frozen.",
+        "Engine primary-subgroup classification follows existing focused rawcode grouping; wider Hero/subgroup policies and synthetic FLOAT-plus-flight later association remain open.",
+        "Native canonical IDs are captured. Engine final tie uses entity allocation order; identity reuse equivalence and out-of-domain nontransitive signed-wrap sorting are not certified.",
+        "Captured poses supply numerical score fixtures; this does not certify complete scene construction or the entire mixed trajectory."
+      ]
     }
   ],
   "fixtures": [
@@ -51131,7 +51188,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "09f4b523b3bc4c50ccc7fc9bdacc321fdd278418c1d051b62e505f669ee14abf"
+      "sha256": "b609a265a4003f94e83db8c14c6faa452c48e62bafb3688141a5c60f3ece36b5"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51987,7 +52044,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "ab4b4f5d56447f6c9a829a73cfa39843f9961da3812198d6db3ae50faf0392ac"
+      "sha256": "fc71df9f786066e5ab13097d538ec6e9efc44d8ed94af2ae67f27a60731022f2"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -52431,7 +52488,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "90573dd43c4a60b7dceb4cb656ea3889b256e4e9c15233554d09f99cdc24b2c5"
+      "sha256": "c0ecdba4e6311419a4ef14cb4da5cc719f08f009c5096433c219ae88e3570c70"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -52679,7 +52736,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "fdc0ca68c7d50739d08d85ede9f4b2040a6f3053afa0ef6cf4b748a3c7014fbd"
+      "sha256": "00516e91d2e2c0d2669f61ebac5fbd68b08df1db1b801cb4203c8663959d6280"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -52923,7 +52980,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "3582101061dadde4e02a8ad6c70f4a580abb225ce5510d10b07e5fec509544d4"
+      "sha256": "dc0597fb6a2dd99270515e8fbe7b559b7fbfac146285df690afa86cb51a8ce59"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52939,7 +52996,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "e8ee6d7962c8ed3a7596773a045cd43f9f74700d01ad49d3b17afd87e6df00a4"
+      "sha256": "1b7e97478816361e186c42da0ca291a555f8e4e874fbdbb14819cc9d3f0a193b"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52951,7 +53008,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "50f6e51d9bef2663dfa409873700efbe9cdcca118a903036be3705ad2dfc5836"
+      "sha256": "97a193207c0d6fe99ef670339c78bc602a996cfa6e34ea22c525d99ebecce3a3"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -53887,7 +53944,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "2b37e63876e4565e46a1fb3bbd252d14fb23cd32b72f376b2ca03029cb400f4a"
+      "sha256": "a80e78333c072909db67aacacb3e780b6c4f40673499f7a34ca0faff295211a9"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -55883,7 +55940,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-queued-cohorts.md",
-      "sha256": "075cd25b9ccf188b3ac605fa3ca644f7e406f68da6346a18544b587b9fead195"
+      "sha256": "86619b964e9d194de8d5e977751609813064067764bc1b1c35d5dcb4912bc86b"
     },
     {
       "path": "tools/frida/research/work232_observer.js",
@@ -56196,6 +56253,54 @@
     {
       "path": "tools/frida/research/work240_make_map.py",
       "sha256": "f1bc799aa5264f1bf58705149f9d8e2fd1a8e832ada479f6cf4594704b556888"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_point_rank241.h",
+      "sha256": "3e93f0da37ec6d859c2e4ac8e1f48ccdd0096eb75d19bf4f2ba65270daaa13c6"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work241.py",
+      "sha256": "77105957f109ea25f27d887c627dc19bd78a77ed92711744c4ef63749be9c125"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work241.py",
+      "sha256": "12edb71c6804fbbaf4dd70bfa80568ee5ee3e173b902ee2194d74017c50c2ddf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work241-1.27.json",
+      "sha256": "ece25d022c9669192f8a1b08469fa463cf0c560cc5f0a0aaf2ac9dec8af04fbc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work241-1.27.json.gz",
+      "sha256": "10659e37db6556f3489573a488c2d4e1a90397ca50591f1a3fa3e70ee3526b1e"
+    },
+    {
+      "path": "tools/ghidra/research/Work241Evidence.java",
+      "sha256": "7b9d873c3f5c1c81ab045ccd3e7b1164c5370e97abf725656bbb8fe0e473c12a"
+    },
+    {
+      "path": "tools/ghidra/research/work241_oracle.py",
+      "sha256": "3d40b80595fbb00b2b8fa070b9668c19867c3bab03d8b5561d4eb9f6f6e13d6d"
+    },
+    {
+      "path": "tools/frida/research/work241_probe.j",
+      "sha256": "e3300db8653deac1ab9480aff400bdb002591eb33bda0cd023e84cca1ab2637a"
+    },
+    {
+      "path": "tools/frida/research/work241_make_map.py",
+      "sha256": "4784476f89627eef2cbf3365dde577b310837de91473efbe4eb0fbee1f2a0a8e"
+    },
+    {
+      "path": "tools/frida/research/work241b_probe.j",
+      "sha256": "7a8b8b006cba9ff40f2dcd5a9e9f1c265d70e624f874269136ffdd0e5e19ea38"
+    },
+    {
+      "path": "tools/frida/research/work241b_make_map.py",
+      "sha256": "cabe2db7b11b1dc9b3df157dcdc1f9831904126003206fcf99bff90ff8d45492"
+    },
+    {
+      "path": "tools/frida/research/work241_observer.js",
+      "sha256": "db50323847825e986a431cd93457d4b6781c2866bf0e0df47a67e46484866ddd"
     }
   ]
 }

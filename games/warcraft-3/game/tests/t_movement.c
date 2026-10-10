@@ -13212,8 +13212,8 @@ TEST(wc3_movement, selected237_ground_and_flight_share_primary_request) {
     reset_entities();setup_test_world();
 }
 
-/* Native237 captures use primary for foot and the third request for Alt flight.
- * Interleaving classes must not reorder candidate admission or physical birth. */
+/* Native readiness kernels supply candidate-row order explicitly. The UI
+ * producer separately sorts admission (241); neither changes attachment order. */
 TEST(wc3_movement, selected238_alt_owns_separate_flight_requests) {
     FOR_LOOP(grounded,2)FOR_LOOP(queued,2) {
         reset_entities();setup_test_world();
@@ -13230,7 +13230,9 @@ TEST(wc3_movement, selected238_alt_owns_separate_flight_requests) {
             if(flight && !(grounded && i==1))units[i]->aiflags|=AI_FLYING;
             G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
         }
-        vec2_t point={1536,1536};T_ASSERT(move_selectlocation(clent,&point));
+        vec2_t point={1536,1536};groupPointOrder_t request={.count=4,.order_id=G_OrderId("move"),.order="move",.point=&point,.formation_toggle=true};
+        FOR_LOOP(i,4)request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&request));
         moveGroup_t *primary=move_unit_group(units[0]),*special=move_unit_group(units[2]);
         T_NOT_NULL(primary);T_NOT_NULL(special);T_NE(primary,special);
         if(primary && special) {
@@ -13242,7 +13244,7 @@ TEST(wc3_movement, selected238_alt_owns_separate_flight_requests) {
             FOR_LOOP(i,4) {moveGroup_t *g=move_unit_group(units[i]);T_NOT_NULL(g);if(g){T_EQ(g->goal.x,point.x);T_EQ(g->goal.y,point.y);}}
         }
         if(queued) {
-            clent->client->menu.order_queued=true;point=(vec2_t){512,2048};T_ASSERT(move_selectlocation(clent,&point));
+            clent->client->menu.order_queued=true;point=(vec2_t){512,2048};request.queued=true;T_ASSERT(G_IssueGroupPointOrder(&request));
             T_NE(units[0]->movement.previous_request_id,units[2]->movement.previous_request_id);
             FOR_LOOP(i,4) {
                 T_EQ(units[i]->order_queue.count,1);
@@ -13280,7 +13282,9 @@ TEST(wc3_movement, selected238_native_class_birth_order) {
             units[i]->movement.adaptive_disabled=true;
             G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
         }
-        vec2_t goal={1536,1536};T_ASSERT(move_selectlocation(clent,&goal));
+        vec2_t goal={1536,1536};groupPointOrder_t request={.count=4,.order_id=G_OrderId("move"),.order="move",.point=&goal,.formation_toggle=true};
+        FOR_LOOP(i,4)request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&request));
         uint32_t offset=0;uint64_t sequence=0;
         FOR_LOOP(g,row->count) {
             moveGroup_t *owner=move_unit_group(units[row->members[offset]]);T_NOT_NULL(owner);
@@ -13317,7 +13321,9 @@ TEST(wc3_movement, selected240_all_native_request_classes) {
             T_EQ(S_UnitMovementProfile(units[i]->data.UnitData)->bits==wc3_movement_profile(UNIT_MOVE_FLOAT)->bits,!!(row->float_mask&(1u<<i)));
             G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
         }
-        vec2_t goal={1536,1536};T_ASSERT(move_selectlocation(clent,&goal));
+        vec2_t goal={1536,1536};groupPointOrder_t request={.count=4,.order_id=G_OrderId("move"),.order="move",.point=&goal,.formation_toggle=row->alt};
+        FOR_LOOP(i,4)request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&request));
         uint32_t offset=0;uint64_t sequence=0;
         FOR_LOOP(g,row->count) {
             moveGroup_t *owner=move_unit_group(units[row->members[offset]]);T_NOT_NULL(owner);
@@ -13400,7 +13406,9 @@ TEST(wc3_movement, selected238_alt_callbacks_keep_candidate_order_and_replacemen
         }
         T_EQ(count,4);if(count!=4)continue;
         clent->client->menu.order_queued=false;clent->client->menu.order_alt=true;
-        vec2_t goal={1536,1536};T_ASSERT(move_selectlocation(clent,&goal));
+        vec2_t goal={1536,1536};groupPointOrder_t request={.count=4,.order_id=G_OrderId("move"),.order="move",.point=&goal,.formation_toggle=true};
+        FOR_LOOP(i,4)request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&request));
         FOR_LOOP(i,4)T_EQ(units[i]->user_data,replace && i==0 ? 5 : i+1);
         T_EQ(move_unit_group(units[1]),move_unit_group(units[2]));
         T_NE(move_unit_group(units[0]),move_unit_group(units[1]));
@@ -13411,8 +13419,62 @@ TEST(wc3_movement, selected238_alt_callbacks_keep_candidate_order_and_replacemen
     reset_entities();setup_test_world();
 }
 
-/* Net6b93a0 publishes invalid history when a player point has no association.
- * Independent script Move bypasses that producer and retains existing history. */
+/* Original comparator results and actual UI rows retain independent admission
+ * priority and attachment membership. Captured current poses are supplied explicitly. */
+#include "fixtures/retail_point_rank241.h"
+TEST(wc3_movement, selected241_original_comparator_words) {
+    FOR_LOOP(i,sizeof(rank241_cases)/sizeof(*rank241_cases)) {
+        typeof(*rank241_cases) const *row=rank241_cases+i;
+        T_EQ((uint32_t)move_compare_point_candidates(row->left,row->right),row->result);
+    }
+}
+
+TEST(wc3_movement, selected241_public_candidate_order_matches_retail_rows) {
+    FOR_LOOP(c,sizeof(public241_rows)/sizeof(*public241_rows)) {
+        typeof(*public241_rows) const *row=public241_rows+c;
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        char floating[]="float";
+        unitModification_t mod={.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=floating};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','F','4','1'),.numbeOfModifications=1,.modifications=&mod};
+        mapInfo_t const *saved=level.mapinfo;mapInfo_t info=*saved;
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        edict_t *clent=alloc_test_unit(0,0,0),*units[4];clent->client=game.clients;clent->client->ps.number=0;
+        clent->client->menu.order_alt=row->alt;clent->client->menu.order_queued=false;
+        FOR_LOOP(i,4) {
+            uint32_t type=i==1 ? custom.newUnitID : i==2 ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o');
+            units[i]=alloc_test_unit(type,wc3_float(row->pose[i][0]),wc3_float(row->pose[i][1]));
+            units[i]->collision=16;units[i]->s.model=1;units[i]->svflags|=SVF_MONSTER;
+            units[i]->stand=unit_stand;units[i]->movetype=MOVETYPE_STEP;unit_stand(units[i]);
+            if(i==2)units[i]->aiflags|=AI_FLYING;
+            G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+        }
+        FOR_LOOP(i,4)if(row->pre_move[i]) {
+            T_EQ(row->pre_move[i],1);
+            T_ASSERT(unit_issueorder(units[i],"move",&(vec2_t){3072,3072}));
+        }
+        FOR_LOOP(i,4) {T_EQ(G_CountUnitOrders(units[i],0),row->pre_move[i]);T_EQ(G_CountUnitOrders(units[i],G_OrderId("move")),row->pre_move[i]);}
+        T_ASSERT(G_FocusSelectedUnit(clent->client,units[0]));
+        T_ASSERT(run_test_jass("globals\ntrigger listener=null\ninteger n=0\nendglobals\n"
+            "function ordered takes nothing returns boolean\nset n=n+1\ncall SetUnitUserData(GetTriggerUnit(),n)\nreturn true\nendfunction\n"
+            "function cleanup takes nothing returns nothing\ncall DestroyTrigger(listener)\nendfunction\n"
+            "function main takes nothing returns nothing\nset listener=CreateTrigger()\n"
+            "call TriggerRegisterPlayerUnitEvent(listener,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+            "call TriggerAddCondition(listener,Condition(function ordered))\nendfunction\n"));
+        vec2_t point={wc3_float(row->point[0]),wc3_float(row->point[1])};
+        FOR_LOOP(i,4)T_EQ(move_point_order_score(units[i],G_OrderId("move"),&point),row->score[i]);
+        T_ASSERT(move_selectlocation(clent,&point));
+        FOR_LOOP(i,4)T_EQ(units[row->order[i]]->user_data,i+1);
+        uint64_t sequence=0;
+        FOR_LOOP(i,row->count) {moveGroup_t *group=move_unit_group(units[row->births[i]]);T_NOT_NULL(group);if(group){T_ASSERT(group->sequence>sequence);sequence=group->sequence;}}
+        moveGroup_t *primary=move_unit_group(units[0]);T_NOT_NULL(primary);
+        if(primary){T_EQ(primary->members[0].unit,units[0]);T_EQ(primary->members[primary->count-1].unit,units[3]);}
+        jass_callbyname(level.vm,"cleanup",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;setup_test_world();
+    }
+}
+
 TEST(wc3_movement, selected239_singleton_clears_player_request_history) {
     FOR_LOOP(queued,2)FOR_LOOP(alt,2) {
         reset_entities();setup_test_world();

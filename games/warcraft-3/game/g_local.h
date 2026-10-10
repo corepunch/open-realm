@@ -890,6 +890,7 @@ typedef struct {
     struct { edict_t *unit; uint32_t spawn; } units[BZ_WC3_GROUP_ORDER_UNITS];
     uint32_t count, order_id, issuer_player;
     bool queued, formation_toggle;
+    edict_t *selection_owner; /* UI producer only; script/captain rows retain producer order. */
     cstring_t order;
     vec2_t const *point;
 } groupPointOrder_t;
@@ -994,6 +995,7 @@ typedef enum {
     A_STATUS_REPLACE,   /* Applying owner may release its contribution before a status payload is replaced. */
     A_UNIT_RETIRE,      /* Death/removal commits an inactive unit before ability detach; identity remains valid. */
     A_TARGET_OWNER_CHANGED, /* Retained target's owner event; distinct from TargetLost validation. */
+    A_POINT_ORDER_PRIORITY, /* Authored owners reduce the unsigned point-order score. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -1078,6 +1080,7 @@ struct ability_call_s {
         cstring_t classname;
         uint32_t level;
         bool enabled;
+        struct { uint32_t order; vec2_t const *point; uint32_t *minimum; } point_priority;
         float *move_speed_bonus; /* A_MOVE_SPEED_BONUS: maximum nonnegative flat contribution. */
         struct { /* A_UNIT_TYPE_INIT/UPDATE: immutable inputs, never an instance. */
             UnitAbilities_t const *unit_type;
@@ -3571,6 +3574,7 @@ void S_BeginAbilityOwnerUpdates(void);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
 void S_UnitCombatAlert(edict_t *, edict_t *, uint32_t);
 void S_UnitAllyCombatAlert(edict_t *, edict_t *, edict_t *);
+uint32_t S_UnitPointOrderPriority(edict_t *, uint32_t, vec2_t const *);
 bool S_InitFreshUnitAbilities(edict_t *);
 bool S_InitPreparedUnitAbilities(edict_t *, unitRuntimeType_t *);
 bool S_UnitTypeHasAbilityProc(UnitAbilities_t const *, abilityProc_t);
@@ -4105,6 +4109,7 @@ bool G_IssueUnitTargetOrder(edict_t *, cstring_t, edict_t *, bool, uint32_t);
 bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, uint32_t, float, uint32_t);
 bool G_AppendUnitOrder(edict_t *, unitOrder_t const *);
 bool G_UnitHasActiveOrder(edict_t const *);
+uint32_t G_CountUnitOrders(edict_t const *, uint32_t);
 void G_PublishIssuedPointOrder(edict_t *, uint32_t, vec2_t const *, uint32_t, cstring_t);
 void G_PublishIssuedImmediateOrder(edict_t *, uint32_t, uint32_t, cstring_t);
 uint32_t G_GetIssuedOrderId(edict_t const *);
