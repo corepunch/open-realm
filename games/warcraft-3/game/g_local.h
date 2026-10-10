@@ -1411,6 +1411,16 @@ typedef struct {
     uint32_t rank;
 } status_application_t;
 
+/* Bounded status storage: capacity is checked before any gameplay side effects.
+ * The existing rawcode-keyed representation does not yet support multiple
+ * independent instances of the same buff from distinct sources. */
+typedef enum {
+    WC3_STATUS_APPLY_INVALID,
+    WC3_STATUS_APPLY_REUSE,
+    WC3_STATUS_APPLY_FREE_SLOT,
+    WC3_STATUS_APPLY_FULL
+} wc3_status_apply_check_t;
+
 typedef struct {
     uint32_t code;       /* normalized AbilityData.code rawcode; zero means unused slot */
     uint32_t start_time; /* authoritative game time in milliseconds */
@@ -3444,6 +3454,7 @@ bool unit_additemtoslot(edict_t *, edict_t *, uint32_t);
 bool unit_additem(edict_t *, edict_t *);
 void unit_addstatus(edict_t *, cstring_t, uint32_t);
 void unit_addtimedstatus(edict_t *, cstring_t, uint32_t, float);
+wc3_status_apply_check_t unit_status_checkapplication(edict_t const *, status_application_t const *);
 heroabilitystatus_t *unit_applystatus(edict_t *, status_application_t const *);
 uint32_t G_UnitStatusLevel(edict_t const *, uint32_t);
 bool unit_statusshowstimedbar(uint32_t);

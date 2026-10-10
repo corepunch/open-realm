@@ -117,3 +117,17 @@ Entangling Roots uses this shared owner instead of managing its TargetArt in
 ability callbacks. Other effects remain independently owned until explicitly
 migrated. Persistent effects are deduplicated by buff and target incarnation;
 per-source multiplicity and looping sounds need separate lifecycle handling.
+
+## Bounded status capacity preflight
+
+`unit_status_checkapplication(unit, &app)` classifies without mutation:
+`INVALID`, `REUSE`, `FREE_SLOT`, or `FULL`. Producers that cannot safely spend
+mana or resources without applying a status should check before committing
+effects, and still check `unit_applystatus()` because capacity can change.
+Same-rawcode applications reuse their slot even when the array is full; a ninth
+distinct rawcode returns `NULL` without evicting an existing status. The legacy
+void wrappers remain available, while explicit callers can handle failure.
+
+Independent same-rawcode instances from different sources remain unsupported.
+Current gameplay queries, HUD and TargetArt deduplicate by rawcode; source
+independence requires changing identity and all associated consumers together.
