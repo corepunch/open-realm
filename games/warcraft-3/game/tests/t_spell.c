@@ -4563,6 +4563,7 @@ TEST(wc3_spell, cripple_and_soul_burn_apply_status_and_read_authored_consumers) 
 	test_execute_code(caster, "Acri", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','i')));
 	T_FEQ(S_CrippleMoveReduction(enemy), 0.5f, 0.001f);
+	T_FEQ(unit_status_modifier_total(enemy, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.5f, 0.001f);
 	T_FEQ(S_CrippleAttackReduction(enemy), 0.4f, 0.001f);
 	T_FEQ(S_CrippleDamageReduction(enemy), 0.3f, 0.001f);
 	test_execute_code(caster, "ANso", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));

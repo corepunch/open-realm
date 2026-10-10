@@ -421,7 +421,8 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
         S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage))));
     damage = (int)((float)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
                                          S_WarDrumsAttackBonus(attacker) + S_RoarDamageBonus(attacker)
-                                         - S_CrippleDamageReduction(attacker) - S_SoulBurnDamageReduction(attacker)));
+                                         + unit_status_modifier_total(attacker, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT)
+                                         - S_SoulBurnDamageReduction(attacker)));
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
     { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
@@ -891,9 +892,9 @@ static float attack_speed_divisor(edict_t *self) {
     float const agi_bonus = game.constants.combatConstantsLoaded
                           ? game.constants.agiAttackSpeedBonus
                           : 0.02f;
-    float total_bonus = (float)self->hero.agi * agi_bonus + S_BloodlustAttackBonus(self)
+    float total_bonus = (float)self->hero.agi * agi_bonus +
+                      unit_status_modifier_total(self, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT)
                       + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
-                      - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self)
                       - S_DefendAttackReduction(self) - S_CreepAttackSpeedReduction(self) - S_SlowAuraAttackReduction(self);
     total_bonus += S_EnduranceAttackBonus(self);
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
