@@ -2446,7 +2446,7 @@ TEST(wc3_save, rejects_version_77_after_cinematic_portrait_format_change) {
     if (!f) return;
     T_ASSERT(LoadBytes(f, &header, sizeof(header)));
     fclose(f);
-    T_EQ(header.version, 78);
+    T_EQ(header.version, save_version);
     T_ASSERT(write_save_fixture_header(filename, previous_filename, 77, header.edict_size));
     T_ASSERT(!G_GetSaveMap(previous_filename, map, sizeof(map)));
     T_ASSERT(!ReadGame(previous_filename));
