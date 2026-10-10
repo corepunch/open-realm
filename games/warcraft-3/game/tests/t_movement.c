@@ -13475,6 +13475,49 @@ TEST(wc3_movement, selected241_public_candidate_order_matches_retail_rows) {
     }
 }
 
+/*687a60 counts queued user command identities as well as the active head. */
+TEST(wc3_movement, selected242_queued_move_identity_survives_save_and_replacement) {
+    reset_entities();setup_test_world();
+    uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+    edict_t *clent=alloc_test_unit(0,0,0),*units[2];clent->client=game.clients;clent->client->ps.number=0;
+    clent->client->menu.order_alt=false;clent->client->menu.order_queued=false;
+    FOR_LOOP(i,2) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),512+96*i,512);
+        units[i]->collision=16;units[i]->s.model=1;units[i]->svflags|=SVF_MONSTER;
+        units[i]->stand=unit_stand;units[i]->movetype=MOVETYPE_STEP;unit_stand(units[i]);
+        G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+        T_ASSERT(unit_issueorder(units[i],"move",&(vec2_t){3500,3500}));
+    }
+    clent->client->menu.order_queued=true;T_ASSERT(move_selectlocation(clent,&(vec2_t){1536,1536}));
+    FOR_LOOP(i,2) {
+        T_EQ(units[i]->order_queue.count,1);
+        T_EQ(G_CountUnitOrders(units[i],0),2);T_EQ(G_CountUnitOrders(units[i],G_OrderId("move")),2);
+        unitOrder_t const *pending=units[i]->order_queue.entries+units[i]->order_queue.head;
+        T_EQ(pending->order_id,G_OrderId("move"));
+        T_ASSERT(G_IssueUnitPointOrder(units[i],"patrol",&(vec2_t){2048,2048},true,0,0));
+        T_EQ(G_CountUnitOrders(units[i],0),3);T_EQ(G_CountUnitOrders(units[i],G_OrderId("move")),2);
+        T_EQ(G_CountUnitOrders(units[i],G_OrderId("patrol")),1);
+    }
+    cstring_t save=Test_TempPath("wc3-selected242.bin");T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+    FOR_LOOP(i,2) {
+        T_EQ(G_CountUnitOrders(units[i],0),3);T_EQ(G_CountUnitOrders(units[i],G_OrderId("move")),2);
+        T_EQ(G_CountUnitOrders(units[i],G_OrderId("patrol")),1);
+    }
+    /* Direct ability-owned entries retain the existing optional-ID encoding. */
+    FOR_LOOP(i,2) {
+        units[i]->order_queue.entries[units[i]->order_queue.head].order_id=0;
+        T_EQ(G_CountUnitOrders(units[i],G_OrderId("move")),2);
+    }
+    /* Connection/selection presentation is rebuilt after cold game load. */
+    clent->client=game.clients;clent->client->ps.number=0;
+    FOR_LOOP(i,2)G_SetEntitySelectionMask(units[i],1);
+    clent->client->menu.order_alt=false;
+    clent->client->menu.order_queued=false;T_ASSERT(move_selectlocation(clent,&(vec2_t){2048,512}));
+    FOR_LOOP(i,2) {T_EQ(units[i]->order_queue.count,0);T_EQ(G_CountUnitOrders(units[i],0),1);T_EQ(G_CountUnitOrders(units[i],G_OrderId("move")),1);}
+    remove(save);reset_entities();setup_test_world();
+}
+
 TEST(wc3_movement, selected239_singleton_clears_player_request_history) {
     FOR_LOOP(queued,2)FOR_LOOP(alt,2) {
         reset_entities();setup_test_world();

@@ -719,3 +719,57 @@ checks. Fresh strict reports accept unchanged238/239/240 plus241 against the fin
 modules. The staged corpus has196 executable contracts and477 entries; its fixture
 inventory passes. Only this validation paragraph and corresponding corpus hashes
 were updated after those strict runs.
+
+## Pending user heads retain their matching identities (Payoff242)
+
+`Unit_CountMatchingUserOrders` (`687a60`) counts pending commands as well as the
+active head. Two new read-only selected Shift/replacement captures each retain82
+complete public markers. Four units initially have one Move head. The first actual
+UI packet has flags9 (Shift), and each candidate's row1/row2 is1/1. Before the next
+flags8 replacement packet, every candidate has2/2: its current Move and pending
+Move. Unit1b4 agrees with row2. All24 ordered candidate pairs execute through the
+original comparator. Input delivery clocks and numerical scores differ across the
+two captures; each complete packet is frozen independently. There is no new
+observer-free control or complete-trajectory claim.
+
+The engine's queue admission had retained zero in `unitOrder_t.order_id` for
+ordinary pending commands. The241 priority query consequently counted only the
+current head when matching Move. `G_QueueUnitOrder` now resolves the public ID once
+when an ordinary command enters the FIFO, while preserving explicit payloads
+such as construction rawcodes and private order aliases. Direct ability-owned
+entries may still use the existing optional zero-ID representation; the query
+resolves their retained name. Ordinary pending entries therefore require only an
+integer comparison during subsequent queries. The all-head query now uses the
+cached ring count and current-head predicate in O(1), rather than walking the FIFO.
+Matching-head queries are O(queue length), within the verified bounded selection
+producer; there is no whole-entity or whole-cohort scan.
+
+The production regression issues an immediate Move, selects two units, appends a
+real Shift Move, queues Patrol, saves/loads, checks optional-ID entries and replaces
+the commands through UI Move. The valid pre-fix run fails12/34 assertions; the
+expanded check passes36/36. An earlier scratch run also dereferenced its synthetic
+client connection after cold load; its core is retained as a rejected fixture
+failure. Rebinding that connection/selection before the final UI operation fixes
+the harness without changing saved authoritative state.
+
+Focused Classic/TFT queue, interruption, nested callback and score regressions
+pass49 tests/15,843 assertions per edition. Nine evidence-mutation checks pass.
+Five Ghidra function bodies/xrefs and595 instruction encodings accompany saved
+comments and MapPathfinding.java updates. The network and save layouts are
+unchanged; zero remains a supported optional identity representation. ORDER-02.2
+and02.3 retain broader internal-task/control ownership work; no task is closed by
+this narrower fix. This is implementation4/12 after checkpoint238.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work242.py \
+  --binary /path/to/retail/game.dll --report /tmp/work242-fresh.json
+```
+
+Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-02.2/payoff242/`.
+
+The neighboring selected suite passes24 tests/84,543 assertions per Classic/TFT.
+Final research checks pass159 tests plus37 corpus checks. Fresh strict241/242
+reports pass against the final modules, and the staged197-contract/478-entry
+fixture inventory passes. Only this paragraph and its corpus hashes were updated
+after those strict runs.

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "196 executable original/evidence contracts;477 total entries.",
+  "scope": "197 executable original/evidence contracts;478 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -50290,6 +50290,60 @@
         "Native canonical IDs are captured. Engine final tie uses entity allocation order; identity reuse equivalence and out-of-domain nontransitive signed-wrap sorting are not certified.",
         "Captured poses supply numerical score fixtures; this does not certify complete scene construction or the entire mixed trajectory."
       ]
+    },
+    {
+      "id": "oracle-work242",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work242.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work242.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "public_markers": {
+          "equal": 164
+        },
+        "public_packets": {
+          "equal": 4
+        },
+        "public_comparisons": {
+          "equal": 24
+        },
+        "instructions": {
+          "equal": 595
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "ORDER-02.2 pending user identities: repeated actual Shift/replacement matching-head counts, native candidate comparisons and engine queue/Patrol/save/optional-ID/replacement integration. Broader queue control ownership remains open.",
+      "exclusions": [
+        "Two actual UI Shift/replacement repeats certify pending Move identity counts1->2 in four-unit selections; no new observer-free control.",
+        "The repeats have distinct actual input clocks and scores; preserve each independently, not as word-identical movement trajectories.",
+        "Numerical score arithmetic and complete native comparator priorities are certified separately by241; this chunk re-executes native comparisons for captured queued rows.",
+        "Explicit construction/rawcode/private payloads and optional zero-ID ability FIFO entries keep their representation; the save/network layouts are unchanged.",
+        "Broader internal-task versus user-queue control ownership remains ORDER-02.2/02.3; no leaf closure or full replacement claim."
+      ]
     }
   ],
   "fixtures": [
@@ -51188,7 +51242,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "b609a265a4003f94e83db8c14c6faa452c48e62bafb3688141a5c60f3ece36b5"
+      "sha256": "2672271600b32508f6f3386f5396e70315024e5d26b5f4e2d3e977c1badfd8bd"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -52488,7 +52542,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "c0ecdba4e6311419a4ef14cb4da5cc719f08f009c5096433c219ae88e3570c70"
+      "sha256": "25fd3f27a0a8978b40906cacf24b50e7510b194d6f40b4b5975b9aceb8be1e47"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -52736,7 +52790,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "00516e91d2e2c0d2669f61ebac5fbd68b08df1db1b801cb4203c8663959d6280"
+      "sha256": "d4055ab82c26924a361ff359ea5981015ba04df941632a1fef21f013fb059a6f"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -52980,7 +53034,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "dc0597fb6a2dd99270515e8fbe7b559b7fbfac146285df690afa86cb51a8ce59"
+      "sha256": "96c0840b765a9813e5e377a45a0e2566b008221f291673e6e2d7f46fe0835d91"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52996,7 +53050,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "1b7e97478816361e186c42da0ca291a555f8e4e874fbdbb14819cc9d3f0a193b"
+      "sha256": "a85fc9fc30aefd03b6b163d5a40ae768c0f08b69cde899d998f4918fdfdab140"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -53944,7 +53998,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "a80e78333c072909db67aacacb3e780b6c4f40673499f7a34ca0faff295211a9"
+      "sha256": "7229ae43a6285584ca348fefe673606645d44edb1c2700eca00992db4bd7ece7"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -55940,7 +55994,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-queued-cohorts.md",
-      "sha256": "86619b964e9d194de8d5e977751609813064067764bc1b1c35d5dcb4912bc86b"
+      "sha256": "e44675dbb8803db59f632b0cf1afe8439d576bb225a368f8c56620f84e95c19d"
     },
     {
       "path": "tools/frida/research/work232_observer.js",
@@ -56301,6 +56355,34 @@
     {
       "path": "tools/frida/research/work241_observer.js",
       "sha256": "db50323847825e986a431cd93457d4b6781c2866bf0e0df47a67e46484866ddd"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work242.py",
+      "sha256": "b43870a85058520f4001764a727295bbc008d596ab741491eb00587188e55fc0"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work242.py",
+      "sha256": "2e947072a1b6e6d5f1df6960bb2d5514ea048ce64fe0ef539412eb071c366c32"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work242-1.27.json",
+      "sha256": "990291fa2ad9ca410a2a0a1b5298ad189641e580470ec71754214aa2e841cb98"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work242-1.27.json.gz",
+      "sha256": "c2554cb1c6e4ad0d42aa7e5d0b37968ff91715e0bbb749aa8c79340904fe3bfb"
+    },
+    {
+      "path": "tools/ghidra/research/Work242Evidence.java",
+      "sha256": "92a9d29f3ae9b67e1d6c1894f13d1db9d0795c6c8eab29af4d054725dcd30987"
+    },
+    {
+      "path": "tools/frida/research/work242_probe.j",
+      "sha256": "6789f6403a66c717b93260ae32d5fe5311c62ad472c62102fe49bbbc7651ed65"
+    },
+    {
+      "path": "tools/frida/research/work242_make_map.py",
+      "sha256": "8367af2daf678156c6c7def5067bc12c872ff9e34b29478522130ce529ac3b7b"
     }
   ]
 }

@@ -799,7 +799,7 @@ typedef struct {
     uint32_t target_spawn_time;
     bool target_is_unit; /* Captured class survives removal and slot reuse. */
     uint32_t issuer_player;
-    uint32_t order_id; /* rawcode payload for delayed orders such as construction */
+    uint32_t order_id; /* Retained identity/explicit payload (Build rawcode); zero resolves order name. */
     float group_speed;
     uint32_t owner_context; /* Owning ability interprets this retained queue payload. */
 } unitOrder_t;

@@ -798,9 +798,13 @@ uint32_t G_CountUnitOrders(edict_t const *self,uint32_t order) {
     if(!G_IsDeferredFree(self) && !self->construction_held && self->current_order_id &&
        (!order || self->current_order_id==order))count++;
     unitOrderQueue_t const *queue=&self->order_queue;
+    if(!order)return count+queue->count;
     FOR_LOOP(i,queue->count) {
         unitOrder_t const *entry=queue->entries+(queue->head+i)%queue->capacity;
-        if(!order || entry->order_id==order)count++;
+        /* Direct ability-owned FIFO entries may retain the optional zero ID.
+         * Ordinary user admission resolves it once, before entering the ring. */
+        uint32_t id=entry->order_id ? entry->order_id : unit_order_event_id(entry->order);
+        if(id==order)count++;
     }
     return count;
 }
@@ -826,7 +830,7 @@ bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t targ
     uint32_t limit=MAX_UNIT_ORDER_QUEUE+(G_IsDeferredFree(self) || self->construction_held || !G_UnitHasActiveOrder(self));
     if(self->order_queue.count>=limit)return false;
     unitOrder_t queued={.target_type=target_type,.issuer_player=issuer_player,
-                        .order_id=order_id,.group_speed=group_speed};
+                        .order_id=order_id ? order_id : unit_order_event_id(order),.group_speed=group_speed};
     snprintf(queued.order,sizeof(queued.order),"%s",order);
     if (point) queued.point=*point;
     else if(target)queued.point=target->s.origin2;

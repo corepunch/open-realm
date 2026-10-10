@@ -56,6 +56,13 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **279 done / 336 tasks; 57 remaining.**
+Payoff242 fixes missing pending-command identities in selected priority counts:
+ordinary queue admission resolves IDs once, optional payloads remain supported,
+and total-head counting is constant time. Repeated actual Shift/replacement
+retail rows and failing-first queue/Patrol/save regressions accompany the fix.
+ORDER-02.2/02.3 retain broader control ownership work. See
+[pending user identities](retail-pathfinding-queued-cohorts.md#pending-user-heads-retain-their-matching-identities-payoff242).
+
 Payoff241 integrates retail selected admission priorities while retaining canonical
 attachment membership.198 original comparator pairs, six actual UI packets and
 failing-first callback/publication regressions accompany exact point-score and
