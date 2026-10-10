@@ -3605,7 +3605,14 @@ void S_UnitAbilityMoveLeave(edict_t *, abilityProc_t);
 void S_UnitAbilityMoveChanged(edict_t *, abilityProc_t);
 bool S_UnitAbilityOrderAccepted(edict_t *, cstring_t);
 abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *, cstring_t, edict_t *);
-bool S_UnitQueuedOrderEvent(edict_t *, unitOrder_t const *, abilityMsg_t);
+/* A callback may install the successor itself. Consuming that queue head must
+ * not send the displaced order's accepted notification to the successor. */
+typedef enum {
+    QUEUED_ORDER_UNHANDLED,
+    QUEUED_ORDER_STARTED,
+    QUEUED_ORDER_REPLACED
+} queuedOrderResult_t;
+queuedOrderResult_t S_UnitQueuedOrderEvent(edict_t *, unitOrder_t const *, abilityMsg_t);
 bool S_UnitTargetAbilityOrder(edict_t *, edict_t *, cstring_t);
 bool S_UnitProjectileHit(edict_t *);
 ability_t const *FindAbilityByOrder(cstring_t);

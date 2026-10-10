@@ -1698,13 +1698,16 @@ TEST(wc3_model, cliff_water_bridge_fixture_matches_all_retail_support_lanes) {
     static animation_t const stand={.interval={133,1333},.radius=646.2139892578125f,
         .min={-311.3429870605469f,-512.9569702148438f,-134.29400634765625f},
         .max={310.8680114746094f,511.1050109863281f,446.9490051269531f}};
-    struct {uint16_t width,height; color32_t map[32*18];} texture={.width=32,.height=18};
-    FOR_LOOP(y,18)FOR_LOOP(x,32)texture.map[y*32+x]=(color32_t){.b=y<2||y>=16?255:0,.a=255};
+    /*21e790 transposes archive pixels into footprint coordinates. Use the
+     * file-backed input so this fixture shares the actual loader contract. */
+    pathTex_t *texture=M_LoadPathTex("PathTextures\\CityBridgeLarge0.tga");
+    T_NOT_NULL(texture);T_EQ(texture->width,18);T_EQ(texture->height,32);
     edict_t *bridge=G_Spawn();bridge->class_id=MAKEFOURCC('L','T','0','6');bridge->data.DestructableData=&row;
     bridge->destructable=G_AllocDestructable();bridge->destructable->placement_solid=true;
-    bridge->pathtex=bridge->destructable->alive_pathtex=(pathTex_t*)&texture;
+    bridge->pathtex=bridge->destructable->alive_pathtex=texture;
     bridge->s.model=index;bridge->s.scale=1;bridge->s.origin=(vec3_t){1024,640,-192};
     bridge->animation=(animation_t*)&stand;G_ApplyDestructableCreationPose(bridge);G_RegisterGroundSurface(bridge);
+    T_EQ(bridge->s.origin.x,1024);T_EQ(bridge->s.origin.y,672);
     CM_BakeStaticObstacles();G_FinishMovePathingInitialization();
     FOR_LOOP(y,64)FOR_LOOP(x,64)T_EQ(G_TestMoveTerrainByte(x,y),walkmesh229_terrain[y*64+x]);
     FOR_LOOP(i,sizeof(walkmesh229_support)/sizeof(*walkmesh229_support)) {
@@ -1721,6 +1724,6 @@ TEST(wc3_model, cliff_water_bridge_fixture_matches_all_retail_support_lanes) {
     }
     G_SetSLKRows("WaterData",saved_water);free_slk_rows(water);
     Stb_IniCacheFree(&game.config.misc);game.config.misc=saved_misc;
-    G_FreeModels();reset_entities();setup_test_world();
+    G_FreeModels();reset_entities();setup_test_world();gi.MemFree(texture);
 }
 #endif

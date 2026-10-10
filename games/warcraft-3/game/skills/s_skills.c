@@ -1597,7 +1597,7 @@ bool S_UnitAbilityOrderAccepted(edict_t *ent, cstring_t order) {
 
 /* Queued work is returned to the procedure that owns its order. The stored
  * order_id remains the concrete rawcode payload for that ability. */
-bool S_UnitQueuedOrderEvent(edict_t *ent, unitOrder_t const *queued, abilityMsg_t msg) {
+queuedOrderResult_t S_UnitQueuedOrderEvent(edict_t *ent, unitOrder_t const *queued, abilityMsg_t msg) {
     ability_t const *ability;
     abilityitem_t item;
     abilityCall_t call;
@@ -1611,7 +1611,7 @@ bool S_UnitQueuedOrderEvent(edict_t *ent, unitOrder_t const *queued, abilityMsg_
     if (!ability || !ability->proc) return false;
     item = MAKE(abilityitem_t, .code = queued->order_id, .ability = ability);
     call = MAKE(abilityCall_t, .item = &item, .queued_order = queued);
-    return S_AbilityMessage(ent, msg, &call) != 0;
+    return (queuedOrderResult_t)S_AbilityMessage(ent, msg, &call);
 }
 
 static bool unit_target_ability_try(edict_t *target, edict_t *issuer, cstring_t order, uint32_t code,

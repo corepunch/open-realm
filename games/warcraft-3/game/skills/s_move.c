@@ -4889,7 +4889,6 @@ static bool move_queue_group_candidate(groupPointOrder_t const *request,uint32_t
         G_UnitStartNextQueuedOrder(unit);
         move_group_admission=previous;
     }
-    G_PublishIssuedPointOrder(unit,request->order_id,request->point,request->issuer_player,request->order);
     if(prepared) {
         if(!active && unit->currentmove==&move_move_walk && !move_unit_group(unit))move_request_ready(prepared,unit);
         else move_request_drop(prepared,unit);
@@ -5076,9 +5075,28 @@ static bool move_queued_cohort_candidate(void *data,edict_t *other) {
     return false;
 }
 
-static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
-    if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return false;
-    S_IssueMoveOrder(unit,Waypoint_add(&queued->point),G_OrderId(queued->order));
+static queuedOrderResult_t move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
+    if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return QUEUED_ORDER_UNHANDLED;
+    uint32_t spawn=unit->spawn_time,group=unit->movement.group_id;
+    umove_t const *previous_move=unit->currentmove;
+    edict_t *previous_goal=unit->goalentity;
+    unit->current_order_id=queued->order_id;
+    /*67abe0 publishes the user head before constructing its internal task.
+     * A nested command cannot borrow the outer packet's prepared request. */
+    typeof(move_group_admission) admission=move_group_admission;
+    move_group_admission=(typeof(move_group_admission)){0};
+    G_PublishIssuedPointOrder(unit,queued->order_id,&queued->point,queued->issuer_player,queued->order);
+    move_group_admission=admission;
+    if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit) || M_IsDead(unit))
+        return QUEUED_ORDER_REPLACED;
+    if(G_UnitHasActiveOrder(unit) && (unit->currentmove!=previous_move ||
+            unit->goalentity!=previous_goal || unit->movement.group_id!=group))
+        return QUEUED_ORDER_REPLACED;
+    /* An instantaneous Stop leaves no internal task. Retail resumes the outer
+     * Move task even though Stop has already retired its public user head. */
+    uint32_t head=unit->current_order_id;
+    S_IssueMoveOrder(unit,Waypoint_add(&queued->point),queued->order_id);
+    unit->current_order_id=head;
     if (unit->currentmove!=&move_move_walk || !unit->goalentity) return false;
     movePointRequest_t *prepared=move_group_admission.unit==unit &&
         move_group_admission.queued_context==queued->owner_context &&

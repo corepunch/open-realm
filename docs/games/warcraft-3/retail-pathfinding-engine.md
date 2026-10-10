@@ -15974,3 +15974,67 @@ and `GROUP-04.6/payoff249/` in the research archive. Six Ghidra annotations and
 Full captain/target-region scope coverage, arbitrary notification reentrancy and
 the known busy issued-event chronology gap remain open. This chunk does not
 claim whole-engine fidelity or achievement of the performance budget.
+
+## Queued point events precede internal task construction (Payoff250)
+
+Selected Shift Move now publishes its issued-point event when the queued user
+head activates. Appending behind an existing task leaves the old head, task and
+physical cohort intact and sends no issued event. Idle selected recipients
+activate immediately. At activation, callbacks see the new public Move head
+before Move creates its point task or searches for a previous cohort.
+
+Retail `693490` appends the user order and only notifies an existing internal
+task. With no internal task it enters `67abe0`, which delivers `67c230` first,
+then queries the internal head before dispatching the ability-owned order.
+The ordering is therefore a task-ownership contract, rather than a delayed
+notification after movement setup. Move temporarily suspends its outer prepared
+admission context during synchronous callbacks. A nested same-point Move obtains
+its own physical owner instead of inheriting the outer Alt request. A callback
+that installs a successor consumes the displaced head without sending that old
+order's accepted notification to the successor.
+
+An instantaneous Stop is different: it completes inside the callback and leaves
+no internal task. Retail then resumes construction of the outer point task even
+though Stop has retired the public head. The engine preserves that zero public
+head while constructing the Move task. Treating every changed current-order ID
+as task cancellation would contradict the original dispatcher and live witness.
+
+Two normal and two callback-mutation captures use the same frozen Work235b
+geometry and actual Alt+Shift point input. Each normal capture issues units
+`[0,3,1,2,0]`; the busy source appends at tick29 and issues only at tick81. The
+callback variant issues `[0,3,3,1,2,0]`: unit3's nested same-point Move constructs
+exactly one task with an ordinary request; unit0's Stop finishes before the
+outer task and cold cohort search run. The read-only observer records public
+and internal head identities, queue counts, cohort bindings and function-entry
+chronology. All994 public markers and47/61 normalized event boundaries repeat.
+Five Ghidra annotations and1334 original instructions are saved and mapped.
+
+`wc3_movement.queued250*` reproduces delayed activation through actual movement,
+a pending save/load, a real JASS same-point replacement and a synchronous Stop.
+Its homogeneous Footman fixture has a different candidate comparator order
+from the mixed-class retail map; the regression compares activation ownership,
+not an invented identical trajectory. The previous Work248 engine-only assertion
+of four notifications at enqueue is corrected to three: its own evidence had
+explicitly excluded busy FIFO timing. The Work243 direct-producer callback counter is corrected for the same reason:
+its busy head appends silently, three idle callbacks run, and the last callback
+replaces that busy head before it activates. Its physical ownership assertions
+remain intact. **No frozen retail expectation is changed.**
+Save layout163 is unchanged; no new persistent state is needed.
+
+The full batch checkpoint also exposed two older support setups bypassing the
+[transposed footprint loader](#file-backed-footprints-preserve-retail-axes-and-categories-payoff244).
+They supplied raw32×18 image dimensions where the engine now requires an18×32
+footprint. That snapped the bridge to `(1056,640)` instead of retail `(1024,672)`,
+changing deck heights and the initialized flyer field. Both tests now load the
+existing `CityBridgeLarge0.tga` archive fixture through production `M_LoadPathTex`.
+All frozen terrain, mesh, support-height and flyer-grid words remain unchanged;
+new assertions check the decoded dimensions and snapped pose. This repairs the
+input setup using saved retail evidence rather than relaxing valid expectations.
+
+Evidence is in `tools/ghidra/fixtures/retail-work250-1.27.json(.gz)` and
+`tools/ghidra/verify_wc3_pathing_work250.py`; run the fresh `oracle-work250` corpus
+entry against the identified retail executable. Raw captures, probes and maps
+are archived under `research/ORDER-02.2/payoff250/`. These are read-only hooked
+repeats; no fresh unhooked live control or whole movement parity is claimed.
+Ordinary per-unit queue event timing, other command owners and remaining queue
+controls stay under ORDER-02.2/02.3; wider canonical ownership stays GROUP-04.6.

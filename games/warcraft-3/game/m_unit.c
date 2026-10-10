@@ -1198,8 +1198,9 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
     if (!self || M_IsDead(self) || (G_IsDeferredFree(self) || self->construction_held) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
         if (queued.owner_context) {
-            if (S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START)) {
-                S_UnitAbilityOrderAccepted(self,queued.order);
+            queuedOrderResult_t result=S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START);
+            if (result!=QUEUED_ORDER_UNHANDLED) {
+                if(result==QUEUED_ORDER_STARTED)S_UnitAbilityOrderAccepted(self,queued.order);
                 return true;
             }
             continue;
@@ -1212,8 +1213,9 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
         } else if (queued.target_type == UNIT_ORDER_TARGET_ENTITY) {
             /* Resolve ability-specific fallback before generic lifetime
              * rejection: Move retains a point even after its target is gone. */
-            if (S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START)) {
-                S_UnitAbilityOrderAccepted(self,queued.order);
+            queuedOrderResult_t result=S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START);
+            if (result!=QUEUED_ORDER_UNHANDLED) {
+                if(result==QUEUED_ORDER_STARTED)S_UnitAbilityOrderAccepted(self,queued.order);
                 return true;
             }
             edict_t *target;

@@ -9039,7 +9039,6 @@ TEST(wc3_movement, fly_height_is_added_to_support_surface) {
 TEST(wc3_support, flyer_field_preserves_retail_cliff_water_and_destructable_sources) {
     static UnitData_t const fly_data = { .moveTypeName = "fly", .moveHeight = 360.0f };
     static DestructableData_t const bridge_data = { .walkable = true, .flyHeight = 256.0f, .fixedRot = 90 };
-    static struct { uint16_t width, height; color32_t map[18*32]; } bridge_path = { .width = 32, .height = 18 };
     static struct { float x, y, z; } const points[] = {
         {640,1856,360}, {1408,1856,488}, {256,192,391.5f},
         {448,192,428.243f}, {576,192,438.729f}, {1024,192,415.944f},
@@ -9068,10 +9067,14 @@ TEST(wc3_support, flyer_field_preserves_retail_cliff_water_and_destructable_sour
     edict_t *bridge = G_Spawn();
     bridge->class_id = MAKEFOURCC('L','T','0','6'); bridge->data.DestructableData = &bridge_data;
     bridge->destructable = G_AllocDestructable(); bridge->destructable->placement_solid = true;
-    bridge->pathtex = (pathTex_t *)&bridge_path; bridge->s.origin = (vec3_t){1024,640,0};
+    /* Use the loader's transposed footprint, as in the frozen retail map. */
+    pathTex_t *bridge_path=M_LoadPathTex("PathTextures\\CityBridgeLarge0.tga");
+    T_NOT_NULL(bridge_path);T_EQ(bridge_path->width,18);T_EQ(bridge_path->height,32);
+    bridge->pathtex = bridge_path; bridge->s.origin = (vec3_t){1024,640,0};
     bridge->destructable->alive_pathtex = bridge->pathtex;
     bridge->s.scale = 1; bridge->s.angle = (float)M_PI/2; bridge->targtype = TARG_BRIDGE;
     G_ApplyDestructableCreationPose(bridge);
+    T_EQ(bridge->s.origin.x,1024);T_EQ(bridge->s.origin.y,672);
     G_RegisterGroundSurface(bridge);
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','g','r','y'),0,0); unit->data.UnitData = &fly_data;
     unit->aiflags |= AI_FLYING; unit->unitinfo.FlyHeight = 360;
@@ -9107,7 +9110,7 @@ TEST(wc3_support, flyer_field_preserves_retail_cliff_water_and_destructable_sour
     T_EQ(fread(before,sizeof(uint32_t),64,field),64);
     FOR_LOOP(i,64) T_EQ(before[i],flight228_map[i]);
     fclose(field);
-    G_FreeEdict(unit); G_FreeEdict(bridge);
+    G_FreeEdict(unit); G_FreeEdict(bridge);gi.MemFree(bridge_path);
     cstring_t filename = Test_TempPath("flight228.sav");
     T_ASSERT(WriteGame(filename)); S_ClearFlightSupport();
     T_ASSERT(ReadGame(filename));
@@ -13565,7 +13568,10 @@ TEST(wc3_movement, selected243_nested_shift_preserves_outer_ready_rows) {
         vec2_t goal={1536,1536};groupPointOrder_t request={.count=4,.order_id=G_OrderId("move"),.order="move",.point=&goal,.formation_toggle=true,.queued=true};
         FOR_LOOP(i,4)request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
         T_ASSERT(G_IssueGroupPointOrder(&request));
-        FOR_LOOP(i,4)T_EQ(units[i]->user_data,i==0 ? 5 : i+1);
+        /* Work250: this direct producer retains candidate order. Busy a appends
+         * silently; idle b,c,d issue1,2,3, then d replaces a with event4.
+         * Work243 certified readiness, explicitly excluding busy event timing. */
+        FOR_LOOP(i,4)T_EQ(units[i]->user_data,i==0 ? 4 : i);
         T_EQ(move_unit_group(units[1]),move_unit_group(units[2]));
         T_NE(move_unit_group(units[0]),move_unit_group(units[1]));
         moveGroup_t *nested=move_unit_group(units[0]);T_NOT_NULL(nested);
@@ -22464,7 +22470,7 @@ TEST(wc3_movement, request248_pending_attachments_are_not_physical_members) {
     client->client->menu.order_queued=client->client->menu.order_alt=true;
     G_TestIssuedPointObserver(request248_issued);
     T_ASSERT(move_selectlocation(client,&(vec2_t){1536,1536}));
-    G_TestIssuedPointObserver(NULL);T_EQ(request248.visits,4);
+    G_TestIssuedPointObserver(NULL);T_EQ(request248.visits,3);
     FOR_LOOP(i,4)T_NOT_NULL(move_unit_group(request248.units[i]));
     T_EQ(move_unit_group(request248.units[0]),request248.busy);
     T_NE(move_unit_group(request248.units[1]),move_unit_group(request248.units[2]));
@@ -22577,6 +22583,82 @@ TEST(wc3_movement, queued249_pending_source_preserves_inherited_owners_and_scope
         move_group_prepare_members(queued249.old);T_EQ(queued249.old->count,0);
         level.pathing_clock=clock;
     }
+    reset_entities();setup_test_world();
+}
+
+
+/* Work250: normal repeats issue [0,3,1,2,0], with the busy source's
+ * second event only at head activation, before point-task/cohort construction.
+ * Work250b reenters with a same-point Move and an instantaneous Stop. */
+static struct {edict_t *units[4];unsigned visits,sequence[8];} queued250;
+static void queued250_issued(edict_t *unit) {
+    unsigned index=4;
+    FOR_LOOP(i,4)if(unit==queued250.units[i])index=i;
+    T_ASSERT(index<4);T_ASSERT(queued250.visits<8);
+    if(queued250.visits<8)queued250.sequence[queued250.visits]=index;
+    queued250.visits++;
+    T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_NULL(move_unit_group(unit));
+}
+static edict_t *queued250_setup(void) {
+    reset_entities();setup_test_world();queued250=(typeof(queued250)){0};
+    uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+    edict_t *client=alloc_test_unit(0,0,0);client->client=game.clients;client->client->ps.number=0;
+    FOR_LOOP(i,4) {
+        edict_t *unit=queued250.units[i]=cohort232_unit(512+96*(i&1),512+288*(i/2));
+        unit->user_data=i;G_SetEntitySelectionMask(unit,1);
+    }
+    T_ASSERT(unit_issueorder(queued250.units[0],"move",&(vec2_t){2000,1500}));
+    client->client->menu.order_queued=client->client->menu.order_alt=true;
+    return client;
+}
+TEST(wc3_movement, queued250_issued_event_waits_for_head_activation_and_survives_save) {
+    FOR_LOOP(saved,2) {
+        edict_t *client=queued250_setup();
+        G_TestIssuedPointObserver(queued250_issued);
+        T_ASSERT(move_selectlocation(client,&(vec2_t){1536,1536}));
+        T_EQ(queued250.visits,3);T_EQ(queued250.units[0]->order_queue.count,1);
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-queued250.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        }
+        for(unsigned i=0;i<5000 && queued250.visits<4;i++)target166_tick();
+        G_TestIssuedPointObserver(NULL);
+        /* This homogeneous fixture has a different comparator order from the
+         * mixed-class retail map; only head/event/task boundaries are compared. */
+        unsigned const expected[]={3,2,1,0};T_EQ(queued250.visits,4);
+        FOR_LOOP(i,4)T_EQ(queued250.sequence[i],expected[i]);
+        T_EQ(queued250.units[0]->order_queue.count,0);T_NOT_NULL(move_unit_group(queued250.units[0]));
+        reset_entities();setup_test_world();
+    }
+}
+TEST(wc3_movement, queued250_nested_same_point_move_owns_its_task_stop_leaves_no_user_head) {
+    edict_t *client=queued250_setup();
+    T_ASSERT(run_test_jass("globals\nboolean redirected=false\nboolean stopped=false\ninteger visits=0\nendglobals\n"
+        "function issued takes nothing returns nothing\nlocal unit u=GetTriggerUnit()\n"
+        "set visits=visits+1\n"
+        "call BJassAssert(GetUnitCurrentOrder(u)==OrderId(\"move\"),\"active head before task construction\")\n"
+        "if GetUnitUserData(u)==3 and not redirected then\nset redirected=true\n"
+        "call IssuePointOrder(u,\"move\",GetOrderPointX(),GetOrderPointY())\n"
+        "elseif GetUnitUserData(u)==0 and not stopped then\nset stopped=true\n"
+        "call IssueImmediateOrder(u,\"stop\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(u)==0,\"instant Stop retired\")\nendif\nendfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "call BJassAssert(visits==5 and redirected and stopped,\"one delayed event and one nested event\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+        "call TriggerAddAction(t,function issued)\nendfunction\n"));
+    T_ASSERT(move_selectlocation(client,&(vec2_t){1536,1536}));
+    moveGroup_t *nested=move_unit_group(queued250.units[3]);T_NOT_NULL(nested);
+    if(nested)T_EQ(nested->flags&14u,0); /* Route seed independently sets10000. */
+    T_EQ(queued250.units[0]->order_queue.count,1);
+    for(unsigned i=0;i<5000 && queued250.units[0]->order_queue.count;i++)target166_tick();
+    jass_callbyname(level.vm,"verify",false);
+    T_EQ(queued250.units[0]->current_order_id,0);
+    T_EQ(queued250.units[0]->currentmove,&move_move_walk);
+    T_NOT_NULL(move_unit_group(queued250.units[0]));
+    T_NOT_NULL(queued250.units[0]->goalentity);
     reset_entities();setup_test_world();
 }
 

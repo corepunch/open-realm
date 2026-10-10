@@ -56,6 +56,12 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **280 done / 336 tasks; 56 remaining.**
+Payoff250 moves selected queued point notification to head activation before
+Move task creation. Four read-only retail repeats, saved Ghidra mapping and
+failing-first movement/save/JASS callback regressions cover same-point replacement
+and instant Stop. Existing retail expectations are preserved; previously excluded
+engine-only enqueue counters are corrected. ORDER-02.2/02.3 and
+GROUP-04.6 retain their broader owners/controls. See [activation before tasks](retail-pathfinding-engine.md#queued-point-events-precede-internal-task-construction-payoff250).
 Payoff249 replaces delayed queued physical reconstruction with canonical
 pending attachments and readiness scopes. Inherited owners remain until source
 readiness; old rows retire during normal preparation and survive save/removal.
