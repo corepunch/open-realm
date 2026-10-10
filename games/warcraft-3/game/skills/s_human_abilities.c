@@ -437,55 +437,71 @@ void human_ability_think(edict_t *thinker) {
     }
 }
 
-static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    edict_t *receiver = NULL;
-    heroabilitystatus_t *source_slot = NULL, *destination;
-    heroabilitystatus_t snapshot;
-    status_application_t app;
-    char buff_id[5];
-    uint32_t level = S_SpellLevel(caster, spell->code), now = G_Time();
-    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    if (!st.entity) return;
-    bool take_positive = S_SpellIsEnemy(caster, st.entity);
-    bool take_negative = S_SpellIsFriend(caster, st.entity);
+/* Find a transferable source/recipient pair before committing a Spell Steal cast.
+ * Keep validation and execution on the same eligibility policy. A candidate
+ * with a full array or an already-owned buff must not hide a later candidate. */
+static bool spell_steal_select(edict_t *caster, spellTarget_t st, abilityitem_t const *spell,
+                               heroabilitystatus_t **selected, edict_t **recipient) {
+    uint32_t now, level;
+    float area;
+    bool positive, negative;
+    if (!caster || !spell || st.type != SPELL_TARGET_UNIT || !st.entity ||
+        !S_SpellIsAliveTarget(st.entity) ||
+        !S_SpellAllowsTarget(spell->code, caster, st.entity)) return false;
+    positive = S_SpellIsEnemy(caster, st.entity);
+    negative = S_SpellIsFriend(caster, st.entity);
+    if (!positive && !negative) return false;
+    now = G_Time(); level = S_SpellLevel(caster, spell->code);
+    area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = st.entity->abilstatus + i;
-        bool positive = status->buff_flags & WC3_STATUS_BUFF_POSITIVE;
-        if (unit_status_can_steal(status) && status->timestamp > now &&
-            ((take_positive && positive) || (take_negative && !positive))) {
-            source_slot = status;
-            break;
+        char buff[5];
+        edict_t *receiver = NULL;
+        bool source_positive;
+        if (!unit_status_can_steal(status) || status->timestamp <= now) continue;
+        source_positive = (status->buff_flags & WC3_STATUS_BUFF_POSITIVE) != 0;
+        if (source_positive != positive) continue;
+        memcpy(buff, &status->code, 4); buff[4] = '\0';
+        FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) &&
+                      (positive ? S_SpellIsFriend(caster, unit) : S_SpellIsEnemy(caster, unit)) &&
+                      Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) {
+            if (unit_status_checkapplication(unit, &(status_application_t){
+                .buff = buff, .level = status->level
+            }) == WC3_STATUS_APPLY_FREE_SLOT) { receiver = unit; break; }
         }
+        if (!receiver && positive && caster != st.entity && S_SpellIsAliveTarget(caster) &&
+            unit_status_checkapplication(caster, &(status_application_t){
+                .buff = buff, .level = status->level
+            }) == WC3_STATUS_APPLY_FREE_SLOT) receiver = caster;
+        if (!receiver) continue;
+        if (selected) *selected = status;
+        if (recipient) *recipient = receiver;
+        return true;
     }
-    if (!source_slot) return;
-    /* Skip full or already-buffed recipients instead of abandoning a transfer
-     * when the first eligible nearby unit cannot accept the status. */
-    memcpy(buff_id, &source_slot->code, 4);
-    buff_id[4] = '\0';
-    FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) &&
-                  (take_positive ? S_SpellIsFriend(caster, unit) : S_SpellIsEnemy(caster, unit)) &&
-                  Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) {
-        if (unit_status_checkapplication(unit, &(status_application_t){
-            .buff = buff_id, .level = source_slot->level
-        }) == WC3_STATUS_APPLY_FREE_SLOT) { receiver = unit; break; }
-    }
-    if (!receiver && take_positive && caster != st.entity && S_SpellIsAliveTarget(caster) &&
-        unit_status_checkapplication(caster, &(status_application_t){
-            .buff = buff_id, .level = source_slot->level
-        }) == WC3_STATUS_APPLY_FREE_SLOT) receiver = caster;
-    if (!receiver) return;
-    snapshot = *source_slot;
-    /* The application API requires a terminated string, not a four-byte rawcode. */
-    memcpy(buff_id, &snapshot.code, 4);
-    buff_id[4] = '\0';
-    /* Never replace an existing recipient buff as a side effect of stealing.
-     * Its callbacks and owned effects must remain intact. */
+    return false;
+}
+
+static bool spell_steal_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    return spell_steal_select(caster, st, spell, NULL, NULL);
+}
+
+static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    heroabilitystatus_t *source, *destination;
+    heroabilitystatus_t snapshot;
+    edict_t *receiver;
+    status_application_t app;
+    char buff[5];
+    uint32_t now = G_Time();
+    if (!spell_steal_select(caster, st, spell, &source, &receiver)) return;
+    snapshot = *source;
+    if (snapshot.timestamp <= now) return;
+    memcpy(buff, &snapshot.code, 4); buff[4] = '\0';
+    /* This is an exact, fresh allocation: never replace recipient ownership. */
     if (unit_status_checkapplication(receiver, &(status_application_t){
-        .buff = buff_id, .level = snapshot.level
+        .buff = buff, .level = snapshot.level
     }) != WC3_STATUS_APPLY_FREE_SLOT) return;
-    /* Install before retiring the source: full slots must never destroy the buff. */
-    app = (status_application_t) {
-        .buff = buff_id, .level = snapshot.level,
+    app = (status_application_t){
+        .buff = buff, .level = snapshot.level,
         .duration = (snapshot.timestamp - now) / 1000.0f,
         .source_ability = snapshot.source_ability, .data = snapshot.data,
         .state_mask = snapshot.state_mask, .buff_flags = snapshot.buff_flags,
@@ -493,10 +509,9 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     };
     destination = unit_applystatus(receiver, &app);
     if (!destination) return;
-    /* Only simple opted-in buffs may be transferred; preserve their modifiers. */
     destination->modifier_count = MIN(snapshot.modifier_count, WC3_STATUS_MAX_MODIFIERS);
     memcpy(destination->modifiers, snapshot.modifiers, sizeof(destination->modifiers));
-    unit_removestatus(st.entity, source_slot, STATUS_REMOVE_STEAL);
+    unit_removestatus(st.entity, source, STATUS_REMOVE_STEAL);
 }
 
 /* The message selects the union member: boolean toggles must never be decoded as target pointers. */
@@ -526,7 +541,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityControlMagic, control_magic_validate, control_mag
 /* Name=Magic Defense; Untip=Stop Magic Defense */
 BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense) { human_toggle_execute(caster, st, spell); }
 /* Name=Spell Steal; Untip="Right-click to activate auto-casting." */
-BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, true, spell_steal_execute, false, false)
+BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, spell_steal_validate(ent, target, call ? call->item : NULL), spell_steal_execute, false, false)
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
 BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, human_status_execute)
 /* Name=Defend; Untip=Stop Defend */
