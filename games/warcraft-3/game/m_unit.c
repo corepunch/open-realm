@@ -739,6 +739,11 @@ bool G_GetIssuedOrderPoint(edict_t const *self, vec2_t *point) {
     return true;
 }
 
+#ifdef BZ_TESTS
+static void (*unit_issued_point_observer)(edict_t *);
+void G_TestIssuedPointObserver(void (*observer)(edict_t *)) {unit_issued_point_observer=observer;}
+#endif
+
 void G_PublishIssuedPointOrder(edict_t *self, uint32_t order_id, vec2_t const *point,
                                uint32_t issuer_player, cstring_t debug_order) {
     if (!self || self->s.number >= MAX_ENTITIES || !point) return;
@@ -752,6 +757,9 @@ void G_PublishIssuedPointOrder(edict_t *self, uint32_t order_id, vec2_t const *p
                 (cstring_t)&self->class_id, debug_order ? debug_order : "",
                 (unsigned)order_id, point->x, point->y);
     }
+#ifdef BZ_TESTS
+    if(unit_issued_point_observer)unit_issued_point_observer(self);
+#endif
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
         .edict = self, .type = EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,
         .value = order_id, .point = point }, EVENT_UNIT_ISSUED_POINT_ORDER,true);

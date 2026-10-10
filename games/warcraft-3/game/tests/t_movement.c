@@ -22419,4 +22419,97 @@ TEST(wc3_movement, target246_physical_group_retains_predicted_fine_goal) {
     reset_entities();setup_test_world();
 }
 
+
+/* Observe actual issued-event boundaries without replacing order execution. */
+void G_TestIssuedPointObserver(void (*)(edict_t *));
+static struct {edict_t *units[4];unsigned visits,seen;moveGroup_t *busy;} request248;
+static void request248_issued(edict_t *unit) {
+    unsigned n=request248.visits++;edict_t **u=request248.units;
+    if(n==0)T_EQ(unit,u[3]);
+    if(unit!=u[0]) {
+        T_NULL(move_unit_group(u[3]));
+        FOR_LOOP(i,2) {
+            unsigned k=i+1;
+            if(request248.seen&(1u<<k))T_NOT_NULL(move_unit_group(u[k]));
+            else T_NULL(move_unit_group(u[k]));
+        }
+    }
+    FOR_LOOP(i,4)if(unit==u[i])request248.seen|=1u<<i;
+    T_EQ(move_unit_group(u[0]),request248.busy);
+}
+TEST(wc3_movement, request248_pending_attachments_are_not_physical_members) {
+    reset_entities();setup_test_world();
+    uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+    edict_t *client=alloc_test_unit(0,0,0);client->client=game.clients;client->client->ps.number=0;
+    UnitData_t floating;request248=(typeof(request248)){0};
+    FOR_LOOP(i,4) {
+        edict_t *unit=request248.units[i]=cohort232_unit(512+96*(i&1),512+288*(i/2));
+        if(i==1){floating=*unit->data.UnitData;floating.moveTypeName="float";unit->data.UnitData=&floating;}
+        if(i==2)unit->aiflags|=AI_FLYING;
+        G_SetEntitySelectionMask(unit,1);G_PublishMoveSpatialObject(unit);
+    }
+    T_ASSERT(unit_issueorder(request248.units[0],"move",&(vec2_t){2000,1500}));
+    request248.busy=move_unit_group(request248.units[0]);
+    client->client->menu.order_queued=client->client->menu.order_alt=true;
+    G_TestIssuedPointObserver(request248_issued);
+    T_ASSERT(move_selectlocation(client,&(vec2_t){1536,1536}));
+    G_TestIssuedPointObserver(NULL);T_EQ(request248.visits,4);
+    FOR_LOOP(i,4)T_NOT_NULL(move_unit_group(request248.units[i]));
+    T_EQ(move_unit_group(request248.units[0]),request248.busy);
+    T_NE(move_unit_group(request248.units[1]),move_unit_group(request248.units[2]));
+    T_ASSERT(move_unit_group(request248.units[3])->sequence>move_unit_group(request248.units[2])->sequence);
+    reset_entities();setup_test_world();
+}
+
+
+#include "fixtures/retail_request248.h"
+static struct {unsigned row,event;edict_t *units[3];} scope248;
+static void request248_scope(movePointRequest_t const *request,unsigned stage) {
+    typeof(request248_rows[0].stage[0][0]) const *expected=&request248_rows[scope248.row].stage[scope248.event][stage];
+    T_EQ(request->attached,expected->attached);T_EQ(request->ready,expected->ready);
+    FOR_LOOP(i,3) {
+        wc3RecordObject_t const *object=G_GetMoveSpatialObject(scope248.units[i]-g_edicts);
+        T_NOT_NULL(object);if(object)T_EQ(object->flags,expected->counters[i]);
+    }
+}
+TEST(wc3_movement, request248_native_pending_drop_and_nested_exclusion_depth) {
+    FOR_LOOP(r,sizeof(request248_rows)/sizeof(*request248_rows)) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        vec2_t point={1536,1536};
+        movePointRequest_t request={.id=move_allocate_group_id(),.goal={48,48}};
+        scope248=(typeof(scope248)){.row=r};
+        FOR_LOOP(i,3) {
+            edict_t *unit=scope248.units[i]=cohort232_unit(512+i*96,512);
+            S_IssueMoveOrder(unit,Waypoint_add(&point),G_OrderId("move"));
+            T_NULL(move_unit_group(unit));G_PublishMoveSpatialObject(unit);
+            wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+            T_NOT_NULL(record);if(record)record->flags=request248_rows[r].outer;
+            move_request_attach(&request,unit);move_request_attach(&request,unit);
+        }
+        T_EQ(request.count,3);move_test_request_scope=request248_scope;
+        move_request_ready(&request,scope248.units[1]);T_ASSERT(!request.published);
+        FOR_LOOP(i,3)T_NULL(move_unit_group(scope248.units[i]));
+        scope248.event++;
+        if(request248_rows[r].drop)move_request_drop(&request,scope248.units[2]);
+        else move_request_ready(&request,scope248.units[2]);
+        T_ASSERT(!request.published);FOR_LOOP(i,3)T_NULL(move_unit_group(scope248.units[i]));
+        scope248.event++;move_request_ready(&request,scope248.units[0]);
+        move_test_request_scope=NULL;T_ASSERT(request.published);
+        moveGroup_t *group=move_unit_group(scope248.units[0]);T_NOT_NULL(group);
+        if(group) {
+            T_EQ(group->count,request248_rows[r].drop ? 2 : 3);
+            FOR_LOOP(i,group->count)T_EQ(group->members[i].unit,scope248.units[i]);
+        }
+        if(request248_rows[r].drop)T_NULL(move_unit_group(scope248.units[2]));
+        FOR_LOOP(i,3) {
+            wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),scope248.units[i]-g_edicts);
+            if(record)record->flags=0;
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
 #endif

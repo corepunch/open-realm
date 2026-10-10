@@ -4837,12 +4837,28 @@ acquired:
     return group;
 }
 
-/* The prepared packet is visible only to its current synchronous recipient.
- * Nested packets save/restore this context; later FIFO activation has none. */
+/* Canonical attachments are independent of active physical members. A packet
+ * owns these bounded records across its synchronous admission callbacks; a
+ * delayed FIFO head reconstructs its own request. No pool or path allocation
+ * is required until readiness actually publishes a physical cohort. */
+typedef struct {edict_t *unit;uint32_t spawn;} moveRequestCandidate_t;
+typedef struct {
+    moveRequestCandidate_t candidates[BZ_WC3_GROUP_ORDER_UNITS];
+    uint32_t count,attached,ready,id,flags;
+    vec2_t goal;
+    bool published;
+} movePointRequest_t;
+static void move_request_ready(movePointRequest_t *,edict_t *);
+static void move_request_drop(movePointRequest_t *,edict_t *);
+static void move_request_attach(movePointRequest_t *,edict_t *);
+static int move_request_publish(movePointRequest_t *);
+
+/* Nested packets restore the current recipient; delayed FIFO activation has
+ * none. The record is never retained by an instance, queue entry or save. */
 static struct {
     edict_t *unit;
     vec2_t point;
-    moveGroup_t *queued_group;
+    movePointRequest_t *request;
     uint32_t queued_context;
 } move_group_admission;
 
@@ -4853,7 +4869,7 @@ static moveGroup_t *move_group_create_request(groupPointOrder_t const *request,u
  * request identity independently of queued activation. Each completion can
  * start alone;5faaf0 rebuilds a matching
  * nearby cohort when another member starts the same point. */
-static bool move_queue_group_candidate(groupPointOrder_t const *request,uint32_t i,uint32_t context,moveGroup_t **prepared) {
+static bool move_queue_group_candidate(groupPointOrder_t const *request,uint32_t i,uint32_t context,movePointRequest_t *prepared) {
     edict_t *unit=request->units[i].unit;
     if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit) ||
         M_IsDead(unit) || (unit->aiflags&AI_IMMOBILE) || G_BuildingUpgradeActive(unit) ||
@@ -4866,13 +4882,16 @@ static bool move_queue_group_candidate(groupPointOrder_t const *request,uint32_t
     queue->entries[slot].owner_context=context;
     unit->movement.previous_request_id=context;
     if (!active) {
-        if(prepared && !*prepared)*prepared=move_group_create_request(request,0,NULL,context);
         typeof(move_group_admission) previous=move_group_admission;
-        move_group_admission=(typeof(move_group_admission)){unit,*request->point,prepared ? *prepared : NULL,context};
+        move_group_admission=(typeof(move_group_admission)){unit,*request->point,prepared,context};
         G_UnitStartNextQueuedOrder(unit);
         move_group_admission=previous;
     }
     G_PublishIssuedPointOrder(unit,request->order_id,request->point,request->issuer_player,request->order);
+    if(prepared) {
+        if(!active && unit->currentmove==&move_move_walk && !move_unit_group(unit))move_request_ready(prepared,unit);
+        else move_request_drop(prepared,unit);
+    }
     return true;
 }
 
@@ -5057,17 +5076,11 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return false;
     S_IssueMoveOrder(unit,Waypoint_add(&queued->point),G_OrderId(queued->order));
     if (unit->currentmove!=&move_move_walk || !unit->goalentity) return false;
-    moveGroup_t *prepared=move_group_admission.unit==unit &&
+    movePointRequest_t *prepared=move_group_admission.unit==unit &&
         move_group_admission.queued_context==queued->owner_context &&
         move_group_admission.point.x==queued->point.x && move_group_admission.point.y==queued->point.y ?
-        move_group_admission.queued_group : NULL;
-    if(prepared) {
-        prepared->members[prepared->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
-            .arrival_range=wc3_point_arrival_range(0)};
-        unit->movement.group_id=prepared->id;move_unit_groups[unit-g_edicts]=prepared;
-        if(unit->collision>prepared->radius)prepared->radius=unit->collision;
-        return true;
-    }
+        move_group_admission.request : NULL;
+    if(prepared)return true;
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->request_id=unit->movement.previous_request_id; group->goal=move_point_fine(&queued->point); group->age=UINT32_MAX;
@@ -5120,20 +5133,9 @@ static void move_group_bind_ready(moveGroup_t *group,moveReadyCohort_t *ready,un
     }
 }
 
-static void move_group_publish_ready(moveGroup_t *group) {
-    moveReadyCohort_t ready={.count=group->count};
-    FOR_LOOP(i,group->count) {
-        moveGroupMember_t member=group->members[i];ready.members[i]=member;
-        /* Later ordinary admission callbacks can replace/remove an earlier
-         * candidate. Never reclaim ownership from that callback's new order. */
-        if(member.unit && member.unit->inuse && !G_IsDeferredFree(member.unit) &&
-           member.unit->spawn_time==member.spawn && move_unit_group(member.unit)==group)
-            ready.remaining|=1u<<i;
-    }
-    group->count=0;group->radius=0;
-    if(!ready.remaining){group->ticking=false;move_release_group(group);return;}
-    moveGroup_t *owner=group;
-    FOR_LOOP(i,ready.count)if(ready.remaining&(1u<<i)) {
+static unsigned move_group_partition_ready(moveGroup_t *group,moveReadyCohort_t *ready) {
+    moveGroup_t *owner=group;unsigned count=0;
+    FOR_LOOP(i,ready->count)if(ready->remaining&(1u<<i)) {
         if(owner->count) {
             owner->ticking=false;
             owner=move_alloc_group();owner->inuse=owner->ticking=true;
@@ -5147,9 +5149,24 @@ static void move_group_publish_ready(moveGroup_t *group) {
                 shared->references++;
             }
         }
-        move_group_bind_ready(owner,&ready,i);move_group_seed_route(owner);
+        move_group_bind_ready(owner,ready,i);move_group_seed_route(owner);count++;
     }
-    owner->ticking=false;
+    owner->ticking=false;return count;
+}
+
+static void move_group_publish_ready(moveGroup_t *group) {
+    moveReadyCohort_t ready={.count=group->count};
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t member=group->members[i];ready.members[i]=member;
+        /* Later ordinary admission callbacks can replace/remove an earlier
+         * candidate. Never reclaim ownership from that callback's new order. */
+        if(member.unit && member.unit->inuse && !G_IsDeferredFree(member.unit) &&
+           member.unit->spawn_time==member.spawn && move_unit_group(member.unit)==group)
+            ready.remaining|=1u<<i;
+    }
+    group->count=0;group->radius=0;
+    if(!ready.remaining){group->ticking=false;move_release_group(group);return;}
+    move_group_partition_ready(group,&ready);
 }
 
 static moveGroup_t *move_group_create_request(groupPointOrder_t const *request,uint64_t shared_id,
@@ -5209,20 +5226,6 @@ static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t s
     return any;
 }
 
-/* Prepared canonical classes become physical owners when their final candidate
- * is ready, not in class allocation order. Keep the existing stable owner slot
- * and publish its newest-first visit rank in O(1), without another allocation. */
-static void move_group_publish_sequence(moveGroup_t *group) {
-    if(level.next_move_group_sequence==UINT64_MAX)gi.error("Move: physical owner sequence exhausted");
-    if(group->newer)group->newer->older=group->older;
-    else move_group_head=group->older;
-    if(group->older)group->older->newer=group->newer;
-    group->sequence=++level.next_move_group_sequence;
-    group->newer=NULL;group->older=move_group_head;
-    if(move_group_head)move_group_head->newer=group;
-    move_group_head=group;
-}
-
 /*6bcc40 compares retained nine-word candidate rows. Unsigned subtraction
  * preserves native signed32 wrap without undefined C signed overflow. */
 static int32_t move_compare_point_candidates(uint32_t const a[7],uint32_t const b[7]) {
@@ -5245,37 +5248,131 @@ static uint32_t move_point_order_score(edict_t *unit,uint32_t order,vec2_t const
     return wc3_int_bits(wc3_float_bits(wc3_mul(squared,wc3_float(0x3dcccccd))));
 }
 
-/* Attachment order belongs to the canonical request. Sorted admission changes
- * callback chronology, not that member order. Re-read after callbacks: nested
- * replacement/removal may have compacted the physical owner's live members. */
-static void move_group_restore_attachment_order(moveGroup_t *group,groupPointOrder_t const *request) {
-    moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];unsigned count=0;
-    FOR_LOOP(i,request->count)FOR_LOOP(k,group->count) {
-        moveGroupMember_t const *member=group->members+k;
-        if(member->unit==request->units[i].unit && member->spawn==request->units[i].spawn)
-            members[count++]=*member;
-    }
-    if(count!=group->count)gi.error("Move: selected request lost its attachment identity");
-    memcpy(group->members,members,count*sizeof(*members));
+#ifdef BZ_TESTS
+static void (*move_test_request_scope)(movePointRequest_t const *,unsigned);
+#define MOVE_REQUEST_SCOPE(request,stage) do {if(move_test_request_scope)move_test_request_scope(request,stage);} while(0)
+#else
+#define MOVE_REQUEST_SCOPE(request,stage) ((void)0)
+#endif
+
+static edict_t *move_request_member(movePointRequest_t const *request,unsigned i) {
+    moveRequestCandidate_t const *member=request->candidates+i;
+    edict_t *unit=member->unit;
+    return (request->attached&(1u<<i)) && unit && unit->inuse &&
+        unit->spawn_time==member->spawn && !G_IsDeferredFree(unit) ? unit : NULL;
 }
 
-/*6b8c10/89cd10: prepare populated requests before callbacks, retain request-row
- * order, and publish each class when ready. Forced grounding already clears
- * AI_FLYING through the ability owner; authored fly alone is insufficient. */
+static void move_request_attach(movePointRequest_t *request,edict_t *unit) {
+    FOR_LOOP(i,request->count)if(request->candidates[i].unit==unit &&
+        request->candidates[i].spawn==unit->spawn_time)return;
+    if(request->count==BZ_WC3_GROUP_ORDER_UNITS)gi.error("Move: canonical candidate overflow");
+    unsigned i=request->count++;
+    request->candidates[i]=(moveRequestCandidate_t){unit,unit->spawn_time};
+    request->attached|=1u<<i;
+}
+
+/*169c50/169d60 hold every resolved attachment, including pending candidates.
+ * Release re-resolves the member's current fine object. Neither the ready
+ * mask nor a cohort's reordered/consumed rows own this lifetime. Fine holds
+ * leave the cached coarse hierarchy untouched. */
+static void move_request_exclusions(movePointRequest_t *request,bool acquire) {
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=move_request_member(request,i);
+        if(!unit) {if(acquire)request->ready&=~(1u<<i);continue;}
+        wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+        wc3RecordObject_t *record=map->objects ? wc3_records_owned(map,unit-g_edicts) : NULL;
+        if(record) {if(acquire)record->flags++;else record->flags--;}
+    }
+}
+
+static int move_request_publish(movePointRequest_t *request) {
+    if(request->published)return 0;
+    moveReadyCohort_t ready={.count=request->count};
+    /* A nested order can replace an already-ready task before the last
+     * recipient returns. Preserve its new owner rather than reclaim it. */
+    FOR_LOOP(i,request->count)if(request->ready&(1u<<i)) {
+        edict_t *unit=move_request_member(request,i);
+        if(unit && (unit->currentmove!=&move_move_walk || move_unit_group(unit))) {
+            request->attached&=~(1u<<i);request->ready&=~(1u<<i);
+        }
+    }
+    MOVE_REQUEST_SCOPE(request,0);
+    move_request_exclusions(request,true);
+    MOVE_REQUEST_SCOPE(request,1);
+    unsigned pending=0;
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=move_request_member(request,i);
+        if(!unit)continue;
+        if(request->ready&(1u<<i)) {
+            ready.members[i]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
+                .arrival_range=wc3_point_arrival_range(0)};
+            ready.remaining|=1u<<i;
+        } else pending++;
+    }
+    int result=-1;
+    if(!pending) {
+        result=0;
+        if(ready.remaining) {
+            moveGroup_t *group=move_alloc_group();
+            group->inuse=group->ticking=true;group->id=request->id;group->request_id=request->id;
+            group->age=UINT32_MAX;group->goal=request->goal;group->flags=request->flags;
+            result=move_group_partition_ready(group,&ready);
+        }
+        request->published=true;request->ready=0;
+    }
+    MOVE_REQUEST_SCOPE(request,2);
+    move_request_exclusions(request,false);
+    MOVE_REQUEST_SCOPE(request,3);
+    return result;
+}
+
+static void move_request_ready(movePointRequest_t *request,edict_t *unit) {
+    if(request->published)return;
+    FOR_LOOP(i,request->count)if(move_request_member(request,i)==unit) {
+        request->ready|=1u<<i;break;
+    }
+    move_request_publish(request);
+}
+
+static void move_request_drop(movePointRequest_t *request,edict_t *unit) {
+    if(request->published)return;
+    FOR_LOOP(i,request->count)if(request->candidates[i].unit==unit &&
+        request->candidates[i].spawn==unit->spawn_time) {request->attached&=~(1u<<i);request->ready&=~(1u<<i);}
+    move_request_publish(request);
+}
+
+static bool move_request_admit(movePointRequest_t *prepared,groupPointOrder_t const *request,unsigned i) {
+    edict_t *unit=request->units[i].unit;
+    if(!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) {
+        move_request_drop(prepared,unit);return false;
+    }
+    unit->movement.previous_request_id=prepared->id;
+    typeof(move_group_admission) previous=move_group_admission;
+    move_group_admission=(typeof(move_group_admission)){unit,*request->point,prepared,0};
+    bool accepted=unit_issueorder(unit,request->order,request->point);
+    move_group_admission=previous;
+    if(accepted && unit->current_order_id==request->order_id &&
+        unit->currentmove==&move_move_walk && !move_unit_group(unit))move_request_ready(prepared,unit);
+    else move_request_drop(prepared,unit);
+    return accepted;
+}
+
+/*6b8c10/89cd10: prepare canonical requests before callbacks, retain attachment
+ * order and publish each class at its readiness/drop boundary. Forced grounding
+ * already clears AI_FLYING through the ability owner; authored fly alone is insufficient. */
 static bool move_group_selected_point_order(groupPointOrder_t const *request) {
     enum {PRIMARY,FLOATING,ALT_FLIGHT,CLASSES};
     unsigned slots[BZ_WC3_GROUP_ORDER_UNITS],remaining[CLASSES]={0};
-    moveGroup_t *groups[CLASSES]={0};uint32_t contexts[CLASSES]={0};
+    movePointRequest_t prepared[CLASSES]={0};
     FOR_LOOP(i,request->count) {
         edict_t *unit=request->units[i].unit;
         bool floating=S_UnitMovementProfile(unit->data.UnitData)->bits==wc3_movement_profile(UNIT_MOVE_FLOAT)->bits;
         slots[i]=floating ? FLOATING : request->formation_toggle && unit_is_flying(unit) ? ALT_FLIGHT : PRIMARY;
         remaining[slots[i]]++;
     }
-    FOR_LOOP(k,CLASSES)if(remaining[k]) {
-        if(request->queued)contexts[k]=move_allocate_group_id();
-        else groups[k]=move_group_create_request(request,0,NULL,0);
-    }
+    FOR_LOOP(k,CLASSES)if(remaining[k])
+        prepared[k]=(movePointRequest_t){.id=move_allocate_group_id(),.goal=move_point_fine(request->point),.flags=request->formation_toggle ? 14u : 0};
+    FOR_LOOP(i,request->count)move_request_attach(prepared+slots[i],request->units[i].unit);
     unsigned indices[BZ_WC3_GROUP_ORDER_UNITS];
     uint32_t keys[BZ_WC3_GROUP_ORDER_UNITS][7];
     edict_t *focus=request->selection_owner ? G_GetMainSelectedUnit(request->selection_owner->client) : NULL;
@@ -5304,13 +5401,9 @@ static bool move_group_selected_point_order(groupPointOrder_t const *request) {
     FOR_LOOP(n,request->count) {
         unsigned i=indices[n],slot=slots[i];
         if(request->queued) {
-            if(move_queue_group_candidate(request,i,contexts[slot],groups+slot))any=true;
-        } else if(move_group_admit_candidate(groups[slot],request,i))any=true;
-        if(!--remaining[slot] && groups[slot]) {
-            move_group_restore_attachment_order(groups[slot],request);
-            move_group_publish_sequence(groups[slot]);
-            move_group_publish_ready(groups[slot]);
-        }
+            if(move_queue_group_candidate(request,i,prepared[slot].id,prepared+slot))any=true;
+            else move_request_drop(prepared+slot,request->units[i].unit);
+        } else if(move_request_admit(prepared+slot,request,i))any=true;
     }
     return any;
 }

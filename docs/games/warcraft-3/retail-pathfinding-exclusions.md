@@ -510,3 +510,27 @@ queued journeys, target-owner transfer, captain GoHome, order lifecycle and
 interrupt regressions. Six evidence mutation checks and37 corpus checks pass.
 The production/test targets build; the pre-existing JASS parser unused-value
 warning remains. The original kernel repeat and all observer-free finals match.
+
+## Selected canonical requests hold pending attachments (Payoff248)
+
+`169c50` acquires every live canonical candidate's fine counter, including a
+candidate with an unresolved readiness slot. If any resolved candidate is still
+pending, `16bcf0` returns busy only after `169d60` restores those counters.
+Successful partition consumes readiness slots while retaining the attachment
+identities needed for release. Release re-resolves each current mover fine
+object; the physical cohort's current member order does not own this scope.
+
+The selected-point engine producer now has separate canonical candidate and
+readiness storage, with physical groups allocated only when publication succeeds.
+Both busy and successful publication hold all attached fine records. Two real
+Alt+Shift repeats preserve24 scope boundaries each, including a pending moving
+member with the original motion bit; four complete native kernel cases preserve
+independent depths0/3 and match observer-free controls. Engine tests compare all
+four scope boundaries per readiness/drop operation against literal native words.
+Coarse occupancy stays authoritative throughout these fine exclusions.
+
+This integrates the selected point owner. `16da60` target-region ownership,
+captain and delayed-reconstruction publication, the independent unit exclusion
+and notification reentrancy are still separate MAP-04.2 work. See
+[canonical requests](retail-pathfinding-engine.md#canonical-point-requests-publish-physical-cohorts-only-at-readiness-payoff248)
+for evidence and save/event limits.

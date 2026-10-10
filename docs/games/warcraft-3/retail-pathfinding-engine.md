@@ -15869,3 +15869,59 @@ queued journeys, target-owner transfer, captain GoHome, order lifecycle and
 interrupt regressions. Six evidence mutation checks and37 corpus checks pass.
 The production/test targets build; the pre-existing JASS parser unused-value
 warning remains. The original kernel repeat and all observer-free finals match.
+
+## Canonical point requests publish physical cohorts only at readiness (Payoff248)
+
+Selected point packets now retain a bounded canonical record containing candidate
+identities, attachment/readiness masks, flags and the fine destination. Preparing
+PRIMARY/FLOAT/Alt-flight classes does not allocate or bind physical groups.
+Admission callbacks observe pending units without a fabricated physical owner.
+Each successful readiness or candidate drop attempts publication immediately;
+a resolved pending candidate holds publication busy. Successful publication
+allocates physical cohorts in attachment order using the existing recursive
+cached-hierarchy distance partition and route seeding.
+
+This removes the old physical-owner staging, later member reordering and visit-rank
+republication. Canonical records are scoped to synchronous selected admission;
+instances and queue entries retain only logical request identities. Each packet
+has at most twelve candidates, so attachment lookup and repeated admission scopes
+remain bounded independently of total army size. This chunk makes no measured
+frame-time improvement claim. Physical groups and queued identities retain the
+existing save162 contract; no process-local request pointer is serialized.
+
+Original `169c50` excludes **all resolved attachments**, including pending ones.
+`169d60` re-resolves their current fine objects on release, independently of
+consumed readiness slots or reordered physical members. The engine holds these
+fine counters around selected-point publication, including its busy exit. It
+preserves existing outer depths and motion bits, and leaves coarse hierarchy
+occupancy unchanged. Target-region exclusion and captain/delayed-reconstruction
+publication still require their separate owners.
+
+Two read-only live Alt+Shift repeats on the preserved Work235b geometry record
+six complete publication scopes each, including the busy primary request, and
+identical normalized49-event timelines. The busy mover retains `20000000` while
+its pending request temporarily increments the same fine word. The idle FLOAT,
+flight and primary movers publish in that order; the busy mover later reconstructs
+a fresh flags0 request. A complete original-code readiness/drop kernel supplies
+four cases with outer depths0/3 and observer-free final-state controls. Its
+Storm allocation adapters and supplied VM/hierarchy storage are explicit.
+The native constructors, registry, readiness, drop, partition and publication
+instructions execute unchanged.
+
+The failing-first public engine regression exposed five premature-ownership
+assertions. It now passes together with literal native counter-stage comparisons,
+existing selected trajectories, nested replacement, queued reconstruction and
+cold-save continuations. No existing retail fixture or trajectory expectation
+was changed. `Work248Evidence.java` saves633 instruction mappings plus xrefs;
+`MapPathfinding.java` records the canonical drop function and the ownership
+boundary. The portable verifier is
+`tools/ghidra/verify_wc3_pathing_work248.py`; raw accepted/rejected captures,
+Ghidra readback and build/regression logs live under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff248/`.
+
+The live trigger witness also exposes a separate event gap: retail issues the
+busy queued recipient's callback at later activation, whereas the engine still
+publishes its existing enqueue event. This chunk preserves that existing engine
+contract and does **not** certify busy FIFO event equivalence. Save inside an
+admission callback, full target/captain scopes and arbitrary notification
+reentrancy remain unverified. GROUP-04.6 and MAP-04.2 remain open.

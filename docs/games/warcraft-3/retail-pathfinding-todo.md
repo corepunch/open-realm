@@ -56,6 +56,13 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **280 done / 336 tasks; 56 remaining.**
+Payoff248 separates selected canonical attachments/readiness from physical
+cohorts, removes premature physical binding and holds pending fine exclusions
+through busy/success publication. Failing-first engine checks, two read-only
+retail repeats and complete native depth/drop controls preserve old fixtures.
+GROUP-04.6/MAP-04.2 remain open for their wider owners and event/save boundaries.
+See [canonical request publication](retail-pathfinding-engine.md#canonical-point-requests-publish-physical-cohorts-only-at-readiness-payoff248).
+
 Payoff247 integrates05ca50 bridge ownership across motion cancellation, embedded
 recovery and path invalidation, before public Stop stand/replacement Move. New
 public regressions,32 complete original cases/controls and repeated live nested
