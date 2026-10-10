@@ -1564,7 +1564,7 @@ void unit_refreshstatusflags(edict_t *ent) {
     bool stunned = false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
-        if (!status->level) continue;
+        if (!status->level || (status->timestamp && status->timestamp <= G_Time())) continue;
         if ((status->state_mask | unit_builtin_status_states(status->code)) & WC3_STATUS_STATE_STUNNED)
             if (!status->timestamp || status->timestamp > G_Time()) stunned = true;
         UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_REFRESH, STATUS_REMOVE_SCRIPT);

@@ -172,3 +172,12 @@ Rejuvenation validates status capacity against the caster's ability level.
 Delayed and multi-target status applications remain impact-time decisions;
 resource/cooldown refund policies require per-ability evaluation rather than
 a blanket rollback. Independent stacking remains opt-in only.
+
+## Follow-up integration hardening
+
+Avatar expiry called by status removal performs its stat inverse without recursively
+removing the same status. Explicit Avatar disable still removes its buff.
+Attack profile selection prioritizes an eligible Magic attack against Ethereal
+targets, matching the target gate for dual-weapon units. Expired statuses no
+longer receive A_STATUS_REFRESH callbacks. Cast preflight treats INVALID as a
+failure as well as FULL. These changes have source-level validation only.

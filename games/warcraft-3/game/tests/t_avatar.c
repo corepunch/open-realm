@@ -97,6 +97,23 @@ TEST(wc3_avatar, cast_expire_recast_keeps_other_bonuses) {
     avatar_done(fix);
 }
 
+/* Direct status removal must perform the Avatar inverse once, without
+ * recursively re-entering the same status lifecycle. */
+TEST(wc3_avatar, direct_status_removal_does_not_reenter_avatar_cleanup) {
+    avFix_t fix = avatar_setup(1);
+    edict_t *unit = fix.unit;
+    heroabilitystatus_t *slot;
+    T_ASSERT(S_CastNoTargetSpell(unit, BZ_AVATAR));
+    slot = unit_findstatus(unit, BZ_AVATAR_BUFF);
+    T_NOT_NULL(slot);
+    unit_removestatus(unit, slot, STATUS_REMOVE_DISPEL);
+    T_NULL(unit_findstatus(unit, BZ_AVATAR_BUFF));
+    T_FEQ(unit->health.max_value, 650.0f, 0.001f);
+    T_FEQ(unit->attack1.temporaryDamageBonus, 3.0f, 0.001f);
+    T_ASSERT(!unit->avatar);
+    avatar_done(fix);
+}
+
 TEST(wc3_avatar, runtime_health_bonus_publishes_life_limit_events) {
     avFix_t fix = avatar_setup(1);
     edict_t *unit = fix.unit;

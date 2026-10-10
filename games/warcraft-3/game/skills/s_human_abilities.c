@@ -92,7 +92,7 @@ bool S_SpellDamage(edict_t *target, edict_t *caster, int damage) {
 }
 
 /* Retail removes the stored deltas and clamps current health instead of subtracting it. */
-void S_AvatarExpire(edict_t *unit) {
+static void avatar_expire_internal(edict_t *unit, bool remove_buff) {
     if (!unit || !unit->avatar || !unit->avatar->level) return;
     G_ApplyTemporaryArmorBonus(unit, -unit->avatar->armor);
     G_ApplyTemporaryAttackDamageBonus(unit, -(float)unit->avatar->damage);
@@ -100,17 +100,22 @@ void S_AvatarExpire(edict_t *unit) {
     unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar->health);
     G_SetHealth(unit, MIN(unit->health.value, unit->health.max_value));
     G_FreeAvatar(unit);
-    human_remove_status(unit, BZ_AVATAR_BUFF);
+    if (remove_buff) human_remove_status(unit, BZ_AVATAR_BUFF);
     G_AddUnitAnimationProperties(unit, "alternate", false); G_InvalidateUnitInfoPanel(unit);
+}
+
+void S_AvatarExpire(edict_t *unit) {
+    avatar_expire_internal(unit, true);
 }
 
 /* Reserve the Avatar buff slot before spell_commit spends mana; cooldowns have independent storage. */
 static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
+    wc3_status_apply_check_t check;
     (void)spell;
     (void)target; unit_updatestatuses(caster);
     if (!S_SpellIsAliveTarget(caster) || (caster->avatar && caster->avatar->level)) return false;
-    if (unit_status_checkapplication(caster, &(status_application_t){ .buff = "BHav", .level = 1 }) != WC3_STATUS_APPLY_FULL)
-        return true;
+    check = unit_status_checkapplication(caster, &(status_application_t){ .buff = "BHav", .level = 1 });
+    if (check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT) return true;
     fprintf(stderr, "WC3 Avatar: status capacity exhausted for unit %u\n", caster->s.number); return false;
 }
 
@@ -170,11 +175,13 @@ static bool cloud_validate(edict_t *caster, spellTarget_t st, abilityitem_t cons
 static bool inner_fire_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level;
     cstring_t buff;
+    wc3_status_apply_check_t check;
     if (!spell || !st.entity || !S_SpellIsFriend(caster, st.entity)) return false;
     level = S_SpellLevel(caster, spell->code);
     buff = human_buff(spell, level);
-    return buff && unit_status_checkapplication(st.entity, &(status_application_t){ .buff = buff, .level = level }) !=
-        WC3_STATUS_APPLY_FULL;
+    if (!buff) return false;
+    check = unit_status_checkapplication(st.entity, &(status_application_t){ .buff = buff, .level = level });
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 static bool heal_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -259,6 +266,7 @@ static uint32_t polymorph_form_type(edict_t const *target, uint32_t level, uint3
 static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level, max_creep_level, form_type;
     UnitBalance_t const *balance;
+    wc3_status_apply_check_t check;
 
     if (!st.entity || !S_SpellIsEnemy(caster, st.entity) || G_UnitIsHero(st.entity) ||
         st.entity->summon_ability || (st.entity->aiflags & AI_ILLUSION) ||
@@ -277,9 +285,10 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
         fprintf(stderr, "WC3 Polymorph: morph form %08x has no model data\n", form_type);
         return false;
     }
-    return unit_status_checkapplication(st.entity, &(status_application_t){
+    check = unit_status_checkapplication(st.entity, &(status_application_t){
         .buff = human_buff(spell, level), .level = level
-    }) != WC3_STATUS_APPLY_FULL;
+    });
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 /* Restore the target's saved presentation and movement state when Polymorph ends. */
@@ -766,6 +775,6 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
     if (code == MAKEFOURCC('B','i','n','v') &&
         !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
         unit->s.renderfx &= ~RF_HIDDEN;
-    if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
+    if (code == BZ_AVATAR_BUFF) avatar_expire_internal(unit, false);
     if (unit->polymorph && code == unit->polymorph->buff) S_PolymorphRemove(unit);
 }

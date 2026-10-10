@@ -72,6 +72,15 @@ static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const
         if (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->attack1;
         if (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->attack2;
     }
+    /* Target eligibility and active weapon selection must agree for Ethereal
+     * victims, including dual-weapon units and rooted Ancient retaliation. */
+    if (attacker && target && flag && unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL)) {
+        if (attacker->attack1.type == ATK_MAGIC && (attacker->attack1.targetsAllowed & flag) &&
+            (S_UnitAttackSlotEnabled(attacker, 0) || (retaliation & 1u))) return &attacker->attack1;
+        if (attacker->attack2.type == ATK_MAGIC && (attacker->attack2.targetsAllowed & flag) &&
+            (S_UnitAttackSlotEnabled(attacker, 1) || (retaliation & 2u))) return &attacker->attack2;
+        return &attacker->attack1; /* Callers reject unqualified targets. */
+    }
     if (attacker && flag && attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) &&
         (attacker->attack1.targetsAllowed & flag)) return &attacker->attack1;
     if (attacker && flag && attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
@@ -208,8 +217,10 @@ static bool attack_can_target_mask(edict_t const *attacker, edict_t const *targe
         !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target) ||
         unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) ||
         (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) &&
-         !(((mask & 1u) && attacker->attack1.type == ATK_MAGIC) ||
-           ((mask & 2u) && attacker->attack2.type == ATK_MAGIC)))) return false;
+         !(((mask & 1u) && attacker->attack1.type == ATK_MAGIC &&
+             (attacker->attack1.targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target)))) ||
+           ((mask & 2u) && attacker->attack2.type == ATK_MAGIC &&
+             (attacker->attack2.targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target))))))) return false;
     if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
     if (target->destructable) return G_DestructableCanBeAttackedBy(attacker, target);
     if (M_IsDead((edict_t *)target)) return false;
