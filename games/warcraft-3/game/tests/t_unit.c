@@ -2230,6 +2230,37 @@ TEST(wc3_unit, status_modifiers_stack_by_family_and_retire_with_slot) {
     T_ASSERT(!unit_status_setmodifier(a, WC3_STATUS_MAX_MODIFIERS, &weak));
 }
 
+/* Fast-path coverage: a unit with no descriptors and an additive-only
+ * unit both bypass the strongest-wins table without changing arithmetic. */
+TEST(wc3_unit, status_modifier_fast_path_preserves_additive_and_strongest_results) {
+    edict_t unit = { 0 };
+    wc3_status_modifier_t add = {
+        .type = WC3_STATUS_MOD_MOVE_SPEED_PERCENT, .policy = WC3_STATUS_MOD_ADD,
+        .value = 0.125f
+    };
+    wc3_status_modifier_t weak = {
+        .type = WC3_STATUS_MOD_MOVE_SPEED_PERCENT, .family = 77,
+        .policy = WC3_STATUS_MOD_STRONGEST_NEGATIVE, .value = -0.20f
+    };
+    wc3_status_modifier_t strong = weak;
+    uint32_t old_time = level.time;
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.0f, 0.001f);
+    unit.abilstatus[0].level = 1;
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.0f, 0.001f);
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[0], 0, &add));
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.125f, 0.001f);
+    unit.abilstatus[1].level = unit.abilstatus[2].level = 1;
+    strong.value = -0.45f;
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[1], 0, &weak));
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[2], 0, &strong));
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.325f, 0.001f);
+    unit.abilstatus[2].timestamp = 1;
+    level.time = 2;
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.075f, 0.001f);
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_ARMOR_FLAT), 0.0f, 0.001f);
+    level.time = old_time;
+}
+
 TEST(wc3_unit, status_modifiers_ignore_other_types_and_support_positive_families) {
     edict_t unit = { 0 };
     wc3_status_modifier_t first = {
