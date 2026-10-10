@@ -458,3 +458,55 @@ MAP-04.2 remains open for persistent group-publication ownership and the outer
 Stop/recovery scopes. Persistent fine target/completion fields outside this
 call are not certified here. No performance target is accepted. Focused
 Classic/TFT runs cover229 tests per schema; full-suite cadence advances to5/12.
+
+## Bridge Stop owns cancellation and embedded recovery (Payoff247)
+
+Original `05ca50` acquires the bridge's current fine object before `171340` and
+re-resolves it for release after that function returns. `171340` integrates and
+zeros velocity, detaches the group, runs optional `170080` recovery, then
+invalidates the retained path. Inner recovery captures its own record and holds
+that additional exclusion through placement and position publication.
+
+`S_StopUnitMovementWithRecovery` now owns this sequence in Move. Public Stop
+completes it before goal cleanup and stand; replacement point Move completes it
+before admitting its new task. Previously Stop installed stand before recovering
+the position, and neither caller held the bridge exclusion. Existing ordinary
+move-leave ordering remains unchanged. The change adds no persistent state,
+allocation, map scan or save-format change.
+
+The new production regression first fails208 of1080 assertions against the old
+engine. It drives public Stop and replacement Move through clear, admitted and
+exhausted placement, four footprint classes and existing outer depths0/1. It
+checks every inner boundary, final coordinates and that stand observes completed
+recovery with the bridge counter restored. The previous Payoff183 regression now
+calls inner recovery directly: its original inner-only counter expectations are
+unchanged. No existing retail expected fixture is rewritten.
+
+The fresh native kernel executes complete original `05ca50`, `171340`, `170080`,
+the canonical registry, fine footprint/placement and position publication in32
+cases, with32 matching observer-free controls and an identical repeat. Only
+Storm storage and a flat terrain support-level lookup are supplied; the original
+`654060` support predicate executes unchanged. The null-callback branch is a
+kernel case, not a demonstrated public pathing-disable producer.
+
+Two read-only public retail captures each contain8 bridge scopes,3 placement
+searches and1 admitted commit. All79 scope events agree exactly. An uninstrumented
+control preserves all14 public markers, including blocked Stop moving from
+`656,656` to `624,592`. Music selection and `PreloadEnd` wall time differ and remain
+in the raw captures. Retail retains an independent unit exclusion and two bridge
+calls per public Stop: counters rise from1 to2 at bridge entry and3 during inner
+footprint/placement, then return to1. This chunk certifies the bridge lifetime,
+not complete public notification or duplicate-call chronology.
+
+Ghidra saves the scope/caller distinction and xrefs through
+`Work247Evidence.java`; the new fixture pins312 original instructions and all
+capture/builder sources. MAP-04.2 remains open for canonical group-publication
+ownership, the independent unit scope and remaining notification reentrancy.
+The archive is `research/MAP-04.2/payoff247/` under the pathfinding reports root.
+
+Focused Classic and TFT each pass86 tests and1,173,285 assertions, including the
+new1080-assertion regression, inner recovery, public Stop/save cases, all selected
+queued journeys, target-owner transfer, captain GoHome, order lifecycle and
+interrupt regressions. Six evidence mutation checks and37 corpus checks pass.
+The production/test targets build; the pre-existing JASS parser unused-value
+warning remains. The original kernel repeat and all observer-free finals match.

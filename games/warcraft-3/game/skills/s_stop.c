@@ -43,7 +43,7 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
         return;
     /* Channeling can retain the idle move, so Stop must cancel even without a move-leave notification. */
     S_SpellCancelChannel(ent);
-    S_StopUnitMovement(ent);
+    S_StopUnitMovementWithRecovery(ent);
     S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_a, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_b, NULL);
@@ -56,7 +56,6 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
     ent->current_order_id = 0;
     if (preserve_queue) unit_stand_no_queue(ent);
     else if (ent->stand) ent->stand(ent);
-    S_RecoverStoppedUnitPosition(ent);
 }
 
 void order_stop(edict_t *ent) {

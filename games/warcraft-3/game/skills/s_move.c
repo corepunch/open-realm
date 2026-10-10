@@ -2097,14 +2097,16 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
     if(depth==self->movement.repulse.disable_depth)move_repulse_init(self);
 }
 
-/* A different behavior must not inherit the previous Move's prediction velocity. */
-static void move_leave(edict_t *self) {
+static void move_detach_task(edict_t *self) {
     self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
     S_TrackMoveTimers(self);
     move_detach_group(self);
     self->movement.group_id=0;
     move_release_captain_reference(self);
     self->movement.point_forced_arrival=false;
+}
+
+static void move_invalidate_path(edict_t *self) {
     /* Native171340 sets the sentinel destination through168b80: counts and
      * indices are invalidated without releasing the path's owned storage. */
     moveFineRoute_t *route=&self->movement.fine_route;
@@ -2116,10 +2118,20 @@ static void move_leave(edict_t *self) {
     self->movement.retry_count=self->movement.wait_delay=0;
     self->movement.wait_blocker=NULL;
     self->movement.path.valid=false;
+}
+
+static void move_stop_velocity(edict_t *self) {
     if (!self->movement.clock_valid) return;
     unit_commit_current_pose(self);
     self->movement.velocity = (vec2_t){0};
     self->movement.clock_valid = false;
+}
+
+/* A different behavior must not inherit the previous Move's prediction velocity. */
+static void move_leave(edict_t *self) {
+    move_detach_task(self);
+    move_invalidate_path(self);
+    move_stop_velocity(self);
 }
 
 /* Physical ownership is independent of the current ability's animation move.
@@ -2178,6 +2190,29 @@ void S_RecoverStoppedUnitPosition(edict_t *self) {
     move_trace_recovery(2,self);
     if(record)record->flags--;
     move_trace_recovery(3,self);
+}
+
+/*05ca50 owns a bridge exclusion across171340, including170080's separate
+ * captured-record hold. Finish recovery before exposing stand or a successor.
+ * The bridge re-reads its current fine object at release; the inner owner does
+ * not. Neither boundary changes the caller's existing exclusion depth. */
+void S_StopUnitMovementWithRecovery(edict_t *self) {
+    if(!self)return;
+    G_PublishMoveSpatialObject(self);
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RecordObject_t *record=map->objects ? wc3_records_owned(map,self-g_edicts) : NULL;
+    bool held=record!=NULL;
+    if(held)record->flags++;
+    move_visual_track(self);
+    self->movement.point_forced_arrival=false;
+    move_stop_velocity(self);
+    move_detach_task(self);
+    S_RecoverStoppedUnitPosition(self);
+    move_invalidate_path(self);
+    if(held) {
+        record=wc3_records_owned(S_GetMoveFineSpatial(),self-g_edicts);
+        if(record)record->flags--;
+    }
 }
 
 /* Portal movement keeps the order, route buffers and current velocity. */
@@ -4678,7 +4713,7 @@ void order_move(edict_t *self, edict_t *target) {
 void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
     /* Public admission69a881 stops through05ca50 before the new point task,
      * even for an idle actor embedded in a peer. Recover before cohort seeding. */
-    move_leave(self); S_RecoverStoppedUnitPosition(self);
+    S_StopUnitMovementWithRecovery(self);
     order_move(self, goal);
     if (self->goalentity == goal && self->currentmove == &move_move_walk)
         self->current_order_id = order_id;

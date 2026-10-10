@@ -3294,6 +3294,7 @@ void S_PlaceUnitPosition(edict_t *, vec2_t const *);
 void S_InitUnitPosition(edict_t *, vec2_t const *);
 void S_RecoverStoppedUnitPosition(edict_t *);
 void S_StopUnitMovement(edict_t *);
+void S_StopUnitMovementWithRecovery(edict_t *);
 void S_PublishMovement(edict_t *);
 void S_RunMoveTimers(void);
 void S_SetUnitPaused(edict_t *, bool);

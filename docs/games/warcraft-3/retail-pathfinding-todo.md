@@ -56,6 +56,13 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **280 done / 336 tasks; 56 remaining.**
+Payoff247 integrates05ca50 bridge ownership across motion cancellation, embedded
+recovery and path invalidation, before public Stop stand/replacement Move. New
+public regressions,32 complete original cases/controls and repeated live nested
+counters retain old retail expectations. MAP-04.2 remains open for canonical
+group publication and the independent unit/notification scopes. See
+[bridge Stop recovery](retail-pathfinding-exclusions.md#bridge-stop-owns-cancellation-and-embedded-recovery-payoff247).
+
 Payoff246 removes target-goal world round trips with canonical fine group
 storage and exact routing keys. Two retail repeats/control and captured-sample
 cold-save regressions preserve the numerical contract. TARGET-02.1 remains

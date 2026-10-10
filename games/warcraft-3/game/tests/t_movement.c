@@ -29,6 +29,7 @@
 #include "fixtures/retail_flight_support228.h"
 #include "fixtures/retail_facing245.h"
 #include "fixtures/retail_target246.h"
+#include "fixtures/retail_stop247.h"
 #include "games/warcraft-3/common/terrain.h"
 #include "games/warcraft-3/common/wc3_pathing_segment.h"
 #include "retail_public_oblique.h"
@@ -4508,7 +4509,8 @@ static void check_recovery183_scope(void *data,unsigned stage,edict_t const *uni
     if(stage==2)T_EQ(memcmp(&record->box,&trace->before,sizeof(record->box))!=0,trace->moved);
 }
 
-/* Recovery holds a captured identity through admission AND publication. The
+/* Exercise170080 directly: public Stop additionally owns05ca50's outer hold.
+ * Recovery holds a captured identity through admission AND publication. The
  * clear, admitted and exhausted exits preserve an existing outer exclusion. */
 TEST(wc3_movement, recovery183_holds_spatial_identity_through_commit_and_all_exits) {
     FOR_LOOP(outer,2) FOR_LOOP(exit,4) {
@@ -4528,7 +4530,7 @@ TEST(wc3_movement, recovery183_holds_spatial_identity_through_commit_and_all_exi
         record->flags=outer;
         recovery183Trace_t trace={outer,0,exit==1,record->box};
         S_TestMoveRecoveryTrace(check_recovery183_scope,&trace);
-        jass_callbyname(level.vm,"stop",false);
+        S_RecoverStoppedUnitPosition(unit);
         S_TestMoveRecoveryTrace(NULL,NULL);
         T_EQ(trace.stages,4);T_EQ(record->flags,outer);T_EQ(unit->current_order_id,0);
         if(exit!=1){T_EQ(unit->s.origin2.x,656);T_EQ(unit->s.origin2.y,656);}
@@ -21075,6 +21077,61 @@ TEST(wc3_movement, follow187_public_ground_following_air_smart_matches_raw_retai
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
 }
 
+
+typedef struct {unsigned outer,stages,stands;vec2_t admitted;} stop247Trace_t;
+static stop247Trace_t *stop247_stand_trace;
+static void stop247_stand(edict_t *unit) {
+    stop247Trace_t *trace=stop247_stand_trace;
+    wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
+    T_NOT_NULL(record);
+    if(record)T_EQ(record->flags,trace->outer);
+    T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(trace->admitted.x));
+    T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(trace->admitted.y));
+    trace->stands++;unit_stand(unit);
+}
+static void stop247_recovery(void *data,unsigned stage,edict_t const *unit) {
+    stop247Trace_t *trace=data;wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
+    T_EQ(stage,trace->stages++);T_NOT_NULL(record);
+    if(record)T_EQ(record->flags,trace->outer+1+((stage==1 || stage==2)?1:0));
+}
+
+/* Both public Stop and replacement Move must complete the bridge's nested
+ * recovery before the next task/stand can observe the unit. Frozen positions
+ * come from complete original code, with flat support level0 supplied. */
+TEST(wc3_movement, stop247_public_stop_and_move_recover_inside_outer_scope) {
+    FOR_LOOP(row,sizeof(stop247_rows)/sizeof(*stop247_rows)) FOR_LOOP(command,2) {
+        typeof(*stop247_rows) const *expected=stop247_rows+row;
+        if(expected->kind==3)continue; /* Null callback producer is separate. */
+        reset_entities();setup_test_world();uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set mover=CreateUnit(Player(0),'hfoo',272,272,0)\nendfunction\n"));
+        edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o'))unit=ent;
+        T_NOT_NULL(unit);if(!unit)continue;
+        unit->collision=(.25f+.5f*expected->cls)*32;
+        S_SetUnitPosition(unit,&(vec2_t){656,656});G_PublishMoveSpatialObject(unit);
+        if(expected->kind==1)for(unsigned y=19;y<=21;y++)for(unsigned x=19;x<=21;x++)cells[y*64+x]=2;
+        if(expected->kind==2)for(unsigned y=8;y<=32;y++)for(unsigned x=8;x<=32;x++)cells[y*64+x]=2;
+        CM_SetupTestPathmap(64,64,cells);
+        G_PublishMoveSpatialObject(unit);
+        wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+        T_NOT_NULL(record);if(!record)continue;record->flags=expected->outer;
+        stop247Trace_t trace={.outer=expected->outer,.admitted={
+            wc3_mul(wc3_float(expected->pose[0]),32),wc3_mul(wc3_float(expected->pose[1]),32)}};
+        stop247_stand_trace=&trace;unit->stand=stop247_stand;
+        S_TestMoveRecoveryTrace(stop247_recovery,&trace);
+        if(command)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1200,1200}));
+        else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        S_TestMoveRecoveryTrace(NULL,NULL);stop247_stand_trace=NULL;unit->stand=unit_stand;
+        T_EQ(trace.stages,4);if(!command)T_EQ(trace.stands,1);
+        T_EQ(record->flags,expected->outer);
+        T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(trace.admitted.x));
+        T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(trace.admitted.y));
+        record->flags=0;
+    }
+    reset_entities();setup_test_world();
+}
 
 #endif
 

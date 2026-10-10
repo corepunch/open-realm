@@ -15834,3 +15834,38 @@ This closes the concrete fine-coordinate retention gap. It does not close
 TARGET-02.1's remaining target-family, visibility, formation-offset or complete
 trajectory coverage. The tests replay captured coordinates into production
 owners; they do not claim an exact end-to-end public Smart journey.
+
+## Stop recovery completes inside bridge ownership (Payoff247)
+
+Move now owns `S_StopUnitMovementWithRecovery`: acquire the bridge fine exclusion,
+consume and zero prior velocity, detach the physical task, perform the separately
+held embedded recovery, invalidate the retained path, then release the bridge's
+current fine object. Public Stop completes this before stand and replacement
+Move before its new admission. Ordinary move-leave ordering stays unchanged.
+
+A new public Stop/Move regression fails208 of1080 assertions before this change.
+Its four footprint classes, clear/admitted/exhausted exits and outer depths0/1
+match complete original-code positions and counter boundaries. It also checks
+that stand sees the admitted position after restoration. The existing inner183
+regression invokes inner recovery directly, keeping its original expectations.
+No older retail fixture changes. No persistent state or save-format change.
+
+Two actual read-only retail repeats preserve all79 scope events; an uninstrumented
+control preserves all14 public markers. The original bridge/stop/recovery kernel
+runs32 cases and32 observer-free controls. The supplied flat support lookup is
+explicitly bounded, and original654060 executes unchanged. Ghidra and
+MapPathfinding.java save312 instruction pins and the caller/scope distinction.
+See [bridge Stop exclusions](retail-pathfinding-exclusions.md#bridge-stop-owns-cancellation-and-embedded-recovery-payoff247).
+
+MAP-04.2 remains open: canonical pending-candidate group publication, the separate
+unit exclusion and complete public notification/duplicate-stop chronology still
+need integration. Full validation follows the existing approximately12-commit
+cadence; this is implementation9 after checkpoint238. No performance target or
+full retail pathfinding completion is claimed.
+
+Focused Classic and TFT each pass86 tests and1,173,285 assertions, including the
+new1080-assertion regression, inner recovery, public Stop/save cases, all selected
+queued journeys, target-owner transfer, captain GoHome, order lifecycle and
+interrupt regressions. Six evidence mutation checks and37 corpus checks pass.
+The production/test targets build; the pre-existing JASS parser unused-value
+warning remains. The original kernel repeat and all observer-free finals match.
