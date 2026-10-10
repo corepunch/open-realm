@@ -99,13 +99,17 @@ undispellable, and transferable status semantics. Zero flags preserve the
 existing timed-status dispel rules, including Timed Life and authored Cyclone
 exceptions. Purge and Dispel Magic share `unit_status_can_dispel()`.
 
-Spell Steal transfers only statuses explicitly marked positive and
-transferable. The initial opted-in family is Inner Fire. The receiver slot is
-allocated before removing the original, so capacity failure leaves the source
-untouched. The transfer preserves level, remaining duration, source ability,
-payload, state and numeric modifiers, while attributing the new application to
-the stealing caster. Other statuses remain unsupported until their periodic,
-TargetArt, callback, and source semantics can be safely reconstructed.
+Spell Steal transfers only statuses explicitly marked positive or negative
+and transferable, with direction checked against the source unit's relation
+to the caster. Supported families are Inner Fire, Bloodlust, and Faerie Fire;
+nearby allies receive positive effects and nearby enemies receive negative
+effects. The receiver slot is allocated before removing the original, so
+capacity failure leaves the source untouched. The transfer preserves level,
+remaining duration, source ability, payload, state and numeric modifiers,
+while attributing the new application to the stealing caster. Slow, Frost
+Armor, Unholy Frenzy, Rejuvenation, and Anti-Magic Shell remain unsupported:
+their periodic callbacks, healing/drain schedule, vision or absorption state,
+and TargetArt ownership are not all reconstructible from a status snapshot.
 
 The serialized classification advances save format 81 to 82.
 
@@ -133,6 +137,12 @@ Same-rawcode applications reuse their slot even when the array is full; a ninth
 distinct rawcode returns `NULL` without evicting an existing status. The legacy
 void wrappers remain available, while explicit callers can handle failure.
 
-Independent same-rawcode instances from different sources remain unsupported.
-Current gameplay queries, HUD and TargetArt deduplicate by rawcode; source
-independence requires changing identity and all associated consumers together.
+The bounded status array now carries a per-unit generation identity and an
+explicit `DEFAULT` or `INDEPENDENT` policy. Independent applications reuse only
+the same source incarnation; another source receives its own duration and tick
+record. `unit_findstatus()` remains the deterministic first-by-rawcode lookup;
+`unit_findstatussource()` addresses a specific source. Instance IDs and policy
+are serialized in save format 83. No ability family is opted into independent
+stacking yet: current reviewed poison/status handlers rely on rawcode-wide
+refresh/removal semantics, so enabling one without changing its callbacks
+would be unsafe. HUD and TargetArt remain rawcode-deduplicated presentations.

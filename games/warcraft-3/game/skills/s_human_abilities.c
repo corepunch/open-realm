@@ -436,15 +436,20 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     uint32_t level = S_SpellLevel(caster, spell->code), now = G_Time();
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     if (!st.entity) return;
+    bool take_positive = S_SpellIsEnemy(caster, st.entity);
+    bool take_negative = S_SpellIsFriend(caster, st.entity);
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = st.entity->abilstatus + i;
-        if (unit_status_can_steal(status) && status->timestamp > now) {
+        bool positive = status->buff_flags & WC3_STATUS_BUFF_POSITIVE;
+        if (unit_status_can_steal(status) && status->timestamp > now &&
+            ((take_positive && positive) || (take_negative && !positive))) {
             source_slot = status;
             break;
         }
     }
     if (!source_slot) return;
-    FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) && S_SpellIsFriend(caster, unit) &&
+    FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) &&
+                  (take_positive ? S_SpellIsFriend(caster, unit) : S_SpellIsEnemy(caster, unit)) &&
                   Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) { receiver = unit; break; }
     if (!receiver) receiver = caster;
     snapshot = *source_slot;
