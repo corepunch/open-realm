@@ -56,6 +56,12 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **278 done / 336 tasks; 58 remaining.**
+Payoff234 retains retail's one-point disabled group-route cache and destination,
+with no coarse search/admission. Repeated genuine flight-rebind/control captures,
+36 complete original table cases and public group/save regressions cover the
+fix. GROUP-04.6 stays open. See
+[disabled group routes](retail-pathfinding-queued-cohorts.md#disabled-group-routing-retains-a-real-cache-payoff234).
+
 Payoff233 integrates preferred adaptive-enabled route sources, strict predicted
 distance ties and the group bypass origin using existing saved unit policy.
 Repeated retail flight-rebind/control evidence and failing public order/save

@@ -179,3 +179,64 @@ probes targeted the same type and did not perform the required rebind; a delay
 alone did not fix them. Those attempts remain rejected evidence. No established
 retail fixture was rewritten. GROUP-04.6 still requires persistent canonical
 candidate publication, completion/recovery and broader producer lifetimes.
+
+## Disabled group routing retains a real cache (Payoff234)
+
+Adaptive disablement bypasses search work, not route publication. Complete
+`167120 Path_RequestGroupRoute` first establishes footprint/query context,
+clears a stale target-region pointer, obtains the adjusted destination from
+`167d70(mode1)` and multiplies it by the hierarchy inverse scale. With path
+flag `88 & 200000` clear, it erases any previous adaptive points, appends this
+single point, sets index zero and returns success. It performs no interval
+check, scheduler admission, coarse search or timestamp write.
+
+The caller `16ce10` still refreshes formation and resets owner counters after
+this successful replacement. Subsequent unchanged destinations retain the valid
+one-point route and bypass replacement. The member's independent fine route
+still owns its own work budget and terrain checks.
+
+OpenRealm previously returned the requested destination with `group_count=0`
+and left `group_goal` unset. Every owner visit therefore looked uncached, while
+Move never saw a real replacement to reset its age/counters. This also left
+saved group state inconsistent with retail. `G_UnitMoveGroupDestinationStatus`
+now publishes the one-point cache and ordinary destination/radius/mask/revision
+metadata, reports an actual replacement once, and shares the existing retained
+route exit. Storage uses the existing geometrically reserved route buffer; warm
+cached visits neither allocate nor consume search admission. Save and network
+layouts are unchanged.
+
+The original oracle runs all of `167120`, its native route-table erase/append
+operations, path constructor and software arithmetic. Thirty-six cases cover
+four classes, zero/one/three previous points and three integer/fractional
+adjusted destinations. Even exhausted supplied scheduler buckets retain their
+entire words; path timestamps `7c/80` stay unchanged. These are controlled
+kernel inputs, not a claim that every disabled class has a public producer.
+Only external Storm memory calls receive host storage.
+
+Two fresh read-only captures reuse the frozen `Work233c` flight-rebind probe.
+Each observes three `167120` calls. Fresh and partly rebound groups retain
+adaptive enablement and call `166c30` once each. When both flyers are rebound,
+the group path has flags `00400000`, returns one destination point at index zero
+and never calls `166c30`. Capacity128 survives native path reuse. An unhooked
+control matches all eight public markers; its private route state and full
+motion are not observed. `PreloadEnd` wall time is not simulation equality.
+
+Failing-first engine regressions cover all36 original table results, unchanged
+cache reuse, budget/timestamp preservation, a real flying type rebind followed
+by public group admission, replacement versus cached age, and cold save/load.
+The synthetic exhausted work word is restored before serialization because it
+exceeds legal saved scheduler limits; that fixture correction does not change
+retail expected route words. Existing flying Follow and selected-order retail
+motion fixtures remain unchanged.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work234.py \
+  --binary /path/to/retail/game.dll --report /tmp/work234-fresh.json
+```
+
+`Work234Evidence.java` saves the native publication/cached-return contracts,
+xrefs and438 original instruction encodings. The archive is
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff234/`.
+This advances GROUP-04.6; persistent canonical request candidates, other group
+policy producers and wider completion/recovery still require integration.

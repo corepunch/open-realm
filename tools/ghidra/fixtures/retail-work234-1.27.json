@@ -1,0 +1,1335 @@
+{
+ "version": 1,
+ "task": "GROUP-04.6",
+ "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "kernel": {
+  "rows": [
+   {
+    "cls": 0,
+    "history": 0,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 0,
+    "history": 0,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 0,
+    "history": 0,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 0,
+    "history": 1,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 0,
+    "history": 1,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 0,
+    "history": 1,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 0,
+    "history": 3,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 0,
+    "history": 3,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 0,
+    "history": 3,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 1,
+    "history": 0,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 1,
+    "history": 0,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 1,
+    "history": 0,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 1,
+    "history": 1,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 1,
+    "history": 1,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 1,
+    "history": 1,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 1,
+    "history": 3,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 1,
+    "history": 3,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 1,
+    "history": 3,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 2,
+    "history": 0,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 2,
+    "history": 0,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 2,
+    "history": 0,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 2,
+    "history": 1,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 2,
+    "history": 1,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 2,
+    "history": 1,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 2,
+    "history": 3,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 2,
+    "history": 3,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 2,
+    "history": 3,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 3,
+    "history": 0,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 3,
+    "history": 0,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 3,
+    "history": 0,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 3,
+    "history": 1,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 3,
+    "history": 1,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 3,
+    "history": 1,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 3,
+    "history": 3,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 3,
+    "history": 3,
+    "goal": [
+     1111523328,
+     1099366400
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103134720,
+     1090977792
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   },
+   {
+    "cls": 3,
+    "history": 3,
+    "goal": [
+     1103101952,
+     1107296256
+    ],
+    "result": 1,
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1094713344,
+     1098907648
+    ],
+    "timestamps": [
+     123,
+     456
+    ]
+   }
+  ]
+ },
+ "instructions": {
+  "6f167120": "55",
+  "6f167121": "8bec",
+  "6f167123": "f30f1005f853cd6f",
+  "6f16712b": "83ec20",
+  "6f16712e": "b801000000",
+  "6f167133": "53",
+  "6f167134": "8bd9",
+  "6f167136": "56",
+  "6f167137": "57",
+  "6f167138": "f30f108bb4000000",
+  "6f167140": "0f2fc1",
+  "6f167143": "7604",
+  "6f167145": "33c0",
+  "6f167147": "eb25",
+  "6f167149": "f30f100548c7d36f",
+  "6f167151": "0f2fc1",
+  "6f167154": "7718",
+  "6f167156": "f30f10052054cd6f",
+  "6f16715e": "0f2fc1",
+  "6f167161": "0f97c0",
+  "6f167164": "0fb6c0",
+  "6f167167": "f7d8",
+  "6f167169": "1bc0",
+  "6f16716b": "83c003",
+  "6f16716e": "66a3803ad56f",
+  "6f167174": "e8a71b0000",
+  "6f167179": "8bcb",
+  "6f16717b": "a3843ad56f",
+  "6f167180": "e89b1b0000",
+  "6f167185": "c7058c3ad56f00000000",
+  "6f16718f": "8b401c",
+  "6f167192": "a3883ad56f",
+  "6f167197": "8b83a4000000",
+  "6f16719d": "85c0",
+  "6f16719f": "7410",
+  "6f1671a1": "837838ff",
+  "6f1671a5": "750a",
+  "6f1671a7": "c783a400000000000000",
+  "6f1671b1": "8bcb",
+  "6f1671b3": "e8581b0000",
+  "6f1671b8": "6a01",
+  "6f1671ba": "8bcb",
+  "6f1671bc": "8b401c",
+  "6f1671bf": "8b4068",
+  "6f1671c2": "8945fc",
+  "6f1671c5": "8d45e0",
+  "6f1671c8": "50",
+  "6f1671c9": "e8a20b0000",
+  "6f1671ce": "8bf8",
+  "6f1671d0": "8d4df8",
+  "6f1671d3": "8d45fc",
+  "6f1671d6": "50",
+  "6f1671d7": "8d5704",
+  "6f1671da": "e8e187f0ff",
+  "6f1671df": "8bf0",
+  "6f1671e1": "8d4df0",
+  "6f1671e4": "8d45fc",
+  "6f1671e7": "8bd7",
+  "6f1671e9": "50",
+  "6f1671ea": "e8d187f0ff",
+  "6f1671ef": "f7838800000000002000",
+  "6f1671f9": "8b08",
+  "6f1671fb": "894de8",
+  "6f1671fe": "8b06",
+  "6f167200": "8945ec",
+  "6f167203": "7535",
+  "6f167205": "8b4370",
+  "6f167208": "85c0",
+  "6f16720a": "740b",
+  "6f16720c": "50",
+  "6f16720d": "6a00",
+  "6f16720f": "8d4b54",
+  "6f167212": "e84935feff",
+  "6f167217": "6a01",
+  "6f167219": "8d4de8",
+  "6f16721c": "51",
+  "6f16721d": "8d4b54",
+  "6f167220": "e8cb13feff",
+  "6f167225": "5f",
+  "6f167226": "5e",
+  "6f167227": "c7437800000000",
+  "6f16722e": "b801000000",
+  "6f167233": "5b",
+  "6f167234": "8be5",
+  "6f167236": "5d",
+  "6f167237": "c20800",
+  "6f16723a": "8b7508",
+  "6f16723d": "8d45fc",
+  "6f167240": "50",
+  "6f167241": "8d4d08",
+  "6f167244": "8d5604",
+  "6f167247": "e87487f0ff",
+  "6f16724c": "8bf8",
+  "6f16724e": "8d4df0",
+  "6f167251": "8d45fc",
+  "6f167254": "8bd6",
+  "6f167256": "50",
+  "6f167257": "e86487f0ff",
+  "6f16725c": "ff750c",
+  "6f16725f": "8b08",
+  "6f167261": "894df4",
+  "6f167264": "8bcb",
+  "6f167266": "8b07",
+  "6f167268": "8945f8",
+  "6f16726b": "8d45e8",
+  "6f16726e": "50",
+  "6f16726f": "8d45f4",
+  "6f167272": "50",
+  "6f167273": "e8b8f9ffff",
+  "6f167278": "5f",
+  "6f167279": "5e",
+  "6f16727a": "5b",
+  "6f16727b": "8be5",
+  "6f16727d": "5d",
+  "6f16727e": "c20800",
+  "6f167d70": "55",
+  "6f167d71": "8bec",
+  "6f167d73": "8b550c",
+  "6f167d76": "83ec08",
+  "6f167d79": "56",
+  "6f167d7a": "8bf1",
+  "6f167d7c": "83fa01",
+  "6f167d7f": "7463",
+  "6f167d81": "837e7800",
+  "6f167d85": "745d",
+  "6f167d87": "8b449678",
+  "6f167d8b": "8d4a01",
+  "6f167d8e": "c1e105",
+  "6f167d91": "3b443150",
+  "6f167d95": "734d",
+  "6f167d97": "57",
+  "6f167d98": "8bce",
+  "6f167d9a": "e8710f0000",
+  "6f167d9f": "8b4e78",
+  "6f167da2": "8b401c",
+  "6f167da5": "8b4064",
+  "6f167da8": "89450c",
+  "6f167dab": "8b4660",
+  "6f167dae": "8d3cc8",
+  "6f167db1": "8d450c",
+  "6f167db4": "50",
+  "6f167db5": "8d5704",
+  "6f167db8": "8d4dfc",
+  "6f167dbb": "e8007cf0ff",
+  "6f167dc0": "8bf0",
+  "6f167dc2": "8d4df8",
+  "6f167dc5": "8d450c",
+  "6f167dc8": "8bd7",
+  "6f167dca": "50",
+  "6f167dcb": "e8f07bf0ff",
+  "6f167dd0": "5f",
+  "6f167dd1": "8b08",
+  "6f167dd3": "8b4508",
+  "6f167dd6": "8908",
+  "6f167dd8": "8b0e",
+  "6f167dda": "894804",
+  "6f167ddd": "5e",
+  "6f167dde": "8be5",
+  "6f167de0": "5d",
+  "6f167de1": "c20800",
+  "6f167de4": "85d2",
+  "6f167de6": "7417",
+  "6f167de8": "8b4508",
+  "6f167deb": "83c624",
+  "6f167dee": "8b0e",
+  "6f167df0": "8908",
+  "6f167df2": "8b4e04",
+  "6f167df5": "894804",
+  "6f167df8": "5e",
+  "6f167df9": "8be5",
+  "6f167dfb": "5d",
+  "6f167dfc": "c20800",
+  "6f167dff": "8b4508",
+  "6f167e02": "83c61c",
+  "6f167e05": "8b0e",
+  "6f167e07": "8908",
+  "6f167e09": "8b4e04",
+  "6f167e0c": "894804",
+  "6f167e0f": "5e",
+  "6f167e10": "8be5",
+  "6f167e12": "5d",
+  "6f167e13": "c20800",
+  "6f16ce10": "55",
+  "6f16ce11": "8bec",
+  "6f16ce13": "83ec08",
+  "6f16ce16": "53",
+  "6f16ce17": "56",
+  "6f16ce18": "8b7510",
+  "6f16ce1b": "8bd9",
+  "6f16ce1d": "57",
+  "6f16ce1e": "56",
+  "6f16ce1f": "6a01",
+  "6f16ce21": "ff7508",
+  "6f16ce24": "8b4b3c",
+  "6f16ce27": "e814b0ffff",
+  "6f16ce2c": "85c0",
+  "6f16ce2e": "740c",
+  "6f16ce30": "833e00",
+  "6f16ce33": "7407",
+  "6f16ce35": "bf01000000",
+  "6f16ce3a": "eb02",
+  "6f16ce3c": "33ff",
+  "6f16ce3e": "8bcb",
+  "6f16ce40": "e81bf0ffff",
+  "6f16ce45": "8b4b3c",
+  "6f16ce48": "f7d8",
+  "6f16ce4a": "1bc0",
+  "6f16ce4c": "f7d8",
+  "6f16ce4e": "50",
+  "6f16ce4f": "e85cbcffff",
+  "6f16ce54": "8b4b3c",
+  "6f16ce57": "85ff",
+  "6f16ce59": "750e",
+  "6f16ce5b": "8b4178",
+  "6f16ce5e": "3b4170",
+  "6f16ce61": "0f829a000000",
+  "6f16ce67": "eb0a",
+  "6f16ce69": "6a01",
+  "6f16ce6b": "ff7508",
+  "6f16ce6e": "e80dbdffff",
+  "6f16ce73": "ff750c",
+  "6f16ce76": "8b4b3c",
+  "6f16ce79": "e852bdffff",
+  "6f16ce7e": "8d4508",
+  "6f16ce81": "8bcb",
+  "6f16ce83": "50",
+  "6f16ce84": "e8b7faffff",
+  "6f16ce89": "8b4b3c",
+  "6f16ce8c": "50",
+  "6f16ce8d": "e84ebdffff",
+  "6f16ce92": "8bbb80000000",
+  "6f16ce98": "8bcb",
+  "6f16ce9a": "8b433c",
+  "6f16ce9d": "c1ef04",
+  "6f16cea0": "83c01c",
+  "6f16cea3": "f7d7",
+  "6f16cea5": "50",
+  "6f16cea6": "83e701",
+  "6f16cea9": "e822f8ffff",
+  "6f16ceae": "6bc82c",
+  "6f16ceb1": "8b4328",
+  "6f16ceb4": "8b740114",
+  "6f16ceb8": "8d4508",
+  "6f16cebb": "50",
+  "6f16cebc": "8bce",
+  "6f16cebe": "e87d41ffff",
+  "6f16cec3": "50",
+  "6f16cec4": "8d45f8",
+  "6f16cec7": "8bce",
+  "6f16cec9": "50",
+  "6f16ceca": "e801efeeff",
+  "6f16cecf": "8b4b3c",
+  "6f16ced2": "8d45f8",
+  "6f16ced5": "57",
+  "6f16ced6": "50",
+  "6f16ced7": "e844a2ffff",
+  "6f16cedc": "85c0",
+  "6f16cede": "7509",
+  "6f16cee0": "5f",
+  "6f16cee1": "5e",
+  "6f16cee2": "5b",
+  "6f16cee3": "8be5",
+  "6f16cee5": "5d",
+  "6f16cee6": "c21000",
+  "6f16cee9": "6a01",
+  "6f16ceeb": "6a00",
+  "6f16ceed": "8bcb",
+  "6f16ceef": "e8acc8ffff",
+  "6f16cef4": "818b8000000000000200",
+  "6f16cefe": "8b7510",
+  "6f16cf01": "833e00",
+  "6f16cf04": "741e",
+  "6f16cf06": "8b433c",
+  "6f16cf09": "83787800",
+  "6f16cf0d": "7515",
+  "6f16cf0f": "8b4514",
+  "6f16cf12": "b901000000",
+  "6f16cf17": "5f",
+  "6f16cf18": "5e",
+  "6f16cf19": "5b",
+  "6f16cf1a": "8908",
+  "6f16cf1c": "8bc1",
+  "6f16cf1e": "8be5",
+  "6f16cf20": "5d",
+  "6f16cf21": "c21000",
+  "6f16cf24": "8b4514",
+  "6f16cf27": "33c9",
+  "6f16cf29": "5f",
+  "6f16cf2a": "5e",
+  "6f16cf2b": "5b",
+  "6f16cf2c": "8908",
+  "6f16cf2e": "8d4101",
+  "6f16cf31": "8be5",
+  "6f16cf33": "5d",
+  "6f16cf34": "c21000",
+  "6f16e430": "55",
+  "6f16e431": "8bec",
+  "6f16e433": "51",
+  "6f16e434": "33c0",
+  "6f16e436": "f7818000000000020000",
+  "6f16e440": "7562",
+  "6f16e442": "53",
+  "6f16e443": "57",
+  "6f16e444": "8b7938",
+  "6f16e447": "b303",
+  "6f16e449": "8945fc",
+  "6f16e44c": "85ff",
+  "6f16e44e": "7448",
+  "6f16e450": "56",
+  "6f16e451": "8b7128",
+  "6f16e454": "83c614",
+  "6f16e457": "eb07",
+  "6f16e460": "8b06",
+  "6f16e462": "8b80a8000000",
+  "6f16e468": "8b8088000000",
+  "6f16e46e": "a900002000",
+  "6f16e473": "7419",
+  "6f16e475": "c1e81e",
+  "6f16e478": "2403",
+  "6f16e47a": "0fb6d3",
+  "6f16e47d": "3ac3",
+  "6f16e47f": "0fb6c8",
+  "6f16e482": "c745fc01000000",
+  "6f16e489": "0f42d1",
+  "6f16e48c": "8ada",
+  "6f16e48e": "83c62c",
+  "6f16e491": "4f",
+  "6f16e492": "75cc",
+  "6f16e494": "8b45fc",
+  "6f16e497": "5e",
+  "6f16e498": "8b4d08",
+  "6f16e49b": "0fb6d3",
+  "6f16e49e": "03d2",
+  "6f16e4a0": "5f",
+  "6f16e4a1": "8911",
+  "6f16e4a3": "5b",
+  "6f16e4a4": "8be5",
+  "6f16e4a6": "5d",
+  "6f16e4a7": "c20400",
+  "6f1485f0": "55",
+  "6f1485f1": "8bec",
+  "6f1485f3": "56",
+  "6f1485f4": "57",
+  "6f1485f5": "8b7d0c",
+  "6f1485f8": "8bf1",
+  "6f1485fa": "85ff",
+  "6f1485fc": "7509",
+  "6f1485fe": "8d4701",
+  "6f148601": "5f",
+  "6f148602": "5e",
+  "6f148603": "5d",
+  "6f148604": "c20800",
+  "6f148607": "8b4e1c",
+  "6f14860a": "8b5618",
+  "6f14860d": "53",
+  "6f14860e": "8d0439",
+  "6f148611": "3bc2",
+  "6f148613": "7631",
+  "6f148615": "8b4614",
+  "6f148618": "85c0",
+  "6f14861a": "741e",
+  "6f14861c": "2bca",
+  "6f14861e": "6a01",
+  "6f148620": "8d1c39",
+  "6f148623": "8bce",
+  "6f148625": "3bc3",
+  "6f148627": "0f47d8",
+  "6f14862a": "8d041a",
+  "6f14862d": "c1e003",
+  "6f148630": "50",
+  "6f148631": "e8faca0700",
+  "6f148636": "85c0",
+  "6f148638": "7509",
+  "6f14863a": "5b",
+  "6f14863b": "5f",
+  "6f14863c": "33c0",
+  "6f14863e": "5e",
+  "6f14863f": "5d",
+  "6f148640": "c20800",
+  "6f148643": "015e18",
+  "6f148646": "8b461c",
+  "6f148649": "8b5508",
+  "6f14864c": "8d0c38",
+  "6f14864f": "894e1c",
+  "6f148652": "85d2",
+  "6f148654": "740a",
+  "6f148656": "51",
+  "6f148657": "52",
+  "6f148658": "50",
+  "6f148659": "8bce",
+  "6f14865b": "e840250000",
+  "6f148660": "5b",
+  "6f148661": "5f",
+  "6f148662": "b801000000",
+  "6f148667": "5e",
+  "6f148668": "5d",
+  "6f148669": "c20800",
+  "6f14a760": "55",
+  "6f14a761": "8bec",
+  "6f14a763": "53",
+  "6f14a764": "8bd9",
+  "6f14a766": "57",
+  "6f14a767": "8b7d08",
+  "6f14a76a": "8b531c",
+  "6f14a76d": "3bfa",
+  "6f14a76f": "7208",
+  "6f14a771": "5f",
+  "6f14a772": "33c0",
+  "6f14a774": "5b",
+  "6f14a775": "5d",
+  "6f14a776": "c20800",
+  "6f14a779": "56",
+  "6f14a77a": "8b750c",
+  "6f14a77d": "8d0437",
+  "6f14a780": "3bc2",
+  "6f14a782": "7604",
+  "6f14a784": "8bf2",
+  "6f14a786": "2bf7",
+  "6f14a788": "2bd7",
+  "6f14a78a": "2bd6",
+  "6f14a78c": "741f",
+  "6f14a78e": "8b4b0c",
+  "6f14a791": "8d04d500000000",
+  "6f14a798": "50",
+  "6f14a799": "8d0437",
+  "6f14a79c": "8d04c1",
+  "6f14a79f": "50",
+  "6f14a7a0": "8d04f9",
+  "6f14a7a3": "50",
+  "6f14a7a4": "ff1508c5a76f",
+  "6f14a7aa": "83c40c",
+  "6f14a7ad": "29731c",
+  "6f14a7b0": "b801000000",
+  "6f14a7b5": "5e",
+  "6f14a7b6": "5f",
+  "6f14a7b7": "5b",
+  "6f14a7b8": "5d",
+  "6f14a7b9": "c20800"
+ },
+ "engine_tests": [
+  "wc3_movement.disabled234_native_group_route_retains_destination_without_admission",
+  "wc3_movement.disabled234_flight_rebind_group_caches_and_saves_route",
+  "wc3_movement.source233_matches_original_preference_prediction_and_bypass",
+  "wc3_movement.source233_birth_and_flight_rebind_choose_enabled_member",
+  "wc3_movement.follow186_public_flying_smart_matches_raw_retail",
+  "wc3_movement.follow187_public_ground_following_air_smart_matches_raw_retail"
+ ],
+ "pins": {
+  "tools/frida/research/work234_observer.js": "027751db1d4c9a4ff162a956aa58844dde9fb809a5d91b17ce6af2aa7559ba7e",
+  "tools/frida/research/work228_capture.py": "e346cdec1928b88a3e0aa62aa7497679fa768a2ad627020ef62084c56ad24a1a",
+  "tools/frida/research/work233_make_map.py": "52464d614bf4c43841f8970b7c080a7f9e0596be7ae23e724f1c7f7318cf9a89",
+  "tools/frida/research/work233_probe.j": "a02b1ebb3a111594f55cfdb0a7e5fb711642a1056de3dc6f7372099857946583",
+  "tools/ghidra/research/work234_oracle.py": "6f7bde216ee377426dca6595a99dec0f67f0ee7818f1839dced81b0911d25d53",
+  "tools/ghidra/research/Work234Evidence.java": "aee5a74a9c98609e8b8d91e418c34f34157f12fa24d51233a7b26c2817ffee77",
+  "tools/ghidra/research/route01_1_2_harness.py": "478c76045a84580e0c021b23b20c8d790922b1256edacf55e5cffb1264d021f7",
+  "tools/ghidra/verify_wc3_pathing_target_normalize218.py": "2e89109c7cb15ec3f6c698c6d1b5defbc6cf5d0d25c19244569e8ceae4384f2d"
+ },
+ "bundle_sha256": "5363e75c68c07611aca3c7290ddde2a6863ab01e54eda9a970e09f5e671efa67",
+ "map_sha256": "679e658801f203953a1e93438a6a2e5341c3950e499e3dc03f99e7a96a85c908",
+ "markers": [
+  "P233 tick=0 label=start",
+  "P233 tick=1 begin=0",
+  "P233 tick=3 ordered=0",
+  "P233 tick=20 begin=1",
+  "P233 tick=22 ordered=1",
+  "P233 tick=40 begin=2",
+  "P233 tick=42 ordered=2",
+  "P233 tick=60 label=complete"
+ ],
+ "live_routes": [
+  {
+   "event": "route",
+   "phase": 0,
+   "straight": 1,
+   "before": {
+    "flags": 3227516928,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "count": 0,
+    "index": 4294967295,
+    "capacity": 0,
+    "points": [],
+    "timestamps": [
+     0,
+     0
+    ]
+   },
+   "after": {
+    "flags": 3227516928,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "count": 3,
+    "index": 2,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040,
+     1099300864,
+     1091305472,
+     1094713344,
+     1090519040
+    ],
+    "timestamps": [
+     0,
+     0
+    ]
+   },
+   "searches": 1,
+   "result": 1
+  },
+  {
+   "event": "route",
+   "phase": 1,
+   "straight": 1,
+   "before": {
+    "flags": 3227516928,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "count": 0,
+    "index": 4294967295,
+    "capacity": 128,
+    "points": [],
+    "timestamps": [
+     0,
+     0
+    ]
+   },
+   "after": {
+    "flags": 3227516928,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "count": 3,
+    "index": 2,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040,
+     1099300864,
+     1091305472,
+     1090519040,
+     1090519040
+    ],
+    "timestamps": [
+     0,
+     0
+    ]
+   },
+   "searches": 1,
+   "result": 1
+  },
+  {
+   "event": "route",
+   "phase": 2,
+   "straight": 1,
+   "before": {
+    "flags": 4194304,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "count": 0,
+    "index": 4294967295,
+    "capacity": 128,
+    "points": [],
+    "timestamps": [
+     0,
+     0
+    ]
+   },
+   "after": {
+    "flags": 4194304,
+    "goal": [
+     1111490560,
+     1098907648
+    ],
+    "count": 1,
+    "index": 0,
+    "capacity": 128,
+    "points": [
+     1103101952,
+     1090519040
+    ],
+    "timestamps": [
+     0,
+     0
+    ]
+   },
+   "searches": 0,
+   "result": 1
+  }
+ ],
+ "limits": [
+  "Advances GROUP-04.6 disabled group-path storage. Persistent canonical request candidates, wider group-policy producers and completion/recovery remain open.",
+  "Complete original167120 executes with original CLrPath/table constructors and native arithmetic over supplied canonical path, map and exhausted scheduler buckets. Storm memory imports are host adapters. It does not execute the whole public group-construction graph.",
+  "Two fresh read-only genuine flight-rebind captures expose enabled and disabled group-route publications and nested166c30 search counts. The observer-free control matches eight public markers; it does not observe private route tables or establish whole-motion equality. PreloadEnd wall time differs.",
+  "Existing retail motion/route expectations remain unchanged. No wire or save-layout change and no overall performance acceptance. The deliberately saturated synthetic budget is cleared before save to retain legal serialization preconditions."
+ ]
+}

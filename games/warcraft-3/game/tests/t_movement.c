@@ -13319,6 +13319,67 @@ source233_cleanup:
     reset_entities();setup_test_world();
 }
 
+#include "fixtures/retail_group_disabled234.h"
+TEST(wc3_movement, disabled234_native_group_route_retains_destination_without_admission) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *unit=cohort232_unit(128,128);unit->movement.adaptive_disabled=true;
+    cstring_t types[]={"foot","amph","float","fly"};UnitData_t data=*unit->data.UnitData;unit->data.UnitData=&data;
+    FOR_LOOP(i,sizeof(disabled234_rows)/sizeof(*disabled234_rows)) {
+        typeof(*disabled234_rows) const *row=disabled234_rows+i;data.moveTypeName=types[row->cls];
+        vec2_t goal={wc3_mul(wc3_float(row->goal[0]),32),wc3_mul(wc3_float(row->goal[1]),32)},fine={4,4},out;
+        movePathQuery_t query={.geometry={&unit->s.origin2,&goal,unit->collision,M_UnitStaticPathingFlags(unit)},
+            .mover=unit,.fine=&fine,.group_path=true,.coarse_mask=S_UnitMoveCoarseMask(unit)};
+        moveFineRoute_t route={0};
+        if(row->history) {
+            G_ReserveMoveRouteBuffer(&route.group_points,&route.group_capacity,row->history);
+            FOR_LOOP(k,row->history)route.group_points[k]=(vec2_t){9+k,9+k};
+            route.group_count=row->history;
+        }
+        route.group_index=UINT32_MAX;route.group_admission.time=456;
+        level.move_coarse_budgets[0][0].work=UINT32_MAX;
+        bool rebuilt=false;T_ASSERT(G_UnitMoveGroupDestinationStatus(&query,&route,&out,&rebuilt));
+        T_EQ(route.group_count,row->count);T_EQ(route.group_index,row->index);
+        T_EQ(route.group_capacity,row->capacity);T_ASSERT(rebuilt);
+        if(route.group_count==1)FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float*)route.group_points)[k]),row->points[k]);
+        T_EQ(wc3_float_bits(out.x),row->goal[0]);T_EQ(wc3_float_bits(out.y),row->goal[1]);
+        T_EQ(wc3_float_bits(route.group_goal.x),row->goal[0]);T_EQ(wc3_float_bits(route.group_goal.y),row->goal[1]);
+        T_EQ(route.group_admission.time,456);T_ASSERT(!route.group_admission.queued);
+        T_EQ(level.move_coarse_budgets[0][0].work,UINT32_MAX);
+        T_ASSERT(G_UnitMoveGroupDestinationStatus(&query,&route,&out,&rebuilt));T_ASSERT(!rebuilt);
+        free(route.group_points);
+    }
+    reset_entities();setup_test_world();
+}
+TEST(wc3_movement, disabled234_flight_rebind_group_caches_and_saves_route) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    T_ASSERT(run_test_jass("globals\nunit a\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hgry',128,512,0)\nendfunction\n"));
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','g','r','y'))unit=ent;
+    T_NOT_NULL(unit);if(!unit)goto disabled234_cleanup;
+    T_ASSERT(G_TransformUnitType(unit,MAKEFOURCC('h','g','r','y')));T_ASSERT(unit->movement.adaptive_disabled);
+    vec2_t goal={1536,512};groupPointOrder_t request={.count=1,.units={{unit,unit->spawn_time}},
+        .point=&goal,.order="move",.order_id=G_OrderId("move")};
+    T_ASSERT(G_IssueGroupPointOrder(&request));moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        group->age=77;level.move_coarse_budgets[0][0].work=UINT32_MAX;
+        T_ASSERT(move_group_route(group));T_EQ(group->route.group_count,1);T_EQ(group->route.group_index,0);T_EQ(group->age,0);
+        T_EQ(group->route.group_goal.x,48);T_EQ(group->route.group_goal.y,16);
+        T_ASSERT(!group->route.group_admission.queued);T_EQ(level.move_coarse_budgets[0][0].work,UINT32_MAX);
+        group->age=12;T_ASSERT(move_group_route(group));T_EQ(group->age,12);
+        level.move_coarse_budgets[0][0].work=0;
+        cstring_t save=Test_TempPath("wc3-disabled234.bin");T_ASSERT(WriteGame(save));
+        group->route.group_count=0;T_ASSERT(ReadGame(save));group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group){T_EQ(group->route.group_count,1);T_EQ(group->route.group_index,0);T_EQ(group->route.group_goal.x,48);T_EQ(group->age,12);}
+        remove(save);
+    }
+disabled234_cleanup:
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
     reset_entities(); setup_test_world();
     edict_t *clent=alloc_test_unit(0,0,0),*units[2];

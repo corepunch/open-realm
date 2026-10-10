@@ -1582,16 +1582,22 @@ bool G_UnitMoveGroupDestinationStatus(movePathQuery_t const *input, moveFineRout
         move_group_goal_conversions++;
 #endif
     }
-    /* Original16e430 tests path88.200000 independently of movement class.
-     * Creation enables nonstructures; a later flight rebind disables it. */
-    if (input->mover && input->mover->movement.adaptive_disabled) {
-        route->group_count=route->group_index=0;
-        *fine=goal; return true;
-    }
     /* Original16ce10 resamples16c940 and writes path+b4 only when it admits a
      * route. A surviving cached route keeps its footprint after a peer leaves;
      * the current live maximum is used when the destination/map/mask changes. */
     retained = retained && route->group_goal.x == goal.x && route->group_goal.y == goal.y;
+    /* Disabled167120 still publishes a one-point adaptive table. A later
+     * unchanged16ce10 visit retains it without refreshing owner counters. */
+    if (!retained && input->mover && input->mover->movement.adaptive_disabled) {
+        G_ReserveMoveRouteBuffer(&route->group_points,&route->group_capacity,1);
+        route->group_points[0]=(vec2_t){wc3_mul(goal.x,.5f),wc3_mul(goal.y,.5f)};
+        route->group_count=1;route->group_index=0;
+        route->group_goal=goal;route->group_radius=input->geometry.radius;
+        route->group_revision=move_map_revision;route->group_mask=mask;
+        route->warp_markers=false;
+        if (rebuilt) *rebuilt=true;
+        retained=true;
+    }
     if (!retained) {
         unsigned lane=0;
         while (lane<4 && move_acc_masks[lane]!=mask) lane++;
