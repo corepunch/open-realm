@@ -84,4 +84,10 @@ invalidate the source viewer's panel. A map-created multiboard uses the same
 
 The UI does not grant sharing or transfer resources. A client cannot obtain
 resource values for non-eligible players through this panel.
+The same directional `G_CanViewTeamResources(viewer, owner)` permission also
+allows a connected advanced-control ally to receive the owner's built-in gold
+and lumber income and resource-item-pickup floating text, even if that owner
+is disconnected. Shared vision/basic control alone does not qualify. Bounty
+floating text remains visible only to the receiving player; JASS-authored
+TextTags use their own visibility rules. See [Resource Gain Text](resource-gain-text.md).
 The square control beside the Team Resources title toggles only that client's resource rows. The title and control remain visible while collapsed, and the local collapse state is saved with the game.

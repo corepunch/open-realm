@@ -47,6 +47,53 @@ static void item_noop_unicast(edict_t *ent) {
     (void)ent;
 }
 
+/* Observe only built-in floating-text events while exercising real powerup
+ * pickup paths. Other inventory and sound messages are unrelated. */
+typedef struct {
+    bool next_is_temp_type, pending_resource_text;
+    uint32_t unicasts, multicasts;
+    edict_t *recipient;
+    edict_t *recipients[MAX_CLIENTS];
+    char text[32];
+} pickupTextCapture_t;
+static pickupTextCapture_t pickup_text_capture;
+
+static void pickup_text_write(pfWriteType_t type, void const *value) {
+    if (type == PF_BYTE && value) {
+        int32_t const code = *(int32_t const *)value;
+        if (pickup_text_capture.next_is_temp_type) {
+            pickup_text_capture.pending_resource_text = code == TE_FLOATING_TEXT;
+            pickup_text_capture.next_is_temp_type = false;
+        } else if (code == svc_temp_entity) {
+            pickup_text_capture.next_is_temp_type = true;
+        }
+    }
+    if (pickup_text_capture.pending_resource_text && type == PF_STRING && value)
+        strlcpy(pickup_text_capture.text, value, sizeof(pickup_text_capture.text));
+}
+
+static void pickup_text_unicast(edict_t *viewer) {
+    if (pickup_text_capture.pending_resource_text) {
+        uint32_t const slot = pickup_text_capture.unicasts++;
+        pickup_text_capture.recipient = viewer;
+        if (slot < MAX_CLIENTS) pickup_text_capture.recipients[slot] = viewer;
+    }
+    pickup_text_capture.pending_resource_text = false;
+    pickup_text_capture.next_is_temp_type = false;
+}
+
+static void pickup_text_multicast(vec3_t const *origin, multicast_t to) {
+    (void)origin; (void)to;
+    if (pickup_text_capture.pending_resource_text) pickup_text_capture.multicasts++;
+    pickup_text_capture.pending_resource_text = false;
+    pickup_text_capture.next_is_temp_type = false;
+}
+
+static int pickup_text_font(cstring_t name, uint32_t size) {
+    (void)name; (void)size;
+    return 17;
+}
+
 static int capture_inventory_panel_image(cstring_t name) {
     uint32_t index = inventory_panel_image_count;
     if (index < sizeof(inventory_panel_images) / sizeof(inventory_panel_images[0]))
@@ -543,6 +590,17 @@ TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
     edict_t *unit;
     edict_t *item;
     gameClient_t *owner;
+    void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*saved_multicast)(vec3_t const *, multicast_t) = gi.multicast;
+    void (*saved_unicast)(edict_t *) = gi.unicast;
+    int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
+    gameClient_t *saved_entity_client = g_edicts[0].client;
+    bool const saved_connected = game.clients[0].connected;
+    gameClient_t *ally = &game.clients[1];
+    gameClient_t *saved_ally_entity_client = g_edicts[1].client;
+    bool const saved_ally_connected = ally->connected;
+    uint32_t const saved_ally_number = ally->ps.number;
+    uint16_t saved_ally_alliance;
 
     setup_test_world();
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
@@ -570,7 +628,37 @@ TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
     T_STREQ(G_ItemAbilityList(item), "AIgo");
     T_EQ(FindAbilityForCommand("AIgo")->proc, CAbilityItemGold);
     T_FEQ(S_SpellData(MAKEFOURCC('A','I','g','o'), 1, 1), 237.0f, 0.01f);
+    memset(&pickup_text_capture, 0, sizeof(pickup_text_capture));
+    saved_ally_alliance = level.alliances[1][0];
+    level.alliances[1][0] = (1u << ALLIANCE_PASSIVE) |
+                             (1u << ALLIANCE_SHARED_ADVANCED_CONTROL);
+    ally->ps.number = 1;
+    ally->connected = true;
+    g_edicts[1].client = ally;
+    g_edicts[0].client = owner;
+    owner->connected = true;
+    gi.Write = pickup_text_write;
+    gi.multicast = pickup_text_multicast;
+    gi.unicast = pickup_text_unicast;
+    gi.FontIndex = pickup_text_font;
+
     T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(pickup_text_capture.unicasts, 2);
+    T_ASSERT(pickup_text_capture.recipients[0] == &g_edicts[0]);
+    T_ASSERT(pickup_text_capture.recipients[1] == &g_edicts[1]);
+    T_EQ(pickup_text_capture.multicasts, 0);
+    T_ASSERT(pickup_text_capture.recipient == &g_edicts[1]);
+    T_STREQ(pickup_text_capture.text, "+237");
+    gi.Write = saved_write;
+    gi.multicast = saved_multicast;
+    gi.unicast = saved_unicast;
+    gi.FontIndex = saved_font;
+    g_edicts[0].client = saved_entity_client;
+    owner->connected = saved_connected;
+    g_edicts[1].client = saved_ally_entity_client;
+    ally->connected = saved_ally_connected;
+    ally->ps.number = saved_ally_number;
+    level.alliances[1][0] = saved_ally_alliance;
     T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 337);
     T_ASSERT(item->item->pending_use_removal);
     T_EQ(item->item->charges, 0);
@@ -592,6 +680,17 @@ TEST(wc3_items, lumber_powerup_uses_authored_grant_without_inventory_slot) {
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *unit, *item;
     gameClient_t *owner;
+    void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*saved_multicast)(vec3_t const *, multicast_t) = gi.multicast;
+    void (*saved_unicast)(edict_t *) = gi.unicast;
+    int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
+    gameClient_t *saved_entity_client = g_edicts[0].client;
+    bool const saved_connected = game.clients[0].connected;
+    gameClient_t *ally = &game.clients[1];
+    gameClient_t *saved_ally_entity_client = g_edicts[1].client;
+    bool const saved_ally_connected = ally->connected;
+    uint32_t const saved_ally_number = ally->ps.number;
+    uint16_t saved_ally_alliance;
 
     setup_test_world();
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
@@ -617,7 +716,27 @@ TEST(wc3_items, lumber_powerup_uses_authored_grant_without_inventory_slot) {
     T_ASSERT(G_CanPickupItem(unit, item));
     T_EQ(FindAbilityForCommand("AIlu")->proc, CAbilityItemLumber);
     T_FEQ(S_SpellData(MAKEFOURCC('A','I','l','u'), 1, 1), 237.0f, 0.01f);
+    memset(&pickup_text_capture, 0, sizeof(pickup_text_capture));
+    saved_ally_alliance = level.alliances[1][0];
+    level.alliances[1][0] = (1u << ALLIANCE_PASSIVE) |
+                             (1u << ALLIANCE_SHARED_ADVANCED_CONTROL);
+    ally->ps.number = 1;
+    ally->connected = true;
+    g_edicts[1].client = ally;
+    g_edicts[0].client = owner;
+    owner->connected = true;
+    gi.Write = pickup_text_write;
+    gi.multicast = pickup_text_multicast;
+    gi.unicast = pickup_text_unicast;
+    gi.FontIndex = pickup_text_font;
+
     T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(pickup_text_capture.unicasts, 2);
+    T_ASSERT(pickup_text_capture.recipients[0] == &g_edicts[0]);
+    T_ASSERT(pickup_text_capture.recipients[1] == &g_edicts[1]);
+    T_EQ(pickup_text_capture.multicasts, 0);
+    T_ASSERT(pickup_text_capture.recipient == &g_edicts[1]);
+    T_STREQ(pickup_text_capture.text, "+237");
     T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 337);
     T_ASSERT(item->item->pending_use_removal);
     T_EQ(item->item->charges, 0);
@@ -629,6 +748,21 @@ TEST(wc3_items, lumber_powerup_uses_authored_grant_without_inventory_slot) {
     item = make_item_test_world_item(MAKEFOURCC('p','l','u','m'), 32, 0);
     item->data.ItemData = &lumber_data;
     T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(pickup_text_capture.unicasts, 4);
+    T_EQ(pickup_text_capture.multicasts, 0);
+    T_ASSERT(pickup_text_capture.recipients[2] == &g_edicts[0]);
+    T_ASSERT(pickup_text_capture.recipients[3] == &g_edicts[1]);
+    T_STREQ(pickup_text_capture.text, "+35");
+    gi.Write = saved_write;
+    gi.multicast = saved_multicast;
+    gi.unicast = saved_unicast;
+    gi.FontIndex = saved_font;
+    g_edicts[0].client = saved_entity_client;
+    owner->connected = saved_connected;
+    g_edicts[1].client = saved_ally_entity_client;
+    ally->connected = saved_ally_connected;
+    ally->ps.number = saved_ally_number;
+    level.alliances[1][0] = saved_ally_alliance;
     T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], USHRT_MAX);
 
     G_SetSLKRows("AbilityData", old);

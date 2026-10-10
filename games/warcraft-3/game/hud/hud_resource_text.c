@@ -66,7 +66,7 @@ static bool resource_text_style(uint32_t resource_state, bool bounty, resourceTe
 }
 
 static void resource_gain_text(edict_t *source, uint32_t resource_state, int32_t amount,
-                               bool bounty, int32_t recipient) {
+                               bool bounty, uint32_t recipient) {
     resourceTextStyle_t style;
     char field[64], text[32];
     vec3_t origin;
@@ -74,18 +74,30 @@ static void resource_gain_text(edict_t *source, uint32_t resource_state, int32_t
     float lifetime, fade_start, height;
     uint32_t color_bits, lifetime_ms, fade_start_ms, font_size;
     int32_t font;
-    edict_t *viewer = NULL;
+    edict_t *viewers[MAX_CLIENTS];
+    uint32_t viewer_count = 0;
 
     if (!source || amount <= 0 || !resource_text_style(resource_state, bounty, &style)) return;
-    if (!gi.Write || !gi.multicast || !gi.FontIndex) return;
-    /* Decide the recipient before writing anything: gi.Write fills the shared
-     * server multicast buffer and only unicast/multicast drains it. Computer
-     * players never connect, so a bounty written for them used to stay in the
-     * buffer and leak into the next message sent to another client. */
-    if (recipient >= 0) {
-        viewer = G_GetPlayerEntityByNumber((uint32_t)recipient);
-        if (!viewer || !viewer->client || !viewer->client->connected) return;
+    if (!gi.Write || !gi.unicast || !gi.FontIndex || recipient >= MAX_PLAYERS) return;
+
+    /* Resolve every connected audience member before serializing anything.
+     * Basic control/vision alone never exposes income coordinates, and the
+     * viewer->owner permission direction matches the Team Resources HUD.
+     * Bounty remains recipient-only, even with advanced shared control.
+     * A disconnected/computer owner may still have an authorised ally. */
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
+        gameClient_t *client = &game.clients[i];
+        uint32_t const number = client->ps.number;
+        edict_t *ent;
+
+        if (!client->connected || number >= MAX_PLAYERS) continue;
+        if (number != recipient &&
+            (bounty || !G_CanViewTeamResources(number, recipient))) continue;
+        ent = G_GetPlayerEntityByNumber(number);
+        if (!ent || ent->client != client) continue;
+        viewers[viewer_count++] = ent;
     }
+    if (!viewer_count) return; /* Do not leave an unsent payload in gi.Write. */
 
     snprintf(field, sizeof(field), "%sTextColor", style.name);
     color = resource_text_color(field, style.fallback_color);
@@ -109,26 +121,27 @@ static void resource_gain_text(edict_t *source, uint32_t resource_state, int32_t
     origin.z += RESOURCE_TEXT_WORLD_Z_OFFSET;
     color_bits = resource_text_color_bits(color);
 
-    gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
-    gi.Write(PF_BYTE, &(int32_t){ TE_FLOATING_TEXT });
-    gi.Write(PF_POSITION, &origin);
-    gi.Write(PF_STRING, text);
-    gi.Write(PF_LONG, &(int32_t){ (int32_t)color_bits });
-    gi.Write(PF_SHORT, &font);
-    gi.Write(PF_LONG, &(int32_t){ (int32_t)lifetime_ms });
-    gi.Write(PF_LONG, &(int32_t){ (int32_t)fade_start_ms });
-    gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_X });
-    gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_Y });
-
-    /* Existing mining/deposit presentation remains shared. */
-    if (viewer) gi.unicast(viewer);
-    else gi.multicast(&origin, MULTICAST_ALL);
+    /* gi.unicast() drains the shared temporary-message buffer; re-encode the
+     * same event for each eligible viewer, never multicast its coordinates. */
+    FOR_LOOP(i, viewer_count) {
+        gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+        gi.Write(PF_BYTE, &(int32_t){ TE_FLOATING_TEXT });
+        gi.Write(PF_POSITION, &origin);
+        gi.Write(PF_STRING, text);
+        gi.Write(PF_LONG, &(int32_t){ (int32_t)color_bits });
+        gi.Write(PF_SHORT, &font);
+        gi.Write(PF_LONG, &(int32_t){ (int32_t)lifetime_ms });
+        gi.Write(PF_LONG, &(int32_t){ (int32_t)fade_start_ms });
+        gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_X });
+        gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_Y });
+        gi.unicast(viewers[i]);
+    }
 }
 
-void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amount) {
-    resource_gain_text(source, resource_state, amount, false, -1);
+void G_ResourceGainEvent(edict_t *source, uint32_t recipient, uint32_t resource_state, int32_t amount) {
+    resource_gain_text(source, resource_state, amount, false, recipient);
 }
 
 void G_BountyGainEvent(edict_t *victim, uint32_t recipient, uint32_t resource_state, int32_t amount) {
-    resource_gain_text(victim, resource_state, amount, true, (int32_t)recipient);
+    resource_gain_text(victim, resource_state, amount, true, recipient);
 }

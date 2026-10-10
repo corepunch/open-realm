@@ -9,7 +9,7 @@ Warcraft resource income has two separate responsibilities:
 
 For ordinary workers the label belongs to **deposit**, not extraction. A Peasant may leave a Gold Mine carrying ten gold without changing the player's gold total or creating a gain label. When it reaches a compatible drop-off, the income transaction commits and a label is spawned from the worker's position. Lumber follows the same rule. Direct-income paths such as the current Wisp and Blighted Gold Mine implementations emit at the source unit when their existing income transaction commits.
 
-`G_CreditResourceIncome()` is the common commit boundary. It calls the existing pure `G_ApplyResourceIncome()` upkeep calculation, updates `playerState_t.stats`, and only then calls `G_ResourceGainEvent()` with the **net credited amount**. This keeps the visual number consistent with the resource bar under Low/High Upkeep. Existing `GAME_MSG_HARVEST_DEPOSIT_*` messages remain transition observations with `{type, actor, target}` and are not overloaded with presentation data.
+`G_CreditResourceIncome()` is the common commit boundary. It calls the existing pure `G_ApplyResourceIncome()` upkeep calculation, updates `playerState_t.stats`, and only then calls `G_ResourceGainEvent()` with the **net credited amount** and the actual credited player number. This keeps the visual number consistent with the resource bar under Low/High Upkeep. Existing `GAME_MSG_HARVEST_DEPOSIT_*` messages remain transition observations with `{type, actor, target}` and are not overloaded with presentation data.
 
 ## Server-selected presentation contract
 
@@ -28,7 +28,7 @@ FLOAT    vertical screen velocity in pixels/second
 
 There are deliberately no `TE_GOLD_TEXT` / `TE_LUMBER_TEXT` shared enums and no resource-name table in `client/`. This follows [server-selected-effects.md](../../architecture/server-selected-effects.md): game code resolves game-specific content, while shared/client code transports and renders generic resolved presentation.
 
-Current Warsmash accepts a player index in `unitGainResourceEvent()` but drops it before `SimulationRenderController.spawnTextTag()`. OpenRealm therefore multicasts this parity event without owner filtering. The client still draws it only while its world anchor projects inside the active world scissor. This document does not infer stricter retail multiplayer visibility from Warsmash's unused player-index parameter.
+Built-in gold/lumber harvesting-income and resource-item-pickup labels go to the **credited player plus eligible advanced-shared-control allies**. The server checks `G_CanViewTeamResources(viewer, recipient)` for each connected viewer, using directional viewer-to-owner alliance permissions. Shared vision and basic control alone do not qualify, nor does a hostile player with a forged advanced-control bit. Each eligible viewer receives a separate `TE_FLOATING_TEXT` via `gi.unicast()`; no unfiltered multicast carries income coordinates. A computer/disconnected owner still receives gameplay resources, and connected advanced-control allies can still see the label. If no connected viewer is eligible, no `gi.Write` is performed, avoiding dangling event bytes in the shared message buffer. Bounty remains **recipient-only**, regardless of advanced control; general JASS-authored `texttag` visibility is independent of this built-in resource-label policy.
 
 ## Warcraft data and fallback rules
 
@@ -80,7 +80,7 @@ The common commit helper is used at the existing high-confidence income sites:
 - Haunted Gold Mine direct gold credit driven by active Acolyte slots;
 - Entangled Gold Mine direct gold credit driven by occupied Wisp cargo slots.
 
-The event source is the entity that owns the current transaction. Normal worker deposits and militia conversion therefore originate at the worker. Current direct Wisp lumber income originates at the Wisp; Haunted and Entangled direct gold income originates at the racial mine overlay.
+The event source is the entity that owns the current transaction. Normal worker deposits and militia conversion therefore originate at the worker. Current direct Wisp lumber income originates at the Wisp; Haunted and Entangled direct gold income originates at the racial mine overlay. All are presented to the player actually credited with resources and eligible advanced-control allies. Gold/lumber powerup item pickups pass the picker's owner as recipient and bypass worker-harvest upkeep.
 
 ## Deliberate non-goals / remaining parity gaps
 
@@ -88,7 +88,7 @@ This patch does **not** use floating text as a reason to redesign incomplete gam
 
 - Wisp harvesting uses persistent periodic direct income, attached TargetArt at the authored DataC height, and the authored looped harvest sound on the same effect lifecycle.
 - Unit-kill bounty is implemented independently from worker mining. The victim's owner's `PLAYERSTATE_GIVES_BOUNTY` enables authored UnitBalance gold/lumber dice payouts, credited to the killing unit's owner. The death lifecycle guard prevents a second reward; illusions, friendly kills, self-kills and unattributed deaths do not grant bounty.
-- Bounty labels use independent authored `BountyText*` / `LumberBountyText*` settings, anchor at the defeated unit, and are unicast to the recipient rather than broadcast. The recipient is resolved before any `gi.Write`: computer players are never `connected`, so their bounty text is skipped entirely instead of being written into the shared multicast buffer, where an unsent payload would leak into the next message delivered to another client. A successful gold payout additionally spawns the GoldCredit model using an owner-only effect. Missing Warcraft models do not invalidate gameplay credits.
+- Bounty labels use independent authored `BountyText*` / `LumberBountyText*` settings, anchor at the defeated unit, and are unicast only to the bounty recipient (never to advanced-control allies). The recipient is resolved before any `gi.Write`: computer players are never `connected`, so their bounty text is skipped entirely instead of being written into the shared multicast buffer, where an unsent payload would leak into the next message delivered to another client. A successful gold payout additionally spawns the GoldCredit model using an owner-only effect. Missing Warcraft models do not invalidate gameplay credits.
 - Bounty bypasses `G_ApplyResourceIncome()`: retail upkeep taxes only gold returned from mines, so `G_AwardKillBounty()` credits the rolled gold/lumber in full (like Bundle of Gold / Lumber pickups) and clamps only to the 16-bit resource cap. Transmute `DataD` interactions still require verification. Display is the actually credited, resource-capped amount. The normal `GoldText*`/`LumberText*` mining paths are unaffected.
 - JASS `texttag` natives publish keyed presentation updates through `TE_TEXT_TAG` (see [multiboard-and-texttag.md](multiboard-and-texttag.md)). `TE_FLOATING_TEXT` remains the one-shot resource-gain primitive.
 - The resource label does not modify harvesting orders, carry state, camera, fog, selection, or HUD resource accounting.
@@ -103,6 +103,7 @@ This patch does **not** use floating text as a reason to redesign incomplete gam
 - select the generic `TE_FLOATING_TEXT` event;
 - use the fallback gold colour/timing/font size when Misc data is absent;
 - encode 0/60 px/s built-in motion; and
-- multicast exactly once.
+- unicast once per eligible connected viewer (credited player and advanced-control allies; never multicast); and
+- skip networking entirely when no viewer is eligible, before serializing any payload.
 
-Runtime visual validation should additionally exercise ordinary gold and lumber deposits in both ROC and TFT data modes and confirm independent rising/fading labels while workers immediately resume their normal harvesting loop.
+Runtime visual validation should additionally exercise ordinary gold and lumber deposits and gold/lumber item pickups in both ROC and TFT data modes; verify that only the credited player and allies with active advanced control see each label (including when the owner is disconnected). Shared-vision/basic-control allies and enemies must receive no event, even through fog. Confirm independent rising/fading labels while workers immediately resume their normal harvesting loop.
