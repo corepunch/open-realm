@@ -2805,11 +2805,16 @@ TEST(wc3_spell, disease_cloud_independent_sources_and_refresh) {
         "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"ground,enemy,organic\"\nC;Y2;X6;K\"13\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *first = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
-    edict_t *second = make_hero(MAKEFOURCC('o','g','r','u'), 100, 40, 0, 0);
+    edict_t *second = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 40, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
     UnitAbilities_t abilities = { .abilList = "Aap1" };
     heroabilitystatus_t *a, *b;
     uint32_t next_a;
+    second->health.value = second->health.max_value = 100;
+    second->svflags |= SVF_MONSTER;
+    second->stand = unit_stand;
+    second->movetype = MOVETYPE_NONE;
+    unit_stand(second);
     first->data.UnitAbilities = second->data.UnitAbilities = &abilities;
     first->s.player = second->s.player = 0;
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;

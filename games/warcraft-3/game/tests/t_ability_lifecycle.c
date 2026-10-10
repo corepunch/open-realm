@@ -689,7 +689,9 @@ TEST(wc3_ability_lifecycle, siphon_mana_stun_before_tick_preserves_resources) {
 /* Keep the standard neutral-drain fixture unchanged. These tests explicitly
  * enable Life Drain DataB so a missing mid-pulse guard is observable. */
 static slkTestData_t *review_life_drain_with_mana_data(void) {
-    char fixture[sizeof(review_slk)];
+    /* parse_slk_string retains its input until free_slk_rows(), so this
+     * modified SLK fixture must outlive the helper call. */
+    static char fixture[sizeof(review_slk)];
     char *cell;
     memcpy(fixture, review_slk, sizeof(fixture));
     cell = strstr(fixture, "C;Y5;X10;K\"0\"\n");
@@ -728,9 +730,14 @@ TEST(wc3_ability_lifecycle, life_drain_lethal_pulse_does_not_drain_mana) {
     enemy->health.value = 10;
     caster->mana.value = 20;
     enemy->mana.value = 90;
+    enemy->die = unit_die;
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
     edict_t *thinker = review_thinker(caster);
     T_NOT_NULL(thinker);
+    if (!thinker) {
+        G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+        return;
+    }
     float before_caster = caster->mana.value;
     level.time += 1000;
     if (thinker->inuse) G_RunEntity(thinker);
