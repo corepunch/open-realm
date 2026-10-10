@@ -37,8 +37,6 @@ struct game_import gi;
 struct game_locals game;
 struct level_locals level;
 struct edict_s *g_edicts;
-static uint32_t const destructable_gate_prefix = MAKEFOURCC('D','T','g','\0');
-static uint32_t const destructable_gate_prefix_mask = 0x00ffffffu;
 static bool entity_is_pathing_ignored(edict_t const *ent);
 
 extern jassModule_t jass_funcs[];
@@ -1700,11 +1698,9 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
             state->name = G_UnitNameConfigstring(G_LevelString(name));
             state->stats[ENT_HEALTH] = compress_stat(&ent->health);
             state->flags |= EF_NEUTRAL;
-            /* Warcraft gate doodads (DTg*) are attackable world objects. The
-             * universal hover UI only displays their health when the game
-             * explicitly publishes the hover-health capability. */
-            if (!ent->invulnerable &&
-                (ent->class_id & destructable_gate_prefix_mask) == destructable_gate_prefix)
+            /* The TFT destructable data marks breakables selectable. Use that
+             * authored property for health hover instead of rawcode families. */
+            if (!ent->invulnerable && ent->data.DestructableData->selectable)
                 state->flags |= EF_HOVER_HEALTH;
         }
         return;
