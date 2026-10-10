@@ -226,6 +226,6 @@ int32_t G_CreditResourceIncome(player_t *player, edict_t *source, uint32_t resou
     if (resource_state == PLAYERSTATE_RESOURCE_GOLD ||
         resource_state == PLAYERSTATE_RESOURCE_LUMBER)
         G_MarkMultiboardPlayerDirty(player->number);
-    G_ResourceGainEvent(source, resource_state, credited);
+    G_ResourceGainEvent(source, player->number, resource_state, credited);
     return credited;
 }

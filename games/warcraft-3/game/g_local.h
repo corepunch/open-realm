@@ -3042,7 +3042,7 @@ void G_EffectThink(edict_t *);
 void G_EffectValidateTarget(edict_t *);
 
 // hud/hud_resource_text.c
-void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amount);
+void G_ResourceGainEvent(edict_t *source, uint32_t recipient, uint32_t resource_state, int32_t amount);
 void G_BountyGainEvent(edict_t *victim, uint32_t recipient, uint32_t resource_state, int32_t amount);
 
 // hud/hud_unit.c
