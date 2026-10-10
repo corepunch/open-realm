@@ -4364,6 +4364,38 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Roar is one area cast, not an all-or-nothing status transaction.
+ * A capacity-full ally must not prevent a second ally receiving the buff. */
+TEST(wc3_spell, roar_skips_full_ally_and_buffs_other_targets) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\n"
+        "C;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"Area1\"\n"
+        "C;Y2;X1;K\"Aroa\"\nC;Y2;X2;K\"Aroa\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"30\"\nC;Y2;X5;K\"0.37\"\n"
+        "C;Y2;X6;K\"Broa\"\nC;Y2;X7;K\"300\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('h','p','r','i'), 300, 300, 0, 0);
+    edict_t *full = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 60, 0);
+    edict_t *free_ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 120, 0);
+    caster->s.player = full->s.player = free_ally->s.player = 0;
+    full->svflags |= SVF_MONSTER;
+    free_ally->svflags |= SVF_MONSTER;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        char buff[5] = { 'B', 'q', '0', '0', 0 };
+        buff[2] = (char)('0' + i / 10);
+        buff[3] = (char)('0' + i % 10);
+        T_ASSERT(unit_addtimedstatus(full, buff, 1, 30.0f));
+    }
+    test_execute_code(caster, "Aroa", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+    T_EQ(G_UnitStatusLevel(full, MAKEFOURCC('B','r','o','a')), 0);
+    T_EQ(G_UnitStatusLevel(free_ally, MAKEFOURCC('B','r','o','a')), 1);
+    T_FEQ(S_RoarDamageBonus(free_ally), 0.37f, 0.001f);
+    T_EQ(G_UnitStatusLevel(caster, MAKEFOURCC('B','r','o','a')), 1);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y5;X10\n"
