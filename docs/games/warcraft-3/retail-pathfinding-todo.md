@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**278 done / 336 tasks; 58 remaining.**
+**279 done / 336 tasks; 57 remaining.**
+Payoff239 closes GROUP-01.1's representative selected/JASS/AI producer inventory
+and fixes stale shared history when a player singleton replaces a shared order.
+Repeated retail publication evidence, failing-first queue/save regressions and
+unchanged independent/Captain contracts accompany the fix. See
+[player singleton history](retail-pathfinding-queued-cohorts.md#player-singleton-publication-clears-shared-history-payoff239).
+
 Payoff238 gives Alt current flyers independent request/history owners while
 preserving global candidate admission and last-ready physical publication order.
 Complete original class/grounding cases, frozen public repeats and engine
@@ -1450,7 +1456,7 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 
 ### GROUP-01 — Group producers
 
-- [ ] **GROUP-01.1** Issue a multi-selection player order, independent JASS orders and an AI order; record group identity sharing, creation limits and producer flags.
+- [x] **GROUP-01.1** [Payoff239](retail-pathfinding-queued-cohorts.md#player-singleton-publication-clears-shared-history-payoff239): selected ordinary/Alt and singleton, independent JASS and24/25-member Captain producer inventory records sharing, twelve-member physical limits and distinct flags/policies. Two new singleton and two pair-to-singleton retail repeats expose unconditional history clearing before admission. Engine now clears player-only unassociated request history; failing-first immediate/Shift/Alt/independent/save tests and unchanged producer journeys pass. Wider canonical owner behavior remains GROUP-04.6.
 - [ ] **GROUP-01.2** Trigger join/leave/merge/split through those producers; assert membership and route ownership after each transition.
 
 - [x] **GROUP-01.3** Explicitly split public JASS point-order admission from01.1: map name/ById/Loc/ByIdLoc to one native leaf, verify twelve-member insertion-order admission and all-candidate attach before order validation, and implement the bounded snapshot plus missing numeric/Loc engine dispatch. Evidence: [payoff37](retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members), two complete scene46 admission captures, four shared original requests per capture/48 admitted/eight excluded members; engine regression reproduces the over-limit failure then passes allfour forms and invalid adapters. Ghidra retains nine producer/callback/snapshot roles and the44-byte request context. Persistent physical shared groups and complete trajectories remain04.6; selected/independent JASS/AI distinctions and flags remain01.1. Motion observer cap is explicit and certifies no whole trajectory.

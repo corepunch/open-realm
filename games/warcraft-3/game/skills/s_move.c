@@ -6031,6 +6031,11 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             confirmation = target;
             have_confirmation = true;
         }
+        /* Net6b93a0 replaces latest request history before append/admit. This
+         * player producer has no canonical association; the current physical
+         * owner remains independent, especially for Shift. Script orders do
+         * not pass through this publication boundary. */
+        ent->movement.previous_request_id=0;
         if (clent->client->menu.order_queued) {
             /* Queued units may reach this leg at different times, so retain the
              * resolved per-unit slot and speed in the unit's own FIFO. */

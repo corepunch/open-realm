@@ -13329,6 +13329,44 @@ TEST(wc3_movement, selected238_alt_callbacks_keep_candidate_order_and_replacemen
     reset_entities();setup_test_world();
 }
 
+/* Net6b93a0 publishes invalid history when a player point has no association.
+ * Independent script Move bypasses that producer and retains existing history. */
+TEST(wc3_movement, selected239_singleton_clears_player_request_history) {
+    FOR_LOOP(queued,2)FOR_LOOP(alt,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *clent=alloc_test_unit(0,0,0),*units[2];
+        clent->client=game.clients;clent->client->ps.number=0;
+        clent->client->menu.order_queued=false;clent->client->menu.order_alt=false;
+        FOR_LOOP(i,2) {
+            units[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),512+96*i,512);
+            units[i]->collision=16;units[i]->s.model=1;units[i]->svflags|=SVF_MONSTER;
+            units[i]->stand=unit_stand;units[i]->movetype=MOVETYPE_STEP;unit_stand(units[i]);
+            G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+        }
+        vec2_t point={1536,1536};T_ASSERT(move_selectlocation(clent,&point));
+        uint64_t history=units[0]->movement.previous_request_id;T_ASSERT(history!=0);
+        T_EQ(units[1]->movement.previous_request_id,history);
+        point=(vec2_t){2048,1024};
+        T_ASSERT(G_IssueUnitPointOrder(units[0],"move",&point,false,0,0));
+        T_EQ(units[0]->movement.previous_request_id,history);
+        G_SetEntitySelectionMask(units[1],0);
+        clent->client->menu.order_queued=queued;clent->client->menu.order_alt=alt;
+        point=(vec2_t){512,2048};T_ASSERT(move_selectlocation(clent,&point));
+        T_EQ(units[0]->movement.previous_request_id,0);
+        T_EQ(units[1]->movement.previous_request_id,history);
+        T_EQ(units[0]->order_queue.count,queued);
+        cstring_t save=Test_TempPath("wc3-selected239.bin");T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+        T_EQ(units[0]->movement.previous_request_id,0);
+        T_EQ(units[1]->movement.previous_request_id,history);
+        if(queued) {T_ASSERT(G_UnitStartNextQueuedOrder(units[0]));T_EQ(units[0]->movement.previous_request_id,0);}
+        T_ASSERT(unit_issueimmediateorder(units[0],"stop"));
+        T_EQ(units[1]->movement.previous_request_id,history);remove(save);
+    }
+    reset_entities();setup_test_world();
+}
+
 /* Pending selected requests retain common coordinates and survive independent cancellation. */
 /*5fa950/67e790: selector8 is a centre-only circle;013490 supplies1000.
  *5faaf0 stops on its first compatible physical owner, in widget query order. */

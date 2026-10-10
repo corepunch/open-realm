@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "193 executable original/evidence contracts;474 total entries.",
+  "scope": "194 executable original/evidence contracts;475 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -50122,6 +50122,59 @@
         "Engine validates class membership, common goals, physical birth order, separate queued history/context, cold saves, independent Stop and callback ordering/replacement. Queue checks do not establish full retail ShiftAlt trajectories.",
         "Initial scratch harnesses read the wrong candidate stride/count; rejected original1/2 logs are archived and provide no expectations. Native rows are12-byte identities plus auxiliary word; all earlier retail fixtures stay unchanged."
       ]
+    },
+    {
+      "id": "oracle-work239",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work239.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work239.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 4
+        },
+        "public_markers": {
+          "equal": 330
+        },
+        "history_transitions": {
+          "equal": 2
+        },
+        "singleton_flags": {
+          "equal": 0
+        },
+        "instructions": {
+          "equal": 1920
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "GROUP-01.1 representative selected/JASS/AI producers; native singleton player publication clears shared history before admission. Immediate/Shift/Alt/independent/cold-save regression and unchanged complete producer journeys.",
+      "exclusions": [
+        "Four actual UI read-only captures: two singleton Alt, two pair-to-singleton Alt. No fresh observer-free control or complete motion comparison in this chunk.",
+        "Generic capture metadata retains its original MAP-02.2 task label; the frozen scene and verifier define this GROUP-01.1 scope.",
+        "Existing selected/JASS/AI fixtures and regression journeys supply the broader representative producer inventory; they are unchanged.",
+        "Instruction guards verify saved native producer bodies; this verifier does not emulate the complete net publisher.",
+        "Mixed FLOAT, callback category reassignment, busy canonical lifetime and complete multi-class journeys remain GROUP-04.6."
+      ]
     }
   ],
   "fixtures": [
@@ -51020,7 +51073,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "50cbbd4b4799eb34665d91571cb03b75402e54b9e0bd956019765db8174f2b3b"
+      "sha256": "0a676281e2babf94bcfbaee658db13a0a4ca471cd7de93f0ce5cf11c3bbf1b30"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51876,7 +51929,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "f00b4bbd61db59aff4d782fb3c0c742b915293460d9b262f964accdc8c6e8300"
+      "sha256": "1a56ee7e0f5bb5ba7bc3a7672acefd92bf74b49916d4ff6c6b3edd3ca23f3ae0"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -52568,7 +52621,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "4459602236c7c2297b2df19ca2f613785c9afd2a662efe644b2d791832209cfd"
+      "sha256": "943c82b21919edbb7b990542ed65ef937c02e94dc69f4d809f11e14344ccc7ce"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -52812,7 +52865,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "fd72bdff0909f766eab4af86c9b19a977dee15ec262f117e3052b9614585a69e"
+      "sha256": "265d9da2a7036472fc0a2b758ca746732474918e869493ef866b9ef0eb5939c1"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52828,7 +52881,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "da1faf305d343ee0f667596f438e51ce8d50cbb7d05567fe4da917cde3dcd336"
+      "sha256": "b0955d7203f2cae8eca5973029330c6b8ce889f38f567297e872bc719289be95"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55772,7 +55825,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-queued-cohorts.md",
-      "sha256": "03fe08a43359d4674c34a6ab6db59ab3cd0357fc084959caae214ad5692941b4"
+      "sha256": "9da5bbe9983f130efdbe7abcee4a37f1c57bb0f41c52b01dc60809d70ae5b1c4"
     },
     {
       "path": "tools/frida/research/work232_observer.js",
@@ -56005,6 +56058,50 @@
     {
       "path": "tests/test_wc3_pathfinding_work238.py",
       "sha256": "bf49bc85a6243ee09da36f2b5844ae163f3f31796ff90ae6e36202ea0cc70745"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work239.py",
+      "sha256": "9cfd7a7cd1849cc510dde73252d58f11fcfcd254d79a961aa1e2f92f9732a68f"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work239.py",
+      "sha256": "833605a81c7945eeaf62251e9cc4e38b798e2e5c30b242a7cd895ecd762c4417"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work239-1.27.json",
+      "sha256": "aedb05ed6705ab52171f10861203d1020a2ff2947f4371972a0da96fc3d9ce14"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work239-1.27.json.gz",
+      "sha256": "e79b8d4118000dba192f3296eb7bd0e16c19ee766b8284d7a3f25a0f4bda6e57"
+    },
+    {
+      "path": "tools/ghidra/research/Work239Evidence.java",
+      "sha256": "45934ef43347ade0edcd13a0026c614ac0054642d1445bacca659f45ac19e9f8"
+    },
+    {
+      "path": "tools/frida/research/work239_probe.j",
+      "sha256": "93a826e437beabbd5ed972ff3e16a8b2f8c4b12e41fe8930ef6a9bd8f30c96b4"
+    },
+    {
+      "path": "tools/frida/research/work239_make_map.py",
+      "sha256": "b10608dcaab0a07b632ea3c8965eff4f1d559ef8650f88ee6466f661c912527c"
+    },
+    {
+      "path": "tools/frida/research/work239_observer.js",
+      "sha256": "c4e793cf3a4ce8ee7cacf4a5d405efc1e25b5d202cde41cbe59f06ef18a50a4f"
+    },
+    {
+      "path": "tools/frida/research/work239b_probe.j",
+      "sha256": "029a1db9705902802a84e9fb4ecf58e08a6a9c7ce621cc2cafd17c34bebe3b43"
+    },
+    {
+      "path": "tools/frida/research/work239b_make_map.py",
+      "sha256": "850bbdc8173fd4adb8b0bdceabc7342ca8850ab228a251c96232088af275a7a2"
+    },
+    {
+      "path": "tools/frida/research/work239b_observer.js",
+      "sha256": "82a1a4d9bca108067744d69a93c67694f879067c4362c88070a5617020fb39b0"
     }
   ]
 }

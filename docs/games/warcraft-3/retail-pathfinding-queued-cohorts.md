@@ -517,3 +517,58 @@ shards passed. Four unchanged passing shards and the Python results were retaine
 Production code was identical across both runs. The fresh strict corpus accepts
 193 original/evidence oracles and474 total entries; focused Alt verification
 passes six tests/566 assertions per edition. Validation cadence resets to0/12.
+
+## Player singleton publication clears shared history (Payoff239)
+
+GROUP-01.1's representative producer inventory is now complete. These producers
+share the underlying Move entry but deliberately differ in request ownership:
+
+| Producer | Request identity and limits | Producer flags |
+|---|---|---|
+| Selected player Move | One primary request for ordinary non-FLOAT candidates; Alt separates current flyers. Physical owners have at most twelve members. | Packet8 ordinarily,18h with Alt; Shift adds1. Singleton packets are0 even with Alt, and create an ordinary flags0 physical owner. |
+| Independent JASS Move | Each native creates an independent point order/physical owner, rather than a selected cohort. The existing scene52 pair begins with two independent owners before later selected Shift acquisition. | `206f00` directly calls `Unit_AdmitOrder` with1/1; no selected packet or shared request attachment. |
+| Captain AI shared point | Logical rosters24/25 prepare12+12/12+12+1 physical requests sharing one auxiliary parameter identity. | The recorded preparation passes policy1/bindShared1. `9d1040` sets canonical100h/800h/extra400h and clears persistent completion; it does not synthesize a player packet. |
+
+The selected/mixed-flight witnesses are Payoff237/238. Independent JASS ownership
+and subsequent natural activation retain the unchanged scene52 and Payoff170
+fixtures. Captain limits, sharing and producer policy retain Payoff161's two
+complete repeats and observer-free controls for each roster. This inventory does
+not close the wider canonical lifetime, mixed-FLOAT, dynamic callback category
+or complete multi-class trajectory requirements in GROUP-04.6.
+
+Two new actual singleton Alt captures disprove the tempting one-row prepared
+cohort shortcut: packetflags0, no `6b8c10` attachment or `89c7c0` retention, and
+one ordinary physical owner with flags0. Preserve the engine's multi-selection
+guard. Two further actual pair-to-singleton Alt repeats expose a different bug:
+`6b93a0` overwrites Unit240/244 with invalid identity when the order has no
+associated canonical request. Its stores at6b94e3/6b94ec precede append/admit.
+The first pair stores one shared identity into both units; the later singleton
+clears only the ordered unit. All330 public markers and four observer scopes
+complete. These captures are read-only; there is no new observer-free control or
+whole-motion comparison in this chunk. Generic capture metadata retains its
+original MAP-02.2 label; the pinned probes/maps define this producer scope.
+
+The engine's legacy player Move path now clears latest request history before
+queue/current-order replacement. This is one O(1) write per admitted candidate,
+not a group scan. The current physical owner remains independent of that history,
+so Shift preserves current execution. No admission-result rollback is added:
+retail writes history before dispatch. Independent JASS bypasses this net
+publisher and retains history; changing the common Move entry would be wrong.
+No save layout, earlier retail expectations or authored object data changed.
+
+The failing-first regression reports ten stale-history failures in64 assertions.
+Immediate/Shift, ordinary/Alt, independent script-style admission, unselected
+peer preservation, queued activation and cold saves now pass. Six representative
+producer regressions pass422,330 assertions per Classic/TFT. Saved Ghidra evidence
+contains seven functions, xrefs and1,920 instruction encodings; portable comments
+in `MapPathfinding.java` retain the player/script distinction.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work239.py \
+  --binary /path/to/retail/game.dll --report /tmp/work239-fresh.json
+```
+
+Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-01.1/payoff239/`.
+This is implementation1/12 after checkpoint238. The earlier full checkpoint is
+retained; focused original/corpus and neighboring owner checks validate this fix.
