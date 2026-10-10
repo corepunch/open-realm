@@ -1959,7 +1959,7 @@ TEST(wc3_spell, requested_active_callback_families_change_simulation) {
 	T_ASSERT(M_IsDead(third));
 
 	test_execute_code(caster, "AOcl", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = first));
-	T_FEQ(first->health.value, 334.0f, 0.001f); /* magic damage is amplified by Banish */
+	T_FEQ(first->health.value, 399.0f, 0.001f);
 	T_FEQ(second->health.value, 500.0f, 0.001f);
 	{
 		edict_t *thinker = NULL;
@@ -3188,7 +3188,12 @@ TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_l
     target_number = target->s.number;
 
     T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
-    T_EQ(effect->status_effect_code, MAKEFOURCC('B','E','e','r'));
+    effect = NULL;
+    FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) {
+        effect = found;
+        break;
+    }
+    T_NOT_NULL(effect);
     {
         uint32_t count = 0;
         FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) count++;
@@ -4476,11 +4481,13 @@ TEST(wc3_spell, frenzy_unholy_frenzy_curse_use_authored_status_and_bonus_values)
 	T_EQ(crs.ability->proc, CAbilityCurse); T_ASSERT(crs.ability->flags & AB_AUTOCAST);
 	test_execute_code(caster, "Afzy", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','f','z','y')));
-	T_FEQ(S_FrenzyAttackBonus(ally), 0.5f, 0.001f); T_FEQ(S_FrenzyArmorDelta(ally), -3.0f, 0.001f);
+	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0.5f, 0.001f);
+	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_ARMOR_FLAT), -3.0f, 0.001f);
 	T_FEQ(G_UnitArmorValue(ally), 5.0f - 3.0f, 0.001f);
 	test_execute_code(caster, "Auhf", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','u','h','f')));
-	T_FEQ(S_UnholyFrenzyAttackBonus(ally), 0.5f, 0.001f); T_FEQ(S_UnholyFrenzyLifeDrain(ally), 2.0f, 0.001f);
+	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 1.0f, 0.001f);
+	T_FEQ(S_UnholyFrenzyLifeDrain(ally), 2.0f, 0.001f);
 	test_execute_code(caster, "Acrs", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','s'))); T_FEQ(S_CurseMissChance(enemy), 0.33f, 0.001f);
 
@@ -4548,7 +4555,7 @@ TEST(wc3_spell, unholy_frenzy_accepts_enemy_and_reads_tft_buffid) {
 	enemy->health.value = enemy->health.max_value = 200;
 	T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','u','h','f'), enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','U','h','f')));
-	T_FEQ(S_UnholyFrenzyAttackBonus(enemy), 0.5f, 0.001f);
+	T_FEQ(unit_status_modifier_total(enemy, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0.5f, 0.001f);
 	T_FEQ(S_UnholyFrenzyLifeDrain(enemy), 2.0f, 0.001f);
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

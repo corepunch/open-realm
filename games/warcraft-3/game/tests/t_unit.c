@@ -2201,6 +2201,7 @@ TEST(wc3_unit, different_units_have_independent_response_gates) {
 
 TEST(wc3_unit, status_modifiers_stack_by_family_and_retire_with_slot) {
     edict_t unit = { 0 };
+    uint32_t old_time = level.time;
     heroabilitystatus_t *a = &unit.abilstatus[0];
     heroabilitystatus_t *b = &unit.abilstatus[1];
     heroabilitystatus_t *c = &unit.abilstatus[2];
@@ -2223,7 +2224,9 @@ TEST(wc3_unit, status_modifiers_stack_by_family_and_retire_with_slot) {
     T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.1f, 0.001f);
     b->level = 1;
     b->timestamp = 1; /* expired strongest source falls back immediately */
+    level.time = 2;
     T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.1f, 0.001f);
+    level.time = old_time;
     T_ASSERT(!unit_status_setmodifier(a, WC3_STATUS_MAX_MODIFIERS, &weak));
 }
 
