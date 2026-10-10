@@ -259,6 +259,8 @@ void ai_stand(edict_t *self) {
     if (best) {
         S_UnitAbilityEvent(self, A_AUTO_COMBAT_START);
         order_attack(self, best);
+        if (self->goalentity == best && self->currentmove && self->currentmove->proc == CAbilityAttack)
+            G_CreepGuardAutoCombat(self);
     }
 }
 
@@ -266,4 +268,110 @@ void ai_birth(edict_t *self) {
 }
 
 void ai_pain(edict_t *self) {
+}
+
+/* Stage A: only automatically acquired/retaliatory Neutral Hostile attacks
+ * participate. Scripted commands are authoritative and suspend the policy. */
+static float creep_guard_misc(cstring_t key, float fallback) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", key);
+    char *end;
+    double parsed;
+    if (!value || !*value) return fallback;
+    parsed = strtod(value, &end);
+    return end == value || *end || !isfinite(parsed) || parsed < 0.0 ? fallback : (float)parsed;
+}
+
+void G_CreepGuardInit(edict_t *unit) {
+    if (!unit) return;
+    unit->movement.creep_guard_enabled = unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE &&
+        !(unit->runtime.flags & UNIT_BALANCE_BUILDING);
+    unit->movement.creep_guard_origin = unit->s.origin2;
+    unit->movement.creep_guard_last_hit_ms = level.time;
+    unit->movement.creep_guard_outside_ms = 0;
+    unit->movement.creep_guard_auto_combat = false;
+    unit->movement.creep_guard_returning = false;
+}
+
+void G_CreepGuardAutoCombat(edict_t *unit) {
+    if (!unit || !unit->movement.creep_guard_enabled ||
+        unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE ||
+        unit->movement.creep_guard_returning) return;
+    if (!unit->movement.creep_guard_auto_combat)
+        unit->movement.creep_guard_last_hit_ms = level.time;
+    unit->movement.creep_guard_auto_combat = true;
+}
+
+void G_CreepGuardDamaged(edict_t *unit) {
+    if (unit && unit->movement.creep_guard_enabled &&
+        unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE)
+        unit->movement.creep_guard_last_hit_ms = level.time;
+}
+
+void G_CreepGuardExplicitOrder(edict_t *unit) {
+    if (!unit) return;
+    unit->movement.creep_guard_auto_combat = false;
+    unit->movement.creep_guard_returning = false;
+    unit->movement.creep_guard_outside_ms = 0;
+}
+
+static bool creep_guard_begin_return(edict_t *unit) {
+    edict_t *point;
+    if ((unit->aiflags & AI_IMMOBILE) || G_UnitQueuedOrderCount(unit)) return false;
+    unit->movement.creep_guard_auto_combat = false;
+    unit->movement.creep_guard_outside_ms = 0;
+    unit->movement.creep_guard_returning = true;
+    unit_leavecombat(unit);
+    unit->goalentity = NULL;
+    unit->attack_target_spawn_time = 0;
+    point = Waypoint_add(&unit->movement.creep_guard_origin);
+    if (!point) {
+        unit->movement.creep_guard_returning = false;
+        if (unit->stand) unit->stand(unit);
+        return true;
+    }
+    order_move(unit, point);
+    return true;
+}
+
+bool G_CreepGuardCombatEnd(edict_t *unit) {
+    if (!unit || !unit->movement.creep_guard_enabled ||
+        !unit->movement.creep_guard_auto_combat ||
+        unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE) return false;
+    if (Vector2_distance(&unit->s.origin2, &unit->movement.creep_guard_origin) <= 4.0f) {
+        unit->movement.creep_guard_auto_combat = false;
+        return false;
+    }
+    return creep_guard_begin_return(unit);
+}
+
+void G_CreepGuardTick(edict_t *unit) {
+    float distance, soft, hard, seconds;
+    uint32_t now;
+    if (!unit || !unit->movement.creep_guard_enabled ||
+        unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(unit)) return;
+    distance = Vector2_distance(&unit->s.origin2, &unit->movement.creep_guard_origin);
+    if (unit->movement.creep_guard_returning) {
+        if (distance <= 4.0f || !unit->currentmove ||
+            unit->currentmove->think == ai_stand) {
+            unit->movement.creep_guard_returning = false;
+            unit->movement.creep_guard_outside_ms = 0;
+        }
+        return;
+    }
+    if (!unit->movement.creep_guard_auto_combat || !unit->currentmove ||
+        unit->currentmove->proc != CAbilityAttack) return;
+    soft = creep_guard_misc("GuardDistance", 600.0f);
+    hard = creep_guard_misc("MaxGuardDistance", 1000.0f);
+    seconds = creep_guard_misc("GuardReturnTime", 5.0f);
+    now = level.time;
+    if (distance <= soft) {
+        unit->movement.creep_guard_outside_ms = 0;
+        return;
+    }
+    if (!unit->movement.creep_guard_outside_ms)
+        unit->movement.creep_guard_outside_ms = now ? now : 1;
+    if (distance > hard ||
+        (now - unit->movement.creep_guard_outside_ms >= (uint32_t)(seconds * 1000.0f) &&
+         now - unit->movement.creep_guard_last_hit_ms >= (uint32_t)(seconds * 1000.0f)))
+        creep_guard_begin_return(unit);
 }

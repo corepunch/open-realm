@@ -272,6 +272,8 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target,
         order_attackmove(attacker, attacker->movement.attackmove_waypoint);
     } else if (attacker->movement.follow_target) {
         order_follow_resume(attacker);
+    } else if (G_CreepGuardCombatEnd(attacker)) {
+        return;
     } else if (S_UnitAbilityEvent(attacker, A_AUTO_COMBAT_END)) {
         return;
     } else if (attacker->stand) {
@@ -403,6 +405,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
         return;
     }
     G_AddHealth(target, -damage);
+    G_CreepGuardDamaged(target);
     /* Only a survivor reacts to the hit. A killing blow goes straight to die();
      * dispatching first would let Awan start a flee Move that death tears down. */
     {
@@ -410,10 +413,14 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
         S_UnitAbilityEventWithCall(target, A_DAMAGED, &call);
     }
     if (can_attack(target) && !unit_is_walking(target) &&
+        !target->movement.creep_guard_returning &&
         S_SpellIsEnemy(target, attacker)) {
         if (!S_UnitAbilityEvent(target, A_NO_RETALIATE)) {
             S_UnitAbilityEvent(target, A_AUTO_COMBAT_START);
             order_attack_internal(target, attacker, true);
+            if (target->goalentity == attacker && target->currentmove &&
+                target->currentmove->proc == CAbilityAttack)
+                G_CreepGuardAutoCombat(target);
         }
     } else if (target->pain) {
         target->pain(target);

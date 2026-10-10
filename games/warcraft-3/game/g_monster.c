@@ -167,6 +167,8 @@ void monster_think(edict_t *self) {
         if (self->paused && self->animation_override) M_MoveFrame(self);
         return;
     }
+    G_CreepGuardTick(self);
+    if (!self->currentmove) return;
     M_MoveFrame(self);
     if (self->currentmove->think) {
         self->currentmove->think(self);
@@ -479,6 +481,7 @@ void SP_SpawnUnit(edict_t *self) {
         self->think = blight_mine_think;
     }
     self->svflags |= SVF_MONSTER;
+    G_CreepGuardInit(self);
     /* Buildings use a single immobility contract so smart orders, combat, and
      * future movement paths cannot rotate or translate them independently. */
     if (self->runtime.flags & UNIT_BALANCE_BUILDING) self->aiflags |= AI_IMMOBILE;

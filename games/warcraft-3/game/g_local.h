@@ -1906,6 +1906,13 @@ struct edict_s {
          * that point temporarily, then returns once the combat detour ends. */
         vec2_t guard_position;
         unitGuardState_t guard_state;
+        /* Neutral Hostile's spawn anchor is independent of player Stop. */
+        vec2_t creep_guard_origin;
+        uint32_t creep_guard_last_hit_ms;
+        uint32_t creep_guard_outside_ms;
+        bool creep_guard_enabled;
+        bool creep_guard_auto_combat;
+        bool creep_guard_returning;
         bool explicit_allied_attack;
         bool cargo_unload_pending; /* Drop ability: unload after point-move arrival */
         uint32_t cargo_unload_ability; /* initiating concrete AbilityData rawcode */
@@ -3557,6 +3564,12 @@ bool move_displacement_reached(edict_t *);
 void order_stop(edict_t *);
 void order_stop_cleanup(edict_t *);
 void order_stop_queued(edict_t *);
+void G_CreepGuardInit(edict_t *);
+void G_CreepGuardAutoCombat(edict_t *);
+void G_CreepGuardDamaged(edict_t *);
+void G_CreepGuardTick(edict_t *);
+bool G_CreepGuardCombatEnd(edict_t *);
+void G_CreepGuardExplicitOrder(edict_t *);
 void G_SetUnitGuardPosition(edict_t *);
 void G_ClearUnitGuardPosition(edict_t *);
 void order_attackmove(edict_t *, edict_t *);

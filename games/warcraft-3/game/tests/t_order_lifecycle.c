@@ -504,4 +504,28 @@ TEST(wc3_order_lifecycle, queued_player_order_outranks_guard_return) {
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
 }
 
+TEST(wc3_order_lifecycle, neutral_creep_guard_keeps_spawn_anchor_independent_of_stop) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+    creep->s.origin2.x = 256;
+    G_SetUnitGuardPosition(creep);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+    T_FEQ(creep->movement.guard_position.x, 256, 0.01f);
+}
+
+TEST(wc3_order_lifecycle, explicit_order_drops_only_creep_auto_combat) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_CreepGuardAutoCombat(creep);
+    T_ASSERT(creep->movement.creep_guard_auto_combat);
+    G_CreepGuardExplicitOrder(creep);
+    T_ASSERT(!creep->movement.creep_guard_auto_combat);
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+}
+
 #endif
