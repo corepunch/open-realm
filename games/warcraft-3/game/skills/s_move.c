@@ -4032,9 +4032,8 @@ bool move_is_settled_near_goal(edict_t *ent, float distance, float move_distance
     return blocked && ent->movement.last_distance <= settle_distance;
 }
 
-/* Unit-target Move/Smart is a persistent follow order rather than a snapshot
- * point move. Keep the target entity authoritative so a moving ally can be
- * tracked and the retained goal can be resumed after opportunistic combat. */
+/* Admitted unit targets retain identity. Smart selects attack/follow by
+ * relation in its dispatcher; explicit Move can follow a visible enemy too. */
 static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
     uint32_t owner;
 
@@ -4052,7 +4051,7 @@ static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
         level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
         return false;
     }
-    return G_PlayerTreatsPlayerAsAlly(self->s.player, owner);
+    return true;
 }
 
 /* Native5fb940 checks world presence before visibility. Non-unit widgets
@@ -5797,9 +5796,18 @@ BZ_ABILITY_PROC(CAbilityMove) {
         if (strcmp(order,"move") && strcmp(order,"smart")) return ABILITY_ORDER_UNHANDLED;
         edict_t *target=call->issued_target_order.target;
         if (!target || !(target->svflags&SVF_MONSTER)) return ABILITY_ORDER_UNHANDLED;
-        /* Native5fbad0 refuses an unseen target before order-chain mutation.
-         * Apply to both immediate and Shift admission, preserving old owners. */
-        return S_MoveTargetStatus(ent,target)==MOVE_TARGET_VALID ? ABILITY_ORDER_UNHANDLED : ABILITY_ORDER_REJECTED;
+        moveTargetResult_t status=S_MoveTargetStatus(ent,target);
+        if(status==MOVE_TARGET_VALID)return ABILITY_ORDER_UNHANDLED;
+        /* Native207160 consumes Move's unseen result through its point
+         * fallback. Normalize before FIFO admission so queued Move retains
+         * the issue-time point, without subscribing to the target's lifetime. */
+        if(!strcmp(order,"move") && status==MOVE_TARGET_LOST &&
+           !M_IsDead(target) && !G_IsDeferredFree(target) && call->issued_target_order.point) {
+            wc3GridPose_t point;unit_predicted_pose(target,&point);
+            *call->issued_target_order.point=(vec2_t){point.world[0],point.world[1]};
+            return ABILITY_ORDER_POINT;
+        }
+        return ABILITY_ORDER_REJECTED;
     }
     case A_UNIT_OWNED:
         return ent && (ent->data.UnitBalance || ent->movement.captain_actor_type) && !M_UnitMoveDisabled(ent);

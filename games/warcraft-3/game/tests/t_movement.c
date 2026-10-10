@@ -18820,10 +18820,12 @@ TEST(wc3_movement, target166_fogged_order_rejection_preserves_active_head_and_qu
     fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
     *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={672,256},.radius=900};
     G_FogModifierStart(fog);T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
-    T_ASSERT(!unit_issuetargetorder(unit,"move",target));
+    /* The frozen TARGET-03.2 order_fogged producer issues Smart, not Move.
+     * Original218 separately proves that Move normalizes to a point. */
+    T_ASSERT(!unit_issuetargetorder(unit,"smart",target));
     T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->goalentity,goal);T_EQ(unit->currentmove,move);
     T_EQ(unit->movement.group_id,group);T_EQ(unit->order_queue.count,1);
-    T_ASSERT(!G_IssueUnitTargetOrder(unit,"move",target,true,0));T_EQ(unit->order_queue.count,1);
+    T_ASSERT(!G_IssueUnitTargetOrder(unit,"smart",target,true,0));T_EQ(unit->order_queue.count,1);
     G_FogModifierStop(fog);G_FowUpdate();
     T_ASSERT(unit_issuetargetorder(unit,"move",target));T_EQ(unit->movement.follow_target,target);
     G_FowShutdown();reset_entities();setup_test_world();
@@ -19961,6 +19963,7 @@ TEST(wc3_movement, follow187_public_ground_following_air_smart_matches_raw_retai
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
 }
 
+
 #endif
 
 #ifdef BZ_TESTS
@@ -20347,5 +20350,102 @@ TEST(wc3_movement, target217_public_visibility_inverse_includes_fog_and_invalid_
     G_FogModifierDestroy(fog);G_FowUpdate();target217_call("revealed");
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
 }
+
+/* Original218 retains no target identity when Move normalizes an unseen unit
+ * to its issue-time point. Smart has a different admission policy. */
+TEST(wc3_movement, target218_unseen_move_captures_point_before_replacement) {
+    FOR_LOOP(fogged,2) {
+        edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);
+        fogModifier_t *fog=NULL;
+        if (fogged) {
+            fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
+            *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1760,1024},.radius=768};
+            G_FogModifierStart(fog);G_FowUpdate();
+        } else target217_call("add");
+        T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+        T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){320,1856}));
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){640,1856},true,0,0));
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+            "local group g=CreateGroup()\nlocal unit mover\nlocal unit target\n"
+            "call GroupEnumUnitsInRange(g,320,1024,1,null)\nset mover=FirstOfGroup(g)\ncall GroupClear(g)\n"
+            "call GroupEnumUnitsInRange(g,1760,1024,1,null)\nset target=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+            "call BJassAssert(IssueTargetOrder(mover,\"move\",target),\"unseen Move admits point\")\nendfunction\n"));
+        T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->order_queue.count,0);
+        T_NULL(unit->movement.follow_target);T_NOT_NULL(unit->goalentity);
+        if(unit->goalentity) {
+            T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x),0x44dc0000u);
+            T_EQ(wc3_float_bits(unit->goalentity->s.origin2.y),0x44800000u);
+        }
+        S_SetUnitAxisPosition(target,1,1408);G_DeferFreeEdict(target);
+        T_EQ(unit->current_order_id,G_OrderId("move"));T_NULL(unit->movement.follow_target);
+        FOR_LOOP(i,30)target166_tick();
+        T_ASSERT(unit->s.origin2.x>320);T_NULL(unit->movement.follow_target);
+        if(fog)G_FogModifierDestroy(fog);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, target218_queued_unseen_move_saves_point_without_target_lifetime) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);
+    target217_call("add");
+    T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){320,1856}));
+    edict_t *goal=unit->goalentity;uint32_t group=unit->movement.group_id;
+    T_ASSERT(G_IssueUnitTargetOrder(unit,"move",target,true,0));
+    T_EQ(unit->goalentity,goal);T_EQ(unit->movement.group_id,group);T_EQ(unit->order_queue.count,1);
+    if(unit->order_queue.count) {
+        unitOrder_t const *queued=unit->order_queue.entries+unit->order_queue.head;
+        T_EQ(queued->target_type,UNIT_ORDER_TARGET_POINT);T_STREQ(queued->order,"move");
+        T_EQ(wc3_float_bits(queued->point.x),0x44dc0000u);T_EQ(wc3_float_bits(queued->point.y),0x44800000u);
+    }
+    target217_call("share");S_SetUnitAxisPosition(target,1,1408);G_DeferFreeEdict(target);
+    cstring_t file=Test_TempPath("wc3-target218-queued-point.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    T_EQ(unit->order_queue.count,1);
+    if(unit->order_queue.count) {
+        unitOrder_t const *queued=unit->order_queue.entries+unit->order_queue.head;
+        T_EQ(queued->target_type,UNIT_ORDER_TARGET_POINT);
+        T_EQ(wc3_float_bits(queued->point.x),0x44dc0000u);T_EQ(wc3_float_bits(queued->point.y),0x44800000u);
+    }
+    T_ASSERT(G_UnitStartNextQueuedOrder(unit));T_NULL(unit->movement.follow_target);
+    T_NOT_NULL(unit->goalentity);if(unit->goalentity) {
+        T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x),0x44dc0000u);
+        T_EQ(wc3_float_bits(unit->goalentity->s.origin2.y),0x44800000u);
+    }
+    T_ASSERT(WriteGame(file));uint32_t expected[40][6];
+    FOR_LOOP(i,40) {
+        target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+        expected[i][0]=wc3_float_bits(pose.grid[0]);expected[i][1]=wc3_float_bits(pose.grid[1]);
+        expected[i][2]=wc3_float_bits(unit->movement.velocity.x);expected[i][3]=wc3_float_bits(unit->movement.velocity.y);
+        expected[i][4]=unit->current_order_id;expected[i][5]=unit->movement.group_id;
+    }
+    T_ASSERT(ReadGame(file));remove(file);
+    FOR_LOOP(i,40) {
+        target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+        T_EQ(wc3_float_bits(pose.grid[0]),expected[i][0]);T_EQ(wc3_float_bits(pose.grid[1]),expected[i][1]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x),expected[i][2]);T_EQ(wc3_float_bits(unit->movement.velocity.y),expected[i][3]);
+        T_EQ(unit->current_order_id,expected[i][4]);T_EQ(unit->movement.group_id,expected[i][5]);
+        T_NULL(unit->movement.follow_target);
+    }
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target218_revealed_hostile_move_retains_physical_target) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);
+    target->s.player=PLAYER_NEUTRAL_AGGRESSIVE;
+    level.alliances[0][PLAYER_NEUTRAL_AGGRESSIVE]&=~(1u<<ALLIANCE_PASSIVE);
+    level.alliances[PLAYER_NEUTRAL_AGGRESSIVE][0]&=~(1u<<ALLIANCE_PASSIVE);
+    unit->runtime.acquisition_range=0;
+    target217_call("add");target217_call("share");
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,target));T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    T_EQ(unit->movement.follow_target,target);T_EQ(unit->current_order_id,G_OrderId("move"));
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(group)T_EQ(group->flags&1,1);
+    S_SetUnitAxisPosition(target,1,1408);
+    FOR_LOOP(i,30)target166_tick();
+    T_EQ(unit->movement.follow_target,target);T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_ASSERT(unit->s.origin2.x>320);T_ASSERT(unit->s.origin2.y>1024);
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_NULL(unit->movement.follow_target);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
 
 #endif

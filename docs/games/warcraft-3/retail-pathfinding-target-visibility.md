@@ -1,8 +1,11 @@
 # Move target visibility and cached arrival
 
-Payoff166 implements Move/Smart unit-target admission and cached hidden-target
-arrival. The game now refuses an unseen target before replacing an active
-order or appending a Shift successor. A running group keeps pursuing its last
+Payoff166 implements Smart unit-target refusal and cached hidden-target
+arrival. Smart refuses an unseen target before replacing an active order or
+appending a Shift successor. Payoff218 corrects the earlier generalization to
+Move: the original native converts an unseen Move target into its captured
+point, while a visible hostile target can retain Follow. See
+[the verified native fallback and preserved Smart expectations](retail-pathfinding-engine.md#move-normalizes-unseen-targets-before-admission-payoff218). A running group keeps pursuing its last
 sampled position while hidden. At that position it validates the target and
 ends the Follow parent if validation fails; lifting fog does not revive it.
 

@@ -11791,7 +11791,9 @@ see [formation warp markers](retail-pathfinding-formation-warp.md).
 
 ## Move target visibility and cached arrival (Payoff166)
 
-Move/Smart refuse unseen unit targets before immediate/Shift queue mutation.
+Smart refuses unseen unit targets before immediate/Shift queue mutation.
+Payoff218 corrects the earlier Move generalization: explicit Move normalizes an
+unseen unit to its captured point through the native fallback policy.
 Hidden pursuit retains its last sampled point, uses the retail temporary
 0.49-cell arrival range and persistent32-visit completion gate, then validates
 at approach/Follow completion. New target-task publication clears the old
@@ -14796,3 +14798,76 @@ stale mask are not claimed. Wider flags, initialization gates, counted reveal
 producers and policy/lifetime compositions keep TARGET-03.1/03.2 open.
 This is focused validation, the third implementation commit after Payoff214's
 full checkpoint.
+
+
+## Move normalizes unseen targets before admission (Payoff218)
+
+Explicit Move and Smart have different native fallback policies. Move to an
+unseen living unit now captures its current world point and admits an ordinary
+point order. It retains no Follow subscription or target incarnation. Moving,
+revealing or removing the target cannot retarget that order. Shift captures the
+point at issue time before appending it, so save/load and later queue activation
+also remain independent of the target's lifetime. Smart still refuses the
+unseen target without replacing the active head or changing its pending FIFO.
+Visible hostile units can retain a physical Move/Follow target; the relation
+check belongs to Smart's attack/follow dispatch, not the shared Follow owner.
+
+Two entry-only original eight-scene repeats and an observer-free control agree
+on all58 public markers each, including positions. The complete775-record
+observer sequence agrees after excluding only the ASLR module base. The native
+chain makes the distinction explicit:
+
+| Boundary | Unseen Move | Visible own/revealed hostile Move |
+| --- | --- | --- |
+| `Jass_DispatchTargetOrder` /207160 | order851986, flags6 | order851986, flags6 |
+| `CUnit_ValidateTargetOrder` /69df70 | result186 (`0xba`) | result0 |
+| Native normalization | validate captured point through69dd60; flag4 selects69bd80 with NULL target |69bd80 retains target identity |
+| User head | point1760/1024; targetffffffff/ffffffff | same initial point; live target identity |
+| Internal movement task |d016b point |d0173 persistent Follow |
+
+The two runs contain32 native admissions:26 normalize and6 retain their target.
+Their996 visibility queries,54 query-result observations and96 user/task states
+are retained along with224 detection queries. The detector experiments did not
+establish a contribution on the canonical target, even after checking authored
+ability presence and position refresh. They close no detection-policy item.
+Their exploratory a/b/c sources and captures remain externally archived rather
+than being presented as successful detector lifecycle evidence.
+
+This corrects a specific earlier inference, without replacing valid frozen
+expectations. TARGET-03.2's `order_fogged` JASS producer issues **Smart**. Its
+retail refusal is valid. The synthetic Payoff166 test mistakenly issued Move
+while asserting that refusal. It now issues Smart and keeps every existing
+rejection/head/goal/group/FIFO assertion. Raw TARGET-03.2 evidence, numerical
+fixtures and hidden-arrival expectations are unchanged. The inaccurate Move
+claim in the saved5fbad0 annotation is corrected too. That function returns an
+ability error, which207160 may convert; it does not own final native acceptance.
+
+Three new production regressions first failed22 of352 executed assertions on
+the previous implementation, then passed360 assertions in each edition. They
+drive actual JASS Move, immediate replacement, Shift admission, target movement,
+removal, queue activation, hostile Follow, Stop and40 word-identical movement
+commits after a cold save. Queue/removal/save compositions are engine checks;
+independent original Shift/UI-save captures and full engine/retail trajectory
+word equality are not claimed for this chunk. Dead, loaded, hidden-widget,
+structure and wider visibility policy combinations remain open.
+
+Ghidra stores the corrected admission chain, two newly named validators and
+instruction-checked ECX/stack ABIs, mirrored in MapPathfinding.java and the
+portable type fixture. The verifier checks1354 original instruction encodings,
+all observer/control provenance and the production regressions. Eleven Python
+mutation tests reject changed errors, flags, identities, points, task owners,
+query masks, missing records/controls and forged provenance.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 python3 \
+  tools/ghidra/verify_wc3_pathing_target_normalize218.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --report /tmp/target-normalize218-new.json
+```
+
+The [frozen normalization contract](../../../tools/ghidra/fixtures/retail-target-normalize218-1.27.json)
+and compressed raw bundle preserve both accepted d repeats and their control.
+Maps, exploratory versions, static readback and validation live under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.1/payoff218/`.
+This is focused validation, the fourth implementation commit after Payoff214's
+full checkpoint. TARGET-03.1/03.2 remain open for their wider contracts.

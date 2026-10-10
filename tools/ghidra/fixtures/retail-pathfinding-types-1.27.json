@@ -17044,6 +17044,79 @@
         }
       ],
       "evidence": "Payoff217: thiscall unit,stack4player/8flags/cmode,RETc. Requires initialized game/world; TLS200 modifies flags; world visibility failure falls back to699b20 reveal. Native visible/invisible useflags0/mode4."
+    },
+    {
+      "address": "6f69df70",
+      "name": "CUnit_ValidateTargetOrder",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Payoff218: thiscall ECX unit, stack4 orderId/8 player/c ownerContext/10 widget, RET10. Walk ability1dc identities; match vtablea0 ownerContext, invoke vt260(orderId,player,widget,3), apply disabled counters, retain minimum error. Original publicMove result186/flags6 is converted upstream, not rejected. Complete x86 assembly checked.",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order_id",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "player",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "owner_context",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 16
+        }
+      ]
+    },
+    {
+      "address": "6f69dd60",
+      "name": "CUnit_ValidatePointOrder",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Payoff218: thiscall ECX unit, stack4 orderId/8 player/c ownerContext/10 xScalar*/14 yScalar*, RET14. Ability-list validation through vt25c; Jass_DispatchTargetOrder invokes this on captured world point before fallback. OwnerContext is passed unchanged; wider ability-specific policy remains open.",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order_id",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "player",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "owner_context",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 20
+        }
+      ]
     }
   ],
   "globals": [

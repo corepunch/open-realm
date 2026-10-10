@@ -49002,6 +49002,65 @@
         "Unshare emits no synchronous TargetLost and retains publicSmart. Full engine numerical trajectory equality and retail UI-save stale-mask restoration are not claimed; engine cold-save preservation is regression-tested.",
         "Apiv duration0 is controlled object data. Earlier a/b experiments and their observer limitations remain external exploratory evidence, excluded from this accepted c contract."
       ]
+    },
+    {
+      "id": "oracle-target-normalize218",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_target_normalize218.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "target-normalize218.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "queries": {
+          "equal": 996
+        },
+        "admissions": {
+          "equal": 32
+        },
+        "normalized": {
+          "equal": 26
+        },
+        "public_markers": {
+          "equal": 174
+        },
+        "instructions": {
+          "equal": 1354
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "TARGET-03.1 Unseen Move-to-point normalization, captured native fallback and visible hostile Follow. Two original repeats and unhooked control, instruction encodings and actual Classic/TFT save/movement regressions. Wider policy and queued/combat compositions remain open.",
+      "exclusions": [
+        "Original Move conversion is public synchronous target admission. Shift behavior, removal and cold save are engine composition regressions, not independently captured retail Shift/UI-save claims.",
+        "The accepted eight scenes use controlled Apiv duration0. Detector variants did not establish a contribution on the canonical target and close no detection-policy item. Their raw queries are retained without treating them as detector-lifecycle proof.",
+        "Original public positions match both observed repeats and unhooked control. Engine trajectories are checked for movement and cold-save determinism; full engine/retail numerical trajectory equality is not claimed.",
+        "Null/dead/loaded/hidden-widget and structure fallback combinations remain open. Existing Smart refusal, hidden-arrival and numerical fixtures are preserved.",
+        "Only ASLR module base is excluded from observer sequence equality. Earlier a/b/c experiments remain externally archived; accepted d source provenance is pinned."
+      ]
     }
   ],
   "fixtures": [
@@ -49067,7 +49126,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "ca48764465ac0608eadcaf49d5cac66138ab286ad2ebe46a5415f8ada73806d9"
+      "sha256": "04ffc681a7cc7be83c77b72eaa916f324752b50c9a98c1576383078a1122f09c"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -49900,7 +49959,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "d4b62998cc6aab1c7edccabe93c043d518b490d2f683cce1dc33a490296c47ef"
+      "sha256": "898baf9dfa8fb9304c76d940043c6eec170ca110d170c163b396aab8ef042c35"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50756,7 +50815,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "a4fb7ab5835ca2befab0b4aefe5bb69fbb234db6943b264b9ca5c8e115e1d083"
+      "sha256": "c4ae0da7080e3a362b89446689b03378d79352f1698ef96f36b11dd2e98e5b1a"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51448,7 +51507,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "584a251096bba1e5f3d82f19ebc2cf5a6d4eb81bb66fcce8ad36e72bf22ffafc"
+      "sha256": "145b80869166f1e170c2acb81e4721e3324693864562c0795bba21f3a5df9879"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -51692,7 +51751,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "0db41d94d7e76104d02f8d3ce7ceb5c83a09f642221ca936bd2d76e7f0cf1909"
+      "sha256": "7cb7d4e10613738cb5f7ca58eb49247d7725947544655cac6351c9b7a4c5bcbe"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51704,11 +51763,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "8d1d4684cbeb9e0e87fcbc5c8d3bfc27d9969b3de79af82a4c8debc055b9f7fc"
+      "sha256": "f8b4783dbdd1f3a7e9098deb49f705209c35120e8a0691a1a6ac41c1ad0ce9a6"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "849e5656c29caff40ed75e20b7073f7adcf8734ddaa7b70182df9fa1a33ac174"
+      "sha256": "1000fca1c519e04caec5803c3da38f0a1117d3fd2852ed0befe243db7de1e174"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52340,7 +52399,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-target-visibility.md",
-      "sha256": "98bf38c7f7c0d72ca14011928fb186618e4cdf736d6ed46631dc107f6adaee78"
+      "sha256": "361938ed569cd7c5f4ab87be8dffe2774d18912869bfe04d20efb6f49fcd451e"
     },
     {
       "path": "tools/frida/research/target021_analyze.py",
@@ -54137,6 +54196,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-target-reveal217-1.27.json.gz",
       "sha256": "d38b4c5e99b8e3facfce87f2d112c5ba21cfd4f0892d5cd8c3ed5afab257f471"
+    },
+    {
+      "path": "tools/frida/research/target218_capture.py",
+      "sha256": "28c80d0fa6320babb718ce6aaf1328d14a5b023948ad280007415385957b08c1"
+    },
+    {
+      "path": "tools/frida/research/target218_observer.js",
+      "sha256": "73717a440ec466da70d8e5a60762751ff789d163a85e3ddfba8db2e7fd8c939e"
+    },
+    {
+      "path": "tools/frida/research/target218_make_map.py",
+      "sha256": "f1e7eaca98a0cc8eb7f86b6f8745323a44be575092ae97584614b9fce9b5ab62"
+    },
+    {
+      "path": "tools/frida/research/target218_probe.j",
+      "sha256": "e1387b054a00b06f93d6a35d91dcc6191739064de9aa86574f61614d68a4c44d"
+    },
+    {
+      "path": "tools/ghidra/research/Target218Evidence.java",
+      "sha256": "420d0f51d59e0acdcdb77c251c220f9ca050c5397979baa43fd7e1a66d2f161c"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_target_normalize218.py",
+      "sha256": "2e89109c7cb15ec3f6c698c6d1b5defbc6cf5d0d25c19244569e8ceae4384f2d"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_target_normalize218.py",
+      "sha256": "e52cd12a427b6844b9e0b7d5372d2e735d8cda9fd8d791be83ffa27bf49ca91e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-normalize218-1.27.json",
+      "sha256": "80d00071583417b2fe9c8e1e2291797f2c38b359514ab5491b3785aba75079c1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-normalize218-1.27.json.gz",
+      "sha256": "290c8e8e0b3122d1e3f53fc01911b5e5384c1341d97eebff718237e16b2a98eb"
     }
   ]
 }

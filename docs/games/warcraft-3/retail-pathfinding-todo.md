@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff218 integrates unseen Move-to-point normalization, issue-time Shift
+capture and visible hostile Follow. New original repeats/control prove the
+native fallback. The older Smart refusal expectations remain valid; only the
+synthetic test's incorrectly named Move producer is corrected to Smart.
+Three failing-first production regressions cover replacement/removal/cold save.
+Wider TARGET-03.1/03.2 remain open; see
+[Move admission](retail-pathfinding-engine.md#move-normalizes-unseen-targets-before-admission-payoff218).
+
 Payoff217 integrates UnitShareVision's captured reveal mask, alliance-order
 semantics, idempotent refresh, full public visibility getters and Save154.
 Two eight-scene original repeats match an unhooked control; actual Smart/fog/
