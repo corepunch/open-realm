@@ -131,6 +131,15 @@ static bool filter_sight(edict_t const *ent) {
         return false;
     if (S_UnitAbilityEvent((edict_t *)ent, A_NO_ACQUIRE))
         return false;
+    /* Retail creep idle-acquisition exceptions apply only to autonomous
+     * Neutral Hostile guarding. Retaliation and explicit scripted orders use
+     * the ordinary attack-target checks instead. A grounded (Ensnared) flyer
+     * is no longer a flyover. */
+    if (ai_current_entity->movement.creep_guard_enabled &&
+        ai_current_entity->s.player == PLAYER_NEUTRAL_AGGRESSIVE) {
+        if (ent->aiflags & AI_FLYING) return false;
+        if (ent->runtime.flags & UNIT_BALANCE_BUILDING) return false;
+    }
     /* Attack-capable units filter acquisition through the Attack ability's
      * authored target mask.  Structures are ordinary unit targets here; the
      * attack data decides whether they are legal instead of AI excluding every
@@ -177,6 +186,19 @@ static bool ai_has_siege_attack(edict_t const *self) {
  * attack orders. Target Heroes gives legal Heroes priority over ordinary targets. Smart
  * Artillery gives siege-capable AI units structures priority; distance still chooses within
  * a category. */
+/* Retail reports a distinct injured-unit/Hero preference for level 7+
+ * creeps. Exact weights are undocumented; rank these two documented traits
+ * ahead of distance, without affecting lower-level creeps or bot policy. */
+static uint32_t ai_creep_target_priority(edict_t const *self, edict_t const *target) {
+    bool injured, hero;
+    if (!self || !target || !self->movement.creep_guard_enabled ||
+        self->s.player != PLAYER_NEUTRAL_AGGRESSIVE || !self->data.UnitBalance ||
+        self->data.UnitBalance->level < 7) return 2;
+    injured = target->health.max_value > 0 && target->health.value < target->health.max_value;
+    hero = G_UnitIsHero(target);
+    return injured && hero ? 0 : (injured || hero ? 1 : 2);
+}
+
 static uint32_t ai_bot_target_priority(edict_t const *self, edict_t const *target) {
     bot_t const *bot;
     if (!self || !target || self->s.player >= MAX_PLAYERS) return 0;
@@ -202,7 +224,9 @@ edict_t *G_FindNearestEnemy(edict_t *self, float radius) {
     FOR_LOOP(i, numents) {
         edict_t *ent = sight_entities[i];
         float const d = Vector2_distance(&ent->s.origin2, &self->s.origin2);
-        uint32_t const priority = ai_bot_target_priority(self, ent);
+        uint32_t const priority = self->movement.creep_guard_enabled &&
+            self->s.player == PLAYER_NEUTRAL_AGGRESSIVE ?
+            ai_creep_target_priority(self, ent) : ai_bot_target_priority(self, ent);
         if (d >= radius) continue;
         if (priority < best_priority || (priority == best_priority && d < best_dist)) {
             best_priority = priority;
@@ -346,6 +370,40 @@ void G_CreepGuardCallForHelp(edict_t *victim, edict_t *attacker) {
         if (ally->goalentity == attacker && ally->currentmove &&
             ally->currentmove->proc == CAbilityAttack)
             G_CreepGuardAutoCombat(ally);
+    }
+}
+
+/* Construction is a discrete provocation, not a perpetual building
+ * acquisition target. Only actual starts (never placement previews or progress
+ * ticks) notify guarding creeps. Keep the anchored camp bounded and do not
+ * override a script-owned or queued order. */
+void G_CreepGuardConstructionStarted(edict_t *building) {
+    float radius;
+    if (!building || !building->inuse ||
+        !(building->runtime.flags & UNIT_BALANCE_BUILDING)) return;
+    radius = creep_guard_misc("BuildingPlacementNotifyRadius", 600.0f);
+    if (radius <= 0.0f) return;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *creep = g_edicts + i;
+        if (!creep->inuse || !creep->movement.creep_guard_enabled ||
+            creep->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(creep) ||
+            (creep->aiflags & AI_IMMOBILE) ||
+            creep->movement.creep_guard_returning || G_UnitQueuedOrderCount(creep) ||
+            !creep->currentmove ||
+            (creep->currentmove->think != ai_stand && !G_UnitIsSleeping(creep)) ||
+            !unit_has_attack(creep) ||
+            Vector2_distance(&creep->movement.creep_guard_origin, &building->s.origin2) > radius ||
+            Vector2_distance(&creep->s.origin2, &building->s.origin2) > radius ||
+            !S_SpellIsEnemy(creep, building) ||
+            !S_AttackCanTarget(creep, building) ||
+            S_UnitAbilityEvent(creep, A_NO_RETALIATE) ||
+            S_UnitAbilityEvent(creep, A_NO_ACQUIRE)) continue;
+        if (G_UnitIsSleeping(creep)) G_UnitWakeUp(creep);
+        S_UnitAbilityEvent(creep, A_AUTO_COMBAT_START);
+        order_attack(creep, building);
+        if (creep->goalentity == building && creep->currentmove &&
+            creep->currentmove->proc == CAbilityAttack)
+            G_CreepGuardAutoCombat(creep);
     }
 }
 

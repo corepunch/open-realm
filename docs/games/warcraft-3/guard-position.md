@@ -72,3 +72,11 @@ groups, multiple indirect alert triggers, attacking a sleeping creep without
 positive damage, and nighttime re-sleep scheduling remain future verification
 work. The explicit command/guard natives are reserved for Stage D. No per-tick
 world scan is added: only a confirmed surviving positive-damage event broadcasts.
+
+### Stage C: retail creep acquisition special cases (2026-10-10)
+
+- Autonomous Neutral Hostile guard scans omit airborne flyovers and finished buildings; explicit attacks, retaliation and provoked construction attacks still use the normal legal-target checks. A ground-bound flyer is not filtered by the flyover exception.
+- Level 7+ guard scans rank wounded Heroes first, then wounded units or Heroes, then other eligible targets, using distance as a tie-breaker. This is a documented approximation of retail preference, **not** a verified exact retail scoring algorithm.
+- Real building construction start invokes a one-shot guard-anchor-bounded notification using the map-overridable `BuildingPlacementNotifyRadius` Misc key (600 fallback). The notification does not occur for previews, progress ticks or pre-existing buildings.
+- Neutral building usage/item-sale notification remains deferred: retail sale-specific radii and eligibility are not yet verified. Do not convert proximity or purchase UI clicks into blanket creep aggression.
+- Test manually with flying scout, Ensnare/Web grounded flyer, nearby completed building versus newly started construction, low-level and level-7 mixed targets, and campaign script-ordered creeps. No automatic compilation or runtime validation has been performed.
