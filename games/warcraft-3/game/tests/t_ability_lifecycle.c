@@ -1065,3 +1065,43 @@ TEST(wc3_ability_lifecycle, status_state_replace_and_refresh) {
     slot->timestamp = G_Time(); /* Simulate elapsed lifetime before update. */
     T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL));
 }
+
+/* Stock buffs must contribute to the same state query as status_application_t.
+ * Legacy insertion cannot be dropped until every ability is migrated. */
+TEST(wc3_ability_lifecycle, stock_buff_states_are_live_and_composable) {
+    edict_t *unit = review_setup();
+    unit_addtimedstatus(unit, "BNsi", 1, 10.0f);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_SILENCED));
+    unit_addtimedstatus(unit, "BNso", 1, 10.0f);
+    T_ASSERT(S_UnitIsSilenced(unit));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','N','s','i')), STATUS_REMOVE_DISPEL);
+    T_ASSERT(S_UnitIsSilenced(unit));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','N','s','o')), STATUS_REMOVE_DISPEL);
+    T_ASSERT(!S_UnitIsSilenced(unit));
+
+    unit_addtimedstatus(unit, "BEer", 1, 10.0f);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED));
+    T_ASSERT(S_UnitIsEntanglingRooted(unit));
+    T_ASSERT(!S_UnitIsEnsnared(unit));
+    unit_addtimedstatus(unit, "Bens", 1, 10.0f);
+    T_ASSERT(S_UnitIsEnsnared(unit));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','E','e','r')), STATUS_REMOVE_DISPEL);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED));
+    T_ASSERT(!S_UnitIsEntanglingRooted(unit));
+    T_ASSERT(S_UnitIsEnsnared(unit));
+}
+
+TEST(wc3_ability_lifecycle, stock_magic_immunity_composes_with_explicit_contribution) {
+    edict_t *unit = review_setup();
+    status_application_t app = {
+        .buff = "Biyy", .level = 1, .duration = 10.0f,
+        .state_mask = WC3_STATUS_STATE_MAGIC_IMMUNE
+    };
+    unit_addtimedstatus(unit, "Bams", 1, 10.0f);
+    T_ASSERT(S_UnitSpellImmune(unit));
+    T_NOT_NULL(unit_applystatus(unit, &app));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','a','m','s')), STATUS_REMOVE_DISPEL);
+    T_ASSERT(S_UnitSpellImmune(unit));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','i','y','y')), STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!S_UnitSpellImmune(unit));
+}

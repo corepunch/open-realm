@@ -55,7 +55,7 @@ float S_CrippleDamageReduction(edict_t const *unit) {
 
 /* BNsi (Silence) and BNso (Soul Burn) both reject spell casts with "Silenced." */
 bool S_UnitIsSilenced(edict_t const *unit) {
-    return unit && (S_UnitHasStatus(unit, BZ_SILENCE_BUFF) || S_UnitHasStatus(unit, BZ_SOUL_BURN_BUFF));
+    return unit_hasstatusstate(unit, WC3_STATUS_STATE_SILENCED);
 }
 
 static bool soul_burn_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
