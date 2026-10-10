@@ -269,3 +269,14 @@ undispellability and authored special cases still take precedence. The more
 general `unit_status_can_dispel()` continues to define baseline status
 eligibility for non-magical lifecycle consumers. New status producers must set
 the correct classification to opt into the stronger distinction.
+
+## Classified existing spell families
+
+The following application sites now tag their known stock buff identities as
+magical without adding transfer eligibility: Rejuvenation (`Brej`) and Roar
+(`Broa`) are positive; Curse (`Bcrs`), Unholy Frenzy (`BUhf`/`Buhf`),
+Cripple (`Bcri`) and Soul Burn (`BNso`) are negative. These tags are applied
+only when the returned slot has the expected buff identity; a custom BuffID is
+left unclassified. Existing transferable flags on Bloodlust, Faerie Fire and
+Inner Fire are unchanged. No physical-only family is newly classified; those
+require an explicit ability-by-ability semantic audit.

@@ -41,6 +41,13 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
         status->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
     else if (status && status->code == MAKEFOURCC('B','f','a','e'))
         status->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
+    else if (status && (status->code == MAKEFOURCC('B','r','e','j') ||
+                        status->code == MAKEFOURCC('B','r','o','a')))
+        status->buff_flags |= WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL;
+    else if (status && (status->code == MAKEFOURCC('B','c','r','s') ||
+                        status->code == MAKEFOURCC('B','U','h','f') ||
+                        status->code == MAKEFOURCC('B','u','h','f')))
+        status->buff_flags |= WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
 }
 
 static bool melee_status_capacity(edict_t *caster, edict_t *target, abilityitem_t const *spell) {
@@ -127,8 +134,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityRoar) {
     float duration = S_SpellDuration(spell->code, level, false);
     if (!buff) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
-                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
-        S_SpellApplyTimedStatus(target, buff, level, duration);
+                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+        heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, level, duration);
+        if (status && status->code == MAKEFOURCC('B','r','o','a'))
+            status->buff_flags |= WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL;
+    }
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
 }
 

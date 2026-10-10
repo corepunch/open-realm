@@ -26,8 +26,11 @@ static void status_execute(edict_t *caster, spellTarget_t st, abilityitem_t cons
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = status_buff(spell, level);
     if (!st.entity || !buff) return;
-    S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+    heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
                                   S_SpellResistantDuration(spell->code, level, st.entity));
+    if (status && (status->code == MAKEFOURCC('B','c','r','i') ||
+                   status->code == MAKEFOURCC('B','N','s','o')))
+        status->buff_flags |= WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
 }
 
 /* ---- Cripple (Acri) -------------------------------------------------------
