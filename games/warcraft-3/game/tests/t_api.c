@@ -8640,6 +8640,44 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     T_NE(state.name, 0);
 }
 
+TEST(wc3_api, customize_entity_gate_family_publishes_hover_health) {
+    enum { GATE_RAWCODE_COUNT = 4 };
+    static DestructableData_t const row = { .file = "Gate.mdx", .displayName = "Ancient Elven Gate" };
+    static uint32_t const gates[GATE_RAWCODE_COUNT] = {
+        MAKEFOURCC('D','T','g','1'), MAKEFOURCC('D','T','g','3'),
+        MAKEFOURCC('D','T','g','5'), MAKEFOURCC('D','T','g','7'),
+    };
+    destructable_t destructable_state = { 0 };
+    edict_t ent = { .inuse = true, .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
+        .data = { .DestructableData = &row }, .destructable = &destructable_state,
+        .health = { .value = 500, .max_value = 500 } };
+
+    FOR_LOOP(i, GATE_RAWCODE_COUNT) {
+        entityState_t state = { .number = 7, .model = 11 };
+        ent.class_id = gates[i];
+        globals.CustomizeEntity(0, &ent, &state);
+        T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    }
+}
+
+TEST(wc3_api, customize_entity_non_debris_destructables_have_no_hover_label) {
+    enum { TARGET_TYPE_COUNT = 3 };
+    static DestructableData_t const row = { .file = "Scenery.mdx", .displayName = "Scenery" };
+    static TARGTYPE const target_types[TARGET_TYPE_COUNT] = { TARG_WALL, TARG_BRIDGE, TARG_DECORATION };
+    destructable_t destructable_state = { 0 };
+    edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('T','e','s','t'),
+        .svflags = SVF_STATIC_SCENERY, .data = { .DestructableData = &row },
+        .destructable = &destructable_state, .health = { .value = 500, .max_value = 500 } };
+
+    FOR_LOOP(i, TARGET_TYPE_COUNT) {
+        entityState_t state = { .number = 7, .model = 11 };
+        ent.targtype = target_types[i];
+        globals.CustomizeEntity(0, &ent, &state);
+        T_EQ(state.name, 0);
+        T_ASSERT(!(state.flags & (EF_NEUTRAL | EF_HOVER_HEALTH | EF_HOVER_RING)));
+    }
+}
+
 TEST(wc3_api, customize_entity_tree_hover_has_ring_without_label_or_health_bar) {
     static DestructableData_t const row = { .file = "Tree.mdx" };
     destructable_t destructable_state = { 0 };
