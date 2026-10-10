@@ -3677,7 +3677,14 @@ TEST(wc3_save, mixed_sparse_regions_reload_in_owner_order_and_retain_inverse_pix
         wc3RegionCollection_t const *regions=S_GetMoveRegions(widget-g_edicts);T_EQ(regions->count,3);
         uint32_t head=map->cells[6*16+6]&WC3_RECORD_END;
         T_EQ(map->links[head].payload,regions->objects[2]); /* widget saved after unit */
-        FOR_LOOP(i,3)T_EQ(wc3_records_object(map,regions->objects[i])->refs,5);
+        FOR_LOOP(i,3) {
+            wc3RecordObject_t const *region=wc3_records_object(map,regions->objects[i]);
+            T_EQ(region->refs,5);
+            /* Original22f1d0/0642f0: centre208, full3*32 extent, max+1.
+             * Reconstruction uses saved geometry, not the sparse pixel hull. */
+            T_EQ(region->box.min.x,5);T_EQ(region->box.min.y,5);
+            T_EQ(region->box.max.x,9);T_EQ(region->box.max.y,9);
+        }
         wc3CellQuery_t query={.mode=WC3_CELL_FINE,.mask=0x02000002,.target=WC3_RECORD_END};
         T_EQ(wc3_records_cell(map,(wc3FinePoint_t){6,5},0,&query).value,1); /* real hole */
         T_EQ(wc3_records_cell(map,(wc3FinePoint_t){5,5},0,&query).value,0);

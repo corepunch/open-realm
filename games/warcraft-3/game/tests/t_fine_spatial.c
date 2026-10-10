@@ -5,6 +5,7 @@
 #include "../../common/wc3_pathing_records.h"
 #include "../../common/wc3_pathing_regions.h"
 #include "../../common/wc3_pathing_cell.h"
+#include "fixtures/retail_region_bounds230.h"
 
 void reset_entities(void);
 void setup_test_world(void);
@@ -351,5 +352,39 @@ TEST(wc3_fine_spatial, flight_query_stamps_active_ordinary_identity_before_categ
     T_ASSERT(G_UnitMovePathFinePointIsPathable(&query,(float[]){9.5f,9.5f}));
     T_EQ(map->query,1001);T_EQ(object->stamp,1001);
     reset_entities();setup_test_world();
+}
+TEST(wc3_fine_spatial, widget_region_bounds_match_original_producer_and_cached_restore) {
+    FOR_LOOP(i,sizeof(region_bounds230)/sizeof(*region_bounds230)) {
+        typeof(*region_bounds230) const *row=region_bounds230+i;
+        fine_spatial_world();
+        CM_SetupTestWorldBounds(&(box2_t){{row->origin[0],row->origin[1]},
+            {row->origin[0]+2048,row->origin[1]+2048}});
+        struct {uint16_t width,height;color32_t map[81];} texture={row->width,row->height};
+        FOR_LOOP(p,row->width*row->height)texture.map[p]=(color32_t){255,255,255,255};
+        edict_t *widget=G_Spawn();widget->pathtex=(pathTex_t *)&texture;
+        widget->s.origin2=(vec2_t){row->point[0],row->point[1]};
+        /* Use the actual destructable orientation producer, without snapping
+         * this supplied point:0642f0 consumes the already captured centre. */
+        widget->destructable=G_AllocDestructable();
+        widget->s.angle=((int)row->turn-(row->width!=row->height))*0x1.921fb6p0f;
+        S_PublishMoveRegions(widget);
+        wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+        wc3RegionCollection_t const *regions=S_GetMoveRegions(widget-g_edicts);
+        T_EQ(regions->count,4);
+        moveRegionSave_t saved;S_GetMoveRegionState(widget-g_edicts,&saved);
+        uint8_t pixels[81];memcpy(pixels,saved.pixels,row->width*row->height);saved.pixels=pixels;
+        for(unsigned pass=0;pass<2;pass++) {
+            if(pass) {
+                S_RetireMoveRegions(widget);
+                T_ASSERT(S_LoadMoveRegions(widget-g_edicts,4,&saved));
+            }
+            FOR_LOOP(slot,regions->count) {
+                wc3RecordObject_t const *record=wc3_records_object(map,regions->objects[slot]);
+                T_EQ(record->box.min.y,row->box[0]);T_EQ(record->box.min.x,row->box[1]);
+                T_EQ(record->box.max.y,row->box[2]);T_EQ(record->box.max.x,row->box[3]);
+            }
+        }
+        widget->pathtex=NULL;reset_entities();setup_test_world();
+    }
 }
 #endif

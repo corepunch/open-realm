@@ -350,3 +350,65 @@ report verifies the original requests, consumers, exits and archived captures.
 Production and test targets build without warnings. An optional broad movement
 run timed out at300 seconds and has no complete report; it is explicitly not
 counted as validation. Broad validation remains on the authorized batch cadence.
+
+
+## Widget bounds and captain distance scopes (Payoff230)
+
+Retail creates a widget's region identities, rasterizes its path texture, then
+publishes a separate rectangle through `22f1d0 → 0642f0 → 05ee40 → 14e8d0`.
+That rectangle covers the full authored texture, including empty margins.
+Quarter turns exchange width and height; each half extent is dimension times
+16 in the software scalar arithmetic. The collection producer subtracts map
+origin, divides by32, floors both ends, and adds one to each maximum. It writes
+all collection records without clipping or emitting links. Raster sample
+centres and the occupied-pixel hull are different bounds.
+
+The engine previously left every region rectangle at its allocation sentinel.
+`S_PublishMoveRegions` now prepares the rectangle after rasterization.
+`S_LoadMoveRegions` reconstructs it from already saved dimensions, centre and
+turn, preserving the existing save format and sparse membership history.
+
+Captain reachability (`9d8c70 → 0594f0 → 059590`) additionally clears the first
+region of the target widget and source widget after clearing target, auxiliary
+source and predicted source unit rectangles. It restores those three unit
+rectangles, then both widget rectangles in the same order. Aliases retain both
+slots. Restoration re-reads published bounds and rebuilds current fine cells;
+a pending edit at the rounded upper edge publishes while unrelated edits stay
+pending. The engine now performs this complete scope for success and failure.
+No allocation, world conversion or entity scan is added to the query.
+
+Two read-only retail captures and an observer-free control retain all193 public
+markers from the unchanged cliff/water/LT06 map. Both captures report the same
+three widget rectangles `(minY12,minX16,maxY31,maxX49)`. The original bounds
+producer executes96 combinations of dimensions, rotation, fractional/negative
+positions and map origins without stubs. Eight complete original distance
+queries plus four aliased queries provide all1360 hierarchy class bytes before
+and after restoration. Engine comparisons check every lane at every level.
+The bounds regression fails2912/3264 assertions before the fix; the corrected
+captain regression fails8/38 before its missing widget scope is implemented.
+
+New frozen evidence is `retail-work230-1.27.json` and its compressed capture
+bundle. `verify_wc3_pathing_work230.py` executes fresh original code, checks all
+935 retained instruction bytes and runs the three bounds/query/save regressions
+in Classic and TFT (90,434 assertions each). Seven rejection tests detect
+altered bounds, collection members, controls, ownership and query exits.
+Exploratory runs missing scalar startup or the synthetic region flag remain in
+the archive as rejected setup attempts, outside accepted expectations. Existing
+retail fixtures were not rewritten.
+
+Ghidra persists four named functions, their exact operand storage, the12-byte
+widget collection and16-byte texture prefixes, plus the distance-scope note.
+The reproducible `Work230Evidence.java` updates those records without replacing
+other analysts' refined types. The global type mapper deliberately refuses the
+older full schema when it would discard newer `WC3MoverPrefix` fields; the
+narrow script preserves them. Archive:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-04.2/payoff230/`.
+MAP-04.2 remains open for group-publication and excluded-point scope integration.
+
+Focused Classic and TFT each pass372 tests /3,554,684 assertions across
+pathfinding, fine spatial records, captain AI, saves and the two affected
+Stop/embedded-recovery cases. The broad `wc3_movement.*` attempt exceeded its
+180-second limit and is retained as incomplete, not counted as validation.
+The strict corpus entry also passes from the isolated staged tree. All44 Python
+bounds/corpus rejection checks pass; the inventory now has466 entries,
+185 executable oracles and1401 pinned inputs. Full-suite cadence advances to4/12.

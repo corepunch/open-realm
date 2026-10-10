@@ -825,9 +825,20 @@ static uint32_t move_build_acc_route(movePathQuery_t const *input,wc3AccRequest_
     return result;
 }
 
+/*063d50/059590 borrow the first region only. Bounds are independent of
+ * occupied pixels; preserve empty margins, aliases and repeated restoration. */
+static void move_acc_widget_rectangle(edict_t const *owner,bool clear) {
+    if(!owner)return;
+    wc3RegionCollection_t const *regions=S_GetMoveRegions(owner-g_edicts);
+    if(!regions->count)return;
+    wc3RecordObject_t const *record=wc3_records_object(S_GetMoveFineSpatial(),regions->objects[0]);
+    move_acc_rebuild_rectangle(record->box,clear);
+}
+
 /* Captain9d8c70 -> bridge0594f0 ->059590. This distance query has footprint
  * class0 and its own5000-work budget. It excludes target, auxiliary source,
- * then predicted source, preserving duplicates and restoration order. */
+ * then predicted source, followed by target and source first widget regions.
+ * Restoration repeats that order and re-reads every rectangle. */
 bool G_CaptainMoveReachable(edict_t const *actor,edict_t const *source,edict_t const *target,
                           vec2_t const *from,vec2_t const *to) {
     if (!pathmap.width || !pathmap.height) return false;
@@ -838,12 +849,15 @@ bool G_CaptainMoveReachable(edict_t const *actor,edict_t const *source,edict_t c
     FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
     edict_t const *objects[]={target ? target : actor,source ? source : actor,source ? source : actor};
     FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],true);
+    edict_t const *widgets[]={target ? target : actor,source ? source : actor};
+    FOR_LOOP(i,2) move_acc_widget_rectangle(widgets[i],true);
     vec2_t a=move_grid_from_world(from->x,from->y),b=move_grid_from_world(to->x,to->y);
     wc3AccRequest_t request={{wc3_mul(a.x,.5f),wc3_mul(a.y,.5f)},
         {wc3_mul(b.x,.5f),wc3_mul(b.y,.5f)},1,BZ_WC3_GROUP_ACC_WORK};
     wc3FineVector_t endpoint;
     uint32_t result=wc3_acc_query_distance(&move_acc,&request,&endpoint);
     FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],false);
+    FOR_LOOP(i,2) move_acc_widget_rectangle(widgets[i],false);
     return result!=UINT32_MAX;
 }
 

@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **278 done / 336 tasks; 58 remaining.**
 
+Payoff230 advances MAP-04.2: widget regions now retain original authored bounds
+through publication/save reconstruction, and captain reachability excludes and
+restores both first widget rectangles in retail order. Complete original query
+exits and96 bounds cases pass; group/point scopes keep the task open. See
+[widget distance scopes](retail-pathfinding-exclusions.md#widget-bounds-and-captain-distance-scopes-payoff230).
+
 Payoff229 closes MAP-02.2: shared rigid walkable geometry now drives unit and
 JASS support. The combined cliff/water/LT06 fixture preserves all4096 authored
 cells and matches all40 frozen movement-lane heights/source flags word-exactly.

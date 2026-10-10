@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "180 executable original/evidence contracts;461 total entries.",
+  "scope": "185 executable original/evidence contracts;466 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -49614,6 +49614,65 @@
         "No global 4096-unit performance target is certified. Immutable geometry is parsed per model; transformed triangles and sequence sphere are cached per walkable instance; native sphere culls distant queries.",
         "The observer-free control is the unchanged map/input control frozen by Work228, reused with all193 public markers identical."
       ]
+    },
+    {
+      "id": "oracle-work230",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work230.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work230.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 579
+        },
+        "live_bounds": {
+          "equal": 2
+        },
+        "bounds_cases": {
+          "equal": 96
+        },
+        "complete_scopes": {
+          "equal": 12
+        },
+        "instructions": {
+          "equal": 935
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "MAP-04.2 widget bounds and captain distance scopes:96 original bounds cases,12 complete original query exits, all hierarchy class bytes and save reconstruction.",
+      "exclusions": [
+        "Advances MAP-04.2; group publication and excluded-point scopes remain open.",
+        "Live captures certify the bounds producer; distance exits use complete unchanged original-instruction executions with preallocated synthetic maps.",
+        "Single-core synchronous scope; no map edits or reentrancy occur inside the original query closure.",
+        "No new performance target accepted. Bounds preparation O(1), exclusion/restoration O(covered cells); no allocation or entity scan added to query."
+      ]
     }
   ],
   "fixtures": [
@@ -49679,7 +49738,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "0c0473af491da182343838d90aff41a310795279db58c425a07e97ec4056199a"
+      "sha256": "8c4dff35cbdaeec0074425fe7cb9cd3ccd69379af72f96a8fe5082d3922af588"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -50512,7 +50571,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "acdaba795cbd3a8175c05b9f74ed07bb3ad6c69980b3ad83bbc9beb5acebf4bf"
+      "sha256": "a4df6969215bf6932e4d8926c9abc8b4e0b8f6dfb575127d959b8de83ed2ddf8"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51576,7 +51635,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "6f782370cb0cefcdfa1d5d883753226ee44445d5ce3b656eebc9ccf8d2755da3"
+      "sha256": "cce63796e3455d60e82ae5505e7830dfa89d1b662323cd82825b457649bc9550"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -51780,7 +51839,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_fine_spatial.c",
-      "sha256": "aa072472221027dcefc820d07508e0bb62a687ee1d566c627361eca0e86bec36"
+      "sha256": "2fb479f5660f46565fe6cbf50883fcd87ebe8eac62c0fbcd65e604baeb86f6cf"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_cell.h",
@@ -51800,11 +51859,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "b46dbdc7550fd70f858a0d745646988893870c67aec4100c20ac7351b31f91b0"
+      "sha256": "80067025317452f7b9c1da5e4aa9c6f6d963c05284b0be0c1aaa56c7ab3e3fde"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "d0c346ec951a29ea38815c0dfdcdfcb881bdfef4bf5b780564cfc149390686df"
+      "sha256": "0eb89d6e8251ff285add00f5fd5c4a8eeb242002782da43e937384f3bbd5a279"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -51816,7 +51875,7 @@
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
-      "sha256": "f2c19848f8df57a6c8003f3f4b2eaa2f7d6fc3880f9fcdcbf3154041ef7e2a4c"
+      "sha256": "0773858278942c30d407ac24837e778463e062eec58b9e3c1a4b78df2c4f3527"
     },
     {
       "path": "server/sv_routing.c",
@@ -51864,7 +51923,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_pathfinding.c",
-      "sha256": "346f820a8f61373981a28ddd7ac74f7433ab7883c89e141f0154e9e5558c440c"
+      "sha256": "ae50180d3f6c69012fc978b81ddc06b29ab3da8dacd90be9a608b99862dc8fa8"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
@@ -52304,7 +52363,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "1e0727ea39cd4635b80f0dcd5f3dea77b9792505bfc78b046b0ad30e0b0238df"
+      "sha256": "942f6f0b9476d77fe0f172dacda74c4f22f5de13dd4b318eb2e9ce9731b720fa"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52320,7 +52379,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "b4df5a06dbde91f332b0a01f7f7986f0ddd8da51a30e6f6bcb36858d6a25796b"
+      "sha256": "666452cb5af96ba53e077e6740551c9e9aea95a084510e9af15d12009619b372"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55181,6 +55240,46 @@
     {
       "path": "tests/test_wc3_pathfinding_work229.py",
       "sha256": "e64ad21c84e58a7f444cfbfee51d8db9093c7d8611e6cc87af660c932f3b9fe1"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-exclusions.md",
+      "sha256": "d8e624b135d13624140c85a58b0aa51b2df83412c0de09d0aa0ba7550a0cdb1e"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_region_bounds230.h",
+      "sha256": "e4a3ec75e19cbf90facaafc8aa1f24c864f623d99719c00d2ea6929b0288cee4"
+    },
+    {
+      "path": "tools/frida/research/work230_observer.js",
+      "sha256": "d4d722adc8a0dc3e17d250e795beb7b240c2b5810a3b58b44ebfe41f60142383"
+    },
+    {
+      "path": "tools/ghidra/research/work230_oracle.py",
+      "sha256": "69647c2493ef12b0088f9e8288c6aa6436cfcc47d49a5d2c70a32a14b28959c6"
+    },
+    {
+      "path": "tools/ghidra/research/work230_scope.py",
+      "sha256": "730309098a3282ed2db4e719302db2e2ecc9f97fe73940e0ecf9a0b0d4b859c1"
+    },
+    {
+      "path": "tools/ghidra/research/Work230Evidence.java",
+      "sha256": "0a08fbea4334852ad1ee5324a7ad87bd8093e2114ab13eb651e824f006c8c685"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work230.py",
+      "sha256": "2aef8f0deab9b2f61945aa4ed279ac447327482c8dbb3033a1f17dd7971b75db"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work230-1.27.json",
+      "sha256": "c2e1bb08816478ea122df6bfb2e80e6c8b5b0a2b236ba16f7d007e1f9518acce"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work230-1.27.json.gz",
+      "sha256": "b40c78478998fc5ab9b0aa2969f48b2e10d7af65c1f3399baa8950285fc1fb7b"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work230.py",
+      "sha256": "6156759d803699eedbca1f3133926b7faff1feab189f0d3279ce5f6b5f3ad61a"
     }
   ]
 }

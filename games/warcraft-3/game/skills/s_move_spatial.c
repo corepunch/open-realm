@@ -18,6 +18,7 @@ static moveSpatialRequest_t move_proximity_request,move_fine_request;
 static bool move_spatial_loading;
 
 static void move_proximity_prepare(void);
+static void move_region_bounds(moveRegionState_t const *);
 
 static void move_spatial_request(moveSpatialRequest_t *request) {
     if(move_spatial_loading || request->active)return;
@@ -67,7 +68,16 @@ bool S_LoadMoveRegions(uint32_t owner,uint32_t count,moveRegionSave_t const *in)
     state->pixels=wc3_records_memory(NULL,size);memcpy(state->pixels,in->pixels,size);
     state->width=in->width;state->height=in->height;state->turn=in->turn;state->published=in->published;
     memcpy(state->center,in->center,sizeof(state->center));
-    wc3_regions_resize(&move_fine_spatial,&state->collection,owner,count);return true;
+    wc3_regions_resize(&move_fine_spatial,&state->collection,owner,count);
+    move_region_bounds(state);return true;
+}
+static void move_region_bounds(moveRegionState_t const *state) {
+    box2_t bounds=CM_GetWorldBounds();
+    wc3_regions_bounds(&move_fine_spatial,&state->collection,&(wc3RegionBounds_t){
+        .width=state->width,.height=state->height,.turn=state->turn,
+        .center={state->center[0],state->center[1]},.origin={bounds.min.x,bounds.min.y},
+        .cell={(bounds.max.x-bounds.min.x)/move_fine_spatial.width,
+            (bounds.max.y-bounds.min.y)/move_fine_spatial.height}});
 }
 static void move_region_raster(moveRegionState_t const *state,uint32_t kind) {
     box2_t bounds=CM_GetWorldBounds();
@@ -123,7 +133,7 @@ void S_PublishMoveRegions(edict_t const *owner) {
         state->center[0]=bounds.min.x+(floorf((owner->s.origin2.x-bounds.min.x)/cx)-radius)*cx+(state->width-1)*cx*.5f;
         state->center[1]=bounds.min.y+(floorf((owner->s.origin2.y-bounds.min.y)/cy)-radius)*cy+(state->height-1)*cy*.5f;
     }
-    move_region_raster(state,WC3_RECORD_INSERT);state->published=true;
+    move_region_raster(state,WC3_RECORD_INSERT);move_region_bounds(state);state->published=true;
 }
 
 typedef struct { vec2_t world,fine,published;float radius;bool valid,pose_valid; } moveProximityGeometry_t;

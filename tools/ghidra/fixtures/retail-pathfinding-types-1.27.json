@@ -5238,6 +5238,48 @@
           "evidence": "18bbe0 original operands; Payoff229"
         }
       ]
+    },
+    {
+      "name": "WC3WidgetRegionCollection",
+      "length": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "capacity",
+          "type": "u32",
+          "evidence": "064460;Payoff230"
+        },
+        {
+          "offset": 4,
+          "name": "count",
+          "type": "u32",
+          "evidence": "063d50/0642f0;Payoff230"
+        },
+        {
+          "offset": 8,
+          "name": "objects",
+          "type": "ptr:ptr:WC3SpatialPrefix",
+          "evidence": "063d50/0642f0 pointer slots;Payoff230"
+        }
+      ]
+    },
+    {
+      "name": "WC3PathTexturePrefix",
+      "length": 16,
+      "fields": [
+        {
+          "offset": 8,
+          "name": "width",
+          "type": "i32",
+          "evidence": "22f1d0;Payoff230"
+        },
+        {
+          "offset": 12,
+          "name": "height",
+          "type": "i32",
+          "evidence": "22f1d0;Payoff230"
+        }
+      ]
     }
   ],
   "methods": [
@@ -17832,6 +17874,87 @@
         }
       ],
       "evidence": "Payoff227 SEP-01.2: ECX Unit, tail-JMP owner virtual80/void. Release6785c0 then show/return through Unit virtual80.566dd0 releases work independently afterward. KillUnit and completion return builders; RemoveUnit building leaves absence/work held through owner change, public unpause and accepted Move in original captures."
+    },
+    {
+      "address": "6f063d50",
+      "name": "WidgetRegions_GetFirstObject",
+      "returns": "ptr:WC3SpatialPrefix",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "collection",
+          "type": "ptr:WC3WidgetRegionCollection",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff230 original instructions and complete bounds oracle; explicit operand storage, RET bytes documented in MapPathfinding."
+    },
+    {
+      "address": "6f22f1d0",
+      "name": "PathTexture_GetWorldBounds",
+      "returns": "ptr:WC3PathScalarRectangle",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "texture",
+          "type": "ptr:WC3PathTexturePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalarRectangle",
+          "storage": 4
+        },
+        {
+          "name": "center",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        },
+        {
+          "name": "turn",
+          "type": "i32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff230 original instructions and complete bounds oracle; explicit operand storage, RET bytes documented in MapPathfinding."
+    },
+    {
+      "address": "6f0642f0",
+      "name": "WidgetRegions_SetWorldBounds",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "collection",
+          "type": "ptr:WC3WidgetRegionCollection",
+          "storage": "ECX"
+        },
+        {
+          "name": "bounds",
+          "type": "ptr:WC3PathScalarRectangle",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff230 original instructions and complete bounds oracle; explicit operand storage, RET bytes documented in MapPathfinding."
+    },
+    {
+      "address": "6f14e8d0",
+      "name": "SpatialObject_SetBounds",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "object",
+          "type": "ptr:WC3SpatialPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "bounds",
+          "type": "ptr:WC3PathIntegerRectangle",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff230 original instructions and complete bounds oracle; explicit operand storage, RET bytes documented in MapPathfinding."
     }
   ],
   "globals": [

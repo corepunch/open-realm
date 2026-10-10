@@ -29,6 +29,8 @@
 #include "test.h"
 #include "../g_local.h"
 #include "../../common/wc3_pathing_records.h"
+#include "../../common/wc3_pathing_regions.h"
+#include "fixtures/retail_region_bounds230.h"
 #include "../common/wc3_pathing_masks.h"
 #include "retail_map_load.h"
 #include "retail_constructed_maps.h"
@@ -1648,6 +1650,54 @@ TEST(pathfinding, coarse_exclusion_rebuilds_published_target_rectangle_including
     }
     level.pathing_counter=old_counter;
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+/* Every native packed class byte, all lanes and four levels. */
+static void check_widget_scope230(uint8_t const expected[1360]) {
+    unsigned at=0;uint8_t masks[]={2,0x80,0x40,4};
+    FOR_LOOP(lev,4) {
+        unsigned side=32u>>lev;
+        FOR_LOOP(y,side)FOR_LOOP(x,side) {
+            unsigned byte=expected[at++];
+            FOR_LOOP(lane,4)T_EQ(G_TestMovePathClass(masks[lane],lev,x,y),(byte>>(6-2*lane))&3);
+        }
+    }
+}
+
+TEST(pathfinding, captain_distance_excludes_widget_bounds_and_restores_pending_terrain) {
+    FOR_LOOP(mode,8) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};
+        if(mode&4)FOR_LOOP(y,64)cells[y*64+20]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        struct {uint16_t width,height;color32_t map[64];} texture={8,8};
+        FOR_LOOP(i,64)texture.map[i]=(color32_t){0,0,255,255};
+        edict_t *actor=make_unit_at(256,1024),*widget=make_unit_at(1024,1024);
+        widget->collision=8;widget->pathtex=(pathTex_t *)&texture;
+        widget->destructable=G_AllocDestructable();widget->destructable->placement_solid=true;
+        widget->svflags&=~SVF_MONSTER;
+        G_PublishMoveSpatialObject(actor);G_PublishMoveSpatialObject(widget);CM_BakeStaticObstacles();
+        /* The region bounds are larger than the ordinary unit rectangle.
+         * A pending edit at their rounded edge must publish on restoration. */
+        T_EQ(G_TestMovePathClass(2,0,14,14),1);
+        check_widget_scope230(region_scope230[mode].before);
+        T_ASSERT(G_SetTerrainPathingFlags(&(terrainPathingEdit_t){.point={1200,1200},.mask=2,.blocked=true}));
+        T_ASSERT(G_SetTerrainPathingFlags(&(terrainPathingEdit_t){.point={1520,1520},.mask=2,.blocked=true}));
+        T_EQ(G_TestMovePathClass(2,0,18,18),0);T_EQ(G_TestMovePathClass(2,0,23,23),0);
+        vec2_t from=mode&1 ? widget->s.origin2 : actor->s.origin2;
+        vec2_t to=mode&1 ? actor->s.origin2 : widget->s.origin2;
+        edict_t *source=mode&1 ? widget : NULL,*target=mode&1 ? NULL : widget;
+        T_EQ(G_CaptainMoveReachable(actor,source,target,&from,&to),region_scope230[mode].result!=UINT32_MAX);
+        check_widget_scope230(region_scope230[mode].after);
+        T_EQ(G_TestMovePathClass(2,0,14,14),1);
+        T_EQ(G_TestMovePathClass(2,0,18,18),2);T_EQ(G_TestMovePathClass(2,0,23,23),0);
+        /* Aliasing preserves both widget slots and restoration. */
+        if(mode&2) {
+            from=to=widget->s.origin2;
+            T_EQ(G_CaptainMoveReachable(actor,widget,widget,&from,&to),region_scope230[mode].alias_result!=UINT32_MAX);
+        }
+        widget->pathtex=NULL;reset_entities();setup_test_world();
+    }
 }
 
 void G_TestMoveCoarseScopeTrace(void (*)(void *,unsigned,movePathQuery_t const *),void *);

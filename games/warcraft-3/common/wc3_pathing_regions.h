@@ -6,6 +6,24 @@
 /*064460: the collection owns distinct identities, not a merged category.
  * Ordinary objects and region objects share the stable64-object pool. */
 typedef struct wc3RegionCollection_s {uint32_t count,objects[4];} wc3RegionCollection_t;
+typedef struct {uint32_t width,height,turn;float center[2],origin[2],cell[2];} wc3RegionBounds_t;
+/*22f1d0/0642f0/14e8d0: full texture extent, not the raster sample centres.
+ * Bounds remain unclipped; writing them must not emit additional cell links. */
+static inline void wc3_regions_bounds(wc3SpatialRecords_t *map,wc3RegionCollection_t const *collection,
+        wc3RegionBounds_t const *input) {
+    uint32_t extent[2]={input->turn&1 ? input->height : input->width,
+        input->turn&1 ? input->width : input->height};
+    int minimum[2],maximum[2];
+    for(unsigned axis=0;axis<2;axis++) {
+        float half=wc3_mul(wc3_float(wc3_from_int(extent[axis])),16);
+        float low=wc3_div(wc3_sub(wc3_sub(input->center[axis],half),input->origin[axis]),input->cell[axis]);
+        float high=wc3_div(wc3_sub(wc3_add(input->center[axis],half),input->origin[axis]),input->cell[axis]);
+        minimum[axis]=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(low)));
+        maximum[axis]=(int32_t)(wc3_int_bits(wc3_floor_bits(wc3_float_bits(high)))+1u);
+    }
+    wc3FineBox_t box={{minimum[0],minimum[1]},{maximum[0],maximum[1]}};
+    for(unsigned slot=0;slot<collection->count;slot++)wc3_records_object(map,collection->objects[slot])->box=box;
+}
 static inline void wc3_regions_resize(wc3SpatialRecords_t *map,wc3RegionCollection_t *collection,
         uint32_t owner,uint32_t count) {
     static uint8_t const categories[]={0xc2,0x10,8,4};
