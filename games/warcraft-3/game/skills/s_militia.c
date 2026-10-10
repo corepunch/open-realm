@@ -162,7 +162,7 @@ static void militia_remove_buff(edict_t *unit) {
     uint32_t const code = MAKEFOURCC('B','m','i','l');
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == code)
-            memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
+            unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_TRANSFORM);
     }
 }
 

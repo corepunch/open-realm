@@ -537,7 +537,7 @@ void S_SpellReleaseCorpse(edict_t *corpse, uint32_t code) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = corpse->abilstatus + i;
         if (status->level && status->code == code) {
-            memset(status, 0, sizeof(*status));
+            unit_removestatus(corpse, status, STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(corpse);
             return;
         }
@@ -1461,7 +1461,7 @@ void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = unit->abilstatus + i;
         if (status->level && status->code == code) {
-            memset(status, 0, sizeof(*status));
+            unit_removestatus(unit, status, STATUS_REMOVE_SCRIPT);
             return;
         }
     }
