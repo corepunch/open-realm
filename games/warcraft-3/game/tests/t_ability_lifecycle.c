@@ -1008,6 +1008,8 @@ TEST(wc3_ability_lifecycle, classified_status_dispel_and_transfer_policy) {
     slot->buff_flags |= WC3_STATUS_BUFF_UNDISPELLABLE;
     T_ASSERT(!unit_status_can_dispel(slot));
     T_ASSERT(!unit_status_can_steal(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_TRANSFERABLE;
+    T_ASSERT(unit_status_can_steal(slot));
     unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
     T_ASSERT(!unit_status_can_dispel(slot));
 }
@@ -1034,7 +1036,8 @@ TEST(wc3_ability_lifecycle, classified_status_application_replace_resets_flags) 
 TEST(wc3_ability_lifecycle, status_capacity_preflight_is_deterministic) {
     edict_t *unit = review_setup();
     static cstring_t const ids[MAX_UNIT_STATUSES + 1] = {
-        "Bq01", "Bq02", "Bq03", "Bq04", "Bq05", "Bq06", "Bq07", "Bq08", "Bq09"
+        "Bq01", "Bq02", "Bq03", "Bq04", "Bq05", "Bq06", "Bq07", "Bq08",
+        "Bq09", "Bq10", "Bq11", "Bq12", "Bq13", "Bq14", "Bq15", "Bq16", "Bq17"
     };
     status_application_t app = { .level = 1, .duration = 10.0f };
     T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_INVALID);
@@ -1052,6 +1055,28 @@ TEST(wc3_ability_lifecycle, status_capacity_preflight_is_deterministic) {
     T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_REUSE);
     T_NOT_NULL(unit_applystatus(unit, &app));
     T_EQ(G_UnitStatusLevel(unit, *((uint32_t const *)ids[0])), 1);
+}
+
+TEST(wc3_ability_lifecycle, independent_status_instances_keep_source_identity) {
+    edict_t *target = review_setup(), *source_a = review_unit(0, 100), *source_b = review_unit(0, 100);
+    status_application_t app = {
+        .buff = "Bqpo", .level = 1, .duration = 10.0f,
+        .stack_policy = WC3_STATUS_STACK_INDEPENDENT, .source = source_a
+    };
+    heroabilitystatus_t *a = unit_applystatus(target, &app), *b;
+    T_NOT_NULL(a);
+    app.duration = 20.0f;
+    app.source = source_b;
+    b = unit_applystatus(target, &app);
+    T_NOT_NULL(b);
+    T_NE(a, b);
+    T_NE(a->instance_id, b->instance_id);
+    T_EQ(unit_findstatussource(target, a->code, source_a), a);
+    T_EQ(unit_findstatussource(target, b->code, source_b), b);
+    unit_removestatus(target, a, STATUS_REMOVE_DISPEL);
+    T_NULL(unit_findstatussource(target, b->code, source_a));
+    T_EQ(unit_findstatussource(target, b->code, source_b), b);
+    T_ASSERT(b->timestamp > a->timestamp);
 }
 
 TEST(wc3_ability_lifecycle, status_application_separates_owner_from_payload) {

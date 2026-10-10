@@ -5011,14 +5011,20 @@ TEST(wc3_save, status_source_incarnation_round_trip) {
 
     slot->code = MAKEFOURCC('B', 'E', 'e', 'r');
     slot->level = 1;
+    slot->instance_id = 19;
+    slot->stack_policy = WC3_STATUS_STACK_INDEPENDENT;
     slot->source = source;
     slot->source_spawn_time = source->spawn_time;
+    unit->next_status_instance_id = 20;
     T_ASSERT(WriteGame(filename));
     slot->source = NULL;
     slot->source_spawn_time = 0;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(slot->source == source);
     T_EQ(slot->source_spawn_time, source->spawn_time);
+    T_EQ(slot->instance_id, 19);
+    T_EQ(slot->stack_policy, WC3_STATUS_STACK_INDEPENDENT);
+    T_EQ(unit->next_status_instance_id, 20);
     source->spawn_time++;
     T_NULL(S_SpellStatusSource(slot));
     remove(filename);
