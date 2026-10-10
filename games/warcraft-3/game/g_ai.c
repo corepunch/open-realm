@@ -315,8 +315,7 @@ void G_CreepGuardInit(edict_t *unit) {
     unit->movement.creep_guard_outside_ms = 0;
     unit->movement.creep_guard_return_retries = 0;
     unit->movement.creep_guard_retry_at_ms = 0;
-    unit->movement.creep_guard_auto_combat = false;
-    unit->movement.creep_guard_returning = false;
+    unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
 }
 
 /* Script controls the auto-guard policy, never the player's Stop anchor.
@@ -334,10 +333,9 @@ void G_CreepGuardSetEnabled(edict_t *unit, bool enabled) {
     if (!unit->movement.creep_guard_enabled) {
         unit->movement.creep_guard_last_hit_ms = level.time;
         unit->movement.creep_guard_outside_ms = 0;
-        unit->movement.creep_guard_auto_combat = false;
+        unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
         unit->movement.creep_guard_return_retries = 0;
         unit->movement.creep_guard_retry_at_ms = 0;
-        unit->movement.creep_guard_returning = false;
     }
     unit->movement.creep_guard_enabled = true;
 }
@@ -345,10 +343,10 @@ void G_CreepGuardSetEnabled(edict_t *unit, bool enabled) {
 void G_CreepGuardAutoCombat(edict_t *unit) {
     if (!unit || !unit->inuse || M_IsDead(unit) || !unit->movement.creep_guard_enabled ||
         unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE ||
-        unit->movement.creep_guard_returning) return;
-    if (!unit->movement.creep_guard_auto_combat)
+        unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) return;
+    if (unit->movement.creep_guard_phase != CREEP_GUARD_COMBAT)
         unit->movement.creep_guard_last_hit_ms = level.time;
-    unit->movement.creep_guard_auto_combat = true;
+    unit->movement.creep_guard_phase = CREEP_GUARD_COMBAT;
 }
 
 void G_CreepGuardDamaged(edict_t *unit) {
@@ -376,7 +374,7 @@ void G_CreepGuardCallForHelp(edict_t *victim, edict_t *attacker) {
         edict_t *ally = g_edicts + i;
         if (ally == victim || !ally->inuse || !ally->movement.creep_guard_enabled ||
             ally->s.player != victim->s.player || M_IsDead(ally) ||
-            ally->movement.creep_guard_returning ||
+            ally->movement.creep_guard_phase == CREEP_GUARD_RETURNING ||
             (ally->aiflags & AI_IMMOBILE) ||
             G_UnitQueuedOrderCount(ally) ||
             !ally->currentmove ||
@@ -415,7 +413,7 @@ void G_CreepGuardConstructionStarted(edict_t *building) {
         if (!creep->inuse || !creep->movement.creep_guard_enabled ||
             creep->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(creep) ||
             (creep->aiflags & AI_IMMOBILE) ||
-            creep->movement.creep_guard_returning || G_UnitQueuedOrderCount(creep) ||
+            creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING || G_UnitQueuedOrderCount(creep) ||
             !creep->currentmove ||
             (creep->currentmove->think != ai_stand && !G_UnitIsSleeping(creep)) ||
             !unit_has_attack(creep) ||
@@ -436,8 +434,7 @@ void G_CreepGuardConstructionStarted(edict_t *building) {
 
 void G_CreepGuardExplicitOrder(edict_t *unit) {
     if (!unit) return;
-    unit->movement.creep_guard_auto_combat = false;
-    unit->movement.creep_guard_returning = false;
+    unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
     unit->movement.creep_guard_outside_ms = 0;
     unit->movement.creep_guard_return_retries = 0;
     unit->movement.creep_guard_retry_at_ms = 0;
@@ -451,9 +448,8 @@ void G_CreepGuardExplicitOrder(edict_t *unit) {
 static bool creep_guard_begin_return(edict_t *unit) {
     edict_t *point;
     if ((unit->aiflags & AI_IMMOBILE) || G_UnitQueuedOrderCount(unit)) return false;
-    unit->movement.creep_guard_auto_combat = false;
     unit->movement.creep_guard_outside_ms = 0;
-    unit->movement.creep_guard_returning = true;
+    unit->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
     unit->movement.creep_guard_return_retries = 0;
     unit->movement.creep_guard_retry_at_ms = 0;
     unit_leavecombat(unit);
@@ -472,10 +468,10 @@ static bool creep_guard_begin_return(edict_t *unit) {
 
 bool G_CreepGuardCombatEnd(edict_t *unit) {
     if (!unit || !unit->movement.creep_guard_enabled ||
-        !unit->movement.creep_guard_auto_combat ||
+        unit->movement.creep_guard_phase != CREEP_GUARD_COMBAT ||
         unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE) return false;
     if (Vector2_distance(&unit->s.origin2, &unit->movement.creep_guard_origin) <= 4.0f) {
-        unit->movement.creep_guard_auto_combat = false;
+        if (unit->movement.creep_guard_phase == CREEP_GUARD_COMBAT) unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
         return false;
     }
     return creep_guard_begin_return(unit);
@@ -487,9 +483,9 @@ void G_CreepGuardTick(edict_t *unit) {
     if (!unit || !unit->inuse || !unit->movement.creep_guard_enabled ||
         unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(unit)) return;
     distance = Vector2_distance(&unit->s.origin2, &unit->movement.creep_guard_origin);
-    if (unit->movement.creep_guard_returning) {
+    if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) {
         if (distance <= 4.0f) {
-            unit->movement.creep_guard_returning = false;
+            if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
             unit->movement.creep_guard_outside_ms = 0;
             unit->movement.creep_guard_return_retries = 0;
             unit->movement.creep_guard_retry_at_ms = 0;
@@ -501,7 +497,7 @@ void G_CreepGuardTick(edict_t *unit) {
             unit->currentmove->think != ai_stand)
             return;
         if (unit->movement.creep_guard_return_retries >= CREEP_GUARD_RETURN_RETRIES) {
-            unit->movement.creep_guard_returning = false;
+            if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
             return;
         }
         if (!unit->movement.creep_guard_retry_at_ms) {
@@ -525,8 +521,15 @@ void G_CreepGuardTick(edict_t *unit) {
         if (point) order_move(unit, point);
         return;
     }
-    if (!unit->movement.creep_guard_auto_combat || !unit->currentmove ||
-        unit->currentmove->proc != CAbilityAttack) return;
+    if (unit->movement.creep_guard_phase != CREEP_GUARD_COMBAT) return;
+    /* An automatically acquired attack can be terminated by an ability or
+     * target removal without passing the normal attack-end callback. Recover
+     * from an idle transition, but never override another active movement. */
+    if (!unit->currentmove || unit->currentmove->think == ai_stand) {
+        G_CreepGuardCombatEnd(unit);
+        return;
+    }
+    if (unit->currentmove->proc != CAbilityAttack) return;
     soft = creep_guard_misc("GuardDistance", 600.0f);
     hard = creep_guard_misc("MaxGuardDistance", 1000.0f);
     if (hard < soft) hard = soft;

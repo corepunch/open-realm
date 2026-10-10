@@ -978,7 +978,10 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             accepted = S_AcolyteHarvestOrder(self, target);
         else if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
             accepted = harvest_gold_order(self, target);
-        if (accepted) S_UnitAbilityOrderAccepted(self, order);
+        if (accepted) {
+            G_CreepGuardExplicitOrder(self);
+            S_UnitAbilityOrderAccepted(self, order);
+        }
         return accepted;
     }
     {
@@ -992,6 +995,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             G_ClearUnitOrderQueue(self);
             accepted = S_IssueUnitTargetSpell(self, spell_code, target);
             if (accepted) {
+                G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
                 unit_publish_target_order(self, order, target, issuer_player);
             }
@@ -1008,13 +1012,17 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (queue && G_UnitHasActiveOrder(self)) {
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
                                                issuer_player, 0.0f, 0);
-        if (accepted) unit_publish_target_order(self, order, target, issuer_player);
+        if (accepted) {
+            G_CreepGuardExplicitOrder(self);
+            unit_publish_target_order(self, order, target, issuer_player);
+        }
         return accepted;
     }
     if (!queue) G_ClearUnitOrderQueue(self);
     {
         bool const accepted = unit_issuetargetorder_now(self, order, target);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             unit_publish_target_order(self, order, target, issuer_player);
         }
@@ -1046,6 +1054,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
             G_ClearUnitOrderQueue(self);
             accepted = S_IssuePointTargetSpell(self, spell_code, point);
             if (accepted) {
+                G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
                 G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                           issuer_player, order);
@@ -1071,6 +1080,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     {
         bool const accepted = unit_issueorder_now(self, order, point, group_speed);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);

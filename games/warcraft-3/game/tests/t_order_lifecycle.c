@@ -6,6 +6,7 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 void order_attack(edict_t *self, edict_t *target);
 void T_Damage(edict_t *target, edict_t *attacker, int damage);
+void G_RunEntities(void);
 void monster_think(edict_t *self);
 void SV_Physics_Toss(edict_t *ent);
 void unit_build(edict_t *self, uint32_t class_id);
@@ -522,11 +523,20 @@ TEST(wc3_order_lifecycle, explicit_order_drops_only_creep_auto_combat) {
     edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
     G_CreepGuardInit(creep);
     G_CreepGuardAutoCombat(creep);
-    T_ASSERT(creep->movement.creep_guard_auto_combat);
+    T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_COMBAT);
     G_CreepGuardExplicitOrder(creep);
-    T_ASSERT(!creep->movement.creep_guard_auto_combat);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT);
     T_ASSERT(creep->movement.creep_guard_enabled);
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
+}
+
+TEST(wc3_order_lifecycle, internal_order_notification_does_not_cancel_creep_guard) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    G_CreepGuardAutoCombat(creep);
+    S_UnitAbilityOrderAccepted(creep, "attack");
+    T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_COMBAT);
 }
 
 TEST(wc3_order_lifecycle, creep_guard_native_disable_keeps_anchor_and_explicit_order) {
@@ -536,13 +546,13 @@ TEST(wc3_order_lifecycle, creep_guard_native_disable_keeps_anchor_and_explicit_o
     G_CreepGuardAutoCombat(creep);
     G_CreepGuardSetEnabled(creep, false);
     T_ASSERT(!creep->movement.creep_guard_enabled);
-    T_ASSERT(!creep->movement.creep_guard_auto_combat);
-    T_ASSERT(!creep->movement.creep_guard_returning);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
     creep->s.origin2.x = 350;
     G_CreepGuardSetEnabled(creep, true);
     T_ASSERT(creep->movement.creep_guard_enabled);
-    T_ASSERT(!creep->movement.creep_guard_auto_combat);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT);
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
 }
 
@@ -564,15 +574,15 @@ TEST(wc3_order_lifecycle, creep_guard_return_retries_stop_after_bounded_failures
     edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
     G_CreepGuardInit(creep);
     creep->s.origin2.x = 900;
-    creep->movement.creep_guard_returning = true;
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
     /* Simulate interrupted return at stand; do not enter a busy retry loop. */
     level.time = 1000;
     G_CreepGuardTick(creep);
-    T_ASSERT(creep->movement.creep_guard_returning);
+    T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
     T_EQ(creep->movement.creep_guard_return_retries, 0u);
     T_EQ(creep->movement.creep_guard_retry_at_ms, 2000u);
     G_CreepGuardExplicitOrder(creep);
-    T_ASSERT(!creep->movement.creep_guard_returning);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
     T_EQ(creep->movement.creep_guard_return_retries, 0u);
     T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
 }
@@ -581,11 +591,11 @@ TEST(wc3_order_lifecycle, creep_guard_arrival_clears_retry_state) {
     setup_test_world();
     edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
     G_CreepGuardInit(creep);
-    creep->movement.creep_guard_returning = true;
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
     creep->movement.creep_guard_return_retries = 2;
     creep->movement.creep_guard_retry_at_ms = 1000;
     G_CreepGuardTick(creep);
-    T_ASSERT(!creep->movement.creep_guard_returning);
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
     T_EQ(creep->movement.creep_guard_return_retries, 0u);
     T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
 }
@@ -599,10 +609,10 @@ TEST(wc3_order_lifecycle, lethal_creep_hit_alerts_surviving_camp_member) {
     edict_t *attacker = review_order_unit(240, 0);
     G_CreepGuardInit(victim);
     G_CreepGuardInit(ally);
-    T_ASSERT(!ally->movement.creep_guard_auto_combat);
+    T_ASSERT(ally->movement.creep_guard_phase != CREEP_GUARD_COMBAT);
     T_Damage(victim, attacker, (int)victim->health.value + 100);
     T_ASSERT(M_IsDead(victim));
-    T_ASSERT(ally->movement.creep_guard_auto_combat);
+    T_ASSERT(ally->movement.creep_guard_phase == CREEP_GUARD_COMBAT);
     T_ASSERT(ally->goalentity == attacker);
     T_ASSERT(ally->currentmove && ally->currentmove->proc == CAbilityAttack);
 }
@@ -615,7 +625,7 @@ TEST(wc3_order_lifecycle, creep_guard_retry_exhaustion_uses_simulation_time) {
     G_CreepGuardInit(creep);
     creep->s.origin2.x = 900;
     creep->aiflags |= AI_IMMOBILE;
-    creep->movement.creep_guard_returning = true;
+    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
     level.time = 1000;
     G_CreepGuardTick(creep);
     T_EQ(creep->movement.creep_guard_retry_at_ms, 2000u);
@@ -623,7 +633,7 @@ TEST(wc3_order_lifecycle, creep_guard_retry_exhaustion_uses_simulation_time) {
         level.time = 2000 + (attempt - 1) * 1000;
         G_CreepGuardTick(creep);
         T_EQ(creep->movement.creep_guard_return_retries, 0u);
-        T_ASSERT(creep->movement.creep_guard_returning);
+        T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
     }
     /* Once movement is permitted, actual retries are counted. Test the
      * scheduler callback instead of calling the helper for this transition. */
@@ -632,14 +642,16 @@ TEST(wc3_order_lifecycle, creep_guard_retry_exhaustion_uses_simulation_time) {
         level.time = 5000 + (attempt - 1) * 1000;
         creep->movement.creep_guard_retry_at_ms = level.time;
         unit_stand(creep); /* emulate a movement failure after each attempt */
-        monster_think(creep);
+        creep->think = monster_think;
+        G_RunEntities();
         T_EQ(creep->movement.creep_guard_return_retries, attempt);
-        T_ASSERT(creep->movement.creep_guard_returning);
+        T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
     }
     level.time = 8000;
     unit_stand(creep);
-    monster_think(creep);
-    T_ASSERT(!creep->movement.creep_guard_returning);
+    creep->think = monster_think;
+    G_RunEntities();
+    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
     T_EQ(creep->movement.creep_guard_return_retries, 3u);
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.001f);
 }

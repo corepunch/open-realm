@@ -953,7 +953,6 @@ bool S_UnitAbilityOrderAccepted(edict_t *ent, cstring_t order) {
     bool handled = false;
     abilityCall_t call = MAKE(abilityCall_t, .order = order);
     if (!ent || !order) return false;
-    G_CreepGuardExplicitOrder(ent);
     handled |= unit_dispatch_engine_event_abilities(ent, A_ORDER_ACCEPTED, &call);
     FOR_LOOP(i, num_innate) {
         abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i, .order = order);

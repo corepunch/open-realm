@@ -4843,6 +4843,41 @@ TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
 
 /* Persist both an active creep return Move and a pending retry. The original
  * Stop-guard round-trip above exercises a different state machine. */
+TEST(wc3_save, live_creep_guard_return_move_resumes_after_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-save-live-creep-return.bin");
+    int unit_index;
+    edict_t *unit;
+    setup_test_world();
+    reset_entities();
+    unit_index = globals.num_edicts;
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128, 0);
+    unit->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    unit->stand = unit_stand;
+    unit->die = unit_die;
+    unit_stand(unit);
+    G_CreepGuardInit(unit);
+    unit->s.origin2.x = unit->s.origin.x = 900;
+    gi.LinkEntity(unit);
+    G_CreepGuardAutoCombat(unit);
+    T_ASSERT(G_CreepGuardCombatEnd(unit));
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityMove);
+    T_ASSERT(unit->goalentity);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + unit_index;
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityMove);
+    T_ASSERT(unit->goalentity);
+    T_FEQ(unit->goalentity->s.origin2.x, 128.0f, 0.001f);
+    unit->s.origin2 = unit->movement.creep_guard_origin;
+    unit->s.origin.x = unit->s.origin2.x;
+    gi.LinkEntity(unit);
+    G_CreepGuardTick(unit);
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_IDLE);
+    remove(filename);
+}
+
 TEST(wc3_save, creep_guard_return_retry_state_round_trip) {
     cstring_t filename = Test_TempPath("wc3-save-creep-guard-return.bin");
     int unit_index;
@@ -4859,19 +4894,19 @@ TEST(wc3_save, creep_guard_return_retry_state_round_trip) {
     G_CreepGuardInit(unit);
     unit->s.origin2.x = unit->s.origin.x = 900;
     gi.LinkEntity(unit);
-    unit->movement.creep_guard_returning = true;
+    unit->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
     unit->movement.creep_guard_return_retries = 2;
     unit->movement.creep_guard_retry_at_ms = 9000;
     unit->movement.creep_guard_last_hit_ms = 2000;
     unit->movement.creep_guard_outside_ms = 3000;
     T_ASSERT(WriteGame(filename));
-    unit->movement.creep_guard_returning = false;
+    if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
     unit->movement.creep_guard_return_retries = 0;
     unit->movement.creep_guard_retry_at_ms = 0;
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + unit_index;
     T_ASSERT(unit->movement.creep_guard_enabled);
-    T_ASSERT(unit->movement.creep_guard_returning);
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
     T_EQ(unit->movement.creep_guard_return_retries, 2u);
     T_EQ(unit->movement.creep_guard_retry_at_ms, 9000u);
     T_EQ(unit->movement.creep_guard_last_hit_ms, 2000u);

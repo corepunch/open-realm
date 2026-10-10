@@ -416,7 +416,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
         S_UnitAbilityEventWithCall(target, A_DAMAGED, &call);
     }
     if (can_attack(target) && !unit_is_walking(target) &&
-        !target->movement.creep_guard_returning &&
+        target->movement.creep_guard_phase != CREEP_GUARD_RETURNING &&
         S_SpellIsEnemy(target, attacker)) {
         if (!S_UnitAbilityEvent(target, A_NO_RETALIATE)) {
             S_UnitAbilityEvent(target, A_AUTO_COMBAT_START);

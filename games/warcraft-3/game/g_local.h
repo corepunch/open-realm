@@ -693,6 +693,12 @@ typedef enum {
     GUARD_RETURNING,
 } unitGuardState_t;
 
+typedef enum {
+    CREEP_GUARD_IDLE,
+    CREEP_GUARD_COMBAT,
+    CREEP_GUARD_RETURNING
+} creepGuardPhase_t;
+
 /* Independent policies consumed by ability command and cast dispatch. */
 #define AB_PASSIVE      (1u << 0)  // bit 0; passive command policy; used in ability flags
 #define AB_TOGGLE       (1u << 1)  // bit 1; reversible on/off action; used in ability flags
@@ -1913,8 +1919,7 @@ struct edict_s {
         uint32_t creep_guard_return_retries;
         uint32_t creep_guard_retry_at_ms;
         bool creep_guard_enabled;
-        bool creep_guard_auto_combat;
-        bool creep_guard_returning;
+        creepGuardPhase_t creep_guard_phase;
         bool explicit_allied_attack;
         bool cargo_unload_pending; /* Drop ability: unload after point-move arrival */
         uint32_t cargo_unload_ability; /* initiating concrete AbilityData rawcode */
