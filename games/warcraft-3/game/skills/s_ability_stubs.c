@@ -11,7 +11,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityImmolation) {
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
-            memset(&caster->abilstatus[i], 0, sizeof(caster->abilstatus[i]));
+            unit_removestatus(caster, &caster->abilstatus[i], STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(caster);
             return;
         }
@@ -30,7 +30,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityColdArrows) {
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
-            memset(&caster->abilstatus[i], 0, sizeof(caster->abilstatus[i]));
+            unit_removestatus(caster, &caster->abilstatus[i], STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(caster);
             return;
         }

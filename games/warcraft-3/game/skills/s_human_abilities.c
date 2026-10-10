@@ -35,7 +35,7 @@ static bool human_has_status(edict_t const *ent, uint32_t code) { return G_UnitS
 static void human_remove_status(edict_t *ent, uint32_t code) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code)
-            memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
+            unit_removestatus(ent, ent->abilstatus + i, STATUS_REMOVE_SCRIPT);
 }
 
 static bool defend_projectile_reaction(edict_t *projectile);
@@ -107,12 +107,10 @@ void S_AvatarExpire(edict_t *unit) {
 /* Reserve the Avatar buff slot before spell_commit spends mana; cooldowns have independent storage. */
 static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
     (void)spell;
-    uint32_t slots = 0;
     (void)target; unit_updatestatuses(caster);
     if (!S_SpellIsAliveTarget(caster) || (caster->avatar && caster->avatar->level)) return false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
-        if (!caster->abilstatus[i].level) slots++;
-    if (slots >= 1) return true;
+    if (unit_status_checkapplication(caster, &(status_application_t){ .buff = "BHav", .level = 1 }) != WC3_STATUS_APPLY_FULL)
+        return true;
     fprintf(stderr, "WC3 Avatar: status capacity exhausted for unit %u\n", caster->s.number); return false;
 }
 
@@ -170,8 +168,13 @@ static bool cloud_validate(edict_t *caster, spellTarget_t st, abilityitem_t cons
 }
 
 static bool inner_fire_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsFriend(caster, st.entity);
+    uint32_t level;
+    cstring_t buff;
+    if (!spell || !st.entity || !S_SpellIsFriend(caster, st.entity)) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = human_buff(spell, level);
+    return buff && unit_status_checkapplication(st.entity, &(status_application_t){ .buff = buff, .level = level }) !=
+        WC3_STATUS_APPLY_FULL;
 }
 
 static bool heal_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -274,7 +277,9 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
         fprintf(stderr, "WC3 Polymorph: morph form %08x has no model data\n", form_type);
         return false;
     }
-    return true;
+    return unit_status_checkapplication(st.entity, &(status_application_t){
+        .buff = human_buff(spell, level), .level = level
+    }) != WC3_STATUS_APPLY_FULL;
 }
 
 /* Restore the target's saved presentation and movement state when Polymorph ends. */

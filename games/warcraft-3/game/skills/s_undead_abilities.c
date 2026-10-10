@@ -594,7 +594,7 @@ static void possession_clear_status(edict_t *ent, uint32_t code) {
     if (!ent) return;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code)
-            memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
+            unit_removestatus(ent, ent->abilstatus + i, STATUS_REMOVE_TRANSFORM);
 }
 
 /* Keep stunned in sync after stripping Bpos without waiting for a later status tick. */
