@@ -3151,7 +3151,19 @@ TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_l
         }
         T_EQ(count, 1);
     }
-    unit_removestatus(target, unit_findstatus(target, MAKEFOURCC('B','E','e','r')), STATUS_REMOVE_SCRIPT);
+    {
+        edict_t *second_source = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+        status_application_t independent = {
+            .buff = "BEer", .level = 1, .duration = 8.0f,
+            .stack_policy = WC3_STATUS_STACK_INDEPENDENT, .source = second_source,
+            .buff_flags = WC3_STATUS_BUFF_TARGET_ART
+        };
+        heroabilitystatus_t *second = unit_applystatus(target, &independent);
+        T_NOT_NULL(second);
+        unit_removestatus(target, unit_findstatus(target, MAKEFOURCC('B','E','e','r')), STATUS_REMOVE_SCRIPT);
+        T_EQ(effect->status_effect_code, MAKEFOURCC('B','E','e','r'));
+        unit_removestatus(target, second, STATUS_REMOVE_SCRIPT);
+    }
     T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
     T_EQ(effect->status_effect_code, 0);
 

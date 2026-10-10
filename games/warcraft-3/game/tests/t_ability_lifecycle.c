@@ -1059,10 +1059,12 @@ TEST(wc3_ability_lifecycle, status_capacity_preflight_is_deterministic) {
 
 TEST(wc3_ability_lifecycle, independent_status_instances_keep_source_identity) {
     edict_t *target = review_setup(), *source_a = review_unit(0, 100), *source_b = review_unit(0, 100);
+    uint32_t old_time = level.time;
     status_application_t app = {
         .buff = "Bqpo", .level = 1, .duration = 10.0f,
         .stack_policy = WC3_STATUS_STACK_INDEPENDENT, .source = source_a
     };
+    level.time = 1000;
     heroabilitystatus_t *a = unit_applystatus(target, &app), *b;
     T_NOT_NULL(a);
     app.duration = 20.0f;
@@ -1071,12 +1073,17 @@ TEST(wc3_ability_lifecycle, independent_status_instances_keep_source_identity) {
     T_NOT_NULL(b);
     T_NE(a, b);
     T_NE(a->instance_id, b->instance_id);
+    T_ASSERT(b->timestamp > a->timestamp);
     T_EQ(unit_findstatussource(target, a->code, source_a), a);
     T_EQ(unit_findstatussource(target, b->code, source_b), b);
-    unit_removestatus(target, a, STATUS_REMOVE_DISPEL);
+    level.time = a->timestamp;
+    unit_updatestatuses(target);
     T_NULL(unit_findstatussource(target, b->code, source_a));
     T_EQ(unit_findstatussource(target, b->code, source_b), b);
-    T_ASSERT(b->timestamp > a->timestamp);
+    level.time = b->timestamp;
+    unit_updatestatuses(target);
+    T_NULL(unit_findstatussource(target, b->code, source_b));
+    level.time = old_time;
 }
 
 TEST(wc3_ability_lifecycle, status_application_separates_owner_from_payload) {
