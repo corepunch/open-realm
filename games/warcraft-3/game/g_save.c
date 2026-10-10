@@ -810,8 +810,8 @@ static field_t const channel_fields[] = {
 
 /* Status sources survive saves by entity index; all scalar payload/timing fields remain in the raw record. */
 static field_t const status_fields[] = {
-    F(heroabilitystatus_t, instance_id, F_INT),
-    F(heroabilitystatus_t, stack_policy, F_INT),
+    TF(heroabilitystatus_t, instance_id, F_INT),
+    TF(heroabilitystatus_t, stack_policy, F_INT),
     TF(heroabilitystatus_t, source, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
