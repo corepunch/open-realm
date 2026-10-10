@@ -1886,7 +1886,7 @@ bool S_UnitIsEntanglingRooted(edict_t const *unit) {
 bool S_UnitCanTranslate(edict_t const *unit) {
     if (!unit) return false;
     if ((unit->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(unit) ||
-        S_UnitIsEntanglingRooted(unit) || S_UnitIsEnsnared(unit) || S_PurgeIsImmobilized(unit)) return false;
+        unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED) || S_PurgeIsImmobilized(unit)) return false;
     return true;
 }
 
@@ -1895,8 +1895,8 @@ bool S_UnitCanTranslate(edict_t const *unit) {
 void order_move(edict_t *self, edict_t *target) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || S_UnitIsEntanglingRooted(self)
-        || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
+    if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || unit_hasstatusstate(self, WC3_STATUS_STATE_ROOTED)
+        || S_PurgeIsImmobilized(self))
         return;
     move_cancel_displacement(self);
     {

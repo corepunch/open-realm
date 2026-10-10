@@ -43,7 +43,9 @@ int S_AntiMagicShellAbsorb(edict_t *target, int damage) {
     if (!slot) return damage;
     if (slot->data >= (uint32_t)damage) { slot->data -= (uint32_t)damage; return 0; }
     damage -= (int)slot->data;
-    memset(slot, 0, sizeof(*slot));
+    /* The shell is exhausted: retire its status through the normal lifecycle
+     * so buff UI and any owned presentation are cleaned up immediately. */
+    unit_removestatus(target, slot, STATUS_REMOVE_SCRIPT);
     return damage;
 }
 

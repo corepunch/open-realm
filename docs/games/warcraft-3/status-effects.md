@@ -195,3 +195,18 @@ descriptors, preventing refresh from erasing externally owned contributions.
 This work does not enable independent stacking on normal ability families or
 make delayed multi-target spell outcomes transactional. Those paths still need
 ability-by-ability review.
+
+## Status application follow-up
+
+Targeted authored statuses now pass the actual applying ability code to
+`unit_applystatus()` before installing stock modifier descriptors; this avoids
+prematurely populating a stock-alias modifier before custom Data is known.
+Generic `ROOTED` contributors block translation and new Move orders, while
+Roots-specific disarm behavior stays separate. An exhausted Anti-Magic Shell
+uses the normal status-removal lifecycle. Incinerate's death-triggered mark
+consumption is intentionally separate to avoid duplicate explosions.
+
+Remaining work includes ownership-aware replacement of modifiers already held
+on retained stock statuses, ability-specific capacity checks for delayed and
+area spells, and expanded safe Spell Steal reconstruction. No retail parity
+verification was performed for these changes.
