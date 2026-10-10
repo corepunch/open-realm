@@ -450,11 +450,30 @@ void acid_bomb_think(edict_t *thinker) {
  * target death, save/load continuation and successful completion all use the
  * same cleanup path. */
 static void mass_teleport_cleanup(edict_t *thinker) {
-    edict_t *target = S_SpellChannelTarget(thinker);
+    edict_t *target;
+    bool newer_pause_owner = false;
 
     if (!thinker) return;
-    if (target && thinker->wait < 0.5f)
-        target->paused = false;
+    target = S_SpellChannelTarget(thinker);
+    /* A_CANCEL can clean this thinker before its next scheduled tick. When a
+     * new Mass Teleport is cast on the same destination, the retired thinker's
+     * later cleanup must not release the new channel's pause. Check the live
+     * channel identity without invoking S_SpellChannelActive() (which can
+     * itself cancel channels while iterating thinkers). */
+    if (target && thinker->wait < 0.5f) {
+        FILTER_EDICTS(other, other != thinker && other->think == mass_teleport_think &&
+                      other->goalentity == target && other->channel &&
+                      other->channel->target_spawn_time == target->spawn_time) {
+            edict_t *owner = S_SpellChannelOwner(other);
+            if (owner && owner->channel && owner->channel->code == other->class_id &&
+                owner->channel->serial == other->channel->serial && !M_IsDead(owner)) {
+                newer_pause_owner = true;
+                break;
+            }
+        }
+        if (!newer_pause_owner) target->paused = false;
+    }
+    /* Owned effects are keyed to the thinker and may be retired repeatedly. */
     G_DestroyOwnedEffects(thinker);
 }
 
