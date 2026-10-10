@@ -150,18 +150,36 @@ void lsh_think(edict_t *thinker) {
     thinker->freetime = G_Time() + 1000;
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityLightningShield) {
+/* Lightning Shield owns a periodic thinker. Reject capacity failures before
+ * committing the cast and never spawn that thinker without its carrier buff. */
+static bool lightning_shield_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    uint32_t level;
+    cstring_t buff;
+    wc3_status_apply_check_t check;
+    if (!caster || !spell || !st.entity || !S_SpellIsAliveTarget(st.entity)) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = S_SpellBuffId(spell->code, level);
+    if (!buff || strlen(buff) < 4) return false;
+    check = unit_status_checkapplication(st.entity, &(status_application_t){
+        .buff = buff, .level = level
+    });
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
+}
+
+static void lightning_shield_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float dur = S_SpellDuration(spell->code, level, false);
     cstring_t buff = S_SpellBuffId(spell->code, level);
     edict_t *thinker;
     if (!st.entity || !buff || strlen(buff) < 4) return;
-    S_SpellApplyTimedStatus(st.entity, buff, level, dur);
+    if (!S_SpellApplyTimedStatus(st.entity, buff, level, dur)) return;
     thinker = S_SpellIdentityThinker(st.entity, spell->code, caster);
     if (!thinker) return;
     thinker->spawn_time = G_Time() + (uint32_t)(dur * 1000.0f);
     thinker->think = lsh_think; lsh_think(thinker);
 }
+
+BZ_VALIDATED_SPELL_PROC(AbilityLightningShield, lightning_shield_validate, lightning_shield_execute)
 
 /* ---- Healing Ward (Ahwd) ---------------------------------------------------
  * Name=Healing Ward
