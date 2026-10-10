@@ -210,3 +210,18 @@ Remaining work includes ownership-aware replacement of modifiers already held
 on retained stock statuses, ability-specific capacity checks for delayed and
 area spells, and expanded safe Spell Steal reconstruction. No retail parity
 verification was performed for these changes.
+
+
+## Authored numeric modifier ownership (save v84)
+
+Each modifier descriptor has a serialized `owner`: zero means an external/custom
+provider and `WC3_STATUS_MOD_OWNER_AUTHORED` identifies a stock AbilityData
+contribution. Applying a stock buff refreshes its authored contributions by
+(type, owner), without overwriting or clearing external descriptors in the
+same status. New authored descriptors append into available slots. When all
+four modifier positions belong to other providers, authored installation
+fails closed rather than evicting a custom modifier; the general capacity
+limit still requires separate design if more than four contributors per buff
+are needed. This is intentionally separate from spell-cast capacity preflight.
+
+Save format 84 rejects prior saves because modifier descriptor layout changed.
