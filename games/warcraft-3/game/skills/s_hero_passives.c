@@ -759,8 +759,11 @@ static void hero_aura_sync_source(edict_t *unit, uint32_t base_code, edict_t * *
 
 void S_UpdateHeroAuraEffects(edict_t *unit) {
     heroAuraPresentation_t devotion, unholy;
+    uint32_t old_devotion, old_unholy;
 
     if (!unit || !unit->inuse || unit->s.number >= MAX_ENTITIES) return;
+    old_devotion = devotion_recipient_buff[unit->s.number];
+    old_unholy = unholy_recipient_buff[unit->s.number];
     devotion = hero_aura_presentation(unit, ID_DEVOTION_AURA);
     devotion_recipient_buff[unit->s.number] = devotion.alias ? devotion.buff : 0;
     hero_aura_sync_overlay(unit, ID_DEVOTION_AURA, devotion_overlays, devotion.alias ? &devotion : NULL);
@@ -770,6 +773,10 @@ void S_UpdateHeroAuraEffects(edict_t *unit) {
     unholy_recipient_buff[unit->s.number] = unholy.alias ? unholy.buff : 0;
     hero_aura_sync_overlay(unit, ID_UNHOLY_AURA, unholy_overlays, unholy.alias ? &unholy : NULL);
     hero_aura_sync_source(unit, ID_UNHOLY_AURA, unholy_source_fx, unholy_overlays);
+
+    if (old_devotion != devotion_recipient_buff[unit->s.number] ||
+        old_unholy != unholy_recipient_buff[unit->s.number])
+        G_InvalidateUnitInfoPanel(unit);
 }
 
 uint32_t S_DevotionAuraBuff(edict_t *unit) {
