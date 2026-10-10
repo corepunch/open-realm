@@ -5004,11 +5004,75 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
  * Keep this stack-scoped producer separate from nested orders issued by callbacks. */
 static struct { edict_t *unit; vec2_t point; } move_group_admission;
 
+/*16b7b0 consumes ready rows depth-first in candidate order. These are fine
+ * distances and accelerator work limits, independent of the UI query radius. */
+enum { MOVE_COHORT_DISTANCE=40,MOVE_CAPTAIN_COHORT_DISTANCE=90,
+       MOVE_COHORT_WORK=60,MOVE_CAPTAIN_COHORT_WORK=150 };
+typedef struct {
+    moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];
+    uint32_t count,remaining;
+    moveCohortQuery_t query;
+} moveReadyCohort_t;
+
+static void move_group_bind_ready(moveGroup_t *group,moveReadyCohort_t *ready,unsigned index) {
+    moveGroupMember_t member=ready->members[index];
+    ready->remaining&=~(1u<<index);
+    group->members[group->count++]=member;
+    member.unit->movement.group_id=group->id;move_unit_groups[member.unit-g_edicts]=group;
+    group->radius=MAX(group->radius,member.unit->collision);
+    if(group->flags&0x200)return;
+    wc3GridPose_t source;unit_predicted_pose(member.unit,&source);
+    uint32_t limit=group->flags&0x100 ? MOVE_CAPTAIN_COHORT_DISTANCE : MOVE_COHORT_DISTANCE;
+    FOR_LOOP(i,ready->count)if(ready->remaining&(1u<<i)) {
+        edict_t *candidate=ready->members[i].unit;wc3GridPose_t pose;unit_predicted_pose(candidate,&pose);
+        uint32_t distance;
+        if(member.unit->movement.adaptive_disabled || candidate->movement.adaptive_disabled) {
+            float dx=wc3_sub(pose.grid[0],source.grid[0]),dy=wc3_sub(pose.grid[1],source.grid[1]);
+            distance=wc3_int_bits(wc3_float_bits(wc3_sqrt(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy)))));
+        } else distance=G_MoveCohortDistance(&ready->query,member.unit,candidate,source.grid,pose.grid,
+            group->flags&0x100 ? MOVE_CAPTAIN_COHORT_WORK : MOVE_COHORT_WORK);
+        if(distance<=limit)move_group_bind_ready(group,ready,i);
+    }
+}
+
+static void move_group_publish_ready(moveGroup_t *group) {
+    moveReadyCohort_t ready={.count=group->count};
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t member=group->members[i];ready.members[i]=member;
+        /* Later ordinary admission callbacks can replace/remove an earlier
+         * candidate. Never reclaim ownership from that callback's new order. */
+        if(member.unit && member.unit->inuse && !G_IsDeferredFree(member.unit) &&
+           member.unit->spawn_time==member.spawn && move_unit_group(member.unit)==group)
+            ready.remaining|=1u<<i;
+    }
+    group->count=0;group->radius=0;
+    if(!ready.remaining){group->ticking=false;move_release_group(group);return;}
+    moveGroup_t *owner=group;
+    FOR_LOOP(i,ready.count)if(ready.remaining&(1u<<i)) {
+        if(owner->count) {
+            owner->ticking=false;
+            owner=move_alloc_group();owner->inuse=owner->ticking=true;
+            owner->id=move_allocate_group_id();owner->request_id=group->request_id;
+            owner->age=UINT32_MAX;owner->goal=group->goal;owner->flags=group->flags&~0x10000u;
+            owner->target=group->target;owner->target_spawn=group->target_spawn;
+            owner->shared_id=group->shared_id;
+            if(owner->shared_id) {
+                moveShared_t *shared=S_FindMoveShared(owner->shared_id);
+                if(!shared || shared->references==UINT32_MAX)gi.error("Move: invalid cohort shared owner");
+                shared->references++;
+            }
+        }
+        move_group_bind_ready(owner,&ready,i);move_group_seed_route(owner);
+    }
+    owner->ticking=false;
+}
+
 static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target) {
     if (!request->count) return false;
     if (request->queued) return move_queue_group_point(request);
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
+    group->request_id=group->id;
     group->goal=*request->point; group->age=UINT32_MAX;
     if (target) {
         wc3GridPose_t pose; unit_predicted_pose(target,&pose);
@@ -5048,9 +5112,7 @@ static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t s
         unit->movement.previous_request_id=group->id;
         if (unit->collision>group->radius) group->radius=unit->collision;
     }
-    if (group->count) move_group_seed_route(group);
-    group->ticking=false;
-    if (!group->count) move_release_group(group);
+    move_group_publish_ready(group);
     return any;
 }
 

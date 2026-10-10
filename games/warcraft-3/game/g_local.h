@@ -3453,6 +3453,8 @@ void S_CancelUnitMoveFineRequest(edict_t *unit);
 void S_InitMoveFineScheduler(void);
 void S_ClearMoveFineRequests(void);
 bool G_IssueGroupPointOrder(groupPointOrder_t const *request);
+typedef struct { bool prepared; } moveCohortQuery_t;
+uint32_t G_MoveCohortDistance(moveCohortQuery_t *,edict_t const *,edict_t const *,float const [2],float const [2],uint32_t);
 vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);
 uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *query, float const fine_goal[2], edict_t **out);
 uint32_t G_ResolveUnitMoveStepBlockers(movePathQuery_t const *, float const [2], wc3YieldDecision_t *);

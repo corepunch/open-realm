@@ -13380,6 +13380,125 @@ disabled234_cleanup:
     reset_entities();setup_test_world();
 }
 
+#include "fixtures/retail_group_partition235.h"
+TEST(wc3_movement, partition235_matches_complete_native_cohort_recursion) {
+    FOR_LOOP(r,sizeof(partition235_rows)/sizeof(*partition235_rows)) {
+        reset_entities();setup_test_world();
+        uint8_t cells[256*256]={0};CM_SetupTestPathmap(256,256,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{8192,8192}});
+        typeof(*partition235_rows) const *row=partition235_rows+r;
+        typeof(*partition235_positions) const *positions=partition235_positions+row->position;
+        if(row->position==7) {
+            FOR_LOOP(y,64)cells[y*256+16]=CM_PATHING_UNWALKABLE;
+            CM_SetupTestPathmap(256,256,cells);
+        }
+        edict_t *units[3];moveGroup_t *group=move_alloc_group();
+        group->inuse=group->ticking=true;group->id=move_allocate_group_id();
+        group->count=3;group->goal=(vec2_t){4096,4096};group->flags=row->flags;group->age=UINT32_MAX;
+        wc3Clock_t clock=level.pathing_clock;level.pathing_clock=(wc3Clock_t){10,0,300};
+        FOR_LOOP(i,3) {
+            edict_t *unit=units[i]=cohort232_unit(positions->position[i][0]*32,positions->position[i][1]*32);
+            unit->movement.pose_valid=true;unit->movement.pose_world=unit->s.origin2;
+            unit->movement.fine_pose=(vec2_t){positions->position[i][0],positions->position[i][1]};
+            unit->movement.velocity=(vec2_t){positions->velocity[i][0]*32,positions->velocity[i][1]*32};
+            unit->movement.pose_clock=(wc3Clock_t){8,0,300};unit->movement.clock_valid=true;
+            unit->movement.adaptive_disabled=!(row->preferred&(1u<<i));
+            group->members[i]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,.arrival_range=.49f};
+            unit->movement.group_id=group->id;move_unit_groups[unit-g_edicts]=group;
+        }
+        move_group_publish_ready(group);
+        unsigned at=0;
+        FOR_LOOP(g,row->count) {
+            moveGroup_t *actual=move_unit_group(units[row->members[at]]);T_NOT_NULL(actual);
+            if(!actual)break;
+            T_EQ(actual->count,row->sizes[g]);T_ASSERT(!actual->ticking);
+            FOR_LOOP(i,row->sizes[g]) {
+                T_EQ(actual->members[i].unit,units[row->members[at+i]]);
+                T_EQ(move_unit_group(units[row->members[at+i]]),actual);
+            }
+            at+=row->sizes[g];
+        }
+        T_EQ(at,3);level.pathing_clock=clock;
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, partition235_public_order_partitions_and_saves_physical_owners) {
+    reset_entities();setup_test_world();
+    uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+    edict_t *units[]={cohort232_unit(256,256),cohort232_unit(2880,256),cohort232_unit(1536,256)};
+    vec2_t goal={2048,3072};groupPointOrder_t request={.count=3,.point=&goal,.order="move",.order_id=G_OrderId("move")};
+    FOR_LOOP(i,3)request.units[i]=(typeof(*request.units)){units[i],units[i]->spawn_time};
+    T_ASSERT(G_IssueGroupPointOrder(&request));moveGroup_t *group=move_unit_group(units[0]);T_NOT_NULL(group);
+    if(group) {
+        T_EQ(group->count,2);T_EQ(group->members[0].unit,units[0]);T_EQ(group->members[1].unit,units[2]);
+        moveGroup_t *far=move_unit_group(units[1]);T_NOT_NULL(far);T_NE(far,group);
+        if(far)T_EQ(far->count,1);
+        T_EQ(units[0]->movement.previous_request_id,units[1]->movement.previous_request_id);
+        cstring_t save=Test_TempPath("wc3-partition235.bin");T_ASSERT(WriteGame(save));
+        T_ASSERT(ReadGame(save));group=move_unit_group(units[0]);far=move_unit_group(units[1]);
+        T_NOT_NULL(group);T_NOT_NULL(far);T_NE(group,far);
+        if(group){T_EQ(group->count,2);T_EQ(group->members[1].unit,units[2]);}
+        if(far)T_EQ(far->count,1);
+        T_ASSERT(unit_issueimmediateorder(units[2],"stop"));T_EQ(move_unit_group(units[2]),NULL);
+        T_NOT_NULL(move_unit_group(units[0]));T_NOT_NULL(move_unit_group(units[1]));remove(save);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, partition235_captain_split_preserves_shared_owner_and_replacement) {
+    reset_entities();setup_test_world();
+    uint8_t cells[256*256]={0};CM_SetupTestPathmap(256,256,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{8192,8192}});
+    edict_t *units[]={cohort232_unit(256,256),cohort232_unit(4096,256),cohort232_unit(512,256)};
+    vec2_t goal={2048,3072};groupPointOrder_t request={.count=3,.point=&goal,.order="move",.order_id=G_OrderId("move")};
+    FOR_LOOP(i,3)request.units[i]=(typeof(*request.units)){units[i],units[i]->spawn_time};
+    uint64_t id=move_alloc_shared();T_ASSERT(move_group_captain_order(&request,id,NULL));
+    moveGroup_t *near=move_unit_group(units[0]),*far=move_unit_group(units[1]);
+    T_NOT_NULL(near);T_NOT_NULL(far);T_NE(near,far);T_EQ(move_unit_group(units[2]),near);
+    if(near && far) {
+        T_EQ(near->flags&0xd00,0xd00);T_EQ(far->flags&0xd00,0xd00);
+        T_EQ(near->shared_id,id);T_EQ(far->shared_id,id);T_EQ(near->request_id,far->request_id);
+        T_EQ(S_FindMoveShared(id)->references,2);T_ASSERT(S_ValidateMoveShared());
+        cstring_t save=Test_TempPath("wc3-partition235-shared.bin");T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+        near=move_unit_group(units[0]);far=move_unit_group(units[1]);T_NOT_NULL(near);T_NOT_NULL(far);
+        T_EQ(S_FindMoveShared(id)->references,2);T_ASSERT(S_ValidateMoveShared());
+        T_ASSERT(unit_issueimmediateorder(units[1],"stop"));T_EQ(move_unit_group(units[1]),NULL);
+        T_EQ(move_unit_group(units[0]),near);T_EQ(move_unit_group(units[2]),near);remove(save);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, partition235_nested_admission_keeps_replacement_owner) {
+    reset_entities();setup_test_world();
+    uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\nunit c\nboolean nested=false\nendglobals\n"
+        "function replace takes nothing returns nothing\n"
+        "if GetTriggerUnit()==c and not nested then\nset nested=true\n"
+        "call IssuePointOrder(a,\"move\",1024,1024)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\nlocal group g=CreateGroup()\n"
+        "set a=CreateUnit(Player(0),'hfoo',256,256,0)\nset b=CreateUnit(Player(0),'hfoo',2880,256,0)\n"
+        "set c=CreateUnit(Player(0),'hfoo',1536,256,0)\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+        "call TriggerAddAction(t,function replace)\ncall GroupAddUnit(g,a)\ncall GroupAddUnit(g,b)\ncall GroupAddUnit(g,c)\n"
+        "call GroupPointOrder(g,\"move\",2048,3072)\ncall DestroyTrigger(t)\ncall DestroyGroup(g)\nendfunction\n"));
+    edict_t *units[3]={0};FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) {
+        if(ent->s.origin2.x==256)units[0]=ent;
+        if(ent->s.origin2.x==2880)units[1]=ent;
+        if(ent->s.origin2.x==1536)units[2]=ent;
+    }
+    FOR_LOOP(i,3)T_NOT_NULL(units[i]);
+    if(units[0] && units[1] && units[2]) {
+        moveGroup_t *replacement=move_unit_group(units[0]);T_NOT_NULL(replacement);
+        if(replacement){T_EQ(replacement->count,1);T_EQ(replacement->goal.x,1024);T_EQ(replacement->goal.y,1024);}
+        T_NE(move_unit_group(units[1]),replacement);T_NE(move_unit_group(units[2]),replacement);
+        T_EQ(units[0]->current_order_id,G_OrderId("move"));
+    }
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
     reset_entities(); setup_test_world();
     edict_t *clent=alloc_test_unit(0,0,0),*units[2];

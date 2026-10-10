@@ -240,3 +240,86 @@ xrefs and438 original instruction encodings. The archive is
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff234/`.
 This advances GROUP-04.6; persistent canonical request candidates, other group
 policy producers and wider completion/recovery still require integration.
+
+## Ready members partition by ordered connectivity (Payoff235)
+
+`16bcf0` visits the twelve ready slots in candidate order. Each surviving slot
+creates a physical owner through `16bdb0`; `16b7b0` consumes that seed, appends
+its native member row, binds the mover and recursively consumes eligible
+neighbors in the same slot order. Membership is transitive connectivity, not
+distance from the initial seed. A consumed slot becomes `ffffffff` before
+recursion; request bit200 suppresses neighbor joining entirely.
+
+The distance predicate depends on the two owned path policies:
+
+| Policies | Distance and threshold |
+|---|---|
+| Either path lacks200000 | Software subtract, square, sum, square root, then wrapped integer conversion; accept <=40 fine units |
+| Both paths carry200000 | `1627e0` on predicted poses scaled by0.5, source lane, maximum coarse footprint, work60, warp1; accept unsigned result <=40 |
+| Canonical request100 | Replace threshold40/work60 with90/work150 |
+
+The accelerator uses its retained hierarchy. Fine member exclusions do not
+authorize clearing all coarse rectangles. A fractional fine separation41 can
+join through quantized coarse cells while the geometric branch rejects it.
+A wall can conversely reject an adaptive pair whose geometric distance is
+small. Neither a common Euclidean threshold nor a star-shaped cluster is an
+equivalent replacement.
+
+OpenRealm `move_group_publish_ready` now publishes independent physical owners
+through a stack-local ready set and depth-first traversal. At most twelve rows
+and66 bounded pair queries participate; it does not search the existing group
+registry. Geometry/gates are prepared lazily once for the complete ready set,
+and each adaptive pair reuses the retained hierarchy. Every split preserves the
+original request identity, copied target/policy and shared-parameter reference;
+each physical owner seeds its own route. Admission callbacks can replace or
+remove an earlier candidate, so publication validates generation and current
+ownership before binding. Existing save fields already represent these owners;
+there is no layout/version change.
+
+`work235_oracle.py` executes complete unchanged `16b7b0` scopes, native row
+construction/append/bind, software prediction and adaptive queries. The192
+cases cover eight arrangements, all eight preferred-policy combinations and
+default/captain/bypass flags. They include ordered transitive joins, exact and
+fractional thresholds, old velocity and a wall. Supplied ready pointers and
+cached world headers are explicit; the only external substitutions provide
+Storm allocation storage. All ready slots and the native mover flag byte are
+also checked. This does not establish a public producer for forced flags100/200.
+
+Two complete read-only `Work235b` captures and an observer-free control agree
+on eight public markers. Birth flyers and genuine Chaos flight rebinds produce
+two physical groups for fine positions8/90/48; the connected8/48/88 scene
+produces one. Nine recursive binds and five physical owners occur per capture.
+The third scene's actual canonical candidate order is8/48/88; the probe's
+`GroupAddUnit` sequence is not substituted for observed candidate order.
+`work235_observer.js` never calls game functions or writes game memory.
+Preload file wall-clock headers differ and are excluded from public marker
+comparison; raw bytes, including CRLF, are preserved for source hashes.
+
+Failing-first engine tests preserve the frozen native results. Production
+point admission, physical partition, shared captain references, nested issued
+order replacement, Stop and cold save/load have focused regressions. The first
+valid red run had430 failures/1935 assertions; its Stop call initially used a
+point-order API and was corrected to the immediate-order API. One premature
+run loaded the preceding game module and executed zero tests; another loaded
+the old red module during compilation. Neither is acceptance evidence. The
+nested-callback regression exposed a retained NULL row after ordinary detach;
+publication now skips that row before testing ownership. The original failing
+backtrace is archived. The initial192-case build also rejected a misspelled test pathing enum; the final
+fixture uses the existing `CM_PATHING_UNWALKABLE`. No prior retail fixture was
+rewritten. The first Frida attempt used its read-only `this.depth` property and
+failed; it remains archived separately. Accepted repeats use `bindDepth`.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work235.py \
+  --binary /path/to/retail/game.dll --report /tmp/work235-fresh.json
+```
+
+`Work235Evidence.java` saves the functions, xrefs and542 instruction encodings;
+`MapPathfinding.java` carries the portable contract. Archive:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff235/`.
+Focused validation is implementation9/12 since the last full-suite checkpoint.
+This is a ready-member partition payoff for GROUP-04.6. Persistent canonical
+candidate/readiness lifetime, busy recovery, all request exclusion scopes and
+broader callback/trajectory parity remain open. No performance target or
+whole-journey equality is claimed here.

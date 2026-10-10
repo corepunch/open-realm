@@ -56,6 +56,13 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **278 done / 336 tasks; 58 remaining.**
+Payoff235 partitions ready members with retail's ordered transitive distance
+rule and independent physical owners, preserving shared request identity and
+parameters. Complete original cases, repeated public/control captures and
+failing-first engine order/save regressions accompany the change. GROUP-04.6
+retains unresolved canonical lifetime work. See
+[ready-member partition](retail-pathfinding-queued-cohorts.md#ready-members-partition-by-ordered-connectivity-payoff235).
+
 Payoff234 retains retail's one-point disabled group-route cache and destination,
 with no coarse search/admission. Repeated genuine flight-rebind/control captures,
 36 complete original table cases and public group/save regressions cover the

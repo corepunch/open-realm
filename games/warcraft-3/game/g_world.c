@@ -861,6 +861,30 @@ bool G_CaptainMoveReachable(edict_t const *actor,edict_t const *source,edict_t c
     return result!=UINT32_MAX;
 }
 
+/*16b7b0 preferred-pair branch: source lane, maximum coarse footprint,
+ * exact predicted fine coordinates scaled once, bounded query with gates.
+ * Cached hierarchy is authoritative; the request's fine exclusions do not
+ * erase coarse rectangles or bypass blockers between candidates. */
+uint32_t G_MoveCohortDistance(moveCohortQuery_t *context,edict_t const *source,edict_t const *candidate,
+                            float const from[2],float const to[2],uint32_t budget) {
+    if(!pathmap.width || !pathmap.height)return UINT32_MAX;
+    /* No callbacks run between pair queries. Prepare immutable query inputs
+     * once for the whole bounded ready set, including all split owners. */
+    if(!context->prepared) {
+        move_acc_prepare();move_spatial_sync();move_acc_enable_gates();context->prepared=true;
+    }
+    unsigned lane=0;uint8_t mask=S_UnitMoveCoarseMask(source);
+    while(lane<4 && move_acc_masks[lane]!=mask)lane++;
+    if(lane==4)gi.error("Move: unsupported cohort lane %02x",mask);
+    FOR_LOOP(i,4)move_acc.maps[i].classes=move_acc_classes[lane][i];
+    unsigned size=MAX(wc3_fine_class(wc3_div(source->collision,32)),
+        wc3_fine_class(wc3_div(candidate->collision,32)))>>1;
+    wc3AccRequest_t request={{wc3_mul(from[0],.5f),wc3_mul(from[1],.5f)},
+        {wc3_mul(to[0],.5f),wc3_mul(to[1],.5f)},1u<<size,budget};
+    wc3FineVector_t endpoint;
+    return wc3_acc_query_distance(&move_acc,&request,&endpoint);
+}
+
 /* Observe changed game owners before querying; unrelated world objects never
  * participate in publication or fine-cell lookup. */
 static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *query, box2_t const *bounds) {
