@@ -300,3 +300,13 @@ the newly installed target status if the second application fails. The channel
 thinker and target invulnerability are created only after both succeed. If
 capacity changes between validation and execution, the cast may already have
 committed its cost before execution detects the failure.
+
+## Lightning Shield capacity safeguard
+
+Lightning Shield validates the authored target buff before committing a cast.
+Its execution path rechecks by applying the status first; if insertion fails,
+it does not create or refresh a damage thinker. Existing instances may be
+reused according to the normal status stacking policy. Area buffs such as Roar
+retain per-target partial-success semantics, and Purge may dispel even if its
+subsequent slow status cannot be allocated; these have separate ability-level
+failure semantics.

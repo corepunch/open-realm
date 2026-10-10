@@ -4719,6 +4719,34 @@ TEST(wc3_spell, lightning_shield_damages_nearby_units_each_second) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* A failed status insertion must not create Lightning Shield's damage thinker. */
+TEST(wc3_spell, lightning_shield_full_status_capacity_rejects_cast_and_thinker) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"BuffID1\"\n"
+        "C;Y1;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Alsh\"\nC;Y2;X2;K\"Alsh\"\nC;Y2;X3;K\"Blsh\"\n"
+        "C;Y2;X4;K\"15\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('o','s','h','m'), 300, 0, 0, 0);
+    edict_t *carrier = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 300, 0);
+    abilityitem_t spell = S_AbilityItem(MAKEFOURCC('A','l','s','h'));
+    spellTarget_t target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = carrier);
+    carrier->s.player = caster->s.player;
+    carrier->svflags |= SVF_MONSTER;
+    carrier->targtype = TARG_GROUND;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        char id[5] = { 'B', 'q', (char)('A' + i / 10), (char)('0' + i % 10), 0 };
+        T_ASSERT(unit_addtimedstatus(carrier, id, 1, 20.0f));
+    }
+    T_ASSERT(!CAbilityLightningShield(caster, A_VALIDATE, &(abilityCall_t){ .item = &spell, .target = &target }));
+    /* Drive execute directly as well: a delayed impact can race with capacity. */
+    T_ASSERT(CAbilityLightningShield(caster, A_EXECUTE, &(abilityCall_t){ .item = &spell, .target = &target }));
+    T_NULL(unit_findstatus(carrier, MAKEFOURCC('B','l','s','h')));
+    FILTER_EDICTS(ent, ent->owner == carrier && ent->think == lsh_think) T_ASSERT(false);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, nightelf_passive_abilities_are_registered_with_correct_handlers) {
 	InitAbilities();
 	ability_t const *vengeance = FindAbilityByClassname("Avng");
