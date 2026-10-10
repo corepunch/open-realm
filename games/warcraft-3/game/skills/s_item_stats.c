@@ -30,6 +30,7 @@ static void apply_stat(edict_t *unit, uint32_t code, float sign) {
         return;
     }
     unit->hero.str = (uint32_t)MAX(0, (int32_t)unit->hero.str + (int32_t)str);
+    unit->hero_item_agility += (int32_t)agi;
     unit->hero.agi = (uint32_t)MAX(0, (int32_t)unit->hero.agi + (int32_t)agi);
     unit->hero.intel = (uint32_t)MAX(0, (int32_t)unit->hero.intel + (int32_t)intel);
     G_RecomputeHeroStats(unit);

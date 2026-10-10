@@ -3870,13 +3870,16 @@ static float unit_effective_speed(edict_t *ent) {
 float S_UnitMoveSpeed(edict_t *ent) { return ent ? unit_effective_speed_with_bonus(ent, S_MoveSpeedBonus(ent)) : 0; }
 
 float S_UnitDefaultMoveSpeed(edict_t const *ent) {
-    /* TODO: MOVE-01.1 recovers the hero-specific default-speed contribution;
-     * this immutable profile value closes the captured nonhero producers. */
-    return ent && ent->data.UnitBalance ? ent->data.UnitBalance->speed : 0;
+    if (!ent || !ent->data.UnitBalance) return 0;
+    float speed=ent->data.UnitBalance->speed;
+    /*203a90 queries the current Hero contribution without reading Move's
+     * mutable base. A public speed setter does not change this default. */
+    if (G_UnitIsHero(ent))
+        speed=wc3_add(speed,wc3_mul(wc3_float(wc3_from_int(ent->hero.agi)),game.constants.agiMoveBonus));
+    return speed;
 }
 
-void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
-    if (!ent || M_UnitMoveDisabled(ent)) return;
+static void move_publish_speed(edict_t *ent,float speed) {
     ent->unitinfo.MoveSpeed = speed;
     ent->unitinfo.move_flags |= BZ_UNIT_SPEED_SET;
     ent->movement.flat_speed_bonus = S_MoveSpeedBonus(ent);
@@ -3886,7 +3889,23 @@ void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
         if (ent->movement.clock_valid) unit_commit_current_pose(ent);
         ent->movement.velocity = (vec2_t){v.vel[0], v.vel[1]};
     }
+}
 
+void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
+    if (!ent || M_UnitMoveDisabled(ent)) return;
+    move_publish_speed(ent,speed);
+}
+
+/*52aad0 retains Hero+b8 and publishes only new-minus-old through5fb740.
+ * Replacing Move's base through SetUnitMoveSpeed must not reset that owner. */
+void S_RefreshHeroMoveSpeed(edict_t *ent) {
+    float bonus=wc3_mul(wc3_float(wc3_from_int(ent->hero.agi)),game.constants.agiMoveBonus);
+    float delta=wc3_sub(bonus,ent->hero_move_bonus);
+    ent->hero_move_bonus=bonus;
+    float speed=wc3_add(ent->unitinfo.MoveSpeed,delta);
+    float const threshold=wc3_float(0x3a83126f); /* Math_PublicNearZeroThreshold */
+    if (fabsf(wc3_sub(speed,threshold))<threshold) speed=threshold;
+    move_publish_speed(ent,speed);
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */

@@ -435,6 +435,9 @@ static void InitConstants(void) {
     InitMiscValueDefault("StrAttackBonus", &game.constants.strAttackBonus, 1.0f);
     InitMiscValueDefault("AgiDefenseBonus", &game.constants.agiDefenseBonus, 0.3f);
     InitMiscValueDefault("AgiAttackSpeedBonus", &game.constants.agiAttackSpeedBonus, 0.02f);
+    /*528b00 reads the software-decimal Misc scalar, not a host strtod value. */
+    cstring_t agility_move = Stb_IniCacheFind(&game.config.misc, "Misc", "AgiMoveBonus");
+    game.constants.agiMoveBonus = agility_move && *agility_move ? wc3_decimal(agility_move) : 0;
     InitMiscValueDefault("DefendDeflection", &defend_deflection, 1.0f);
     game.constants.defendDeflection = defend_deflection != 0.0f;
     game.constants.combatConstantsLoaded = true;

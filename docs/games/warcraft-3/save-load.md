@@ -1,5 +1,10 @@
 # Warcraft III Save/Load
 
+Save158 retains the Hero's last published movement contribution and reversible
+item agility. A public speed override survives load, and subsequent item/level
+changes publish only their contribution delta. Save157 and earlier layouts are
+rejected. See [Hero movement](retail-pathfinding-engine.md#hero-agility-publishes-movement-deltas-payoff225).
+
 Save157 retains Attack target identity/incarnation and ordered subscription rank,
 rebuilds derived target lists, and validates ability-owned point recovery groups.
 Save156 and earlier layouts are rejected. The network contract is unchanged.

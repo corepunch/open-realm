@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "170 executable original/evidence contracts;451 total entries.",
+  "scope": "180 executable original/evidence contracts;461 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -49333,6 +49333,62 @@
         "Ordinary relocation retains Attack; Blink uses committed range and excludes point recovery during its transient window.",
         "Broader TARGET-03.2 policies remain open. No existing retail fixture is replaced."
       ]
+    },
+    {
+      "id": "oracle-hero-move225",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_hero_move225.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "hero-move225.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 6
+        },
+        "controls": {
+          "equal": 3
+        },
+        "maps": {
+          "equal": 3
+        },
+        "public_markers": {
+          "equal": 675
+        },
+        "native_events": {
+          "equal": 2100
+        },
+        "instructions": {
+          "equal": 277
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "MOVE-01.1 Hero agility default and mutable-base contribution, independent public setter, item/base attributes, level growth and sequential strip. Nine original repeats/control,277 original instruction encodings and Classic/TFT exact-word engine/save/lifecycle regressions. Broader authored acceleration/type domains remain open.",
+      "exclusions": [
+        "Live producer: Hpal plus nonhero Footman; stock0, custom1.25 and fractional0.95 Misc coefficients. No arbitrary Hero illusion/type-rebind or integer-overflow claim.",
+        "Public current/default scalar words and producer order are exact. Engine movement/save tests verify lifecycle, not a newly certified retail position trajectory.",
+        "Whole MOVE-01.1 remains open for acceleration/authored movement profiles and broader Hero domains.",
+        "Preparation/performance not remeasured. Independent field access is constant time; removed levels publish in native sequential order.",
+        "No existing frozen retail expectations changed. Engine save158 stores contribution/item portion; native UI save/load not exercised in this producer."
+      ]
     }
   ],
   "fixtures": [
@@ -49398,7 +49454,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "3b54b4e1ea58865754987e4a9bddc935f5538963e8487ff5120164063c8719c0"
+      "sha256": "f3ba9c5bcb8f982d737e33a1a4e4d326b11683a8419c24ee9da8e38b7df9c5ca"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -50231,7 +50287,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "16bd96219a69c51761667c060d997f96cc683364c0d3b27c026ccc00d8627256"
+      "sha256": "88cbd7ace730e34d6e91cc76f66c5754c5c12b103c1ce567514791031ea705f5"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51087,7 +51143,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "45da5b79705b6437cc1211488896161b09ec3606a1aae4ad5e98131cdc667ff5"
+      "sha256": "f8b4adf7392b23f1ccfbd54399a711b2286b89ed5b9e5dc7de1981e26b6f3277"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51523,7 +51579,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "3ebd30683efb37ea60717126aece5c72060c5c2289015765c1e4536ecea1f4be"
+      "sha256": "fd45d7c50b8105a5493bac233376aeb76e64cc083b579811ec9d48675e697355"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -51531,7 +51587,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "064a3453bbc9607ab191988a6a6ccf0761001e3151e2624d3f24f840d421dd40"
+      "sha256": "01c1f113d21c6b926992435a8a75f5ca87a62818a0045d0b1862e2d4c6e48f66"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -52023,7 +52079,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "785cff19739ad4686d4c5bc3356b9466daafbc9a28786561b3b1baea69a07ee3"
+      "sha256": "e187373db58ebf0641ec2a97b5962d14ab24972e9d34f1578e2748d56bf6ac21"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52031,15 +52087,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "2d4057bf66bf43c38b83ad4521f8099062a0d7abd7a8bb5fcb539b0586149579"
+      "sha256": "cc26a24ad4f965d90dedb4f70c7417fa136389fdfc12df07deb280db4c080b3e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ebfe5aab205f357fd137f2ba6a0bb6bcedb608dad833c5f6fd648d77168f9f17"
+      "sha256": "e47db8746b11255a30210b72052d736df0c93cf690b5e0a80005eb573a7a38cb"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "782243b1e8fa3f90c7750fa9a33ee7a66d0e847f779d7c5d9ed9b1e816b913ea"
+      "sha256": "e6a045bbd79982aab395567a760a7b3ac1f33d1f51a3f88bbd9942e1b5a067b5"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52095,7 +52151,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_main.c",
-      "sha256": "ce1679b3ed045213841aac4e784e41e885ec24976440c5983b0d781f07954cba"
+      "sha256": "94c419d0db096dc28121a3a4f0d6677ea1a7ba72ed57a08df3f265fe6cff76dd"
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
@@ -52827,7 +52883,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_api.c",
-      "sha256": "c31ab2ad2d211c7624daa5a275a0b307a17b17e55940acd62f5d4bc02f24154e"
+      "sha256": "c7bc172180cc42e3d6f9f971c1f4ebab399781caa3787ddddfe9b1d772da7599"
     },
     {
       "path": "games/warcraft-3/game/tests/t_collision.c",
@@ -52987,7 +53043,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "aada9f4487c42c2eb1c247cfbdb2d340b71e476e32c8525aa51b2907408a3057"
+      "sha256": "1ea7fb9dfbb0163ea41683133189e3bbaea436765703932ac67ebcc536e27be5"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -53331,7 +53387,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "3e617b3a7c6243b18f4a099849ddcbe3ea925a209a098cfdb08dc7aca045cebe"
+      "sha256": "b0e48476bceeb95e007e47755c79fe287ba2a6527def831d647d67ec33796801"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -54684,6 +54740,50 @@
     {
       "path": "tools/ghidra/fixtures/retail-attack-blink224-1.27.json.gz",
       "sha256": "4247aef1ca058951e85b0536f7ec5a7069279f998a6a85325e016dbb023d6131"
+    },
+    {
+      "path": "tools/frida/research/move225_capture.py",
+      "sha256": "3880d4387589e86bfb6b16f509c83ef020889f73ddcaf987ae1c21b221d6cce9"
+    },
+    {
+      "path": "tools/frida/research/move225_observer.js",
+      "sha256": "c005f8aef9b185dca7454dc2333a15f35a30ec4ca436d7d9e3c20c791bda9c42"
+    },
+    {
+      "path": "tools/frida/research/move225_make_map.py",
+      "sha256": "f0a745cdbae58a55846f2681f540d81a9dec84d570cd3a76e136964dc0f6a31f"
+    },
+    {
+      "path": "tools/frida/research/move225_probe.j",
+      "sha256": "59e279522e13f80e96ea7e59245cb64f995543974d14104e733db5900e38273c"
+    },
+    {
+      "path": "tools/ghidra/research/Move225Evidence.java",
+      "sha256": "9f81d951c75f5e4a2d5945d9173612ebe9070edabbd1ab91a14f9110d175d59c"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_hero_move225.py",
+      "sha256": "972ad3fbb461530b62cb6af2f018e48e1a65835ffdb0b35c311d85fda9cddf8c"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_hero_move225.py",
+      "sha256": "26a146114a0718eb5b32788c3739318fdca9e774c6f5f18edce038e57118d7b4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-hero-move225-1.27.json",
+      "sha256": "a9e3cb061865a2d23f0f8c550bae60b709241edaa090d59ba10e44b5f6be2dc3"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-hero-move225-1.27.json.gz",
+      "sha256": "6d20dd6155dab051a9305f592d47024e20378dd6e4f6b592ebe1f6f196426ccc"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_hero_movement.c",
+      "sha256": "9c0543a0d303c14be913b8d27d343841796f9dc9681134924881093f51f5231a"
+    },
+    {
+      "path": "games/warcraft-3/game/g_gamecache.c",
+      "sha256": "7fbffecdc1ae14348905fcaa0e43b95ace30ff5a03ce73ba4688e67f4c5ad40e"
     }
   ]
 }

@@ -15239,3 +15239,89 @@ open for its wider policy/task/timing matrix. R2S marker agreement is not a
 word-exact complete Attack trajectory claim. All459 prior corpus entries and
 all existing retail fixtures remain unchanged; this adds the460th entry and
 179th original-code oracle.
+
+## Hero agility publishes movement deltas (Payoff225)
+
+Hero movement now keeps the authored default separate from Move's mutable base.
+`GetUnitDefaultMoveSpeed` adds current total agility times Misc `AgiMoveBonus`
+to the immutable unit speed. `SetUnitMoveSpeed` replaces the mutable base without
+resetting the Hero's last published contribution. Later agility changes add only
+new contribution minus old contribution. Inventory agility participates in both
+queries; `SetHeroAgi` changes base agility while retaining the item portion, and
+`GetHeroAgi(false)` excludes that portion. Level changes retain script/tome/item
+agility instead of rebuilding the authored value.
+
+The original chain is `203a90 -> 6852f0 -> 528b00`: Hero+a8 base plus truncated
+software growth (Hero+e4 times canonical level-1 reached through the identity at Hero74/78 (reader this=Hero+6c)), integer-to-scalar, then
+Misc coefficient multiplication. `52aad0` retains the contribution at Hero+b8
+and passes its difference through generic additive Move writer `5fb740`. That
+writer adds to Move+70, applies the original near-zero rule (`3a83126f`) and
+publishes the effective speed. The cached contribution belongs to Hero, so a
+public Move base setter must leave it intact. `5fcd80` initially publishes the
+authored base before adding the Hero contribution. The generic `056a40` field
+reader is not renamed as a Hero-only operation.
+
+The numerical distinction is observable. With map coefficient0.95, retail
+parses `3f733334`; host `atof` would give a different word. At level3 the default
+query returns `438e9999`, while mutable current speed returns `438e9998`. After
+setting agility77, adding a six-agility item, setting speed200, setting base
+agility51, removing the item, raising level4 and stripping two levels, the final
+default/current words are `439e4666`/`4327b331`. SetHeroLevel3 publishes its final
+growth once; UnitStripHeroLevel2 publishes each removed level separately.
+Combining those two removals changes rounding. The implementation follows those
+distinct producer orders using existing software-scalar operations.
+
+Two complete read-only observations and one unhooked control for each of stock0,
+custom1.25 and fractional0.95 coefficients agree on75 public markers per capture.
+All350 normalized native events per observed capture agree, retaining callsite,
+sequence, unit profile/flags and scalar words; only process addresses and handle
+identities are normalized. The observer never invokes game functions or writes
+simulation memory. UI loading input targets only each capture's owned process.
+All277 exported instruction encodings are checked against the pinned game.dll.
+The frozen fixture is
+[`retail-hero-move225-1.27.json`](../../../tools/ghidra/fixtures/retail-hero-move225-1.27.json)
+and its compressed capture bundle. Existing retail expectations are unchanged.
+
+Three production regressions pass137 assertions per Classic/TFT edition and
+cover public JASS creation, level/attribute/item
+changes, exact native default/current words, public Move/Stop, scheduled physical
+movement and cold save continuation. Save158 retains cached contribution and
+reversible item agility as scalar instance state and rejects prior layouts.
+A separate failing campaign-cache case establishes that RestoreUnit must rebuild
+the item portion without adding it again to the stored total; this is an engine
+persistence regression, not a newly captured native RestoreUnit trajectory.
+The evidence verifier checks eighteen emitted engine stages directly against the
+frozen native words as well as the normal assertions in Classic and TFT.
+
+Focused Hero/API/items/item-lifecycle/target/Follow/orders/lifecycle/interrupt/
+unit/food/save/combat/group/spell/dispatch checks pass1579 tests and258,241
+assertions per edition. Eleven evidence mutation tests pass. Spawn-stage checks
+also pass in both editions. Production and test targets are built; no full
+repository suite is claimed for this commit.
+
+The broader API run found a pre-existing producer mismatch: its synchronous
+Follow-removal test issued Smart then immediately removed the target, exercising
+approach/d0174 rather than persistent Follow/d0173. Payoff216's original repeated
+phase evidence distinguishes these paths. The test now advances the scheduled
+physical owner into persistent Follow before removal; its cancellation/FIFO/
+public-order expectations are retained verbatim. The corrected case passes140
+assertions in each edition. No expected trajectory or retail fixture is changed.
+
+Six recovered function names, explicit ECX/stack ABI, the partial
+`WC3HeroMovementPrefix` layout, comments and xrefs are saved in Ghidra and mirrored
+in MapPathfinding.java/the type fixture. `Move225Evidence.java` exports the fixed
+original instruction bodies. Reproducers are
+`tools/frida/research/move225_{capture.py,observer.js,make_map.py,probe.j}`.
+Sources, nine captures, maps, failing-first logs, Ghidra readback and verification
+are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MOVE-01.1/payoff225/`.
+
+This is implementation commit11/12 since checkpoint214. MOVE-01.1 stays open for
+acceleration, broader authored profiles and the remaining constructor domains.
+The public default getter's uppercase rawcode/illusion selector is mapped but
+this chunk certifies the ordinary Hpal owner, not Hero illusions or type rebinds.
+Native marker positions are retained for repeat/control comparison; no new
+complete retail trajectory, arbitrary overflow behavior or performance target
+is certified. Reads and ordinary contribution updates are constant time; level
+removal preserves the original sequential work. All460 prior corpus entries
+remain unchanged; this adds entry461 and the180th executable evidence contract.

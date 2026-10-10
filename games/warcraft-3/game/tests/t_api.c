@@ -5468,6 +5468,12 @@ TEST(wc3_api, current_order_follow_target_removal_is_synchronous) {
         }
         jass_callbyname(level.vm, smart ? "smart" : "move", false);
         T_ASSERT(!jass_rterror_pending(level.vm));
+        /* Retail216: Smart initially owns approach/d0174, whose loss can
+         * reissue a point. Exercise this test's persistent Follow/d0173
+         * contract by completing that approach before removing the target. */
+        api_run_move_entities(30);
+        T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2) <=
+                 G_FollowStopRange(unit,target)+unit->collision+target->collision);
         jass_callbyname(level.vm, "removeOther", false);
         T_ASSERT(unit->movement.follow_target == target);
         T_EQ(unit->current_order_id, G_OrderId(smart ? "smart" : "move"));

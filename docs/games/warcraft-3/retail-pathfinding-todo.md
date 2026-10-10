@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff225 integrates Hero agility into default and mutable movement speeds,
+retaining cached contribution deltas across public speed overrides, item edits,
+level changes and cold saves. Nine original repeat/control captures freeze
+fractional scalar words; no prior retail expectation changes. Broader MOVE-01.1
+remains open and no new TODO is added.
+See [Hero movement deltas](retail-pathfinding-engine.md#hero-agility-publishes-movement-deltas-payoff225).
+
 Payoff224 fixes Attack Blink loss: committed-center retention range, near-chase
 retention and far-target release without ordinary point recovery. Repeated
 retail/control evidence and failing-first engine regressions preserve existing

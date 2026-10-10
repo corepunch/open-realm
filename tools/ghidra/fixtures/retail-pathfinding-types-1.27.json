@@ -5052,6 +5052,48 @@
           "evidence": "Payoff193: ECX COrderTarget prefix, plain RET, pointer result EAX. Identity58(slot)/5c(generation); sentinel AND=-1 returnsNULL, otherwise original061320 resolves its payload. Both9d87d0 duplicate admission and9d16c0 member preparation use this actual target identity; physical destination coordinates are not the duplicate key."
         }
       ]
+    },
+    {
+      "name": "WC3HeroMovementPrefix",
+      "length": 232,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "528b00/52aad0 Hero owner"
+        },
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "5276d0 follows owner to Move1ec"
+        },
+        {
+          "offset": 116,
+          "name": "level_value_identity",
+          "type": "WC3PathIdentity",
+          "evidence": "528b00 calls056a40 with Hero+6c; reader loads +8/+c identity (Hero74/78), resolves054530 and reads canonical payload+78 as level-1. Not a scalar mini-field."
+        },
+        {
+          "offset": 168,
+          "name": "agility_base",
+          "type": "i32",
+          "evidence": "528b00 adds truncated growth;5276d0 additive writer"
+        },
+        {
+          "offset": 180,
+          "name": "movement_contribution",
+          "type": "WC3FloatMini",
+          "evidence": "52aad0 reads scalar+b8 and publishes through field virtual writer"
+        },
+        {
+          "offset": 228,
+          "name": "agility_per_level",
+          "type": "WC3PathScalar",
+          "evidence": "528b00 software product with level-1"
+        }
+      ]
     }
   ],
   "methods": [
@@ -17360,6 +17402,130 @@
       "convention": "__cdecl",
       "parameters": [],
       "evidence": "Payoff224: registered CRT initializer: EDX=2000,ECX=d6fb40,tailjmp070d80 integer-to-software-scalar. No stack arguments/plain RET through converter, EAX output pointer. Read-only live range witnesses confirm d6fb40=44fa0000. Sole use49b54e in Attack Blink retention."
+    },
+    {
+      "address": "6f528b00",
+      "name": "Hero_GetAgilityMoveSpeedBonus",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3HeroMovementPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "out",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff225: thiscall ECX Hero,stack4 scalar output,RET4,EAX output. Total agility = base+a8 plus wrapped truncated software product of growth+e4 and canonical level-1 at+6c. Multiply integer-converted total by live Misc.AgiMoveBonus. Nine public retail captures: stock0,custom1.25,fraction0.95; latter parses3f733334. Item bonuses participate; public default is independent of mutable Move base."
+    },
+    {
+      "address": "6f6852f0",
+      "name": "Unit_QueryHeroMoveSpeedBonus",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "out",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff225: thiscall ECX Unit,stack4 scalar output,RET4,EAX output. Unit+1f0 Hero owner invokes528b00 directly; no null-owner fallback in this wrapper.203a90 calls only for uppercase rawcode and no Unit5c40000000. Peer illusion evidence names the flag, but no Hero-illusion live movement claim here."
+    },
+    {
+      "address": "6f52aad0",
+      "name": "Hero_PublishMoveSpeedContribution",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3HeroMovementPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "move",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff225: thiscall ECX Hero,stack4 Move,RET4. Compute528b00; cache new contribution at+b8; subtract prior cached contribution and pass delta5fb740. Public SetUnitMoveSpeed leaves cached contribution intact. SetHeroLevel3 publishes once; UnitStripHeroLevel2 publishes two successive level removals, preserving fractional rounding."
+    },
+    {
+      "address": "6f5fb740",
+      "name": "Move_AdjustBaseSpeed",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "value",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff225: thiscall ECX Move,stack4 scalar delta,RET4. Add delta to Move+70 base. If abs(new-base minus nearzero)<nearzero use3a83126f threshold; publish speed. Generic additive operation has non-Hero callers too. Native fractional current/default words deliberately diverge after updates."
+    },
+    {
+      "address": "6f5fcd80",
+      "name": "Move_InitializeSpeedProfile",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        },
+        {
+          "name": "initial_base",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff225: thiscall ECX Move,stack4 Unit,stack8 scalar initial base,RET8. Set Move70 base,78 multiplier1,7c/80 counters0; attach/register; publish initial base; find Hero owner and52aad0. Preserve initial speed publication before Hero contribution."
+    },
+    {
+      "address": "6f5276d0",
+      "name": "Hero_AdjustAgility",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3HeroMovementPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "delta",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "unused",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff225: thiscall ECX Hero,stack4 signed integer delta,stack8 unused word,RET8. Add to base+a8, refresh attack statistics; if owning Unit+1ec Move exists invoke52aad0; refresh armor. Native SetHeroAgi changes base while retaining item agility; item insertion/removal publishes corresponding signed delta."
     }
   ],
   "globals": [

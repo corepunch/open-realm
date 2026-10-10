@@ -723,6 +723,7 @@ static void unit_construct_stats(unitConstruction_t *construction) {
     self->invulnerable = G_ActorHasAbilityCode(self, MAKEFOURCC('A','v','u','l'));
     G_ApplyUnitAbilityTraits(self);
     self->unitinfo.MoveSpeed = b->speed;
+    self->hero_move_bonus = 0;
     self->unitinfo.PropWindow = DEG2RAD(d->propWin);
     /* Warcraft object data owns model altitude.  Keep the mutable current
      * height separate from terrain support so SetUnitFlyHeight can change it
@@ -782,7 +783,7 @@ static void unit_construct_combat(unitConstruction_t *construction) {
         int32_t const baseInt = b->intelligence;
         if (baseStr > 0 || baseAgi > 0 || baseInt > 0) {
             self->hero.str   = (uint32_t)baseStr;
-            self->hero.agi   = (uint32_t)baseAgi;
+            self->hero.agi   = (uint32_t)MAX(0, (int64_t)baseAgi + self->hero_item_agility);
             self->hero.intel = (uint32_t)baseInt;
             /* war3mapUnits.doo stores Hero level but not unspent skill
              * points. Seed the level-derived point budget before the map

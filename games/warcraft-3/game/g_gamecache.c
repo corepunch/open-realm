@@ -695,5 +695,10 @@ edict_t *G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cst
             G_RemoveItem(item);
         }
     }
+    /* The cache stores total attributes together with inventory identities.
+     * Item restoration rebuilds the reversible portion; retain the stored
+     * total rather than counting its agility bonus a second time. */
+    unit->hero.agi = saved->hero.agi;
+    G_RecomputeHeroStats(unit);
     return unit;
 }

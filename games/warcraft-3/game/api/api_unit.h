@@ -427,7 +427,11 @@ uint32_t SetHeroAgi(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
     int32_t newAgi = jass_checkinteger(j, 2);
 //    bool permanent = jass_checkboolean(j, 3);
-    if (whichHero) { whichHero->hero.agi = (uint32_t)MAX(0, newAgi); G_RecomputeHeroStats(whichHero); }
+    if (whichHero && G_UnitIsHero(whichHero)) {
+        whichHero->hero.agi = (uint32_t)MAX(0, MIN((int64_t)INT32_MAX,
+            (int64_t)MAX(0,newAgi) + whichHero->hero_item_agility));
+        G_RecomputeHeroStats(whichHero);
+    }
     return 0;
 }
 uint32_t SetHeroInt(jass_t *j) {
@@ -562,8 +566,8 @@ uint32_t GetHeroStr(jass_t *j) {
 uint32_t GetHeroAgi(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
     bool includeBonuses = jass_checkboolean(j, 2);
-    (void)includeBonuses;
-    return jass_pushinteger(j, whichHero ? (int32_t)whichHero->hero.agi : 0);
+    return jass_pushinteger(j, whichHero ? (int32_t)whichHero->hero.agi -
+        (includeBonuses ? 0 : whichHero->hero_item_agility) : 0);
 }
 uint32_t GetHeroInt(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");

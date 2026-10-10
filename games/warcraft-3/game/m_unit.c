@@ -2079,6 +2079,7 @@ void G_RecomputeHeroStats(edict_t *ent) {
     if (baseStr <= 0 && baseAgi <= 0 && baseInt <= 0) {
         return;
     }
+    S_RefreshHeroMoveSpeed(ent);
     float const newMaxHP = balance->maxHealth + ((int32_t)ent->hero.str - baseStr) * 25.0f +
                            ent->permanent_health_bonus + ent->temporary_health_bonus;
     float const newMaxMana = balance->maxMana + ((int32_t)ent->hero.intel - baseInt) * 15.0f +
@@ -2227,7 +2228,23 @@ uint32_t G_HeroLevelForXP(uint32_t xp) {
     return level;
 }
 
-/* Set a hero's level and derive its attributes + HP/mana/armor for that level. */
+static uint32_t G_HeroLevelAdjustedAttribute(uint32_t,float,float,float);
+
+/* UnitStripHeroLevel publishes each removed level separately. SetHeroLevel
+ * publishes its final growth once. These distinct orders affect rounding. */
+static void G_HeroApplyAgilityGrowth(edict_t *ent, float growth,
+                                    uint32_t old_level, uint32_t new_level) {
+    while (old_level != new_level) {
+        uint32_t next = old_level < new_level ? old_level + 1 : old_level - 1;
+        ent->hero.agi = G_HeroLevelAdjustedAttribute(ent->hero.agi,growth,
+                                                    old_level - 1,next - 1);
+        S_RefreshHeroMoveSpeed(ent);
+        old_level = next;
+    }
+}
+
+/* Level changes retain scripted/tome/item agility and add only the change
+ * in truncated level growth, as528b00's base+growth producer requires. */
 void G_HeroApplyLevel(edict_t *ent, uint32_t level) {
     UnitBalance_t const *balance = ent->data.UnitBalance;
     int32_t const baseStr = balance->strength;
@@ -2240,9 +2257,12 @@ void G_HeroApplyLevel(edict_t *ent, uint32_t level) {
     if (level > G_MaxHeroLevel()) level = G_MaxHeroLevel();
 
     float const steps = (float)(level - 1);
+    uint32_t const old_level = ent->hero.level ? ent->hero.level : 1;
+    if (!ent->hero.level) ent->hero.agi = (uint32_t)MAX(0,baseAgi);
     ent->hero.level = level;
     ent->hero.str = (uint32_t)MAX(0, baseStr + (int32_t)(steps * balance->strengthPerLevel));
-    ent->hero.agi = (uint32_t)MAX(0, baseAgi + (int32_t)(steps * balance->agilityPerLevel));
+    ent->hero.agi = G_HeroLevelAdjustedAttribute(ent->hero.agi,balance->agilityPerLevel,
+                                               old_level - 1,level - 1);
     ent->hero.intel = (uint32_t)MAX(0, baseInt + (int32_t)(steps * balance->intelligencePerLevel));
     G_RecomputeHeroStats(ent);
 }
@@ -2278,8 +2298,8 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
  * value may contain permanent tome/script bonuses and must survive a strip. */
 static uint32_t G_HeroLevelAdjustedAttribute(uint32_t value, float per_level,
                                              float old_steps, float new_steps) {
-    int64_t const delta = (int32_t)(new_steps * per_level) -
-                          (int32_t)(old_steps * per_level);
+    int64_t const delta = (int32_t)wc3_int_bits(wc3_float_bits(wc3_mul(new_steps,per_level))) -
+                          (int64_t)(int32_t)wc3_int_bits(wc3_float_bits(wc3_mul(old_steps,per_level)));
     int64_t const result = (int64_t)value + delta;
     return (uint32_t)MAX(0, MIN(result, (int64_t)INT32_MAX));
 }
@@ -2315,8 +2335,7 @@ bool G_HeroStripLevels(edict_t *ent, uint32_t levels) {
      * level-derived difference, rather than rebuilding from UnitBalance. */
     ent->hero.str = G_HeroLevelAdjustedAttribute(ent->hero.str, balance->strengthPerLevel,
                                                   old_steps, new_steps);
-    ent->hero.agi = G_HeroLevelAdjustedAttribute(ent->hero.agi, balance->agilityPerLevel,
-                                                  old_steps, new_steps);
+    G_HeroApplyAgilityGrowth(ent,balance->agilityPerLevel,old_level,new_level);
     ent->hero.intel = G_HeroLevelAdjustedAttribute(ent->hero.intel, balance->intelligencePerLevel,
                                                     old_steps, new_steps);
     ent->hero.level = new_level;

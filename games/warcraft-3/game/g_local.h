@@ -2032,6 +2032,8 @@ struct edict_s {
     stock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
     doodadHero_t hero;
+    int32_t hero_item_agility; /* reversible item contribution; hero.agi retains total AGI */
+    float hero_move_bonus; /* last published Hero contribution, independent of SetUnitMoveSpeed */
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t *abilstatus; /* optional pool; fixed slot order when present */
@@ -2332,6 +2334,7 @@ struct game_locals {
         float strAttackBonus;
         float agiDefenseBonus;
         float agiAttackSpeedBonus;
+        float agiMoveBonus;
         float damageBonus[8][8];
         bool defendDeflection; /* Misc.DefendDeflection: permits Defend/Elune projectile returns */
         bool combatConstantsLoaded;
@@ -3261,6 +3264,7 @@ float unit_movedistance(edict_t *);
 float S_UnitMoveSpeed(edict_t *);
 float S_UnitDefaultMoveSpeed(edict_t const *);
 void S_SetUnitMoveSpeed(edict_t *, float);
+void S_RefreshHeroMoveSpeed(edict_t *);
 void S_SetUnitAxisPosition(edict_t *, uint32_t, float);
 void S_SetUnitPosition(edict_t *, vec2_t const *);
 void S_PlaceUnitPosition(edict_t *, vec2_t const *);
