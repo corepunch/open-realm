@@ -589,4 +589,50 @@ TEST(wc3_order_lifecycle, creep_guard_arrival_clears_retry_state) {
     T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
 }
 
+/* Exercise the production post-mitigation damage path: a lethal blow must
+ * alert a surviving idle camp member before the victim is torn down. */
+TEST(wc3_order_lifecycle, lethal_creep_hit_alerts_surviving_camp_member) {
+    setup_test_world();
+    edict_t *victim = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    edict_t *ally = review_order_unit(192, PLAYER_NEUTRAL_AGGRESSIVE);
+    edict_t *attacker = review_order_unit(240, 0);
+    G_CreepGuardInit(victim);
+    G_CreepGuardInit(ally);
+    T_ASSERT(!ally->movement.creep_guard_auto_combat);
+    T_Damage(victim, attacker, (int)victim->health.value + 100);
+    T_ASSERT(M_IsDead(victim));
+    T_ASSERT(ally->movement.creep_guard_auto_combat);
+    T_ASSERT(ally->goalentity == attacker);
+    T_ASSERT(ally->currentmove && ally->currentmove->proc == CAbilityAttack);
+}
+
+/* Drive the actual tick through each deadline with an immobilized creep so
+ * Move never becomes active. This catches unbounded, every-frame retries. */
+TEST(wc3_order_lifecycle, creep_guard_retry_exhaustion_uses_simulation_time) {
+    setup_test_world();
+    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
+    G_CreepGuardInit(creep);
+    creep->s.origin2.x = 900;
+    creep->aiflags |= AI_IMMOBILE;
+    creep->movement.creep_guard_returning = true;
+    level.time = 1000;
+    G_CreepGuardTick(creep);
+    T_EQ(creep->movement.creep_guard_retry_at_ms, 2000u);
+    for (uint32_t attempt = 1; attempt <= 3; attempt++) {
+        level.time = 1999 + (attempt - 1) * 1000;
+        G_CreepGuardTick(creep);
+        T_EQ(creep->movement.creep_guard_return_retries, attempt - 1);
+        level.time++;
+        G_CreepGuardTick(creep);
+        T_EQ(creep->movement.creep_guard_return_retries, attempt);
+        T_ASSERT(creep->movement.creep_guard_returning);
+    }
+    level.time = 5000;
+    G_CreepGuardTick(creep);
+    T_ASSERT(!creep->movement.creep_guard_returning);
+    T_EQ(creep->movement.creep_guard_return_retries, 3u);
+    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.001f);
+    T_FEQ(creep->s.origin2.x, 900, 0.001f);
+}
+
 #endif

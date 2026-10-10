@@ -67,3 +67,31 @@ waypoint, repeated interrupted returns, multiple simultaneous camps, paused or
 stunned guards, owner conversions, custom map Misc values, multiplayer order
 replay, neutral-building-use provocation and retail target score parity. Stage E
 provides hardening and focused tests, not proof of full retail equivalence.
+
+## Post-audit regression coverage (save format 86)
+
+The guard audit fix moves camp assistance before lethal-hit death processing,
+adds bounded return retries, and persists retry counters/deadlines (save 86).
+The following focused tests use the game-module entry points rather than a
+copy of guard code:
+
+- `wc3_order_lifecycle.lethal_creep_hit_alerts_surviving_camp_member` drives
+  `T_Damage` with a lethal hit and verifies a nearby idle camp ally acquires
+  the attacker. This reproduces the pre-fix early-return bug.
+- `wc3_order_lifecycle.creep_guard_retry_exhaustion_uses_simulation_time`
+  drives `G_CreepGuardTick` across all retry deadlines with a movement-disabled
+  guard and verifies that it stops after three attempts without teleporting.
+  The existing order cancellation and arrival tests cover state clearing.
+- `wc3_save.creep_guard_return_retry_state_round_trip` uses `WriteGame` and
+  `ReadGame` to verify the guard anchor, returning flag, retry count/deadline,
+  and hit/outside timestamps survive persistence.
+
+These fixtures cover the retry-state save path, but a real in-flight
+creep-return `CAbilityMove`/waypoint round-trip and blocked-path movement
+callback lifecycle still require dedicated integration coverage. The existing
+`wc3_save.live_guard_return_move_resumes_after_round_trip` covers the distinct
+player Stop-guard implementation, not creep guard movement.
+
+For changed executable code, run the affected build and `make test` before
+merging, in accordance with `CONTRIBUTING.md`. No local compilation or test
+execution was performed while preparing this follow-up patch.
