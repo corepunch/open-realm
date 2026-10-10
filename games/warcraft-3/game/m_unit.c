@@ -1432,6 +1432,15 @@ heroabilitystatus_t *unit_findstatus(edict_t *ent, uint32_t code) {
     return NULL;
 }
 
+heroabilitystatus_t *unit_findstatussource(edict_t *ent, uint32_t code, edict_t const *source) {
+    if (ent) FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = ent->abilstatus + i;
+        if (status->level && status->code == code && status->source == source &&
+            (!source || status->source_spawn_time == source->spawn_time)) return status;
+    }
+    return NULL;
+}
+
 /* Notify active victim statuses before death cleanup can discard their applying state. */
 void unit_statusdeath(edict_t *ent) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -1578,9 +1587,10 @@ bool unit_status_can_dispel(heroabilitystatus_t const *status) {
 /* A transferred status must be explicitly opted in.  Never steal a generic
  * status with unknown payload, callbacks, source or periodic state. */
 bool unit_status_can_steal(heroabilitystatus_t const *status) {
-    return unit_status_can_dispel(status) &&
-        (status->buff_flags & (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_TRANSFERABLE)) ==
-        (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_TRANSFERABLE);
+    uint32_t classification = status ? status->buff_flags & (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_NEGATIVE) : 0;
+    return unit_status_can_dispel(status) && (classification == WC3_STATUS_BUFF_POSITIVE ||
+        classification == WC3_STATUS_BUFF_NEGATIVE) &&
+        (status->buff_flags & WC3_STATUS_BUFF_TRANSFERABLE);
 }
 
 /* Opt-in only: many existing abilities/aura systems already manage their own
@@ -1674,7 +1684,11 @@ wc3_status_apply_check_t unit_status_checkapplication(edict_t const *ent, status
     if (!code) return WC3_STATUS_APPLY_INVALID;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
-        if (status->level && status->code == code)
+        if (status->level && status->code == code &&
+            (app->stack_policy != WC3_STATUS_STACK_INDEPENDENT ||
+             (status->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+              status->source == app->source && (!app->source ||
+              status->source_spawn_time == app->source->spawn_time))))
             return WC3_STATUS_APPLY_REUSE;
         if (!status->level) free_slot = true;
     }
@@ -1705,7 +1719,11 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
-        if (status->level && status->code == code) {
+        if (status->level && status->code == code &&
+            (app->stack_policy != WC3_STATUS_STACK_INDEPENDENT ||
+             (status->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+              status->source == app->source && (!app->source ||
+              status->source_spawn_time == app->source->spawn_time)))) {
             /* Existing buff of same code found — apply stacking rule. */
             if (stacktype && !strcmp(stacktype, "Stack")) {
                 status->level += level;
@@ -1723,6 +1741,9 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
                  * instance becomes visible (Refresh/Stack must not). */
                 unit_removestatus(ent, status, STATUS_REMOVE_REPLACED);
                 status->code = code;
+                status->instance_id = ++ent->next_status_instance_id;
+                if (!status->instance_id) status->instance_id = ++ent->next_status_instance_id;
+                status->stack_policy = app->stack_policy;
                 status->level = level;
                 status->data = app->data;
                 status->source_ability = app->source_ability;
@@ -1756,6 +1777,9 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     }
 
     slot->code = code;
+    slot->instance_id = ++ent->next_status_instance_id;
+    if (!slot->instance_id) slot->instance_id = ++ent->next_status_instance_id;
+    slot->stack_policy = app->stack_policy;
     slot->level = level;
     slot->timestamp = duration_ms ? now + duration_ms : 0;
     slot->duration_ms = duration_ms;

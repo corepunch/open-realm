@@ -73,7 +73,7 @@ typedef struct {
 #define MAX_HERO_ABILITIES 4
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
 #define MAX_UNIT_COOLDOWNS 16 // independent per-unit ability cooldown records; does not consume buff/status capacity
-#define MAX_UNIT_STATUSES 8
+#define MAX_UNIT_STATUSES 16
 #define PLAYER_TEXT_BACKUP 16
 #define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
 #define MAX_START_PRIO 16 // slots; one possible priority entry per WC3 player start location
@@ -1384,6 +1384,8 @@ typedef enum {
 
 typedef struct heroabilitystatus_s {
     uint32_t code;
+    uint32_t instance_id; /* generation-safe within the owning edict */
+    uint32_t stack_policy;
     uint32_t level;
     uint32_t timestamp;
     uint32_t duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
@@ -1409,7 +1411,13 @@ typedef struct {
     uint32_t data;
     edict_t *source;
     uint32_t rank;
+    uint32_t stack_policy;
 } status_application_t;
+
+typedef enum {
+    WC3_STATUS_STACK_DEFAULT,
+    WC3_STATUS_STACK_INDEPENDENT
+} wc3_status_stack_policy_t;
 
 /* Bounded status storage: capacity is checked before any gameplay side effects.
  * The existing rawcode-keyed representation does not yet support multiple
@@ -1826,6 +1834,7 @@ struct edict_s {
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
+    uint32_t next_status_instance_id;
     abilityCooldown_t abilitycooldowns[MAX_UNIT_COOLDOWNS];
     edictAbilities_s abilities;
     uint32_t autocast_code; /* one selected autocast ability; zero means disabled */
@@ -2824,6 +2833,7 @@ void unit_status_enabletargetart(edict_t *, heroabilitystatus_t *, cstring_t att
 bool unit_status_can_dispel(heroabilitystatus_t const *);
 bool unit_status_can_steal(heroabilitystatus_t const *);
 heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);
+heroabilitystatus_t *unit_findstatussource(edict_t *, uint32_t, edict_t const *);
 void unit_statusdeath(edict_t *);
 void incinerate_explode_think(edict_t *);
 void monsoon_think(edict_t *);
