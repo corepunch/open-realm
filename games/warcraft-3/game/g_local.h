@@ -1328,6 +1328,18 @@ typedef enum {
     HERO_SKILL_MAXED
 } heroSkillState_t;
 
+/* Categorical state contributions owned by a live status slot. These are
+ * independent of ability rawcodes; callers may combine several sources. */
+typedef enum {
+    WC3_STATUS_STATE_STUNNED       = 1u << 0,
+    WC3_STATUS_STATE_ROOTED        = 1u << 1,
+    WC3_STATUS_STATE_SILENCED      = 1u << 2,
+    WC3_STATUS_STATE_SLEEPING      = 1u << 3,
+    WC3_STATUS_STATE_MAGIC_IMMUNE  = 1u << 4,
+    WC3_STATUS_STATE_INVULNERABLE  = 1u << 5,
+    WC3_STATUS_STATE_ETHEREAL      = 1u << 6
+} wc3_status_state_t;
+
 typedef struct heroabilitystatus_s {
     uint32_t code;
     uint32_t level;
@@ -1335,6 +1347,7 @@ typedef struct heroabilitystatus_s {
     uint32_t duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
     uint32_t data; /* legacy ability rawcode or ability-specific numeric payload; retain unchanged */
     uint32_t source_ability; /* explicit applying ability rawcode; zero means legacy/unattributed */
+    uint32_t state_mask; /* composable categorical contributors owned by this slot */
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
 } heroabilitystatus_t;
@@ -1346,6 +1359,7 @@ typedef struct {
     uint32_t level;
     float duration;
     uint32_t source_ability;
+    uint32_t state_mask;
     uint32_t data;
     edict_t *source;
     uint32_t rank;
@@ -2751,6 +2765,7 @@ void unit_statusdeath(edict_t *);
 void incinerate_explode_think(edict_t *);
 void monsoon_think(edict_t *);
 void unit_refreshstatusflags(edict_t *);
+bool unit_hasstatusstate(edict_t const *, wc3_status_state_t);
 
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
 void unit_moveindirection(edict_t *);

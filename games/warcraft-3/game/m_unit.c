@@ -1440,6 +1440,20 @@ void unit_statusdeath(edict_t *ent) {
     }
 }
 
+/* Query only live contributions; expired slots must never grant a state
+ * while waiting for their next authoritative cleanup update. Multiple slots
+ * compose by OR, so removing one cannot remove another's contribution. */
+bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
+    uint32_t mask = (uint32_t)state;
+    if (!ent || !mask || (mask & (mask - 1u))) return false;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = ent->abilstatus + i;
+        if (!status->level || !(status->state_mask & mask)) continue;
+        if (!status->timestamp || status->timestamp > G_Time()) return true;
+    }
+    return false;
+}
+
 /* Derived locks come only from statuses that actually remain; owners
  * reconcile their own flight/height state through A_STATUS_REFRESH. */
 void unit_refreshstatusflags(edict_t *ent) {
@@ -1447,7 +1461,9 @@ void unit_refreshstatusflags(edict_t *ent) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
-        if (unit_status_stuns(status->code)) stunned = true;
+        if (unit_status_stuns(status->code) ||
+            ((status->state_mask & WC3_STATUS_STATE_STUNNED) &&
+             (!status->timestamp || status->timestamp > G_Time()))) stunned = true;
         UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_REFRESH, STATUS_REMOVE_SCRIPT);
     }
     ent->stunned = stunned;
@@ -1550,6 +1566,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
                 status->level = level;
                 status->data = app->data;
                 status->source_ability = app->source_ability;
+                status->state_mask = app->state_mask;
                 status->source = app->source;
                 status->source_spawn_time = app->source ? app->source->spawn_time : 0;
                 status->rank = app->rank;
@@ -1581,6 +1598,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     slot->duration_ms = duration_ms;
     slot->data = app->data;
     slot->source_ability = app->source_ability;
+    slot->state_mask = app->state_mask;
     slot->source = app->source;
     slot->source_spawn_time = app->source ? app->source->spawn_time : 0;
     slot->rank = app->rank;
