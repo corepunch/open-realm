@@ -443,3 +443,77 @@ Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payo
 This is implementation11/12 in the focused-validation cadence. Canonical
 lifetime, busy recovery and the remaining selected request producers remain
 open. No overall performance or complete retail fidelity is claimed.
+
+## Alt flight requests publish independently in candidate order (Payoff238)
+
+For non-FLOAT selected Move, Alt separates current flyers into the third request
+while grounded units retain the primary. Authored flight alone is insufficient:
+retail's positive forced-ground count suppresses the special branch; OpenRealm's
+ability-owned effective flight flag already represents this distinction.
+Each request retains the common clicked coordinates and its own request history.
+
+Preparation must precede callbacks, and candidate admission must retain the
+global order. Running the ground batch followed by the flight batch would change
+that order. Each canonical request publishes when its own last attached candidate
+becomes ready. Ground/fly/fly/ground therefore creates the flight physical owner
+first, then the ground owner, despite allocating the primary request first.
+All-flyer and all-ground selections have one populated request class.
+
+Move now prepares the populated classes, admits candidates in the original
+selection order and publishes each class at its readiness boundary. The existing
+stable physical slot doubles as pending staging storage; its newest-first visit
+sequence is published through an O(1) unlink/prepend at readiness. This avoids
+allocating a second physical object just to establish visit order. Candidate
+classification/admission is O(N), bounded by twelve rows. Pending Shift orders
+retain separate class contexts through the existing queue owner. Shared Captain
+requests retain their prior producer. Save fields and wire format are unchanged.
+
+`work238_oracle.py` executes ten complete original attachment/readiness/physical
+publication scopes, using native request/mover/path factories, `6b8c10`,
+`89caf0`, `89cd10`, `16bcf0`, `16bdb0` and `16b7b0`. Flight masks0/6/10/9/15
+and forced-ground controls cover both interleavings, both homogeneous classes
+and grounded authored flyers. Frozen results retain candidate slots, exact
+physical birth boundary, ordered members and native flags1000eh. The engine
+matrix compares membership, relative birth order and formation bits0eh; it does
+not claim equality of every intermediate physical flag. Inputs supply static
+fine poses, disabled adaptive paths, clock, empty hierarchy and VM gate; only
+Storm storage uses host adapters. The first two scratch runs used an incorrect
+candidate count/stride; they are rejected and archived. Candidate identities are
+twelve-byte rows, independently of the four-byte readiness array.
+
+The public witnesses are the four frozen Payoff237 captures, including two
+genuine Alt mixed selections. There is no new live capture or observer-free
+control in this chunk. The original failing engine regression reports96 failures
+in188 assertions. Additional regressions compare all ten native cases, queued
+contexts, cold save/load, independent Stop and synchronous issued-order
+conditions. The callback harness initially registered a player event before
+creating its client edict, leaving a NULL event subject. The accepted version
+establishes the player before registration and uses a synchronous trigger
+condition. Issued-order event actions also dispatch synchronously in the current
+engine. One verifier run started during compilation loaded the previous module
+and is rejected. The first full checkpoint exposed an observer trigger retained across the test's
+VM replacement. Its condition pointer referenced the freed VM; the core records
+this in the second loop iteration. The test now destroys its listener before
+replacing the VM. Earlier retail fixtures and authored data remain unchanged.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work238.py \
+  --binary /path/to/retail/game.dll --report /tmp/work238-fresh.json
+```
+
+`Work238Evidence.java` saves eight functions, xrefs and495 instruction encodings;
+`MapPathfinding.java` records the contract. Archive:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff238/`.
+This is implementation12/12 in the focused-validation cadence. Mixed FLOAT,
+callback category reassignment, persistent pending/busy canonical lifetime and
+complete multi-class/ShiftAlt trajectories still keep GROUP-04.6 open.
+
+The twelve-implementation checkpoint passes in aggregate:3,348 native tests and
+16,859,438 assertions per Classic/TFT, plus1,249 Python checks and the remaining
+engine suites. The initial full command failed on the listener lifetime above;
+after test teardown was corrected, the failed Classic shard and three unrun TFT
+shards passed. Four unchanged passing shards and the Python results were retained.
+Production code was identical across both runs. The fresh strict corpus accepts
+193 original/evidence oracles and474 total entries; focused Alt verification
+passes six tests/566 assertions per edition. Validation cadence resets to0/12.

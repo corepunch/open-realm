@@ -4781,25 +4781,27 @@ acquired:
  * request identity independently of queued activation. Each completion can
  * start alone;5faaf0 rebuilds a matching
  * nearby cohort when another member starts the same point. */
+static bool move_queue_group_candidate(groupPointOrder_t const *request,uint32_t i,uint32_t context) {
+    edict_t *unit=request->units[i].unit;
+    if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit) ||
+        M_IsDead(unit) || (unit->aiflags&AI_IMMOBILE) || G_BuildingUpgradeActive(unit) ||
+        !S_AncientCanReceiveOrder(unit)) return false;
+    bool active=G_UnitHasActiveOrder(unit);
+    if (!G_QueueUnitOrder(unit,request->order,UNIT_ORDER_TARGET_POINT,request->point,NULL,
+            request->issuer_player,0,0)) return false;
+    unitOrderQueue_t *queue=&unit->order_queue;
+    unsigned slot=(queue->head+queue->count-1)%queue->capacity;
+    queue->entries[slot].owner_context=context;
+    unit->movement.previous_request_id=context;
+    if (!active) G_UnitStartNextQueuedOrder(unit);
+    G_PublishIssuedPointOrder(unit,request->order_id,request->point,request->issuer_player,request->order);
+    return true;
+}
+
 static bool move_queue_group_point(groupPointOrder_t const *request) {
     uint32_t context=move_allocate_group_id();
     bool any=false;
-    FOR_LOOP(i,request->count) {
-        edict_t *unit=request->units[i].unit;
-        if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit) ||
-            M_IsDead(unit) || (unit->aiflags&AI_IMMOBILE) || G_BuildingUpgradeActive(unit) ||
-            !S_AncientCanReceiveOrder(unit)) continue;
-        bool active=G_UnitHasActiveOrder(unit);
-        if (!G_QueueUnitOrder(unit,request->order,UNIT_ORDER_TARGET_POINT,request->point,NULL,
-                request->issuer_player,0,0)) continue;
-        unitOrderQueue_t *queue=&unit->order_queue;
-        unsigned slot=(queue->head+queue->count-1)%queue->capacity;
-        queue->entries[slot].owner_context=context;
-        unit->movement.previous_request_id=context;
-        if (!active) G_UnitStartNextQueuedOrder(unit);
-        any=true;
-        G_PublishIssuedPointOrder(unit,request->order_id,request->point,request->issuer_player,request->order);
-    }
+    FOR_LOOP(i,request->count)if(move_queue_group_candidate(request,i,context))any=true;
     return any;
 }
 
@@ -5068,9 +5070,7 @@ static void move_group_publish_ready(moveGroup_t *group) {
     owner->ticking=false;
 }
 
-static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target) {
-    if (!request->count) return false;
-    if (request->queued) return move_queue_group_point(request);
+static moveGroup_t *move_group_create_request(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target) {
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->request_id=group->id;
@@ -5092,32 +5092,82 @@ static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t s
          * Both captain families retain800 and extra target refresh400. */
         group->flags|=target ? 0x1c01 : 0xd00;
     }
+    return group;
+}
+
+static bool move_group_admit_candidate(moveGroup_t *group,groupPointOrder_t const *request,uint32_t i) {
+    edict_t *unit=request->units[i].unit;
+    if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) return false;
+    typeof(move_group_admission) previous=move_group_admission;
+    move_group_admission=(typeof(move_group_admission)){unit,*request->point};
+    bool accepted=unit_issueorder(unit,request->order,request->point);
+    move_group_admission=previous;
+    if (!accepted) return false;
+    if (unit->current_order_id!=request->order_id || unit->currentmove!=&move_move_walk) return true;
+    moveGroupMember_t *member=group->members+group->count++;
+    /* The prepared captain packet carries zero approach range. Its Move
+     * activation installs the ordinary .49 threshold, even with a target;
+     * this differs from individually reissued captain followers. */
+    *member=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
+        .arrival_range=wc3_point_arrival_range(0)};
+    unit->movement.group_id=group->id;move_unit_groups[unit-g_edicts]=group;
+    unit->movement.previous_request_id=group->id;
+    if (unit->collision>group->radius) group->radius=unit->collision;
+    return true;
+}
+
+static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target) {
+    if (!request->count) return false;
+    if (request->queued) return move_queue_group_point(request);
+    moveGroup_t *group=move_group_create_request(request,shared_id,target);
     bool any=false;
-    FOR_LOOP(i,request->count) {
-        edict_t *unit=request->units[i].unit;
-        if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) continue;
-        typeof(move_group_admission) previous=move_group_admission;
-        move_group_admission=(typeof(move_group_admission)){unit,*request->point};
-        bool accepted=unit_issueorder(unit,request->order,request->point);
-        move_group_admission=previous;
-        if (!accepted) continue;
-        any=true;
-        if (unit->current_order_id!=request->order_id || unit->currentmove!=&move_move_walk) continue;
-        moveGroupMember_t *member=group->members+group->count++;
-        /* The prepared captain packet carries zero approach range. Its Move
-         * activation installs the ordinary .49 threshold, even with a target;
-         * this differs from individually reissued captain followers. */
-        *member=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
-            .arrival_range=wc3_point_arrival_range(0)};
-        unit->movement.group_id=group->id;move_unit_groups[unit-g_edicts]=group;
-        unit->movement.previous_request_id=group->id;
-        if (unit->collision>group->radius) group->radius=unit->collision;
-    }
+    FOR_LOOP(i,request->count)if(move_group_admit_candidate(group,request,i))any=true;
     move_group_publish_ready(group);
     return any;
 }
 
+/* Prepared canonical classes become physical owners when their final candidate
+ * is ready, not in class allocation order. Keep the existing stable owner slot
+ * and publish its newest-first visit rank in O(1), without another allocation. */
+static void move_group_publish_sequence(moveGroup_t *group) {
+    if(level.next_move_group_sequence==UINT64_MAX)gi.error("Move: physical owner sequence exhausted");
+    if(group->newer)group->newer->older=group->older;
+    else move_group_head=group->older;
+    if(group->older)group->older->newer=group->newer;
+    group->sequence=++level.next_move_group_sequence;
+    group->newer=NULL;group->older=move_group_head;
+    if(move_group_head)move_group_head->newer=group;
+    move_group_head=group;
+}
+
+/*6b8c10/89cd10: prepare both requests before callbacks, retain global candidate
+ * order, and publish each class when ready. Forced grounding already clears
+ * AI_FLYING through the ability owner; authored fly alone is insufficient. */
+static bool move_group_alt_point_order(groupPointOrder_t const *request) {
+    unsigned slots[BZ_WC3_GROUP_ORDER_UNITS],remaining[2]={0};
+    moveGroup_t *groups[2]={0};uint32_t contexts[2]={0};
+    FOR_LOOP(i,request->count) {slots[i]=unit_is_flying(request->units[i].unit);remaining[slots[i]]++;}
+    FOR_LOOP(k,2)if(remaining[k]) {
+        if(request->queued)contexts[k]=move_allocate_group_id();
+        else groups[k]=move_group_create_request(request,0,NULL);
+    }
+    bool any=false;
+    FOR_LOOP(i,request->count) {
+        unsigned slot=slots[i];
+        if(request->queued) {if(move_queue_group_candidate(request,i,contexts[slot]))any=true;}
+        else {
+            if(move_group_admit_candidate(groups[slot],request,i))any=true;
+            if(!--remaining[slot]) {
+                move_group_publish_sequence(groups[slot]);
+                move_group_publish_ready(groups[slot]);
+            }
+        }
+    }
+    return any;
+}
+
 static bool move_group_point_order(groupPointOrder_t const *request,uint64_t shared_id) {
+    if(request->formation_toggle && !shared_id)return move_group_alt_point_order(request);
     return move_group_captain_order(request,shared_id,NULL);
 }
 
@@ -5900,8 +5950,8 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     }
     /*6b8c10 attaches ordinary flyers and ground units to the SAME primary
      * request. Its second request tests authored FLOAT, not AI_FLYING.
-     * Alt's separate current-flight policy and mixed float requests remain
-     * on the legacy producer until their complete admission is integrated. */
+     * Alt uses a separate current-flight request; mixed FLOAT still retains
+     * the legacy producer until its complete admission is integrated. */
     if (num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
         bool ground=true,primary=true;uint8_t mask=M_UnitStaticPathingFlags(units[0]);
         FOR_LOOP(i,num_units) {
@@ -5913,7 +5963,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
         FOR_LOOP(i,num_units) {
             if (G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) idle=false;
         }
-        if (ground || (primary && !clent->client->menu.order_alt)) {
+        if (ground || primary) {
             groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.formation_toggle=clent->client->menu.order_alt,.issuer_player=clent->client->ps.number};
             FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
             bool accepted=G_IssueGroupPointOrder(&request);

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "192 executable original/evidence contracts;473 total entries.",
+  "scope": "193 executable original/evidence contracts;474 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -50065,6 +50065,63 @@
         "Engine regressions cover ordinary mixed and all-flight client selection, common requested coordinates, Shift queue/history, saved physical ownership and independent Stop. Native Alt splitting is evidence for the next integration, not a passing engine claim.",
         "First original harness attempts started at interior89c8a0, not actual canonical factory entry89c890. They are rejected and archived; neither supplies expectations. Existing retail movement fixtures remain unchanged."
       ]
+    },
+    {
+      "id": "oracle-work238",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work238.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work238.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 4
+        },
+        "ordinary_cohorts": {
+          "equal": 2
+        },
+        "alt_cohorts": {
+          "equal": 4
+        },
+        "public_markers": {
+          "equal": 328
+        },
+        "complete_scopes": {
+          "equal": 10
+        },
+        "instructions": {
+          "equal": 495
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "GROUP-04.6 Alt non-FLOAT current-flight selected requests: native last-ready physical birth, retained global candidate order, separate queue/history, cold saves and synchronous callback replacement. Public captures reused from237.",
+      "exclusions": [
+        "Integrates non-FLOAT Alt current-flight splitting through selected Move; mixed FLOAT, dynamic callback category reassignment, persistent canonical pending/busy lifetimes and full multi-class trajectories remain GROUP-04.6.",
+        "Ten complete unchanged native attachment/readiness/publication scopes use real factories and callbacks. Fixture supplies candidate category/current-flight/forced-ground, static positions, disabled adaptive paths, owner clock, empty hierarchy and VM gate; only Storm storage imports are adapted.",
+        "Reuses the four frozen public read-only captures from Payoff237, including two genuine Alt mixed selections. No new live capture, observer-free control, whole-journey timing parity or performance target is claimed.",
+        "Engine validates class membership, common goals, physical birth order, separate queued history/context, cold saves, independent Stop and callback ordering/replacement. Queue checks do not establish full retail ShiftAlt trajectories.",
+        "Initial scratch harnesses read the wrong candidate stride/count; rejected original1/2 logs are archived and provide no expectations. Native rows are12-byte identities plus auxiliary word; all earlier retail fixtures stay unchanged."
+      ]
     }
   ],
   "fixtures": [
@@ -50963,7 +51020,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "7e1c8f79cbc7c5f7e365ec0c68f2aaa36b3238e3ac80f41f10220d4738be0d6c"
+      "sha256": "50cbbd4b4799eb34665d91571cb03b75402e54b9e0bd956019765db8174f2b3b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51819,7 +51876,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "351ac3934b66b7eb46a548d72544f932dd0bf8b67f1cc29968661eeaf382d287"
+      "sha256": "f00b4bbd61db59aff4d782fb3c0c742b915293460d9b262f964accdc8c6e8300"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -52511,7 +52568,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "787cfca3c35d7604303015a1d02bc3e3f8e5835069e3a7d25e1dbe872aa832d0"
+      "sha256": "4459602236c7c2297b2df19ca2f613785c9afd2a662efe644b2d791832209cfd"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -52755,7 +52812,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "e90169cf037dc14260a93503af366fa05c046f09d2c3e5e3b93e240068156799"
+      "sha256": "fd72bdff0909f766eab4af86c9b19a977dee15ec262f117e3052b9614585a69e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52771,7 +52828,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "cd8b32e706597fb389a0c569f07f0aef57c5ff6244448e301617da89d3f3110b"
+      "sha256": "da1faf305d343ee0f667596f438e51ce8d50cbb7d05567fe4da917cde3dcd336"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55715,7 +55772,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-queued-cohorts.md",
-      "sha256": "b661f9ac300912b402fea9fc571a52174b202bf2b0bc67fc09937b7c1966403a"
+      "sha256": "03fe08a43359d4674c34a6ab6db59ab3cd0357fc084959caae214ad5692941b4"
     },
     {
       "path": "tools/frida/research/work232_observer.js",
@@ -55924,6 +55981,30 @@
     {
       "path": "tests/test_wc3_pathfinding_work237.py",
       "sha256": "d2006741c552504414992ffc28db06ff30a2ef043ed87bffcfb315531d3608bd"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_alt_request238.h",
+      "sha256": "6ef37cd3d998aa10e5ee5a197efa254a3d027a94fd8d05e2a658143d94f81a1f"
+    },
+    {
+      "path": "tools/ghidra/research/work238_oracle.py",
+      "sha256": "69fb5d99bc67602c49d40df0a781d6589d7d7131b1bfd6ef3eded7ec68fb7444"
+    },
+    {
+      "path": "tools/ghidra/research/Work238Evidence.java",
+      "sha256": "223e496bed602b113657456a954811b83b217c8cd0b2358c4705a6fc08a682b2"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work238.py",
+      "sha256": "516ba2e173bb807880ea30345fe6a31db3582d1e2ac1471f0d240e6dae7718cf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work238-1.27.json",
+      "sha256": "bfe84d00ccb839e913e214666df4cefcef0e058a0f4fb0366a35d851731b30ac"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work238.py",
+      "sha256": "bf49bc85a6243ee09da36f2b5844ae163f3f31796ff90ae6e36202ea0cc70745"
     }
   ]
 }

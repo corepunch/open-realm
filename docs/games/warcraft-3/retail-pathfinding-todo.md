@@ -56,6 +56,13 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **278 done / 336 tasks; 58 remaining.**
+Payoff238 gives Alt current flyers independent request/history owners while
+preserving global candidate admission and last-ready physical publication order.
+Complete original class/grounding cases, frozen public repeats and engine
+selection/queue/save/callback regressions accompany the fix. GROUP-04.6 retains
+FLOAT and wider canonical lifetime work. See
+[Alt request publication](retail-pathfinding-queued-cohorts.md#alt-flight-requests-publish-independently-in-candidate-order-payoff238).
+
 Payoff237 routes ordinary ground/flying selections through one primary request,
 correcting the mistaken FLOAT/flight classification. Complete original attachment
 cases, ordinary/Alt retail repeats and failing-first selected order/save tests

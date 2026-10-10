@@ -13212,6 +13212,123 @@ TEST(wc3_movement, selected237_ground_and_flight_share_primary_request) {
     reset_entities();setup_test_world();
 }
 
+/* Native237 captures use primary for foot and the third request for Alt flight.
+ * Interleaving classes must not reorder candidate admission or physical birth. */
+TEST(wc3_movement, selected238_alt_owns_separate_flight_requests) {
+    FOR_LOOP(grounded,2)FOR_LOOP(queued,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *clent=alloc_test_unit(0,0,0),*units[4];
+        clent->client=game.clients;clent->client->ps.number=0;
+        clent->client->menu.order_queued=false;clent->client->menu.order_alt=true;
+        FOR_LOOP(i,4) {
+            bool flight=i==1 || i==2;
+            units[i]=alloc_test_unit(flight ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o'),512+96*(i&1),512+288*(i/2));
+            units[i]->collision=16;units[i]->s.model=1;units[i]->svflags|=SVF_MONSTER;
+            units[i]->stand=unit_stand;units[i]->movetype=MOVETYPE_STEP;unit_stand(units[i]);
+            if(flight && !(grounded && i==1))units[i]->aiflags|=AI_FLYING;
+            G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+        }
+        vec2_t point={1536,1536};T_ASSERT(move_selectlocation(clent,&point));
+        moveGroup_t *primary=move_unit_group(units[0]),*special=move_unit_group(units[2]);
+        T_NOT_NULL(primary);T_NOT_NULL(special);T_NE(primary,special);
+        if(primary && special) {
+            T_EQ(primary->count,grounded ? 3 : 2);T_EQ(special->count,grounded ? 1 : 2);
+            T_EQ(move_unit_group(units[1]),grounded ? primary : special);T_EQ(move_unit_group(units[3]),primary);
+            T_NE(primary->request_id,special->request_id);T_EQ(primary->flags&14u,14u);T_EQ(special->flags&14u,14u);
+            /* Flight's final candidate precedes the final ground candidate. */
+            T_ASSERT(primary->sequence>special->sequence);
+            FOR_LOOP(i,4) {moveGroup_t *g=move_unit_group(units[i]);T_NOT_NULL(g);if(g){T_EQ(g->goal.x,point.x);T_EQ(g->goal.y,point.y);}}
+        }
+        if(queued) {
+            clent->client->menu.order_queued=true;point=(vec2_t){512,2048};T_ASSERT(move_selectlocation(clent,&point));
+            T_NE(units[0]->movement.previous_request_id,units[2]->movement.previous_request_id);
+            FOR_LOOP(i,4) {
+                T_EQ(units[i]->order_queue.count,1);
+                edict_t *peer=(i==2 || (i==1 && !grounded)) ? units[2] : units[0];
+                T_EQ(units[i]->movement.previous_request_id,peer->movement.previous_request_id);
+                if(units[i]->order_queue.count) {unitOrder_t const *o=units[i]->order_queue.entries+units[i]->order_queue.head;T_EQ(o->point.x,point.x);T_EQ(o->point.y,point.y);T_EQ(o->owner_context,units[i]->movement.previous_request_id);}
+            }
+        }
+        cstring_t save=Test_TempPath("wc3-selected238.bin");T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+        primary=move_unit_group(units[0]);special=move_unit_group(units[2]);T_NOT_NULL(primary);T_NOT_NULL(special);T_NE(primary,special);
+        if(primary && special) {T_ASSERT(primary->sequence>special->sequence);T_EQ(primary->flags&14u,14u);T_EQ(special->flags&14u,14u);}
+        T_ASSERT(unit_issueimmediateorder(units[2],"stop"));T_EQ(move_unit_group(units[2]),NULL);
+        T_EQ(move_unit_group(units[0]),primary);T_EQ(move_unit_group(units[3]),primary);remove(save);
+    }
+    reset_entities();setup_test_world();
+}
+
+#include "fixtures/retail_alt_request238.h"
+TEST(wc3_movement, selected238_native_class_birth_order) {
+    FOR_LOOP(r,sizeof(alt238_rows)/sizeof(*alt238_rows)) {
+        typeof(*alt238_rows) const *row=alt238_rows+r;
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *clent=alloc_test_unit(0,0,0),*units[4];
+        clent->client=game.clients;clent->client->ps.number=0;
+        clent->client->menu.order_queued=false;clent->client->menu.order_alt=true;
+        FOR_LOOP(i,4) {
+            bool flight=row->flight&(1u<<i);
+            units[i]=alloc_test_unit(flight ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o'),512+96*(i&1),512+288*(i/2));
+            units[i]->collision=16;units[i]->s.model=1;units[i]->svflags|=SVF_MONSTER;
+            units[i]->stand=unit_stand;units[i]->movetype=MOVETYPE_STEP;unit_stand(units[i]);
+            if(flight && !(row->grounded && i==1))units[i]->aiflags|=AI_FLYING;
+            units[i]->movement.adaptive_disabled=true;
+            G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+        }
+        vec2_t goal={1536,1536};T_ASSERT(move_selectlocation(clent,&goal));
+        uint32_t offset=0;uint64_t sequence=0;
+        FOR_LOOP(g,row->count) {
+            moveGroup_t *owner=move_unit_group(units[row->members[offset]]);T_NOT_NULL(owner);
+            if(owner) {
+                T_EQ(owner->count,row->sizes[g]);T_EQ(owner->flags&14u,14u);T_ASSERT(owner->sequence>sequence);sequence=owner->sequence;
+                FOR_LOOP(i,row->sizes[g]) {T_EQ(owner->members[i].unit,units[row->members[offset+i]]);T_EQ(move_unit_group(units[row->members[offset+i]]),owner);}
+            }
+            offset+=row->sizes[g];
+        }
+        T_EQ(offset,4);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, selected238_alt_callbacks_keep_candidate_order_and_replacement) {
+    FOR_LOOP(replace,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *clent=alloc_test_unit(0,0,0);clent->client=game.clients;clent->client->ps.number=0;
+        char script[2048];snprintf(script,sizeof(script),
+            "globals\nunit a\nunit d\ninteger n=0\nboolean nested=false\ntrigger listener=null\nendglobals\n"
+            "function ordered takes nothing returns boolean\nset n=n+1\ncall SetUnitUserData(GetTriggerUnit(),n)\n"
+            "if %s and GetTriggerUnit()==d and not nested then\nset nested=true\ncall IssuePointOrder(a,\"move\",1024,1024)\nendif\nreturn true\nendfunction\n"
+            "function cleanup takes nothing returns nothing\ncall DestroyTrigger(listener)\nendfunction\n"
+            "function main takes nothing returns nothing\nset listener=CreateTrigger()\n"
+            "set a=CreateUnit(Player(0),'hfoo',512,512,0)\n"
+            "call CreateUnit(Player(0),'hgry',608,512,0)\ncall CreateUnit(Player(0),'hgry',512,800,0)\n"
+            "set d=CreateUnit(Player(0),'hfoo',608,800,0)\n"
+            "call TriggerRegisterPlayerUnitEvent(listener,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+            "call TriggerAddCondition(listener,Condition(function ordered))\nendfunction\n",replace ? "true" : "false");
+        T_ASSERT(run_test_jass(script));
+        edict_t *units[4];uint32_t count=0;
+        FILTER_EDICTS(ent,ent->inuse && (ent->class_id==MAKEFOURCC('h','f','o','o') || ent->class_id==MAKEFOURCC('h','g','r','y'))) {
+            if(count<4) {units[count++]=ent;G_SetEntitySelectionMask(ent,1);}
+        }
+        T_EQ(count,4);if(count!=4)continue;
+        clent->client->menu.order_queued=false;clent->client->menu.order_alt=true;
+        vec2_t goal={1536,1536};T_ASSERT(move_selectlocation(clent,&goal));
+        FOR_LOOP(i,4)T_EQ(units[i]->user_data,replace && i==0 ? 5 : i+1);
+        T_EQ(move_unit_group(units[1]),move_unit_group(units[2]));
+        T_NE(move_unit_group(units[0]),move_unit_group(units[1]));
+        if(replace) {moveGroup_t *nested=move_unit_group(units[0]);T_NOT_NULL(nested);if(nested){T_EQ(nested->count,1);T_EQ(nested->goal.x,1024);T_EQ(nested->goal.y,1024);}}
+        else T_EQ(move_unit_group(units[0]),move_unit_group(units[3]));
+        jass_callbyname(level.vm,"cleanup",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    reset_entities();setup_test_world();
+}
+
 /* Pending selected requests retain common coordinates and survive independent cancellation. */
 /*5fa950/67e790: selector8 is a centre-only circle;013490 supplies1000.
  *5faaf0 stops on its first compatible physical owner, in widget query order. */
