@@ -6,17 +6,36 @@
 #define UNDEAD_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
 #define BZ_AMS_SHIELD MAKEFOURCC('B', 'a', 'm', '2') // rawcode; Bam2 DataC spell-damage absorption
 
+/* The unit target and buff identity are known during cast validation. Reject
+ * a full status array before resource commitment, including item/creep aliases.
+ * Keep ROC's missing BuffID fallback identical to the execute path. */
+static cstring_t anti_magic_shell_buff(abilityitem_t const *spell, uint32_t level) {
+    float absorb = S_SpellData(spell->code, level, 3);
+    cstring_t list = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffToken(list, absorb > 0.0f ? 1 : 0);
+    return buff ? buff : (absorb > 0.0f ? "Bam2" : "Bams");
+}
+
+static bool anti_magic_shell_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    uint32_t level;
+    cstring_t buff;
+    wc3_status_apply_check_t check;
+    if (!caster || !spell || st.type != SPELL_TARGET_UNIT || !st.entity ||
+        !S_SpellIsAliveTarget(st.entity) || !S_SpellIsFriend(caster, st.entity) ||
+        !S_SpellAllowsTarget(spell->code, caster, st.entity)) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = anti_magic_shell_buff(spell, level);
+    check = unit_status_checkapplication(st.entity, &(status_application_t){ .buff = buff, .level = level });
+    return check == WC3_STATUS_APPLY_FREE_SLOT || check == WC3_STATUS_APPLY_REUSE;
+}
+
 /* DataC > 0 is the TFT melee shield (Aam2); empty DataC is ROC-style targeting immunity (Aams/ACam). */
 static void anti_magic_shell_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float absorb = S_SpellData(spell->code, level, 3);
-    cstring_t list = G_AbilityLevel(spell->code, level)->buffID;
-    cstring_t buff = S_SpellBuffToken(list, absorb > 0.0f ? 1 : 0);
+    cstring_t buff = anti_magic_shell_buff(spell, level);
     heroabilitystatus_t *slot;
-    (void)caster;
     if (!st.entity) return;
-    /* ROC AbilityData omits BuffID; UndeadAbilityStrings still names Bams as the shell buff. */
-    if (!buff) buff = absorb > 0.0f ? "Bam2" : "Bams";
     slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
                                          S_SpellResistantDuration(spell->code, level, st.entity));
     if (absorb > 0.0f && slot) slot->data = (uint32_t)absorb;
@@ -26,10 +45,10 @@ static void anti_magic_shell_execute(edict_t *caster, spellTarget_t st, abilityi
  * Ubertip="Creates a barrier that stops spells from affecting a target unit. |nLasts <Aams,Dur1> seconds."
  * Aam2 Ubertip="Creates a barrier that stops <Aam2,DataC1> points of spell damage from affecting a target unit."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityAntiMagicShell) { anti_magic_shell_execute(caster, st, spell); }
+BZ_VALIDATED_SPELL_PROC(AbilityAntiMagicShell, anti_magic_shell_validate, anti_magic_shell_execute)
 
 /* Item Instant AMS (Aami/AIxs): same Bams/Bam2 DataC path; distinct TFT class, not an Aams alias. */
-BZ_SIMPLE_SPELL_PROC(AbilityAntiMagicShellInstant) { anti_magic_shell_execute(caster, st, spell); }
+BZ_VALIDATED_SPELL_PROC(AbilityAntiMagicShellInstant, anti_magic_shell_validate, anti_magic_shell_execute)
 
 /* Bam2 is not magic-immune: spells may target the unit, but S_SpellDamage consumes the authored pool first. */
 int S_AntiMagicShellAbsorb(edict_t *target, int damage) {
@@ -665,6 +684,15 @@ static void possession_two_execute(edict_t *caster, spellTarget_t st, abilityite
     if (!st.entity) return;
     if (buffs && sscanf(buffs, "%4[^,],%4s", target_buff, caster_buff) != 2)
         fprintf(stderr, "WC3 Possession: BuffID expected Bpos,Bpoc for %08x\n", spell->code);
+
+    /* Both status owners must fit before creating the channel thinker or
+     * applying the temporary target invulnerability. */
+    wc3_status_apply_check_t target_check = unit_status_checkapplication(st.entity,
+        &(status_application_t){ .buff = target_buff, .level = level });
+    wc3_status_apply_check_t caster_check = unit_status_checkapplication(caster,
+        &(status_application_t){ .buff = caster_buff, .level = level });
+    if ((target_check != WC3_STATUS_APPLY_FREE_SLOT && target_check != WC3_STATUS_APPLY_REUSE) ||
+        (caster_check != WC3_STATUS_APPLY_FREE_SLOT && caster_check != WC3_STATUS_APPLY_REUSE)) return;
 
     thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);

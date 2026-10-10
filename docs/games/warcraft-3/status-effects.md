@@ -225,3 +225,17 @@ limit still requires separate design if more than four contributors per buff
 are needed. This is intentionally separate from spell-cast capacity preflight.
 
 Save format 84 rejects prior saves because modifier descriptor layout changed.
+
+## Targeted capacity follow-up
+
+Anti-Magic Shell (`Aams`, `Aam2` and corresponding creep/item handlers)
+checks the target's actual ROC/TFT buff identity and status capacity during
+`A_VALIDATE`, before the shared cast pipeline commits resources. `REUSE` is
+allowed; `FULL` and `INVALID` are rejected. At execution the application can
+still fail if the target changes between validation and impact.
+
+Possession Two additionally checks both target and caster status capacity
+before creating its channel thinker; this is an impact-time defensive check,
+not a complete two-target transactional allocation. Area Roar continues to
+allow partial recipient success rather than rejecting the entire cast when
+some nearby units are full.
