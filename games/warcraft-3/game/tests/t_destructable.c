@@ -38,18 +38,22 @@ TEST(wc3_destructable, spawn_uses_authored_selection_circle_size_and_radius_fall
         "C;Y2;X1;K\"Tst1\"\nC;Y2;X2;K\"Test\"\nC;Y2;X3;K80\n"
         "C;Y2;X4;K240\nC;Y2;X5;K100\nC;Y2;X6;K\"debris\"\n"
         "C;Y3;X1;K\"Tst2\"\nC;Y3;X2;K\"Test\"\nC;Y3;X3;K80\n"
-        "C;Y3;X5;K100\nC;Y3;X6;K\"debris\"\nE\n";
+        "C;Y3;X5;K100\nC;Y3;X6;K\"debris\"\n"
+        "C;Y4;X1;K\"DTg1\"\nC;Y4;X2;K\"Gate\"\nC;Y4;X3;K128\n"
+        "C;Y4;X4;K512\nC;Y4;X5;K500\nC;Y4;X6;K\"debris\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *saved = G_SetSLKRows("DestructableData", rows);
     int (*old_model_index)(cstring_t) = gi.ModelIndex;
-    edict_t *authored, *fallback;
+    edict_t *authored, *fallback, *gate;
 
     reset_entities(); setup_test_world();
     gi.ModelIndex = destructable_test_model_index;
     authored = G_Spawn(); authored->class_id = MAKEFOURCC('T','s','t','1'); SP_CallSpawn(authored);
     fallback = G_Spawn(); fallback->class_id = MAKEFOURCC('T','s','t','2'); SP_CallSpawn(fallback);
+    gate = G_Spawn(); gate->class_id = MAKEFOURCC('D','T','g','1'); SP_CallSpawn(gate);
 
     T_FEQ(authored->s.radius, 120.0f, 0.001f);
     T_FEQ(fallback->s.radius, 80.0f, 0.001f);
+    T_FEQ(gate->s.radius, 256.0f, 0.001f);
 
     gi.ModelIndex = old_model_index;
     G_SetSLKRows("DestructableData", saved);

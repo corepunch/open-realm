@@ -518,6 +518,14 @@ shipping a project-owned FDF. `UI_WriteHoverLayout` sends the frame tree once fr
 `MiscData.txt:[SelectionCircle] ScaleFactor` determine the bar width. Keep those lookups authoritative instead of copying texture
 paths or per-unit dimensions into C.
 
+Destructables publish separate hover capabilities. Only attackable `TARG_DEBRIS` destructables receive a world-hover name; trees
+publish `EF_HOVER_RING` for pointer highlighting without a nameplate or vital bar. Other destructable target classes, including
+walls, bridge ramps, and decorations, do not publish hover labels. The `DTg` gate rawcode family also publishes `EF_HOVER_HEALTH`
+when vulnerable. The TFT `Units\\DestructableData.slk` row for `DTg1` authors `selcircsize=512`; spawned destructable selection
+circles use half that authored size as `entityState_t.radius` (256), while `DestructableData.radius` remains the gameplay collision
+radius. When `selcircsize` is absent or zero, the selection-circle radius falls back to the collision radius, then to 50 world units
+if both values are zero.
+
 The displayed name comes from the race/campaign `Units\\*UnitStrings.txt` `Name` field (`unam`), merged into `UnitProfile_t.name`;
 for example, `Units\\NeutralUnitStrings.txt` defines `[nvil] Name=Villager`. `G_CustomizeEntity` interns that text into `CS_GENERAL`
 and sends its 1-based pool index through `entityState_t.name`; the generic `UI_STAT_CONTEXT_NAME` binding resolves that index while
