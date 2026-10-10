@@ -13,24 +13,6 @@
 #include "../../../client/client.h"
 #include "server/server.h"
 
-TEST(server_net, entity_delta_preserves_hover_ring_capability) {
-    uint8_t bytes[256];
-    sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
-    entityState_t from = { 0 };
-    entityState_t to = { .number = 9, .model = 1, .flags = EF_HOVER_RING };
-    entityState_t out = { 0 };
-    uint32_t bits = 0;
-    int number;
-
-    MSG_WriteDeltaEntity(&msg, &from, &to, true);
-    msg.readcount = 0;
-    number = MSG_ReadEntityBits(&msg, &bits);
-    MSG_ReadDeltaEntity(&msg, &out, number, bits);
-
-    T_EQ(number, 9);
-    T_ASSERT(out.flags & EF_HOVER_RING);
-}
-
 void test_client_stubs_init(void);
 void test_client_stubs_clear_cvars(void);
 void test_client_stubs_set_cvar(cstring_t name, cstring_t value);

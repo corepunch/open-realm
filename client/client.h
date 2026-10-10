@@ -291,9 +291,9 @@ uint32_t CL_MinimapRecentCount(void);
  * Invulnerable units may publish a name with neither bar flag. */
 static inline bool CL_EntityAllowsWorldHover(entityState_t const *state) {
     return state && state->model &&
-           ((state->flags & EF_HOVER_RING) || state->stats[ENT_HEALTH] > 0) &&
+           state->stats[ENT_HEALTH] > 0 &&
            !(state->flags & EF_NOT_SELECTABLE) &&
-           (state->name || (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOVER_RING)));
+           (state->name || (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA)));
 }
 
 entityState_t const *SCR_LayoutContextEntity(void);

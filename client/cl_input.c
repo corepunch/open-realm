@@ -441,7 +441,7 @@ static bool CL_CanHoverableEntity(uint32_t entnum) {
     }
     entityState_t const *state = &cl.ents[entnum].current;
     return CL_EntityAllowsWorldHover(state) &&
-           (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOVER_RING));
+           (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA));
 }
 
 static void CL_UpdateHover(float x, float y) {
@@ -1664,25 +1664,6 @@ static uint32_t hover_trace_calls;
 static vec2_t hover_trace_point;
 static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, uint32_t *number) {
     (void)view; hover_trace_calls++; hover_trace_point = (vec2_t){ x, y }; *number = 7; return true;
-}
-
-TEST(client_input, hover_ring_capability_allows_pointer_highlight_without_name_or_bars) {
-    entityState_t state = { .model = 1, .flags = EF_HOVER_RING };
-
-    T_ASSERT(CL_EntityAllowsWorldHover(&state));
-    T_EQ(state.name, 0);
-    T_ASSERT(!(state.flags & (EF_HOVER_HEALTH | EF_HOVER_MANA)));
-    T_ASSERT(CL_CanHoverableEntity(7) == false);
-    cl.ents[7].current = state;
-    T_ASSERT(CL_CanHoverableEntity(7));
-    cl.ents[7].current.flags |= EF_NOT_SELECTABLE;
-    T_ASSERT(!CL_CanHoverableEntity(7));
-    cl.ents[7].current = (entityState_t){ .model = 1, .stats = { [ENT_HEALTH] = 255 } };
-    T_ASSERT(!CL_CanHoverableEntity(7));
-    cl.ents[7].current.flags |= EF_HOVER_HEALTH;
-    T_ASSERT(CL_CanHoverableEntity(7));
-    state.flags = 0;
-    T_ASSERT(!CL_EntityAllowsWorldHover(&state));
 }
 
 TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {
