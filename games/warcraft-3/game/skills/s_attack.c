@@ -1204,6 +1204,11 @@ static void ai_attack_walk(edict_t *ent) {
                 unit_setmove(ent, &attack_move_melee_cooldown);
             return;
         }
+        /*495180/49a240: an in-range mobile attacker turns through Move before
+         * starting weapon windup. FLT_MAX is the request's bypass sentinel;
+         * the physical owner still enforces its independent facing gate. */
+        if(!S_UnitTargetInFacingWindow(ent,ent->goalentity,game.constants.attackHalfAngle) &&
+           S_BeginUnitTargetChase(ent,ent->goalentity,FLT_MAX,CAbilityAttack,S_AttackTargetChaseComplete))return;
         if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY)
             attack_ranged(ent);
         else

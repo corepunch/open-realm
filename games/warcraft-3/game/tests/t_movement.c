@@ -27,6 +27,7 @@
 #include "../g_local.h"
 #include "../../common/wc3_pathing_records.h"
 #include "fixtures/retail_flight_support228.h"
+#include "fixtures/retail_facing245.h"
 #include "games/warcraft-3/common/terrain.h"
 #include "games/warcraft-3/common/wc3_pathing_segment.h"
 #include "retail_public_oblique.h"
@@ -21709,6 +21710,153 @@ static void target222_arm(edict_t *unit,edict_t *target,float range) {
     unitAttack_t *attack=S_AttackProfileWrite(unit,0);
     *attack=(unitAttack_t){.type=ATK_NORMAL,.weapon=WPN_NORMAL,.range=range,
         .cooldown=1,.damageBase=1,.targetsAllowed=WC3_TARGET_FLAG_GROUND};
+}
+
+TEST(wc3_movement, policy245_facing_predicate_matches_complete_original) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    FOR_LOOP(i,sizeof(facing245_queries)/sizeof(*facing245_queries)) {
+        uint32_t const *row=facing245_queries[i].input;
+        edict_t *units[]={unit,target};
+        FOR_LOOP(k,2) {
+            units[k]->s.origin2=(vec2_t){wc3_mul(wc3_float(row[k*2]),32),wc3_mul(wc3_float(row[k*2+1]),32)};
+            units[k]->movement.fine_pose=(vec2_t){wc3_float(row[k*2]),wc3_float(row[k*2+1])};
+            units[k]->movement.pose_world=units[k]->s.origin2;units[k]->movement.pose_valid=true;
+            units[k]->movement.pose_clock=level.pathing_clock;
+            units[k]->movement.velocity=(vec2_t){0,0};
+        }
+        unit->s.angle=wc3_float(row[4]);
+        T_EQ(S_UnitTargetInFacingWindow(unit,target,wc3_float(row[5])),facing245_queries[i].output);
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+static edict_t *policy245_unit;
+static unsigned policy245_scene,policy245_cursor;
+static void policy245_commit(edict_t *unit) {
+    if(unit!=policy245_unit)return;
+    T_ASSERT(policy245_cursor<facing245_counts[policy245_scene]);
+    if(policy245_cursor>=facing245_counts[policy245_scene])return;
+    uint32_t const *row=facing245_motion[policy245_scene][policy245_cursor++];
+    uint32_t actual[]={level.pathing_counter,wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,7) {
+        T_EQ(actual[k],row[k]);
+        if(actual[k]!=row[k])fprintf(stderr,"policy245 scene=%u row=%u field=%u actual=%08x retail=%08x\n",policy245_scene,policy245_cursor-1,k,actual[k],row[k]);
+    }
+}
+
+/* Replay the physical requests captured from public Attack. Initial task
+ * admission and weapon cooldown scheduling are separate from this contract. */
+TEST(wc3_movement, policy245_physical_turn_commits_match_retail_and_cold_save) {
+    /* Persist an authored weapon mask across the cold metadata rebind. */
+    slkTestData_t *weapons=parse_slk_string("ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\n"
+        "C;Y1;X2;K\"weapsOn\"\nC;Y2;X1;K\"hRTE\"\nC;Y2;X2;K\"3\"\nE\n");
+    slkTestData_t *old_weapons=G_SetSLKRows("UnitWeapons",weapons);
+    FOR_LOOP(scene,3)FOR_LOOP(saved,3) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+        S_SetUnitAxisPosition(unit,0,800);S_SetUnitAxisPosition(unit,1,800);
+        S_SetUnitAxisPosition(target,0,900);S_SetUnitAxisPosition(target,1,800);
+        G_FowUpdate();
+        uint32_t const *input=facing245_inputs[scene];
+        level.pathing_clock.time=wc3_float(input[0]);
+        unit->movement.pose_clock=target->movement.pose_clock=level.pathing_clock;
+        unit->s.angle=wc3_float(input[3]);
+        unit->unitinfo.TurnSpeed=wc3_float(input[5]);unit->unitinfo.PropWindow=wc3_float(input[6]);
+        unit->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+        T_ASSERT(S_BeginUnitTargetChase(unit,target,FLT_MAX,CAbilityAttack,S_AttackTargetChaseComplete));
+        policy245_unit=unit;policy245_scene=scene;policy245_cursor=0;move_test_motion_commit=policy245_commit;
+        cstring_t file=Test_TempPath("wc3-policy245-journey.bin");
+        FOR_LOOP(i,facing245_counts[scene]) {
+            if(saved && i==(saved==1 ? 0 : facing245_counts[scene]/2)) {
+                T_ASSERT(WriteGame(file));S_ResetAbilityTimers();T_ASSERT(ReadGame(file));remove(file);
+                /* The headless fixture's viewer is not a network client. */
+                G_FowConnectPlayer(0);G_FowUpdate();
+            }
+            uint32_t const *row=facing245_motion[scene][i];
+            level.pathing_clock.time=wc3_float(row[1]);level.pathing_counter=row[0]-1;
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+        T_EQ(policy245_cursor,facing245_counts[scene]);T_EQ(unit->movement.group_id,0);
+        T_ASSERT(unit->attack_cooldown_active);T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
+        move_test_motion_commit=NULL;policy245_unit=NULL;
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+    G_SetSLKRows("UnitWeapons",old_weapons);free_slk_rows(weapons);
+}
+
+/* A maximum-float target range is a policy sentinel before conversion. The
+ * physical owner must turn without submitting a local or coarse search. */
+TEST(wc3_movement, policy245_target_sentinel_forces_arrival_and_preserves_owner) {
+    FOR_LOOP(saved,2) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+        unit->s.angle=wc3_float(0x40490fdbu);
+        T_ASSERT(S_BeginUnitTargetChase(unit,target,FLT_MAX,CAbilityAttack,S_AttackTargetChaseComplete));
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)continue;
+        T_EQ(group->flags&0xffffu,0x1200u);
+        T_EQ(wc3_float_bits(group->members[0].arrival_range),0x7cffffffu);
+        /* Deliberately shrink the retained numeric range. The policy itself
+         * forces range acceptance; it does not depend on a huge radius. */
+        group->members[0].arrival_range=wc3_float(0x3efae148u);
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-policy245-sentinel.bin");
+            T_ASSERT(WriteGame(file));S_ResetAbilityTimers();T_ASSERT(ReadGame(file));remove(file);
+            group=move_unit_group(unit);T_NOT_NULL(group);if(!group)continue;
+            T_EQ(group->flags&0xffffu,0x1200u);
+        }
+        vec2_t point=unit->s.origin2;uint32_t work=level.move_coarse_budgets[0][1].work;
+        target166_tick();
+        T_EQ(unit->s.origin2.x,point.x);T_EQ(unit->s.origin2.y,point.y);
+        T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+        T_EQ(level.move_coarse_budgets[0][1].work,work);
+        T_EQ(unit->movement.fine_route.count,0);
+        T_EQ(unit->movement.fine_route.adaptive_count,0);
+        T_ASSERT(unit->s.angle<wc3_float(0x40490fdbu));
+        T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->movement.group_id,0);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, policy245_public_attack_turns_before_weapon_windup) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,517);
+    float half_angle=game.constants.attackHalfAngle;game.constants.attackHalfAngle=.31f;
+    unit->s.angle=wc3_float(0x40490fdbu);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        T_EQ(group->flags&0xffffu,0x1200u);T_ASSERT(!unit->attack_cooldown_active);
+        vec2_t point=unit->s.origin2;
+        FOR_LOOP(i,20) {
+            target166_tick();T_EQ(unit->s.origin2.x,point.x);T_EQ(unit->s.origin2.y,point.y);
+            if(unit->attack_cooldown_active)break;
+        }
+        T_ASSERT(unit->attack_cooldown_active);T_EQ(unit->movement.group_id,0);
+        T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
+    }
+    game.constants.attackHalfAngle=half_angle;
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, policy245_angular_bypass_preserves_fine_destination_at_negative_bounds) {
+    reset_entities();setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{-8192,-8192},{-6144,-6144}});
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),-8160,-8160);
+    unit->movetype=MOVETYPE_STEP;unit->svflags=SVF_MONSTER;unit->stand=unit_stand;
+    S_BeginUnitFacingRequest(unit,&(moveFacingRequest_t){.angle=0,.turn=.1f});
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        vec2_t point=group->point;uint32_t work=level.move_coarse_budgets[0][1].work;
+        T_ASSERT(move_group_route(group));T_EQ(group->route.group_count,1);
+        T_EQ(wc3_float_bits(group->point.x),wc3_float_bits(point.x));
+        T_EQ(wc3_float_bits(group->point.y),wc3_float_bits(point.y));
+        T_EQ(wc3_float_bits(group->route.group_goal.x),wc3_float_bits(point.x));
+        T_EQ(wc3_float_bits(group->route.group_points[0].x),wc3_float_bits(wc3_mul(point.x,.5f)));
+        T_EQ(level.move_coarse_budgets[0][1].work,work);
+    }
+    reset_entities();setup_test_world();
 }
 
 TEST(wc3_movement, target222_attack_uses_physical_target_owner_and_survives_save) {

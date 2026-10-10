@@ -1901,6 +1901,20 @@ bool S_UnitTargetInMoveRange(edict_t const *self,edict_t const *target,float ran
     return move_target_in_range(self,target,range,true);
 }
 
+/*05b340/15f660: query both predicted centers; the squared-vector and
+ * angular deadzones are independent of Move's arrival-facing tolerance. */
+bool S_UnitTargetInFacingWindow(edict_t const *self,edict_t const *target,float half_angle) {
+    if(!self || !target)return false;
+    wc3GridPose_t source,point;unit_predicted_pose(self,&source);unit_predicted_pose(target,&point);
+    float x=wc3_sub(point.grid[0],source.grid[0]),y=wc3_sub(point.grid[1],source.grid[1]);
+    float distance=wc3_add(wc3_mul(x,x),wc3_mul(y,y));
+    float epsilon=wc3_float(0x3456bf95u);
+    if(wc3_float(wc3_float_bits(distance)&0x7fffffffu)<epsilon)return true;
+    float error=wc3_float(wc3_float_bits(wc3_heading_error(x,y,self->s.angle))&0x7fffffffu);
+    return !(half_angle<error &&
+        wc3_float(wc3_float_bits(wc3_sub(error,half_angle))&0x7fffffffu)>=epsilon);
+}
+
 /* Original05b580 prediction selector0: Blink retention reads committed fine
  * centers. It must not integrate velocity or publish either mover. */
 bool S_UnitTargetInCommittedMoveRange(edict_t const *self,edict_t const *target,float range) {
@@ -4873,7 +4887,8 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
     return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(wc3_add(wc3_div(world,2),wc3_mul(source_radius,32)),wc3_mul(target_radius,32)),32));
 }
 
-static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool persistent, float range) {
+static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool persistent, float range,
+                                           bool force_arrival) {
     /* Move->Follow shares the procedure, so unit_setmove need not dispatch
      * leave. Transfer physical ownership before installing its successor. */
     move_detach_group(unit);
@@ -4884,6 +4899,7 @@ static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->target=target; group->target_spawn=target->spawn_time;
     group->flags=0x1000u|(persistent ? 0x801u : 0); group->age=UINT32_MAX;
+    if(force_arrival)group->flags|=0x200u;
     if (S_UnitHasAbilityFlags(target,AB_MOVE_TARGET_NO_WARP)) group->flags|=0x10u;
     group->radius=unit->collision; group->request_id=unit->movement.previous_request_id;
     wc3GridPose_t pose; unit_predicted_pose(target,&pose);
@@ -4897,7 +4913,7 @@ static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool
 }
 
 static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent) {
-    move_start_target_group(unit,target,persistent,move_follow_approach_range(unit,target,persistent));
+    move_start_target_group(unit,target,persistent,move_follow_approach_range(unit,target,persistent),false);
 }
 
 /* Original05a5c0 adds world radii before converting the captured range. The
@@ -4913,7 +4929,7 @@ bool S_BeginUnitTargetApproach(edict_t *unit, edict_t *target, float range,
     float world=wc3_add(wc3_add(range,unit->collision),target->collision);
     uint32_t word=wc3_float_bits(world);
     float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
-    moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine));
+    moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine),range==FLT_MAX);
     group->receiver=receiver;group->receiver_spawn=receiver->spawn_time;group->complete=complete;
     return true;
 }
@@ -4948,7 +4964,7 @@ bool S_BeginUnitTargetChase(edict_t *unit,edict_t *target,float range,abilityPro
     float world=wc3_add(wc3_add(range,unit->collision),target->collision);
     uint32_t word=wc3_float_bits(world);
     float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
-    moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine));
+    moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine),range==FLT_MAX);
     group->receiver=unit;group->receiver_spawn=unit->spawn_time;
     group->owner_ability=index+1;group->complete=complete;
     return true;
@@ -5503,8 +5519,17 @@ static void move_group_classify(moveGroup_t *group) {
 static bool move_group_route(moveGroup_t *group) {
     /*16de50 disables acceleration for bypass cohorts;167120 appends the
      * retained destination directly. This request consumes no coarse work. */
-    if(group->turning) {
-        if(!group->initialized) {
+    if(group->flags&0x200) {
+        /* Angular admission already owns the exact fine point. Reconstructing
+         * it from the presentation/world goal loses bits at negative bounds. */
+        vec2_t point=group->point;
+        if(!group->turning) {
+            box2_t bounds=CM_GetWorldBounds();
+            point=(vec2_t){wc3_grid_coordinate(group->goal.x,bounds.min.x,32),
+                wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
+        }
+        if(!group->initialized || point.x!=group->point.x || point.y!=group->point.y) {
+            group->point=point;group->route.group_goal=point;
             G_ReserveMoveRouteBuffer(&group->route.group_points,&group->route.group_capacity,1);
             group->route.group_points[0]=(vec2_t){wc3_mul(group->point.x,.5f),wc3_mul(group->point.y,.5f)};
             group->route.group_count=1;group->route.group_index=0;
@@ -5585,7 +5610,7 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
         /* Native16a790 temporarily replaces b0 with runtime .49 during
          * unseen pursuit, then restores the retained authored arrival range. */
         .heading=unit->s.angle,.range=!group->unseen_counter ? member->arrival_range : wc3_float(0x3efae148),
-        .flags=member->forced_arrival || group->turning ? 0x10000 : 0};
+        .flags=member->forced_arrival || (group->flags&0x200) ? 0x10000 : 0};
     /* Original16a790 replaces arrival10000 from this visit's result. A cached
      * slot may cease to be reached after SetUnitX/Y or physical displacement. */
     member->flags&=~0x10000u;

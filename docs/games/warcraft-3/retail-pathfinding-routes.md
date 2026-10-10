@@ -625,8 +625,9 @@ The static path now explains what the unseen counter does:
    as reported by `6f16ce10` to group tick `6f16c150`.
 4. Flag `0x1` is set/cleared by request-payload setter `6f16dc30` and copied
    to group `+80` through the established request handoff. Target-move setup
-   `6f05a5c0` enables it together with flag `0x800` when its seventh stack
-   argument is nonzero. `CMoveReq` wrapper `6f89cb30` also exposes it;
+   `6f05a5c0` enables it together with flag `0x800` when its sixth stack
+   argument `[ebp+1c]` is nonzero. The seventh, `[ebp+20]`, sets no-warp
+   bit `0x10` when zero (Payoff245 assembly and policy-producer inventory). `CMoveReq` wrapper `6f89cb30` also exposes it;
    the previously recovered captain AI helper `6f9d1040` explicitly passes
    zero to that wrapper. The complete gameplay policy of all callers remains
    to be mapped.

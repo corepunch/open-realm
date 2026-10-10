@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "199 executable original/evidence contracts;480 total entries.",
+  "scope": "200 executable original/evidence contracts;481 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -50455,6 +50455,75 @@
         "Original category oracle executes only21e8f0..21e93e over a materialized BGRA image, not the complete decoder/constructor.",
         "Canonical group lifetime/category scopes in GROUP-04.6 remain open."
       ]
+    },
+    {
+      "id": "oracle-work245",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work245.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work245.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 348
+        },
+        "motion_commits": {
+          "equal": 150
+        },
+        "initial_commits": {
+          "equal": 134
+        },
+        "sentinel_requests": {
+          "equal": 22
+        },
+        "policy_captures": {
+          "equal": 12
+        },
+        "policy_witnesses": {
+          "equal": 16
+        },
+        "facing_queries": {
+          "equal": 320
+        },
+        "instructions": {
+          "equal": 1324
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "FORM-01.3 producer inventory and turn-only target policy: unchanged historical witnesses, exact original facing queries and complete initial physical turns with cold saves.",
+      "exclusions": [
+        "Physical requests match all captured initial turn commits, with fresh and two cold-save variants; initial public Attack task admission and cooldown scheduling remain TARGET/ORDER scope.",
+        "Facing oracle executes the complete original query/callees with zero elapsed prediction time; nonzero elapsed queries are not exhaustively certified.",
+        "Legacy runner metadata names TARGET-03.2 and its default builder/probe; actual Work245a map hash and separate build metadata identify this scenario.",
+        "Only W245 public markers are identical across observe/control. Entire preload byte streams may differ due to presentation audio.",
+        "Spacing-bit reachability is established for hash-locked stock executable references; no claim for modified executables or pointer synthesis."
+      ]
     }
   ],
   "fixtures": [
@@ -51353,7 +51422,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "a5b298c8c0bf72ae9f4bc199807f09ab8cc0ca83a5dea863aef9100f4bcfd6eb"
+      "sha256": "3eee2f007269be24327417b854e834b0173db8ecca4f7783b1dfb91de2e932b5"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -52209,7 +52278,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "ce93019cc6ba99855be74ebe876ba0b53db9243515629e191a2b347e9eb4e577"
+      "sha256": "e592020bb2c6d72b36833d4c575d20852a241c91a3071a63a841f4201e7e9ec5"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -52653,7 +52722,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "25fd3f27a0a8978b40906cacf24b50e7510b194d6f40b4b5975b9aceb8be1e47"
+      "sha256": "f60a7267ffc723ef411735f9f436cf6a263697a9c46ceb4466d2b21c0477b87e"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -52901,7 +52970,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "5bbfd2792161c53463370fc33cd9887bfb3d613a4fa8be42212607e8500019ae"
+      "sha256": "f8825431e8569aee0f8bbde7450bcb7dcefeb608d60e6e205081dabbed75f174"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -53145,7 +53214,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "c4bd138e7eed7224f4bf625a287b66d7ae9267304fdebde898d8c491d872b716"
+      "sha256": "26e9b117a3f534be31e3270da73d0ee5fc7cdf5a2c0e0892ab94674aad968f8c"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -53157,11 +53226,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "af2e508f3447dbd2ebed2d99b0ec082951425e39133d8c927793f0c94096a2a0"
+      "sha256": "c10e4e2497c7b5db8863c299efb8835fbe21cbd0930d28a8fa56fec44c6932d2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "185318763893b0fb7125e58ee3d1a1937b3d6e7bbc41d972ab93a3e83d69f6d5"
+      "sha256": "f838462e6ef0306e40db7577e9e7353d78e0bf112428d838f4f88f993637c01a"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -53169,7 +53238,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "0c07b16994c560df2f08a4396c1508b7403b1eab3585f0ae97b864ab5ef7c04b"
+      "sha256": "80579cc1946b02d56a3ca072d58e8f8bb8d70a9cbfa7023d8ae0a8e755e47cdc"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -53217,7 +53286,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_main.c",
-      "sha256": "c772246b513d98e4581f56c4cd49f7bbbede10828be15982125b35a069d2a487"
+      "sha256": "1ae39e3992a7f0ba594ae7546a6b34f565a1d7bf9f488674fe3d9ccb7c22a17b"
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
@@ -56570,6 +56639,58 @@
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_path_texture244.h",
       "sha256": "48b3e5ff69f29bcfb5e0299f5c93fdcc19caeddd195bc02b1337424006f8c70f"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work245.py",
+      "sha256": "2183940cfbf2a5030d12d67985c092175dfafc869069dcd102fd561a8065a1f8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work245-1.27.json",
+      "sha256": "ffc84ec06b4ec47ba7dd218c11f3976887b1765d3c6ba46b92fae2f4a9ac41d7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work245-1.27.json.gz",
+      "sha256": "4299bf1b53fcda8b18ea1db754cf50884904c270543de85f30a32c3b8685f43e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/FORM-01.3-expected.json",
+      "sha256": "b5eb017a5d1d28577cbc0039529cefa5c906c68a031b78f278b39694ac0c564b"
+    },
+    {
+      "path": "tools/ghidra/research/Work245Evidence.java",
+      "sha256": "c8ef1bf458ed5cab37af6235296a36d751bc2f800d2d205eca9aa30ae1ca9ff4"
+    },
+    {
+      "path": "tools/ghidra/research/work245_facing_oracle.py",
+      "sha256": "52a3198a464d03ee8fc906db7bdb82bd9deee93808bd0a4831df2f1ed68aa993"
+    },
+    {
+      "path": "tools/ghidra/research/verify_FORM-01.3_references.py",
+      "sha256": "943f2396317a38ede9ccec15f0f73254ca49794dfa47c85435102b8e3bb97153"
+    },
+    {
+      "path": "tools/frida/research/form013_policy_table.py",
+      "sha256": "f197e3765aa3b77ec2f85fdb36984c1abf4a850cf2fffa490cbddcbd5c5c787b"
+    },
+    {
+      "path": "tools/frida/research/work245_observer.js",
+      "sha256": "6dabc86e5c3ffcc202e272a96620b4fa9d0db322a4b886daf3c775345fb4422a"
+    },
+    {
+      "path": "tools/frida/research/work245_make_map.py",
+      "sha256": "3c6405dce326b72526438aea29b7aaf17229e16d80ba07dece0bd247df9d25eb"
+    },
+    {
+      "path": "tools/frida/research/work245_probe.j",
+      "sha256": "19e8d29f38ceece71733fcab1a050245e4a66d7a79596149109bdfe169697052"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_facing245.h",
+      "sha256": "4c930220b9dac9240a86c4a01937e8d9be831654e272b65aa82aff1c8584220a"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work245.py",
+      "sha256": "b77850fe8c5ed8b865a6dcd6b40628bb56935ffe732ed60edab8e8bd8f556781"
     }
   ]
 }

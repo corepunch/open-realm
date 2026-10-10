@@ -9211,16 +9211,19 @@ A fifth completed diagnostic uses Shift+Alt and two actual clicks. Its first
 idle cohort has policye, its first later singleton still has e, and four later
 singleton reconstructions have0. `5faaf0` constructs a fresh request without
 calling `89caf0` or copying the old options. Therefore this chunk does not
-blindly put Alt bits into every queued reconstruction. Queued Alt's original
-request lifetime and full motion equality remain unresolved under FORM-01.3;
-this diagnostic is not claimed as a complete queued replay match.
+blindly put Alt bits into every queued reconstruction. Payoff243/244 subsequently verify complete queued journeys and idle policy
+retention. Wider ownership work remains GROUP-04.6; this historical diagnostic
+alone does not certify that later contract.
 
-Spacing bit20 is a separate canonical policy. Its setter `16d7e0` has no
-static code xrefs; scanning the pinned image also found no absolute preferred
-entry pointer. This does not prove complete indirect unreachability. Neither
-ordinary nor Alt inputs call it. `16dc90` writes another independent bit10,
-with static callers at05a65a,05bb6a and89cd99. FORM-01.3 remains open for the
-remaining policy producers; no extra TODOs were created.
+Spacing bit20 is a separate canonical policy. Payoff245's whole-image scan finds
+no rel32 CALL/JMP or absolute entry reference for setter `16d7e0` in the stock
+image. Both initializer spacing choices are word-identical
+(`40b00001/40000000/40200000`), so mapped stock producers have no distinct
+alternate-spacing behavior. Modified binaries and pointer synthesis are excluded.
+`16dc90` is the independent bit10 that disables group coarse warp edges. Target
+`Adro` producers (`1010`/`1811`) and the CArtilleryLine point bridge are mapped;
+Payoff149 integrates the target no-warp consumer. FORM-01.3's remaining producer
+inventory is closed by Payoff245; the historical Payoff109 witnesses remain frozen.
 
 Evidence is frozen in `tools/ghidra/fixtures/retail-formation-policy-1.27*`,
 with five filtered stage streams, full source provenance and a Ghidra readback
@@ -15715,3 +15718,67 @@ Focused acceptance passes95 engine tests /122,640 assertions per Classic/TFT
 mode, plus10 evidence-mutation checks. Both production and test game modules
 build. This is implementation commit6 of12 after the successful full-suite
 checkpoint238; the full repository suite is not claimed for this chunk.
+
+## Sentinel target requests turn before attacking (Payoff245)
+
+`05a5c0` compares the **authored** range to `FLT_MAX` before adding collision
+radii and converting to fine coordinates. Equality enables canonical policy
+`0x200`; physical target bookkeeping adds `0x1000`. The retained numeric range
+is `0x7cffffff`, so testing that converted range against `FLT_MAX` loses policy.
+`16a790` forces range acceptance for these owners while retaining the independent
+`0.2`-radian arrival heading gate. `16de50`/`167120` bypass acceleration and append
+the scaled destination directly, without coarse admission, local search or work
+charges. The engine now preserves and consumes that policy for all target-request
+producers, including Attack and spell approach. Angular admission retains its
+exact fine point instead of converting it through world coordinates; a negative-
+bounds regression detects that precision loss. Policy is not inferred from a
+unit name or a large arbitrary radius.
+
+`495180` checks `05b340` before starting a ready in-range weapon swing. That query
+resolves both predicted centers and invokes `15f660`, comparing squared vector
+length and then wrapped absolute heading error using scalar epsilon `0x3456bf95`.
+The caller supplies authored `Misc.AttackHalfAngle` (stock `0.5` radians), which is
+separate from Move's narrower arrival gate. A failed query submits `49a240` with
+the sentinel range. The engine now gives an eligible mobile attacker this physical
+turn owner before windup. Missing Misc data uses the stock half-angle; authored
+zero remains meaningful.
+
+The frozen evidence contains two identical observed journeys and an unhooked
+control with all 116 public markers equal. Stock turn rate, `SetUnitTurnSpeed(.05)`
+and an already-aligned 5-degree attacker produce respectively 6, 60 and 1 initial
+zero-velocity commits before the first swing. Canonical publication is `0x200`;
+physical visits carry `0x1200` plus transient high flags. Entire preload files are
+preserved separately: their presentation audio can differ despite identical W245
+markers. The full original `15f660` and scalar callees execute without stubs for
+320 query cases, including signed zero and adjacent heading/half-angle inputs.
+The engine fixture replays the original physical requests and literal motion
+words; public Attack has an additional backwards-facing regression. Existing
+retail fixtures have not been rebased onto engine output.
+
+This closes the FORM-01.3 **policy-producer inventory**, together with the peer
+handoff's 12 captured runs/16 witness compositions, whole-image setter reference
+scan and original initializer spacing pairs. The historical handoff remains
+unchanged. UI Alt (`e`, Payoff109/243/244), captain target (`1c01`, Payoff120),
+Cargo Drop no-warp (Payoff149), stock airborne Follow (Payoff186/187), angular
+request (Payoff207) and Root (Payoff211) provide the previously missing producer
+and engine coverage. Bit20's setter has no rel32 or absolute reference in the
+hash-locked stock image; both initializer spacing choices have identical words.
+There is no alternate spacing algorithm to introduce. Modified executables or
+synthesized pointers are outside that reachability finding.
+
+**Limits:** initial public Attack task admission and cooldown scheduling are not
+certified by physical-request playback. Retail also admits an already-aligned
+initial turn owner; this chunk's public facing gate does not reproduce the entire
+initial task chain. Those broader timing/target-ownership gaps remain in existing
+TARGET/ORDER tasks. The facing oracle uses zero elapsed prediction time; it does
+not exhaustively certify every moving-target query. No new TODOs are introduced.
+
+Reproduce with `tools/ghidra/verify_wc3_pathing_work245.py --binary <retail-game.dll>
+--report <new-report.json>` using the Unicorn-enabled verification Python. It
+checks original instruction bytes, reruns the whole-image producer scan and
+scalar query, reconstructs the historical witness table, checks repeated/control
+capture provenance, then runs the affected Classic/TFT engine regressions.
+`tools/ghidra/research/Work245Evidence.java` exports instruction/xref evidence and
+saves the recovered query names/semantics in Ghidra. Raw captures, failed attempts,
+map/build metadata and test reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/FORM-01.3/payoff245/`.

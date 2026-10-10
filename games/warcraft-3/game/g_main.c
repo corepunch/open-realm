@@ -392,7 +392,7 @@ static void InitConstants(void) {
     };
     float food_ceiling, defend_deflection;
     Stb_IniCacheLoadFiles(&game.config.misc, miscdata_files);
-    InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
+    InitMiscValueDefault("AttackHalfAngle", &game.constants.attackHalfAngle, 0.5f);
     InitMiscValue("MaxCollisionRadius", &game.constants.maxCollisionRadius);
     /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 maximum movement speed. */
     InitMiscValue("DecayTime", &game.constants.decayTime);

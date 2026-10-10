@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**279 done / 336 tasks; 57 remaining.**
+**280 done / 336 tasks; 56 remaining.**
+Payoff245 closes FORM-01.3: the policy-producer inventory now has integrated
+coverage, including sentinel target owners that turn without route searches.
+Repeated retail/control captures, a complete original facing oracle and engine
+fresh/cold-save regressions retain literal retail expectations. Wider Attack
+timing remains TARGET/ORDER scope. See [sentinel requests](retail-pathfinding-engine.md#sentinel-target-requests-turn-before-attacking-payoff245).
 Payoff244 fixes file-backed footprint axes and category decoding, with complete
 mixed Alt+Shift trajectories and cold-save continuations against frozen retail
 commits. Existing bridge masks and world-space expectations are preserved.
@@ -1585,7 +1590,7 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 
 - [x] **FORM-01.1** The authored formation-rank setter and rank bits are mapped and tested. Evidence: [formation rank][formation-rank]; this does not close live group creation or other policy flags.
 - [x] **FORM-01.2** [Payoff108](retail-pathfinding-engine.md#mixed-authored-ranks-install-before-formation-layout): two complete public40-sample mixed-rank producers repeat191 ordered installation/bucket/layout observations. Six creation ranks0/1/2/3/0/1 produce buckets[0,4]/[1,5]/[2]/[3]; same-mover Chaos installs3 and changes the corresponding bucket, fresh rank3 separately installs3. Engine caches the installed rank before callbacks, refreshes on type rebind, consumes it in both layouts and persists/validates Save110. DLL-parsed spacing40b00001 fixes five public offset words; all twelve initial offsets match. Actual group regression first fails twelve coordinates, then passes with save/type regressions. Focused Classic/TFT90,455 assertions each, frozen repeat/source/negative checks, O0/O2 supplied/public C oracles and saved Ghidra mappings/labels accompany the change; broader refresh-to-motion and flag producers remain open.
-- [ ] **FORM-01.3** Trace spacing bit20 and remaining formation-policy flags to callers; publish one producer-built witness per reachable value. Payoff149 integrates captured Cargo Drop class ownership and group no-warp routing with repeated public native consumer evidence, alias/negative controls and engine save regressions; static-only producer compositions and stock flying Follow remain open. See [target gate policy](retail-pathfinding-target-warp.md). Payoff207 integrates repeated public2151b0/05c0e0 angular request ownership and independently settled visual heading, with engine fresh/save parity; Payoff211 integrates the Root d0176 producer, collision-window approach, retained public head, angular cancellation and relocation before morph, with repeated original/control evidence and cold-save regressions. Captain/static-only producers and wider policy consequences remain open. See [Root facing](retail-pathfinding-engine.md#root-approaches-then-faces-before-morphing-payoff211).
+- [x] **FORM-01.3** Trace spacing bit20 and remaining formation-policy flags to callers; publish one producer-built witness per reachable value. Payoff245 joins the unchanged peer inventory (12 captures/16 compositions), whole-image setter/reference scan and original spacing pairs to prior Alt, Captain, Cargo Drop, airborne Follow, angular and Root integrations. It fixes sentinel target requests before conversion, forced-range/heading behavior and route bypass, with two public retail repeats, an unhooked control,320 complete original facing queries and fresh/two cold-save physical turn continuations. Broader Attack admission/cooldown timing stays in existing TARGET/ORDER tasks. See [sentinel requests](retail-pathfinding-engine.md#sentinel-target-requests-turn-before-attacking-payoff245) and the [historical handoff](retail-pathfinding-handoffs/FORM-01.3/HANDOFF.md).
 
 ### FORM-02 — Layout geometry
 
