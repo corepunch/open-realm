@@ -69,6 +69,9 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
         if (!call->client) return false;
         spell_cmd(call->client);
         return true;
+    case A_TARGET_MODE_EXIT:
+        S_SpellCursorSplat(call->client, 0.0f);
+        return true;
     case A_VALIDATE: return true;
     case A_MOVE_LEAVE:
         if (ent && ent->channel && ent->channel->code == call->item->code) S_SpellCancelChannel(ent);
@@ -1109,6 +1112,20 @@ bool S_SpellPointTargetMode(edict_t *clent) {
            clent->client->menu.on_location_selected == spell_point_target_selected;
 }
 
+static void spell_target_mode_exit(edict_t *clent) {
+    abilityitem_t item = S_AbilityItem(S_SpellCurrentCode(clent, 0));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .client = clent);
+    if (item.ability) S_AbilityMessage(G_GetMainSelectedUnit(clent->client), A_TARGET_MODE_EXIT, &call);
+}
+
+/* The generic command/HUD paths can clear target selection without knowing
+ * which ability owns its cursor presentation. Dispatch cleanup through the
+ * active ability while its target callback is still available. */
+void S_AbilityTargetModeExit(edict_t *clent) {
+    if (!S_SpellPointTargetMode(clent)) return;
+    spell_target_mode_exit(clent);
+}
+
 bool S_SpellPointTargetEntity(edict_t *clent, edict_t *target) {
     if (!S_SpellPointTargetMode(clent) || !target || !target->inuse) return false;
     return spell_point_target_selected(clent, &target->s.origin2);
@@ -1536,6 +1553,7 @@ void spell_cmd(edict_t *clent) {
             return;
         }
         UI_AddCancelButton(clent);
+        clent->client->menu.ability_code = code;
         if (!spell_is_tiny_structure(spell)) {
             float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
             S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
