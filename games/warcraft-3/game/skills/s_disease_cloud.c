@@ -39,7 +39,7 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
         if (!slot || !S_UnitHasStatus(target, slot->code)) {
             slot = S_SpellApplyTimedStatus(target, buff, ability.level, row->data[0].number);
             if (!slot) continue;
-            slot->data = ability.alias; slot->rank = ability.level;
+            slot->data = ability.alias; slot->source_ability = ability.alias; slot->rank = ability.level;
             slot->source = ent; slot->source_spawn_time = ent->spawn_time;
             slot->next_tick = G_Time() + DISEASE_TICK_MS;
         } else if (S_SpellStatusSource(slot) == ent) {

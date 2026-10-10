@@ -1436,7 +1436,7 @@ void unit_statusdeath(edict_t *ent) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *slot = ent->abilstatus + i;
         if (slot->level && (!slot->timestamp || slot->timestamp > G_Time()))
-            UnitDispatchStatus(ent, slot, slot->data, A_STATUS_DEATH, STATUS_REMOVE_DEATH);
+            UnitDispatchStatus(ent, slot, (slot->source_ability ? slot->source_ability : slot->data), A_STATUS_DEATH, STATUS_REMOVE_DEATH);
     }
 }
 
@@ -1448,7 +1448,7 @@ void unit_refreshstatusflags(edict_t *ent) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
         if (unit_status_stuns(status->code)) stunned = true;
-        UnitDispatchStatus(ent, status, status->data, A_STATUS_REFRESH, STATUS_REMOVE_SCRIPT);
+        UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_REFRESH, STATUS_REMOVE_SCRIPT);
     }
     ent->stunned = stunned;
 }
@@ -1459,7 +1459,7 @@ void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_
     uint32_t origin;
     if (!ent || !status || !status->level) return;
     S_HumanStatusExpired(ent, status->code, status->level);
-    origin = status->data;
+    origin = status->source_ability ? status->source_ability : status->data;
     UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE, reason);
     memset(status, 0, sizeof(*status));
 }
@@ -1491,7 +1491,7 @@ void unit_updatestatuses(edict_t *ent) {
             unit_timed_status_log("expire", ent, status);
             unit_removestatus(ent, status, STATUS_REMOVE_EXPIRE);
             changed = true;
-        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, status->data, A_STATUS_TICK, STATUS_REMOVE_SCRIPT);
+        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_TICK, STATUS_REMOVE_SCRIPT);
     }
     if (changed) {
         unit_refreshstatusflags(ent);
@@ -1508,7 +1508,10 @@ void unit_updatestatuses(edict_t *ent) {
     }
 }
 
-void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float duration) {
+heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *app) {
+    cstring_t skill = app ? app->buff : NULL;
+    uint32_t level = app ? app->level : 0;
+    float duration = app ? app->duration : 0.0f;
     uint32_t code;
     uint32_t now;
     uint32_t duration_ms;
@@ -1516,7 +1519,7 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
     cstring_t stacktype;
 
     if (!ent || !skill || !*skill || level == 0) {
-        return;
+        return NULL;
     }
 
     code = *((uint32_t const *)skill);
@@ -1545,9 +1548,12 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
                 unit_removestatus(ent, status, STATUS_REMOVE_REPLACED);
                 status->code = code;
                 status->level = level;
-                status->data = 0;
-                status->source = NULL;
-                status->source_spawn_time = status->rank = status->next_tick = 0;
+                status->data = app->data;
+                status->source_ability = app->source_ability;
+                status->source = app->source;
+                status->source_spawn_time = app->source ? app->source->spawn_time : 0;
+                status->rank = app->rank;
+                status->next_tick = 0;
                 if (duration_ms) {
                     status->timestamp = now + duration_ms;
                     status->duration_ms = duration_ms;
@@ -1559,26 +1565,36 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
             unit_refreshstatusflags(ent);
             unit_timed_status_log("refresh", ent, status);
             G_InvalidateUnitInfoPanel(ent);
-            return;
+            return status;
         }
         if (!status->level && !slot) {
             slot = status;
         }
     }
     if (!slot) {
-        return;
+        return NULL;
     }
 
     slot->code = code;
     slot->level = level;
     slot->timestamp = duration_ms ? now + duration_ms : 0;
     slot->duration_ms = duration_ms;
-    slot->data = 0;
-    slot->source = NULL;
-    slot->source_spawn_time = slot->rank = slot->next_tick = 0;
+    slot->data = app->data;
+    slot->source_ability = app->source_ability;
+    slot->source = app->source;
+    slot->source_spawn_time = app->source ? app->source->spawn_time : 0;
+    slot->rank = app->rank;
+    slot->next_tick = 0;
     unit_refreshstatusflags(ent);
     unit_timed_status_log("add", ent, slot);
     G_InvalidateUnitInfoPanel(ent);
+    return slot;
+}
+
+
+void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float duration) {
+    status_application_t app = { .buff = skill, .level = level, .duration = duration };
+    (void)unit_applystatus(ent, &app);
 }
 
 void unit_addstatus(edict_t *ent, cstring_t skill, uint32_t level) {

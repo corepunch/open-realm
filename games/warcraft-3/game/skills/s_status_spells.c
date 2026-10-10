@@ -169,6 +169,7 @@ static void poison_apply(edict_t *attacker, edict_t *target, uint32_t code, uint
          * starts a fresh one-second phase. */
         if (slot && buff_index == 0) {
             slot->data = code;
+            slot->source_ability = code;
             slot->rank = level;
             slot->source = attacker;
             slot->source_spawn_time = attacker->spawn_time;
