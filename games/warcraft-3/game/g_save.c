@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format156 retains the ability owning a physical target chase. */
-static uint32_t const save_version = 156;
+/* Format157 retains independent Attack target subscriptions and point recovery. */
+static uint32_t const save_version = 157;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -163,6 +163,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(morph_end),
     SAVE_CFUNCTION(S_AncientFacingComplete),
     SAVE_CFUNCTION(S_AttackTargetChaseComplete),
+    SAVE_CFUNCTION(S_AttackRecoveryComplete),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -635,6 +636,7 @@ static field_t const level_fields[] = {
     F(level_locals, next_move_group_id, F_INT),
     F(level_locals, next_move_group_sequence, F_INT, 2),
     F(level_locals, next_follow_sequence, F_INT, 2),
+    F(level_locals, next_attack_target_sequence, F_INT, 2),
     F(level_locals, next_move_shared_id, F_INT, 2),
     F(level_locals, next_unit_seq, F_INT, 2),
     F(level_locals, move_shared, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1235,6 +1237,8 @@ field_t edict_fields[] = {
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
     F(edict_s, current_order_id, F_INT),
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, attack_target, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, attack_target_sequence, F_INT, 2),
     F(edict_s, attack_target_spawn_time, F_INT),
     F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spell_item, F_EDICT, 0, FIELD_NONE),
@@ -2337,7 +2341,7 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
         uintptr_t ptr=(uintptr_t)group->receiver,base=(uintptr_t)g_edicts;
         if(ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts) ||
            !group->receiver->inuse || G_IsDeferredFree(group->receiver) ||
-           group->receiver->spawn_time!=group->receiver_spawn || (!group->target && !group->turning) ||
+           group->receiver->spawn_time!=group->receiver_spawn || (!group->target && !group->turning && !group->owner_ability) ||
            group->count!=1 || (group->flags&1) || !group->complete || SaveCFunctionIndex((void *)group->complete)<1)
             return false;
     } else if(group->receiver_spawn || group->complete)return false;
@@ -2370,9 +2374,9 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
             if (group->target->movement.captain_actor_type) {
                 if (!unit->movement.captain_home.active || unit->movement.captain_home.actor!=group->target) return false;
             } else if (unit->goalentity!=group->target || (!group->owner_ability && unit->movement.follow_target!=group->target)) return false;
-            if(group->owner_ability && (group->receiver!=unit || !unit->currentmove ||
-                unit->currentmove->proc!=GetAbilityByIndex(group->owner_ability-1)->proc))return false;
         }
+        if(group->owner_ability && (group->receiver!=unit || !unit->currentmove ||
+            unit->currentmove->proc!=GetAbilityByIndex(group->owner_ability-1)->proc))return false;
         FOR_LOOP(j,i) if (group->members[j].unit==unit) return false;
     }
     return true;
@@ -3070,6 +3074,7 @@ bool WriteGame(cstring_t filename) {
     if (!S_ValidateWaygateIds()) { fprintf(stderr,"WC3 SaveGame: invalid Way Gate identities\n"); goto done; }
     if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 SaveGame: invalid unit owned-pool order\n"); goto done; }
     if (!S_ValidateMoveFollows()) { fprintf(stderr,"WC3 SaveGame: invalid Follow subscriptions\n"); goto done; }
+    if (!S_ValidateAttackTargets()) { fprintf(stderr,"WC3 SaveGame: invalid Attack subscriptions\n"); goto done; }
     if (!S_ValidateCaptainHomeActors(false)) { fprintf(stderr,"WC3 SaveGame: invalid captain actor references\n"); goto done; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 SaveGame: invalid fine-request FIFO\n"); goto done; }
     if (!S_ValidateMoveCoarseRequests()) { fprintf(stderr,"WC3 SaveGame: invalid coarse-request FIFOs\n"); goto done; }
@@ -3285,6 +3290,7 @@ bool ReadGame(cstring_t filename) {
     }
     if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 LoadGame: invalid unit owned-pool order\n"); fclose(f); return false; }
     if (!S_ValidateMoveFollows()) { fprintf(stderr,"WC3 LoadGame: invalid Follow subscriptions\n"); fclose(f); return false; }
+    if (!S_ValidateAttackTargets()) { fprintf(stderr,"WC3 LoadGame: invalid Attack subscriptions\n"); fclose(f); return false; }
     if (!S_ValidateCaptainHomeActors(true)) { fprintf(stderr,"WC3 LoadGame: invalid captain actor references\n"); fclose(f); return false; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
     if (!ReadMoveShared(f)) { fprintf(stderr,"WC3 LoadGame: failed at shared Move parameters\n"); fclose(f); return false; }
@@ -4020,7 +4026,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
+    uint32_t const old_versions[] = { 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

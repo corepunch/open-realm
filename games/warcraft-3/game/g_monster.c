@@ -32,6 +32,8 @@ void M_TrackMove(edict_t const *ent) {
 /* Raw transitions keep their existing animation/leave policy, but must update
  * derived owner membership just like ordinary unit_setmove transitions. */
 void M_SetMove(edict_t *ent, umove_t *move) {
+    if(ent->currentmove && (!move || ent->currentmove->proc!=move->proc))
+        S_UnitAbilityMoveChanged(ent,move ? move->proc : NULL);
     ent->currentmove=move; M_TrackMove(ent);
 }
 

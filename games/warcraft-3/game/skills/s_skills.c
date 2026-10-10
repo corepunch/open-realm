@@ -1542,6 +1542,14 @@ void S_UnitAbilityMoveLeave(edict_t *ent, abilityProc_t next_move_proc) {
         unit_dispatch_authored_abilities(ent, A_MOVE_LEAVE, &call, false, true, true);
 }
 
+/* Raw state replacement still retires intrinsic behavior ownership. Keep the
+ * authored animation/leave policy in unit_setmove; indexed owners cannot rely
+ * on that wrapper being used by every forced transition. */
+void S_UnitAbilityMoveChanged(edict_t *ent,abilityProc_t next_move_proc) {
+    abilityCall_t call={.next_move_proc=next_move_proc};
+    unit_dispatch_engine_event_abilities(ent,A_MOVE_LEAVE,&call);
+}
+
 bool S_UnitAbilityMoveArrive(edict_t *ent) {
     return ent && unit_dispatch_authored_abilities(ent, A_MOVE_ARRIVE, NULL, true, false, false) != 0;
 }

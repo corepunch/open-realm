@@ -1,5 +1,10 @@
 # Warcraft III Save/Load
 
+Save157 retains Attack target identity/incarnation and ordered subscription rank,
+rebuilds derived target lists, and validates ability-owned point recovery groups.
+Save156 and earlier layouts are rejected. The network contract is unchanged.
+See [Attack TargetLost recovery](retail-pathfinding-engine.md#attack-targetlost-retains-a-point-recovery-task-payoff223).
+
 Save156 retains the ability index owning a physical target chase and its
 registered completion callback. Load validates owner, receiver and member/task
 identity and preserves cached target samples and retained combat parents.

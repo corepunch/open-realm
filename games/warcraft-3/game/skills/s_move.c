@@ -5015,8 +5015,24 @@ static void move_start_point_group(edict_t *actor,vec2_t const *home,float range
     group->goal=*home; group->age=UINT32_MAX; group->radius=actor->collision;
     group->members[group->count++]=(moveGroupMember_t){.unit=actor,.spawn=actor->spawn_time,
         .arrival_range=wc3_point_arrival_range(range)};
-    actor->movement.group_id=group->id;
+    actor->movement.group_id=group->id;move_unit_groups[actor-g_edicts]=group;
     move_group_seed_route(group); group->ticking=false;
+}
+
+/* Internal point tasks retain their requesting ability's public order.
+ * Arrival range is supplied world range /32, independently of collision. */
+bool S_BeginUnitPointApproach(edict_t *unit,vec2_t const *point,float range,abilityProc_t owner,
+                            void (*complete)(edict_t *,edict_t *,bool)) {
+    uint32_t index=GetAbilityIndex(owner);
+    if(!unit || !point || !complete || !owner || index==255 ||
+       !unit->currentmove || unit->currentmove->proc!=owner || !S_UnitCanTranslate(unit))return false;
+    move_leave(unit);move_reset_local_path(unit);
+    unit->movement.flat_speed_bonus=S_MoveSpeedBonus(unit);
+    move_start_point_group(unit,point,range);
+    moveGroup_t *group=move_unit_group(unit);
+    group->receiver=unit;group->receiver_spawn=unit->spawn_time;
+    group->owner_ability=index+1;group->complete=complete;
+    return true;
 }
 
 /* Native2151b0 ->05c0e0 publishes a bridge-owned physical request. It retains

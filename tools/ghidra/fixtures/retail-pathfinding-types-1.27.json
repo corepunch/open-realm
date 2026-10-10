@@ -17287,7 +17287,7 @@
       "name": "Attack_OnTargetLost",
       "returns": "void",
       "convention": "__thiscall",
-      "evidence": "Payoff222: Attack dispatch d01a4. Resolves task target6c/70 and validates4968e0(target,0,&slot), detection-only. Invalid sets flags20 bit40000 before49d280(0,0). Invisibility with TrueSight scene3 remains valid; both stock-Apiv combat controls (scenes2/3, without/with extra TrueSight) validate0 in this producer; they do not establish undetected-loss behavior. Move's5fb940 is not invoked by Attack's loss validation.",
+      "evidence": "Payoff222: Attack dispatch d01a4. Resolves task target6c/70 and validates4968e0(target,0,&slot), detection-only. Invalid sets flags20 bit40000 before49d280(0,0). Invisibility with TrueSight scene3 remains valid; both stock-Apiv combat controls (scenes2/3, without/with extra TrueSight) validate0 in this producer; they do not establish undetected-loss behavior. Move's5fb940 is not invoked by Attack's loss validation.\nPayoff223: controlled live shared-vision-off repeats/control distinguish Apiv undetected dd, TrueSight valid0, ShowUnit false aa, death dd, removal aa. At49b5b7 visibility argument0 retains detection-only semantics. Invalid sets40000 and calls49d280 at49b594. Earlier222 Apiv controls inherited shared vision and remain correctly limited. Engine now delivers indexed Attack subscriptions separately from retained Move parents.",
       "parameters": [
         {
           "name": "ability",
@@ -17301,7 +17301,7 @@
       "name": "Attack_RecoverTargetTask",
       "returns": "void",
       "convention": "__thiscall",
-      "evidence": "Payoff222: active flag4 controls recovery. Bit40000 can capture the real target point and max enabled weapon range+target radius+50, release target/windup497e20, stop/recover, then prepend internal d016c point task. Fog-arrival invalidation without40000 does not use that fallback. Full recovery/task-stack engine integration remains open.",
+      "evidence": "Payoff222: active flag4 controls recovery. Bit40000 can capture the real target point and max enabled weapon range+target radius+50, release target/windup497e20, stop/recover, then prepend internal d016c point task. Fog-arrival invalidation without40000 does not use that fallback. Full recovery/task-stack engine integration remains open.\nPayoff223: four invalidation scenes capture actual predicted target XY through058900/05a970, range4985c0 maximum enabled weapon +05aa20 target radius +RuntimeFifty, then497e20 release before692120 caller49d490 prepends d016c. Public Attack head remains identical during task creation and retires after point recovery. TrueSight valid control creates no recovery. Engine integrates ground-unit chase recovery; complete initial/turn-only, flyers, structures and Blink exception remain open.",
       "parameters": [
         {
           "name": "ability",
@@ -17317,6 +17317,39 @@
           "name": "target_event",
           "type": "ptr:void",
           "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f497190",
+      "name": "Attack_PopRecoveryTaskChain",
+      "returns": "u8",
+      "convention": "__thiscall",
+      "evidence": "Payoff223: ECX Attack, no stack parameters, return AL bool. d016a retains independent +200 wait and returns false. d0169 pops then false. Otherwise pop d0168, optional d0163, then d016f; true only when d016f popped, admitting point recovery. Engine bounds point fallback to active physical ground chase and preserves existing independent swing finish; full task-stack timing remains open.",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f05aa20",
+      "name": "MoveBridge_QueryCollisionRadius",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "evidence": "Payoff223: ECX bridge, stack4 output scalar pointer, RET4 and EAX output pointer. Resolve canonical identity8/c, read radius90 in fine units, add exponent02800000 only for nonzero exponent to produce world radius.49d280 queries target radius for recovery range; source radius is absent from that capture.",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
         }
       ]
     }

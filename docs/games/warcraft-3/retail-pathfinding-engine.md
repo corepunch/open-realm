@@ -15094,3 +15094,87 @@ retirement/notification path. Eleven evidence mutation checks and37 corpus tests
 pass, all457 prior corpus entries remain identical, and all1,319 staged source
 pins agree. The fresh corpus oracle verifies this build. Production/test builds
 pass; no new full repository suite or performance result is claimed.
+
+## Attack TargetLost retains a point recovery task (Payoff223)
+
+Attack now owns an indexed TargetLost subscription independently of retained
+Follow/Patrol/Attack-Move parents. Bind/unbind is O(1); notification freezes only
+that target's subscribers and visits O(subscribers), including nested delivery
+and registration replacement. Authoritative registration ranks survive cold
+save/load; derived lists rebuild in that order. Three subscribers still require
+three visits with4096 unrelated entities present. This is a complexity check,
+not an FPS measurement.
+
+Original `49b420` validates detection-only at `49b5b7`. Controlled repeated
+public probes with shared vision explicitly disabled produce `dd` for undetected
+Permanent Invisibility, `aa` for ShowUnit(false), `dd` for KillUnit and `aa` for
+RemoveUnit. True Sight yields zero and retains the same chase. The earlier
+Payoff222 invisibility controls inherited campaign shared vision; their limited
+valid results and frozen expectations remain unchanged. The new map explicitly
+controls that input instead of rewriting the previous fixture.
+
+For an invalid target during a physical ground-unit chase, `49d280` captures
+its **actual predicted world pose**, not Move's fog-frozen destination or the
+order's issue-time point. Range is the maximum enabled weapon range (`4985c0`)
+plus target collision radius (`05aa20`) plus retail `Math_RuntimeFifty`.
+`497e20` releases the target/windup before `692120` at `49d490` prepends internal
+`d016c`. The same public Attack head remains active until point completion.
+`497190` only admits that fallback after removing the appropriate target and
+initial-approach task chain; `d016a` retains the independent swing wait.
+The engine bounds this integration to an active ground-unit chase and retains
+its existing independent swing-finishing path.
+
+Move owns the resulting ability-owned point group. `05b440` adds source
+collision radius to the admission predicate; accepted `05b970` arrival range is
+`max(.49, captured_world_range/32)` and does not add source radius. Non-stock
+radii and two weapon ranges verify that distinction. Recovery clears the
+Attack target subscription, retains the public FIFO head, can be canceled by
+Stop, and completes before a queued Move begins. Showing/revealing the old
+target cannot turn the frozen recovery point back into target pursuit.
+
+Forced raw movement transitions also retire intrinsic behavior ownership via
+`M_SetMove`, preserving the raw animation/authored-leave policy. A failing
+Cyclone regression exposed an otherwise stale Attack subscription and physical
+owner that made saving invalid. Replacing Attack with a new target explicitly
+releases the previous physical chase, even when the animation move is the same.
+Both failures are fixed in their lifecycle owners.
+
+Save157 stores the Attack target reference and registration rank, validates
+live target/incarnation/task consistency and unique ordered ranks, and rebuilds
+subscriptions. Ability-owned point groups validate their receiver, callback and
+public task on load. Save156 and older layouts are rejected; network fields
+are unchanged. Six new production regressions pass241 assertions in each of
+Classic and TFT. Scope includes actual hide/death/removal producers, undetected,
+detector and shared-vision controls, fog-frozen versus queried pose, non-stock
+weapon/radius defaults, cold recovery/FIFO, Stop, ordered/nested notifications,
+4096 unrelated entities, forced Cyclone and target replacement. The fixture
+archive omits UnitWeapons: the subscription cold-save test installs a scoped
+authored row so restoration resolves the real slot mask, and the detector test
+uses a real player slot. Existing expectations are unchanged.
+
+Frozen evidence:
+[`retail-attack-recovery223-1.27.json`](../../../tools/ghidra/fixtures/retail-attack-recovery223-1.27.json)
+and its compressed original bundle retain two read-only observations and one
+unhooked control,999 identical public markers per run across five scenes.
+The verifier checks1283 original instruction encodings and exact observed
+validation, recovery ordering, captured point/range and retained public head.
+Twelve mutation tests reject incomplete or altered evidence. Ghidra names,
+explicit register/stack ABIs, comments and xrefs are saved and mirrored in
+`MapPathfinding.java`/the type fixture; `Target223Evidence.java` exports the
+original instructions. Reproducers are
+`tools/frida/research/target223_{capture.py,observer.js,make_map.py,probe.j}`.
+Captures, invalid paused-fade attempts, shared-vision controls, source/map pins,
+Ghidra readback and validation are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/payoff223/`.
+
+Final focused validation passes1109 tests /196,748 assertions per Classic/TFT
+mode. The fresh corpus verifies both Attack chase and recovery oracles; all458
+prior entries remain unchanged and all1,328 staged source pins agree. The new
+entry brings the corpus to459 entries /178 original-code oracles. The37 corpus
+Python tests pass. Production/test builds pass.
+
+This is focused implementation commit9/12 since checkpoint214. TARGET-03.2
+remains open for its wider policy matrix, complete initial/turn-only task timing,
+flyers, structures/destructables and Blink exceptions. Passing policy/regression
+checks does not establish word-exact complete Attack motion or a performance
+budget result. No existing retail fixture is replaced.

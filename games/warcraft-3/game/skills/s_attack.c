@@ -45,10 +45,123 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target,
 static void attack_set_cooldown(edict_t *ent, float seconds);
 static unitAttack_t const *attack_ground_profile(edict_t const *ent);
 
+/* Attack's TargetLost subscription is independent of retained Move parents.
+ * Per-target lists cost O(1) to bind/unbind and O(subscribers) to deliver. Save
+ * logical registration ranks; rebuild these derived links in that order. */
+typedef struct { uint16_t target,prev,next; } attackTargetLink_t;
+typedef struct { uint16_t head,tail; uint32_t count; } attackTargetList_t;
+static attackTargetLink_t attack_target_links[MAX_ENTITIES];
+static attackTargetList_t attack_target_lists[MAX_ENTITIES];
+#ifdef BZ_TESTS
+static uint32_t attack_target_visits;
+static void (*attack_test_target_lost)(edict_t *);
+#endif
+
+static uint16_t attack_target_identity(edict_t const *unit) {
+    uintptr_t offset=(uintptr_t)unit-(uintptr_t)g_edicts;
+    return g_edicts && offset<sizeof(*unit)*MAX_ENTITIES && !(offset%sizeof(*unit)) ?
+        (uint16_t)(offset/sizeof(*unit)+1) : 0;
+}
+
+static void attack_target_unlink(uint16_t id) {
+    attackTargetLink_t *link=attack_target_links+id-1;
+    if(!link->target)return;
+    attackTargetList_t *list=attack_target_lists+link->target-1;
+    if(link->prev)attack_target_links[link->prev-1].next=link->next;
+    else list->head=link->next;
+    if(link->next)attack_target_links[link->next-1].prev=link->prev;
+    else list->tail=link->prev;
+    assert(list->count);list->count--;*link=(attackTargetLink_t){0};
+}
+
+static void attack_target_link(uint16_t id,uint16_t target) {
+    attackTargetList_t *list=attack_target_lists+target-1;
+    attack_target_links[id-1]=(attackTargetLink_t){target,list->tail,0};
+    if(list->tail)attack_target_links[list->tail-1].next=id;
+    else list->head=id;
+    list->tail=id;list->count++;
+}
+
+static void attack_set_target(edict_t *unit,edict_t *target) {
+    uint16_t id=attack_target_identity(unit),other=attack_target_identity(target);
+    if(id)attack_target_unlink(id);
+    unit->attack_target=target;unit->attack_target_spawn_time=target ? target->spawn_time : 0;
+    if(target && level.next_attack_target_sequence==UINT64_MAX)gi.error("Attack: exhausted target subscription sequence");
+    unit->attack_target_sequence=target ? ++level.next_attack_target_sequence : 0;
+    if(id && other)attack_target_link(id,other);
+}
+
+static int attack_target_compare(void const *a,void const *b) {
+    edict_t const *x=g_edicts+*(uint16_t const *)a,*y=g_edicts+*(uint16_t const *)b;
+    return (x->attack_target_sequence>y->attack_target_sequence)-
+        (x->attack_target_sequence<y->attack_target_sequence);
+}
+
+bool S_ValidateAttackTargets(void) {
+    uint16_t units[MAX_ENTITIES];uint32_t count=0;
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t const *unit=g_edicts+i,*target=unit->attack_target;
+        if(!unit->inuse)continue;
+        if(!target) {if(unit->attack_target_sequence)return false;continue;}
+        if(!attack_target_identity(target) || !target->inuse || G_IsDeferredFree(target) ||
+           unit->goalentity!=target || !unit->currentmove || unit->currentmove->proc!=CAbilityAttack ||
+           unit->attack_target_spawn_time!=target->spawn_time || !unit->attack_target_sequence ||
+           unit->attack_target_sequence>level.next_attack_target_sequence)return false;
+        units[count++]=i;
+    }
+    qsort(units,count,sizeof(*units),attack_target_compare);
+    FOR_LOOP(i,count)if(i && !attack_target_compare(units+i-1,units+i))return false;
+    return true;
+}
+
+static void attack_targets_reset(void) {
+    memset(attack_target_links,0,sizeof(attack_target_links));memset(attack_target_lists,0,sizeof(attack_target_lists));
+}
+
+static void attack_targets_rebuild(void) {
+    uint16_t units[MAX_ENTITIES];uint32_t count=0;
+    attack_targets_reset();
+    FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].attack_target)units[count++]=i;
+    qsort(units,count,sizeof(*units),attack_target_compare);
+    FOR_LOOP(i,count) {
+        edict_t *unit=g_edicts+units[i];uint16_t target=attack_target_identity(unit->attack_target);
+        if(target)attack_target_link(units[i]+1,target);
+    }
+}
+
+static void attack_target_lost(edict_t *unit,edict_t *target);
+
+/* Freeze this notification's registration frontier before callbacks. Removal,
+ * reuse or reissue must not deliver a new registration in the outer pass. */
+static void attack_deliver_target_lost(edict_t *target) {
+    uint16_t id=attack_target_identity(target);
+    if(!id || !attack_target_lists[id-1].count)return;
+    uint32_t count=attack_target_lists[id-1].count,pos=0;
+    struct {uint64_t sequence;uint32_t incarnation;uint16_t index;} delivery[count];
+    for(uint16_t next=attack_target_lists[id-1].head;next;next=attack_target_links[next-1].next) {
+        edict_t *unit=g_edicts+next-1;
+        delivery[pos++]=(typeof(delivery[0])){unit->attack_target_sequence,unit->spawn_time,next-1};
+    }
+    assert(pos==count);
+    FOR_LOOP(i,count) {
+        edict_t *unit=g_edicts+delivery[i].index;
+        if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
+           unit->attack_target_sequence!=delivery[i].sequence || unit->attack_target!=target)continue;
+#ifdef BZ_TESTS
+        attack_target_visits++;
+        if(attack_test_target_lost)attack_test_target_lost(unit);
+        if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
+           unit->attack_target_sequence!=delivery[i].sequence || unit->attack_target!=target)continue;
+#endif
+        attack_target_lost(unit,target);
+    }
+}
+
 /* Attack's exact primary requests: O(log n) arm/cancel, O(1) earliest
  * deadline. These indexes are derived; only deadline/serial/active are saved. */
 /* Native startup001d70 /001c80 and Math_RoundHalf; these are not map tuning. */
 #define ATTACK_MINIMUM_CHASE_RANGE 32.0f /* Native00b5d0 ->d6bf64. */
+#define ATTACK_TARGET_RECOVERY_MARGIN 50.0f /* Native49d280 Math_RuntimeFifty. */
 #define ATTACK_AI_HELP_RADIUS 900.0f
 #define ATTACK_HELP_SUPPRESSION 3.0f
 #define ATTACK_AI_HELP_SUPPRESSION 0.5f
@@ -468,7 +581,7 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target,
         attacker->movement.patrol_a != NULL, attacker->movement.follow_target != NULL);
     unit_leavecombat(attacker);
     S_SetMoveGoal(attacker, &attacker->goalentity, NULL);
-    attacker->attack_target_spawn_time = 0;
+    attack_set_target(attacker,NULL);
     attacker->movement.explicit_allied_attack = false;
     /* Native497e20 releases the target, but d016a waits on the independent
      * +200 timer. Retain the public head/FIFO until d01b2, never until cooldown. */
@@ -1114,6 +1227,46 @@ void S_AttackTargetChaseComplete(edict_t *receiver,edict_t *unit,bool arrived) {
 
 static umove_t attack_move_walk = { .animation="walk", .think=ai_attack_walk, .proc=CAbilityAttack,
     .sample_pose=S_PublishMovement, .leave=attack_chase_leave };
+/* Move owns the d016c point recovery; Attack retains its public head and
+ * independent swing deadline. No target validation may reacquire this point. */
+static umove_t attack_move_recovery = { .animation="walk", .proc=CAbilityAttack,
+    .sample_pose=S_PublishMovement, .leave=attack_chase_leave };
+
+void S_AttackRecoveryComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(receiver==unit && unit->currentmove==&attack_move_recovery)
+        attack_finish_after_combat(unit,unit->goalentity,arrived ? "recovery_arrival" : "recovery_unreachable");
+}
+
+static void attack_target_lost(edict_t *unit,edict_t *target) {
+    if(!unit->currentmove || unit->currentmove->proc!=CAbilityAttack || unit->goalentity!=target)return;
+    /*49b420 validates detection, not fog. A valid target keeps the same owner. */
+    if(!G_IsDeferredFree(target) && S_AttackCanTarget(unit,target) &&
+       unit->attack_target_spawn_time==target->spawn_time)return;
+    if(S_UnitTargetChaseActive(unit,CAbilityAttack) && target->inuse &&
+       unit->attack_target_spawn_time==target->spawn_time) {
+        /*49d280 queries the actual predicted pose, never Move's fog-frozen
+         * sample or the order's issue-time coordinate. Add target radius only;
+         *05b440 adds source radius to admission,05b970 does not to arrival. */
+        float fine[2];S_PredictUnitFinePointAt(target,&level.pathing_clock,fine);
+        box2_t bounds=CM_GetWorldBounds();
+        vec2_t point={wc3_world_coordinate(fine[0],bounds.min.x,32),
+            wc3_world_coordinate(fine[1],bounds.min.y,32)};float range=0;
+        FOR_LOOP(slot,2)if(S_UnitAttackSlotEnabled(unit,slot))range=MAX(range,S_AttackProfileRead(unit,slot)->range);
+        range=wc3_add(wc3_add(range,target->collision),ATTACK_TARGET_RECOVERY_MARGIN);
+        S_EndUnitTargetChase(unit,CAbilityAttack);attack_set_target(unit,NULL);
+        unit_leavecombat(unit);
+        S_SetMoveGoal(unit,&unit->goalentity,Waypoint_add(&point));
+        unit_setmove(unit,&attack_move_recovery);
+        if(S_UnitPointInMoveRange(unit,&point,range) ||
+           !S_BeginUnitPointApproach(unit,&point,range,CAbilityAttack,S_AttackRecoveryComplete))
+            S_AttackRecoveryComplete(unit,unit,true);
+        return;
+    }
+    /*497190 retains d016a while +200 is armed; the existing finishing move
+     * completes that independent swing before advancing the public queue. */
+    attack_finish_after_combat(unit,target,"target_lost");
+}
+
 static umove_t attack_move_melee_cooldown = { "stand ready", ai_melee_cooldown, NULL, CAbilityAttack };
 static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, CAbilityAttack };
 static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, CAbilityAttack };
@@ -1154,8 +1307,9 @@ static void order_attack_internal(edict_t *self, edict_t *target, bool retaliati
     S_ShadowMeldBreak(self);
     self->movement.explicit_allied_attack = false;
     unit_entercombat(self, target);
+    S_EndUnitTargetChase(self,CAbilityAttack);
     S_SetMoveGoal(self, &self->goalentity, target);
-    self->attack_target_spawn_time = target->spawn_time;
+    attack_set_target(self,target);
     /* Birth and other non-attack moves can leave a long wait on the unit.
      * Preserve waits only while an authored weapon cooldown is still active. */
     if (!attack_is_cooling_down(self)) {
@@ -1500,7 +1654,7 @@ void order_attackmove(edict_t *self, edict_t *waypoint) {
     S_SetFollowTarget(self,NULL);
     self->movement.holding_position = false;
     S_SetMoveGoal(self, &self->goalentity, waypoint);
-    self->attack_target_spawn_time = 0;
+    attack_set_target(self,NULL);
     move_reset_progress(self);
     unit_setmove(self, &attackmove_move_walk);
 }
@@ -1535,7 +1689,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         FOR_LOOP(slot,2)if(S_AttackProfileRead(ent,slot)->type!=ATK_NONE)return true;
         return false;
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_ORDER_ACCEPTED);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED);
     case A_TARGET_ORDER_ADMIT: {
         if (!ent || !call || !call->issued_target_order.order ||
             (strcmp(call->issued_target_order.order,"attack") &&
@@ -1569,9 +1723,11 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         }
         return false;
     case A_TIMERS_RESET:
+        attack_targets_reset();
         attack_help_queries_reset();
         attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));return true;
     case A_TIMERS_REBUILD:
+        attack_targets_rebuild();
         attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));
         FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse) {
             if(g_edicts[i].attack_speed_cap.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_CAP);
@@ -1626,9 +1782,21 @@ BZ_ABILITY_PROC(CAbilityAttack) {
                 sizeof(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention));
         }
         return false;
+    case A_TARGET_LOST:
+        if(call && call->lost_target)attack_deliver_target_lost(call->lost_target);
+        return false;
+    case A_MOVE_LEAVE:
+        if(ent && call && call->next_move_proc!=CAbilityAttack) {
+            S_EndUnitTargetChase(ent,CAbilityAttack);attack_set_target(ent,NULL);
+        }
+        return false;
+    case A_DEATH:
+    case A_UNIT_RETIRE:
+        if(ent)attack_set_target(ent,NULL);
+        return false;
     case A_UNIT_REMOVING:
     case A_UNIT_REMOVE:
-        if(ent){attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);}
+        if(ent){attack_set_target(ent,NULL);attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);}
         return false;
     case A_TARGET_REMOVED: {
         if (!call) return false;

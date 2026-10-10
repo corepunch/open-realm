@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff223 adds independent indexed Attack TargetLost subscriptions and physical
+point recovery while retaining the public Attack head/FIFO. Controlled original
+invisibility/detection, hide, death and removal repeats match an unhooked control;
+engine cold-save, nested-delivery, Stop, Cyclone and replacement regressions pass.
+No prior retail expectation changes; wider TARGET-03.2 remains open.
+See [Attack point recovery](retail-pathfinding-engine.md#attack-targetlost-retains-a-point-recovery-task-payoff223).
+
 Payoff222 delegates Attack ground-unit chases to nonpersistent physical target
 groups, retaining combat parents and cached fog samples through cold saves.
 Original repeated/control evidence proves hidden-arrival validation and short-fog

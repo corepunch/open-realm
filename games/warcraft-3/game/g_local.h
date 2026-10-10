@@ -2169,6 +2169,8 @@ struct edict_s {
     bool projectile_reflected; /* basic attack missile has already been returned by Defend */
     TARGTYPE targtype;
     edict_t *goalentity;
+    edict_t *attack_target; /* Attack owns its target independently of Move/FIFO parents. */
+    uint64_t attack_target_sequence;
     uint32_t attack_target_spawn_time; /* active CAbilityAttack target incarnation */
     edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
     edict_t *spell_item; /* originating item for a pending walk-into-range spell */
@@ -2674,6 +2676,7 @@ struct level_locals {
     uint32_t next_move_group_id; /* Zero is ungrouped; allocation excludes every live unit identity. */
     uint64_t next_move_group_sequence;
     uint64_t next_follow_sequence;
+    uint64_t next_attack_target_sequence;
     uint64_t next_unit_seq;
     quest_t quests[MAX_QUESTS];
     uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
@@ -3409,6 +3412,9 @@ bool S_BeginUnitTargetChase(edict_t *, edict_t *, float, abilityProc_t, void (*)
 bool S_UnitTargetChaseActive(edict_t const *, abilityProc_t);
 void S_EndUnitTargetChase(edict_t *, abilityProc_t);
 void S_AttackTargetChaseComplete(edict_t *, edict_t *, bool);
+void S_AttackRecoveryComplete(edict_t *, edict_t *, bool);
+bool S_ValidateAttackTargets(void);
+bool S_BeginUnitPointApproach(edict_t *, vec2_t const *, float, abilityProc_t, void (*)(edict_t *, edict_t *, bool));
 moveShared_t *S_FindMoveShared(uint64_t);
 bool S_RebuildMoveShared(void);
 bool S_ValidateMoveShared(void);
@@ -3557,6 +3563,7 @@ TARGTYPE G_UnitTargetType(edict_t const *);
 bool G_UnitHasBuildMenu(edict_t const *);
 void S_ReleaseEntangledMineForTree(edict_t *);
 void S_UnitAbilityMoveLeave(edict_t *, abilityProc_t);
+void S_UnitAbilityMoveChanged(edict_t *, abilityProc_t);
 bool S_UnitAbilityOrderAccepted(edict_t *, cstring_t);
 abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *, cstring_t, edict_t *);
 bool S_UnitQueuedOrderEvent(edict_t *, unitOrder_t const *, abilityMsg_t);

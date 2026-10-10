@@ -20749,4 +20749,203 @@ TEST(wc3_movement, target222_sampled_target_is_not_clipped_as_a_public_point) {
     G_FowShutdown();reset_entities();setup_test_world();
 }
 
+/* Original49b420 ->49d280 retains the Attack head while Move executes d016c
+ * at the queried target pose, with max enabled range + target radius +50. */
+static void target223_script(void) {
+    T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
+        "function hide takes nothing returns nothing\ncall ShowUnit(target,false)\nendfunction\n"
+        "function show takes nothing returns nothing\ncall ShowUnit(target,true)\nendfunction\n"
+        "function kill takes nothing returns nothing\ncall KillUnit(target)\nendfunction\n"
+        "function remove takes nothing returns nothing\ncall RemoveUnit(target)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,672,256,1,null)\nset target=FirstOfGroup(g)\n"
+        "call DestroyGroup(g)\nendfunction\n"));
+}
+
+TEST(wc3_movement, target223_loss_during_attack_chase_retains_head_for_point_recovery) {
+    FOR_LOOP(kind,3) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+        target223_script();
+        /* Distinct configured radii/range reject a stock Footman shortcut. */
+        unit->collision=19;target->collision=43;
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+        moveGroup_t *old=move_unit_group(unit);T_NOT_NULL(old);uint64_t id=old ? old->id : 0;
+        target166_tick();wc3GridPose_t pose;unit_predicted_pose(target,&pose);
+        uint32_t counter=level.pathing_counter;
+        jass_callbyname(level.vm,kind==0 ? "hide" : kind==1 ? "kill" : "remove",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(level.pathing_counter,counter);
+        T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->currentmove->proc,CAbilityAttack);
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            T_NE(group->id,id);T_NULL(group->target);T_EQ(group->goal.x,pose.world[0]);T_EQ(group->goal.y,pose.world[1]);
+            T_EQ(group->members[0].arrival_range,wc3_point_arrival_range(wc3_add(wc3_add(137,43),50)));
+            T_ASSERT(unit->goalentity && (unit->goalentity->svflags&SVF_MOVE_WAYPOINT));
+            if(kind==0)jass_callbyname(level.vm,"show",false);
+            FOR_LOOP(i,150) {target166_tick();if(!unit->current_order_id)break;}
+            T_EQ(unit->current_order_id,0);T_NULL(unit->goalentity);T_EQ(unit->movement.group_id,0);
+        }
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, target223_invisibility_validates_detection_and_shared_vision_synchronously) {
+    FOR_LOOP(policy,3) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,111);
+        level.alliances[1][0]&=~(1u<<ALLIANCE_SHARED_VISION);
+        level.alliances[0][1]&=~(1u<<ALLIANCE_PASSIVE);
+        ((mapInfo_t *)level.mapinfo)->players[1].playerType=kPlayerTypeHuman;
+        char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+            "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"Rng1\"\n"
+            "C;Y2;X1;K\"Apiv\"\nC;Y2;X2;K\"Apiv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"0\"\n"
+            "C;Y3;X1;K\"Atru\"\nC;Y3;X2;K\"Atru\"\nC;Y3;X3;K\"1\"\nC;Y3;X5;K\"731\"\nE\n";
+        slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+        if(policy==1)T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('A','t','r','u')));
+        if(policy==2)level.alliances[1][0]|=1u<<ALLIANCE_SHARED_VISION;
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+        uint64_t id=unit->movement.group_id,rank=unit->attack_target_sequence;
+        attack_target_visits=0;
+        T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
+        T_EQ(attack_target_visits,1);T_EQ(unit->current_order_id,G_OrderId("attack"));
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            if(!policy) {T_NULL(group->target);T_NULL(unit->attack_target);T_NE(group->id,id);}
+            else {T_EQ(group->target,target);T_EQ(group->id,id);T_EQ(unit->attack_target_sequence,rank);}
+        }
+        attack_target_visits=0;T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','p','i','v')));
+        T_EQ(attack_target_visits,0);
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_NULL(unit->attack_target);T_EQ(unit->attack_target_sequence,0);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, target223_point_recovery_freezes_queried_pose_through_save_stop_and_queue) {
+    FOR_LOOP(queued,2) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);target223_script();
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);target166_tick();
+        fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);
+        if(fog) {
+            *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1024,1024},.radius=2000};
+            G_FogModifierStart(fog);moveGroup_t *group=move_unit_group(unit);vec2_t sampled=group->goal;
+            S_SetUnitAxisPosition(target,1,1280);target166_tick();T_EQ(group->goal.y,sampled.y);
+            /* Max enabled slot is captured at loss, not the chase's active slot. */
+            UnitWeapons_t weapons=*unit->data.UnitWeapons;weapons.attacksEnabled=3;unit->data.UnitWeapons=&weapons;
+            *S_AttackProfileWrite(unit,1)=(unitAttack_t){.type=ATK_PIERCE,.weapon=WPN_INSTANT,.range=233,
+                .targetsAllowed=WC3_TARGET_FLAG_AIR};
+            if(queued)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1280,1536},true,0,0));
+            jass_callbyname(level.vm,"hide",false);group=move_unit_group(unit);T_NOT_NULL(group);
+            if(group) {
+                T_NULL(group->target);T_EQ(group->goal.y,1280);
+                T_EQ(group->members[0].arrival_range,wc3_point_arrival_range(wc3_add(wc3_add(233,31),50)));
+                T_EQ(unit->order_queue.count,queued);T_EQ(unit->current_order_id,G_OrderId("attack"));
+                S_SetUnitPaused(unit,true);uint64_t rank=group->sequence;
+                cstring_t file=Test_TempPath("wc3-target223-recovery.bin");
+                T_ASSERT(WriteGame(file));S_ResetAbilityTimers();T_ASSERT(ReadGame(file));remove(file);
+                group=move_unit_group(unit);T_NOT_NULL(group);
+                if(group) {T_EQ(group->sequence,rank);T_EQ(group->goal.y,1280);T_ASSERT(ValidMoveGroup(group));}
+                T_NULL(unit->attack_target);T_EQ(unit->attack_target_sequence,0);T_ASSERT(unit->paused);
+                S_SetUnitPaused(unit,false);
+                if(!queued) {
+                    T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->movement.group_id,0);T_NULL(unit->goalentity);
+                } else {
+                    FOR_LOOP(i,300) {target166_tick();if(unit->current_order_id!=G_OrderId("attack"))break;}
+                    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->order_queue.count,0);
+                    T_ASSERT(unit->goalentity);if(unit->goalentity)T_EQ(unit->goalentity->s.origin2.y,1536);
+                }
+            }
+        }
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+static struct {edict_t *units[3],*target;uint32_t order[16],count;bool nested;} target223_delivery;
+static void target223_observe(edict_t *unit) {
+    FOR_LOOP(i,3)if(unit==target223_delivery.units[i]) {
+        T_ASSERT(target223_delivery.count<16);
+        if(target223_delivery.count<16)target223_delivery.order[target223_delivery.count++]=i;
+    }
+    if(target223_delivery.nested) {
+        target223_delivery.nested=false;
+        T_ASSERT(unit_issueimmediateorder(target223_delivery.units[1],"stop"));
+        T_ASSERT(unit_issuetargetorder(target223_delivery.units[1],"attack",target223_delivery.target));
+        S_UnitTargetLost(target223_delivery.target);
+    }
+}
+
+TEST(wc3_movement, target223_attack_subscriptions_rebuild_in_order_and_skip_new_outer_registrations) {
+    /* The fixture archive omits UnitWeapons. Cold rebind must resolve a real
+     * authored row, rather than lose alloc_test_unit's synthetic slot mask. */
+    slkTestData_t *weapons=parse_slk_string("ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\n"
+        "C;Y1;X2;K\"weapsOn\"\nC;Y2;X1;K\"hRTE\"\nC;Y2;X2;K\"3\"\nE\n");
+    slkTestData_t *old_weapons=G_SetSLKRows("UnitWeapons",weapons);
+    FOR_LOOP(pass,3) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+        target223_delivery=(typeof(target223_delivery)){.units={unit},.target=target};
+        FOR_LOOP(i,2) {
+            edict_t *other=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,448+160*i);
+            other->svflags=SVF_MONSTER;other->movetype=MOVETYPE_STEP;other->stand=unit_stand;
+            unit_stand(other);S_SetUnitMoveSpeed(other,270);target222_arm(other,target,137);
+            target223_delivery.units[i+1]=other;
+        }
+        FOR_LOOP(i,4096)G_Spawn();
+        uint32_t const issue[]={2,0,1},renewed[]={2,1,0},nested[]={2,2,0,1,0};
+        FOR_LOOP(i,3)T_ASSERT(unit_issuetargetorder(target223_delivery.units[issue[i]],"attack",target));
+        if(pass==1) {T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_ASSERT(unit_issuetargetorder(unit,"attack",target));}
+        uint64_t rank=unit->attack_target_sequence,next=level.next_attack_target_sequence;
+        cstring_t file=Test_TempPath("wc3-target223-subscriptions.bin");
+        T_ASSERT(WriteGame(file));S_ResetAbilityTimers();T_ASSERT(ReadGame(file));remove(file);
+        T_EQ(unit->attack_target_sequence,rank);T_EQ(level.next_attack_target_sequence,next);
+        if(pass==2)target223_delivery.nested=true;
+        attack_target_visits=0;attack_test_target_lost=target223_observe;S_UnitTargetLost(target);attack_test_target_lost=NULL;
+        T_EQ(attack_target_visits,pass==2 ? 5 : 3);T_EQ(target223_delivery.count,pass==2 ? 5 : 3);
+        FOR_LOOP(i,target223_delivery.count)T_EQ(target223_delivery.order[i],pass==2 ? nested[i] : pass==1 ? renewed[i] : issue[i]);
+        T_ASSERT(S_ValidateAttackTargets());
+        uint64_t old=unit->attack_target_sequence;unit->attack_target_sequence=level.next_attack_target_sequence+1;
+        T_ASSERT(!S_ValidateAttackTargets());unit->attack_target_sequence=old;
+        unit->attack_target_spawn_time++;T_ASSERT(!S_ValidateAttackTargets());unit->attack_target_spawn_time--;
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));attack_target_visits=0;S_UnitTargetLost(target);T_EQ(attack_target_visits,2);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+    G_SetSLKRows("UnitWeapons",old_weapons);free_slk_rows(weapons);
+}
+
+TEST(wc3_movement, target223_cyclone_releases_attack_subscription_and_physical_owner) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    uint32_t id=unit->movement.group_id;T_ASSERT(id);T_EQ(unit->attack_target,target);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\n"
+        "C;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Dur1\"\n"
+        "C;Y1;X5;K\"Rng1\"\nC;Y1;X6;K\"targs1\"\nC;Y1;X7;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"ACyc\"\nC;Y2;X2;K\"Acyc\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"3.7\"\nC;Y2;X5;K\"1024\"\nC;Y2;X6;K\"ground,enemy\"\nC;Y2;X7;K\"Bcyc\"\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType=kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType=kPlayerTypeHuman;
+    level.alliances[1][0]&=~(1u<<ALLIANCE_PASSIVE);
+    target->heroabilities[0]=(heroability_t){.code=MAKEFOURCC('A','C','y','c'),.level=1};
+    target->mana.value=target->mana.max_value=200;unit->targtype=TARG_GROUND;
+    T_ASSERT(S_CastUnitTargetSpell(target,MAKEFOURCC('A','C','y','c'),unit));T_ASSERT(S_UnitIsCycloned(unit));
+    T_NULL(unit->attack_target);T_EQ(unit->attack_target_sequence,0);T_EQ(unit->movement.group_id,0);
+    T_ASSERT(S_ValidateAttackTargets());
+    cstring_t file=Test_TempPath("wc3-target223-cyclone.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    attack_target_visits=0;S_UnitTargetLost(target);T_EQ(attack_target_visits,0);
+    G_FowShutdown();reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);setup_test_world();
+}
+
+TEST(wc3_movement, target223_replacement_attack_releases_previous_physical_target) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);target166_tick();
+    uint32_t id=unit->movement.group_id;uint64_t rank=unit->attack_target_sequence;
+    edict_t *next=alloc_test_unit(MAKEFOURCC('h','R','T','E'),1344,1024);
+    next->svflags=SVF_MONSTER;next->stand=unit_stand;next->targtype=TARG_GROUND;next->s.player=1;
+    T_ASSERT(unit_issuetargetorder(unit,"attack",next));unit->currentmove->think(unit);
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {T_NE(group->id,id);T_EQ(group->target,next);}
+    T_EQ(unit->attack_target,next);T_ASSERT(unit->attack_target_sequence>rank);
+    attack_target_visits=0;S_UnitTargetLost(target);T_EQ(attack_target_visits,0);
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_NULL(unit->attack_target);T_EQ(unit->movement.group_id,0);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
 #endif
