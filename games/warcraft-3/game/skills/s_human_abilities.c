@@ -148,6 +148,15 @@ static uint32_t shackles_buff(uint32_t code, uint32_t rank) {
     return 0;
 }
 
+static heroabilitystatus_t *shackles_find_status_instance(edict_t *target, uint32_t code, uint32_t instance_id) {
+    if (!target || !code || !instance_id) return NULL;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *slot = target->abilstatus + i;
+        if (slot->level && slot->code == code && slot->instance_id == instance_id) return slot;
+    }
+    return NULL;
+}
+
 static bool aerial_shackles_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level, buff;
     wc3_status_apply_check_t check;
@@ -406,16 +415,19 @@ static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityit
     uint32_t buff = shackles_buff(spell->code, level);
     float duration;
     edict_t *thinker;
+    heroabilitystatus_t *slot;
     if (!st.entity || !buff) return;
     duration = S_SpellHeroDuration(spell->code, level, st.entity);
     /* Reserve the thinker before status mutation; if status insertion fails,
      * discard it before it can begin a channel or deal its first damage tick. */
     thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     if (!thinker) return;
-    if (!S_SpellApplyTimedStatus(st.entity, GetClassName(buff), level, duration)) {
+    slot = S_SpellApplyTimedStatus(st.entity, GetClassName(buff), level, duration);
+    if (!slot) {
         G_FreeEdict(thinker);
         return;
     }
+    thinker->variation = slot->instance_id;
     thinker->resources = buff;
     thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
@@ -428,11 +440,16 @@ static void shackles_end(edict_t *thinker) {
     edict_t *target = S_SpellChannelTarget(thinker);
     bool retained = false;
     if (target) {
-        FILTER_EDICTS(other, other != thinker && other->think == human_ability_think &&
-            S_SpellChannelTarget(other) == target && other->resources == thinker->resources) {
-            if (S_SpellChannelActive(other)) { retained = true; break; }
+        heroabilitystatus_t *slot = shackles_find_status_instance(target, thinker->resources, thinker->variation);
+        /* Never remove a replacement or independently owned status. */
+        if (slot) {
+            FILTER_EDICTS(other, other != thinker && other->think == human_ability_think &&
+                S_SpellChannelTarget(other) == target && other->resources == thinker->resources &&
+                other->variation == thinker->variation) {
+                if (S_SpellChannelActive(other)) { retained = true; break; }
+            }
+            if (!retained) unit_removestatus(target, slot, STATUS_REMOVE_SCRIPT);
         }
-        if (!retained) human_remove_status(target, thinker->resources);
     }
     S_SpellEndChannel(thinker);
 }
@@ -450,6 +467,13 @@ void human_ability_think(edict_t *thinker) {
     target = S_SpellChannelTarget(thinker);
     if (now >= thinker->spawn_time || !S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target)) {
         shackles_end(thinker); return;
+    }
+    /* A dispel or replacement ends this cast; rawcode alone is not ownership. */
+    {
+        heroabilitystatus_t *slot = shackles_find_status_instance(target, thinker->resources, thinker->variation);
+        if (!slot || (slot->timestamp && slot->timestamp <= now)) {
+            shackles_end(thinker); return;
+        }
     }
     if (!thinker->freetime || now >= thinker->freetime) {
         S_SpellDamage(target, thinker->owner, thinker->damage); thinker->freetime = now + 1000;
