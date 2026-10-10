@@ -44,8 +44,17 @@ static heroabilitystatus_t *human_status_execute(edict_t *caster, spellTarget_t 
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = human_buff(spell, level);
     if (!st.entity || !buff) return NULL;
-    return S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+    heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
                                          S_SpellHeroDuration(spell->code, level, st.entity));
+    /* First verified transfer family: Inner Fire.  Other buffs remain legacy
+     * dispellable but are not transferable until their cleanup is audited. */
+    if (status && status->code == MAKEFOURCC('B','i','n','f')) {
+        status->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL |
+                             WC3_STATUS_BUFF_TRANSFERABLE;
+        status->source_ability = spell->code;
+        status->rank = level;
+    }
+    return status;
 }
 
 static void human_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -416,23 +425,38 @@ void human_ability_think(edict_t *thinker) {
 
 static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     edict_t *receiver = NULL;
-    heroabilitystatus_t stolen = {0};
-    uint32_t level = S_SpellLevel(caster, spell->code);
+    heroabilitystatus_t *source_slot = NULL, *destination;
+    heroabilitystatus_t snapshot;
+    status_application_t app;
+    uint32_t level = S_SpellLevel(caster, spell->code), now = G_Time();
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    if (!st.entity) return;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        if (st.entity->abilstatus[i].level && st.entity->abilstatus[i].timestamp) {
-            stolen = st.entity->abilstatus[i];
-            S_HumanStatusExpired(st.entity, stolen.code, stolen.level);
-            memset(st.entity->abilstatus + i, 0, sizeof(st.entity->abilstatus[i]));
+        heroabilitystatus_t *status = st.entity->abilstatus + i;
+        if (unit_status_can_steal(status) && status->timestamp > now) {
+            source_slot = status;
             break;
         }
     }
-    if (!stolen.level) return;
+    if (!source_slot) return;
     FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) && S_SpellIsFriend(caster, unit) &&
                   Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) { receiver = unit; break; }
     if (!receiver) receiver = caster;
-    (void)S_SpellApplyTimedStatus(receiver, (cstring_t)&stolen.code, stolen.level,
-                                  stolen.timestamp > G_Time() ? (stolen.timestamp - G_Time()) / 1000.0f : 0.0f);
+    snapshot = *source_slot;
+    /* Install before retiring the source: full slots must never destroy the buff. */
+    app = (status_application_t) {
+        .buff = (cstring_t)&snapshot.code, .level = snapshot.level,
+        .duration = (snapshot.timestamp - now) / 1000.0f,
+        .source_ability = snapshot.source_ability, .data = snapshot.data,
+        .state_mask = snapshot.state_mask, .buff_flags = snapshot.buff_flags,
+        .source = caster, .rank = snapshot.rank
+    };
+    destination = unit_applystatus(receiver, &app);
+    if (!destination) return;
+    /* Only simple opted-in buffs may be transferred; preserve their modifiers. */
+    destination->modifier_count = MIN(snapshot.modifier_count, WC3_STATUS_MAX_MODIFIERS);
+    memcpy(destination->modifiers, snapshot.modifiers, sizeof(destination->modifiers));
+    unit_removestatus(st.entity, source_slot, STATUS_REMOVE_STEAL);
 }
 
 /* The message selects the union member: boolean toggles must never be decoded as target pointers. */
@@ -510,7 +534,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
-                if (S_StatusIsUndispellable(&target->abilstatus[i])) continue;
+                if (!unit_status_can_dispel(&target->abilstatus[i])) continue;
                 unit_removestatus(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
                 removed++;
             }

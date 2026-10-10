@@ -1567,6 +1567,22 @@ void unit_refreshstatusflags(edict_t *ent) {
 
 /* Dispatch the inverse while the old record is still available. Callers may
  * choose the reason, but all termination paths must use this lifecycle. */
+/* Zero metadata retains the pre-migration timed-status dispel behavior.
+ * Timed-life/verified Cyclone exceptions remain in the existing predicate. */
+bool unit_status_can_dispel(heroabilitystatus_t const *status) {
+    if (!status || !status->level || !status->timestamp) return false;
+    if (status->buff_flags & WC3_STATUS_BUFF_UNDISPELLABLE) return false;
+    return !S_StatusIsUndispellable(status);
+}
+
+/* A transferred status must be explicitly opted in.  Never steal a generic
+ * status with unknown payload, callbacks, source or periodic state. */
+bool unit_status_can_steal(heroabilitystatus_t const *status) {
+    return unit_status_can_dispel(status) &&
+        (status->buff_flags & (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_TRANSFERABLE)) ==
+        (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_TRANSFERABLE);
+}
+
 void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_reason_t reason) {
     uint32_t origin;
     if (!ent || !status || !status->level) return;
@@ -1675,6 +1691,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
                 status->data = app->data;
                 status->source_ability = app->source_ability;
                 status->state_mask = app->state_mask;
+                status->buff_flags = app->buff_flags;
                 status->source = app->source;
                 status->source_spawn_time = app->source ? app->source->spawn_time : 0;
                 status->rank = app->rank;
@@ -1707,6 +1724,7 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     slot->data = app->data;
     slot->source_ability = app->source_ability;
     slot->state_mask = app->state_mask;
+    slot->buff_flags = app->buff_flags;
     slot->source = app->source;
     slot->source_spawn_time = app->source ? app->source->spawn_time : 0;
     slot->rank = app->rank;

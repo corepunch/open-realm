@@ -1369,6 +1369,16 @@ typedef struct {
     float value;
 } wc3_status_modifier_t;
 
+/* Classification is deliberately explicit; zero means unclassified legacy status. */
+typedef enum {
+    WC3_STATUS_BUFF_POSITIVE = 1u << 0,
+    WC3_STATUS_BUFF_NEGATIVE = 1u << 1,
+    WC3_STATUS_BUFF_MAGICAL = 1u << 2,
+    WC3_STATUS_BUFF_PHYSICAL = 1u << 3,
+    WC3_STATUS_BUFF_UNDISPELLABLE = 1u << 4,
+    WC3_STATUS_BUFF_TRANSFERABLE = 1u << 5
+} wc3_status_buff_flag_t;
+
 typedef struct heroabilitystatus_s {
     uint32_t code;
     uint32_t level;
@@ -1377,6 +1387,7 @@ typedef struct heroabilitystatus_s {
     uint32_t data; /* legacy ability rawcode or ability-specific numeric payload; retain unchanged */
     uint32_t source_ability; /* explicit applying ability rawcode; zero means legacy/unattributed */
     uint32_t state_mask; /* composable categorical contributors owned by this slot */
+    uint32_t buff_flags; /* explicit dispel/transfer semantics; zero preserves legacy policy */
     uint32_t modifier_count;
     wc3_status_modifier_t modifiers[WC3_STATUS_MAX_MODIFIERS];
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
@@ -1391,6 +1402,7 @@ typedef struct {
     float duration;
     uint32_t source_ability;
     uint32_t state_mask;
+    uint32_t buff_flags;
     uint32_t data;
     edict_t *source;
     uint32_t rank;
@@ -2795,6 +2807,8 @@ bool unit_status_take_due_tick(heroabilitystatus_t *, uint32_t interval_ms, uint
 void unit_updatestatuses(edict_t *);
 void unit_expirestatus(edict_t *, heroabilitystatus_t *);
 void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
+bool unit_status_can_dispel(heroabilitystatus_t const *);
+bool unit_status_can_steal(heroabilitystatus_t const *);
 heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);
 void unit_statusdeath(edict_t *);
 void incinerate_explode_think(edict_t *);
