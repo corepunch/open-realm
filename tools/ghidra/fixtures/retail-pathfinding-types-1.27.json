@@ -17955,6 +17955,47 @@
         }
       ],
       "evidence": "Payoff230 original instructions and complete bounds oracle; explicit operand storage, RET bytes documented in MapPathfinding."
+    },
+    {
+      "address": "6f149320",
+      "name": "PathFine_TestScalarPointCell",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "mask",
+          "type": "ptr:u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f05bd30",
+      "name": "UnitMoverBridge_ToggleSpatialExclusion",
+      "returns": "ptr:WC3SpatialPrefix",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "on",
+          "type": "i32",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [

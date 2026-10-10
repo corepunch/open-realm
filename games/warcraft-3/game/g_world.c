@@ -995,6 +995,25 @@ static bool terrain_pathing_cell(vec2_t const *point, uint32_t *index) {
     return true;
 }
 
+/*04df50/149320: one scalar cell, full terrain/object mask, endpoint mode.
+ * High-only terrain queries still traverse/stamp active object identities.
+ * Bridge exclusion is a counted scope; query-local mode preserves the caller. */
+bool G_MovePointIsBlocked(vec2_t const *point,uint32_t mask,edict_t const *excluded) {
+    if(!point || !pathmap.width || !pathmap.height)return true;
+    move_spatial_sync();
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RecordObject_t *self=excluded ? wc3_records_owned(map,excluded-g_edicts) : NULL;
+    if(self)self->flags++;
+    vec2_t fine=move_grid_from_world(point->x,point->y);
+    wc3FinePoint_t pos={wc3_int_bits(wc3_floor_bits(wc3_float_bits(fine.x))),
+        wc3_int_bits(wc3_floor_bits(wc3_float_bits(fine.y)))};
+    wc3CellQuery_t query={.mode=WC3_CELL_FINE,.mask=mask,.target=WC3_RECORD_END,
+        .endpoint=true,.describe=move_cell_object};
+    bool blocked=!wc3_records_cell(map,pos,move_terrain_word(pos),&query).value;
+    if(self)self->flags--;
+    return blocked;
+}
+
 bool G_GetTerrainPathingFlags(vec2_t const *point, uint8_t *flags) {
     uint32_t index;
     if (!terrain_pathing_cell(point,&index)) return false;

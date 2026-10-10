@@ -3038,6 +3038,7 @@ bool G_FindWidgetPlacementPosition(edict_t *widget, vec2_t const *requested, flo
 bool G_FindUnitMoveRecoveryPosition(edict_t *, vec2_t const *, vec2_t *);
 typedef struct { vec2_t point; uint8_t mask; bool blocked; } terrainPathingEdit_t;
 bool G_GetTerrainPathingFlags(vec2_t const *point, uint8_t *flags);
+bool G_MovePointIsBlocked(vec2_t const *,uint32_t,edict_t const *);
 bool G_SetTerrainPathingFlags(terrainPathingEdit_t const *edit);
 uint32_t G_GetTerrainPathingStateSize(void);
 bool G_GetTerrainPathingState(uint8_t *data, uint32_t size);

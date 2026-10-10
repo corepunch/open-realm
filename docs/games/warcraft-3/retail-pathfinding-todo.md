@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **278 done / 336 tasks; 58 remaining.**
 
+Payoff231 advances MAP-04.2: public terrain queries now preserve raw identity
+traversal and saved query/object stamps through the shared endpoint cell query.
+600 complete original scopes and two48-query live repeats/control match;
+group-publication/outer recovery scopes remain open. See
+[point-query history](retail-pathfinding-exclusions.md#public-point-queries-retain-raw-spatial-history-payoff231).
+
 Payoff230 advances MAP-04.2: widget regions now retain original authored bounds
 through publication/save reconstruction, and captain reachability excludes and
 restores both first widget rectangles in retail order. Complete original query

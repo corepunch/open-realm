@@ -412,3 +412,49 @@ Stop/embedded-recovery cases. The broad `wc3_movement.*` attempt exceeded its
 The strict corpus entry also passes from the isolated staged tree. All44 Python
 bounds/corpus rejection checks pass; the inventory now has466 entries,
 185 executable oracles and1401 pinned inputs. Full-suite cadence advances to4/12.
+
+## Public point queries retain raw spatial history (Payoff231)
+
+`IsTerrainPathable → 04e090 → 04df50 → 149320 → 1489a0` uses a high-only
+terrain mask. Ordinary object categories cannot change its boolean, but the
+original still traverses and stamps active raw identities before rejecting their
+low-mask intersection. Duplicate links observe one identity once. Terrain
+rejection and an out-of-map cell return before that traversal. The previous
+engine native read only the terrain byte and lost this saved query history.
+
+`G_MovePointIsBlocked` now owns the shared raw-cell call, direct software
+world/fine transform and optional counted self exclusion. Its query-local
+endpoint mode includes moving objects without changing the caller's mode.
+The excluded bridge is acquired before the query and released before return;
+retail re-resolves its canonical identity at both boundaries. There is no
+callback, identity mutation, map writer or recoverable failure in this query
+closure. This does not justify collapsing scopes in other consumers.
+
+The regression first failed its two stamp assertions against the old engine.
+The native test now also saves, perturbs and reloads the resulting query/object
+stamps. A separate production adapter test matches600 complete original-code
+executions across full/high-only/zero masks, fractional/negative/outside cells,
+terrain rejection, moving/region flags, nested counts, exclusions and duplicate
+links. Only the existing Storm memory imports are storage adapters; the query,
+canonical registry and exclusion functions execute unchanged retail instructions.
+
+Two read-only Frida repeats each capture48 synchronous public queries inside
+explicit script windows. All eight pathing types cover occupied, fractional,
+outside, blocked, cleared and removed cases. An unhooked control preserves the
+same14 public markers. Intervening background simulation changes absolute query
+counters; raw captures retain those values, and comparison checks each query's
+exact counter delta, result, mask, coordinates and mode restoration. No previous
+retail expectation is rewritten. Failed exploratory map/capture attempts are
+retained separately and excluded from acceptance.
+
+Ghidra saves corrected `149320` boolean and `05bd30` spatial-pointer return
+signatures, exact parameter storage, scope comments and xrefs through
+`Work231Evidence.java`. The fixture pins468 decoded original instructions.
+The strict fresh verifier executes all600 cases again and runs the native,
+adapter and terrain/save regressions in both data schemas. Archive:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-04.2/payoff231/`.
+
+MAP-04.2 remains open for persistent group-publication ownership and the outer
+Stop/recovery scopes. Persistent fine target/completion fields outside this
+call are not certified here. No performance target is accepted. Focused
+Classic/TFT runs cover229 tests per schema; full-suite cadence advances to5/12.

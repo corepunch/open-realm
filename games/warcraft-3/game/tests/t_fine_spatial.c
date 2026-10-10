@@ -6,6 +6,7 @@
 #include "../../common/wc3_pathing_regions.h"
 #include "../../common/wc3_pathing_cell.h"
 #include "fixtures/retail_region_bounds230.h"
+#include "fixtures/retail_point_query231.h"
 
 void reset_entities(void);
 void setup_test_world(void);
@@ -385,6 +386,23 @@ TEST(wc3_fine_spatial, widget_region_bounds_match_original_producer_and_cached_r
             }
         }
         widget->pathtex=NULL;reset_entities();setup_test_world();
+    }
+}
+TEST(wc3_fine_spatial, point_query231_matches_original_counted_scope_and_stamps) {
+    FOR_LOOP(i,sizeof(point_query231)/sizeof(*point_query231)) {
+        typeof(*point_query231) const *row=point_query231+i;
+        reset_entities();setup_test_world();uint8_t cells[16*16]={0};cells[8*16+8]=row->terrain;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});CM_SetupTestPathmap(16,16,cells);
+        edict_t *unit=fine_spatial_unit(8.5f,8.5f,16);
+        wc3SpatialRecords_t *map=S_GetMoveFineSpatial();uint32_t id=map->objects[unit-g_edicts];
+        wc3RecordObject_t *object=wc3_records_object(map,id);
+        wc3_records_prepend(map,8*16+8,id,WC3_RECORD_INSERT);
+        object->flags=row->flags;object->category=WC3_RECORD_INSERT|S_UnitMoveCategory(unit);
+        object->stamp=7;map->query=1000;
+        vec2_t point={row->point[0],row->point[1]};
+        T_EQ(G_MovePointIsBlocked(&point,row->mask,row->excluded ? unit : NULL),row->result);
+        T_EQ(map->query,row->stamp);T_EQ(object->stamp,row->object_stamp);T_EQ(object->flags,row->flags_after);
+        reset_entities();setup_test_world();
     }
 }
 #endif

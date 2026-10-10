@@ -3644,6 +3644,36 @@ TEST(wc3_api, terrain_pathing_natives_survive_save_and_restore_blight) {
     remove(filename); reset_entities(); setup_test_world();
 }
 
+TEST(wc3_api, terrain_point_query231_preserves_live_spatial_observations) {
+    uint8_t cells[16*16]={0};
+    reset_entities();setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});CM_SetupTestPathmap(16,16,cells);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),144,176);
+    unit->svflags|=SVF_MONSTER;unit->collision=16;unit->s.model=1;
+    G_PublishMoveSpatialObject(unit);
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RecordObject_t *object=wc3_records_owned(map,unit-g_edicts);
+    object->stamp=7;map->query=1000;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call BJassAssert(not IsTerrainPathable(144,176,ConvertPathingType(1)),\"terrain ignores unit verdict\")\n"
+        "endfunction\n"));
+    /*04e090 supplies a high-only mask.1489a0 still observes an active
+     * object's identity before its low-category miss; this history is saved. */
+    T_EQ(map->query,1001);T_EQ(object->stamp,1001);
+    uint32_t owner=unit-g_edicts;
+    cstring_t filename=Test_TempPath("point231-save.bin");
+    T_ASSERT(WriteGame(filename));
+    /* Saving compacts memberships through its own stamped traversal. Compare
+     * the serialized state, rather than the earlier native-return counter. */
+    uint32_t saved_query=map->query,saved_stamp=object->stamp;
+    map->query=9000;object->stamp=9000;
+    T_ASSERT(ReadGame(filename));map=S_GetMoveFineSpatial();
+    object=wc3_records_owned(map,owner);T_NOT_NULL(object);
+    T_EQ(map->query,saved_query);if(object)T_EQ(object->stamp,saved_stamp);
+    remove(filename);reset_entities();setup_test_world();
+}
+
 TEST(wc3_api, terrain_pathing_query_ignores_objects_and_preserves_native_amphibious_bit) {
     uint8_t cells[16*16] = {0}, flags = 0;
     vec2_t point = {144,176};
