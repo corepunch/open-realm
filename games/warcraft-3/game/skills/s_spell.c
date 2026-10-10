@@ -1381,8 +1381,18 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     uint32_t rank;
     if (!slot || !slot->level) return;
     rank = slot->rank ? slot->rank : slot->level;
-    slot->modifier_count = 0;
-    memset(slot->modifiers, 0, sizeof(slot->modifiers));
+    /* Only stock families whose modifiers are owned by this resolver may be rebuilt. */
+    switch (slot->code) {
+    case MAKEFOURCC('B','c','r','i'): case MAKEFOURCC('B','b','l','o'):
+    case MAKEFOURCC('B','f','z','y'): case MAKEFOURCC('B','U','h','f'):
+    case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
+    case MAKEFOURCC('B','i','n','f'): case MAKEFOURCC('B','f','a','e'):
+        slot->modifier_count = 0;
+        memset(slot->modifiers, 0, sizeof(slot->modifiers));
+        break;
+    default: return;
+    }
+    /* Unknown/custom statuses own their descriptors: never erase them. */
     switch (slot->code) {
     case MAKEFOURCC('B','c','r','i'):
         if (!ability) ability = MAKEFOURCC('A','c','r','i');
@@ -1418,14 +1428,7 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
         ability = MAKEFOURCC('A','f','a','e');
         status_authored_modifier(slot, 0, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 1));
         break;
-    default: break;
-    }
-}
-
-static void status_refresh_authored_modifiers(edict_t *unit) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t *slot = unit->abilstatus + i;
-        if (slot->level) status_apply_authored_modifiers(slot, slot->source_ability);
+    default: return;
     }
 }
 
@@ -1435,10 +1438,7 @@ heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, ui
     if (!target || !buff || strlen(buff) < 4) return NULL;
     status_application_t app = { .buff = buff, .level = level, .duration = duration };
     heroabilitystatus_t *status = unit_applystatus(target, &app);
-    if (status) {
-        status_refresh_authored_modifiers(target);
-        status = unit_findstatus(target, FS_SLKKey(buff));
-    }
+    if (status) status_apply_authored_modifiers(status, status->source_ability);
     return status;
 }
 

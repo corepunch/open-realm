@@ -433,6 +433,7 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     heroabilitystatus_t *source_slot = NULL, *destination;
     heroabilitystatus_t snapshot;
     status_application_t app;
+    char buff_id[5];
     uint32_t level = S_SpellLevel(caster, spell->code), now = G_Time();
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     if (!st.entity) return;
@@ -454,9 +455,17 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     if (!receiver && take_positive) receiver = caster;
     if (!receiver) return;
     snapshot = *source_slot;
+    /* The application API requires a terminated string, not a four-byte rawcode. */
+    memcpy(buff_id, &snapshot.code, 4);
+    buff_id[4] = '\0';
+    /* Never replace an existing recipient buff as a side effect of stealing.
+     * Its callbacks and owned effects must remain intact. */
+    if (unit_status_checkapplication(receiver, &(status_application_t){
+        .buff = buff_id, .level = snapshot.level
+    }) != WC3_STATUS_APPLY_FREE_SLOT) return;
     /* Install before retiring the source: full slots must never destroy the buff. */
     app = (status_application_t) {
-        .buff = (cstring_t)&snapshot.code, .level = snapshot.level,
+        .buff = buff_id, .level = snapshot.level,
         .duration = (snapshot.timestamp - now) / 1000.0f,
         .source_ability = snapshot.source_ability, .data = snapshot.data,
         .state_mask = snapshot.state_mask, .buff_flags = snapshot.buff_flags,

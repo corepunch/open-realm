@@ -150,3 +150,12 @@ are serialized in save format 83. No ability family is opted into independent
 stacking yet: current reviewed poison/status handlers rely on rawcode-wide
 refresh/removal semantics, so enabling one without changing its callbacks
 would be unsafe. HUD and TargetArt remain rawcode-deduplicated presentations.
+
+## Status integration safeguards
+
+Generic application only refreshes authored numeric modifiers for the status
+that was applied. Unknown/custom status modifiers remain intact. Default
+applications do not reuse independently owned slots; independent sources
+retain their instance and timer even when a legacy same-rawcode buff is added.
+Spell Steal passes a terminated buff ID and refuses to replace a recipient's
+existing same-code status. Its existing limited transfer-family allowlist remains.

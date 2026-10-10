@@ -1692,8 +1692,10 @@ wc3_status_apply_check_t unit_status_checkapplication(edict_t const *ent, status
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         if (status->level && status->code == code &&
-            (app->stack_policy != WC3_STATUS_STACK_INDEPENDENT ||
-             (status->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+            ((app->stack_policy == WC3_STATUS_STACK_DEFAULT &&
+              status->stack_policy == WC3_STATUS_STACK_DEFAULT) ||
+             (app->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+              status->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
               status->source == app->source && (!app->source ||
               status->source_spawn_time == app->source->spawn_time))))
             return WC3_STATUS_APPLY_REUSE;
@@ -1727,8 +1729,10 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (status->level && status->code == code &&
-            (app->stack_policy != WC3_STATUS_STACK_INDEPENDENT ||
-             (status->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+            ((app->stack_policy == WC3_STATUS_STACK_DEFAULT &&
+              status->stack_policy == WC3_STATUS_STACK_DEFAULT) ||
+             (app->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+              status->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
               status->source == app->source && (!app->source ||
               status->source_spawn_time == app->source->spawn_time)))) {
             /* Existing buff of same code found — apply stacking rule. */
