@@ -13475,6 +13475,105 @@ TEST(wc3_movement, selected241_public_candidate_order_matches_retail_rows) {
     }
 }
 
+/* Work243: idle Shift recipients use the packet's prepared request; busy
+ * recipients reconstruct a fresh request only when their queued head starts. */
+TEST(wc3_movement, selected243_mixed_shift_preserves_prepared_policy) {
+    FOR_LOOP(alt,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        char floating[]="float";
+        unitModification_t mod={.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=floating};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','F','4','3'),.numbeOfModifications=1,.modifications=&mod};
+        mapInfo_t const *saved=level.mapinfo;mapInfo_t info=*saved;
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        edict_t *clent=alloc_test_unit(0,0,0),*units[4];
+        clent->client=game.clients;clent->client->ps.number=0;
+        clent->client->menu.order_queued=true;clent->client->menu.order_alt=alt;
+        FOR_LOOP(i,4) {
+            uint32_t type=i==1 ? custom.newUnitID : i==2 ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o');
+            units[i]=alloc_test_unit(type,512+96*(i&1),512+288*(i/2));
+            units[i]->collision=16;units[i]->s.model=1;units[i]->svflags|=SVF_MONSTER;
+            units[i]->stand=unit_stand;units[i]->movetype=MOVETYPE_STEP;unit_stand(units[i]);
+            if(i==2)units[i]->aiflags|=AI_FLYING;
+            G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+        }
+        T_ASSERT(unit_issueorder(units[0],"move",&(vec2_t){2000,1500}));
+        moveGroup_t *busy=move_unit_group(units[0]);vec2_t goal={1536,1536};
+        T_ASSERT(move_selectlocation(clent,&goal));T_EQ(move_unit_group(units[0]),busy);
+        uint32_t history[4];
+        FOR_LOOP(i,4) {
+            history[i]=units[i]->movement.previous_request_id;T_ASSERT(history[i]);
+            T_EQ(units[i]->order_queue.count,i==0 ? 1 : 0);
+            if(i) {
+                moveGroup_t *group=move_unit_group(units[i]);T_NOT_NULL(group);
+                if(group){T_EQ(group->flags&14u,alt ? 14u : 0);T_EQ(group->request_id,history[i]);}
+            }
+        }
+        T_EQ(history[0],history[3]);T_NE(history[0],history[1]);
+        if(alt)T_NE(history[0],history[2]);else T_EQ(history[0],history[2]);
+        if(alt) {
+            T_NE(move_unit_group(units[2]),move_unit_group(units[3]));
+            T_ASSERT(move_unit_group(units[3])->sequence>move_unit_group(units[2])->sequence);
+        } else {
+            moveGroup_t *primary=move_unit_group(units[2]);T_EQ(primary,move_unit_group(units[3]));
+            T_EQ(primary->count,2);T_EQ(primary->members[0].unit,units[2]);T_EQ(primary->members[1].unit,units[3]);
+        }
+        /* Cold load keeps published policy and the pending identity distinct. */
+        cstring_t save=Test_TempPath("wc3-selected243.bin");T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+        FOR_LOOP(i,4)T_EQ(units[i]->movement.previous_request_id,history[i]);
+        FOR_LOOP(i,4)if(i) {
+            T_EQ(move_unit_group(units[i])->flags&14u,alt ? 14u : 0);
+            T_ASSERT(unit_issueimmediateorder(units[i],"stop"));
+        }
+        T_ASSERT(G_UnitStartNextQueuedOrder(units[0]));
+        moveGroup_t *later=move_unit_group(units[0]);T_NOT_NULL(later);
+        if(later){T_EQ(later->flags&14u,0);T_EQ(later->request_id,history[0]);T_EQ(later->count,1);}
+        remove(save);reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;setup_test_world();
+    }
+}
+
+TEST(wc3_movement, selected243_nested_shift_preserves_outer_ready_rows) {
+    FOR_LOOP(replace,1) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *clent=alloc_test_unit(0,0,0);clent->client=game.clients;clent->client->ps.number=0;
+        char script[2048];snprintf(script,sizeof(script),
+            "globals\nunit a\nunit d\ninteger n=0\nboolean nested=false\ntrigger listener=null\nendglobals\n"
+            "function ordered takes nothing returns boolean\nset n=n+1\ncall SetUnitUserData(GetTriggerUnit(),n)\n"
+            "if %s and GetTriggerUnit()==d and not nested then\nset nested=true\ncall IssuePointOrder(a,\"move\",1024,1024)\nendif\nreturn true\nendfunction\n"
+            "function cleanup takes nothing returns nothing\ncall DestroyTrigger(listener)\nendfunction\n"
+            "function main takes nothing returns nothing\nset listener=CreateTrigger()\n"
+            "set a=CreateUnit(Player(0),'hfoo',512,512,0)\n"
+            "call CreateUnit(Player(0),'hgry',608,512,0)\ncall CreateUnit(Player(0),'hgry',512,800,0)\n"
+            "set d=CreateUnit(Player(0),'hfoo',608,800,0)\n"
+            "call IssuePointOrder(a,\"move\",2000,1500)\n"
+            "call TriggerRegisterPlayerUnitEvent(listener,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+            "call TriggerAddCondition(listener,Condition(function ordered))\nendfunction\n","true");
+        T_ASSERT(run_test_jass(script));
+        edict_t *units[4];uint32_t count=0;
+        FILTER_EDICTS(ent,ent->inuse && (ent->class_id==MAKEFOURCC('h','f','o','o') || ent->class_id==MAKEFOURCC('h','g','r','y'))) {
+            if(count<4) {units[count++]=ent;G_SetEntitySelectionMask(ent,1);}
+        }
+        T_EQ(count,4);if(count!=4)continue;
+        clent->client->menu.order_queued=false;clent->client->menu.order_alt=true;
+        vec2_t goal={1536,1536};groupPointOrder_t request={.count=4,.order_id=G_OrderId("move"),.order="move",.point=&goal,.formation_toggle=true,.queued=true};
+        FOR_LOOP(i,4)request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        FOR_LOOP(i,4)T_EQ(units[i]->user_data,i==0 ? 5 : i+1);
+        T_EQ(move_unit_group(units[1]),move_unit_group(units[2]));
+        T_NE(move_unit_group(units[0]),move_unit_group(units[1]));
+        moveGroup_t *nested=move_unit_group(units[0]);T_NOT_NULL(nested);
+        if(nested){T_EQ(nested->count,1);T_EQ(nested->goal.x,1024);T_EQ(nested->goal.y,1024);T_EQ(nested->flags&14u,0);}
+        T_NE(move_unit_group(units[0]),move_unit_group(units[3]));
+        FOR_LOOP(i,4)if(i)T_EQ(move_unit_group(units[i])->flags&14u,14);
+        T_EQ(units[0]->order_queue.count,0);
+        jass_callbyname(level.vm,"cleanup",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    reset_entities();setup_test_world();
+}
+
 /*687a60 counts queued user command identities as well as the active head. */
 TEST(wc3_movement, selected242_queued_move_identity_survives_save_and_replacement) {
     reset_entities();setup_test_world();

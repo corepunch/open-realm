@@ -56,6 +56,10 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **279 done / 336 tasks; 57 remaining.**
+Payoff243 fixes mixed busy/idle Shift admission: idle recipients retain prepared
+class policy and attachment order; later busy activation reconstructs policy0.
+Four complete retail captures and cold-save regressions accompany the engine
+change. GROUP-04.6 remains open; see [prepared idle admission](retail-pathfinding-queued-cohorts.md#idle-shift-recipients-retain-the-prepared-packet-policy).
 Payoff242 fixes missing pending-command identities in selected priority counts:
 ordinary queue admission resolves IDs once, optional payloads remain supported,
 and total-head counting is constant time. Repeated actual Shift/replacement

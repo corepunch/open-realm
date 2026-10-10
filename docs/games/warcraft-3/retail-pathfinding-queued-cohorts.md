@@ -773,3 +773,65 @@ Final research checks pass159 tests plus37 corpus checks. Fresh strict241/242
 reports pass against the final modules, and the staged197-contract/478-entry
 fixture inventory passes. Only this paragraph and its corpus hashes were updated
 after those strict runs.
+
+## Idle Shift recipients retain the prepared packet policy
+
+Payoff243 distinguishes synchronous packet admission from later queued activation.
+`89cd10` resolves the prepared wrapper's canonical identity, marks its mover
+ready through `16d850`, then invokes the wrapper's publication callback.
+`6b93a0` can reach this path immediately when appending a Shift order to an
+idle unit. A busy unit remains unready while its order waits.
+
+Four actual mixed Footman/Destroyer/Gryphon/Footman UI captures retain one busy
+first Footman and three idle recipients. Sorted admission is **3,1,2,0**.
+Two Alt+Shift repeats preserve policy **0xe** and publish FLOAT, special flight,
+then the idle primary Footman. The primary's first readiness attempt returns
+pending; after admission of the busy candidate, packet completion publishes
+only the ready primary row. Two ordinary Shift repeats publish FLOAT and then
+one primary cohort whose attachment order is Gryphon, second Footman. Recursive
+bind records describe the same two-member owner, not two physical owners.
+
+In all four captures the first Footman's later activation creates a **fresh
+policy-zero request** at probe tick81. Its earlier idle peers have finished by
+then. Carrying saved Alt bits into that reconstructed request would be incorrect.
+The actual input clocks differ across repeats; retain each separately.
+
+The engine now prepares class identities before callbacks and keeps a scoped
+recipient/context/point binding while an idle FIFO head starts synchronously.
+It creates a physical owner lazily on the first such start, gathers surviving
+rows in attachment order, and publishes at the class's last admission. A wholly
+busy class allocates no physical owner. Nested packets save/restore this binding;
+later activation has none and continues through the existing spatial reconstruction.
+This avoids per-idle-unit cohort queries and premature singleton construction.
+There is no saved or network layout change: the temporary packet binding expires
+before native return, while published physical flags and pending identities use
+existing save fields.
+
+Validation includes a failing-first public mixed-selection regression (8 failures
+out of83 assertions), cold save/load of published flags and pending identities,
+and later activation without inherited Alt policy. Preserve the existing all-busy
+queue test's allocation expectation; an initial implementation unnecessarily
+allocated an empty physical owner and was corrected rather than changing the test.
+The evidence verifier also checks four complete242-marker captures,24 fresh
+original comparator pairs, and391 original instruction guards from six bodies.
+It claims readiness/binding/policy parity, not complete trajectory parity.
+
+Reproduce the guarded evidence and focused engine checks:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_work243.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/work243-fresh.json
+```
+
+Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff243/`.
+Broader canonical lifetime, target variants and arbitrary callback compositions
+remain GROUP-04.6; this result does not close that task.
+
+Final validation:50 focused tests/16,234 assertions and26 selected-order
+tests/84,649 assertions per edition;45 neighboring Python checks plus37 corpus
+checks; fresh strict Work240–243 contracts pass against the final modules.
+The inventory contains198 executable oracles/479 entries. This is implementation
+5/12 after full checkpoint238; the full suite is reserved for the agreed batch
+checkpoint. Neither the frame budget nor all remaining retail gaps are claimed
+complete by this change.

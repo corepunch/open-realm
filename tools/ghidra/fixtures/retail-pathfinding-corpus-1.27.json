@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "197 executable original/evidence contracts;478 total entries.",
+  "scope": "198 executable original/evidence contracts;479 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -50344,6 +50344,58 @@
         "Explicit construction/rawcode/private payloads and optional zero-ID ability FIFO entries keep their representation; the save/network layouts are unchanged.",
         "Broader internal-task versus user-queue control ownership remains ORDER-02.2/02.3; no leaf closure or full replacement claim."
       ]
+    },
+    {
+      "id": "oracle-work243",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work243.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work243.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 4
+        },
+        "public_markers": {
+          "equal": 968
+        },
+        "public_packets": {
+          "equal": 4
+        },
+        "public_comparisons": {
+          "equal": 24
+        },
+        "instructions": {
+          "equal": 391
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "GROUP-04.6 mixed idle/busy Shift: prepared idle policy and attachment order, independent delayed policy-zero reconstruction; real UI repeats and engine queue/save/nested replacement integration. Broader canonical lifetime remains open.",
+      "exclusions": [
+        "Four actual UI mixed busy/idle Shift packets, two with Alt; observation clocks differ and remain individually frozen. No new observer-free control.",
+        "Native instruction guards and 24 executed original comparator pairs accompany live readiness and physical binding evidence; no full route/velocity trajectory equivalence is claimed.",
+        "Idle packet admission and later reconstruction are certified separately. Broader persistent canonical lifetime, target variants and arbitrary nested callback graphs remain GROUP-04.6."
+      ]
     }
   ],
   "fixtures": [
@@ -51242,7 +51294,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "2672271600b32508f6f3386f5396e70315024e5d26b5f4e2d3e977c1badfd8bd"
+      "sha256": "4d95e137c737072cc00f2c22ce8ad7bbc257adfb243f7c36f31c1a314e9cdf39"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -52098,7 +52150,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "fc71df9f786066e5ab13097d538ec6e9efc44d8ed94af2ae67f27a60731022f2"
+      "sha256": "ce93019cc6ba99855be74ebe876ba0b53db9243515629e191a2b347e9eb4e577"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -52790,7 +52842,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "d4055ab82c26924a361ff359ea5981015ba04df941632a1fef21f013fb059a6f"
+      "sha256": "497dd0bbbd7154fe8eb3a39faaca1d87d8d82273351b794b85443c76f6175d0d"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -53034,7 +53086,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "96c0840b765a9813e5e377a45a0e2566b008221f291673e6e2d7f46fe0835d91"
+      "sha256": "e5bc6c384ff98decaefd3fbbd6f4a888abf9b628de20ce48792f35cfca238f1b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -53050,7 +53102,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "a85fc9fc30aefd03b6b163d5a40ae768c0f08b69cde899d998f4918fdfdab140"
+      "sha256": "573f6d2bdc63722d542f72279ad16c94131f64e8c19d15461c2c09072fd7e7c8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55994,7 +56046,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-queued-cohorts.md",
-      "sha256": "e44675dbb8803db59f632b0cf1afe8439d576bb225a368f8c56620f84e95c19d"
+      "sha256": "a74a6459916002cd23f892031e80a6cbaf668037ccb2cc726b929191ea0ccb28"
     },
     {
       "path": "tools/frida/research/work232_observer.js",
@@ -56383,6 +56435,38 @@
     {
       "path": "tools/frida/research/work242_make_map.py",
       "sha256": "8367af2daf678156c6c7def5067bc12c872ff9e34b29478522130ce529ac3b7b"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work243.py",
+      "sha256": "673bec0bcb99ee8e8f27d18bb2790a131bee8214c793ac3681477b653e00bd11"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work243.py",
+      "sha256": "a7a73e5271e6069a9e17efc6bcc1ca567ab0c58c9890a6e55c11543fca5807cd"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work243-1.27.json",
+      "sha256": "3f413745253d2361dfdbd789d97fee8cc15e5fc2c7d1bfa2091f3df2d820806e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work243-1.27.json.gz",
+      "sha256": "6866b3741f10a78ddec12ba43978ed40f9cdaa6758d44e50726075b7da242cce"
+    },
+    {
+      "path": "tools/ghidra/research/Work243Evidence.java",
+      "sha256": "ac7289dbdc182b15f260c27128f0e923f04b8cf048e97417501d282fca56a09f"
+    },
+    {
+      "path": "tools/frida/research/work243_probe.j",
+      "sha256": "1ae09cb2eb6c727422fd5a2f3836f6745f8641c2996ca52ce794e2a24e472e49"
+    },
+    {
+      "path": "tools/frida/research/work243_make_map.py",
+      "sha256": "07131df819bc6ff4023c8c29ae939d108930bdd0088cb1e06b37ff14e482e1c7"
+    },
+    {
+      "path": "tools/frida/research/work243_observer.js",
+      "sha256": "ae305a283498ee2d61f7fa48a7e7197e89dc88199d87aaafc8b985344297511a"
     }
   ]
 }
