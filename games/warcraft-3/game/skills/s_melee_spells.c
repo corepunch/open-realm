@@ -172,13 +172,13 @@ BZ_ABILITY_PROC(CAbilityFrenzy) {
 
 /* DataA owns the attack-rate bonus as a fraction; DataB owns the armor reduction (flat). */
 float S_FrenzyAttackBonus(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'z', 'y'));
-    return level ? S_SpellData(MAKEFOURCC('A', 'f', 'z', 'y'), level, 1) : 0.0f;
+    (void)unit;
+    return 0.0f; /* Consumed through WC3_STATUS_MOD_ATTACK_SPEED_PERCENT. */
 }
 
 float S_FrenzyArmorDelta(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'z', 'y'));
-    return level ? -S_SpellData(MAKEFOURCC('A', 'f', 'z', 'y'), level, 2) : 0.0f;
+    (void)unit;
+    return 0.0f; /* Consumed through WC3_STATUS_MOD_ARMOR_FLAT. */
 }
 
 /* Name=Unholy Frenzy
@@ -200,8 +200,8 @@ static uint32_t unholy_frenzy_level(edict_t const *unit) {
 
 /* DataA owns the attack-rate bonus as a fraction; DataB owns the life drain in HP/second. */
 float S_UnholyFrenzyAttackBonus(edict_t const *unit) {
-    uint32_t level = unholy_frenzy_level(unit);
-    return level ? S_SpellData(MAKEFOURCC('A', 'u', 'h', 'f'), level, 1) : 0.0f;
+    (void)unit;
+    return 0.0f; /* Consumed through WC3_STATUS_MOD_ATTACK_SPEED_PERCENT. */
 }
 
 float S_UnholyFrenzyLifeDrain(edict_t const *unit) {
