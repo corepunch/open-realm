@@ -101,6 +101,7 @@ typedef struct moveGroup_s {
      * arrived=false and must only release the receiver's pending work. */
     edict_t *receiver;
     uint32_t receiver_spawn;
+    uint32_t owner_ability; /* One-based ability index; zero retains the ordinary Move owner. */
     void (*complete)(edict_t *receiver, edict_t *unit, bool arrived);
     int32_t target_refresh;
     uint32_t unseen_counter; /* Consecutive hidden target samples, native group+6c. */
@@ -3404,6 +3405,10 @@ void S_ClearMoveGroups(void);
 bool S_BeginUnitTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
 edict_t *S_UnitTargetApproachReceiver(edict_t const *);
 void S_CancelUnitTargetApproach(edict_t *);
+bool S_BeginUnitTargetChase(edict_t *, edict_t *, float, abilityProc_t, void (*)(edict_t *, edict_t *, bool));
+bool S_UnitTargetChaseActive(edict_t const *, abilityProc_t);
+void S_EndUnitTargetChase(edict_t *, abilityProc_t);
+void S_AttackTargetChaseComplete(edict_t *, edict_t *, bool);
 moveShared_t *S_FindMoveShared(uint64_t);
 bool S_RebuildMoveShared(void);
 bool S_ValidateMoveShared(void);

@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff222 delegates Attack ground-unit chases to nonpersistent physical target
+groups, retaining combat parents and cached fog samples through cold saves.
+Original repeated/control evidence proves hidden-arrival validation and short-fog
+continuation; target samples keep their fine coordinates near map edges.
+Broader TARGET-03.2 remains open; no prior retail expectation is rewritten.
+See [physical Attack chases](retail-pathfinding-engine.md#attack-chases-use-physical-target-groups-payoff222).
+
 Payoff221 integrates target owner-change delivery separately from TargetLost.
 Repeated retail captures prove persistent Follow completion and Smart approach
 continuation, including same-owner and paused controls. Public native/save

@@ -1,5 +1,11 @@
 # Warcraft III Save/Load
 
+Save156 retains the ability index owning a physical target chase and its
+registered completion callback. Load validates owner, receiver and member/task
+identity and preserves cached target samples and retained combat parents.
+Save155 and earlier layouts are rejected. The network contract is unchanged.
+See [Attack chase ownership](retail-pathfinding-engine.md#attack-chases-use-physical-target-groups-payoff222).
+
 Save155 retains queued target Move's issue-time point and unit class independently
 of its target incarnation. Load before activation preserves fallback after target
 loss, and a recycled slot cannot replace that target. Save154 and earlier layouts

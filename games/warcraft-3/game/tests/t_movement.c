@@ -10414,6 +10414,11 @@ TEST(wc3_movement, attack_chase_progresses_with_captured_tower_corridor) {
         CM_ProcessPathJobs(4096);
         if (attacker->currentmove && attacker->currentmove->think)
             attacker->currentmove->think(attacker);
+        /* Physical chases advance on Move's owner clock, independently of
+         * the public Attack animation think. Preserve the original 24s run. */
+        level.time += FRAMETIME;
+        wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+        M_RunScheduledThinks();M_SamplePoses();
     }
 
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &target->s.origin2) < start_distance - 1000.0f);
@@ -10454,6 +10459,7 @@ TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes)
     target->targtype = TARG_GROUND;
     target->collision = 64.0f;
     target->runtime.flags |= UNIT_BALANCE_BUILDING;
+    target->s.flags |= EF_BUILDING; /* Match the live tower classification. */
     target->health.value = target->health.max_value = 1000.0f;
     target->bounds = (box2_t){
         .min = {target_pos.x - target->collision, target_pos.y - target->collision},
@@ -20588,6 +20594,159 @@ TEST(wc3_movement, target220_retained_packet_point_survives_removed_target_witho
         }
         G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
     }
+}
+
+/* Retail5fc640/05a5c0 admits Attack's nonpersistent target owner; the
+ * physical group freezes samples in fog, while Attack owns arrival validation. */
+static void target222_arm(edict_t *unit,edict_t *target,float range) {
+    target->s.player=1;target->targtype=TARG_GROUND;
+    level.alliances[0][1]&=~ALLIANCE_PASSIVE;
+    level.alliances[1][0]&=~ALLIANCE_PASSIVE;
+    unitAttack_t *attack=S_AttackProfileWrite(unit,0);
+    *attack=(unitAttack_t){.type=ATK_NORMAL,.weapon=WPN_NORMAL,.range=range,
+        .cooldown=1,.damageBase=1,.targetsAllowed=WC3_TARGET_FLAG_GROUND};
+}
+
+TEST(wc3_movement, target222_attack_uses_physical_target_owner_and_survives_save) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,173);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+    T_EQ(unit->currentmove->proc,CAbilityAttack);T_EQ(unit->goalentity,target);
+    unit->currentmove->think(unit);
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        T_EQ(group->target,target);T_EQ(group->flags&0x1801u,0x1000u);
+        T_EQ(group->members[0].arrival_range,wc3_div(wc3_add(wc3_add(173,31),31),32));
+        T_NULL(unit->movement.follow_target);T_EQ(unit->goalentity,target);
+        target166_tick();T_ASSERT(group->initialized);
+        uint64_t sequence=group->sequence;
+        S_SetUnitPaused(unit,true);
+        wc3GridPose_t stopped;unit_predicted_pose(unit,&stopped);
+        cstring_t file=Test_TempPath("wc3-target222-chase.bin");
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group)T_EQ(group->sequence,sequence);
+        T_ASSERT(unit->paused);
+        FOR_LOOP(i,4)target166_tick();
+        wc3GridPose_t current;unit_predicted_pose(unit,&current);
+        T_EQ(current.grid[0],stopped.grid[0]);T_EQ(current.grid[1],stopped.grid[1]);
+        T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+        S_SetUnitPaused(unit,false);FOR_LOOP(i,10)target166_tick();
+        unit_predicted_pose(unit,&current);T_ASSERT(current.grid[0]>stopped.grid[0]);
+        T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->movement.group_id,0);
+        T_ASSERT(!group || !group->count || !group->members[0].unit);
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target222_attack_chase_freezes_hidden_samples_then_validates_arrival) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,111);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        target166_tick();vec2_t cached=group->route.group_goal;
+        fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);
+        if(fog) {
+            *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1024,1024},.radius=2000};
+            G_FogModifierStart(fog);T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+            S_SetUnitAxisPosition(target,1,1280);
+            FOR_LOOP(i,8) {
+                target166_tick();T_EQ(group->route.group_goal.x,cached.x);T_EQ(group->route.group_goal.y,cached.y);
+            }
+            T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(group->unseen_counter,8);
+            FOR_LOOP(i,300) {target166_tick();if(!unit->current_order_id)break;}
+            T_EQ(unit->current_order_id,0);T_NULL(unit->goalentity);T_EQ(unit->movement.group_id,0);
+            G_FogModifierDestroy(fog);G_FowUpdate();T_EQ(unit->current_order_id,0);
+        }
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target222_chase_retains_automatic_combat_parents_and_rejects_invalid_owner) {
+    FOR_LOOP(kind,3) {
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,137);
+        edict_t *parent=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,1024);
+        parent->svflags=SVF_MONSTER;parent->stand=unit_stand;unit_stand(parent);
+        if(kind==0)T_ASSERT(unit_issuetargetorder(unit,"move",parent));
+        else T_ASSERT(unit_issueorder(unit,kind==1 ? "patrol" : "attack",&(vec2_t){1024,1024}));
+        edict_t *follow=unit->movement.follow_target,*patrol=unit->movement.patrol_a;
+        edict_t *attackmove=unit->movement.attackmove_waypoint;
+        uint32_t head=unit->current_order_id;
+        order_attack(unit,target);T_EQ(unit->currentmove->proc,CAbilityAttack);
+        unit->currentmove->think(unit);moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            target166_tick();
+            T_EQ(unit->movement.follow_target,follow);T_EQ(unit->movement.patrol_a,patrol);
+            T_EQ(unit->movement.attackmove_waypoint,attackmove);T_EQ(unit->current_order_id,head);
+            uint32_t owner=group->owner_ability;T_ASSERT(owner);
+            group->owner_ability=UINT32_MAX;T_ASSERT(!ValidMoveGroup(group));
+            group->owner_ability=GetAbilityIndex(CAbilityMove)+1;T_ASSERT(!ValidMoveGroup(group));
+            group->owner_ability=owner;T_ASSERT(ValidMoveGroup(group));
+            cstring_t file=Test_TempPath("wc3-target222-parent.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(unit->movement.follow_target,follow);T_EQ(unit->movement.patrol_a,patrol);
+            T_EQ(unit->movement.attackmove_waypoint,attackmove);T_EQ(unit->current_order_id,head);
+            T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+            T_NULL(S_UnitTargetApproachReceiver(unit));
+            if(kind==0) {
+                /* Losing the retained Follow parent must not cancel the
+                 * distinct Attack target or its physical owner. */
+                G_DeferFreeEdict(parent);
+                T_NULL(unit->movement.follow_target);T_EQ(unit->goalentity,target);
+                T_EQ(unit->currentmove->proc,CAbilityAttack);T_EQ(unit->current_order_id,head);
+                T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+            }
+            T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->movement.group_id,0);
+        }
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, target222_short_fog_reacquires_same_chase_after_cold_restore) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,111);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        target166_tick();vec2_t cached=group->route.group_goal;uint64_t sequence=group->sequence;
+        fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);
+        if(fog) {
+            *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1024,1024},.radius=2000};
+            G_FogModifierStart(fog);S_SetUnitAxisPosition(target,1,1280);
+            FOR_LOOP(i,3)target166_tick();
+            T_EQ(group->unseen_counter,3);
+            T_EQ(group->route.group_goal.y,cached.y);
+            uint32_t fog_id;T_ASSERT(G_FogModifierId(fog,&fog_id));
+            cstring_t file=Test_TempPath("wc3-target222-hidden.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            group=move_unit_group(unit);T_NOT_NULL(group);
+            if(group) {
+                T_EQ(group->sequence,sequence);T_EQ(group->unseen_counter,3);
+                /* Fog handles are rebuilt by ReadGame; use the restored owner. */
+                fog=G_FogModifierById(fog_id);T_NOT_NULL(fog);
+                if(fog)G_FogModifierDestroy(fog);
+                G_FowUpdate();
+                T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+                target166_tick();T_EQ(group->unseen_counter,0);
+                FOR_LOOP(i,132) {target166_tick();if(group->route.group_goal.y==40)break;}
+                T_EQ(group->route.group_goal.y,40);T_EQ(move_unit_group(unit),group);
+                T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
+                T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            }
+        }
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target222_sampled_target_is_not_clipped_as_a_public_point) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,173);
+    S_SetUnitAxisPosition(target,0,1984);
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        target166_tick();T_EQ(group->route.group_goal.x,62);T_EQ(group->route.group_request.x,1984);
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
 }
 
 #endif

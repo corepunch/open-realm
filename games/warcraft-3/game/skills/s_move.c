@@ -723,7 +723,7 @@ void S_ClearMoveGroups(void) {
 static void move_complete_receiver(moveGroup_t *group, edict_t *unit, bool arrived) {
     edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
     void (*complete)(edict_t *,edict_t *,bool)=group->complete;
-    group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;
+    group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;group->owner_ability=0;
     if(receiver && receiver->inuse && receiver->spawn_time==spawn && complete)
         complete(receiver,unit,arrived);
 }
@@ -1066,9 +1066,11 @@ static bool move_static_line(edict_t const *self, vec2_t const *point, float rad
 /* Route eligibility follows the same ability-owned collision query as steps.
  * Fine search ignores moving neighbours; precise step collision still sees them. */
 static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
-    /* Interaction abilities retain their range/queue policy; this increment
-     * adds live fine occupancy to location orders only. */
-    bool units = unit_routes_to_location(self) && point.policy != MOVE_AVOID_STATIC_ONLY &&
+    /* Physical member admission owns fine occupancy independently of the
+     * public ability. Attack retains its range/queue policy above this layer. */
+    moveGroup_t const *group=move_unit_group(self);
+    bool physical=group && !group->individual && !group->turning;
+    bool units = (physical || unit_routes_to_location(self)) && point.policy != MOVE_AVOID_STATIC_ONLY &&
         !S_UnitStatusAbilityEvent(self, A_MOVE_COLLISION_QUERY, NULL);
     /* Original16a790 passes05bdd0's fine prediction to16fbd0. Reversing a
      * published world coordinate loses low bits at nonzero map origins. */
@@ -4825,7 +4827,9 @@ bool S_BeginUnitTargetApproach(edict_t *unit, edict_t *target, float range,
 
 edict_t *S_UnitTargetApproachReceiver(edict_t const *unit) {
     moveGroup_t const *group=unit ? move_unit_group(unit) : NULL;
-    edict_t *receiver=group ? group->receiver : NULL;
+    /* Ability-owned chases retain their public task; only spell approaches
+     * expose a receiver whose removal cancels the current Move task. */
+    edict_t *receiver=group && !group->owner_ability ? group->receiver : NULL;
     return receiver && receiver->inuse && receiver->spawn_time==group->receiver_spawn ? receiver : NULL;
 }
 
@@ -4834,6 +4838,37 @@ void S_CancelUnitTargetApproach(edict_t *unit) {
     move_leave(unit);S_SetFollowTarget(unit,NULL);
     S_SetMoveGoal(unit,&unit->goalentity,NULL);
     unit_stand_no_queue(unit);
+}
+
+/* Ability-owned target requests share Move's physical scheduler without
+ * replacing the public task or its retained Follow/Patrol/Attack-Move parent.
+ * The callback owns arrival validation; cancellation only releases its work. */
+bool S_BeginUnitTargetChase(edict_t *unit,edict_t *target,float range,abilityProc_t owner,
+                           void (*complete)(edict_t *,edict_t *,bool)) {
+    uint32_t index=GetAbilityIndex(owner);
+    if(!unit || !target || !complete || !owner || index==255 ||
+       !unit->currentmove || unit->currentmove->proc!=owner ||
+       (unit->aiflags&AI_FLYING) || G_UnitIsStructure(target) || target->destructable ||
+       !S_UnitCanTranslate(unit))return false;
+    move_leave(unit);move_reset_local_path(unit);
+    unit->movement.flat_speed_bonus=S_MoveSpeedBonus(unit);
+    float world=wc3_add(wc3_add(range,unit->collision),target->collision);
+    uint32_t word=wc3_float_bits(world);
+    float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
+    moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine));
+    group->receiver=unit;group->receiver_spawn=unit->spawn_time;
+    group->owner_ability=index+1;group->complete=complete;
+    return true;
+}
+
+bool S_UnitTargetChaseActive(edict_t const *unit,abilityProc_t owner) {
+    moveGroup_t const *group=unit ? move_unit_group(unit) : NULL;
+    ability_t const *ability=group && group->owner_ability ? GetAbilityByIndex(group->owner_ability-1) : NULL;
+    return ability && ability->proc==owner && group->receiver==unit && group->receiver_spawn==unit->spawn_time;
+}
+
+void S_EndUnitTargetChase(edict_t *unit,abilityProc_t owner) {
+    if(S_UnitTargetChaseActive(unit,owner))move_leave(unit);
 }
 
 static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
@@ -5430,9 +5465,10 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
                 bool arrived=!(member->flags&0x20000);
                 edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
                 void (*complete)(edict_t *,edict_t *,bool)=group->complete;
-                group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;
+                bool ability_owned=group->owner_ability!=0;
+                group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;group->owner_ability=0;
                 move_detach_group(unit);unit->movement.group_id=0;
-                S_SetFollowTarget(unit,NULL);
+                if(!ability_owned)S_SetFollowTarget(unit,NULL);
                 if(receiver->inuse && receiver->spawn_time==spawn && complete)
                     complete(receiver,unit,arrived);
                 else unit_stand(unit);
@@ -5484,16 +5520,18 @@ static void move_group_prepare_members(moveGroup_t *group) {
     for (uint32_t i=group->count;i>0;) {
         i--;
         moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
+        ability_t const *owner=group->owner_ability ? GetAbilityByIndex(group->owner_ability-1) : NULL;
+        bool owned=owner && unit && unit->currentmove && unit->currentmove->proc==owner->proc;
         if (!unit || !unit->inuse || unit->spawn_time!=member->spawn || G_IsDeferredFree(unit) || (!unit->movement.captain_actor_type && M_IsDead(unit)) ||
             unit->movement.group_id!=group->id ||
-            (!group->turning && ((unit->currentmove!=&move_move_walk && (!group->target || unit->currentmove!=&follow_move_walk)) ||
+            (!group->turning && ((!owned && unit->currentmove!=&move_move_walk && (!group->target || unit->currentmove!=&follow_move_walk)) ||
              !unit->goalentity))) {
             if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
                 unit->movement.group_id=0;
             if (unit) move_complete_receiver(group,unit,false);
             group->members[i]=group->members[--group->count]; continue;
         }
-        if (!group->turning && !S_UnitCanTranslate(unit)) {
+        if (!group->turning && !group->owner_ability && !S_UnitCanTranslate(unit)) {
             unit->stand(unit);
             group->members[i]=group->members[--group->count];
         }
@@ -5534,11 +5572,15 @@ static void move_run_group_updates(void) {
             group->ticking=false;
             continue;
         }
+        if(group->owner_ability && !S_UnitCanTranslate(group->members[0].unit)) {
+            move_group_stop_members(group);group->ticking=false;continue;
+        }
         if (group->target && (!group->target->inuse || group->target->spawn_time!=group->target_spawn ||
                 G_IsDeferredFree(group->target) || (!group->target->movement.captain_actor_type && M_IsDead(group->target)))) {
             for(uint32_t i=group->count;i>0;) {
                 edict_t *unit=group->members[--i].unit;
                 if (!unit) continue;
+                if(group->owner_ability) {move_leave(unit);continue;}
                 S_SetFollowTarget(unit,NULL); S_SetMoveGoal(unit, &unit->goalentity, NULL); unit_stand(unit);
             }
             move_release_group(group); continue;

@@ -1531,8 +1531,11 @@ bool G_UnitMoveGroupDestinationStatus(movePathQuery_t const *input, moveFineRout
     } else {
         box2_t bounds = geometry->bounds;
         float cell = pathmap_cell_world_size();
-        vec2_t clipped = {wc3_point_order_coordinate(input->geometry.target->x, bounds.min.x, bounds.max.x, cell),
-            wc3_point_order_coordinate(input->geometry.target->y, bounds.min.y, bounds.max.y, cell)};
+        /*16cd30 ->16ce10 ->168b80 copies sampled target coordinates.
+         * Public point admission owns its separate playable-map inset. */
+        vec2_t clipped = input->target ? *input->geometry.target :
+            (vec2_t){wc3_point_order_coordinate(input->geometry.target->x, bounds.min.x, bounds.max.x, cell),
+                wc3_point_order_coordinate(input->geometry.target->y, bounds.min.y, bounds.max.y, cell)};
         goal = move_grid_from_world(clipped.x, clipped.y);
 #ifdef BZ_TESTS
         move_group_goal_conversions++;

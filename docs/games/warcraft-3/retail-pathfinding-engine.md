@@ -15003,3 +15003,94 @@ since full checkpoint214; no new full-suite result is claimed.
 TARGET-03.2 remains open for the complete Attack/fog/reacquisition matrix and
 wider ability-parent compositions. This change closes its owner-transfer
 integration gap without creating another TODO or weakening prior evidence.
+
+## Attack chases use physical target groups (Payoff222)
+
+Attack previously chased a live target through the legacy direction/flow-field
+path on each animation think. It now delegates a ground-unit chase to Move's
+nonpersistent physical target owner while retaining Attack's public task and
+any automatic Follow, Patrol or Attack-Move parent. Fine occupancy, scheduler
+admission, cached target samples and physical pose publication therefore belong
+to the same owner used by ordinary movement. Stop and task replacement cancel
+the owned work; they do not manufacture a persistent Follow subscription.
+Spell-approach receiver queries exclude ability-owned chases. Removing a
+retained Follow parent therefore retires that parent without mistaking the
+current Attack for a spell approach and canceling its distinct target.
+
+Retail `Attack_BeginTargetChase` (`6f49a240`) calls Move `6f5fc640` with captured
+weapon range and persistence zero. Its range is the selected effective weapon
+range bounded by the runtime minimum initialized to32 at `6f00b5d0`.
+The separate turn-only request uses **FLT_MAX**, not zero. That request and the
+full initial Attack task stack are still outside this integration.
+`Attack_OnTargetArrival` (`6f499310`) distinguishes arrival-event validation
+with full fog/detection visibility from the immediate retry's detection-only
+validation. Hidden physical visits retain their last admitted destination;
+arriving there while still unseen fails full visibility and ends this chase.
+A short fog interval can reveal the target before arrival and retain the same
+public Attack head and physical owner.
+
+The repeated original capture contains five scenes: long fog, short fog,
+stock Permanent Invisibility without an extra detector, the same producer with
+True Sight, and a visible control. Both stock-invisibility combat scenes validate
+successfully during TargetLost in this producer. They establish **neither** an
+undetected-loss result nor that the detector was necessary; combat visibility
+is a material limitation. The prior handoff's different invisibility producer
+and its expectations are unchanged. Attack's ordered TargetLost subscriptions,
+point-recovery task stack, flyers, structures/destructables and complete timing
+remain open under TARGET-03.2.
+
+Target samples also retain their admitted fine coordinates near map edges.
+`16cd30 ->16ce10 ->168b80` copies those coordinates; `167120` mode1 checks the
+adjusted24 bound through `167d70`. It does not apply the public point-order inset.
+`G_UnitMoveGroupDestinationStatus` now applies that inset only to public point
+inputs. This preserves the unreachable-target regression's original damage,
+health and stationary scenery geometry assertions. Its driver now advances the
+physical owner clock; its partial-route diagnostic accepts the fine route's
+partial result as well as the legacy flow fallback. The captured tower corridor
+likewise advances owner time, and the shared-field contention fixture sets the
+same live building flag as an actual spawned tower. Their movement assertions
+are retained.
+
+Save156 serializes the owning ability index and registered completion callback,
+validates their member/public-task relationship, and rejects older layouts.
+Cold saves retain hidden samples, refresh countdown, public head and automatic
+parents. No network fields change. The five new production regressions cover
+non-stock attack ranges, Stop, pause/resume, parent retention/removal, invalid
+owner indexes, long and short fog, cold restoration and target coordinates near
+the map edge. The
+correctly typed pre-change regression failed because no physical owner existed;
+its public Attack identity and target assertions already passed.
+
+Frozen evidence:
+[`retail-attack-chase222-1.27.json`](../../../tools/ghidra/fixtures/retail-attack-chase222-1.27.json)
+and its compressed original bundle preserve two read-only observations and one
+unhooked control, **1,000 public markers per run** across five scenes.
+The verifier checks **1,485 original instruction encodings**, nonpersistent
+requests, captured ranges, frozen hidden samples, full-visibility arrival and
+short-fog continuation. R2S positions do not establish word-exact complete
+Attack motion. Reproducers are
+`tools/frida/research/target222_{make_map.py,capture.py,observer.js,probe.j}`;
+`tools/ghidra/research/Target222Evidence.java` exports the instruction evidence.
+Ghidra names, explicit ECX/stack signatures and comments are saved and mirrored
+in `MapPathfinding.java` and the type fixture. Captures, failed initial observer
+attempts, map, sources and reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/payoff222/`.
+
+This is focused implementation commit **8/12** since checkpoint214. It closes
+an engine integration gap, not the whole remaining TARGET-03.2 task. No prior
+retail fixture is changed to match the new implementation.
+
+Validation: the final receiver separation passes664 focused tests /170,851
+assertions per Classic/TFT mode, plus412 spell tests /11,321 assertions,
+87 item tests /968 assertions and the two legacy chase regressions /20 assertions.
+The five new chase tests pass149 assertions per mode. Before that final narrow
+receiver fix, each full movement sweep passed454 tests /6,252,903 assertions;
+the final focused rerun includes the affected target/Follow/combat/spell paths.
+The receiver bug reproduced six failing assertions before its fix. The initial
+parent-removal experiment used immediate storage release rather than public
+RemoveUnit's deferred retirement; it is retained as an invalid test-driver
+attempt, not retail evidence. The corrected regression drives the production
+retirement/notification path. Eleven evidence mutation checks and37 corpus tests
+pass, all457 prior corpus entries remain identical, and all1,319 staged source
+pins agree. The fresh corpus oracle verifies this build. Production/test builds
+pass; no new full repository suite or performance result is claimed.

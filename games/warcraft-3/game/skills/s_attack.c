@@ -48,6 +48,7 @@ static unitAttack_t const *attack_ground_profile(edict_t const *ent);
 /* Attack's exact primary requests: O(log n) arm/cancel, O(1) earliest
  * deadline. These indexes are derived; only deadline/serial/active are saved. */
 /* Native startup001d70 /001c80 and Math_RoundHalf; these are not map tuning. */
+#define ATTACK_MINIMUM_CHASE_RANGE 32.0f /* Native00b5d0 ->d6bf64. */
 #define ATTACK_AI_HELP_RADIUS 900.0f
 #define ATTACK_HELP_SUPPRESSION 3.0f
 #define ATTACK_AI_HELP_SUPPRESSION 0.5f
@@ -1054,6 +1055,7 @@ static void ai_attack_walk(edict_t *ent) {
         return;
     }
     cooldown_ready = attack_cooldown_elapsed(ent, true);
+    if (S_UnitTargetChaseActive(ent,CAbilityAttack)) return;
     if (attack_target_out_of_range(ent)) {
         /* Hold Position and movement-disabled structures cannot chase an
          * out-of-range target.  Finish the attack behavior instead of leaving
@@ -1063,6 +1065,11 @@ static void ai_attack_walk(edict_t *ent) {
             return;
         }
         if (!S_UnitCanTranslate(ent)) return;
+        /* Native49a240: the nonpersistent physical request captures range
+         * and delegates cached-target sampling/path work to Move. */
+        float range=S_EnsnareMeleeRange(ent);
+        if(range<=0)range=ACTIVE_ATTACK(ent)->range;
+        if(S_BeginUnitTargetChase(ent,ent->goalentity,MAX(ATTACK_MINIMUM_CHASE_RANGE,range),CAbilityAttack,S_AttackTargetChaseComplete))return;
         unit_changeangle(ent);
         unit_moveindirection(ent);
     } else if (attack_target_too_close(ent)) {
@@ -1090,7 +1097,23 @@ static void ai_attack_walk(edict_t *ent) {
     }
 }
 
-static umove_t attack_move_walk = { "walk", ai_attack_walk, NULL, CAbilityAttack };
+static void attack_chase_leave(edict_t *unit) {
+    S_EndUnitTargetChase(unit,CAbilityAttack);
+}
+
+/* d0196/499310 requires full visibility at physical arrival. TargetLost uses
+ * detection-only validation; ordinary hidden group visits do not end Attack. */
+void S_AttackTargetChaseComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(!arrived || receiver!=unit || !unit->currentmove || unit->currentmove->proc!=CAbilityAttack)return;
+    if(attack_stop_if_target_invalid(unit))return;
+    if(!G_FowPlayerCanTrackUnit(unit->s.player,unit->goalentity)) {
+        attack_finish_after_combat(unit,unit->goalentity,"hidden_arrival");return;
+    }
+    ai_attack_walk(unit);
+}
+
+static umove_t attack_move_walk = { .animation="walk", .think=ai_attack_walk, .proc=CAbilityAttack,
+    .sample_pose=S_PublishMovement, .leave=attack_chase_leave };
 static umove_t attack_move_melee_cooldown = { "stand ready", ai_melee_cooldown, NULL, CAbilityAttack };
 static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, CAbilityAttack };
 static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, CAbilityAttack };

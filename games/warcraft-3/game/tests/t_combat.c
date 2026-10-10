@@ -1061,8 +1061,14 @@ TEST(wc3_combat, unreachable_attack_keeps_target_geometry) {
             level.time += 100;
             if (attacker->currentmove && attacker->currentmove->think)
                 attacker->currentmove->think(attacker);
-            CM_ProcessPathJobs(4096);
-            fallback |= attacker->movement.flow_fallback_state == MOVE_FALLBACK_APPLIED;
+            /* Chase groups run on the authoritative owner clock. Animation
+             * thinks alone cannot advance their physical path requests. */
+            FOR_LOOP(owner_tick,3) {
+                wc3_clock_advance(&level.pathing_clock,.03f,0);level.pathing_counter++;
+                M_RunScheduledThinks();CM_ProcessPathJobs(4096);M_SamplePoses();
+            }
+            fallback |= attacker->movement.flow_fallback_state == MOVE_FALLBACK_APPLIED ||
+                attacker->movement.fine_route.partial;
             hit |= target->health.value < 500;
             T_EQ(memcmp(&target->s.origin, &pose, sizeof(pose)), 0);
             T_EQ(memcmp(&target->bounds, &bounds, sizeof(bounds)), 0);

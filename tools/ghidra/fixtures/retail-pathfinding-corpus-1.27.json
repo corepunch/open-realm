@@ -49178,6 +49178,58 @@
         "Source transfer proves public cancellation, not the identity/value of engine-only goal bookkeeping.",
         "Existing static/corpus expectations are preserved. This does not by itself close the complete TARGET-03.2 Attack/fog/reacquisition matrix."
       ]
+    },
+    {
+      "id": "oracle-attack-chase222",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_attack_chase222.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "attack-chase222.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "scenes": {
+          "equal": 5
+        },
+        "public_markers": {
+          "equal": 3000
+        },
+        "instructions": {
+          "equal": 1485
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "TARGET-03.2 Attack-owned nonpersistent physical target chase, hidden destination freezing and arrival validation. Two five-scene public repeats, unhooked control,1485 native instruction encodings and actual Classic/TFT engine/save regressions. Full Attack task-stack timing and target-loss recovery remain open.",
+      "exclusions": [
+        "Public R2S markers agree in two repeats and an unhooked control; no word-exact full Attack-motion claim.",
+        "Long fog ends on full-visibility arrival; short fog reacquires. Stock Apiv combat controls both validate successfully, with and without an added detector; they do not prove undetected loss.",
+        "Ground-unit chase ownership is integrated. Flyers, structure/destructable approaches, complete Attack task-stack recovery and ordered Attack target-loss subscriptions remain open.",
+        "Existing TARGET-03.2 fixtures and prior engine expectations are preserved. This stage does not close that entire TODO."
+      ]
     }
   ],
   "fixtures": [
@@ -49243,7 +49295,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "7694b788f0d8bc85e92dc1fb50359156cd568c1dcfe500bb7e86973be3deb5f4"
+      "sha256": "0a3197c14698b040268c2be7cfa3dd2ce3e848067cbb0b744be2e5f1a30585a4"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -50076,7 +50128,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "078eae48572a0311f0f28446915c23631188872937cbd47093a08576c30c67a0"
+      "sha256": "1cad2356c746d39774deb90d069562b6932d87890d62b06f1cd44be558b425fa"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50932,7 +50984,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "dd4c9a91943ac0828e7181ccb1080f40040f7fa0f5fafc416dd1ade0617fd71e"
+      "sha256": "0395157a04e0c1a168be0e39615afb302cc00f2d9d5f1103073ac3c590bf15ac"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51364,11 +51416,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "53bc599fc33efa9de6a89676aa40071abc453d2b5050eb7a031219a98fa3c65c"
+      "sha256": "a14656b72efcc29259b6a35089f14e9c41b1d1cfeb6a0a1e4980d28b5e386a5e"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "cb4a9715868467945c109db6f35764616592483322ef38dc38dc8b17d23eab80"
+      "sha256": "079e0a9f7440180006015c92907206f7b5ac90cd194b6632aa4ad82b863af74d"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -51376,7 +51428,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "aefed8e05d2a081e87047e59834216d17ef9a378e3dd2379be79db38ebec845f"
+      "sha256": "d1eed2f3933b92944b5970502a80a9d0b588d7364d5337636371b794deef56c2"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51624,7 +51676,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "a43439b70fca644424402df149da3efdda04ae64ef57e2a0cb64469b07791f14"
+      "sha256": "a97e0ea60a8d79eec49163f0ad0c7b59b150a0180fb3a3a5441708649ba6c131"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -51868,7 +51920,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "ca0b10019dd1d90604dec2dbd13426375cdd8c0b5ef76fe07159062b97e0d185"
+      "sha256": "0a9f9534d8b324d996f0db768717d113414998e51439b493eea255e3437b9363"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51876,15 +51928,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "324cdf568cab9043d7fd1677089890f98cb8ece329c3437bb315139c06c96e37"
+      "sha256": "d8d0c3ef2a2f8a908c13fe2330419b3ddbf079b2d1d21ab8fb787a0618a9d487"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "fb0c4f8923eedc15b89282fd34c07b66bb6f8ff6b52fbb9f4d796a24266141bf"
+      "sha256": "209178fc93ad1463db98cfbf50641c52cdd9a0e387a2201bb6e7f363bf287da3"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "c1783c54c4114683c75cd57737d0777f56bd73c8f444ca7a727ecb07521ca475"
+      "sha256": "6034b094d9224d1ae7160aac729bd1043fe7c5b0c61f25c6c4885d2ee75af75c"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -51892,7 +51944,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "b3affc70302efa25958b7e6efb6a6b324ba38a0cf494f5a88ef0e55f9c385d45"
+      "sha256": "af32541facef0b28acaa8e52b863214481540391a403cc21225f40845fe8d974"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -54421,6 +54473,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-target-owner221-1.27.json.gz",
       "sha256": "8ad3fa2995a9cb9fb42a5fe0ec371b469ced610df01034404172de33f1c43b7c"
+    },
+    {
+      "path": "tools/frida/research/target222_capture.py",
+      "sha256": "850343c8f953687d4fe5223aa35a4f2f5ce89fbab32711c3826b3eee55361548"
+    },
+    {
+      "path": "tools/frida/research/target222_observer.js",
+      "sha256": "41b22b3548f03074dbc995dc7ed54b2f02c4d962922d4b8b5fbb2a618c9ed371"
+    },
+    {
+      "path": "tools/frida/research/target222_make_map.py",
+      "sha256": "24b06ee0a8cb505e9b67c9efb49c3cd88835deb932f288cea75b006d5956c558"
+    },
+    {
+      "path": "tools/frida/research/target222_probe.j",
+      "sha256": "052488b86b80be65107ccde9b4a5269481f9adfb10b4379b0ac1fd5291366d2f"
+    },
+    {
+      "path": "tools/ghidra/research/Target222Evidence.java",
+      "sha256": "9d8d4aad662a72b594b6044ed253539473a429f5dace9ee004a3dfcf8cc0d7bc"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_attack_chase222.py",
+      "sha256": "9163b7574b4ce1cba016818e0856dea624c984bb5f0d913daf5096c9926c8d75"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_attack_chase222.py",
+      "sha256": "5b99ee66cf71e24be550b7164ed8577ebbb612aa888bf0b8ff9162cefda92da3"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-chase222-1.27.json",
+      "sha256": "dd6b1dc3d56ff74f378a4bb788d09a8cc487378d31c0f70f5b9f88807cdedc6b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-chase222-1.27.json.gz",
+      "sha256": "097448bf8b5bb22ec094ea4d2d3d7e6792c67ac5a8b55d01b850df361ed91a87"
     }
   ]
 }

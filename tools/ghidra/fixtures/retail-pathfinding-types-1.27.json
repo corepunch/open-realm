@@ -17209,6 +17209,116 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f49a240",
+      "name": "Attack_BeginTargetChase",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Payoff222: ECX Attack, stack target bridge and turn-only flag (integer), RET8. Clears Move retained target by5fc640(target,range,0,0), so Attack chase has no Move TargetLost subscription. Range=max(selected effective weapon range, runtime minimum32); turn-only uses runtime FLT_MAX sentinel (7f7fffff). Arrival subscription d0196 belongs to Attack. Captures observe3/4 and unhooked control have identical1000 public markers. Ground-unit engine chase now uses ability-owned nonpersistent physical groups; parent Follow/Patrol/Attack-Move are not overwritten.",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "target_bridge",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "turn_only",
+          "type": "i32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f499310",
+      "name": "Attack_OnTargetArrival",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Payoff222: d0196 dispatch passes1, requiring full fog+detection visibility via4968e0(target,1,&slot); invalid target recovers49d280. Immediate retry caller49a5a6 passes0 (detection-only). Long-fog scene0 arrival at1264 returnsdd and ends Attack; short-fog scene1 retains the order. Engine physical completion performs visibility validation; exact complete Attack timing is still open.",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "require_visibility",
+          "type": "i32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f4968e0",
+      "name": "Attack_ValidateTargetForTask",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Payoff222: ECX Attack; target widget, require-visibility flag, optional slot output. Unit visibility66fdd0(observer,target,requireVisibility==0,4): zero skips fog but retains invisibility detection. Hidden/loaded/dead/widget and weapon gates precede visibility. No guessed universal cancel-on-fog rule.",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "require_visibility",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "weapon_slot",
+          "type": "ptr:u32",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f49b420",
+      "name": "Attack_OnTargetLost",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Payoff222: Attack dispatch d01a4. Resolves task target6c/70 and validates4968e0(target,0,&slot), detection-only. Invalid sets flags20 bit40000 before49d280(0,0). Invisibility with TrueSight scene3 remains valid; both stock-Apiv combat controls (scenes2/3, without/with extra TrueSight) validate0 in this producer; they do not establish undetected-loss behavior. Move's5fb940 is not invoked by Attack's loss validation.",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f49d280",
+      "name": "Attack_RecoverTargetTask",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Payoff222: active flag4 controls recovery. Bit40000 can capture the real target point and max enabled weapon range+target radius+50, release target/windup497e20, stop/recover, then prepend internal d016c point task. Fog-arrival invalidation without40000 does not use that fallback. Full recovery/task-stack engine integration remains open.",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "forced",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "target_event",
+          "type": "ptr:void",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [
