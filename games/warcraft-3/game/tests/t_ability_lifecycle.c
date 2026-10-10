@@ -575,6 +575,37 @@ TEST(wc3_ability_lifecycle, mass_teleport_accepts_structure_target_and_cleans_ca
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Cancellation cleans up immediately, but the old thinker may remain until
+ * its scheduled tick. That late cleanup must not release a recast's pause. */
+TEST(wc3_ability_lifecycle, mass_teleport_old_thinker_preserves_recast_destination_pause) {
+    edict_t *caster = review_setup(), *target = review_unit(0, 2000);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *retired, *replacement;
+    uint32_t code = FS_SLKKey("AHmt");
+    T_ASSERT(S_CastUnitTargetSpell(caster, code, target));
+    retired = review_thinker(caster);
+    T_NOT_NULL(retired);
+    T_ASSERT(target->paused);
+    S_SpellCancelChannel(caster);
+    T_ASSERT(!target->paused);
+    /* Model an immediately restarted channel without bypassing the real
+     * channel thinker identity capture or running an unrelated cooldown. */
+    caster->channel->serial++;
+    caster->channel->code = code;
+    replacement = S_SpellChannelTargetThinker(caster, code, target);
+    T_NOT_NULL(replacement);
+    replacement->think = mass_teleport_think;
+    replacement->wait = 0.0f;
+    replacement->freetime = G_Time() + 5000;
+    target->paused = true;
+    if (retired->inuse) G_RunEntity(retired);
+    T_ASSERT(target->paused);
+    S_SpellCancelChannel(caster);
+    T_ASSERT(!target->paused);
+    if (replacement->inuse) G_RunEntity(replacement);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* The destination entity stays authoritative until completion; losing it
  * cancels the channel instead of teleporting to a stale cached coordinate. */
 TEST(wc3_ability_lifecycle, mass_teleport_target_death_cancels) {
