@@ -797,6 +797,7 @@ typedef enum {
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
     A_NO_RETALIATE,     /* Damage query: return true to suppress automatic counter-attacks. */
     A_CANCEL,           /* Explicit cancellation: return to the unit's ordinary idle behavior. */
+    A_TARGET_MODE_EXIT, /* Target-selection UI is being cleared; owning ability releases its cursor presentation. */
     A_DEATH,            /* unit_die: ability-owned death behavior on the dying unit. */
     A_QUEUE_VALIDATE,   /* Train scheduler: queued item may progress this tick; return validity. Payload: call->queue.{producer,item}. */
     A_QUEUE_COMPLETE,   /* Train completion after placement: owner consumes inputs and activates the result. Payload: call->queue. */
