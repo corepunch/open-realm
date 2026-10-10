@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "194 executable original/evidence contracts;475 total entries.",
+  "scope": "195 executable original/evidence contracts;476 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -50175,6 +50175,64 @@
         "Instruction guards verify saved native producer bodies; this verifier does not emulate the complete net publisher.",
         "Mixed FLOAT, callback category reassignment, busy canonical lifetime and complete multi-class journeys remain GROUP-04.6."
       ]
+    },
+    {
+      "id": "oracle-work240",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work240.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work240.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 4
+        },
+        "public_markers": {
+          "equal": 328
+        },
+        "ordinary_cohorts": {
+          "equal": 2
+        },
+        "alt_cohorts": {
+          "equal": 3
+        },
+        "complete_scopes": {
+          "equal": 48
+        },
+        "instructions": {
+          "equal": 942
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "GROUP-04.6 selected primary/FLOAT/Alt-flight request classes: complete native attachment/readiness publication, repeated public affinity and engine queue/history/save/Stop integration. Complete UI admission sorting remains open.",
+      "exclusions": [
+        "The native kernel supplies candidate-index readiness order and static poses/clock/empty hierarchy/disabled adaptive paths; only Storm allocation uses adapters.",
+        "Actual UI repeats certify three-way affinity and retain exact physical bind order. Retail sorts nine-word admission rows, so the engine native readiness matrix does not certify complete UI admission/callback chronology.",
+        "Synthetic FLOAT-plus-flight combinations certify6b8c10 attachment priority, not6ba800 later association priority.",
+        "The engine test archive omits stock hdes; the matrix supplies captured FLOAT movement rows. Cold saves use an explicit map-authored Footman FLOAT clone. Live probes use stock hdes.",
+        "No new observer-free control, complete movement comparison, worker/performance claims or save-layout change.",
+        "Full candidate sorting, dynamic categories, busy canonical lifetime and complete multi-class trajectories remain GROUP-04.6."
+      ]
     }
   ],
   "fixtures": [
@@ -51073,7 +51131,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "0a676281e2babf94bcfbaee658db13a0a4ca471cd7de93f0ce5cf11c3bbf1b30"
+      "sha256": "09f4b523b3bc4c50ccc7fc9bdacc321fdd278418c1d051b62e505f669ee14abf"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51929,7 +51987,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "1a56ee7e0f5bb5ba7bc3a7672acefd92bf74b49916d4ff6c6b3edd3ca23f3ae0"
+      "sha256": "ab4b4f5d56447f6c9a829a73cfa39843f9961da3812198d6db3ae50faf0392ac"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -52621,7 +52679,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "943c82b21919edbb7b990542ed65ef937c02e94dc69f4d809f11e14344ccc7ce"
+      "sha256": "fdc0ca68c7d50739d08d85ede9f4b2040a6f3053afa0ef6cf4b748a3c7014fbd"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -52865,7 +52923,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "265d9da2a7036472fc0a2b758ca746732474918e869493ef866b9ef0eb5939c1"
+      "sha256": "3582101061dadde4e02a8ad6c70f4a580abb225ce5510d10b07e5fec509544d4"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52881,7 +52939,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "b0955d7203f2cae8eca5973029330c6b8ce889f38f567297e872bc719289be95"
+      "sha256": "e8ee6d7962c8ed3a7596773a045cd43f9f74700d01ad49d3b17afd87e6df00a4"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55825,7 +55883,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-queued-cohorts.md",
-      "sha256": "9da5bbe9983f130efdbe7abcee4a37f1c57bb0f41c52b01dc60809d70ae5b1c4"
+      "sha256": "075cd25b9ccf188b3ac605fa3ca644f7e406f68da6346a18544b587b9fead195"
     },
     {
       "path": "tools/frida/research/work232_observer.js",
@@ -56102,6 +56160,42 @@
     {
       "path": "tools/frida/research/work239b_observer.js",
       "sha256": "82a1a4d9bca108067744d69a93c67694f879067c4362c88070a5617020fb39b0"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_selected_request240.h",
+      "sha256": "a4538be723321c2d191dbf927fbaa870dd09090c8f053028e57e0a2997986591"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work240.py",
+      "sha256": "50b45feb4207a256fac32519868a6ac60101228cb63c91a4a0815281f8dc3671"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work240.py",
+      "sha256": "7f222dc1d26657486696093e67b91341bffe4bf12a456e7348d26b00647b024a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work240-1.27.json",
+      "sha256": "6310ad9097aa50c5d3acd421d4049f71f008b84ac3b1478e8fef13bc39217383"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work240-1.27.json.gz",
+      "sha256": "374955c13ac4701d0c3d7f647b3b2fdedd303abdf6c4eba870be1f6ecbdede90"
+    },
+    {
+      "path": "tools/ghidra/research/Work240Evidence.java",
+      "sha256": "93c7a194a0fe313cb3f16229d38397d200a62c735fb510ba34543d0a6993586e"
+    },
+    {
+      "path": "tools/ghidra/research/work240_oracle.py",
+      "sha256": "70f71382654d5e40bf8ce5ec9d6ed8f32f05b08764f67c65ad16896139de06df"
+    },
+    {
+      "path": "tools/frida/research/work240_probe.j",
+      "sha256": "546e3cc8e4bb3d626ac4047216237a7971ab694b0328ab4223ca373eb17a83e9"
+    },
+    {
+      "path": "tools/frida/research/work240_make_map.py",
+      "sha256": "f1bc799aa5264f1bf58705149f9d8e2fd1a8e832ada479f6cf4594704b556888"
     }
   ]
 }

@@ -572,3 +572,63 @@ in `MapPathfinding.java` retain the player/script distinction.
 Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-01.1/payoff239/`.
 This is implementation1/12 after checkpoint238. The earlier full checkpoint is
 retained; focused original/corpus and neighboring owner checks validate this fix.
+
+## Selected FLOAT candidates retain their own request (Payoff240)
+
+The legacy selected Move fallback offset mixed FLOAT destinations and assigned
+incorrect shared ownership. All bounded two-through-twelve selections now use
+one class-aware producer. Preparation chooses primary, FLOAT or optional Alt
+current-flight storage, then admits the supplied rows in order. Ordinary foot and
+fly share primary; FLOAT uses the second request independently of Alt. Each
+populated class retains its clicked point, independent latest history and queued
+context, and publishes when its final supplied row becomes ready. The fixed
+three-class arrays are stack-local and O(N); publication remains O(1). Removing
+the UI's duplicate mask/class scan also removes that repeated interpretation.
+Captain shared-parameter construction and singleton UI handling keep their
+existing producer contracts. No save fields or format changed.
+
+The fresh original kernel executes48 complete attachment/readiness/physical
+publication scopes: FLOAT masks0/2/5/15, flight masks0/6/15, ordinary/Alt and
+forced-ground controls. Factories, callbacks and publication run as original
+code; only Storm storage uses adapters. Static fine poses, clock, empty hierarchy
+and disabled adaptive paths are supplied inputs. Engine membership, common
+points, formation bits and relative physical birth order match this supplied
+readiness sequence. Synthetic FLOAT-plus-flight cases verify attachment priority,
+not `6ba800`'s later association choice.
+
+Four actual selected Footman/Destroyer/Gryphon/Footman retail repeats preserve328
+public markers. Ordinary request affinity is0/1/0/0; Alt is0/1/2/0. The raw
+physical bind order is retained without claiming complete UI admission parity:
+retail sorts nine-word candidate rows through `6bcc40` before publication. In the
+Alt witness primary binds first, then FLOAT, then special, despite attachment
+iteration0/1/2/0. The engine's native matrix supplies readiness order explicitly;
+it does not prove the complete sorted public callback sequence. That admission
+sorting and dynamic category reassignment remain GROUP-04.6, along with busy
+canonical lifetime and complete multi-class/ShiftAlt trajectories. No new
+observer-free control or whole-motion comparison is claimed.
+
+The initial engine scratch used stock hdes absent from the synthetic test archive
+and is rejected as a fixture error. The corrected matrix supplies captured FLOAT
+movement rows and fails344/1,146 assertions before the fix, then passes all1,146.
+A separate map-authored Footman FLOAT clone verifies distinct immediate/queued
+ownership, history, cold-load metadata, activation and independent Stop in100
+assertions. This does not rewrite authored retail data or earlier expectations.
+Eight focused producer/journey checks pass22,831 assertions per Classic/TFT.
+Ten Ghidra functions, xrefs and942 instruction encodings are saved; portable
+comments explicitly retain the admission-sort evidence limit.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work240.py \
+  --binary /path/to/retail/game.dll --report /tmp/work240-fresh.json
+```
+
+Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff240/`.
+This is implementation2/12 after checkpoint238. GROUP-04.6 remains open.
+
+The neighboring selected/queued suites also pass24 tests/84,914 assertions per
+Classic/TFT.67 focused Python/corpus checks pass. Fresh strict reports accept
+Payoff238/239/240 against the final production/test modules; the corpus contains
+195 original/evidence oracles and476 entries. A first neighbor command omitted
+its wildcard and matched zero tests; it is rejected, not included in these totals.
+Only this validation paragraph and its corpus pins were added after those runs.

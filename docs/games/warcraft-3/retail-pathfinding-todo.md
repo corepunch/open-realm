@@ -56,6 +56,13 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **279 done / 336 tasks; 57 remaining.**
+Payoff240 replaces the mixed FLOAT legacy fallback with up to three prepared
+request classes, preserving clicked points, independent history and queue/save
+ownership.48 complete original readiness scopes and repeated actual UI affinity
+witnesses accompany the failing-first engine fix. GROUP-04.6 retains the full
+sorted admission/callback sequence and wider lifetime work. See
+[selected FLOAT requests](retail-pathfinding-queued-cohorts.md#selected-float-candidates-retain-their-own-request-payoff240).
+
 Payoff239 closes GROUP-01.1's representative selected/JASS/AI producer inventory
 and fixes stale shared history when a player singleton replaces a shared order.
 Repeated retail publication evidence, failing-first queue/save regressions and

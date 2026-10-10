@@ -5140,14 +5140,20 @@ static void move_group_publish_sequence(moveGroup_t *group) {
     move_group_head=group;
 }
 
-/*6b8c10/89cd10: prepare both requests before callbacks, retain global candidate
+/*6b8c10/89cd10: prepare populated requests before callbacks, retain request-row
  * order, and publish each class when ready. Forced grounding already clears
  * AI_FLYING through the ability owner; authored fly alone is insufficient. */
-static bool move_group_alt_point_order(groupPointOrder_t const *request) {
-    unsigned slots[BZ_WC3_GROUP_ORDER_UNITS],remaining[2]={0};
-    moveGroup_t *groups[2]={0};uint32_t contexts[2]={0};
-    FOR_LOOP(i,request->count) {slots[i]=unit_is_flying(request->units[i].unit);remaining[slots[i]]++;}
-    FOR_LOOP(k,2)if(remaining[k]) {
+static bool move_group_selected_point_order(groupPointOrder_t const *request) {
+    enum {PRIMARY,FLOATING,ALT_FLIGHT,CLASSES};
+    unsigned slots[BZ_WC3_GROUP_ORDER_UNITS],remaining[CLASSES]={0};
+    moveGroup_t *groups[CLASSES]={0};uint32_t contexts[CLASSES]={0};
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=request->units[i].unit;
+        bool floating=S_UnitMovementProfile(unit->data.UnitData)->bits==wc3_movement_profile(UNIT_MOVE_FLOAT)->bits;
+        slots[i]=floating ? FLOATING : request->formation_toggle && unit_is_flying(unit) ? ALT_FLIGHT : PRIMARY;
+        remaining[slots[i]]++;
+    }
+    FOR_LOOP(k,CLASSES)if(remaining[k]) {
         if(request->queued)contexts[k]=move_allocate_group_id();
         else groups[k]=move_group_create_request(request,0,NULL);
     }
@@ -5167,7 +5173,7 @@ static bool move_group_alt_point_order(groupPointOrder_t const *request) {
 }
 
 static bool move_group_point_order(groupPointOrder_t const *request,uint64_t shared_id) {
-    if(request->formation_toggle && !shared_id)return move_group_alt_point_order(request);
+    if(!shared_id)return move_group_selected_point_order(request);
     return move_group_captain_order(request,shared_id,NULL);
 }
 
@@ -5948,28 +5954,19 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
     if (num_units == 0) {
         return false;
     }
-    /*6b8c10 attaches ordinary flyers and ground units to the SAME primary
-     * request. Its second request tests authored FLOAT, not AI_FLYING.
-     * Alt uses a separate current-flight request; mixed FLOAT still retains
-     * the legacy producer until its complete admission is integrated. */
+    /* Native selected requests separate FLOAT and optional Alt current flight;
+     * all classes retain the clicked point. A UI singleton has no association. */
     if (num_units>1 && num_units<=BZ_WC3_GROUP_ORDER_UNITS) {
-        bool ground=true,primary=true;uint8_t mask=M_UnitStaticPathingFlags(units[0]);
-        FOR_LOOP(i,num_units) {
-            if((units[i]->aiflags&AI_FLYING) || M_UnitStaticPathingFlags(units[i])!=mask)ground=false;
-            if(S_UnitMovementProfile(units[i]->data.UnitData)->bits==wc3_movement_profile(UNIT_MOVE_FLOAT)->bits)primary=false;
-        }
         bool queued=clent->client->menu.order_queued;
         bool idle=true;
         FOR_LOOP(i,num_units) {
             if (G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) idle=false;
         }
-        if (ground || primary) {
-            groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.formation_toggle=clent->client->menu.order_alt,.issuer_player=clent->client->ps.number};
-            FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
-            bool accepted=G_IssueGroupPointOrder(&request);
-            if (accepted) G_SendPointConfirmation(clent,location,false);
-            return accepted;
-        }
+        groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.formation_toggle=clent->client->menu.order_alt,.issuer_player=clent->client->ps.number};
+        FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+        bool accepted=G_IssueGroupPointOrder(&request);
+        if (accepted) G_SendPointConfirmation(clent,location,false);
+        return accepted;
     }
     wc3FormationMember_t members[WC3_FORMATION_MEMBERS];
     bool const retail_layout = num_units <= WC3_FORMATION_MEMBERS;

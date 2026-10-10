@@ -13261,6 +13261,7 @@ TEST(wc3_movement, selected238_alt_owns_separate_flight_requests) {
 }
 
 #include "fixtures/retail_alt_request238.h"
+#include "fixtures/retail_selected_request240.h"
 TEST(wc3_movement, selected238_native_class_birth_order) {
     FOR_LOOP(r,sizeof(alt238_rows)/sizeof(*alt238_rows)) {
         typeof(*alt238_rows) const *row=alt238_rows+r;
@@ -13292,6 +13293,87 @@ TEST(wc3_movement, selected238_native_class_birth_order) {
         T_EQ(offset,4);
     }
     reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, selected240_all_native_request_classes) {
+    FOR_LOOP(r,sizeof(selected240_rows)/sizeof(*selected240_rows)) {
+        typeof(*selected240_rows) const *row=selected240_rows+r;
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *clent=alloc_test_unit(0,0,0),*units[4];UnitData_t profiles[4];
+        clent->client=game.clients;clent->client->ps.number=0;
+        clent->client->menu.order_queued=false;clent->client->menu.order_alt=row->alt;
+        FOR_LOOP(i,4) {
+            bool flight=row->flight&(1u<<i);
+            units[i]=alloc_test_unit(flight ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o'),512+96*(i&1),512+288*(i/2));
+            /* The synthetic test archive has no Destroyer row. Supply only its
+             * captured FLOAT category; the live witness uses authored hdes. */
+            if(row->float_mask&(1u<<i)) {profiles[i]=*units[i]->data.UnitData;profiles[i].moveTypeName="float";units[i]->data.UnitData=profiles+i;}
+            units[i]->collision=16;units[i]->s.model=1;units[i]->svflags|=SVF_MONSTER;
+            units[i]->stand=unit_stand;units[i]->movetype=MOVETYPE_STEP;unit_stand(units[i]);
+            if(flight && !(row->grounded && i==1))units[i]->aiflags|=AI_FLYING;
+            units[i]->movement.adaptive_disabled=true;
+            T_EQ(S_UnitMovementProfile(units[i]->data.UnitData)->bits==wc3_movement_profile(UNIT_MOVE_FLOAT)->bits,!!(row->float_mask&(1u<<i)));
+            G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+        }
+        vec2_t goal={1536,1536};T_ASSERT(move_selectlocation(clent,&goal));
+        uint32_t offset=0;uint64_t sequence=0;
+        FOR_LOOP(g,row->count) {
+            moveGroup_t *owner=move_unit_group(units[row->members[offset]]);T_NOT_NULL(owner);
+            if(owner) {
+                T_EQ(owner->count,row->sizes[g]);T_EQ(owner->goal.x,goal.x);T_EQ(owner->goal.y,goal.y);T_EQ(owner->flags&14u,row->flags[g]&14u);T_ASSERT(owner->sequence>sequence);sequence=owner->sequence;
+                FOR_LOOP(i,row->sizes[g]) {T_EQ(owner->members[i].unit,units[row->members[offset+i]]);T_EQ(move_unit_group(units[row->members[offset+i]]),owner);}
+            }
+            offset+=row->sizes[g];
+        }
+        T_EQ(offset,4);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, selected240_float_queue_history_and_save) {
+    FOR_LOOP(alt,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        char floating[]="float";
+        unitModification_t mod={.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=floating};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','F','4','0'),.numbeOfModifications=1,.modifications=&mod};
+        mapInfo_t const *saved=level.mapinfo;mapInfo_t info=*saved;
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;
+        level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        edict_t *clent=alloc_test_unit(0,0,0),*units[4];
+        clent->client=game.clients;clent->client->ps.number=0;
+        clent->client->menu.order_alt=alt;clent->client->menu.order_queued=false;
+        FOR_LOOP(i,4) {
+            uint32_t type=i==1 ? custom.newUnitID : i==2 ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o');
+            units[i]=alloc_test_unit(type,512+96*(i&1),512+288*(i/2));
+            units[i]->collision=16;units[i]->s.model=1;units[i]->svflags|=SVF_MONSTER;
+            units[i]->stand=unit_stand;units[i]->movetype=MOVETYPE_STEP;unit_stand(units[i]);
+            if(i==2)units[i]->aiflags|=AI_FLYING;
+            G_SetEntitySelectionMask(units[i],1);gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+        }
+        vec2_t goal={1536,1536};T_ASSERT(move_selectlocation(clent,&goal));
+        T_NE(move_unit_group(units[0]),move_unit_group(units[1]));
+        T_EQ(move_unit_group(units[0]),move_unit_group(units[3]));
+        if(alt)T_NE(move_unit_group(units[0]),move_unit_group(units[2]));
+        else T_EQ(move_unit_group(units[0]),move_unit_group(units[2]));
+        clent->client->menu.order_queued=true;goal=(vec2_t){512,2048};
+        T_ASSERT(move_selectlocation(clent,&goal));uint64_t history[4];
+        FOR_LOOP(i,4) {history[i]=units[i]->movement.previous_request_id;T_ASSERT(history[i]!=0);T_EQ(units[i]->order_queue.count,1);}
+        T_NE(history[0],history[1]);T_EQ(history[0],history[3]);
+        if(alt)T_NE(history[0],history[2]);else T_EQ(history[0],history[2]);
+        cstring_t save=Test_TempPath("wc3-selected240.bin");T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+        T_EQ(S_UnitMovementProfile(units[1]->data.UnitData)->bits,wc3_movement_profile(UNIT_MOVE_FLOAT)->bits);
+        FOR_LOOP(i,4) {T_EQ(units[i]->movement.previous_request_id,history[i]);if(units[i]->order_queue.count)T_ASSERT(G_UnitStartNextQueuedOrder(units[i]));}
+        T_NE(move_unit_group(units[0]),move_unit_group(units[1]));T_EQ(move_unit_group(units[0]),move_unit_group(units[3]));
+        FOR_LOOP(i,4) {moveGroup_t *group=move_unit_group(units[i]);T_NOT_NULL(group);if(group){T_EQ(group->goal.x,goal.x);T_EQ(group->goal.y,goal.y);}T_EQ(units[i]->movement.previous_request_id,history[i]);}
+        T_ASSERT(unit_issueimmediateorder(units[1],"stop"));T_EQ(move_unit_group(units[1]),NULL);
+        FOR_LOOP(i,4)if(i!=1)T_NOT_NULL(move_unit_group(units[i]));
+        remove(save);
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;setup_test_world();
+    }
 }
 
 TEST(wc3_movement, selected238_alt_callbacks_keep_candidate_order_and_replacement) {
