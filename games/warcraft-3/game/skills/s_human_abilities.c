@@ -572,14 +572,18 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
     float summon_dmg = data_e > 0.0f ? data_e : data_b;
     float heal_hp = data_e > 0.0f ? data_a : 0.0f, heal_mana = data_e > 0.0f ? data_b : 0.0f;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
+        uint32_t target_removed = 0;
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
                 if (!unit_status_can_dispel(&target->abilstatus[i])) continue;
-                unit_removestatus(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
-                removed++;
+                unit_removestatus_deferred(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
+                removed++; target_removed++;
             }
         }
-        unit_refreshstatusflags(target);
+        if (target_removed) {
+            unit_refreshstatusflags(target);
+            G_InvalidateUnitInfoPanel(target);
+        }
         if (dispel_is_summoned(target) && !S_SummonIsDispelImmune(target) && summon_dmg > 0.0f)
             S_SpellDamage(target, caster, (int)summon_dmg);
     }

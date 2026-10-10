@@ -55,7 +55,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
     uint32_t level = S_SpellLevel(caster, spell->code), count = 0; float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, count < (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)) && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) if (unit_status_can_dispel(target->abilstatus + i))
-            unit_removestatus(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
+            unit_removestatus_deferred(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
+        unit_refreshstatusflags(target);
+        G_InvalidateUnitInfoPanel(target);
         count++;
     }
 }

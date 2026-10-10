@@ -1417,8 +1417,8 @@ static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t 
     case MAKEFOURCC('B','f','z','y'): case MAKEFOURCC('B','U','h','f'):
     case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
     case MAKEFOURCC('B','i','n','f'): case MAKEFOURCC('B','f','a','e'):
-        slot->modifier_count = 0;
-        memset(slot->modifiers, 0, sizeof(slot->modifiers));
+        /* Never overwrite descriptors belonging to another provider. */
+        if (slot->modifier_count) return;
         break;
     default: return;
     }

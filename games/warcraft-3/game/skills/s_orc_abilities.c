@@ -70,8 +70,10 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
         heroabilitystatus_t *s = st.entity->abilstatus + i;
         if (!s->level || !s->timestamp) continue;
         if (!unit_status_can_dispel(s)) continue;
-        unit_removestatus(st.entity, s, STATUS_REMOVE_DISPEL);
+        unit_removestatus_deferred(st.entity, s, STATUS_REMOVE_DISPEL);
     }
+    unit_refreshstatusflags(st.entity);
+    G_InvalidateUnitInfoPanel(st.entity);
     buff = S_SpellBuffId(spell->code, level);
     if (!buff || strlen(buff) < 4) buff = "Bprg";
     slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,

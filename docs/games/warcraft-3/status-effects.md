@@ -181,3 +181,17 @@ Attack profile selection prioritizes an eligible Magic attack against Ethereal
 targets, matching the target gate for dual-weapon units. Expired statuses no
 longer receive A_STATUS_REFRESH callbacks. Cast preflight treats INVALID as a
 failure as well as FULL. These changes have source-level validation only.
+
+## Removal batching and callback guard
+
+`unit_removestatus_deferred()` performs the same status callback and visual
+cleanup as ordinary removal, without reconciling derived state after each slot.
+The expiry loop and multi-buff dispels reconcile once after the group, while
+replacement reconciles after the new record is installed. A per-call removal
+stack rejects attempts to recursively remove a slot already being retired.
+Status authored modifiers are installed only when the slot has no preexisting
+descriptors, preventing refresh from erasing externally owned contributions.
+
+This work does not enable independent stacking on normal ability families or
+make delayed multi-target spell outcomes transactional. Those paths still need
+ability-by-ability review.
