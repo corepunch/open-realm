@@ -30,6 +30,13 @@ static void terrain_deform_capture_multicast(vec3_t const *origin, multicast_t t
     (void)origin; (void)to;
 }
 
+static void spell_panel_test_write(pfWriteType_t type, void const *data) {
+    (void)type;
+    (void)data;
+}
+
+static void spell_panel_test_unicast(edict_t *ent) { (void)ent; }
+
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
@@ -1297,6 +1304,66 @@ TEST(wc3_spell, devotion_aura_recipient_presents_authored_buff_and_target_art) {
     T_EQ(S_DevotionAuraBuff(target), 0);
     T_NULL(overlay->goalentity);
 
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, selected_devotion_recipient_invalidates_status_panel_on_aura_transition) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K900\nC;Y2;X5;K3\nC;Y2;X6;K\"Biml\"\nC;Y2;X7;K1\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *source;
+    edict_t *target;
+    edict_t *player = &g_edicts[0];
+
+    reset_entities();
+    setup_test_world();
+    rows = parse_slk_string(slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    player->client = &game.clients[0];
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    target->think = monster_think;
+    target->svflags |= SVF_MONSTER;
+    target->inuse = true;
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    G_SelectEntity(&game.clients[0], target);
+    game.clients[0].infopanel.entity = target->s.number;
+    gi.Write = spell_panel_test_write;
+    gi.unicast = spell_panel_test_unicast;
+
+    level.time = 0;
+    S_RunAbilityUpdates(target);
+    T_EQ(S_DevotionAuraBuff(target), MAKEFOURCC('B','i','m','l'));
+    T_EQ(game.clients[0].infopanel.entity, UINT32_MAX);
+    G_RefreshInfoPanel(player);
+    T_EQ(game.clients[0].infopanel.entity, target->s.number);
+
+    level.time = AURA_UPDATE_MS;
+    S_RunAbilityUpdates(target);
+    T_EQ(S_DevotionAuraBuff(target), MAKEFOURCC('B','i','m','l'));
+    T_EQ(game.clients[0].infopanel.entity, target->s.number);
+
+    target->s.origin2.x = 2000;
+    level.time = AURA_UPDATE_MS * 2;
+    S_RunAbilityUpdates(target);
+    T_EQ(S_DevotionAuraBuff(target), 0);
+    T_EQ(game.clients[0].infopanel.entity, UINT32_MAX);
+    G_RefreshInfoPanel(player);
+    T_EQ(game.clients[0].infopanel.entity, target->s.number);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
