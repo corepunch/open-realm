@@ -61,8 +61,15 @@ static bool faerie_validate(edict_t *caster, spellTarget_t st, abilityitem_t con
 }
 
 static bool rejuv_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity);
+    uint32_t level;
+    cstring_t buff;
+    if (!spell || !st.entity || !S_SpellIsAliveTarget(st.entity) || !S_SpellIsFriend(caster, st.entity))
+        return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = melee_buff(spell, level);
+    return buff && unit_status_checkapplication(st.entity, &(status_application_t){
+        .buff = buff, .level = level
+    }) != WC3_STATUS_APPLY_FULL;
 }
 
 /* Name=Bloodlust

@@ -159,3 +159,16 @@ applications do not reuse independently owned slots; independent sources
 retain their instance and timer even when a legacy same-rawcode buff is added.
 Spell Steal passes a terminated buff ID and refuses to replace a recipient's
 existing same-code status. Its existing limited transfer-family allowlist remains.
+
+## Integration hardening after patches 12–15
+
+All `unit_removestatus()` callers now receive immediate derived-state and HUD
+refresh after the removal callback. Abolish Magic applies the shared dispel
+eligibility predicate, preserving protected timed statuses. Source-specific
+lookup ignores expired records awaiting cleanup. Spell Steal considers other
+nearby eligible recipients if an earlier candidate has no free status slot or
+already carries the buff; transfer still remains opt-in for reviewed families.
+Rejuvenation validates status capacity against the caster's ability level.
+Delayed and multi-target status applications remain impact-time decisions;
+resource/cooldown refund policies require per-ability evaluation rather than
+a blanket rollback. Independent stacking remains opt-in only.
