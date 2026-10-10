@@ -290,3 +290,13 @@ only that instance without resetting its pulse deadline. Dispel or expiry
 of one instance does not remove another source's infection. Allocation
 failure leaves existing infections intact; the generic HUD remains
 rawcode-deduplicated. Other poison families remain legacy/rawcode-owned.
+
+## Possession Two status allocation transaction
+
+`Aps2` validates that both channel status records have free slots before
+committing resources. It does not replace existing `Bpos`/`Bpoc` ownership.
+Execution rechecks capacity, applies target then caster status, and removes
+the newly installed target status if the second application fails. The channel
+thinker and target invulnerability are created only after both succeed. If
+capacity changes between validation and execution, the cast may already have
+committed its cost before execution detects the failure.
