@@ -70,7 +70,7 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
         heroabilitystatus_t *s = st.entity->abilstatus + i;
         if (!s->level || !s->timestamp) continue;
         if (S_StatusIsUndispellable(s)) continue;
-        unit_expirestatus(st.entity, s);
+        unit_removestatus(st.entity, s, STATUS_REMOVE_DISPEL);
     }
     buff = S_SpellBuffId(spell->code, level);
     if (!buff || strlen(buff) < 4) buff = "Bprg";

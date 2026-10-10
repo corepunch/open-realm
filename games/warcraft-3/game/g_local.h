@@ -758,6 +758,18 @@ typedef struct {
     ability_t const *ability;
 } abilityitem_t;
 
+/* Why a Warcraft timed status is ending; exposed to A_STATUS_REMOVE owners. */
+typedef enum {
+    STATUS_REMOVE_EXPIRE,
+    STATUS_REMOVE_DISPEL,
+    STATUS_REMOVE_STEAL,
+    STATUS_REMOVE_REPLACED,
+    STATUS_REMOVE_DEATH,
+    STATUS_REMOVE_SOURCE_LOST,
+    STATUS_REMOVE_TRANSFORM,
+    STATUS_REMOVE_SCRIPT
+} status_remove_reason_t;
+
 typedef enum {
     A_INIT,             /* InitAbilities: initialize shared data from call->classname. */
     A_COMMAND,          /* Command card: begin the ability through call->client; return handled. */
@@ -845,7 +857,7 @@ struct ability_call_s {
         bool enabled;
         struct { edict_t *producer; edict_t *item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
-        struct { heroabilitystatus_t *slot; uint32_t ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
+        struct { heroabilitystatus_t *slot; uint32_t ability; status_remove_reason_t reason; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
     };
 };
 
@@ -2721,6 +2733,7 @@ void unit_leavecombat(edict_t *);
 bool unit_affectingcombat(edict_t *);
 void unit_updatestatuses(edict_t *);
 void unit_expirestatus(edict_t *, heroabilitystatus_t *);
+void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
 heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);
 void unit_statusdeath(edict_t *);
 void incinerate_explode_think(edict_t *);

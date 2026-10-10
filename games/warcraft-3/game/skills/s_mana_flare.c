@@ -6,7 +6,7 @@
 static void mana_flare_strip(edict_t *unit) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == ID_BMFL)
-			memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
+			unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_SCRIPT);
 	G_InvalidateUnitInfoPanel(unit);
 }
 

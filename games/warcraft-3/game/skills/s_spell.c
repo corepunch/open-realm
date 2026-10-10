@@ -415,7 +415,7 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
     if (!row || !row->targs || !S_SpellTargetHasToken(row->targs, "enemy", NULL)) return false;
     status = unit_findstatus(target, MAKEFOURCC('B', 'N', 's', 's'));
     if (!status) return false;
-    unit_expirestatus(target, status);
+    unit_removestatus(target, status, STATUS_REMOVE_SCRIPT);
     unit_refreshstatusflags(target);
     G_InvalidateUnitInfoPanel(target);
     return true;

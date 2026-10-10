@@ -1413,14 +1413,14 @@ float G_UnitArmorValue(edict_t const *ent) {
  * status's origin ability rawcode, never from the victim's learned abilities
  * (the victim may not own the casting ability). REMOVE arrives while the slot
  * is still valid; the wipe happens after every owner has run. */
-static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg) {
+static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg, status_remove_reason_t reason) {
     abilityitem_t item;
     abilityCall_t call;
     if (!ent || !slot || !slot->level || !ability) return;
     item = S_AbilityItem(ability);
     if (!item.ability || !item.ability->proc) return;
     call = MAKE(abilityCall_t, .item = &item);
-    call.status.slot = slot; call.status.ability = ability;
+    call.status.slot = slot; call.status.ability = ability; call.status.reason = reason;
     S_AbilityMessage(ent, msg, &call);
 }
 
@@ -1436,7 +1436,7 @@ void unit_statusdeath(edict_t *ent) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *slot = ent->abilstatus + i;
         if (slot->level && (!slot->timestamp || slot->timestamp > G_Time()))
-            UnitDispatchStatus(ent, slot, slot->data, A_STATUS_DEATH);
+            UnitDispatchStatus(ent, slot, slot->data, A_STATUS_DEATH, STATUS_REMOVE_DEATH);
     }
 }
 
@@ -1448,19 +1448,26 @@ void unit_refreshstatusflags(edict_t *ent) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
         if (unit_status_stuns(status->code)) stunned = true;
-        UnitDispatchStatus(ent, status, status->data, A_STATUS_REFRESH);
+        UnitDispatchStatus(ent, status, status->data, A_STATUS_REFRESH, STATUS_REMOVE_SCRIPT);
     }
     ent->stunned = stunned;
 }
 
-/* Dispel/Purge share this so owners run their inverse before the slot is wiped. */
-void unit_expirestatus(edict_t *ent, heroabilitystatus_t *status) {
+/* Dispatch the inverse while the old record is still available. Callers may
+ * choose the reason, but all termination paths must use this lifecycle. */
+void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_reason_t reason) {
     uint32_t origin;
     if (!ent || !status || !status->level) return;
     S_HumanStatusExpired(ent, status->code, status->level);
     origin = status->data;
-    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE);
+    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE, reason);
     memset(status, 0, sizeof(*status));
+}
+
+/* Compatibility API: existing explicit callers historically use this for all
+ * removal causes; new sites should call unit_removestatus with their reason. */
+void unit_expirestatus(edict_t *ent, heroabilitystatus_t *status) {
+    unit_removestatus(ent, status, STATUS_REMOVE_EXPIRE);
 }
 
 void unit_updatestatuses(edict_t *ent) {
@@ -1482,9 +1489,9 @@ void unit_updatestatuses(edict_t *ent) {
                 militia_expired = true;
             }
             unit_timed_status_log("expire", ent, status);
-            unit_expirestatus(ent, status);
+            unit_removestatus(ent, status, STATUS_REMOVE_EXPIRE);
             changed = true;
-        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, status->data, A_STATUS_TICK);
+        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, status->data, A_STATUS_TICK, STATUS_REMOVE_SCRIPT);
     }
     if (changed) {
         unit_refreshstatusflags(ent);
@@ -1533,7 +1540,10 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
                     status->duration_ms = duration_ms;
                 }
             } else {
-                /* "Replace" (default): overwrite level and timestamp. */
+                /* Replace must retire the old owner's effects before the new
+                 * instance becomes visible (Refresh/Stack must not). */
+                unit_removestatus(ent, status, STATUS_REMOVE_REPLACED);
+                status->code = code;
                 status->level = level;
                 status->data = 0;
                 status->source = NULL;
