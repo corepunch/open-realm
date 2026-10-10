@@ -1903,7 +1903,7 @@ TEST(wc3_spell, requested_active_callback_families_change_simulation) {
 	T_ASSERT(M_IsDead(third));
 
 	test_execute_code(caster, "AOcl", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = first));
-	T_FEQ(first->health.value, 399.0f, 0.001f);
+	T_FEQ(first->health.value, 334.0f, 0.001f); /* magic damage is amplified by Banish */
 	T_FEQ(second->health.value, 500.0f, 0.001f);
 	{
 		edict_t *thinker = NULL;
@@ -4428,7 +4428,7 @@ TEST(wc3_spell, melee_status_roc_empty_buffid_applies_default_fourcc) {
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','s')));
 	test_execute_code(caster, "Auhf", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','U','h','f')));
-	T_FEQ(S_UnholyFrenzyAttackBonus(enemy), 0.37f, 0.001f);
+	T_FEQ(unit_status_modifier_total(enemy, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0.37f, 0.001f);
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

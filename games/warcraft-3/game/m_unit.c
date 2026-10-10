@@ -1629,7 +1629,7 @@ void unit_expirestatus(edict_t *ent, heroabilitystatus_t *status) {
 
 bool unit_status_take_due_tick(heroabilitystatus_t *slot, uint32_t interval_ms, uint32_t now_ms) {
     if (!slot || !slot->level || !interval_ms || !slot->next_tick ||
-        slot->next_tick > now_ms || slot->next_tick >= slot->timestamp) return false;
+        slot->timestamp <= now_ms || slot->next_tick > now_ms || slot->next_tick >= slot->timestamp) return false;
     /* Do not wrap a live deadline back into an earlier game tick. */
     if (UINT32_MAX - slot->next_tick < interval_ms) {
         slot->next_tick = 0;
