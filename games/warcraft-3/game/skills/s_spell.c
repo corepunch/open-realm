@@ -1463,8 +1463,8 @@ static void status_refresh_authored_modifiers(edict_t *unit) {
  * return its authoritative slot.  Presentation and payload remain caller-owned. */
 heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, uint32_t level, float duration) {
     if (!target || !buff || strlen(buff) < 4) return NULL;
-    unit_addtimedstatus(target, buff, level, duration);
-    heroabilitystatus_t *status = unit_findstatus(target, FS_SLKKey(buff));
+    status_application_t app = { .buff = buff, .level = level, .duration = duration };
+    heroabilitystatus_t *status = unit_applystatus(target, &app);
     if (status) {
         status_refresh_authored_modifiers(target);
         status = unit_findstatus(target, FS_SLKKey(buff));

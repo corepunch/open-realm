@@ -1776,13 +1776,13 @@ heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *
 }
 
 
-void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float duration) {
+bool unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float duration) {
     status_application_t app = { .buff = skill, .level = level, .duration = duration };
-    (void)unit_applystatus(ent, &app);
+    return unit_applystatus(ent, &app) != NULL;
 }
 
-void unit_addstatus(edict_t *ent, cstring_t skill, uint32_t level) {
-    unit_addtimedstatus(ent, skill, level, 0);
+bool unit_addstatus(edict_t *ent, cstring_t skill, uint32_t level) {
+    return unit_addtimedstatus(ent, skill, level, 0);
 }
 
 uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
