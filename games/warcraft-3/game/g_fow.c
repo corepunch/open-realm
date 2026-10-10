@@ -1980,13 +1980,17 @@ bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent) {
     return grid->visible && grid->visible[index] != 0;
 }
 
-/* Native23a760 uses mode4/flags0: ownership/shared vision bypass detection,
- * but not the target vision cell. Rendering may still expose owned units. */
-bool G_FowPlayerCanTrackUnit(uint32_t player, edict_t const *ent) {
+/* Native66fdd0/1dd920: caller flags independently skip fog and detection.
+ * Ownership/shared vision bypass detection, not the target's mode4 cell.
+ * Unit reveal and synchronized show-map remain independent producers. */
+bool G_FowPlayerCanQueryUnit(uint32_t player, edict_t const *ent, uint32_t flags) {
     if (!ent || player>=MAX_PLAYERS) return false;
-    if (!G_FowReady()) return true;
+    /* Synthetic worlds may omit the fog grid. Detection-only consumers still
+     * evaluate their ordinary ability state without requiring that grid. */
+    if (!(flags&UNIT_VISIBILITY_IGNORE_FOG) && !G_FowReady()) return true;
     if (G_UnitIsForcedVisibleToPlayer(ent,player)) return true;
-    if (S_UnitIsInvisibleToPlayer(ent,player)) return false;
+    if (!(flags&UNIT_VISIBILITY_IGNORE_DETECTION) && S_UnitIsInvisibleToPlayer(ent,player)) return false;
+    if (flags&UNIT_VISIBILITY_IGNORE_FOG) return true;
     if (G_FowPlayerFogDisabled(player)) return true;
     uint32_t x=G_FowWorldToCellX(ent->s.origin.x),y=G_FowWorldToCellY(ent->s.origin.y);
     if (x==FOW_INVALID_CELL || y==FOW_INVALID_CELL) return false;
@@ -1995,6 +1999,11 @@ bool G_FowPlayerCanTrackUnit(uint32_t player, edict_t const *ent) {
     if (g_fow_fast) return G_FowPackedAt(grid->packed_visible,grid,x,y);
 #endif
     return grid->visible && grid->visible[y*level.fow.width+x]!=0;
+}
+
+/* Native23a760, Move validation and arrival all use flags0/mode4. */
+bool G_FowPlayerCanTrackUnit(uint32_t player, edict_t const *ent) {
+    return G_FowPlayerCanQueryUnit(player,ent,0);
 }
 
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent) {

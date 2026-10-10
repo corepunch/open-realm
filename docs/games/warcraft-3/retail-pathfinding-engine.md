@@ -16038,3 +16038,15 @@ are archived under `research/ORDER-02.2/payoff250/`. These are read-only hooked
 repeats; no fresh unhooked live control or whole movement parity is claimed.
 Ordinary per-unit queue event timing, other command owners and remaining queue
 controls stay under ORDER-02.2/02.3; wider canonical ownership stays GROUP-04.6.
+
+## Shared visibility policies and invalid optional Move targets (Payoff251)
+
+Move now converts self, script-hidden and dead unit targets to their issue-time
+predicted point before immediate/Shift admission, matching native207160 flags6.
+Smart rejects the same targets without replacing the active order or FIFO.
+Fog owns independent skip-fog/skip-detection query flags; Move delegates flags0
+and Attack delegates its detection-only flag1 policy. Two fresh retail repeats
+and an unhooked control agree on117 public markers; the original visibility
+bodies cover6,912 controlled cases, including576 literal engine policy rows.
+TARGET-03.1 closes; broader dynamic TARGET-03.2 remains open. See
+[policy producers, branch table and engine regressions](retail-pathfinding-target-visibility.md#visibility-policies-and-optional-target-admission-payoff251).

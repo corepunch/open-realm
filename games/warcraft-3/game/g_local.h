@@ -2964,6 +2964,11 @@ void G_FowSendDeltas(void);
 void G_FowSendFull(edict_t *ent);
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent);
+typedef enum {
+    UNIT_VISIBILITY_IGNORE_FOG = 1,
+    UNIT_VISIBILITY_IGNORE_DETECTION = 2
+} unitVisibilityFlags_t;
+bool G_FowPlayerCanQueryUnit(uint32_t player, edict_t const *ent, uint32_t flags);
 bool G_FowPlayerCanTrackUnit(uint32_t player, edict_t const *ent);
 void G_QueueShowMapCheat(void);
 void G_RunShowMapCheats(void);

@@ -30,6 +30,7 @@
 #include "fixtures/retail_facing245.h"
 #include "fixtures/retail_target246.h"
 #include "fixtures/retail_stop247.h"
+#include "fixtures/retail_visibility251.h"
 #include "games/warcraft-3/common/terrain.h"
 #include "games/warcraft-3/common/wc3_pathing_segment.h"
 #include "retail_public_oblique.h"
@@ -22660,6 +22661,97 @@ TEST(wc3_movement, queued250_nested_same_point_move_owns_its_task_stop_leaves_no
     T_NOT_NULL(move_unit_group(queued250.units[0]));
     T_NOT_NULL(queued250.units[0]->goalentity);
     reset_entities();setup_test_world();
+}
+
+/* Native207160 flags6 falls back after DD/AA as well as BA. The target
+ * validator alone does not decide whether the public Move was accepted. */
+TEST(wc3_movement, target251_invalid_optional_move_normalizes_before_fifo_mutation) {
+    FOR_LOOP(kind,3)FOR_LOOP(queued,2) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        if(kind==0)target=unit;
+        else if(kind==1) {
+            T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+                "local group g=CreateGroup()\ncall GroupEnumUnitsInRange(g,672,256,1,null)\n"
+                "call ShowUnit(FirstOfGroup(g),false)\ncall DestroyGroup(g)\nendfunction\n"));
+            T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_HIDDEN);
+        } else {
+            T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+                "local group g=CreateGroup()\ncall GroupEnumUnitsInRange(g,672,256,1,null)\n"
+                "call KillUnit(FirstOfGroup(g))\ncall DestroyGroup(g)\nendfunction\n"));
+            T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_LOST);
+        }
+        T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1536,1536}));
+        edict_t *previous=unit->goalentity;
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1024,1536},true,0,0));
+        wc3GridPose_t pose;unit_predicted_pose(target,&pose);
+        vec2_t point={pose.world[0],pose.world[1]};
+        T_ASSERT(G_IssueUnitTargetOrder(unit,"move",target,queued,0));
+        T_NULL(unit->movement.follow_target);
+        if(queued) {
+            T_EQ(unit->goalentity,previous);T_EQ(unit->order_queue.count,2);
+            if(unit->order_queue.count==2) {
+                unsigned index=(unit->order_queue.head+1)%unit->order_queue.capacity;
+                unitOrder_t const *order=unit->order_queue.entries+index;
+                T_EQ(order->target_type,UNIT_ORDER_TARGET_POINT);
+                T_EQ(wc3_float_bits(order->point.x),wc3_float_bits(point.x));
+                T_EQ(wc3_float_bits(order->point.y),wc3_float_bits(point.y));
+            }
+            cstring_t file=Test_TempPath("wc3-target251-optional.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            T_ASSERT(G_UnitStartNextQueuedOrder(unit));T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+        } else T_EQ(unit->order_queue.count,0);
+        T_NULL(unit->movement.follow_target);T_NOT_NULL(unit->goalentity);
+        if(unit->goalentity) {
+            T_ASSERT(unit->goalentity->svflags&SVF_MOVE_WAYPOINT);
+            T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x),wc3_float_bits(point.x));
+            T_EQ(wc3_float_bits(unit->goalentity->s.origin2.y),wc3_float_bits(point.y));
+        }
+        T_EQ(unit->current_order_id,G_OrderId("move"));
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+TEST(wc3_movement, target251_invalid_smart_preserves_active_head_and_fifo) {
+    FOR_LOOP(kind,3) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        if(kind==0)target=unit;
+        else if(kind==1)target->s.renderfx|=RF_HIDDEN;
+        else target->health.value=0;
+        T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1536,1536}));
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1024,1536},true,0,0));
+        edict_t *goal=unit->goalentity;uint32_t group=unit->movement.group_id;
+        T_ASSERT(!G_IssueUnitTargetOrder(unit,"smart",target,false,0));
+        T_ASSERT(!G_IssueUnitTargetOrder(unit,"smart",target,true,0));
+        T_EQ(unit->goalentity,goal);T_EQ(unit->movement.group_id,group);
+        T_EQ(unit->order_queue.count,1);T_EQ(unit->current_order_id,G_OrderId("move"));
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+
+TEST(wc3_movement, target251_visibility_policy_matches_original_flag_matrix) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    edict_t *detector=G_Spawn();detector->think=far_sight_think;
+    detector->s.player=0;detector->spawn_time=G_Time()+100000;
+    detector->s.origin2=target->s.origin2;
+    FOR_LOOP(i,sizeof(retail_visibility251)/sizeof(*retail_visibility251)) {
+        unsigned char const *row=retail_visibility251[i];
+        if(level.show_map_cheat!=(row[1]!=0)) {G_QueueShowMapCheat();G_RunShowMapCheats();}
+        SET_FLAG(target->runtime.flags,UNIT_BALANCE_PERMANENT_INVISIBLE,row[2]);
+        target->s.player=row[3] ? 0 : PLAYER_NEUTRAL_PASSIVE;
+        detector->collision=row[4] ? 200 : 0;
+        G_SetUnitSharedVision(target,0,false);
+        while(target->forced_visibility_count[0])G_RemoveUnitForcedVisibility(target,0);
+        if(row[5]==1)G_SetUnitSharedVision(target,0,true);
+        if(row[5]==2)G_AddUnitForcedVisibility(target,0);
+        G_FowSetStateRadius(&(fogWrite_t){0,row[6],false},&target->s.origin2,256);
+        T_EQ(G_FowPlayerCanQueryUnit(0,target,row[0]),row[7]);
+        if(row[0]==0) {
+            T_EQ(G_FowPlayerCanTrackUnit(0,target),row[7]);
+            T_EQ(S_MoveTargetStatus(unit,target),row[7] ? MOVE_TARGET_VALID : MOVE_TARGET_LOST);
+        }
+    }
+    if(level.show_map_cheat) {G_QueueShowMapCheat();G_RunShowMapCheats();}
+    G_FowShutdown();reset_entities();setup_test_world();
 }
 
 #endif

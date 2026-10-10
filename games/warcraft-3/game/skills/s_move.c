@@ -6329,7 +6329,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         edict_t *target=call->issued_target_order.target;
         if (!target || !(target->svflags&SVF_MONSTER)) return ABILITY_ORDER_UNHANDLED;
         moveTargetResult_t status=S_MoveTargetStatus(ent,target);
-        if(status==MOVE_TARGET_VALID) {
+        if(status==MOVE_TARGET_VALID && target!=ent) {
             /* The packet keeps an issue-time fallback independently of its
              * target identity, including targets lost while queued. */
             if(call->issued_target_order.point) {
@@ -6338,11 +6338,11 @@ BZ_ABILITY_PROC(CAbilityMove) {
             }
             return ABILITY_ORDER_UNHANDLED;
         }
-        /* Native207160 consumes Move's unseen result through its point
-         * fallback. Normalize before FIFO admission so queued Move retains
-         * the issue-time point, without subscribing to the target's lifetime. */
-        if(!strcmp(order,"move") && status==MOVE_TARGET_LOST &&
-           !M_IsDead(target) && !G_IsDeferredFree(target) && call->issued_target_order.point) {
+        /* Native207160 flags6 admits a point after target rejection, including
+         * self/DD, hidden/AA and cargo/A9, as well as visibility/BA. Preserve
+         * the captured pose before replacing a task or appending the FIFO.
+         * A removed handle never reaches native validation. */
+        if(!strcmp(order,"move") && !G_IsDeferredFree(target) && call->issued_target_order.point) {
             wc3GridPose_t point;unit_predicted_pose(target,&point);
             *call->issued_target_order.point=(vec2_t){point.world[0],point.world[1]};
             return ABILITY_ORDER_POINT;
@@ -6379,7 +6379,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
            !strcmp(queued->order,"move")) {
             edict_t *target=queued->target_number<globals.num_edicts ?
                 globals.edicts+queued->target_number : NULL;
-            if(target && target->spawn_time==queued->target_spawn_time &&
+            if(target && target!=ent && target->spawn_time==queued->target_spawn_time &&
                S_MoveTargetStatus(ent,target)==MOVE_TARGET_VALID)
                 return S_IssueFollowOrder(ent,target,G_OrderId(queued->order));
             /* Original5fd270 uses the order's retained48/50 words after

@@ -1,0 +1,7819 @@
+{
+ "task": "TARGET-03.2",
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "captures": [
+  {
+   "name": "observe-1",
+   "report": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/analysis/observe-1.json",
+   "capture": "captures/observe-1.jsonl",
+   "capture_sha256": "0b6839d10b34d6b5142ee19b46f821542af56cc7df93d89bde507741992ccce9"
+  },
+  {
+   "name": "observe-2",
+   "report": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/analysis/observe-2.json",
+   "capture": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/captures/observe-2.jsonl",
+   "capture_sha256": "5f630ccac1d044aaeefd9997826aee8faff69fb7ee376258fe083b51a01fdce6"
+  }
+ ],
+ "repeats_identical": true,
+ "compared_fields": [
+  "public_transitions",
+  "tasks",
+  "groups",
+  "target_lost",
+  "handler",
+  "validate",
+  "visibility_queries",
+  "group_hidden",
+  "counts",
+  "markers",
+  "hidden_episodes"
+ ],
+ "preload_compare": {
+  "reference": {
+   "path": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/captures/observe-1-preload.txt",
+   "markers": 3621,
+   "sha256": "8a683b0f28477cb76b0097baf35312e6f3eea18dc2e2047dfc0e34ebf206c2a3"
+  },
+  "compared": [
+   {
+    "path": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/captures/observe-2-preload.txt",
+    "markers": 3621,
+    "sha256": "8a683b0f28477cb76b0097baf35312e6f3eea18dc2e2047dfc0e34ebf206c2a3",
+    "identical": true,
+    "first_difference": null,
+    "reference_line": null,
+    "other_line": null
+   },
+   {
+    "path": "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/captures/control-1-preload.txt",
+    "markers": 3621,
+    "sha256": "8a683b0f28477cb76b0097baf35312e6f3eea18dc2e2047dfc0e34ebf206c2a3",
+    "identical": true,
+    "first_difference": null,
+    "reference_line": null,
+    "other_line": null
+   }
+  ]
+ },
+ "notes": "counters are path-owner +538 visits; destinations are fine-cell floats; validate results: 0 keep, 0xdd invisible/fogged/dead/null, 0xaa hidden or removed, 0xa9 loaded cargo",
+ "scenes": [
+  {
+   "scene": 0,
+   "name": "fog_persist",
+   "producer": "FOGGED modifier (afterUnits) 60..120, neutral target, follower persistent",
+   "policy": "fog",
+   "window": [
+    1090,
+    1740
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 77,
+    "deciding_validation": {
+     "c": 1345,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "361.497"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1517.757",
+      "744.525"
+     ],
+     "target": [
+      "1568.000",
+      "1186.441"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1538.115",
+      "958.243"
+     ],
+     "target": [
+      "1568.000",
+      "1300.419"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1543.234",
+      "1011.990"
+     ],
+     "target": [
+      "1568.000",
+      "1300.419"
+     ]
+    },
+    {
+     "local": 77,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1565.885",
+      "1172.199"
+     ],
+     "target": [
+      "1567.404",
+      "1232.975"
+     ]
+    },
+    {
+     "local": 121,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1565.885",
+      "1172.199"
+     ],
+     "target": [
+      "1606.141",
+      "635.093"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1565.885",
+      "1172.199"
+     ],
+     "target": [
+      "1607.701",
+      "1082.992"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 20,
+     "local": 0,
+     "c": 1090,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 20,
+     "local": 0,
+     "c": 1090,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048688 th=1048689 v=1"
+    },
+    {
+     "tick": 25,
+     "local": 5,
+     "c": 1107,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 25,
+     "local": 5,
+     "c": 1107,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 80,
+     "local": 60,
+     "c": 1290,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 80,
+     "local": 60,
+     "c": 1290,
+     "label": "end-produce",
+     "rest": "ok=0 f=1517.757,744.525,851971 t=1568.000,1186.441,851986"
+    },
+    {
+     "tick": 140,
+     "local": 120,
+     "c": 1490,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 140,
+     "local": 120,
+     "c": 1490,
+     "label": "end-undo",
+     "rest": "ok=0 f=1565.885,1172.199,0 t=1607.779,650.001,851986"
+    },
+    {
+     "tick": 210,
+     "local": 190,
+     "c": 1724,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 210,
+     "local": 190,
+     "c": 1724,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 215,
+     "local": 195,
+     "c": 1740,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 215,
+     "local": 195,
+     "c": 1740,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 1107,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.8749,
+     "persistent": 0
+    },
+    {
+     "c": 1119,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 1740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 1740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [
+    {
+     "c": 1119,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 1345,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 183,
+     "first": {
+      "c": 1108,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 1119,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 55,
+     "first": {
+      "c": 1291,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 1345,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": 1291,
+    "last": 1345,
+    "visits": 55,
+    "unseen_max": 55,
+    "reacquired": null
+   },
+   "hidden_episodes": [
+    {
+     "gi": 1,
+     "group_identity": "910,935",
+     "first": 1291,
+     "cd_first": 16,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      34.592094
+     ],
+     "visits": 55,
+     "last": 1345,
+     "cd_last": 0,
+     "unseen_last_entry": 54,
+     "dest_hidden": [
+      49.0,
+      36.982525
+     ],
+     "member_dest_hidden": [
+      49.0,
+      36.982525
+     ],
+     "reacquired": null,
+     "ended": {
+      "c": 1346,
+      "unseen_entry": 55,
+      "cd_entry": 0,
+      "member_visit": false,
+      "group_flags_after": "0x21801"
+     }
+    }
+   ],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      1108,
+      1120
+     ],
+     "target": [
+      874,
+      877
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 227,
+     "c": [
+      1120,
+      1346
+     ],
+     "target": [
+      874,
+      877
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 1,
+   "name": "fog_approach",
+   "producer": "FOGGED modifier 60..120, follower west of the wall (approach phase)",
+   "policy": "fog",
+   "window": [
+    1757,
+    2407
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 94,
+    "deciding_validation": {
+     "c": 2068,
+     "caller": "0x5ff98c",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "480.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "480.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "359.987"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "942.711",
+      "1621.335"
+     ],
+     "target": [
+      "1568.000",
+      "1184.840"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1134.407",
+      "1643.488"
+     ],
+     "target": [
+      "1568.000",
+      "1300.318"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1171.418",
+      "1604.180"
+     ],
+     "target": [
+      "1568.000",
+      "1300.318"
+     ]
+    },
+    {
+     "local": 94,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1565.698",
+      "1137.222"
+     ],
+     "target": [
+      "1567.575",
+      "959.918"
+     ]
+    },
+    {
+     "local": 121,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1565.698",
+      "1137.222"
+     ],
+     "target": [
+      "1567.827",
+      "555.853"
+     ]
+    },
+    {
+     "local": 138,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1565.698",
+      "1137.222"
+     ],
+     "target": [
+      "1567.990",
+      "302.492"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1565.698",
+      "1137.222"
+     ],
+     "target": [
+      "1567.990",
+      "302.492"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1565.698",
+      "1137.222"
+     ],
+     "target": [
+      "1505.393",
+      "1029.501"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 220,
+     "local": 0,
+     "c": 1757,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 220,
+     "local": 0,
+     "c": 1757,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048689 th=1048688 v=1"
+    },
+    {
+     "tick": 225,
+     "local": 5,
+     "c": 1774,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 225,
+     "local": 5,
+     "c": 1774,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 280,
+     "local": 60,
+     "c": 1957,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 280,
+     "local": 60,
+     "c": 1957,
+     "label": "end-produce",
+     "rest": "ok=0 f=942.711,1621.335,851971 t=1568.000,1184.840,851986"
+    },
+    {
+     "tick": 340,
+     "local": 120,
+     "c": 2157,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 340,
+     "local": 120,
+     "c": 2157,
+     "label": "end-undo",
+     "rest": "ok=0 f=1565.698,1137.222,0 t=1567.817,570.845,851986"
+    },
+    {
+     "tick": 410,
+     "local": 190,
+     "c": 2390,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 410,
+     "local": 190,
+     "c": 2390,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 415,
+     "local": 195,
+     "c": 2407,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 415,
+     "local": 195,
+     "c": 2407,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 1774,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 0
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 2407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 2407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [
+    {
+     "c": 2068,
+     "caller": "0x5ff98c",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 183,
+     "first": {
+      "c": 1775,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 111,
+     "first": {
+      "c": 1958,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 2068,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": 1958,
+    "last": 2068,
+    "visits": 111,
+    "unseen_max": 111,
+    "reacquired": null
+   },
+   "hidden_episodes": [
+    {
+     "gi": 0,
+     "group_identity": "900,1099",
+     "first": 1958,
+     "cd_first": 4,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      35.292194
+     ],
+     "visits": 111,
+     "last": 2068,
+     "cd_last": 0,
+     "unseen_last_entry": 110,
+     "dest_hidden": [
+      49.0,
+      35.292194
+     ],
+     "member_dest_hidden": [
+      49.0,
+      35.292194
+     ],
+     "reacquired": null,
+     "ended": {
+      "c": 2069,
+      "unseen_entry": 111,
+      "cd_entry": 0,
+      "member_visit": false,
+      "group_flags_after": "0x21000"
+     }
+    }
+   ],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 295,
+     "c": [
+      1775,
+      2069
+     ],
+     "target": [
+      909,
+      1044
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 2,
+   "name": "fog_shared",
+   "producer": "FOGGED modifier 60..120, neutral target shares vision with player 0",
+   "policy": "fog+shared vision",
+   "window": [
+    2424,
+    3074
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 77,
+    "deciding_validation": {
+     "c": 2679,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "358.461"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1514.917",
+      "741.177"
+     ],
+     "target": [
+      "1568.000",
+      "1183.749"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1536.477",
+      "952.133"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1541.965",
+      "1005.823"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 77,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1566.403",
+      "1171.151"
+     ],
+     "target": [
+      "1567.407",
+      "1228.767"
+     ]
+    },
+    {
+     "local": 121,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1566.403",
+      "1171.151"
+     ],
+     "target": [
+      "1606.571",
+      "642.110"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1566.403",
+      "1171.151"
+     ],
+     "target": [
+      "1608.034",
+      "1087.962"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 420,
+     "local": 0,
+     "c": 2424,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 420,
+     "local": 0,
+     "c": 2424,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048688 th=1048689 v=1"
+    },
+    {
+     "tick": 425,
+     "local": 5,
+     "c": 2440,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 425,
+     "local": 5,
+     "c": 2440,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 480,
+     "local": 60,
+     "c": 2624,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 480,
+     "local": 60,
+     "c": 2624,
+     "label": "end-produce",
+     "rest": "ok=0 f=1514.917,741.177,851971 t=1568.000,1183.749,851986"
+    },
+    {
+     "tick": 540,
+     "local": 120,
+     "c": 2824,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 540,
+     "local": 120,
+     "c": 2824,
+     "label": "end-undo",
+     "rest": "ok=0 f=1566.403,1171.151,0 t=1608.195,657.014,851986"
+    },
+    {
+     "tick": 610,
+     "local": 190,
+     "c": 3057,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 610,
+     "local": 190,
+     "c": 3057,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 615,
+     "local": 195,
+     "c": 3074,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 615,
+     "local": 195,
+     "c": 3074,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 2440,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.412,
+     "persistent": 0
+    },
+    {
+     "c": 2452,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 3074,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 3074,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [
+    {
+     "c": 2452,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 2679,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 184,
+     "first": {
+      "c": 2441,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 2452,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 55,
+     "first": {
+      "c": 2625,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 2679,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": 2625,
+    "last": 2679,
+    "visits": 55,
+    "unseen_max": 55,
+    "reacquired": null
+   },
+   "hidden_episodes": [
+    {
+     "gi": 1,
+     "group_identity": "865,1266",
+     "first": 2625,
+     "cd_first": 15,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      36.851624
+     ],
+     "visits": 55,
+     "last": 2679,
+     "cd_last": 0,
+     "unseen_last_entry": 54,
+     "dest_hidden": [
+      49.0,
+      36.851624
+     ],
+     "member_dest_hidden": [
+      49.0,
+      36.851624
+     ],
+     "reacquired": null,
+     "ended": {
+      "c": 2680,
+      "unseen_entry": 55,
+      "cd_entry": 0,
+      "member_visit": false,
+      "group_flags_after": "0x21801"
+     }
+    }
+   ],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      2441,
+      2453
+     ],
+     "target": [
+      897,
+      1208
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 228,
+     "c": [
+      2453,
+      2680
+     ],
+     "target": [
+      897,
+      1208
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 3,
+   "name": "invis_np",
+   "producer": "UnitAddAbility Apiv 60 / remove 120, neutral target, no detection",
+   "policy": "invisibility undetected",
+   "window": [
+    3090,
+    3740
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 80,
+    "deciding_validation": {
+     "c": 3357,
+     "caller": "0x5ff56b",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x1000200"
+     ]
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "362.209"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1527.575",
+      "859.077"
+     ],
+     "target": [
+      "1568.000",
+      "1300.682"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1530.853",
+      "904.834"
+     ],
+     "target": [
+      "1568.000",
+      "1300.682"
+     ]
+    },
+    {
+     "local": 80,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1533.463",
+      "945.226"
+     ],
+     "target": [
+      "1567.442",
+      "1173.296"
+     ]
+    },
+    {
+     "local": 120,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1533.463",
+      "945.226"
+     ],
+     "target": [
+      "1570.918",
+      "581.032"
+     ]
+    },
+    {
+     "local": 139,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1533.463",
+      "945.226"
+     ],
+     "target": [
+      "1568.126",
+      "300.699"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1533.463",
+      "945.226"
+     ],
+     "target": [
+      "1568.126",
+      "300.699"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1533.463",
+      "945.226"
+     ],
+     "target": [
+      "1571.368",
+      "1031.674"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 620,
+     "local": 0,
+     "c": 3090,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 620,
+     "local": 0,
+     "c": 3090,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048689 th=1048688 v=1"
+    },
+    {
+     "tick": 625,
+     "local": 5,
+     "c": 3107,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 625,
+     "local": 5,
+     "c": 3107,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 680,
+     "local": 60,
+     "c": 3290,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 680,
+     "local": 60,
+     "c": 3290,
+     "label": "end-produce",
+     "rest": "ok=1 f=1517.708,744.297,851971 t=1568.000,1186.747,851986"
+    },
+    {
+     "tick": 740,
+     "local": 120,
+     "c": 3490,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 740,
+     "local": 120,
+     "c": 3490,
+     "label": "end-undo",
+     "rest": "ok=1 f=1533.463,945.226,0 t=1570.918,581.032,851986"
+    },
+    {
+     "tick": 810,
+     "local": 190,
+     "c": 3724,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 810,
+     "local": 190,
+     "c": 3724,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 815,
+     "local": 195,
+     "c": 3740,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 815,
+     "local": 195,
+     "c": 3740,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 3107,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.9862,
+     "persistent": 0
+    },
+    {
+     "c": 3119,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 3357,
+     "caller": "0x68b7d8",
+     "producer": "68b780 invisibility transition",
+     "w20": "0x1446",
+     "w5c": "0x1000200"
+    },
+    {
+     "c": 3740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 3740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [
+    {
+     "c": 3357,
+     "code": "0xd01a4"
+    }
+   ],
+   "validate": [
+    {
+     "c": 3119,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 3357,
+     "caller": "0x5ff56b",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x1000200"
+     ]
+    },
+    {
+     "c": 3357,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": null
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 250,
+     "first": {
+      "c": 3108,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 3119,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 3357,
+      "tw": [
+       "0x1446",
+       "0x1000200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      3108,
+      3120
+     ],
+     "target": [
+      872,
+      1375
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 239,
+     "c": [
+      3120,
+      3358
+     ],
+     "target": [
+      872,
+      1375
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 4,
+   "name": "invis_own",
+   "producer": "Apiv 60/120, target owned by the follower player",
+   "policy": "invisibility own",
+   "window": [
+    3757,
+    4407
+   ],
+   "outcome": {
+    "kind": "retained",
+    "order": "851971",
+    "order_local": 5
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "360.710"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1527.382",
+      "856.385"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1530.853",
+      "904.834"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 138,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1541.827",
+      "738.535"
+     ],
+     "target": [
+      "1568.132",
+      "299.748"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1543.448",
+      "684.589"
+     ],
+     "target": [
+      "1568.132",
+      "299.748"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1544.151",
+      "659.413"
+     ],
+     "target": [
+      "1591.341",
+      "979.044"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 820,
+     "local": 0,
+     "c": 3757,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 820,
+     "local": 0,
+     "c": 3757,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048688 th=1048689 v=1"
+    },
+    {
+     "tick": 825,
+     "local": 5,
+     "c": 3774,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 825,
+     "local": 5,
+     "c": 3774,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 880,
+     "local": 60,
+     "c": 3957,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 880,
+     "local": 60,
+     "c": 3957,
+     "label": "end-produce",
+     "rest": "ok=1 f=1517.572,742.879,851971 t=1568.000,1185.249,851986"
+    },
+    {
+     "tick": 940,
+     "local": 120,
+     "c": 4157,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 940,
+     "local": 120,
+     "c": 4157,
+     "label": "end-undo",
+     "rest": "ok=1 f=1533.245,941.861,851971 t=1571.164,568.084,851986"
+    },
+    {
+     "tick": 1010,
+     "local": 190,
+     "c": 4390,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1010,
+     "local": 190,
+     "c": 4390,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1015,
+     "local": 195,
+     "c": 4407,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 1015,
+     "local": 195,
+     "c": 4407,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 3774,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.7538,
+     "persistent": 0
+    },
+    {
+     "c": 3786,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 4023,
+     "caller": "0x68b7d8",
+     "producer": "68b780 invisibility transition",
+     "w20": "0x20001446",
+     "w5c": "0x1000200"
+    },
+    {
+     "c": 4407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 4407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [
+    {
+     "c": 4023,
+     "code": "0xd01a4"
+    }
+   ],
+   "validate": [
+    {
+     "c": 3786,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x20001446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 4023,
+     "caller": "0x5ff56b",
+     "result": "0x0",
+     "tw": [
+      "0x20001446",
+      "0x1000200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 616,
+     "first": {
+      "c": 3775,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 2,
+     "first": {
+      "c": 3786,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      3775,
+      3787
+     ],
+     "target": [
+      917,
+      1547
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 605,
+     "c": [
+      3787,
+      4391
+     ],
+     "target": [
+      917,
+      1547
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 5,
+   "name": "invis_shared",
+   "producer": "Apiv 60/120, neutral target shares vision with player 0",
+   "policy": "invisibility shared vision",
+   "window": [
+    4424,
+    5074
+   ],
+   "outcome": {
+    "kind": "retained",
+    "order": "851971",
+    "order_local": 5
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "359.210"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1525.423",
+      "855.335"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1528.871",
+      "900.439"
+     ],
+     "target": [
+      "1568.000",
+      "1300.683"
+     ]
+    },
+    {
+     "local": 139,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1540.985",
+      "733.922"
+     ],
+     "target": [
+      "1568.134",
+      "301.450"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1541.874",
+      "706.952"
+     ],
+     "target": [
+      "1568.134",
+      "301.450"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1543.247",
+      "661.997"
+     ],
+     "target": [
+      "1591.164",
+      "982.529"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 1020,
+     "local": 0,
+     "c": 4424,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 1020,
+     "local": 0,
+     "c": 4424,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048689 th=1048688 v=1"
+    },
+    {
+     "tick": 1025,
+     "local": 5,
+     "c": 4440,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 1025,
+     "local": 5,
+     "c": 4440,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 1080,
+     "local": 60,
+     "c": 4624,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 1080,
+     "local": 60,
+     "c": 4624,
+     "label": "end-produce",
+     "rest": "ok=1 f=1514.917,741.177,851971 t=1568.000,1183.749,851986"
+    },
+    {
+     "tick": 1140,
+     "local": 120,
+     "c": 4824,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 1140,
+     "local": 120,
+     "c": 4824,
+     "label": "end-undo",
+     "rest": "ok=1 f=1531.703,941.043,851971 t=1570.910,580.283,851986"
+    },
+    {
+     "tick": 1210,
+     "local": 190,
+     "c": 5057,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1210,
+     "local": 190,
+     "c": 5057,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1215,
+     "local": 195,
+     "c": 5074,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 1215,
+     "local": 195,
+     "c": 5074,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 4440,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.5234,
+     "persistent": 0
+    },
+    {
+     "c": 4452,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 4690,
+     "caller": "0x68b7d8",
+     "producer": "68b780 invisibility transition",
+     "w20": "0x1446",
+     "w5c": "0x1000200"
+    },
+    {
+     "c": 5074,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 5074,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [
+    {
+     "c": 4690,
+     "code": "0xd01a4"
+    }
+   ],
+   "validate": [
+    {
+     "c": 4452,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 4690,
+     "caller": "0x5ff56b",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x1000200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 617,
+     "first": {
+      "c": 4441,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 2,
+     "first": {
+      "c": 4452,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      4441,
+      4453
+     ],
+     "target": [
+      902,
+      1694
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 606,
+     "c": [
+      4453,
+      5058
+     ],
+     "target": [
+      902,
+      1694
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 6,
+   "name": "remove",
+   "producer": "RemoveUnit 60",
+   "policy": "removed",
+   "window": [
+    5090,
+    5740
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 60,
+    "deciding_validation": {
+     "c": 5290,
+     "caller": "0x5ff56b",
+     "result": "0xaa",
+     "tw": [
+      "0x20001445",
+      "0x208"
+     ]
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "362.209"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": null,
+     "follower": [
+      "1517.775",
+      "745.006"
+     ],
+     "target": null
+    }
+   ],
+   "markers": [
+    {
+     "tick": 1220,
+     "local": 0,
+     "c": 5090,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 1220,
+     "local": 0,
+     "c": 5090,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048688 th=1048689 v=1"
+    },
+    {
+     "tick": 1225,
+     "local": 5,
+     "c": 5107,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 1225,
+     "local": 5,
+     "c": 5107,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 1280,
+     "local": 60,
+     "c": 5290,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 1280,
+     "local": 60,
+     "c": 5290,
+     "label": "end-produce",
+     "rest": "ok=0 f=1517.775,745.006,0 t=none"
+    },
+    {
+     "tick": 1340,
+     "local": 120,
+     "c": 5490,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 1340,
+     "local": 120,
+     "c": 5490,
+     "label": "end-undo",
+     "rest": "ok=0 f=1517.775,745.006,0 t=none"
+    },
+    {
+     "tick": 1410,
+     "local": 190,
+     "c": 5724,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1410,
+     "local": 190,
+     "c": 5724,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1415,
+     "local": 195,
+     "c": 5740,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 1415,
+     "local": 195,
+     "c": 5740,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 5107,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.9862,
+     "persistent": 0
+    },
+    {
+     "c": 5119,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 5290,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x20001445",
+     "w5c": "0x208"
+    },
+    {
+     "c": 5290,
+     "caller": "0x69c553",
+     "producer": "69c510 unit event",
+     "w20": "0x1445",
+     "w5c": "0x309"
+    },
+    {
+     "c": 5740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [
+    {
+     "c": 5290,
+     "code": "0xd01a4"
+    }
+   ],
+   "validate": [
+    {
+     "c": 5119,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x20001446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 5290,
+     "caller": "0x5ff56b",
+     "result": "0xaa",
+     "tw": [
+      "0x20001445",
+      "0x208"
+     ]
+    },
+    {
+     "c": 5290,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": null
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 183,
+     "first": {
+      "c": 5108,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 5119,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      5108,
+      5120
+     ],
+     "target": [
+      894,
+      1863
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 172,
+     "c": [
+      5120,
+      5291
+     ],
+     "target": [
+      894,
+      1863
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 7,
+   "name": "kill",
+   "producer": "KillUnit 60",
+   "policy": "dead",
+   "window": [
+    5757,
+    6407
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 60,
+    "deciding_validation": {
+     "c": 5957,
+     "caller": "0x5ff56b",
+     "result": "0xdd",
+     "tw": [
+      "0x20001444",
+      "0x320"
+     ]
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "359.850"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1517.617",
+      "743.566"
+     ],
+     "target": [
+      "1568.000",
+      "1185.373"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 1420,
+     "local": 0,
+     "c": 5757,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 1420,
+     "local": 0,
+     "c": 5757,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048688 th=1048689 v=1"
+    },
+    {
+     "tick": 1425,
+     "local": 5,
+     "c": 5774,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 1425,
+     "local": 5,
+     "c": 5774,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 1480,
+     "local": 60,
+     "c": 5957,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 1480,
+     "local": 60,
+     "c": 5957,
+     "label": "end-produce",
+     "rest": "ok=0 f=1517.617,743.566,0 t=1568.000,1185.373,0"
+    },
+    {
+     "tick": 1540,
+     "local": 120,
+     "c": 6157,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 1540,
+     "local": 120,
+     "c": 6157,
+     "label": "end-undo",
+     "rest": "ok=0 f=1517.617,743.566,0 t=1568.000,1185.373,0"
+    },
+    {
+     "tick": 1610,
+     "local": 190,
+     "c": 6390,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1610,
+     "local": 190,
+     "c": 6390,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1615,
+     "local": 195,
+     "c": 6407,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 1615,
+     "local": 195,
+     "c": 6407,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 5774,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.621,
+     "persistent": 0
+    },
+    {
+     "c": 5786,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 5957,
+     "caller": "0x679c2f",
+     "producer": "Unit_BeginDeathTasks",
+     "w20": "0x20001444",
+     "w5c": "0x320"
+    },
+    {
+     "c": 6407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 6407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1445",
+     "w5c": "0xb08"
+    }
+   ],
+   "handler": [
+    {
+     "c": 5957,
+     "code": "0xd01a4"
+    }
+   ],
+   "validate": [
+    {
+     "c": 5786,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x20001446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 5957,
+     "caller": "0x5ff56b",
+     "result": "0xdd",
+     "tw": [
+      "0x20001444",
+      "0x320"
+     ]
+    },
+    {
+     "c": 5957,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": null
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 183,
+     "first": {
+      "c": 5775,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 5786,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      5775,
+      5787
+     ],
+     "target": [
+      898,
+      1969
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 172,
+     "c": [
+      5787,
+      5958
+     ],
+     "target": [
+      898,
+      1969
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 8,
+   "name": "hide",
+   "producer": "ShowUnit false 60 / true 120",
+   "policy": "hidden",
+   "window": [
+    6424,
+    7074
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 60,
+    "deciding_validation": {
+     "c": 6624,
+     "caller": "0x5ff56b",
+     "result": "0xaa",
+     "tw": [
+      "0x20001445",
+      "0x208"
+     ]
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "358.353"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 1,
+     "target_order": "851986",
+     "follower": [
+      "1514.889",
+      "741.161"
+     ],
+     "target": [
+      "1568.000",
+      "1183.128"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 1,
+     "target_order": "0",
+     "follower": [
+      "1514.889",
+      "741.161"
+     ],
+     "target": [
+      "1568.000",
+      "1300.632"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 1,
+     "target_order": "851986",
+     "follower": [
+      "1514.889",
+      "741.161"
+     ],
+     "target": [
+      "1568.000",
+      "1300.632"
+     ]
+    },
+    {
+     "local": 120,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1514.889",
+      "741.161"
+     ],
+     "target": [
+      "1571.186",
+      "569.900"
+     ]
+    },
+    {
+     "local": 138,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1514.889",
+      "741.161"
+     ],
+     "target": [
+      "1568.141",
+      "300.477"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1514.889",
+      "741.161"
+     ],
+     "target": [
+      "1568.141",
+      "300.477"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1514.889",
+      "741.161"
+     ],
+     "target": [
+      "1571.347",
+      "1032.596"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 1620,
+     "local": 0,
+     "c": 6424,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 1620,
+     "local": 0,
+     "c": 6424,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048689 th=1048688 v=1"
+    },
+    {
+     "tick": 1625,
+     "local": 5,
+     "c": 6440,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 1625,
+     "local": 5,
+     "c": 6440,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 1680,
+     "local": 60,
+     "c": 6624,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 1680,
+     "local": 60,
+     "c": 6624,
+     "label": "end-produce",
+     "rest": "ok=0 f=1514.889,741.161,0 t=1568.000,1183.128,851986"
+    },
+    {
+     "tick": 1740,
+     "local": 120,
+     "c": 6824,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 1740,
+     "local": 120,
+     "c": 6824,
+     "label": "end-undo",
+     "rest": "ok=0 f=1514.889,741.161,0 t=1571.186,569.900,851986"
+    },
+    {
+     "tick": 1810,
+     "local": 190,
+     "c": 7057,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1810,
+     "local": 190,
+     "c": 7057,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 1815,
+     "local": 195,
+     "c": 7074,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 1815,
+     "local": 195,
+     "c": 7074,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 6440,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.3944,
+     "persistent": 0
+    },
+    {
+     "c": 6452,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 6624,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x20001445",
+     "w5c": "0x208"
+    },
+    {
+     "c": 7074,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 7074,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [
+    {
+     "c": 6624,
+     "code": "0xd01a4"
+    }
+   ],
+   "validate": [
+    {
+     "c": 6452,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x20001446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 6624,
+     "caller": "0x5ff56b",
+     "result": "0xaa",
+     "tw": [
+      "0x20001445",
+      "0x208"
+     ]
+    },
+    {
+     "c": 6624,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": null
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 184,
+     "first": {
+      "c": 6441,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 6452,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      6441,
+      6453
+     ],
+     "target": [
+      901,
+      2085
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 173,
+     "c": [
+      6453,
+      6625
+     ],
+     "target": [
+      901,
+      2085
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 9,
+   "name": "cargo",
+   "producer": "zeppelin load at 50, unloadall 120",
+   "policy": "loaded cargo",
+   "window": [
+    7090,
+    7740
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 54,
+    "deciding_validation": {
+     "c": 7269,
+     "caller": "0x5ff56b",
+     "result": "0xa9",
+     "tw": [
+      "0x1645",
+      "0x219"
+     ]
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 54,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 1,
+     "target_order": "0",
+     "follower": [
+      "1432.547",
+      "296.054"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 1820,
+     "local": 0,
+     "c": 7090,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 1820,
+     "local": 0,
+     "c": 7090,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048688 th=1048689 v=1"
+    },
+    {
+     "tick": 1825,
+     "local": 5,
+     "c": 7107,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 1825,
+     "local": 5,
+     "c": 7107,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 1870,
+     "local": 50,
+     "c": 7257,
+     "label": "begin-load",
+     "rest": ""
+    },
+    {
+     "tick": 1870,
+     "local": 50,
+     "c": 7257,
+     "label": "end-load",
+     "rest": "accepted=1"
+    },
+    {
+     "tick": 1880,
+     "local": 60,
+     "c": 7290,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 1880,
+     "local": 60,
+     "c": 7290,
+     "label": "end-produce",
+     "rest": "ok=0 f=1432.547,296.054,0 t=1568.000,288.000,0"
+    },
+    {
+     "tick": 1940,
+     "local": 120,
+     "c": 7490,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 1940,
+     "local": 120,
+     "c": 7490,
+     "label": "end-undo",
+     "rest": "ok=1 f=1432.547,296.054,0 t=1568.000,288.000,0"
+    },
+    {
+     "tick": 2010,
+     "local": 190,
+     "c": 7723,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2010,
+     "local": 190,
+     "c": 7723,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2015,
+     "local": 195,
+     "c": 7740,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 2015,
+     "local": 195,
+     "c": 7740,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 7107,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 81.0019,
+     "persistent": 0
+    },
+    {
+     "c": 7119,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    },
+    {
+     "c": 7257,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 80.0,
+     "persistent": 0
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 7269,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x219"
+    },
+    {
+     "c": 7740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 7740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x401605",
+     "w5c": "0x20001009"
+    }
+   ],
+   "handler": [
+    {
+     "c": 7269,
+     "code": "0xd01a4"
+    }
+   ],
+   "validate": [
+    {
+     "c": 7119,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1646",
+      "0x201"
+     ]
+    },
+    {
+     "c": 7269,
+     "caller": "0x5ff56b",
+     "result": "0xa9",
+     "tw": [
+      "0x1645",
+      "0x219"
+     ]
+    },
+    {
+     "c": 7269,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": null
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 173,
+     "first": {
+      "c": 7108,
+      "tw": [
+       "0x1646",
+       "0x201",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 7119,
+      "tw": [
+       "0x1646",
+       "0x201",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      7108,
+      7120
+     ],
+     "target": [
+      891,
+      2232
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 150,
+     "c": [
+      7120,
+      7269
+     ],
+     "target": [
+      891,
+      2232
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      7258,
+      7270
+     ],
+     "target": [
+      891,
+      2232
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 10,
+   "name": "blink",
+   "producer": "Warden blink 60 (+256 y)",
+   "policy": "teleport (800000 bypass)",
+   "window": [
+    7757,
+    8407
+   ],
+   "outcome": {
+    "kind": "retained",
+    "order": "851971",
+    "order_local": 5
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "359.850"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "852525",
+     "follower": [
+      "1514.627",
+      "739.011"
+     ],
+     "target": [
+      "1568.000",
+      "1184.625"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1530.434",
+      "965.575"
+     ],
+     "target": [
+      "1568.000",
+      "1440.625"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1525.978",
+      "784.415"
+     ],
+     "target": [
+      "1573.065",
+      "1141.025"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 2020,
+     "local": 0,
+     "c": 7757,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 2020,
+     "local": 0,
+     "c": 7757,
+     "label": "end-setup",
+     "rest": "t=1165451634 fh=1048690 th=1048689 v=1"
+    },
+    {
+     "tick": 2025,
+     "local": 5,
+     "c": 7773,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 2025,
+     "local": 5,
+     "c": 7773,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 2080,
+     "local": 60,
+     "c": 7957,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 2080,
+     "local": 60,
+     "c": 7957,
+     "label": "end-produce",
+     "rest": "ok=1 f=1514.627,739.011,851971 t=1568.000,1184.625,852525"
+    },
+    {
+     "tick": 2140,
+     "local": 120,
+     "c": 8157,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 2140,
+     "local": 120,
+     "c": 8157,
+     "label": "end-undo",
+     "rest": "ok=0 f=1535.174,1059.308,851971 t=1570.905,725.956,851986"
+    },
+    {
+     "tick": 2210,
+     "local": 190,
+     "c": 8390,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2210,
+     "local": 190,
+     "c": 8390,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2215,
+     "local": 195,
+     "c": 8407,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 2215,
+     "local": 195,
+     "c": 8407,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 7773,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.121,
+     "persistent": 0
+    },
+    {
+     "c": 7785,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 7968,
+     "caller": "0x4c9634",
+     "producer": "4c95c0 blink (800000 around the event)",
+     "w20": "0x800406",
+     "w5c": "0x1200"
+    },
+    {
+     "c": 8407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 8407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x605",
+     "w5c": "0x1209"
+    }
+   ],
+   "handler": [
+    {
+     "c": 7968,
+     "code": "0xd01a4"
+    }
+   ],
+   "validate": [
+    {
+     "c": 7785,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x20000406",
+      "0x1200"
+     ]
+    },
+    {
+     "c": 7968,
+     "caller": "0x5ff56b",
+     "result": "0x0",
+     "tw": [
+      "0x800406",
+      "0x1200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 617,
+     "first": {
+      "c": 7774,
+      "tw": [
+       "0x20000406",
+       "0x1200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 2,
+     "first": {
+      "c": 7785,
+      "tw": [
+       "0x20000406",
+       "0x1200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      7774,
+      7786
+     ],
+     "target": [
+      883,
+      2389
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 606,
+     "c": [
+      7786,
+      8391
+     ],
+     "target": [
+      883,
+      2389
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 11,
+   "name": "owner_enemy",
+   "producer": "SetUnitOwner player 1 (enemy, no shared vision) 60, back 120",
+   "policy": "owner change",
+   "window": [
+    8423,
+    9073
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 60,
+    "deciding_validation": {
+     "c": 8623,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": null
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "362.844"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1517.716",
+      "744.989"
+     ],
+     "target": [
+      "1568.000",
+      "1187.619"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1541.007",
+      "978.212"
+     ],
+     "target": [
+      "1575.112",
+      "1069.604"
+     ]
+    },
+    {
+     "local": 120,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1581.108",
+      "577.356"
+     ],
+     "target": [
+      "1608.481",
+      "339.829"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1532.011",
+      "705.006"
+     ],
+     "target": [
+      "1608.481",
+      "339.829"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1532.011",
+      "705.006"
+     ],
+     "target": [
+      "1608.292",
+      "1073.979"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 2220,
+     "local": 0,
+     "c": 8423,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 2220,
+     "local": 0,
+     "c": 8423,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048689 th=1048690 v=1"
+    },
+    {
+     "tick": 2225,
+     "local": 5,
+     "c": 8440,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 2225,
+     "local": 5,
+     "c": 8440,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 2280,
+     "local": 60,
+     "c": 8623,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 2280,
+     "local": 60,
+     "c": 8623,
+     "label": "end-produce",
+     "rest": "ok=0 f=1517.716,744.989,0 t=1568.000,1187.619,0"
+    },
+    {
+     "tick": 2340,
+     "local": 120,
+     "c": 8823,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 2340,
+     "local": 120,
+     "c": 8823,
+     "label": "end-undo",
+     "rest": "ok=0 f=1581.108,577.356,0 t=1608.481,339.829,0"
+    },
+    {
+     "tick": 2410,
+     "local": 190,
+     "c": 9057,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2410,
+     "local": 190,
+     "c": 9057,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2415,
+     "local": 195,
+     "c": 9073,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 2415,
+     "local": 195,
+     "c": 9073,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 8440,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 87.0878,
+     "persistent": 0
+    },
+    {
+     "c": 8452,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    },
+    {
+     "c": 8626,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 8627,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 8690,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 8702,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 8737,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 8749,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 8792,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 8804,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 9073,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 9073,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [
+    {
+     "c": 8452,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x20001446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 8623,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": null
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 303,
+     "first": {
+      "c": 8441,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 8452,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x10000",
+     "visits": 201,
+     "c": [
+      8424,
+      8624
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      8441,
+      8453
+     ],
+     "target": [
+      878,
+      2552
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 172,
+     "c": [
+      8453,
+      8624
+     ],
+     "target": [
+      878,
+      2552
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 32,
+     "c": [
+      8627,
+      8658
+     ],
+     "target": [
+      870,
+      2534
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 31,
+     "c": [
+      8628,
+      8658
+     ],
+     "target": [
+      878,
+      2552
+     ]
+    },
+    {
+     "flags": "0x10000",
+     "visits": 167,
+     "c": [
+      8658,
+      8824
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 5,
+     "c": [
+      8691,
+      8695
+     ],
+     "target": [
+      878,
+      2552
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 3,
+     "c": [
+      8703,
+      8705
+     ],
+     "target": [
+      878,
+      2552
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      8738,
+      8750
+     ],
+     "target": [
+      878,
+      2552
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 11,
+     "c": [
+      8750,
+      8760
+     ],
+     "target": [
+      878,
+      2552
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      8793,
+      8805
+     ],
+     "target": [
+      878,
+      2552
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 20,
+     "c": [
+      8805,
+      8824
+     ],
+     "target": [
+      878,
+      2552
+     ]
+    },
+    {
+     "flags": "0x10000",
+     "visits": 21,
+     "c": [
+      8824,
+      8844
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x10000",
+     "visits": 168,
+     "c": [
+      8891,
+      9058
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 12,
+   "name": "pause",
+   "producer": "PauseUnit true 60 / false 120",
+   "policy": "paused",
+   "window": [
+    9090,
+    9740
+   ],
+   "outcome": {
+    "kind": "retained",
+    "order": "851971",
+    "order_local": 5
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "361.347"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851973",
+     "follower": [
+      "1517.581",
+      "743.573"
+     ],
+     "target": [
+      "1568.000",
+      "1186.122"
+     ]
+    },
+    {
+     "local": 121,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1525.467",
+      "826.161"
+     ],
+     "target": [
+      "1568.000",
+      "1199.593"
+     ]
+    },
+    {
+     "local": 128,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1527.645",
+      "856.844"
+     ],
+     "target": [
+      "1568.000",
+      "1299.135"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1533.668",
+      "944.203"
+     ],
+     "target": [
+      "1568.000",
+      "1299.135"
+     ]
+    },
+    {
+     "local": 141,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1533.668",
+      "944.203"
+     ],
+     "target": [
+      "1568.000",
+      "1299.135"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1533.668",
+      "944.203"
+     ],
+     "target": [
+      "1568.000",
+      "1299.135"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 2420,
+     "local": 0,
+     "c": 9090,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 2420,
+     "local": 0,
+     "c": 9090,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048690 th=1048689 v=1"
+    },
+    {
+     "tick": 2425,
+     "local": 5,
+     "c": 9107,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 2425,
+     "local": 5,
+     "c": 9107,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 2480,
+     "local": 60,
+     "c": 9290,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 2480,
+     "local": 60,
+     "c": 9290,
+     "label": "end-produce",
+     "rest": "ok=0 f=1517.581,743.573,851971 t=1568.000,1186.122,851973"
+    },
+    {
+     "tick": 2540,
+     "local": 120,
+     "c": 9490,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 2540,
+     "local": 120,
+     "c": 9490,
+     "label": "end-undo",
+     "rest": "ok=0 f=1525.467,826.161,851971 t=1568.000,1186.122,851973"
+    },
+    {
+     "tick": 2610,
+     "local": 190,
+     "c": 9723,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2610,
+     "local": 190,
+     "c": 9723,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2615,
+     "local": 195,
+     "c": 9740,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 2615,
+     "local": 195,
+     "c": 9740,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 9107,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.8515,
+     "persistent": 0
+    },
+    {
+     "c": 9119,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 9740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 9740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [
+    {
+     "c": 9119,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x20001446",
+      "0x200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 616,
+     "first": {
+      "c": 9108,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 9119,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      9108,
+      9120
+     ],
+     "target": [
+      868,
+      2764
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 605,
+     "c": [
+      9120,
+      9724
+     ],
+     "target": [
+      868,
+      2764
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 13,
+   "name": "order_fogged",
+   "producer": "FOGGED modifier from l2; Smart at 5 targets a fogged unit; removed 120",
+   "policy": "order-time fog",
+   "window": [
+    9757,
+    10407
+   ],
+   "outcome": {
+    "kind": "order-rejected",
+    "order": null
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 2,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "314.861"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "1300.516"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "1300.516"
+     ]
+    },
+    {
+     "local": 121,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1567.829",
+      "558.137"
+     ]
+    },
+    {
+     "local": 139,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1567.993",
+      "299.221"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1567.993",
+      "299.221"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.166",
+      "1029.654"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 2620,
+     "local": 0,
+     "c": 9757,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 2620,
+     "local": 0,
+     "c": 9757,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048689 th=1048690 v=1"
+    },
+    {
+     "tick": 2622,
+     "local": 2,
+     "c": 9763,
+     "label": "begin-prefog",
+     "rest": ""
+    },
+    {
+     "tick": 2622,
+     "local": 2,
+     "c": 9763,
+     "label": "end-prefog",
+     "rest": ""
+    },
+    {
+     "tick": 2625,
+     "local": 5,
+     "c": 9773,
+     "label": "begin-order",
+     "rest": "v=0 o=smart"
+    },
+    {
+     "tick": 2625,
+     "local": 5,
+     "c": 9773,
+     "label": "end-order",
+     "rest": "accepted=0 order=0"
+    },
+    {
+     "tick": 2680,
+     "local": 60,
+     "c": 9957,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 2680,
+     "local": 60,
+     "c": 9957,
+     "label": "end-produce",
+     "rest": "ok=0 f=1344.000,288.000,0 t=1568.000,1184.119,851986"
+    },
+    {
+     "tick": 2740,
+     "local": 120,
+     "c": 10157,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 2740,
+     "local": 120,
+     "c": 10157,
+     "label": "end-undo",
+     "rest": "ok=0 f=1344.000,288.000,0 t=1567.819,573.060,851986"
+    },
+    {
+     "tick": 2810,
+     "local": 190,
+     "c": 10390,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2810,
+     "local": 190,
+     "c": 10390,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 2815,
+     "local": 195,
+     "c": 10407,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 2815,
+     "local": 195,
+     "c": 10407,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [],
+   "target_lost": [
+    {
+     "c": 10407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 10407,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [],
+   "validate": [],
+   "visibility_queries": [],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": []
+  },
+  {
+   "scene": 14,
+   "name": "order_invisible",
+   "producer": "Apiv at l2, Smart at 5 (fading), Apiv removed 60, Smart again 65",
+   "policy": "order-time invisibility",
+   "window": [
+    10423,
+    11073
+   ],
+   "outcome": {
+    "kind": "cancelled-then-reissued-retained",
+    "order": "851971",
+    "order_local": 5,
+    "order_zero_local": 22,
+    "reissued_local": 65,
+    "deciding_validation": {
+     "c": 10496,
+     "caller": "0x5ff56b",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x1000200"
+     ]
+    }
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "361.123"
+     ]
+    },
+    {
+     "local": 22,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1430.813",
+      "311.678"
+     ],
+     "target": [
+      "1568.000",
+      "616.305"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1430.813",
+      "311.678"
+     ],
+     "target": [
+      "1568.000",
+      "1186.358"
+     ]
+    },
+    {
+     "local": 65,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1430.813",
+      "311.678"
+     ],
+     "target": [
+      "1568.000",
+      "1260.971"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1441.161",
+      "387.530"
+     ],
+     "target": [
+      "1568.000",
+      "1300.516"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1448.422",
+      "440.759"
+     ],
+     "target": [
+      "1568.000",
+      "1300.516"
+     ]
+    },
+    {
+     "local": 138,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1495.963",
+      "728.875"
+     ],
+     "target": [
+      "1567.990",
+      "302.952"
+     ]
+    },
+    {
+     "local": 140,
+     "follower_order": "851971",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1498.508",
+      "694.048"
+     ],
+     "target": [
+      "1567.990",
+      "302.952"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1500.937",
+      "657.193"
+     ],
+     "target": [
+      "1565.122",
+      "1033.707"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 2820,
+     "local": 0,
+     "c": 10423,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 2820,
+     "local": 0,
+     "c": 10423,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048690 th=1048689 v=1"
+    },
+    {
+     "tick": 2822,
+     "local": 2,
+     "c": 10430,
+     "label": "begin-preinvis",
+     "rest": ""
+    },
+    {
+     "tick": 2822,
+     "local": 2,
+     "c": 10430,
+     "label": "end-preinvis",
+     "rest": "ok=1"
+    },
+    {
+     "tick": 2825,
+     "local": 5,
+     "c": 10440,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 2825,
+     "local": 5,
+     "c": 10440,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 2880,
+     "local": 60,
+     "c": 10623,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 2880,
+     "local": 60,
+     "c": 10623,
+     "label": "end-produce",
+     "rest": "ok=1 f=1430.813,311.678,0 t=1568.000,1186.358,851986"
+    },
+    {
+     "tick": 2885,
+     "local": 65,
+     "c": 10640,
+     "label": "begin-order",
+     "rest": "v=1 o=smart"
+    },
+    {
+     "tick": 2885,
+     "local": 65,
+     "c": 10640,
+     "label": "end-order",
+     "rest": "accepted=1 order=851971"
+    },
+    {
+     "tick": 2940,
+     "local": 120,
+     "c": 10823,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 2940,
+     "local": 120,
+     "c": 10823,
+     "label": "end-undo",
+     "rest": "ok=0 f=1489.031,810.503,851971 t=1567.821,570.075,851986"
+    },
+    {
+     "tick": 3010,
+     "local": 190,
+     "c": 11056,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 3010,
+     "local": 190,
+     "c": 11056,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 3015,
+     "local": 195,
+     "c": 11073,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 3015,
+     "local": 195,
+     "c": 11073,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 10440,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 86.8183,
+     "persistent": 0
+    },
+    {
+     "c": 10452,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    },
+    {
+     "c": 10640,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 0
+    },
+    {
+     "c": 10703,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 300.0,
+     "persistent": 1
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 10496,
+     "caller": "0x68b7d8",
+     "producer": "68b780 invisibility transition",
+     "w20": "0x1446",
+     "w5c": "0x1000200"
+    },
+    {
+     "c": 11073,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    },
+    {
+     "c": 11073,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x209"
+    }
+   ],
+   "handler": [
+    {
+     "c": 10496,
+     "code": "0xd01a4"
+    }
+   ],
+   "validate": [
+    {
+     "c": 10452,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    },
+    {
+     "c": 10496,
+     "caller": "0x5ff56b",
+     "result": "0xdd",
+     "tw": [
+      "0x1446",
+      "0x1000200"
+     ]
+    },
+    {
+     "c": 10496,
+     "caller": "0x5fa814",
+     "result": "0xdd",
+     "tw": null
+    },
+    {
+     "c": 10703,
+     "caller": "0x5ff98c",
+     "result": "0x0",
+     "tw": [
+      "0x1446",
+      "0x200"
+     ]
+    }
+   ],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 472,
+     "first": {
+      "c": 10441,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 2,
+     "first": {
+      "c": 10452,
+      "tw": [
+       "0x1446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "validate",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 1,
+     "first": {
+      "c": 10496,
+      "tw": [
+       "0x1446",
+       "0x1000200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      10441,
+      10453
+     ],
+     "target": [
+      875,
+      3060
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 45,
+     "c": [
+      10453,
+      10497
+     ],
+     "target": [
+      875,
+      3060
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 64,
+     "c": [
+      10641,
+      10704
+     ],
+     "target": [
+      875,
+      3060
+     ]
+    },
+    {
+     "flags": "0x11801",
+     "visits": 354,
+     "c": [
+      10704,
+      11057
+     ],
+     "target": [
+      875,
+      3060
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 15,
+   "name": "attack_invis",
+   "producer": "enemy target, Attack at 5, Apiv 60/120",
+   "policy": "attack + invisibility",
+   "window": [
+    11090,
+    11740
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851983",
+    "order_local": 5,
+    "order_zero_local": 83
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "359.998"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1550.279",
+      "1034.654"
+     ],
+     "target": [
+      "1568.000",
+      "1300.419"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1550.803",
+      "1088.641"
+     ],
+     "target": [
+      "1568.000",
+      "1300.419"
+     ]
+    },
+    {
+     "local": 80,
+     "follower_order": "851983",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1551.366",
+      "1156.125"
+     ],
+     "target": [
+      "1605.443",
+      "1216.259"
+     ]
+    },
+    {
+     "local": 83,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1551.366",
+      "1156.125"
+     ],
+     "target": [
+      "1605.983",
+      "1171.269"
+     ]
+    },
+    {
+     "local": 120,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1551.366",
+      "1156.125"
+     ],
+     "target": [
+      "1612.637",
+      "616.395"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1577.126",
+      "681.449"
+     ],
+     "target": [
+      "1523.800",
+      "991.095"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 3020,
+     "local": 0,
+     "c": 11090,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 3020,
+     "local": 0,
+     "c": 11090,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048689 th=1048690 v=1"
+    },
+    {
+     "tick": 3025,
+     "local": 5,
+     "c": 11106,
+     "label": "begin-order",
+     "rest": "v=1 o=attack"
+    },
+    {
+     "tick": 3025,
+     "local": 5,
+     "c": 11106,
+     "label": "end-order",
+     "rest": "accepted=1 order=851983"
+    },
+    {
+     "tick": 3080,
+     "local": 60,
+     "c": 11290,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 3080,
+     "local": 60,
+     "c": 11290,
+     "label": "end-produce",
+     "rest": "ok=1 f=1547.224,826.815,851983 t=1568.000,1184.941,851986"
+    },
+    {
+     "tick": 3140,
+     "local": 120,
+     "c": 11490,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 3140,
+     "local": 120,
+     "c": 11490,
+     "label": "end-undo",
+     "rest": "ok=1 f=1551.366,1156.125,0 t=1612.637,616.395,851986"
+    },
+    {
+     "tick": 3210,
+     "local": 190,
+     "c": 11723,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 3210,
+     "local": 190,
+     "c": 11723,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 3215,
+     "local": 195,
+     "c": 11740,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 3215,
+     "local": 195,
+     "c": 11740,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 11108,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11153,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11165,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11212,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11224,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11289,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11301,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11496,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11615,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 11627,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 11663,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11675,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11717,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11728,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11732,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 11356,
+     "caller": "0x68b7d8",
+     "producer": "68b780 invisibility transition",
+     "w20": "0x20001446",
+     "w5c": "0x1000240"
+    },
+    {
+     "c": 11740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x208"
+    },
+    {
+     "c": 11740,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x249"
+    }
+   ],
+   "handler": [],
+   "validate": [],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 264,
+     "first": {
+      "c": 11109,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": null,
+    "last": null,
+    "visits": 0,
+    "unseen_max": 0,
+    "reacquired": null
+   },
+   "hidden_episodes": [],
+   "groups": [
+    {
+     "flags": "0x10000",
+     "visits": 226,
+     "c": [
+      11091,
+      11316
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      11109,
+      11121
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      11154,
+      11166
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 15,
+     "c": [
+      11166,
+      11180
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      11213,
+      11225
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 33,
+     "c": [
+      11225,
+      11257
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      11290,
+      11302
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 32,
+     "c": [
+      11302,
+      11333
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x10000",
+     "visits": 234,
+     "c": [
+      11324,
+      11557
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 87,
+     "c": [
+      11497,
+      11583
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x10000",
+     "visits": 168,
+     "c": [
+      11557,
+      11724
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 5,
+     "c": [
+      11616,
+      11620
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 4,
+     "c": [
+      11628,
+      11631
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 12,
+     "c": [
+      11664,
+      11675
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 10,
+     "c": [
+      11676,
+      11685
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 7,
+     "c": [
+      11718,
+      11724
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 12,
+     "c": [
+      11729,
+      11740
+     ],
+     "target": [
+      861,
+      3239
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 8,
+     "c": [
+      11733,
+      11740
+     ],
+     "target": [
+      919,
+      3257
+     ]
+    }
+   ]
+  },
+  {
+   "scene": 16,
+   "name": "attack_fog",
+   "producer": "enemy target, Attack at 5, FOGGED modifier 60..120",
+   "policy": "attack + fog",
+   "window": [
+    11756,
+    12406
+   ],
+   "outcome": {
+    "kind": "cancelled",
+    "order": "851983",
+    "order_local": 5,
+    "order_zero_local": 75
+   },
+   "public_transitions": [
+    {
+     "local": 0,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1344.000",
+      "288.000"
+     ],
+     "target": [
+      "1568.000",
+      "288.000"
+     ]
+    },
+    {
+     "local": 5,
+     "follower_order": "851983",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1388.359",
+      "292.033"
+     ],
+     "target": [
+      "1568.000",
+      "362.237"
+     ]
+    },
+    {
+     "local": 60,
+     "follower_order": "851983",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1548.313",
+      "824.555"
+     ],
+     "target": [
+      "1568.000",
+      "1187.089"
+     ]
+    },
+    {
+     "local": 68,
+     "follower_order": "851983",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1550.647",
+      "1031.053"
+     ],
+     "target": [
+      "1568.000",
+      "1300.318"
+     ]
+    },
+    {
+     "local": 70,
+     "follower_order": "851983",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1551.180",
+      "1085.040"
+     ],
+     "target": [
+      "1568.000",
+      "1300.318"
+     ]
+    },
+    {
+     "local": 75,
+     "follower_order": "0",
+     "target_visible": 0,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1551.971",
+      "1188.966"
+     ],
+     "target": [
+      "1568.606",
+      "1250.871"
+     ]
+    },
+    {
+     "local": 121,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "851986",
+     "follower": [
+      "1551.971",
+      "1188.966"
+     ],
+     "target": [
+      "1612.135",
+      "620.210"
+     ]
+    },
+    {
+     "local": 190,
+     "follower_order": "0",
+     "target_visible": 1,
+     "target_hidden": 0,
+     "target_order": "0",
+     "follower": [
+      "1575.533",
+      "939.572"
+     ],
+     "target": [
+      "1635.591",
+      "1043.886"
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "tick": 3220,
+     "local": 0,
+     "c": 11756,
+     "label": "begin-setup",
+     "rest": ""
+    },
+    {
+     "tick": 3220,
+     "local": 0,
+     "c": 11756,
+     "label": "end-setup",
+     "rest": "t=1751543663 fh=1048690 th=1048689 v=1"
+    },
+    {
+     "tick": 3225,
+     "local": 5,
+     "c": 11773,
+     "label": "begin-order",
+     "rest": "v=1 o=attack"
+    },
+    {
+     "tick": 3225,
+     "local": 5,
+     "c": 11773,
+     "label": "end-order",
+     "rest": "accepted=1 order=851983"
+    },
+    {
+     "tick": 3280,
+     "local": 60,
+     "c": 11956,
+     "label": "begin-produce",
+     "rest": ""
+    },
+    {
+     "tick": 3280,
+     "local": 60,
+     "c": 11956,
+     "label": "end-produce",
+     "rest": "ok=0 f=1548.313,824.555,851983 t=1568.000,1187.089,851986"
+    },
+    {
+     "tick": 3340,
+     "local": 120,
+     "c": 12156,
+     "label": "begin-undo",
+     "rest": ""
+    },
+    {
+     "tick": 3340,
+     "local": 120,
+     "c": 12156,
+     "label": "end-undo",
+     "rest": "ok=0 f=1551.971,1188.966,0 t=1611.932,635.201,851986"
+    },
+    {
+     "tick": 3410,
+     "local": 190,
+     "c": 12390,
+     "label": "begin-stop",
+     "rest": ""
+    },
+    {
+     "tick": 3410,
+     "local": 190,
+     "c": 12390,
+     "label": "end-stop",
+     "rest": ""
+    },
+    {
+     "tick": 3415,
+     "local": 195,
+     "c": 12406,
+     "label": "begin-cleanup",
+     "rest": ""
+    },
+    {
+     "tick": 3415,
+     "local": 195,
+     "c": 12406,
+     "label": "end-cleanup",
+     "rest": ""
+    }
+   ],
+   "tasks": [
+    {
+     "c": 11767,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11778,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11820,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11832,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11879,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11891,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11956,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11968,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 11989,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 12309,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 90.0,
+     "persistent": 0
+    },
+    {
+     "c": 12378,
+     "event": "begin-task",
+     "caller": "0x49a2cb",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 12390,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 2139095039,
+     "persistent": 0
+    },
+    {
+     "c": 12395,
+     "event": "begin-task",
+     "caller": "0x5ffa99",
+     "range": 2139095039,
+     "persistent": 0
+    }
+   ],
+   "target_lost": [
+    {
+     "c": 12406,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x208"
+    },
+    {
+     "c": 12406,
+     "caller": "0x688373",
+     "producer": "Unit_RetireWorldPresence (RemoveUnit/ShowUnit false)",
+     "w20": "0x1645",
+     "w5c": "0x249"
+    }
+   ],
+   "handler": [],
+   "validate": [],
+   "visibility_queries": [
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 1,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 1
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 1
+       }
+      ]
+     ],
+     "count": 133,
+     "first": {
+      "c": 11768,
+      "tw": [
+       "0x20001446",
+       "0x200",
+       "0x0",
+       "0x0"
+      ]
+     }
+    },
+    {
+     "role": "group-callback",
+     "flags": 0,
+     "mode": 4,
+     "result": 0,
+     "steps": [
+      [
+       "1ddff0-detect",
+       {
+        "detectFlag": 0,
+        "result": 1
+       }
+      ],
+      [
+       "1ddee0-fog",
+       {
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "1dd920",
+       {
+        "flags": 0,
+        "mode": 4,
+        "result": 0
+       }
+      ],
+      [
+       "699b20-mask",
+       {
+        "result": 0
+       }
+      ]
+     ],
+     "count": 49,
+     "first": {
+      "c": 11957,
+      "tw": [
+       "0x20001446",
+       "0x240",
+       "0x0",
+       "0x0"
+      ]
+     }
+    }
+   ],
+   "group_hidden": {
+    "first": 11957,
+    "last": 12005,
+    "visits": 49,
+    "unseen_max": 37,
+    "reacquired": null
+   },
+   "hidden_episodes": [
+    {
+     "gi": 7,
+     "group_identity": "894,3568",
+     "first": 11957,
+     "cd_first": 0,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      37.026237
+     ],
+     "visits": 12,
+     "last": 11968,
+     "cd_last": 0,
+     "unseen_last_entry": 11,
+     "dest_hidden": [
+      49.0,
+      37.026237
+     ],
+     "member_dest_hidden": [
+      49.0,
+      37.026237
+     ],
+     "reacquired": null,
+     "ended": {
+      "c": 11969,
+      "unseen_entry": 12,
+      "cd_entry": 0,
+      "member_visit": true,
+      "group_flags_after": "0x21000"
+     }
+    },
+    {
+     "gi": 8,
+     "group_identity": "869,3572",
+     "first": 11969,
+     "cd_first": 0,
+     "unseen_first": 0,
+     "dest_before": [
+      49.0,
+      38.666553
+     ],
+     "visits": 37,
+     "last": 12005,
+     "cd_last": 0,
+     "unseen_last_entry": 36,
+     "dest_hidden": [
+      49.0,
+      38.666553
+     ],
+     "member_dest_hidden": [
+      49.0,
+      38.666553
+     ],
+     "reacquired": null,
+     "ended": {
+      "c": 12006,
+      "unseen_entry": 37,
+      "cd_entry": 0,
+      "member_visit": false,
+      "group_flags_after": "0x21000"
+     }
+    }
+   ],
+   "groups": [
+    {
+     "flags": "0x10000",
+     "visits": 226,
+     "c": [
+      11757,
+      11982
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 7,
+     "c": [
+      11768,
+      11774
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 10,
+     "c": [
+      11779,
+      11788
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      11821,
+      11833
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 15,
+     "c": [
+      11833,
+      11847
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      11880,
+      11892
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 33,
+     "c": [
+      11892,
+      11924
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 13,
+     "c": [
+      11957,
+      11969
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 38,
+     "c": [
+      11969,
+      12006
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 2,
+     "c": [
+      11990,
+      11991
+     ],
+     "target": [
+      891,
+      3472
+     ]
+    },
+    {
+     "flags": "0x10000",
+     "visits": 234,
+     "c": [
+      11991,
+      12224
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x10000",
+     "visits": 168,
+     "c": [
+      12224,
+      12391
+     ],
+     "target": [
+      4294967295,
+      4294967295
+     ]
+    },
+    {
+     "flags": "0x11000",
+     "visits": 37,
+     "c": [
+      12310,
+      12346
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 5,
+     "c": [
+      12379,
+      12383
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 6,
+     "c": [
+      12391,
+      12396
+     ],
+     "target": [
+      891,
+      3472
+     ]
+    },
+    {
+     "flags": "0x11200",
+     "visits": 3,
+     "c": [
+      12396,
+      12398
+     ],
+     "target": [
+      852,
+      3490
+     ]
+    }
+   ]
+  }
+ ]
+}

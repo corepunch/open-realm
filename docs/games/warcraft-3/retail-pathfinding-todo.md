@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**280 done / 336 tasks; 56 remaining.**
+**281 done / 336 tasks; 55 remaining.**
+Payoff251 closes TARGET-03.1: original visibility-policy matrix and lifecycle
+producer mapping, preserved reachable branch table, named shared engine query
+and self/hidden/dead optional Move normalization with immediate/Shift/save
+regressions. Wider TARGET-03.2 stays open. See
+[visibility policy and admission](retail-pathfinding-target-visibility.md#visibility-policies-and-optional-target-admission-payoff251).
 Payoff250 moves selected queued point notification to head activation before
 Move task creation. Four read-only retail repeats, saved Ghidra mapping and
 failing-first movement/save/JASS callback regressions cover same-point replacement
@@ -1376,7 +1381,7 @@ Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh,
 
 ### TARGET-03 — Visibility policies
 
-- [ ] **TARGET-03.1** Map visibility policy flags/global producers to fog, invisibility and validation results 0xa9/0xaa; publish the reachable branch table.
+- [x] **TARGET-03.1** Map visibility policy flags/global producers to fog, invisibility and validation results 0xa9/0xaa; publish the reachable branch table. Payoff251 integrates original-policy matrix, lifecycle writers, frozen branch table and optional Move admission regressions. Research handoff: [TARGET-03.1](retail-pathfinding-handoffs/TARGET-03.1/HANDOFF.md).
 - [ ] **TARGET-03.2** Run loss and reacquisition for each listed policy; assert retained pursuit or cancellation and resulting order/route state.
 
 ### TARGET-04 — Delayed refresh

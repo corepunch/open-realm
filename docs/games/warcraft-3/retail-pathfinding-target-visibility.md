@@ -9,8 +9,9 @@ point, while a visible hostile target can retain Follow. See
 sampled position while hidden. At that position it validates the target and
 ends the Follow parent if validation fails; lifting fog does not revive it.
 
-This advances TARGET-03.1/03.2. It does not close their broader visibility,
-TargetLost producer, transient-state and policy compositions.
+Payoff251 below closes TARGET-03.1 by integrating the policy mapping and
+optional-target admission. TARGET-03.2 retains broader TargetLost producers,
+transient-state and policy compositions.
 
 ## Original contract
 
@@ -267,10 +268,10 @@ presentation alpha remain required. No new TODO leaves are introduced.
 
 ## Remaining scope
 
-The full archived policy matrix is research evidence, not a claim that this
-chunk integrates every policy. Caller-specific flags 1/2, TLS/global visibility
-producers, reveal fallback, transient blink/morph TargetLost ordering, point
-reissue and broader attack/cargo/owner-change compositions remain open. The
+At Payoff168, the full archived policy matrix was research evidence rather
+than integrated behavior. Subsequent Payoffs182,215..224 and251 below implement
+Blink, ShowMap, reveal, caller policies, point reissue and owner-change work.
+Broader dynamic TargetLost compositions remain open under TARGET-03.2. The
 multi-member blocked-arrival branch with the 20-visit and squared-distance-256
 gates also remains outside this singleton implementation.
 
@@ -330,3 +331,122 @@ at7968 after public issue7957. No new retail run occurred in this chunk.
 Seven production regressions cover actual public Blink dispatch, retained and
 cancelled Follow, nested callback clearing and a callback-time cold save.
 The wider visibility TODOs remain open; no new TODOs are introduced.
+
+## Visibility policies and optional target admission (Payoff251)
+
+TARGET-03.1 is closed by the policy mapping, original-code matrix and public
+admission regressions below. TARGET-03.2 retains broader dynamic loss producers
+and their compositions. Earlier fixtures remain byte-for-byte unchanged.
+
+### Query policy and producers
+
+`6f66fdd0` first requires a world and its `+3e0` lifecycle Boolean. TLS slot13
+record flag`0x200` adds flag1. `6f1dd920` evaluates detection and fog independently;
+`6f699b20` supplies the per-unit reveal fallback after an unsuccessful query.
+Ownership/shared vision bypasses detection, but does not bypass the mode4 cell.
+
+| Input | Effect | Verified producers/consumers |
+| --- | --- | --- |
+| Flag1 | Skip fog, retain detection | `5fd270` optional target filter; Attack `4968e0` with requireVisibility0 |
+| Flag2 | Skip detection, retain fog | Move virtual63 at `5fa49b` |
+| Flag4 | Force evaluation of detection; Boolean result unchanged | `1dd920` branch; all combinations in the original-code matrix |
+| TLS`0x200` | Add flag1 | Synchronized ShowMap command, already integrated in Payoff215 |
+| Unit`+148/+14c` | Direct/alliance-expanded reveal bypasses failed fog/detection | `699b20`; UnitShareVision and cached expansion integrated in Payoff217 |
+| World`+3e0` | Enable the entire widget-visibility query | Lifecycle writers below; distinct from FogEnable/FogMaskEnable and ShowMap |
+
+Complete assembly bodies identify lifecycle writes to `+3e0`: reset/teardown
+`1dfaf0` clears at`1dfaf9`; transition preparation`1e05a0` clears at`1e05c6`;
+load-game`1e3730` sets at`1e37e6`; fresh-map start`1e5a10` sets at`1e5a47`;
+final pathing initialization`1eab40` sets at`1eab56`, before installing target
+visibility callback`23a760`. The two-instruction setter`1e9930` also sets it.
+These are static producer findings, not new live reload measurements.
+`WC3WorldVisibilityPrefix` records the verified vision/player-count/gate fields
+in [the partial type schema](../../../tools/ghidra/fixtures/retail-visibility251-types-1.27.json).
+Twelve task-tagged comments, the setter function and type were saved in Ghidra
+and read back with `changed=false`; `MapPathfinding.java` preserves the mapping.
+
+The original-code oracle executes `66fdd0`, `1dd920`, `1ddff0`, `1ddee0`,
+`1e0b80` and `699b20` unmodified. Its 6,912 cases cover flags0..7, TLS off/on,
+null/disabled/enabled world, invisibility, owner/detector masks, absent/direct/
+expanded reveal, masked/fogged/visible cells and modes4/7. Controlled boundary
+stand-ins provide TLS lookup, owner/bridge virtuals, fine pose, canonical
+mask access and the CRT cookie check. This proves those supplied policy cases;
+it does not establish that every combination is reachable through public play.
+
+### Reachable validation branches
+
+The [36-row handoff branch table](../../../tools/ghidra/fixtures/research/TARGET-03.1-expected.json)
+is integrated unchanged, together with both frozen TARGET-03.2 source tables.
+Its generator is rerun to check every row and witness. Two assembly corrections
+are recorded here instead of rewriting the historical table: V3 has a visible
+non-unit half returning0 without a visibility query; A1's function entry is
+`5fa7a0`, not`5fa7b0` (call`5fa80f`, return`5fa814`).
+
+| Validator/order condition | Result and observation |
+| --- | --- |
+| Null/dead target | `5fb940` returns`0xdd` |
+| Non-unit widget | Hidden`0xaa`; otherwise0 without a unit-visibility query |
+| Hidden unit outside transient`0x800000` | Loaded`0xa9`; otherwise`0xaa` |
+| Unit transient`0x800000` | Skip hidden-state gate, still evaluate visibility |
+| Flags0/mode4 visibility fails | `5fb940` returns`0xdd`; order check`5fbad0` returns`0xba` |
+| Self | Order check rejects; this is separate from target validator success |
+| Optional Move admission fails | Native`207160` flags6 validates captured point and constructs a NULL-target packet |
+| Smart admission fails | Reject before active-task or FIFO mutation |
+
+The frozen Payoff182 original validation fixture is re-executed unchanged,
+including 64 branch combinations and null target. Earlier public policy
+captures supply the live hidden/cargo/visibility/arrival witnesses; Payoffs215,
+217 and218 supply ShowMap, reveal and Move visibility-fallback evidence.
+The remaining dynamic loss-handler reissue combinations belong to TARGET-03.2.
+
+### Engine payoff and fresh public evidence
+
+Previously only visibility failure became a point Move. The native fallback
+also accepts self (`0xdd`), ShowUnit-hidden (`0xaa`) and dead (`0xdd`) targets.
+`CAbilityMove` now normalizes these before replacing the current task or adding
+a Shift successor. The FIFO stores the issue-time predicted point without a
+retained target identity; queued activation also excludes optional self binding.
+Removed handles remain rejected before native validation. Smart continues to
+reject all three and preserves the active head, physical group and FIFO.
+
+Two fresh read-only retail observations and an observer-free control each
+complete 39 identical public markers. Eight scenes compare Move/Smart for self,
+hidden, dead and ordinary visible units. Each observation records125 matching
+public/native events:39 markers,13 task factories,4 Move admissions,5 target
+packets and63 query entries. Move results`dd/aa/dd/0` produce three NULL-target
+packets and a retained visible target; only visible Smart succeeds. Observer
+tick labels at native boundaries refer to the preceding public marker, not a
+new precise simulation timestamp. The first launch failed before probe startup
+and is archived as rejected evidence.
+
+Fog owns `G_FowPlayerCanQueryUnit` with named independent skip-fog and
+skip-detection flags. Move's existing Track query delegates flags0; Attack's
+existing detection-only policy delegates flag1. This is constant-work dispatch
+with no allocations or new entity scans. The game API serves mode4; the oracle's
+mode7 coverage is not an engine mode7 claim. Synthetic tests without a fog grid
+retain their prior convention, which is not the retail world lifecycle gate.
+
+Two production admission regressions first failed29 of125 assertions before
+the fix. They cover immediate/Shift self, hidden and dead normalization, Smart refusal,
+exact retained point words, FIFO shape and cold save/load. A third regression supplies policy
+coverage using576 literal
+original-code rows using actual fog writes, synchronized ShowMap, unit reveal
+and detector state. Save163 remains unchanged.
+
+Reproduce the complete focused original/evidence/engine verification with:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_work251.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/visibility251-new.json
+```
+
+The verifier pins2,521 original instructions, capture sources, public/control
+bytes, the literal engine matrix and frozen branch tables. Classic/TFT run
+separately for each named test filter, with nonzero test counts and clean JUnit
+required. Nine Python rejection tests cover identity/result changes, truncated
+captures, instrumented controls, preload bytes and incomplete/changed matrices.
+Classic and TFT each pass349 tests /268,724 assertions.
+Focused validation follows the authorized twelve-commit cadence; full
+checkpoint250 already passed. Raw evidence is archived under
+`research/TARGET-03.1/payoff251/` in the original-analysis workspace.

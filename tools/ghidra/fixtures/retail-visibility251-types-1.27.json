@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "target": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "image_base": "6f000000"
+  },
+  "scope": "Payoff251: partial world visibility lifecycle prefix. Other bytes remain undefined. Complete original bodies pin map reset/start/load and finalization writes.",
+  "layouts": [
+    {
+      "name": "WC3WorldVisibilityPrefix",
+      "length": 996,
+      "fields": [
+        {
+          "offset": 52,
+          "name": "vision",
+          "type": "ptr:void",
+          "evidence": "1ddee0 world+34 vision grid"
+        },
+        {
+          "offset": 84,
+          "name": "player_count",
+          "type": "u32",
+          "evidence": "1e0ea0 bounds checked player lookup"
+        },
+        {
+          "offset": 992,
+          "name": "widget_visibility_ready",
+          "type": "u32",
+          "evidence": "66fdd0 early gate; 1dfaf9/1e05c6 clear, 1e37e6/1e5a47/1eab56/1e9930 set"
+        }
+      ]
+    }
+  ],
+  "methods": [
+    {
+      "address": "6f1e9930",
+      "name": "World_EnableWidgetVisibilityQueries",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "world",
+          "type": "ptr:WC3WorldVisibilityPrefix",
+          "storage": "ECX"
+        }
+      ]
+    }
+  ]
+}

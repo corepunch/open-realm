@@ -545,7 +545,9 @@ static bool attack_can_target_mask(edict_t const *attacker, edict_t const *targe
     uint32_t flag;
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
         !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target)) return false;
-    if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
+    if ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target)) return false;
+    /* Native4968e0 TargetLost uses flags1: detection without the fog test. */
+    if (!G_FowPlayerCanQueryUnit(attacker->s.player,target,UNIT_VISIBILITY_IGNORE_FOG)) return false;
     if (target->destructable) return G_DestructableCanBeAttackedBy(attacker, target);
     if (M_IsDead((edict_t *)target)) return false;
     flag = G_TargetFlagForType(G_UnitTargetType(target));
