@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "186 executable original/evidence contracts;467 total entries.",
+  "scope": "187 executable original/evidence contracts;468 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -49730,6 +49730,60 @@
         "No claim of persistent fine target/completion-field parity outside the covered call, new throughput target acceptance, worker behavior or unrelated routing parity.",
         "No prior retail expected fixture was modified. Rejected exploratory captures remain in the archive."
       ]
+    },
+    {
+      "id": "oracle-work232",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work232.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work232.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "live_queries": {
+          "equal": 4
+        },
+        "live_candidates": {
+          "equal": 8
+        },
+        "complete_scopes": {
+          "equal": 8
+        },
+        "instructions": {
+          "equal": 1796
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "GROUP-04.6 queued cohort acquisition: complete ordered center-circle query, first-success stop, authored type and direct physical-owner binding.",
+      "exclusions": [
+        "Advances GROUP-04.6; preferred source selection, persistent canonical request candidates, completion/recovery and wider producer lifetimes remain open.",
+        "Original circle query executes unchanged05d680/05eb20/05f010/05ef40 and numerical code. Fixture supplies map, game query-context array and canonical owner fields; only external Storm storage and caller-provided visitor are host adapters.",
+        "Fresh read-only captures certify radius/selector values, latest request history and first-success callback stop. Input timing and trajectory words are retained separately, not asserted identical across captures. These two observations have no observer-free control.",
+        "Existing frozen retail selected-order trajectories and saved continuations remain unchanged. No acceptance of the overall pathfinding CPU or FPS targets.",
+        "Rejected late-input capture and initial synthetic membership reset mistake remain in the archive; neither defines expected behavior."
+      ]
     }
   ],
   "fixtures": [
@@ -50628,7 +50682,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "d1107b5acd343f539fa021be509acf10fa126045b3c5daa04f959c52a6a453d0"
+      "sha256": "0beb4e5fc8030ba55da499a51f43507325bdb84d796d8e35714c7deda0702952"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51484,7 +51538,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "9e2e67a73ba91490edf6138ff44584dc3869d2af3b0dc8b9a33e18e03c3aa63b"
+      "sha256": "94d8e03ad7e6c22125c5393d9d858b5118c805ffc97d8a62df3f7b6fcf156e83"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51692,7 +51746,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "cce63796e3455d60e82ae5505e7830dfa89d1b662323cd82825b457649bc9550"
+      "sha256": "8de0832a19e74b195dc6ebb2850f3b04bef9d017948da113eabaffe8694eb5c1"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -51928,7 +51982,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "055e6f9823ed1f255d25169c6f5e8bfcc570224a01c199cf7bd6816a4c735840"
+      "sha256": "c27fc08a4b2088775a9e3cd2aa089d669c2c3a2a40260004dfa5854e8162d980"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -52176,7 +52230,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "62ed3b3808a45744d253d4ca67d4bcb2e58997a353238e1b38f83068a69c5864"
+      "sha256": "d0ec9e474b348974a443814f57875ea1561bd27e41fca68057639288b9c9f9f2"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -52420,7 +52474,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "5106276db3dbf15b833f0120c2ce784063ef87a40967bf88fccf9748d5ed7096"
+      "sha256": "945d6bdfa538ab925e6bf8c717b26941dfb18df0ba8b78f15ede733fc4cc9c1f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52436,7 +52490,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "5ad3bfa47cb5c53beb4d18b78f840251c391eebfd6fe955115dd4ac0a5ec470d"
+      "sha256": "49c7d95b52d0ace64c1e06945a2a210ccc1894f65d541c9eba9080f02c17ccd8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55377,6 +55431,38 @@
     {
       "path": "tests/test_wc3_pathfinding_work231.py",
       "sha256": "2a2991b4177c7e6f076cb6678a57c6c84239978691640693ae01f695901c48e5"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-queued-cohorts.md",
+      "sha256": "d523714cf594f4209ec1ca1f8a1a2822748e6c9c4d61d004492da3e8b9e6ad9a"
+    },
+    {
+      "path": "tools/frida/research/work232_observer.js",
+      "sha256": "617408974f00e5379ba866193566fe1271679906b39ba4a2ab54fe8e46d57ff4"
+    },
+    {
+      "path": "tools/ghidra/research/work232_oracle.py",
+      "sha256": "7321c0beb5ba895766b1ea08cbc13d4e90b24fd664f053ddda07fd0525d13b60"
+    },
+    {
+      "path": "tools/ghidra/research/Work232Evidence.java",
+      "sha256": "60113086306f42074100fbc1a45725c15b865b21181c1cfaa8d6068d80b8737f"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work232.py",
+      "sha256": "ed667ce65fd40ace2553be642a3f020f88416dd7ccbed60f007a297192f4755c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work232-1.27.json",
+      "sha256": "ff313f23aafece2ec0990bcf9a24aa56899f32226058bdcc18bbfb5320b5df17"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work232-1.27.json.gz",
+      "sha256": "a4a5af65d0fdf4fdfd1e5472529b9023d389f1ba209f8c934fde4e7161cab643"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work232.py",
+      "sha256": "d21fb2471cbc65d67c49e4f8027ea634346e3a2c1771478a4b98b5a2e75192d4"
     }
   ]
 }

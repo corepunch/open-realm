@@ -56,6 +56,10 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **278 done / 336 tasks; 58 remaining.**
+Payoff232 replaces queued activation's whole-group scan with the original ordered
+center-circle query and first-compatible-owner stop. It preserves all established
+retail motion fixtures; GROUP-04.6 stays open for its wider producer/owner work.
+See [queued cohort acquisition](retail-pathfinding-queued-cohorts.md).
 
 Payoff231 advances MAP-04.2: public terrain queries now preserve raw identity
 traversal and saved query/object stamps through the shared endpoint cell query.

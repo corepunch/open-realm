@@ -3502,6 +3502,7 @@ void S_PublishMoveProximity(edict_t const *);
 void S_RemoveMoveProximity(edict_t const *);
 void S_QueryMoveProximity(edict_t const *,float const[2],float,bool (*)(edict_t const *));
 void S_QueryMoveProximityContext(edict_t const *,float const[2],float,void (*)(void *,edict_t const *),void *);
+void S_VisitMoveCircle(float const[2],float,bool (*)(void *,edict_t *),void *);
 void S_QueryMoveRangeCandidates(edict_t const *,float const[2],float,void (*)(void *,edict_t const *),void *);
 void S_PredictUnitFinePointAt(edict_t const *,wc3Clock_t const *,float[2]);
 bool S_UnitTargetInMoveRange(edict_t const *,edict_t const *,float);

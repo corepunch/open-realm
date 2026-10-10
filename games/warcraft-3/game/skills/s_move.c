@@ -182,13 +182,16 @@ static void move_prepare_group_order(void) {
     move_group_order_valid=true;free(owners);
 }
 #ifdef BZ_TESTS
-static uint32_t move_group_id_visits;
+static uint32_t move_group_id_visits,move_queued_peer_visits,move_group_lookup_visits;
 static uint32_t move_pose_cache_hits,move_pose_cache_misses;
 #endif
 /* Registry identity survives callback-driven pool growth and save relocation. */
 static moveGroup_t *move_find_group(uint32_t id) {
     if (!id) return NULL;
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+#ifdef BZ_TESTS
+        move_group_lookup_visits++;
+#endif
         moveGroup_t *group=level.move_groups[i];
         if (group->inuse && group->id==id) return group;
     }
@@ -4940,6 +4943,35 @@ void S_EndUnitTargetChase(edict_t *unit,abilityProc_t owner) {
     if(S_UnitTargetChaseActive(unit,owner))move_leave(unit);
 }
 
+enum {MOVE_PREVIOUS_COHORT_RADIUS=1000};
+typedef struct {edict_t *source;moveGroup_t *group;vec2_t fine_goal;} moveQueuedCohort_t;
+static bool move_queued_cohort_candidate(void *data,edict_t *other) {
+    moveQueuedCohort_t *query=data;edict_t *unit=query->source;
+#ifdef BZ_TESTS
+    move_queued_peer_visits++;
+#endif
+    if(other==unit || other->s.player!=unit->s.player || !G_UnitIsWorldActive(other) ||
+        M_IsDead(other) || IS_HOLLOW(other) ||
+        other->movement.previous_request_id!=unit->movement.previous_request_id ||
+        S_UnitMovementProfile(other->data.UnitData)->bits!=S_UnitMovementProfile(unit->data.UnitData)->bits)return true;
+    moveGroup_t *peer=move_unit_group(other),*group=query->group;
+    if(!peer || peer==group || peer->count>=BZ_WC3_GROUP_ORDER_UNITS)return true;
+    box2_t bounds=CM_GetWorldBounds();
+    if(wc3_grid_coordinate(peer->goal.x,bounds.min.x,32)!=query->fine_goal.x ||
+        wc3_grid_coordinate(peer->goal.y,bounds.min.y,32)!=query->fine_goal.y)return true;
+    /*5faaf0: source first, then every retained old row in its original order.
+     * Once one candidate qualifies, other cohorts are not considered. */
+    FOR_LOOP(i,peer->count) {
+        edict_t *member=peer->members[i].unit;
+        if(!member || member==unit)continue;
+        group->members[group->count++]=(moveGroupMember_t){.unit=member,.spawn=member->spawn_time,
+            .arrival_range=wc3_point_arrival_range(0)};
+        member->movement.group_id=group->id;move_unit_groups[member-g_edicts]=group;
+        if(member->collision>group->radius)group->radius=member->collision;
+    }
+    move_release_group(peer);return false;
+}
+
 static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return false;
     S_IssueMoveOrder(unit,Waypoint_add(&queued->point),G_OrderId(queued->order));
@@ -4950,33 +4982,15 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
         .arrival_range=wc3_point_arrival_range(0)};
     group->radius=unit->collision; unit->movement.group_id=group->id;
-    wc3GridPose_t source; unit_predicted_pose(unit,&source);
-    FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
-        moveGroup_t *peer=level.move_groups[g];
-        if (peer==group || !peer->inuse ||
-            peer->goal.x!=group->goal.x || peer->goal.y!=group->goal.y ||
-            group->count+peer->count>BZ_WC3_GROUP_ORDER_UNITS) continue;
-        bool nearby=false;
-        FOR_LOOP(i,peer->count) {
-            edict_t *other=peer->members[i].unit;
-            if (!other) continue;
-            if (other->movement.previous_request_id!=unit->movement.previous_request_id) continue;
-            wc3GridPose_t pose; unit_predicted_pose(other,&pose);
-            float dx=wc3_sub(source.grid[0],pose.grid[0]),dy=wc3_sub(source.grid[1],pose.grid[1]);
-            uint32_t distance=wc3_int_bits(wc3_float_bits(wc3_sqrt(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy)))));
-            if (distance<=40 && M_UnitStaticPathingFlags(other)==M_UnitStaticPathingFlags(unit)) nearby=true;
-        }
-        if (!nearby) continue;
-        FOR_LOOP(i,peer->count) {
-            edict_t *other=peer->members[i].unit;
-            if (!other) continue;
-            group->members[group->count++]=(moveGroupMember_t){.unit=other,.spawn=other->spawn_time,
-                .arrival_range=wc3_point_arrival_range(0)};
-            other->movement.group_id=group->id;
-            if (other->collision>group->radius) group->radius=other->collision;
-        }
-        move_release_group(peer);
-    }
+    move_unit_groups[unit-g_edicts]=group;
+    wc3GridPose_t source;unit_predicted_pose(unit,&source);
+    box2_t bounds=CM_GetWorldBounds();
+    float center[]={wc3_grid_coordinate(source.world[0],bounds.min.x,32),
+        wc3_grid_coordinate(source.world[1],bounds.min.y,32)};
+    moveQueuedCohort_t query={unit,group,
+        {wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)}};
+    /*013490 initializes the world radius used by selector8 in5fa950. */
+    S_VisitMoveCircle(center,wc3_div(MOVE_PREVIOUS_COHORT_RADIUS,32),move_queued_cohort_candidate,&query);
     /* TODO GROUP-04.6: accelerated preferred-distance, range90 and wider
      * neighbor producer policies need original witnesses before extension. */
     move_group_seed_route(group);
@@ -5030,7 +5044,7 @@ static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t s
          * this differs from individually reissued captain followers. */
         *member=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
             .arrival_range=wc3_point_arrival_range(0)};
-        unit->movement.group_id=group->id;
+        unit->movement.group_id=group->id;move_unit_groups[unit-g_edicts]=group;
         unit->movement.previous_request_id=group->id;
         if (unit->collision>group->radius) group->radius=unit->collision;
     }

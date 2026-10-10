@@ -1,0 +1,116 @@
+# Queued movement acquires the first compatible spatial cohort
+
+Target: Warcraft III 1.27.1.7085. Payoff232 advances GROUP-04.6 and removes a
+whole-group scan from queued activation. It does not close the broader task.
+See [movement integration](retail-pathfinding-engine.md), the
+[research backlog](retail-pathfinding-todo.md) and the
+[executable corpus](retail-pathfinding-corpus.md).
+
+## Retail contract
+
+`Move_FindPreviousRequestCohort` (`5fa950`) calls the variadic selector parser
+`67e790` with callback `5faaf0` and these selectors:
+
+| Stack input | Meaning |
+|---|---|
+| `8`, radius word, source mover bridge | Center-only circle around the source's predicted world position |
+| `24`, player | Restrict candidate ownership |
+| `31` | End selectors and execute query |
+
+Initializer `013490` writes **1000 world units** to `6fd6fb38` through the
+software integer conversion. The older mapping's “maximum8 candidates within24”
+was incorrect: both numbers are selector codes. The terminating parser folds
+owner/dead exclusions into the spatial mask; its initial Unit predicate defaults
+must not be mistaken for the final circle filters.
+
+`059c10` predicts the source position. Its zero touching mode dispatches through
+`05f290` to `05d680`. That query converts world center and radius to fine
+coordinates, materializes the complete bounding rectangle through
+`05eb20`/`05f010`, then evaluates candidates. The unit map visits X before Y;
+within a cell the newest effective record comes first, and each identity is
+retained once. It compares the candidate's retained mover center against the
+radius squared with software arithmetic. Candidate collision radius is not
+added. Equality is accepted. A callback returning zero stops evaluation after
+materialization, then the private query depth and active flag are restored.
+
+`5faaf0` rejects self, differing previous-request identities, differing
+**authored movement-type bits at Unit+1fc**, unresolved owners, unequal fine
+coordinates of the destination and a physical owner already containing twelve
+rows. The type bits are distinct from fine collision category and pathing query
+mask: Foot and Horse both use query2/categoryCA, but have type bits1 and4.
+Forced-ground collision publication must not change this authored comparison.
+
+On success the callback constructs a fresh request, attaches the activating
+source first, then every nonnull prior-owner row except that source in retained
+row order. It marks peers ready and returns zero. It does not combine additional
+independent physical groups. Latest submitted request history stays separate
+from the FIFO entry currently activating.
+
+## Engine data flow and cost
+
+`move_start_queued_group` now queries the shared Move proximity publications.
+`S_VisitMoveCircle` retains entity index/incarnation pairs before invoking any
+consumer, uses retained fine centers, and supports nested queries with private
+reusable storage. Callback edits cannot insert new candidates into the outer
+snapshot; removed/reused identities are rejected before use. Teardown releases
+the derived query storage. Authoritative group/save layout is unchanged.
+
+The compatible-peer callback binds the source and inherited rows directly to
+the new physical owner. Ordinary captain admission also publishes its derived
+binding immediately. This prevents a local spatial query from falling back to
+an O(all groups) owner search during normal activation.
+
+Query work is O(covered cells + covered record links + collected candidates),
+followed by at most twelve inherited rows. Unrelated physical groups do not
+contribute to the scan. Query contexts allocate only when their retained
+capacity/depth grows. Dense local populations still require genuine candidate
+work; this change makes no overall CPU or frame-rate acceptance claim.
+
+## Evidence and verification
+
+`tools/ghidra/research/Work232Evidence.java` saves names, corrected calling
+conventions, selector/radius comments and xrefs in Ghidra. It exports 1,796
+instructions from the relevant original functions. `MapPathfinding.java`
+retains the correction for future mapping runs.
+
+`work232_oracle.py` executes the unchanged original circle query, numerical
+helpers, rectangle materializer and raw cell traversal. The fixture supplies
+constructed spatial records, canonical owners and private query-context
+storage. Only Storm memory imports and the caller-provided visitor are host
+adapters. Eight cases cover 999.875/1000/1000.125/1100 and continuing/stopping
+visitors. In particular 1000.125 is excluded despite the candidate's collision
+radius, and an early stop still leaves the complete materialized snapshot.
+
+Two fresh read-only Frida captures reuse the frozen selected-queued corridor
+map SHA256 `2005c82b5f77c49376d4815f779e6f7c6720bfae2d2cb1b4fb6726e55ea987a2`.
+Each completes 305 public markers, two searches and four candidate callbacks.
+Both show the selector sequence above, the shared latest request history, the
+first failed search and the later first-success stop. Their input clocks and
+trajectory words remain separate; there is no observer-free control for these
+two captures. Existing frozen retail trajectories supply the movement checks.
+
+The failing-first engine regressions cover the first spatial peer with 1,024
+unrelated owners, exact radius boundaries, Foot/Horse type separation and
+nested/mutating query callbacks. No established expected trajectory was
+modified. The pre-existing fourteen selected-order tests pass unchanged in
+Classic and TFT, including staggered/multiple Shift activation and saved
+continuations.
+
+Run the complete focused contract with a new output path:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work232.py \
+  --binary /path/to/retail/game.dll --report /tmp/work232-fresh.json
+```
+
+The archive is
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff232/`.
+It retains the late-input capture that reached no cohort search, the initial
+synthetic-map reset mistake and the test fixture whose collision rectangle
+crossed an earlier cell. None defines retail expectations. The corrected
+fixtures publish through the original region update and use separate context
+lifetimes.
+
+Preferred source selection, persistent canonical candidate publication,
+completion/recovery and the wider producer lifetimes remain GROUP-04.6 work.

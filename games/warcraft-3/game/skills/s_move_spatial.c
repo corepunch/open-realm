@@ -138,6 +138,13 @@ void S_PublishMoveRegions(edict_t const *owner) {
 
 typedef struct { vec2_t world,fine,published;float radius;bool valid,pose_valid; } moveProximityGeometry_t;
 static moveProximityGeometry_t move_proximity_geometry[MAX_ENTITIES];
+typedef struct {uint32_t index,birth;} moveCircleMember_t;
+typedef struct moveCircleQuery_s {
+    moveCircleMember_t *members;
+    uint32_t count,capacity;
+    struct moveCircleQuery_s *next;
+} moveCircleQuery_t;
+static moveCircleQuery_t *move_circle_queries;
 
 void S_ClearMoveProximity(void) {
     wc3_records_clear(&move_proximity);
@@ -148,6 +155,10 @@ void S_ClearMoveProximity(void) {
 void S_FreeMoveProximity(void) {
     wc3_proximity_free(&move_proximity);memset(move_proximity_geometry,0,sizeof(move_proximity_geometry));
     move_proximity_request.active=false;
+    while(move_circle_queries) {
+        moveCircleQuery_t *query=move_circle_queries;move_circle_queries=query->next;
+        free(query->members);free(query);
+    }
 }
 
 static void move_proximity_prepare(void) {
@@ -223,6 +234,40 @@ void S_QueryMoveRangeCandidates(edict_t const *source,float const point[2],float
     void (*candidate)(void *,edict_t const *),void *data) {
     /*15f870 bounds24=minY/28=minX;15fa80 outer Y, inner X. */
     move_proximity_query_context(source,point,radius,candidate,data,false);
+}
+
+static void move_circle_collect(void *data,edict_t const *unit) {
+    moveCircleQuery_t *query=data;
+    if(query->count==query->capacity) {
+        uint32_t capacity=MIN(MAX_ENTITIES,query->capacity ? query->capacity*2 : 64);
+        query->members=wc3_records_memory(query->members,capacity*sizeof(*query->members));
+        query->capacity=capacity;
+    }
+    query->members[query->count++]=(moveCircleMember_t){unit-g_edicts,unit->spawn_time};
+}
+
+/*05d680 materializes the rectangle before invoking any callbacks. Keep query
+ * storage private until return so nested queries and membership edits are safe.
+ * Input and retained candidate centers are fine coordinates; radii are excluded. */
+void S_VisitMoveCircle(float const center[2],float radius,
+    bool (*candidate)(void *,edict_t *),void *data) {
+    moveCircleQuery_t *query=move_circle_queries;
+    if(query)move_circle_queries=query->next;
+    else if(!(query=calloc(1,sizeof(*query))))gi.error("Move: cannot acquire circle query");
+    query->count=0;
+    S_QueryMoveProximityContext(NULL,center,radius,move_circle_collect,query);
+    box2_t bounds=CM_GetWorldBounds();float squared=wc3_mul(radius,radius);
+    FOR_LOOP(i,query->count) {
+        moveCircleMember_t member=query->members[i];edict_t *unit=g_edicts+member.index;
+        if(!unit->inuse || unit->spawn_time!=member.birth || G_IsDeferredFree(unit))continue;
+        vec2_t point=unit->movement.pose_valid && !memcmp(&unit->s.origin2,&unit->movement.pose_world,sizeof(vec2_t)) ?
+            unit->movement.fine_pose : (vec2_t){wc3_grid_coordinate(unit->s.origin2.x,bounds.min.x,32),
+                wc3_grid_coordinate(unit->s.origin2.y,bounds.min.y,32)};
+        float dx=wc3_sub(point.x,center[0]),dy=wc3_sub(point.y,center[1]);
+        if(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))>squared)continue;
+        if(!candidate(data,unit))break;
+    }
+    query->next=move_circle_queries;move_circle_queries=query;
 }
 
 void S_QueryMoveProximity(edict_t const *source,float const point[2],float radius,bool (*candidate)(edict_t const *)) {

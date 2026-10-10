@@ -13175,6 +13175,86 @@ TEST(wc3_movement, selected_point_move_owns_shared_physical_group) {
 }
 
 /* Pending selected requests retain common coordinates and survive independent cancellation. */
+/*5fa950/67e790: selector8 is a centre-only circle;013490 supplies1000.
+ *5faaf0 stops on its first compatible physical owner, in widget query order. */
+static edict_t *cohort232_unit(float x,float y) {
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),x,y);
+    unit->movetype=MOVETYPE_STEP;unit->stand=unit_stand;unit->die=unit_die;
+    unit->collision=16;unit->s.model=1;unit->svflags|=SVF_MONSTER;unit_stand(unit);
+    gi.LinkEntity(unit);G_PublishMoveSpatialObject(unit);return unit;
+}
+static void cohort232_orders(edict_t **units,unsigned count,vec2_t const *goal) {
+    groupPointOrder_t order={.count=1,.point=goal,.order="move",.order_id=G_OrderId("move")};
+    FOR_LOOP(i,count) {
+        order.units[0]=(typeof(*order.units)){units[i],units[i]->spawn_time};
+        T_ASSERT(G_IssueGroupPointOrder(&order));
+    }
+    order.count=count;order.queued=true;
+    FOR_LOOP(i,count)order.units[i]=(typeof(*order.units)){units[i],units[i]->spawn_time};
+    T_ASSERT(G_IssueGroupPointOrder(&order));
+}
+TEST(wc3_movement, cohort232_joins_first_spatial_peer_without_scanning_other_groups) {
+    reset_entities();setup_test_world();
+    FOR_LOOP(i,1024) {moveGroup_t *unused=move_alloc_group();unused->inuse=true;unused->id=move_allocate_group_id();}
+    edict_t *units[]={cohort232_unit(512,512),cohort232_unit(608,512),cohort232_unit(688,512)};
+    vec2_t goal={512,896};cohort232_orders(units,3,&goal);
+    uint32_t untouched=units[1]->movement.group_id;move_queued_peer_visits=move_group_lookup_visits=0;
+    T_ASSERT(G_UnitStartNextQueuedOrder(units[0]));
+    moveGroup_t *group=move_unit_group(units[0]);T_NOT_NULL(group);
+    if(group) {T_EQ(group->count,2);T_EQ(group->members[0].unit,units[0]);T_EQ(group->members[1].unit,units[2]);}
+    T_EQ(units[2]->movement.group_id,units[0]->movement.group_id);
+    T_EQ(units[1]->movement.group_id,untouched);T_ASSERT(move_queued_peer_visits<=3);T_EQ(move_group_lookup_visits,0);
+    reset_entities();setup_test_world();
+}
+TEST(wc3_movement, cohort232_circle_is_exact_and_does_not_include_candidate_radius) {
+    float const distances[]={1000,1000.125f,1100};
+    FOR_LOOP(i,3) {
+        reset_entities();setup_test_world();
+        edict_t *units[]={cohort232_unit(-768,0),cohort232_unit(-768+distances[i],0)};
+        vec2_t goal={512,768};cohort232_orders(units,2,&goal);
+        T_ASSERT(G_UnitStartNextQueuedOrder(units[0]));
+        moveGroup_t *group=move_unit_group(units[0]);T_NOT_NULL(group);
+        if(group)T_EQ(group->count,i ? 1 : 2);
+        reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, cohort232_requires_authored_type_not_equal_pathing_masks) {
+    reset_entities();setup_test_world();
+    edict_t *units[]={cohort232_unit(512,512),cohort232_unit(608,512)};
+    UnitData_t horse=*units[1]->data.UnitData;horse.moveTypeName="horse";
+    units[1]->data.UnitData=&horse;
+    T_EQ(M_UnitStaticPathingFlags(units[0]),M_UnitStaticPathingFlags(units[1]));
+    T_EQ(S_UnitMoveCategory(units[0]),S_UnitMoveCategory(units[1]));
+    T_NE(S_UnitMovementProfile(units[0]->data.UnitData)->bits,S_UnitMovementProfile(units[1]->data.UnitData)->bits);
+    vec2_t goal={512,896};cohort232_orders(units,2,&goal);
+    T_ASSERT(G_UnitStartNextQueuedOrder(units[0]));
+    moveGroup_t *group=move_unit_group(units[0]);T_NOT_NULL(group);if(group)T_EQ(group->count,1);
+    reset_entities();setup_test_world();
+}
+typedef struct {edict_t *removed,*added,*visited[4];unsigned count,nested;} cohort232_visit_t;
+static bool cohort232_nested(void *data,edict_t *unit) {
+    cohort232_visit_t *query=data;(void)unit;query->nested++;return true;
+}
+static bool cohort232_mutate(void *data,edict_t *unit) {
+    cohort232_visit_t *query=data;query->visited[query->count++]=unit;
+    if(query->count==1) {
+        query->added=cohort232_unit(592,608);G_FreeEdict(query->removed);
+        S_VisitMoveCircle((float[]){52,52},10,cohort232_nested,query);
+    }
+    return true;
+}
+TEST(wc3_movement, cohort232_materializes_before_mutating_or_nested_callbacks) {
+    reset_entities();setup_test_world();
+    edict_t *units[]={cohort232_unit(608,608),cohort232_unit(624,608),cohort232_unit(640,608)};
+    cohort232_visit_t query={.removed=units[0]};
+    S_VisitMoveCircle((float[]){52,52},10,cohort232_mutate,&query);
+    T_EQ(query.count,2);T_EQ(query.nested,3);
+    T_EQ(query.visited[0],units[2]);T_EQ(query.visited[1],units[1]);
+    T_NE(query.visited[0],query.added);T_NE(query.visited[1],query.added);
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
     reset_entities(); setup_test_world();
     edict_t *clent=alloc_test_unit(0,0,0),*units[2];
