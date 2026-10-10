@@ -511,3 +511,72 @@ callers and a partial fog-plane structure are reproducible through
 campaign shadow-map size error and were interrupted; they are excluded. The new
 map changes only `war3map.shd` to64x64 zero bytes, leaving probe, pathing, terrain
 and object data byte-identical. The accepted observations are3/4 and control1.
+
+## Public point and location fog queries (Payoff253)
+
+`IsVisibleToPlayer`, `IsFoggedToPlayer`, `IsMaskedToPlayer` and their three
+location variants now read completed simulation fog through `G_FowPointState`.
+They previously returned false unconditionally. Each query performs a bounded
+coordinate conversion and two cell reads; it does not replay sources, expand
+alliances or allocate state. Location wrappers resolve the location and call the
+same classifier. Null locations/players return false.
+
+Original coordinate owners206910/2053d0/2058c0 clamp through
+`Widget_ClampWorldPoint`, convert through1ec0c0 and call1e0b80 with the current
+visible and masked words. Masked2c is positive unexplored storage; the engine's
+logical explored plane is its inverse. The original wrappers force visible
+bits12..15, so the four neutral players always see the queried cell.
+The calling client's fog policy applies independently of the queried player:
+
+| Mask enabled | Fog enabled | Visible cell | Explored cell | Unexplored cell |
+|---|---|---|---|---|
+| No | No | Visible | Visible | Visible |
+| Yes | No | Visible | Visible | Masked |
+| No | Yes | Visible | Fogged | Fogged |
+| Yes | Yes | Visible | Fogged | Masked |
+
+The256-case original-instruction comparison covers all four flag pairs,
+all16 players and all four visible/explored bit combinations, including visible
+with exploration unset. It checks preserved registers, return-stack balance,
+input-object immutability and stack guards. The engine matches these outputs.
+This is a query policy; it does not change the stored planes.
+
+Two read-only retail observations and an unhooked control agree on all32 public
+markers. Before activation the three locations are masked. The keep, Stop and
+Destroy cases all reveal synchronously in their creation/Start turn at counter1094.
+Stop/Destroy remain visible through sample24 before composition1104, then become
+fogged. The remaining modifier stops at1127, stays visible through sample32
+before composition1130, then becomes fogged. Location and coordinate queries
+agree at every marker. Disabling both display flags reports visible immediately;
+restoring them recovers masked without a fog composition.
+
+The actual public-JASS engine replay matches every marker and owner counter,
+then repeats the suffix after cold save/load between activation and the next
+composition. Existing same-turn exploration tests and earlier retail fixtures
+remain unchanged. This establishes the public creation/Start sequence; it does
+not attribute synchronous painting to the small original Start flag setter alone.
+
+A failed first probe used radius96, which truncates to zero on this retail map's
+128-unit fog grid and writes nothing. Radius160 produces the accepted witness.
+The engine still uses64-unit fog geometry: matching these three query centers
+does not certify arbitrary circle footprints, blocker geometry or nonfinite
+coordinate handling. Those gaps remain under TARGET-03.2 and the existing
+coordinate/domain audits. The independent point-task restart exposed in
+Payoff252 also remains open.
+
+Reproduce with a fresh report:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_fog_queries253.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/fog-queries253-fresh.json
+```
+
+`retail-fog-queries253-1.27.json{,.gz}` freezes accepted observations11/12 and
+control4 with original preload bytes, native instructions and source hashes.
+`Work253Evidence.java` saves query owners, xrefs and the corrected masked-plane
+field; `MapPathfinding.java` records the same evidence. The external archive
+`research/TARGET-03.2/payoff253/` retains unsuccessful/no-op experiments separately.
+On these owned Wine environments, invoke `point214_ui_input.exe PID continue`
+directly: it is a shell wrapper, not a PE to pass to Wine. An X11 Space event
+alone did not advance DirectInput's loading screen.

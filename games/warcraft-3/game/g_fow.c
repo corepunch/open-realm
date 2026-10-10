@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "../common/wc3_pathing_widget.h"
 
 #define FOW_INVALID_CELL 0xffffffffu
 #define FOW_PATHING_PIXEL_SIZE 32.0f
@@ -1971,6 +1972,30 @@ void G_FowUpdate(void) {
     }
 
     G_FowApplyModifiers(viewers);
+}
+
+/* Native point queries clamp once, read completed planes and classify using
+ * the calling client's mask/fog flags. They never compose or expand alliances.
+ * Native wrappers OR visible with f000: the four neutral players see all cells. */
+uint32_t G_FowPointState(uint32_t player, vec2_t const *point, uint32_t rdflags) {
+    if (!point || player >= MAX_PLAYERS || !G_FowReady()) return 0;
+    if (player >= PLAYER_NEUTRAL_AGGRESSIVE) return WC3_FOG_STATE_VISIBLE;
+    float px = wc3_widget_clamp_axis(point->x, level.fow.bounds.min.x, level.fow.bounds.max.x);
+    float py = wc3_widget_clamp_axis(point->y, level.fow.bounds.min.y, level.fow.bounds.max.y);
+    uint32_t x = G_FowWorldToCellX(px), y = G_FowWorldToCellY(py);
+    fowPlayerGrid_t const *grid = &level.fow.players[player];
+    uint32_t index = y * level.fow.width + x;
+    bool visible = grid->visible && grid->visible[index];
+    bool explored = grid->explored && grid->explored[index];
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast) {
+        visible = G_FowPackedAt(grid->packed_visible, grid, x, y);
+        explored = G_FowPackedAt(grid->packed_explored, grid, x, y);
+    }
+#endif
+    if (visible) return WC3_FOG_STATE_VISIBLE;
+    if (!explored && !(rdflags & RDF_NOFOGMASK)) return WC3_FOG_STATE_MASKED;
+    return rdflags & RDF_NOFOG ? WC3_FOG_STATE_VISIBLE : WC3_FOG_STATE_FOGGED;
 }
 
 /* FogEnable(false) reveals the whole map for this player, ordinary units

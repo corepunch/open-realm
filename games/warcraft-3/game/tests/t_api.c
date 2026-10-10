@@ -3005,6 +3005,60 @@ TEST(wc3_api, fog_state_shared_vision_reaches_allied_viewer_only) {
     T_EQ(level.fow.players[2].visible[index], 0);
 }
 
+TEST(wc3_api, fog253_queries_classify_completed_planes) {
+    reset_entities();setup_test_world();G_FowInit();G_FowConnectPlayer(0);
+    T_ASSERT(run_test_jass(
+        "function checkFog takes real x, real y, player p, boolean visible, boolean fogged, boolean masked returns nothing\n"
+        "local location l=Location(x,y)\n"
+        "call BJassAssert(IsVisibleToPlayer(x,y,p)==visible, \"point visible\")\n"
+        "call BJassAssert(IsFoggedToPlayer(x,y,p)==fogged, \"point fogged\")\n"
+        "call BJassAssert(IsMaskedToPlayer(x,y,p)==masked, \"point masked\")\n"
+        "call BJassAssert(IsLocationVisibleToPlayer(l,p)==visible, \"location visible\")\n"
+        "call BJassAssert(IsLocationFoggedToPlayer(l,p)==fogged, \"location fogged\")\n"
+        "call BJassAssert(IsLocationMaskedToPlayer(l,p)==masked, \"location masked\")\n"
+        "call RemoveLocation(l)\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "call FogEnable(true)\ncall FogMaskEnable(true)\n"
+        "call checkFog(0.0,0.0,Player(0),false,false,true)\n"
+        "call SetFogStateRadius(Player(0),FOG_OF_WAR_VISIBLE,0.0,0.0,32.0,false)\n"
+        "call checkFog(0.0,0.0,Player(0),true,false,false)\n"
+        "call checkFog(0.0,0.0,Player(1),false,false,true)\n"
+        "call SetFogStateRadius(Player(0),FOG_OF_WAR_FOGGED,0.0,0.0,32.0,false)\n"
+        "call checkFog(0.0,0.0,Player(0),false,true,false)\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call checkFog(0.0,0.0,Player(0),true,false,false)\n"
+        "call checkFog(256.0,0.0,Player(0),true,false,false)\n"
+        "call FogEnable(true)\ncall FogMaskEnable(true)\n"
+        "call SetFogStateRadius(Player(0),FOG_OF_WAR_MASKED,0.0,0.0,32.0,false)\n"
+        "call checkFog(0.0,0.0,Player(0),false,false,true)\n"
+        "call checkFog(0.0,0.0,null,false,false,false)\n"
+        "call BJassAssert(not IsLocationVisibleToPlayer(null,Player(0)), \"null visible\")\n"
+        "call BJassAssert(not IsLocationFoggedToPlayer(null,Player(0)), \"null fogged\")\n"
+        "call BJassAssert(not IsLocationMaskedToPlayer(null,Player(0)), \"null masked\")\n"
+        "endfunction\n"));
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_api, fog253_queries_use_calling_client_policy) {
+    reset_entities();setup_test_world();G_FowInit();
+    player_t *caller=test_player(1);
+    currentplayer=caller;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call BJassAssert(IsVisibleToPlayer(0.0,0.0,Player(0)), \"calling policy must affect other player query\")\n"
+        "call BJassAssert(not IsMaskedToPlayer(0.0,0.0,Player(0)), \"calling mask policy\")\n"
+        "endfunction\n"));
+    currentplayer=NULL;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call BJassAssert(IsMaskedToPlayer(0.0,0.0,Player(1)), \"queried player policy must not leak\")\n"
+        "call BJassAssert(not IsVisibleToPlayer(0.0,0.0,Player(1)), \"default calling policy\")\n"
+        "call BJassAssert(IsVisibleToPlayer(0.0,0.0,Player(12)), \"neutral forced visibility\")\n"
+        "endfunction\n"));
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
 TEST(wc3_api, fog_modifier_same_turn_start_stop_still_explores) {
     fogModifier_t mod = {
         .player = 0,

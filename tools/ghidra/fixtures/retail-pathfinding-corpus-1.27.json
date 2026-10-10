@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "207 executable original/evidence contracts;488 total entries.",
+  "scope": "208 executable original/evidence contracts;489 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -50942,6 +50942,57 @@
         "Existing synchronous modifier-start application remains unchanged. These captures start modifiers on a fog deadline and do not certify off-deadline synchronous first application.",
         "No full-map performance or complete TARGET-03.2 policy closure is claimed."
       ]
+    },
+    {
+      "id": "oracle-fog-queries253",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_fog_queries253.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "fog-queries253.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 96
+        },
+        "classification_cases": {
+          "equal": 256
+        },
+        "instructions": {
+          "equal": 623
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Completed point/location query classification, local fog/mask policy, neutral visibility and exact public modifier activation/Stop/Destroy chronology through cold save.",
+      "exclusions": [
+        "Public engine replay certifies the three queried centers and exact fog-publication ordering, not complete circle geometry. Retail uses128-unit fog cells here; engine geometry remains64-unit and uncertified in general.",
+        "Six query natives implement original completed-plane classification, calling-client policy and forced-neutral visibility. Nonfinite coordinates and arbitrary map-bound producers remain BASE-02.3/NUM-03.",
+        "TARGET-03.2 remains open for broader loss/reacquisition policies and the independently observed point-task restart. No existing retail fixture was regenerated or weakened."
+      ]
     }
   ],
   "fixtures": [
@@ -51840,7 +51891,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e135c3866c06076316119b618580dc20dabc578ca249bd60eaa967d010f36b3f"
+      "sha256": "3e0c0f98284c8896615bd957b4bbe3eb151f838b0c772849559f1a3fffa24d43"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -53140,7 +53191,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "52fc0e754780a1eb4222f8eaa9942c94fee60a3a0d01a1691fccd20f57f1cd22"
+      "sha256": "c1683bd4a99283837c6c4fcdfb7998ddd402117b6ca1b49416b913b2b2762667"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -53596,7 +53647,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_fow.c",
-      "sha256": "a7347a18c411b3b49cfe0903ebdd2ecedc1da77961e993b27f735011e26d2e97"
+      "sha256": "008f3eb02556e5a7b99f9e39a896affc93a05847922fa12f6cbc9cc6b7ac0d1b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_group_target_speed.h",
@@ -53632,7 +53683,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "eba264aa89631822b034747f4c3b0ed67538f185934bc61fb7439dfa0bcf7e2e"
+      "sha256": "ca70755dd874ba02d734ba99c2b9ae8c6a80af4443317a4953e7fdefbb1d76ef"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -53648,7 +53699,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "811e4d3cd4e19e26af774a5aee74d679655fe91c1019d11dd9723ed327a246be"
+      "sha256": "2b2b40df6012112dbb88d02f8ce0da54587252f44772731c676738e9b96b21fb"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -54280,7 +54331,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-target-visibility.md",
-      "sha256": "fb52e27d37e251f803230d1e97d990d354bdf6acd91b28b70b1598501b8659f0"
+      "sha256": "c93cda09e027e7e51f38e2a5c81b99265f43448e0534cf020acf67d7d9300ddd"
     },
     {
       "path": "tools/frida/research/target021_analyze.py",
@@ -54432,11 +54483,11 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_player.h",
-      "sha256": "2a5150f684e0ed1b7bdf9f5b177ef837c7373f6ee417d706f4d36a4b1c2e305a"
+      "sha256": "236c70702e8be183d57a6fec90b4e9e47194c6bd35e67415f79f63c942256c42"
     },
     {
       "path": "games/warcraft-3/game/tests/t_api.c",
-      "sha256": "447121cc39c1d8eb5d849b41ea939d027aa0e66b60028e8969e0f269e4bd5f4b"
+      "sha256": "ffa10d54aa0d9799376e943cbc8e0c3238fd784249b9df7be5bbec7b3f896fcf"
     },
     {
       "path": "games/warcraft-3/game/tests/t_collision.c",
@@ -55036,7 +55087,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_game.c",
-      "sha256": "1669ba4dc2a3afe55088578dd4152c9216c0accc90675178dd6879a42aa9c61c"
+      "sha256": "49e7f6742af2302b9437aa79f7918c9904088a078041579a8ffd209f791be118"
     },
     {
       "path": "games/warcraft-3/game/tests/t_timed_life.c",
@@ -57389,6 +57440,42 @@
     {
       "path": "tests/test_wc3_pathfinding_fog252.py",
       "sha256": "5296c2374f8deaea51df6b003065fb326ce49d3c371eff29e59daad5302dacbc"
+    },
+    {
+      "path": "tools/frida/research/target253_probe.j",
+      "sha256": "40d1282fafc6f5d392a215c2e4c8e965a53908fa1f344d55f89c25fad578314a"
+    },
+    {
+      "path": "tools/frida/research/target253_make_map.py",
+      "sha256": "440cf6371a20b6a7465771cb7e1e555820c3866dcba6d2f0ac51af0d86d594a9"
+    },
+    {
+      "path": "tools/frida/research/target253_fog_observer.js",
+      "sha256": "61d34a10f71c33b6a08fdac7c7c68e9cc72c905c4346065adb8c32bef5eb5733"
+    },
+    {
+      "path": "tools/ghidra/research/Work253Evidence.java",
+      "sha256": "bba54366a10ef9d97a047c2ffedbf5d8912425a765977691c1175dd8713976b5"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_fog_queries253.py",
+      "sha256": "6712216cf078d55e2afbcfa81ee014266e6ac1486d8f0df2552819b5280b9a6f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fog-queries253-1.27.json",
+      "sha256": "e2488d12fbc84e67e2d2aa27c25a7e96b6257a7d3d142757a5137888b0cfe06e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fog-queries253-1.27.json.gz",
+      "sha256": "af8e8d0fd890a6208696432fe573df9a460de23514fba063bf95ebd7fb840570"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_fog_queries253.h",
+      "sha256": "aba8c39cfd5791c4acb6a27e341ea762be4a6e764d757ed321f9ecd70eb6dd1d"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_fog_queries253.py",
+      "sha256": "c7aa7eb728aacba094d47e12d47a7a12f4cc01b35674b5981a279c0226a6bd73"
     }
   ]
 }

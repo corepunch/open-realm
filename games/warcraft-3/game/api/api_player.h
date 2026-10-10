@@ -232,38 +232,41 @@ uint32_t IsPlayerObserver(jass_t *j) {
     //player_t *whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushboolean(j, 0);
 }
+/* Point/location queries use the calling client's fog policy, independently
+ * of the queried player. Native206910/2053d0/2058c0 share classifier1e0b80. */
+static uint32_t JassFogPointState(player_t const *player, vec2_t const *point) {
+    gameClient_t const *client = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
+    return player ? G_FowPointState(PLAYER_NUM(player), point, client ? client->ps.rdflags : 0) : 0;
+}
 uint32_t IsVisibleToPlayer(jass_t *j) {
-    //float x = jass_checknumber(j, 1);
-    //float y = jass_checknumber(j, 2);
-    //handle_t whichPlayer = jass_checkhandle(j, 3, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
+    player_t const *player = jass_checkhandle(j, 3, "player");
+    return jass_pushboolean(j, JassFogPointState(player, &point) == WC3_FOG_STATE_VISIBLE);
 }
 uint32_t IsLocationVisibleToPlayer(jass_t *j) {
-    //handle_t whichLocation = jass_checkhandle(j, 1, "location");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t const *point = jass_checkhandle(j, 1, "location");
+    player_t const *player = jass_checkhandle(j, 2, "player");
+    return jass_pushboolean(j, JassFogPointState(player, point) == WC3_FOG_STATE_VISIBLE);
 }
 uint32_t IsFoggedToPlayer(jass_t *j) {
-    //float x = jass_checknumber(j, 1);
-    //float y = jass_checknumber(j, 2);
-    //handle_t whichPlayer = jass_checkhandle(j, 3, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
+    player_t const *player = jass_checkhandle(j, 3, "player");
+    return jass_pushboolean(j, JassFogPointState(player, &point) == WC3_FOG_STATE_FOGGED);
 }
 uint32_t IsLocationFoggedToPlayer(jass_t *j) {
-    //handle_t whichLocation = jass_checkhandle(j, 1, "location");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t const *point = jass_checkhandle(j, 1, "location");
+    player_t const *player = jass_checkhandle(j, 2, "player");
+    return jass_pushboolean(j, JassFogPointState(player, point) == WC3_FOG_STATE_FOGGED);
 }
 uint32_t IsMaskedToPlayer(jass_t *j) {
-    //float x = jass_checknumber(j, 1);
-    //float y = jass_checknumber(j, 2);
-    //handle_t whichPlayer = jass_checkhandle(j, 3, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
+    player_t const *player = jass_checkhandle(j, 3, "player");
+    return jass_pushboolean(j, JassFogPointState(player, &point) == WC3_FOG_STATE_MASKED);
 }
 uint32_t IsLocationMaskedToPlayer(jass_t *j) {
-    //handle_t whichLocation = jass_checkhandle(j, 1, "location");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t const *point = jass_checkhandle(j, 1, "location");
+    player_t const *player = jass_checkhandle(j, 2, "player");
+    return jass_pushboolean(j, JassFogPointState(player, point) == WC3_FOG_STATE_MASKED);
 }
 uint32_t GetPlayerRace(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");

@@ -2965,6 +2965,7 @@ void G_FowUpdate(void);
 void G_FowMarkBlockersDirty(void);
 void G_FowSendDeltas(void);
 void G_FowSendFull(edict_t *ent);
+uint32_t G_FowPointState(uint32_t player, vec2_t const *point, uint32_t rdflags);
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent);
 typedef enum {

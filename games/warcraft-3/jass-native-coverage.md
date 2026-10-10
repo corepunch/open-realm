@@ -39,6 +39,13 @@ behavior, and town discovery remain owned by the construction and town systems. 
 a failed request for retries. Candidate ranking, blocker radius/priority, worker preference, and hall placement offset
 are `BZ_COMPAT_GUESS` policies documented in [Player AI](../../docs/games/warcraft-3/player-ai.md).
 
+The six point/location fog queries (`IsVisibleToPlayer`, `IsFoggedToPlayer`,
+`IsMaskedToPlayer` and their location variants) now share completed-plane
+classification, calling-client fog/mask policy and neutral-player visibility.
+They do not refresh visibility during a query. Retail repeats/control and an
+exact public-JASS cold-save replay cover creation, Stop and Destroy; see
+[query contract and limits](../../docs/games/warcraft-3/retail-pathfinding-target-visibility.md#public-point-and-location-fog-queries-payoff253).
+
 ## Baseline
 
 The registry currently contains 919 callbacks. The last conservative source

@@ -3428,6 +3428,85 @@ TEST(wc3_game, fow_grid_uses_two_by_two_cells_per_tile) {
     G_FowShutdown();
 }
 
+#include "fixtures/retail_fog_queries253.h"
+extern void (*test_preload_marker)(cstring_t);
+static unsigned fog253_cursor;
+static bool fog253_mismatch;
+static void fog253_record(cstring_t marker) {
+    if (strncmp(marker,"F253 ",5)) return;
+    char normalized[512];snprintf(normalized,sizeof(normalized),"%s",marker);
+    char *handle=strstr(normalized," h=");
+    if(handle) {char *end=handle+3;if(*end=='-')end++;while(*end>='0' && *end<='9')end++;memmove(handle,end,strlen(end)+1);}
+    T_ASSERT(fog253_cursor<sizeof(fog253_markers)/sizeof(*fog253_markers));
+    if(fog253_cursor>=sizeof(fog253_markers)/sizeof(*fog253_markers)){fog253_mismatch=true;return;}
+    T_STREQ(normalized,fog253_markers[fog253_cursor].marker);
+    T_EQ(level.pathing_counter,fog253_markers[fog253_cursor].counter);
+    if(strcmp(normalized,fog253_markers[fog253_cursor].marker) || level.pathing_counter!=fog253_markers[fog253_cursor].counter)
+        {fprintf(stderr,"Fog253 row%u actual=%s expected=%s\n",fog253_cursor,normalized,fog253_markers[fog253_cursor].marker);fog253_mismatch=true;}
+    fog253_cursor++;
+}
+
+TEST(wc3_game, fog253_classifier_matches_original_policy_matrix) {
+    reset_entities();setup_test_world();G_FowInit();
+    vec2_t point={64,64};
+    uint32_t x=G_FowWorldToCellX(point.x),y=G_FowWorldToCellY(point.y);
+    unsigned index=y*level.fow.width+x,case_index=0;
+    FOR_LOOP(flags,4)FOR_LOOP(player,16)FOR_LOOP(state,4) {
+        fowPlayerGrid_t *grid=&level.fow.players[player];
+        grid->visible[index]=(state>>1)&1;grid->explored[index]=state&1;
+#ifdef WC3_FOW_PACKED_MASK
+        unsigned word=(x>>4)+y*grid->packed_stride,bit=1u<<(x&15);
+        SET_FLAG(grid->packed_visible[word],bit,state&2);
+        SET_FLAG(grid->packed_explored[word],bit,state&1);
+#endif
+        unsigned rdflags=(flags&1 ? 0 : RDF_NOFOGMASK)|(flags&2 ? 0 : RDF_NOFOG);
+        T_EQ(G_FowPointState(player,&point,rdflags),fog253_classification[case_index++]);
+    }
+    T_EQ(case_index,256u);T_EQ(G_FowPointState(MAX_PLAYERS,&point,0),0u);
+    T_EQ(G_FowPointState(0,NULL,0),0u);
+    /* Finite coordinates use the established world clamp at both edges. */
+    vec2_t edges[]={{level.fow.bounds.min.x-1000,level.fow.bounds.min.y-1000},
+        {level.fow.bounds.max.x+1000,level.fow.bounds.max.y+1000}};
+    FOR_LOOP(i,2) {
+        uint32_t cell=i ? level.fow.width*level.fow.height-1 : 0;
+        level.fow.players[0].visible[cell]=0;level.fow.players[0].explored[cell]=1;
+        T_EQ(G_FowPointState(0,&edges[i],0),WC3_FOG_STATE_FOGGED);
+    }
+    G_FowShutdown();T_EQ(G_FowPointState(0,&point,0),0u);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_game, fog253_public_queries_match_retail_and_cold_save) {
+    reset_entities();setup_test_world();
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    G_FowInit();G_FowConnectPlayer(0);
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_counter=1024;
+    level.pathing_due=false;level.fow_clock_valid=false;G_StartFowUpdates();
+    fog253_cursor=0;fog253_mismatch=false;test_preload_marker=fog253_record;
+    T_ASSERT(run_test_jass(fog253_script));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("wc3-fog253.bin");
+    FOR_LOOP(pass,2) {
+        if(fog253_mismatch)break;
+        bool saved=false;
+        if(pass){T_ASSERT(ReadGame(file));fog253_cursor=12;}
+        while(level.time<4100 && !fog253_mismatch) {
+            level.time+=5;globals.RunFrame();
+            if(!pass && !saved && fog253_cursor==12){T_ASSERT(WriteGame(file));saved=true;}
+        }
+        T_EQ(fog253_cursor,sizeof(fog253_markers)/sizeof(*fog253_markers));
+        if(jass_rterror_pending(level.vm))fprintf(stderr,"Fog253 JASS: %s\n",jass_rterror_message(level.vm));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!pass)T_ASSERT(saved);
+    }
+    remove(file);test_preload_marker=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_FowShutdown();level.started=false;reset_entities();setup_test_world();
+}
+
 TEST(wc3_game, fow_primary_request_publishes_stopped_modifier_at_next_deadline) {
     reset_entities();setup_test_world();G_FowInit();G_FowConnectPlayer(0);
     level.pathing_clock=(wc3Clock_t){0,0,300};level.scheduled_frame=true;

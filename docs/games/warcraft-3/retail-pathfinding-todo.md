@@ -56,6 +56,12 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **281 done / 336 tasks; 55 remaining.**
+Payoff253 implements all six point/location fog query natives with constant-time
+completed-plane reads and original calling-client/neutral policy. Two retail
+repeats and an unhooked control preserve32 public markers; engine cold-save replay
+and256 original-code classifications pass. Existing fixtures and same-turn reveal
+expectations remain unchanged. TARGET-03.2 retains broader geometry/policies and
+the independent point-task restart. See [public fog queries](retail-pathfinding-target-visibility.md#public-point-and-location-fog-queries-payoff253).
 Payoff252 fixes early fog reacquisition through the ordered primary fog event
 and saves completed visibility/exploration with its deadline and serial. Exact
 bounded retail replay and cold-save regressions retain all original fixture words.
