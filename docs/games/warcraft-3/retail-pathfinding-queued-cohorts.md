@@ -112,5 +112,70 @@ crossed an earlier cell. None defines retail expectations. The corrected
 fixtures publish through the original region update and use separate context
 lifetimes.
 
-Preferred source selection, persistent canonical candidate publication,
-completion/recovery and the wider producer lifetimes remain GROUP-04.6 work.
+Persistent canonical candidate publication, completion/recovery and wider
+producer lifetimes remain GROUP-04.6 work. Preferred source selection follows.
+
+## Route sources prefer adaptive-enabled members (Payoff233)
+
+`16c6d0 PathGroup_SelectRouteSourceMember` does not simply select the nearest
+member. It predicts each member's fine pose using retained position plus old
+velocity multiplied by original elapsed time. It maintains separate strict
+minimum squared distances for paths with `ownedPath+88 & 200000` set and clear.
+If the enabled pool has a candidate, that pool wins regardless of the ordinary
+pool's distance. Strict ties preserve member order. Ordinary selection defaults
+to row zero; the preferred pool starts empty. Group flag `80 & 200` bypasses the
+scan and returns row zero.
+
+`16de50 PathGroup_PrepareRouteFromMembers` publishes the predicted mean heading
+and fresh `10000` state before selecting the formation origin. Ordinary groups
+use the preferred member's prediction; bypass groups use the destination itself.
+The scheduler class still comes from the first individual path, independently
+of the selected route source.
+
+OpenRealm already saves the exact inverse policy as
+`movement.adaptive_disabled`. `0594a0` owns the retail flag; resets through
+`168740` and class changes through `168c00` preserve it. Fresh nonstructure
+creation enables it even for authored flight; a flying type rebind disables it.
+Physical flying class, formation-held state and adaptive enablement are separate
+properties. `move_group_source` now consumes this existing state with one linear
+member pass, no allocation or new saved fields. `move_group_seed_route` preserves
+the bypass destination rule. Network and save layouts are unchanged.
+
+The unchanged-original oracle executes all of `16c6d0`, including its native
+elapsed and software arithmetic helpers, for 48 combinations: distinct/static
+tied/moving positions, every three-member preferred mask and both bypass values.
+The fixture supplies canonical group/member/path fields and clock state;
+external Storm allocation is a host storage adapter. The exported 426 original
+instructions also cover route preparation and adaptive-policy producers, but the
+oracle does not claim to execute the complete route-construction graph.
+
+Two fresh read-only captures on `Work233c.w3m` each record six source decisions:
+both fresh Gryphon Riders choose the nearer row zero; transforming the nearer
+unit to a Hippogryph through an authored Chaos alias makes retail choose the
+farther, still-enabled row one; transforming both restores nearest row zero.
+Both creation and first route admission show the same selections. An
+observer-free control matches all eight public markers. Its private decisions
+and complete motion trajectory are not observed. `PreloadEnd` records wall time
+and differs between runs; it is excluded from simulation equality.
+
+The failing public engine regression creates two flyers, rebinds the nearer
+flyer through the real type-transform producer, issues a shared point order and
+checks the farther origin before and after save/load. The original 48-case
+matrix checks source identity, predicted coordinates, bypass origins and fresh
+flags. Existing selected-order retail trajectories are unchanged.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_work233.py \
+  --binary /path/to/retail/game.dll --report /tmp/work233-fresh.json
+```
+
+Evidence is archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-04.6/payoff233/`.
+The first oracle mistakenly wrote the request-clock pointer field at owner14
+instead of the authoritative path clock at owner54. The corrected oracle
+asserts native elapsed time is two before executing the selector. Early Chaos
+probes targeted the same type and did not perform the required rebind; a delay
+alone did not fix them. Those attempts remain rejected evidence. No established
+retail fixture was rewritten. GROUP-04.6 still requires persistent canonical
+candidate publication, completion/recovery and broader producer lifetimes.

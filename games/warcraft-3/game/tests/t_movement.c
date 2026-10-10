@@ -13255,6 +13255,70 @@ TEST(wc3_movement, cohort232_materializes_before_mutating_or_nested_callbacks) {
     reset_entities();setup_test_world();
 }
 
+#include "fixtures/retail_group_source233.h"
+TEST(wc3_movement, source233_matches_original_preference_prediction_and_bypass) {
+    reset_entities();setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *units[]={cohort232_unit(32,32),cohort232_unit(128,128),cohort232_unit(256,256)};
+    moveGroup_t group={.count=3};
+    FOR_LOOP(i,3)group.members[i]=(moveGroupMember_t){.unit=units[i],.spawn=units[i]->spawn_time};
+    wc3Clock_t clock=level.pathing_clock;level.pathing_clock=(wc3Clock_t){10,0,300};
+    FOR_LOOP(r,sizeof(source233_rows)/sizeof(source233_rows[0])) {
+        typeof(*source233_rows) const *row=source233_rows+r;
+        typeof(*source233_positions) const *positions=source233_positions+row->position;
+        group.flags=row->flags;group.goal=(vec2_t){positions->goal[0]*32,positions->goal[1]*32};
+        FOR_LOOP(i,3) {
+            edict_t *unit=units[i];unit->s.origin2=(vec2_t){positions->position[i][0]*32,positions->position[i][1]*32};
+            unit->movement.pose_valid=true;unit->movement.pose_world=unit->s.origin2;
+            unit->movement.fine_pose=(vec2_t){positions->position[i][0],positions->position[i][1]};
+            unit->movement.velocity=(vec2_t){positions->velocity[i][0]*32,positions->velocity[i][1]*32};
+            unit->movement.pose_clock=(wc3Clock_t){8,0,300};unit->movement.clock_valid=true;
+            unit->movement.adaptive_disabled=!(row->preferred&(1u<<i));
+        }
+        wc3GridPose_t selected;edict_t *source=move_group_source(&group,&selected);
+        T_EQ(source,units[row->index]);
+        wc3GridPose_t expected;unit_predicted_pose(units[row->index],&expected);
+        T_EQ(wc3_float_bits(selected.grid[0]),wc3_float_bits(expected.grid[0]));
+        T_EQ(wc3_float_bits(selected.grid[1]),wc3_float_bits(expected.grid[1]));
+        move_group_seed_route(&group);
+        float const *origin=row->flags&0x200 ? positions->goal : expected.grid;
+        T_EQ(wc3_float_bits(group.point.x),wc3_float_bits(origin[0]));
+        T_EQ(wc3_float_bits(group.point.y),wc3_float_bits(origin[1]));
+        T_ASSERT(group.flags&0x10000);
+    }
+    level.pathing_clock=clock;reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, source233_birth_and_flight_rebind_choose_enabled_member) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hgry',128,512,0)\nset b=CreateUnit(Player(0),'hgry',0,512,0)\nendfunction\n"));
+    edict_t *units[2]={0};
+    FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','g','r','y'))units[ent->s.origin2.x==128 ? 0 : 1]=ent;
+    T_NOT_NULL(units[0]);T_NOT_NULL(units[1]);if(!units[0]||!units[1])goto source233_cleanup;
+    T_ASSERT(!units[0]->movement.adaptive_disabled);T_ASSERT(!units[1]->movement.adaptive_disabled);
+    T_ASSERT(G_TransformUnitType(units[0],MAKEFOURCC('h','g','r','y')));
+    T_ASSERT(units[0]->movement.adaptive_disabled);T_ASSERT(!units[1]->movement.adaptive_disabled);
+    vec2_t goal={512,512};
+    groupPointOrder_t order={.count=2,.point=&goal,.order="move",.order_id=G_OrderId("move")};
+    FOR_LOOP(i,2)order.units[i]=(typeof(*order.units)){units[i],units[i]->spawn_time};
+    T_ASSERT(G_IssueGroupPointOrder(&order));moveGroup_t *group=move_unit_group(units[0]);T_NOT_NULL(group);
+    if(group) {
+        T_EQ(group->count,2);T_EQ(move_unit_group(units[1]),group);
+        wc3GridPose_t pose;unit_predicted_pose(units[1],&pose);
+        T_EQ(wc3_float_bits(group->point.x),wc3_float_bits(pose.grid[0]));
+        T_EQ(wc3_float_bits(group->point.y),wc3_float_bits(pose.grid[1]));
+        cstring_t save=Test_TempPath("wc3-source233.bin");T_ASSERT(WriteGame(save));
+        group->point=(vec2_t){0};units[0]->movement.adaptive_disabled=false;
+        T_ASSERT(ReadGame(save));group=move_unit_group(units[0]);T_NOT_NULL(group);
+        if(group)T_EQ(wc3_float_bits(group->point.x),wc3_float_bits(pose.grid[0]));
+        T_ASSERT(units[0]->movement.adaptive_disabled);T_ASSERT(!units[1]->movement.adaptive_disabled);
+        remove(save);
+    }
+source233_cleanup:
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
     reset_entities(); setup_test_world();
     edict_t *clent=alloc_test_unit(0,0,0),*units[2];

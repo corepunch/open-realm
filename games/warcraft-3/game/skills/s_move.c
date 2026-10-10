@@ -5058,19 +5058,25 @@ static bool move_group_point_order(groupPointOrder_t const *request,uint64_t sha
     return move_group_captain_order(request,shared_id,NULL);
 }
 
-/* Original16c6d0 chooses the closest predicted member, with strict ties.
- * TODO GROUP-04.6: preserve the path88.200000 preference and group200 bypass. */
-static edict_t *move_group_source(moveGroup_t const *group, wc3GridPose_t *selected) {
-    box2_t bounds=CM_GetWorldBounds();
-    float goal[2]={wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
-    float best=FLT_MAX; edict_t *source=NULL;
-    FOR_LOOP(i,group->count) {
-        edict_t *unit=group->members[i].unit; wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
-        float dx=wc3_sub(goal[0],pose.grid[0]),dy=wc3_sub(goal[1],pose.grid[1]);
-        float distance=wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy));
-        if (distance<best) { best=distance; source=unit; *selected=pose; }
+/*16c6d0 keeps strict minima in adaptive-enabled and ordinary pools.
+ * The owned path policy is independent of movement class and formation hold. */
+static edict_t *move_group_source(moveGroup_t const *group,wc3GridPose_t *selected) {
+    if(!group->count)return NULL;
+    uint32_t index=0;
+    if(!(group->flags&0x200)) {
+        box2_t bounds=CM_GetWorldBounds();
+        float goal[]={wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
+        float best[]={FLT_MAX,FLT_MAX};uint32_t nearest[]={0,UINT32_MAX};
+        FOR_LOOP(i,group->count) {
+            edict_t *unit=group->members[i].unit;wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            float dx=wc3_sub(goal[0],pose.grid[0]),dy=wc3_sub(goal[1],pose.grid[1]);
+            float distance=wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy));
+            unsigned preferred=!unit->movement.adaptive_disabled;
+            if(distance<best[preferred]) {best[preferred]=distance;nearest[preferred]=i;}
+        }
+        index=nearest[1]!=UINT32_MAX ? nearest[1] : nearest[0];
     }
-    return source;
+    edict_t *source=group->members[index].unit;unit_predicted_pose(source,selected);return source;
 }
 
 /* Original16de50 seeds the formation origin when the cohort is created,
@@ -5086,9 +5092,12 @@ static void move_group_seed_route(moveGroup_t *group) {
     float scale=wc3_div(1,wc3_float(wc3_from_int(group->count)));
     float dx=wc3_sub(goal.x,wc3_mul(center.x,scale)),dy=wc3_sub(goal.y,wc3_mul(center.y,scale));
     if(dx!=0 || dy!=0)group->heading=wc3_vector_heading(dx,dy);
-    edict_t *source=move_group_source(group,&pose);
-    if (!source) gi.error("Move: physical group has no route source");
-    group->point=(vec2_t){pose.grid[0],pose.grid[1]};
+    if(group->flags&0x200)group->point=goal;
+    else {
+        edict_t *source=move_group_source(group,&pose);
+        if(!source)gi.error("Move: physical group has no route source");
+        group->point=(vec2_t){pose.grid[0],pose.grid[1]};
+    }
     group->flags|=0x10000u;
 }
 

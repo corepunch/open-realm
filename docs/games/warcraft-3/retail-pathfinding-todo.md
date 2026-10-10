@@ -56,6 +56,12 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **278 done / 336 tasks; 58 remaining.**
+Payoff233 integrates preferred adaptive-enabled route sources, strict predicted
+distance ties and the group bypass origin using existing saved unit policy.
+Repeated retail flight-rebind/control evidence and failing public order/save
+regressions pass; GROUP-04.6 retains broader owner work. See
+[route source selection](retail-pathfinding-queued-cohorts.md#route-sources-prefer-adaptive-enabled-members-payoff233).
+
 Payoff232 replaces queued activation's whole-group scan with the original ordered
 center-circle query and first-compatible-owner stop. It preserves all established
 retail motion fixtures; GROUP-04.6 stays open for its wider producer/owner work.
