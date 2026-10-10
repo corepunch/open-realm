@@ -141,6 +141,7 @@ public class MapPathfindingTypes extends GhidraScript {
         types.put("u16", UnsignedShortDataType.dataType);
         types.put("u32", UnsignedIntegerDataType.dataType);
         types.put("i32", IntegerDataType.dataType);
+        types.put("f32", FloatDataType.dataType);
         types.put("WC3PathScalar", new TypedefDataType(CATEGORY, "WC3PathScalar", UnsignedIntegerDataType.dataType));
         for (JsonElement element : schema.getAsJsonArray("layouts")) {
             JsonObject layout = element.getAsJsonObject();

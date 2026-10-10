@@ -340,7 +340,7 @@ typedef struct {
  * =========================================================================*/
 typedef struct {
     uint32_t id;
-    float height; /* tiles the water surface sits relative to the W3E water level */
+    cstring_t height; /* authored decimal; retail scalar conversion precedes tile scaling */
 } WaterData_t;
 
 /* =========================================================================

@@ -602,7 +602,7 @@ static slkField_t const doodad_schema[] = {
 
 static slkField_t const water_schema[] = {
     { "",       offsetof(WaterData_t, id),     STB_SLK_FOURCC },
-    { "height", offsetof(WaterData_t, height), STB_SLK_FLOAT  },
+    { "height", offsetof(WaterData_t, height), STB_SLK_STR    },
     { NULL, 0, 0 },
 };
 

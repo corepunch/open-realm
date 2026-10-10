@@ -15474,3 +15474,82 @@ and its compressed complete-capture bundle. Reproducers are
 failing-first logs and focused verification are archived under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SEP-01.2/payoff227/`.
 This is implementation commit1/12 after the successful Payoff226 full checkpoint.
+
+## Shared map-start flyer support field (Payoff228)
+
+`g_support.c` now owns the immutable terrain+7a4 flyer field. The field is
+initialized after map terrain/water data and finalized after initial widgets and
+map `main()`, at `G_FinishMovePathingInitialization`. Initial flyer support caches
+are invalidated at this boundary, so an idle preplaced flyer consumes the
+completed field on its next normal refresh. Map release clears the field.
+
+Retail's pipeline is ordinary SSE float arithmetic, **not** the software scalar
+arithmetic used for planar movement:
+
+| Original function | Recovered contract / engine owner |
+|---|---|
+| `7474d0` | Fine cells32, nearest vertex `(cell+2)/4`, terrain height, then water maximum when the vertex has water. |
+| `24f380` → `7307b0` | Initial widget rectangle, inclusive upper edges, nearest ground plus authored `flyHeight`; maximum against the existing field. |
+| `73fc80` → `74d4b0` | Read `[FlyerMap] MaximizeRadius` and `SmoothLevels` (missing defaults0). Transposed horizontal/vertical maximum, then repeated2x2 average. Stock config is6/3. |
+| `7434b0` → `743810` | Allocation-free bilinear query: origin/cell minus.5, truncate toward zero, fractions before clamping. Negative fractions near the origin survive. |
+| `66d780` | Ground/deck base blended toward air/deck support by current fly height / authored maximum when maximum>.01, then add current fly height. Forced-ground state skips the air blend. |
+
+The maximum pass uses a monotone deque over retail's strict-rise/plateau/fall
+peaks. A generic deque over every sample gives different signed-zero words:
+retail compares the left endpoint, interior peaks, then the right endpoint,
+using strict greater. The engine preserves this candidate order in **O(cells)**
+per pass, independent of radius. Sampling is **O(1)** with no allocations; the
+completed field is shared by all flyers. Preparation still counts as map work;
+this chunk does not certify the overall performance targets.
+
+`WaterData.height` retains its authored decimal text until map application.
+`wc3_decimal` converts it before water tile scaling. Parsing stock `-0.7` through
+host `atof` first loses the retail value: this fixture's raw8550 water must yield
+`bdccd000` (-0.100006103515625). The host-rounded value changed four completed
+field words. Expectations were retained and the metadata conversion was fixed.
+
+Evidence: [frozen original/repeat/control bundle](../../../tools/ghidra/fixtures/retail-work228-1.27.json),
+[original instruction executor](../../../tools/ghidra/research/work228_oracle.py),
+[strict verifier](../../../tools/ghidra/verify_wc3_pathing_work228.py).
+Two new instrumented captures and the unhooked control preserve all193 markers
+from the existing MAP-02.2 deckwalk fixture. The observer reads initialization,
+widget raise, radius/levels, completed grid and627 paired samples. Different
+refresh callback counts reflect presentation/server timing; no timing-dependent
+sequence was substituted for a deterministic public expectation.32 maximum
+cases and80 interpolation cases execute unchanged original instructions with
+no data-return stubs. The return hook reads the original SSE result before FLD;
+executing a synthetic FSTP at Unicorn's previous stop address silently returned
+zero and was rejected before freezing the fixture.
+
+Ghidra has eight recovered functions, three labels and the32-byte
+`WC3FlyerHeightGrid` saved. `MapPathfinding.java`, `MapPathfindingTypes.java` and
+`Work228Evidence.java` reproduce these annotations without replacing unrelated
+annotations. The modified native map changes **only** the inherited shadow mask
+from the wrong campaign size to4096 bytes; all original terrain, WPM, object,
+object-data and probe script members are byte-identical. `mpqtool pack` creates
+a new archive, so its command must include all original members and omit the
+old `(listfile)`.
+
+Classic/TFT `wc3_support.*` checks the unchanged native kernels, full64-word
+production field, cliff/water/bridge heights, partial/forced-ground blend,
+pre-finalization idle cache, malformed payload rejection and complete game
+save/load after removing the initial source. Save161 persists logical field
+values and dimensions; it rejects160 and earlier. The network contract is
+unchanged. Saving field history avoids reconstructing it from surviving edicts;
+the removal/save test is an engine invariant, not a new retail UI-save capture.
+
+**Remaining:** MAP-02.2 stays open. Initial path-textured destructables are
+integrated; textureless widget shapes and arbitrary initial-object bounds need
+additional producer evidence. Exact walkable model mesh support, placement
+support levels and ground trajectories are not closed by this flyer kernel.
+The existing rectangular ground/deck fallback remains a separate known gap.
+Native fixture/reports and rejected exploratory runs are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-02.2/payoff228/`.
+
+Reproduce without changing frozen expectations:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_work228.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/work228-fresh.json
+```

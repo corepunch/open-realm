@@ -5124,6 +5124,60 @@
           "evidence": "544140 resolves incoming canonical parent0c/10 and copies resolved14/18;543c50/543e50 clear to-1"
         }
       ]
+    },
+    {
+      "name": "WC3FlyerHeightGrid",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "width",
+          "type": "u32",
+          "evidence": "7474d0/743810 original operand; Payoff228. Payoff228: 7474d0 writes terrain+7a4; 743810 reads width/height/cells/values; capacity/count/quantum from 747522..74755e original allocator operands."
+        },
+        {
+          "offset": 4,
+          "name": "height",
+          "type": "u32",
+          "evidence": "7474d0/743810 original operand; Payoff228. Payoff228: 7474d0 writes terrain+7a4; 743810 reads width/height/cells/values; capacity/count/quantum from 747522..74755e original allocator operands."
+        },
+        {
+          "offset": 8,
+          "name": "cell_x",
+          "type": "f32",
+          "evidence": "7474d0/743810 original operand; Payoff228. Payoff228: 7474d0 writes terrain+7a4; 743810 reads width/height/cells/values; capacity/count/quantum from 747522..74755e original allocator operands."
+        },
+        {
+          "offset": 12,
+          "name": "cell_y",
+          "type": "f32",
+          "evidence": "7474d0/743810 original operand; Payoff228. Payoff228: 7474d0 writes terrain+7a4; 743810 reads width/height/cells/values; capacity/count/quantum from 747522..74755e original allocator operands."
+        },
+        {
+          "offset": 16,
+          "name": "capacity",
+          "type": "u32",
+          "evidence": "7474d0/743810 original operand; Payoff228. Payoff228: 7474d0 writes terrain+7a4; 743810 reads width/height/cells/values; capacity/count/quantum from 747522..74755e original allocator operands."
+        },
+        {
+          "offset": 20,
+          "name": "count",
+          "type": "u32",
+          "evidence": "7474d0/743810 original operand; Payoff228. Payoff228: 7474d0 writes terrain+7a4; 743810 reads width/height/cells/values; capacity/count/quantum from 747522..74755e original allocator operands."
+        },
+        {
+          "offset": 24,
+          "name": "values",
+          "type": "ptr:f32",
+          "evidence": "7474d0/743810 original operand; Payoff228. Payoff228: 7474d0 writes terrain+7a4; 743810 reads width/height/cells/values; capacity/count/quantum from 747522..74755e original allocator operands."
+        },
+        {
+          "offset": 28,
+          "name": "allocation_quantum",
+          "type": "u32",
+          "evidence": "7474d0/743810 original operand; Payoff228. Payoff228: 7474d0 writes terrain+7a4; 743810 reads width/height/cells/values; capacity/count/quantum from 747522..74755e original allocator operands."
+        }
+      ]
     }
   ],
   "methods": [

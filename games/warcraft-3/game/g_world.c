@@ -508,6 +508,14 @@ static moveStaticPathing_t move_static_pathing(edict_t const *ent) {
 /* Original1eab40 publishes the full hierarchy after generated map main and
  * bulk widget setup. Subsequent terrain natives have no such full refresh. */
 void G_FinishMovePathingInitialization(void) {
+    S_FinalizeFlightSupport();
+    /* Initial constructors queried the unfinished field. Invalidate only
+     * their derived support cache so idle flyers consume the completed map. */
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t *ent = g_edicts+i;
+        if (ent->inuse && ent->data.UnitData && S_UnitMovementType(ent->data.UnitData)==UNIT_MOVE_FLY)
+            ent->movement.support_valid = false;
+    }
     CM_BakeStaticMasks();
     move_acc_prepare();
     FOR_LOOP(i,globals.num_edicts)if(entity_blocks_static_pathing(g_edicts+i)) {

@@ -132,6 +132,7 @@ void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells) {
 
 void setup_test_world(void) {
     G_ClearGroundSurfaces();
+    S_ClearFlightSupport();
 	memset(&test_mapinfo, 0, sizeof(test_mapinfo));
 	level.mapinfo = &test_mapinfo;
 	G_InitPlayerAlliances(level.mapinfo);

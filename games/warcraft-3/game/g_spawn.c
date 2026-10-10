@@ -871,6 +871,7 @@ void G_ReleaseLevel(void) {
     G_ClearHashtableRegistry();
     G_FowShutdown();
     G_BlightShutdown();
+    S_ClearFlightSupport();
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
     S_ResetAbilityTimers();

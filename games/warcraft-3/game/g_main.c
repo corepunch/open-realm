@@ -263,7 +263,7 @@ void G_ApplyTilesetWaterHeight(mapInfo_t const *info) {
     if (!row->id)
         fprintf(stderr, "G_LoadMap: no TerrainArt\\Water.slk row %cSha; water surface uses the raw W3E level\n",
                 tileset ? tileset : '?');
-    CM_W3SetWaterHeight(row->height);
+    CM_W3SetWaterHeight(wc3_decimal(row->height));
 }
 
 static bool G_LoadMap(cstring_t mapFilename) {
@@ -285,6 +285,7 @@ static bool G_LoadMap(cstring_t mapFilename) {
     UI_ResetHud();
     G_ApplyMapGameDataSet(CM_GetMapInfo());
     G_ApplyTilesetWaterHeight(CM_GetMapInfo());
+    S_InitFlightSupport();
     /* Resolve presentation from the active map data set before publishing the
      * gameplay media contract. */
     cstring_t marker = Stb_IniCacheFind(&game.config.theme, "Default", "TargetPointConfirm");

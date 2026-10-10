@@ -3596,6 +3596,7 @@ void S_RefreshUnitSupport(edict_t *self, bool force) {
     if (!force && !moved) return;
     unitMovementType_t const type = S_UnitMovementType(self->data.UnitData);
     float height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
+    float deck_height = -FLT_MAX;
     float const cell = CM_PathCellWorldSize();
     uint8_t terrain_flags = 0;
     uint32_t support_flags = 0;
@@ -3611,12 +3612,24 @@ void S_RefreshUnitSupport(edict_t *self, bool force) {
         if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f + overlap ||
             fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f + overlap) continue;
         float const deck = surface->s.origin.z + (elevator ? surface->destructable->occluder_height : 0.0f);
+        deck_height = MAX(deck_height,deck);
         if (deck > height) {
             height = deck;
             support_flags |= WC3_SUPPORT_ON_DECK;
         }
     }
-    if (M_UnitUsesWaterSurface(self, wc3_movement_profile(type)))
+    float air;
+    if (type == UNIT_MOVE_FLY && unit_is_flying(self) && S_GetFlightSupport(self->s.origin2,&air)) {
+        support_flags = deck_height > air ? WC3_SUPPORT_ON_DECK : 0;
+        air = MAX(air,deck_height);
+        volatile float difference = air-height;
+        float maximum = self->data.UnitData->moveHeight;
+        if (maximum > 0.01f) {
+            difference = difference*self->unitinfo.FlyHeight;
+            difference = difference/maximum;
+        }
+        height = height+difference;
+    } else if (M_UnitUsesWaterSurface(self, wc3_movement_profile(type)))
         height = MAX(height, CM_GetWaterHeightAtPoint(self->s.origin.x, self->s.origin.y));
 
     if (G_GetTerrainPathingFlags(&self->s.origin2, &terrain_flags) &&

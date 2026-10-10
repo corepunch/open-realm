@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff228 integrates the shared map-start flyer support field, exact SSE
+interpolation/max/average order, authored water-decimal conversion and saved
+field history. Two retail repeats/control retain the existing193 public markers;
+627 live samples and the full64-word engine grid match. MAP-02.2 remains open
+for mesh support and the remaining widget producers. See
+[flyer support](retail-pathfinding-engine.md#shared-map-start-flyer-support-field-payoff228).
+
+
 Payoff227 integrates counted inside-construction absence/work ownership,
 scripted pause independence, and distinct KillUnit/completion versus RemoveUnit
 inverses. Two complete native repeats and an unhooked control freeze72 policy,

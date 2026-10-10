@@ -49504,6 +49504,61 @@
         "Save160 persists construction absence and counted pause/separation ownership. Engine cold saves are checked; no new retail UI-save claim. No existing retail expectations replaced; broader counted producers keep SEP-01.2 open.",
         "State transitions and intrusive membership take constant work, with no per-transition allocation. No new performance measurement or total frame budget claim."
       ]
+    },
+    {
+      "id": "oracle-work228",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_work228.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "work228.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 579
+        },
+        "live_samples": {
+          "equal": 627
+        },
+        "completed_words": {
+          "equal": 64
+        },
+        "instructions": {
+          "equal": 1090
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "MAP-02.2 shared flyer support field: ordered initial rectangle maximum, native SSE interpolation/filter/smoothing, exact water decimal and engine save/cache lifecycle. Task remains open for mesh and other producers.",
+      "exclusions": [
+        "Closes flyer-field kernel gap, not MAP-02.2: full walkable mesh/deck and ground trajectories remain open.",
+        "Initial path-textured destructables are integrated; textureless widgets and arbitrary shaped bounds need separate evidence.",
+        "No performance target certified: shared immutable field, O(cells) maximum passes and O(1) allocation-free sampling.",
+        "Two independent observe runs have different refresh callback counts from render/server timing; all public markers and field stages agree and all627 captured samples are checked."
+      ]
     }
   ],
   "fixtures": [
@@ -49569,7 +49624,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "9531f35ec8b7684e7b4a5499811b5eaedc965be1fc99ee0f0b39b7cb596e4cb6"
+      "sha256": "7f86b4c0cffe35123206000f27da92c662fbb96fb58ba036ec7184a1fea77b38"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -50402,7 +50457,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "13d9b092035b4554f08a90c63c2851b0ef683d1447336cf75e35e811f44db2b3"
+      "sha256": "6de5066606d7aea178512d0093aaef5bb53d3b9d61627fed0b327a01d30b6264"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51246,11 +51301,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_unitrow.h",
-      "sha256": "7dbf4ff92447dbafe7709b28e74ccc133c767120f3525dcf98d50cb3fbd25e5a"
+      "sha256": "6cf00208fd22796f9867125a68f72290121714f0489fd29b038d3a909de7d2e5"
     },
     {
       "path": "games/warcraft-3/game/g_metadata.c",
-      "sha256": "92cc72a3052b42ffc6fe4b08d6555feebc201aa5e1dc2cf34425217e1cb61b18"
+      "sha256": "585518a2a53c875c6420c6ea57ca4a55e09808e9e50402f4f72e90465f846e20"
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
@@ -51258,7 +51313,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "f10df152a3426509e058913b85943a1ba15b9c170d50e4a980aaa9d280534e40"
+      "sha256": "db895f50db38f119a173467489e3289bac69dd7efca38232b5cfb155b9e2480a"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51690,11 +51745,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "a14656b72efcc29259b6a35089f14e9c41b1d1cfeb6a0a1e4980d28b5e386a5e"
+      "sha256": "b46dbdc7550fd70f858a0d745646988893870c67aec4100c20ac7351b31f91b0"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "7b4de5918b1e26898807aa7f4d5f499ca752172e9cd9af1d265a1a3c4cbf58e5"
+      "sha256": "d0c346ec951a29ea38815c0dfdcdfcb881bdfef4bf5b780564cfc149390686df"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -51702,7 +51757,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "e1cd3d0473d5ebd0e53923ff8dc2ecad074284048b9f9d24fb2f5a1b6316a163"
+      "sha256": "8f62086a9aa1bfd71eec9f4422ba6ad9c5904b053ce06e73a94f2fb42ef4e33f"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51950,7 +52005,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "a6cb1a1f2cc5b9534e2d7af83dd9f02c27eca746156ffcc17032adb27cc8b2b7"
+      "sha256": "62ed3b3808a45744d253d4ca67d4bcb2e58997a353238e1b38f83068a69c5864"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -52194,7 +52249,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "3dc6c50fefc056b92349157bb81cb1073d7f1c4ca9cdca90d18e0e71757fcd78"
+      "sha256": "e9a114d6ed43862ac3ec2a30dab07ea7c527e3fdaa725020e0a37d3667f68b46"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -52202,15 +52257,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "eaa0160bd747d018e49ca21bd8c9e3476f34e9d1e7c81b3ef91fccfef52d50f2"
+      "sha256": "57f016a0d473c2c13293d803835a8ecbad46b779a5103f75fe798fc16d8f9ec5"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "0ae6e583a53e5ad9737797d6132efe0f0b33b8f3778f38f63c877e6ceb72dec3"
+      "sha256": "e889581462f4a3f3b28c87dcba28f6ba0ea9aba9202f6e883877cf5219f09eaf"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "47ed2c69c90ab37ac2b077050a72542d0e1eabbe8d89e1621ce27a116093ddc9"
+      "sha256": "1a420a1ffa2670af34c1f116335e8fedbe5b64ee276ce083829561ea7816070b"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52266,7 +52321,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_main.c",
-      "sha256": "94c419d0db096dc28121a3a4f0d6677ea1a7ba72ed57a08df3f265fe6cff76dd"
+      "sha256": "c772246b513d98e4581f56c4cd49f7bbbede10828be15982125b35a069d2a487"
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
@@ -52338,7 +52393,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_spawn.c",
-      "sha256": "eb568d379735b7f808b632b1d756a71e2b4e887d2057ccd5c13c08bf679e7ed5"
+      "sha256": "415100f4c6164f7c4e33dc5fdeac43e7fda6c538a772f0ed31fcc133ee439d73"
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
@@ -53282,7 +53337,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_utils.c",
-      "sha256": "b358ffb41d6fee6c3643d079eae26ae3129ea1c0afdc3fbff98efa491f0abce4"
+      "sha256": "e68adb3a4da696d46b0ce840155e8d259e34491db048a286ea463fe7259f9ef6"
     },
     {
       "path": "games/warcraft-3/game/skills/s_patrol.c",
@@ -54975,6 +55030,54 @@
     {
       "path": "tools/ghidra/research/Work227Evidence.java",
       "sha256": "26ffd6698d006284846309204ecd31e00549cd7ac7a1cd303b1c7c32862ae4c2"
+    },
+    {
+      "path": "games/warcraft-3/game/g_support.c",
+      "sha256": "cbd3224cbb238671ffdf1e3720c7f0c89bd27a3980ac07787c31b3918f08de62"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_flight_support228.h",
+      "sha256": "6e3440a011f9798038aaf622af2694c58ac3261ad8c2bede64d06995c10943d4"
+    },
+    {
+      "path": "tools/frida/research/work228_capture.py",
+      "sha256": "e346cdec1928b88a3e0aa62aa7497679fa768a2ad627020ef62084c56ad24a1a"
+    },
+    {
+      "path": "tools/frida/research/work228_observer.js",
+      "sha256": "618d66f9d7a804e3cb80fde8ba358ec58f60b444c7c6626bbf8216a5dc4e6db6"
+    },
+    {
+      "path": "tools/frida/research/work228_make_map.py",
+      "sha256": "25b989e95ecd18daaed76fafb873faff715b780bd6aa086d94ceda057c483a0a"
+    },
+    {
+      "path": "tools/ghidra/research/work228_oracle.py",
+      "sha256": "52a632b7aec5a64576fa54d782125c26ee97b1241038d7e30dcae52d6d46d9c4"
+    },
+    {
+      "path": "tools/ghidra/research/work228_header.py",
+      "sha256": "f2358263ba6c85adf07d77ea49b567b0e500c646ca0950a5a26967285443d277"
+    },
+    {
+      "path": "tools/ghidra/research/Work228Evidence.java",
+      "sha256": "e07475a6e82dacfe8235beff21d9c2d409666db132ed314835513c1638e911a6"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_work228.py",
+      "sha256": "301d1028523ff34936611f66d1695bb0250eb66e89ef39ec83fead983674692a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work228-1.27.json",
+      "sha256": "c243d2a0fd0e396ff2fbb98ddb6fcb13e9018246703441b35a1d6a97109ed0c7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-work228-1.27.json.gz",
+      "sha256": "b2af5b12fe482d608fdda19e0680955089b01d0a5e285b4acad099da9135c11a"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_work228.py",
+      "sha256": "6e254e2a5fcc6d8f6fbbffa1c4612b548a21345452ae0f0eca12077cc28b1b47"
     }
   ]
 }

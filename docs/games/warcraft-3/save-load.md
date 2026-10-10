@@ -1,5 +1,11 @@
 # Warcraft III Save/Load
 
+Save161 persists the completed map-start flyer support field as logical grid
+values, dimensions, origin and cell size. Load validates sizes before allocation
+and rejects non-finite or truncated values. Removing initial widgets does not
+cause a rebuild on load. Save160 and earlier layouts are rejected; the network
+contract is unchanged. See [flyer support](retail-pathfinding-engine.md#shared-map-start-flyer-support-field-payoff228).
+
 Save160 retains inside-construction world absence and counted separation/pause
 ownership. Cold saves preserve the distinct building death, completion and
 forced-removal inverses. Save159 and earlier layouts are rejected. See
