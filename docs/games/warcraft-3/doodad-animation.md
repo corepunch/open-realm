@@ -79,6 +79,13 @@ the renderer's `.mdx` filename. If the selected model is missing from the
 active game archives/imports, adding a custom ID will not supply the missing
 asset; check mounted archives before treating that as a rendering defect.
 
+For special terrain doodads, the renderer separately resolves `pathTex` from
+`Doodads.slk` and map-local `war3map.w3d` edits to find the footprint that
+suppresses generated cliff faces. A custom ID may inherit through another
+map-local custom ID before reaching a stock doodad row. The renderer follows
+that parent chain and bounds traversal by the number of map-local rows, so
+cyclic object data fails lookup instead of hanging map registration.
+
 OrcX01's Forcewall MDX has no geoset vertices: its appearance comes from two
 `PRE2` particle emitters using `Textures\Clouds8x8ModBlight.blp` and
 `Textures\ForceField.blp`. The renderer queues PRE2 particles through
