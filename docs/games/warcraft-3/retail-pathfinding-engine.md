@@ -18626,3 +18626,58 @@ counts. Death/removal fine-object lifetime and counted ability-disable cancellat
 need their own complete implementation. In particular, bridge `05bf20` changes
 **proximity** object flags through mover+94; it must not be misread as a write to the
 fine object at mover+98. The six remaining diagnostic cases are not claimed passing.
+
+## Suspension keeps its user packet through physical cleanup (Payoff300)
+
+`PauseUnit(true)` now cancels the old physical task before issuing the suspension
+point event. If no callback replacement owns an internal task, the suspension
+constructor runs its own cleanup before acquiring the physical hold. The attached
+intrinsic Move ability then cancels its owner on the first counted disable
+transition. These are separate owners, preserving the original operation order;
+there is no recovery-count loop or command-specific count in engine code.
+
+Physical cleanup preserves the retained user packet and its release request.
+It does not erase the order that must reissue after unpause. Only the intrinsic
+Move owner subscribes to suspension disabling; the engine event row shares its
+procedure but cannot deliver a second disable. The existing counted owner handles
+nonpositive-to-positive transitions, repeated Pause and nested Unpause. No new
+instance field, save format or per-frame scan is introduced.
+
+Two new read-only original captures run the unchanged Stop284 map/input on owned
+research B. After omitting only the newly read raw spatial fields, **all 1218 native
+events per repeat and all public markers match the earlier frozen chronology**.
+The observer-free control is reused from Stop284, not claimed as a new run. In
+Pause scenes5/13, the outer Stop recovers once; nested Pause recovers twice through
+`600340` (`600433` return) and once through Move's counted cancellation `5fc120`
+(`5fc18a` return). `690a50` creates suspension `d0144` ahead of physical-begin
+`d0145`; `4076e0` invokes Move virtual cancellation only on the first positive
+counted transition, before storing the orders count.
+
+The same active fine object identity and rectangle persist through all four
+recoveries and through the settled marker. Its exclusion counter returns to0.
+The engine regressions compare the **unchanged** `retail_stop284.h` public projection
+fresh and after save/load, with caller exclusion depths0/3. They also assert that
+physical cleanup retains the actual pooled fine record, category and rectangle.
+The first test version fails12 boundary assertions on the preceding engine; the
+fixed version passes. Existing retail expected bytes are unchanged.
+
+`Scope300Evidence.java` saves six function mappings, comments, xrefs and317 original
+instruction guards. Saved readback is identical, and `MapPathfinding.java` includes
+the same ownership mapping. The [verifier](../../../tools/ghidra/verify_wc3_pathing_scope300.py)
+checks original bytes, complete capture/control provenance and native chronology,
+then runs the affected Classic/TFT engine suites. Mutation tests reject replacement
+captures, fine identities, inactivity, exclusion imbalance and missing engine tests.
+
+New raw death/removal spatial observations are retained in the capture bundle for
+follow-up, without claiming an engine fix for them. Fine occupancy deactivation
+and physical record destruction remain separate missing ownership stages there.
+MAP-04.2 remains open; no new TODO leaf or performance-target claim is made.
+Archive: `research/MAP-04.2/payoff300/` under the1.27 report root. Focused cadence
+is6/12 after Payoff295's full-suite checkpoint.
+
+Final affected validation passes399 tests /530,430 assertions per edition and47
+Python evidence/corpus checks. The final two new production cases pass756
+assertions including fine identity/geometry checks; the initial test version's
+12 missing-boundary failures remain archived. All919 earlier retail fixture and
+literal-header hashes remain byte-identical. All466 game C/H files match the
+compiled source; separately owned working-tree changes are outside this commit.

@@ -2120,6 +2120,18 @@ bool S_UnitExecutionPaused(edict_t const *self) {
         self->movement.pause_phase!=UNIT_PAUSE_ADMITTING && self->movement.pause_phase!=UNIT_PAUSE_BYPASSED));
 }
 
+/* Suspension retains its user packet while its physical task is canceled.
+ * d0144 and the first counted Move disable own separate cleanup scopes; neither
+ * owns the retained order or its already scheduled release. */
+static void move_suspend_physical_task(edict_t *self) {
+    uint32_t const order=self->movement.pause_order_id;
+    bool const pending=self->movement.pause_resume_pending;
+    S_StopUnitMovementWithRecovery(self);
+    self->movement.pause_order_id=order;
+    self->movement.pause_resume_pending=pending;
+    S_TrackMoveTimers(self);
+}
+
 void S_SetUnitPaused(edict_t *self, bool paused) {
     if (!self || self->paused==paused) return;
     if (paused) {
@@ -2138,11 +2150,11 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
             self->paused=true;S_RefreshUnitPauseSuppression(self);return;
         }
         bool point=self->currentmove==&move_move_walk && self->goalentity && move_point_order_id(order);
-        if(point) {move_leave(self);move_reset_progress(self);}
-        else if(self->movement.clock_valid) {
-            unit_commit_current_pose(self);
-            self->movement.velocity=(vec2_t){0};self->movement.clock_valid=false;
-        }
+        /*697770 publishes200000 before688d30's old-task cancellation.
+         * Retain the user order below the suspension, not its physical route. */
+        self->paused=true;
+        S_StopUnitMovementWithRecovery(self);
+        if(point)move_reset_progress(self);
         self->movement.pause_order_id=order;
         self->movement.pause_phase=UNIT_PAUSE_ADMITTING;
         self->paused=true;self->current_order_id=MOVE_ORDER_SUSPENDED;
@@ -2155,6 +2167,9 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
             self->movement.pause_order_id=0;
             self->movement.pause_phase=self->paused ? UNIT_PAUSE_BYPASSED : UNIT_PAUSE_NONE;
         } else if(self->paused) {
+            /*690a50 constructs its d0144 cleanup before d0145 begins the
+             * physical hold and counted ability disabling. */
+            move_suspend_physical_task(self);
             self->movement.pause_phase=UNIT_PAUSE_SUSPENDED;
             S_SuspendRepairWork(self);
             S_UnitAbilityEvent(self,A_UNIT_SUSPEND);
@@ -6479,13 +6494,23 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_UNIT_OWNED:
         return ent && (ent->data.UnitBalance || ent->movement.captain_actor_type) && !M_UnitMoveDisabled(ent);
     case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
-    case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_PARAMETERS_CHANGED, A_DEATH, A_QUEUE_ORDER_START,
+    case A_UNIT_EVENT_MASK: {
+        intptr_t result=UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_PARAMETERS_CHANGED, A_DEATH, A_QUEUE_ORDER_START,
             A_GROUP_POINT_ORDER, A_OWNER_BEGIN, A_OWNER_UPDATE, A_UNIT_TYPE_CHANGING,
             A_PRIMARY_TIMER, A_ORDER_ACCEPTED, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
             A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED, A_TARGET_LOST,
             A_TARGET_OWNER_CHANGED,
             A_CHANNEL_STATE_CHANGED, A_UNIT_WORK_STATE_CHANGED);
+        /* Amov is the attached counted owner. The engine event row shares
+         * this procedure but must not contribute a second disable callback. */
+        if(result && call->item && call->item->ability &&
+           (call->item->ability->flags&AB_INTRINSIC))
+            call->unit_messages->bits[A_UNIT_SUSPEND/64]|=UINT64_C(1)<<(A_UNIT_SUSPEND%64);
+        return result;
+    }
+    case A_UNIT_SUSPEND:
+        move_suspend_physical_task(ent);
+        return true;
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
             .limit = unit_effective_speed(ent) };

@@ -24166,13 +24166,23 @@ TEST(wc3_movement, flight280_six_captured_approaches_and_cold_saves_match_retail
 #ifdef BZ_TESTS
 #include "fixtures/retail_stop284.h"
 static struct {unsigned scene,row,stages,outer;bool exact_scopes;} stop284;
-static bool stop299_all_scopes;
+static bool stop299_all_scopes,stop300_spatial;
+static wc3RecordObject_t const *stop300_record;
+static wc3FineBox_t stop300_box;
+static uint32_t stop300_category;
 static void stop284_scope(void *data,unsigned stage,edict_t const *unit) {
     (void)data;
     T_EQ(stage,stop284.stages++%4);
     wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
     T_NOT_NULL(record);
     if(record)T_EQ(record->flags,stop284.outer+2+((stage==1 || stage==2)?1:0));
+    if(record && stop300_spatial) {
+        /* New read-only repeats retain this same active fine identity through
+         * old task, suspension construction and counted Move cancellation. */
+        T_EQ(record,stop300_record);T_EQ(record->category,stop300_category);
+        T_EQ(record->box.min.x,stop300_box.min.x);T_EQ(record->box.min.y,stop300_box.min.y);
+        T_EQ(record->box.max.x,stop300_box.max.x);T_EQ(record->box.max.y,stop300_box.max.y);
+    }
 }
 static void stop284_marker(cstring_t text) {
     char label[32];unsigned order;float x,y;
@@ -24239,6 +24249,7 @@ static void stop284_public(unsigned action,bool moving) {
         stop284=(typeof(stop284)){.scene=action+(moving?8:0),.outer=saved?3:0,
             .exact_scopes=stop299_all_scopes || action==0 || action==1 || action==3 || action==7};
         record->flags=stop284.outer;
+        stop300_record=record;stop300_box=record->box;stop300_category=record->category;
         test_preload_marker=stop284_marker;S_TestMoveRecoveryTrace(stop284_scope,NULL);
         jass_callbyname(level.vm,"issue",false);T_ASSERT(!jass_rterror_pending(level.vm));
         test_preload_marker=NULL;S_TestMoveRecoveryTrace(NULL,NULL);
@@ -24293,6 +24304,13 @@ TEST(wc3_movement, scope299_replaced_point_owner_keeps_complete_dispatch) {
     T_EQ(scope299_custom_points,1);
 }
 #undef SCOPE299_CASE
+TEST(wc3_movement, scope300_idle_nested_pause) {
+    stop300_spatial=stop299_all_scopes=true;stop284_public(5,false);stop300_spatial=stop299_all_scopes=false;
+}
+TEST(wc3_movement, scope300_active_nested_pause) {
+    stop300_spatial=stop299_all_scopes=true;stop284_public(5,true);stop300_spatial=stop299_all_scopes=false;
+}
+
 
 #endif
 
