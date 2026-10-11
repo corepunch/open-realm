@@ -1546,8 +1546,15 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         move_acc_prepare();
         FOR_LOOP(level,4) move_acc.maps[level].classes = move_acc_classes[lane][level];
             move_acc_enable_gates();
+        /* 165b60 requests Path_SelectRequestDestination mode1: the adjusted goal (path+24).
+         * A lane or size change is a new coarse-cache identity and starts from the click. */
+        wc3FineVector_t request_goal=target;
+        if (route && route->adaptive_adjusted_valid && route->adaptive_mask==mask &&
+            route->adaptive_radius==input->geometry.radius &&
+            route->adaptive_adjusted_goal.x==target.x && route->adaptive_adjusted_goal.y==target.y)
+            request_goal=(wc3FineVector_t){route->adaptive_adjusted.x,route->adaptive_adjusted.y};
         wc3AccRequest_t req = {{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
-            {wc3_mul(target.x,.5f),wc3_mul(target.y,.5f)},
+            {wc3_mul(request_goal.x,.5f),wc3_mul(request_goal.y,.5f)},
             input->geometry.radius >= pathmap_cell_world_size() ? 2 : 1,BZ_WC3_UNIT_ACC_WORK};
         uint32_t result=move_build_acc_route(input,&req,route?&route->adaptive_admission:NULL),
             count=result&0x7fffffffu;
@@ -1559,6 +1566,11 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
             vec2_t *points=route->adaptive_points;
             route->adaptive_points=points; route->adaptive_count=count; route->adaptive_index=selected.index;
             route->adaptive_goal=(vec2_t){target.x,target.y}; route->adaptive_radius=input->geometry.radius;
+            /* 166c30 publishes an endpoint other than the request goal as path+24. */
+            bool short_goal=move_acc_points[0].x!=req.goal.x || move_acc_points[0].y!=req.goal.y;
+            route->adaptive_adjusted=short_goal ? (vec2_t){wc3_mul(move_acc_points[0].x,2),wc3_mul(move_acc_points[0].y,2)} :
+                (vec2_t){request_goal.x,request_goal.y};
+            route->adaptive_adjusted_goal=(vec2_t){target.x,target.y}; route->adaptive_adjusted_valid=1;
             route->adaptive_revision=move_map_revision; route->adaptive_mask=mask;
             route->warp_markers=move_acc.warps!=0;
             memcpy(points,move_acc_points,count*sizeof(*points));

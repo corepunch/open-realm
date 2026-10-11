@@ -2196,6 +2196,52 @@ TEST(pathfinding, terrain_producers_preserve_retail_size2_passage_veto_and_parti
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
 }
 
+TEST(pathfinding, partial_coarse_endpoint_becomes_request_goal_until_destination_changes) {
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    FOR_LOOP(y,64) FOR_LOOP(x,64)
+        cells[y*64+x]=retail_producer_rows[y/2]&(1u<<(x/2)) ? 0xc6 : 0;
+    CM_SetupTestPathmap(64,64,cells);
+    vec2_t source={4.25f*64,4.75f*64},target={27.25f*64,27.75f*64},selected;
+    edict_t *unit=make_unit_at(source.x,source.y);
+    unit->collision=40; unit->aiflags=0;
+    uint32_t old_counter=level.pathing_counter;
+    moveFineRoute_t route={0};
+    movePathQuery_t query={.geometry={&source,&target,40,2},.units=true,.mover=unit};
+    level.pathing_counter=400; level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&selected));
+    wc3AccSearch_t const *search=G_TestMoveAdaptiveSearch();
+    uint32_t click_pops=search->work.pops;
+    wc3FinePoint_t click_goal=search->goal;
+    T_EQ(click_pops,38); T_ASSERT(route.adaptive_count>0);
+    /* Original166c30: the search ended short of the click, so path+24 becomes route0. */
+    vec2_t end=route.adaptive_points[0];
+    T_ASSERT(route.adaptive_adjusted_valid);
+    T_EQ(wc3_float_bits(route.adaptive_adjusted.x),wc3_float_bits(wc3_mul(end.x,2)));
+    T_EQ(wc3_float_bits(route.adaptive_adjusted.y),wc3_float_bits(wc3_mul(end.y,2)));
+    T_ASSERT(route.adaptive_adjusted.x!=target.x/32 || route.adaptive_adjusted.y!=target.y/32);
+    /* Original168740 discards the coarse table but keeps path+24; 165b60 then
+     * requests mode1, the adjusted goal, which is reached without the click's search. */
+    route.adaptive_count=route.adaptive_index=0;
+    level.pathing_counter=420; level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&selected));
+    T_ASSERT(search->goal.x!=click_goal.x || search->goal.y!=click_goal.y);
+    T_ASSERT(search->work.pops<click_pops);
+    T_EQ(wc3_float_bits(route.adaptive_points[0].x),wc3_float_bits(end.x));
+    T_EQ(wc3_float_bits(route.adaptive_points[0].y),wc3_float_bits(end.y));
+    T_EQ(wc3_float_bits(route.adaptive_goal.x),wc3_float_bits(target.x/32));
+    T_EQ(wc3_float_bits(route.adaptive_goal.y),wc3_float_bits(target.y/32));
+    /* A lane change is a new coarse identity and requests the click again. */
+    route.adaptive_count=route.adaptive_index=0;
+    level.pathing_counter=440; level.move_fine_budgets[0].work=0;
+    query.geometry.blocked_flags=0x80;
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&selected));
+    T_EQ(search->goal.x,click_goal.x); T_EQ(search->goal.y,click_goal.y);
+    free(route.points); free(route.adaptive_points); level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
 TEST(pathfinding, exhausted_fine_budget_keeps_discovered_goal_centre_and_charges_denied_pop) {
     reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
     uint8_t cells[48*48];

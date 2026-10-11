@@ -52,6 +52,10 @@ typedef struct {
     vec2_t *adaptive_points; /* Accelerator coordinates, twice the fine-cell size. */
     uint32_t adaptive_count, adaptive_index, adaptive_capacity;
     vec2_t adaptive_goal;
+    /* Original path+24: a coarse result ending short of its request goal becomes the goal of
+     * later coarse requests and retries for the same destination, surviving table discards. */
+    vec2_t adaptive_adjusted, adaptive_adjusted_goal;
+    uint32_t adaptive_adjusted_valid;
     float adaptive_radius;
     uint32_t adaptive_revision;
     uint8_t adaptive_mask; /* Authored hierarchy lane is independent of the current fine query. */

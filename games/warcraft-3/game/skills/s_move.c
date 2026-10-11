@@ -2797,6 +2797,9 @@ static uint32_t move_retry_members(edict_t const *self) {
 static vec2_t move_retry_goal(moveFineRoute_t const *route,vec2_t requested) {
     if (route->adaptive_count)
         return (vec2_t){wc3_mul(route->adaptive_points[0].x,2),wc3_mul(route->adaptive_points[0].y,2)};
+    /* 168740 discards the coarse table but not path+24. */
+    if (route->adaptive_adjusted_valid && route->adaptive_adjusted_goal.x==requested.x &&
+        route->adaptive_adjusted_goal.y==requested.y) return route->adaptive_adjusted;
     return requested;
 }
 
@@ -3975,6 +3978,8 @@ static void move_reset_local_path(edict_t *self) {
     self->movement.fine_route.index=self->movement.fine_route.adaptive_index=UINT32_MAX;
     self->movement.fine_route.partial=false;
     self->movement.fine_route.adaptive_goal=(vec2_t){wc3_float(0xc7fa0000),wc3_float(0xc7fa0000)};
+    /* A new destination restarts path+24 at the destination itself. */
+    self->movement.fine_route.adaptive_adjusted_valid=0;
     /* Replacement/internal approaches own a new group plan. Reusing the last
      * point Move's destination can strand an ability at its previous endpoint. */
     self->movement.fine_route.group_count=0;

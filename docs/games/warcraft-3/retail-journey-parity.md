@@ -107,6 +107,17 @@ Each rule below was found by a journey divergence, then checked against the orig
   with no held stop. `167070`'s return-2 hold applies only when the fine endpoint is in range
   but the coarse point is not. Engine: `G_UnitMoveAdaptiveWaypointDue` gates the group
   member's early `move_group_advance_endpoint`.
+- **Adjusted coarse goal (path+24).** `165b60` requests the coarse route to
+  `Path_SelectRequestDestination(path, buf, 1)`. That is the adjusted goal at path+24, not
+  the click. A new destination sets it to the click. When `166c30`'s result ends at a point
+  other than its request goal (flag `0x20000000`), that endpoint becomes the adjusted goal.
+  The completion retry `168740` discards the coarse and fine tables but keeps path+24. A
+  later re-request for the same destination therefore searches only to the old endpoint.
+  It charges little work (3 pops in Orc05, against 106 for the click), and
+  `adaptive_request_time` is cleared when charged work is under 32. The interval then admits
+  the re-request on the next visit. Engine: `moveFineRoute_t.adaptive_adjusted*`, used by
+  `move_adaptive_waypoint` and `move_retry_goal`, and saved since format 177. Requesting
+  the click again moved Orc05's forced arrival one visit early at 113.3 s.
 - **SLK reals** use the original decimal parser `070de0` (`wc3_decimal`), which is not
   correctly rounded: `"0.4"` gives `3eccccce`, and `"1.5"` gives `3fc00001`. Tests that author
   a captured float word as SLK text must search for text that this parser maps to the word
@@ -148,7 +159,7 @@ is the state that `1d62bb` (retry init) uses. Draws made before the probe's
 |---|---|---|
 | Lost Temple crossing | 24 | bit-exact over 2400 ticks (~80k commits) |
 | Human05 crossing (seed 5) | 35 | bit-exact over 2400 ticks: every sample and velocity commit (the original adds two commits after its completion marker) |
-| Orc05 crossing (seed 6) | 39 | every subject exact through 113.3 s; then group 0 member 0 reaches forced arrival one visit early |
+| Orc05 crossing (seed 6) | 39 | bit-exact over 2400 ticks, every sample and velocity commit (the original's trace ends two commits later) |
 | NightElf02 crossing (seed 7) | 31 | diverges at 0.03 s: the map authors Player 0 as a Computer (see below) |
 
 NightElf02: config makes Player 0 `MAP_CONTROL_COMPUTER`, so `6f1e9a40` creates its Town AI
@@ -165,4 +176,5 @@ units yet. That is the captain/Town AI work tracked as GROUP-03.4.x.
 - Suite regressions extracted from journeys: `wc3_api.alliance_defaults_include_neutral_passive_and_neutral_controller_slots`,
   `wc3_api.group_add_prepends_heroes_like_original`,
   `wc3_spell.aura_targets_follow_source_team_alliances_and_neutral_mask`,
-  `wc3_slk.authored_scalars_use_the_original_decimal_parser`.
+  `wc3_slk.authored_scalars_use_the_original_decimal_parser`,
+  `pathfinding.partial_coarse_endpoint_becomes_request_goal_until_destination_changes`.
