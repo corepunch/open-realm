@@ -17919,3 +17919,85 @@ Captain GoHome journeys and saved-state rejection. The full spell suite passed
 497 tests/15,354 assertions per mode before the final Captain-only caller fix.
 Thirteen evidence/negative checks and 37 corpus checks pass. Production and test
 game modules build. Full repository validation follows the authorized batch cadence.
+
+## Paused natives validate before suspended admission (Payoff286)
+
+Ordinary Move, Attack, Patrol and Hold orders issued to a script-paused Footman
+return false before allocating or admitting a replacement user order. They retain
+the suspension head, old movement task and queued successors. Stop is a core
+command: it passes validation, cancels successors, and appends beneath suspension.
+Its player/unit issued notifications and cleanup occur at the deterministic resume
+boundary. Public forced placement uses this same Stop owner; it no longer carries
+its own paused-queue implementation.
+
+The distinction precedes `Unit_AdmitOrder` (`680320`). Its positive `Unit+198`
+branch describes retention of an **already validated** order. It cannot establish
+that every paused native succeeds. Immediate validation `69dc80` bypasses ability
+checks for core Stop unless the unit has the death flag. Point `69dd60` and target
+`69df70` walk ability identities, evaluate their virtual validators, and then map a
+zero answer to `DD` when signed ability `+40` is positive, or `B9` for positive
+`+3c/+44`. Nonzero virtual answers retain their own result. The native producers
+accept `0/DC`; observed paused ordinary orders return `DD` (221).
+
+Script pause contributes that disable count through `6977a0 -> 48c8c0(1,1,0,0)`;
+resume removes it through `6977f0 -> 48c8c0(1,0,0,0)`. The capture distinguishes
+these availability producers from FIFO admission. The first observer hooked
+`69de10/69dec0`, which are other widget validators; those diagnostic runs are
+excluded. Accepted repeats hook the actual target-native validator `69df70` and
+its point fallback.
+
+The game implementation rejects paused ability orders at the public point,
+target and immediate admission boundaries before interception, cancellation or
+notification. Core Stop uses `G_RetainSuspendedUnitOrder`. The typed FIFO stores
+its successor while Move owns the suspension head; the existing resume timer
+publishes it through ordinary queued activation. Removal and inside-construction
+retain their distinct existing head storage and admission policies. No serialized
+layout changes or extra per-frame scans are introduced.
+
+Two read-only retail runs match all 555 native events after canonical identity
+renaming that preserves alias relationships. Their 224 public markers also match
+an observer-free control. All raw callbacks are retained in the frozen bundle.
+The new C header is a literal projection of selected native-return/Stop-callback
+boundaries, independently checked against that stream. Eighty executions of the
+original validation bodies cover signed counters, nonzero virtual answers, core
+bypass and stack cleanup. These use supplied identity/context/ability endpoints;
+they do not claim to execute every concrete ability validator.
+
+Fourteen failing-first engine tests exercise 56 fresh/cold-save and preexisting
+queue contexts. The old engine fails all fourteen tests (794 assertions). The
+new tests verify rejection without changing the retained task/FIFO, suspended
+Stop replacement, two synchronous issued families at activation, and save/load
+on both sides of admission. An idle unit's initial queued Move activates directly;
+a busy unit's additional Move remains a FIFO successor.
+
+The full capture also uncovers pause-entry `851973`, forced `undefend` and resumed
+Move callbacks not yet reproduced by the engine. Those callbacks and complete
+post-resume motion remain existing `MAP-04.2`/`ORDER-01.13` work. This projection
+registers after pause entry and compares resumed Move identity separately; it
+does not hide or claim those missing callbacks. Complete Shift/internal task
+control producers remain `ORDER-02.2`. No broad TODO closes, existing frozen
+retail expectations change, or performance-budget acceptance is claimed.
+
+`Pause286Evidence.java` saves twelve function comments/names, xrefs, 771 instruction
+guards and a signed ability-counter prefix in Ghidra. `MapPathfinding.java`
+mirrors the new evidence. Reproduce from the repository root:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_pause286.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/pause286-fresh.json
+python3 -m unittest discover -s tests -p test_wc3_pathing_pause286.py
+```
+
+Raw accepted/rejected captures, generated arena, failing baseline and final
+sources/binaries/reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-02.2/payoff286`.
+See also [forced placement](#forced-placement-issues-stop-before-writing-position-payoff285)
+and [corpus entry](retail-pathfinding-corpus.md#paused-native-admission-payoff286).
+
+Production and test game modules build. Focused Classic and TFT validation each
+passes 218 tests/1,128,570 assertions, including the new 56-case matrix, unchanged
+forced-position/Stop expectations, queued lifecycle, casting, Ancient, Captain
+and independently committed hashtable regressions. Fourteen Python evidence checks
+and 37 reviewed corpus checks pass. Ghidra readback is byte-identical after save.
+Full repository validation follows the authorized batch cadence.

@@ -77,6 +77,8 @@ void order_stop(edict_t *ent) {
  * Stop cleanup after both synchronous event families. A callback can change
  * terrain between the two recovery scopes or replace the pending task. */
 bool S_IssueStopOrder(edict_t *ent) {
+    if(ent->paused)
+        return G_RetainSuspendedUnitOrder(ent,"stop",UNIT_ORDER_TARGET_NONE,NULL,NULL,false,ent->s.player,0);
     uint32_t const order_id = G_OrderId("stop"), spawn_time = ent->spawn_time;
     G_ClearUnitOrderQueue(ent);
     S_SpellCancelChannel(ent);

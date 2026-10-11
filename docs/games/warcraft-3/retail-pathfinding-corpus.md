@@ -2228,3 +2228,19 @@ Inventory: 521 entries /240 executable original/evidence contracts. All 520 prio
 entry objects and frozen retail fixture pins are unchanged. Only reviewed mutable
 code, test, mapper and documentation pins are refreshed. Broader BASE-01.4 and
 MAP-04.2 stay open. See [implementation and limits](retail-pathfinding-engine.md#forced-placement-issues-stop-before-writing-position-payoff285).
+
+## Paused native admission (Payoff286)
+
+`oracle-pause286` freezes two 14-scene read-only retail runs and an observer-free
+control: 224 public markers per run, 555 native rows per observation, 771 original
+instruction guards across twelve functions, and 80 executed original validation
+body/ABI cases. Fourteen failing-first engine regressions cover 56 fresh/cold-save
+and preexisting-queue contexts. Fourteen Python checks reject altered identity
+relationships, lost validators, early notifications and changed public results.
+
+Inventory: 522 entries /241 executable original/evidence contracts. All 521 prior
+entry objects and frozen retail fixture pins remain unchanged, including the
+forced-position Stop expectations. Reviewed mutable code/test/mapper/documentation
+pins are refreshed. The reviewed source also includes the independently committed
+hashtable index change. Full Shift/control-bit producers and pause/modal/resumed
+Move notifications remain open. See [implementation and limits](retail-pathfinding-engine.md#paused-natives-validate-before-suspended-admission-payoff286).

@@ -4172,6 +4172,7 @@ bool G_TransformUnitType(edict_t *, uint32_t);
 bool G_IssueUnitPointOrder(edict_t *, cstring_t, vec2_t const *, bool, uint32_t, float);
 bool G_IssueUnitTargetOrder(edict_t *, cstring_t, edict_t *, bool, uint32_t);
 bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, uint32_t, float, uint32_t);
+bool G_RetainSuspendedUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, bool, uint32_t, float);
 bool G_AppendUnitOrder(edict_t *, unitOrder_t const *);
 bool G_UnitHasActiveOrder(edict_t const *);
 uint32_t G_CountUnitOrders(edict_t const *, uint32_t);

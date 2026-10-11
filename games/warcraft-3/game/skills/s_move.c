@@ -1695,9 +1695,10 @@ void S_RunMoveTimers(void) {
         }
         else if(ent->goalentity && ent->currentmove==&move_move_walk) {
             S_IssueMoveOrder(ent,ent->goalentity,order);
-            /* Resume activates a new point task without a user-issued event.
-             * Retail's next owner visit includes its fresh physical group;
-             * leaving it detached falls back to entity-order movement. */
+            /* Retail's next owner visit includes its fresh physical group;
+             * leaving it detached falls back to entity-order movement.
+             * Payoff286 also captures user reissue/modal callbacks at resume;
+             * their full owner integration remains ORDER-01.13/MAP-04.2. */
             move_start_point_group(ent,&ent->goalentity->s.origin2,0);
         }
         else if(!order && ent->current_order_id==MOVE_ORDER_SUSPENDED)ent->current_order_id=0;
@@ -2288,15 +2289,7 @@ void S_InitUnitPosition(edict_t *self, vec2_t const *requested) {
 /* Both public placement natives replace the order before admitting position. */
 void S_SetUnitPosition(edict_t *self, vec2_t const *requested) {
     if (!self || !requested) return;
-    if (self->paused) {
-        /*680320 retains the suspension task and appends Stop. No movement
-         * recovery or issued event runs until the existing resume boundary. */
-        G_ClearUnitOrderQueue(self);
-        G_QueueUnitOrder(self,"stop",UNIT_ORDER_TARGET_NONE,NULL,NULL,self->s.player,0,G_OrderId("stop"));
-        self->movement.pause_order_id=0;
-    } else {
-        S_IssueStopOrder(self);
-    }
+    S_IssueStopOrder(self);
     /*2155c0 still invokes placement after a callback replaces the Stop. */
     S_PlaceUnitPosition(self,requested);
 }

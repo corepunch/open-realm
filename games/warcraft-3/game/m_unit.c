@@ -1042,13 +1042,19 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     return true;
 }
 
-/* Removal or inside construction still owns execution. Retain the user head in the typed FIFO
- * until release; common native693490 never dispatches this suspended order. */
-static bool unit_retain_suspended_order(edict_t *self, cstring_t order,
+/* The suspension owner retains execution. Removal/construction keep their
+ * saved head in the FIFO; scripted pause keeps its head in Move state.
+ * Native680320 cancels successors before693490 appends, without dispatch. */
+bool G_RetainSuspendedUnitOrder(edict_t *self, cstring_t order,
         unitOrderTargetType_t shape, vec2_t const *point, edict_t *target,
         bool queue, uint32_t issuer, float speed) {
     uint32_t const order_id=G_OrderId(order);
-    if(!queue && self->order_queue.count>1) {
+    if(self->paused && !G_IsDeferredFree(self) && !self->construction_held) {
+        if(!queue) {
+            G_ClearUnitOrderQueue(self);
+            self->movement.pause_order_id=0;
+        }
+    } else if(!queue && self->order_queue.count>1) {
         unitOrder_t head=self->order_queue.entries[self->order_queue.head];
         G_ClearUnitOrderQueue(self);G_AppendUnitOrder(self,&head);
     }
@@ -1068,8 +1074,10 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if(G_IsDeferredFree(self) || self->construction_held) {
         if(self->aiflags&AI_IMMOBILE ||
            (strcmp(order,"move") && strcmp(order,"smart") && strcmp(order,"attack")))return false;
-        return unit_retain_suspended_order(self,order,UNIT_ORDER_TARGET_ENTITY,NULL,target,queue,issuer_player,0);
+        return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_ENTITY,NULL,target,queue,issuer_player,0);
     }
+    /* Scripted pause disables ability validation before any queue mutation. */
+    if(self->paused)return false;
     /* Rally owns native admission separately from its direct metadata setters. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         return S_IssueRallyTargetOrder(self,target,queue);
@@ -1156,9 +1164,10 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         if(M_IsDead(self) || self->aiflags&AI_IMMOBILE ||
             (strcmp(order,"move") && strcmp(order,"smart") && strcmp(order,"attack") && strcmp(order,"patrol")))
             return false;
-        return unit_retain_suspended_order(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,queue,issuer_player,group_speed);
+        return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,queue,issuer_player,group_speed);
     }
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
+    if(self->paused)return false;
     /* Rally's owner decides whether this producer replaces active work. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         bool accepted;
@@ -1414,11 +1423,14 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         return false;
     if(G_IsDeferredFree(self) || self->construction_held) {
         if(strcmp(order,"stop") && strcmp(order,"holdposition"))return false;
-        return unit_retain_suspended_order(self,order,UNIT_ORDER_TARGET_NONE,NULL,NULL,false,self->s.player,0);
+        return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_NONE,NULL,NULL,false,self->s.player,0);
     }
     if (!strcmp(order, "stop")) {
         return S_IssueStopOrder(self);
     }
+    /* Core Stop bypasses disabled ability validation (69dc80); other
+     * immediate orders validate before touching the suspended chain. */
+    if(self->paused)return false;
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
         if (accepted) {

@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff286 rejects ordinary native orders before they mutate scripted suspension,
+while core Stop retains its successor until deterministic resume. Forced placement
+uses the same owner. Two retail repeats/control and 80 original validation cases
+back 14 failing-first regressions with 56 fresh/cold-save queue contexts. Full
+pause/modal/resumed-Move callbacks and Shift/control producers stay explicitly
+open under MAP-04.2/ORDER-01.13/ORDER-02.2; 46 remain. Existing retail expectations
+are unchanged. See [paused admission](retail-pathfinding-engine.md#paused-natives-validate-before-suspended-admission-payoff286).
+
 Payoff285 makes public SetUnitPosition/Loc admit Stop before placement, preserving
 issued callbacks, callback replacement and terrain changes. Paused placement
 retains Stop until the existing deterministic resume boundary; Captain relocation

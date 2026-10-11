@@ -24241,3 +24241,96 @@ TEST(wc3_movement, stop285_paused_idle_defers_stop_until_resume) {stop285_public
 TEST(wc3_movement, stop285_paused_move_observes_callback_terrain_at_resume) {stop285_public(1,true,true);}
 TEST(wc3_movement, stop285_paused_move_nested_stop_retains_completion) {stop285_public(3,true,true);}
 #endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_pause286.h"
+static struct {unsigned scene,row,recoveries;} pause286;
+static void pause286_scope(void *data,unsigned stage,edict_t const *unit) {
+    (void)data;(void)unit;if(!stage)pause286.recoveries++;
+}
+static void pause286_marker(cstring_t text) {
+    char label[32];unsigned order;float x,y;
+    if(sscanf(text,"P286T label=%31s order=%u x=%f y=%f",label,&order,&x,&y)!=4)return;
+    T_ASSERT(pause286.row<7);if(pause286.row>=7)return;
+    typeof(pause286_rows[0][0]) *row=pause286_rows[pause286.scene]+pause286.row++;
+    T_NOT_NULL(row->label);if(!row->label)return;
+    T_STREQ(label,row->label);T_EQ(order,row->order);T_EQ(x,row->x);T_EQ(y,row->y);
+}
+/* Ordinary ability validators reject scripted-pause commands before task/FIFO
+ * mutation. Core Stop bypasses that validator and is retained until resume.
+ * Pause entry/modal-off callbacks are retained evidence, not this projection. */
+static void pause286_public(unsigned action,bool moving) {
+    FOR_LOOP(saved,2)FOR_LOOP(queued,2) {
+        reset_entities();reset_test_state();setup_test_world();g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
+        uint8_t cells[64*64]={0};CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        char const *orders[]={"IssueImmediateOrder(u,\"stop\")","IssueImmediateOrder(u,\"holdposition\")",
+            "IssuePointOrder(u,\"move\",1040,1040)","IssueTargetOrder(u,\"move\",target)",
+            "IssuePointOrder(u,\"attack\",1040,1040)","IssueTargetOrder(u,\"attack\",target)",
+            "IssuePointOrder(u,\"patrol\",1040,1040)"};
+        char script[5000];snprintf(script,sizeof(script),
+            "globals\nunit u=null\nunit target=null\nendglobals\n"
+            "function mark takes string label returns nothing\n"
+            "call Preload(\"P286T label=\"+label+\" order=\"+I2S(GetUnitCurrentOrder(u))+\" x=\"+R2S(GetUnitX(u))+\" y=\"+R2S(GetUnitY(u)))\nendfunction\n"
+            "function first takes nothing returns nothing\n"
+            "if IssuePointOrder(u,\"move\",1280,656) then\ncall mark(\"first-true\")\nelse\ncall mark(\"first-false\")\nendif\nendfunction\n"
+            "function replace takes nothing returns nothing\nif %s then\ncall mark(\"replace-true\")\nelse\ncall mark(\"replace-false\")\nendif\nendfunction\n"
+            "function player takes nothing returns nothing\nif GetIssuedOrderId()==OrderId(\"stop\") then\ncall mark(\"issued-851972\")\nendif\nendfunction\n"
+            "function oneunit takes nothing returns nothing\nif GetIssuedOrderId()==OrderId(\"stop\") then\ncall mark(\"unit-851972\")\nendif\nendfunction\n"
+            "function resume takes nothing returns nothing\ncall mark(\"waiting\")\ncall PauseUnit(u,false)\ncall mark(\"unpause-return\")\nendfunction\n"
+            "function done takes nothing returns nothing\ncall mark(\"resumed\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "set u=CreateUnit(Player(0),'hfoo',656,656,0)\nset target=CreateUnit(Player(1),'hfoo',1488,1040,0)\n"
+            "call SetUnitAcquireRange(u,0)\ncall SetUnitAcquireRange(target,0)\n%s\n"
+            "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\ncall TriggerAddAction(t,function player)\n"
+            "set t=CreateTrigger()\ncall TriggerRegisterUnitEvent(t,u,EVENT_UNIT_ISSUED_ORDER)\ncall TriggerAddAction(t,function oneunit)\nendfunction\n",
+            orders[action],moving?"call IssuePointOrder(u,\"move\",1280,656)":"");
+        T_ASSERT(run_test_jass(script));edict_t *unit=NULL;
+        FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','f','o','o') && !e->s.player)unit=e;
+        T_NOT_NULL(unit);if(!unit)continue;unsigned index=unit-g_edicts;unit->collision=31;G_PublishMoveSpatialObject(unit);
+        if(queued)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1712,1712},true,0,0));
+        S_SetUnitPaused(unit,true);S_SetUnitAxisPosition(unit,0,656);S_SetUnitAxisPosition(unit,1,656);
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-pause286-before.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+index;
+        }
+        uint32_t count=G_UnitQueuedOrderCount(unit),revision=G_UnitMoveRevision(unit),retained=unit->movement.pause_order_id;
+        edict_t *goal=unit->goalentity;
+        pause286=(typeof(pause286)){.scene=action+7*moving};test_preload_marker=pause286_marker;S_TestMoveRecoveryTrace(pause286_scope,NULL);
+        jass_callbyname(level.vm,"first",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(G_UnitQueuedOrderCount(unit),count);T_EQ(G_UnitMoveRevision(unit),revision);T_EQ(unit->goalentity,goal);T_EQ(unit->movement.pause_order_id,retained);
+        jass_callbyname(level.vm,"replace",false);T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(pause286.recoveries,0);
+        if(!action) {
+            T_EQ(G_UnitQueuedOrderCount(unit),1);T_EQ(unit->movement.pause_order_id,0);
+            if(G_UnitQueuedOrderCount(unit)) {
+                unitOrder_t const *pending=unit->order_queue.entries+unit->order_queue.head;T_STREQ(pending->order,"stop");T_EQ(pending->order_id,G_OrderId("stop"));
+            }
+        } else {
+            T_EQ(G_UnitQueuedOrderCount(unit),count);T_EQ(G_UnitMoveRevision(unit),revision);T_EQ(unit->goalentity,goal);T_EQ(unit->movement.pause_order_id,retained);
+        }
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-pause286-retained.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+index;
+        }
+        jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(pause286.row,4);
+        if(action)test_preload_marker=NULL;
+        FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        S_RunMoveTimers();T_ASSERT(!unit->movement.pause_resume_pending);
+        if(!action) {
+            jass_callbyname(level.vm,"done",false);T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(pause286.row,7);T_EQ(pause286.recoveries,1);T_EQ(G_UnitQueuedOrderCount(unit),0);
+        } else T_EQ(unit->current_order_id,moving || queued?G_OrderId("move"):0);
+        test_preload_marker=NULL;S_TestMoveRecoveryTrace(NULL,NULL);reset_entities();reset_test_state();setup_test_world();
+    }
+}
+TEST(wc3_movement, pause286_idle_stop_matches_native_admission) {pause286_public(0,false);}
+TEST(wc3_movement, pause286_idle_hold_matches_native_admission) {pause286_public(1,false);}
+TEST(wc3_movement, pause286_idle_point_move_matches_native_admission) {pause286_public(2,false);}
+TEST(wc3_movement, pause286_idle_target_move_matches_native_admission) {pause286_public(3,false);}
+TEST(wc3_movement, pause286_idle_point_attack_matches_native_admission) {pause286_public(4,false);}
+TEST(wc3_movement, pause286_idle_target_attack_matches_native_admission) {pause286_public(5,false);}
+TEST(wc3_movement, pause286_idle_patrol_matches_native_admission) {pause286_public(6,false);}
+TEST(wc3_movement, pause286_active_stop_matches_native_admission) {pause286_public(0,true);}
+TEST(wc3_movement, pause286_active_hold_matches_native_admission) {pause286_public(1,true);}
+TEST(wc3_movement, pause286_active_point_move_matches_native_admission) {pause286_public(2,true);}
+TEST(wc3_movement, pause286_active_target_move_matches_native_admission) {pause286_public(3,true);}
+TEST(wc3_movement, pause286_active_point_attack_matches_native_admission) {pause286_public(4,true);}
+TEST(wc3_movement, pause286_active_target_attack_matches_native_admission) {pause286_public(5,true);}
+TEST(wc3_movement, pause286_active_patrol_matches_native_admission) {pause286_public(6,true);}
+#endif
