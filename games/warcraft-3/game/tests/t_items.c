@@ -1230,6 +1230,28 @@ TEST(wc3_items, custom_speed_powerup_rawcode_gets_movement_cap) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, shimmerweed_powerup_without_ability_bypasses_inventory) {
+    static ItemData_t shimmerweed = { .abilList = "_", .powerup = true,
+        .usable = false, .perishable = false, .uses = 0 };
+    edict_t *unit, *item;
+
+    setup_test_world();
+    unit = make_item_test_inventory_unit(0, 0);
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(unit, held, slot));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), ITEM_PICKUP_RANGE + 100, 0);
+    item->data.ItemData = &shimmerweed;
+    T_ASSERT(G_OrderPickupItem(unit, item));
+    T_ASSERT(G_PickupItem(unit, item));
+    T_ASSERT(item->item->pending_use_removal);
+    T_ASSERT(!item->item->in_world);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) T_ASSERT(unit->inventory[slot] != item);
+}
+
 TEST(wc3_items, full_inventory_order_pickup_accepts_only_powerups) {
     static ItemData_t speed_data = { .abilList = "APsa", .powerup = true, .usable = true, .perishable = true };
     edict_t *unit, *rune, *ordinary;
