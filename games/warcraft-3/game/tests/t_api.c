@@ -5531,6 +5531,9 @@ TEST(wc3_api, current_order_follow_target_removal_is_synchronous) {
             "function verifyIdle takes nothing returns nothing\n"
             "  call BJassAssert(GetUnitCurrentOrder(subject) == 0, \"RemoveUnit synchronously retires Follow\")\n"
             "endfunction\n"
+            "function verifySmart takes nothing returns nothing\n"
+            "  call BJassAssert(GetUnitCurrentOrder(subject) == OrderId(\"smart\"), \"lost queued Smart retains its point\")\n"
+            "endfunction\n"
             "function verifyMove takes nothing returns nothing\n"
             "  call BJassAssert(GetUnitCurrentOrder(subject) == OrderId(\"move\"), \"valid pending point Move activates synchronously\")\n"
             "endfunction\n"
@@ -5566,11 +5569,14 @@ TEST(wc3_api, current_order_follow_target_removal_is_synchronous) {
         jass_callbyname(level.vm, "removeTarget", false);
         T_ASSERT(target->inuse); T_ASSERT(G_IsDeferredFree(target));
         T_NULL(unit->movement.follow_target);
-        T_EQ(unit->order_queue.count, 0);
-        jass_callbyname(level.vm, queued ? "verifyMove" : "verifyIdle", false);
+        /* Payoff277 repeated retail Shift RMB: removing a subscribed target
+         * retires the active Follow, but does not discard the queued Smart.
+         * It activates at its saved point before the remaining point Move. */
+        T_EQ(unit->order_queue.count, queued == 2 ? 1 : 0);
+        jass_callbyname(level.vm, queued == 2 ? "verifySmart" : queued ? "verifyMove" : "verifyIdle", false);
         T_ASSERT(!jass_rterror_pending(level.vm)); jass_rterror_clear(level.vm);
         jass_callbyname(level.vm, "removeTarget", false);
-        jass_callbyname(level.vm, queued ? "verifyMove" : "verifyIdle", false);
+        jass_callbyname(level.vm, queued == 2 ? "verifySmart" : queued ? "verifyMove" : "verifyIdle", false);
         T_ASSERT(!jass_rterror_pending(level.vm));
         if (queued) T_ASSERT(move_is_active_order_walk(unit));
         level.started = level.scriptsConfigured = level.scriptsStarted = true;

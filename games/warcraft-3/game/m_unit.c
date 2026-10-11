@@ -899,7 +899,7 @@ uint32_t G_UnitQueuedOrderCount(edict_t const *self) {
 
 static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed, uint32_t *owner_head);
 
-static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *target) {
+static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *target, vec2_t const *fallback_point) {
     if (!self || !order || !target) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self)) return false;
@@ -954,6 +954,12 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
             return true;
         }
         if ((target->svflags & SVF_MONSTER) && unit_smart_target_is_followable(self, target)) {
+            /* Retail5ff240 keeps interaction selection above this boundary.
+             * Its ordinary Move branch5fd270 filters the optional unit again
+             * on activation and uses the packet's saved point after loss.
+             * Do not skip a queued Smart or substitute the target's new pose. */
+            if (fallback_point && (target == self || S_MoveTargetStatus(self, target) != MOVE_TARGET_VALID))
+                return unit_issueorder_now(self, order, fallback_point, 0.0f, NULL);
             return S_IssueFollowOrder(self, target, G_OrderId(order));
         }
         return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f, NULL);
@@ -1131,7 +1137,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
     if (!queue) G_ClearUnitOrderQueue(self);
     {
-        bool const accepted = unit_issuetargetorder_now(self, order, target);
+        bool const accepted = unit_issuetargetorder_now(self, order, target, NULL);
         if (accepted) {
             S_UnitAbilityOrderAccepted(self, order);
             unit_publish_target_order(self, order, target, issuer_player);
@@ -1230,7 +1236,7 @@ static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t c
          * Their owner can supply a fallback above; the generic unit fallback
          * must not manufacture widget movement from an unsupported packet. */
         if(!target && !queued->target_is_unit)return QUEUED_ORDER_UNHANDLED;
-        bool accepted=target ? unit_issuetargetorder_now(self,queued->order,target) :
+        bool accepted=target ? unit_issuetargetorder_now(self,queued->order,target,&queued->point) :
             unit_issueorder_now(self,queued->order,&queued->point,queued->group_speed,owner_head);
         return accepted ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
     }

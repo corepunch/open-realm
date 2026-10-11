@@ -23538,4 +23538,66 @@ TEST(wc3_movement, refresh274_original_prediction_order_and_fine_only_reload) {
     reset_entities();setup_test_world();
 }
 
+/* Retail Smart277: a queued Smart retains packet words independently of
+ * optional-unit lifetime. Distinct coordinates below also exercise the generic
+ * immutable packet contract; the original RMB witness uses the target center. */
+TEST(wc3_movement, smart277_queued_optional_target_retains_point_through_loss_and_save) {
+    FOR_LOOP(kind,6) {
+        edict_t *unit,*target;slkTestData_t *old,*rows=target217_setup(&unit,&target,&old);
+        T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+        T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){320,1856}));
+        edict_t *head=unit->goalentity;
+        vec2_t const point={wc3_float(0x44c82976),wc3_float(0x448526c6)};
+        T_ASSERT(G_QueueUnitOrder(unit,"smart",UNIT_ORDER_TARGET_ENTITY,&point,target,0,0,0));
+        T_EQ(unit->goalentity,head);T_EQ(unit->order_queue.count,1);
+        if(unit->order_queue.count) {
+            unitOrder_t const *queued=unit->order_queue.entries+unit->order_queue.head;
+            T_EQ(queued->target_type,UNIT_ORDER_TARGET_ENTITY);T_ASSERT(queued->target_is_unit);
+            T_EQ(wc3_float_bits(queued->point.x),0x44c82976u);
+            T_EQ(wc3_float_bits(queued->point.y),0x448526c6u);
+        }
+        fogModifier_t *fog=NULL;
+        if(kind==1)target217_call("add");
+        if(kind==2)G_DeferFreeEdict(target);
+        if(kind==3)target->health.value=0;
+        if(kind==4) {
+            fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
+            *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1760,1024},.radius=768};
+            G_FogModifierStart(fog);G_FowUpdate();
+        }
+        if(kind==5) {
+            target->spawn_time++;
+            S_SetUnitAxisPosition(target,0,1840);S_SetUnitAxisPosition(target,1,1408);
+        }
+        cstring_t file=Test_TempPath("wc3-smart277-pending.bin");
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        T_ASSERT(G_UnitStartNextQueuedOrder(unit));T_EQ(unit->order_queue.count,0);
+        T_EQ(unit->current_order_id,G_OrderId("smart"));
+        if(!kind)T_EQ(unit->movement.follow_target,target);
+        else {
+            T_NULL(unit->movement.follow_target);T_NOT_NULL(unit->goalentity);
+            if(unit->goalentity) {
+                T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x),0x44c82976u);
+                T_EQ(wc3_float_bits(unit->goalentity->s.origin2.y),0x448526c6u);
+            }
+        }
+        T_ASSERT(WriteGame(file));uint32_t expected[24][6];
+        FOR_LOOP(i,24) {
+            target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            expected[i][0]=wc3_float_bits(pose.grid[0]);expected[i][1]=wc3_float_bits(pose.grid[1]);
+            expected[i][2]=wc3_float_bits(unit->movement.velocity.x);expected[i][3]=wc3_float_bits(unit->movement.velocity.y);
+            expected[i][4]=unit->current_order_id;expected[i][5]=unit->movement.group_id;
+        }
+        T_ASSERT(ReadGame(file));remove(file);
+        FOR_LOOP(i,24) {
+            target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            T_EQ(wc3_float_bits(pose.grid[0]),expected[i][0]);T_EQ(wc3_float_bits(pose.grid[1]),expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x),expected[i][2]);T_EQ(wc3_float_bits(unit->movement.velocity.y),expected[i][3]);
+            T_EQ(unit->current_order_id,expected[i][4]);T_EQ(unit->movement.group_id,expected[i][5]);
+        }
+        if(fog)G_FogModifierDestroy(fog);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
 #endif

@@ -52392,6 +52392,58 @@
         "No complete retail trajectory word parity, head-on avoidance, wall detour or facing certification.",
         "Existing Follow target-removal full-suite failure remains outside this change."
       ]
+    },
+    {
+      "id": "oracle-smart277",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_smart277.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "smart277.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 1175
+        },
+        "captures": {
+          "equal": 4
+        },
+        "controls": {
+          "equal": 2
+        },
+        "public_markers": {
+          "equal": 1073
+        },
+        "loss_cases": {
+          "equal": 5
+        },
+        "visible_cases": {
+          "equal": 1
+        },
+        "engine": {
+          "length": 8
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Genuine Shift RMB optional allied-unit activation after invisibility, removal, death, fog and moved removal; visible target task chain, public heads, FIFO and exact engine saved continuation.",
+      "exclusions": [
+        "Enemy/non-unit interaction owners and full trajectory parity are not certified."
+      ]
     }
   ],
   "fixtures": [
@@ -53290,7 +53342,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "2d5c04b78f5529bc299b33d896f23b59d08c4e8e57de2657b1704af0733a13e7"
+      "sha256": "510d078baf6e4fca8a97bd732e0ee61ef6a3220682f7bd597097034476fe2b96"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -54838,7 +54890,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "1d53e6380d73c715c5beb29efa8342c5da509a410bd606dfeb33e9bc6c34b005"
+      "sha256": "b802fbbde4c55cf827b6f245cccd5655ef83e7bd6b24c4886270d8edf1454858"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -55082,7 +55134,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "143670578c12ed60ca857b46dc10dd0ef45b08c7388eaff956af88f9f680e1c8"
+      "sha256": "345e1fc198ab924d25251b8e764c1abd03b13654ede460dd728212e8ed6a3030"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -55094,11 +55146,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "3e5e869562ce9b67cb4bd9f6cfe5096401367dee803f391f4b397abf25cd6232"
+      "sha256": "ca764f4f81b12d4860684527c0370dd58448b40862fd8d7b3d3aa3b792e2f4c2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "c9633de0c441aea2be0eba602c176118b00cb5d8feaf062c52685325cfb21cbe"
+      "sha256": "bbb70403a732ca07b6e1c0882f335263b5344ecb20a91d139dcbef2cccbc7df1"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55886,7 +55938,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_api.c",
-      "sha256": "37d92849cb3533bb59d5e69a9560fd33bc1ed34c8353b656032384e3314268d7"
+      "sha256": "beba6d8e05fee7c4e985d8972c07ed2d6ec635145c66b2059074f6e0e19ea9c7"
     },
     {
       "path": "games/warcraft-3/game/tests/t_collision.c",
@@ -56046,7 +56098,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "50a4bef1321d44661443d37b7f53afcc3261b1125c56bd7841046d8f40a863a7"
+      "sha256": "23c00ce62c72b5d3aa92415dac31ba61418310b95b52ff4a3fa87fddad1f0376"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -59655,6 +59707,50 @@
     {
       "path": "tools/frida/research/patrol276_groups.js",
       "sha256": "e0a65d5e517bcf26c8480b25404ffb58ccf771444224f10f6ed025d804b26671"
+    },
+    {
+      "path": "tools/ghidra/research/Smart277Evidence.java",
+      "sha256": "0696655220da000a1b6ee87108456725cd6dec544325e7bee75c76f794ac0a09"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_smart277.py",
+      "sha256": "50f26b557f884391de281e05a5eb8b42126ad4d368dd1bd9eb2d7f50631d2a94"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-smart277-1.27.json",
+      "sha256": "e56255028bf3b5b6a482cb5bcae4b8432c50bd19cb96580a2e9b2e3c3b208a5b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-smart277-1.27.json.gz",
+      "sha256": "6f1fc80ff860dca13f1da30ccb1bbf2b7e2ff1d8f2d0249054e22c780f9c2838"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_smart277.py",
+      "sha256": "7917658ddf720cd637bc929a8241ba7b53ab14b0be0d9382a2a746dc7eebe469"
+    },
+    {
+      "path": "tools/frida/research/smart277_capture.py",
+      "sha256": "b6b2a00da5dd010b0c9b018eb60faedf83d99c98e33422650e87ce156ab14675"
+    },
+    {
+      "path": "tools/frida/research/smart277_make_map.py",
+      "sha256": "b8a5acb2f268108b870f6f7c9cbf1d73314375cea28b3b7c2645d58ec52e1686"
+    },
+    {
+      "path": "tools/frida/research/smart277_matrix_probe.j",
+      "sha256": "5bf4d70d657f494003edc0f537a4fa3efc3078884e3044005ef74da657180fe3"
+    },
+    {
+      "path": "tools/frida/research/smart277_observer.js",
+      "sha256": "bcc3ed42fc09342846876d2ef3057bfe17080d04036d746a1c8a3d2390d538cf"
+    },
+    {
+      "path": "tools/frida/research/smart277_probe.j",
+      "sha256": "2a04453451c8f69dd469c90d41ee9d0660a4d44f712652e65d49db0a22262029"
+    },
+    {
+      "path": "tools/frida/research/smart277_ui_input.c",
+      "sha256": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233"
     }
   ]
 }

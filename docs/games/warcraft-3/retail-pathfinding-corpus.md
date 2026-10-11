@@ -2106,3 +2106,14 @@ Frozen retail coordinates remain unchanged; vertical startup, wall detours,
 head-on avoidance and facing remain outside the claimed parity. This adds one
 executable evidence contract (231 contracts;512 total entries). See
 [physical Patrol integration](retail-pathfinding-engine.md#patrol-legs-run-as-ordinary-point-move-tasks-payoff276).
+
+## Queued Smart optional-target activation (Payoff277)
+
+`oracle-smart277` requires four original observed runs and two unhooked controls,
+1073 matching post-mutation public markers and1175 original instruction guards.
+Five target-loss cases retain the packet point and public Smart head; the visible
+allied control retains its target-task chain. Actual Classic/TFT queue, Follow,
+Move and lifecycle regressions include exact saved continuation. The portable
+`retail-smart277-1.27.json.gz` preserves original captures; no historical expected
+capture is rewritten. Inventory:232 executable contracts,513 total entries.
+See [queued Smart ownership](retail-pathfinding-engine.md#queued-smart-keeps-its-optional-target-fallback-point-payoff277).

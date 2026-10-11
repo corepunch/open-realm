@@ -1942,3 +1942,12 @@ The prior eight checked slices remain checked under these leaf IDs. The original
 [repulsion]: retail-pathfinding-separation.md#authored-repulsion-fields-and-paired-crowd-experiments
 [gate-mutation]: retail-pathfinding-experiments.md#outside-entry-approach-and-live-gate-changes
 [observer]: retail-pathfinding-experiments.md#controls-without-an-attached-observer
+
+Payoff277 repairs queued Smart activation for still-resolvable targets lost to
+visibility/death, preserving the saved packet point after interaction selection.
+Two six-scene original repeats/control and a separate removal repeats/control
+justify the engine change and the narrowly corrected Follow FIFO expectation.
+The new saved-continuation regression fails12 assertions before the fix and
+passes1001 after it; the Follow regression passes140. Ghidra evidence is saved.
+No broad TODO is closed: **290 done / 336 tasks; 46 remaining.** See
+[queued Smart ownership](retail-pathfinding-engine.md#queued-smart-keeps-its-optional-target-fallback-point-payoff277).

@@ -17260,3 +17260,47 @@ Sources: `clock275_probe.j`, `clock275_observer.js`, `clock275_capture.py`,
 `d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
 Research archive:
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SCHED-01.1/payoff275/`.
+
+## Queued Smart keeps its optional-target fallback point (Payoff277)
+
+Original Shift right-clicks behind a running point Move retain an optional unit
+identity and packet point. Invisibility, removal, death, fog, and movement followed
+by removal each produce one ordinary `d016b` point task at the saved `48/50`
+words; the public head remains Smart. The visible allied control instead creates
+`d0193/d0173/d0193/d0174`. Smart interaction-owner selection in `5ff240` still
+precedes ordinary Move's optional-unit filtering in `5fd270`.
+
+The engine previously handled an unresolved identity correctly but dropped
+queued Smart for three still-resolvable invalid-target cases. Queued dispatch
+now passes its immutable packet point into Smart's ordinary allied-unit movement
+branch. That branch uses the existing Move target validation and falls back to
+point movement. Interaction abilities retain their earlier observation point.
+This adds constant work only at queued activation; no new scans, allocations,
+save fields, protocol changes or scheduler rules are introduced.
+
+The existing Follow removal fixture incorrectly expected a pending Smart to be
+skipped. Two original removal repeats and an unhooked control agree on all154
+post-removal markers: active Follow retirement and pending-order activation have
+different lifetimes. The corrected expectation requires Smart to activate first,
+retain the following Move in the FIFO, and then finish both. It does not relax
+positions, tolerances or completion assertions.
+
+The wider six-scene matrix has two original read-only repeats and an unhooked
+control. All919 post-mutation public markers agree, as do complete normalized
+activation/task decisions. The genuine RMB packet point is `44c80000/44800000`
+(the selected target center), whereas the earlier explicit Move cursor witness
+used different projection words. These captures are kept distinct. Engine
+regressions additionally compose arbitrary retained packet coordinates,
+generation mismatch and exact24-visit cold-save position/velocity/head/group
+continuation; those composed inputs are not claimed as captured RMB coordinates.
+The new regression fails12 assertions before the engine change and passes all1001
+after it. The synchronous Follow fixture passes all140 assertions.
+
+`oracle-smart277` checks1175 original instruction guards, the portable frozen
+capture bundle and actual Classic/TFT tests. The Ghidra program and
+`MapPathfinding.java` preserve the recovered ownership boundary. Sources and raw
+reproduction artifacts are archived in
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SMART-QUEUED-TARGET/payoff277/`.
+Enemy targets, non-unit widget/interaction owners and complete trajectory parity
+remain outside this evidence. This repairs an integration gap without closing a
+broader open TODO.
