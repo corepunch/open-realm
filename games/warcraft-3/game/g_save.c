@@ -97,7 +97,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 82 adds explicit status dispel and transfer classification. */
 /* Version 83 adds status instance identities and explicit stacking policy. */
 /* Version 84 persists modifier descriptor ownership (authored vs custom). */
-static uint32_t const save_version = 84;
+static uint32_t const save_version = 85;
+static uint32_t const save_version_without_fow = 84;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1077,7 +1078,8 @@ bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size) {
     uint32_t magic, version;
     if (!f || !map || !map_size) { if (f) fclose(f); return false; }
     if (!ReadFooter(f) || !LoadBytes(f, &magic, sizeof(magic)) || !LoadBytes(f, &version, sizeof(version)) ||
-        magic != save_magic || version != save_version || fseek(f, 0, SEEK_SET) || !LoadBytes(f, &header, sizeof(header)) ||
+        magic != save_magic || (version != save_version && version != save_version_without_fow) ||
+        fseek(f, 0, SEEK_SET) || !LoadBytes(f, &header, sizeof(header)) ||
         header.edict_size != sizeof(edict_t) || !header.map_path[0]) {
         fprintf(stderr, "WC3 LoadGame: invalid or incompatible save map header %s\n", filename);
         if (f) fclose(f);
@@ -1975,6 +1977,54 @@ static bool ReadBlight(FILE *f) {
     return ok;
 }
 
+/* FOW exploration is map state. Current visibility is deliberately recomputed from
+ * living revealers after load, while the explored plane survives the snapshot. */
+static bool WriteFow(FILE *f) {
+    uint32_t const width = level.fow.width;
+    uint32_t const height = level.fow.height;
+    if (!SaveBytes(f, &width, sizeof(width)) || !SaveBytes(f, &height, sizeof(height))) return false;
+    if (!width || !height) return width == 0 && height == 0;
+    if (width > UINT32_MAX / height) return false;
+    FOR_LOOP(player, MAX_PLAYERS) {
+        uint8_t const *explored = level.fow.players[player].explored;
+        if (!explored || !SaveBytes(f, explored, width * height)) return false;
+    }
+    return true;
+}
+
+static bool ReadFow(FILE *f) {
+    uint32_t width, height;
+    if (!LoadBytes(f, &width, sizeof(width)) || !LoadBytes(f, &height, sizeof(height))) return false;
+    if (width != level.fow.width || height != level.fow.height ||
+        ((width == 0) != (height == 0)) || (width && width > UINT32_MAX / height)) {
+        fprintf(stderr, "WC3 LoadGame: FOW dimensions incompatible saved=%ux%u map=%ux%u\n",
+                width, height, level.fow.width, level.fow.height);
+        return false;
+    }
+    if (!width) return true;
+    FOR_LOOP(player, MAX_PLAYERS) {
+        fowPlayerGrid_t *grid = &level.fow.players[player];
+        uint32_t const cells = width * height;
+        if (!grid->explored || !grid->visible || !grid->visible_rows ||
+            !grid->dirty_visible_rows || !grid->dirty_explored_rows ||
+            !LoadBytes(f, grid->explored, cells)) return false;
+        memset(grid->visible, 0, cells);
+        memset(grid->visible_rows, 0, height);
+        memset(grid->dirty_visible_rows, 1, height);
+        memset(grid->dirty_explored_rows, 1, height);
+#ifdef WC3_FOW_PACKED_MASK
+        if (!grid->packed_explored || !grid->packed_visible) return false;
+        memset(grid->packed_explored, 0, grid->packed_stride * height * sizeof(*grid->packed_explored));
+        memset(grid->packed_visible, 0, grid->packed_stride * height * sizeof(*grid->packed_visible));
+        FOR_LOOP(y, height) FOR_LOOP(x, width) {
+            if (grid->explored[y * width + x])
+                grid->packed_explored[y * grid->packed_stride + (x >> 4)] |= (uint16_t)(1u << (x & 15));
+        }
+#endif
+    }
+    return true;
+}
+
 static bool ReadEdict(FILE *f, edict_t *ent) {
     field_t const *field;
 
@@ -2157,6 +2207,7 @@ bool WriteGame(cstring_t filename) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
     if (!WriteBlight(f)) { fprintf(stderr, "WC3 SaveGame: failed at blight state\n"); goto done; }
+    if (!WriteFow(f)) { fprintf(stderr, "WC3 SaveGame: failed at FOW exploration state\n"); goto done; }
     if (!WriteGroups(f)) goto done;
     FOR_LOOP(i, game.max_clients) {
         if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
@@ -2197,7 +2248,7 @@ bool ReadGame(cstring_t filename) {
         fseek(f, 0, SEEK_SET)) {
         fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
     }
-    if (header.version != save_version) {
+    if (header.version != save_version && header.version != save_version_without_fow) {
         fprintf(stderr, "WC3 LoadGame: incompatible save version %u (expected %u)\n", header.version, save_version);
         fclose(f); return false;
     }
@@ -2265,6 +2316,9 @@ bool ReadGame(cstring_t filename) {
         fclose(f); return false;
     }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
+    if (header.version >= save_version && !ReadFow(f)) {
+        fprintf(stderr, "WC3 LoadGame: failed at FOW exploration state\n"); fclose(f); return false;
+    }
     G_ResetJassGroupDebug();
     if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
     /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
@@ -2444,6 +2498,34 @@ TEST(wc3_save, ordinary_unit_model_is_reregistered_after_load) {
     T_EQ(g_edicts[unit_index].s.model, save_test_model_index);
     T_ASSERT(save_test_model_path[0]);
     remove(filename);
+}
+
+TEST(wc3_save, fog_exploration_round_trips_and_visibility_restarts_clear) {
+    cstring_t const filename = Test_TempPath("wc3-save-fow.bin");
+    uint32_t const index = 0;
+
+    reset_entities();
+    setup_test_world();
+    G_FowInit();
+    T_ASSERT(level.fow.width && level.fow.height);
+    if (!level.fow.width || !level.fow.height) return;
+    level.fow.players[0].explored[index] = 1;
+    level.fow.players[0].visible[index] = 1;
+    T_ASSERT(WriteGame(filename));
+
+    level.fow.players[0].explored[index] = 0;
+    level.fow.players[0].visible[index] = 1;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(level.fow.players[0].explored[index]);
+    T_ASSERT(!level.fow.players[0].visible[index]);
+    T_ASSERT(level.fow.players[0].dirty_visible_rows[0]);
+    T_ASSERT(level.fow.players[0].dirty_explored_rows[0]);
+#ifdef WC3_FOW_PACKED_MASK
+    T_ASSERT(level.fow.players[0].packed_explored[0] & 1u);
+    T_ASSERT(!(level.fow.players[0].packed_visible[0] & 1u));
+#endif
+    remove(filename);
+    G_FowShutdown();
 }
 
 static bool write_save_fixture_header(cstring_t source_path, cstring_t output_path, uint32_t version, uint32_t edict_size) {
