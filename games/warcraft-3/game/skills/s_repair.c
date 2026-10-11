@@ -706,6 +706,9 @@ void repair_build_primary(edict_t *ent, edict_t *building) {
     if (!code || !repair_begin(ent, building, code, true)) {
         if (building && building->construction && building->construction->primary_builder == ent)
             building->construction->primary_builder = NULL;
+    } else {
+        /* Human construction prepends a real Repair order after Build approach. */
+        ent->current_order_id = G_OrderId(repair_order_name(code));
     }
 }
 

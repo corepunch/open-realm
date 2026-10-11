@@ -18245,3 +18245,15 @@ instruction guards and eight controlled selector calls support the binding.
 See [initial Town selection](retail-pathfinding-captain-policy.md#stopgathering-selects-the-initial-town-spot-payoff292)
 for regression coverage and the unported automatic economy policy boundary.
 Historical retail expected fixtures and the broad task count remain unchanged.
+
+
+## Accepted Build and Human Repair head ownership (Payoff293)
+
+Construction now publishes the accepted structure command as the current head;
+primary Human work then publishes Repair through its owning ability. Failed
+replacement preserves queued successors and accepted native replacement clears
+them before the issued callback. Five construction strategies and nested issued
+callbacks are covered by new production/save regressions and repeated original
+captures (2211 public markers,256 selected native boundaries). See
+[Build ownership](build-repair-routing.md#build-approach-and-human-repair-work-own-distinct-heads-payoff293)
+for the still-open notification timing and transient-order boundaries.

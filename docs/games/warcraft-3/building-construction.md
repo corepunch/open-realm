@@ -508,3 +508,15 @@ renderer submission for all these cases.
 For a bounded visual check, load Bandit Ridge with `+idleworker +button CmdBuild +screenshot 10
 +com_frame_limit 25` after the map argument, in both ROC and TFT. The native construction card
 should show normal icon borders while the idle Peasant is selected.
+
+
+## Public Build head and Human work handoff
+
+An accepted Build exposes its structure rawcode before the issued point-order
+callback. Rejected replacements preserve pending commands; accepted native
+replacements discard previous successors. Human primary construction switches
+to the actual Repair order, while inside strategies retain Build until release.
+The production tests `wc3_building.build293*` cover those ownership changes and
+cold saves. Construction notification ordering and complete transient Build
+resumption remain open. See [retail Build ownership](build-repair-routing.md#build-approach-and-human-repair-work-own-distinct-heads-payoff293)
+for the original call chain, captures and scope.

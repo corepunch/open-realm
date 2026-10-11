@@ -7142,4 +7142,99 @@ TEST(wc3_building, tiny_construction_queue_timer_uses_authored_duration) {
     gi.ImageIndex = old_image_index;
 }
 
+
+/* Original public Build owns the structure command until Human work replaces it with Repair. */
+TEST(wc3_building, build293_public_head_follows_approach_and_race_work) {
+    slkTestData_t *rows=NULL,*old=building_install_repair_data(&rows);
+    cstring_t races[]={STR_HUMAN,STR_ORC,STR_UNDEAD,STR_NIGHTELF,STR_NAGA};
+    constructionType_t kinds[]={CONSTRUCTION_HUMAN,CONSTRUCTION_ORC,CONSTRUCTION_UNDEAD,CONSTRUCTION_NIGHTELF,CONSTRUCTION_NAGA};
+    FOR_LOOP(kind,5) {
+        reset_entities();setup_test_world();
+        T_ASSERT(run_test_jass("globals\nunit worker=null\nendglobals\n"
+            "function issue takes nothing returns nothing\n"
+            "call BJassAssert(IssueBuildOrderById(worker,'hbar',64,64),\"legal Build\")\n"
+            "call SetUnitUserData(worker,GetUnitCurrentOrder(worker))\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"));
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));
+        T_NOT_NULL(worker);if(!worker)continue;
+        UnitData_t data=*worker->data.UnitData;data.race=races[kind];worker->data.UnitData=&data;
+        UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+        UnitAbilities_t abilities={.abilList=kind==4?"AGbu":"Arep"};worker->data.UnitAbilities=&abilities;
+        gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+        vec2_t prior={-256,-128};T_ASSERT(G_IssueUnitPointOrder(worker,"move",&prior,false,0,0));
+        jass_callbyname(level.vm,"issue",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+        T_EQ(worker->user_data,MAKEFOURCC('h','b','a','r'));
+        edict_t *goal=worker->goalentity;T_NOT_NULL(goal);
+        T_ASSERT(!G_IssueBuildOrder(worker,MAKEFOURCC('h','f','o','o'),&(vec2_t){96,96}));
+        T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));T_EQ(worker->goalentity,goal);
+        if(!goal)continue;
+        worker->s.origin2=goal->s.origin2;build_build(worker);
+        edict_t *target=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','b','a','r')&&ent->construction)target=ent;
+        T_NOT_NULL(target);if(!target)continue;
+        T_EQ(target->construction->type,kinds[kind]);
+        T_EQ(worker->current_order_id,kind?MAKEFOURCC('h','b','a','r'):G_OrderId("repair"));
+        unsigned slot=worker->s.number,parent=target->s.number;
+        cstring_t file=Test_TempPath("build293-owner.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        worker=g_edicts+slot;target=g_edicts+parent;
+        T_EQ(worker->current_order_id,kind?MAKEFOURCC('h','b','a','r'):G_OrderId("repair"));
+        T_EQ(target->construction->type,kinds[kind]);
+        G_StopConstruction(target);T_EQ(worker->current_order_id,0);T_ASSERT(!worker->construction_held);
+    }
+    reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
+
+/* Rejected replacements cannot discard pending commands; accepted native Build cancels old successors. */
+TEST(wc3_building, build293_rejection_retains_queue_and_native_replacement_cancels_it) {
+    reset_entities();setup_test_world();
+    edict_t *worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,-128);worker->stand=unit_stand;
+    UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+    gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+    T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,-128},false,0,0));
+    T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,128},true,0,0));
+    T_EQ(G_UnitQueuedOrderCount(worker),1);
+    T_ASSERT(!G_IssueUnitBuildOrder(worker,MAKEFOURCC('h','f','o','o'),&(vec2_t){64,64},false,0));
+    T_EQ(G_UnitQueuedOrderCount(worker),1);T_EQ(worker->current_order_id,G_OrderId("move"));
+    G_ClearUnitOrderQueue(worker);
+    T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,128},true,0,0));
+    T_EQ(G_UnitQueuedOrderCount(worker),1);
+    T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){64,64}));
+    T_EQ(G_UnitQueuedOrderCount(worker),0);T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+    order_stop(worker);T_EQ(worker->current_order_id,0);T_EQ(worker->build_project,0);T_NULL(worker->build_preview);
+    reset_entities();setup_test_world();
+}
+
+
+/* The accepted outer Build event may synchronously be replaced; its return must retain the nested owner. */
+TEST(wc3_building, build293_issued_callback_replaces_accepted_head) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("globals\nunit worker=null\ninteger before=0\ninteger after=0\nendglobals\n"
+        "function ordered takes nothing returns nothing\nif GetIssuedOrderId()=='hbar' then\n"
+        "set before=GetUnitCurrentOrder(worker)\ncall IssuePointOrder(worker,\"move\",-256,128)\n"
+        "set after=GetUnitCurrentOrder(worker)\nendif\nendfunction\n"
+        "function issue takes nothing returns nothing\n"
+        "call BJassAssert(IssueBuildOrderById(worker,'hbar',64,64),\"accepted outer Build\")\n"
+        "call BJassAssert(before=='hbar',\"accepted Build head visible in callback\")\n"
+        "call BJassAssert(after==OrderId(\"move\"),\"nested Move owns return\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+        "call TriggerAddAction(t,function ordered)\nendfunction\n"));
+    edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);
+    UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+    gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+    jass_callbyname(level.vm,"issue",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(worker->current_order_id,G_OrderId("move"));T_EQ(worker->build_project,0);T_NULL(worker->build_preview);
+    T_NOT_NULL(worker->goalentity);if(worker->goalentity)T_EQ(worker->goalentity->s.origin2.x,-256.0f);
+    reset_entities();setup_test_world();
+}
+
 #endif

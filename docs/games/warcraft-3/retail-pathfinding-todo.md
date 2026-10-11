@@ -56,6 +56,12 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **290 done / 336 tasks; 46 remaining.**
+Payoff293 integrates accepted Build/rawcode and primary Human Repair head
+ownership, preserves queues on rejection and clears old successors on accepted
+native replacement. Two original observed repeats and an uninstrumented control
+agree737 markers each. Five-style work/save and nested-callback regressions
+cover the engine change. ORDER-01.16 remains open for notification timing,
+transient resumption and broader inverses. See [Build ownership](build-repair-routing.md#build-approach-and-human-repair-work-own-distinct-heads-payoff293).
 Payoff292 connects the missing public `StopGathering` initial Town selector,
 reusing shared admission and preserving active harvest/mine state. Two repeats
 and an uninstrumented control per combat/structure/worker case preserve720 public

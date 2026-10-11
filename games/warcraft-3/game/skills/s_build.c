@@ -231,6 +231,7 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
     builder->build_project = building_id;
     move_reset_progress(builder);
     unit_setmove(builder, &build_move_walk);
+    builder->current_order_id = building_id;
     /* Every build entry (player, JASS, queued) retires a previous Stop guard point. */
     S_UnitAbilityOrderAccepted(builder, "build");
     return true;
@@ -241,6 +242,7 @@ bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *loc
 
     if (!S_AncientCanReceiveOrder(builder)) return false;
     if (!G_ExecuteBuildOrder(builder, building_id, location)) return false;
+    G_ClearUnitOrderQueue(builder);
     snapped = *location;
     G_SnapBuildingPoint(building_id, &snapped);
     /* Warcraft reports an accepted construction placement as a point order.
@@ -272,8 +274,8 @@ bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const 
         G_PublishIssuedPointOrder(builder, building_id, &snapped, issuer_player, "build");
         return true;
     }
-    if (!queue) G_ClearUnitOrderQueue(builder);
     if (!G_ExecuteBuildOrder(builder, building_id, &snapped)) return false;
+    if (!queue) G_ClearUnitOrderQueue(builder);
     G_PublishIssuedPointOrder(builder, building_id, &snapped, issuer_player, "build");
     return true;
 }
