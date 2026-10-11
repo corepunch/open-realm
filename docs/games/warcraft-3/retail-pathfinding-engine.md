@@ -17500,3 +17500,77 @@ This advances ORDER-01.13/TARGET-01.2/02.1. Full cast/effect/channel/backswing
 scheduling, destructable/item targets and the whole order-family inventory remain
 open. No TODO closure, new leaf, performance acceptance or full-suite result is
 claimed by this chunk.
+
+
+## Point arrival delivers CHANNEL before releasing spell ownership (Payoff281)
+
+Point spell approaches previously cleared the goal and entered public Stand
+before committing the spell, omitting SPELL_CHANNEL entirely. The shared
+`spell_begin_approach_cast` now delivers the existing synchronous, indexed player
+and unit event families while the spell command, caster and point remain live.
+It captures incarnation, public order, current move, goal and group before the
+callback, and checks that ownership afterwards. Stop, replacement Move, death
+or removal abort the retired cast before resources/effect. The unit family keeps
+its captured point even when the earlier player callback changes the command.
+Unit-target approaches use the same helper and retain their previous behavior.
+No entity scan, new timer, saved field or save-version change is introduced.
+
+The fresh original arena runs eight scenes: ground Blood Mage and flying
+Storm Crow, each with success, CHANNEL Stop, CHANNEL Move and CHANNEL RemoveUnit.
+A prior user Move is immediately replaced by custom Flame Strike A281, authored
+range333, cost13 and cooldown7. All scenes deliver player CHANNEL then unit
+CHANNEL with ability A281, point1536,288 and no target unit. The success scenes
+have one EFFECT; all six replacements have none. Move keeps its new order and
+moves away. Two read-only repeats and an observer-free control agree on all715
+public markers. Only the process-specific caster/trigger handle numbers are
+normalized, after asserting that the original handles are nonzero and equal
+within each context row. Position, mana, order, counter and clock words remain
+literal; the complete original preload bytes are preserved, including CRLF.
+
+`Cast281Evidence.java` saves comments, recovered function names, all1,162 original
+instructions and incoming xrefs for eight functions. `MapPathfinding.java`
+records the channel ownership boundary and distinguishes later phases:
+
+| Original function | Proven operation |
+|---|---|
+| `3fbb80` | Animation/channel producer `67ccb0`, validation, delay84/d01bb or CAST |
+| `3fb5d0` | CAST producer `67cb30`, delay8c/d01bc or EFFECT |
+| `40b380` | EFFECT producer `67ce30`, then `3f7b00`, duration94/d01bd or completion |
+
+The captured observer's historical `cast-effect` event hooks `3fb5d0`, so its
+label denotes CAST, not EFFECT. Public EFFECT markers come from the actual JASS
+EFFECT event. Both successful scenes place EFFECT ten owner counters (.3 game
+seconds) after CHANNEL, with mana deducted after the effect callback. Those
+later delay/resource boundaries remain unported; this change certifies CHANNEL
+ownership and cancellation only. In-range/direct casts, complete finish/endcast,
+backswing and the broader ORDER-01.13 contract remain open. Do not rewrite older
+retail motion fixtures to hide these limits.
+
+The failing-first engine run fails all16 isolated cases. Corrected execution
+passes ground/flying success, Stop, replacement Move and RemoveUnit, both live
+and after a cold save during approach. Each case uses a separate test so the
+framework resets VM, triggers, events and clients. `reset_entities()` alone does
+not clear the level trigger/code lists; replacing a test VM between looped saves
+left dangling code pointers in an early discarded harness. Each player slot must
+also have its client installed before registration, as ordinary load restores
+those pointers. Explicit real literals keep real-valued native checks typed.
+The failed harnesses and their debugger logs remain in the archive, separate
+from the accepted failing-first run. Focused Classic/TFT validation passes
+56 tests / 19,634 assertions, plus ten capture-corruption regressions.
+No existing retail fixture expectations were replaced.
+
+Rebuild with `cast281_make_map.py --base /path/to/Human02Interlude.w3m --output
+/new/Cast281b.w3m`; capture using `cast281_capture.py` in a leased B/C environment
+(`--mode control` for no hooks). The first map returned to the menu without a
+preload despite passing PJASS against original headers; the cause remains
+unproved. Its inputs and failed captures are preserved. The accepted unique b
+map changes only equivalent mode arithmetic and a local variable name; do not
+attribute the failure to either edit without further evidence.
+
+Run `verify_wc3_pathing_cast281.py --binary /path/to/game.dll --test-binary
+/path/to/openwarcraft3-tests --data /path/to/tests --report /fresh/report.json`.
+It checks the original executable bytes, pinned sources, both complete repeats,
+control, literal clock/flags/ordering and focused engine/save regressions.
+Original maps, raw captures, failing-first binaries, final sources and reports
+are archived under `research/POINT-CHANNEL/payoff281`. This advances ORDER-01.13
+without closing its broader cast-phase requirements;46 TODOs remain.

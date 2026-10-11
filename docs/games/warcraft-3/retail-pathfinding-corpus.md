@@ -2149,3 +2149,21 @@ reject altered native ownership, motion, range, adaptive route, provenance and
 control observation. This certifies physical approaches, not the complete spell
 cast/effect/channel/backswing timeline or the wider order-family inventory.
 See [implementation and reproducer](retail-pathfinding-engine.md#flying-spell-approaches-share-physical-move-ownership-payoff280).
+
+
+## Point spell CHANNEL ownership (Payoff281)
+
+`oracle-cast281` adds two read-only repeats and an observer-free control across
+eight ground/flying point spell scenes. All715 public markers agree after only
+relational caster-handle normalization. CHANNEL family order, original point
+context, Stop/Move/RemoveUnit cancellation and no-effect replacement are frozen.
+All1,162 instructions from eight Ghidra functions are checked against the
+original DLL. 56 focused Classic/TFT engine tests (19,634 assertions) include16
+live/cold-save regressions per mode. Ten corruption tests reject changed native
+clock/flags/identity, provenance, counts and hooked controls.
+
+The inventory is517 entries, including236 executable original/evidence
+contracts. All516 prior entry objects remain unchanged. Captures retain the
+later .3-second cast delay and EFFECT-before-mana boundary as explicitly
+unported evidence; they do not certify full spell phase timing or close the
+broader order-family task. See [implementation and reproducer](retail-pathfinding-engine.md#point-arrival-delivers-channel-before-releasing-spell-ownership-payoff281).

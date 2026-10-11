@@ -818,6 +818,25 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
     if (stop_move) unit_stand(caster);
 }
 
+/* Arrival delivers CHANNEL while the old spell still owns its public head.
+ * The event families retain one packet across reentrant replacement/removal. */
+static bool spell_begin_approach_cast(edict_t *caster, edict_t *target, uint32_t code,
+                                      vec2_t const *point) {
+    uint32_t spawn=caster->spawn_time,target_spawn=target ? target->spawn_time : 0;
+    uint32_t order=caster->current_order_id,group=caster->movement.group_id;
+    umove_t *move=caster->currentmove;
+    edict_t *goal=caster->goalentity;
+
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=caster,
+        .type=EVENT_PLAYER_UNIT_SPELL_CHANNEL,.source=target,.value=code,.point=point},
+        EVENT_UNIT_SPELL_CHANNEL,true);
+    if(!caster->inuse || caster->spawn_time!=spawn || G_IsDeferredFree(caster) ||
+       M_IsDead(caster) || caster->current_order_id!=order || caster->currentmove!=move ||
+       caster->goalentity!=goal || caster->movement.group_id!=group)return false;
+    return !target || (target->inuse && target->spawn_time==target_spawn &&
+        !G_IsDeferredFree(target) && !M_IsDead(target));
+}
+
 /* Commit a validated unit-target spell at the point where its cast range is reached. */
 static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edict_t *active_approach) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = params->target };
@@ -827,21 +846,8 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
                               .source_item_spawn_time = params->source_item_spawn_time);
 
     if(active_approach) {
-        /* Ground target arrival starts the spell synchronously inside the Move
-         * completion callback. Script replacement owns the next task: do not
-         * stand, spend resources or execute the retired spell after delivery. */
-        edict_t *caster=params->caster,*target=params->target;
-        uint32_t spawn=caster->spawn_time,target_spawn=target->spawn_time;
-        uint32_t order=caster->current_order_id,group=caster->movement.group_id;
-        umove_t *move=caster->currentmove;edict_t *goal=caster->goalentity;
-        G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=caster,
-            .type=EVENT_PLAYER_UNIT_SPELL_CHANNEL,.source=target,.value=params->code},
-            EVENT_UNIT_SPELL_CHANNEL,true);
-        if(!caster->inuse || caster->spawn_time!=spawn || G_IsDeferredFree(caster) ||
-           M_IsDead(caster) || caster->current_order_id!=order || caster->currentmove!=move ||
-           caster->goalentity!=goal || caster->movement.group_id!=group ||
-           !target->inuse || target->spawn_time!=target_spawn || G_IsDeferredFree(target) || M_IsDead(target))
-            return false;
+        edict_t *caster=params->caster;
+        if(!spell_begin_approach_cast(caster,params->target,params->code,NULL))return false;
         unit_stand_no_queue(caster);
     }
     spell_commit(params->caster, params->code, params->level, active_approach);
@@ -870,6 +876,11 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
                               .source_item = source_item,
                               .source_item_spawn_time = source_item_spawn_time);
 
+    if(active_approach) {
+        if(!spell_begin_approach_cast(caster,NULL,code,&st.point))return false;
+        if(caster->goalentity==active_approach)S_SetMoveGoal(caster,&caster->goalentity,NULL);
+        unit_stand(caster);
+    }
     spell_commit(caster, code, level, active_approach);
     if (spell->flags & AB_CHANNEL)
         spell_begin_channel(caster, code);
@@ -944,8 +955,6 @@ static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
         }
         if (!arrived && range > 0.0f && !S_UnitPointInMoveRange(caster, &thinker->s.origin2, range))
             return;
-        if (caster->goalentity == thinker) S_SetMoveGoal(caster, &caster->goalentity, NULL);
-        unit_stand(caster);
         spell_execute_point_target(clent, caster, code, level, spell, &thinker->s.origin2,
                                    source_item, thinker->spell_item_spawn_time, thinker);
         G_FreeEdict(thinker);

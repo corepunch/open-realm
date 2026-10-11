@@ -803,3 +803,10 @@ on634 public markers; all357 physical movement inputs match engine continuations
 including cold saves, Stop, target removal and Farm approach. Desired, committed
 and visual headings remain distinct. This advances ORDER-01.13/TARGET-01.2/02.1;
 full spell phase timing remains open. See [flight approach evidence and port](retail-pathfinding-engine.md#flying-spell-approaches-share-physical-move-ownership-payoff280).
+
+
+Payoff281 now delivers synchronous player/unit CHANNEL for point spell arrival,
+retaining the original point across Stop/Move/RemoveUnit and aborting the retired
+cast before resources/effect. Two original repeats/control agree on715 public
+markers; ground/flying live and cold-save regressions pass. Later cast delay and
+effect/resource order remain unported; ORDER-01.13 remains open. See [point CHANNEL evidence and port](retail-pathfinding-engine.md#point-arrival-delivers-channel-before-releasing-spell-ownership-payoff281).

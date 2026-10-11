@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff281 restores synchronous point-spell CHANNEL before teardown/resources,
+with retail-backed Stop/Move/RemoveUnit ownership and retained point context.
+Two ground/flying repeats/control agree on715 public markers;16 failing-first
+live/cold-save engine cases now pass. Later cast delay and effect/resource
+ordering stay explicitly open under ORDER-01.13;46 remain. See [point CHANNEL](retail-pathfinding-engine.md#point-arrival-delivers-channel-before-releasing-spell-ownership-payoff281).
+
+
 Payoff280 moves flying unit/point spell approaches from frame polling to the
 existing physical Move owner. All357 captured position/velocity/range/heading
 states match word-for-word, including six cold-save continuations; Stop/removal
