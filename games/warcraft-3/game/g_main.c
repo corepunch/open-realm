@@ -72,6 +72,52 @@ void G_ResetScriptSave(void) {
     script_save_rejected = false;
 }
 
+typedef struct {
+    gameClient_t *client;
+    uint32_t ui_state;
+    uint32_t ui_flags;
+    uint32_t rdflags;
+    bool no_control;
+    bool presentation_dirty;
+} wc3TransitionUIState_t;
+
+/* A map transition interrupts the current cutscene. Do not persist its
+ * cinematic HUD/input/fog state in a zone snapshot that will later resume. */
+static uint32_t G_EndCinematicForZoneTransition(wc3TransitionUIState_t *saved, uint32_t capacity) {
+    uint32_t count = 0;
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t *client = game.clients + i;
+        edict_t *ent;
+        if (!client->connected || client->ps.client_ui_state != CLIENT_UI_CINEMATIC || count >= capacity) continue;
+        saved[count++] = (wc3TransitionUIState_t){
+            client, client->ps.client_ui_state, client->ps.uiflags, client->ps.rdflags,
+            client->no_control, client->presentation_dirty
+        };
+        ent = G_GetPlayerEntityByNumber(client->ps.number);
+        if (ent) UI_ShowInterface(ent, true, 0.0f);
+        else {
+            client->ps.client_ui_state = CLIENT_UI_GAME;
+            client->ps.uiflags = 1u << LAYER_CINEMATIC;
+            client->presentation_dirty = true;
+        }
+        client->no_control = false;
+        SET_FLAG(client->ps.rdflags, RDF_NOFOG, false);
+        SET_FLAG(client->ps.rdflags, RDF_NOFOGMASK, false);
+    }
+    return count;
+}
+
+static void G_RestoreTransitionUIState(wc3TransitionUIState_t const *saved, uint32_t count) {
+    FOR_LOOP(i, count) {
+        gameClient_t *client = saved[i].client;
+        client->ps.client_ui_state = saved[i].ui_state;
+        client->ps.uiflags = saved[i].ui_flags;
+        client->ps.rdflags = saved[i].rdflags;
+        client->no_control = saved[i].no_control;
+        client->presentation_dirty = saved[i].presentation_dirty;
+    }
+}
+
 bool G_ScriptSavePending(void) { return script_save_request.pending; }
 
 bool G_RequestScriptSaveGame(cstring_t name) {
@@ -113,6 +159,8 @@ bool G_RequestScriptLoadGame(cstring_t name) {
 
 void G_FlushScriptSave(void) {
     wc3ScriptSaveRequest_t request;
+    wc3TransitionUIState_t saved_ui[MAX_CLIENTS];
+    uint32_t saved_ui_count = 0;
     if (script_save_rejected) {
         fprintf(stderr, "WC3 SaveGame: rejecting script transition after invalid save request\n");
         G_ResetScriptSave();
@@ -133,7 +181,10 @@ void G_FlushScriptSave(void) {
     G_ResetScriptSave();
     /* All current synchronous JASS callbacks have finished at this boundary.
      * No map replacement is submitted until the source snapshot is committed. */
+    if (request.change_level || request.load_game)
+        saved_ui_count = G_EndCinematicForZoneTransition(saved_ui, MAX_CLIENTS);
     if (!WriteGame(request.path)) {
+        G_RestoreTransitionUIState(saved_ui, saved_ui_count);
         fprintf(stderr, "WC3 SaveGame: failed to save %s; transition cancelled\n", request.name);
         return;
     }
