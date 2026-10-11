@@ -5,7 +5,7 @@ globals
 endglobals
 // Diplomacy probe: make_wc3_journey_map.py (spec "probe": "alliances"). Row phase*512+i*16+j
 // holds GetPlayerAlliance(Player(i),Player(j),type) for the ten alliance types; row
-// phase*512+256+i holds the controller, slot state, allied-victory state and team. Phase 0 is the map's configured state,
+// phase*512+256+i holds the controller, slot state, allied-victory state, team, resolved race and race-preference bits. Phase 0 is the map's configured state,
 // phase 1 follows the journey probes' SetPlayerController(Player(0),MAP_CONTROL_USER).
 function AllianceControl takes mapcontrol c returns integer
  if c==MAP_CONTROL_USER then
@@ -28,6 +28,45 @@ function AllianceSlot takes playerslotstate s returns integer
   return 1
  endif
  return 2
+endfunction
+function AllianceRace takes race r returns integer
+ if r==RACE_HUMAN then
+  return 1
+ elseif r==RACE_ORC then
+  return 2
+ elseif r==RACE_UNDEAD then
+  return 3
+ elseif r==RACE_NIGHTELF then
+  return 4
+ elseif r==RACE_DEMON then
+  return 5
+ endif
+ return 0
+endfunction
+function AlliancePrefs takes player p returns integer
+ local integer bits=0
+ if IsPlayerRacePrefSet(p,RACE_PREF_HUMAN) then
+  set bits=bits+1
+ endif
+ if IsPlayerRacePrefSet(p,RACE_PREF_ORC) then
+  set bits=bits+2
+ endif
+ if IsPlayerRacePrefSet(p,RACE_PREF_NIGHTELF) then
+  set bits=bits+4
+ endif
+ if IsPlayerRacePrefSet(p,RACE_PREF_UNDEAD) then
+  set bits=bits+8
+ endif
+ if IsPlayerRacePrefSet(p,RACE_PREF_DEMON) then
+  set bits=bits+16
+ endif
+ if IsPlayerRacePrefSet(p,RACE_PREF_RANDOM) then
+  set bits=bits+32
+ endif
+ if IsPlayerRacePrefSet(p,RACE_PREF_USER_SELECTABLE) then
+  set bits=bits+64
+ endif
+ return bits
 endfunction
 function AllianceDump takes integer phase returns nothing
  local integer i=0
@@ -54,10 +93,12 @@ function AllianceDump takes integer phase returns nothing
   call SaveInteger(udg_JourneyTable,phase*512+256+i,1,AllianceSlot(GetPlayerSlotState(Player(i))))
   call SaveInteger(udg_JourneyTable,phase*512+256+i,2,GetPlayerState(Player(i),PLAYER_STATE_ALLIED_VICTORY))
   call SaveInteger(udg_JourneyTable,phase*512+256+i,3,GetPlayerTeam(Player(i)))
+  call SaveInteger(udg_JourneyTable,phase*512+256+i,4,AllianceRace(GetPlayerRace(Player(i))))
+  call SaveInteger(udg_JourneyTable,phase*512+256+i,5,AlliancePrefs(Player(i)))
   set i=i+1
  endloop
  call Preload("PATHMETA ints first="+I2S(phase*512)+" count=256 cols=10")
- call Preload("PATHMETA ints first="+I2S(phase*512+256)+" count=16 cols=4")
+ call Preload("PATHMETA ints first="+I2S(phase*512+256)+" count=16 cols=6")
 endfunction
 function PathProbeTick takes nothing returns nothing
  set udg_PathProbeTick=udg_PathProbeTick+1

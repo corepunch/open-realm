@@ -516,6 +516,11 @@ uint32_t SetHeroLevel(jass_t *j) {
     }
     return 0;
 }
+uint32_t GetHeroProperName(jass_t *j) {
+    edict_t *whichHero = jass_checkhandle(j, 1, "unit");
+    char name[256];
+    return jass_pushstring(j, G_HeroProperName(whichHero, name, sizeof(name)));
+}
 uint32_t GetHeroLevel(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichHero ? whichHero->hero.level : 0);

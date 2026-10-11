@@ -31,11 +31,14 @@ function install(module) {
     // Optional thiscall observations: ECX, the first stack words and EAX on return; `out`
     // also reads the dword its first argument points to after return. `group` snapshots a
     // physical group at entry: flags80 and, per member (array28, stride2c, count38), member
-    // flags28, mover14 and moverD8. `peek` reads ECX-relative dwords at entry.
+    // flags28, mover14 and moverD8. `peek` reads ECX-relative dwords at entry; `ra` appends the caller RVA; `bt` appends up to twelve fuzzy-backtrace game.dll RVAs.
     for (const call of config.calls || []) hook(call.rva, {
         onEnter() {
             this.ecx = this.context.ecx; this.args = Array.from({length: call.args || 0}, (_, i) => this.context.esp.add(4 + i * 4).readU32());
             this.peek = (call.peek || []).map(off => this.ecx.add(off).readU32());
+            if (call.ra) this.peek.push(this.returnAddress.sub(base).toUInt32());
+            if (call.bt && active) this.peek.push(Thread.backtrace(this.context, Backtracer.FUZZY).slice(0, 12)
+                .map(a => a.sub(base).toUInt32()).filter(a => a < 0x1000000));
             if (call.group && active) {
                 const g = this.ecx, members = g.add(0x28).readPointer();
                 this.group = [g.add(0x80).readU32(), Array.from({length: g.add(0x38).readU32()}, (_, i) => {

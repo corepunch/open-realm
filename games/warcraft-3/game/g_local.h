@@ -1539,6 +1539,12 @@ typedef struct {
     } value;
 } hashtableEntry_t;
 
+/* Original 28a460 per-game proper-name counters; `used` holds `count` slots. */
+typedef struct {
+    uint32_t type, count;
+    uint16_t *used;
+} heroNameUsage_t;
+
 struct ghashtable_s {
     bool inuse;
     uint32_t num_entries, capacity; /* capacity is runtime only; entries pointer is not in the level schema */
@@ -2083,6 +2089,7 @@ struct edict_s {
     int32_t hero_item_agility; /* reversible item contribution; hero.agi retains total AGI */
     float hero_move_bonus; /* last published Hero contribution, independent of SetUnitMoveSpeed */
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
+    uint32_t hero_proper_name; /* original 28a460 Propernames slot, chosen once at creation */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t *abilstatus; /* optional pool; fixed slot order when present */
     abilityCooldown_t abilitycooldowns[MAX_UNIT_COOLDOWNS];
@@ -2698,6 +2705,8 @@ struct level_locals {
     multiboardItem_t multiboard_items[MAX_MULTIBOARD_ITEMS];
     texttag_t texttags[MAX_TEXTTAGS];
     hashtable_t hashtables[MAX_HASHTABLES];
+    heroNameUsage_t *hero_names; /* per-game least-used proper-name counters, one row per type */
+    uint32_t num_hero_names;
     region_t regions[MAX_REGIONS];
     uint32_t num_regions;
     /* Transient: client slots whose WC3_LAYER_MULTIBOARD layout (custom board or
@@ -2860,6 +2869,9 @@ void G_SetQuestDialogOpen(edict_t *player, bool open);
 TARGTYPE G_GetTargetType(cstring_t);
 uint32_t G_TargetFlagForType(TARGTYPE);
 cstring_t G_LevelString(cstring_t);
+uint32_t G_PickHeroProperName(uint32_t type);
+cstring_t G_HeroProperName(edict_t const *, char *, size_t);
+void G_ClearHeroNames(void);
 cstring_t G_MapString(mapInfo_t const *info, cstring_t name);
 cstring_t G_UnitName(uint32_t);
 float G_Cinefade(void);

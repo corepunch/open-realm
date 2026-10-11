@@ -853,6 +853,8 @@ static void SpawnUnit(edict_t *self, bool fresh) {
         .unit = self, .captured = self->data, .type = G_UnitRuntimeType(self->class_id),
         .path_texture = self->data.UnitData->pathingTexture, .fresh = fresh
     };
+    /* Fresh creation picks the Hero proper name; restoration and rebinding retain it. */
+    if (fresh) self->hero_proper_name = G_PickHeroProperName(self->class_id);
     construction.stage = UNIT_CONSTRUCT_VISUALS;
     unit_construct_visuals(&construction);
     construction.stage = UNIT_CONSTRUCT_ABILITIES_END;

@@ -870,6 +870,7 @@ void G_ReleaseLevel(void) {
     G_ClearJassGroupRegistry();
     G_ClearRegionRegistry();
     G_ClearHashtableRegistry();
+    G_ClearHeroNames();
     G_FowShutdown();
     G_BlightShutdown();
     S_ClearFlightSupport();

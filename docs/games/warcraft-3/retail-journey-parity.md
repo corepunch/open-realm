@@ -90,10 +90,32 @@ Each rule below was found by a journey divergence, then checked against the orig
   FirstOfGroup and `GroupPointOrder` (`23acd0` snapshot) visit the newest Hero first. The
   physical Move member order inherits this order, and so do the per-player fine-search budget
   charges (`168310`). Engine: `group_add_entity` (`api/api_group.h`).
+- **Hero proper names (`6f28a460`).** Creating a unit whose rawcode starts with an uppercase
+  letter consumes one path-owner draw when UnitData `nameCount` is at least 2 (Udea 15, Obla
+  14). The count, not the Propernames list length, sizes the slot. The draw times the count
+  (multiply-high) picks a slot, and a slot used more than the per-game minimum yields to the
+  next least-used slot. The table belongs to the game (`1e0d70`), not the player.
+  `Unit_RebindTypeRetainingPublicIdentity` (`671470`) also picks; the engine does not yet
+  re-pick on rebinding. Engine: `G_PickHeroProperName`, `G_HeroProperName`,
+  `GetHeroProperName`; the per-type counters are saved (save 175). Missing these draws
+  shifted every later retry seed (`167290`, `7 + bit22`) by six draws.
+- **Coarse waypoint before fine progress.** `Path_Advance` (`165ae0`) calls `165b60`, which
+  runs `Path_CheckAcceleratedWaypoint` (`165f10`) on every visit. That happens before
+  `Path_GetFineWaypoint` (`167ce0`) and before `Path_AdvanceFineRoute` reaches
+  `Path_CheckFineWaypointProgress` (`167070`). A retained intermediate coarse point already
+  in accelerator range is therefore consumed and the fine leg refilled on the same visit,
+  with no held stop. `167070`'s return-2 hold applies only when the fine endpoint is in range
+  but the coarse point is not. Engine: `G_UnitMoveAdaptiveWaypointDue` gates the group
+  member's early `move_group_advance_endpoint`.
 - **SLK reals** use the original decimal parser `070de0` (`wc3_decimal`), which is not
   correctly rounded: `"0.4"` gives `3eccccce`, and `"1.5"` gives `3fc00001`. Tests that author
   a captured float word as SLK text must search for text that this parser maps to the word
   (see `target168_positive_fades_match_original_listener_requests`).
+
+The journey tracer also accepts `ra` (caller RVA) and `bt` (game.dll backtrace) call options.
+`--call 1b7130::ra` records every `PathRandom_Next` draw with its caller, and the owner stream
+is the state that `1d62bb` (retry init) uses. Draws made before the probe's
+`PATHMETA case=` marker (race resolution at `1e9dd0`) are not recorded.
 
 ## Known Pitfalls
 
@@ -121,14 +143,16 @@ Each rule below was found by a journey divergence, then checked against the orig
 | Journey | Subjects | Result |
 |---|---|---|
 | Lost Temple crossing | 24 | bit-exact over 2400 ticks (~80k commits) |
-| Human05 crossing (seed 5) | 35 | every subject exact through 18.1 s; first divergence group 11 at 18.178 s |
-| Orc05 (seed 6), NightElf02 (seed 7) | - | captured, not yet analysed |
+| Human05 crossing (seed 5) | 35 | bit-exact over 2400 ticks: every sample and velocity commit (the original adds two commits after its completion marker) |
+| Orc05 crossing (seed 6) | 39 | every subject exact through 113.3 s; then group 0 member 0 reaches forced arrival one visit early |
+| NightElf02 crossing (seed 7) | 31 | diverges at 0.03 s: the map authors Player 0 as a Computer (see below) |
 
-Human05 at 18.178 s: subject 14 (Grunt) is stationary with retry countdown `path98`. The
-original forces its arrival (member 0x20000, mover 0x10000) on the 18.148 visit, denies sharing
-on the next visit and then advances the group's coarse point. The engine's countdown has not
-expired then (retry 2 at 18.148 s). The owner PRNG seeds this countdown (`167290`), so the next
-step is to compare its seed and draws.
+NightElf02: config makes Player 0 `MAP_CONTROL_COMPUTER`, so `6f1e9a40` creates its Town AI
+before the probe switches the controller to User. On creation, each owned unit enrols
+(`9b9230` -> `9c3660`) and Town AI assigns it work (`9c9d07`, near
+`TownAI_AssignOwnedUnitCaptain`). The probe's Wisp is sent to harvest with `smart` at once,
+because Wisps need no drop-off building. The engine's Town AI does not assign newly owned
+units yet. That is the captain/Town AI work tracked as GROUP-03.4.x.
 
 ## Verification
 

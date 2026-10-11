@@ -552,6 +552,7 @@ jassModule_t jass_funcs[] = {
     { "UnitStripHeroLevel", UnitStripHeroLevel },
     { "SetHeroLevelBJ", SetHeroLevelBJ },
     { "GetHeroLevel", GetHeroLevel },
+    { "GetHeroProperName", GetHeroProperName },
     { "SuspendHeroXP", SuspendHeroXP },
     { "IsSuspendedXP", IsSuspendedXP },
     { "SelectHeroSkill", SelectHeroSkill },

@@ -7995,6 +7995,37 @@ TEST(wc3_api, group_add_prepends_heroes_like_original) {
     reset_entities();
 }
 
+/* Original 28a460 draws captured on Human05 after its three random-race draws (fixed seed
+ * 77617233): Udea, Hpal and four Obla receive slots 14, 14, 13, 12, 0, 9. The fifth Obla draw
+ * lands on used slot 13 and yields to the least-used slot 0. One-name types never draw. */
+TEST(wc3_api, hero_proper_names_follow_original_least_used_choice) {
+    static cstring_t const data_slk =
+        "ID;PWXL;N;EBB;Y5;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"nameCount\"\n"
+        "C;Y2;X1;K\"Udea\"\nC;Y2;X2;K15\n"
+        "C;Y3;X1;K\"Hpal\"\nC;Y3;X2;K15\n"
+        "C;Y4;X1;K\"Obla\"\nC;Y4;X2;K14\n"
+        "C;Y5;X1;K\"Hfoo\"\nC;Y5;X2;K1\nE\n";
+    uint32_t const obla = MAKEFOURCC('O','b','l','a');
+    uint32_t const expected[] = {13, 12, 0, 9};
+    setup_test_world();
+    slkTestData_t *rows = parse_slk_string(data_slk), *old = G_SetSLKRows("UnitData", rows);
+    G_ClearHeroNames();
+    wc3_random_seed(&level.pathing_random, 0x77617233u);
+    FOR_LOOP(i, 3) wc3_random_next(&level.pathing_random);
+    T_EQ(G_PickHeroProperName(MAKEFOURCC('U','d','e','a')), 14);
+    T_EQ(G_PickHeroProperName(MAKEFOURCC('H','p','a','l')), 14);
+    FOR_LOOP(i, 4) T_EQ(G_PickHeroProperName(obla), expected[i]);
+    wc3Random_t const before = level.pathing_random;
+    T_EQ(G_PickHeroProperName(MAKEFOURCC('H','f','o','o')), 0);
+    T_EQ(G_PickHeroProperName(MAKEFOURCC('h','p','e','a')), 0);
+    T_EQ(level.pathing_random.sum, before.sum);
+    T_EQ(level.num_hero_names, 3);
+    G_ClearHeroNames();
+    G_SetSLKRows("UnitData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_api, group_debug_creator_follows_slot_lifecycle) {
     ggroup_t *group = G_AllocJassGroup();
 

@@ -85,7 +85,7 @@ enum {
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format174 persists the ordered scripted availability contribution. */
-static uint32_t const save_version = 174;
+static uint32_t const save_version = 175;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1259,6 +1259,7 @@ field_t edict_fields[] = {
     F(edict_s, attack_overrides, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
     F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, hero_proper_name, F_INT),
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
@@ -2235,6 +2236,33 @@ static bool ReadHashtables(FILE *f) {
             table->num_entries = j + 1;
         }
         if (!G_HashtableRebuildIndex(table)) return false;
+    }
+    return true;
+}
+
+/* Proper-name counters persist per type; a restored level continues the least-used choice. */
+static bool WriteHeroNames(FILE *f) {
+    if (!SaveBytes(f, &level.num_hero_names, sizeof(level.num_hero_names))) return false;
+    FOR_LOOP(i, level.num_hero_names) {
+        heroNameUsage_t const *row = level.hero_names + i;
+        if (!SaveBytes(f, &row->type, sizeof(row->type)) || !SaveBytes(f, &row->count, sizeof(row->count)) ||
+            !SaveBytes(f, row->used, row->count * sizeof(*row->used))) return false;
+    }
+    return true;
+}
+
+static bool ReadHeroNames(FILE *f) {
+    uint32_t rows = 0;
+    G_ClearHeroNames();
+    if (!LoadBytes(f, &rows, sizeof(rows)) || rows > MAX_ENTITIES) return false;
+    if (!rows) return true;
+    if (!(level.hero_names = calloc(rows, sizeof(*level.hero_names)))) return false;
+    FOR_LOOP(i, rows) {
+        heroNameUsage_t *row = level.hero_names + i;
+        if (!LoadBytes(f, &row->type, sizeof(row->type)) || !LoadBytes(f, &row->count, sizeof(row->count)) ||
+            row->count < 2 || row->count > UINT16_MAX || !(row->used = calloc(row->count, sizeof(*row->used)))) return false;
+        level.num_hero_names = i + 1;
+        if (!LoadBytes(f, row->used, row->count * sizeof(*row->used))) return false;
     }
     return true;
 }
@@ -3236,6 +3264,7 @@ bool WriteGame(cstring_t filename) {
      * requires restored inuse bits. SV_Map runs main() first, so a pre-edict
      * resolve would see baseline slots and drop script-created units. */
     if (!WriteHashtables(f)) { fprintf(stderr, "WC3 SaveGame: failed at hashtables\n"); goto done; }
+    if (!WriteHeroNames(f)) { fprintf(stderr, "WC3 SaveGame: failed at hero names\n"); goto done; }
     if (!WriteJass(f)) { fprintf(stderr, "WC3 SaveGame: failed at jass\n"); goto done; }
     if (!WriteFooter(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
     ok = true;
@@ -3439,6 +3468,7 @@ bool ReadGame(cstring_t filename) {
     }
     /* Nested hashtable unit/item handles resolve here, after edict inuse is restored. */
     if (!ReadHashtables(f)) { fprintf(stderr, "WC3 LoadGame: failed at hashtables\n"); fclose(f); return false; }
+    if (!ReadHeroNames(f)) { fprintf(stderr, "WC3 LoadGame: failed at hero names\n"); fclose(f); return false; }
     /* Sound-handle presentation state is part of the VM-owned handle payload;
      * the snapshot version rejects older layouts before reconstruction. */
     if (!ReadJass(f)) { fprintf(stderr, "WC3 LoadGame: failed at jass\n"); fclose(f); return false; }

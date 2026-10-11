@@ -1960,6 +1960,58 @@ static uint32_t G_HeroSkillLevel(edict_t const *ent, uint32_t abilcode) {
     return 0;
 }
 
+/* Original 28a460 (Unit_InitializeFromCreationProfile 68aaa1): an uppercase rawcode with
+ * at least two UnitData nameCount slots consumes one path-owner draw. Multiply-high selects
+ * a slot; occupied slots above the per-game minimum yield to the next least-used slot. */
+uint32_t G_PickHeroProperName(uint32_t type) {
+    uint32_t const first = type & 0xff;
+    int32_t const count = G_UnitData(type)->nameCount;
+    heroNameUsage_t *row = NULL;
+    if (first < 'A' || first > 'Z' || count < 2) return 0;
+    /* 287200 sizes a type's row once; later picks keep that slot count. */
+    FOR_LOOP(i, level.num_hero_names) if (level.hero_names[i].type == type) row = level.hero_names + i;
+    if (!row) {
+        heroNameUsage_t *rows = realloc(level.hero_names, (level.num_hero_names + 1) * sizeof(*rows));
+        uint16_t *used = calloc((size_t)count, sizeof(*used));
+        if (!rows || !used) { free(used); if (rows) level.hero_names = rows; return 0; }
+        level.hero_names = rows;
+        row = rows + level.num_hero_names++;
+        *row = (heroNameUsage_t){type, (uint32_t)count, used};
+    }
+    uint32_t minimum = UINT32_MAX;
+    FOR_LOOP(i, row->count) minimum = MIN(minimum, row->used[i]);
+    uint32_t slot = (uint32_t)(((uint64_t)wc3_random_next(&level.pathing_random) * row->count) >> 32);
+    while (row->used[slot] > minimum) slot = (slot + 1) % row->count;
+    row->used[slot]++;
+    return slot;
+}
+
+/* GetHeroProperName and the info panel read the chosen comma-separated Propernames entry. */
+cstring_t G_HeroProperName(edict_t const *ent, char *out, size_t size) {
+    cstring_t names = ent ? G_LevelString(G_UnitProfile(ent->class_id)->properNames) : NULL;
+    uint32_t slot = ent ? ent->hero_proper_name : 0;
+    if (!size) return "";
+    *out = '\0';
+    for (cstring_t cursor = names; cursor && *cursor; slot--) {
+        cstring_t end = strchr(cursor, ',');
+        size_t len = end ? (size_t)(end - cursor) : strlen(cursor);
+        if (!slot) {
+            snprintf(out, size, "%.*s", (int)len, cursor);
+            break;
+        }
+        if (!end) break;
+        cursor = end + 1;
+    }
+    return out;
+}
+
+void G_ClearHeroNames(void) {
+    FOR_LOOP(i, level.num_hero_names) free(level.hero_names[i].used);
+    free(level.hero_names);
+    level.hero_names = NULL;
+    level.num_hero_names = 0;
+}
+
 void G_HeroInitializeProgression(edict_t *ent) {
     uint32_t spent_points = 0;
 

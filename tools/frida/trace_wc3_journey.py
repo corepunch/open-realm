@@ -19,7 +19,7 @@ def call_spec(text):
     parts = text.split(':')
     return {'rva': int(parts[0], 16), 'args': int(parts[1]) if len(parts) > 1 and parts[1] else 0,
             'out': 'out' in parts[2:], 'group': 'group' in parts[2:],
-            'peek': [int(p[1:], 16) for p in parts[2:] if p.startswith('e')]}
+            'peek': [int(p[1:], 16) for p in parts[2:] if p.startswith('e')], 'ra': 'ra' in parts[2:], 'bt': 'bt' in parts[2:]}
 
 
 def main():
@@ -33,9 +33,9 @@ def main():
     p.add_argument('--continue-after-start', type=float, default=3, help='second key after the probe start marker')
     p.add_argument('--seconds', type=float, default=1800, help='hard deadline')
     p.add_argument('--commits', action='store_true', help='also record every velocity commit')
-    p.add_argument('--call', action='append', default=[], metavar="RVA[:ARGS[:out|group|eOFF]...]",
+    p.add_argument('--call', action='append', default=[], metavar="RVA[:ARGS[:out|group|eOFF|ra|bt]...]",
                    help='also record a thiscall function: ECX, ARGS stack words and EAX (out: dword at arg0 after '
-                        'return; group: physical group snapshot at entry; eOFF: dword at ECX+OFF at entry)')
+                        'return; group: physical group snapshot at entry; eOFF: dword at ECX+OFF at entry; ra: caller RVA; bt: game.dll backtrace)')
     p.add_argument('--output', type=Path, required=True)
     a = p.parse_args()
     binary = (a.data / 'game.dll').read_bytes()
