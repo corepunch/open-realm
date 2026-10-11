@@ -17828,3 +17828,94 @@ python3 -m unittest discover -s tests -p test_wc3_pathfinding_stop284.py
 Raw captures, map, original-byte inventory, accepted baseline and final binaries/
 reports are archived under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-04.2/payoff284`.
+
+## Forced placement issues Stop before writing position (Payoff285)
+
+`SetUnitPosition` (`2155c0`) resolves the unit, calls `6803f0(1)` to create and
+admit public Stop, then invokes placement virtual `180` (`698050`).
+`SetUnitPositionLoc` (`215620`) resolves the location and delegates to that same
+native. This is observable order admission: player and unit issued callbacks
+see the old pose, and ordinary Stop completes both cleanup scopes before the
+requested position is admitted. Silent `order_stop` was an incomplete replacement.
+
+The outer native still performs placement when its callback issues a new Move.
+That Move retains its public head and physical owner; placement updates the pose
+without issuing another replacement. An axis-only callback write also precedes
+outer placement. A callback terrain edit at the requested position changes the
+admitted destination from `(800,800)` to `(784,752)`. A nested SetUnitPosition
+inside a public Stop delivers its own Stop notifications and completes before
+the original outer Stop resumes. The existing Stop284 capture already records
+that latter case; its frozen fixture is unchanged.
+
+Suspension takes the other `680320` admission branch. Forced placement preserves
+current head `851973`, cancels queued successors and retains Stop underneath the
+suspension task. It emits no immediate Stop callback or recovery. After unpause,
+the existing deterministic resume boundary activates the retained Stop. Its
+callbacks see the placed pose; a callback terrain edit is recovered before final
+idle. The engine uses the existing typed FIFO, `pause_order_id` and resume clock.
+No saved field, timer, per-frame entity scan or network contract is added.
+
+`S_SetUnitPosition` now uses public Stop admission for ordinary owners and the
+retained FIFO for paused owners. `S_RunMoveTimers` activates queued replacement
+work when no prior point owner survives. Internal virtual-style
+`S_PlaceUnitPosition` remains independent, including Root's placement owner.
+
+A caller audit separates Captain GoHome from the public setter. Original
+`9d6ed0` places the virtual actor through `Widget_WritePositionAfterAdmission`
+and `9d7600`, without public unit Stop admission. Reusing the changed public
+setter caused one spurious issued-order publisher call in a read-only engine
+probe. GoHome now retains its existing internal cleanup and placement entry;
+the final probe and a real JASS issued-order subscription observe zero events.
+The complete private actor recovery/placement order stays GROUP-03.4.7.3;
+this fix does not claim that wider chronology is already ported.
+
+Two bounded read-only Frida repeats and an observer-free control match all 237
+public markers across 36 scenes. The observations match all 2,620 native events,
+including 96 recovery scopes. Original wrapper execution covers five valid/invalid
+unit/location cases and the complete `6803f0` bridge. Its handle resolvers,
+allocation/admission and virtual endpoints are supplied adapters: that oracle
+proves wrapper order and ABI, while the live runs establish gameplay dispatch.
+Ghidra saves 475 instructions and eight function/comment/xref mappings, mirrored in
+`MapPathfinding.java`.
+
+Fifteen failing-first regressions cover 56 fresh/cold-save native/callback cases.
+The accepted parent-engine baseline fails 336 assertions in all 15 tests. Earlier
+harness attempts with stale triggers across VM replacement and with synthetic
+exclusion depth carried across cold load are retained as rejected diagnostics.
+The corrected harness resets VM/trigger state and explicitly re-supplies the
+outer test exclusion owner after loading; call-stack exclusion depth is not a
+saved-state contract.
+
+The earlier forced-position test's paused `current=0/FIFO=0` expectation was
+engine-derived, not a frozen retail observation. New public captures establish
+suspension plus deferred Stop instead. Its synthetic detached group injection
+is restricted to active cases; its paused assertion recognizes frozen visual
+walk independently of physical movement. The captured original placement
+scalars, previous retail fixtures and their numerical expectations are unchanged.
+
+The full internal cancellation counts for nested Move, pause during notification,
+death and removal remain diagnostic. Scene 34's complete post-resume Move
+trajectory and the arena's cross-scene blocked-terrain history are not integrated
+parity claims. Other forced writers, cargo/dead/form producers remain BASE-01.4;
+wider scope/notification ownership remains MAP-04.2. Neither task is closed and
+no throughput or frame-budget acceptance is claimed.
+
+Reproduce from the repository root:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_stop285.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/stop285-fresh.json
+python3 -m unittest discover -s tests -p test_wc3_pathfinding_stop285.py
+```
+
+Accepted/rejected captures, generated arena, original-byte inventory, baseline
+and final source/binaries/reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/BASE-01.4/payoff285`.
+
+Focused Classic and TFT validation each passes 190 tests/1,125,931 assertions,
+including the new 56-case forced-position matrix, unchanged 284 Stop projections,
+Captain GoHome journeys and saved-state rejection. The full spell suite passed
+497 tests/15,354 assertions per mode before the final Captain-only caller fix.
+Thirteen evidence/negative checks and 37 corpus checks pass. Production and test
+game modules build. Full repository validation follows the authorized batch cadence.

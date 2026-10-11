@@ -743,3 +743,20 @@ terrain edit changes the second admitted position, while completed nested Stop
 permits outer cleanup and active nested Move suppresses it. Existing247/258
 frozen numeric fixtures remain unchanged. See [complete evidence, implementation
 and limits](retail-pathfinding-engine.md#stop-retirement-and-new-task-recovery-straddle-callbacks-payoff284).
+
+
+## Forced-position Stop admission (Payoff285)
+
+Public SetUnitPosition/Loc first admit an ordinary Stop and then place the unit.
+Player/unit callbacks observe the old pose; callback terrain changes affect
+placement and a surviving callback Move keeps its owner. Paused placement
+retains suspension plus deferred Stop; callbacks run at the existing resume
+boundary. Captain relocation keeps its internal entry without public Stop events.
+
+Two read-only repeats and an observer-free control agree on 237 public markers;
+observations agree on 2,620 native rows each. Complete internal cancellation counts
+for nested Move, pause during notification, death/removal, and scene 34's full
+post-resume trajectory remain diagnostic. Other forced-position domains stay
+BASE-01.4; wider scope and notification owners stay MAP-04.2. No task is closed.
+Old frozen retail expectations are unchanged. See [implementation, original
+wrapper limits and regression evidence](retail-pathfinding-engine.md#forced-placement-issues-stop-before-writing-position-payoff285).

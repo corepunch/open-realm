@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff285 makes public SetUnitPosition/Loc admit Stop before placement, preserving
+issued callbacks, callback replacement and terrain changes. Paused placement
+retains Stop until the existing deterministic resume boundary; Captain relocation
+keeps its internal entry and emits no public order. Fifteen failing-first tests
+cover 56 fresh/cold-save cases. Existing retail fixtures remain unchanged;
+BASE-01.4/MAP-04.2 stay open and 46 remain. See [forced placement](retail-pathfinding-engine.md#forced-placement-issues-stop-before-writing-position-payoff285).
+
 Payoff284 separates public Stop retirement from its new cleanup task around
 player/unit callbacks. Callback terrain edits now receive the retail second
 recovery; completed nested Stop resumes outer cleanup while active Move survives.

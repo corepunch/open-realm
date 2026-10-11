@@ -1688,7 +1688,12 @@ void S_RunMoveTimers(void) {
         uint32_t order=ent->movement.pause_order_id;
         ent->movement.pause_resume_pending=false;ent->movement.pause_order_id=0;
         S_TrackMoveTimers(ent);
-        if(ent->goalentity && ent->currentmove==&move_move_walk) {
+        /* A replacement admitted beneath suspension retired the old point
+         * owner. Activate its retained FIFO head at this deterministic boundary. */
+        if(!order && G_UnitQueuedOrderCount(ent)) {
+            unit_stand(ent);
+        }
+        else if(ent->goalentity && ent->currentmove==&move_move_walk) {
             S_IssueMoveOrder(ent,ent->goalentity,order);
             /* Resume activates a new point task without a user-issued event.
              * Retail's next owner visit includes its fresh physical group;
@@ -2283,7 +2288,16 @@ void S_InitUnitPosition(edict_t *self, vec2_t const *requested) {
 /* Both public placement natives replace the order before admitting position. */
 void S_SetUnitPosition(edict_t *self, vec2_t const *requested) {
     if (!self || !requested) return;
-    order_stop(self);
+    if (self->paused) {
+        /*680320 retains the suspension task and appends Stop. No movement
+         * recovery or issued event runs until the existing resume boundary. */
+        G_ClearUnitOrderQueue(self);
+        G_QueueUnitOrder(self,"stop",UNIT_ORDER_TARGET_NONE,NULL,NULL,self->s.player,0,G_OrderId("stop"));
+        self->movement.pause_order_id=0;
+    } else {
+        S_IssueStopOrder(self);
+    }
+    /*2155c0 still invokes placement after a callback replaces the Stop. */
     S_PlaceUnitPosition(self,requested);
 }
 
@@ -5595,8 +5609,12 @@ void S_CaptainGoHome(botCaptain_t *captain) {
         if (entered>=ARRAY_COUNT(captain->units)/2) captain->policy_flags&=~BOT_CAPTAIN_RETREAT_FLAG;
         return;
     }
-    if (!ARRAY_COUNT(captain->units) || captain->state==BOT_CAPTAIN_FORMING)
-        S_SetUnitPosition(actor,&captain->home);
+    if (!ARRAY_COUNT(captain->units) || captain->state==BOT_CAPTAIN_FORMING) {
+        /*9d6ed0 relocates the virtual actor without admitting a public unit
+         * Stop. Keep its existing internal cleanup separate from2155c0. */
+        order_stop(actor);
+        S_PlaceUnitPosition(actor,&captain->home);
+    }
     S_CaptainPointMove(captain,&captain->home,500);
 }
 

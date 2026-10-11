@@ -2214,3 +2214,17 @@ Inventory:520 entries /239 executable original/evidence contracts. All519 prior
 entry objects and old frozen retail fixture pins remain unchanged; mutable
 engine/test/documentation/mapper pins track the reviewed change. See [Stop
 implementation and rejection gates](retail-pathfinding-engine.md#stop-retirement-and-new-task-recovery-straddle-callbacks-payoff284).
+
+
+## Public forced-position Stop admission (Payoff285)
+
+`oracle-stop285` retains two 36-scene read-only observations and an observer-free
+control: 237 public markers per run, 2,620 native rows per observation, 475 original
+instruction guards across eight functions, and five original wrapper/ABI cases.
+Fifteen failing-first engine regressions cover 56 fresh/cold-save cases. Captain
+internal relocation has a separate issued-event regression and before/after probe.
+
+Inventory: 521 entries /240 executable original/evidence contracts. All 520 prior
+entry objects and frozen retail fixture pins are unchanged. Only reviewed mutable
+code, test, mapper and documentation pins are refreshed. Broader BASE-01.4 and
+MAP-04.2 stay open. See [implementation and limits](retail-pathfinding-engine.md#forced-placement-issues-stop-before-writing-position-payoff285).

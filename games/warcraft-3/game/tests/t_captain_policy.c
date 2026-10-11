@@ -25,9 +25,18 @@ TEST(wc3_bot, captain_empty_go_home_places_actor_and_retains_request) {
     CaptainPolicyWorld();
     botCaptain_t *captain=level.bots[0].captains;
     edict_t *actor=captain->home_actor;
-    S_SetUnitPosition(actor,&(vec2_t){1600,1024});
+    S_PlaceUnitPosition(actor,&(vec2_t){1600,1024});
     T_EQ(wc3_float_bits(actor->s.origin2.x),wc3_float_bits(1600));
+    g_edicts[0].client=game.clients;
+    T_ASSERT(run_test_jass(
+        "globals\ninteger notices=0\nendglobals\n"
+        "function observed takes nothing returns nothing\nset notices=notices+1\nendfunction\n"
+        "function verify takes nothing returns nothing\ncall BJassAssert(notices==0,\"Captain actor must not issue public Stop\")\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\n"
+        "call TriggerAddAction(t,function observed)\nendfunction\n"));
     G_BotCaptainGoHome(&game.clients[0].ps);
+    jass_callbyname(level.vm,"verify",false);T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(wc3_float_bits(actor->s.origin2.x),wc3_float_bits(256));
     T_EQ(wc3_float_bits(actor->s.origin2.y),wc3_float_bits(1024));
     T_NOT_NULL(actor->goalentity);
