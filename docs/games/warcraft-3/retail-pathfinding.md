@@ -810,3 +810,10 @@ retaining the original point across Stop/Move/RemoveUnit and aborting the retire
 cast before resources/effect. Two original repeats/control agree on715 public
 markers; ground/flying live and cold-save regressions pass. Later cast delay and
 effect/resource order remain unported; ORDER-01.13 remains open. See [point CHANNEL evidence and port](retail-pathfinding-engine.md#point-arrival-delivers-channel-before-releasing-spell-ownership-payoff281).
+
+
+Payoff282 delivers EFFECT synchronously before resources, retains the original
+player/unit packet, and aborts after callback replacement/removal. Unit-target
+spell coordinates now match the original. Twelve fresh scenes, two repeats and
+unhooked control agree on1,093 markers;30 failing-first engine regressions pass.
+Complete per-class phase scheduling remains open. See [EFFECT boundary](retail-pathfinding-engine.md#effect-callbacks-precede-resource-commitment-payoff282).

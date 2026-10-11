@@ -762,19 +762,29 @@ static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t
     S_ManaFlareOnCast(caster, code, level);
 }
 
-/* Warcraft exposes spell response data only while dispatching the spell event.
- * Publish SPELL_EFFECT at the irreversible cast point: resources have been
- * committed, but the gameplay callback has not run yet. */
-static void spell_publish_effect(edict_t *caster, uint32_t code, spellTarget_t target) {
-    edict_t *source = target.type == SPELL_TARGET_UNIT ? target.entity : NULL;
-    vec2_t const *point = target.type == SPELL_TARGET_POINT ? &target.point : NULL;
-    gameEventPointParams_t params = MAKE(gameEventPointParams_t, .edict = caster,
-                                         .source = source, .value = (int32_t)code, .point = point);
+/* Original40b380 delivers the frozen EFFECT families before3f7b00.
+ * A callback may replace the order, remove the caster or spend its remaining
+ * mana. Retain the packet, then check ownership rather than affordability. */
+static bool spell_dispatch_phase(edict_t *caster, uint32_t code, spellTarget_t const *target,
+                                  EVENTTYPE player_event, EVENTTYPE unit_event) {
+    uint32_t const spawn=caster->spawn_time, revision=G_UnitMoveRevision(caster);
+    uint32_t const order=caster->current_order_id,group=caster->movement.group_id;
+    umove_t *move=caster->currentmove;
+    edict_t *goal=caster->goalentity;
+    edict_t *source=target->type==SPELL_TARGET_UNIT ? target->entity : NULL;
+    vec2_t const *point=target->type==SPELL_TARGET_POINT ? &target->point :
+        source ? &source->s.origin2 : NULL;
 
-    params.type = EVENT_PLAYER_UNIT_SPELL_EFFECT;
-    G_PublishEventWithPoint(&params);
-    params.type = EVENT_UNIT_SPELL_EFFECT;
-    G_PublishEventWithPoint(&params);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=caster,
+        .type=player_event,.source=source,.value=code,.point=point},unit_event,true);
+    return caster->inuse && caster->spawn_time==spawn && !G_IsDeferredFree(caster) &&
+        !M_IsDead(caster) && caster->current_order_id==order && caster->currentmove==move &&
+        caster->goalentity==goal && caster->movement.group_id==group &&
+        G_UnitMoveRevision(caster)==revision;
+}
+
+static bool spell_dispatch_effect(edict_t *caster, uint32_t code, spellTarget_t target) {
+    return spell_dispatch_phase(caster,code,&target,EVENT_PLAYER_UNIT_SPELL_EFFECT,EVENT_UNIT_SPELL_EFFECT);
 }
 
 /* ---- Per-target-type unified callbacks ---- */
@@ -822,17 +832,11 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
  * The event families retain one packet across reentrant replacement/removal. */
 static bool spell_begin_approach_cast(edict_t *caster, edict_t *target, uint32_t code,
                                       vec2_t const *point) {
-    uint32_t spawn=caster->spawn_time,target_spawn=target ? target->spawn_time : 0;
-    uint32_t order=caster->current_order_id,group=caster->movement.group_id;
-    umove_t *move=caster->currentmove;
-    edict_t *goal=caster->goalentity;
-
-    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=caster,
-        .type=EVENT_PLAYER_UNIT_SPELL_CHANNEL,.source=target,.value=code,.point=point},
-        EVENT_UNIT_SPELL_CHANNEL,true);
-    if(!caster->inuse || caster->spawn_time!=spawn || G_IsDeferredFree(caster) ||
-       M_IsDead(caster) || caster->current_order_id!=order || caster->currentmove!=move ||
-       caster->goalentity!=goal || caster->movement.group_id!=group)return false;
+    uint32_t const target_spawn=target ? target->spawn_time : 0;
+    spellTarget_t packet=target ? (spellTarget_t){.type=SPELL_TARGET_UNIT,.entity=target} :
+        (spellTarget_t){.type=SPELL_TARGET_POINT,.point=*point};
+    if(!spell_dispatch_phase(caster,code,&packet,EVENT_PLAYER_UNIT_SPELL_CHANNEL,EVENT_UNIT_SPELL_CHANNEL))
+        return false;
     return !target || (target->inuse && target->spawn_time==target_spawn &&
         !G_IsDeferredFree(target) && !M_IsDead(target));
 }
@@ -845,17 +849,15 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
                               .source_item = params->source_item,
                               .source_item_spawn_time = params->source_item_spawn_time);
 
-    if(active_approach) {
-        edict_t *caster=params->caster;
-        if(!spell_begin_approach_cast(caster,params->target,params->code,NULL))return false;
-        unit_stand_no_queue(caster);
-    }
+    if(active_approach && !spell_begin_approach_cast(params->caster,params->target,params->code,NULL))
+        return false;
+    if(!spell_dispatch_effect(params->caster,params->code,st))return false;
+    if(active_approach)unit_stand_no_queue(params->caster);
     spell_commit(params->caster, params->code, params->level, active_approach);
     bool const blocked = !S_SpellShieldImpactDeferred(params->code) &&
         S_TryBlockSpellShield(params->caster, params->code, params->target);
     if (!blocked && (params->spell->flags & AB_CHANNEL))
         spell_begin_channel(params->caster, params->code);
-    if (!blocked) spell_publish_effect(params->caster, params->code, st);
     bool const executed = blocked || S_AbilityMessage(params->caster, A_EXECUTE, &call);
     if (executed && params->source_item) G_CompleteItemUse(params->caster, params->source_item);
     /* Existing unit spells historically accepted the order once validation and
@@ -876,15 +878,15 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
                               .source_item = source_item,
                               .source_item_spawn_time = source_item_spawn_time);
 
+    if(active_approach && !spell_begin_approach_cast(caster,NULL,code,&st.point))return false;
+    if(!spell_dispatch_effect(caster,code,st))return false;
     if(active_approach) {
-        if(!spell_begin_approach_cast(caster,NULL,code,&st.point))return false;
         if(caster->goalentity==active_approach)S_SetMoveGoal(caster,&caster->goalentity,NULL);
         unit_stand(caster);
     }
     spell_commit(caster, code, level, active_approach);
     if (spell->flags & AB_CHANNEL)
         spell_begin_channel(caster, code);
-    spell_publish_effect(caster, code, st);
     bool const executed = S_AbilityMessage(caster, A_EXECUTE, &call);
     if (executed && source_item) {
         G_CompleteItemUse(caster, source_item);
@@ -1190,9 +1192,9 @@ static void spell_no_target_execute(edict_t *clent) {
     spellTarget_t st = { .type = SPELL_TARGET_NONE, .entity = NULL };
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return;
 
+    if(!spell_dispatch_effect(caster,code,st))return;
     spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
-    spell_publish_effect(caster, code, st);
     if (spell_message(caster, A_EXECUTE, &item, &st) && source_item)
         G_CompleteItemUse(caster, source_item);
 }
@@ -1210,9 +1212,9 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     if (!spell_validate(NULL, caster, code, level, NULL, 0)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
+    if(!spell_dispatch_effect(caster,code,target))return false;
     spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
-    spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
 }
@@ -1238,9 +1240,9 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
+    if(!spell_dispatch_effect(caster,code,target))return false;
     spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
-    spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
 }
@@ -1264,10 +1266,10 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (!S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
+    if(!spell_dispatch_effect(caster,code,target))return false;
     spell_commit(caster, code, level, NULL);
     if (!S_SpellShieldImpactDeferred(code) && S_TryBlockSpellShield(caster, code, unit)) return true;
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
-    spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
 }

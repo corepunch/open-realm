@@ -191,31 +191,36 @@ TEST(wc3_avatar, no_mana_or_capacity_does_not_commit) {
 TEST(wc3_avatar, jass_added_ability_casts_by_order_and_publishes_spell_effect) {
     avFix_t fix = avatar_setup(1);
     edict_t *unit = fix.unit;
+    g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
 
     memset(unit->heroabilities, 0, sizeof(unit->heroabilities));
     T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 0);
     T_ASSERT(G_ActorAddSkill(unit, BZ_AVATAR));
     T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 1);
 
-    T_ASSERT(run_test_jass("globals\ninteger issued=0\nendglobals\n"
+    T_ASSERT(run_test_jass("globals\ninteger issued=0\ninteger effects=0\nendglobals\n"
+        "function onEffect takes nothing returns nothing\nset effects=effects+1\n"
+        "call BJassAssert(GetSpellAbilityId()=='AHav' and GetSpellAbilityUnit()==GetTriggerUnit(),\"Avatar effect context\")\n"
+        "call BJassAssert(GetUnitState(GetTriggerUnit(),ConvertUnitState(2))==100.0,\"Avatar effect precedes cost\")\nendfunction\n"
         "function onIssued takes nothing returns nothing\n"
         "call BJassAssert(GetIssuedOrderId()==OrderId(\"avatar\"),\"Avatar issued identity\")\n"
         "call BJassAssert(GetUnitTypeId(GetTriggerUnit())=='Hpal',\"Avatar issued unit\")\n"
         "set issued=issued+1\nendfunction\n"
-        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\nlocal trigger e=CreateTrigger()\nlocal group g=CreateGroup()\n"
         "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\n"
-        "call TriggerAddAction(t,function onIssued)\nendfunction\n"
+        "call TriggerAddAction(t,function onIssued)\n"
+        "call TriggerRegisterPlayerUnitEvent(e,Player(0),EVENT_PLAYER_UNIT_SPELL_EFFECT,null)\n"
+        "call GroupEnumUnitsOfPlayer(g,Player(0),null)\n"
+        "call TriggerRegisterUnitEvent(e,FirstOfGroup(g),ConvertUnitEvent(291))\ncall DestroyGroup(g)\n"
+        "call TriggerAddAction(e,function onEffect)\nendfunction\n"
         "function checkIssued takes nothing returns nothing\n"
+        "call BJassAssert(effects==2,\"Avatar EFFECT families completed synchronously\")\n"
         "call BJassAssert(issued==1,\"Avatar issued callback completed synchronously\")\nendfunction\n"));
     level.events.read = level.events.write = 0;
     memset(level.events.queue, 0, sizeof(level.events.queue));
     T_ASSERT(unit_issueimmediateorder(unit, "avatar"));
-    T_EQ(level.events.write, 2);
-    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
-    T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
-    T_ASSERT(level.events.queue[0].edict == unit && level.events.queue[1].edict == unit);
-    T_EQ((uint32_t)level.events.queue[0].value, BZ_AVATAR);
-    T_EQ((uint32_t)level.events.queue[1].value, BZ_AVATAR);
+    /* EFFECT delivery is synchronous, as original40b380/67ce30 establish. */
+    T_EQ(level.events.write, 0);
     jass_callbyname(level.vm,"checkIssued",false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(G_GetIssuedOrderId(unit), G_OrderId("avatar"));

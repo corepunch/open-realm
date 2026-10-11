@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff282 ports synchronous pre-spend EFFECT, preserving frozen player/unit
+context and honoring Stop/Move/removal before execution. Unit-target coordinates
+now match retail. Two repeats/control agree on1,093 markers;30 failing-first
+near/far/live/save regressions pass. Full cast-phase scheduling remains open
+under ORDER-01.13;46 remain. See [EFFECT commitment](retail-pathfinding-engine.md#effect-callbacks-precede-resource-commitment-payoff282).
+
+
 Payoff281 restores synchronous point-spell CHANNEL before teardown/resources,
 with retail-backed Stop/Move/RemoveUnit ownership and retained point context.
 Two ground/flying repeats/control agree on715 public markers;16 failing-first

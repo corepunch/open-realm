@@ -17574,3 +17574,82 @@ control, literal clock/flags/ordering and focused engine/save regressions.
 Original maps, raw captures, failing-first binaries, final sources and reports
 are archived under `research/POINT-CHANNEL/payoff281`. This advances ORDER-01.13
 without closing its broader cast-phase requirements;46 TODOs remain.
+
+
+## EFFECT callbacks precede resource commitment (Payoff282)
+
+The old engine queued both SPELL_EFFECT families after spending mana and starting
+cooldown. Consequently Stop/Move/RemoveUnit from an EFFECT action arrived after
+the ability had already executed. A single stack-local `spell_dispatch_phase`
+now delivers the indexed player/unit families synchronously, preserving their
+packet, and verifies caster incarnation, liveness, public head, move, goal, group
+and movement revision before continuing. The revision catches Stop even when
+an already-standing caster keeps the same head and move pointer. CHANNEL uses
+the same ownership check. The shared execution paths dispatch EFFECT before
+`spell_commit`; successful approach casts retain their spell head until the
+callback returns. A callback that spends the remaining mana does not trigger a
+second affordability check: execution continues and normal spending clamps to0.
+Unit-target packets also capture the target position, fixing `(0,0)` response
+coordinates in the real spell producer. Low-level tests of explicitly authored
+packets without a point remain valid and unchanged.
+
+The original twelve-scene arena contains near/far point Flame Strike, unit
+Inner Fire, authored Cast.2 variants, Stop inside CAST/EFFECT, windup Stop/removal,
+EFFECT mana0 and windup target death. Two read-only repeats and an observer-free
+control agree on all1,093 public markers. Raw caster/trigger equality and stable
+unit-target identity are checked before only handle numbers are normalized.
+Native counters, clocks, flags, delay values and concrete virtual method RVAs
+remain literal. The adjacent scalar dispatch pointers resolve to module RVA
+a9de14 in every observed phase and are checked, not discarded. The raw captures
+retain their original process pointers. Ghidra comments, recovered names and
+all1,256 instructions/xrefs from13 functions are saved by `Cast282Evidence.java`
+and maintained in `MapPathfinding.java`.
+
+Original `40b380` calls EFFECT producer `67ce30` before body `3f7b00`. That body
+calls virtual394, observed as `3fa400`, which checks a live owner rather than
+mana affordability. Player EFFECT Stop synchronously emits nested ENDCAST;
+unit EFFECT still receives the original context with head0. No cost or effect
+follows. Player EFFECT mana0 is seen by unit EFFECT and still proceeds to
+FINISH/ENDCAST with mana0. Engine regressions port this boundary across point/unit
+near and far casts, Stop, Move, removal and mana0, including cold saves during
+approach. All30 tests fail against the prior engine (120 failed assertions), then
+pass after implementation. The first implementation exposed unit-target point
+metadata missing from the engine producer; the original markers dictated that
+fix, not a weakened expected value.
+
+Six older engine-only checks assumed deferred EFFECT records. They now check
+synchronous dispatch/no deferred EFFECT, preserve unrelated damage events, and
+use the actual committed cooldown for replacement identity. Summon events keep
+their original contents and shift from queue slots2/3 to0/1 because EFFECT is
+no longer queued. Avatar now checks both synchronous EFFECT families and unspent
+mana through actual JASS actions. These corrections follow the new original
+producer evidence; no frozen retail position, timing, RNG or member expectation
+was regenerated. All517 prior corpus entry objects and frozen retail fixture pins
+remain unchanged. Mutable engine/test/documentation source pins are refreshed
+to the reviewed bytes. Save format170 and saved layout stay unchanged; dispatch adds
+no persistent allocation, per-tick entity scan or timer.
+
+Focused Classic/TFT validation passes128 tests / 20,492 assertions. The complete
+spell suite additionally passes462 tests /13,734 assertions in each mode; twelve
+capture-corruption regressions reject altered delay/clock/flags/method/identity,
+missing observations, changed sources and hooked controls. This is the sixth
+implementation commit after full checkpoint276; the full suite cadence remains
+twelve chunks, with earlier checkpoints when shared contracts require them.
+
+Phase scheduling remains open under ORDER-01.13. Unit cast point.3 corresponds
+to10 primary owner counters from CAST to EFFECT here. Class policies differ:
+AHfs Cast.2 still has initial delay0 and delays FINISH7 counters after EFFECT;
+Ainf Cast.2 delays CAST7 counters after CHANNEL and FINISH80 after EFFECT.
+Consequently a generic `delay = ability.Cast` state machine would be incorrect.
+Full windup, FINISH/ENDCAST ownership, backswing and in-range public head lifetime
+are retained as evidence for the next implementation, not certified by this port.
+
+Reproduce with `cast282_make_map.py --base /path/to/Human02Interlude.w3m
+--output /tmp/Cast282.w3m`, the leased B/C `cast282_capture.py` observe/control
+runner, and `verify_wc3_pathing_cast282.py --binary /path/to/game.dll
+--test-binary /path/to/openwarcraft3-tests --data /path/to/build/tests
+--report /tmp/fresh-cast282.json`. Archive:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SPELL-PHASES/payoff282`.
+The rejected probe builds and compiler diagnostics are retained separately:
+PJASS accepted a local named `player`, whereas retail rejected its line136;
+renaming it to `isPlayer` yielded the accepted repeated/control captures.

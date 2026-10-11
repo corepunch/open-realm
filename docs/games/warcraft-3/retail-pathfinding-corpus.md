@@ -2167,3 +2167,22 @@ contracts. All516 prior entry objects remain unchanged. Captures retain the
 later .3-second cast delay and EFFECT-before-mana boundary as explicitly
 unported evidence; they do not certify full spell phase timing or close the
 broader order-family task. See [implementation and reproducer](retail-pathfinding-engine.md#point-arrival-delivers-channel-before-releasing-spell-ownership-payoff281).
+
+
+## Spell EFFECT commitment and later phase evidence (Payoff282)
+
+`oracle-cast282` freezes twelve original phase scenes, two read-only repeats
+and an observer-free control with1,093 identical public markers after checked
+handle normalization. It verifies1,256 original instructions and native counter,
+clock, flags, delay and virtual-method words. 128 focused Classic/TFT tests
+(20,492 assertions),30 failing-first engine cases, the complete462-test spell
+suite in each mode, and twelve corruption regressions support the synchronous
+precommit EFFECT port. Full per-class phase scheduling stays open.
+
+Inventory:518 entries /237 executable original/evidence contracts. All517 prior
+entry objects and frozen retail fixture pins remain unchanged; mutable engine,
+test and documentation source pins track the reviewed changes. Older engine-only
+queue checks were corrected only after original67ce30/40b380 and repeated public
+callbacks established synchronous delivery before mana spend. No frozen retail
+motion or numerical expectation was replaced. See [implementation, remaining
+phase scope and reproducer](retail-pathfinding-engine.md#effect-callbacks-precede-resource-commitment-payoff282).

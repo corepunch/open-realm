@@ -2368,10 +2368,10 @@ TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
 	T_ASSERT(image->aiflags & AI_ILLUSION);
 	T_EQ((int)image->hero.level, (int)caster->hero.level);
 	T_ASSERT(image->hero.suspend_xp);
-	T_EQ((int)level.events.queue[2].type, (int)EVENT_PLAYER_UNIT_SUMMON);
-	T_ASSERT(level.events.queue[2].edict == caster);
-	T_ASSERT(level.events.queue[2].source == image);
-	T_EQ((int)level.events.queue[3].type, (int)EVENT_UNIT_SUMMON);
+	T_EQ((int)level.events.queue[0].type, (int)EVENT_PLAYER_UNIT_SUMMON);
+	T_ASSERT(level.events.queue[0].edict == caster);
+	T_ASSERT(level.events.queue[0].source == image);
+	T_EQ((int)level.events.queue[1].type, (int)EVENT_UNIT_SUMMON);
 
 	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);
@@ -4352,7 +4352,7 @@ TEST(wc3_spell, unit_target_approach_replaces_same_target_cast) {
      * identity, not Move's separate strict boundary/facing contract. */
     S_SetUnitAxisPosition(caster,0,510);
     spell_test_approach_tick(caster,latest);
-    T_EQ((uint32_t)level.events.queue[0].value, MAKEFOURCC('A','H','t','b'));
+    T_ASSERT(!S_SpellCooldownReady(caster, MAKEFOURCC('A','H','t','b')));
     T_ASSERT(!latest->inuse);
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -4537,10 +4537,12 @@ TEST(wc3_spell, target_order_name_routes_chain_lightning_through_spell_pipeline)
     T_FEQ(target->health.value, 400.0f, 0.001f);
     T_FEQ(caster->mana.value, 225.0f, 0.001f);
     T_EQ(G_GetIssuedOrderId(caster), 852119);
-    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
-    T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
-    T_EQ((uint32_t)level.events.queue[0].value, MAKEFOURCC('A','O','c','l'));
-    T_ASSERT(level.events.queue[0].source == target);
+    /* Original67ce30 dispatches these callbacks synchronously. Response data
+     * and pre-spend cancellation are checked by cast282_*. Damage still queues. */
+    for(uint32_t i=level.events.read;i<level.events.write;i++) {
+        T_NE(level.events.queue[i%MAX_EVENT_QUEUE].type,EVENT_PLAYER_UNIT_SPELL_EFFECT);
+        T_NE(level.events.queue[i%MAX_EVENT_QUEUE].type,EVENT_UNIT_SPELL_EFFECT);
+    }
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -4574,12 +4576,9 @@ TEST(wc3_spell, point_order_name_routes_blink_and_carries_spell_point) {
     T_FEQ(caster->s.origin.x, point.x, 0.001f);
     T_FEQ(caster->s.origin.y, point.y, 0.001f);
     T_EQ(G_GetIssuedOrderId(caster), 852525);
-    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
-    T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
-    T_ASSERT(level.events.queue[0].has_point);
-    T_FEQ(level.events.queue[0].point.x, point.x, 0.001f);
-    T_FEQ(level.events.queue[0].point.y, point.y, 0.001f);
-    T_EQ((uint32_t)level.events.queue[0].value, MAKEFOURCC('A','E','b','l'));
+    /* Original67ce30 dispatches these callbacks synchronously. Response data
+     * and pre-spend cancellation are checked by cast282_*; nothing is queued. */
+    T_EQ(level.events.write, level.events.read);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -4988,10 +4987,10 @@ TEST(wc3_spell, dark_conversion_consumes_target_and_publishes_zombie_summon) {
     T_EQ(summon->class_id, MAKEFOURCC('n','z','o','m'));
     T_EQ(summon->s.player, PLAYER_NEUTRAL_PASSIVE);
     T_FEQ(summon->s.origin2.x, 64, 0.001f); T_FEQ(summon->s.origin2.y, 0, 0.001f);
-    T_EQ(level.events.queue[2].type, EVENT_PLAYER_UNIT_SUMMON);
-    T_ASSERT(level.events.queue[2].edict == caster);
-    T_ASSERT(level.events.queue[2].source == summon);
-    T_EQ(level.events.queue[3].type, EVENT_UNIT_SUMMON);
+    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SUMMON);
+    T_ASSERT(level.events.queue[0].edict == caster);
+    T_ASSERT(level.events.queue[0].source == summon);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_SUMMON);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -6436,4 +6435,114 @@ TEST(wc3_spell, cast281_flying_move_live) { cast281_point_arrival(1,2,0); }
 TEST(wc3_spell, cast281_flying_move_saved) { cast281_point_arrival(1,2,1); }
 TEST(wc3_spell, cast281_flying_remove_live) { cast281_point_arrival(1,3,0); }
 TEST(wc3_spell, cast281_flying_remove_saved) { cast281_point_arrival(1,3,1); }
+
+/* Original40b380 calls both EFFECT families before3f7b00. These tests own
+ * that synchronous resource/cancellation boundary; phase delays are separate. */
+static unsigned cast282_players,cast282_units,cast282_checked;
+static void cast282_marker(cstring_t text) {
+    if(!strncmp(text,"C282 failure ",13))T_ASSERT(false);
+    if(sscanf(text,"C282 counts %u %u",&cast282_players,&cast282_units)==2)cast282_checked++;
+}
+static void cast282_effect_boundary(bool unit_target,unsigned mode,bool far,bool saved) {
+    edict_t *caster=make_hero(MAKEFOURCC('H','b','l','m'),500,200,288,288);
+    g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
+    uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"Cost1\"\n"
+        "C;X4;K\"Cool1\"\nC;X5;K\"Rng1\"\nC;X6;K\"DataB1\"\nC;X7;K\"DataD1\"\n"
+        "C;X8;K\"Data21\"\nC;X9;K\"Data41\"\nC;X10;K\"targs\"\nC;X11;K\"BuffID1\"\nC;X12;K\"Dur1\"\n"
+        "C;Y2;X1;K\"AHfs\"\nC;X2;K\"AHfs\"\nC;X3;K13\nC;X4;K7\nC;X5;K333\n"
+        "C;X6;K0.25\nC;X7;K0.75\nC;X8;K0.25\nC;X9;K0.75\n"
+        "C;Y3;X1;K\"Ainf\"\nC;X2;K\"Ainf\"\nC;X3;K13\nC;X4;K7\nC;X5;K333\n"
+        "C;X10;K\"air,ground,friend,self,vuln,invu\"\nC;X11;K\"Binf\"\nC;X12;K30\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    UnitAbilities_t abilities={.abilList=unit_target ? "Ainf" : "AHfs"};caster->data.UnitAbilities=&abilities;
+    caster->movetype=MOVETYPE_STEP;caster->s.model=1;caster->collision=24;caster->targtype=TARG_GROUND;
+    caster->unitinfo.MoveSpeed=270;caster->unitinfo.TurnSpeed=.6f;caster->unitinfo.PropWindow=DEG2RAD(60);
+    caster->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    float x=far ? 1536 : 384;
+    edict_t *target=unit_target ? alloc_test_unit(MAKEFOURCC('h','f','o','o'),x,288) : NULL;
+    if(target){target->svflags|=SVF_MONSTER;target->s.player=0;target->targtype=TARG_GROUND;target->health.value=500;}
+    char script[5000];snprintf(script,sizeof(script),
+        "globals\nunit caster=null\nunit target=null\ninteger players=0\ninteger units=0\ntrigger p=null\ntrigger u=null\nendglobals\n"
+        "function assert282 takes boolean ok,string text returns nothing\nif not ok then\ncall Preload(\"C282 failure \"+text)\nendif\nendfunction\n"
+        "function context282 takes nothing returns nothing\n"
+        "call assert282(GetSpellAbilityId()=='%s' and GetSpellAbilityUnit()==caster and GetTriggerUnit()==caster,\"spell source\")\n"
+        "call assert282(GetSpellTargetUnit()==target and GetSpellTargetX()==%.1f and GetSpellTargetY()==288.0,\"spell target snapshot\")\nendfunction\n"
+        "function playerEffect takes nothing returns nothing\nset players=players+1\ncall context282()\n"
+        "call assert282(GetUnitState(caster,ConvertUnitState(2))==200.0,\"effect precedes mana\")\n%s\nendfunction\n"
+        "function unitEffect takes nothing returns nothing\nset units=units+1\ncall context282()\n"
+        "call assert282(players==1,\"player before unit\")\n"
+        "call assert282(GetUnitState(caster,ConvertUnitState(2))==%.1f,\"unit sees callback resource mutation\")\nendfunction\n"
+        "function check takes nothing returns nothing\ncall Preload(\"C282 counts \"+I2S(players)+\" \"+I2S(units))\n"
+        "call DestroyTrigger(p)\ncall DestroyTrigger(u)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsOfPlayer(g,Player(0),null)\nset caster=FirstOfGroup(g)\ncall GroupRemoveUnit(g,caster)\nset target=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+        "set p=CreateTrigger()\nset u=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(p,Player(0),ConvertPlayerUnitEvent(274),null)\ncall TriggerAddAction(p,function playerEffect)\n"
+        "call TriggerRegisterUnitEvent(u,caster,ConvertUnitEvent(291))\ncall TriggerAddAction(u,function unitEffect)\nendfunction\n",
+        unit_target ? "Ainf" : "AHfs",x,
+        mode==1 ? "call IssueImmediateOrder(caster,\"stop\")" : mode==2 ? "call IssuePointOrder(caster,\"move\",288,1536)" :
+        mode==3 ? "call RemoveUnit(caster)" : mode==4 ? "call SetUnitState(caster,ConvertUnitState(2),0)" : "",mode==4 ? 0.0 : 200.0);
+    cast282_players=cast282_units=cast282_checked=0;test_preload_marker=cast282_marker;
+    T_ASSERT(run_test_jass(script));level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;level.pathing_msec=level.time=level.pathing_phase=0;
+    uint32_t code=FS_SLKKey(unit_target ? "Ainf" : "AHfs");
+    T_ASSERT(unit_target ? G_IssueUnitTargetOrder(caster,"innerfire",target,false,0) :
+        G_IssueUnitPointOrder(caster,"flamestrike",&(vec2_t){x,288},false,0,0));
+    edict_t *receiver=S_UnitTargetApproachReceiver(caster);
+    if(far)T_NOT_NULL(receiver);
+    /* In-range callbacks must have completed before the native returns. */
+    if(!far){jass_callbyname(level.vm,"check",false);T_EQ(cast282_players,1);T_EQ(cast282_units,1);}
+    while(level.time<11000) {
+        level.time+=5;globals.RunFrame();
+        if(saved && level.time==100) {
+            cstring_t file=Test_TempPath("wc3-cast282.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(S_UnitTargetApproachReceiver(caster),receiver);
+        }
+    }
+    if(far)jass_callbyname(level.vm,"check",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));T_STREQ(jass_rterror_message(level.vm),"");
+    T_EQ(cast282_checked,1);T_EQ(cast282_players,1);T_EQ(cast282_units,1);
+    if(receiver)T_ASSERT(!receiver->inuse);
+    if(mode==3)T_ASSERT(!caster->inuse);
+    else {
+        T_EQ(caster->mana.value,mode==0 ? 187 : mode==4 ? 0 : 200);
+        if(mode!=0 && mode!=4)T_ASSERT(S_SpellCooldownReady(caster,code));
+        if(unit_target)T_EQ(G_UnitStatusLevel(target,FS_SLKKey("Binf")),mode==0 || mode==4);
+    }
+    if(mode==2){T_ASSERT(Vector2_distance(&caster->s.origin2,&(vec2_t){288,1536})<TILE_SIZE);T_EQ(caster->current_order_id,0);}
+    test_preload_marker=NULL;level.started=false;reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+TEST(wc3_spell, cast282_point_near_success) { cast282_effect_boundary(0,0,0,0); }
+TEST(wc3_spell, cast282_point_near_stop) { cast282_effect_boundary(0,1,0,0); }
+TEST(wc3_spell, cast282_point_near_move) { cast282_effect_boundary(0,2,0,0); }
+TEST(wc3_spell, cast282_point_near_remove) { cast282_effect_boundary(0,3,0,0); }
+TEST(wc3_spell, cast282_point_near_drain) { cast282_effect_boundary(0,4,0,0); }
+TEST(wc3_spell, cast282_point_far_success) { cast282_effect_boundary(0,0,1,0); }
+TEST(wc3_spell, cast282_point_far_stop) { cast282_effect_boundary(0,1,1,0); }
+TEST(wc3_spell, cast282_point_far_move) { cast282_effect_boundary(0,2,1,0); }
+TEST(wc3_spell, cast282_point_far_remove) { cast282_effect_boundary(0,3,1,0); }
+TEST(wc3_spell, cast282_point_far_drain) { cast282_effect_boundary(0,4,1,0); }
+TEST(wc3_spell, cast282_point_saved_success) { cast282_effect_boundary(0,0,1,1); }
+TEST(wc3_spell, cast282_point_saved_stop) { cast282_effect_boundary(0,1,1,1); }
+TEST(wc3_spell, cast282_point_saved_move) { cast282_effect_boundary(0,2,1,1); }
+TEST(wc3_spell, cast282_point_saved_remove) { cast282_effect_boundary(0,3,1,1); }
+TEST(wc3_spell, cast282_point_saved_drain) { cast282_effect_boundary(0,4,1,1); }
+TEST(wc3_spell, cast282_unit_near_success) { cast282_effect_boundary(1,0,0,0); }
+TEST(wc3_spell, cast282_unit_near_stop) { cast282_effect_boundary(1,1,0,0); }
+TEST(wc3_spell, cast282_unit_near_move) { cast282_effect_boundary(1,2,0,0); }
+TEST(wc3_spell, cast282_unit_near_remove) { cast282_effect_boundary(1,3,0,0); }
+TEST(wc3_spell, cast282_unit_near_drain) { cast282_effect_boundary(1,4,0,0); }
+TEST(wc3_spell, cast282_unit_far_success) { cast282_effect_boundary(1,0,1,0); }
+TEST(wc3_spell, cast282_unit_far_stop) { cast282_effect_boundary(1,1,1,0); }
+TEST(wc3_spell, cast282_unit_far_move) { cast282_effect_boundary(1,2,1,0); }
+TEST(wc3_spell, cast282_unit_far_remove) { cast282_effect_boundary(1,3,1,0); }
+TEST(wc3_spell, cast282_unit_far_drain) { cast282_effect_boundary(1,4,1,0); }
+TEST(wc3_spell, cast282_unit_saved_success) { cast282_effect_boundary(1,0,1,1); }
+TEST(wc3_spell, cast282_unit_saved_stop) { cast282_effect_boundary(1,1,1,1); }
+TEST(wc3_spell, cast282_unit_saved_move) { cast282_effect_boundary(1,2,1,1); }
+TEST(wc3_spell, cast282_unit_saved_remove) { cast282_effect_boundary(1,3,1,1); }
+TEST(wc3_spell, cast282_unit_saved_drain) { cast282_effect_boundary(1,4,1,1); }
 #endif /* BZ_TESTS */

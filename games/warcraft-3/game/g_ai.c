@@ -20,7 +20,7 @@ static bool unit_is_active_repair_move(edict_t *self) {
 }
 
 /* Process-local task transition stamps are compared only across synchronous
- * issued callbacks. They carry no simulation state across a frame or save. */
+ * issued and spell callbacks. They carry no simulation state across a frame or save. */
 static uint32_t unit_move_revisions[MAX_ENTITIES];
 uint32_t G_UnitMoveRevision(edict_t const *self) {
     return self && self->s.number<MAX_ENTITIES ? unit_move_revisions[self->s.number] : 0;
