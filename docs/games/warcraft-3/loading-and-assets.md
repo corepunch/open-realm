@@ -393,22 +393,28 @@ texture (`texDir`/`texFile`) from the current map tileset. Do not make slot 11
 white or replace it globally with a fixed Cliff0: the correct cliff tile varies
 by map location and tileset. Explicit unit/destructable skins retain priority.
 
-Special terrain doodads also replace the ordinary ground and generated cliff
-geometry under the full rectangular `pathTex` footprint. The WC3 renderer
-reads the special placements in the `war3map.doo` tail, resolves the Doodads.slk
-`pathTex` (including W3D custom doodad ID inheritance and map path overrides),
-and marks the covered 128-unit cells *before* baking terrain. Both the ground
-baker and the cliff baker skip covered cells, including when rebuilding after
-terrain deformation. The mask is visual only: gameplay collision/pathing and
-camera-height queries still use the authored W3E/map pathing rules. A missing
-or malformed pathing texture leaves the map geometry intact rather than cutting
-an arbitrary hole. On map replacement the old mask is cleared.
+Special terrain doodads can replace generated cliff geometry under the
+rectangular `pathTex` footprint. The WC3 renderer reads the special placements
+in the `war3map.doo` tail, resolves `Doodads.slk` `pathTex` (including W3D
+custom doodad ID inheritance and map overrides), and marks covered 128-unit
+cells *before* baking terrain. The cliff baker skips those cells, including on
+terrain rebuilds. **The ground baker and splat placement do not use this mask:**
+normal W3E ground tiles and overlays remain visible where `R_TileHasGround`
+permits them. This is intended to reduce the rectangular ground void seen behind the
+OrcX01 Goblin Cave when both ground and cliffs were suppressed. The mask is visual
+only; gameplay pathing/collision and terrain height queries stay unchanged.
+Missing or malformed pathing textures do not remove geometry. The mask is
+cleared on map replacement.
 
-This follows Warsmash's `War3MapViewer` special-doodad cutout: it removes the
-footprint's ground cells and hides ordinary cliff meshes at those same cells.
-It does **not** change the MDX cave model's scale/rotation or the existing
-replaceable cliff-texture selection. Recheck Rexxar's Goblin Cave visually in
-retail: any remaining offset or missing faces must be investigated separately.
+Warsmash's `War3MapViewer` suppresses both ground and generated cliff cells
+for special doodads, but OpenRealm renders the special cave as an ordinary
+height-adjusted MDX entity. For the observed OrcX01 result, retaining authored
+ground while suppressing generated cliffs is a narrow compatibility adjustment,
+**not yet a verified retail-equivalent terrain replacement rule**. This does
+not fabricate ground on W3E cliff-transition tiles where `R_TileHasGround` is
+false, so any remaining open gap must be investigated before widening the
+cutout or adding synthetic geometry. The MDX cave model's position, scale,
+rotation and replaceable cliff-texture selection are unchanged.
 
 ### Special terrain doodad elevation (W3E terrain height)
 

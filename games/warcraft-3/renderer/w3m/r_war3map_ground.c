@@ -159,7 +159,9 @@ static void R_MakeTile(war3map_t const *map, uint32_t x, uint32_t y, uint32_t gr
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
     int _tile = GetTile(tile, ground);
-    if (R_W3SpecialCellCovered(map, x, y) || !_tile || !R_TileHasGround(tile))
+    /* The special-doodad footprint replaces cliff meshes, not the W3E
+     * ground surface. Keep the authored ground underneath the cave model. */
+    if (!_tile || !R_TileHasGround(tile))
         return;
     
     vec3_t const p[] = {
@@ -211,7 +213,9 @@ static bool R_TileAcceptsSplat(war3map_t const *map, uint32_t x, uint32_t y) {
     struct War3MapVertex tile[4];
 
     GetTileVertices(x, y, map, tile);
-    return !R_W3SpecialCellCovered(map, x, y) && GetTile(tile, 0) && R_TileHasGround(tile);
+    /* Splats follow the same ground eligibility as base tiles, including
+     * cells whose generated cliff mesh has been replaced by a special doodad. */
+    return GetTile(tile, 0) && R_TileHasGround(tile);
 }
 
 static void R_BuildSplatQuad(war3map_t const *map, uint32_t x, uint32_t y, vec2_t const *mins, float width, float height, color32_t color, vertex_t *geom) {
