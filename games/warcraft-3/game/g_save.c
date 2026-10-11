@@ -2457,10 +2457,12 @@ TEST(wc3_save, active_quest_count_may_differ_before_restore) {
 
     level.quests[0].inuse = false;
     level.quests[1] = (quest_t){ .title = strdup("Map startup quest"), .inuse = true, .enabled = true };
+    level.quests[2] = (quest_t){ .title = strdup("Another startup quest"), .inuse = true, .enabled = true };
     T_ASSERT(ReadGame(filename));
     T_ASSERT(level.quests[0].inuse);
     T_STREQ(level.quests[0].title, "Saved quest");
     T_ASSERT(!level.quests[1].inuse);
+    T_ASSERT(!level.quests[2].inuse);
     remove(filename);
 }
 
