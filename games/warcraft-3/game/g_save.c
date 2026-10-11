@@ -2452,11 +2452,11 @@ TEST(wc3_save, active_quest_count_may_differ_before_restore) {
     reset_entities();
     setup_test_world();
     strlcpy(level.map_path, "Maps\\Campaign\\QuestCount.w3m", sizeof(level.map_path));
-    level.quests[0] = (quest_t){ .title = "Saved quest", .inuse = true, .enabled = true };
+    level.quests[0] = (quest_t){ .title = strdup("Saved quest"), .inuse = true, .enabled = true };
     T_ASSERT(WriteGame(filename));
 
     level.quests[0].inuse = false;
-    level.quests[1] = (quest_t){ .title = "Map startup quest", .inuse = true, .enabled = true };
+    level.quests[1] = (quest_t){ .title = strdup("Map startup quest"), .inuse = true, .enabled = true };
     T_ASSERT(ReadGame(filename));
     T_ASSERT(level.quests[0].inuse);
     T_STREQ(level.quests[0].title, "Saved quest");

@@ -4200,7 +4200,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_STREQ(saved_item->description, "Find the key");
     T_ASSERT(saved_item->completed);
     G_RemoveQuest(saved_quest);
-    T_ASSERT(!ReadGame(filename));
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(saved_quest->inuse);
+    T_STREQ(saved_quest->title, "Open the Gate");
     T_ASSERT(g_edicts[0].client == &game.clients[0]);
     remove(filename);
 }
