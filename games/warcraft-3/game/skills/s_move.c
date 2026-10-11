@@ -3975,8 +3975,10 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
     speed=S_ApplyEnduranceMoveSpeed(ent,speed);
     bool building = G_UnitIsStructure(ent);
+    UnitBalance_t const *profile = S_PolymorphMovementProfile(ent);
+    if (!profile) profile = ent->data.UnitBalance;
     wc3SpeedLimit_t limits = { .value = speed,
-        .minimum = ent->data.UnitBalance->minSpeed, .maximum = ent->data.UnitBalance->maxSpeed,
+        .minimum = profile->minSpeed, .maximum = profile->maxSpeed,
         .default_minimum = building ? game.constants.minBldgSpeed : game.constants.minUnitSpeed,
         .default_maximum = building ? game.constants.maxBldgSpeed : game.constants.maxUnitSpeed };
     float result=wc3_speed_limit_update(&limits);
@@ -4022,16 +4024,22 @@ void S_SetUnitMoveSpeed(edict_t *ent, float speed) {
     move_publish_speed(ent,speed);
 }
 
+/*5fb740 is shared by Hero contributions and temporary movement forms. */
+void S_AdjustUnitMoveSpeed(edict_t *ent, float delta) {
+    if (!ent) return;
+    float speed=wc3_add(ent->unitinfo.MoveSpeed,delta);
+    float const threshold=wc3_float(0x3a83126f); /* Math_PublicNearZeroThreshold */
+    if (fabsf(wc3_sub(speed,threshold))<threshold) speed=threshold;
+    move_publish_speed(ent,speed);
+}
+
 /*52aad0 retains Hero+b8 and publishes only new-minus-old through5fb740.
  * Replacing Move's base through SetUnitMoveSpeed must not reset that owner. */
 void S_RefreshHeroMoveSpeed(edict_t *ent) {
     float bonus=wc3_mul(wc3_float(wc3_from_int(ent->hero.agi)),game.constants.agiMoveBonus);
     float delta=wc3_sub(bonus,ent->hero_move_bonus);
     ent->hero_move_bonus=bonus;
-    float speed=wc3_add(ent->unitinfo.MoveSpeed,delta);
-    float const threshold=wc3_float(0x3a83126f); /* Math_PublicNearZeroThreshold */
-    if (fabsf(wc3_sub(speed,threshold))<threshold) speed=threshold;
-    move_publish_speed(ent,speed);
+    S_AdjustUnitMoveSpeed(ent,delta);
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */

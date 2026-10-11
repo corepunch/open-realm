@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **287 done / 336 tasks; 49 remaining.**
 
+Payoff271 integrates Polymorph's authored movement profile, additive speed
+contribution and inverse, and negative buff removal retaining an active Move.
+Two read-only retail repeats match an unhooked control; native modifier guards
+and both-schema/save/expiry engine regressions pass. Existing retail expectations
+are unchanged; MOVE-01.1 remains open for its other parameter domains. See
+[temporary movement profiles](retail-pathfinding-engine.md#polymorph-owns-a-temporary-movement-profile-payoff271).
+
+
 Payoff266 closes ORDER-04.2: original populated point-factory graphs verify
 borrowed relation unlinking, reverse nested child destruction, reference cleanup
 and exact reuse. The engine now releases owned point-spell tasks with their caster,
@@ -1513,7 +1521,7 @@ publication state; it does not close the original bonus writer or other effects.
 
 ### MOVE-01 — Movement parameters
 
-- [ ] **MOVE-01.1** Trace authored speed, acceleration and turn/movement-angle data into a new mover; assert converted values and clamp order.
+- [ ] **MOVE-01.1** Trace authored speed, acceleration and turn/movement-angle data into a new mover; assert converted values and clamp order. Payoff271 integrates BPly-selected authored speed bounds and form-minus-original/current-base inverse through public setters, negative removal, timed expiry and saved Move continuation. Other authored parameter producers and special caps remain open. [Evidence](retail-pathfinding-engine.md#polymorph-owns-a-temporary-movement-profile-payoff271).
 - [x] **MOVE-01.2** Apply then remove a temporary speed/turn modifier during travel; assert committed velocity and restoration. Payoff88: paired original Slow/Bloodlust applications and public removal selectors, exact immediate cap publication and restored speed; real applying-owner procedures reproduce590 native commits and4356 Save97 continuation commits across four frame sizes. Spell-cast admission/windup and other buff families remain existing ORDER-01.13/E2E scope. [Evidence](retail-pathfinding-engine.md#temporary-speed-modifiers-publish-through-their-applying-owners).
 - [ ] **MOVE-01.3** Record group/request writes to those parameters and test each reachable overwrite order against the authored defaults.
 - [x] **MOVE-01.4** Split ordinary nonhero public speed setter/current/default getters and authored limits from01.1: preserve integer umvs/umis/umas map fields, clamp profile bounds before current speed, retain explicit zero across save/load and ignore movement-disabled setters. Evidence: [authored speed limits reach Move](retail-pathfinding-engine.md#authored-speed-limits-reach-move),1846 original/C clamp/gate cases, repeated120 public calls/26 publications/153 captured commits, actual public-order and saved-step regressions. Hero defaults, special caps/effect-stack ordering, immediate low-cap integration and clock cadence remain01.1/2/NUM-02.3.

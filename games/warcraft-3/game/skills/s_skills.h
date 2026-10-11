@@ -478,6 +478,8 @@ heroabilitystatus_t *S_ApplyAttackPrevention(edict_t *caster, edict_t *target,
 BZ_ABILITY_PROC(CAbilityAttackPrevention);
 bool S_UnitPolymorphed(edict_t const *unit);
 void S_PolymorphRemove(edict_t *unit);
+UnitBalance_t const *S_PolymorphMovementProfile(edict_t const *unit);
+void S_AdjustUnitMoveSpeed(edict_t *unit, float delta);
 int S_BlackArrowDamage(edict_t *attacker, int damage);
 void S_BlackArrowDeath(edict_t *attacker, edict_t *target);
 void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage);

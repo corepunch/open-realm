@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "225 executable original/evidence contracts;506 total entries.",
+  "scope": "226 executable original/evidence contracts;507 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -51997,6 +51997,63 @@
         "Saved ability removal, minimum32 and predicted-pose compositions are engine regressions using existing retail scalar range contracts, not additional live mutation witnesses.",
         "No change to previous retail expected values, save layout or network state. No complete GROUP-03.2 closure or performance threshold claim."
       ]
+    },
+    {
+      "id": "oracle-move-profile271",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_move271.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "move-profile271.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 30
+        },
+        "ordered_events": {
+          "equal": 150
+        },
+        "modifier_cases": {
+          "equal": 96
+        },
+        "instructions": {
+          "equal": 812
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "Polymorph authored movement profile, additive speed contribution/inverse after public setters, negative removal retaining Move, both-schema and saved/expired engine continuations.",
+      "exclusions": [
+        "Witness covers a single authored ground Polymorph profile and public speed setters/removal; original default retains237.",
+        "The reused capture runner retains task GROUP-03.2 and unused rank264 input-source metadata. Actual MOVE-01.1 map, probe, observer and binary are pinned independently.",
+        "Engine test form clones the asset-free Footman model; native form clones Sheep. Compared movement profile is identical.",
+        "Save/load and natural expiry are engine lifecycle regressions, not new retail save/expiry captures.",
+        "Initial incompatible-order interruption, changed-form recasts, air/water form selection, broader special caps and remaining modifier ordering are unclaimed. MOVE-01.1 stays open."
+      ]
     }
   ],
   "fixtures": [
@@ -52062,7 +52119,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "4243a5bb1273adaeb827d4763e64b7971e06862fa1c0904e8444f1f9060972f5"
+      "sha256": "2238078e9280d2d943b4c93839b4a7cfae8d10a4069f0a794d374452b4c437a2"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -52895,7 +52952,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "50e1149727f63eacdb53209bb42112becd73510f4fc68333927c3a794ee9683b"
+      "sha256": "a25e3d100212e974e3db5ef5df44ba960bf8f31378a756860f4146ef125c4baa"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -53751,7 +53808,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "8f51e2d144bbd12b7866ac78867fb5608d4f152c79e5875a6e81c3148b3d0e60"
+      "sha256": "aff361236c3ff0b0d7975c3479a5bd6fc1c332722b3ce32f5241b6f9ddef9d6d"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -54687,7 +54744,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "4671b5d2494421adb06f852fb9eee9a483bb82aa6de5c4c8fdfe669383752411"
+      "sha256": "23e37e0fa73e9a6ea2f65d36943faf0035f8566f086a9ad942d986fd421e1468"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -54715,7 +54772,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "dcc3eb89c107972994fa3ffa773859ebb9053e743442773137f9df4fd8bfdce7"
+      "sha256": "717a89cbf34a23d484028584a79575b089cf0dedd96a601087efbd3b7e6226d9"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -55503,7 +55560,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_spell.c",
-      "sha256": "3ead7c48f3f48d87c0bebbc0ce95ed666ae1017585fda587c251b03dd5c4d58c"
+      "sha256": "1dd59161291f7dd412a8c20814e0d4f26adcae4e6509de89efb34bf79a0a7ea0"
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_random.c",
@@ -55907,11 +55964,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_human_abilities.c",
-      "sha256": "c470f77d6a16217acce5f3d173b45224e94745acfd83020c2d8a4e8b7134476c"
+      "sha256": "ebbbd2eadfbc1d72f64a98c07d28b1e179633d61b43d43c44d47632ec1493eca"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "48d966bb262c67f8bbe07d38df3811c6617bd8512896d1e9d4f75fee6f361ee2"
+      "sha256": "f5f6897c257f9df66aef8046b388db940814511ee8b4ebbb06187c8107fb1ce5"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -58988,6 +59045,42 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_guard270.py",
       "sha256": "d35e88f3ea5cf9f9770d5723c13f25c14b6f77039333d77acabc482ea01d6ece"
+    },
+    {
+      "path": "tools/frida/research/move271_probe.j",
+      "sha256": "a1f6a2ec4376085554fe86eb07aa57c4c26b34518c5acc26b612183831d3c914"
+    },
+    {
+      "path": "tools/frida/research/move271_observer.js",
+      "sha256": "bc487d8d23ad721ed9b963ab59d28db6ca9388c92220b9ad69bbcd064bf7445a"
+    },
+    {
+      "path": "tools/frida/research/move271_make_map.py",
+      "sha256": "fee4aa527cc592f4f744678081ea2c9563bc3927667d6897c96c84bc555767ea"
+    },
+    {
+      "path": "tools/ghidra/research/Move271Evidence.java",
+      "sha256": "ba514aa3fcf9c4c869f3ed4faca0b874e1dc28809adb3c1436c2d66fd9afb52f"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_move271.py",
+      "sha256": "afdcf9bcc713fb2bd674b25106b464342510d920e68b8636a89db04087561a57"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-move-profile271-1.27.json",
+      "sha256": "15cafc29b660c409c3006d5041baa99cc64b2a6aa45b6b35605918f198b23d3f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-move-profile271-1.27.json.gz",
+      "sha256": "4ac5f91bfb291defb561a4e8370d9bf71d71739138f0eb9d7da5cf692c4b28f3"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_move271.py",
+      "sha256": "94f73083ad6db5f5b96ecfff3a339c07059505c7a67278f7264bfa2a4cf67254"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_movement_profile.c",
+      "sha256": "1eef943fdb8b914fcc61beb5ff939e4f27171157475d76ab87e634e026ae145c"
     }
   ]
 }

@@ -4628,6 +4628,10 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     T_ASSERT(!test_ability_message(caster, A_VALIDATE, &ability_item, &st));
 
     target->aiflags &= ~AI_ILLUSION;
+    /* Keep this presentation-restore fixture's expected234, but construct a
+     * coherent current base: retail removes the authored form delta, not an
+     * entry-time snapshot (see profile271's public-setter capture). */
+    creep.speed = G_UnitBalance(MAKEFOURCC('o','p','e','o'))->speed + 114.0f;
     if (!target->polymorph) target->polymorph = G_AllocPolymorph();
     assert(target->polymorph);
     *target->polymorph = MAKE(polymorph_t,

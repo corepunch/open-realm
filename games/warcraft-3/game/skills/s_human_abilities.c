@@ -231,6 +231,12 @@ bool S_UnitPolymorphed(edict_t const *unit) {
     return unit && unit->polymorph;
 }
 
+/*5fc900 selects BPly+114 for limits, while the public default getter keeps
+ * the original unit type. The buff owns the temporary profile selection. */
+UnitBalance_t const *S_PolymorphMovementProfile(edict_t const *unit) {
+    return unit && unit->polymorph ? G_UnitBalance(unit->polymorph->form_type) : NULL;
+}
+
 /* Select the authored Ply2-Ply5 form from the target's movement class. */
 static uint32_t polymorph_form_type(edict_t const *target, uint32_t level, uint32_t code) {
     cstring_t movetp;
@@ -276,22 +282,24 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
     return true;
 }
 
-/* Restore the target's saved presentation and movement state when Polymorph ends. */
+/*64c090 removes the authored speed delta from the current Move base. A
+ * setter during the buff must survive; the entry-time snapshot is not an
+ * inverse. Removing the form also retains any subsequently issued Move. */
 void S_PolymorphRemove(edict_t *unit) {
     gameClient_t *client;
+    float delta;
 
     if (!unit || !unit->polymorph) return;
     unit->s.model = unit->polymorph->original_model;
     unit->s.scale = unit->polymorph->original_scale;
-    unit->unitinfo.MoveSpeed = unit->polymorph->original_move_speed;
+    delta = wc3_sub(unit->data.UnitBalance->speed,
+                    S_PolymorphMovementProfile(unit)->speed);
     G_FreePolymorph(unit);
+    S_AdjustUnitMoveSpeed(unit, delta);
     unit->animation = NULL;
     if (!M_IsDead(unit)) {
-        G_ClearUnitOrderQueue(unit);
-        unit_leavecombat(unit);
-        S_SetMoveGoal(unit, &unit->goalentity, NULL);
-        S_SetMoveGoal(unit, &unit->secondarygoal, NULL);
-        unit_stand(unit);
+        unit_setanimation(unit, unit->currentmove && unit->currentmove->animation ?
+                          unit->currentmove->animation : "stand");
     }
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (client) G_InvalidateCommands(client);
@@ -308,6 +316,8 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     PATHSTR model_filename;
     int model;
     float duration;
+    float previous_speed;
+    heroabilitystatus_t *status;
 
     if (!st.entity) return;
     level = S_SpellLevel(caster, spell->code);
@@ -337,12 +347,16 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     }
 
     duration = S_SpellDuration(spell->code, level, false);
-    if (!S_SpellApplyTimedStatus(st.entity, buff, level, duration)) {
+    status = S_SpellApplyTimedStatus(st.entity, buff, level, duration);
+    if (!status) {
         fprintf(stderr, "WC3 Polymorph: failed to apply buff %08x to target %08x\n",
                 buff_code, st.entity->class_id);
         return;
     }
+    status->data = spell->code;
 
+    previous_speed = st.entity->polymorph ? S_PolymorphMovementProfile(st.entity)->speed :
+                     st.entity->data.UnitBalance->speed;
     if (!st.entity->polymorph) {
         st.entity->polymorph = G_AllocPolymorph();
         assert(st.entity->polymorph);
@@ -356,7 +370,9 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     st.entity->polymorph->form_type = form_type;
     st.entity->s.model = model;
     st.entity->s.scale = ui->modelScale > 0.0f ? ui->modelScale : 1.0f;
-    if (balance->speed > 0.0f) st.entity->unitinfo.MoveSpeed = balance->speed;
+    /*63a950 contributes form-minus-original, rather than replacing a public
+     * override. Replacing an existing form first removes its contribution. */
+    S_AdjustUnitMoveSpeed(st.entity, wc3_sub(balance->speed, previous_speed));
 
     /* Polymorph interrupts actions that require the original unit's attacks or
      * command abilities.  The transformed unit remains the same edict/JASS
@@ -636,7 +652,17 @@ BZ_ABILITY_PROC(CAbilityInvisibility) {
     }
 }
 /* Name=Polymorph; Ubertip="Turns a target enemy unit into a sheep. Cannot be cast on Heroes. Lasts <Aply,Dur1> seconds." */
-BZ_VALIDATED_SPELL_PROC(AbilityPolymorph, polymorph_validate, polymorph_execute)
+BZ_ABILITY_PROC(CAbilityPolymorph) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    switch (msg) {
+    case A_VALIDATE: return polymorph_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE: polymorph_execute(ent, target, call ? call->item : NULL); return true;
+    case A_STATUS_POLICY:
+        return UNIT_BUFF_KNOWN | UNIT_BUFF_NEGATIVE | UNIT_BUFF_MAGIC | UNIT_BUFF_AUTO_DISPEL;
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
 /* Name=Avatar */
 BZ_ABILITY_PROC(CAbilityAvatar) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?

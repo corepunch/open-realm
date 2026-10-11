@@ -16892,3 +16892,100 @@ previous void decompiler types. `Guard270Evidence.java` temporarily restores
 dynamic storage before changing those returns, then reinstates verified custom
 ECX/stack parameters. This avoids Ghidra's `Storage can't be resized: <VOID>`
 error. The saved export and subsequent readback are byte-identical.
+
+## Polymorph owns a temporary movement profile (Payoff271)
+
+Retail `5fc900` does not always read speed bounds from the public unit type.
+It resolves the `BPly` class (`639550`, `42706c79`) and, when attached, uses the
+buff's `+114` form rawcode for `68f010` minimum and `68ed40` maximum. The original
+unit still supplies the structure predicate and public default speed. Ordinary
+bound conversion and clamp order remain the earlier speed-limit contract.
+
+Two read-only retail repeats and an unhooked control use a Footman-derived
+`hP27` with authored base237/min173/max389 and a Sheep-derived `nP27` with
+base220/min211/max233. A pre-cast public setter sets300. The exact observed
+sequence is:
+
+| Operation | Mutable Move base | Public current | Public default | Active form | Public head |
+|---|---:|---:|---:|---|---|
+| Create |237|237|237|none|none|
+| Set300 before cast |300|300|237|none|none|
+| Polymorph |283|233|237|nP27|none|
+| Set1000 |1000|233|237|nP27|none|
+| Set1 |1|211|237|nP27|none|
+| Set300, then Move |300|233|237|nP27|Move|
+| Remove negative buffs |317|317|237|none|Move|
+
+`63a950` (vtable `2d4`) and `63ac00` (`2d8`) contribute the software subtraction
+**form authored base minus original authored base** at modifier `+28`. The first
+requires a nonnull output, an enabled argument and buff flags`8000`; the second
+requires the output and flag. Both complete original functions execute96 guard
+and arithmetic cases, including fractional values, without game-call hooks.
+Authored profile hash entries are supplied fixture data; their cache filling is
+outside that oracle.
+
+`631b60` removes the Polymorph contribution through shared morph inverse
+`64c090`. Its flags`8000` branch adds **original authored base minus retained form
+base** to the current Move through `5fb740`, including the existing near-zero
+repair and immediate speed publication. A setter while the buff is active
+replaces that current base. Removal therefore yields317 after Set300 in this
+arena; restoring the pre-cast300 snapshot would be wrong. The public Move head
+remains851986 on removal and at the next public observation.
+
+RTTI identifies vtable`6fb53244` as `CBuffPolymorph`. Its policy slots return
+negative/magic, false positive/physical/aura/timed-life, and forward auto-dispel
+to the magic predicate. The engine now records the applying ability and exposes
+this policy from `CAbilityPolymorph`, including its registered creep alias.
+Previously public negative `UnitRemoveBuffs` logged an unclassified status and
+left the form active.
+
+The Move consumer now asks the Polymorph owner for its temporary profile.
+`S_AdjustUnitMoveSpeed` shares the already verified additive publication used by
+Hero agility; application and removal use authored deltas instead of copying a
+form speed or restoring a stale snapshot. Removal changes presentation and speed
+without clearing the current Move, goals or FIFO. No entity/save layout changes
+are needed. The historical entry-speed field stays serialized but is not the
+movement inverse.
+
+The corrected failing-first regression produces34 failures out of102 assertions
+on unchanged commit`4c79660a`, with every schema/form precondition passing.
+The final regression adds natural expiry and positive-removal preservation,
+passing216 assertions across ROC/TFT data schemas and immediate/cold-save
+continuations. Actual scheduled owner updates advance the unit after removal.
+The older synthetic presentation fixture retains its expected234; its authored
+row now makes that result coherent with the current120 base and the verified
+inverse. No existing retail expected words were replaced.
+
+The two accepted observations retain150 ordered events; all30 public markers
+match the unhooked control. The complete capture bundle preserves original
+preload bytes, including CRLF. The generic `rank264_capture.py` runner retains
+its older `GROUP-03.2` task string and unused source metadata; the actual map,
+MOVE-01.1 probe, observer and original executable are independently pinned.
+An initial diagnostic with a zero `Ply2` data pointer was ignored by retail and
+used stock Sheep; it is archived as a rejected map configuration. The accepted
+map uses data pointer2 and is reproduced byte-for-byte using the committed
+shared builder. The asset-free engine form uses the fixture Footman model with
+identical authored movement values; model parity is not asserted.
+
+`Move271Evidence.java` saves the two partial layouts, four explicit ABIs, nine
+function notes, original instructions, virtual policy pointers and xrefs.
+`MapPathfinding.java` and the type schema retain these mappings. Ghidra is saved;
+a second export reads back identically. The fresh executable gate is:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_move271.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --test-binary /tmp/rank264-review/build/bin/openwarcraft3-tests \
+  --data build/tests --report /tmp/move-profile271-fresh.json
+```
+
+Release verification passes217 tests/101,763 assertions per Classic/TFT, plus
+another419 adjacent spell/modifier/Boots/group-speed tests and76,714 assertions
+per edition,12 evidence mutation checks and37 corpus checks. All506 previous corpus entry
+contracts remain unchanged; this adds the226th executable contract. Original
+save/expiry captures, full initial order interruption, changed-form refresh,
+air/water variants and the remaining special speed caps are not certified by
+this lane. **MOVE-01.1 remains open; no additional TODO or performance claim.**
+Full sources, raw accepted/diagnostic captures, map reproduction, binaries and
+validation reports are archived under `research/MOVE-01.1/payoff271/` in the WC3
+analysis report root.

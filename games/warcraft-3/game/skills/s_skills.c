@@ -144,8 +144,8 @@ static ability_t abilitylist[] = {
     { "Ahea", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal */
     { "Aslo", CAbilitySlow, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Slow */
     { "Aivs", CAbilityInvisibility, AB_SPELL, SPELL_TARGET_UNIT },  /* Invisibility */
-    { "Aply", CAbilityPolymorph, AB_SPELL, SPELL_TARGET_UNIT },  /* Polymorph */
-    { "ACpy", CAbilityPolymorph, AB_SPELL, SPELL_TARGET_UNIT },  /* Polymorph (creep) */
+    { "Aply", CAbilityPolymorph, AB_SPELL | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Polymorph */
+    { "ACpy", CAbilityPolymorph, AB_SPELL | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Polymorph (creep) */
     { "AHbz", CAbilityBlizzard, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Blizzard */
     { "AHwe", CAbilityWaterElemental, AB_SPELL },  /* Summon Water Elemental */
     { "AHab", CAbilityPassive, AB_PASSIVE },  /* Brilliance Aura */

@@ -5412,6 +5412,36 @@
           "evidence": "Payoff266: original populated factory graphs, native ECX/stack operands and RET. See Graph266Evidence.java and graph266_oracle.py."
         }
       ]
+    },
+    {
+      "name": "WC3PolymorphMovementPrefix",
+      "length": 280,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "buff",
+          "type": "WC3BuffPrefix",
+          "evidence": "CBuffPolymorph RTTI vtable6fb53244; owner30 and flags20 used by63a950/63ac00."
+        },
+        {
+          "offset": 276,
+          "name": "movement_profile",
+          "type": "u32",
+          "evidence": "5fc981 reads BPly+114 for68f010 minimum and68ed40 maximum;63a950/63ac00 read form base66ad20."
+        }
+      ]
+    },
+    {
+      "name": "WC3MovementModifierPrefix",
+      "length": 44,
+      "fields": [
+        {
+          "offset": 40,
+          "name": "speed_delta",
+          "type": "WC3PathScalar",
+          "evidence": "63a950 and63ac00 write form-minus-original base through0702b0."
+        }
+      ]
     }
   ],
   "methods": [
@@ -18569,6 +18599,82 @@
         }
       ],
       "evidence": "Payoff270: ECX Move, stack4 check_disabled, stack8 check_sleep, RET8. Positive7c rejects; nonzero first flag tests20.200.3c prevention is reduced for sleep and unit suspension flags/depth. No speed check: the public zero-speed setter retains Move eligibility. Full prevention/sleep compositions are not certified by that lane."
+    },
+    {
+      "address": "6f5fc900",
+      "name": "CAbilityMove_ComputeEffectiveSpeed",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff271: RET4/EAX output pointer.5fc981 selects BPly+114 profile; original owner remains structure predicate. Ordinary bounds clamp before value; public default remains original type."
+    },
+    {
+      "address": "6f63a950",
+      "name": "Polymorph_WriteEnabledMovementModifier",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3PolymorphMovementPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3MovementModifierPrefix",
+          "storage": 4
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff271: RET8. Nonnull output, enabled and flags8000 select form114-minus-original30.rawcode base66ad20 through software Subtract; write output28."
+    },
+    {
+      "address": "6f63ac00",
+      "name": "Polymorph_WriteMovementModifier",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3PolymorphMovementPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3MovementModifierPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff271: RET4. Nonnull output and flags8000 write form114-minus-original30.rawcode at output28."
+    },
+    {
+      "address": "6f64c090",
+      "name": "Morph_RemoveAppliedContributions",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3PolymorphMovementPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff271: plain RET. Applied100 and not retired200 gate; flags8000 branch adds original-base minus forme0-base to Move1ec through5fb740. Wider shared morph effects are not certified by the Polymorph lane."
     }
   ],
   "globals": [
