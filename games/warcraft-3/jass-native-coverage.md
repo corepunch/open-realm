@@ -579,14 +579,15 @@ with real event handles, normal trigger enabled-state semantics and save/load
 registry identity. `GetSaveBasicFilename` exposes the logical slot basename
 only while the menu/server save or successful load notification is dispatched.
 The in-game named/quick save, server `save`, and server cross-map restore paths
-invoke the handlers at their respective boundaries. JASS-initiated `SaveGame`
-and `LoadGame` still require the later deferred transaction patches before
-they can use these notifications. See
+invoke the handlers at their respective boundaries. JASS `SaveGame` and
+`LoadGame` requests are deferred to VM-safe session boundaries; successful
+scripted zone restores dispatch `EVENT_GAME_LOADED` with `MAP_RELOADED` set
+during the return callback. See
 [trigger events](../../docs/games/warcraft-3/trigger-events.md) and
 [save/load](../../docs/games/warcraft-3/save-load.md).
 
 ### Scripted save filesystem natives (Rexxar zone paths)
 
-`SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` are registered and use engine-owned restricted filesystem callbacks. These only operate within the current script-save session namespace and accept `Blizzard\Zones` / `Blizzard\<slot>` directories, plus flat scripted slots. Copying is bounded and atomic on POSIX; the parent directory cannot be renamed or removed. Manual save slots are not accessible. `SaveGame` now defers its write to the end-of-frame VM-safe boundary and `ChangeLevel` waits for successful persistence; `LoadGame` deliberately rejects synchronous restores until the cross-map session path is completed in Patch 4. Full first-visit/return-visit integration remains pending. See `docs/games/warcraft-3/save-load.md`.
+`SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` are registered and use engine-owned restricted filesystem callbacks. These only operate within the current script-save session namespace and accept `Blizzard\Zones` / `Blizzard\<slot>` directories, plus flat scripted slots. Copying is bounded and atomic on POSIX; the parent directory cannot be renamed or removed. Manual save slots are not accessible. `SaveGame` defers its write to the end-of-frame VM-safe boundary and `ChangeLevel` waits for successful persistence. `LoadGame` defers to the session loader, which validates the saved map before loading it and restores the snapshot afterward. See `docs/games/warcraft-3/save-load.md`.
 
-- Rexxar multi-map `LoadGame` now defers to the session loader, preserving the private scripted save scope and allowing different-map `.w3z` restores; paired `SaveGame`/`LoadGame` only dispatch after a successful VM-safe source snapshot (Patch 4). It does not signal `EVENT_GAME_LOADED` for internal zone restores.
+- Rexxar multi-map `LoadGame` defers to the session loader, preserving the private scripted save scope and allowing different-map `.w3z` restores; paired `SaveGame`/`LoadGame` only dispatch after a successful VM-safe source snapshot. Internal zone restores dispatch `EVENT_GAME_LOADED` with `MAP_RELOADED` set so the map can import travelling Heroes without running the named-user-load handler.

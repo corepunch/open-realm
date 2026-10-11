@@ -191,7 +191,7 @@ This follows the Quake 2 `g_save.c` pattern while avoiding Quake 2's old global 
 
 ## Native Usage
 
-JASS save names are relative virtual names. Patch 1 accepts simple flat slots, `Blizzard\Zones\<filename>`, and `Blizzard\<slot>\<filename>` only. The engine uses a fresh private `saves/script/<random-session-id>/` root per player-selected map session. It preserves that root for authored JASS `ChangeLevel`/`RestartGame` actions; player-started maps, returning to the menu, and manual load requests rotate it. Map scripts never receive or choose the physical root, and cannot enumerate or manipulate manual saves or saves from other sessions. Disk-backed `gamecache-*.orcgc` sidecars are likewise under that session's private `cache/` directory, which JASS save-copy/delete natives cannot address. Valid names use ASCII letters/digits, dot, dash, underscore and internal spaces, at most 64 characters per component. Device names, trailing dots, absolute paths, traversal and extra directory depth are rejected. Existing `.sav` suffixes are preserved, otherwise `.sav` is appended consistently for scripted saves. These rules apply to `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` too. Directory operations are limited to `Blizzard\<slot>` and `Blizzard\Zones`; they cannot target the sandbox root or the `Blizzard` parent. Filesystem copying on POSIX uses directory-relative no-follow file descriptors and temporary replacement; the Windows implementation rejects reparse points.
+JASS save names are relative virtual names. Patch 1 accepts simple flat slots, `Blizzard\Zones\<filename>`, and `Blizzard\<slot>\<filename>` only. Each player-selected map session uses a private `saves/script/<random-session-id>/` root. Authored JASS `ChangeLevel`/`RestartGame` actions preserve that root; player-started maps and returning to the menu rotate it. A named manual save binds an immutable checkpoint of its script-save scope after the save commits. Loading that save clones the checkpoint into a fresh scope before loading the map; an unbound or invalid save receives a fresh empty scope. Map scripts never receive or choose the physical root, and cannot enumerate or manipulate manual saves or saves from other sessions. Disk-backed `gamecache-*.orcgc` sidecars are likewise under the private `cache/` directory, which JASS save-copy/delete natives cannot address. Valid names use ASCII letters/digits, dot, dash, underscore and internal spaces, at most 64 characters per component. Device names, trailing dots, absolute paths, traversal and extra directory depth are rejected. Existing `.sav` suffixes are preserved, otherwise `.sav` is appended consistently for scripted saves. These rules apply to `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` too. Directory operations are limited to `Blizzard\<slot>` and `Blizzard\Zones`; they cannot target the sandbox root or the `Blizzard` parent. Filesystem copying on POSIX uses directory-relative no-follow file descriptors and temporary replacement; the Windows implementation rejects reparse points.
 
 **Patch 5:** player-created manual saves now receive a private, engine-owned
 binding to their script-save session after the actual save file is committed.
@@ -201,7 +201,7 @@ restored map. This also works across application restarts. A save without a
 valid binding uses a fresh private scope, preserving isolation but not older
 zone snapshots. Bindings are inaccessible to JASS and do not grant access to
 other manual saves. The fingerprint is a stale-file check, not a cryptographic
-signature against an attacker modifying the user's local save files. Original Rexxar zone travel also remains blocked by the independently known VM-safe save/load and game-event gaps. Do not treat the filename work as an end-to-end Rexxar fix. Scripted `SaveGame`/`LoadGame` still call the current synchronous serializer, whose filename-based `fopen` path is not fully safe against concurrent external filesystem modification; the transactional save patch must enforce the same scope when opening the final file, add per-session storage quotas, and fix safe-point ordering.
+signature against an attacker modifying the user's local save files. This patch established save-scope recovery but did not complete Rexxar travel; later deferred save/load and event-dispatch patches implement that path. Full cross-map rollback after a failed restore and broader storage quotas remain separate limitations.
 
 ```jass
 call SaveGame("chapter-01")
@@ -249,9 +249,9 @@ saves cannot dispatch the load. Pending operations are excluded from the
 serialized snapshot. `doScoreScreen` remains presentation-only and is not
 implemented.
 
-`EVENT_GAME_LOADED` is reserved for normal named player save restoration.
-After a scripted zone snapshot is applied, the server dispatches
-`EVENT_GAME_LOADED` with `MAP_RELOADED` temporarily set. This runs the map's
+Normal named player save restoration dispatches `EVENT_GAME_LOADED` without
+`MAP_RELOADED`. After a scripted zone snapshot is applied, the server dispatches
+the same event with `MAP_RELOADED` temporarily set. This runs the map's
 return handler (including transition-cache hero import) while keeping its
 ordinary user-load handler gated off; that handler copies backed-up zone files
 into `Blizzard/Zones` and could overwrite newer snapshots. The flag is restored

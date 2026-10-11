@@ -17,20 +17,24 @@ snapshot alongside the other registered events.
 Normal ESC-menu Save Game / Quick Save and the server's `save` command issue
 `EVENT_GAME_SAVE` **before** writing the full snapshot, allowing map handlers
 such as the Rexxar zone-backup scripts to copy their existing zone files.
-The session loader issues `EVENT_GAME_LOADED` **after** a successful full-game
-restore; this lets campaign scripts restore a saved slot's zone backups. Both
-entry points run event conditions and queued actions through the existing JASS
-scheduler while the save-name context is valid. The event is not issued after
-failed restore. The save is aborted if pre-save event execution reports a JASS
-runtime error or the event queue cannot accept the event.
+The session loader issues `EVENT_GAME_LOADED` **after** a successful named
+full-game restore; this lets campaign scripts restore a saved slot's zone
+backups. A scripted zone restore also dispatches this event after applying its
+snapshot, with `MAP_RELOADED` temporarily set so campaign return handlers run
+without the named-save directory-copy handler. These callbacks run event
+conditions and queued actions through the existing JASS scheduler while the
+save-name context is valid. The event is not issued after a failed restore.
+The save is aborted if pre-save event execution reports a JASS runtime error or
+the event queue cannot accept the event.
 
 `GetSaveBasicFilename` returns the logical save basename (stripping a `.sav`
 or `.w3z` suffix) during these callbacks, not an OS path. Outside the callback
 it is empty. Actions that yield and run later do not retain this transient
 filename; asynchronous save-handler completion is **not** supported yet.
-JASS-initiated `SaveGame` / `LoadGame` are not part of the server/menu hooks
-in this patch. They still need a deferred safe-point and session transition
-pipeline before their corresponding events can be emitted reliably. See
+JASS-initiated scripted zone saves and loads use deferred VM-safe/session
+operations. The internal source save does not synthesize `EVENT_GAME_SAVE`;
+the successful scripted restore dispatches `EVENT_GAME_LOADED` with
+`MAP_RELOADED` as described above. See
 [save/load](save-load.md).
 
 ## Event response payload
@@ -263,7 +267,8 @@ See [JASS choice dialogs](jass-dialogs.md) for lifecycle and limitations.
 The JASS `SaveGame` native used by zone-transition wrappers is a deferred
 internal save, not a player-selected named game save. It does not synthesize
 `EVENT_GAME_SAVE` or `GetSaveBasicFilename` context. Normal player save
-entry points continue dispatching those events before their own snapshot.
+entry points continue dispatching `EVENT_GAME_SAVE` before their own snapshot.
 A following `ChangeLevel` is queued only when that deferred internal save
-succeeds at the end-of-frame VM-safe boundary. `EVENT_GAME_LOADED` for the
-scripted cross-map `LoadGame` remains part of the next patch.
+succeeds at the end-of-frame VM-safe boundary. The cross-map `LoadGame` uses
+the session loader and dispatches `EVENT_GAME_LOADED` after restoring the
+destination snapshot, with `MAP_RELOADED` temporarily set.

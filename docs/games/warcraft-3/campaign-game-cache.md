@@ -222,8 +222,10 @@ Manual saves bind the current private scope **after** a successful full-game
 write; the `EVENT_GAME_SAVE` handler runs before that write so Rexxar can copy
 zone snapshots to its named-save backup. Loading a named save selects its
 binding **before** `SV_Map` and the subsequent `EVENT_GAME_LOADED` callback.
-Scripted zone restores keep the current scope and deliberately do not fire
-`EVENT_GAME_LOADED`, so they cannot restore outdated named-save backups.
+Scripted zone restores keep the current scope and dispatch
+`EVENT_GAME_LOADED` with `MAP_RELOADED` temporarily set. Rexxar's transition
+handler can import travelling Heroes, while its named-user-load directory-copy
+handler remains gated off and cannot overwrite newer zone snapshots.
 
 When `wc3_gamecache_mode=disk`, a new `InitGameCache` handle reads the latest
 committed sidecar rather than blindly reusing an old process-memory handle.
@@ -239,8 +241,9 @@ against an attacker with direct host-filesystem write access. The security
 boundary against untrusted maps is the engine-only scope identity, private
 binding directory, strict JASS path policy, and no-follow filesystem checks.
 
-**Outstanding:** an older named save within the same script scope does not
-yet receive a private checkpoint of the committed game-cache sidecars. Its
-zone backups are restored by the campaign script, but caches may remain newer
-than that named save. Implement per-slot cache checkpointing or branching
-before asserting full rewind semantics for multiple named saves.
+Named saves receive independent checkpoints of the permitted script-save
+namespace, including committed game-cache sidecars. Loading an older save
+branches from its checkpoint into a new writable scope. Runtime validation of
+the campaign's serialized cache handles, `Import_All` ordering, and Hero
+deduplication remains necessary before claiming full Rexxar return-visit
+fidelity.
