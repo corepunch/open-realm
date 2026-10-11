@@ -6,6 +6,8 @@ void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
+static int save_test_model_index;
+static char save_test_model_path[MAX_PATHLEN];
 #endif
 
 typedef enum {
@@ -2465,9 +2467,6 @@ TEST(wc3_save, active_quest_count_may_differ_before_restore) {
     T_ASSERT(!level.quests[2].inuse);
     remove(filename);
 }
-
-static int save_test_model_index;
-static char save_test_model_path[MAX_PATHLEN];
 
 static int save_test_model_index_fn(cstring_t filename) {
     strlcpy(save_test_model_path, filename, sizeof(save_test_model_path));
