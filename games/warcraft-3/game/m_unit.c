@@ -1173,7 +1173,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,queue,issuer_player,group_speed);
     }
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
-    if(S_UnitOrdersPaused(self))return false;
+    if(S_UnitOrderDisabled(self,order))return false;
     /* Rally's owner decides whether this producer replaces active work. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         bool accepted;
@@ -1212,6 +1212,9 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     if (!owned && (self->aiflags & AI_IMMOBILE) && strcmp(order, "attackground")) return false;
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") && strcmp(order, "patrol") &&
         strcmp(order, "attackground") && !owned) return false;
+
+    if(S_UnitExecutionPaused(self))
+        return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,queue,issuer_player,group_speed);
 
     if (queue && G_UnitHasActiveOrder(self)) {
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
@@ -1436,7 +1439,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     }
     /* Core Stop bypasses disabled ability validation (69dc80); other
      * immediate orders validate before touching the suspended chain. */
-    if(S_UnitOrdersPaused(self))return false;
+    if(S_UnitOrderDisabled(self,order))return false;
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
         if (accepted) {

@@ -56,6 +56,13 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **290 done / 336 tasks; 46 remaining.**
+Payoff289 replaces the point-command blanket pause gate with ordered concrete
+availability, retains callback-issued Move/Stop beneath suspension, and preserves
+the nested inverse's temporary negative counters through cold saves. Three
+unchanged public scenes and37 counter boundaries per repeat agree;30 composed
+original walks and four class getters certify the producer. Broader task closures
+remain open; see [ordered availability](retail-pathfinding-engine.md#scripted-availability-walks-preserve-callback-admission-order-payoff289).
+
 
 Payoff288 retains forced modal-off packets through suspension and cold saves,
 executes them before the retained Move, and preserves independent removal owners.

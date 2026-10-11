@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "243 executable original/evidence contracts;524 total entries; provenance and limitations remain per-entry.",
+  "scope": "244 executable original/evidence contracts;525 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53057,6 +53057,57 @@
       "exclusions": [
         "Full non-modal per-ability counted availability and ordered live-list command gating, nested Move/Stop/unpause during forced-off callbacks, wider active-removal lifetime, broader mixed user/transient capacity, and full retail pathfinding remain open. No performance-target claim or broad TODO closure. Save layout173 rejects172."
       ]
+    },
+    {
+      "id": "oracle-pause289",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_pause289.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "pause289.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 455
+        },
+        "original_walks": {
+          "equal": 30
+        },
+        "original_classes": {
+          "equal": 4
+        },
+        "engine": {
+          "length": 2
+        },
+        "retail": {
+          "length": 5
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": [
+        "Three public callback scenes from unchanged Payoff287/288 repeats and observer-free control.37 Defend/Move/unit counter boundaries repeat exactly. Fresh and two cold saves. Motion trajectories and post-nested getters are excluded.",
+        "30 composed original48c8c0/4076e0/40bb00/69dd60 walks plus4 original class getters. Identity payloads and terminal virtual answers are controlled; counter arithmetic, loop order, nested inverse and native aggregation execute original bodies.",
+        "Non-script contribution/filter families,44, wider target/spell command shapes, full live-list changes/morphs and mixed user/transient replacement remain open. No broad TODO closure or performance claim. Save174 rejects173."
+      ],
+      "exclusions": [
+        "Non-script contribution/filter families,44, wider target/spell command shapes, full live-list changes/morphs and mixed user/transient replacement remain open. No broad TODO closure or performance claim. Save174 rejects173."
+      ]
     }
   ],
   "fixtures": [
@@ -53955,7 +54006,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "5a45a8d76bfb098e5c57ae86c8d65ce50493e15e0634a9759b4f6d9d62feb96c"
+      "sha256": "500e8d5381ec83c6c506653aeb1118148495f3b852e4dd452ef7fb8da3c384f9"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55247,7 +55298,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "f7a8ce833b5247bc303177bf02f65a038442efc800de3d29edca7b56cc370ac1"
+      "sha256": "74c7b1b7f002376840c5aa74e3a84764b77c2d614d3d794e454c7d2ba60d9209"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -55255,7 +55306,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "e6b9dc39c29f1d3c5c35a22b9b18949341183c534702fed4c49747005aa898f9"
+      "sha256": "1cef6c49dc5fefd48a81e7099182d192782252bc154ab836b4ad023b311bcf6a"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -55503,7 +55554,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "523cbad5a1d5f7f3929d1c2a3d22a10786706b4cdbcfa0d1222f22d62b1a44fb"
+      "sha256": "e2e99f56cab8aebfc2d5e967d2f3a3e9e0c469671caeda216e5f645f2826db82"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -55747,7 +55798,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "76907f5a9f2f09de59b715e8f34fc81094e0ecbe12775b13c89b96660efef80a"
+      "sha256": "08e24db5cb72291a2fb4c75676e8d8ab6d55f4671c3e3e423db3150e45364f5b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -55759,11 +55810,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "d215b14cbb2f9ff4b14f182fa21154e1c333b2d2d0cb10504fcd0143103a5043"
+      "sha256": "39a875c511a6d131d06e69ed5e403f5ae5fbf8058416fd54aedd65f2dce279f6"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "cebe5767620a78e4186d4073a559c3070082398b689bfc60bf6cfd038012c6be"
+      "sha256": "cc30fa703d7c2b56fcc0b95b13bd040f1331ae912e2d3bea97c6a551a85b0d08"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55775,7 +55826,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "79ed06f10c345884632db87ddc763b272e0902bb2da3f1d124153b5d4e01200d"
+      "sha256": "1cc9425f6f5c4427e0601b0b1d98e2413ac8f22553bd444044f891efa586c6be"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -56711,7 +56762,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "9dad526d15004dbb989c05466f7215d0cde8c44850acede12d97328b6e876e08"
+      "sha256": "14d909f3cb36eae42feb4ffd339ce40bf3d3c62c223ab709cdad607ba88a91ac"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -60828,6 +60879,34 @@
     {
       "path": "tests/test_wc3_pathfinding_pause288.py",
       "sha256": "214ef16dfc17f5fcb8a4af57b8ce34ecaadaeee1cae6d739acfa4d9ed308baf1"
+    },
+    {
+      "path": "games/warcraft-3/game/g_pool.c",
+      "sha256": "a755c75ab465366f294149460688b2f330660977e254d29e01f1af665e0d1142"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_pause289.h",
+      "sha256": "79ffa141148d576c64f39046d22ecee521c87078115914437c565dfea073a13a"
+    },
+    {
+      "path": "tools/ghidra/research/Pause289Evidence.java",
+      "sha256": "e642ed68278e3e9768510d92aeb4bcb6869342ef0711376e9223491982be8208"
+    },
+    {
+      "path": "tools/ghidra/research/pause289_oracle.py",
+      "sha256": "95275ea12bd86c5b2883493e7db7010b373c94615adb1767a56cf7e54699f224"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_pause289.py",
+      "sha256": "c0b7a965e86981aa7fc0cbf6854164eb01eb2175dcbb3fc9cbc98721c164f712"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-pause289-1.27.json",
+      "sha256": "b39341c96a1af17ea67cd1c7e2c89651eccbf4f8713ffbba1227069bbf69fda3"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_pause289.py",
+      "sha256": "4fd6479476248986508dcb351800f2d05941b8ec78c12d0998b567a7a7ea5a98"
     }
   ]
 }

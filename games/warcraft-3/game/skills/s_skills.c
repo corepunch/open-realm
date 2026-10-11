@@ -755,6 +755,9 @@ static abilityitem_t innate_items[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static abilityMessageSet_t innate_messages[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static abilityProc_t innate_message_procs[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static uint32_t num_innate;
+/* Final intrinsic list order, prepared once at registry initialization. */
+static abilityitem_t intrinsic_items[sizeof(abilitylist)/sizeof(*abilitylist)];
+static uint32_t num_intrinsic;
 #ifdef BZ_TESTS
 static uint32_t innate_event_visits;
 static uint32_t authored_event_membership_queries;
@@ -1483,7 +1486,8 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
     if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH ||
         msg == A_UNIT_REMOVING || msg == A_UNIT_RETIRE || msg == A_UNIT_REMOVE)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
-    if (msg == A_REQUIREMENTS_CHANGED || msg == A_UNIT_SUSPEND)
+    if (msg == A_UNIT_SUSPEND) {S_AcquireScriptedAbilityDisables(ent);return true;}
+    if (msg == A_REQUIREMENTS_CHANGED)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, false, false) != 0;
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, true, false) != 0;
@@ -1768,17 +1772,25 @@ static unitAbilityDisable_t *ability_disable_owner(edict_t *ent,uint32_t code) {
         if(state->code==code)return state;
     unitAbilityDisable_t *state=calloc(1,sizeof(*state));
     if(!state) {gi.error("Cannot allocate ability availability state");abort();}
-    state->code=code;state->references=1;state->next=ent->ability_disables;
+    state->code=code;state->references=1;state->linked=true;state->next=ent->ability_disables;
     ent->ability_disables=state;return state;
 }
 
 static void ability_disable_release(unitAbilityDisable_t *state) {
-    if(!--state->references)free(state);
+    /* Every list link owns its successor. A retired node held by an outer
+     * callback therefore keeps its prefetched chain alive through removal. */
+    while(state && !--state->references) {
+        unitAbilityDisable_t *next=state->next;free(state);state=next;
+    }
 }
 
 static void ability_disable_unlink(edict_t *ent,unitAbilityDisable_t *state) {
     for(unitAbilityDisable_t **link=&ent->ability_disables;*link;link=&(*link)->next)
-        if(*link==state) {*link=state->next;ability_disable_release(state);return;}
+        if(*link==state) {
+            *link=state->next;
+            if(state->next)state->next->references++;
+            state->linked=false;ability_disable_release(state);return;
+        }
 }
 
 void S_ClearAbilityDisables(edict_t *ent) {
@@ -1794,7 +1806,8 @@ static intptr_t ability_disable_add(edict_t *ent,unitAbilityDisable_t *state,
     int32_t before=state->depth;
     state->depth=(int32_t)((uint32_t)before+1);
     intptr_t result=false;
-    if(before<=0 && state->depth>0) {
+    if(before<=0 && state->depth>0 && item->ability && item->ability->proc &&
+       known_unit_ability_receives(*item,A_UNIT_SUSPEND)) {
         abilityCall_t call={.item=item};
         result=item->ability->proc(ent,A_UNIT_SUSPEND,&call);
     }
@@ -1802,15 +1815,80 @@ static intptr_t ability_disable_add(edict_t *ent,unitAbilityDisable_t *state,
     ability_disable_release(state);return result;
 }
 
+/* An unresolved authored rawcode has no attached procedure or mutable owner. */
+static void ability_disable_attach(edict_t *ent,uint32_t code) {
+    abilityitem_t item=S_AbilityItem(code);
+    if(item.ability && item.ability->proc)ability_disable_owner(ent,code);
+}
+
+/*48b4c0 prepends each attached owner. The construction stages attach
+ * intrinsic movement/combat before authored abilities. Registry order of the
+ * intrinsic entries is their final list order; runtime additions prepend.
+ * Materialize only when a contribution actually needs the mutable counters. */
+static void ability_disable_prepare(edict_t *ent) {
+    if(ent->ability_disables)return;
+    for(uint32_t i=num_intrinsic;i--;) {
+        abilityitem_t const *item=intrinsic_items+i;
+        abilityCall_t call={.item=item};
+        if(item->ability->proc(ent,A_UNIT_OWNED,&call))ability_disable_owner(ent,item->code);
+    }
+    uint32_t count;uint32_t const *codes=G_UnitAbilityCodes(ent->data.UnitAbilities,&count);
+    FOR_LOOP(i,count)if(G_ActorHasAbilityCode(ent,codes[i]))ability_disable_attach(ent,codes[i]);
+    FOR_LOOP(i,MAX_HERO_ABILITIES)
+        if(ent->heroabilities[i].level && ent->heroabilities[i].code)ability_disable_attach(ent,ent->heroabilities[i].code);
+    FOR_LOOP(i,ARRAY_COUNT(ent->abilities.added))
+        if(ent->abilities.added[i])ability_disable_attach(ent,ent->abilities.added[i]);
+}
+
+void S_AcquireScriptedAbilityDisables(edict_t *ent) {
+    ability_disable_prepare(ent);
+    ent->ability_pause_depth=(int32_t)((uint32_t)ent->ability_pause_depth+1);
+    uint32_t const spawn=ent->spawn_time;
+    unitAbilityDisable_t *state=ent->ability_disables;
+    if(state)state->references++;
+    while(state) {
+        /*48c8c0 resolves next before the callback. New prepend attachments
+         * inherit the unit contribution but are not revisited by this walk. */
+        unitAbilityDisable_t *next=state->next;
+        if(next)next->references++;
+        if(state->linked) {
+            state->pause_owned=ent->ability_pause_depth>0;
+            abilityitem_t item=S_AbilityItem(state->code);
+            ability_disable_add(ent,state,&item,true);
+        }
+        ability_disable_release(state);
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent)) {
+            if(next)ability_disable_release(next);
+            return;
+        }
+        state=next;
+    }
+}
+
 void S_ReleaseScriptedAbilityDisables(edict_t *ent) {
-    /* The concrete modal enable endpoint is a no-op. Keep the counted inverse
-     * separate from retained off execution; native40bb00 subtracts40 first. */
+    if(!ent->ability_pause_depth)return;
+    ent->ability_pause_depth=(int32_t)((uint32_t)ent->ability_pause_depth-1);
+    /* Original48c8c0 visits every owner, including ones the interrupted
+     * outer add has not reached. Their temporary negative counts cancel when
+     * that outer walk continues.40bb00 subtracts40 before3c. */
     for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next) {
-        if(!state->pause_owned)continue;
-        state->pause_owned=false;
+        state->pause_owned=ent->ability_pause_depth>0;
         state->order_depth=(int32_t)((uint32_t)state->order_depth-1);
         state->depth=(int32_t)((uint32_t)state->depth-1);
     }
+}
+
+bool S_UnitOrderDisabled(edict_t const *ent,cstring_t order) {
+    if(!S_UnitOrdersPaused(ent))return false;
+    ability_t const *owner=FindAbilityByOrder(order);
+    for(unitAbilityDisable_t const *state=ent->ability_disables;state;state=state->next) {
+        abilityitem_t item=S_AbilityItem(state->code);
+        if(!owner || !item.ability || item.ability->proc!=owner->proc)continue;
+        if(state->order_depth<=0 && state->depth<=0)return false;
+    }
+    /* Unmapped validators keep conservative admission until their concrete
+     * owner contract is recovered. Never admit merely because global1c4 is0. */
+    return true;
 }
 
 BZ_ABILITY_PROC(S_AbilityMessage) {
@@ -1939,7 +2017,13 @@ void S_EnableAbility(edict_t *ent, uint32_t code) {
         S_AbilityMessage(ent, A_ENABLE, &call);
         /*48b4c0 applies existing disable contributions to a newly attached
          * owner; it does not wait for the next pause transition. */
-        if(S_UnitOrdersPaused(ent))S_AbilityMessage(ent,A_UNIT_SUSPEND,&call);
+        if(ent->ability_disables || ent->ability_pause_depth) {
+            unitAbilityDisable_t *state=ability_disable_owner(ent,code);
+            if(ent->ability_pause_depth) {
+                state->pause_owned=true;
+                ability_disable_add(ent,state,&item,true);
+            }
+        }
     }
 }
 
@@ -1950,8 +2034,10 @@ void S_DisableAbility(edict_t *ent, uint32_t code) {
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if(item.ability) {
         unitAbilityDisable_t *state=NULL;
-        if(known_unit_ability_receives(item,A_UNIT_SUSPEND)) {
-            state=ability_disable_owner(ent,code);state->references++;
+        for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)if(s->code==code) {state=s;break;}
+        if(state || known_unit_ability_receives(item,A_UNIT_SUSPEND)) {
+            if(!state)state=ability_disable_owner(ent,code);
+            state->references++;
             /*3f4c70 first adds a non-order disable contribution, then always
              * refreshes c4. These are two producers when3c was zero. */
             ability_disable_add(ent,state,&item,false);
@@ -2040,7 +2126,7 @@ void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
     ability_build_names(); /* Ready before any procedure's A_INIT callback. */
     num_updates = num_owner_updates = num_timer_updates = 0;
-    num_innate = 0;
+    num_innate = num_intrinsic = 0;
     num_engine_events = 0;
     num_ability_index_procs = 0;
     FOR_LOOP(i, game.num_abilities) {
@@ -2060,6 +2146,7 @@ void InitAbilities(void) {
             if (!entry->proc(NULL, A_UNIT_EVENT_MASK, &query))
                 memset(&subscriptions, 0xff, sizeof(subscriptions));
         }
+        if(entry->flags&AB_INTRINSIC)intrinsic_items[num_intrinsic++]=item;
         if (entry->flags & AB_INNATE) {
             innate_messages[num_innate] = subscriptions;
             innate_message_procs[num_innate] = entry->proc;

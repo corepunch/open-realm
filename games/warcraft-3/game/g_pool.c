@@ -177,6 +177,7 @@ void G_PoolsReset(void) {
     if (g_edicts) {
         FOR_LOOP(i, globals.max_edicts) {
             S_ClearTransientAbilityOrders(g_edicts+i);S_ClearAbilityDisables(g_edicts+i);
+            g_edicts[i].ability_pause_depth=0;
             g_edicts[i].construction = NULL;
             g_edicts[i].research = NULL;
             g_edicts[i].rally = NULL;

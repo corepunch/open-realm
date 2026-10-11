@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format172 persists scripted pause admission and physical suspension stages. */
-static uint32_t const save_version = 173;
+/* Format174 persists the ordered scripted availability contribution. */
+static uint32_t const save_version = 174;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1127,6 +1127,7 @@ field_t edict_fields[] = {
     F(edict_s, order_queue.entries, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ability_orders, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ability_disables, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, ability_pause_depth, F_INT),
     F(edict_s, scheduled_think_frame, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, target_loss_transient, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, construction_held, F_INT),
@@ -2756,7 +2757,7 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
             if(s->code==saved.code)goto failed;
         unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
         state->code=saved.code;state->depth=saved.depth;state->order_depth=saved.order_depth;
-        state->pause_owned=saved.pause_owned;state->references=1;*tail=state;tail=&state->next;
+        state->pause_owned=saved.pause_owned;state->linked=true;state->references=1;*tail=state;tail=&state->next;
     }
     return true;
 failed:
@@ -4194,7 +4195,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 172, 171, 170, 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
+    uint32_t const old_versions[] = { 173, 172, 171, 170, 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

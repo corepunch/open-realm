@@ -18138,3 +18138,70 @@ ordered live membership, nested Move/Stop/unpause during forced off, wider activ
 removal, post-nested getter lifetime, and mixed user/transient queue compositions
 still need their owning evidence. This change makes no full trajectory, universal
 ability-toggle, performance-budget or broad TODO closure claim.
+
+### Scripted availability walks preserve callback admission order (Payoff289)
+
+Pause admission uses the concrete ability's counted availability, rather than
+rejecting every command when the public pause flag is set. Scripted suspension
+publishes its unit contribution before visiting attached owners in order. The
+immutable registry prepares intrinsic owner references once; the game lazily
+materializes the mutable ordered records when a unit first needs them. Ordinary
+creation, unpaused order admission and steady movement allocate no records or
+scan the ability registry. Authored owners follow reverse attachment order;
+runtime additions prepend and inherit the active scripted contribution.
+
+The unchanged Payoff288 read-only captures expose why order matters: inside
+Defend's availability refresh, Defend has3c=1/40=0, while Move still has0/0.
+Move validates and becomes a successor beneath the physical suspension. Its
+point event is published when that successor activates, after the retained
+forced off. Core Stop keeps its native validation bypass and is likewise
+retained. The inverse also walks every attached owner: nested unpause during
+the refresh gives unvisited Move-1/-1 and Defend0/-1; the interrupted outer add
+then restores both to0/0. A boolean per-owner "already paused" check would lose
+that ordering. The unit counter and sparse logical owner state survive cold
+saves; layout174 rejects173, with no network-format changes.
+
+Three public callback scenes (Move, Stop and unpause during modal off) match
+unchanged accepted public values and37 per-owner/unit counter boundaries in
+each of the two observations. The existing observer-free public control remains
+part of the parent contract. Regression drivers advance the physical resume
+clock before scene14's later waiting marker, just as the live trace does. Fresh
+and two cold-save boundaries preserve heads, event-family payloads, ability
+level, reported speed, retained user counts and inverse state. Marker occurrence
+is keyed by its public ordinal: admission and later activation can have the same
+label with different counters and must not be conflated.
+
+The original-code oracle executes30 composed48c8c0/4076e0/40bb00 walks with native
+69dd60 validation inside a callback, plus four class getters. Identity payload
+lookup and terminal virtual answers are controlled inputs; the counter walk,
+nested inverse, native aggregation and callee stack cleanup execute original
+instructions. Original classgetter55c520 identifies vtableb28330 as Inventory
+(`AInv`), correcting an older unverified "Stop" note. The observed Footman list
+is Inventory,Defend,Attack,Move. Attack/Move attach before authored abilities;
+registry intrinsic references retain that final order. Saved Ghidra comments,
+structures, instructions and xrefs are reproducible through
+`tools/ghidra/research/Pause289Evidence.java` and `MapPathfinding.java`.
+
+Reproduce with `tools/ghidra/verify_wc3_pathing_pause289.py --binary <game.dll>
+--report <fresh.json>`. The new fixture derives from unchanged Payoff287/288
+captures, and the verifier rejects changed public, counter, occurrence or queue
+expectations. No previous retail fixture values are modified. Non-script
+contribution/filter families,44, wider target/spell shapes, full morph/live-list
+reconstruction and mixed user/transient replacement remain open. This verifies
+callback admission and restoration, not a full movement trajectory or a
+performance-budget claim.
+
+An additional engine regression covers an unresolved authored rawcode, which has
+no concrete attachment. It reproduced a null-procedure crash in the in-progress
+ordered-list implementation; unknown owners are now skipped during preparation.
+Retired records own their historical successor reference until outer callbacks
+release them, preventing multiple detachments from dangling a prefetched chain.
+This storage protection does not claim all forward-removal callback semantics.
+
+Focused validation after integrating the concurrent decimal-parser, diplomacy,
+journey-tooling and Hero-first enumeration commits passes 348 tests / 152,928
+assertions in each Classic/TFT run. The 39 pause evidence checks and 37 corpus
+checks pass. Production and test modules build; the full suite follows the
+agreed batch cadence. Saved Ghidra exports are identical on readback. Accepted
+failing baselines, raw diagnostics, final report and exact sources are archived
+in `research/MAP-04.2/payoff289/` under the pathfinding report root.

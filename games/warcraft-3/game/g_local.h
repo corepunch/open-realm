@@ -817,7 +817,7 @@ typedef struct unitAbilityDisable_s {
     struct unitAbilityDisable_s *next;
     uint32_t code, references;
     int32_t depth, order_depth;
-    bool pause_owned;
+    bool pause_owned, linked;
 } unitAbilityDisable_t;
 
 typedef struct unitAbilityOrder_s {
@@ -2109,7 +2109,8 @@ struct edict_s {
     bool uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
     vec2_t old_origin;
     unitOrderQueue_t order_queue;
-    unitAbilityDisable_t *ability_disables; /* Counted state only for owners participating in availability changes. */
+    unitAbilityDisable_t *ability_disables; /* Lazy ordered availability owners; ordinary units allocate none. */
+    int32_t ability_pause_depth; /* Unit1c4: contribution published before its ordered owner walk. */
     unitAbilityOrder_t *ability_orders; /* Sparse forced commands beneath the suspended user head. */
     uint32_t current_order_id; /* Active user command, distinct from pending FIFO and issued-event history. */
     waygate_t *waygate;
@@ -3484,6 +3485,8 @@ void S_ExecuteTransientAbilityOrders(edict_t *);
 void S_ClearTransientAbilityOrders(edict_t *);
 void S_ClearAbilityDisables(edict_t *);
 void S_ReleaseScriptedAbilityDisables(edict_t *);
+void S_AcquireScriptedAbilityDisables(edict_t *);
+bool S_UnitOrderDisabled(edict_t const *, cstring_t);
 void S_RefreshAbilityLevel(edict_t *, ability_t const *);
 bool S_UnitPolymorphed(edict_t const *unit);
 BZ_ABILITY_PROC(CAbilityOnFireHuman);
