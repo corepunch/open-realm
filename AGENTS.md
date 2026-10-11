@@ -167,6 +167,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 player AI, Blizzard AI script contract, Human02 implementation plan | [docs/games/warcraft-3/player-ai.md](docs/games/warcraft-3/player-ai.md) |
 | WC3 player AI architecture and implementation postmortem | [docs/games/warcraft-3/player-ai-postmortem.md](docs/games/warcraft-3/player-ai-postmortem.md) |
 | WC3 client UI lifecycle, glue Birth/Stand/Death transitions, single-player campaign/mission/custom-game flow | [docs/games/warcraft-3/architecture/ui-flow.md](docs/games/warcraft-3/architecture/ui-flow.md) |
+| WC3 main-menu transparent layers, MenuZFog, #620/#621 regression history and visual checks | [docs/games/warcraft-3/main-menu-rendering.md](docs/games/warcraft-3/main-menu-rendering.md) |
 | WC3 campaign loading lifecycle, texture references, unused FDF art, cliff transitions | [docs/games/warcraft-3/loading-and-assets.md](docs/games/warcraft-3/loading-and-assets.md) |
 | WC3 retail executable version reporting for data diagnostics | [docs/games/warcraft-3/data-version-reporting.md](docs/games/warcraft-3/data-version-reporting.md) |
 | WC3 perf hot spots: MDX bone/geoset setup, shadow batching, client/server entity scans | [docs/games/warcraft-3/performance.md](docs/games/warcraft-3/performance.md) |

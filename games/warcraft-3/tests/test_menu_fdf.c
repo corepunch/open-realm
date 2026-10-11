@@ -2493,6 +2493,63 @@ static void test_glue_tick(uint32_t msec) {
     M_Refresh(M_Time() + msec);
 }
 
+TEST(menu_fdf, glue_background_uses_edition_menu_zfog) {
+    menuImport_t saved = mi;
+    bool saved_expansion = test_fs_expansion;
+
+    FOR_LOOP(edition, 2) {
+        test_glue_setup();
+        test_fs_expansion = edition != 0;
+        M_SetActive(true);
+        UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
+        UI_DrawGlueScene();
+        T_ASSERT(captured_glue_view.fogEnable);
+        T_FEQ(captured_glue_view.fogStart, edition ? 201 : 101, 0.001f);
+        T_FEQ(captured_glue_view.fogEnd, edition ? 7001 : 5501, 0.001f);
+        T_FEQ(captured_glue_view.fogColor.x, (edition ? 179 : 12) / 255.0f, 0.001f);
+        T_FEQ(captured_glue_view.fogColor.y, (edition ? 180 : 21) / 255.0f, 0.001f);
+        T_FEQ(captured_glue_view.fogColor.z, (edition ? 205 : 13) / 255.0f, 0.001f);
+        T_ASSERT(!(captured_glue_view.rdflags & RDF_NOFOG));
+    }
+    UI_ResetGlueSceneModels();
+    test_fs_expansion = saved_expansion;
+    mi = saved;
+}
+
+static cstring_t test_menu_fog_text;
+static int test_menu_fog_read(cstring_t path, void **buffer) {
+    if (strcmp(path, "UI\\MiscData.txt")) return test_fs_read_file(path, buffer);
+    *buffer = strdup(test_menu_fog_text);
+    return (int)strlen(test_menu_fog_text);
+}
+
+TEST(menu_fdf, expansion_menu_zfog_accepts_singleton_and_disabled_rows) {
+    menuImport_t saved = mi;
+    bool saved_expansion = test_fs_expansion;
+    cstring_t rows[] = {
+        "[MenuZFog]\nStyle=0\nStart=321\nEnd=6543\nColor=255,20,30,40\n",
+        "[MenuZFog]\nStyle=-1\nStart=321\nEnd=6543\nColor=255,20,30,40\n",
+    };
+    FOR_LOOP(i, 2) {
+        test_glue_setup();
+        test_fs_expansion = true;
+        test_menu_fog_text = rows[i];
+        mi.FS_ReadFile = test_menu_fog_read;
+        M_SetActive(true);
+        UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
+        UI_DrawGlueScene();
+        T_EQ(captured_glue_view.fogEnable, i == 0);
+        if (!i) {
+            T_FEQ(captured_glue_view.fogStart, 321, 0.001f);
+            T_FEQ(captured_glue_view.fogEnd, 6543, 0.001f);
+            T_FEQ(captured_glue_view.fogColor.z, 40 / 255.0f, 0.001f);
+        }
+    }
+    UI_ResetGlueSceneModels();
+    test_fs_expansion = saved_expansion;
+    mi = saved;
+}
+
 TEST(menu_fdf, glue_background_birth_hands_off_to_stand_at_authored_duration) {
     menuImport_t saved = mi;
     uint32_t const start = M_Time();

@@ -3,9 +3,11 @@
  */
 
 #include <stdlib.h>
+#include <math.h>
 
 #include "menu_local.h"
 #include "menu_glue_motion.h"
+#include "common/stb_slk.h"
 
 #define UI_GLUE_ANIM_NAME 96 // chars; fits Blizzard glue sequence names and suffixes; used as animation storage.
 #define UI_GLUE_BIRTH_TIME 1000 // ms; every named RoC/TFT panel Birth interval has this length.
@@ -40,6 +42,9 @@ typedef struct {
     uint32_t last_render_time;
     uiBirthSequence_t background_birth;
     model_t const *background, *top_left_panel, *top_right_panel;
+    bool fog_enabled;
+    float fog_start, fog_end;
+    vec3_t fog_color;
     glueLayer_t layers[UI_GLUE_SIDE_COUNT];
     uiGluePanelChanged_f exited, changed;
 } glueScene_t;
@@ -210,11 +215,56 @@ static model_t const *UI_GlueLoadModel(cstring_t path) {
     return model;
 }
 
+/* TFT extends MenuZFog scalars to two cells and ARGB to two four-cell groups.
+ * Older archives keep singleton fields even when mounted as expansion data. */
+static bool UI_GlueFogValue(stbIniCache_t const *ini, cstring_t key,
+                            uint32_t index, uint32_t fallback, float *out) {
+    cstring_t text = Stb_IniCacheFind(ini, "MenuZFog", key);
+    FOR_LOOP(attempt, 2) {
+        cstring_t cursor = text;
+        uint32_t cell = attempt ? fallback : index;
+        FOR_LOOP(i, cell + 1) {
+            char *end;
+            if (!cursor) break;
+            float value = strtof(cursor, &end);
+            if (cursor == end || !isfinite(value)) break;
+            if (i == cell) { *out = value; return true; }
+            while (*end == ' ' || *end == '\t') end++;
+            cursor = *end == ',' ? end + 1 : NULL;
+        }
+        if (index == fallback) break;
+    }
+    return false;
+}
+
+static void UI_GlueLoadFog(void) {
+    stbIniCache_t ini = {0};
+    void *buffer = NULL;
+    if (!mi.FS_ReadFile || !mi.FS_FreeFile ||
+        mi.FS_ReadFile("UI\\MiscData.txt", &buffer) < 0 || !buffer) return;
+    Stb_IniCacheLoadBuffer(&ini, buffer);
+    mi.FS_FreeFile(buffer);
+    uint32_t edition = mi.Cvar_String && atoi(mi.Cvar_String("fs_expansion", "0")) != 0;
+    float style = -1, color[4];
+    bool valid = UI_GlueFogValue(&ini, "Style", edition, 0, &style) && style == 0 &&
+        UI_GlueFogValue(&ini, "Start", edition, 0, &scene.fog_start) &&
+        UI_GlueFogValue(&ini, "End", edition, 0, &scene.fog_end);
+    FOR_LOOP(i, 4)
+        valid = UI_GlueFogValue(&ini, "Color", edition * 4 + i, i, &color[i]) && valid;
+    scene.fog_enabled = valid && scene.fog_end > scene.fog_start;
+    if (!scene.fog_enabled && style != -1 && Stb_IniCacheFind(&ini, "MenuZFog", "Style"))
+        fprintf(stderr, "UI: unsupported or incomplete linear MenuZFog for edition %u\n", edition);
+    if (scene.fog_enabled)
+        scene.fog_color = (vec3_t){color[1] / 255.0f, color[2] / 255.0f, color[3] / 255.0f};
+    Stb_IniCacheFree(&ini);
+}
+
 void UI_PreloadGlueSceneModels(void) {
     if (scene.loaded) return;
     scene.background = UI_GlueLoadModel(UI_GlueBackgroundPath());
     scene.top_left_panel = UI_GlueLoadModel(UI_GlueTopLeftPanelPath());
     scene.top_right_panel = UI_GlueLoadModel(UI_GlueTopRightPanelPath());
+    UI_GlueLoadFog();
     scene.loaded = true;
 }
 
@@ -377,7 +427,9 @@ void UI_DrawGlueScene(void) {
         viewDef_t viewdef = {
             .viewport = {0, 0, 1, 1}, .num_entities = 1, .entities = &entity,
             .time = scene_time, .deltaTime = delta_time,
-            .rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG |
+            .fogEnable = scene.fog_enabled, .fogStart = scene.fog_start,
+            .fogEnd = scene.fog_end, .fogColor = scene.fog_color,
+            .rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL |
                 RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES,
         };
         renderer->RenderFrame(&viewdef);

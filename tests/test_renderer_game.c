@@ -408,6 +408,37 @@ TEST(renderer_game, unit_alpha_models_draw_after_the_water_alpha_pass) {
     tr.render_phase = saved_phase;
 }
 
+TEST(renderer_model, camera_alpha_pass_draws_owned_event_children_without_world_water) {
+    mdxSequence_t sequence = { .interval = { 0, 1000 } };
+    mdxModel_t mdx = { .sequences = &sequence, .num_sequences = 1 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t source = { .model = &model, .instance_id = 7654 };
+    viewDef_t saved_view = tr.viewDef;
+    render_phase_t saved_phase = tr.render_phase;
+
+    R_W3ClearEventSpawns();
+    event_spawns[0] = (wc3EventSpawn_t){ .model = &model, .source_model = &model,
+        .source_instance_id = source.instance_id, .entity_camera = true, .active = true,
+        .scale = 1, .event_frame = 17, .event_render_time = 18, .event_valid = true };
+    Matrix4_identity(&event_spawns[0].transform);
+    tr.viewDef = (viewDef_t){ .time = 100, .entities = &source, .num_entities = 1,
+        .rdflags = RDF_NOWORLDMODEL | RDF_USE_ENTITY_CAMERA };
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    test_spn_render_count = test_water_alpha_order = 0;
+    R_DrawAlphaSurfaces();
+    T_EQ(test_spn_render_count, 2); /* Source layers and the retained child layers. */
+    T_EQ(test_spn_render_entity.number, MAX_GAME_ENTITIES + 1);
+    T_EQ(test_water_alpha_order, 0);
+    T_EQ(event_spawns[0].event_frame, 17);
+    T_EQ(event_spawns[0].event_render_time, 18);
+    source.instance_id++;
+    R_DrawAlphaSurfaces();
+    T_EQ(test_spn_render_count, 3); /* The other camera draws only its source. */
+    R_W3ClearEventSpawns();
+    tr.viewDef = saved_view;
+    tr.render_phase = saved_phase;
+}
+
 TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) {
     static uint32_t key = 100;
     static vec3_t pivot = { 1.0f, 2.0f, 3.0f };

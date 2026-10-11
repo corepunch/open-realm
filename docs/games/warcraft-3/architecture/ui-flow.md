@@ -229,7 +229,9 @@ Campaign backdrop views advance their scene clock and isolated particles. Enteri
 returning declares `SinglePlayer` as the desired panel and the closed-panel state starts its `Birth`. The retail/Warsmash
 `SlidingDoors Birth -> background swap -> SlidingDoors Death` campaign wipe is still separate work; OpenRealm currently keeps
 `SlidingDoors` hidden because its campaign-view ownership does not yet implement that intermediate transition state. Remaining glue
-parity gaps also include `MenuZFog` and edition-sensitive `GlueScreenLoop` ambience.
+parity gaps also include edition-sensitive `GlueScreenLoop` ambience. Glue backgrounds now apply the edition's
+linear `MenuZFog` settings and render both solid and transparent model passes; see
+[main-menu rendering](../main-menu-rendering.md) for the #620/#621 regression history and verification.
 
 The renderer texture cache also deliberately retains released textures, so same-path archive overrides are not globally invalidated by
 this menu restart; edition-decorated paths reload correctly, while broader texture-cache ownership remains separate lifetime work.

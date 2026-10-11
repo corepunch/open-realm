@@ -1282,9 +1282,11 @@ void R_DrawTerrainShadows(void) {
 }
 
 void R_DrawAlphaSurfaces(void) {
-    _W3M_DrawAlphaSurfaces();
-    R_LightningDraw();
-    R_WeatherEmit();
+    if (!(tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
+        _W3M_DrawAlphaSurfaces();
+        R_LightningDraw();
+        R_WeatherEmit();
+    }
 
     /* MDX blended geosets must composite over water. Opaque geosets were
      * already rendered during the ordinary entity pass; RENDER_PHASE_ALPHA
@@ -1294,6 +1296,12 @@ void R_DrawAlphaSurfaces(void) {
         if ((entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX)
             continue;
         R_RenderModel(entity);
+    }
+    if ((tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) && tr.viewDef.num_entities) {
+        renderEntity_t const *source = tr.viewDef.entities;
+        R_W3DrawEventSpawns(true, source->model, source->instance_id);
+    } else if (!(tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
+        R_W3DrawEventSpawns(false, NULL, 0);
     }
 }
 
@@ -1589,7 +1597,7 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
     child.frame = frame;
     child.oldframe = spawn->frame;
     child.tint = COLOR32_WHITE;
-    {
+    if (tr.render_phase == RENDER_PHASE_SOLID) {
         uint32_t serial = spawn->serial;
         wc3EventState_t state = {
             .model = spawn->model, .frame = spawn->event_frame,
@@ -1908,7 +1916,7 @@ static void R_W3DrawEventSplats(void) {
 }
 
 static void R_W3DrawEventSpawns(bool entity_camera, model_t const *source_model, uintptr_t source_instance_id) {
-    if (tr.render_phase != RENDER_PHASE_SOLID) return;
+    if (tr.render_phase != RENDER_PHASE_SOLID && tr.render_phase != RENDER_PHASE_ALPHA) return;
     FOR_LOOP(i, WC3_EVENT_SPAWN_MAX) {
         wc3EventSpawn_t *spawn = event_spawns + i;
         if (!spawn->active || spawn->entity_camera != entity_camera) continue;

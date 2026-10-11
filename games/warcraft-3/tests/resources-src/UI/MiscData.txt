@@ -4,3 +4,10 @@ QuestIndicatorTimeout=10
 [CameraRates]
 Strafe=100
 Forward=200
+
+[MenuZFog]
+Style=0,0
+Start=101,201
+End=5501,7001
+Density=1,1
+Color=255,12,21,13,255,179,180,205

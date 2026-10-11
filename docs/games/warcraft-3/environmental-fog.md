@@ -1,5 +1,8 @@
 # Warcraft III Environmental Terrain Fog
 
+For the separate glue-scene `MenuZFog` consumer and its edition cells, see
+[main-menu rendering](main-menu-rendering.md).
+
 ## Contract
 
 Environmental terrain fog (distance mist / Z fog) is a presentation system, not gameplay fog of war. `SetTerrainFogEx` changes one

@@ -1,5 +1,8 @@
 # Warcraft III MDX Event Objects
 
+For main-menu camera passes and the meteor/transparent-layer regression history, see
+[main-menu rendering](main-menu-rendering.md).
+
 Warcraft III MDX `EVTS` records are renderer-owned presentation events.  They
 fire when an animation crosses an authored event key; gameplay simulation does
 not need a network entity for the child presentation they create.
