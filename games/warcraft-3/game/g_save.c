@@ -97,8 +97,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 82 adds explicit status dispel and transfer classification. */
 /* Version 83 adds status instance identities and explicit stacking policy. */
 /* Version 84 persists modifier descriptor ownership (authored vs custom). */
+/* Version 85 persists per-player fog-of-war exploration. */
 static uint32_t const save_version = 85;
-static uint32_t const save_version_without_fow = 84;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1078,7 +1078,7 @@ bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size) {
     uint32_t magic, version;
     if (!f || !map || !map_size) { if (f) fclose(f); return false; }
     if (!ReadFooter(f) || !LoadBytes(f, &magic, sizeof(magic)) || !LoadBytes(f, &version, sizeof(version)) ||
-        magic != save_magic || (version != save_version && version != save_version_without_fow) ||
+        magic != save_magic || version != save_version ||
         fseek(f, 0, SEEK_SET) || !LoadBytes(f, &header, sizeof(header)) ||
         header.edict_size != sizeof(edict_t) || !header.map_path[0]) {
         fprintf(stderr, "WC3 LoadGame: invalid or incompatible save map header %s\n", filename);
@@ -2248,7 +2248,7 @@ bool ReadGame(cstring_t filename) {
         fseek(f, 0, SEEK_SET)) {
         fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
     }
-    if (header.version != save_version && header.version != save_version_without_fow) {
+    if (header.version != save_version) {
         fprintf(stderr, "WC3 LoadGame: incompatible save version %u (expected %u)\n", header.version, save_version);
         fclose(f); return false;
     }
@@ -2316,7 +2316,7 @@ bool ReadGame(cstring_t filename) {
         fclose(f); return false;
     }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
-    if (header.version >= save_version && !ReadFow(f)) {
+    if (!ReadFow(f)) {
         fprintf(stderr, "WC3 LoadGame: failed at FOW exploration state\n"); fclose(f); return false;
     }
     G_ResetJassGroupDebug();
@@ -2615,20 +2615,18 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83 };
-
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));
     reset_entities();
     setup_test_world();
     T_ASSERT(WriteGame(filename));
-    FOR_LOOP(i, sizeof(old_versions) / sizeof(*old_versions)) {
+    for (uint32_t version = 39; version < save_version; version++) {
         PATHSTR name;
         cstring_t old_path;
-        snprintf(name, sizeof(name), "wc3-save-version-%u.bin", old_versions[i]);
+        snprintf(name, sizeof(name), "wc3-save-version-%u.bin", version);
         old_path = Test_TempPath(name);
-        T_ASSERT(write_save_fixture_header(filename, old_path, old_versions[i], sizeof(edict_t)));
-        T_NE(save_version, old_versions[i]);
+        T_ASSERT(write_save_fixture_header(filename, old_path, version, sizeof(edict_t)));
+        T_NE(save_version, version);
         T_ASSERT(!ReadGame(old_path));
         remove(old_path);
     }
