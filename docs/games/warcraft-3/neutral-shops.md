@@ -92,6 +92,8 @@ space, gold and lumber. Unit purchase revalidates patron, stock, gold, lumber an
 
 Merchandise uses the unit profile's `Sellitems` and `Makeitems` lists, including bot shopping. Each item's `ItemFunc.txt` `Requires` list is checked when building its button, when selecting bot purchases, and again at purchase. A requirement category with `DependencyOr` is satisfied when any listed unit type is present; for example, retail `phea` requires `TWN2`, whose `ItemFunc.txt` `DependencyOr` lists `hkee`, `ostr`, `etoa`, and `unp1`. Moonstone and Lesser Clarity Potion have no such requirement and remain available without a Tree of Ages. Malformed requirement entries are logged and fail closed. These checks are independent from `stockStart`/`stockRegen`: unlocking a tier does not recreate or reset the shop's stock state.
 
+Map-created item stock IDs inherit command-button art lookup from the item ID they were based on. The button command retains the map-created ID so JASS sale triggers can still distinguish the offered choice.
+
 A successful mercenary hire is immediate rather than a training queue. The new unit is created directly for the purchasing player
 without a Birth presentation, moved to the same deterministic legal producer-exit search used by trained units, then has food activated.
 Gold/lumber and shared stock are deducted only after spawn/placement succeeds. Failures leave resources and stock unchanged.

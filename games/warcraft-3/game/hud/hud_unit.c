@@ -174,6 +174,7 @@ bool G_CommandButtonToggleOn(edict_t *ent, abilityitem_t const *item, bool resea
 
 static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool research, uint32_t level, int toggle_state, gameCommandButton_t *button) {
     char command_code[256];
+    char item_art_code[5];
     char art_level[256];
     cstring_t base_code;
     cstring_t art_code;
@@ -212,6 +213,15 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
         base_code = code;
     }
     art_code = G_CommandArtCode(ent, code);
+    if (!ability && strlen(code) == 4) {
+        ItemData_t const *stock_item = G_ItemData(ability_code);
+        uint32_t const base_item_id = G_ItemBaseID(ability_code);
+        if (stock_item->id == ability_code && base_item_id != ability_code) {
+            memcpy(item_art_code, &base_item_id, 4);
+            item_art_code[4] = '\0';
+            art_code = item_art_code;
+        }
+    }
     item = MAKE(abilityitem_t, .code = ability_code, .ability = ability);
     toggle_on = G_CommandButtonToggleOn(ent, &item, research, toggle_state);
     art = G_CommandButtonValue(

@@ -507,6 +507,7 @@ UnitAckSounds_t const *G_DialogSound(cstring_t name);
 UnitAckSounds_t const *G_KeyedSound(cstring_t name);
 MusicData_t const *G_MusicData(cstring_t name);
 ItemData_t    const *G_ItemData(uint32_t id);
+uint32_t G_ItemBaseID(uint32_t id);
 ItemData_t    const *G_ItemDataRows(uint32_t *count);
 DestructableData_t const *G_DestructableData(uint32_t id);
 float G_UnitCollision(uint32_t id); /* TFT UnitBalance.collision → ROC UnitData.collision */

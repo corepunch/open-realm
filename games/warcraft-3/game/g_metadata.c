@@ -2227,6 +2227,26 @@ ItemData_t const *G_ItemData(uint32_t id) {
     row = FS_SLKLookup(&item_idx, ResolveItemID(id));
     return row ? row : &zero;
 }
+uint32_t G_ItemBaseID(uint32_t id) {
+    mapInfo_t const *mapinfo = level.mapinfo;
+    uint32_t current = id;
+
+    if (!mapinfo || !mapinfo->userCreatedItems) return current;
+    /* Custom map items can inherit from another custom item. Walk the parent
+     * chain so their command buttons use the base item's ItemFunc UI fields. */
+    FOR_LOOP(depth, mapinfo->num_userCreatedItems) {
+        bool found = false;
+        FOR_LOOP(i, mapinfo->num_userCreatedItems) {
+            unitData_t const *item = mapinfo->userCreatedItems + i;
+            if (item->newUnitID != current || item->originalUnitID == current) continue;
+            current = item->originalUnitID;
+            found = true;
+            break;
+        }
+        if (!found) break;
+    }
+    return current;
+}
 ItemData_t const *G_ItemDataRows(uint32_t *count) { *count = g_ItemDataCount; return g_ItemData; }
 DestructableData_t const *G_DestructableData(uint32_t id) {
     static DestructableData_t zero;

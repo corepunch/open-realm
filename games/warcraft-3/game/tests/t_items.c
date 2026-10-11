@@ -1969,6 +1969,63 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
     T_EQ(shop->stock->units[0].current, 0);
 }
 
+TEST(wc3_items, map_custom_reward_stock_uses_base_item_art_in_shop_buttons) {
+    static UnitAbilities_t const sell_items = { .abilList = "Asid", .heroAbilList = "" };
+    static uint32_t const stock_ids[] = {
+        MAKEFOURCC('I','0','0','0'), MAKEFOURCC('I','0','0','1'), MAKEFOURCC('I','0','0','2')
+    };
+    static uint32_t const base_ids[] = {
+        MAKEFOURCC('f','r','h','g'), MAKEFOURCC('a','r','s','h'), MAKEFOURCC('b','l','b','a')
+    };
+    unitData_t custom_items[3] = {
+        { .originalUnitID = MAKEFOURCC('f','r','h','g'), .newUnitID = MAKEFOURCC('I','0','0','0') },
+        { .originalUnitID = MAKEFOURCC('a','r','s','h'), .newUnitID = MAKEFOURCC('I','0','0','1') },
+        { .originalUnitID = MAKEFOURCC('b','l','b','a'), .newUnitID = MAKEFOURCC('I','0','0','2') },
+    };
+    mapInfo_t mapinfo = { .num_userCreatedItems = 3, .userCreatedItems = custom_items };
+    mapInfo_t const *old_mapinfo;
+    edict_t *player, *hero, *armory;
+    gameCommandButton_t buttons[4];
+    shopItemButtonsParams_t params;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    hero = make_item_test_inventory_unit(0, 0);
+    hero->s.player = 0;
+    armory = alloc_test_unit(MAKEFOURCC('o','0','0','1'), 0, 0);
+    armory->data.UnitAbilities = &sell_items;
+    armory->s.player = PLAYER_NEUTRAL_PASSIVE;
+    armory->collision = 32.0f;
+    armory->spawn_time = G_Time();
+    G_SetStockSlots(armory, true, 11);
+    gi.LinkEntity(armory);
+
+    old_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    FOR_LOOP(i, 3) {
+        T_EQ(G_ItemBaseID(stock_ids[i]), base_ids[i]);
+        T_ASSERT(G_AddItemStock(armory, stock_ids[i], 1, 1));
+    }
+    params = (shopItemButtonsParams_t){
+        .client = player->client, .shop = armory, .buttons = buttons, .max_buttons = 4
+    };
+
+    T_EQ(G_GetShopItemButtons(&params), 3);
+    FOR_LOOP(i, 3) {
+        char expected_code[5];
+        memcpy(expected_code, &stock_ids[i], 4);
+        expected_code[4] = '\0';
+        T_STREQ(buttons[i].command, expected_code);
+        T_STREQ(buttons[i].art, "TestUI\\Textures\\solid_white.blp");
+        T_ASSERT(!buttons[i].disabled);
+    }
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = old_mapinfo;
+}
+
 TEST(wc3_items, neutral_unit_shop_runtime_stock_override_is_immediate_and_replenishes) {
     edict_t *player;
     gameClient_t *client;
