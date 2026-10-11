@@ -24610,4 +24610,85 @@ TEST(wc3_movement,pause289_unresolved_authored_rawcode_has_no_attached_owner) {
     T_ASSERT(!S_UnitExecutionPaused(unit));reset_entities();reset_test_state();setup_test_world();
 }
 
+#include "fixtures/retail_teleport290.h"
+
+/* Supplied captured pre-call pose/velocity; actual placement uses the unchanged
+ * Human02 WPM and W3E support geometry, without replaying the preceding journey. */
+TEST(wc3_movement, teleport290_captain_relocates_actor_and_retains_physical_owners) {
+    FOR_LOOP(saved,2) FOR_LOOP(row,(sizeof(teleport290_cases)/sizeof(*teleport290_cases))) {
+        typeof(*teleport290_cases) const *expected=teleport290_cases+row;
+        FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+        G_BotStop(0);reset_entities();setup_test_world();
+        static uint8_t cells[384*256];unsigned offset=0;
+        FOR_LOOP(i,(sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs))) {
+            memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+            offset+=public_oblique_terrain_runs[i][0];
+        }
+        T_EQ(offset,sizeof(cells));box2_t bounds={{-7168,-3072},{5120,5120}};
+        CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(384,256,cells);
+        static war3mapVertex_t vertices[97*65];war3map_t terrain=*world.map;
+        terrain.width=97;terrain.height=65;terrain.vertices=vertices;
+        memset(vertices,0,sizeof(vertices));offset=0;
+        FOR_LOOP(i,(sizeof(captain_thirteen_terrain_levels)/sizeof(*captain_thirteen_terrain_levels)))FOR_LOOP(j,captain_thirteen_terrain_levels[i][0]) {
+            vertices[offset].accurate_height=0x2000;vertices[offset++].level=captain_thirteen_terrain_levels[i][1];
+        }
+        T_EQ(offset,(sizeof(vertices)/sizeof(*vertices)));world.map=&terrain;
+        level.pathing_clock=(wc3Clock_t){0,0,300};level.time=level.pathing_msec=0;level.pathing_phase=0;
+        player_t *player=&game.clients[0].ps;botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+        level.bots[0].mode=BOT_CAMPAIGN;level.bots[0].town_initialized=true;
+        G_BotCreateCaptains(player);
+        G_BotSetCaptainHome(player,1,-1936,-144);
+        edict_t *members[6];vec2_t positions[6];
+        FOR_LOOP(i,expected->members) {
+            members[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){2000+i*80,2000},0);
+            T_NOT_NULL(members[i]);
+        }
+        if(expected->members)T_ASSERT(G_BotAddAssault(player,expected->members,MAKEFOURCC('h','f','o','o')));
+        G_BotCaptainAttack(player,&(vec2_t){-1936,-1424});
+        edict_t *actor=captain->home_actor;T_NOT_NULL(actor);
+        if(!actor)continue;
+        actor->movement.fine_pose=(vec2_t){wc3_float(expected->before[0]),wc3_float(expected->before[1])};
+        actor->s.origin2=(vec2_t){wc3_world_coordinate(actor->movement.fine_pose.x,bounds.min.x,32),
+            wc3_world_coordinate(actor->movement.fine_pose.y,bounds.min.y,32)};
+        actor->movement.pose_world=actor->s.origin2;actor->movement.pose_valid=true;
+        actor->movement.velocity=(vec2_t){wc3_float(expected->velocity[0]),wc3_float(expected->velocity[1])};
+        actor->movement.pose_clock=level.pathing_clock;actor->movement.clock_valid=true;
+        G_PublishMoveSpatialObject(actor);
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-teleport290-before.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;actor=captain->home_actor;T_NOT_NULL(actor);
+            if(!actor)continue;
+        }
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+        FOR_LOOP(i,expected->members)positions[i]=members[i]->s.origin2;
+        moveFineRoute_t route=actor->movement.fine_route;
+        uint32_t group=actor->movement.group_id,order=actor->current_order_id;
+        vec2_t home=captain->home,goal=captain->goal;float range=captain->request_range;
+        vec2_t request={wc3_float(expected->request[0]),wc3_float(expected->request[1])};
+        G_BotTeleportCaptain(player,request.x,request.y);
+        FOR_LOOP(axis,2) {
+            float fine=axis ? actor->movement.fine_pose.y : actor->movement.fine_pose.x;
+            if(wc3_float_bits(fine)!=expected->after[axis])fprintf(stderr,"Teleport290 row%u saved%u axis%u actual%08x expected%08x\n",row,saved,axis,wc3_float_bits(fine),expected->after[axis]);
+            T_EQ(wc3_float_bits(fine),expected->after[axis]);
+        }
+        T_EQ(wc3_float_bits(actor->movement.velocity.x),expected->velocity[0]);
+        T_EQ(wc3_float_bits(actor->movement.velocity.y),expected->velocity[1]);
+        T_EQ(actor->movement.group_id,group);T_EQ(actor->current_order_id,order);
+        T_EQ(actor->movement.fine_route.points,route.points);T_EQ(actor->movement.fine_route.count,route.count);T_EQ(actor->movement.fine_route.index,route.index);
+        T_EQ(actor->movement.fine_route.adaptive_points,route.adaptive_points);T_EQ(actor->movement.fine_route.adaptive_count,route.adaptive_count);T_EQ(actor->movement.fine_route.adaptive_index,route.adaptive_index);
+        T_EQ(captain->home.x,home.x);T_EQ(captain->home.y,home.y);
+        T_EQ(captain->goal.x,goal.x);T_EQ(captain->goal.y,goal.y);T_EQ(captain->request_range,range);
+        T_ASSERT(!captain->position_valid);T_EQ(ARRAY_COUNT(captain->units),expected->members);
+        FOR_LOOP(i,expected->members) {T_EQ(members[i]->s.origin2.x,positions[i].x);T_EQ(members[i]->s.origin2.y,positions[i].y);}
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-teleport290-after.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            actor=level.bots[0].captains[BOT_CAPTAIN_ATTACK].home_actor;T_NOT_NULL(actor);
+            if(actor) {T_EQ(wc3_float_bits(actor->movement.fine_pose.x),expected->after[0]);T_EQ(wc3_float_bits(actor->movement.fine_pose.y),expected->after[1]);T_EQ(actor->movement.group_id,group);}
+        }
+        G_BotStop(0);reset_entities();setup_test_world();
+    }
+}
+
 #endif

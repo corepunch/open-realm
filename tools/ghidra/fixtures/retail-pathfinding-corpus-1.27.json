@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "244 executable original/evidence contracts;525 total entries; provenance and limitations remain per-entry.",
+  "scope": "245 executable original/evidence contracts;526 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53108,6 +53108,55 @@
       "exclusions": [
         "Non-script contribution/filter families,44, wider target/spell command shapes, full live-list changes/morphs and mixed user/transient replacement remain open. No broad TODO closure or performance claim. Save174 rejects173."
       ]
+    },
+    {
+      "id": "oracle-teleport290",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_teleport290.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "teleport290.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 253
+        },
+        "original_wrappers": {
+          "equal": 12
+        },
+        "engine": {
+          "length": 2
+        },
+        "retail": {
+          "length": 5
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": [
+        "Two observed public AI repeats plus observer-free control. Seven existing-actor relocations preserve28 native boundaries and250 public markers. Raw extra periodic observations are retained but not certified across repeats.",
+        "Engine placement cases supply observed pre-call fine pose/velocity and the existing Human02 WPM/W3E geometry; they do not replay the complete preceding public journey. Cold engine saves are not retail-save evidence.",
+        "Original12-case native/selector/wrapper ABI executes unmodified bodies; identity payloads and terminal placement completion are controlled. Full placement/virtual dispatch is observed live, not emulated by this oracle.",
+        "Default Town/first actor creation, ResetCaptainLocs default-location selection, nonfinite/outside domains and wider combat/roster/goal lifetimes remain existingBASE-01.4/GROUP-03.4.7.3. No broad closure or performance claim."
+      ],
+      "exclusions": [
+        "Default Town/first actor creation, ResetCaptainLocs default-location selection, nonfinite/outside domains and wider combat/roster/goal lifetimes remain existingBASE-01.4/GROUP-03.4.7.3. No broad closure or performance claim."
+      ]
     }
   ],
   "fixtures": [
@@ -54006,7 +54055,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "500e8d5381ec83c6c506653aeb1118148495f3b852e4dd452ef7fb8da3c384f9"
+      "sha256": "f2d315ab5745172d2552c8c4149e8f984ed34f397b56b519d9bd0467e2c7597b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -54862,7 +54911,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "0eee6e44f127b0583d98eb68250ad9697a7e45b224fc339b420fafc9af78760e"
+      "sha256": "c10adfee220e6533a898ae6a69d3d6efb3176093b6abdd1177137fde2bae6634"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -55306,7 +55355,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "1cef6c49dc5fefd48a81e7099182d192782252bc154ab836b4ad023b311bcf6a"
+      "sha256": "4ac4b45f8da8c686237b86a113995f8009ae23612a52e97ae83d0aae846252b4"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -55554,7 +55603,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "e2e99f56cab8aebfc2d5e967d2f3a3e9e0c469671caeda216e5f645f2826db82"
+      "sha256": "b3f9104402897da1352796e0bb55e451adc0bd8f80e9caa7dae9518f53a64c64"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -55798,7 +55847,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "08e24db5cb72291a2fb4c75676e8d8ab6d55f4671c3e3e423db3150e45364f5b"
+      "sha256": "c1ea646b1d13f28687eae29975c30ece9d6d8b1f08e1a894fd1b60671b052e1f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -55810,11 +55859,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "39a875c511a6d131d06e69ed5e403f5ae5fbf8058416fd54aedd65f2dce279f6"
+      "sha256": "5b92e4ecff45ff069620e407c7531a7c22d201d7c8cd353a16eb98e67422c826"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "cc30fa703d7c2b56fcc0b95b13bd040f1331ae912e2d3bea97c6a551a85b0d08"
+      "sha256": "d6340b40d763aebddd44adb8a7ab186b38c188f31ee4e700b38de9fa3f1a96e0"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55934,7 +55983,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_bot.c",
-      "sha256": "f422434781a90956b8a6221d052314aff4cebd8141910e76bd84300a59ffde4b"
+      "sha256": "b8bb95dd57130aee8670471bf178c0c4d13c6f6f5843ab349ff5194e19b9d111"
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
@@ -55946,7 +55995,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
-      "sha256": "6c7424dc5c5213d2de461538e9a9aae8eaaa918803c98ec281ab81d6808e9a2d"
+      "sha256": "b3e9853f40c18198872d4d8bd6e3f277801903032ff411c4f062dec07a608f6c"
     },
     {
       "path": "tools/frida/research/attack_help153_probe.j",
@@ -56210,7 +56259,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
-      "sha256": "898c13ed926ccf4474f246b591a58cf623d11b73a5b2c99141bf53a812936429"
+      "sha256": "1e0a4df1ab1aecfce4aa2e6caa3dbdf73a1865b3664504a9328806411940354c"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.7.3/HANDOFF.md",
@@ -59126,7 +59175,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_work242.py",
-      "sha256": "3706e98767822ab1c9ad6a11d7fe65ccfb026de1b01b9a4a655e6a1027ec4178"
+      "sha256": "842a8dfd7e766c3fdbd8895f9d6141e7e93b97cf83340594239585851038b670"
     },
     {
       "path": "tools/ghidra/fixtures/retail-work242-1.27.json",
@@ -60907,6 +60956,50 @@
     {
       "path": "tests/test_wc3_pathfinding_pause289.py",
       "sha256": "4fd6479476248986508dcb351800f2d05941b8ec78c12d0998b567a7a7ea5a98"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_teleport290.h",
+      "sha256": "e9dce1f2bcf0b2898c8989447af523966e7896c11ed09800bb8bda751cb6e063"
+    },
+    {
+      "path": "tools/frida/research/teleport290_make_map.py",
+      "sha256": "6bea94b95e1b6c48b123cf6c6101ba6fd9155b18527d9641369ad1b10c2ae923"
+    },
+    {
+      "path": "tools/frida/research/teleport290_probe.j",
+      "sha256": "738b6c80233b7472213af75e4c0d868b1d7e2e36ff93dcc8d574a8dbe3f3ff83"
+    },
+    {
+      "path": "tools/frida/research/teleport290_probe.ai",
+      "sha256": "10fc0d9b883eb058a658bad49c846ddadf18c1e2839cb2e64a7708a0ddbbeb49"
+    },
+    {
+      "path": "tools/frida/research/teleport290_observer.js",
+      "sha256": "d5290a71e74369fcb481da6133fb16186c9f0ccea400a4d591f0245b7ea28912"
+    },
+    {
+      "path": "tools/ghidra/research/teleport290_oracle.py",
+      "sha256": "9a3155c67b9dd74d3fa0a2340351bd3cffad927ae78586c3511ac0136ae9e614"
+    },
+    {
+      "path": "tools/ghidra/research/Teleport290Evidence.java",
+      "sha256": "d8098c9d17284592344c197d73f8b642b327ca82d82dfe029c67bf4293a8d40a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_teleport290.py",
+      "sha256": "9914814702c029904de3ced610cf82fab43a9cea86b22206ce70b965c2162a87"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-teleport290-1.27.json",
+      "sha256": "260885ab5f4e74ded43695d1cf7aff1e63cd4a5ebb73317fadd979359a685deb"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-teleport290-1.27.json.gz",
+      "sha256": "4b1f097c4d80a611aae60df28089e7bdfec912537769b39c3709167a0c8b1a95"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_teleport290.py",
+      "sha256": "13f9a0c71587eea2b9eafcc42e891944b700d74ef78cc290b302bac2fa5d1636"
     }
   ]
 }

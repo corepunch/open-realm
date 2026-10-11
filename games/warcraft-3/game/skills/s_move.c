@@ -2350,6 +2350,27 @@ void S_SetUnitPosition(edict_t *self, vec2_t const *requested) {
     S_PlaceUnitPosition(self,requested);
 }
 
+/*9d7ac0 places the virtual actor without GoHome's trailing9d7600 recovery.
+ * Keep velocity, physical owner and retained request; commit the current clock
+ * so the old velocity is not integrated again from before the relocation. */
+void S_TeleportCaptainActor(botCaptain_t *captain,vec2_t const *requested) {
+    edict_t *self=captain ? captain->home_actor : NULL;
+    if(!self || !self->inuse || !requested)return;
+    bool clocked=self->movement.clock_valid;
+    uint32_t blocked=self->movement.worker_avoid_blocked_frames;
+    if(clocked)unit_commit_current_pose(self);
+    vec2_t old=self->s.origin2,position;
+    G_FindUnitPlacementPosition(self,requested,&position);
+    wc3GridPose_t pose;unit_grid_pose(self,&pose);
+    float point[2]={position.x,position.y};
+    wc3_grid_place(&pose,point);unit_commit_pose(self,&pose);
+    self->movement.pose_clock=level.pathing_clock;
+    self->movement.clock_valid=clocked;
+    self->movement.worker_avoid_blocked_frames=blocked;
+    captain->position_valid=false;
+    G_UnitPositionChanged(self,&old);
+}
+
 /* Unit virtual180 admits/publishes position independently of public Stop.
  * Root438ac0 retains its head when relocating at morph start. */
 void S_PlaceUnitPosition(edict_t *self,vec2_t const *requested) {

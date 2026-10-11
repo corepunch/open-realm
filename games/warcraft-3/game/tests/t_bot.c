@@ -2163,8 +2163,8 @@ TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
     T_EQ(defender->currentmove->proc, CAbilityMove);
 }
 
-/* These tests intentionally do not assume retail's undocumented captain
- * in-flight order/arrival tolerance; they assert independent engine-owned state. */
+/* Engine state controls; the frozen Teleport290 movement matrix separately
+ * checks observed retail placement words and retained physical owners. */
 TEST(wc3_bot, teleport_captain_preserves_home_goal_and_members) {
     player_t *player = &game.clients[2].ps;
     botCaptain_t *attack = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
@@ -2175,9 +2175,9 @@ TEST(wc3_bot, teleport_captain_preserves_home_goal_and_members) {
     G_BotSetCaptainHome(player, 2, 700.0f, 800.0f);
     G_BotCaptainAttack(player, &(vec2_t){400.0f, 500.0f});
     G_BotTeleportCaptain(player, 400.0f, 500.0f);
-    T_ASSERT(attack->position_valid);
-    T_FEQ(attack->position.x, 400.0f, 0.01f);
-    T_FEQ(attack->position.y, 500.0f, 0.01f);
+    T_ASSERT(!attack->position_valid);
+    T_FEQ(attack->home_actor->s.origin2.x, 400.0f, 0.01f);
+    T_FEQ(attack->home_actor->s.origin2.y, 500.0f, 0.01f);
     T_FEQ(attack->goal.x, 400.0f, 0.01f);
     T_FEQ(attack->home.x, 100.0f, 0.01f);
     T_FEQ(defense->home.x, 700.0f, 0.01f);
@@ -2209,7 +2209,10 @@ TEST(wc3_bot, teleport_captain_affects_arrival_even_with_assigned_units) {
     memset(level.bots + 2, 0, sizeof(level.bots[2]));
     footman = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
     T_ASSERT(G_BotAddAssault(player, 1, footman->class_id));
-    captain->goal = MAKE(vec2_t, 1500.0f, 2000.0f);
+    box2_t bounds={{0,0},{4096,4096}};static uint8_t cells[128*128];
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+    G_BotSetCaptainHome(player,1,64.0f,128.0f);
+    G_BotCaptainAttack(player,&(vec2_t){1500.0f,2000.0f});
     G_BotTeleportCaptain(player, 1500.0f, 2000.0f);
     T_ASSERT(G_BotCaptainAtGoal(player));
     T_ASSERT(!G_BotCaptainIsHome(player));
@@ -2217,6 +2220,7 @@ TEST(wc3_bot, teleport_captain_affects_arrival_even_with_assigned_units) {
     G_BotCaptainGoHome(player);
     T_ASSERT(!captain->position_valid);
     G_BotCreateCaptains(player);
+    setup_test_world();
 }
 
 TEST(wc3_bot, amphibious_route_policy_does_not_change_unit_pathing) {

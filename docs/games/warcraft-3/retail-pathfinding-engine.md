@@ -18205,3 +18205,16 @@ checks pass. Production and test modules build; the full suite follows the
 agreed batch cadence. Saved Ghidra exports are identical on readback. Accepted
 failing baselines, raw diagnostics, final report and exact sources are archived
 in `research/MAP-04.2/payoff289/` under the pathfinding report root.
+
+
+### Captain teleport commits physical placement without Stop (Payoff290)
+
+`TeleportCaptain` now relocates the Move-owned attack actor through retail
+placement instead of storing a logical position override. Velocity, group,
+routes, order, home/request and roster remain intact. Two owned retail repeats
+and an observer-free control agree on250 public markers and28 native boundaries;
+12 original wrapper cases and253 saved Ghidra instruction guards support the
+binding/ABI. Seven frozen placement cases and cold saves exercise the engine.
+See [Captain relocation](retail-pathfinding-captain-policy.md#teleportcaptain-relocates-the-retained-actor-payoff290)
+for exact scope, reproduction and the separate default-location Reset producer.
+No previous retail fixture changes, save-layout change or broad TODO closure.

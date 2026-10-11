@@ -56,6 +56,13 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **290 done / 336 tasks; 46 remaining.**
+Payoff290 replaces the fake TeleportCaptain position override with real actor
+placement, retaining velocity, routes, group/request and roster. Two retail
+repeats/control, seven exact placement cases and12 original wrapper cases cover
+the chunk. Default-location Reset and broader Captain lifetimes remain open;
+46 remain. See [Captain relocation](retail-pathfinding-captain-policy.md#teleportcaptain-relocates-the-retained-actor-payoff290).
+
+
 Payoff289 replaces the point-command blanket pause gate with ordered concrete
 availability, retains callback-issued Move/Stop beneath suspension, and preserves
 the nested inverse's temporary negative counters through cold saves. Three

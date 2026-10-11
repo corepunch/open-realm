@@ -1607,15 +1607,13 @@ void G_BotCaptainGoalEvent(edict_t *actor) {
     }
 }
 
-/* BZ_COMPAT_GUESS: TeleportCaptain relocates the *attack captain's logical*
- * position without teleporting its member units, changing its home or
- * destroying existing attack targets.  Retail in-flight effects are unknown. */
+/*9c0490 selects the attack Captain;9d7ac0 relocates its actual mover.
+ * This retains the actor request and leaves physical member poses untouched. */
 void G_BotTeleportCaptain(player_t *player, float x, float y) {
-    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    if (!bot || !isfinite(x) || !isfinite(y)) return;
-    botCaptain_t *captain = &bot->captains[BOT_CAPTAIN_ATTACK];
-    captain->position = MAKE(vec2_t, x, y);
-    captain->position_valid = true;
+    bot_t *bot=player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if(!bot || !isfinite(x) || !isfinite(y))return;
+    vec2_t point={x,y};
+    S_TeleportCaptainActor(bot->captains+BOT_CAPTAIN_ATTACK,&point);
 }
 
 /* Read the Move-owned actor when available. Compatibility logical position

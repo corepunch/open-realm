@@ -4342,6 +4342,7 @@ bool S_AdmitTemporaryCaptainUnit(edict_t *, botCaptain_t const *, edict_t *);
 void S_DetachCaptainUnit(edict_t *);
 bool G_CaptainMoveReachable(edict_t const *, edict_t const *, edict_t const *, vec2_t const *, vec2_t const *);
 void S_SetCaptainHomeActor(botCaptain_t *, uint32_t, uint32_t);
+void S_TeleportCaptainActor(botCaptain_t *, vec2_t const *);
 void S_CaptainGoHome(botCaptain_t *);
 void S_ReissueCaptainUnit(edict_t *, edict_t *);
 bool S_CaptainNearHome(botCaptain_t const *);

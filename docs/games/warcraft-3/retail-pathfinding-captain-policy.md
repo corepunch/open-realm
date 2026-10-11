@@ -182,3 +182,76 @@ IDs for some gaps; this integration keeps them under the existing open leaf.
 
 See [temporary enrollment](retail-pathfinding-captain-enrollment.md) for the
 separate enrollment-before-buff and duplicate/withdrawal transitions.
+
+
+## TeleportCaptain relocates the retained actor (Payoff290)
+
+The AI native does real widget placement. The previous engine implementation
+set `botCaptain_t.position/position_valid`, so logical queries reported a new
+location while the physical Captain actor, its occupancy and its followers
+remained at the old position. `G_BotTeleportCaptain` now passes the attack
+Captain to Move-owned `S_TeleportCaptainActor`. This uses the existing retail
+admission geometry and scalar placement, publishes the actor's position change
+and invalidates the logical position override. It retains velocity, the physical
+group, fine/adaptive route storage and indices, the public order, authored home,
+request goal/range, roster and member positions. It neither issues Stop nor
+retreats/reorders members. Placement uses the existing bounded admission search;
+this adds no roster scan, route allocation or second scheduler.
+
+The original AI binding at `6f9be339` selects `6f9c0490` (the normal VM's separate
+binding is not the AI implementation). That cdecl native reads current-context
+Town identity `2c/30` through `6f061320`. Town selector `6f9c64c0` resolves attack
+Captain identity `2ac/2b0`; it does not use the defense identity. Captain wrapper
+`6f9d7ac0` copies the two raw scalar inputs to private locals and calls widget
+placement `6f653510` with arguments
+`[xptr, yptr, 1, 1, ffffffff, 0, 0, 0, 0, ffffffff, 0]`.
+Its scalar pointers address the numeric word itself. They differ from the
+FloatMini pointers used by GoHome wrapper `6f9d6ed0`, whose values are at `+4`.
+GoHome then calls Stop recovery `6f9d7600`; explicit Teleport does not.
+`6f653510` clamps/admit-checks the point through virtual `dc`, applies path
+texture parity when requested and notifies the committed world-position change.
+
+Two independent owned B/C observations and an observer-free control run the
+same stock Human02 geometry with six Footmen and seven public AI teleports.
+All250 public map/AI query markers agree. All14 native entry/exit boundaries
+agree across the two hooked runs after removing only process addresses and the
+unsourced FloatMini auxiliary words; the original rows retain those words.
+The28 observed boundaries retain velocity, physical-group identity, Captain
+state, home/request/range, roster and target fields. No teleport enters Stop
+recovery. Fractional and blocked requests demonstrate admission rather than
+blindly copying the requested world coordinates. The final two calls cover an
+empty roster with a retained actor. Extra periodic observations are retained in
+the bundle but are not certified across repeats.
+
+The12-case original-instruction oracle composes the native, Town selector and
+Captain wrapper. It controls identity payload lookup and terminal placement
+completion, checking attack selection, raw scalar-pointer ABI, local input
+copies, exact argument flags and stack ownership. It is not a replacement for
+full placement execution. The live observations cover placement; the engine
+regression supplies their unchanged pre-call fine poses and velocities against
+the unchanged Human02 WPM/W3E support fixture. It tests seven exact destinations,
+retained movement/roster state and cold saves before and after relocation,
+without claiming that it replays the preceding public journey. The harness must
+create Captains through `G_BotCreateCaptains`: directly setting campaign mode
+leaves their creation clocks invalid for physical member save references.
+
+The focused verifier allows300 seconds per engine filter for the broad
+23-scene Captain journey check; the shared runner keeps its180-second default
+for existing callers. Timeouts remain incomplete runs, never passing evidence.
+
+Reproduce with `tools/ghidra/verify_wc3_pathing_teleport290.py --binary <game.dll>
+--report <fresh.json>`. The immutable observation bundle and source pins are
+`tools/ghidra/fixtures/retail-teleport290-1.27.json{,.gz}`; the read-only observer,
+map builder and public JASS/AI probes are under `tools/frida/research/teleport290_*`.
+`Teleport290Evidence.java` and `MapPathfinding.java` preserve seven mapped
+functions,253 instruction guards and binding xrefs in the saved Ghidra program.
+The archive is `research/GROUP-03.4.7.3/payoff290/` under the 1.27 report root.
+No previous retail expected values are changed. Save layout174 and the network
+format are unchanged. This chunk makes no frame-budget or full-motion claim.
+
+`ResetCaptainLocs` is separate: AI native `6f9bee60` calls `6f9c9c10`, which
+fetches default AI locations through `6f9bb750`, updates selected homes and
+teleports attack and defense Captains. It does not copy the currently authored
+homes. That default-location producer, first/default Town actor creation,
+exceptional coordinate domains and wider combat/roster/goal lifetimes remain
+under BASE-01.4/GROUP-03.4.7.3; this bounded integration closes neither broad leaf.
