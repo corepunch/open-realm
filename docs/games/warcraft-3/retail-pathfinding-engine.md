@@ -17438,3 +17438,65 @@ This advances TARGET-01.2/TARGET-02.1 without closing their broader contracts.
 Complete public cast/effect/backswing timing, air casters, destructable targets,
 arbitrary masks and the wider structure trajectory family remain uncertified.
 No new TODO leaves, performance acceptance or full-suite claim is added.
+
+
+## Flying spell approaches share physical Move ownership (Payoff280)
+
+Original `40a7a0` does not exclude flying casters when it submits a unit-target
+`d0174` or point-target `d016b` approach. Both retain the public spell command
+while their internal Move task owns range, routing and completion. OpenRealm
+still rejected flyers in both physical entry points, leaving their spell
+receivers on a presentation-frame range poll. Removing those two exclusions
+routes them through the existing deterministic owner and its saved continuation.
+There is no new entity scan, queue or per-frame thinker.
+
+The fresh retail arena uses flying `edtm`, custom Inner Fire/Flame Strike range333,
+cost13 and cooldown7, and an immediately superseded user Move. Its six scenes
+cover unit success, unit Stop, target removal, point success, point Stop and a
+Farm target with its real4x4 footprint. Source radius8 and Footman radius31
+produce captured unit range11.625 fine; Farm radius72 produces12.90625. Point
+range is10.40625 and excludes both collision radii. A freshly constructed flyer
+retains adaptive routing: the first group route has4 coarse points and its member
+search returns25 fine/3 coarse points. The separate type-rebind disable policy
+must not be substituted for construction behavior.
+
+Two complete read-only captures and an unhooked control agree on634 public
+markers. The repeats agree on357 active physical-owner inputs across all six
+scenes. Superseded groups can still appear in the owner list; only a member whose
+current group identity equals the visited group owns its update. The fixture
+preserves all original counter/clock, fine position, fine velocity, range and
+committed physical-heading words. Engine `s.angle` corresponds to mover`8c`;
+`movement.heading` is a desired heading, and `S_UnitFacing` reads separately
+settled visual facing. The fixture comparison must not conflate these fields.
+
+Both uninterrupted and cold-save engine runs match every captured input exactly.
+Each cold save occurs after input20 and retains the same receiver and continuation.
+Stop and target removal retire the physical owner without spending mana; successful
+unit/point approaches execute the spell once, and Inner Fire reaches the Farm.
+Related Classic/TFT spell, public-order and save regressions pass:22 focused tests,
+19,504 assertions. The owner268 regression's old flying-receiver-null assertion
+was an engine fallback placeholder, contradicted by this native producer evidence.
+It now requires the physical receiver while retaining its public-command and
+cancellation expectations. No established retail expected words were replaced.
+Save170 needs no format change.
+
+`Flight280Evidence.java` exports all2,330 instructions and xrefs from six relevant
+functions; its comments and `MapPathfinding.java` retain the flight ownership and
+construction distinction. The Ghidra project is saved. The literal contract and
+three complete captures are frozen in `retail-flight280-1.27.json` and its gzip
+bundle. `test_wc3_pathfinding_flight280.py` rejects changed ownership, range,
+heading, velocity, routing, provenance, control hooks and engine literals.
+
+Rebuild the arena with `flight280_make_map.py --base /path/to/Human02Interlude.w3m
+--output /new/Flight280.w3m`; use `flight280_capture.py` in a leased B/C environment,
+with `--marker-prefix 'F280 '` in every run and `--mode control` for the observer-free run. Run
+`verify_wc3_pathing_flight280.py --binary /path/to/game.dll --test-binary
+/path/to/openwarcraft3-tests --data /path/to/tests --report /fresh/report.json`
+for original-byte verification and the focused Classic/TFT engine checks.
+The corpus entry is `oracle-flight280`; original files, map, failing-first logs,
+compiled binaries and diagnostics are archived under `research/FLYING-SPELL/payoff280`.
+
+This advances ORDER-01.13/TARGET-01.2/02.1. Full cast/effect/channel/backswing
+scheduling, destructable/item targets and the whole order-family inventory remain
+open. No TODO closure, new leaf, performance acceptance or full-suite result is
+claimed by this chunk.

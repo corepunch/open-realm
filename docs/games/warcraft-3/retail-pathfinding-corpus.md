@@ -2129,3 +2129,23 @@ blocked footprint, queue/Stop/removal, current-form changes and exact saved
 continuation. Historical captured expectations are unchanged. Inventory:233
 executable contracts,514 total entries. See
 [structure approach ownership](retail-pathfinding-engine.md#structure-targets-use-one-physical-approach-task-payoff278).
+
+
+## Flying spell physical approaches (Payoff280)
+
+`oracle-flight280` adds two read-only repeats and an unhooked control across six
+flying unit-target/point-target spell scenes. All634 public markers agree and
+357 active physical-owner inputs repeat exactly. The engine compares unchanged
+fine position/velocity, captured range and committed heading before every owner
+visit, both uninterrupted and after a cold save. Successful unit/point casts,
+Stop, target removal and a real-footprint Farm target are covered. The verifier
+also runs related Classic/TFT spell/order/save regressions and checks all2,330
+original instructions from six Ghidra exports.
+
+The inventory is now516 entries, including235 executable original/evidence
+contracts. All515 prior entry objects are preserved unchanged. The frozen capture
+bundle and literal engine fixture are checked independently;11 corruption tests
+reject altered native ownership, motion, range, adaptive route, provenance and
+control observation. This certifies physical approaches, not the complete spell
+cast/effect/channel/backswing timeline or the wider order-family inventory.
+See [implementation and reproducer](retail-pathfinding-engine.md#flying-spell-approaches-share-physical-move-ownership-payoff280).

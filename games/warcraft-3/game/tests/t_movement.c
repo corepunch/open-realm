@@ -23913,4 +23913,126 @@ TEST(wc3_movement, structure279_captured_region_selection_and_retirement) {
     other->pathtex=NULL;
     target->pathtex=NULL;reset_entities();setup_test_world();
 }
+
+/* Retail40a7a0 submits d0174/d016b for flying casters too; their captured
+ * range and completion belong to the physical owner, never a frame poll. */
+static slkTestData_t *flight280_ability_rows(void) {
+    return parse_slk_string(
+            "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"targs\"\n"
+            "C;X4;K\"Cost1\"\nC;X5;K\"Cool1\"\nC;X6;K\"Rng1\"\nC;X7;K\"BuffID1\"\n"
+            "C;X8;K\"Dur1\"\nC;X9;K\"DataA1\"\nC;X10;K\"DataB1\"\nC;X11;K\"DataD1\"\n"
+            "C;Y2;X1;K\"Ainf\"\nC;X2;K\"Ainf\"\nC;X3;K\"air,ground,structure,friend,self,vuln,invu\"\n"
+            "C;X4;K13\nC;X5;K7\nC;X6;K333\nC;X7;K\"Binf\"\nC;X8;K20\nC;X9;K0.1\nC;X10;K5\n"
+            "C;Y3;X1;K\"AHfs\"\nC;X2;K\"AHfs\"\nC;X3;K\"air,ground,enemy,vuln,invu\"\n"
+            "C;X4;K13\nC;X5;K7\nC;X6;K333\nC;X8;K3\nC;X9;K10\nC;X10;K0.25\nC;X11;K0.75\nE\n");
+}
+
+TEST(wc3_movement, flight280_unit_and_point_spells_use_physical_completion) {
+    FOR_LOOP(shape,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        slkTestData_t *rows=flight280_ability_rows();
+        slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','g','r','y'),288,288);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1536,288);
+        UnitAbilities_t abilities={.abilList="Ainf,AHfs"};unit->data.UnitAbilities=&abilities;
+        unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=MOVETYPE_FLY;
+        unit->aiflags|=AI_FLYING;unit->s.model=target->s.model=1;
+        unit->stand=target->stand=unit_stand;unit->collision=16;target->collision=31;
+        unit->unitinfo.MoveSpeed=350;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->mana.value=unit->mana.max_value=200;unit->s.player=target->s.player=0;
+        unit->targtype=TARG_AIR;target->targtype=TARG_GROUND;
+        unit_stand(unit);unit_stand(target);
+        level.pathing_clock=(wc3Clock_t){2,0,300};level.pathing_counter=1090;
+        bool accepted=shape ? G_IssueUnitPointOrder(unit,"flamestrike",&target->s.origin2,false,0,0) :
+            G_IssueUnitTargetOrder(unit,"innerfire",target,false,0);
+        T_ASSERT(accepted);T_EQ(unit->current_order_id,G_OrderId(shape ? "flamestrike" : "innerfire"));
+        T_EQ(unit->mana.value,200);
+        moveGroup_t *group=move_unit_group(unit);edict_t *receiver=S_UnitTargetApproachReceiver(unit);
+        T_NOT_NULL(group);T_NOT_NULL(receiver);
+        if(group && receiver) {
+            T_EQ(group->receiver,receiver);T_NULL(receiver->think);
+            T_EQ(group->members[0].arrival_range,shape ? 333/32.f : (333+16+31)/32.f);
+            cstring_t file=Test_TempPath("wc3-flight280.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(S_UnitTargetApproachReceiver(unit),receiver);
+            T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_NULL(S_UnitTargetApproachReceiver(unit));
+            T_EQ(unit->mana.value,200);T_EQ(unit->current_order_id,0);T_ASSERT(!receiver->inuse);
+        }
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
+}
+
+#include "fixtures/retail_flight280_motion.h"
+TEST(wc3_movement, flight280_six_captured_approaches_and_cold_saves_match_retail) {
+    FOR_LOOP(scene,6)FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        slkTestData_t *rows=flight280_ability_rows(),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','g','r','y'),288,288);
+        edict_t *target=alloc_test_unit(scene==5 ? MAKEFOURCC('h','h','o','u') : MAKEFOURCC('h','f','o','o'),1536,scene==5 ? 256 : 288);
+        UnitAbilities_t abilities={.abilList="Ainf,AHfs"};unit->data.UnitAbilities=&abilities;
+        unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=MOVETYPE_FLY;
+        unit->aiflags|=AI_FLYING;unit->s.model=target->s.model=1;
+        unit->stand=target->stand=unit_stand;unit->collision=8;target->collision=scene==5 ? 72 : 31;
+        unit->unitinfo.MoveSpeed=350;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->mana.value=unit->mana.max_value=200;unit->s.player=target->s.player=0;
+        unit->targtype=TARG_AIR;target->targtype=scene==5 ? TARG_STRUCTURE : TARG_GROUND;
+        unit_stand(unit);unit_stand(target);
+        struct {uint16_t width,height;color32_t pixels[16];} footprint={4,4};
+        if(scene==5) {
+            FOR_LOOP(k,16)footprint.pixels[k]=(color32_t){255,0,255,255};
+            target->pathtex=(pathTex_t *)&footprint;target->s.flags|=EF_BUILDING;
+            target->aiflags|=AI_IMMOBILE;CM_BakeStaticObstacles();G_PublishMoveSpatialObject(target);
+        }
+        level.pathing_clock=(wc3Clock_t){wc3_float(flight280_clock[scene][0]),flight280_clock[scene][1],300};
+        level.pathing_counter=flight280_motion[scene].rows[0][0]-1;
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){288,896},false,0,0));
+        bool point=scene==3 || scene==4;
+        T_ASSERT(point ? G_IssueUnitPointOrder(unit,"flamestrike",&target->s.origin2,false,0,0) :
+            G_IssueUnitTargetOrder(unit,"innerfire",target,false,0));
+        edict_t *receiver=S_UnitTargetApproachReceiver(unit);T_NOT_NULL(receiver);
+        bool mismatch=false;
+        FOR_LOOP(i,flight280_motion[scene].count) {
+            moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group){mismatch=true;break;}
+            uint32_t const *row=flight280_motion[scene].rows[i];
+            uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,6) {
+                T_EQ(actual[k],row[k+4]);
+                if(actual[k]!=row[k+4]) {
+                    fprintf(stderr,"flight280 scene=%u row=%u field=%u actual=%08x retail=%08x\n",scene,i,k,actual[k],row[k+4]);
+                    mismatch=true;
+                }
+            }
+            if(mismatch)break;
+            if(saved && i==20) {
+                cstring_t file=Test_TempPath("wc3-flight280-motion.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                T_EQ(S_UnitTargetApproachReceiver(unit),receiver);
+            }
+            level.pathing_clock=(wc3Clock_t){wc3_float(row[1]),row[2],wc3_float(row[3])};
+            level.pathing_counter=row[0]-1;level.scheduled_think=true;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+        T_ASSERT(!mismatch);
+        if(scene==1 || scene==4)T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        else if(scene==2) {
+            G_FreeEdict(target);level.pathing_clock.time=wc3_add(level.pathing_clock.time,.005f);
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+        T_NULL(move_unit_group(unit));T_NULL(S_UnitTargetApproachReceiver(unit));
+        T_EQ(unit->mana.value,scene==1 || scene==2 || scene==4 ? 200 : 187);
+        if(scene==0 || scene==5)T_EQ(G_UnitAbilityLevel(target,FS_SLKKey("Binf")),1);
+        target->pathtex=NULL;G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
+}
 #endif

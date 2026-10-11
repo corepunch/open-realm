@@ -4980,12 +4980,12 @@ static void move_start_follow_group(edict_t *unit, edict_t *target, bool persist
         group->follow_range=game.constants.followRange;
 }
 
-/* Original40a7a0/5ff8b0 admits structures through the same target task.
+/* Original40a7a0/5ff8b0 admits flyers and structures through the same target task.
  *05a5c0 adds world radii before converting the captured range. The spell's
  * read-only05b580 admission predicate instead converts first. */
 bool S_BeginUnitTargetApproach(edict_t *unit, edict_t *target, float range,
                               edict_t *receiver, void (*complete)(edict_t *,edict_t *,bool)) {
-    if(!unit || !target || !receiver || !complete || (unit->aiflags&AI_FLYING) ||
+    if(!unit || !target || !receiver || !complete ||
        !S_UnitCanTranslate(unit))return false;
     move_leave(unit);
     order_move(unit,target);
@@ -5459,11 +5459,11 @@ static void move_start_point_group(edict_t *actor,vec2_t const *home,float range
     move_group_seed_route(group); group->ticking=false;
 }
 
-/* Spell point tasks use the same physical producer as ordinary point Move.
+/* Spell point tasks, including flyers, use the ordinary physical producer.
  * Capture the world range once; completion belongs to the retained receiver. */
 bool S_BeginUnitPointTargetApproach(edict_t *unit,edict_t *goal,float range,
                                   edict_t *receiver,void (*complete)(edict_t *,edict_t *,bool)) {
-    if(!unit || !goal || !receiver || !complete || (unit->aiflags&AI_FLYING) ||
+    if(!unit || !goal || !receiver || !complete ||
        !S_UnitCanTranslate(unit))return false;
     move_leave(unit);order_move(unit,goal);
     if(unit->goalentity!=goal || unit->currentmove!=&move_move_walk)return false;

@@ -795,3 +795,11 @@ arrival range. Public retarget preserves deterministic physical scheduling and
 clears inherited coarse admission timestamps. Saved Ghidra names, ABIs, comments
 and xrefs distinguish these producers from private captain approach and
 unverified captain recreation/default-town positioning.
+
+
+Payoff280 now routes flying unit-target and point spell approaches through the
+existing saved physical owner. Two retail repeats and an unhooked control agree
+on634 public markers; all357 physical movement inputs match engine continuations,
+including cold saves, Stop, target removal and Farm approach. Desired, committed
+and visual headings remain distinct. This advances ORDER-01.13/TARGET-01.2/02.1;
+full spell phase timing remains open. See [flight approach evidence and port](retail-pathfinding-engine.md#flying-spell-approaches-share-physical-move-ownership-payoff280).

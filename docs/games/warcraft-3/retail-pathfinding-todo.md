@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff280 moves flying unit/point spell approaches from frame polling to the
+existing physical Move owner. All357 captured position/velocity/range/heading
+states match word-for-word, including six cold-save continuations; Stop/removal
+cancel without spending resources. Two repeats/control agree on634 public
+markers. Full cast phase timing and broader ORDER-01.13/TARGET-01.2/02.1 remain
+open;46 remain. See [flying spell ownership](retail-pathfinding-engine.md#flying-spell-approaches-share-physical-move-ownership-payoff280).
+
+
 Payoff279 fixes ground structure spell approaches and the task-owned captured
 widget-region reference used by coarse/fine routing. All103 Farm physical states
 match unchanged retail words, including a cold-save suffix; two repeats/control

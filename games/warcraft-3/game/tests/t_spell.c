@@ -6228,8 +6228,9 @@ TEST(wc3_spell, owner267_ground_approach_retains_public_spell_head) {
 
 /* Retail268 point and flying-caster witnesses retain the spell command through
  * the pre-effect approach. Exercise both entry shapes without claiming
- * their numerical trajectory or full effect/channel timing. */
-TEST(wc3_spell, owner268_legacy_approaches_retain_public_spell_head) {
+ * full effect/channel timing. Payoff280 proves flying approaches also own
+ * a physical receiver; preserve the command and cancellation assertions. */
+TEST(wc3_spell, owner268_physical_approaches_retain_public_spell_head) {
     FOR_LOOP(shape,2) FOR_LOOP(entry,3) FOR_LOOP(mode,6) {
         edict_t *caster=make_hero(shape ? MAKEFOURCC('e','d','t','m') : MAKEFOURCC('H','b','l','m'),500,200,288,288);
         edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1500,288);
@@ -6278,8 +6279,7 @@ TEST(wc3_spell, owner268_legacy_approaches_retain_public_spell_head) {
         edict_t *child=NULL;
         FILTER_EDICTS(ent,ent->owner==caster && ent->class_id==code) {child=ent;break;}
         T_NOT_NULL(child);
-        if(shape)T_NULL(S_UnitTargetApproachReceiver(caster));
-        else {T_ASSERT(S_UnitTargetApproachReceiver(caster)==child);T_NULL(child->think);}
+        T_ASSERT(S_UnitTargetApproachReceiver(caster)==child);T_NULL(child->think);
         T_EQ(caster->current_order_id,G_OrderId(order));T_ASSERT(move_is_active_order_walk(caster));
         jass_callbyname(level.vm,shape ? "checkFly" : "checkPoint",true);jass_runevents(level.vm);T_STREQ(jass_rterror_message(level.vm),"");
         FOR_LOOP(tick,5) {level.time+=30;globals.RunFrame();T_EQ(caster->current_order_id,G_OrderId(order));}
