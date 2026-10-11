@@ -188,3 +188,10 @@ Haunted Mine completion now issues Harvest from Build's retained target after
 synchronous finish callbacks. Stop keeps that handoff; Move, replacement Build,
 Pause and worker retirement cancel it independently of summon work. See
 [Payoff297 ownership and evidence](retail-pathfinding-engine.md#haunted-mine-completion-retains-an-ability-owned-harvest-target-payoff297).
+
+
+Human construction inserts Repair after the retiring Build head, then activates
+Repair as the sole head. Its issued-target notification precedes work; nested
+Move/Stop and participant removal prevent work. Pause retains and re-notifies
+the same Repair on resume, including engine save/load. See
+[Payoff298 activation and resume](retail-pathfinding-engine.md#human-build-activates-and-resumes-a-real-repair-head-payoff298).

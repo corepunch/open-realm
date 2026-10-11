@@ -1039,6 +1039,7 @@ typedef enum {
     A_UNIT_SUSPEND,     /* Temporary execution suspension; distinct from ability detach. */
     A_TRANSIENT_ORDER,  /* Execute a retained owner packet without public native validation. */
     A_CONSTRUCTION_FINISH, /* Structure completion is published; ability-owned continuations run now. */
+    A_ORDER_RESUME, /* Retained head reactivation: the owner publishes its notification. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -4262,6 +4263,7 @@ bool unit_issuetargetorder(edict_t *, cstring_t, edict_t *);
 bool G_TransformUnitType(edict_t *, uint32_t);
 bool G_IssueUnitPointOrder(edict_t *, cstring_t, vec2_t const *, bool, uint32_t, float);
 bool G_IssueUnitTargetOrder(edict_t *, cstring_t, edict_t *, bool, uint32_t);
+void G_PublishIssuedTargetOrder(edict_t *, cstring_t, edict_t *, uint32_t);
 bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, uint32_t, float, uint32_t);
 bool G_RetainSuspendedUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, bool, uint32_t, float);
 bool G_AppendUnitOrder(edict_t *, unitOrder_t const *);

@@ -701,15 +701,39 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
     return true;
 }
 
-void repair_build_primary(edict_t *ent, edict_t *building) {
-    uint32_t code = repair_find_code(ent, CAbilityRepair, 0);
-    if (!code || !repair_begin(ent, building, code, true)) {
-        if (building && building->construction && building->construction->primary_builder == ent)
-            building->construction->primary_builder = NULL;
-    } else {
-        /* Human construction prepends a real Repair order after Build approach. */
-        ent->current_order_id = G_OrderId(repair_order_name(code));
+/* Repair is a real user head, activated after the old Build retires. Its
+ * notification may replace or remove either participant before work starts. */
+static bool repair_notify_target(edict_t *ent,edict_t *building,uint32_t code) {
+    uint32_t spawn=ent->spawn_time,target_spawn=building->spawn_time;
+    uint32_t revision=G_UnitMoveRevision(ent);
+    G_PublishIssuedTargetOrder(ent,repair_order_name(code),building,ent->s.player);
+    if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) ||
+       S_UnitExecutionPaused(ent) || G_UnitMoveRevision(ent)!=revision)return false;
+    if(!building->inuse || building->spawn_time!=target_spawn || G_IsDeferredFree(building) || M_IsDead(building)) {
+        SAFE_CALL(ent->stand,ent);return false;
     }
+    return true;
+}
+
+static bool repair_resume_order(edict_t *ent) {
+    edict_t *target=repair_owned_target(ent);
+    uint32_t code=ent->buildwork ? ent->buildwork->ability : 0;
+    if(!target || !code)return false;
+    /* Work remains suspended until its owner visits again. Re-notify the
+     * saved head now; callback replacements own all subsequent execution. */
+    repair_notify_target(ent,target,code);
+    return true;
+}
+
+void repair_build_primary(edict_t *ent, edict_t *building) {
+    uint32_t code=repair_find_code(ent,CAbilityRepair,0);
+    uint32_t target_spawn=building->spawn_time;
+    if(code) {
+        ent->current_order_id=G_OrderId(repair_order_name(code));
+        if(repair_notify_target(ent,building,code) && repair_begin(ent,building,code,true))return;
+    }
+    if(building->inuse && building->spawn_time==target_spawn && building->construction &&
+       building->construction->primary_builder==ent)building->construction->primary_builder=NULL;
 }
 
 void repair_build_legacy(edict_t *ent, edict_t *building) {
@@ -1062,6 +1086,7 @@ static bool repair_target_removed(edict_t *ent, edict_t *target) {
 #define BZ_REPAIR_PROC(NAME) \
     BZ_ABILITY_PROC(C##NAME) { \
         switch (msg) { \
+        case A_ORDER_RESUME: return repair_resume_order(ent); \
         case A_COMMAND: repair_command(call && call->client ? call->client : ent); return true; \
         case A_AUTOCAST_ON: return repair_autocast_is_on(ent); \
         case A_AUTOCAST_SET: repair_autocast_set(ent, call && call->enabled); return true; \

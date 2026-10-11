@@ -787,7 +787,7 @@ void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
         .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_ORDER,.value=order_id }, EVENT_UNIT_ISSUED_ORDER,true);
 }
 
-static void unit_publish_target_order(edict_t *self, cstring_t order,
+void G_PublishIssuedTargetOrder(edict_t *self, cstring_t order,
                                       edict_t *target, uint32_t issuer_player) {
     uint32_t const order_id = unit_order_event_id(order);
 
@@ -1106,7 +1106,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         if (result == ABILITY_ORDER_POINT)
             return G_IssueUnitPointOrder(self,order,&point,queue,issuer_player,0);
         if (result == ABILITY_ORDER_INTERCEPTED) {
-            unit_publish_target_order(self, order, target, issuer_player);
+            G_PublishIssuedTargetOrder(self, order, target, issuer_player);
             return true;
         }
     }
@@ -1121,7 +1121,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         if (accepted) {
             self->current_order_id=G_OrderId(order);
             S_UnitAbilityOrderAccepted(self, order);
-            unit_publish_target_order(self, order, target, issuer_player);
+            G_PublishIssuedTargetOrder(self, order, target, issuer_player);
         }
         return accepted;
     }
@@ -1137,7 +1137,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             accepted = S_IssueUnitTargetSpell(self, spell_code, target);
             if (accepted) {
                 S_UnitAbilityOrderAccepted(self, order);
-                unit_publish_target_order(self, order, target, issuer_player);
+                G_PublishIssuedTargetOrder(self, order, target, issuer_player);
             }
             return accepted;
         }
@@ -1159,7 +1159,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         bool const accepted = unit_issuetargetorder_now(self, order, target, NULL);
         if (accepted) {
             S_UnitAbilityOrderAccepted(self, order);
-            unit_publish_target_order(self, order, target, issuer_player);
+            G_PublishIssuedTargetOrder(self, order, target, issuer_player);
         }
         return accepted;
     }
@@ -1292,7 +1292,7 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
             G_PublishIssuedPointOrder(self,queued.order_id,&queued.point,queued.issuer_player,queued.order);
         else if(queued.target_type==UNIT_ORDER_TARGET_ENTITY) {
             edict_t *target=unit_queued_target(&queued);
-            if(target)unit_publish_target_order(self,queued.order,target,queued.issuer_player);
+            if(target)G_PublishIssuedTargetOrder(self,queued.order,target,queued.issuer_player);
             else G_PublishIssuedPointOrder(self,queued.order_id,&queued.point,queued.issuer_player,queued.order);
         } else if(queued.target_type==UNIT_ORDER_TARGET_NONE)
             G_PublishIssuedImmediateOrder(self,queued.order_id,queued.issuer_player,queued.order);

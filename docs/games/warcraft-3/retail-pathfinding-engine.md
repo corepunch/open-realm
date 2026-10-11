@@ -18498,3 +18498,81 @@ cancellation/refunds and alternate producer runtime scope. Evidence, rejected
 setups, failing/passing regressions and built artifacts are archived under
 `research/ORDER-01.16/payoff297/` in the1.27 report root. No FPS or complete
 construction/routing parity claim is made by this ownership change.
+
+
+## Human Build activates and resumes a real Repair head (Payoff298)
+
+`544090` marks the previous task for finish through `418b40` (clear `c4/c8`,
+virtual `bc(1)`), relocates the committed worker pose and creates target Repair
+852024. `691c70` flags1/1 inserts it **after** the active Build head and before
+existing successors. In ten public scenes, user count1/Build becomes count2/
+Build→Repair; the previous task unwinds, `67de20` advances ownership, and Repair
+activates as the sole head with count1. There is no resumable Build underneath
+active Repair in these scenes. This resolves the earlier ambiguous “pending
+Build beneath transient Repair” wording; it does not prove arbitrary successor
+or capacity compositions.
+
+Two complete read-only repeats and an observer-free control agree on1009 public
+markers each (3027 total). The repeats also agree on162 native queue/dispatch/
+work boundaries each (324 total). Ten scenes cover normal completion, Move/Stop
+during work, Pause/resume, structure kill/removal and Move/Stop/structure removal/
+worker removal from the Repair-issued callback. An initial observer sampled a
+nonexistent third stack argument to `67abe0`; those streams are diagnostics,
+excluded from the frozen witness. Corrected observers read only defined fields
+and arguments. Preload file wrappers vary, but all public markers agree exactly;
+raw bytes and per-file hashes are preserved.
+
+Repair's target notification precedes `409630` work. Move **and Stop** from that
+notification prevent work and leave construction at its initial life. This is
+distinct from Stop in the earlier construct-start callback: that earlier Stop
+permits the subsequent Repair handoff (Payoff295). Participant removal prevents
+work too. Pause inserts suspension851973 ahead of the same saved Repair identity;
+release reactivates that identity and publishes its target notification again
+before restarting work. Seven work starts are captured: six ordinary starts,
+including the paused scene, plus its one resumed start. No work starts in the
+four Repair-notification mutation scenes.
+
+The engine now uses the shared target-order publisher for initial Human Repair
+activation. The Repair owner captures participant incarnations and move revision
+across notification, so replacement/removal cannot resurrect work. Build checks
+the second callback boundary before further structure writes. Suspension release
+restores the saved public head and sends `A_ORDER_RESUME` to its current ability;
+Repair publishes its retained target then leaves work to its existing owner
+visit. Other abilities keep their default behavior. This adds no world scan,
+allocation, persistent field or network wire change; Save181 remains current.
+
+The production regression covers initial Repair, callback Move/Stop/removal and
+paused engine save/load plus resumed notification. The final corrected harness
+fails20 of67 assertions against the old engine and passes64/64 after the fix.
+Harness diagnostics also exposed an overstrict new comparison: software-decimal `0.1` need not multiply to the same word as a host C
+literal. The harness now tests the intended initial-life stage with a narrow
+ratio band. The new harness also releases deferred participants between cases
+and registers its player event against a restored live player slot, so save/load
+does not change which subject the subscription names. No existing retail fixture
+or numerical expectation was changed.
+The engine checks observable head/event/work outcomes, not the private transient
+task's complete intermediate storage, exact worker relocation, HP arithmetic or
+work clocks. Missing-target resume notifications and arbitrary successor
+compositions retain their broader existing order/target scope.
+
+`Build298Evidence.java` saves names, comments, xrefs and859 original instruction
+guards, with identical saved readback. `MapPathfinding.java` contains the same
+mapping. Evidence is frozen in `retail-build298-1.27.json` and its capture bundle;
+all earlier evidence fixtures and literal expected headers remain unchanged.
+Reproduce focused Classic/TFT checks with:
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_build298.py \
+  --binary /path/to/retail/game.dll --data /absolute/path/to/build/tests \
+  --report /tmp/build298-fresh.json
+```
+
+Archive: `research/ORDER-01.16/payoff298/` under the1.27 report root. ORDER-01.16
+remains open for cancellation/refund and alternate producer runtime scope; no
+new TODO leaf, full pathfinding parity or performance-target claim is made.
+Focused Classic/TFT validation passes513 tests and67,974 assertions per edition;
+59 Python capture-mutation and corpus checks pass. The final production regression
+passes64/64 assertions. All754 historical evidence fixtures and162 literal retail
+headers remain byte-identical. The tested parent includes the independently
+committed patch-archive precedence fix. This is4/12 since Payoff295's full-suite
+checkpoint.

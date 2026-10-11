@@ -653,6 +653,9 @@ void build_build(edict_t *ent) {
         if (building->construction->type == CONSTRUCTION_HUMAN) {
             if (continue_work) repair_build_primary(ent, building);
             else building->construction->primary_builder = NULL;
+            /* Repair's own issued callback is a second mutation boundary. */
+            if(!building->inuse || building->spawn_time!=building_spawn || G_IsDeferredFree(building) ||
+               !ent->inuse || ent->spawn_time!=worker_spawn || G_IsDeferredFree(ent))return;
         }
     } else {
         /* Preserve the old generic fallback for custom/unknown workers. */

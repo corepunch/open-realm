@@ -1710,8 +1710,11 @@ void S_RunMoveTimers(void) {
             ent->current_order_id=head;
             if(ent->currentmove==&move_move_walk && ent->goalentity)
                 move_start_point_group(ent,&point,0);
-        } else if(order)ent->current_order_id=order;
-        else if(ent->current_order_id==MOVE_ORDER_SUSPENDED)ent->current_order_id=0;
+        } else if(order) {
+            ent->current_order_id=order;
+            if(ent->currentmove && ent->currentmove->proc)
+                ent->currentmove->proc(ent,A_ORDER_RESUME,NULL);
+        } else if(ent->current_order_id==MOVE_ORDER_SUSPENDED)ent->current_order_id=0;
     }
     for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
         edict_t *ent=g_edicts+i;

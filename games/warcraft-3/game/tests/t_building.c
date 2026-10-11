@@ -7671,4 +7671,81 @@ TEST(wc3_building, build297_completion_reference_survives_save_and_rejects_reuse
     reset_entities();setup_test_world();
 }
 
+/* Human Build retires its head before the real Repair target notification.
+ * Reentrant commands at that notification can cancel work before it starts. */
+TEST(wc3_building, build298_repair_notification_precedes_work_and_respects_reentry) {
+    reset_entities();setup_test_world();
+    /* Register against a live player slot, including across save restoration. */
+    g_edicts[0].client=game.clients;g_edicts[0].inuse=true;
+    slkTestData_t *rows=NULL,*old=building_install_repair_data(&rows);
+    T_ASSERT(run_test_jass(
+        "globals\nunit worker=null\nunit structure=null\ninteger repairs=0\ntrigger issued=null\nendglobals\n"
+        "function repairIssued takes nothing returns nothing\n"
+        "if GetIssuedOrderId()!=OrderId(\"repair\") then\nreturn\nendif\n"
+        "set repairs=repairs+1\nset structure=GetOrderTargetUnit()\n"
+        "call BJassAssert(GetTriggerUnit()==worker,\"Repair issuer\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(worker)==OrderId(\"repair\"),\"Repair owns notified head\")\n"
+        "call BJassAssert(GetWidgetLife(structure)>=GetUnitState(structure,ConvertUnitState(1))*0.0999 and GetWidgetLife(structure)<=GetUnitState(structure,ConvertUnitState(1))*0.1001,\"Repair notification precedes progress\")\n"
+        "if GetUnitUserData(worker)==1 then\ncall BJassAssert(IssuePointOrder(worker,\"move\",-256,128),\"nested Move\")\n"
+        "elseif GetUnitUserData(worker)==2 then\ncall BJassAssert(IssueImmediateOrder(worker,\"stop\"),\"nested Stop\")\n"
+        "elseif GetUnitUserData(worker)==3 then\ncall RemoveUnit(structure)\n"
+        "elseif GetUnitUserData(worker)==4 then\ncall RemoveUnit(worker)\nendif\nendfunction\n"
+        "function create takes nothing returns nothing\nset repairs=0\nset structure=null\n"
+        "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"
+        "function freeze takes nothing returns nothing\ncall PauseUnit(worker,true)\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall PauseUnit(worker,false)\nendfunction\n"
+        "function check takes nothing returns nothing\n"
+        "if GetUnitUserData(worker)==5 then\ncall BJassAssert(repairs==2,\"Repair notifies again on resume\")\n"
+        "else\ncall BJassAssert(repairs==1,\"one synchronous Repair notification\")\nendif\nendfunction\n"
+        "function finish takes nothing returns nothing\ncall DestroyTrigger(issued)\nendfunction\n"
+        "function main takes nothing returns nothing\nset issued=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(issued,Player(0),ConvertPlayerUnitEvent(40),null)\n"
+        "call TriggerAddAction(issued,function repairIssued)\nendfunction\n"));
+    FOR_LOOP(kind,6) {
+        jass_callbyname(level.vm,"create",false);
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);if(!worker)break;
+        UnitData_t data=*worker->data.UnitData;data.race=STR_HUMAN;worker->data.UnitData=&data;
+        UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+        UnitAbilities_t abilities={.abilList="Arep"};worker->data.UnitAbilities=&abilities;worker->user_data=kind;
+        gameClient_t *client=G_GetPlayerClientByNumber(0);
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+        T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){64,64}));
+        T_NOT_NULL(worker->goalentity);if(!worker->goalentity)break;
+        worker->s.origin2=worker->goalentity->s.origin2;build_build(worker);
+        if(kind==5) {
+            jass_callbyname(level.vm,"freeze",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(worker->current_order_id,MOVE_ORDER_SUSPENDED);
+            PATHSTR save;strlcpy(save,Test_TempPath("build298-paused.bin"),sizeof(save));
+            T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);
+            worker->data.UnitData=&data;worker->data.UnitProfile=&profile;worker->data.UnitAbilities=&abilities;
+            jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            level.pathing_clock=worker->movement.pause_deadline;S_RunMoveTimers();
+            T_EQ(worker->current_order_id,G_OrderId("repair"));
+            T_ASSERT(worker->currentmove && worker->currentmove->proc==CAbilityRepair);
+        }
+        jass_callbyname(level.vm,"check",false);T_ASSERT(!jass_rterror_pending(level.vm));jass_rterror_clear(level.vm);
+        edict_t *building=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','b','a','r'))building=ent;
+        T_NOT_NULL(building);
+        if(kind==0 || kind==5) {T_EQ(worker->current_order_id,G_OrderId("repair"));T_NOT_NULL(worker->buildwork);}
+        else {
+            T_NULL(worker->buildwork);
+            if(kind==1) {T_EQ(worker->current_order_id,G_OrderId("move"));T_NOT_NULL(worker->goalentity);
+                if(worker->goalentity)T_EQ(worker->goalentity->s.origin2.x,-256.0f);}
+            if(kind==2 || kind==3)T_EQ(worker->current_order_id,0);
+            if(kind==3 && building)T_ASSERT(G_IsDeferredFree(building));
+            if(kind==4)T_ASSERT(G_IsDeferredFree(worker));
+        }
+        if(building && building->inuse && !G_IsDeferredFree(building)) {
+            T_NOT_NULL(building->construction);
+            if(kind && kind!=5) {T_NULL(building->construction->primary_builder);
+                float health=building->health.value;FOR_LOOP(i,10)G_RunConstructionFrame(building);T_EQ(building->health.value,health);}
+        }
+        if(building && building->inuse)G_FreeEdict(building);
+        if(worker->inuse)G_FreeEdict(worker);
+        level.time+=2000;level.pathing_clock.time+=2;S_RunAbilityTimers();G_RunEvents();CM_BakeStaticObstacles();
+    }
+    jass_callbyname(level.vm,"finish",false);reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
+
 #endif
