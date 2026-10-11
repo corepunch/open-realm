@@ -5883,8 +5883,11 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
     vec2_t direction;
     /* Native arrival can stop translation before its angular gate completes.
-     * In-range/forced members turn without another path or retry request. */
-    uint32_t progress=move_group_advance_endpoint(group,member,&pose,&direction);
+     * In-range/forced members turn without another path or retry request.
+     * Original165ae0 checks a retained coarse point (165f10) before167070: one already in
+     * accelerator range is consumed and refilled by this visit's route update instead. */
+    uint32_t progress=G_UnitMoveAdaptiveWaypointDue(&unit->movement.fine_route,(vec2_t){pose.grid[0],pose.grid[1]}) ? 0 :
+        move_group_advance_endpoint(group,member,&pose,&direction);
     if (progress==2) {
         /* Native returns the consumed fine point, including a zero vector.
          * 16fbd0 passes stop1 for every nonzero Path_Advance status. */

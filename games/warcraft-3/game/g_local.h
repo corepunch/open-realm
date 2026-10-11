@@ -3576,6 +3576,7 @@ bool S_ValidateMoveCoarseRequests(void);
 bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest);
 bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);
 bool G_AdvanceUnitMoveAdaptiveDestination(edict_t *, moveFineRoute_t *, bool *);
+bool G_UnitMoveAdaptiveWaypointDue(moveFineRoute_t const *, vec2_t);
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *,moveFineRoute_t *,vec2_t *,uint32_t *);
 void G_FreeMovePathCache(void);

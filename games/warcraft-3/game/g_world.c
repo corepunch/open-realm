@@ -1477,6 +1477,18 @@ static bool move_adaptive_progress(movePathQuery_t const *input,vec2_t source,
     return true;
 }
 
+/* Original165ae0 visits165b60/165f10 before167ce0 and165c60/167070. Report, without
+ * consuming it, whether the retained intermediate coarse point is in accelerator range of
+ * this fine source; the route update then consumes it and refills on the same visit. */
+bool G_UnitMoveAdaptiveWaypointDue(moveFineRoute_t const *route, vec2_t fine) {
+    if (!route->adaptive_points || !route->adaptive_index || route->adaptive_index>=route->adaptive_count ||
+        route->adaptive_revision!=move_map_revision) return false;
+    moveGridGeometry_t const *geometry=move_geometry();
+    vec2_t source={wc3_mul(fine.x,geometry->native_scale.x),wc3_mul(fine.y,geometry->native_scale.y)};
+    vec2_t point=route->adaptive_points[route->adaptive_index];
+    return wc3_acc_in_range((wc3FineVector_t){wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},(wc3FineVector_t){point.x,point.y});
+}
+
 /* Ordinary owned paths enable adaptive search at activation, including nearby orders. */
 static void move_acc_enable_gates(void) {
     S_WaygateBuildEdges(move_acc_gates);
