@@ -237,6 +237,8 @@ The checksum and header preflight protect normal partial/corrupt-file and wrong-
 
 The saved quest graph occupies fixed `MAX_QUESTS` slots. `header.quests` is diagnostic metadata only: load restores the saved quest slots, so the number of active quests created during map startup may differ from the snapshot. This avoids rejecting valid same-map saves when startup has already recreated a different active quest set. `wc3_save.active_quest_count_may_differ_before_restore` covers this case.
 
+Entity `s.model` values are model configstring indexes and are invalidated when the map is reloaded. `ReadEdict` rebinds object data and then registers an ordinary, non-polymorphed unit from `UnitUI.modelFile` to assign the new map's index. `wc3_save.ordinary_unit_model_is_reregistered_after_load` substitutes a model-index callback to verify the loaded entity receives the re-registered index.
+
 ## Simulation Clock Continuity
 
 `level.time` is the only clock the game may read. Game code calls `G_Time()` (an inline read of

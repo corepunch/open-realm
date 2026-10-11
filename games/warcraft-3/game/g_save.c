@@ -1985,6 +1985,13 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
     if (ent->class_id) {
         G_BindEntityData(ent);
+        /* Model indices belong to the freshly rebuilt map configstring table.
+         * Re-register ordinary units by their stable object-data model path. */
+        if ((ent->s.flags & EF_UNIT) && !ent->polymorph && ent->data.UnitUI->modelFile) {
+            PATHSTR model_filename;
+            G_NormalizeModelFilename(ent->data.UnitUI->modelFile, model_filename, sizeof(model_filename));
+            ent->s.model = G_RegisterModel(model_filename);
+        }
         /* animation is a process-owned model pointer and is deliberately not serialized.
          * Re-resolve it from the persisted logical request plus per-unit animation tags. */
         if (ent->animation_request[0])
@@ -2400,6 +2407,42 @@ TEST(wc3_save, active_quest_count_may_differ_before_restore) {
     T_ASSERT(level.quests[0].inuse);
     T_STREQ(level.quests[0].title, "Saved quest");
     T_ASSERT(!level.quests[1].inuse);
+    remove(filename);
+}
+
+static int save_test_model_index;
+static char save_test_model_path[MAX_PATHLEN];
+
+static int save_test_model_index_fn(cstring_t filename) {
+    strlcpy(save_test_model_path, filename, sizeof(save_test_model_path));
+    return save_test_model_index;
+}
+
+TEST(wc3_save, ordinary_unit_model_is_reregistered_after_load) {
+    cstring_t const filename = Test_TempPath("wc3-save-unit-model.bin");
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    uint32_t unit_index;
+    edict_t *unit;
+    bool loaded;
+
+    reset_entities();
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
+    T_ASSERT(unit->data.UnitUI && unit->data.UnitUI->modelFile);
+    if (!unit->data.UnitUI || !unit->data.UnitUI->modelFile) return;
+    unit_index = (uint32_t)(unit - g_edicts);
+    unit->s.flags |= EF_UNIT;
+    unit->s.model = 4;
+    T_ASSERT(WriteGame(filename));
+
+    save_test_model_index = 91;
+    save_test_model_path[0] = '\0';
+    gi.ModelIndex = save_test_model_index_fn;
+    loaded = ReadGame(filename);
+    gi.ModelIndex = old_model_index;
+    T_ASSERT(loaded);
+    T_EQ(g_edicts[unit_index].s.model, save_test_model_index);
+    T_ASSERT(save_test_model_path[0]);
     remove(filename);
 }
 
