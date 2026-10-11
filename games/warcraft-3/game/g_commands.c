@@ -2207,8 +2207,12 @@ CLIENTCOMMAND(MenuSaveNamed) {
         return;
     }
     gi.SavePath(name, path, sizeof(path));
-    if (path[0] && (!G_BeforeSaveGame(name) || !WriteGame(path)))
-        fprintf(stderr, "WC3 menu: failed to save %s\n", path);
+    if (path[0]) {
+        if (!G_BeforeSaveGame(name) || !WriteGame(path))
+            fprintf(stderr, "WC3 menu: failed to save %s\n", path);
+        else if (gi.BindScriptSaveScope && !gi.BindScriptSaveScope(name))
+            fprintf(stderr, "WC3 menu: saved game, but could not bind campaign zone storage\n");
+    }
 }
 
 CLIENTCOMMAND(MenuLoadNamed) {

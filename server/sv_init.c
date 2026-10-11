@@ -57,6 +57,8 @@ static void SV_SaveGame_f(void) {
         (ge->BeforeSaveGame && !ge->BeforeSaveGame(Cmd_Argv(1))) ||
         !ge->SaveGame(path))
         fprintf(stderr, "save: failed to write %s\n", path);
+    else if (!FS_BindScriptSaveScope(Cmd_Argv(1)))
+        fprintf(stderr, "save: saved game but could not bind campaign zone storage\n");
 }
 
 /* Script saves are authorized by the engine-owned sandbox, not the ordinary

@@ -185,6 +185,9 @@ void FS_ConfigPath(cstring_t rel, string_t out, uint32_t out_size);
 void FS_SavePath(cstring_t rel, string_t out, uint32_t out_size);
 /* JASS-only filesystem API: engine-scoped sandbox, not the manual save area. */
 void FS_ResetScriptSaveScope(void);
+bool FS_BindScriptSaveScope(cstring_t manual_name);
+bool FS_RestoreScriptSaveScope(cstring_t manual_name);
+cstring_t FS_ScriptScopeIdentity(void);
 bool FS_ScriptSavePath(cstring_t name, string_t out, uint32_t out_size);
 bool FS_ScriptCachePath(cstring_t name, string_t out, uint32_t out_size);
 bool FS_ScriptSaveExists(cstring_t name);

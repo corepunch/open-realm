@@ -2,7 +2,7 @@
 
 ## Contract
 
-The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`. Player-facing menu saves continue to use `gi.SavePath`; untrusted JASS `SaveGame` and `LoadGame` are resolved through `gi.ScriptSavePath` into a **separate engine-owned session sandbox**. This change does not yet make JASS save/load asynchronous or fix the active-JASS-frame snapshot restriction (see Scripted zone saves below).
+The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`. Player-facing menu saves continue to use `gi.SavePath`; untrusted JASS `SaveGame` and `LoadGame` are resolved through `gi.ScriptSavePath` into a **separate engine-owned session sandbox**. Scripted save and load requests are deferred to VM-safe/session boundaries (see Scripted zone saves below).
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
@@ -193,7 +193,15 @@ This follows the Quake 2 `g_save.c` pattern while avoiding Quake 2's old global 
 
 JASS save names are relative virtual names. Patch 1 accepts simple flat slots, `Blizzard\Zones\<filename>`, and `Blizzard\<slot>\<filename>` only. The engine uses a fresh private `saves/script/<random-session-id>/` root per player-selected map session. It preserves that root for authored JASS `ChangeLevel`/`RestartGame` actions; player-started maps, returning to the menu, and manual load requests rotate it. Map scripts never receive or choose the physical root, and cannot enumerate or manipulate manual saves or saves from other sessions. Disk-backed `gamecache-*.orcgc` sidecars are likewise under that session's private `cache/` directory, which JASS save-copy/delete natives cannot address. Valid names use ASCII letters/digits, dot, dash, underscore and internal spaces, at most 64 characters per component. Device names, trailing dots, absolute paths, traversal and extra directory depth are rejected. Existing `.sav` suffixes are preserved, otherwise `.sav` is appended consistently for scripted saves. These rules apply to `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` too. Directory operations are limited to `Blizzard\<slot>` and `Blizzard\Zones`; they cannot target the sandbox root or the `Blizzard` parent. Filesystem copying on POSIX uses directory-relative no-follow file descriptors and temporary replacement; the Windows implementation rejects reparse points.
 
-**Patch 1 limitation:** the private scope is not yet stored in full-game save metadata. Consequently, restarting the application or choosing a manual save creates a new scope and cannot access an older zone-save collection until the subsequent campaign persistence patch provides an authenticated scope-restoration policy. Original Rexxar zone travel also remains blocked by the independently known VM-safe save/load and game-event gaps. Do not treat the filename work as an end-to-end Rexxar fix. Scripted `SaveGame`/`LoadGame` still call the current synchronous serializer, whose filename-based `fopen` path is not fully safe against concurrent external filesystem modification; the transactional save patch must enforce the same scope when opening the final file, add per-session storage quotas, and fix safe-point ordering.
+**Patch 5:** player-created manual saves now receive a private, engine-owned
+binding to their script-save session after the actual save file is committed.
+A player-selected load checks that binding against the manual save contents
+and reopens the previously authorized script scope before constructing the
+restored map. This also works across application restarts. A save without a
+valid binding uses a fresh private scope, preserving isolation but not older
+zone snapshots. Bindings are inaccessible to JASS and do not grant access to
+other manual saves. The fingerprint is a stale-file check, not a cryptographic
+signature against an attacker modifying the user's local save files. Original Rexxar zone travel also remains blocked by the independently known VM-safe save/load and game-event gaps. Do not treat the filename work as an end-to-end Rexxar fix. Scripted `SaveGame`/`LoadGame` still call the current synchronous serializer, whose filename-based `fopen` path is not fully safe against concurrent external filesystem modification; the transactional save patch must enforce the same scope when opening the final file, add per-session storage quotas, and fix safe-point ordering.
 
 ```jass
 call SaveGame("chapter-01")
@@ -700,3 +708,35 @@ All format-56 variants, including the former combat/cargo extensions and extensi
 Attack cooldown begins at swing start, independently of animation `wait`; it continues elapsing when another order or rooted state pauses the attack callback. A target escaping before damage point cancels the pending hit but does not erase the cooldown. A committed melee hit or projectile launch starts backswing recovery, and a save/load during recovery preserves only the remaining backswing time.
 
 Regression coverage includes prior/future version rejection, map-selection layout rejection, current combat/cargo round-trips, invalid cargo goal references, and payloads with unexpected trailing records. Shared Warcraft III ability lifecycles also have combined round trips for an ability-owned timed summon, a live homing spell projectile (owner/target generations plus movement state), corpse reservation (flag plus owning status marker), an owned attached effect (owner plus target-generation guard), and Flare's caster-bound reveal thinker (callback, point, expiry, and owner incarnation). Far Sight remains covered separately as a player-scoped reveal thinker whose saved lifecycle is intentionally independent of caster identity. The movement suite saves a Zeppelin en route and completes its unload after restoration. Run `make test-wc3-engine WC3_PATTERN='wc3_save.*'` for both ROC and TFT.
+
+### Manual save scope binding and campaign cache (Patch 5)
+
+A successful ESC-menu or server-console manual save establishes an engine-only
+binding in `saves/script/bindings/`. It identifies the randomly generated
+script scope along with the file size and a fingerprint of the committed manual
+save. No map-controlled path or cache key can target binding metadata. The
+binding is written only after `WriteGame` completes, and a later load validates
+it against that save file. Missing/mismatched bindings cause a fresh scope
+instead of granting stale or guessed access. Loading the save still follows
+the existing `SV_LoadGame` path.
+
+Scripted `LoadGame` does not restore a manual binding, rotate the scope, or
+publish `EVENT_GAME_LOADED`: it continues to use the active campaign's
+current zone files. For `wc3_gamecache_mode=disk`, `InitGameCache` prefers the
+latest committed disk cache and invalidates process-memory cache entries when
+the engine changes scopes. The original campaign script remains responsible
+for exporting the latest heroes, removing source-party instances, and
+re-importing units on arrival. Fully verifying its stale-handle/hero behaviour
+requires the Rexxar map-data integration run.
+
+The patch does not add a storage quota, cryptographic authentication for
+manually imported saves, full rollback of a failed cross-map restore, or
+compatibility with Blizzard's binary `.w3z` or `.w3v` formats.
+
+**Known multi-slot limitation:** separate manual saves made during one play
+session currently share the same live campaign cache directory. Restoring an
+older manual slot triggers Rexxar's own zone backup restoration, but the
+`cache/` sidecar may reflect later progress from another slot in that scope.
+An engine-owned per-manual-slot cache checkpoint (or fully branched scope)
+is still needed before older named slots can be claimed as isolated campaign
+checkpoints. Do not rely on this patch alone for that use case.

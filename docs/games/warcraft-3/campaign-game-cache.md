@@ -29,9 +29,14 @@ cache to the process snapshot and an OpenRealm sidecar in the engine-owned
 script-save session sandbox so later maps in **the same session** can restore it.
 The previous global sidecar location is no longer accessible to map scripts:
 without this isolation, a malicious custom map could overwrite another
-campaign's `Campaigns.w3v` cache. Persisting/re-authorizing a specific session
-namespace across application restarts is follow-up work, and is not claimed
-by this patch. `memory` keeps the same explicit save boundary but
+campaign's `Campaigns.w3v` cache. Patch 5 binds the random script-save scope to a successfully committed
+player-created named save using private engine-owned metadata. Loading that
+specific named save (even after restarting) reauthorizes its existing script
+scope, including `Blizzard/Zones` and `cache/` sidecars. Untrusted JASS can
+neither select the scope nor read its binding. If the binding is absent, stale
+or invalid, the loader starts with a new scope and does not expose the old
+files. A legacy manual save without a binding therefore cannot restore its
+older scripted zones; the manual game-state snapshot itself can still load. `memory` keeps the same explicit save boundary but
 commits only to process memory. `disabled` gives every `InitGameCache()` call a
 fresh empty handle; handle-local `Store*()`/`GetStored*()` still work and
 `SaveGameCache()` returns success, but commits nowhere.
@@ -194,10 +199,42 @@ semantics remain separate work.
 
 For a retail-like campaign run, use the default `disk` mode: complete Human01 so
 its script reaches `SaveGameCache()`, then load Human02. The carried state may be
-restored when both maps run in the same play session. At present, restarting
-OpenRealm creates a new isolated cache namespace, so older sidecars are not
-restored until the follow-up session-persistence work is implemented. Use
+restored when both maps run in the same play session. Restarting OpenRealm creates a fresh scope for a new game, but loading a
+previously bound manual save reauthorizes its original committed cache
+sidecar. In `disk` mode that sidecar is preferred over a process-memory
+cache of the same name. In `memory` mode, committed cache memory survives
+map changes within a single script scope, but never crosses a scope change
+and does not survive application restart. Use
 `+set wc3_gamecache_mode memory` when persistence should stop at process exit, or
 `+set wc3_gamecache_mode disabled` when intentionally testing Human02's
 cache-miss fallback. Starting Human02 without a previously committed Human01
 cache is a legitimate miss in every mode.
+
+## Named saves, stale zones and remaining verification
+
+Manual saves bind the current private scope **after** a successful full-game
+write; the `EVENT_GAME_SAVE` handler runs before that write so Rexxar can copy
+zone snapshots to its named-save backup. Loading a named save selects its
+binding **before** `SV_Map` and the subsequent `EVENT_GAME_LOADED` callback.
+Scripted zone restores keep the current scope and deliberately do not fire
+`EVENT_GAME_LOADED`, so they cannot restore outdated named-save backups.
+
+When `wc3_gamecache_mode=disk`, a new `InitGameCache` handle reads the latest
+committed sidecar rather than blindly reusing an old process-memory handle.
+A manually restored zone can also have preexisting JASS handles serialized
+inside the older snapshot. The exact Rexxar `Import_All` sequence still needs
+runtime verification to establish that those handles get reinitialized before
+use; Patch 5 does not claim to rewrite serialized cache handles or guarantee
+hero deduplication in every campaign script.
+
+The binding's file fingerprint detects normal replacement or corruption of the
+associated manual save; it is **not** a cryptographic authenticity signature
+against an attacker with direct host-filesystem write access. The security
+boundary against untrusted maps is the engine-only scope identity, private
+binding directory, strict JASS path policy, and no-follow filesystem checks.
+
+**Outstanding:** an older named save within the same script scope does not
+yet receive a private checkpoint of the committed game-cache sidecars. Its
+zone backups are restored by the campaign script, but caches may remain newer
+than that named save. Implement per-slot cache checkpointing or branching
+before asserting full rewind semantics for multiple named saves.

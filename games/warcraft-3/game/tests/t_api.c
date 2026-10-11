@@ -7505,6 +7505,31 @@ TEST(wc3_api, gamecache_save_commits_to_process_memory) {
     gi.CvarString = old_cvar;
 }
 
+static char test_gamecache_scope[33] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+static cstring_t test_gamecache_scope_identity(void) { return test_gamecache_scope; }
+
+TEST(wc3_api, gamecache_memory_never_crosses_engine_session_scope) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    cstring_t (*old_identity)(void) = gi.ScriptScopeIdentity;
+    gi.CvarString = gamecache_memory_cvar;
+    gi.ScriptScopeIdentity = test_gamecache_scope_identity;
+    strlcpy(test_gamecache_scope, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", sizeof(test_gamecache_scope));
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local gamecache c = InitGameCache(\"scope-test.w3v\")\n"
+        " call StoreInteger(c, \"mission\", \"level\", 5)\n"
+        " call BJassAssert(SaveGameCache(c), \"failed memory commit\")\n"
+        "endfunction\n"));
+    strlcpy(test_gamecache_scope, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", sizeof(test_gamecache_scope));
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local gamecache c = InitGameCache(\"scope-test.w3v\")\n"
+        " call BJassAssert(not HaveStoredInteger(c, \"mission\", \"level\"), \"other session cache leaked\")\n"
+        "endfunction\n"));
+    gi.CvarString = old_cvar;
+    gi.ScriptScopeIdentity = old_identity;
+}
+
 TEST(wc3_api, gamecache_restore_does_not_publish_pickup_events) {
     T_ASSERT(run_test_jass(
         "globals\n"

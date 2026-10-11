@@ -20,6 +20,21 @@ typedef struct {
 } gameCacheMemorySlot_t;
 
 static gameCacheMemorySlot_t gamecache_memory[MAX_GAMECACHE_MEMORY_CACHES];
+static char gamecache_scope_identity[33];
+
+/* A map change in one campaign keeps its scope; starting a different map or
+ * restoring a different named save must not reuse the old campaign cache from
+ * this process. The engine owns the identity; it is never given to JASS. */
+static bool G_GameCacheCheckScope(void) {
+    cstring_t identity = gi.ScriptScopeIdentity ? gi.ScriptScopeIdentity() : NULL;
+    if (!identity || !*identity || strlen(identity) >= sizeof(gamecache_scope_identity)) return false;
+    if (strcmp(identity, gamecache_scope_identity)) {
+        memset(gamecache_memory, 0, sizeof(gamecache_memory));
+        strlcpy(gamecache_scope_identity, identity, sizeof(gamecache_scope_identity));
+    }
+    return true;
+}
+
 
 typedef union {
     float f;
@@ -429,10 +444,13 @@ void G_GameCacheInit(gameCache_t *cache, cstring_t campaign) {
     }
     strlcpy(cache->campaign, campaign, sizeof(cache->campaign));
     mode = G_GameCacheStorageMode();
-    if (mode == GAMECACHE_STORAGE_DISABLED) return;
-    if (G_GameCacheMemoryLoad(cache)) return;
-    if (mode == GAMECACHE_STORAGE_DISK && G_GameCacheLoadDisk(cache)) {
-        G_GameCacheMemorySave(cache);
+    if (mode == GAMECACHE_STORAGE_DISABLED || !G_GameCacheCheckScope()) return;
+    /* The committed disk cache is authoritative: an older zone snapshot or
+     * a previously initialized process-memory handle must not eclipse it. */
+    if (mode == GAMECACHE_STORAGE_DISK) {
+        if (G_GameCacheLoadDisk(cache)) G_GameCacheMemorySave(cache);
+    } else {
+        G_GameCacheMemoryLoad(cache);
     }
 }
 
@@ -502,6 +520,7 @@ static bool G_GameCacheSaveDisk(gameCache_t *cache) {
 
 bool G_GameCacheSave(gameCache_t *cache) {
     gameCacheStorageMode_t const mode = G_GameCacheStorageMode();
+    if (mode != GAMECACHE_STORAGE_DISABLED && !G_GameCacheCheckScope()) return false;
 
     if (mode == GAMECACHE_STORAGE_DISABLED) {
         if (!cache || !cache->campaign[0]) return false;

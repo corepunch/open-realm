@@ -876,6 +876,9 @@ execute:
         FS_ResetScriptSaveScope();
         PATHSTR map;
         if (!SV_GetSaveMap(pending.arg, map, sizeof(map))) break;
+        /* Only a player-selected manual save may reauthorize its original
+         * private campaign storage. Missing/stale bindings leave a new scope. */
+        FS_RestoreScriptSaveScope(pending.arg);
         CL_SetGameplayBindings();
         CL_BeginLoadingMap(map);
         SV_LoadGame(pending.arg, map);

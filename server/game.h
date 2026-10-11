@@ -101,6 +101,9 @@ struct game_import {
      * sandbox. The game cannot choose its root or access manual saves. */
     bool (*ScriptSavePath)(cstring_t name, string_t out, uint32_t out_size);
     bool (*ScriptCachePath)(cstring_t name, string_t out, uint32_t out_size);
+    /* Trusted engine-only operations, never exposed to JASS. */
+    bool (*BindScriptSaveScope)(cstring_t manual_name);
+    cstring_t (*ScriptScopeIdentity)(void);
     bool (*ScriptSaveExists)(cstring_t name);
     bool (*ScriptCopySave)(cstring_t source, cstring_t target);
     bool (*ScriptRenameSaveDirectory)(cstring_t source, cstring_t target);

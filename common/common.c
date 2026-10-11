@@ -5,6 +5,7 @@
 #include "test.h"
 #include <errno.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <time.h>
 #include <ctype.h>
 #ifdef _WIN32
@@ -468,6 +469,7 @@ void FS_SavePath(cstring_t rel, string_t out, uint32_t out_size) {
 }
 
 #include "script_save_impl.inc"
+#include "script_scope_binding.inc"
 
 /* Delete one resolved save slot without exposing unrestricted filesystem removal to game modules. */
 bool FS_DeleteSave(cstring_t rel) {
