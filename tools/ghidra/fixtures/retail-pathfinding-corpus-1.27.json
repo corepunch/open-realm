@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "231 executable original/evidence contracts;512 total entries; provenance and limitations remain per-entry.",
+  "scope": "234 executable original/evidence contracts;515 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -52493,6 +52493,60 @@
       "exclusions": [
         "Complete trajectory parity and other absent-Move nonstructure/special producer families are not certified."
       ]
+    },
+    {
+      "id": "oracle-structure279",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_structure279.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "structure279.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 1064
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 633
+        },
+        "task_cases": {
+          "equal": 6
+        },
+        "physical_visits": {
+          "equal": 471
+        },
+        "engine": {
+          "length": 20
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Ground unit-target spell structure approaches and captured widget-region identity through coarse/fine search; native Inner Fire mapping, Stop/removal/replacement and103 exact Farm motion states with cold-save continuation. Two read-only repeats and unhooked control retain633 public markers; supplemental route/cell observations agree. Complete cast/effect/backswing timing, air casters and destructable targets remain excluded.",
+      "exclusions": [
+        "All103 Farm approach states match word-for-word; complete public cast/effect/backswing timeline is not certified.",
+        "Supplemental read-only route/cell captures agree with the unchanged repeated motion and public markers.",
+        "Captain target fallback is unchanged; cached widget region belongs to the explicit target-task producer."
+      ]
     }
   ],
   "fixtures": [
@@ -53391,7 +53445,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "12a37c2f3924176e30f5ed0065bc866e89e8aae6fb644727b2e73315b1cf6990"
+      "sha256": "f93d1d353c4c4055b6df06b64f1e72977010e281030c6fcc1627e83af7ad435b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -54243,11 +54297,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "b54ca3fa253a9746bab042ead1e5a9714641ca0716c3147831335f6ddf6422d6"
+      "sha256": "f0ccc83458e9964c99ea7345cf31f6690777692840e78d36c60ea2b15ea90b1c"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "cba31fea89111b5cfd021ff1e7fd25b7d5d61b5ef748bc7b416f932a550e3673"
+      "sha256": "d98833dabcacb1eca520bb5098e63fe84e773f67c488fd6c2585ec0feb780dfe"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -54455,7 +54509,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "00ce7efb557df46357be8392d71aab71b288037e8c26403a9f280cab6fba8588"
+      "sha256": "87c2f91f8263b6d3dc0447980883c6f515c0c967cb9aaf07f432ef54a586f6b2"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -54679,11 +54733,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "2e8d9445e8c195c5dc6e5c337df150c2e6aed53d7cde8498f23fce1e8a449e39"
+      "sha256": "14d73cd4db9294b42b0d5abe59bcb9b781034098162b79952cedeb16669eb3a6"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "b030201b7cd0bf19553eb6e1d00fa77ba01cfe3c17e20997b96df22573ee0819"
+      "sha256": "a573838a2ea1f98fa07fb9f239bae486160a86a5f281615df7050f06852aeafa"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -54691,7 +54745,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "7ecaacee44f52640b483f745808ac28b98911edf575895df37ee64e349047669"
+      "sha256": "7ba12611c782c4f2c26aa7e9c2fb3871a271448fbe925d505947611b7990ae83"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -54939,7 +54993,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "8134afbdac7c8c53511e7fe67dd5f125f5c194491dce04fe7d0b860b4a01d07e"
+      "sha256": "a02e1f272a35b9aeddbec3cfa100d7090a4e5f8874cee91340646231a0664d12"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -55183,7 +55237,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "939903f93a6386dcb804d992c9c15f8409b81cc70c30664924fc81c124acda8e"
+      "sha256": "6df1ed7c2110fce67d2176192ddff4a49458e2cca946657e0f2be6a791293379"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -55191,15 +55245,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "7ea2a57a4852c405e2549d0a179a03fd6f3e6343abdc5516802dfba79cafcfb4"
+      "sha256": "db9295f3f2f515922ee6e5e629c6b329befd4e51c60268cbd9a77654ce2358bc"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "974a9cba040a38a33e422028662fc264732f88a8acbb6f16688f06707c7155b0"
+      "sha256": "f6761ff991a540d46a668ec0fd41d853e0e58deabec79b2422a143f2d3b1fbb7"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "2cd85197b3980676eae73ec7874f69aee815064014ba8ce9d7cb782568c82eb9"
+      "sha256": "487eb288dcec20001c56907383a96bc86a97016350bd16fe238361174a3661bd"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -56147,7 +56201,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "23c00ce62c72b5d3aa92415dac31ba61418310b95b52ff4a3fa87fddad1f0376"
+      "sha256": "7fbff1cf965ffcf16fbc97be64e9ebbdf660c9153d20010ee27144500ac72a8e"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -59836,6 +59890,50 @@
     {
       "path": "tools/frida/research/follow278_probe.j",
       "sha256": "c8ba38e3def23ce7c2f7c287230b39e70b408b82d862591d559dbcf6ad905b44"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_structure279.py",
+      "sha256": "e0ec478e4a88b29150b1e0e2e559374145d4a0abc1da6efc3418ca0f7ef8a987"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-structure279-1.27.json",
+      "sha256": "a1acc284ba2c25f31ea4e199c3c0d59bcf1eccf0bc861c9cf33f297a3abf5cbc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-structure279-1.27.json.gz",
+      "sha256": "0fe3323846c0ce9052ba8b92bb1122fb8ea2269dbfc0920e1b9e6e3e8226ad82"
+    },
+    {
+      "path": "tools/ghidra/research/Structure279Evidence.java",
+      "sha256": "c6b34cb0a94db2c3dec428ca0dc17b4efc0eed0d30e8316e26c2e1f41ee256e6"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/fixtures/retail_structure279_motion.h",
+      "sha256": "892b828e801e71056b26201c0ff2f68dcf25053d9a3e8d64bbdc029fce9c2b4a"
+    },
+    {
+      "path": "tools/frida/research/structure279_capture.py",
+      "sha256": "ef6c492e35172e95035eb54a7fedd3e1d947751c244920a43fce90bc2250b979"
+    },
+    {
+      "path": "tools/frida/research/structure279_make_map.py",
+      "sha256": "c1a9476475cd217556c2d3b50a433ff212ea5c4af1bae3a9cf3aa2246dda6bc3"
+    },
+    {
+      "path": "tools/frida/research/structure279_observer.js",
+      "sha256": "48eb5b046f94eca3fdf84d88c4a42ba372ee1cddb4d404a693c698c0137eae78"
+    },
+    {
+      "path": "tools/frida/research/structure279_probe.j",
+      "sha256": "dfea53134ac3ce823ad52ea0b3a9873fb0d984b0e289b7f4dbae110de7e0ed16"
+    },
+    {
+      "path": "tools/frida/research/structure279_routes.js",
+      "sha256": "c65c9697b1fdcb3e12794974ad1c7ba10a42dfa06c8813cdc91209160b779cd4"
+    },
+    {
+      "path": "tools/frida/research/structure279-detail2.js",
+      "sha256": "e086b0b226340901baa973fb8626576748415999ce189d21dd870ccee907bd46"
     }
   ]
 }

@@ -1,3 +1,8 @@
+Save170 retains each target task's captured spatial-object owner/slot and
+restores its runtime pooled identity after spatial loading. Retired references fall back to
+the ordinary target mover; invalid slots and Save169 or earlier are rejected.
+See [captured widget regions](retail-pathfinding-engine.md#structure-spells-retain-a-captured-widget-region-payoff279).
+
 Save169 retains each physical target approach's pending Follow continuation and
 captured authored range. One-shot structure approaches retire their public head;
 current-form changes and cold saves preserve the already-built task sequence.

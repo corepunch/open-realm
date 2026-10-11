@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format169 retains physical target-task continuation and its captured range. */
-static uint32_t const save_version = 169;
+/* Format170 retains the target task's captured spatial-object owner and slot. */
+static uint32_t const save_version = 170;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -928,6 +928,9 @@ static field_t const move_group_fields[] = {
     TF(moveGroup_t, point, F_VECTOR),
     TF(moveGroup_t, target, F_EDICT, 0, FIELD_NONE),
     TF(moveGroup_t, target_spawn, F_INT),
+    TF(moveGroup_t, target_region_owner, F_INT),
+    TF(moveGroup_t, target_region_slot, F_INT),
+    TF(moveGroup_t, target_region, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, follow_continuation, F_INT),
     TF(moveGroup_t, follow_range, F_FLOAT),
     TF(moveGroup_t, receiver, F_EDICT, 0, FIELD_NONE),
@@ -2357,6 +2360,9 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
         !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
         !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
         return false;
+    if(group->target_region_slot>4 || group->target_region_owner>globals.num_edicts ||
+       (group->target_region_slot && !group->target_region_owner) ||
+       (group->target_region_owner && !group->target))return false;
     if (*(uint8_t const *)&group->follow_continuation>1 || !isfinite(group->follow_range) ||
         (group->follow_continuation ? (!group->target || group->receiver || (group->flags&1)) :
             group->follow_range!=0)) return false;
@@ -2593,9 +2599,9 @@ static bool WriteMoveGroups(FILE *f) {
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if (level.move_groups[i]->inuse) count++;
     if (count>globals.num_edicts || !SaveBytes(f,&count,sizeof(count))) return false;
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
-        moveGroup_t const *group=level.move_groups[i];
+        moveGroup_t *group=level.move_groups[i];
         if (!group->inuse) continue;
-        if (!ValidMoveGroup(group)) return false;
+        if (!S_SaveMoveGroupTargetRegion(group) || !ValidMoveGroup(group)) return false;
         FOR_LOOP(j,i) if (level.move_groups[j]->inuse && (level.move_groups[j]->id==group->id || level.move_groups[j]->sequence==group->sequence)) return false;
         moveGroup_t temp=*group;
         ClearRuntimeFields(&temp,move_group_fields,FIELD_RUNTIME);
@@ -2619,7 +2625,8 @@ static bool ReadMoveGroups(FILE *f) {
         bool mapped=ReadMappedFields(f,move_group_fields,(uint8_t *)group);
         /* Clear even a partial record before cleanup can touch curve addresses. */
         ClearRuntimeFields(group,move_group_fields,FIELD_RUNTIME);
-        if (!mapped || !ValidMoveGroup(group) || !ReadMoveRouteBuffers(f,&group->route)) goto failed;
+        if (!mapped || !ValidMoveGroup(group) || !S_RestoreMoveGroupTargetRegion(group) ||
+            !ReadMoveRouteBuffers(f,&group->route)) goto failed;
         FOR_LOOP(j,i) {
             moveGroup_t const *other=level.move_groups[j];
             if (other->id==group->id || other->sequence==group->sequence) goto failed;
@@ -3956,7 +3963,7 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     T_ASSERT(G_IssueGroupPointOrder(&request)); T_EQ(ARRAY_COUNT(level.move_groups),1);
     moveGroup_t original=*level.move_groups[0];
     S_ClearMoveGroups();
-    FOR_LOOP(i,27) {
+    FOR_LOOP(i,30) {
         FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
         moveGroup_t raw=original; uint32_t count=i==0 ? globals.num_edicts+1 : i==13 ? 2 : 1;
         raw.route.points=raw.route.adaptive_points=raw.route.group_points=(vec2_t *)(uintptr_t)1;
@@ -3979,6 +3986,9 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         if (i==24) {raw.count=1;raw.individual=true;raw.target=second;raw.flags|=0x1000;}
         if (i==25) *(uint8_t *)&raw.members[0].retired=2;
         if (i==26) raw.members[0].retired=true; /* Still bound: not a retired identity. */
+        if (i==27) raw.target_region_slot=5;
+        if (i==28) raw.target_region_slot=1; /* No captured object owner. */
+        if (i==29) raw.target_region_owner=globals.num_edicts+1;
         if (i>=7 && i<13) { raw.route.group_count=1; raw.route.group_index=0; }
         if (i==7) raw.route.group_count=BZ_WC3_ACC_ROUTE_NODES+1;
         if (i==8) raw.route.group_index=1;
@@ -4103,7 +4113,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
+    uint32_t const old_versions[] = { 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

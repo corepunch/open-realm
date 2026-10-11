@@ -17357,3 +17357,84 @@ This advances TARGET-01.2/TARGET-02.1 without closing their wider producer and
 trajectory contracts. Full structure trajectory parity, custom nonstructure
 units without Move, and the special `056a40` producer branches are not certified.
 No new TODO leaves, full-suite claim or performance claim is added.
+
+## Structure spells retain a captured widget region (Payoff279)
+
+Ground unit-target spells accept buildings through the ordinary target-task
+owner. `40a7a0` creates the nonpersistent `d0174` using the authored spell range;
+`5ff8b0`/`5fc640` submit it to Move. The previous engine rejected structures in
+`S_BeginUnitTargetApproach`, leaving them on a per-frame range poll. Native
+`innerfire` also lacked its named `852066` mapping. Both paths now enter the
+scheduled physical owner without replacing the public spell head.
+
+The second mismatch was region identity, not a special building range rule.
+`5fc640` reads the caster's virtual158 query, selects mask2 (mask10 only when
+`(query & 0x12) == 0x10`), and uses `063d60` to select the first matching region
+in the target widget collection. The last argument of `05a5c0` supplies that
+region to `16daf0`, which retains it at request `f4`. `16aff0` prefers this
+reference while its stamp is not `-1`; retirement clears it before fallback to
+the target mover's ordinary `98` object. A replacement footprint is not silently
+recaptured. The building mover itself does **not** permanently alias its blue
+region. Captain producers without this captured argument retain their ordinary
+target fallback.
+
+`16ce10` passes the selected identity to coarse path `a4`; `166e90` holds that
+same target object during fine search, separately from the source object, and
+restores counters in reverse order. The engine carries the reference in the
+physical group and both query owners. Capture and resolution are constant-time
+apart from a scan of the widget's at-most-four regions; no entity/map scan or
+building-rawcode exception is introduced.
+
+The live Farm's final-leg refill at counter1139 uses blue category`010000c2`,
+held flags`10000001`, and original stored YX rectangle`[6,46,11,51]`. Original
+`1489a0` admits cells`(46,7)` through`(46,11)` with target-seen1 and obstruction0.
+`148100` returns a25-point partial chain. Consequently `166e90` starts at index0,
+not count-2. The engine formerly used the separate collision rectangle: it could
+build the same25 points but start at index23. Correcting the captured identity
+matches all103 Farm physical-owner inputs bit for bit, including position,
+velocity and captured arrival range; the cold-save suffix is identical. Existing
+retail trajectory fixtures are unchanged.
+
+Physical arrival still captures `(authored range + source radius + target
+radius) / 32` in software scalar order. Custom range333 and radii32/72 produce
+13.65625 fine cells; target radius144 produces15.90625. Footprint extent never
+substitutes for these radii. The fixture uses Farm's authored4x4 magenta
+`PathTextures\4x4SimpleSolid.tga`, verified from UnitData and its actual pixels.
+An empty synthetic map concealed the target-identity bug and is insufficient.
+
+Save170 serializes the captured object's current owner and collection slot.
+The runtime pooled ID is ignored and rebuilt after spatial objects load. A zero
+owner retains target-mover fallback; with an owner, slot0 identifies its ordinary
+object and slots1..4 identify widget regions. Retired caches normalize before
+serialization. Resolving current pooled ownership also preserves a weak reference
+that was reused for another object before resolution. The supplied alternate-owner
+save regression tests storage semantics, not a new public retail reuse claim.
+Invalid owners/slots and prior save versions are rejected. Tests cover
+Stop, target removal at the following owner visit, replacement Move, resource
+nonconsumption on cancellation, water/ground region selection, moving live
+regions, retirement, and the exact Farm continuation.
+
+Two read-only original repeats and an unhooked control agree on633 public
+markers across Farm, Barracks, rooted Ancient, Stop, removal and an ordinary-unit
+control. Repeats agree on471 active physical visits. Supplemental read-only
+route and cell captures preserve those same markers and motion. Their original
+expectations and complete9-function instruction export (1,064 instructions) are
+frozen in `retail-structure279-1.27.json` and its compressed capture bundle.
+`Structure279Evidence.java` and `MapPathfinding.java` retain the discovered chain;
+the Ghidra project is saved.
+
+Reproduce the map with `structure279_make_map.py`; use
+`structure279_capture.py --observer structure279_observer.js` in a leased B/C
+research environment and `--mode control` for the observer-free run. The
+supplemental scripts are `structure279_routes.js` and `structure279-detail2.js`.
+Run `verify_wc3_pathing_structure279.py --binary /path/to/game.dll --test-binary
+/path/to/openwarcraft3-tests --data /path/to/tests --report /fresh/report.json`
+for pinned original bytes, provenance, public/physical comparisons and nonempty
+Classic/TFT engine regressions. The corpus entry is `oracle-structure279`; raw
+captures, failing-first logs and diagnostics are archived under
+`research/STRUCTURE-SPELL/payoff279`.
+
+This advances TARGET-01.2/TARGET-02.1 without closing their broader contracts.
+Complete public cast/effect/backswing timing, air casters, destructable targets,
+arbitrary masks and the wider structure trajectory family remain uncertified.
+No new TODO leaves, performance acceptance or full-suite claim is added.

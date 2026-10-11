@@ -98,6 +98,9 @@ typedef struct moveGroup_s {
     vec2_t goal, point; /* Native fine destination and selected formation point. */
     edict_t *target;
     uint32_t target_spawn;
+    uint32_t target_region_owner; /* Saved pooled-object owner +1; zero uses target mover98. */
+    uint32_t target_region_slot; /* One-based widget slot; zero identifies its ordinary object. */
+    uint32_t target_region; /* Runtime pooled identity +1, rebuilt from the saved slot. */
     bool follow_continuation; /* Pending d0173 after this ordinary approach. */
     float follow_range; /* Captured authored world range; radii are read at activation. */
     /* Optional ability-owned completion receiver. Cancellation calls it with
@@ -3451,6 +3454,7 @@ typedef struct {
     uint8_t coarse_mask; /* Authored hierarchy lane; zero derives an explicit geometry query. */
     bool no_warp; /* Captured group policy10 excludes Way Gate edges on new coarse requests. */
     bool group_path; /* A group borrows a source member; its path has no self exclusion. */
+    uint32_t target_region; /* Optional captured widget identity +1; zero uses the target mover. */
 } movePathQuery_t;
 #ifdef BZ_TESTS
 enum { MOVE_SCOPE_ENDPOINT, MOVE_SCOPE_WAYPOINT, MOVE_SCOPE_BLOCKERS, MOVE_SCOPE_PORTAL };
@@ -3571,6 +3575,10 @@ void G_SetMoveFineSearchStamp(uint16_t);
 wc3RecordObject_t const *G_GetMoveSpatialObject(uint32_t);
 bool G_LoadMoveSpatialObject(uint32_t, wc3FineBox_t const *);
 wc3SpatialRecords_t *S_GetMoveFineSpatial(void);
+uint32_t S_CaptureMoveTargetRegion(edict_t const *,uint8_t,uint32_t *);
+uint32_t S_MoveGroupTargetRegion(moveGroup_t *);
+bool S_SaveMoveGroupTargetRegion(moveGroup_t *);
+bool S_RestoreMoveGroupTargetRegion(moveGroup_t *);
 void S_PrepareMoveFineSpatial(void);
 void S_ClearMoveFineSpatial(void);
 void S_FreeMoveFineSpatial(void);

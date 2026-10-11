@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff279 fixes ground structure spell approaches and the task-owned captured
+widget-region reference used by coarse/fine routing. All103 Farm physical states
+match unchanged retail words, including a cold-save suffix; two repeats/control
+agree on633 public markers. Stop/removal/replacement and region-retirement
+regressions cover the owner lifecycle. TARGET-01.2/02.1 remain open;46 remain.
+See [captured widget regions](retail-pathfinding-engine.md#structure-spells-retain-a-captured-widget-region-payoff279).
+
 Payoff278 replaces legacy structure Follow with scheduled zero-range physical
 approaches and explicit saved successor ownership. Two retail repeats/control
 agree on797 public markers; static/rooted targets finish their head while

@@ -54,6 +54,60 @@ void S_CompactMoveFineSpatial(void) {
 
 wc3RegionCollection_t const *S_GetMoveRegions(uint32_t owner) {return &move_regions[owner].collection;}
 
+/*5fc640/063d60 select the first matching widget region at task admission.
+ *16daf0 retains it separately from the target mover's ordinary fine object.
+ *The pooled identity is runtime-only; saves retain its current owner/slot. */
+uint32_t S_CaptureMoveTargetRegion(edict_t const *target,uint8_t query,uint32_t *slot) {
+    *slot=0;
+    if(!target || !target->inuse || !move_fine_spatial.objects)return 0;
+    moveRegionState_t const *regions=move_regions+(target-g_edicts);
+    uint8_t mask=(query&0x12)==0x10 ? 0x10 : 2;
+    FOR_LOOP(i,regions->collection.count) {
+        uint32_t id=regions->collection.objects[i];
+        if(wc3_records_object(&move_fine_spatial,id)->category&mask) {*slot=i+1;return id+1;}
+    }
+    return 0;
+}
+
+/*16aff0: a retired cached region falls back to the current target mover.
+ *A new footprint must not silently replace the captured task reference. */
+uint32_t S_MoveGroupTargetRegion(moveGroup_t *group) {
+    if(group->target_region && wc3_records_object(&move_fine_spatial,group->target_region-1)->stamp==UINT32_MAX)
+        group->target_region=group->target_region_owner=group->target_region_slot=0;
+    return group->target_region;
+}
+
+/* Resolve the current pooled identity at save time. A retired weak reference
+ * may have been reused before its next resolution, even for another owner. */
+bool S_SaveMoveGroupTargetRegion(moveGroup_t *group) {
+    uint32_t region=S_MoveGroupTargetRegion(group);
+    group->target_region_owner=group->target_region_slot=0;
+    if(!region)return true;
+    wc3RecordObject_t const *record=wc3_records_object(&move_fine_spatial,region-1);
+    if(record->owner>=globals.num_edicts || !g_edicts[record->owner].inuse)return false;
+    group->target_region_owner=record->owner+1;
+    if(!(record->flags&WC3_RECORD_REGION))return move_fine_spatial.objects[record->owner]==region-1;
+    wc3RegionCollection_t const *regions=&move_regions[record->owner].collection;
+    FOR_LOOP(i,regions->count)if(regions->objects[i]==region-1) {group->target_region_slot=i+1;return true;}
+    return false;
+}
+
+bool S_RestoreMoveGroupTargetRegion(moveGroup_t *group) {
+    group->target_region=0;
+    if(!group->target_region_owner)return !group->target_region_slot;
+    uint32_t owner=group->target_region_owner-1;
+    if(owner>=globals.num_edicts || !g_edicts[owner].inuse || group->target_region_slot>4)return false;
+    if(!group->target_region_slot) {
+        if(!move_fine_spatial.objects || move_fine_spatial.objects[owner]==WC3_RECORD_END)return false;
+        group->target_region=move_fine_spatial.objects[owner]+1;
+    } else {
+        wc3RegionCollection_t const *regions=&move_regions[owner].collection;
+        if(group->target_region_slot>regions->count)return false;
+        group->target_region=regions->objects[group->target_region_slot-1]+1;
+    }
+    return true;
+}
+
 /*651590 toggles the current bridge then every current widget region. Re-read
  * ownership at release; an inner pose publication may have replaced storage. */
 void S_ToggleUnitMoveExclusion(edict_t const *owner,bool on) {

@@ -752,6 +752,7 @@ static void move_detach_group(edict_t *unit) {
         if (!live) {
             group->target = NULL;
             group->target_spawn = group->target_refresh = 0;
+            group->target_region=group->target_region_owner=group->target_region_slot=0;
             group->follow_continuation=false;group->follow_range=0;
             group->flags &= ~0x1000u;
         }
@@ -1074,7 +1075,7 @@ static bool move_static_line(edict_t const *self, vec2_t const *point, float rad
 static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
     /* Physical member admission owns fine occupancy independently of the
      * public ability. Attack retains its range/queue policy above this layer. */
-    moveGroup_t const *group=move_unit_group(self);
+    moveGroup_t *group=move_unit_group(self);
     bool physical=group && !group->individual && !group->turning;
     bool units = (physical || unit_routes_to_location(self)) && point.policy != MOVE_AVOID_STATIC_ONLY &&
         !S_UnitStatusAbilityEvent(self, A_MOVE_COLLISION_QUERY, NULL);
@@ -1093,7 +1094,7 @@ static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
     /* A point-order waypoint carries coordinates, not a resolved group target. */
     if(target && (target->svflags&SVF_MOVE_WAYPOINT))target=NULL;
     return (movePathQuery_t){ .geometry={&self->s.origin2,member ? &member->world_destination : point.point,point.radius,self->no_pathing ? 0 : M_UnitStaticPathingFlags(self)},
-        .mover=self,.target=target,
+        .mover=self,.target=target,.target_region=group ? S_MoveGroupTargetRegion(group) : 0,
         .units=units,.fine=fine,.fine_target=member ? &member->destination : NULL,
         .coarse_mask=S_UnitMoveCoarseMask(self) };
 }
@@ -4952,6 +4953,9 @@ static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->target=target; group->target_spawn=target->spawn_time;
+    group->target_region=S_CaptureMoveTargetRegion(target,unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit),
+        &group->target_region_slot);
+    group->target_region_owner=group->target_region ? (uint32_t)(target-g_edicts)+1 : 0;
     group->flags=0x1000u|(persistent ? 0x801u : 0); group->age=UINT32_MAX;
     if(force_arrival)group->flags|=0x200u;
     if (S_UnitHasAbilityFlags(target,AB_MOVE_TARGET_NO_WARP)) group->flags|=0x10u;
@@ -4976,12 +4980,13 @@ static void move_start_follow_group(edict_t *unit, edict_t *target, bool persist
         group->follow_range=game.constants.followRange;
 }
 
-/* Original05a5c0 adds world radii before converting the captured range. The
- * spell's read-only05b580 admission predicate instead converts first. */
+/* Original40a7a0/5ff8b0 admits structures through the same target task.
+ *05a5c0 adds world radii before converting the captured range. The spell's
+ * read-only05b580 admission predicate instead converts first. */
 bool S_BeginUnitTargetApproach(edict_t *unit, edict_t *target, float range,
                               edict_t *receiver, void (*complete)(edict_t *,edict_t *,bool)) {
     if(!unit || !target || !receiver || !complete || (unit->aiflags&AI_FLYING) ||
-       G_UnitIsStructure(target) || !S_UnitCanTranslate(unit))return false;
+       !S_UnitCanTranslate(unit))return false;
     move_leave(unit);
     order_move(unit,target);
     if(unit->goalentity!=target || unit->currentmove!=&move_move_walk)return false;
@@ -5679,7 +5684,7 @@ static bool move_group_route(moveGroup_t *group) {
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
     vec2_t goal=move_point_world(&group->goal);
     movePathQuery_t query={.geometry={&from,&goal,group->radius,M_UnitStaticPathingFlags(source)},
-        .mover=source,.target=group->target,.units=true,.fine=&fine,
+        .mover=source,.target=group->target,.target_region=S_MoveGroupTargetRegion(group),.units=true,.fine=&fine,
         .fine_target=group->target ? &group->goal : NULL,.coarse_mask=S_UnitMoveCoarseMask(source),
         .no_warp=(group->flags&0x10u)!=0,.group_path=true};
     uint32_t revision=group->route.group_revision;

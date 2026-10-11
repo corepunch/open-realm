@@ -15,7 +15,7 @@ typedef struct {
     movePathQuery_t const *query;
     edict_t const *target; /* Search observation identity, separate from current suppression. */
     bool has_target, endpoint, suppress_target, counted_scope;
-    uint32_t level, cell_epoch;
+    uint32_t level, cell_epoch, target_object;
     bool *target_hit;
     wc3FineBox_t *rejection; /* query-local placement witness, never retained */
 } moveFineGraph_t;
@@ -25,7 +25,7 @@ static struct {
     int size;
     uint8_t flags;
     edict_t const *target;
-    uint32_t target_spawn;
+    uint32_t target_spawn,target_object;
     bool has_target;
 } move_fine_profile;
 static uint64_t move_spatial_serial;
@@ -756,9 +756,10 @@ bool G_LoadMoveSpatialObject(uint32_t index,wc3FineBox_t const *saved) {
 /* Original15d360 rounds a fine object's half-open rectangle into base
  * cells, clears their traversal lanes for admission, then rebuilds the same
  * rectangle and its three parents. Edge terrain is deliberately excluded too. */
-static void move_acc_object_rectangle(edict_t const *object, bool clear) {
+static void move_acc_object_rectangle(edict_t const *object, bool clear,uint32_t region) {
     if (!object) return;
-    wc3RecordObject_t const *record=G_GetMoveSpatialObject(object-g_edicts);
+    wc3RecordObject_t const *record=region ? wc3_records_object(S_GetMoveFineSpatial(),region-1) :
+        G_GetMoveSpatialObject(object-g_edicts);
     if(!record)return;
     wc3FineBox_t box=record->box;
     if (box.min.x>=box.max.x || box.min.y>=box.max.y) return;
@@ -807,9 +808,9 @@ static uint32_t move_build_acc_route(movePathQuery_t const *input,wc3AccRequest_
                                     moveCoarseRequest_t *admission) {
     move_spatial_sync();
     edict_t const *self=input->group_path ? NULL : input->mover;
-    move_acc_object_rectangle(self,true);
+    move_acc_object_rectangle(self,true,0);
     move_trace_coarse_scope(0,input);
-    move_acc_object_rectangle(input->target,true);
+    move_acc_object_rectangle(input->target,true,input->target_region);
     move_trace_coarse_scope(1,input);
     uint32_t result=wc3_acc_route(&move_acc,request,move_acc_points);
 #ifdef BZ_TESTS
@@ -818,9 +819,9 @@ static uint32_t move_build_acc_route(movePathQuery_t const *input,wc3AccRequest_
 #endif
     move_trace_coarse_scope(2,input);
     if(admission)S_ChargeMoveCoarseRequest(admission,move_acc.work.pops);
-    move_acc_object_rectangle(self,false);
+    move_acc_object_rectangle(self,false,0);
     move_trace_coarse_scope(3,input);
-    move_acc_object_rectangle(input->target,false);
+    move_acc_object_rectangle(input->target,false,input->target_region);
     move_trace_coarse_scope(4,input);
     return result;
 }
@@ -848,7 +849,7 @@ bool G_CaptainMoveReachable(edict_t const *actor,edict_t const *source,edict_t c
     move_acc_prepare();move_acc_enable_gates();move_spatial_sync();
     FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
     edict_t const *objects[]={target ? target : actor,source ? source : actor,source ? source : actor};
-    FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],true);
+    FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],true,0);
     edict_t const *widgets[]={target ? target : actor,source ? source : actor};
     FOR_LOOP(i,2) move_acc_widget_rectangle(widgets[i],true);
     vec2_t a=move_grid_from_world(from->x,from->y),b=move_grid_from_world(to->x,to->y);
@@ -856,7 +857,7 @@ bool G_CaptainMoveReachable(edict_t const *actor,edict_t const *source,edict_t c
         {wc3_mul(b.x,.5f),wc3_mul(b.y,.5f)},1,BZ_WC3_GROUP_ACC_WORK};
     wc3FineVector_t endpoint;
     uint32_t result=wc3_acc_query_distance(&move_acc,&request,&endpoint);
-    FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],false);
+    FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],false,0);
     FOR_LOOP(i,2) move_acc_widget_rectangle(widgets[i],false);
     return result!=UINT32_MAX;
 }
@@ -935,13 +936,19 @@ static wc3FineObject_t move_fine_cell_object(void *data,wc3RecordObject_t const 
 }
 
 /*1489a0: one shared raw traversal, including active-state and flag gates. */
+static uint32_t move_query_target_object(movePathQuery_t const *input) {
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    return input->target_region ? input->target_region-1 :
+        input->target && input->target->inuse && map->objects ? map->objects[input->target-g_edicts] : WC3_RECORD_END;
+}
+
 static bool move_occupancy_cell(void const *data,wc3FinePoint_t pos) {
     moveFineGraph_t const *graph=data;
     if(!is_valid_point(pos.x,pos.y))return false;
     wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
     if(!map->cells)return true;
     uint32_t target=WC3_RECORD_END,mask=graph->flags;
-    if(graph->has_target && graph->target)target=map->objects[graph->target-g_edicts];
+    if(graph->has_target)target=graph->target_object;
     wc3CellQuery_t query={.mode=WC3_CELL_FINE,.mask=mask|mask<<24,.target=target,.endpoint=graph->endpoint,
         .describe=move_fine_cell_object,.data=(void *)graph};
     wc3CellResult_t result=wc3_records_cell(map,pos,0,&query);
@@ -1364,6 +1371,7 @@ uint8_t G_TestMoveFineEdges(movePathQuery_t const *input,point2_t pos,bool cache
     graph.suppress_target=true;
     if(input->target) {
         graph.has_target=true;graph.target=input->target;graph.target_hit=hit;
+        graph.target_object=move_query_target_object(input);
     }
     if(cached)move_begin_cell_query(&graph);
     wc3FinePoint_t point={pos.x,pos.y};
@@ -1731,10 +1739,11 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     /* A suppressed target still terminates fine expansion at its region,
      * independently of the mover's collision lane (native166e90/1489a0).
      * Native category2 captains have radius0 but retain one fine cell. */
-    if (input->units && object && object->inuse &&
-        move_has_spatial_record(object)) {
+    uint32_t target_id=move_query_target_object(input);
+    if (input->units && target_id!=WC3_RECORD_END) {
         graph.has_target = true;
         graph.target = object;
+        graph.target_object=target_id;
         graph.target_hit = &target_hit;
     }
     bool initialized=(uint32_t)start.x<pathmap.width && (uint32_t)start.y<pathmap.height &&
@@ -1742,6 +1751,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     if (!initialized && move_fine.query_initialized) {
         graph.size=move_fine_profile.size; graph.flags=move_fine_profile.flags;
         graph.target=move_fine_profile.target;
+        graph.target_object=move_fine_profile.target_object;
         graph.has_target=move_fine_profile.has_target && graph.target && graph.target->inuse &&
             graph.target->spawn_time==move_fine_profile.target_spawn;
         graph.target_hit=graph.has_target ? &target_hit : NULL;
@@ -1758,13 +1768,14 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         move_fine_profile.target=graph.target;
         move_fine_profile.target_spawn=graph.target ? graph.target->spawn_time : 0;
         move_fine_profile.has_target=graph.has_target;
+        move_fine_profile.target_object=graph.target_object;
     }
     /*166e90 captures both records before search. An alias is incremented twice,
      * and an already-held exclusion survives the reverse-order restoration.
      * Unlike the old boolean overlay, this also covers hierarchy participants. */
     wc3SpatialRecords_t *spatial=S_GetMoveFineSpatial();
     wc3RecordObject_t *self=input->units && input->mover ? wc3_records_owned(spatial,input->mover-g_edicts) : NULL;
-    wc3RecordObject_t *target_object=input->units && input->target ? wc3_records_owned(spatial,input->target-g_edicts) : NULL;
+    wc3RecordObject_t *target_object=input->units && target_id!=WC3_RECORD_END ? wc3_records_object(spatial,target_id) : NULL;
     move_trace_fine_scope(0,input);
     if(self)self->flags++;
     move_trace_fine_scope(1,input);

@@ -23727,4 +23727,190 @@ TEST(wc3_movement, follow278_blocked_structure_footprint_arrives_without_overlap
     target->pathtex=NULL;gi.MemFree(footprint);G_FowShutdown();reset_entities();setup_test_world();
 }
 
+/* A structure remains a real target mover. Spells must keep the original
+ * captured arrival range and receive physical completion, like ordinary units. */
+TEST(wc3_movement, structure279_spell_approaches_use_physical_completion) {
+    FOR_LOOP(kind,3) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        slkTestData_t *rows=parse_slk_string(
+            "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"targs\"\n"
+            "C;X4;K\"Cost1\"\nC;X5;K\"Cool1\"\nC;X6;K\"Rng1\"\nC;X7;K\"BuffID1\"\n"
+            "C;X8;K\"Dur1\"\nC;X9;K\"DataA1\"\nC;X10;K\"DataB1\"\n"
+            "C;Y2;X1;K\"Ainf\"\nC;X2;K\"Ainf\"\nC;X3;K\"air,ground,structure,friend,self,vuln,invu\"\n"
+            "C;X4;K13\nC;X5;K7\nC;X6;K333\nC;X7;K\"Binf\"\nC;X8;K20\nC;X9;K0.1\nC;X10;K5\nE\n");
+        slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),288,288);
+        edict_t *target=alloc_test_unit(kind==1 ? MAKEFOURCC('h','b','a','r') : MAKEFOURCC('h','h','o','u'),1536,288);
+        UnitAbilities_t abilities={.abilList="Ainf"};unit->data.UnitAbilities=&abilities;
+        unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=MOVETYPE_STEP;
+        unit->s.model=target->s.model=1;
+        unit->stand=target->stand=unit_stand;unit->collision=32;target->collision=48+kind*16;
+        unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->mana.value=unit->mana.max_value=200;unit->s.player=target->s.player=0;
+        unit->targtype=TARG_GROUND;target->targtype=TARG_STRUCTURE;
+        unit_stand(unit);unit_stand(target);
+        level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=400;
+        T_ASSERT(G_UnitIsStructure(target));
+        T_ASSERT(S_IssueUnitTargetSpell(unit,FS_SLKKey("Ainf"),target));
+        T_EQ(unit->current_order_id,G_OrderId("innerfire"));T_EQ(unit->mana.value,200);
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        edict_t *receiver=S_UnitTargetApproachReceiver(unit);T_NOT_NULL(receiver);
+        if(group && receiver) {
+            T_EQ(group->target,target);T_EQ(group->receiver,receiver);T_NULL(receiver->think);
+            T_EQ(group->members[0].arrival_range,wc3_div(wc3_add(wc3_add(333,32),target->collision),32));
+            cstring_t file=Test_TempPath("wc3-structure279.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(S_UnitTargetApproachReceiver(unit),receiver);
+            if(kind==0)T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            else if(kind==1) {
+                G_FreeEdict(target);
+                level.pathing_clock.time=wc3_add(level.pathing_clock.time,.005f);
+                level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            }
+            else T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){128,512},false,0,0));
+            T_EQ(unit->current_order_id,kind==2 ? G_OrderId("move") : 0);
+            T_NULL(S_UnitTargetApproachReceiver(unit));
+            T_ASSERT(!receiver->inuse);T_EQ(unit->mana.value,200);
+            if(target->inuse)T_EQ(G_UnitAbilityLevel(target,FS_SLKKey("Binf")),0);
+        }
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
+}
+
+#include "fixtures/retail_structure279_motion.h"
+TEST(wc3_movement, structure279_public_motion_and_cold_save_match_retail) {
+    FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        slkTestData_t *rows=parse_slk_string(
+            "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"targs\"\n"
+            "C;X4;K\"Cost1\"\nC;X5;K\"Cool1\"\nC;X6;K\"Rng1\"\nC;X7;K\"BuffID1\"\n"
+            "C;X8;K\"Dur1\"\nC;X9;K\"DataA1\"\nC;X10;K\"DataB1\"\n"
+            "C;Y2;X1;K\"Ainf\"\nC;X2;K\"Ainf\"\nC;X3;K\"air,ground,structure,friend,self,vuln,invu\"\n"
+            "C;X4;K13\nC;X5;K7\nC;X6;K333\nC;X7;K\"Binf\"\nC;X8;K20\nC;X9;K0.1\nC;X10;K5\nE\n");
+        slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('H','p','a','l'),288,288);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','h','o','u'),1536,256);
+        UnitAbilities_t abilities={.abilList="Ainf"};unit->data.UnitAbilities=&abilities;
+        unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=MOVETYPE_STEP;
+        unit->s.model=target->s.model=1;
+        unit->stand=target->stand=unit_stand;unit->collision=32;target->collision=72;
+        unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->mana.value=unit->mana.max_value=200;unit->s.player=target->s.player=0;
+        unit->targtype=TARG_GROUND;target->targtype=TARG_STRUCTURE;
+        unit_stand(unit);unit_stand(target);
+        /* Retail UnitData hhou: PathTextures\\4x4SimpleSolid.tga, 4x4
+         * magenta pixels (red placement and blue ground blocking). The
+         * structure footprint makes the final fine route partial. */
+        struct {uint16_t width,height;color32_t pixels[16];} footprint={4,4};
+        FOR_LOOP(k,16)footprint.pixels[k]=(color32_t){255,0,255,255};
+        target->pathtex=(pathTex_t *)&footprint;target->s.flags|=EF_BUILDING;
+        target->aiflags|=AI_IMMOBILE;
+        CM_BakeStaticObstacles();G_PublishMoveSpatialObject(target);
+        level.pathing_clock=(wc3Clock_t){wc3_float(0x3ffffff0),0,300};level.pathing_counter=1090;
+        T_ASSERT(G_IssueUnitTargetOrder(unit,"innerfire",target,false,0));
+        edict_t *receiver=S_UnitTargetApproachReceiver(unit);T_NOT_NULL(receiver);
+        moveGroup_t *initial=move_unit_group(unit);T_NOT_NULL(initial);
+        if(initial) {
+            wc3RegionCollection_t const *regions=S_GetMoveRegions(target-g_edicts);
+            T_EQ(initial->target_region_slot,1);T_EQ(initial->target_region,regions->objects[0]+1);
+            T_NE(G_GetMoveSpatialObject(target-g_edicts),wc3_records_object(S_GetMoveFineSpatial(),initial->target_region-1));
+        }
+        bool mismatch=false;
+        FOR_LOOP(i,sizeof(structure279_motion)/sizeof(*structure279_motion)) {
+            moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)break;
+            uint32_t const *row=structure279_motion[i];
+            uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(group->members[0].arrival_range)};
+            FOR_LOOP(k,5) {
+                T_EQ(actual[k],row[k+4]);
+                if(actual[k]!=row[k+4]) {
+                    fprintf(stderr,"structure279 row=%u field=%u actual=%08x retail=%08x\n",i,k,actual[k],row[k+4]);
+                    mismatch=true;
+                }
+            }
+            if(mismatch)break;
+            if(saved && i==20) {
+                cstring_t file=Test_TempPath("wc3-structure279-motion.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                T_EQ(S_UnitTargetApproachReceiver(unit),receiver);
+            }
+            level.pathing_clock=(wc3Clock_t){wc3_float(row[1]),row[2],wc3_float(row[3])};
+            level.pathing_counter=row[0]-1;level.scheduled_think=true;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+        T_ASSERT(!mismatch);T_NULL(move_unit_group(unit));T_NULL(S_UnitTargetApproachReceiver(unit));
+        T_FEQ(unit->s.origin2.x,1105.3729f,.0001f);T_FEQ(unit->s.origin2.y,306.4263f,.0001f);
+        T_EQ(unit->mana.value,187);T_EQ(G_UnitAbilityLevel(target,FS_SLKKey("Binf")),1);
+        target->pathtex=NULL;
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* The task retains collection identity, not a building rawcode or a live
+ * re-query. Retirement clears the weak reference before mover fallback. */
+TEST(wc3_movement, structure279_captured_region_selection_and_retirement) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','h','o','u'),1024,512);
+    target->s.model=1;target->svflags=SVF_MONSTER;target->collision=72;
+    struct {uint16_t width,height;color32_t pixels[16];} footprint={4,4};
+    FOR_LOOP(i,16)footprint.pixels[i]=(color32_t){255,0,255,255};
+    target->pathtex=(pathTex_t *)&footprint;target->s.flags|=EF_BUILDING;
+    target->aiflags|=AI_IMMOBILE;CM_BakeStaticObstacles();G_PublishMoveSpatialObject(target);
+    wc3RegionCollection_t const *regions=S_GetMoveRegions(target-g_edicts);
+    T_EQ(regions->count,3);
+    uint8_t queries[]={0,2,0x10,0x12,0x14},slots[]={1,1,2,1,2};
+    FOR_LOOP(i,sizeof(queries)) {
+        uint32_t slot=99,id=S_CaptureMoveTargetRegion(target,queries[i],&slot);
+        T_EQ(slot,slots[i]);T_EQ(id,regions->objects[slots[i]-1]+1);
+    }
+    moveGroup_t group={.target=target,.target_region_owner=(uint32_t)(target-g_edicts)+1};
+    group.target_region=S_CaptureMoveTargetRegion(target,2,&group.target_region_slot);
+    uint32_t captured=group.target_region;
+    S_UnrasterMoveRegions(target);
+    uint32_t slot=0;
+    T_EQ(S_CaptureMoveTargetRegion(target,2,&slot),captured);T_EQ(slot,1);
+    group.target_region=0;T_ASSERT(S_RestoreMoveGroupTargetRegion(&group));
+    T_EQ(group.target_region,captured); /* Capture is independent of raster membership. */
+    target->s.origin2.x+=128;S_PublishMoveRegions(target);
+    T_EQ(S_MoveGroupTargetRegion(&group),captured); /* Same live region moves. */
+    group.target_region=0;T_ASSERT(S_RestoreMoveGroupTargetRegion(&group));
+    T_EQ(group.target_region,captured);
+    group.target_region_slot=4;T_ASSERT(!S_RestoreMoveGroupTargetRegion(&group));
+    group.target_region=captured;group.target_region_slot=1;
+    S_UnrasterMoveRegions(target);S_RetireMoveRegions(target);
+    T_EQ(S_MoveGroupTargetRegion(&group),0);T_EQ(group.target_region_slot,0);
+    S_PublishMoveRegions(target);
+    T_EQ(S_MoveGroupTargetRegion(&group),0); /* New publication is not recaptured. */
+    T_ASSERT(S_RestoreMoveGroupTargetRegion(&group));T_EQ(group.target_region,0);
+    /* Serialization follows actual pooled ownership, including a weak cache
+     * whose slot has been reused. The target reference itself stays fixed. */
+    edict_t *other=alloc_test_unit(MAKEFOURCC('h','h','o','u'),512,1024);
+    other->s.model=1;other->svflags=SVF_MONSTER;other->s.flags|=EF_BUILDING;other->collision=72;
+    other->pathtex=(pathTex_t *)&footprint;other->aiflags|=AI_IMMOBILE;
+    S_PublishMoveRegions(other);G_PublishMoveSpatialObject(other);
+    T_EQ(S_GetMoveRegions(other-g_edicts)->count,3);T_NOT_NULL(G_GetMoveSpatialObject(other-g_edicts));
+    group.target_region=S_GetMoveRegions(other-g_edicts)->objects[1]+1;
+    T_ASSERT(S_SaveMoveGroupTargetRegion(&group));
+    T_EQ(group.target_region_owner,(uint32_t)(other-g_edicts)+1);T_EQ(group.target_region_slot,2);
+    uint32_t reused=group.target_region;group.target_region=0;
+    T_ASSERT(S_RestoreMoveGroupTargetRegion(&group));T_EQ(group.target_region,reused);
+    group.target_region=S_GetMoveFineSpatial()->objects[other-g_edicts]+1;
+    T_ASSERT(S_SaveMoveGroupTargetRegion(&group));T_EQ(group.target_region_slot,0);
+    reused=group.target_region;group.target_region=0;
+    T_ASSERT(S_RestoreMoveGroupTargetRegion(&group));T_EQ(group.target_region,reused);
+    other->pathtex=NULL;
+    target->pathtex=NULL;reset_entities();setup_test_world();
+}
 #endif
