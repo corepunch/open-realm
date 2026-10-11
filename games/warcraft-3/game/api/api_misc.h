@@ -1105,6 +1105,10 @@ uint32_t InitGameCache(jass_t *j) {
     G_GameCacheInit(gamecache, jass_checkstring(j, 1));
     return 1;
 }
+uint32_t DisableRestartMission(jass_t *j) {
+    (void)j;
+    return 0;
+}
 uint32_t SaveGameCache(jass_t *j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushboolean(j, G_GameCacheSave(cache));

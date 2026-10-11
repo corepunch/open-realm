@@ -763,6 +763,7 @@ jassModule_t jass_funcs[] = {
     { "DialogAddButton", DialogAddButton },
     { "DialogAddQuitButton", DialogAddQuitButton },
     { "DialogDisplay", DialogDisplay },
+    { "DisableRestartMission", DisableRestartMission },
     { "InitGameCache", InitGameCache },
     { "ReloadGameCachesFromDisk", ReloadGameCachesFromDisk },
     { "SaveGameCache", SaveGameCache },
