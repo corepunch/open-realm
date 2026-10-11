@@ -257,3 +257,13 @@ dialog and button, with the authoritative player ID and one-based clicked
 handle IDs. This response context is copied to a coroutine, so
 `GetClickedButton` / `GetClickedDialog` continue to work after a trigger wait.
 See [JASS choice dialogs](jass-dialogs.md) for lifecycle and limitations.
+
+### Scripted zone save lifecycle
+
+The JASS `SaveGame` native used by zone-transition wrappers is a deferred
+internal save, not a player-selected named game save. It does not synthesize
+`EVENT_GAME_SAVE` or `GetSaveBasicFilename` context. Normal player save
+entry points continue dispatching those events before their own snapshot.
+A following `ChangeLevel` is queued only when that deferred internal save
+succeeds at the end-of-frame VM-safe boundary. `EVENT_GAME_LOADED` for the
+scripted cross-map `LoadGame` remains part of the next patch.

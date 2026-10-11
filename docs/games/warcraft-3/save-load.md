@@ -218,11 +218,37 @@ JASS error or exhausted event queue, instead of taking a knowingly incomplete
 snapshot. If an event action sleeps, its later continuation cannot use this
 transient name; maps should perform file-copy actions synchronously.
 
-JASS `SaveGame` and `LoadGame` still use the older inline serializer and do
-not yet emit these events. Patch 3/4 must route them through the same hooks at
-a VM-safe session boundary. This patch also does not solve session scope
-restoration on application restart, atomic full-game save replacement, or the
-campaign cache/zone snapshot consistency requirements.
+### Deferred JASS saves and conditional ChangeLevel (Patch 3)
+
+The JASS `SaveGame` native no longer calls the serializer from its active
+callback. It validates the name through the restricted `ScriptSavePath` import
+and records one transient pending request. At the end of the WC3 simulation
+frame, after the active JASS stack has unwound, `G_FlushScriptSave` calls
+`WriteGame`. If JASS issued `ChangeLevel` after `SaveGame` in the same frame,
+that level change is submitted only after the source save succeeds. Failed,
+invalid, or duplicate scripted save requests cancel the dependent transition.
+The pending request is **not serialized** into a saved zone, so restoring the
+source cannot replay its outgoing map change. A standalone scripted save is
+written at the same safe point without switching maps.
+
+All WC3 full-game writes now use a private temporary file in the target
+directory, flush the completed checksum/footer, then replace the destination
+on success. A failed serializer or I/O operation leaves a previously committed
+save in place. POSIX uses a same-directory atomic rename; Windows uses a
+replace-existing move. This does not add an application-wide disk quota or
+protect against unrelated privileged processes mutating files concurrently.
+
+**Still pending:** Scripted `LoadGame` is deliberately rejected instead of
+calling `ReadGame` within an active JASS frame. Patch 4 must route it through
+the cross-map server loader and bind the already validated script namespace.
+Scripted zone saves are distinct from the player's named manual save events:
+`EVENT_GAME_SAVE` is still dispatched only by the normal save entry points.
+Patch 5 must restore authorized campaign scope across application restarts and
+validate campaign-cache/zone coherence; no such behaviour is implied by this
+patch. This deferred mechanism captures the state at the simulation safe point,
+not necessarily the exact JASS instruction where `SaveGame` was called.
+
+
 
 ## Quake 2 Lifecycle
 

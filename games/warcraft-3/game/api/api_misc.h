@@ -856,24 +856,17 @@ uint32_t ReloadGame(jass_t *j) {
 uint32_t DoNotSaveReplay(jass_t *j) { /* TODO: replay recording not yet implemented */ return 0; }
 uint32_t SaveGame(jass_t *j) {
     cstring_t name = jass_checkstring(j, 1);
-    PATHSTR path;
-
-    if (!gi.ScriptSavePath || !gi.ScriptSavePath(name, path, sizeof(path))) {
-        fprintf(stderr, "WC3 SaveGame: invalid or inaccessible script save name\n");
-        return 0;
-    }
-    if (!WriteGame(path)) fprintf(stderr, "WC3 SaveGame: could not write %s\n", path);
+    if (!G_RequestScriptSaveGame(name))
+        fprintf(stderr, "WC3 SaveGame: invalid, inaccessible, or already pending save\n");
     return 0;
 }
 uint32_t LoadGame(jass_t *j) {
     cstring_t name = jass_checkstring(j, 1);
-    PATHSTR path;
-
-    if (!gi.ScriptSavePath || !gi.ScriptSavePath(name, path, sizeof(path))) {
-        fprintf(stderr, "WC3 LoadGame: invalid or inaccessible script save name\n");
-        return 0;
-    }
-    if (!ReadGame(path)) fprintf(stderr, "WC3 LoadGame: could not read %s\n", path);
+    (void)name;
+    /* A saved zone may contain a different map; ReadGame cannot run from
+     * inside an active JASS frame. Patch 4 routes this through SV_LoadGame.
+     * Fail closed rather than mutating the active world synchronously. */
+    fprintf(stderr, "WC3 LoadGame: deferred cross-map load not implemented yet\n");
     return 0;
 }
 uint32_t SetCampaignMenuRace(jass_t *j) {

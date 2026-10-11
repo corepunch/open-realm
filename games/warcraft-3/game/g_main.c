@@ -47,6 +47,68 @@ static void InitConstants(void);
 static void G_ApplyMapGameDataSet(mapInfo_t const *mapinfo);
 
 #define WC3_CHEAT_STARTING_RESOURCE_BONUS 5000 /* gold/lumber units added once when map gameplay becomes controllable */
+/* Pending scripted save and dependent map change are transient and deliberately
+ * excluded from the full-game snapshot. A restored zone must not execute its
+ * old outgoing ChangeLevel a second time. */
+typedef struct {
+    bool pending;
+    bool change_level;
+    bool score_screen;
+    char name[MAX_PATHLEN];
+    char path[MAX_PATHLEN];
+    char map[MAX_PATHLEN];
+} wc3ScriptSaveRequest_t;
+static wc3ScriptSaveRequest_t script_save_request;
+static bool script_save_rejected;
+
+void G_ResetScriptSave(void) {
+    memset(&script_save_request, 0, sizeof(script_save_request));
+    script_save_rejected = false;
+}
+
+bool G_ScriptSavePending(void) { return script_save_request.pending; }
+
+bool G_RequestScriptSaveGame(cstring_t name) {
+    PATHSTR path;
+    if (script_save_rejected || script_save_request.pending || !gi.ScriptSavePath ||
+        !gi.ScriptSavePath(name, path, sizeof(path))) {
+        /* A failed SaveGame must never allow the BJ wrapper's following
+         * ChangeLevel to bypass its failed source-save prerequisite. */
+        script_save_rejected = true;
+        return false;
+    }
+    /* Keep logical name as well as the already-authorized concrete filename.
+     * The name is not reinterpreted as a map path or menu save slot. */
+    G_ResetScriptSave();
+    script_save_request.pending = true;
+    strlcpy(script_save_request.name, name, sizeof(script_save_request.name));
+    strlcpy(script_save_request.path, path, sizeof(script_save_request.path));
+    return true;
+}
+
+void G_FlushScriptSave(void) {
+    wc3ScriptSaveRequest_t request;
+    if (script_save_rejected) {
+        fprintf(stderr, "WC3 SaveGame: rejecting script transition after invalid save request\n");
+        G_ResetScriptSave();
+        return;
+    }
+    if (!script_save_request.pending) return;
+    request = script_save_request;
+    G_ResetScriptSave();
+    /* All current synchronous JASS callbacks have finished at this boundary.
+     * No map replacement is submitted until the source snapshot is committed. */
+    if (!WriteGame(request.path)) {
+        fprintf(stderr, "WC3 SaveGame: failed to save %s; transition cancelled\n", request.name);
+        return;
+    }
+    if (request.change_level) {
+        G_GameResultDebug("scripted save complete; request ChangeLevel map=%s score_screen=%u",
+                          request.map, (unsigned)request.score_screen);
+        gi.MenuAction("level", request.map);
+    }
+}
+
 static cstring_t wc3_campaign_paths[] = {
     "Maps\\Campaign\\", "Maps/Campaign/", "Maps\\FrozenThrone\\Campaign\\", "Maps/FrozenThrone/Campaign/"
 };
@@ -519,6 +581,7 @@ static void G_InitGame(void) {
         /* G_RunJassTests always calls exit() */
     }
 
+    G_ResetScriptSave();
     fprintf(stderr, "Game initialization.\n");
     fprintf(stderr, "Game is starting up.\n");
     fprintf(stderr, "Game is openwarcraft3 built on %s.\n", __DATE__);
@@ -552,6 +615,7 @@ static void G_InitGame(void) {
 }
 
 static void G_ShutdownGame(void) {
+    G_ResetScriptSave();
     if (g_edicts == NULL) {
         return;
     }
@@ -1098,7 +1162,24 @@ void G_RequestQuitGame(void) {
 
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {
     G_GameResultDebug("request ChangeLevel map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
-    if (map && *map) gi.MenuAction("level", map);
+    if (!map || !*map) return;
+    if (script_save_rejected) {
+        fprintf(stderr, "WC3 ChangeLevel: preceding script save request was rejected\n");
+        return;
+    }
+    if (script_save_request.pending) {
+        /* SaveAndChangeLevelBJ issues these calls in the same JASS callback.
+         * Do not queue a map change until the required save has committed. */
+        if (script_save_request.change_level) {
+            fprintf(stderr, "WC3 ChangeLevel: duplicate transition during pending scripted save\n");
+            return;
+        }
+        script_save_request.change_level = true;
+        script_save_request.score_screen = do_score_screen;
+        strlcpy(script_save_request.map, map, sizeof(script_save_request.map));
+        return;
+    }
+    gi.MenuAction("level", map);
 }
 
 void G_RequestRestartGame(bool do_score_screen) {
@@ -1201,6 +1282,9 @@ static void G_RunFrame(void) {
     G_FowSendDeltas();
     /* Optional live-map diagnostic: walk the player Hero, save, load, compare. */
     G_HeroSaveLoadAuditFrame();
+    /* The VM callback stack is quiescent here. A restored snapshot must not
+     * contain any transient outgoing session request. */
+    G_FlushScriptSave();
 }
 
 static cstring_t G_GetThemeValue(cstring_t filename) {
@@ -1749,6 +1833,105 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     }
 
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+void reset_entities(void);
+void setup_test_world(void);
+/* The filesystem import is an engine capability: these tests isolate request
+ * ordering without creating a real campaign scope. */
+static bool G_TestScriptSavePath(cstring_t name, string_t out, uint32_t size) {
+    (void)name;
+    strlcpy(out, Test_TempPath("missing-script-save-parent/zone.sav"), size);
+    return true;
+}
+static bool G_TestScriptSavePathOk(cstring_t name, string_t out, uint32_t size) {
+    (void)name;
+    strlcpy(out, Test_TempPath("script-save-transition-success.sav"), size);
+    return true;
+}
+static int script_save_test_menu_actions;
+static char script_save_test_last_action[16];
+static void G_TestScriptMenuAction(cstring_t action, cstring_t argument) {
+    (void)argument;
+    strlcpy(script_save_test_last_action, action, sizeof(script_save_test_last_action));
+    script_save_test_menu_actions++;
+}
+TEST(wc3_script_save, invalid_save_blocks_following_change_level) {
+    bool (*old_save_path)(cstring_t, string_t, uint32_t) = gi.ScriptSavePath;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    G_ResetScriptSave();
+    gi.ScriptSavePath = NULL;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    T_ASSERT(!G_RequestScriptSaveGame("Blizzard/Zones/OrcX01.w3z"));
+    G_RequestChangeLevel("OrcX01_02.w3x", false);
+    T_EQ(script_save_test_menu_actions, 0);
+    G_FlushScriptSave();
+    T_EQ(script_save_test_menu_actions, 0);
+    T_ASSERT(!G_ScriptSavePending());
+    gi.ScriptSavePath = old_save_path;
+    gi.MenuAction = old_menu_action;
+}
+TEST(wc3_script_save, duplicate_save_aborts_pending_transition) {
+    bool (*old_save_path)(cstring_t, string_t, uint32_t) = gi.ScriptSavePath;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    G_ResetScriptSave();
+    gi.ScriptSavePath = G_TestScriptSavePath;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    T_ASSERT(G_RequestScriptSaveGame("Blizzard/Zones/OrcX01.w3z"));
+    T_ASSERT(G_ScriptSavePending());
+    T_ASSERT(!G_RequestScriptSaveGame("Blizzard/Zones/OrcX01_02.w3z"));
+    G_RequestChangeLevel("OrcX01_02.w3x", false);
+    G_FlushScriptSave();
+    T_EQ(script_save_test_menu_actions, 0);
+    T_ASSERT(!G_ScriptSavePending());
+    gi.ScriptSavePath = old_save_path;
+    gi.MenuAction = old_menu_action;
+}
+TEST(wc3_script_save, successful_save_commits_before_next_level) {
+    bool (*old_save_path)(cstring_t, string_t, uint32_t) = gi.ScriptSavePath;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    cstring_t const filename = Test_TempPath("script-save-transition-success.sav");
+    reset_entities();
+    setup_test_world();
+    G_ResetScriptSave();
+    gi.ScriptSavePath = G_TestScriptSavePathOk;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    script_save_test_last_action[0] = '\0';
+    T_ASSERT(G_RequestScriptSaveGame("Blizzard/Zones/OrcX01.w3z"));
+    G_RequestChangeLevel("OrcX01_02.w3x", false);
+    T_EQ(script_save_test_menu_actions, 0);
+    G_FlushScriptSave();
+    T_EQ(script_save_test_menu_actions, 1);
+    T_STREQ(script_save_test_last_action, "level");
+    T_ASSERT(!G_ScriptSavePending());
+    FILE *saved = fopen(filename, "rb");
+    T_NOT_NULL(saved);
+    if (saved) fclose(saved);
+    remove(filename);
+    gi.ScriptSavePath = old_save_path;
+    gi.MenuAction = old_menu_action;
+}
+TEST(wc3_script_save, failed_write_never_starts_next_level) {
+    bool (*old_save_path)(cstring_t, string_t, uint32_t) = gi.ScriptSavePath;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    G_ResetScriptSave();
+    gi.ScriptSavePath = G_TestScriptSavePath;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    T_ASSERT(G_RequestScriptSaveGame("Blizzard/Zones/OrcX01.w3z"));
+    G_RequestChangeLevel("OrcX01_02.w3x", false);
+    T_EQ(script_save_test_menu_actions, 0);
+    G_FlushScriptSave();
+    T_EQ(script_save_test_menu_actions, 0);
+    T_ASSERT(!G_ScriptSavePending());
+    gi.ScriptSavePath = old_save_path;
+    gi.MenuAction = old_menu_action;
+}
+#endif
 
 /* Return the game API vtable to the server.
  * Called once at startup; after this point the server drives the game

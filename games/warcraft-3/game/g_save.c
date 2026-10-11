@@ -1,5 +1,11 @@
 #include "g_local.h"
 #include <stdint.h>
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 #ifdef BZ_TESTS
 #include "shared/test.h"
 void reset_entities(void);
@@ -2188,9 +2194,39 @@ static bool ReadPools(FILE *f) {
     return true;
 }
 
+/* Full-game saves are replace-on-commit. A failed serialization must never
+ * truncate the previous good save. The temporary file is created in the same
+ * directory so rename is atomic on supported POSIX filesystems. */
+static FILE *G_OpenSaveTemporary(cstring_t filename, PATHSTR temporary) {
+    FILE *f = NULL;
+    if (!filename || !*filename) return NULL;
+#ifdef _WIN32
+    PATHSTR directory;
+    cstring_t last_slash = strrchr(filename, '/');
+    cstring_t last_backslash = strrchr(filename, '\\');
+    cstring_t separator = !last_slash ? last_backslash :
+                          !last_backslash ? last_slash :
+                          last_slash > last_backslash ? last_slash : last_backslash;
+    size_t length = separator ? (size_t)(separator - filename) : 0;
+    if (length >= sizeof(directory)) return NULL;
+    if (length) { memcpy(directory, filename, length); directory[length] = '\0'; }
+    else strlcpy(directory, ".", sizeof(directory));
+    if (!GetTempFileNameA(directory, "w3s", 0, temporary)) return NULL;
+    f = fopen(temporary, "w+b");
+    if (!f) DeleteFileA(temporary);
+#else
+    if (snprintf(temporary, MAX_PATHLEN, "%s.tmpXXXXXX", filename) >= MAX_PATHLEN) return NULL;
+    int fd = mkstemp(temporary);
+    if (fd < 0) return NULL;
+    f = fdopen(fd, "w+b");
+    if (!f) { close(fd); remove(temporary); }
+#endif
+    return f;
+}
+
 bool WriteGame(cstring_t filename) {
-    FILE *f = fopen(filename, "w+b");
-    if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
+    PATHSTR temporary = { 0 };
+    FILE *f = NULL;
     saveHeader_t header = {
         .magic = save_magic, .version = save_version, .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
         .max_clients = game.max_clients, .script_identity = level.vm ? jass_programidentity(level.vm) : 0,
@@ -2205,7 +2241,9 @@ bool WriteGame(cstring_t filename) {
         return false;
     }
     bool ok = false;
+    f = G_OpenSaveTemporary(filename, temporary);
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
+    setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
     if (!WriteMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
@@ -2233,8 +2271,21 @@ bool WriteGame(cstring_t filename) {
     if (!WriteFooter(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
     ok = true;
 done:
-    fclose(f);
-    if (!ok) remove(filename);
+    if (ok && fflush(f)) ok = false;
+#ifdef _WIN32
+    if (ok && _commit(_fileno(f)) != 0) ok = false;
+#else
+    if (ok && fsync(fileno(f)) != 0) ok = false;
+#endif
+    if (fclose(f)) ok = false;
+    if (ok) {
+#ifdef _WIN32
+        ok = MoveFileExA(temporary, filename, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
+        ok = rename(temporary, filename) == 0;
+#endif
+    }
+    if (!ok) remove(temporary);
     return ok;
 }
 
@@ -2766,6 +2817,27 @@ TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {
     unit->movement.cargo_unload_goal = (edict_t *)(uintptr_t)1;
     T_ASSERT(!WriteGame(filename));
     unit->movement.cargo_unload_goal = NULL;
+    remove(filename);
+}
+
+TEST(wc3_save, failed_overwrite_preserves_previous_committed_save) {
+    cstring_t filename = Test_TempPath("save-preserves-prior-commit.bin");
+    FILE *f;
+    edict_t *unit;
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(WriteGame(filename));
+    f = fopen(filename, "rb");
+    T_NOT_NULL(f);
+    if (f) { T_ASSERT(ReadFooter(f)); fclose(f); }
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->movement.cargo_unload_goal = (edict_t *)(uintptr_t)1;
+    T_ASSERT(!WriteGame(filename));
+    unit->movement.cargo_unload_goal = NULL;
+    f = fopen(filename, "rb");
+    T_NOT_NULL(f);
+    if (f) { T_ASSERT(ReadFooter(f)); fclose(f); }
+    T_ASSERT(ReadGame(filename));
     remove(filename);
 }
 
