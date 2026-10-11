@@ -16749,3 +16749,77 @@ The new regression passes660/660; evidence14 and corpus37 checks pass. All503
 previous corpus entries are unchanged; this adds executable contract223. Exact
 committed sources, binaries, saved Ghidra exports, captures and reports are
 archived under `research/ORDER-01.13/payoff268/`.
+
+
+### Ground point spells use captured physical arrival (Payoff269)
+
+Ordinary point spells now use Move's physical point owner and retained completion
+receiver. The initial public admission checks the predicted caster against
+`authored range + source collision`, through the existing exact `05b440` scalar
+predicate. The physical point task captures `max(.49, authored range / 32)`;
+collision is excluded from that arrival range. Spell no longer polls world
+distance or reads authored range every simulation frame for this ground lane.
+Cancellation, death, replacement and owned-child cleanup use the same receiver
+inverse as unit-target spells. Active point receivers now survive save/load;
+private legacy movers still cannot own physical completion receivers.
+
+Original `40a7a0` constructs the initial task sequence. Its point branch calls
+virtual `410` (`416cc0`), then creates `d016b` through `692120`; Move's `5ffb60`
+passes the captured scalar into `05b970`. The recovered point-range method has
+**four** stack arguments and `RET 10h`, despite its short body reading only the
+output pointer and ability rank. Its point and buffer arguments are unused.
+The prototype, storage, comments, instruction bytes and xrefs are saved in
+Ghidra and reproduced by `Spell269Evidence.java` and the mapper/type schema.
+
+Two read-only complete repeats and a fresh unhooked control of the unchanged
+`RS-Owner268b` map preserve all **507 previous public markers**, including their
+positions, mana and public spell heads. Both repeats match all **52** active
+point-owner inputs word for word, plus the complete **169** ordered owner visits
+per run. The retired previous Move owner retains a stale row referencing the
+same mover; replay extraction requires that the mover's group identity match
+the visited owner's identity. It retains those stale visits in the full repeat
+comparison. `retail_spell_approach269.h` comes directly from these matching raw
+captures; no existing retail fixture was regenerated or overwritten.
+
+The corrected old engine fails the new physical-approach regression at
+admission. The replacement matches every frozen fine position, velocity and
+arrival-range word, including the same stop at `(737.2069, 314.4705)`. Separate
+compositions cover an active save/load and an authored-range edit after task
+admission while preserving those captured physical words. Admission tests cover
+native, direct spell and command-card entries, the collision edge and source
+prediction. Existing point cleanup/ownership tests now assert the newly observed
+physical receiver instead of the superseded internal polling implementation;
+their resource, public ownership and inverse expectations are retained.
+Two older synthetic fixtures also required valid movement inputs: Inferno's
+1200 goal now lies inside its test map (rather than beyond the former1024
+edge), and the ward actor receives nonzero speed/turn parameters before its
+physical walk. The old endpoint tolerance, requested effect coordinates and
+save/resource expectations are retained. Original05b970 clamping was already
+certified in Payoff54; the map change keeps this save test about an in-map
+approach instead of silently asserting pre-bridge unclipped behavior.
+
+The frozen motion certifies the walking phase. Retail keeps the spell public
+head through subsequent cast/effect phases; this chunk does not certify or
+repair those full timelines. Already-near turning tasks, instant bypass, flying
+approaches, structures and Shift spell policy remain under ORDER-01.13. The new
+save/edit cases are engine compositions, not additional public retail witnesses.
+No FPS or budget-threshold claim follows from eliminating the polling path.
+
+Validation: the exact final regression fails **27** assertions against a clean
+HEAD268 engine with the same final test source and frozen retail words; the
+replacement passes **994/994** motion/save/edit assertions and **36/36** admission
+assertions. Focused strict validation passes **81 tests /18,875 assertions** per
+Classic/TFT, including the older point-item, Inferno and unit-or-point cases;
+the affected spell family passes **416 tests /13,131 assertions** per edition.
+The evidence suite passes13 tests and corpus validation37; all504 prior corpus
+entry contracts remain unchanged. Production and test game modules build.
+The saved Ghidra export/readback is identical and pins967 original instructions.
+
+Reproduce the strict focused check with:
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_spell269.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-01.13/captures269 \
+  --report /tmp/spell269-fresh.json
+```

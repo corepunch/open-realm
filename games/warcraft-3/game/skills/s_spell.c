@@ -801,8 +801,8 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
         if(receiver!=except && receiver->owner==caster)S_CancelUnitTargetApproach(caster);
         return;
     }
-    /* Ordinary ground target casts are scheduler-owned. Only the unported
-     * point/air/structure approach can still have a polling thinker. */
+    /* Ground unit and point casts are scheduler-owned. Only the unported
+     * air/structure approach can still have a polling thinker. */
     if(!move_is_active_order_walk(caster) || !caster->goalentity ||
        (caster->goalentity->think!=S_SpellTargetApproachThink &&
         !(caster->aiflags&AI_FLYING) && !G_UnitIsStructure(caster->goalentity)))return;
@@ -886,8 +886,8 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
     return source_item ? executed : true;
 }
 
-/* Move owns ground target range/arrival. Point, air and structure approaches
- * retain their legacy poll until their respective retail producers are ported. */
+/* Move owns ground unit/point range and arrival. Air and structure target
+ * approaches retain their legacy poll until their retail producers are ported. */
 static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
     edict_t *caster = S_SpellChannelOwner(thinker);
     edict_t *target = thinker ? thinker->goalentity : NULL;
@@ -942,7 +942,7 @@ static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
             G_FreeEdict(thinker);
             return;
         }
-        if (range > 0.0f && Vector2_distance(&caster->s.origin2, &thinker->s.origin2) > range)
+        if (!arrived && range > 0.0f && !S_UnitPointInMoveRange(caster, &thinker->s.origin2, range))
             return;
         if (caster->goalentity == thinker) S_SetMoveGoal(caster, &caster->goalentity, NULL);
         unit_stand(caster);
@@ -1035,8 +1035,9 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     /* Replace the old pending cast before installing a new Move order. A unit
      * target pointer alone cannot distinguish two casts aimed at that same unit. */
     spell_cancel_target_approaches(caster, thinker);
-    if(target && S_BeginUnitTargetApproach(caster,target,S_SpellRange(code,S_SpellLevel(caster,code)),
-                                         thinker,S_SpellTargetApproachComplete)) {
+    float range=S_SpellRange(code,S_SpellLevel(caster,code));
+    if((point && S_BeginUnitPointTargetApproach(caster,goal,range,thinker,S_SpellTargetApproachComplete)) ||
+       (target && S_BeginUnitTargetApproach(caster,target,range,thinker,S_SpellTargetApproachComplete))) {
         thinker->think=NULL;
     } else {
         order_move(caster, goal);
@@ -1146,7 +1147,7 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     spellTarget_t st = { .type = SPELL_TARGET_POINT, .point = *point };
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
 
-    if (range > 0.0f && Vector2_distance(&caster->s.origin2, point) > range) {
+    if (range > 0.0f && !S_UnitPointInMoveRange(caster, point, range)) {
         if (!spell_begin_target_approach(caster, code, NULL, point,
                                          source_item, source_item_spawn_time)) return false;
         spell_order_accepted(caster, spell);
@@ -1531,7 +1532,7 @@ bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
-    if (range > 0.0f && Vector2_distance(&caster->s.origin2, point) > range)
+    if (range > 0.0f && !S_UnitPointInMoveRange(caster, point, range))
         return spell_begin_target_approach(caster, code, NULL, point, NULL, 0);
 
     spell_execute_point_target(NULL, caster, code, level, spell, point, NULL, 0, NULL);

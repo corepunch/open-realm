@@ -2131,6 +2131,9 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     cstring_t valid_click[] = { "point", "640", "0" };
 
     setup_test_world();
+    /* Point approaches now run on the physical owner schedule. */
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
     rows = parse_slk_string(ability_slk); old = G_SetSLKRows("AbilityData", rows);
     player = &g_edicts[0]; player->client->ps.number = 0;
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
@@ -2170,7 +2173,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     G_ClientCommand(player, 2, replace_approach);
     G_ClientCommand(player, 3, replace_click);
     level.time += FRAMETIME;
-    G_RunEntities();
+    globals.RunFrame();
     T_ASSERT(!approach->inuse);
     T_EQ(G_ItemCharges(item), 4);
     mine = NULL;
@@ -2194,7 +2197,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
         uint32_t frame;
         for (frame = 0; frame < 200 && approach->inuse; frame++) {
             level.time += FRAMETIME;
-            G_RunEntities();
+            globals.RunFrame();
         }
         T_ASSERT(hero->s.origin2.x > start_x);
         T_ASSERT(frame < 200);
@@ -2232,7 +2235,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     T_NOT_NULL(mine);
     for (uint32_t frame = 0; frame < 100; frame++) {
         level.time += FRAMETIME;
-        G_RunEntities();
+        globals.RunFrame();
     }
     T_EQ(G_ItemCharges(item), 2);
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
@@ -2264,7 +2267,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
                 uint32_t frame;
                 for (frame = 0; frame < 400 && approach->inuse; frame++) {
                     level.time += FRAMETIME;
-                    G_RunEntities();
+                    globals.RunFrame();
                 }
                 T_ASSERT(hero->s.origin2.y > start_y);
                 T_ASSERT(frame < 400);

@@ -74,10 +74,8 @@ static edict_t *inferno_summon(edict_t *caster) {
 }
 
 static edict_t *spell_approach(edict_t *caster, uint32_t code) {
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->class_id == code &&
-                  ent->think == S_SpellTargetApproachThink)
-        return ent;
-    return NULL;
+    edict_t *receiver=S_UnitTargetApproachReceiver(caster);
+    return receiver && receiver->owner==caster && receiver->class_id==code ? receiver : NULL;
 }
 
 /* Fill the caller's INFIX. Returning a copy would dangle UnitBalance pointers
@@ -129,6 +127,11 @@ TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
     bool accepted, saved;
 
     inferno_setup(&fix, code);
+    /* The approach goal must lie inside the map. The default fixture ends at
+     *1024, so the retail point bridge otherwise clips this1200 request. */
+    uint8_t cells[128*128]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{-1024,-1024},{3072,3072}});
+    CM_SetupTestPathmap(128,128,cells);gi.ClearWorld();
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     level.time=level.pathing_msec=level.pathing_phase=0; level.pathing_due=false;
@@ -157,7 +160,8 @@ TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
         T_ASSERT(ReadGame(path));
         fix.caster = &globals.edicts[caster_slot];
         approach = &globals.edicts[approach_slot];
-        T_ASSERT(approach->inuse && approach->think == S_SpellTargetApproachThink);
+        T_ASSERT(approach->inuse);T_NULL(approach->think);
+        T_ASSERT(S_UnitTargetApproachReceiver(fix.caster)==approach);
         T_ASSERT(approach->goalentity == approach);
         T_ASSERT(fix.caster->goalentity == approach);
         T_ASSERT(move_is_active_order_walk(fix.caster));

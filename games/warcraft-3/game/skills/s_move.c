@@ -5517,6 +5517,20 @@ static void move_start_point_group(edict_t *actor,vec2_t const *home,float range
     move_group_seed_route(group); group->ticking=false;
 }
 
+/* Spell point tasks use the same physical producer as ordinary point Move.
+ * Capture the world range once; completion belongs to the retained receiver. */
+bool S_BeginUnitPointTargetApproach(edict_t *unit,edict_t *goal,float range,
+                                  edict_t *receiver,void (*complete)(edict_t *,edict_t *,bool)) {
+    if(!unit || !goal || !receiver || !complete || (unit->aiflags&AI_FLYING) ||
+       !S_UnitCanTranslate(unit))return false;
+    move_leave(unit);order_move(unit,goal);
+    if(unit->goalentity!=goal || unit->currentmove!=&move_move_walk)return false;
+    move_start_point_group(unit,&goal->s.origin2,range);
+    moveGroup_t *group=move_unit_group(unit);
+    group->receiver=receiver;group->receiver_spawn=receiver->spawn_time;group->complete=complete;
+    return true;
+}
+
 /* Internal point tasks retain their requesting ability's public order.
  * Arrival range is supplied world range /32, independently of collision. */
 bool S_BeginUnitPointApproach(edict_t *unit,vec2_t const *point,float range,abilityProc_t owner,

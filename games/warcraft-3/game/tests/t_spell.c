@@ -6091,7 +6091,7 @@ TEST(wc3_spell, graph266_point_approach_child_is_released_with_caster) {
         T_NOT_NULL(child);
         if(!child) {G_SetSLKRows("AbilityData",old);free_slk_rows(rows);continue;}
         T_ASSERT(child!=caster && child->owner==caster && child->goalentity==child);
-        T_ASSERT(child->think==S_SpellTargetApproachThink);T_NOT_NULL(child->channel);
+        T_NULL(child->think);T_ASSERT(S_UnitTargetApproachReceiver(caster)==child);T_NOT_NULL(child->channel);
         edict_t *borrowed=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1500,288);
         if(mode&1) {
             cstring_t file=Test_TempPath("wc3-graph266-live.bin");
@@ -6223,7 +6223,7 @@ TEST(wc3_spell, owner267_ground_approach_retains_public_spell_head) {
 }
 
 /* Retail268 point and flying-caster witnesses retain the spell command through
- * the pre-effect approach. Exercise both legacy entry shapes without claiming
+ * the pre-effect approach. Exercise both entry shapes without claiming
  * their numerical trajectory or full effect/channel timing. */
 TEST(wc3_spell, owner268_legacy_approaches_retain_public_spell_head) {
     FOR_LOOP(shape,2) FOR_LOOP(entry,3) FOR_LOOP(mode,6) {
@@ -6272,8 +6272,10 @@ TEST(wc3_spell, owner268_legacy_approaches_retain_public_spell_head) {
             } else {cstring_t select[]={"point","1500","288"};G_ClientCommand(clent,3,select);}
         }
         edict_t *child=NULL;
-        FILTER_EDICTS(ent,ent->owner==caster && ent->think==S_SpellTargetApproachThink) {child=ent;break;}
-        T_NOT_NULL(child);T_NULL(S_UnitTargetApproachReceiver(caster));
+        FILTER_EDICTS(ent,ent->owner==caster && ent->class_id==code) {child=ent;break;}
+        T_NOT_NULL(child);
+        if(shape)T_NULL(S_UnitTargetApproachReceiver(caster));
+        else {T_ASSERT(S_UnitTargetApproachReceiver(caster)==child);T_NULL(child->think);}
         T_EQ(caster->current_order_id,G_OrderId(order));T_ASSERT(move_is_active_order_walk(caster));
         jass_callbyname(level.vm,shape ? "checkFly" : "checkPoint",true);jass_runevents(level.vm);T_STREQ(jass_rterror_message(level.vm),"");
         FOR_LOOP(tick,5) {level.time+=30;globals.RunFrame();T_EQ(caster->current_order_id,G_OrderId(order));}
@@ -6294,6 +6296,45 @@ TEST(wc3_spell, owner268_legacy_approaches_retain_public_spell_head) {
         level.time+=30;globals.RunFrame();
         T_ASSERT(child && !child->inuse);
         if(mode!=3)T_EQ(caster->current_order_id,mode==1 ? G_OrderId("move") : 0);
+        reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+}
+
+/* The initial point predicate includes source collision and predicted pose;
+ * physical arrival subsequently uses only the captured authored range. */
+TEST(wc3_spell, point269_admission_uses_predicted_collision_edge) {
+    FOR_LOOP(entry,3) FOR_LOOP(kind,3) {
+        edict_t *caster=make_hero(MAKEFOURCC('H','b','l','m'),500,200,288,288);
+        slkTestData_t *rows=parse_slk_string(
+            "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+            "C;Y1;X3;K\"Cost1\"\nC;Y1;X4;K\"Cool1\"\nC;Y1;X5;K\"Rng1\"\n"
+            "C;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"DataD1\"\n"
+            "C;Y1;X8;K\"Data21\"\nC;Y1;X9;K\"Data41\"\n"
+            "C;Y2;X1;K\"AHfs\"\nC;Y2;X2;K\"AHfs\"\nC;Y2;X3;K13\nC;Y2;X4;K7\nC;Y2;X5;K100\n"
+            "C;Y2;X6;K0.25\nC;Y2;X7;K0.75\nC;Y2;X8;K0.25\nC;Y2;X9;K0.75\nE\n");
+        slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+        UnitAbilities_t abilities={.abilList="AHfs"};caster->data.UnitAbilities=&abilities;
+        caster->s.player=0;caster->collision=16;caster->unitinfo.MoveSpeed=300;caster->movetype=MOVETYPE_STEP;
+        vec2_t point={kind==0 ? 404 : 420,288};
+        if(kind==1) {
+            level.pathing_clock=(wc3Clock_t){.time=1};
+            caster->movement.pose_clock=(wc3Clock_t){0};caster->movement.clock_valid=true;
+            caster->movement.velocity=(vec2_t){32,0};
+        }
+        if(entry==0)T_ASSERT(G_IssueUnitPointOrder(caster,"flamestrike",&point,false,0,0));
+        if(entry==1)T_ASSERT(S_IssuePointTargetSpell(caster,MAKEFOURCC('A','H','f','s'),&point));
+        if(entry==2) {
+            edict_t *clent=g_edicts;clent->client=game.clients;G_SelectEntity(clent->client,caster);
+            cstring_t button[]={"button","AHfs"};G_ClientCommand(clent,2,button);
+            cstring_t click[]={"point",kind==0 ? "404" : "420","288"};G_ClientCommand(clent,3,click);
+        }
+        if(kind<2) {T_NULL(S_UnitTargetApproachReceiver(caster));T_FEQ(caster->mana.value,187,0);}
+        else {
+            edict_t *receiver=S_UnitTargetApproachReceiver(caster);T_NOT_NULL(receiver);
+            T_FEQ(caster->mana.value,200,0);moveGroup_t *group=spell185_group(caster);T_NOT_NULL(group);
+            if(group)T_FEQ(group->members[0].arrival_range,3.125f,0);
+            T_ASSERT(unit_issueimmediateorder(caster,"stop"));T_ASSERT(receiver && !receiver->inuse);
+        }
         reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
     }
 }

@@ -18444,6 +18444,40 @@
         }
       ],
       "evidence": "Payoff268 ORDER-01.13: ECX spell prefix, four stack args, RET10. Ordinary unit target selects captured virtual408 range and internal d0174; point selects virtual410 range and internal d016b; other widget branch appends d0161 and d016e. Internal cast tasks d0160/d015f/d0144 are ability-tagged; initial action0 and final action3 do not replace public command with Move. Important correction to earlier prose: existing185 repeats record range queries but ZERO spell-approach438680 entries. Initial spell production is40a7a0, while438680 is the d0161 continuation. Preserve old captures/expected words; do not claim that live185 observed438680. New268 point/flying public ownership witnesses do not certify full task timing or trajectory."
+    },
+    {
+      "address": "6f416cc0",
+      "name": "Spell_GetPointCastRange",
+      "convention": "__thiscall",
+      "returns": "ptr:u32",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3SpellAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "out_range",
+          "type": "ptr:u32",
+          "storage": 4
+        },
+        {
+          "name": "x_words",
+          "type": "ptr:u32",
+          "storage": 8
+        },
+        {
+          "name": "y_words",
+          "type": "ptr:u32",
+          "storage": 12
+        },
+        {
+          "name": "add_buffer",
+          "type": "u32",
+          "storage": 16
+        }
+      ],
+      "evidence": "Payoff269 ORDER-01.13: spell virtual410, ECX typed spell prefix; stack4 output scalar*,8 x*,c y*,10 buffer flag, RET10. x/y/buffer unused:417a70 reads rank50 authored Rng and returns output*. Two complete read-only point Flame Strike repeats observe range44480000 at admission buffer0 and later buffer1. Do not infer a single-argument ABI from the decompiler; keep unused stack arguments."
     }
   ],
   "globals": [

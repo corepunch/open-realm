@@ -3462,6 +3462,7 @@ bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
 void S_ClearMoveGroups(void);
 bool S_BeginUnitTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
+bool S_BeginUnitPointTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
 edict_t *S_UnitTargetApproachReceiver(edict_t const *);
 void S_CancelUnitTargetApproach(edict_t *);
 bool S_BeginUnitTargetChase(edict_t *, edict_t *, float, abilityProc_t, void (*)(edict_t *, edict_t *, bool));

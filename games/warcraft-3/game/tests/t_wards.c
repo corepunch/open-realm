@@ -346,6 +346,13 @@ TEST(wc3_spell, unit_or_point_approach_keeps_its_point_target_shape) {
 	uint32_t thinker_slot;
 
 	ward_setup(&fix);
+	/* This fixture previously teleported a zero-speed, zero-turn actor into
+	 *range. A physical approach needs an actual translating unit. */
+	fix.caster->movetype=MOVETYPE_STEP;fix.caster->stand=unit_stand;
+	fix.caster->unitinfo.MoveSpeed=300;fix.caster->unitinfo.TurnSpeed=.6f;
+	fix.caster->unitinfo.PropWindow=DEG2RAD(60);
+	fix.caster->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+	unit_stand(fix.caster);
 	place = (ability_t *)FindAbilityForCommand("AIpm");
 	T_NOT_NULL(place);
 	if (!place) { ward_done(&fix); return; }
@@ -355,9 +362,15 @@ TEST(wc3_spell, unit_or_point_approach_keeps_its_point_target_shape) {
 	thinker_slot = globals.num_edicts;
 	T_ASSERT(S_IssuePointTargetSpell(fix.caster, BZ_AIPM, &point));
 	thinker = &globals.edicts[thinker_slot];
-	T_ASSERT(thinker->inuse && thinker->think == S_SpellTargetApproachThink);
-	fix.caster->s.origin2.x = fix.caster->s.origin.x = 250;
-	if (thinker->think) thinker->think(thinker);
+	T_ASSERT(thinker->inuse);T_NULL(thinker->think);
+	T_ASSERT(S_UnitTargetApproachReceiver(fix.caster)==thinker);
+	/* Exercise real physical completion; neither a raw origin write nor a
+	 * call to the removed polling callback advances this task anymore. */
+	FOR_LOOP(tick,200) {
+		if(!thinker->inuse)break;
+		wc3_clock_advance(&level.pathing_clock,.03f,0);
+		level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+	}
 	mine = ward_find(BZ_HFOO);
 	T_NOT_NULL(mine);
 	if (mine) {

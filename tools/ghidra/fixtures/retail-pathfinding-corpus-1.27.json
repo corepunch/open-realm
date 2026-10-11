@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "223 executable original/evidence contracts;504 total entries.",
+  "scope": "224 executable original/evidence contracts;505 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -51879,6 +51879,73 @@
         "No exact numerical point/flying motion claim; legacy per-frame range polling remains until actual physical producers are integrated.",
         "Original185 captures have no438680 entries; initial spell producer40a7a0 and d0161 continuation438680 are distinct."
       ]
+    },
+    {
+      "id": "oracle-spell269",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_spell269.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}/research/ORDER-01.13/captures269",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "spell269.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 3
+        },
+        "observed_repeats": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 1521
+        },
+        "raw_owner_visits": {
+          "equal": 338
+        },
+        "motion_rows": {
+          "equal": 52
+        },
+        "point_bridge_calls": {
+          "equal": 12
+        },
+        "initial_spell_calls": {
+          "equal": 8
+        },
+        "instructions": {
+          "equal": 967
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Original point-spell task/range producer, exact physical fine motion, unchanged public markers, production receiver/save/admission inverses.",
+      "exclusions": [
+        "Certifies ordinary ground point-spell physical approach only; structures, flying approaches, instant bypass and the already-near turning task remain open.",
+        "Public markers remain exactly those frozen in268; full cast/effect/channel timing and Shift spell policy are not certified by this motion regression.",
+        "Engine save/load and post-admission metadata-edit compositions use frozen physical words; retail does not expose those object-data edits through this public map.",
+        "No changes to previous retail captures or expected numerical words. Old267/268 internal polling assertions are updated only where new retail physical ownership disproves that implementation detail.",
+        "No performance threshold or complete ORDER-01.13 closure claim."
+      ]
     }
   ],
   "fixtures": [
@@ -51944,7 +52011,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "3fe12c41f1c29d90cc7b3069010a4ed8f8f882827e4c44bedc270954f3d81290"
+      "sha256": "9bc1df60545083ea315ca761fe89357a7a0ee3d8b48a3eb3b94d52817f442d82"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -52777,7 +52844,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "8abe58b73e99c7aca3d3172471a7182eeb54311137cbac78eec90374c7ec444e"
+      "sha256": "abb1a6919e166e8ce6c4164326daa097a2604da7633e60454cbb9af59fa7d210"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -53629,11 +53696,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "f5e6908d1e4988629a4a9a027a1ffa037c9c041436c21c16338551c779367dec"
+      "sha256": "b54ca3fa253a9746bab042ead1e5a9714641ca0716c3147831335f6ddf6422d6"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "dfe9c559607bca665a977eda8e3d44dc58222660e641e6cbd9062ca384210398"
+      "sha256": "8f51e2d144bbd12b7866ac78867fb5608d4f152c79e5875a6e81c3148b3d0e60"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -54069,7 +54136,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "ac67919a4668acfcf876fda8dbab3489ca012e050d3f0f668b93d94f7f40d6dd"
+      "sha256": "9ea3988018aea30f2cd9255fff9db7cc19463d728b405c3049983c1dbbf80bf3"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -54077,7 +54144,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "d868c9492ed77b28114c4bd9324215aee4cbb8b95fb12de11c4dc08369c4ecf0"
+      "sha256": "7046bc2b6748a1b8c06f14c86d66d1629abf97a9ee0768f0cb2b509574958edc"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -54325,7 +54392,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "0931bed779f66f47338ef62a96d0e38e622e34a9c1f76f1f10723d881f2a709d"
+      "sha256": "07074de4110c35382952de251dab5c6e5cd0686be7fe87dfc4e535fd404ad45c"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -54569,7 +54636,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "1c5f6d0d7127f7c7ef6aa3560d7dcea989be9e8761d062bb0e0ad94345eafe0e"
+      "sha256": "7cc70d452d15e153ca18e3c145ac6209f4c567a89c38a91db227aa5b2c6e7f6f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -54581,11 +54648,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "3192af976d87c4b8aa552853b201cda67538acf3d975d312b61507175f9a6085"
+      "sha256": "511b8148da2e2a9bfaa65e90e1b2ed9f3f09d1b5e790ee97fabf922dcf45ba77"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "f1c45c2a1f6197b30ddbe7c5314c3dbf3890ba01920945e61e2703d04de0eef8"
+      "sha256": "257b3d94b327dd6937784e10442177d076b3a1dbba25b49d37b82e6c07179794"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55385,7 +55452,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_spell.c",
-      "sha256": "849a4e66ba950f313b41686210c4a12f52f2efb1f40796228ad49d6babb6e173"
+      "sha256": "3ead7c48f3f48d87c0bebbc0ce95ed666ae1017585fda587c251b03dd5c4d58c"
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_random.c",
@@ -56033,7 +56100,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_items.c",
-      "sha256": "7dbb47caec774f443f8a5f49324255e1211e98c133a5a86ed4c3bad4b1f80d33"
+      "sha256": "65bb40d9808cab1815a30261966455555dd66618e954ed90eabfbd0d24f19369"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_recovery_scope.py",
@@ -58814,6 +58881,30 @@
     {
       "path": "tests/test_wc3_pathfinding_spell268.py",
       "sha256": "e3b1e47d075824bdb684dc619e630c38803c82bf69e497996b10c7640425208c"
+    },
+    {
+      "path": "tools/ghidra/research/Spell269Evidence.java",
+      "sha256": "44f8794ad72d8960189a1753f16a949d2a6318ffe5e72e62efe5b889ff18ffa6"
+    },
+    {
+      "path": "tools/frida/research/spell269_observer.js",
+      "sha256": "89a4a6d16269c7238e78fb5c1f3a75c914f4cbcc47961ee05d7c534b8c590697"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_spell269.py",
+      "sha256": "f109be1b4caa638b3971727abd69c9f4c911157eff82b525e5e31b1e04c397c6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-spell269-1.27.json",
+      "sha256": "c46825e3890f2819ffde574614228387557067792eda6737cb617b455773ce84"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_spell269.py",
+      "sha256": "e5362f5bfe088c8963dc23c852aaf829d7d38ee5fbb1b254a77aad68443792a8"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_spell_approach269.h",
+      "sha256": "eb6bcedad62107289e264aab8432c2d359976624cbe78f818d9e58861fa9e9c9"
     }
   ]
 }

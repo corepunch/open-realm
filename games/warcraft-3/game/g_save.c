@@ -2360,7 +2360,7 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
         uintptr_t ptr=(uintptr_t)group->receiver,base=(uintptr_t)g_edicts;
         if(ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts) ||
            !group->receiver->inuse || G_IsDeferredFree(group->receiver) ||
-           group->receiver->spawn_time!=group->receiver_spawn || (!group->target && !group->turning && !group->owner_ability) ||
+           group->receiver->spawn_time!=group->receiver_spawn || group->individual ||
            group->count!=1 || (group->flags&1) || !group->complete || SaveCFunctionIndex((void *)group->complete)<1)
             return false;
     } else if(group->receiver_spawn || group->complete)return false;
@@ -4023,6 +4023,14 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         if(i==6)invalid.receiver=g_edicts+globals.num_edicts;
         T_ASSERT(!ValidMoveGroup(&invalid));
     }
+    /* A physical point task can own a completion receiver too. Its ordinary
+     * scalar route and generation checks remain identical to target tasks. */
+    moveGroup_t point_group=approach;
+    point_group.target=NULL;point_group.target_spawn=0;point_group.target_refresh=0;point_group.flags&=~0x1000u;
+    S_SetMoveGoal(first,&first->goalentity,receiver);S_SetFollowTarget(first,NULL);
+    T_ASSERT(ValidMoveGroup(&point_group));
+    point_group.individual=true;T_ASSERT(!ValidMoveGroup(&point_group));
+    S_SetFollowTarget(first,S_SetMoveGoal(first,&first->goalentity,second));
     FOR_LOOP(i,5) {
         moveGroup_t invalid=follow;
         if(i==0)invalid.target_spawn++;
