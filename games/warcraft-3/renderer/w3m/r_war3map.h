@@ -22,6 +22,10 @@ void R_BeginTerrainNormalCache(war3map_t const *map);
 void R_EndTerrainNormalCache(void);
 void R_ResetTerrainNormalCache(void);
 void R_ResetCliffCache(void);
+/* Visual-only terrain replacement cells covered by special war3map.doo doodads. */
+bool R_W3SpecialCellCovered(war3map_t const *map, uint32_t x, uint32_t y);
+void R_W3LoadSpecialCutouts(handle_t archive, war3map_t const *map);
+void R_W3ClearSpecialCutouts(void);
 /* Resolve MDX replaceable texture 11 from the local W3E cliff palette. */
 texture_t const *R_W3CliffReplacementAt(float world_x, float world_y);
 void R_FinishCliffs(void);

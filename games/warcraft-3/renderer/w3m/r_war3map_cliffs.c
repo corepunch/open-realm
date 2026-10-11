@@ -335,6 +335,7 @@ static int R_CliffGroundIndex(war3map_t const *map, uint32_t tile) {
 
 static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_t const *data) {
     struct War3MapVertex tile[4];
+    if (R_W3SpecialCellCovered(map, x, y)) return;
     GetTileVertices(x, y, map, tile);
 
     if (GetTileRamps(tile) == 4 || !IsTileCliff(tile) || R_CliffTexture(map, x, y) != data->cliff)

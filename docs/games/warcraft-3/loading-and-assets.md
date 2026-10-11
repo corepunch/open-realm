@@ -393,7 +393,19 @@ texture (`texDir`/`texFile`) from the current map tileset. Do not make slot 11
 white or replace it globally with a fixed Cliff0: the correct cliff tile varies
 by map location and tileset. Explicit unit/destructable skins retain priority.
 
-Special terrain doodads can also suppress ground/cliff cells beneath their
-pathing footprint. The currently implemented model placement/skin correction
-does not yet remove these renderer-owned cells; inspect actual map data before
-claiming that cave interiors and terrain occlusion match retail.
+Special terrain doodads also replace the ordinary ground and generated cliff
+geometry under the full rectangular `pathTex` footprint. The WC3 renderer
+reads the special placements in the `war3map.doo` tail, resolves the Doodads.slk
+`pathTex` (including W3D custom doodad ID inheritance and map path overrides),
+and marks the covered 128-unit cells *before* baking terrain. Both the ground
+baker and the cliff baker skip covered cells, including when rebuilding after
+terrain deformation. The mask is visual only: gameplay collision/pathing and
+camera-height queries still use the authored W3E/map pathing rules. A missing
+or malformed pathing texture leaves the map geometry intact rather than cutting
+an arbitrary hole. On map replacement the old mask is cleared.
+
+This follows Warsmash's `War3MapViewer` special-doodad cutout: it removes the
+footprint's ground cells and hides ordinary cliff meshes at those same cells.
+It does **not** change the MDX cave model's scale/rotation or the existing
+replaceable cliff-texture selection. Recheck Rexxar's Goblin Cave visually in
+retail: any remaining offset or missing faces must be investigated separately.
