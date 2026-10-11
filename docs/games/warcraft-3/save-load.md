@@ -218,6 +218,41 @@ JASS error or exhausted event queue, instead of taking a knowingly incomplete
 snapshot. If an event action sleeps, its later continuation cannot use this
 transient name; maps should perform file-copy actions synchronously.
 
+### Scripted saved-zone restoration (Patch 4)
+
+`LoadGame(name, doScoreScreen)` now requests a deferred `scriptload`
+operation rather than calling `ReadGame()` within JASS. The request uses
+`ScriptSaveExists` to confirm that its destination is in the current private
+script scope. At the next frame boundary the client/server revalidate the
+name, obtain the map from the saved-game checksum/header (`GetSaveMap`),
+load that map via `SV_Map`, and restore its snapshot via the standard game
+module `LoadGame` callback. This preserves the script scope: unlike a
+player-selected manual load, it **does not** call `FS_ResetScriptSaveScope`.
+`LoadGame` without an earlier `SaveGame` is also deferred to the frame
+boundary.
+
+`SaveAndLoadGameBJ(source, destination, false)` issues `SaveGame` followed
+by `LoadGame` from the same callback. A single transient request now writes
+and commits the source snapshot at the safe point **before** queuing the
+scripted load; invalid, duplicate, or missing destinations and failed source
+saves cannot dispatch the load. Pending operations are excluded from the
+serialized snapshot. `doScoreScreen` remains presentation-only and is not
+implemented.
+
+`EVENT_GAME_LOADED` is reserved for normal named player save restoration.
+Loading a scripted zone does **not** send this event: Rexxar's named-save
+handler copies backed-up zone files into the active `Blizzard/Zones` directory,
+and running that handler on every return visit could overwrite newer zone
+snapshots. The user-initiated save/load path is unchanged.
+
+**Remaining limitations:** the map identity/footer are checked before changing
+maps, but a damaged payload can still fail during `ReadGame` after replacement.
+The server's existing fallback loads a clean destination map, not the previous
+source map. A fully atomic cross-map rollback, persistent scope restoration
+across process restarts, and cache refresh after loading an older zone remain
+subsequent work. As with Patch 3, this patch is designed for local session
+transitions; verify dedicated-server handling separately.
+
 ### Deferred JASS saves and conditional ChangeLevel (Patch 3)
 
 The JASS `SaveGame` native no longer calls the serializer from its active

@@ -862,11 +862,9 @@ uint32_t SaveGame(jass_t *j) {
 }
 uint32_t LoadGame(jass_t *j) {
     cstring_t name = jass_checkstring(j, 1);
-    (void)name;
-    /* A saved zone may contain a different map; ReadGame cannot run from
-     * inside an active JASS frame. Patch 4 routes this through SV_LoadGame.
-     * Fail closed rather than mutating the active world synchronously. */
-    fprintf(stderr, "WC3 LoadGame: deferred cross-map load not implemented yet\n");
+    (void)jass_checkboolean(j, 2); /* doScoreScreen: not presented yet */
+    if (!G_RequestScriptLoadGame(name))
+        fprintf(stderr, "WC3 LoadGame: invalid, missing, or conflicting scripted save\n");
     return 0;
 }
 uint32_t SetCampaignMenuRace(jass_t *j) {

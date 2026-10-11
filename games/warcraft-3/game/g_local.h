@@ -2473,6 +2473,7 @@ void G_RequestChangeLevel(cstring_t map, bool do_score_screen);
 /* JASS saves are captured after the active VM callback returns, never inline
  * from SaveGame(). A following ChangeLevel is conditional on save success. */
 bool G_RequestScriptSaveGame(cstring_t name);
+bool G_RequestScriptLoadGame(cstring_t name);
 bool G_ScriptSavePending(void);
 void G_FlushScriptSave(void);
 void G_ResetScriptSave(void);

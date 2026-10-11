@@ -59,9 +59,26 @@ static void SV_SaveGame_f(void) {
         fprintf(stderr, "save: failed to write %s\n", path);
 }
 
-bool SV_LoadGame(cstring_t name, cstring_t map) {
+/* Script saves are authorized by the engine-owned sandbox, not the ordinary
+ * basename-only user save namespace. Revalidate at execution, after the JASS
+ * callback and possible queued cinematic have returned. */
+static bool SV_ScriptSavePath(cstring_t name, PATHSTR path) {
+    return FS_ScriptSaveExists(name) && FS_ScriptSavePath(name, path, sizeof(PATHSTR));
+}
+
+bool SV_GetScriptSaveMap(cstring_t name, string_t map, uint32_t map_size) {
     PATHSTR path;
-    if (!name || !map || !*map || !SV_SavePath(name, path)) return false;
+    if (!SV_ScriptSavePath(name, path)) return false;
+    if (!ge) SV_InitGameProgs();
+    if (!ge || !ge->GetSaveMap || !ge->GetSaveMap(path, map, map_size)) {
+        fprintf(stderr, "script load: saved zone has no valid map identity\n");
+        return false;
+    }
+    return true;
+}
+
+static bool SV_RestoreSaveFile(cstring_t path, cstring_t name, cstring_t map, bool notify_loaded) {
+    if (!path || !map || !*map) return false;
     /* Q2 SpawnEntities then SV_CheckForSavegame: ClearWorld + ReadLevel before
      * reconnect/begin. JASS main() must run during SV_Map before ReadGame. */
     SV_Map(map);
@@ -71,8 +88,25 @@ bool SV_LoadGame(cstring_t name, cstring_t map) {
         SV_Map(map);
         return false;
     }
-    if (ge->AfterLoadGame) ge->AfterLoadGame(name);
+    /* EVENT_GAME_LOADED is the named user-save callback that restores a
+     * campaign's backed-up zones. Internal zone loads must not fire it or
+     * overwrite the live Blizzard/Zones directory with an older backup. */
+    if (notify_loaded && ge->AfterLoadGame) ge->AfterLoadGame(name);
     return true;
+}
+
+bool SV_LoadGame(cstring_t name, cstring_t map) {
+    PATHSTR path;
+    if (!name || !SV_SavePath(name, path)) return false;
+    return SV_RestoreSaveFile(path, name, map, true);
+}
+
+bool SV_LoadScriptGame(cstring_t name, cstring_t map) {
+    PATHSTR path, actual_map;
+    if (!SV_ScriptSavePath(name, path) ||
+        !SV_GetScriptSaveMap(name, actual_map, sizeof(actual_map)) ||
+        strcmp(actual_map, map)) return false;
+    return SV_RestoreSaveFile(path, name, map, false);
 }
 #endif
 

@@ -144,6 +144,8 @@ void SV_StartLobby(cstring_t mapFilename);
 void SV_Map(cstring_t pFilename);
 void SV_CreateBaseline(void);
 bool SV_LoadGame(cstring_t name, cstring_t map);
+bool SV_GetScriptSaveMap(cstring_t name, string_t map, uint32_t map_size);
+bool SV_LoadScriptGame(cstring_t name, cstring_t map);
 bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size);
 #ifdef WOW
 uint32_t SV_PlayerCreateMap(void);
