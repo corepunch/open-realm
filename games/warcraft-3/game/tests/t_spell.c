@@ -4338,6 +4338,7 @@ TEST(wc3_spell, unit_target_approach_replaces_same_target_cast) {
     T_ASSERT(S_IssueUnitTargetSpell(caster, MAKEFOURCC('A','O','c','l'), target));
     first = &globals.edicts[first_slot];
     T_ASSERT(first->inuse && S_UnitTargetApproachReceiver(caster)==first);
+    T_EQ(caster->current_order_id,G_OrderId("chainlightning"));
 
     latest_slot = globals.num_edicts;
     T_ASSERT(S_IssueUnitTargetSpell(caster, MAKEFOURCC('A','H','t','b'), target));
@@ -4345,6 +4346,7 @@ TEST(wc3_spell, unit_target_approach_replaces_same_target_cast) {
     T_ASSERT(!first->inuse);
     T_ASSERT(latest->inuse && S_UnitTargetApproachReceiver(caster)==latest);
     T_EQ(latest->class_id, MAKEFOURCC('A','H','t','b'));
+    T_EQ(caster->current_order_id,G_OrderId("thunderbolt"));
 
     /* Be inside the captured arrival radius; this test owns replacement
      * identity, not Move's separate strict boundary/facing contract. */
@@ -6112,6 +6114,110 @@ TEST(wc3_spell, graph266_point_approach_child_is_released_with_caster) {
             if(replacement==child) {reused=true;T_NULL(replacement->channel);T_NULL(replacement->owner);}
         }
         T_ASSERT(reused);
+        reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+}
+
+/* Retail S184 accepted and pre-effect samples retain Holy Bolt, independently
+ * of its internal d0174 locomotion. Exercise native, alias and command-card
+ * admission; the cast owner must survive saves and retire through real Move. */
+TEST(wc3_spell, owner267_ground_approach_retains_public_spell_head) {
+    FOR_LOOP(entry,3) FOR_LOOP(mode,9) {
+        edict_t *caster=make_hero(MAKEFOURCC('H','p','a','l'),500,200,288,288);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),800,288);
+        char const text[]=
+            "ID;PWXL;N;EBB;Y3;X8\n"
+            "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+            "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+            "C;Y1;X7;K\"Data11\"\nC;Y1;X8;K\"DataA1\"\n"
+            "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"ground,friend\"\n"
+            "C;Y2;X4;K\"13\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"100\"\n"
+            "C;Y2;X7;K\"37\"\nC;Y2;X8;K\"37\"\n"
+            "C;Y3;X1;K\"A001\"\nC;Y3;X2;K\"AHhb\"\nC;Y3;X3;K\"ground,friend\"\n"
+            "C;Y3;X4;K\"13\"\nC;Y3;X5;K\"7\"\nC;Y3;X6;K\"100\"\n"
+            "C;Y3;X7;K\"37\"\nC;Y3;X8;K\"37\"\nE\n";
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        uint32_t code=entry==1 ? MAKEFOURCC('A','0','0','1') : MAKEFOURCC('A','H','h','b');
+        UnitAbilities_t abilities={.abilList=entry==1 ? "A001" : "AHhb"};
+        caster->data.UnitAbilities=&abilities;caster->s.player=target->s.player=0;
+        caster->collision=32;target->collision=31;caster->unitinfo.MoveSpeed=270;
+        caster->movetype=MOVETYPE_STEP;target->svflags|=SVF_MONSTER;target->targtype=TARG_GROUND;
+        target->health.value=100;target->health.max_value=1000;
+        T_ASSERT(run_test_jass(
+            "globals\nunit caster=null\nunit target=null\nendglobals\n"
+            "function spellHead takes nothing returns nothing\n"
+            "call BJassAssert(GetUnitCurrentOrder(caster)==OrderId(\"holybolt\"),\"spell owns approach\")\nendfunction\n"
+            "function issue takes nothing returns nothing\n"
+            "call BJassAssert(IssueTargetOrder(caster,\"holybolt\",target),\"accepted target spell\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal unit u=null\n"
+            "call GroupEnumUnitsOfPlayer(g,Player(0),null)\nloop\nset u=FirstOfGroup(g)\nexitwhen u==null\n"
+            "if GetUnitTypeId(u)=='Hpal' then\nset caster=u\nelse\nset target=u\nendif\n"
+            "call GroupRemoveUnit(g,u)\nendloop\ncall DestroyGroup(g)\nendfunction\n"));
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        /* A replaced Move must not remain visible as the spell's current head. */
+        vec2_t point={288,800};T_ASSERT(G_IssueUnitPointOrder(caster,"move",&point,false,0,0));
+        T_EQ(caster->current_order_id,G_OrderId("move"));
+        if(entry==0) {jass_callbyname(level.vm,"issue",true);jass_runevents(level.vm);}
+        if(entry==1)T_ASSERT(S_IssueUnitTargetSpell(caster,code,target));
+        if(entry==2) {
+            gameClient_t *client=game.clients;edict_t *clent=g_edicts;
+            clent->client=client;G_SelectEntity(client,caster);
+            cstring_t button[]={"button","AHhb"};char number[16];
+            snprintf(number,sizeof(number),"%u",target->s.number);
+            cstring_t select[]={"select",number};
+            G_ClientCommand(clent,2,button);T_NOT_NULL(client->menu.on_entity_selected);
+            G_ClientCommand(clent,2,select);
+        }
+        T_STREQ(jass_rterror_message(level.vm),"");
+        edict_t *child=S_UnitTargetApproachReceiver(caster);T_NOT_NULL(child);
+        T_EQ(caster->current_order_id,G_OrderId("holybolt"));
+        jass_callbyname(level.vm,"spellHead",true);jass_runevents(level.vm);
+        T_STREQ(jass_rterror_message(level.vm),"");
+        uint32_t ci=caster-g_edicts,ti=target-g_edicts,pi=child ? child-g_edicts : 0;
+        if(mode==1)T_ASSERT(unit_issueimmediateorder(caster,"stop"));
+        if(mode==2)T_ASSERT(G_IssueUnitPointOrder(caster,"move",&point,false,0,0));
+        if(mode==3)G_FreeEdict(target);
+        if(mode==4) {caster->health.value=0;unit_die(caster,NULL);}
+        if(mode==5) {
+            FOR_LOOP(tick,5) {level.time+=30;globals.RunFrame();}
+            cstring_t file=Test_TempPath("wc3-owner267-approach.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            caster=g_edicts+ci;target=g_edicts+ti;child=g_edicts+pi;
+            T_EQ(caster->current_order_id,G_OrderId("holybolt"));
+            T_ASSERT(S_UnitTargetApproachReceiver(caster)==child);
+        }
+        if(mode==6) {
+            float mana=caster->mana.value;caster->mana.value=0;
+            T_ASSERT(!S_IssueUnitTargetSpell(caster,code,target));caster->mana.value=mana;
+            T_EQ(caster->current_order_id,G_OrderId("holybolt"));
+            T_ASSERT(S_UnitTargetApproachReceiver(caster)==child);
+        }
+        if(mode==7) {
+            T_ASSERT(S_IssueUnitTargetSpell(caster,code,target));T_ASSERT(!child->inuse);
+            child=S_UnitTargetApproachReceiver(caster);T_NOT_NULL(child);
+            T_EQ(caster->current_order_id,G_OrderId("holybolt"));
+        }
+        if(mode==8) {
+            T_ASSERT(G_IssueUnitPointOrder(caster,"move",&point,true,0,0));
+            T_EQ(G_UnitQueuedOrderCount(caster),1);
+            T_EQ(caster->current_order_id,G_OrderId("holybolt"));
+        }
+        float effect=0;
+        if(child)FOR_LOOP(tick,200) {
+            if(!child->inuse)break;
+            T_EQ(caster->current_order_id,G_OrderId("holybolt"));
+            float health=target->health.value;
+            level.time+=30;globals.RunFrame();
+            if(!child->inuse)effect=target->health.value-health;
+        }
+        if(child)T_ASSERT(!child->inuse);
+        /* The applying ability owns its cast animation completion. This
+         * fixture supplies that boundary; it does not certify retail cast timing. */
+        if((mode==0 || mode>=5) && caster->currentmove && caster->currentmove->endfunc)
+            caster->currentmove->endfunc(caster);
+        T_EQ(caster->current_order_id,(mode==2 || mode==8) ? G_OrderId("move") : 0);
+        if(mode==0 || mode>=5) {T_FEQ(effect,37,0.1f);T_FEQ(caster->mana.value,187,0.1f);}
+        else T_FEQ(caster->mana.value,200,0.1f);
         reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
     }
 }

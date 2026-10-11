@@ -699,6 +699,18 @@ cstring_t G_OrderId2String(uint32_t id) {
     return GetClassName(id);
 }
 
+/* Resolve a spell's public command from the same table used by native orders.
+ * Alias resolution happens before this lookup; never report its FourCC as an order. */
+uint32_t G_AbilityOrderId(ability_t const *ability) {
+    if (!ability) return 0;
+    if (ability->orders && *ability->orders) return G_OrderId(*ability->orders);
+    uint32_t code=FS_SLKKey(ability->classname);
+    FOR_LOOP(i,sizeof(unit_order_defs)/sizeof(*unit_order_defs))
+        if (unit_order_defs[i].ability==code) return unit_order_defs[i].id;
+    fprintf(stderr,"WC3 orders: no public command registered for ability %s\n",ability->classname);
+    return 0;
+}
+
 static uint32_t unit_spell_code_for_order(edict_t const *unit, cstring_t order) {
     if (!unit || !order) return 0;
     ability_t const *ordered = FindAbilityByOrder(order);

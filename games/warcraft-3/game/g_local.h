@@ -4151,6 +4151,7 @@ void G_PublishIssuedImmediateOrder(edict_t *, uint32_t, uint32_t, cstring_t);
 uint32_t G_GetIssuedOrderId(edict_t const *);
 bool G_GetIssuedOrderPoint(edict_t const *, vec2_t *);
 uint32_t G_OrderId(cstring_t);
+uint32_t G_AbilityOrderId(ability_t const *);
 cstring_t G_OrderId2String(uint32_t);
 bool G_UnitStartNextQueuedOrder(edict_t *);
 void G_ClearUnitOrderQueue(edict_t *);

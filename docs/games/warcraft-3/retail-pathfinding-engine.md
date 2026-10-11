@@ -16624,3 +16624,64 @@ entry contracts are structurally unchanged; inventory is221 executable contracts
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-04.2/payoff266/`.
 Full validation remains on the authorized twelve-chunk cadence:4/12 after
 Payoff262. No saved-state or network layout changes are required.
+
+
+## Ground spell approaches retain their public command (Payoff267)
+
+The existing Frida185 captures already establish the bounded current-order
+contract for Holy Light. Three complete read-only observer runs and an unhooked
+control have identical public markers: the accepted head is852092. Fixed-target
+scene0 retains it through samples1..36 and reports0 from37; moving-target scene2
+retains it through1..39 and reports0 from40. The target-Move control reports851986
+through all120 samples. These are1464 actual public queries across four captures;
+no existing captured expectation or numerical trajectory was changed.
+
+Original679cc0 copies incoming order24 into the ability event at679d07..679d18
+and supplies the order pointer at679d1b. The selected ability receives that packet
+through virtualc.438680 pops an internal task on range failure and submitsd0174
+through6926b0 at4387fb. That internal locomotion task is independent of the user
+head read by2039d0 from Unit19c/1a0.6857e0 selects the concrete owning ability from
+the retained command, target/point shape and ability identity. Ghidra saves the
+additional function name and four evidence notes;685 original instructions are
+pinned by `retail-spell267-1.27.json`.
+
+The engine had no corresponding spell-owned publication: accepted ground target
+approaches could retain an earlier Move identity or report0. `s_spell.c` now records
+the resolved spell command after physical target-approach admission succeeds.
+`G_AbilityOrderId` uses the existing native-order registry and explicit ability
+order list, after normal alias resolution. It adds no rawcode exception, per-frame
+scan or saved field. Missing command registration is diagnosed instead of inventing
+a public FourCC. Internal Move still owns routing and never invents public Move
+identity for a cast. Autocast execution does not use this admission path.
+
+The test drives the real JASS IssueTargetOrder/GetUnitCurrentOrder natives, the
+command card and a custom Holy Bolt alias. Each starts over an existing Move,
+checks the spell head throughout physical owner updates and covers Stop, new Move,
+target removal, death, live save/load, rejected no-mana replacement, same-target
+cast replacement and a queued movement successor. The applying ability's real
+animation-completion callback is supplied explicitly; full retail cast/effect
+phase timing is not established by that test. The health assertion measures the
+cast-frame heal, preserving ordinary Footman regeneration. An independent existing
+same-target Chain Lightning/Storm Bolt production regression now also asserts
+both concrete public heads. No valid fixture expectation was overwritten.
+
+Run with a fresh report and the unchanged original archive:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_spell267.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-01.3/captures185 \
+  --report /tmp/spell267-fresh.json
+```
+
+ORDER-01.13 remains open for point/air/structure approaches, instant/current
+execution, channels, spell-aware Shift admission and complete cast timing. This
+chunk establishes the ground physical approach head; it does not mark those
+other lifetimes complete. Existing physical motion185 and range184 fixtures are
+unchanged. The corrected failing-first regression reports715 ownership failures
+on the old admission path and passes all1000 assertions after the fix. Final
+focused validation passes77 tests/21204 assertions in each Classic/TFT mode,
+13 evidence checks and37 corpus checks. All502 previous corpus entry contracts
+are unchanged; this adds executable contract222. The exact commit, source,
+binaries, reports and saved Ghidra readback are archived under
+`research/ORDER-01.13/payoff267/`.
