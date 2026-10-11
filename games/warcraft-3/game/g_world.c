@@ -1571,6 +1571,7 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
             route->adaptive_adjusted=short_goal ? (vec2_t){wc3_mul(move_acc_points[0].x,2),wc3_mul(move_acc_points[0].y,2)} :
                 (vec2_t){request_goal.x,request_goal.y};
             route->adaptive_adjusted_goal=(vec2_t){target.x,target.y}; route->adaptive_adjusted_valid=1;
+            route->adaptive_short=short_goal;
             route->adaptive_revision=move_map_revision; route->adaptive_mask=mask;
             route->warp_markers=move_acc.warps!=0;
             memcpy(points,move_acc_points,count*sizeof(*points));

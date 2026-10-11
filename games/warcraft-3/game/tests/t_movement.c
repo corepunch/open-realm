@@ -18935,8 +18935,10 @@ TEST(wc3_movement, selected_blocked_formation_classifies_before_destination_adju
     }
     mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};
     mapInfo_t const *oldinfo=level.mapinfo;
-    FOR_LOOP(capture,1) {
-        bool alt=capture&1;
+    /* Variants 1/2 retire the adjusted member flag after the first visit: a short
+     * coarse result alone (path+88 20000000) must still deny 169b00 classification. */
+    FOR_LOOP(variant,3) {
+        uint32_t capture=0;bool alt=capture&1;
         reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
         memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
         uint8_t cells[64*64]={0};
@@ -18973,7 +18975,22 @@ TEST(wc3_movement, selected_blocked_formation_classifies_before_destination_adju
         T_EQ(wc3_float_bits(group->members[0].destination.y),wc3_float_bits(21.0f));
         level.pathing_clock.time=wc3_add(level.pathing_clock.time,wc3_float(0x3cf5c290));
         level.pathing_counter++;
+        if(variant) {
+            FOR_LOOP(i,6) {
+                group->members[i].flags&=~0xe0000u;
+                T_ASSERT(!group->members[i].unit->movement.fine_route.partial);
+                group->members[i].unit->movement.fine_route.adaptive_short=0;
+            }
+            if(variant==1)group->members[3].unit->movement.fine_route.adaptive_short=1;
+        }
         level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        if(variant==2) {
+            /* Nothing denies: the cohort is classified again and holds members. */
+            T_EQ(group->cooldown,0);
+            uint32_t held=0;FOR_LOOP(i,6)held+=(group->members[i].flags&0x200000u)!=0;
+            T_ASSERT(held>0);
+            continue;
+        }
         T_EQ(group->cooldown,65);
         FOR_LOOP(i,6)T_EQ(group->members[i].flags&0x200000u,0);
     }

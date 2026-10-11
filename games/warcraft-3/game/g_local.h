@@ -56,6 +56,9 @@ typedef struct {
      * later coarse requests and retries for the same destination, surviving table discards. */
     vec2_t adaptive_adjusted, adaptive_adjusted_goal;
     uint32_t adaptive_adjusted_valid;
+    /* Original path+88 0x20000000: the last coarse result ended short of its request goal.
+     * Cleared with the partial flag by 168740 clearResults. */
+    uint32_t adaptive_short;
     float adaptive_radius;
     uint32_t adaptive_revision;
     uint8_t adaptive_mask; /* Authored hierarchy lane is independent of the current fine query. */

@@ -9,7 +9,8 @@ i.e. formations), individual Move/Patrol/Stop, mid-route redirects and flyers.
 --headon PAIRS instead pairs Hero-led groups of mixed collision sizes at distant
 spots and swaps each pair simultaneously three times, so both groups meet on the
 same corridor. Single units follow the Heroes (target Move), and lone units
-exchange places with each other.
+exchange places with each other. --choke places those pairs on opposite sides
+of narrow walkable passages found in war3map.wpm, so they meet inside them.
 
   python3 tools/frida/make_wc3_journey_spec.py --data "$WC3_DATA" \
       --base 'war3.mpq:Maps\\Campaign\\Human05.w3m' --name human05_crossing --seed 5 \
@@ -68,8 +69,47 @@ def spread(spots, k, rng):
     return chosen
 
 
-def headon(a, rng, spots, units, timeline, eighth):
-    ends = spread(spots, a.headon * 2, rng)
+def clearance(w, h, cells):
+    """Chebyshev distance, in pathing cells, from each cell to the nearest unwalkable one."""
+    import collections
+    far = w + h; dist = [far] * (w * h); queue = collections.deque()
+    for i, c in enumerate(cells):
+        x, y = i % w, i // w
+        if c & 0x02 or x in (0, w - 1) or y in (0, h - 1): dist[i] = 0; queue.append(i)
+    while queue:
+        i = queue.popleft(); x, y = i % w, i // w
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < w and 0 <= ny < h and dist[ny * w + nx] > dist[i] + 1:
+                    dist[ny * w + nx] = dist[i] + 1; queue.append(ny * w + nx)
+    return dist
+
+
+def chokepoints(w, h, cells, ox, oy, count, rng, reach=24):
+    """Pairs of open ends whose straight segment crosses one narrow passage."""
+    import math
+    dist = clearance(w, h, cells); found = []
+    for cy in range(reach, h - reach, 3):
+        for cx in range(reach, w - reach, 3):
+            if not 2 <= dist[cy * w + cx] <= 4: continue
+            for k in range(8):
+                dx, dy = math.cos(k * math.pi / 8), math.sin(k * math.pi / 8)
+                a = (round(cx - dx * reach), round(cy - dy * reach)); b = (round(cx + dx * reach), round(cy + dy * reach))
+                if min(dist[a[1] * w + a[0]], dist[b[1] * w + b[0]]) < 8: continue
+                line = [dist[round(cy + dy * t) * w + round(cx + dx * t)] for t in range(-reach, reach + 1)]
+                if min(line) < 2 or min(line[reach - 3:reach + 4]) > 4: continue
+                found.append(((cx, cy), a, b))
+    rng.shuffle(found); chosen = []
+    for c, a, b in found:
+        if all((c[0] - d[0][0]) ** 2 + (c[1] - d[0][1]) ** 2 > (2 * reach) ** 2 for d in chosen): chosen.append((c, a, b))
+        if len(chosen) == count: break
+    world = lambda p: (ox + p[0] * 32 + 16.0, oy + p[1] * 32 + 16.0)
+    return [(world(a), world(b)) for _, a, b in chosen]
+
+
+def headon(a, rng, spots, units, timeline, eighth, pairs=None):
+    ends = [e for pair in pairs for e in pair] if pairs else spread(spots, a.headon * 2, rng)
     heroes = []
     for pair in range(a.headon):
         sides = (ends[2 * pair], ends[2 * pair + 1]); spans = []
@@ -105,6 +145,7 @@ def main():
     p.add_argument('--ticks', type=int, default=2400); p.add_argument('--sample-every', type=int, default=2)
     p.add_argument('--groups', type=int, default=3); p.add_argument('--singles', type=int, default=8)
     p.add_argument('--headon', type=int, default=0, metavar='PAIRS', help='Hero-led group pairs that swap places')
+    p.add_argument('--choke', action='store_true', help='with --headon: put each pair across a narrow passage')
     p.add_argument('--tool', type=Path, default=Path('build/bin/mpqtool')); p.add_argument('--output', type=Path, required=True)
     a = p.parse_args(); rng = random.Random(a.seed); tool = str(a.tool.resolve())
     w, h, cells, ox, oy, objects = world(tool, a.data, a.base)
@@ -114,7 +155,9 @@ def main():
     eighth = lambda v: round(v * 8) / 8
     units, timeline = [], []
     if a.headon:
-        headon(a, rng, spots, units, timeline, eighth)
+        pairs = chokepoints(w, h, cells, ox, oy, a.headon, rng) if a.choke else None
+        if a.choke and len(pairs) < a.headon: p.error(f'only {len(pairs)} separated chokepoints')
+        headon(a, rng, spots, units, timeline, eighth, pairs)
         a.groups = a.singles = 0
     for g in range(a.groups):
         size = rng.randint(6, 12); (sx, sy) = anchors[g]; first = len(units)

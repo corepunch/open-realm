@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format179 moves Undead work completion from the parent to a unit primary request. */
-static uint32_t const save_version = 179;
+/* Format180 saves the short coarse-result flag (original path+88 0x20000000). */
+static uint32_t const save_version = 180;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -866,6 +866,7 @@ static field_t const move_route_fields[] = {
     TF(moveFineRoute_t, adaptive_adjusted, F_VECTOR),
     TF(moveFineRoute_t, adaptive_adjusted_goal, F_VECTOR),
     TF(moveFineRoute_t, adaptive_adjusted_valid, F_INT),
+    TF(moveFineRoute_t, adaptive_short, F_INT),
     TF(moveFineRoute_t, adaptive_radius, F_FLOAT),
     TF(moveFineRoute_t, adaptive_mask, F_INT),
     TF(moveFineRoute_t, adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),
@@ -974,6 +975,7 @@ static field_t const movement_fields[] = {
     TF(struct edictMovement_s, fine_route.adaptive_adjusted, F_VECTOR),
     TF(struct edictMovement_s, fine_route.adaptive_adjusted_goal, F_VECTOR),
     TF(struct edictMovement_s, fine_route.adaptive_adjusted_valid, F_INT),
+    TF(struct edictMovement_s, fine_route.adaptive_short, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_radius, F_FLOAT),
     TF(struct edictMovement_s, fine_route.adaptive_mask, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),

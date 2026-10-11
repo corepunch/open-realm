@@ -2221,6 +2221,8 @@ TEST(pathfinding, partial_coarse_endpoint_becomes_request_goal_until_destination
     T_EQ(wc3_float_bits(route.adaptive_adjusted.x),wc3_float_bits(wc3_mul(end.x,2)));
     T_EQ(wc3_float_bits(route.adaptive_adjusted.y),wc3_float_bits(wc3_mul(end.y,2)));
     T_ASSERT(route.adaptive_adjusted.x!=target.x/32 || route.adaptive_adjusted.y!=target.y/32);
+    /* 166c30 also publishes path+88 20000000 for the short result. */
+    T_EQ(route.adaptive_short,1);
     /* Original168740 discards the coarse table but keeps path+24; 165b60 then
      * requests mode1, the adjusted goal, which is reached without the click's search. */
     route.adaptive_count=route.adaptive_index=0;
@@ -2230,6 +2232,8 @@ TEST(pathfinding, partial_coarse_endpoint_becomes_request_goal_until_destination
     T_ASSERT(search->work.pops<click_pops);
     T_EQ(wc3_float_bits(route.adaptive_points[0].x),wc3_float_bits(end.x));
     T_EQ(wc3_float_bits(route.adaptive_points[0].y),wc3_float_bits(end.y));
+    /* That search reaches its (adjusted) request goal, so 166c30 clears 20000000. */
+    T_EQ(route.adaptive_short,0);
     T_EQ(wc3_float_bits(route.adaptive_goal.x),wc3_float_bits(target.x/32));
     T_EQ(wc3_float_bits(route.adaptive_goal.y),wc3_float_bits(target.y/32));
     /* A lane change is a new coarse identity and requests the click again. */

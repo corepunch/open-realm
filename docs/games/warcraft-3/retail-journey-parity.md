@@ -36,7 +36,8 @@ R=/GitHub/wc3-analysis/reports/journey
 python3 tools/frida/make_wc3_journey_spec.py --data $W --base 'war3.mpq:Maps\Campaign\Human05.w3m' \
     --name human05_crossing --seed 5 --output tools/frida/journeys/human05_crossing.json
 # Head-on stress: --headon PAIRS pairs Hero-led groups at distant open spots and swaps each
-# pair three times; Hero followers (target Move) and lone crossers are added.
+# pair three times; Hero followers (target Move) and lone crossers are added. --choke puts
+# each pair across a narrow passage found from war3map.wpm clearance (2-4 cells).
 python3 tools/frida/make_wc3_journey_map.py --data $W --spec tools/frida/journeys/human05_crossing.json \
     --output $W/Maps/Journey/human05_crossing.w3m
 # Original (isolated Xvfb display, Frida server on 127.0.0.1:27046):
@@ -128,6 +129,16 @@ Each rule below was found by a journey divergence, then checked against the orig
   the forced/arrived cycle until the interval admits the replacement. In the Undead07
   head-on journey, a Peasant following a Hero restarted one visit late because the engine
   re-forced arrival on the refresh visit. Engine: `move_group_advance_endpoint(..., ready)`.
+- **Short coarse results deny classification (`166c30`, `169b00`).** After every successful
+  search, `166c30` compares its request goal with the first coarse point (`6f166df3`). If they
+  are equal it clears path flag `0x20000000`. Otherwise it stores the scaled endpoint in
+  path+24/+28 and sets the flag. `168740` clears the flag together with `0x10000000`
+  (partial) when called with clearResults. The callers are the destination setter `168b80` and
+  the completion retry. `169b00` denies projected classification and reseeds cooldown 66 when
+  any member path has either flag. In narrow passages, coarse routes often end short. The
+  engine only checked partial fine routes, so it classified the cohort when the cooldown ran
+  out. It then held members (`0x200000`) and dropped speed sharing, while the original kept
+  denying. Engine: `moveFineRoute_t.adaptive_short` (save 180).
 - **SLK reals** use the original decimal parser `070de0` (`wc3_decimal`), which is not
   correctly rounded: `"0.4"` gives `3eccccce`, and `"1.5"` gives `3fc00001`. Tests that author
   a captured float word as SLK text must search for text that this parser maps to the word
@@ -174,6 +185,8 @@ is the state that `1d62bb` (retry init) uses. Draws made before the probe's
 | Human08 crossing (seed 9) | 35 | bit-exact over 2400 ticks, every sample and velocity commit |
 | Orc05 head-on (seed 21, 2 pairs) | 47 | bit-exact over 2400 ticks: two pairs of Hero-led 12-unit groups swap places three times |
 | Undead07 head-on (seed 22, 3 pairs) | 59 | bit-exact over 2400 ticks: six Hero-led groups, four Hero followers, four lone crossers |
+| Human05 chokepoints (seed 31, 3 pairs) | 58 | bit-exact over 2400 ticks: each pair swaps through a 4–8-cell passage three times |
+| Undead05 chokepoints (seed 34, 3 pairs) | 58 | bit-exact over 2400 ticks |
 | NightElf02 crossing (seed 7) | 31 | diverges at 0.03 s: the map authors Player 0 as a Computer (see below) |
 
 NightElf02: config makes Player 0 `MAP_CONTROL_COMPUTER`, so `6f1e9a40` creates its Town AI
@@ -192,4 +205,5 @@ units yet. That is the captain/Town AI work tracked as GROUP-03.4.x.
   `wc3_spell.aura_targets_follow_source_team_alliances_and_neutral_mask`,
   `wc3_slk.authored_scalars_use_the_original_decimal_parser`,
   `pathfinding.partial_coarse_endpoint_becomes_request_goal_until_destination_changes`,
-  `wc3_movement.premature_destination_change_keeps_retry_status_without_forced_arrival`.
+  `wc3_movement.premature_destination_change_keeps_retry_status_without_forced_arrival`,
+  `wc3_movement.selected_blocked_formation_classifies_before_destination_adjustment` (short-result variants).

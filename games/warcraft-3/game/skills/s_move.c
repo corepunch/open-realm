@@ -2198,7 +2198,7 @@ static void move_invalidate_path(edict_t *self) {
     moveFineRoute_t *route=&self->movement.fine_route;
     route->count=route->adaptive_count=route->group_count=0;
     route->index=route->adaptive_index=route->group_index=UINT32_MAX;
-    route->partial=false;
+    route->partial=false;route->adaptive_short=0;
     /*168b80 resets retry/delay before the stopped order unwinds its task
      * chain. Inactive units must not retain the failed search counters. */
     self->movement.retry_count=self->movement.wait_delay=0;
@@ -3976,7 +3976,7 @@ static void move_reset_local_path(edict_t *self) {
      * partial88.10000000 flag must not deny classification of the new group. */
     self->movement.fine_route.count=self->movement.fine_route.adaptive_count=0;
     self->movement.fine_route.index=self->movement.fine_route.adaptive_index=UINT32_MAX;
-    self->movement.fine_route.partial=false;
+    self->movement.fine_route.partial=false;self->movement.fine_route.adaptive_short=0;
     self->movement.fine_route.adaptive_goal=(vec2_t){wc3_float(0xc7fa0000),wc3_float(0xc7fa0000)};
     /* A new destination restarts path+24 at the destination itself. */
     self->movement.fine_route.adaptive_adjusted_valid=0;
@@ -5879,7 +5879,7 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     bool ready=!changed || move_destination_ready(unit->movement.fine_request_time,route->adaptive_admission.time);
     if (changed && ready) {
         route->count=route->adaptive_count=0;
-        route->index=route->adaptive_index=UINT32_MAX;route->partial=false;
+        route->index=route->adaptive_index=UINT32_MAX;route->partial=false;route->adaptive_short=0;
         unit->movement.retry_count=unit->movement.wait_delay=0;
         unit->movement.path.valid=false;
     }
@@ -5958,7 +5958,7 @@ static void move_group_regroup(moveGroup_t *group) {
                 member->flags=0; member->forced_arrival=false;
                 moveFineRoute_t *route=&unit->movement.fine_route;
                 route->count=route->adaptive_count=0; route->index=route->adaptive_index=UINT32_MAX;
-                route->partial=false; unit->movement.path.valid=false;
+                route->partial=false; route->adaptive_short=0; unit->movement.path.valid=false;
                 unit->movement.wait_delay=unit->movement.retry_count=0; unit->movement.wait_blocker=NULL;
             }
             group->age=group->completion_counter=0;
@@ -6015,7 +6015,7 @@ static bool move_group_retry_completion(moveGroup_t const *group, moveGroupMembe
     moveFineRoute_t *route=&unit->movement.fine_route;
     route->count=route->adaptive_count=0;
     route->index=route->adaptive_index=UINT32_MAX;
-    route->partial=false;
+    route->partial=false;route->adaptive_short=0;
     unit->movement.retry_count=unit->movement.wait_delay=0;
     unit->movement.wait_blocker=NULL;
     unit->movement.path.valid=false;
@@ -6209,12 +6209,14 @@ static void move_run_group_updates(void) {
         if (group->count>1 && !(group->flags&0x200)) {
             if (!group->cooldown && !(group->flags&2)) {
                 /* Original169b00 denies projected classification for adjusted,
-                 * forced or special members and partial member paths. The
+                 * forced or special members and member paths with a partial fine
+                 * or short coarse result (path+88 30000000). The
                  * denial owns a66-tick regroup cooldown. Attack owns the
                  * independent mover01000000 exemption lifetime. */
                 FOR_LOOP(i,group->count) if ((group->members[i].flags&0xe0000) ||
                     group->members[i].unit->attack_speed_cap.active ||
-                    group->members[i].unit->movement.fine_route.partial) {group->cooldown=66;break;}
+                    group->members[i].unit->movement.fine_route.partial ||
+                    group->members[i].unit->movement.fine_route.adaptive_short) {group->cooldown=66;break;}
                 if (!group->cooldown) move_group_classify(group);
             }
             /* Original16c630 keeps peers eligible after65 ticks, even when
