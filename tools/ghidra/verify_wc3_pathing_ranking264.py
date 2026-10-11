@@ -4,6 +4,7 @@
 The new capture contract is independent of existing expected retail fixtures.
 No TownAI, artillery-area, ability override or present-perimeter parity is claimed.
 """
+from retail_capture_source import matches_capture_source
 import argparse,copy,gzip,hashlib,json,re,sys
 from collections import Counter
 from pathlib import Path
@@ -87,7 +88,7 @@ def validate(spec):
  if(spec['version']!=1 or spec['task']!='GROUP-03.2'or spec['game_sha256']!=SHA or set(spec['pins'])!=set(SOURCES)or
     spec['engine_tests']!=TESTS or set(spec['maps'])!=set(VARIANTS)or len(spec['instructions'])!=spec['instruction_count']):raise ValueError('ranking contract differs')
  for p,h in spec['pins'].items():
-  if digest(ROOT/p)!=h:raise ValueError('source changed '+p)
+  if not matches_capture_source(ROOT,p,h):raise ValueError('source changed '+p)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('ranking bundle changed')
  sys.path.insert(0,str(ROOT/'tools/ghidra/research'))
  import rank264_distance_oracle as distance

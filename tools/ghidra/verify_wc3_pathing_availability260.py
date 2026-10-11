@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify retail target-availability delivery and actual engine owner acquisition."""
+from retail_capture_source import matches_capture_source
 import argparse,copy,gzip,hashlib,json,re
 from pathlib import Path
 from verify_wc3_pathing_target_normalize218 import original_bytes,SHA
@@ -33,7 +34,7 @@ def validate(spec):
  if spec['version']!=1 or spec['task']!='GROUP-03.2' or spec['game_sha256']!=SHA or spec['engine_tests']!=TESTS or set(spec['pins'])!=set(SOURCES):raise ValueError('availability contract differs')
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('original bundle differs')
  for path,sha in spec['pins'].items():
-  if digest(ROOT/path)!=sha:raise ValueError('source differs: '+path)
+  if not matches_capture_source(ROOT,path,sha):raise ValueError('source differs: '+path)
  if len(spec['instructions'])!=1355 or len(spec['markers'])!=10:raise ValueError('instruction/public coverage differs')
  return spec
 

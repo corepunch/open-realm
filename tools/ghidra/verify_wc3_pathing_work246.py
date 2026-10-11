@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify original negative-origin fine target sampling and engine retention."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,json,re,struct
 from collections import Counter
 from pathlib import Path
@@ -77,7 +78,7 @@ def main():
  spec=json.loads(FIXTURE.read_text())
  if spec['version']!=1 or spec['task']!='TARGET-02.1' or spec['game_sha256']!=SHA or set(spec['pins'])!=set(SOURCES)or spec['engine_tests']!=TESTS:raise ValueError('contract changed')
  for path,sha in spec['pins'].items():
-  if digest(ROOT/path)!=sha:raise ValueError('changed source '+path)
+  if not matches_capture_source(ROOT,path,sha):raise ValueError('changed source '+path)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('capture bundle changed')
  bundle=json.loads(gzip.decompress(BUNDLE.read_bytes()));live=validate_runtime(bundle,spec)
  original_bytes(a.binary,spec['instructions'])

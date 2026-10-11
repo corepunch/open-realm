@@ -18001,3 +18001,80 @@ forced-position/Stop expectations, queued lifecycle, casting, Ancient, Captain
 and independently committed hashtable regressions. Fourteen Python evidence checks
 and 37 reviewed corpus checks pass. Ghidra readback is byte-identical after save.
 Full repository validation follows the authorized batch cadence.
+
+## Scripted pause notifies before constructing suspension (Payoff287)
+
+Public `PauseUnit(true)` sets the queryable pause flag before its POINT851973
+notification, whose point is0,0 and target is null. Ability validation remains
+available at this boundary. Native67abe0 rechecks the internal task head after
+both issued families: a nested Move installs its own task and prevents the outer
+suspension constructor. The public pause flag remains true, while that replacement
+Move continues physically. Nested Unpause during the notification instead retires
+the unconstructed suspension. Repeated calls with the same flag are idempotent.
+`OrderId("stunned")` returns0; the recovered core selector has no such public alias.
+
+The engine now records these stages directly and uses physical execution state
+for Move and monster scheduling. This is constant-size instance state, with no
+new per-unit allocation or full entity scan. The ordinary paused-order rejection
+from Payoff286 applies after construction. This stage guard is not a complete
+per-ability availability implementation: the later ordered disable walk remains
+separate work, and a global unit counter cannot replace each ability's counters.
+
+Public unpause removes its ability-disable contribution before scheduling physical resume. Its
+separation contribution remains held through the existing two-primary-quantum
+deadline and is released there. Re-pausing an already built suspension cancels
+the pending end request without admitting another head. On resume, a retained
+point Move publishes both issued POINT families before its new task/group is
+constructed. A nested Move wins; a completed nested Stop leaves no internal task,
+so the outer Move can proceed with public head0. The resumed packet owns a value
+copy of its point before callbacks, which may free the old waypoint. This corrects
+the earlier Payoff256 documentation's claim that resume emits no issued event.
+
+Two independent read-only retail runs agree on all815 native events and285
+public markers each; an observer-free control agrees on the same285 markers.
+The frozen bundle retains20 scenes, including active/inactive Defend, runtime
+ability removal and reentrant forced-off callbacks. Thirteen saved Ghidra function
+annotations and526 instruction guards accompany100 executions of original stage
+bodies697770/6977c0/678590/69c490/69c580. Those executions supply labelled helper
+endpoints that record call ABI and already committed flags/depth; they do not
+substitute admission, ability disabling or task-dispatch algorithms.
+
+The engine projection covers10 selected core scenes, fresh and cold-saved both
+after admission and while resume is pending. It compares public head, pause flag,
+callback order and event-family point/target payloads. It also verifies physical
+progress for the callback replacement and retained task destinations after nested
+Stop/Move. Full trajectory words, forced modal-off callbacks and ordered per-ability
+contribution/retained-packet ownership are outside this projection. A discovered
+retail/engine difference in point getters within an action after a nested Move
+returns remains open; original values stay frozen, and only issued-event payloads
+are certified here. Existing `wc3_order_reentry` expectations remain unchanged.
+The minimal test MPQ lacks Rifleman rows; this regression supplies a living
+minimal authored profile without a modal owner, using test model art.
+
+Save172 persists the logical suspension phase with the existing retained order
+and deadline. Save171 and older are rejected. This chunk closes no broad
+MAP-04.2/ORDER-01.13/ORDER-02.2 inventory and makes no performance-budget claim.
+Reproducer: `tools/ghidra/verify_wc3_pathing_pause287.py`; retained retail source:
+`tools/frida/research/pause287_probe.j`.
+
+Validation: all10 new core regressions fail against committed77e41afd (210 of950
+assertions fail), then pass1626 assertions against the implementation. The final
+strict original/engine report passes253 tests /1,225,067 assertions per edition,
+100 original stage cases and526 instruction guards. A full checkpoint passes
+all32 native reports:8,431 tests /35,823,491 assertions. Its1,719-test Python sweep
+exposes8 historical-verifier source-pin errors; preserving the original sources
+and repairing source resolution clears every affected dependency in421 focused
+Python tests. These Python-only repairs require no native rebuild; the final
+strict report and checkpoint use the same game-library hash.
+
+Existing repulsion, repair and target-chase expected values remain unchanged.
+Their harnesses now drive the delayed move-timer dispatcher before observing
+physical resume. Internal execution holds stay distinct from scripted ability
+disabling, preserving the existing Raven Form expectations. All522 prior corpus
+entries and every pre-existing frozen retail fixture hash remain unchanged.
+Historical verifier archives additionally require AST-identical executable code
+apart from the source-pin validation route; they cannot hide changed numerical
+or original-instruction checks. Saved Ghidra evidence, accepted captures, failing
+baselines and final reports are archived under
+`research/MAP-04.2/payoff287` in the established report root. Broader task closure
+and performance-budget acceptance remain separate;46 tasks remain.

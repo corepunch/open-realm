@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify the original numeric DFA, real source compilation and engine Move producer."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,json,re,sys
 from pathlib import Path
 from verify_wc3_pathing_target_normalize218 import original_bytes,SHA
@@ -88,7 +89,7 @@ def runtime(bundle,spec):
 def validate(spec):
  if spec['version']!=1 or spec['task']!='NUM-01.15'or spec['game_sha256']!=SHA or set(spec['pins'])!=set(SOURCES)or spec['engine_tests']!=TESTS:raise ValueError('numeric contract differs')
  for p,h in spec['pins'].items():
-  if digest(ROOT/p)!=h:raise ValueError('source changed '+p)
+  if not matches_capture_source(ROOT,p,h):raise ValueError('source changed '+p)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('bundle differs')
  bundle=json.loads(gzip.decompress(BUNDLE.read_bytes()));grammar(bundle['original']);runtime(bundle,spec)
  return bundle

@@ -149,6 +149,9 @@ TEST(wc3_repulsion_policy, zero_authored_speed_keeps_repulsor_through_public_lif
         jass_callbyname(level.vm,"freeze",false);T_ASSERT(!jass_rterror_pending(level.vm));
         T_ASSERT(!unit->movement.repulse.active);T_NULL(level.repulse_head);
         jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(!unit->movement.repulse.active);
+        FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        S_RunMoveTimers();
         T_ASSERT(unit->movement.repulse.active);T_EQ(level.repulse_head,unit);
         T_EQ(unit->movement.repulse.state.packed,0x01000000u);
         unsigned number=unit->s.number;cstring_t file=Test_TempPath("wc3-immobile-repulsor.bin");
@@ -207,6 +210,9 @@ TEST(wc3_repulsion_policy, channels_retire_and_recreate_membership_before_callba
     S_SpellCancelChannel(unit);
     T_ASSERT(!unit->movement.repulse.active);
     S_SetUnitPaused(unit, false);
+    T_ASSERT(!unit->movement.repulse.active);
+    FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    S_RunMoveTimers();
     T_ASSERT(unit->movement.repulse.active);
     reset_entities(); setup_test_world();
 }

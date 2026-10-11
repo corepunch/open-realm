@@ -399,6 +399,11 @@ TEST(wc3_movement, repulsion_owner_change_pause_and_removal) {
     cstring_t file=Test_TempPath("wc3-repulse-paused-membership.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
     T_NULL(level.repulse_head);T_ASSERT(fly[0]->paused);T_ASSERT(!fly[0]->movement.repulse.active);
     jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    /* Public unpause precedes native69c580's physical separation release.
+     * Drive that existing owner before checking the original policy words. */
+    T_NULL(level.repulse_head);T_ASSERT(!fly[0]->movement.repulse.active);
+    FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    S_RunMoveTimers();
     T_ASSERT(level.repulse_head==fly[0]);T_ASSERT(fly[0]->movement.repulse.active);
     T_EQ(fly[0]->movement.repulse.state.packed,0x02000000u);T_EQ(fly[0]->movement.repulse.state.vector[0],0);
     T_EQ(fly[0]->movement.repulse.state.vector[1],0);remove(file);
@@ -20020,6 +20025,7 @@ static void target166_setup(edict_t **unit, edict_t **target) {
 
 static void target166_tick(void) {
     level.pathing_counter++;wc3_clock_advance(&level.pathing_clock,.03f,0);
+    S_RunMoveTimers(); /* Drive delayed owners before the ordinary task visit. */
     level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
 }
 
@@ -22254,6 +22260,8 @@ TEST(wc3_movement, target223_point_recovery_freezes_queried_pose_through_save_st
                 if(group) {T_EQ(group->sequence,rank);T_EQ(group->goal.y,move_point_fine(&(vec2_t){0,1280}).y);T_ASSERT(ValidMoveGroup(group));}
                 T_NULL(unit->attack_target);T_EQ(unit->attack_target_sequence,0);T_ASSERT(unit->paused);
                 S_SetUnitPaused(unit,false);
+                FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+                S_RunMoveTimers();
                 if(!queued) {
                     T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->movement.group_id,0);T_NULL(unit->goalentity);
                 } else {
@@ -24333,4 +24341,103 @@ TEST(wc3_movement, pause286_active_target_move_matches_native_admission) {pause2
 TEST(wc3_movement, pause286_active_point_attack_matches_native_admission) {pause286_public(4,true);}
 TEST(wc3_movement, pause286_active_target_attack_matches_native_admission) {pause286_public(5,true);}
 TEST(wc3_movement, pause286_active_patrol_matches_native_admission) {pause286_public(6,true);}
+#endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_pause287.h"
+#include "fixtures/retail_pause287_probe.h"
+static struct {unsigned scene,row;} pause287;
+static void pause287_marker(cstring_t text) {
+    unsigned tick,scene,order,paused,target,defend;float x,y,px,py,speed;char label[64];
+    if(sscanf(text,"P287 tick=%u scene=%u label=%63s order=%u paused=%u x=%f y=%f px=%f py=%f target=%u defend=%u speed=%f",
+        &tick,&scene,label,&order,&paused,&x,&y,&px,&py,&target,&defend,&speed)!=12)return;
+    /* This projection covers core suspension and the retained point head.
+     * Temporary ability disable/modal off and trajectory integration retain
+     * their full frozen captures, but are not certified by this projection. */
+    if(!strcmp(label,"scene-start") || !strcmp(label,"settled") || !strcmp(label,"complete") ||
+       strstr(label,"-852056"))return;
+    T_EQ(scene,pause287.scene);T_ASSERT(pause287.row<20);if(pause287.row>=20)return;
+    typeof(pause287_rows[0][0]) *row=pause287_rows[scene]+pause287.row++;
+    T_NOT_NULL(row->label);if(!row->label)return;
+    T_STREQ(label,row->label);T_EQ(order,row->order);T_EQ(paused,row->paused);
+    /* Event-family point payloads are certified here. Retail getters in
+     * the remainder of an action after a nested native returns need their
+     * own context investigation; retain those values in the frozen evidence. */
+    if(!strncmp(label,"player-",7) || !strncmp(label,"unit-",5)) {
+        T_EQ(px,row->px);T_EQ(py,row->py);T_EQ(target,row->target);
+    }
+}
+/* Minimal authored rows for the Rifleman absent from tests.mpq. The public
+ * pause contract needs a living unit with no modal owner, not retail art. */
+static char const *pause287_tables[]={"UnitUI","UnitBalance","UnitData"};
+static char const *pause287_rifleman[]={
+    "ID;PWXL;N;E\nC;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\nC;Y2;X1;K\"hrif\"\nC;Y2;X2;K\"TestUI\\\\Models\\\\anim_pulse.mdx\"\nE\n",
+    "ID;PWXL;N;E\nC;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"realHP\"\nC;Y2;X1;K\"hrif\"\nC;Y1;X3;K\"spd\"\nC;Y2;X2;K535\nC;Y2;X3;K270\nE\n",
+    "ID;PWXL;N;E\nC;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y2;X1;K\"hrif\"\nC;Y2;X2;K\"foot\"\nE\n",
+};
+static void pause287_public(unsigned scene) {
+    FOR_LOOP(saved,2) {
+        reset_entities();reset_test_state();setup_test_world();g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
+        uint8_t cells[64*64]={0};CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        slkTestData_t *rifleman[3]={0},*old_rows[3]={0};
+        if(scene==17)FOR_LOOP(i,3) {
+            rifleman[i]=parse_slk_string(pause287_rifleman[i]);old_rows[i]=G_SetSLKRows(pause287_tables[i],rifleman[i]);
+        }
+        char script[sizeof(pause287_script)+180];snprintf(script,sizeof(script),"%s\nfunction P287Start takes nothing returns nothing\ncall P287Setup(%u)\nendfunction\n",pause287_script,scene);
+        T_ASSERT(run_test_jass(script));jass_callbyname(level.vm,"P287Start",false);if(jass_rterror_pending(level.vm))fprintf(stderr,"pause287 setup: %s\n",jass_rterror_message(level.vm));T_ASSERT(!jass_rterror_pending(level.vm));
+        edict_t *unit=NULL;FILTER_EDICTS(e,e->inuse && e->svflags&SVF_MONSTER && !e->s.player)unit=e;
+        T_NOT_NULL(unit);if(!unit)continue;unsigned number=unit-g_edicts;
+        pause287=(typeof(pause287)){.scene=scene};test_preload_marker=pause287_marker;
+        jass_callbyname(level.vm,"P287Tick",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-pause287-admitted.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
+        }
+        if(scene==5) {
+            /* Retail's reentrant Move owns an internal task, so the outer
+             * pause constructor is skipped even though IsUnitPaused is true. */
+            T_ASSERT(unit->paused);T_NOT_NULL(unit->goalentity);
+            if(unit->goalentity){T_EQ(unit->goalentity->s.origin2.x,1040);T_EQ(unit->goalentity->s.origin2.y,1040);}
+            vec2_t before=unit->s.origin2;
+            FOR_LOOP(i,12) {
+                wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);level.pathing_counter++;
+                level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            }
+            T_ASSERT(Vector2_distance(&before,&unit->s.origin2)>0);
+        }
+        jass_callbyname(level.vm,"P287Resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-pause287-pending.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
+        }
+        if(scene!=5 && scene!=7) {
+            T_ASSERT(unit->movement.pause_resume_pending);
+            T_ASSERT(unit->movement.repulse.pause_suppression);
+            wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);S_RunMoveTimers();
+            T_ASSERT(unit->movement.pause_resume_pending);T_ASSERT(unit->movement.repulse.pause_suppression);
+            wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        }
+        S_RunMoveTimers();T_ASSERT(!unit->movement.pause_resume_pending);T_ASSERT(!unit->movement.repulse.pause_suppression);
+        jass_callbyname(level.vm,"P287Tick",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(pause287.row<20);if(pause287.row<20)T_NULL(pause287_rows[scene][pause287.row].label);
+        if(scene==15 || scene==16) {
+            T_NOT_NULL(unit->goalentity);T_ASSERT(move_is_active_order_walk(unit));
+            if(unit->goalentity) {
+                T_EQ(unit->goalentity->s.origin2.x,scene==15?1280:1040);
+                T_EQ(unit->goalentity->s.origin2.y,scene==15?656:1040);
+            }
+        }
+        test_preload_marker=NULL;reset_entities();
+        if(scene==17)FOR_LOOP(i,3) {G_SetSLKRows(pause287_tables[i],old_rows[i]);free_slk_rows(rifleman[i]);}
+        reset_test_state();setup_test_world();
+    }
+}
+TEST(wc3_movement, pause287_idle_public_suspension_boundaries) {pause287_public(0);}
+TEST(wc3_movement, pause287_active_point_reissues_before_task_construction) {pause287_public(1);}
+TEST(wc3_movement, pause287_repeated_pause_does_not_duplicate_user_events) {pause287_public(4);}
+TEST(wc3_movement, pause287_nested_point_task_prevents_outer_suspension) {pause287_public(5);}
+TEST(wc3_movement, pause287_nested_unpause_retires_unconstructed_head) {pause287_public(7);}
+TEST(wc3_movement, pause287_nested_pause_is_idempotent) {pause287_public(13);}
+TEST(wc3_movement, pause287_resumed_point_nested_stop_keeps_outer_task) {pause287_public(15);}
+TEST(wc3_movement, pause287_resumed_point_nested_move_replaces_outer_task) {pause287_public(16);}
+TEST(wc3_movement, pause287_rifleman_suspension_without_modal_ability) {pause287_public(17);}
+TEST(wc3_movement, pause287_structure_suspension_without_move_ability) {pause287_public(18);}
 #endif

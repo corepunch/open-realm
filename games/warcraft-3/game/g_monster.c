@@ -194,7 +194,7 @@ void monster_think(edict_t *self) {
     S_RunAbilityUpdates(self);
     if (!self->currentmove)
         return;
-    if (self->paused || self->stunned) {
+    if (S_UnitExecutionPaused(self) || self->stunned) {
         if (self->paused && self->animation_override) M_MoveFrame(self);
         return;
     }
@@ -214,7 +214,7 @@ void M_RunScheduledThinks(void) {
         move_owner_visits++;
 #endif
         edict_t *self = g_edicts + i;
-        if (!self->inuse || !G_UnitIsWorldActive(self) || self->paused || self->stunned ||
+        if (!self->inuse || !G_UnitIsWorldActive(self) || S_UnitExecutionPaused(self) || self->stunned ||
             !self->currentmove || !self->currentmove->scheduled_think) continue;
         self->scheduled_think_frame = level.framenum;
         SAFE_CALL(self->currentmove->think, self);

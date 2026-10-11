@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check native selected FLOAT request separation and engine queue/save integration."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,itertools,json,os,re,subprocess
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -28,7 +29,7 @@ def validate(spec):
  if(spec['version']!=1 or spec['task']!='GROUP-04.6' or spec['game_sha256']!=SHA or spec['engine_tests']!=TESTS or set(spec['pins'])!=set(SOURCES) or len(spec['instructions'])!=942):
   raise ValueError('selected class contract differs')
  for p,h in spec['pins'].items():
-  if digest(ROOT/p)!=h:raise ValueError('changed source '+p)
+  if not matches_capture_source(ROOT,p,h):raise ValueError('changed source '+p)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('capture bundle differs')
  if HEADER.read_text()!=header(spec['kernel']):raise ValueError('native class header differs')
  rows=spec['kernel']['rows']

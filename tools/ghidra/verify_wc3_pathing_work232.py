@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify queued cohort selectors, complete circle query and engine consumers."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,json,os,re,subprocess
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -23,7 +24,7 @@ def validate(spec):
  if(spec['version']!=1 or spec['task']!='GROUP-04.6' or spec['game_sha256']!=SHA or
     set(spec['pins'])!=set(SOURCES) or len(spec['kernel']['rows'])!=8 or spec['engine_tests']!=TESTS):raise ValueError('cohort contract differs')
  for path,sha in spec['pins'].items():
-  if digest(ROOT/path)!=sha:raise ValueError('changed source: '+path)
+  if not matches_capture_source(ROOT,path,sha):raise ValueError('changed source: '+path)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('capture bundle changed')
  return spec
 

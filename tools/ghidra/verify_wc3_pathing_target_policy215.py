@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify original ShowMap policy producers, admission witnesses and engine state."""
+from retail_capture_source import matches_capture_source
 import argparse
 from collections import Counter
 import gzip
@@ -40,7 +41,7 @@ def validate(spec):
         len(spec['instructions']) < 100 or len(spec['markers']) != 21):
         raise ValueError('ShowMap policy contract differs')
     for path, expected in spec['pins'].items():
-        if digest(ROOT/path) != expected:
+        if not matches_capture_source(ROOT,path,expected):
             raise ValueError('changed source: '+path)
     if digest(BUNDLE) != spec['bundle_sha256']:
         raise ValueError('original capture bundle differs')

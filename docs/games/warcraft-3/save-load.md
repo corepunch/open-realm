@@ -1,3 +1,9 @@
+Save172 retains the logical scripted-pause admission/suspension/bypass phase
+alongside the retained user order and exact resume deadline. Physical suppression
+survives a cold save during pending resume; public unpause alone does not release
+it. Older layouts, including171, are rejected. See
+[staged suspension](retail-pathfinding-engine.md#scripted-pause-notifies-before-constructing-suspension-payoff287).
+
 Save171 retains ordered spell phase records as logical owner/target/item
 incarnations, class timing, phase, active/committed state and primary absolute
 deadline/sequence. Heap/pool membership is rebuilt without rearming; older

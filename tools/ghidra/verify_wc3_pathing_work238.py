@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify independent Alt request readiness and deterministic selected class owners."""
+from retail_capture_source import matches_capture_source
 import argparse,hashlib,json,os,re,subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -24,7 +25,7 @@ def validate(spec):
  if(spec['version']!=1 or spec['task']!='GROUP-04.6' or spec['game_sha256']!=SHA or
     set(spec['pins'])!=set(SOURCES) or spec['engine_tests']!=TESTS):raise ValueError('Alt contract differs')
  for p,h in spec['pins'].items():
-  if digest(ROOT/p)!=h:raise ValueError('changed source '+p)
+  if not matches_capture_source(ROOT,p,h):raise ValueError('changed source '+p)
  if HEADER.read_text()!=header(spec['kernel']):raise ValueError('native class fixture changed')
  rows=spec['kernel']['rows']
  if len(rows)!=10 or {(r['flight'],r['grounded'])for r in rows}!={(f,g)for f in(0,6,10,9,15)for g in(0,1)}:raise ValueError('missing original domains')

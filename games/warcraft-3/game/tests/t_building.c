@@ -3907,6 +3907,11 @@ TEST(wc3_building, repair_work_separation_follows_primary_owner_and_saved_invers
             T_ASSERT(!worker->movement.repulse.active);
             building_work_policy_stage(profile,"paused",worker);
             jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            /* Pause releases work synchronously, but69c580 releases physical
+             * suspension later. Resume that owner before direct work/Stop. */
+            T_ASSERT(!worker->movement.repulse.active);
+            FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+            S_RunMoveTimers();
             T_EQ(worker->movement.repulse.active,enabled!=0);
             worker->currentmove->think(worker);
             T_EQ(worker->movement.repulse.active,profile==0);
@@ -3920,6 +3925,11 @@ TEST(wc3_building, repair_work_separation_follows_primary_owner_and_saved_invers
              * consult that owner instead of only the channel code. */
             jass_callbyname(level.vm,"freeze",false);
             jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            /* Pause releases work synchronously, but69c580 releases physical
+             * suspension later. Resume that owner before direct work/Stop. */
+            T_ASSERT(!worker->movement.repulse.active);
+            FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+            S_RunMoveTimers();
             T_EQ(worker->movement.repulse.active,enabled!=0);
             worker->currentmove->think(worker);
             T_EQ(worker->movement.repulse.active,profile==0);

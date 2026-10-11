@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify original Move target normalization, hostile following and engine/save state."""
+from retail_capture_source import matches_capture_source
 import argparse
 from collections import Counter
 import gzip
@@ -38,7 +39,7 @@ def validate(spec):
         len(spec['instructions']) != 1354 or len(spec['markers']) != 58):
         raise ValueError('target reissue contract differs')
     for path, expected in spec['pins'].items():
-        if digest(ROOT/path) != expected:
+        if not matches_capture_source(ROOT,path,expected):
             raise ValueError('changed source: '+path)
     if digest(BUNDLE) != spec['bundle_sha256']:
         raise ValueError('original capture bundle differs')

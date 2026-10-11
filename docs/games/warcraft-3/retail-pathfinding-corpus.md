@@ -2244,3 +2244,28 @@ forced-position Stop expectations. Reviewed mutable code/test/mapper/documentati
 pins are refreshed. The reviewed source also includes the independently committed
 hashtable index change. Full Shift/control-bit producers and pause/modal/resumed
 Move notifications remain open. See [implementation and limits](retail-pathfinding-engine.md#paused-natives-validate-before-suspended-admission-payoff286).
+
+## Core scripted suspension and reentrant resumption (Payoff287)
+
+`oracle-pause287` freezes two815-event read-only retail observations and an
+observer-free285-marker control across20 scenes. Its engine projection covers10
+core scenes, with fresh/cold saves, public head/flag/family order and issued-event
+point/target payloads. Modal-off/per-ability disable ownership, post-nested-native
+getter context and full trajectories remain separately scoped; their full original
+values remain in the frozen bundle. No existing retail expectation was rewritten.
+
+The verifier checks526 original instruction bytes and100 original stage-body
+executions, with helper endpoints limited to ABI/committed-state observations.
+Ghidra saves13 function annotations and a typed unit suspension prefix; mapper
+rows retain the same evidence. Save172 rejects171 because the logical phase now
+persists. Inventory:523 entries/242 executable contracts; all522 prior entry objects
+and existing frozen retail fixture pins remain unchanged. See
+[staged suspension](retail-pathfinding-engine.md#scripted-pause-notifies-before-constructing-suspension-payoff287).
+
+Payoff287 preserves the522 prior entries and all pre-existing frozen retail
+fixture hashes. Historical shared map builders are stored by their captured hash.
+A shared verifier revision can resolve an archived source only when its current
+executable AST differs solely in source-pin validation; numerical logic and
+original-instruction checks must remain identical. The completed native checkpoint
+and421 focused provenance/retail tests retain both the initial8 source-pin errors
+and their repairs in `research/MAP-04.2/payoff287`.

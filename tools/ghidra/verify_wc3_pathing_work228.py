@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify original flyer-field instructions, repeated live grids and engine support/save paths."""
+from retail_capture_source import matches_capture_source
 import argparse, gzip, hashlib, json, os, re, struct, subprocess, sys
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -58,7 +59,7 @@ def validate(spec):
     len(spec['markers'])!=193 or len(spec['kernels']['maximum'])!=32 or len(spec['kernels']['samples'])!=80):
   raise ValueError('flight contract differs')
  for p,sha in spec['pins'].items():
-  if digest(ROOT/p)!=sha:raise ValueError('changed source: '+p)
+  if not matches_capture_source(ROOT,p,sha):raise ValueError('changed source: '+p)
  if digest(BUNDLE)!=spec['bundle_sha256'] or HEADER.read_text()!=render(spec):raise ValueError('changed frozen evidence')
  for c in spec['kernels']['maximum']:
   if maximum(c['input'],c['width'],c['height'],c['radius'])!=c['output']:raise ValueError('original maximum differs')

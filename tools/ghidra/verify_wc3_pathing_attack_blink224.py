@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify Attack Blink range retention and recovery exclusion, repeated retail observations and engine state."""
+from retail_capture_source import matches_capture_source
 import argparse
 from collections import Counter
 import gzip
@@ -37,7 +38,7 @@ def validate(spec):
      len(spec['instructions'])!=549 or len(spec['cases'])!=4):
   raise ValueError('Attack chase contract differs')
  for path,expected in spec['pins'].items():
-  if digest(ROOT/path)!=expected:raise ValueError('changed source: '+path)
+  if not matches_capture_source(ROOT,path,expected):raise ValueError('changed source: '+path)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('capture bundle differs')
  return spec
 

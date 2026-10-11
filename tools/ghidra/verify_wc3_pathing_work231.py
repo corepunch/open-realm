@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify original point-query scopes and read-only native repeats/control."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,json,os,re,subprocess
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -27,7 +28,7 @@ def validate(spec):
     set(spec['pins'])!=set(SOURCES) or len(spec['kernels'])!=600 or len(spec['sequence'])!=48 or
     spec['engine_tests']!=TESTS or len(spec['markers'])!=14):raise ValueError('point scope contract differs')
  for path,sha in spec['pins'].items():
-  if digest(ROOT/path)!=sha:raise ValueError('changed source: '+path)
+  if not matches_capture_source(ROOT,path,sha):raise ValueError('changed source: '+path)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('capture bundle changed')
  if HEADER.read_text()!=header(spec['kernels']):raise ValueError('literal header changed')
  return spec

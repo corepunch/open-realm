@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check frozen retail Hero movement producers, exact return words and engine lifecycle."""
+from retail_capture_source import matches_capture_source
 import argparse
 from collections import Counter
 import gzip
@@ -56,7 +57,7 @@ def validate(spec):
     spec['engine_tests']!=TESTS or set(spec['pins'])!=set(SOURCES) or
     set(spec['maps'])!={'stock','custom','fraction'} or len(spec['instructions'])!=277):raise ValueError('Hero contract differs')
  for path,expected in spec['pins'].items():
-  if digest(ROOT/path)!=expected:raise ValueError('changed source: '+path)
+  if not matches_capture_source(ROOT,path,expected):raise ValueError('changed source: '+path)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('capture bundle differs')
  return spec
 

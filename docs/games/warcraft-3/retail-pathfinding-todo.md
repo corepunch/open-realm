@@ -57,6 +57,15 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff287 separates the public pause flag, synchronous POINT suspension
+notification and physical hold. Reentrant Move can prevent the outer suspension;
+resume re-notifies the retained point head before constructing its task, preserving
+nested Stop/Move ownership. Separation remains held until the delayed boundary.
+Two815-event retail repeats/control and100 original stage cases support10 selected
+core regressions with fresh/cold saves. Forced modal-off/per-ability counters and
+post-nested-native point getters remain explicitly open; no old retail fixture
+changed and46 remain. See [staged suspension](retail-pathfinding-engine.md#scripted-pause-notifies-before-constructing-suspension-payoff287).
+
 Payoff286 rejects ordinary native orders before they mutate scripted suspension,
 while core Stop retains its successor until deterministic resume. Forced placement
 uses the same owner. Two retail repeats/control and 80 original validation cases

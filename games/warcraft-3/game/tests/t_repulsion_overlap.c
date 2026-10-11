@@ -111,7 +111,10 @@ TEST(wc3_repulsion_overlap, saved_owner_slots_rebuild_and_reject_invalid_chains)
     T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));T_EQ(level.repulse_phase,1);
     T_EQ(level.repulse_head,units[2]);T_EQ(units[2]->movement.repulse.next,units[1]);
     S_SetUnitPaused(units[1],true);T_EQ(level.repulse_head,units[2]);T_EQ(units[2]->movement.repulse.next,units[0]);
-    S_SetUnitPaused(units[1],false);T_EQ(level.repulse_head,units[1]);T_EQ(units[1]->movement.repulse.next,units[2]);
+    S_SetUnitPaused(units[1],false);
+    T_ASSERT(!units[1]->movement.repulse.active);
+    FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    S_RunMoveTimers();T_EQ(level.repulse_head,units[1]);T_EQ(units[1]->movement.repulse.next,units[2]);
     CAbilityMove(units[2],A_UNIT_REMOVE,NULL);T_EQ(units[1]->movement.repulse.next,units[0]);
     T_ASSERT(S_RestoreMoveRepulsors());
     units[0]->movement.repulse.next=units[0];T_ASSERT(!S_RestoreMoveRepulsors());

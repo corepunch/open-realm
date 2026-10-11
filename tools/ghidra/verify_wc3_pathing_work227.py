@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify original inside-construction suppression phases and production engine inverses."""
+from retail_capture_source import matches_capture_source
 import argparse, copy, gzip, hashlib, json, os, re, subprocess
 from collections import Counter
 from pathlib import Path
@@ -56,7 +57,7 @@ def validate(spec):
     len(spec['instructions'])!=488 or len(spec['markers'])!=547 or len(spec['events'])!=388):
   raise ValueError('work contract differs')
  for path,expected in spec['pins'].items():
-  if digest(ROOT/path)!=expected:raise ValueError('changed source: '+path)
+  if not matches_capture_source(ROOT,path,expected):raise ValueError('changed source: '+path)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('changed capture bundle')
  return spec
 

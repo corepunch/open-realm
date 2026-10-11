@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify retained queued Move identities through actual Shift/replacement candidate rows."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,json,re
 from pathlib import Path
 from verify_wc3_pathing_target_normalize218 import original_bytes,SHA
@@ -26,7 +27,7 @@ def normalize(rows):
 def validate(spec):
  if(spec['version']!=1 or spec['task']!='ORDER-02.2' or spec['game_sha256']!=SHA or set(spec['pins'])!=set(SOURCES)or spec['engine_tests']!=TESTS or len(spec['instructions'])<500):raise ValueError('queued identity contract differs')
  for p,h in spec['pins'].items():
-  if digest(ROOT/p)!=h:raise ValueError('changed source '+p)
+  if not matches_capture_source(ROOT,p,h):raise ValueError('changed source '+p)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('capture bundle differs')
  return spec
 

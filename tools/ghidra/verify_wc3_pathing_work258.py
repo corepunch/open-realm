@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify current-form Stop admission and the original structure-support predicate."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,json,re,sys
 from collections import Counter
 from pathlib import Path
@@ -51,7 +52,7 @@ def runtime(bundle,spec):
 def validate(s):
  if s['version']!=1 or s['task']!='MAP-04.2'or s['game_sha256']!=SHA or set(s['pins'])!=set(SOURCES)or s['engine_tests']!=TESTS:raise ValueError('structure Stop contract changed')
  for p,h in s['pins'].items():
-  if digest(ROOT/p)!=h:raise ValueError('source changed '+p)
+  if not matches_capture_source(ROOT,p,h):raise ValueError('source changed '+p)
  if digest(BUNDLE)!=s['bundle_sha256']:raise ValueError('bundle changed')
  b=json.loads(gzip.decompress(BUNDLE.read_bytes()));runtime(b,s)
  old=prior.validate(json.loads(prior.FIXTURE.read_text()))

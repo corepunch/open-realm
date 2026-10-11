@@ -77,7 +77,7 @@ void order_stop(edict_t *ent) {
  * Stop cleanup after both synchronous event families. A callback can change
  * terrain between the two recovery scopes or replace the pending task. */
 bool S_IssueStopOrder(edict_t *ent) {
-    if(ent->paused)
+    if(S_UnitExecutionPaused(ent))
         return G_RetainSuspendedUnitOrder(ent,"stop",UNIT_ORDER_TARGET_NONE,NULL,NULL,false,ent->s.player,0);
     uint32_t const order_id = G_OrderId("stop"), spawn_time = ent->spawn_time;
     G_ClearUnitOrderQueue(ent);
@@ -88,7 +88,7 @@ bool S_IssueStopOrder(edict_t *ent) {
     S_UnitAbilityOrderAccepted(ent, "stop");
     G_PublishIssuedImmediateOrder(ent, order_id, ent->s.player, "stop");
     if (!ent->inuse || ent->spawn_time != spawn_time || G_IsDeferredFree(ent) ||
-        M_IsDead(ent) || ent->paused) return true;
+        M_IsDead(ent) || S_UnitExecutionPaused(ent)) return true;
     if (G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent) != revision) return true;
     /* A completed nested Stop leaves no active task, so the outer cleanup
      * resumes even though its public user head has already retired to zero. */

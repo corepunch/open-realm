@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Check original player point transport/admission and frozen engine continuations."""
+from retail_capture_source import matches_capture_source
 import argparse
 from collections import Counter
 import gzip
@@ -44,7 +45,7 @@ def validate(spec):
         set(spec['pins']) != set(SOURCES) or len(spec['instructions']) < 20):
         raise ValueError('player point contract differs')
     for path, expected in spec['pins'].items():
-        if digest(ROOT / path) != expected:
+        if not matches_capture_source(ROOT,path,expected):
             raise ValueError('changed source or existing retail expectation: ' + path)
     if digest(BUNDLE) != spec['bundle_sha256']:
         raise ValueError('original capture bundle differs')

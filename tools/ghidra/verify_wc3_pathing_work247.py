@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify nested bridge Stop/recovery scopes without changing older expectations."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,json,re,struct
 from collections import Counter
 from pathlib import Path
@@ -54,7 +55,7 @@ def validate_runtime(bundle,spec):
 def validate(spec):
  if(spec['version']!=1 or spec['task']!='MAP-04.2'or spec['game_sha256']!=SHA or set(spec['pins'])!=set(SOURCES)or spec['engine_tests']!=TESTS):raise ValueError('contract differs')
  for p,h in spec['pins'].items():
-  if digest(ROOT/p)!=h:raise ValueError('changed source '+p)
+  if not matches_capture_source(ROOT,p,h):raise ValueError('changed source '+p)
  if digest(BUNDLE)!=spec['bundle_sha256']:raise ValueError('bundle changed')
  bundle=json.loads(gzip.decompress(BUNDLE.read_bytes()));validate_runtime(bundle,spec)
  if header(bundle['original'])!=HEADER.read_text():raise ValueError('original fixture changed')

@@ -1049,7 +1049,7 @@ bool G_RetainSuspendedUnitOrder(edict_t *self, cstring_t order,
         unitOrderTargetType_t shape, vec2_t const *point, edict_t *target,
         bool queue, uint32_t issuer, float speed) {
     uint32_t const order_id=G_OrderId(order);
-    if(self->paused && !G_IsDeferredFree(self) && !self->construction_held) {
+    if(S_UnitExecutionPaused(self) && !G_IsDeferredFree(self) && !self->construction_held) {
         if(!queue) {
             G_ClearUnitOrderQueue(self);
             self->movement.pause_order_id=0;
@@ -1076,8 +1076,9 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
            (strcmp(order,"move") && strcmp(order,"smart") && strcmp(order,"attack")))return false;
         return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_ENTITY,NULL,target,queue,issuer_player,0);
     }
-    /* Scripted pause disables ability validation before any queue mutation. */
-    if(self->paused)return false;
+    /* Validation is disabled after the suspension constructor, not during
+     * its synchronous issued-order notification. */
+    if(S_UnitOrdersPaused(self))return false;
     /* Rally owns native admission separately from its direct metadata setters. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         return S_IssueRallyTargetOrder(self,target,queue);
@@ -1167,7 +1168,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,queue,issuer_player,group_speed);
     }
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
-    if(self->paused)return false;
+    if(S_UnitOrdersPaused(self))return false;
     /* Rally's owner decides whether this producer replaces active work. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         bool accepted;
@@ -1430,7 +1431,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     }
     /* Core Stop bypasses disabled ability validation (69dc80); other
      * immediate orders validate before touching the suspended chain. */
-    if(self->paused)return false;
+    if(S_UnitOrdersPaused(self))return false;
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
         if (accepted) {

@@ -1687,21 +1687,27 @@ void S_RunMoveTimers(void) {
         if(!ready)continue;
         uint32_t order=ent->movement.pause_order_id;
         ent->movement.pause_resume_pending=false;ent->movement.pause_order_id=0;
-        S_TrackMoveTimers(ent);
-        /* A replacement admitted beneath suspension retired the old point
-         * owner. Activate its retained FIFO head at this deterministic boundary. */
+        ent->movement.pause_phase=UNIT_PAUSE_NONE;
+        S_TrackMoveTimers(ent);S_RefreshUnitPauseSuppression(ent);
         if(!order && G_UnitQueuedOrderCount(ent)) {
             unit_stand(ent);
-        }
-        else if(ent->goalentity && ent->currentmove==&move_move_walk) {
-            S_IssueMoveOrder(ent,ent->goalentity,order);
-            /* Retail's next owner visit includes its fresh physical group;
-             * leaving it detached falls back to entity-order movement.
-             * Payoff286 also captures user reissue/modal callbacks at resume;
-             * their full owner integration remains ORDER-01.13/MAP-04.2. */
-            move_start_point_group(ent,&ent->goalentity->s.origin2,0);
-        }
-        else if(!order && ent->current_order_id==MOVE_ORDER_SUSPENDED)ent->current_order_id=0;
+        } else if(order && ent->goalentity && ent->currentmove==&move_move_walk) {
+            /* Retain the packet before callbacks: Stop can free the old
+             * waypoint. User-head notification precedes task construction. */
+            vec2_t point=ent->goalentity->s.origin2;
+            uint32_t const spawn=ent->spawn_time,revision=G_UnitMoveRevision(ent);
+            ent->current_order_id=order;
+            G_PublishIssuedPointOrder(ent,order,&point,ent->s.player,NULL);
+            if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) ||
+               S_UnitExecutionPaused(ent))continue;
+            if(G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent)!=revision)continue;
+            uint32_t const head=ent->current_order_id;
+            S_IssueMoveOrder(ent,Waypoint_add(&point),order);
+            ent->current_order_id=head;
+            if(ent->currentmove==&move_move_walk && ent->goalentity)
+                move_start_point_group(ent,&point,0);
+        } else if(order)ent->current_order_id=order;
+        else if(ent->current_order_id==MOVE_ORDER_SUSPENDED)ent->current_order_id=0;
     }
     for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
         edict_t *ent=g_edicts+i;
@@ -1721,7 +1727,7 @@ void S_RunMoveTimers(void) {
 /* Queries predict from the retained fine pose without committing its time origin. */
 void S_PublishMovement(edict_t *self) {
     if (!self->movement.clock_valid || !self->movement.pose_valid) return;
-    if (self->paused || self->stunned) {
+    if (S_UnitExecutionPaused(self) || self->stunned) {
         self->movement.fine_pose = self->movement.sampled_pose;
         self->movement.pose_clock = level.pathing_clock;
         return;
@@ -1857,7 +1863,7 @@ void S_ReleaseUnitSeparationSuppression(edict_t *self) {
 /* An absent construction worker records scripted pause but has no suspended
  * world task. Its pause contribution begins when construction returns it. */
 void S_RefreshUnitPauseSuppression(edict_t *self) {
-    bool held=self->paused && !self->construction_held && !G_IsDeferredFree(self);
+    bool held=S_UnitExecutionPaused(self) && !self->construction_held && !G_IsDeferredFree(self);
     if(held==self->movement.repulse.pause_suppression)return;
     self->movement.repulse.pause_suppression=held;
     if(held)S_AcquireUnitSeparationSuppression(self);
@@ -1868,7 +1874,7 @@ void S_RefreshUnitPauseSuppression(edict_t *self) {
  * release any scripted pause contribution already owned by this unit. It does
  * not acquire a new counted owner for an unresearched internal hold. */
 void S_SetUnitPauseFlag(edict_t *self, bool paused) {
-    self->paused=paused;
+    self->paused=paused;self->movement.pause_phase=UNIT_PAUSE_NONE;
     if(self->movement.repulse.pause_suppression)S_RefreshUnitPauseSuppression(self);
 }
 
@@ -2094,34 +2100,73 @@ static void move_repulse_owner_update(void) {
     }
 }
 
-/* Original scripted pause admits a suspension head, stopping the physical
- * task while retaining the user's point order beneath it. Resume is delayed
- * by the original two primary quanta, then builds from the current pose. */
+/* The public200000 flag precedes issued callbacks; physical100000 and
+ * ability disabling belong to the subsequent suspension constructor. */
+bool S_UnitOrdersPaused(edict_t const *self) {
+    /* Internal execution holds do not acquire scripted ability disabling. */
+    return self && self->paused && self->movement.pause_phase==UNIT_PAUSE_SUSPENDED;
+}
+
+bool S_UnitExecutionPaused(edict_t const *self) {
+    return self && (self->movement.pause_resume_pending || (self->paused &&
+        self->movement.pause_phase!=UNIT_PAUSE_ADMITTING && self->movement.pause_phase!=UNIT_PAUSE_BYPASSED));
+}
+
 void S_SetUnitPaused(edict_t *self, bool paused) {
-    if (!self || self->paused == paused) return;
+    if (!self || self->paused==paused) return;
     if (paused) {
+        /*697770/688d30 cancel an already-built suspension's end request.
+         * They do not admit another point head or retire its retained user. */
+        if(self->movement.pause_phase==UNIT_PAUSE_SUSPENDED) {
+            self->paused=true;self->movement.pause_resume_pending=false;
+            S_TrackMoveTimers(self);S_RefreshUnitPauseSuppression(self);return;
+        }
         move_visual_track(self);
-        uint32_t order=self->current_order_id;
+        uint32_t const order=self->current_order_id,spawn=self->spawn_time;
+        /* An absent worker records the public flag but has no world task to
+         * admit. Its construction owner refreshes suppression on return. */
+        if(self->construction_held || G_IsDeferredFree(self)) {
+            self->paused=true;S_RefreshUnitPauseSuppression(self);return;
+        }
         bool point=self->currentmove==&move_move_walk && self->goalentity && move_point_order_id(order);
-        if (point) {
-            move_leave(self); move_reset_progress(self);
-            self->movement.pause_order_id=order;
-            self->current_order_id=MOVE_ORDER_SUSPENDED;
-        } else if(self->movement.clock_valid) {
+        if(point) {move_leave(self);move_reset_progress(self);}
+        else if(self->movement.clock_valid) {
             unit_commit_current_pose(self);
             self->movement.velocity=(vec2_t){0};self->movement.clock_valid=false;
         }
-        if(!order)self->current_order_id=MOVE_ORDER_SUSPENDED;
-    } else if(self->movement.pause_order_id || self->current_order_id==MOVE_ORDER_SUSPENDED) {
-        self->movement.pause_resume_pending=true;
-        S_TrackMoveTimers(self);
-        self->movement.pause_deadline=level.pathing_clock;
-        FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
+        self->movement.pause_order_id=order;
+        self->movement.pause_phase=UNIT_PAUSE_ADMITTING;
+        self->paused=true;self->current_order_id=MOVE_ORDER_SUSPENDED;
+        uint32_t const revision=G_UnitMoveRevision(self);
+        G_PublishIssuedPointOrder(self,MOVE_ORDER_SUSPENDED,&(vec2_t){0},self->s.player,NULL);
+        if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self))return;
+        /*67abe0 rechecks internal tasks after notification. A nested Move
+         * wins; a completed Stop leaves no task and cannot block construction. */
+        if(G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision) {
+            self->movement.pause_order_id=0;
+            self->movement.pause_phase=self->paused ? UNIT_PAUSE_BYPASSED : UNIT_PAUSE_NONE;
+        } else if(self->paused) {
+            self->movement.pause_phase=UNIT_PAUSE_SUSPENDED;
+            S_SuspendRepairWork(self);
+        } else {
+            self->movement.pause_phase=UNIT_PAUSE_NONE;
+            self->movement.pause_order_id=0;
+            if(self->current_order_id==MOVE_ORDER_SUSPENDED)self->current_order_id=0;
+        }
+    } else {
+        self->paused=false;
+        /* Nested Unpause during notification has not acquired a physical
+         * hold. The outer dispatch retires the unconstructed suspension. */
+        if(self->movement.pause_phase==UNIT_PAUSE_ADMITTING)return;
+        if(self->movement.pause_phase==UNIT_PAUSE_BYPASSED)self->movement.pause_phase=UNIT_PAUSE_NONE;
+        else if(self->movement.pause_order_id || self->current_order_id==MOVE_ORDER_SUSPENDED ||
+                self->movement.pause_phase==UNIT_PAUSE_SUSPENDED) {
+            self->movement.pause_resume_pending=true;
+            S_TrackMoveTimers(self);
+            self->movement.pause_deadline=level.pathing_clock;
+            FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
+        }
     }
-    self->paused=paused;
-    if(paused)S_SuspendRepairWork(self);
-    /* Native66fc50 disables separation while suspension depth54 or scripted
-     * flag5c.200000 is set;693d50 retires/recreates the repulsor at transition. */
     int32_t depth=self->movement.repulse.disable_depth;
     S_RefreshUnitPauseSuppression(self);
     if(depth==self->movement.repulse.disable_depth)move_repulse_init(self);
@@ -5762,7 +5807,7 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     /* Original16a790 replaces arrival10000 from this visit's result. A cached
      * slot may cease to be reached after SetUnitX/Y or physical displacement. */
     member->flags&=~0x10000u;
-    if (!group->turning && (unit->paused || unit->stunned)) {
+    if (!group->turning && (S_UnitExecutionPaused(unit) || unit->stunned)) {
         member->arrived=member->in_range=false; member->speed=0; member->heading=unit->s.angle;
         return;
     }
@@ -6065,7 +6110,7 @@ static void move_run_group_updates(void) {
         if (!group->count) { move_release_group(group); continue; }
         if (group->individual) {
             edict_t *unit=group->members[0].unit;
-            if (!unit->paused && !unit->stunned) ai_move_walk(unit);
+            if (!S_UnitExecutionPaused(unit) && !unit->stunned) ai_move_walk(unit);
             group->ticking=false;
             continue;
         }
@@ -6161,7 +6206,7 @@ static void move_run_group_updates(void) {
         moveGroupMember_t *finished[BZ_WC3_GROUP_ORDER_UNITS]; uint32_t count=0;
         FOR_LOOP(i,group->count) {
             moveGroupMember_t *member=group->members+i; edict_t *unit=member->unit;
-            if (!group->turning && (unit->paused || unit->stunned)) continue;
+            if (!group->turning && (S_UnitExecutionPaused(unit) || unit->stunned)) continue;
             cstring_t animation=member->speed>0 ? "walk" : "stand";
             if (!G_AnimationHasPrimary(unit->animation,animation)) unit_setanimation(unit,animation);
             moveStep_t step={.velocity={.vel={unit->movement.velocity.x,unit->movement.velocity.y},

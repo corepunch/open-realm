@@ -821,6 +821,15 @@ typedef struct {
     uint32_t capacity;
 } unitOrderQueue_t;
 
+/* Scripted flag, user notification and physical suspension are separate
+ * stages. A reentrant task can win before the suspension is constructed. */
+typedef enum {
+    UNIT_PAUSE_NONE,
+    UNIT_PAUSE_ADMITTING,
+    UNIT_PAUSE_SUSPENDED,
+    UNIT_PAUSE_BYPASSED,
+} unitPausePhase_t;
+
 typedef enum {
     GUARD_NONE,
     GUARD_IDLE,
@@ -2064,7 +2073,7 @@ struct edict_s {
     avatar_t *avatar;
     bool ignore_alarm; /* UnitIgnoreAlarm: suppress this unit's automatic attacked notifications */
     bool invulnerable;  // unit cannot take damage when true
-    bool paused;        // unit AI and movement suspended when true
+    bool paused;        /* Public pause flag; execution uses the suspension stage. */
     bool stunned;       // unit AI and movement suspended by timed status
     bool no_pathing;    // own query disabled; occupancy category remains active
     bool timed_life_paused; /* UnitPauseTimedLife: freeze BTLF expiry while set */
@@ -2159,6 +2168,7 @@ struct edict_s {
         bool type_rebind_pending; /* Retained point head waits for the next type-rebind task pass. */
         wc3Clock_t type_rebind_deadline;
         uint32_t pause_order_id; /* Point head beneath the scripted pause order. */
+        unitPausePhase_t pause_phase;
         bool pause_resume_pending;
         wc3Clock_t pause_deadline;
         bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
@@ -3346,6 +3356,8 @@ void S_PublishMovement(edict_t *);
 void S_RunMoveTimers(void);
 void S_SetUnitPaused(edict_t *, bool);
 void S_SetUnitPauseFlag(edict_t *, bool);
+bool S_UnitExecutionPaused(edict_t const *);
+bool S_UnitOrdersPaused(edict_t const *);
 void S_AcquireUnitSeparationSuppression(edict_t *);
 void S_ReleaseUnitSeparationSuppression(edict_t *);
 void S_RefreshUnitPauseSuppression(edict_t *);

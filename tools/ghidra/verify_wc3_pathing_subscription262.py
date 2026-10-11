@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify original explicit-Attack availability suppression and saved ownership."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,json
 from pathlib import Path
 from verify_wc3_pathing_target_normalize218 import original_bytes,SHA
@@ -20,7 +21,7 @@ def markers(text):
 def validate(s):
  if s['version']!=1 or s['task']!='GROUP-03.2' or s['game_sha256']!=SHA or s['engine_tests']!=TESTS or set(s['pins'])!=set(SOURCES):raise ValueError('subscription contract differs')
  for p,sha in s['pins'].items():
-  if digest(ROOT/p)!=sha:raise ValueError('changed source '+p)
+  if not matches_capture_source(ROOT,p,sha):raise ValueError('changed source '+p)
  if digest(BUNDLE)!=s['bundle_sha256']:raise ValueError('capture bundle changed')
  if len(s['instructions'])!=194 or len(s['markers'])!=10:raise ValueError('incomplete original coverage')
  return s

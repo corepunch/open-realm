@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Certify prepared idle Shift admission separately from delayed reconstruction."""
+from retail_capture_source import matches_capture_source
 import argparse,gzip,hashlib,json,re
 from pathlib import Path
 from verify_wc3_pathing_target_normalize218 import original_bytes,SHA
@@ -26,7 +27,7 @@ def normalize(rows):
 def validate(s):
  if s['version']!=1 or s['task']!='GROUP-04.6' or s['game_sha256']!=SHA or set(s['pins'])!=set(SOURCES)or s['engine_tests']!=TESTS or len(s['instructions'])!=391:raise ValueError('prepared admission contract differs')
  for p,h in s['pins'].items():
-  if digest(ROOT/p)!=h:raise ValueError('changed source '+p)
+  if not matches_capture_source(ROOT,p,h):raise ValueError('changed source '+p)
  if digest(BUNDLE)!=s['bundle_sha256']:raise ValueError('capture bundle differs')
  return s
 def validate_runtime(b,s):
