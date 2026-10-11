@@ -2079,6 +2079,7 @@ struct edict_s {
         } repulse;
         uint32_t support_flags; /* Unit280: deck2 and prior-refresh deep-water20; saved before the next height query. */
         vec2_t support_point; /* Unit284/288; ordinary physics does not force another same-position query. */
+        float support_angle; /* Unit290; slope recomputation also observes heading changes. */
         bool support_valid;
         vec2_t last_origin;
         float last_distance;
@@ -3212,6 +3213,7 @@ void G_MarkFreeEdict(edict_t *);
 void M_CheckGround (edict_t *);
 bool S_GetWalkableSupport(vec2_t point,float overlap,float *height);
 float S_GetLocationSupport(vec2_t point);
+void S_RefreshUnitSlope(edict_t *self);
 void S_InitFlightSupport(void);
 void S_ClearFlightSupport(void);
 void S_FinalizeFlightSupport(void);

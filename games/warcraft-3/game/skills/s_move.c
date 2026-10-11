@@ -3685,7 +3685,12 @@ void S_RefreshUnitSupport(edict_t *self, bool force) {
         fabsf(self->s.origin.x - self->movement.support_point.x) >= 0.01f ||
         fabsf(self->s.origin.y - self->movement.support_point.y) >= 0.01f;
     self->movement.support_point = self->s.origin2;
-    if (!force && !moved) return;
+    bool const turned=fabsf(self->s.angle-self->movement.support_angle)>=.001f;
+    self->movement.support_angle=self->s.angle;
+    if (!force && !moved) {
+        if(turned)S_RefreshUnitSlope(self);
+        return;
+    }
     unitMovementType_t const type = S_UnitMovementType(self->data.UnitData);
     float height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
     float deck_height = -FLT_MAX;
@@ -3716,6 +3721,7 @@ void S_RefreshUnitSupport(edict_t *self, bool force) {
     self->movement.support_valid = true;
     self->s.ground_offset = self->unitinfo.FlyHeight;
     self->s.origin.z = height + self->s.ground_offset;
+    if(moved||turned)S_RefreshUnitSlope(self);
 }
 
 void M_CheckGround(edict_t *self) {

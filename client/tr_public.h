@@ -159,6 +159,7 @@ typedef struct {
     uint16_t effect_flags;
     model_t const *effect_model;
     float angle;        /* Canonical actor heading in radians, independent of height anchoring. */
+    orientation_t pose_offset; /* Completed game-authored orientation; no support queries in the client. */
     float scale;
     float radius;
     float splatsize;

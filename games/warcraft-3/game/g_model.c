@@ -1727,3 +1727,73 @@ TEST(wc3_model, cliff_water_bridge_fixture_matches_all_retail_support_lanes) {
     G_FreeModels();reset_entities();setup_test_world();gi.MemFree(texture);
 }
 #endif
+#ifdef BZ_TESTS
+#include "tests/fixtures/retail_slope272.h"
+TEST(wc3_model, bridge_water_crossing_clamps_authored_unit_pose_like_retail) {
+    extern void reset_entities(void),setup_test_world(void);
+    extern edict_t *alloc_test_unit(uint32_t,float,float);
+    extern void CM_SetupTestWorldBounds(box2_t const *);
+    extern void CM_SetupTestPathmap(unsigned,unsigned,uint8_t const *);
+    reset_entities();setup_test_world();G_FreeModels();
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,slope272_pathing);
+    war3mapVertex_t *v=world.map->vertices;
+    FOR_LOOP(y,17)FOR_LOOP(x,17) {
+        bool water=y<=10 && x>=4 && x<=12;
+        v[y*17+x]=(war3mapVertex_t){.accurate_height=water?
+            0x2000-4*((x==4||x==5||x==11||x==12)?64:192):0x2000,
+            .waterlevel=8550,.water=water,.level=y>=12&&x>=8?3:2};
+    }
+    S_InitFlightSupport();
+    uint8_t data[4096]={0};uint32_t n=model_test_bridge(data,0),index=G_MAX_MODELS-1;
+    g_models[index].walkmesh=model_load_walkmesh(data,n);g_models[index].walkmesh_loaded=true;
+    T_NOT_NULL(g_models[index].walkmesh);
+    static DestructableData_t const row={.walkable=true};
+    edict_t *bridge=G_Spawn();bridge->class_id=MAKEFOURCC('L','T','0','6');bridge->data.DestructableData=&row;
+    bridge->destructable=G_AllocDestructable();bridge->destructable->placement_solid=true;
+    bridge->s.model=index;bridge->s.scale=1;bridge->s.origin=(vec3_t){1024,672,-192};
+    bridge->s.angle=wc3_degrees_to_radians(90);G_RegisterGroundSurface(bridge);
+    pathTex_t *texture=M_LoadPathTex("PathTextures\\CityBridgeLarge0.tga");
+    T_NOT_NULL(texture);bridge->pathtex=bridge->destructable->alive_pathtex=texture;
+    CM_BakeStaticObstacles();G_FinishMovePathingInitialization();
+    UnitUI_t ui={.elevationSampleRadius=20};
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),192,672);
+    unit->data.UnitUI=&ui;
+    uint32_t tilted=0,on_deck=0,deep=0,zero=0;
+    FOR_LOOP(i,sizeof(slope272_cases)/sizeof(*slope272_cases)) {
+        typeof(*slope272_cases) *c=slope272_cases+i;
+        ui.maxPitchDegrees=c->type==0x68503732?3:c->type==0x685a3732?0:10;
+        ui.maxRollDegrees=c->type==0x68503732?5:c->type==0x685a3732?0:10;
+        memcpy(&unit->s.origin,c->point,sizeof(unit->s.origin));
+        unit->s.angle=wc3_float(c->heading);
+        M_CheckGround(unit);
+        T_EQ(wc3_float_bits(unit->s.origin.z),c->point[2]);
+        T_EQ(unit->movement.support_flags&0x22,c->flags&0x22);
+        T_EQ(wc3_float_bits(unit->s.angle),c->heading);
+        T_FEQ(unit->s.pose_offset.pitch,-wc3_float(c->angles[1]),0.000002f);
+        T_FEQ(unit->s.pose_offset.roll,wc3_float(c->angles[2]),0.000002f);
+        orientation_t angles={unit->s.angle+unit->s.pose_offset.yaw,
+            unit->s.pose_offset.pitch,unit->s.pose_offset.roll};
+        quaternion_t q=Quaternion_fromOrientation(&angles);mat4_t matrix;
+        Matrix4_from_rotation_translation_scale_origin(&matrix,&q,&(vec3_t){0},&(vec3_t){1,1,1},&(vec3_t){0});
+        FOR_LOOP(k,9)T_FEQ(matrix.v[(k/3)*4+k%3],wc3_float(c->matrix[k]),0.000002f);
+        tilted+=fabsf(wc3_float(c->angles[1]))>.01f||fabsf(wc3_float(c->angles[2]))>.01f;
+        on_deck+=(c->flags&2)!=0;deep+=(c->flags&0x20)!=0;
+        zero+=c->type==0x685a3732;
+    }
+    /* A forced height query alone does not invalidate an unchanged matrix.
+     * A pure heading change does, even with no support displacement. */
+    memcpy(&unit->s.origin,slope272_cases[22].point,sizeof(unit->s.origin));
+    unit->s.angle=wc3_float(slope272_cases[22].heading);
+    ui.maxPitchDegrees=ui.maxRollDegrees=10;M_CheckGround(unit);
+    orientation_t retained=unit->s.pose_offset;
+    T_ASSERT(fabsf(retained.pitch)>.01f);
+    ui.maxPitchDegrees=ui.maxRollDegrees=0;
+    M_CheckGround(unit);T_ASSERT(!memcmp(&retained,&unit->s.pose_offset,sizeof(retained)));
+    unit->s.angle+=.01f;S_RefreshUnitSupport(unit,false);
+    T_FEQ(unit->s.pose_offset.yaw,0,0);T_FEQ(unit->s.pose_offset.pitch,0,0);T_FEQ(unit->s.pose_offset.roll,0,0);
+    T_ASSERT(tilted>150);T_ASSERT(on_deck>200);T_EQ(deep,0);T_ASSERT(zero>100);
+    G_FreeModels();reset_entities();setup_test_world();gi.MemFree(texture);
+}
+#endif

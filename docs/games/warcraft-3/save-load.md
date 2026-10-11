@@ -1,3 +1,10 @@
+Save167 persists game-authored support orientation and its heading cache.
+The entity snapshot prefix adds generic `pose_offset` radians, while movement
+retains `support_angle` to reproduce position/heading refresh boundaries.
+Earlier saves are rejected; the cold round-trip regression retains all three
+orientation components and the authoritative heading. See
+[ground support pose](retail-pathfinding-engine.md#ground-support-publishes-authored-pitch-and-roll-across-bridges-payoff272).
+
 # Warcraft III Save/Load
 
 Save166 retains the accepted Attack target owner's availability suppression.

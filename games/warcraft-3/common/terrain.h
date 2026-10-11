@@ -21,6 +21,21 @@ static inline float W3_WaterSurfaceHeight(uint16_t waterlevel, float slk_height)
     return ((float)waterlevel - 0x2000) / 4.0f + slk_height * TILE_SIZE;
 }
 
+/*749a30: subtract the minimum corner before ordered SSE-style bilinear
+ * accumulation. Nested lerps give different authoritative support words. */
+static inline float W3_InterpolateGroundHeight(float x,float y,float const h[4]) {
+    float minimum=h[0];
+    for(unsigned i=1;i<4;i++)if(h[i]<minimum)minimum=h[i];
+    volatile float nx=1-x,ny=1-y;
+    volatile float a=h[0]-minimum,b=h[1]-minimum,c=h[2]-minimum,d=h[3]-minimum;
+    a=a*ny;a=a*nx;a=a+minimum;
+    b=b*ny;b=b*x;a=a+b;
+    c=c*y;c=c*nx;a=a+c;
+    d=d*y;d=d*x;a=a+d;
+    a=a+0.0f;
+    return a;
+}
+
 /* Collision-world side: the game applies the loaded map's Water.slk height. */
 void CM_W3SetWaterHeight(float slk_height);
 float CM_W3WaterHeight(void);

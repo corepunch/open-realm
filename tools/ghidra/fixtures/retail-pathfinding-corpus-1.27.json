@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "226 executable original/evidence contracts;507 total entries.",
+  "scope": "227 executable original/evidence contracts;508 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -52054,6 +52054,63 @@
         "Save/load and natural expiry are engine lifecycle regressions, not new retail save/expiry captures.",
         "Initial incompatible-order interruption, changed-form recasts, air/water form selection, broader special caps and remaining modifier ordering are unclaimed. MOVE-01.1 stays open."
       ]
+    },
+    {
+      "id": "oracle-slope272",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_pose272.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "slope272.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 177
+        },
+        "poses": {
+          "equal": 920
+        },
+        "ground_kernels": {
+          "equal": 512
+        },
+        "original_matrix_words": {
+          "equal": 8280
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "MOVE-03.3 ground bridge/water support and authored pitch/roll clamps; read-only repeats/control, unchanged original orientation kernels and exact physical interpolation, generic snapshot/save/render regressions.",
+      "exclusions": [
+        "Ground-unit three-tap radius20 lane: stock10/10, authored3/5, zero0/0 across the accepted LT06 bridge-water map.",
+        "Authoritative support height and heading are word-exact; presentation matrix comparison permits2e-6 for generic quaternion reconstruction and host CRT rounding.",
+        "Flying bank, zero-radius cached triangle normals, Unit5c.100 exemption, deformed terrain and higher presentation-grid modes are outside this lane.",
+        "Unicorn callee boundaries supply authored UI, heading and live captured terrain/deck heights; original66d990, Euler routines, clamping and shipped CRT execute unchanged.",
+        "Generic runner retains GROUP-03.2 metadata; map, probe, observer, binary and helper pins identify MOVE-03.3."
+      ]
     }
   ],
   "fixtures": [
@@ -52119,7 +52176,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "2238078e9280d2d943b4c93839b4a7cfae8d10a4069f0a794d374452b4c437a2"
+      "sha256": "bb573f0d550e188557ec58e14266b736566dcb484082b7a98a5f51a60e662edc"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -52952,7 +53009,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "a25e3d100212e974e3db5ef5df44ba960bf8f31378a756860f4146ef125c4baa"
+      "sha256": "6fef7fc1c1c90e24968246e23b988bcfa65442e6f322be9c81fd1ce1dc182324"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -53808,7 +53865,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "aff361236c3ff0b0d7975c3479a5bd6fc1c332722b3ce32f5241b6f9ddef9d6d"
+      "sha256": "a32d79c8d8728ab0d8a500466c6376ce525c90bbcc1beb3813d0ebb267553355"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -54244,7 +54301,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "9ea3988018aea30f2cd9255fff9db7cc19463d728b405c3049983c1dbbf80bf3"
+      "sha256": "ea1e44c4079a3b68105875380317673f75a5510d6d1a907d13ab35663394e9e6"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -54252,7 +54309,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "7046bc2b6748a1b8c06f14c86d66d1629abf97a9ee0768f0cb2b509574958edc"
+      "sha256": "196feb17390fa858b1d5ee0161248e46d6b675304f54e2ec623294cff2d7e1cb"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -54744,7 +54801,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "23e37e0fa73e9a6ea2f65d36943faf0035f8566f086a9ad942d986fd421e1468"
+      "sha256": "391c0ebdf1fe1f2bd619506f82e3d6c4c8a3157b7911a46b1c80349239582641"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -54752,15 +54809,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "26a5931832c0e9bc5bbcfafa9831f40a2608427281194ab284cab7e5216dbde3"
+      "sha256": "e38f49544ac2b4bf438637754f253b1e8dc166ff7e7f60defb267b54fc63f533"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "31260ea3cb7b313b08e180b558c3719309793f573f6fcaac5051e202d410d3a0"
+      "sha256": "8fc85c47d0015c2a0305443f9c8cda3213023e6fe920595c941a0b20576aac16"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "d9c539d5e0f4d42d4377efc180299b9c06fa155de402fb0c51c71a5298a966d8"
+      "sha256": "0ca462f0f3f6796792b8577750fe835aff8261f7b0414c484b6e2d56b8649d22"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -57528,7 +57585,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_support.c",
-      "sha256": "e44ced16834c26844a9b4ca51ad9daf64ad2697285d353f202eaa2e1220e7b5c"
+      "sha256": "433882d6adbfe48d373a9051b26d1f5cadb9aae51c544191febbab028923ac7f"
     },
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_flight_support228.h",
@@ -57576,7 +57633,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_model.c",
-      "sha256": "fccccf2805ea9a620e4bc2a051bf9b96d38ae3ff69c5d096831b951cf06ab95c"
+      "sha256": "c7b0260d90bcbdb4a4ff7733a8bc061a08781973976be1393897a6e01d881c07"
     },
     {
       "path": "games/warcraft-3/game/g_monster.c",
@@ -59081,6 +59138,50 @@
     {
       "path": "games/warcraft-3/game/tests/t_movement_profile.c",
       "sha256": "1eef943fdb8b914fcc61beb5ff939e4f27171157475d76ab87e634e026ae145c"
+    },
+    {
+      "path": "tools/frida/research/pose272_probe.j",
+      "sha256": "95fd52c2ca22183e07ee8065e26058e4d59518d45126b7bca891a58f36ab7438"
+    },
+    {
+      "path": "tools/frida/research/pose272_observer.js",
+      "sha256": "facc2e11e6de03d7e82c6bd1c2718950c1969ccf506a4abcc0e707fbb30b2ac3"
+    },
+    {
+      "path": "tools/frida/research/pose272_make_map.py",
+      "sha256": "fd0be5e083491b5f5a7ff58092ffe3b06e1a3c9ec7beb2f0ba9b8a6af9acb87b"
+    },
+    {
+      "path": "tools/ghidra/research/Pose272Evidence.java",
+      "sha256": "bf1cf61b5a6b2728877c392b85444c723ab49b1ae6f8237cb586c16c22ced43b"
+    },
+    {
+      "path": "tools/ghidra/research/pose272_oracle.py",
+      "sha256": "ba9b7628800d77763435ed343afe1aed2bcf3b3946eb2d584f2840a0909040fb"
+    },
+    {
+      "path": "tools/ghidra/research/pose272_header.py",
+      "sha256": "aecbf4c459643e0ea13ae5875fa3fe418e9a3d20224a060c84fa5175ba73992a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_pose272.py",
+      "sha256": "9873ec6bcb71f14278b05c2e1c075069c233d96661b20ee29d061802dca5b19f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-slope272-1.27.json",
+      "sha256": "a71b88dcf3fe873e7a3aefd6f9f71456c8340f58d5dad390301a832f481b302d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-slope272-1.27.json.gz",
+      "sha256": "1ef2eafc97c0106d55aaa84b8baf22eb47fe7b7841a1d4a94af47745e4344ce2"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_slope272.h",
+      "sha256": "9ef668274f32d09462298fc0716480e40812e8aa8ff2601d20d0e6c175d1b00e"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_pose272.py",
+      "sha256": "71e9b867cb161268df41012ab069d6c6d0649dc7b7c7b4e1c5841d748febe80a"
     }
   ]
 }

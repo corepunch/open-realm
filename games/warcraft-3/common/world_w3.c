@@ -596,9 +596,7 @@ float CM_GetHeightAtPoint(float sx, float sy) {
     float b = CM_GetWar3MapVertexHeight(vb);
     float c = CM_GetWar3MapVertexHeight(vc);
     float d = CM_GetWar3MapVertexHeight(vd);
-    float ab = LerpNumber(a, b, x - fx);
-    float cd = LerpNumber(c, d, x - fx);
-    return LerpNumber(ab, cd, y - fy);
+    return W3_InterpolateGroundHeight(x-fx,y-fy,(float const[4]){a,b,c,d});
 }
 
 float CM_GetWaterHeightAtPoint(float sx, float sy) {

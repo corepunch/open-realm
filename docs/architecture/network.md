@@ -422,3 +422,16 @@ The generic cursor presentation stats carry a registered model, an opaque
 game-owned interaction, a registered cursor image and generic input-policy flags. WC3 resolves race skins and
 inventory/color art on the server; the shared client only looks up registered handles.
 See [cursor integration](../games/warcraft-3/cursor-rendering.md#race-targeting-and-held-item-integration).
+
+
+## Game-authored model orientation
+
+Protocol21 adds `entityState_t.pose_offset`, three float radians serialized by
+`NFT_VECTOR3_FLOAT`. The game supplies yaw offset, pitch and roll separately
+from the actor's authoritative horizontal `angle`. The universal client
+interpolates these fields using `LerpRotation`; the renderer adds offset yaw to
+`angle` and feeds pitch/roll into its existing quaternion and model basis.
+Zero preserves the previous upright transform. The delta test covers all three
+components and clearing them back to zero. WC3 owns terrain sampling and UI
+limits; this wire contract carries only the resulting pose. See
+[unit altitude](../games/warcraft-3/unit-altitude.md#authored-ground-orientation).

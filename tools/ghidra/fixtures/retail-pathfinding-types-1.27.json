@@ -933,6 +933,18 @@
           "name": "ai_record",
           "type": "WC3PathIdentity",
           "evidence": "Payoff153:687020 returns NULL for304/308 all-ones, otherwise resolves canonical payload;66e9e0 uses this pointer for victim-self handling. Live153 observer reads both identity words."
+        },
+        {
+          "offset": 656,
+          "name": "support_heading",
+          "type": "f32",
+          "evidence": "Payoff272 684480 cached heading; abs delta>=.001 rebuilds orientation independently of support queries."
+        },
+        {
+          "offset": 660,
+          "name": "support_orientation",
+          "type": "WC3FloatMatrix3",
+          "evidence": "Payoff272 6845f0 stack basis from virtual1b8 copied at6845f6..68460f."
         }
       ]
     },
@@ -5440,6 +5452,54 @@
           "name": "speed_delta",
           "type": "WC3PathScalar",
           "evidence": "63a950 and63ac00 write form-minus-original base through0702b0."
+        }
+      ]
+    },
+    {
+      "name": "WC3FloatVector3",
+      "length": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "x",
+          "type": "f32",
+          "evidence": "Payoff272 native presentation float, not software path scalar."
+        },
+        {
+          "offset": 4,
+          "name": "y",
+          "type": "f32",
+          "evidence": "Payoff272 native presentation float, not software path scalar."
+        },
+        {
+          "offset": 8,
+          "name": "z",
+          "type": "f32",
+          "evidence": "Payoff272 native presentation float, not software path scalar."
+        }
+      ]
+    },
+    {
+      "name": "WC3FloatMatrix3",
+      "length": 36,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "forward",
+          "type": "WC3FloatVector3",
+          "evidence": "Payoff272 66d990/1c7ba0 column-major support basis."
+        },
+        {
+          "offset": 12,
+          "name": "left",
+          "type": "WC3FloatVector3",
+          "evidence": "Payoff272 66d990/1c7ba0 column-major support basis."
+        },
+        {
+          "offset": 24,
+          "name": "normal",
+          "type": "WC3FloatVector3",
+          "evidence": "Payoff272 66d990/1c7ba0 column-major support basis."
         }
       ]
     }
@@ -18675,6 +18735,88 @@
         }
       ],
       "evidence": "Payoff271: plain RET. Applied100 and not retired200 gate; flags8000 branch adds original-base minus forme0-base to Move1ec through5fb740. Wider shared morph effects are not certified by the Polymorph lane."
+    },
+    {
+      "address": "6f66d990",
+      "name": "Unit_ComputeSupportOrientation",
+      "returns": "ptr:WC3FloatMatrix3",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3FloatMatrix3",
+          "storage": 4
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3FloatVector3",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff272 original operand ABI and repeated read-only support-orientation captures; Pose272Evidence.java."
+    },
+    {
+      "address": "6f1c7ba0",
+      "name": "Matrix3_ExtractYawPitchRoll",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3FloatMatrix3",
+          "storage": "ECX"
+        },
+        {
+          "name": "yaw",
+          "type": "ptr:f32",
+          "storage": 4
+        },
+        {
+          "name": "pitch",
+          "type": "ptr:f32",
+          "storage": 8
+        },
+        {
+          "name": "roll",
+          "type": "ptr:f32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff272 original operand ABI and repeated read-only support-orientation captures; Pose272Evidence.java."
+    },
+    {
+      "address": "6f1c6c40",
+      "name": "Matrix3_FromYawPitchRoll",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3FloatMatrix3",
+          "storage": "ECX"
+        },
+        {
+          "name": "yaw",
+          "type": "f32",
+          "storage": 4
+        },
+        {
+          "name": "pitch",
+          "type": "f32",
+          "storage": 8
+        },
+        {
+          "name": "roll",
+          "type": "f32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff272 original operand ABI and repeated read-only support-orientation captures; Pose272Evidence.java."
     }
   ],
   "globals": [

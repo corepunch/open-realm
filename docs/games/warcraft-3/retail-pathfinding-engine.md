@@ -16989,3 +16989,101 @@ this lane. **MOVE-01.1 remains open; no additional TODO or performance claim.**
 Full sources, raw accepted/diagnostic captures, map reproduction, binaries and
 validation reports are archived under `research/MOVE-01.1/payoff271/` in the WC3
 analysis report root.
+
+
+## Ground support publishes authored pitch and roll across bridges (Payoff272)
+
+**MOVE-03.3 is complete for the ordinary ground-unit three-tap lane.**
+`S_RefreshUnitSupport` preserves physical support and the actor's heading;
+`S_RefreshUnitSlope` authors a separate presentation orientation from
+`UnitUI.elevRad`, `maxPitch` and `maxRoll`. Previously those values were parsed
+but units remained upright. The generic snapshot carries radians in
+`entityState_t.pose_offset`; the universal client interpolates them and the
+renderer composes its existing quaternion/model basis. No WC3 terrain or clamp
+logic enters the client. Protocol21 and Save167 reject older layouts.
+
+Retail `66d990` takes ECX Unit, stack output matrix and point pointers, returns
+that output in EAX and pops8 bytes. `684480` passes a stack temporary and copies
+it into Unit+294 after the virtual call; filtering for output==Unit+294 misses
+all real updates. Unit+290 is the retained support heading. A heading delta at
+least0.001 rebuilds orientation even without a horizontal position change.
+A forced support query with unchanged XY/heading does not itself refresh the
+matrix. The regression checks both boundaries and save restoration.
+
+The native orientation samples terrain mode0 plus strictly higher walkable
+geometry at heading+pi, heading-pi/4 and heading+pi/4, at authored radius20 in
+this witness. `748470` builds Terrain+79c mode0 from the four decoded ground
+corners of each128-unit tile, in00/10/01/11 float addition order. This completed
+shared grid differs from physical packed-corner terrain and the maximized
+flyer field. Water is not substituted in these slope samples. Each tap more
+than or equal to2.5*radius below the highest tap is raised to that height before
+normal construction. The cross-product normal and projected heading produce
+an orthonormal basis; `1c7ba0` extracts Euler angles, clamps authored limits,
+and `1c6c40` reconstructs the matrix. Native pitch has the opposite sign from
+the engine's canonical nose-up pitch. Zero limits below0.001 bypass sampling.
+These numeric constants are recovered algorithm parameters, not case-specific
+rawcode exceptions.
+
+The accepted map retains the LT06 mesh, terrain and pathing from Work228c and
+adds stock Footman10/10-degree, authored3/5-degree and zero-limit0/0-degree
+crossings. The custom W3U real fields require datatype1; datatype2 was a
+rejected preparation attempt whose custom limits remained zero. The readonly
+Frida observer retains complete ordered callbacks, support source bits,
+physical positions, UI values, unclamped/clamped angles and published matrices.
+Two independent retail runs contain542 and378 orientation evaluations; all59
+public markers match each other and an unhooked control. Evaluation counts
+vary with presentation frames, so no equality of the full callback sequences
+is claimed. Repeated identical inputs publish identical words.
+
+The original-code oracle maps the SHA-pinned executable and shipped CRT. Only
+UI/heading/terrain/deck boundaries supply captured inputs. It executes unchanged
+`66d990`, Euler extraction, clamping, reconstruction and CRT math, reproducing
+all8,280 matrix words across920 captured poses. It also executes512 cases of
+unchanged physical interpolation `749a30`. That kernel subtracts the minimum
+corner before ordered bilinear accumulation; nested lerps caused27 crossing
+positions to differ by1–4ULP. `CM_GetHeightAtPoint` now uses the recovered
+ordered kernel. No existing retail expected values were replaced.
+
+The failing-first engine crossing produced3,406 failures out of7,599 checks;
+the completed test passes7,599, with exact authoritative height and heading
+words, support source bits and authored clamps. Matrix comparison permits
+2e-6 for the generic quaternion reconstruction and host CRT rounding; it is
+presentation tolerance, not authoritative movement tolerance. A separate512-case
+regression matches all original physical interpolation words. The test uses
+new literal WPM bytes from this accepted map. Work229's older fixture has176
+different corridor cells and remains unchanged. Reusing it was a rejected
+harness configuration, not evidence for changing deep-water expectations.
+
+`Pose272Evidence.java` saves vector/matrix layouts, Unit+290/+294 fields,
+explicit native ABIs, nine function mappings, labels, xrefs and original bytes.
+`MapPathfinding.java` and the type schema retain the same discoveries. A saved
+Ghidra readback is archived with accepted/rejected maps, raw captures, preload
+bytes, original-code outputs and regression logs under
+`research/MOVE-03.3/payoff272/` in the WC3 analysis root. Reproduce the fresh gate:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_pose272.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --test-binary /tmp/rank264-review/build/bin/openwarcraft3-tests \
+  --data build/tests --report /tmp/slope272-fresh.json
+```
+
+Classic/TFT focused validation passes235 tests and119,359 assertions per
+edition, plus12 evidence mutation tests. The corpus adds executable contract227;
+all507 previous entry contracts remain unchanged. Flying bank, zero-radius
+cached triangle normals, Unit+5c.100 exemptions, deformed terrain and higher
+presentation-grid modes remain outside this lane. This closes one concrete
+crossing task without claiming the remaining movement domains or a performance
+threshold. See [unit altitude](unit-altitude.md) for the support/presentation split.
+
+
+The shared-state change also received a full checkpoint:8,119 C tests and
+34,023,115 assertions across32 fresh JUnit reports, plus1,598 Python tests
+through the full target and its corrected37-case corpus rerun. The C checkpoint
+retains50 failed assertions in six Follow/Patrol cases per edition. Every
+complete assertion sequence matches the archived pre-change Payoff271 executable
+and module; their expectations were not modified. The umbrella command is
+therefore **not green**. Its first Python corpus class ran before refreshed
+source pins; the final isolated37-case rerun passes. Missing queued targets were
+run explicitly after make stopped scheduling on a failure. All failed attempts,
+baseline comparisons and final reports remain in the archive for follow-up.

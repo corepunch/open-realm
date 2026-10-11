@@ -55,7 +55,11 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**287 done / 336 tasks; 49 remaining.**
+**288 done / 336 tasks; 48 remaining.**
+
+Payoff272 closes MOVE-03.3 with repeated retail bridge/water crossings, original-code
+orientation/interpolation verification and engine-authored clamped ground poses.
+See [ground support pose](retail-pathfinding-engine.md#ground-support-publishes-authored-pitch-and-roll-across-bridges-payoff272).
 
 Payoff271 integrates Polymorph's authored movement profile, additive speed
 contribution and inverse, and negative buff removal retaining an active Move.
@@ -1541,7 +1545,7 @@ publication state; it does not close the original bonus writer or other effects.
 
 - [x] **MOVE-03.1** Cross a region boundary with nonzero elapsed time; assert enter/exit callback order relative to occupancy and support-height publication. Payoff85: complete repeated ground journeys,18 states/17 cell chains, original fine-cell registration controls and Move-owned publication; exact public world/support and primary callback clocks across5/10/25/50ms engine frames. [Evidence](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).
 - [x] **MOVE-03.2** Teleport or remove the mover from a region callback; assert no stale post-callback position/occupancy commit. Payoff85: teleport/new Move/queued leave and removal through actual native callbacks,629 literal commits and3418 Save94 suffix commits; no removed-owner commit, exact retained forced pose and same-clock event draining. [Evidence](retail-pathfinding-engine.md#region-callbacks-observe-committed-movement-and-retain-forced-changes).
-- [ ] **MOVE-03.3** Travel over one bridge/water support transition with nonzero UI limits; assert support source, height and clamped presentation transform.
+- [x] **MOVE-03.3** Travel over one bridge/water support transition with nonzero UI limits; assert support source, height and clamped presentation transform. [Payoff272](retail-pathfinding-engine.md#ground-support-publishes-authored-pitch-and-roll-across-bridges-payoff272):920 native poses, repeat/control markers, exact physical height/heading and authored10/10,3/5,0/0 clamps; generic snapshot/save/render regressions.
 
 ### MOVE-04 — Movement bypasses
 

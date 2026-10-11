@@ -52,15 +52,41 @@ static float support_sub(float a,float b) { volatile float r=a-b; return r; }
 static float support_mul(float a,float b) { volatile float r=a*b; return r; }
 static float support_div(float a,float b) { volatile float r=a/b; return r; }
 
-static flightSupport_t flight_support;
+static flightSupport_t flight_support, slope_support;
+
+/*748470 builds mode0 from four packed terrain vertices per128-unit tile.
+ * It is distinct from both physical height and the maximized flyer field. */
+static void slope_support_initialize(void) {
+    gi.MemFree(slope_support.values); slope_support=(flightSupport_t){0};
+    if (!world.map || !world.map->vertices || world.map->width<3 || world.map->height<3) return;
+    flightSupport_t *f=&slope_support;
+    f->width=world.map->width-1; f->height=world.map->height-1;
+    f->cell=TILE_SIZE; f->origin=world.map->center;
+    f->values=gi.MemAlloc((size_t)f->width*f->height*sizeof(float));
+    war3mapVertex_t const *vertices=world.map->vertices;
+    FOR_LOOP(y,f->height) FOR_LOOP(x,f->width) {
+        float z=0;
+        /* Native corner order:00,10,01,11 (6fb85aa4/6fb85ab4). */
+        static uint8_t const offsets[4][2]={{0,0},{1,0},{0,1},{1,1}};
+        FOR_LOOP(k,4) {
+            war3mapVertex_t const *v=vertices+(size_t)(y+offsets[k][1])*world.map->width+x+offsets[k][0];
+            float h=support_sub(support_div((float)v->accurate_height-8192.0f,4),HEIGHT_COR);
+            h=support_add(h,(float)v->level*TILE_SIZE);
+            z=support_add(h,z);
+        }
+        f->values[(size_t)y*f->width+x]=support_mul(z,.25f);
+    }
+}
 
 void S_ClearFlightSupport(void) {
     gi.MemFree(flight_support.values);
     flight_support = (flightSupport_t){0};
+    gi.MemFree(slope_support.values); slope_support=(flightSupport_t){0};
 }
 
 void S_InitFlightSupport(void) {
     S_ClearFlightSupport();
+    slope_support_initialize();
     if (!world.map || !world.map->vertices || world.map->width < 2 || world.map->height < 2) return;
     flightSupport_t *f = &flight_support;
     f->width = (world.map->width-1)*4;
@@ -182,8 +208,7 @@ void S_FinalizeFlightSupport(void) {
     gi.MemFree(f->values); f->values = completed; f->finalized = true;
 }
 
-bool S_GetFlightSupport(vec2_t point, float *height) {
-    flightSupport_t const *f = &flight_support;
+static bool support_interpolate(flightSupport_t const *f,vec2_t point,float *height) {
     if (!f->values) return false;
     float x = support_sub(support_div(support_sub(point.x,f->origin.x),f->cell),0.5f);
     float y = support_sub(support_div(support_sub(point.y,f->origin.y),f->cell),0.5f);
@@ -200,6 +225,76 @@ bool S_GetFlightSupport(vec2_t point, float *height) {
     z = support_add(z,support_mul(support_mul(nx,a[f->width]),y));
     *height = support_add(z,support_mul(support_mul(a[f->width+1],x),y));
     return true;
+}
+
+bool S_GetFlightSupport(vec2_t point,float *height) {
+    return support_interpolate(&flight_support,point,height);
+}
+
+static vec3_t slope_cross(vec3_t a,vec3_t b) {
+    return (vec3_t){support_sub(support_mul(a.y,b.z),support_mul(a.z,b.y)),
+        support_sub(support_mul(a.z,b.x),support_mul(a.x,b.z)),
+        support_sub(support_mul(a.x,b.y),support_mul(a.y,b.x))};
+}
+static vec3_t slope_normalize(vec3_t v) {
+    float square=support_add(support_mul(v.y,v.y),support_mul(v.x,v.x));
+    square=support_add(square,support_mul(v.z,v.z));
+    float inverse=support_div(1,(float)sqrt((double)square));
+    return (vec3_t){support_mul(v.x,inverse),support_mul(v.y,inverse),support_mul(v.z,inverse)};
+}
+
+/*66d990: the ordinary ground-unit three-tap presentation path. Never change
+ * the actor heading or physical support. Flying bank and zero-radius triangle
+ * normals have separate owners; those paths keep the existing upright pose. */
+void S_RefreshUnitSlope(edict_t *self) {
+    self->s.pose_offset=(orientation_t){0};
+    UnitUI_t const *ui=self->data.UnitUI;
+    if (!ui || (self->aiflags & AI_FLYING)) return;
+    float pitch_limit=wc3_degrees_to_radians(ui->maxPitchDegrees);
+    float roll_limit=wc3_degrees_to_radians(ui->maxRollDegrees);
+    if (fabsf(pitch_limit)<.001f && fabsf(roll_limit)<.001f) return;
+    float radius=ui->elevationSampleRadius;
+    if (fabsf(radius)<2.384185791015625e-7f) return;
+    if (!slope_support.values) slope_support_initialize();
+    if (!slope_support.values) return;
+    float heading=self->s.angle;
+    vec3_t forward={(float)cos((double)heading),(float)sin((double)heading),0};
+    float rear=-radius,low=support_sub(heading,.78539818525314331055f),high=support_add(heading,.78539818525314331055f);
+    vec3_t points[3]={
+        {support_add(self->s.origin.x,support_mul(forward.x,rear)),support_add(self->s.origin.y,support_mul(forward.y,rear)),0},
+        {support_add(self->s.origin.x,support_mul((float)cos((double)low),radius)),support_add(self->s.origin.y,support_mul((float)sin((double)low),radius)),0},
+        {support_add(self->s.origin.x,support_mul((float)cos((double)high),radius)),support_add(self->s.origin.y,support_mul((float)sin((double)high),radius)),0}};
+    float maximum=-FLT_MAX;
+    FOR_LOOP(i,3) {
+        float z,deck;
+        support_interpolate(&slope_support,(vec2_t){points[i].x,points[i].y},&z);
+        if(S_GetWalkableSupport((vec2_t){points[i].x,points[i].y},0,&deck) && deck>z)z=deck;
+        points[i].z=z;
+        if(maximum<=z)maximum=z;
+    }
+    float discontinuity=support_mul(radius,2.5f);
+    FOR_LOOP(i,3)if(support_sub(maximum,points[i].z)>=discontinuity)points[i].z=maximum;
+    vec3_t a={support_sub(points[1].x,points[0].x),support_sub(points[1].y,points[0].y),support_sub(points[1].z,points[0].z)};
+    vec3_t b={support_sub(points[2].x,points[0].x),support_sub(points[2].y,points[0].y),support_sub(points[2].z,points[0].z)};
+    vec3_t normal=slope_normalize(slope_cross(a,b));
+    vec3_t right=slope_cross(normal,forward);
+    forward=slope_normalize(slope_cross(right,normal)); right=slope_normalize(right);
+    float yaw,pitch,roll;
+    if(forward.z>=1 || forward.z<=-1) {
+        /*1c7ba0 singular branch; authored positive radii ordinarily stay regular. */
+        yaw=(float)atan2((double)-right.x,(double)right.y);
+        pitch=forward.z>=1?-(float)M_PI_2:(float)M_PI_2;roll=0;
+    } else {
+        yaw=(float)atan2((double)forward.y,(double)forward.x);
+        pitch=(float)asin((double)-forward.z);
+        roll=(float)atan2((double)right.z,(double)normal.z);
+    }
+    if(pitch<-pitch_limit)pitch=-pitch_limit;else if(pitch>pitch_limit)pitch=pitch_limit;
+    if(roll<-roll_limit)roll=-roll_limit;else if(roll>roll_limit)roll=roll_limit;
+    float offset=support_sub(yaw,heading);
+    if(offset<-(float)M_PI)offset=support_add(offset,(float)(2*M_PI));
+    else if(offset>(float)M_PI)offset=support_sub(offset,(float)(2*M_PI));
+    self->s.pose_offset=(orientation_t){offset,-pitch,roll};
 }
 
 /* The completed values describe map-start history, including objects later
@@ -315,5 +410,24 @@ TEST(wc3_support, field_codec_preserves_native_grid_and_rejects_invalid_payloads
         FOR_LOOP(i,64) T_EQ(wc3_float_bits(saved[i]),flight228_map[i]);
     }
     S_ClearFlightSupport(); reset_entities(); setup_test_world();
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "tests/fixtures/retail_slope272.h"
+TEST(wc3_support, presentation_height_grid_matches_read_only_retail_capture) {
+    extern void reset_entities(void),setup_test_world(void);
+    reset_entities();setup_test_world();
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    war3mapVertex_t *v=world.map->vertices;
+    FOR_LOOP(y,17)FOR_LOOP(x,17) {
+        bool water=y<=10 && x>=4 && x<=12;
+        v[y*17+x]=(war3mapVertex_t){.accurate_height=water?
+            0x2000-4*((x==4||x==5||x==11||x==12)?64:192):0x2000,
+            .waterlevel=8550,.water=water,.level=y>=12&&x>=8?3:2};
+    }
+    S_InitFlightSupport();T_EQ(slope_support.width,16);T_EQ(slope_support.height,16);
+    FOR_LOOP(i,256)T_EQ(wc3_float_bits(slope_support.values[i]),slope272_grid[i]);
+    reset_entities();setup_test_world();
 }
 #endif
