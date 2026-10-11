@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "227 executable original/evidence contracts;508 total entries.",
+  "scope": "228 executable original/evidence contracts;509 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -52111,6 +52111,70 @@
         "Unicorn callee boundaries supply authored UI, heading and live captured terrain/deck heights; original66d990, Euler routines, clamping and shipped CRT execute unchanged.",
         "Generic runner retains GROUP-03.2 metadata; map, probe, observer, binary and helper pins identify MOVE-03.3."
       ]
+    },
+    {
+      "id": "oracle-capscope273",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_capscope273.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "capscope273.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 182
+        },
+        "publications": {
+          "equal": 17
+        },
+        "targeted": {
+          "equal": 3
+        },
+        "scope_boundaries": {
+          "equal": 68
+        },
+        "target_boundaries": {
+          "equal": 68
+        },
+        "native_cases": {
+          "equal": 24
+        },
+        "engine_cases": {
+          "equal": 16
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "MAP-04.2/GROUP-04.6 canonical Captain readiness/publication and target-before-member counted exclusions, pending/drop/alias nested depths, nested replacement/rejection/cold saves.",
+      "exclusions": [
+        "Canonical Captain admission/publication and target fallback.24 unchanged original fixture cases;16 engine cases cover no target,distinct,member alias,invalid generation at outer depths0/3,ready/drop. Cached/retired region cases are original-code evidence only; current engine Captain producer has no cached-region input.",
+        "Two complete read-only Captain repeats and observer-free control retain182 identical public markers;17 publications each,3 with target fallback,68 member scope boundaries and68 target-toggle boundaries. Capture runner metadata retains its historical GROUP-03.2 task label and extra unused sources; actual map/probe/AI/observer pins are explicit.",
+        "No arbitrary notification reentrancy, no full MAP-04.2 or GROUP-04.6 closure, no new performance claim. Existing movement and save fixtures are unchanged."
+      ]
     }
   ],
   "fixtures": [
@@ -52176,7 +52240,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "bb573f0d550e188557ec58e14266b736566dcb484082b7a98a5f51a60e662edc"
+      "sha256": "d8abf2c2a0cba07413806ded9ee90d273677e7a58c883d37ca24c7a0dbba8b08"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -53009,7 +53073,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "6fef7fc1c1c90e24968246e23b988bcfa65442e6f322be9c81fd1ce1dc182324"
+      "sha256": "5afe733a8c722c24f5f91e0d45d58c76206e4f5a49dfa8d7b0d9d01ce076075c"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -53865,7 +53929,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "a32d79c8d8728ab0d8a500466c6376ce525c90bbcc1beb3813d0ebb267553355"
+      "sha256": "b9330bc57870d5cd276bed8a7621bb24f550c876361074f58c74d288015b343c"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -54557,7 +54621,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "07074de4110c35382952de251dab5c6e5cd0686be7fe87dfc4e535fd404ad45c"
+      "sha256": "d4de8a274aabf0f47f1430cccd484a2ab67a4cc08031876fecbb0dc1e73c4127"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -54801,7 +54865,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "391c0ebdf1fe1f2bd619506f82e3d6c4c8a3157b7911a46b1c80349239582641"
+      "sha256": "2e97311eab257a094da58b25245f8f8cd79c6f6b51aceff49a1f1fe0e7fd32ce"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -54817,7 +54881,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "0ca462f0f3f6796792b8577750fe835aff8261f7b0414c484b6e2d56b8649d22"
+      "sha256": "73299e0b122bfd485caeb9e2e1b9310959d0a6eb39e02a603a23045cac97af7d"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -57681,7 +57745,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-exclusions.md",
-      "sha256": "25dfe87b775b0581b70cd0bfcac706060dc67a968a529f9f72331df765a8300d"
+      "sha256": "0db6af08e200c6f9f5fb7c92cad94c17ee5b146b6b2ab14afaefde7433c9175a"
     },
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_region_bounds230.h",
@@ -57761,7 +57825,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-queued-cohorts.md",
-      "sha256": "a74a6459916002cd23f892031e80a6cbaf668037ccb2cc726b929191ea0ccb28"
+      "sha256": "6a6fd410656518dd017ab32703e9005a651b41c55c31aaf95a945d4411ded2c9"
     },
     {
       "path": "tools/frida/research/work232_observer.js",
@@ -59182,6 +59246,54 @@
     {
       "path": "tests/test_wc3_pathfinding_pose272.py",
       "sha256": "71e9b867cb161268df41012ab069d6c6d0649dc7b7c7b4e1c5841d748febe80a"
+    },
+    {
+      "path": "tools/frida/research/capscope273_probe.j",
+      "sha256": "5daf2811806cd880ef17ae0075adf56ada932b6f1f39f75ac015c8b11d2f4a3e"
+    },
+    {
+      "path": "tools/frida/research/capscope273_probe.ai",
+      "sha256": "f13c4b451061d127b93207c88dd490b161b7aafc14df95606d17b05474ac42b2"
+    },
+    {
+      "path": "tools/frida/research/capscope273_observer.js",
+      "sha256": "a4e108a107682bf83e50fd0368be28777b380108430363f450821bdf0375207b"
+    },
+    {
+      "path": "tools/frida/research/capscope273_make_map.py",
+      "sha256": "602682fe9830c3af6761c47abad2226bd90873dbf107b8585171f0eda75bb30f"
+    },
+    {
+      "path": "tools/ghidra/research/Capscope273Evidence.java",
+      "sha256": "bba5a1db08b70fbb4b45bece8051360a64e17642ca735b5f630724f200ca662d"
+    },
+    {
+      "path": "tools/ghidra/research/capscope273_oracle.py",
+      "sha256": "d2077b89011c1a24d39402edd2648993b620ee4bec1f9f77f7512457b4611034"
+    },
+    {
+      "path": "tools/ghidra/research/capscope273_header.py",
+      "sha256": "3219b92f7e02afc3275540bee67b7a02bfcf66cfa13f73734b0f0445ec2f189e"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_capscope273.py",
+      "sha256": "50dcd8b0ff715602f259f96f90862ce841695fc73031538491a1b71e0ffd26cb"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-capscope273-1.27.json",
+      "sha256": "3d1265a952d37bf5e7e0601552ef50c5f7b1111191c8df8f24bb9c1ec2977ac2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-capscope273-1.27.json.gz",
+      "sha256": "2c10368321c3319b02e425c14f8f975002c0016b3cb01bac22d5d3328ed28527"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_capscope273.h",
+      "sha256": "995bdb31914c2a396cbb5ba2c6505e2f00bff3a98f6d55917008a557c412fecb"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_capscope273.py",
+      "sha256": "486fb62f4d78f61f03a7f391a91032dc2f78018f9db772638cd7bfc8fbe19383"
     }
   ]
 }

@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **288 done / 336 tasks; 48 remaining.**
 
+Payoff273 removes the separate Captain prebinding path: Captain packets now use
+canonical attachments/readiness, target-first/member-counted exclusion scopes
+and deferred physical publication. New failing-first scope, alias, drop, nested
+replacement/rejection and cold-save regressions retain earlier movement fixtures.
+Two retail repeats/control and24 original cases are frozen; MAP-04.2/GROUP-04.6
+remain open for their wider owners. See [Captain canonical publication](retail-pathfinding-exclusions.md#captain-publication-uses-canonical-exclusions-payoff273).
+
+
 Payoff272 closes MOVE-03.3 with repeated retail bridge/water crossings, original-code
 orientation/interpolation verification and engine-authored clamped ground poses.
 See [ground support pose](retail-pathfinding-engine.md#ground-support-publishes-authored-pitch-and-roll-across-bridges-payoff272).

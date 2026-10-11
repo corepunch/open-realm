@@ -835,3 +835,12 @@ The inventory contains198 executable oracles/479 entries. This is implementation
 5/12 after full checkpoint238; the full suite is reserved for the agreed batch
 checkpoint. Neither the frame budget nor all remaining retail gaps are claimed
 complete by this change.
+
+## Captain packets share canonical publication (Payoff273)
+
+Captain preparation now retains `movePointRequest_t` attachments and readiness,
+then uses `move_request_publish` and `move_group_partition_ready`. It no longer
+prebinds a physical owner during recipient admission. Target/member counted fine
+exclusions cover partition and route seeding; shared references begin only at
+physical publication. The older `move_group_publish_ready` adapter is removed.
+See [scope evidence and limits](retail-pathfinding-exclusions.md#captain-publication-uses-canonical-exclusions-payoff273).

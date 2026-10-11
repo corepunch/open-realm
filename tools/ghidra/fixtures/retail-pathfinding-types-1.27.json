@@ -2237,6 +2237,12 @@
           "evidence": "Original decoded x86 operands and two read-only scene50 Shift captures; canonical candidate request is distinct from physical group. Undefined bytes remain undefined."
         },
         {
+          "offset": 244,
+          "name": "cached_target_region",
+          "type": "ptr:WC3SpatialPrefix",
+          "evidence": "Payoff273 16aff0: prefer while region38!=-1; clear retired cache then use resolved target mover98. Supplied original fixture cache cases; public Captain captures haveNULL cache."
+        },
+        {
           "offset": 248,
           "name": "shared_parameters",
           "type": "ptr:void",
@@ -18817,6 +18823,47 @@
         }
       ],
       "evidence": "Payoff272 original operand ABI and repeated read-only support-orientation captures; Pose272Evidence.java."
+    },
+    {
+      "address": "6f16aff0",
+      "name": "MoveRequest_ResolveTargetRegion",
+      "returns": "ptr:WC3SpatialPrefix",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f16be70",
+      "name": "MoveRequest_ResolveTargetMover",
+      "returns": "ptr:WC3MoverPrefix",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f16da60",
+      "name": "MoveRequest_ToggleTargetRegionExclusion",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3MoveRequestCanonical",
+          "storage": "ECX"
+        },
+        {
+          "name": "acquire",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [

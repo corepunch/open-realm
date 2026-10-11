@@ -4889,7 +4889,9 @@ typedef struct {
     moveRequestCandidate_t candidates[BZ_WC3_GROUP_ORDER_UNITS];
     uint32_t count,attached,ready,id,history,flags;
     moveGroup_t *inherited;
-    uint64_t inherited_sequence;
+    uint64_t inherited_sequence,shared_id;
+    edict_t *target;
+    uint32_t target_spawn;
     vec2_t goal;
     bool published;
 } movePointRequest_t;
@@ -4906,9 +4908,6 @@ static struct {
     movePointRequest_t *request;
     uint32_t queued_context;
 } move_group_admission;
-
-static moveGroup_t *move_group_create_request(groupPointOrder_t const *request,uint64_t shared_id,
-                                              edict_t *target,uint32_t context);
 
 /* Native Shift preserves the common point and publishes the latest submitted
  * request identity independently of queued activation. Each completion can
@@ -4947,7 +4946,6 @@ static bool move_queue_group_point(groupPointOrder_t const *request) {
 }
 
 static void move_group_seed_route(moveGroup_t *group);
-static void move_group_publish_ready(moveGroup_t *group);
 
 /* Smart and nearby target Move approach once before persistent Follow.
  * Distant explicit Move begins persistent without an intermediate owner. */
@@ -5217,78 +5215,6 @@ static unsigned move_group_partition_ready(moveGroup_t *group,moveReadyCohort_t 
     owner->ticking=false;return count;
 }
 
-static void move_group_publish_ready(moveGroup_t *group) {
-    moveReadyCohort_t ready={.count=group->count};
-    FOR_LOOP(i,group->count) {
-        moveGroupMember_t member=group->members[i];ready.members[i]=member;
-        /* Later ordinary admission callbacks can replace/remove an earlier
-         * candidate. Never reclaim ownership from that callback's new order. */
-        if(member.unit && member.unit->inuse && !G_IsDeferredFree(member.unit) &&
-           member.unit->spawn_time==member.spawn && move_unit_group(member.unit)==group)
-            ready.remaining|=1u<<i;
-    }
-    group->count=0;group->radius=0;
-    if(!ready.remaining){group->ticking=false;move_release_group(group);return;}
-    move_group_partition_ready(group,&ready);
-}
-
-static moveGroup_t *move_group_create_request(groupPointOrder_t const *request,uint64_t shared_id,
-                                              edict_t *target,uint32_t context) {
-    moveGroup_t *group=move_alloc_group();
-    group->inuse=group->ticking=true; group->id=context ? context : move_allocate_group_id();
-    group->request_id=group->id;
-    group->goal=move_point_fine(request->point); group->age=UINT32_MAX;
-    if (target) {
-        wc3GridPose_t pose; unit_predicted_pose(target,&pose);
-        group->goal=(vec2_t){pose.grid[0],pose.grid[1]};
-        group->target=target; group->target_spawn=target->spawn_time;
-    }
-    /* Native89caf0 sets canonical2/4/8 from packet10;16bdb0 copies
-     * them to the physical owner before its first tick. */
-    group->flags=request->formation_toggle ? 14u : 0;
-    if (shared_id) {
-        moveShared_t *shared=S_FindMoveShared(shared_id);
-        if (!shared) gi.error("Move: missing new shared parameter owner");
-        if (shared->references==UINT32_MAX) gi.error("Move: shared parameter reference overflow");
-        group->shared_id=shared_id; shared->references++;
-        /* Target policy0 omits100; activation enables persistent completion.
-         * Both captain families retain800 and extra target refresh400. */
-        group->flags|=target ? 0x1c01 : 0xd00;
-    }
-    return group;
-}
-
-static bool move_group_admit_candidate(moveGroup_t *group,groupPointOrder_t const *request,uint32_t i) {
-    edict_t *unit=request->units[i].unit;
-    if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) return false;
-    typeof(move_group_admission) previous=move_group_admission;
-    move_group_admission=(typeof(move_group_admission)){unit,*request->point};
-    bool accepted=unit_issueorder(unit,request->order,request->point);
-    move_group_admission=previous;
-    if (!accepted) return false;
-    if (unit->current_order_id!=request->order_id || unit->currentmove!=&move_move_walk) return true;
-    moveGroupMember_t *member=group->members+group->count++;
-    /* The prepared captain packet carries zero approach range. Its Move
-     * activation installs the ordinary .49 threshold, even with a target;
-     * this differs from individually reissued captain followers. */
-    *member=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
-        .arrival_range=wc3_point_arrival_range(0)};
-    unit->movement.group_id=group->id;move_unit_groups[unit-g_edicts]=group;
-    unit->movement.previous_request_id=group->id;
-    if (unit->collision>group->radius) group->radius=unit->collision;
-    return true;
-}
-
-static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target) {
-    if (!request->count) return false;
-    if (request->queued) return move_queue_group_point(request);
-    moveGroup_t *group=move_group_create_request(request,shared_id,target,0);
-    bool any=false;
-    FOR_LOOP(i,request->count)if(move_group_admit_candidate(group,request,i))any=true;
-    move_group_publish_ready(group);
-    return any;
-}
-
 /*6bcc40 compares retained nine-word candidate rows. Unsigned subtraction
  * preserves native signed32 wrap without undefined C signed overflow. */
 static int32_t move_compare_point_candidates(uint32_t const a[7],uint32_t const b[7]) {
@@ -5338,7 +5264,19 @@ static void move_request_attach(movePointRequest_t *request,edict_t *unit) {
  * Release re-resolves the member's current fine object. Neither the ready
  * mask nor a cohort's reordered/consumed rows own this lifetime. Fine holds
  * leave the cached coarse hierarchy untouched. */
+/*16aff0/16da60: the current target fine object is resolved at each boundary.
+ * Captain requests have no cached-region producer. A target/member alias owns
+ * two counted holds; attachment deduplication does not merge these owners. */
+static void move_request_target_exclusion(movePointRequest_t const *request,bool acquire) {
+    edict_t *target=request->target;
+    if(!target || !target->inuse || target->spawn_time!=request->target_spawn || G_IsDeferredFree(target))return;
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RecordObject_t *record=map->objects ? wc3_records_owned(map,target-g_edicts) : NULL;
+    if(record) {if(acquire)record->flags++;else record->flags--;}
+}
+
 static void move_request_exclusions(movePointRequest_t *request,bool acquire) {
+    if(acquire)move_request_target_exclusion(request,true);
     FOR_LOOP(i,request->count) {
         edict_t *unit=move_request_member(request,i);
         if(!unit) {if(acquire)request->ready&=~(1u<<i);continue;}
@@ -5346,6 +5284,7 @@ static void move_request_exclusions(movePointRequest_t *request,bool acquire) {
         wc3RecordObject_t *record=map->objects ? wc3_records_owned(map,unit-g_edicts) : NULL;
         if(record) {if(acquire)record->flags++;else record->flags--;}
     }
+    if(!acquire)move_request_target_exclusion(request,false);
 }
 
 static int move_request_publish(movePointRequest_t *request) {
@@ -5382,6 +5321,13 @@ static int move_request_publish(movePointRequest_t *request) {
             moveGroup_t *group=move_alloc_group();
             group->inuse=group->ticking=true;group->id=request->id;group->request_id=request->history;
             group->age=UINT32_MAX;group->goal=request->goal;group->flags=request->flags;
+            group->target=request->target;group->target_spawn=request->target_spawn;
+            group->shared_id=request->shared_id;
+            if(group->shared_id) {
+                moveShared_t *shared=S_FindMoveShared(group->shared_id);
+                if(!shared || shared->references==UINT32_MAX)gi.error("Move: invalid canonical shared owner");
+                shared->references++;
+            }
             result=move_group_partition_ready(group,&ready);
         }
         request->published=true;request->ready=0;
@@ -5421,6 +5367,30 @@ static bool move_request_admit(movePointRequest_t *prepared,groupPointOrder_t co
         unit->currentmove==&move_move_walk && !move_unit_group(unit))move_request_ready(prepared,unit);
     else move_request_drop(prepared,unit);
     return accepted;
+}
+
+/* Captain and selected packets share canonical attachment/readiness ownership.
+ * Preparation allocates an identity, not a provisional physical group. Nested
+ * admission callbacks see no newly bound members until the last pending row
+ * becomes ready or drops. Target/member fine holds cover partition and seed. */
+static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target) {
+    if(!request->count)return false;
+    if(request->queued)return move_queue_group_point(request);
+    movePointRequest_t prepared={.id=move_allocate_group_id(),.goal=move_point_fine(request->point),
+        .flags=request->formation_toggle ? 14u : 0,.shared_id=shared_id,.target=target};
+    prepared.history=prepared.id;
+    if(target) {
+        wc3GridPose_t pose;unit_predicted_pose(target,&pose);
+        prepared.goal=(vec2_t){pose.grid[0],pose.grid[1]};prepared.target_spawn=target->spawn_time;
+    }
+    if(shared_id) {
+        if(!S_FindMoveShared(shared_id))gi.error("Move: missing new shared parameter owner");
+        prepared.flags|=target ? 0x1c01 : 0xd00;
+    }
+    FOR_LOOP(i,request->count)move_request_attach(&prepared,request->units[i].unit);
+    bool any=false;
+    FOR_LOOP(i,request->count)if(move_request_admit(&prepared,request,i))any=true;
+    return any;
 }
 
 /*6b8c10/89cd10: prepare canonical requests before callbacks, retain attachment

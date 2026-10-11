@@ -640,3 +640,96 @@ instruction guards mirrored through `MapPathfinding.java`. Reproduce with:
 Archive: `research/MAP-04.2/payoff258/` under the pathfinding reports root.
 MAP-04.2 remains open for canonical target-region, notification and public
 cleanup compositions. No frame-time target is accepted by this chunk.
+
+
+## Captain publication uses canonical exclusions (Payoff273)
+
+Captain packets now enter `movePointRequest_t` alongside selected and queued
+point requests. Preparation retains ordered attachments and readiness without
+allocating or binding a provisional physical group. Each recipient completes
+its ordinary admission callbacks before becoming ready or dropping. Once no
+attached member is pending, publication acquires fine exclusions, partitions
+physical cohorts and seeds their routes, then restores exclusions. Shared-owner
+references begin at physical publication; target identity, predicted destination,
+formation policy and shared parameters are copied there. Existing recursive
+partition storage and ordered owner traversal remain unchanged.
+
+The removed Captain-only `move_group_create_request`,
+`move_group_admit_candidate` and `move_group_publish_ready` path bound earlier
+recipients before later callbacks and never acquired the canonical fine scope.
+`move_group_partition_ready` is now the common physical publication operation.
+The older partition235 test feeds its three frozen ready rows directly to this
+operation; its expected partitions, membership order and positions are unchanged.
+No save-layout or protocol change is needed: the canonical request remains a
+bounded synchronous stack context.
+
+Original `169c50` calls `16da60(1)` **before** excluding every live attachment,
+including pending candidates. `169d60` re-resolves the attachment identities,
+releases their current fine objects, then calls `16da60(0)` **last**. Consumed
+readiness rows do not own the release. `16da60` increments/decrements the full
+`+40` word; it neither booleanizes nested depth nor deduplicates a member which
+also supplies the target. Such an alias receives two holds and two releases.
+Fine holds do not rebuild the coarse hierarchy.
+
+`16aff0` first uses canonical `+f4` if that region's `+38` is not `-1`. A retired
+cache is cleared, then canonical target identity `+dc/+e0` resolves through
+`16be70`/`054530`, returning target mover `+98`. Invalid generations return null.
+The engine's current Captain producer has no cached-region input; this change
+implements target fallback without inventing a first-widget-region substitution.
+Cached/retired-cache cases remain evidence for that future producer.
+
+Two complete read-only retail captures and one observer-free control use
+`capscope273_probe.j`/`.ai` in a frozen Work235b geometry map. They retain all182
+public order/position markers exactly. Each observed run has17 publications,
+68 member-scope boundaries and68 target-toggle boundaries; three requests have
+non-null targets and null caches. The initial observer attempted to read the
+canonical request after successful publication had retired its identity. The
+accepted observer instead retains the entry identity and reports only the return
+value at that point; both rejected captures are archived. No native call or
+memory write is made by the observer.
+
+The original-code matrix executes unchanged native allocation, wrapper admission,
+readiness/drop, publication and target-resolution functions in24 constructed
+cases: no target, distinct target, target/member alias, invalid generation, valid
+cache and retired cache, each at outer depths0/3 with readiness or a dropped
+member. Only the inherited Storm allocation adapters replace executable functions;
+hierarchy and VM storage are supplied as in Work248. Observer-free executions
+retain every final state. The16 non-cache cases generate literal engine boundary
+expectations. The cache cases are not claimed as engine or public-input coverage.
+
+Failing-first checks record78 failures in the old engine. Final production tests
+also exercise real Captain admission, nested replacement of an earlier recipient,
+Stop inside a later callback, a rejected last recipient, empty publication,
+shared-reference validation and cold saves. The initial cold-save harness used
+an ordinary unit as a fake virtual Captain target without its required Follow
+binding; the serializer correctly rejected it. The accepted nested/save fixture
+uses the actual shared point producer. Existing public virtual-target journeys
+supply the target/save coverage; their captured expectations remain unchanged.
+
+Ghidra saves the target resolver/cache field and three explicit operand ABIs,
+plus acquisition/release/publication notes. `Capscope273Evidence.java` exports
+six function bodies and257 instruction guards with their real xrefs. The saved
+readback and `MapPathfinding.java`/type schema retain this mapping.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_capscope273.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/capscope273-fresh.json
+```
+
+Archive: `research/MAP-04.2/payoff273/` under the pathfinding reports root.
+MAP-04.2 remains open for cached-region producers, unresolved recovery
+notifications and public duplicate-cleanup/stale-handle compositions. GROUP-04.6
+retains its wider persistent-owner/task/save requirements. This chunk closes
+neither task and makes no performance claim.
+
+Focused validation passes118 existing Captain/partition/queue test executions
+(5,437,744 assertions), plus the six new Classic/TFT executions (6,062 assertions).
+The six Python evidence/negative checks and37 corpus checks pass. Production and
+test game modules build. Full validation follows the authorized batch cadence;
+the earlier Follow/Patrol baseline failures are not claimed fixed here.
+The global type-schema replay refuses a pre-existing incompatible
+`WC3MoverPrefix` in the shared Ghidra database; it does not overwrite that type.
+The focused evidence script persists and verifies its own field/prototypes;
+saved exports3/4 are byte-identical. This is not a global schema/database audit.
