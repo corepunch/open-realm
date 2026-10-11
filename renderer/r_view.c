@@ -113,6 +113,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     }
 
     if ((tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) && tr.viewDef.num_entities > 0) {
+        render_phase_t const saved_phase = tr.render_phase;
         renderEntity_t const *entity = &tr.viewDef.entities[0];
         float aspect = (tr.viewDef.viewport.w * tr.drawableSize.width) > 0.0f
             ? (tr.viewDef.viewport.w * tr.drawableSize.width) / (tr.viewDef.viewport.h * tr.drawableSize.height)
@@ -134,14 +135,18 @@ void R_RenderFrame(viewDef_t const *viewDef) {
         if (!particle_scene) particle_scene = &temporary_particles;
         bool const temporary_particle_scene = particle_scene == &temporary_particles;
         cparticle_t *previous_particles = R_BeginParticleScene(particle_scene);
+        tr.render_phase = RENDER_PHASE_SOLID;
         R_DrawEntityCameraEventSpawns(entity->model, entity->instance_id);
         R_DrawEntities();
+        tr.render_phase = RENDER_PHASE_ALPHA;
+        R_DrawAlphaSurfaces();
         if (isolated_particles && !(tr.viewDef.rdflags & RDF_NOPARTICLES))
             R_DrawParticles();
         R_EndParticleScene(particle_scene, previous_particles);
         if (temporary_particle_scene || (tr.viewDef.rdflags & RDF_NOPARTICLES))
             R_ClearParticleScene(particle_scene);
         R_RevertSettings();
+        tr.render_phase = saved_phase;
         if (viewDef->rdflags & RDF_NOWORLDMODEL) tr.viewDef = saved;
         return;
     }

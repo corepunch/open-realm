@@ -60,16 +60,15 @@ uint32_t UI_FindFrameNumber(cstring_t name) {
 
 static void UI_CopyFrameBase(uiFrame_t *dest, frameDef_t const *src) {
     AddFrame(src);
-    /* Each axis is a separate array; indexing X past FPP_COUNT is undefined even though Y follows it. */
-    FOR_LOOP(axis, 2) {
-        uiFramePoint_t *dst = axis ? dest->points.y : dest->points.x;
-        framePoint_t const *point = axis ? src->Points.y : src->Points.x;
-        FOR_LOOP(i, FPP_COUNT) {
-            dst[i].targetPos = point[i].targetPos;
-            dst[i].used = point[i].used;
-            dst[i].relativeTo = FindFrameNumber(point[i].relativeTo, UI_PARENT);
-            dst[i].offset = (int16_t)(point[i].offset * UI_FRAMEPOINT_SCALE);
-        }
+    FOR_LOOP(i, FPP_COUNT) {
+        dest->points.x[i].targetPos = src->Points.x[i].targetPos;
+        dest->points.x[i].used = src->Points.x[i].used;
+        dest->points.x[i].relativeTo = FindFrameNumber(src->Points.x[i].relativeTo, UI_PARENT);
+        dest->points.x[i].offset = (int16_t)(src->Points.x[i].offset * UI_FRAMEPOINT_SCALE);
+        dest->points.y[i].targetPos = src->Points.y[i].targetPos;
+        dest->points.y[i].used = src->Points.y[i].used;
+        dest->points.y[i].relativeTo = FindFrameNumber(src->Points.y[i].relativeTo, UI_PARENT);
+        dest->points.y[i].offset = (int16_t)(src->Points.y[i].offset * UI_FRAMEPOINT_SCALE);
     }
     static char tooltip[1024];
     cstring_t tooltip_text = NULL;
@@ -93,6 +92,7 @@ static void UI_CopyFrameBase(uiFrame_t *dest, frameDef_t const *src) {
     dest->flags.type = src->Type;
     dest->flags.alphaMode = src->AlphaMode;
     dest->flagsvalue |= src->ui_flags & (UIFLAG_EXTEND_WIDESCREEN_X | UIFLAG_MINIMAP_PREVIEW);
+    if (src->disabled) dest->flagsvalue |= UIFRAME_DISABLED;
     dest->textLength = src->TextLength;
     dest->stat = src->Stat;
     dest->text = src->Text;

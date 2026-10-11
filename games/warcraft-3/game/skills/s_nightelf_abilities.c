@@ -38,6 +38,7 @@ void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
     for (uint32_t i = 1; i < total; i++) {
         edict_t *next = NULL;
         FILTER_EDICTS(other, other != attacker && S_SpellIsAliveTarget(other) &&
+                      S_AttackHitAllowed(attacker, primary, other) &&
                       S_SpellIsEnemy(attacker, other) &&
                       Vector2_distance(&other->s.origin2, &current->s.origin2) <= range) {
             bool seen = false;
@@ -83,8 +84,15 @@ float S_SlowPoisonAttackReduction(edict_t const *unit) {
 /* ---- Barkskin (Abar): modal autocast of a timed friendly armor buff ------- */
 
 static bool barkskin_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    return spell && st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity) &&
-        S_SpellAllowsTarget(spell->code, caster, st.entity);
+    uint32_t level;
+    cstring_t buff;
+    wc3_status_apply_check_t result;
+    if (!spell || !st.entity || !S_SpellIsAliveTarget(st.entity) || !S_SpellIsFriend(caster, st.entity) ||
+        !S_SpellAllowsTarget(spell->code, caster, st.entity)) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = S_SpellBuffId(spell->code, level);
+    result = unit_status_checkapplication(st.entity, &(status_application_t){ .buff = buff, .level = level });
+    return result == WC3_STATUS_APPLY_FREE_SLOT || result == WC3_STATUS_APPLY_REUSE;
 }
 
 static void barkskin_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {

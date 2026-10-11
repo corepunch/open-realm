@@ -474,6 +474,7 @@ typedef struct {
     vertex_t const *vertices;
     uint32_t vertexCount;
     bool repeat;
+    TEXMAP_FLAGS wrap; /* per-axis repeat on top of `repeat` */
     bool opaque; /* GL_BLEND off: texture alpha ignored */
 } drawImageBatchParams_t;
 void R_DrawImageBatch(texture_t const *texture, SHADERTYPE shaderType, BLEND_MODE alphamode, float uActiveGlow, float uRadialShade, bool hasClip, rect_t const *clip, vertex_t const *vertices, uint32_t num_vertices, bool repeat);
@@ -492,6 +493,7 @@ bool R_GetModelInfo(model_t *model, modelInfo_t *info);
 bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vec3_t *out);
 bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vec3_t *out);
 rect_t R_UISceneRect(void);
+void R_DrawViewBlend(void);
 void R_SetUIScene(rect_t const *scene);
 
 // r_font.c

@@ -73,6 +73,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 invisibility causes, detector integration, Wind Walk/Ghost/item invisibility, Ghost Visible/Burrow compatibility policy | [docs/games/warcraft-3/invisibility.md](docs/games/warcraft-3/invisibility.md) |
 | WC3 natural neutral-creep sleep, `canSleep`, sleep natives, wake rules, and known camp gaps | [docs/games/warcraft-3/creep-sleep.md](docs/games/warcraft-3/creep-sleep.md) |
 | WC3 Stop guard position, automatic-combat return, explicit-order priority, and broader creep/JASS guard follow-up | [docs/games/warcraft-3/guard-position.md](docs/games/warcraft-3/guard-position.md) |
+| WC3 Neutral Hostile camp assistance, creep guard leash, scripted guard controls and persistence | [docs/games/warcraft-3/neutral-creep-guard.md](docs/games/warcraft-3/neutral-creep-guard.md) |
 | WC3 regeneration auras and Fountain health/mana alias/data flow | [docs/games/warcraft-3/regeneration-auras.md](docs/games/warcraft-3/regeneration-auras.md) |
 | WC3 aura target masks, RoC rank columns, source pattern vs recipient glow | [docs/games/warcraft-3/aura-targets-and-overlays.md](docs/games/warcraft-3/aura-targets-and-overlays.md) |
 | WC3 mutable Blight world state, Abli growth, placement/regen, JASS natives, save/load | [docs/games/warcraft-3/blight.md](docs/games/warcraft-3/blight.md) |
@@ -170,6 +171,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 player AI, Blizzard AI script contract, Human02 implementation plan | [docs/games/warcraft-3/player-ai.md](docs/games/warcraft-3/player-ai.md) |
 | WC3 player AI architecture and implementation postmortem | [docs/games/warcraft-3/player-ai-postmortem.md](docs/games/warcraft-3/player-ai-postmortem.md) |
 | WC3 client UI lifecycle, glue Birth/Stand/Death transitions, single-player campaign/mission/custom-game flow | [docs/games/warcraft-3/architecture/ui-flow.md](docs/games/warcraft-3/architecture/ui-flow.md) |
+| WC3 main-menu transparent layers, MenuZFog, #620/#621 regression history and visual checks | [docs/games/warcraft-3/main-menu-rendering.md](docs/games/warcraft-3/main-menu-rendering.md) |
 | WC3 campaign loading lifecycle, texture references, unused FDF art, cliff transitions | [docs/games/warcraft-3/loading-and-assets.md](docs/games/warcraft-3/loading-and-assets.md) |
 | WC3 retail executable version reporting for data diagnostics | [docs/games/warcraft-3/data-version-reporting.md](docs/games/warcraft-3/data-version-reporting.md) |
 | WC3 perf hot spots: MDX bone/geoset setup, shadow batching, client/server entity scans | [docs/games/warcraft-3/performance.md](docs/games/warcraft-3/performance.md) |

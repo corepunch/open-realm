@@ -105,7 +105,7 @@ static void WriteGameplayTransmissionPortrait(edict_t *ent) {
         memset(&frame, 0, sizeof(frame));
         frame.flags.type = FT_PORTRAIT;
         frame.color = COLOR32_WHITE;
-        frame.tex.index = client->ps.cinematic_portrait;
+        frame.tex.index = client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL];
         frame.stat = client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR];
         frame.text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
         UI_SetFrameRect(&frame, WC3_HUD_PORTRAIT_X, WC3_HUD_PORTRAIT_Y,
@@ -262,6 +262,7 @@ void UI_ClearTextMessages(edict_t *ent) {
 
 void UI_WriteCinematicLayer(edict_t *ent) {
     gameClient_t *client;
+    gameClient_t *previous_client;
     player_t *ps;
 
     if (!ent || !ent->client) return;
@@ -291,7 +292,8 @@ void UI_WriteCinematicLayer(edict_t *ent) {
 
     if (has_portrait) {
         /* FT_PORTRAIT serialization reads Portrait.model; Texture.Image left the transmitted model at zero. */
-        UI_SetPortraitFrameModel(hud.cinematic.CinematicPortrait, ps->cinematic_portrait);
+        UI_SetPortraitFrameModel(hud.cinematic.CinematicPortrait,
+                                 ps->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL]);
         hud.cinematic.CinematicPortrait->Stat = ps->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR];
         hud.cinematic.CinematicPortrait->Text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
     }
@@ -306,5 +308,8 @@ void UI_WriteCinematicLayer(edict_t *ent) {
         hud.cinematic.CinematicDialogueText->Font.Color = COLOR32_WHITE;
     }
 
+    previous_client = ui_current_client;
+    UI_SetCurrentClient(client);
     UI_WriteLayout(ent, hud.cinematic.CinematicPanel, LAYER_CINEMATIC);
+    UI_SetCurrentClient(previous_client);
 }

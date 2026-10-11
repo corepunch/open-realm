@@ -129,6 +129,14 @@ focused unit used by focused-unit commands, inventory, and the persistent unit
 portrait. The portrait remains visible for multiselections and follows focus; its
 live HP/mana bindings follow the same focused entity.
 
+Status changes on a singly selected unit invalidate its info-panel cache. The
+normal once-per-frame refresh then reserializes the status icons and timed-status
+eligibility; HP, mana, and countdown progress continue through live player-state
+bindings without forcing a full panel rebuild every frame. The invalidation uses
+an out-of-range entity cache key and is cleared when the panel payload is sent,
+preserving the serialized client layout. Multiselection has no status panel and
+does not trigger this refresh.
+
 Multiselect portrait clicks also preserve Warsmash's exact-unit second-click
 behavior. Clicking a different icon changes the concrete focused unit while
 keeping the full selection, even when that icon belongs to the already-focused

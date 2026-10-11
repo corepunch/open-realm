@@ -15,9 +15,9 @@ static void entangling_roots_tick(edict_t *target, heroabilitystatus_t *slot) {
     source = S_SpellStatusSource(slot);
     if (!source) return;
     damage = MAX(0.0f, S_SpellData(slot->data, slot->rank, 1));
-    while (slot->level && slot->next_tick <= G_Time() && slot->next_tick < slot->timestamp) {
+    while (unit_status_take_due_tick(slot, ENTANGLING_ROOTS_TICK_MS, G_Time())) {
         /* Damage can recurse through unit_updatestatuses(); advance first. */
-        slot->next_tick += ENTANGLING_ROOTS_TICK_MS;
+        /* Deadline already advanced by the shared scheduler helper. */
         if (damage > 0.0f) S_SpellDamage(target, source, (int)damage);
         if (M_IsDead(target)) break;
     }
@@ -29,14 +29,6 @@ static void entangling_roots_tick(edict_t *target, heroabilitystatus_t *slot) {
 BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
     if (msg == A_STATUS_TICK && call && call->status.slot) {
         entangling_roots_tick(ent, call->status.slot);
-        return true;
-    }
-    if (msg == A_STATUS_REFRESH && call && call->status.slot) {
-        G_SpawnStatusEffectTarget(call->status.slot->code, ent, "origin");
-        return true;
-    }
-    if (msg == A_STATUS_REMOVE && call && call->status.slot) {
-        G_DestroyStatusEffectTarget(call->status.slot->code, ent);
         return true;
     }
     if (msg == A_STATUS_DEATH && call && call->status.slot) {
@@ -60,6 +52,7 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
         slot = S_SpellApplyTimedStatus(target, buff, level, duration);
         if (!slot) return true;
         slot->data = spell->code;
+        slot->source_ability = spell->code;
         slot->rank = level;
         slot->source = ent;
         slot->source_spawn_time = ent->spawn_time;
@@ -67,7 +60,7 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
         /* Roots interrupt active channels but are not a stun/silence: the
          * victim may still issue otherwise legal spell casts afterwards. */
         S_SpellCancelChannel(target);
-        G_SpawnStatusEffectTarget(slot->code, target, "origin");
+        unit_status_enabletargetart(target, slot, "origin");
         return true;
     }
     return CAbilitySimpleSpell(ent, msg, call);

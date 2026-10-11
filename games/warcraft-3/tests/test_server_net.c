@@ -827,7 +827,7 @@ TEST(server_net, udp_multi_client_connects_register_distinct_slots) {
 
 TEST(server_net, connectionless_connect_requires_matching_protocol) {
     netadr_t loopback = { .type = NA_LOOPBACK };
-    cstring_t requests[] = { "connect\n\\name\\Old", "connect 14\n\\name\\Old",
+    cstring_t requests[] = { "connect\n\\name\\Old", "connect 20\n\\name\\Old",
         "connect " BZ_XSTR(BZ_PROTOCOL_VERSION) "\n\\name\\Player" };
     NET_Init(); reset_server_state(4);
     FOR_LOOP(i, 3) {
@@ -2489,7 +2489,7 @@ TEST(server_net, rate_charges_reliable_bytes) {
 
 TEST(stress_net, every_unit_name_survives_map_start_over_lossy_modem) {
     enum { SLOTS = CS_MAX_NAMES / ENT_NAMES_PER_CS };
-    char expected[CS_MAX_NAMES][ENT_NAME_SLOT_SIZE], pool[MAX_PATHLEN];
+    char expected[CS_MAX_NAMES][64], pool[MAX_PATHLEN];
 
     sim_begin(0, MODEM_LOSS_PERCENT, "4200");
     /* Mirror G_UnitNameConfigstring: every name rewrites its packed slot, and the whole table fills at map start. */

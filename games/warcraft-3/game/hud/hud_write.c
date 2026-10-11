@@ -257,7 +257,11 @@ cstring_t UI_FormatMessageText(cstring_t text) {
             p += 3;
             continue;
         }
-        size_t len = strlen(temp); temp[len] = *p++; temp[len + 1] = '\0';
+        {
+            size_t const used = strlen(temp);
+            temp[used] = *p++;
+            temp[used + 1] = '\0';
+        }
     }
 
     source = temp;
@@ -275,7 +279,11 @@ cstring_t UI_FormatMessageText(cstring_t text) {
             inserted_heading_break = true;
             continue;
         }
-        size_t len = strlen(out); out[len] = *p++; out[len + 1] = '\0';
+        {
+            size_t const used = strlen(out);
+            out[used] = *p++;
+            out[used + 1] = '\0';
+        }
     }
 
     return out;

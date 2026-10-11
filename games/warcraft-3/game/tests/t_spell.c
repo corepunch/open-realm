@@ -17,6 +17,62 @@ static int32_t terrain_deform_capture_values[32];
 static float terrain_deform_capture_floats[16];
 static uint32_t terrain_deform_capture_count, terrain_deform_capture_float_count;
 
+static bool spell_cursor_clear_seen;
+static bool spell_cursor_splat_seen;
+static bool spell_cursor_image_clear;
+static float spell_cursor_capture_radius;
+
+static void spell_cursor_capture_write(pfWriteType_t type, void const *data) {
+    if (type == PF_BYTE) {
+        spell_cursor_splat_seen = *(int32_t const *)data == svc_cursor_splat;
+    } else if (spell_cursor_splat_seen && type == PF_SHORT) {
+        spell_cursor_image_clear = *(int32_t const *)data == 0;
+    } else if (spell_cursor_splat_seen && type == PF_FLOAT) {
+        spell_cursor_capture_radius = *(float const *)data;
+        spell_cursor_clear_seen = spell_cursor_image_clear && spell_cursor_capture_radius == 0.0f;
+        spell_cursor_splat_seen = false;
+    }
+}
+
+static char const spell_cursor_test_slk[] =
+    "ID;PWXL;N;EBB;Y2;X8\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Cost1\"\n"
+    "C;Y1;X4;K\"Cool1\"\nC;Y1;X5;K\"Rng1\"\nC;Y1;X6;K\"DataA1\"\n"
+    "C;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"levels\"\n"
+    "C;Y2;X1;K\"AEbl\"\nC;Y2;X2;K\"AEbl\"\nC;Y2;X3;K\"10\"\n"
+    "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"1000\"\nC;Y2;X6;K\"1000\"\n"
+    "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"1\"\nE\n";
+
+static edict_t *spell_cursor_test_begin(slkTestData_t **rows, slkTestData_t **old) {
+    static UnitAbilities_t abilities;
+    edict_t *clent, *caster;
+
+    reset_entities(); setup_test_world();
+    *rows = parse_slk_string(spell_cursor_test_slk);
+    *old = G_SetSLKRows("AbilityData", *rows);
+    abilities = (UnitAbilities_t){ .abilList = "AEbl" };
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->inuse = true;
+    clent->client->connected = true;
+    clent->client->ps.number = 0;
+    caster = alloc_test_unit(MAKEFOURCC('E','w','d','n'), 0, 0);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = clent->client->ps.number;
+    caster->svflags |= SVF_MONSTER;
+    caster->stand = unit_stand;
+    caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','E','b','l'), .level = 1);
+    G_SelectEntity(clent->client, caster);
+    clent->client->menu.ability_code = MAKEFOURCC('A','E','b','l');
+    spell_cursor_clear_seen = false;
+    spell_cursor_splat_seen = false;
+    spell_cursor_image_clear = false;
+    spell_cursor_capture_radius = 0.0f;
+    gi.Write = spell_cursor_capture_write;
+    G_ClientCommand(clent, 2, (cstring_t[]){ "button", "AEbl" });
+    return clent;
+}
+
 static void terrain_deform_capture_write(pfWriteType_t type, void const *data) {
     uint32_t slot = terrain_deform_capture_count++;
     if (slot < sizeof(terrain_deform_capture_types) / sizeof(terrain_deform_capture_types[0])) {
@@ -31,6 +87,13 @@ static void terrain_deform_capture_write(pfWriteType_t type, void const *data) {
 static void terrain_deform_capture_multicast(vec3_t const *origin, multicast_t to) {
     (void)origin; (void)to;
 }
+
+static void spell_panel_test_write(pfWriteType_t type, void const *data) {
+    (void)type;
+    (void)data;
+}
+
+static void spell_panel_test_unicast(edict_t *ent) { (void)ent; }
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -1431,6 +1494,8 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
 
+    source->abilities.added[0] = MAKEFOURCC('A', 's', 'h', 'm');
+    ARRAY_COUNT(source->abilities.added) = 1;
     if (!source->shadowmeld) source->shadowmeld = G_AllocShadowMeld();
     assert(source->shadowmeld);
     source->shadowmeld->active = true;
@@ -1440,6 +1505,8 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
 
+    target->abilities.added[0] = MAKEFOURCC('A', 's', 'h', 'm');
+    ARRAY_COUNT(target->abilities.added) = 1;
     if (!target->shadowmeld) target->shadowmeld = G_AllocShadowMeld();
     assert(target->shadowmeld);
     target->shadowmeld->active = true;
@@ -1516,6 +1583,66 @@ TEST(wc3_spell, devotion_aura_recipient_presents_authored_buff_and_target_art) {
     T_EQ(S_DevotionAuraBuff(target), 0);
     T_NULL(overlay->goalentity);
 
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, selected_devotion_recipient_invalidates_status_panel_on_aura_transition) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K900\nC;Y2;X5;K3\nC;Y2;X6;K\"Biml\"\nC;Y2;X7;K1\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *source;
+    edict_t *target;
+    edict_t *player = &g_edicts[0];
+
+    reset_entities();
+    setup_test_world();
+    rows = parse_slk_string(slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    player->client = &game.clients[0];
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    target->think = monster_think;
+    target->svflags |= SVF_MONSTER;
+    target->inuse = true;
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    G_SelectEntity(&game.clients[0], target);
+    game.clients[0].infopanel.entity = target->s.number;
+    gi.Write = spell_panel_test_write;
+    gi.unicast = spell_panel_test_unicast;
+
+    level.time = 0;
+    S_RunAbilityUpdates(target);
+    T_EQ(S_DevotionAuraBuff(target), MAKEFOURCC('B','i','m','l'));
+    T_EQ(game.clients[0].infopanel.entity, UINT32_MAX);
+    G_RefreshInfoPanel(player);
+    T_EQ(game.clients[0].infopanel.entity, target->s.number);
+
+    level.time = AURA_UPDATE_MS;
+    S_RunAbilityUpdates(target);
+    T_EQ(S_DevotionAuraBuff(target), MAKEFOURCC('B','i','m','l'));
+    T_EQ(game.clients[0].infopanel.entity, target->s.number);
+
+    target->s.origin2.x = 2000;
+    level.time = AURA_UPDATE_MS * 2;
+    S_RunAbilityUpdates(target);
+    T_EQ(S_DevotionAuraBuff(target), 0);
+    T_EQ(game.clients[0].infopanel.entity, UINT32_MAX);
+    G_RefreshInfoPanel(player);
+    T_EQ(game.clients[0].infopanel.entity, target->s.number);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
@@ -2145,7 +2272,9 @@ TEST(wc3_spell, requested_active_callback_families_change_simulation) {
 	T_ASSERT(M_IsDead(third));
 
 	test_execute_code(caster, "AOcl", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = first));
-	T_FEQ(first->health.value, 399.0f, 0.001f);
+	/* Banish makes the first target Ethereal, so Chain Lightning deals 166% damage. */
+	T_ASSERT(unit_hasstatusstate(first, WC3_STATUS_STATE_ETHEREAL));
+	T_FEQ(first->health.value, 333.0f, 0.001f);
 	T_FEQ(second->health.value, 500.0f, 0.001f);
 	{
 		edict_t *thinker = NULL;
@@ -3021,8 +3150,66 @@ TEST(wc3_spell, creep_disease_cloud_alias_ticks_authored_area_damage) {
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE; target->svflags |= SVF_MONSTER;
     target->targtype = TARG_GROUND; target->health.value = target->health.max_value = 100;
     S_RunAbilityUpdates(source);
+    {
+        heroabilitystatus_t *slot = unit_findstatus(target, MAKEFOURCC('B','a','p','l'));
+        T_NOT_NULL(slot);
+        T_ASSERT(slot->buff_flags & WC3_STATUS_BUFF_PHYSICAL);
+        T_ASSERT(!(slot->buff_flags & WC3_STATUS_BUFF_MAGICAL));
+        T_ASSERT(!unit_status_can_magic_dispel(slot));
+    }
     level.time += 1000; unit_updatestatuses(target);
     T_FEQ(target->health.value, 87, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Two Disease Cloud emitters must own different Bapl slots and retain their
+ * own tick phases; leaving the aura must not remove an existing infection. */
+TEST(wc3_spell, disease_cloud_independent_sources_and_refresh) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"targs\"\n"
+        "C;Y1;X6;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Aap1\"\nC;Y2;X2;K\"Aapl\"\nC;Y2;X3;K\"100\"\n"
+        "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"ground,enemy,organic\"\nC;Y2;X6;K\"13\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *first = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    edict_t *second = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 40, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
+    UnitAbilities_t abilities = { .abilList = "Aap1" };
+    heroabilitystatus_t *a, *b;
+    uint32_t next_a;
+    second->health.value = second->health.max_value = 100;
+    second->svflags |= SVF_MONSTER;
+    second->stand = unit_stand;
+    second->movetype = MOVETYPE_NONE;
+    unit_stand(second);
+    first->data.UnitAbilities = second->data.UnitAbilities = &abilities;
+    first->s.player = second->s.player = 0;
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100;
+    S_RunAbilityUpdates(first);
+    a = unit_findstatussource(target, MAKEFOURCC('B','a','p','l'), first);
+    T_NOT_NULL(a);
+    T_EQ(a->stack_policy, WC3_STATUS_STACK_INDEPENDENT);
+    next_a = a->next_tick;
+    S_RunAbilityUpdates(second);
+    b = unit_findstatussource(target, MAKEFOURCC('B','a','p','l'), second);
+    T_NOT_NULL(b);
+    T_NE(a, b);
+    T_NE(a->instance_id, b->instance_id);
+    T_EQ(a->next_tick, next_a);
+    S_RunAbilityUpdates(first);
+    T_EQ(unit_findstatussource(target, a->code, first), a);
+    T_EQ(a->next_tick, next_a); /* Same-source exposure does not reset DPS. */
+    level.time += 1000;
+    unit_updatestatuses(target);
+    T_FEQ(target->health.value, 74.0f, 0.001f);
+    unit_removestatus(target, a, STATUS_REMOVE_DISPEL);
+    T_NULL(unit_findstatussource(target, MAKEFOURCC('B','a','p','l'), first));
+    T_EQ(unit_findstatussource(target, MAKEFOURCC('B','a','p','l'), second), b);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -3473,10 +3660,16 @@ TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_l
         effect = found;
     }
     T_NOT_NULL(effect);
+    T_ASSERT(unit_findstatus(target, MAKEFOURCC('B','E','e','r'))->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
     target_number = target->s.number;
 
     T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
-    T_EQ(effect->status_effect_code, MAKEFOURCC('B','E','e','r'));
+    effect = NULL;
+    FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) {
+        effect = found;
+        break;
+    }
+    T_NOT_NULL(effect);
     {
         uint32_t count = 0;
         FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) count++;
@@ -3495,7 +3688,19 @@ TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_l
         }
         T_EQ(count, 1);
     }
-    unit_expirestatus(target, unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+    {
+        edict_t *second_source = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+        status_application_t independent = {
+            .buff = "BEer", .level = 1, .duration = 8.0f,
+            .stack_policy = WC3_STATUS_STACK_INDEPENDENT, .source = second_source,
+            .buff_flags = WC3_STATUS_BUFF_TARGET_ART
+        };
+        heroabilitystatus_t *second = unit_applystatus(target, &independent);
+        T_NOT_NULL(second);
+        unit_removestatus(target, unit_findstatus(target, MAKEFOURCC('B','E','e','r')), STATUS_REMOVE_SCRIPT);
+        T_EQ(effect->status_effect_code, MAKEFOURCC('B','E','e','r'));
+        unit_removestatus(target, second, STATUS_REMOVE_SCRIPT);
+    }
     T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
     T_EQ(effect->status_effect_code, 0);
 
@@ -4590,6 +4795,42 @@ TEST(wc3_spell, point_order_name_routes_blink_and_carries_spell_point) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, cancel_point_target_mode_clears_spell_cursor_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    slkTestData_t *rows, *old;
+    edict_t *clent = spell_cursor_test_begin(&rows, &old);
+
+    T_ASSERT(S_SpellPointTargetMode(clent));
+    T_ASSERT(spell_cursor_capture_radius > 0.0f);
+    spell_cursor_clear_seen = false;
+    gi.Write = spell_cursor_capture_write;
+    T_ASSERT(G_CancelTargetMode(clent));
+    gi.Write = old_write;
+
+    T_ASSERT(spell_cursor_clear_seen);
+    T_NULL(clent->client->menu.on_location_selected);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, command_card_refresh_clears_spell_cursor_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    slkTestData_t *rows, *old;
+    edict_t *clent = spell_cursor_test_begin(&rows, &old);
+
+    T_ASSERT(S_SpellPointTargetMode(clent));
+    T_ASSERT(spell_cursor_capture_radius > 0.0f);
+    spell_cursor_clear_seen = false;
+    gi.Write = spell_cursor_capture_write;
+    Get_Commands_f(clent);
+    gi.Write = old_write;
+
+    T_ASSERT(spell_cursor_clear_seen);
+    T_NULL(clent->client->menu.on_location_selected);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 
 TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_state) {
     const char slk[] =
@@ -4656,6 +4897,38 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Roar is one area cast, not an all-or-nothing status transaction.
+ * A capacity-full ally must not prevent a second ally receiving the buff. */
+TEST(wc3_spell, roar_skips_full_ally_and_buffs_other_targets) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\n"
+        "C;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"Area1\"\n"
+        "C;Y2;X1;K\"Aroa\"\nC;Y2;X2;K\"Aroa\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"30\"\nC;Y2;X5;K\"0.37\"\n"
+        "C;Y2;X6;K\"Broa\"\nC;Y2;X7;K\"300\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('h','p','r','i'), 300, 300, 0, 0);
+    edict_t *full = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 60, 0);
+    edict_t *free_ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 120, 0);
+    caster->s.player = full->s.player = free_ally->s.player = 0;
+    full->svflags |= SVF_MONSTER;
+    free_ally->svflags |= SVF_MONSTER;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        char buff[5] = { 'B', 'q', '0', '0', 0 };
+        buff[2] = (char)('0' + i / 10);
+        buff[3] = (char)('0' + i % 10);
+        T_ASSERT(unit_addtimedstatus(full, buff, 1, 30.0f));
+    }
+    test_execute_code(caster, "Aroa", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+    T_EQ(G_UnitStatusLevel(full, MAKEFOURCC('B','r','o','a')), 0);
+    T_EQ(G_UnitStatusLevel(free_ally, MAKEFOURCC('B','r','o','a')), 1);
+    T_FEQ(S_RoarDamageBonus(free_ally), 0.37f, 0.001f);
+    T_EQ(G_UnitStatusLevel(caster, MAKEFOURCC('B','r','o','a')), 1);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y5;X10\n"
@@ -4688,13 +4961,23 @@ TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	T_EQ(roa.ability->proc, CAbilityRoar);
 	test_execute_code(caster, "Ablo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','b','l','o')));
+	T_ASSERT(unit_status_can_steal(unit_findstatus(ally, MAKEFOURCC('B','b','l','o'))));
 	T_FEQ(S_BloodlustAttackBonus(ally), 0.4f, 0.001f); T_FEQ(S_BloodlustMoveBonus(ally), 0.25f, 0.001f);
 	test_execute_code(caster, "Afae", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
-	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','f','a','e'))); T_FEQ(G_UnitArmorValue(enemy), 2.0f, 0.001f);
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','f','a','e')));
+	T_ASSERT(unit_status_can_steal(unit_findstatus(enemy, MAKEFOURCC('B','f','a','e'))));
+	T_FEQ(G_UnitArmorValue(enemy), 2.0f, 0.001f);
 	test_execute_code(caster, "Arej", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','r','e','j'))); T_FEQ(S_RejuvHealRate(ally), 400.0f / 12.0f, 0.01f);
+	T_EQ(unit_findstatus(ally, MAKEFOURCC('B','r','e','j'))->buff_flags &
+		(WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL),
+		WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL);
+	T_ASSERT(!unit_status_can_steal(unit_findstatus(ally, MAKEFOURCC('B','r','e','j'))));
 	test_execute_code(caster, "Aroa", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','r','o','a'))); T_FEQ(S_RoarDamageBonus(ally), 0.25f, 0.001f);
+	T_EQ(unit_findstatus(ally, MAKEFOURCC('B','r','o','a'))->buff_flags &
+		(WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL),
+		WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL);
 
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -4726,11 +5009,13 @@ TEST(wc3_spell, frenzy_unholy_frenzy_curse_use_authored_status_and_bonus_values)
 	T_EQ(crs.ability->proc, CAbilityCurse); T_ASSERT(crs.ability->flags & AB_AUTOCAST);
 	test_execute_code(caster, "Afzy", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','f','z','y')));
-	T_FEQ(S_FrenzyAttackBonus(ally), 0.5f, 0.001f); T_FEQ(S_FrenzyArmorDelta(ally), -3.0f, 0.001f);
+	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0.5f, 0.001f);
+	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_ARMOR_FLAT), -3.0f, 0.001f);
 	T_FEQ(G_UnitArmorValue(ally), 5.0f - 3.0f, 0.001f);
 	test_execute_code(caster, "Auhf", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','u','h','f')));
-	T_FEQ(S_UnholyFrenzyAttackBonus(ally), 0.5f, 0.001f); T_FEQ(S_UnholyFrenzyLifeDrain(ally), 2.0f, 0.001f);
+	T_FEQ(unit_status_modifier_total(ally, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 1.0f, 0.001f);
+	T_FEQ(S_UnholyFrenzyLifeDrain(ally), 2.0f, 0.001f);
 	test_execute_code(caster, "Acrs", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','s'))); T_FEQ(S_CurseMissChance(enemy), 0.33f, 0.001f);
 
@@ -4770,7 +5055,7 @@ TEST(wc3_spell, melee_status_roc_empty_buffid_applies_default_fourcc) {
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','s')));
 	test_execute_code(caster, "Auhf", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','U','h','f')));
-	T_FEQ(S_UnholyFrenzyAttackBonus(enemy), 0.37f, 0.001f);
+	T_FEQ(unit_status_modifier_total(enemy, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0.37f, 0.001f);
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -4798,7 +5083,7 @@ TEST(wc3_spell, unholy_frenzy_accepts_enemy_and_reads_tft_buffid) {
 	enemy->health.value = enemy->health.max_value = 200;
 	T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','u','h','f'), enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','U','h','f')));
-	T_FEQ(S_UnholyFrenzyAttackBonus(enemy), 0.5f, 0.001f);
+	T_FEQ(unit_status_modifier_total(enemy, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT), 0.5f, 0.001f);
 	T_FEQ(S_UnholyFrenzyLifeDrain(enemy), 2.0f, 0.001f);
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -4917,6 +5202,7 @@ TEST(wc3_spell, cripple_and_soul_burn_apply_status_and_read_authored_consumers) 
 	test_execute_code(caster, "Acri", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
 	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','i')));
 	T_FEQ(S_CrippleMoveReduction(enemy), 0.5f, 0.001f);
+	T_FEQ(unit_status_modifier_total(enemy, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.5f, 0.001f);
 	T_FEQ(S_CrippleAttackReduction(enemy), 0.4f, 0.001f);
 	T_FEQ(S_CrippleDamageReduction(enemy), 0.3f, 0.001f);
 	test_execute_code(caster, "ANso", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
@@ -5086,6 +5372,34 @@ TEST(wc3_spell, lightning_shield_damages_nearby_units_each_second) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* A failed status insertion must not create Lightning Shield's damage thinker. */
+TEST(wc3_spell, lightning_shield_full_status_capacity_rejects_cast_and_thinker) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"BuffID1\"\n"
+        "C;Y1;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Alsh\"\nC;Y2;X2;K\"Alsh\"\nC;Y2;X3;K\"Blsh\"\n"
+        "C;Y2;X4;K\"15\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster = make_hero(MAKEFOURCC('o','s','h','m'), 300, 0, 0, 0);
+    edict_t *carrier = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 300, 0);
+    abilityitem_t spell = S_AbilityItem(MAKEFOURCC('A','l','s','h'));
+    spellTarget_t target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = carrier);
+    carrier->s.player = caster->s.player;
+    carrier->svflags |= SVF_MONSTER;
+    carrier->targtype = TARG_GROUND;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        char id[5] = { 'B', 'q', (char)('A' + i / 10), (char)('0' + i % 10), 0 };
+        T_ASSERT(unit_addtimedstatus(carrier, id, 1, 20.0f));
+    }
+    T_ASSERT(!CAbilityLightningShield(caster, A_VALIDATE, &(abilityCall_t){ .item = &spell, .target = &target }));
+    /* Drive execute directly as well: a delayed impact can race with capacity. */
+    T_ASSERT(CAbilityLightningShield(caster, A_EXECUTE, &(abilityCall_t){ .item = &spell, .target = &target }));
+    T_NULL(unit_findstatus(carrier, MAKEFOURCC('B','l','s','h')));
+    FILTER_EDICTS(ent, ent->owner == carrier && ent->think == lsh_think) T_ASSERT(false);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, nightelf_passive_abilities_are_registered_with_correct_handlers) {
 	InitAbilities();
 	ability_t const *vengeance = FindAbilityByClassname("Avng");
@@ -5220,6 +5534,19 @@ TEST(wc3_spell, poison_on_hit_applies_buff_pair_with_authored_duration) {
 	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','p','s','d')));
 	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','p','b')));
 	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','p','d')));
+	{
+		static uint32_t const physical_buffs[] = {
+			MAKEFOURCC('B','p','o','i'), MAKEFOURCC('B','p','s','d'),
+			MAKEFOURCC('B','I','p','b'), MAKEFOURCC('B','I','p','d')
+		};
+		FOR_LOOP(i, sizeof(physical_buffs) / sizeof(physical_buffs[0])) {
+			heroabilitystatus_t *slot = unit_findstatus(target, physical_buffs[i]);
+			T_NOT_NULL(slot);
+			T_ASSERT(slot->buff_flags & WC3_STATUS_BUFF_PHYSICAL);
+			T_ASSERT(!(slot->buff_flags & WC3_STATUS_BUFF_MAGICAL));
+			T_ASSERT(!unit_status_can_magic_dispel(slot));
+		}
+	}
 	T_ASSERT(S_UnitHasStatus(hero, MAKEFOURCC('B','p','o','i')));
 	level.time += 3000; unit_updatestatuses(target); unit_updatestatuses(hero);
 	T_ASSERT(!S_UnitHasStatus(hero, MAKEFOURCC('B','p','o','i')));
@@ -5277,6 +5604,52 @@ TEST(wc3_spell, poison_dataa_ticks_through_entity_scheduler_and_preserves_same_s
     level.time = 5500; G_RunEntity(target);
     T_FEQ(target->health.value, before - 36.0f, 0.001f);
 
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, ethereal_secondary_targets_reject_physical_attacks) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Area1\"\n"
+        "C;Y2;X1;K\"Amgl\"\nC;Y2;X2;K\"Amgl\"\nC;Y2;X3;K\"2\"\nC;Y2;X4;K\"200\"\n"
+        "C;Y3;X1;K\"ANca\"\nC;Y3;X2;K\"ANca\"\nC;Y3;X3;K\"0.4\"\nC;Y3;X4;K\"200\"\n"
+        "C;Y4;X1;K\"Asth\"\nC;Y4;X2;K\"Asth\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    uint32_t codes[] = { MAKEFOURCC('A','m','g','l'), MAKEFOURCC('A','N','c','a'), MAKEFOURCC('A','s','t','h') };
+    FOR_LOOP(i, 3) {
+        edict_t *attacker = make_hero(MAKEFOURCC('e','h','u','n'), 300, 0, 0, 0);
+        edict_t *primary = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+        edict_t *nearby = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 60, 0);
+        attacker->s.player = 0; primary->s.player = nearby->s.player = 1;
+        S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+        S_AttackProfileWrite(attacker, 0)->targetsAllowed = G_TargetFlagForType(TARG_GROUND);
+        S_AttackProfileWrite(attacker, 1)->type = ATK_MAGIC;
+        S_AttackProfileWrite(attacker, 1)->targetsAllowed = G_TargetFlagForType(TARG_GROUND);
+        S_AttackProfileWrite(attacker, 0)->areaFull = S_AttackProfileWrite(attacker, 0)->areaMedium = S_AttackProfileWrite(attacker, 0)->areaSmall = 200;
+        primary->svflags |= SVF_MONSTER; nearby->svflags |= SVF_MONSTER;
+        primary->targtype = nearby->targtype = TARG_GROUND;
+        ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+        ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+        memset(level.alliances, 0, sizeof(level.alliances));
+        primary->health.value = primary->health.max_value = 500;
+        nearby->health.value = nearby->health.max_value = 500;
+        attacker->heroabilities[0] = MAKE(heroability_t, .code = codes[i], .level = 1);
+        heroabilitystatus_t *slot = S_SpellApplyTimedStatus(nearby, "BHbn", 1, 10);
+        T_NOT_NULL(slot);
+        T_ASSERT(unit_hasstatusstate(nearby, WC3_STATUS_STATE_ETHEREAL));
+        S_ResolveAttackHit(attacker, primary, 50);
+        T_FEQ(primary->health.value, 450, 0.001f);
+        T_FEQ(nearby->health.value, 500, 0.001f);
+        unit_expirestatus(nearby, slot);
+        S_ResolveAttackHit(attacker, primary, 50);
+        T_FEQ(primary->health.value, 400, 0.001f);
+        T_FEQ(nearby->health.value, i == 1 ? 480 : 450, 0.001f);
+        T_NOT_NULL(S_SpellApplyTimedStatus(nearby, "BHbn", 1, 10));
+        S_AttackProfileWrite(attacker, 0)->type = ATK_MAGIC;
+        S_ResolveAttackHit(attacker, primary, 50);
+        T_FEQ(primary->health.value, 350, 0.001f);
+        T_FEQ(nearby->health.value, i == 1 ? 460 : 400, 0.001f);
+    }
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

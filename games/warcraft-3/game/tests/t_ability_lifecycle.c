@@ -575,6 +575,37 @@ TEST(wc3_ability_lifecycle, mass_teleport_accepts_structure_target_and_cleans_ca
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Cancellation cleans up immediately, but the old thinker may remain until
+ * its scheduled tick. That late cleanup must not release a recast's pause. */
+TEST(wc3_ability_lifecycle, mass_teleport_old_thinker_preserves_recast_destination_pause) {
+    edict_t *caster = review_setup(), *target = review_unit(0, 2000);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *retired, *replacement;
+    uint32_t code = FS_SLKKey("AHmt");
+    T_ASSERT(S_CastUnitTargetSpell(caster, code, target));
+    retired = review_thinker(caster);
+    T_NOT_NULL(retired);
+    T_ASSERT(target->paused);
+    S_SpellCancelChannel(caster);
+    T_ASSERT(!target->paused);
+    /* Model an immediately restarted channel without bypassing the real
+     * channel thinker identity capture or running an unrelated cooldown. */
+    caster->channel->serial++;
+    caster->channel->code = code;
+    replacement = S_SpellChannelTargetThinker(caster, code, target);
+    T_NOT_NULL(replacement);
+    replacement->think = mass_teleport_think;
+    replacement->wait = 0.0f;
+    replacement->freetime = G_Time() + 5000;
+    target->paused = true;
+    if (retired->inuse) G_RunEntity(retired);
+    T_ASSERT(target->paused);
+    S_SpellCancelChannel(caster);
+    T_ASSERT(!target->paused);
+    if (replacement->inuse) G_RunEntity(replacement);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* The destination entity stays authoritative until completion; losing it
  * cancels the channel instead of teleporting to a stale cached coordinate. */
 TEST(wc3_ability_lifecycle, mass_teleport_target_death_cancels) {
@@ -635,6 +666,86 @@ TEST(wc3_ability_lifecycle, life_drain_transfers_health_from_manaless_target) {
     float hp = enemy->health.value, healed = caster->health.value;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     T_ASSERT(cast); T_FEQ(hp, 970, .001f); T_FEQ(healed, 530, .001f);
+}
+
+/* The channel's next pulse must not drain either resource after a stun. */
+TEST(wc3_ability_lifecycle, siphon_mana_stun_before_tick_preserves_resources) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
+    edict_t *thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    float target_mana = enemy->mana.value, caster_mana = caster->mana.value;
+    T_ASSERT(unit_addtimedstatus(caster, "Bstu", 1, 2.0f));
+    level.time += 1000;
+    if (thinker->inuse) G_RunEntity(thinker);
+    T_ASSERT(!thinker->inuse);
+    T_FEQ(enemy->mana.value, target_mana, .001f);
+    T_FEQ(caster->mana.value, caster_mana, .001f);
+    T_ASSERT(!caster->channel || !caster->channel->code);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Keep the standard neutral-drain fixture unchanged. These tests explicitly
+ * enable Life Drain DataB so a missing mid-pulse guard is observable. */
+static slkTestData_t *review_life_drain_with_mana_data(void) {
+    /* parse_slk_string retains its input until free_slk_rows(), so this
+     * modified SLK fixture must outlive the helper call. */
+    static char fixture[sizeof(review_slk)];
+    char *cell;
+    memcpy(fixture, review_slk, sizeof(fixture));
+    cell = strstr(fixture, "C;Y5;X10;K\"0\"\n");
+    T_NOT_NULL(cell);
+    if (!cell) return NULL;
+    /* Replace one digit in the Life Drain DataB1 cell (0 -> 7). */
+    cell[strlen("C;Y5;X10;K\"")] = '7';
+    return parse_slk_string(fixture);
+}
+
+/* A live Life Drain pulse must use its nonzero mana component. This makes
+ * the fatal-pulse guard test meaningful rather than vacuously passing. */
+TEST(wc3_ability_lifecycle, life_drain_nonfatal_pulse_transfers_authored_mana) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = review_life_drain_with_mana_data(), *old = G_SetSLKRows("AbilityData", rows);
+    float before_target, before_caster;
+    caster->mana.value = 20;
+    enemy->mana.value = 90;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
+    edict_t *thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    before_target = enemy->mana.value;
+    before_caster = caster->mana.value;
+    level.time += 1000;
+    if (thinker->inuse) G_RunEntity(thinker);
+    T_ASSERT(!M_IsDead(enemy));
+    T_ASSERT(enemy->mana.value < before_target);
+    T_ASSERT(caster->mana.value > before_caster);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A fatal Life Drain health pulse must not also transfer mana afterwards. */
+TEST(wc3_ability_lifecycle, life_drain_lethal_pulse_does_not_drain_mana) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = review_life_drain_with_mana_data(), *old = G_SetSLKRows("AbilityData", rows);
+    enemy->health.value = 10;
+    caster->mana.value = 20;
+    enemy->mana.value = 90;
+    enemy->die = unit_die;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy));
+    edict_t *thinker = review_thinker(caster);
+    T_NOT_NULL(thinker);
+    if (!thinker) {
+        G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+        return;
+    }
+    float before_caster = caster->mana.value;
+    level.time += 1000;
+    if (thinker->inuse) G_RunEntity(thinker);
+    T_ASSERT(M_IsDead(enemy));
+    T_FEQ(enemy->mana.value, 90, .001f);
+    T_FEQ(caster->mana.value, before_caster, .001f);
+    T_ASSERT(!thinker->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 /* Tranquility is AB_CHANNEL even though it needs no target-selection click. */
@@ -992,4 +1103,335 @@ TEST(wc3_ability_lifecycle, flame_strike_custom_interval_can_tick_twice_per_fram
     level.time = 2500; G_RunEntity(thinker); T_FEQ(enemy->health.value, 940, .001f);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
+/* Phase 9: zero flags deliberately preserve old timed-buff dispel behavior,
+ * while explicit classification gates transfer separately from removal. */
+TEST(wc3_ability_lifecycle, classified_status_dispel_and_transfer_policy) {
+    edict_t *unit = review_setup();
+    status_application_t app = { .buff = "Bixx", .level = 1, .duration = 5.0f };
+    heroabilitystatus_t *slot = unit_applystatus(unit, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_status_can_dispel(slot));
+    T_ASSERT(!unit_status_can_steal(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL |
+                       WC3_STATUS_BUFF_TRANSFERABLE;
+    T_ASSERT(unit_status_can_dispel(slot));
+    T_ASSERT(unit_status_can_steal(slot));
+    slot->buff_flags |= WC3_STATUS_BUFF_UNDISPELLABLE;
+    T_ASSERT(!unit_status_can_dispel(slot));
+    T_ASSERT(!unit_status_can_steal(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_TRANSFERABLE;
+    T_ASSERT(unit_status_can_steal(slot));
+    unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_status_can_dispel(slot));
+}
+
+/* Magical dispels must not strip explicit physical-only statuses; legacy
+ * unclassified records retain their previous behavior. */
+TEST(wc3_ability_lifecycle, magical_dispel_respects_physical_classification) {
+    edict_t *unit = review_setup();
+    status_application_t app = { .buff = "Bixx", .level = 1, .duration = 5.0f };
+    heroabilitystatus_t *slot = unit_applystatus(unit, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_status_can_magic_dispel(slot)); /* legacy compatibility */
+    slot->buff_flags = WC3_STATUS_BUFF_PHYSICAL;
+    T_ASSERT(unit_status_can_dispel(slot));
+    T_ASSERT(!unit_status_can_magic_dispel(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_MAGICAL;
+    T_ASSERT(unit_status_can_magic_dispel(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_PHYSICAL;
+    T_ASSERT(!unit_status_can_magic_dispel(slot));
+    slot->buff_flags = WC3_STATUS_BUFF_UNDISPELLABLE | WC3_STATUS_BUFF_MAGICAL;
+    T_ASSERT(!unit_status_can_magic_dispel(slot));
+    unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_status_can_magic_dispel(slot));
+}
+
+TEST(wc3_ability_lifecycle, classified_status_application_replace_resets_flags) {
+    edict_t *unit = review_setup();
+    status_application_t app = {
+        .buff = "Bixx", .level = 1, .duration = 5.0f,
+        .buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_TRANSFERABLE
+    };
+    heroabilitystatus_t *slot = unit_applystatus(unit, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_status_can_steal(slot));
+    app.buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
+    slot = unit_applystatus(unit, &app);
+    T_NOT_NULL(slot);
+    T_EQ(slot->buff_flags, app.buff_flags);
+    T_ASSERT(unit_status_can_dispel(slot));
+    T_ASSERT(!unit_status_can_steal(slot));
+}
+
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_ability_lifecycle, status_capacity_preflight_is_deterministic) {
+    edict_t *unit = review_setup();
+    static cstring_t const ids[MAX_UNIT_STATUSES + 1] = {
+        "Bq01", "Bq02", "Bq03", "Bq04", "Bq05", "Bq06", "Bq07", "Bq08",
+        "Bq09", "Bq10", "Bq11", "Bq12", "Bq13", "Bq14", "Bq15", "Bq16", "Bq17"
+    };
+    status_application_t app = { .level = 1, .duration = 10.0f };
+    T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_INVALID);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        app.buff = ids[i];
+        T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_FREE_SLOT);
+        T_NOT_NULL(unit_applystatus(unit, &app));
+    }
+    app.buff = ids[MAX_UNIT_STATUSES];
+    T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_FULL);
+    T_ASSERT(unit_applystatus(unit, &app) == NULL);
+    T_ASSERT(!unit_addtimedstatus(unit, ids[MAX_UNIT_STATUSES], 1, 10.0f));
+    T_EQ(G_UnitStatusLevel(unit, *((uint32_t const *)ids[0])), 1);
+    app.buff = ids[0];
+    T_EQ(unit_status_checkapplication(unit, &app), WC3_STATUS_APPLY_REUSE);
+    T_NOT_NULL(unit_applystatus(unit, &app));
+    T_EQ(G_UnitStatusLevel(unit, *((uint32_t const *)ids[0])), 1);
+}
+
+TEST(wc3_ability_lifecycle, independent_status_instances_keep_source_identity) {
+    edict_t *target = review_setup(), *source_a = review_unit(0, 100), *source_b = review_unit(0, 100);
+    uint32_t old_time = level.time;
+    status_application_t app = {
+        .buff = "Bqpo", .level = 1, .duration = 10.0f,
+        .stack_policy = WC3_STATUS_STACK_INDEPENDENT, .source = source_a
+    };
+    level.time = 1000;
+    heroabilitystatus_t *a = unit_applystatus(target, &app), *b;
+    T_NOT_NULL(a);
+    app.duration = 20.0f;
+    app.source = source_b;
+    b = unit_applystatus(target, &app);
+    T_NOT_NULL(b);
+    T_NE(a, b);
+    T_NE(a->instance_id, b->instance_id);
+    T_ASSERT(b->timestamp > a->timestamp);
+    T_EQ(unit_findstatussource(target, a->code, source_a), a);
+    T_EQ(unit_findstatussource(target, b->code, source_b), b);
+    level.time = a->timestamp;
+    unit_updatestatuses(target);
+    T_NULL(unit_findstatussource(target, b->code, source_a));
+    T_EQ(unit_findstatussource(target, b->code, source_b), b);
+    level.time = b->timestamp;
+    unit_updatestatuses(target);
+    T_NULL(unit_findstatussource(target, b->code, source_b));
+    level.time = old_time;
+}
+
+TEST(wc3_ability_lifecycle, status_application_separates_owner_from_payload) {
+    edict_t *target = review_setup(), *source = review_unit(0, 100);
+    status_application_t app = {
+        .buff = "Bixx", .level = 1, .duration = 6.0f,
+        .source_ability = MAKEFOURCC('A','H','f','s'),
+        .data = 125, .source = source, .rank = 2
+    };
+    heroabilitystatus_t *slot = unit_applystatus(target, &app);
+    T_NOT_NULL(slot);
+    T_EQ(slot->source_ability, app.source_ability);
+    T_EQ(slot->data, 125);
+    T_EQ(slot->source, source);
+    T_EQ(slot->source_spawn_time, source->spawn_time);
+    T_EQ(slot->rank, 2);
+    T_ASSERT(slot->timestamp > G_Time());
+    app.data = 250;
+    app.source_ability = 0;
+    app.source = NULL;
+    slot = unit_applystatus(target, &app); /* Replace defaults in stock data. */
+    T_NOT_NULL(slot);
+    T_EQ(slot->data, 250);
+    T_EQ(slot->source_ability, 0);
+    T_EQ(slot->source, NULL);
+}
+
+/* Phase 3: status contributors are independent of buff rawcode and do not
+ * reinterpret legacy numeric status payloads. */
+TEST(wc3_ability_lifecycle, status_state_contributors_compose_and_expire) {
+    edict_t *target = review_setup();
+    status_application_t first = {
+        .buff = "Bixx", .level = 1, .duration = 8.0f,
+        .state_mask = WC3_STATUS_STATE_INVULNERABLE | WC3_STATUS_STATE_SILENCED,
+        .data = 125
+    };
+    status_application_t second = {
+        .buff = "Biyy", .level = 1, .duration = 8.0f,
+        .state_mask = WC3_STATUS_STATE_INVULNERABLE
+    };
+    heroabilitystatus_t *a = unit_applystatus(target, &first);
+    heroabilitystatus_t *b;
+    T_NOT_NULL(a);
+    b = unit_applystatus(target, &second);
+    T_NOT_NULL(b);
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE));
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_SILENCED));
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL));
+    T_EQ(a->data, 125);
+    unit_removestatus(target, a, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE));
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_SILENCED));
+    unit_removestatus(target, b, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE));
+}
+
+TEST(wc3_ability_lifecycle, status_state_replace_and_refresh) {
+    edict_t *target = review_setup();
+    status_application_t app = {
+        .buff = "Bixx", .level = 1, .duration = 6.0f,
+        .state_mask = WC3_STATUS_STATE_ROOTED
+    };
+    heroabilitystatus_t *slot = unit_applystatus(target, &app);
+    T_NOT_NULL(slot);
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_ROOTED));
+    app.state_mask = WC3_STATUS_STATE_ETHEREAL;
+    slot = unit_applystatus(target, &app); /* Replace (default policy). */
+    T_NOT_NULL(slot);
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_ROOTED));
+    T_ASSERT(unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL));
+    slot->timestamp = G_Time(); /* Simulate elapsed lifetime before update. */
+    T_ASSERT(!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL));
+}
+
+/* Stock buffs must contribute to the same state query as status_application_t.
+ * Legacy insertion cannot be dropped until every ability is migrated. */
+TEST(wc3_ability_lifecycle, stock_buff_states_are_live_and_composable) {
+    edict_t *unit = review_setup();
+    unit_addtimedstatus(unit, "BNsi", 1, 10.0f);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_SILENCED));
+    unit_addtimedstatus(unit, "BNso", 1, 10.0f);
+    T_ASSERT(S_UnitIsSilenced(unit));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','N','s','i')), STATUS_REMOVE_DISPEL);
+    T_ASSERT(S_UnitIsSilenced(unit));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','N','s','o')), STATUS_REMOVE_DISPEL);
+    T_ASSERT(!S_UnitIsSilenced(unit));
+
+    unit_addtimedstatus(unit, "BEer", 1, 10.0f);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED));
+    T_ASSERT(S_UnitIsEntanglingRooted(unit));
+    T_ASSERT(!S_UnitIsEnsnared(unit));
+    unit_addtimedstatus(unit, "Bens", 1, 10.0f);
+    T_ASSERT(S_UnitIsEnsnared(unit));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','E','e','r')), STATUS_REMOVE_DISPEL);
+    T_ASSERT(unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED));
+    T_ASSERT(!S_UnitIsEntanglingRooted(unit));
+    T_ASSERT(S_UnitIsEnsnared(unit));
+}
+
+TEST(wc3_ability_lifecycle, stock_magic_immunity_composes_with_explicit_contribution) {
+    edict_t *unit = review_setup();
+    status_application_t app = {
+        .buff = "Biyy", .level = 1, .duration = 10.0f,
+        .state_mask = WC3_STATUS_STATE_MAGIC_IMMUNE
+    };
+    unit_addtimedstatus(unit, "Bams", 1, 10.0f);
+    T_ASSERT(S_UnitSpellImmune(unit));
+    T_NOT_NULL(unit_applystatus(unit, &app));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','a','m','s')), STATUS_REMOVE_DISPEL);
+    T_ASSERT(S_UnitSpellImmune(unit));
+    unit_removestatus(unit, unit_findstatus(unit, MAKEFOURCC('B','i','y','y')), STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!S_UnitSpellImmune(unit));
+}
+TEST(wc3_ability_lifecycle, default_status_does_not_replace_independent_source) {
+    edict_t *target = review_setup(), *source = review_unit(0, 100);
+    status_application_t app = { .buff = "Bqpo", .level = 1, .duration = 10.0f,
+        .stack_policy = WC3_STATUS_STACK_INDEPENDENT, .source = source };
+    heroabilitystatus_t *independent = unit_applystatus(target, &app);
+    heroabilitystatus_t *legacy;
+    T_NOT_NULL(independent);
+    app.stack_policy = WC3_STATUS_STACK_DEFAULT;
+    app.source = NULL;
+    T_EQ(unit_status_checkapplication(target, &app), WC3_STATUS_APPLY_FREE_SLOT);
+    legacy = unit_applystatus(target, &app);
+    T_NOT_NULL(legacy);
+    T_NE(legacy, independent);
+    T_EQ(independent->stack_policy, WC3_STATUS_STACK_INDEPENDENT);
+    T_EQ(independent->source, source);
+    T_EQ(unit_status_checkapplication(target, &app), WC3_STATUS_APPLY_REUSE);
+}
+
+TEST(wc3_ability_lifecycle, unrelated_status_application_keeps_custom_modifiers) {
+    edict_t *target = review_setup();
+    status_application_t app = { .buff = "Bqpo", .level = 1, .duration = 10.0f };
+    heroabilitystatus_t *custom = unit_applystatus(target, &app);
+    wc3_status_modifier_t mod = { .type = WC3_STATUS_MOD_ARMOR_FLAT,
+        .policy = WC3_STATUS_MOD_ADD, .value = 3.0f };
+    T_NOT_NULL(custom);
+    T_ASSERT(unit_status_setmodifier(custom, 0, &mod));
+    T_NOT_NULL(S_SpellApplyTimedStatus(target, "Bq01", 1, 3.0f));
+    T_EQ(custom->modifier_count, 1);
+    T_FEQ(unit_status_modifier_total(target, WC3_STATUS_MOD_ARMOR_FLAT), 3.0f, 0.001f);
+}
+
+
+TEST(wc3_ability_lifecycle, scripted_status_removal_updates_derived_stun_immediately) {
+    edict_t *unit = review_setup();
+    heroabilitystatus_t *slot = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bstu", .level = 1, .duration = 8.0f
+    });
+    T_NOT_NULL(slot);
+    T_ASSERT(unit->stunned);
+    unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(!unit->stunned);
+}
+
+TEST(wc3_ability_lifecycle, status_source_lookup_does_not_return_expired_record) {
+    edict_t *unit = review_setup(), *source = review_unit(0, 100);
+    heroabilitystatus_t *slot = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bqpo", .level = 1, .duration = 8.0f,
+        .stack_policy = WC3_STATUS_STACK_INDEPENDENT, .source = source
+    });
+    T_NOT_NULL(slot);
+    T_EQ(unit_findstatussource(unit, slot->code, source), slot);
+    slot->timestamp = G_Time();
+    T_NULL(unit_findstatussource(unit, slot->code, source));
+}
+
+
+TEST(wc3_ability_lifecycle, status_deferred_removal_reconciles_after_batch) {
+    edict_t *unit = review_setup();
+    heroabilitystatus_t *first, *second;
+    T_ASSERT(unit_addtimedstatus(unit, "Bstu", 1, 10.0f));
+    T_ASSERT(unit_addtimedstatus(unit, "Bsta", 1, 10.0f));
+    first = unit_findstatus(unit, MAKEFOURCC('B','s','t','u'));
+    second = unit_findstatus(unit, MAKEFOURCC('B','s','t','a'));
+    T_NOT_NULL(first); T_NOT_NULL(second);
+    T_ASSERT(unit->stunned);
+    unit_removestatus_deferred(unit, first, STATUS_REMOVE_DISPEL);
+    unit_removestatus_deferred(unit, second, STATUS_REMOVE_DISPEL);
+    unit_refreshstatusflags(unit);
+    T_ASSERT(!unit->stunned);
+    T_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','u')));
+    T_NULL(unit_findstatus(unit, MAKEFOURCC('B','s','t','a')));
+}
+
+TEST(wc3_ability_lifecycle, explicit_root_state_blocks_translation_without_disarming) {
+    edict_t *unit = review_setup();
+    heroabilitystatus_t *slot = unit_applystatus(unit, &(status_application_t){
+        .buff = "Bqro", .level = 1, .duration = 8.0f,
+        .state_mask = WC3_STATUS_STATE_ROOTED
+    });
+    T_NOT_NULL(slot);
+    T_ASSERT(!S_UnitCanTranslate(unit));
+    unit_removestatus(unit, slot, STATUS_REMOVE_SCRIPT);
+    T_ASSERT(S_UnitCanTranslate(unit));
+}
+
+
+TEST(wc3_ability_lifecycle, physical_statuses_resist_magical_dispels) {
+    edict_t *unit = review_setup();
+    static cstring_t const physical[] = { "Bens", "Bena", "Bwea", "Bweb", "Bpoi", "Bpsd", "Bapl" };
+    FOR_LOOP(i, sizeof(physical) / sizeof(physical[0])) {
+        heroabilitystatus_t *slot = S_SpellApplyTimedStatus(unit, physical[i], 1, 10.0f);
+        T_NOT_NULL(slot);
+        slot->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL;
+        T_ASSERT(unit_status_can_dispel(slot));
+        T_ASSERT(!unit_status_can_magic_dispel(slot));
+        T_ASSERT(!unit_status_can_steal(slot));
+    }
+    {
+        heroabilitystatus_t *legacy = S_SpellApplyTimedStatus(unit, "Bq01", 1, 10.0f);
+        T_NOT_NULL(legacy);
+        T_ASSERT(unit_status_can_magic_dispel(legacy));
+    }
+}
+
 #endif

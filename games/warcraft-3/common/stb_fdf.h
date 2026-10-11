@@ -1847,7 +1847,7 @@ void FDF_ParseFrame(wordExtractor_t *p, frameDef_t *frame) {
             }
             state++;
         } else if (state == 0) {
-            strlcpy(frame->Name, tok, sizeof(UINAME));
+            strlcpy(frame->Name, tok, sizeof(frame->Name));
             state++;
         } else {
             parser_error(p);

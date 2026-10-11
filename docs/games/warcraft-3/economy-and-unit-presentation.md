@@ -494,10 +494,16 @@ parallel width/stride.
 
 ### World-unit hover health
 
-WC3 world hover is presentation-only and remains separate from selection. `client/cl_input_w3.c` ray-picks the world on mouse motion,
-then accepts only snapshot entities carrying the generic `EF_HOVER_HEALTH` capability. `G_CustomizeEntity` authors that bit per client
-for living `SVF_MONSTER` units/buildings that are selectable and actively visible. This stricter visibility check intentionally differs
+WC3 world hover is presentation-only and remains separate from selection. `client/cl_input.c` ray-picks the world on mouse motion,
+then uses `CL_EntityAllowsWorldHover` under the default `cl_hover_health_only=1` filter. A model, positive snapshot health, and
+selectability are required, together with a name or `EF_HOVER_HEALTH`/`EF_HOVER_MANA`. Names are an independent capability:
+world items and invulnerable units without mana publish names without bar flags. Do not add a second bar-only filter in input.
+`G_CustomizeEntity` authors the bar bits per client for living, selectable and actively visible units/buildings.
+This stricter visibility check intentionally differs
 from `G_FowPlayerCanSeeEntity`: explored buildings may remain networked while shrouded, but must not expose current HP through hover.
+
+`client_input.name_only_entity_survives_default_hover_filter` drives the actual hover update with the default cvar and covers
+name-only entities, no-capability rejection, bar-only entities, and nonselectable rejection.
 
 The presentation path is:
 
@@ -517,6 +523,17 @@ shipping a project-owned FDF. `UI_WriteHoverLayout` sends the frame tree once fr
 `ToolTipBackground`, `ToolTipBorder`, `SimpleHpBarConsoleSmall`, and `SimpleManaBarConsoleSmall`, while `UnitUI.slk:scale` and
 `MiscData.txt:[SelectionCircle] ScaleFactor` determine the bar width. Keep those lookups authoritative instead of copying texture
 paths or per-unit dimensions into C.
+
+Destructables publish separate hover capabilities. Only attackable `TARG_DEBRIS` destructables receive a world-hover name. Other
+destructable target classes, including trees, walls, bridge ramps, and decorations, do not publish hover labels. Vulnerable,
+attackable `TARG_DEBRIS` destructables publish `EF_HOVER_HEALTH` when their TFT `DestructableData.slk` `selectable` field is true.
+ROC omits that TFT-only field, so attackable debris uses the classic debris target contract there. This covers NightElfX03 `ATg3`
+and Prologue02 `LTg1`/`LTg2` gates without enumerating rawcode families. The TFT
+`Units\\DestructableData.slk` row for
+`DTg1` authors `selcircsize=512`; spawned destructable selection
+circles use half that authored size as `entityState_t.radius` (256), while `DestructableData.radius` remains the gameplay collision
+radius. When `selcircsize` is absent or zero, the selection-circle radius falls back to the collision radius, then to 50 world units
+if both values are zero.
 
 The displayed name comes from the race/campaign `Units\\*UnitStrings.txt` `Name` field (`unam`), merged into `UnitProfile_t.name`;
 for example, `Units\\NeutralUnitStrings.txt` defines `[nvil] Name=Villager`. `G_CustomizeEntity` interns that text into `CS_GENERAL`

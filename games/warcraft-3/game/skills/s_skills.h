@@ -484,6 +484,7 @@ void S_AdjustUnitMoveSpeed(edict_t *unit, float delta);
 int S_BlackArrowDamage(edict_t *attacker, int damage);
 void S_BlackArrowDeath(edict_t *attacker, edict_t *target);
 void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage);
+bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t const *target);
 void S_ResolveArtilleryHit(edict_t *attacker, edict_t *target, int raw_damage);
 void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
                                 struct artillery_s const *profile);
@@ -557,6 +558,9 @@ typedef enum {
 	ABILITY_NUMBER_RANGE
 } abilityNumber_t;
 uint32_t S_SpellCurrentCode(edict_t *clent, uint32_t fallback);
+bool S_SpellPointTargetMode(edict_t *clent);
+bool S_SpellPointTargetEntity(edict_t *clent, edict_t *target);
+void S_AbilityTargetModeExit(edict_t *clent);
 ability_t const *S_SpellAbilityForCode(uint32_t code);
 uint32_t S_SpellLevel(edict_t *caster, uint32_t code);
 float S_SpellNumber(uint32_t code, abilityNumber_t field, uint32_t level);

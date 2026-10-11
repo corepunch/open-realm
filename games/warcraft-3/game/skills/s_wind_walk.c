@@ -34,11 +34,8 @@ static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t const *status) 
 
 static void wind_walk_end(edict_t *unit) {
     heroabilitystatus_t *status = wind_walk_status(unit);
-    heroabilitystatus_t saved;
     if (!status) return;
-    saved = *status;
-    memset(status, 0, sizeof(*status));
-    wind_walk_cleanup(unit, &saved);
+    unit_removestatus(unit, status, STATUS_REMOVE_SCRIPT);
 }
 
 static bool wind_walk_validate(edict_t *unit, abilityCall_t const *call) {

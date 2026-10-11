@@ -1107,6 +1107,80 @@ static bool move_route_line(edict_t *self, moveRoutePoint_t point) {
 }
 
 /* Check static pathing and live units; retain the rejecting unit for give-way. */
+static bool move_wisp_egress_tree_valid(edict_t const *self) {
+    edict_t const *tree;
+    return self && self->movement.wisp_egress_active &&
+        (tree = self->movement.wisp_egress_tree) && tree->inuse &&
+        tree->spawn_time == self->movement.wisp_egress_tree_spawn_time && tree->pathtex;
+}
+
+/* Test a short egress corridor. Static pathing is a combined map, so permit a
+ * blocked sample only where the harvested tree's own authored footprint covers
+ * it. Terrain and any other tree/building remain authoritative blockers. */
+static bool move_wisp_egress_corridor_clear(edict_t const *self, edict_t const *tree,
+                                             vec2_t const *target, uint8_t flags) {
+    float const step = MAX(2.0f, CM_PathCellWorldSize() * 0.25f);
+    float const length = Vector2_distance(&self->s.origin2, target);
+    int const samples = MAX(1, (int)ceilf(length / step));
+    FOR_LOOP(i, samples + 1) {
+        float const t = (float)i / (float)samples;
+        vec2_t const p = { self->s.origin2.x + (target->x - self->s.origin2.x) * t,
+                            self->s.origin2.y + (target->y - self->s.origin2.y) * t };
+        if (CM_PointIsPathableForRadiusFlags(&p, self->collision, flags)) continue;
+        float const tree_dist = CM_DistanceToPathingFootprintFlags(tree, &p, flags);
+        if (!CM_TerrainPointIsWalkable(&p) || tree_dist > self->collision + CM_PathCellWorldSize())
+            return false;
+        FOR_LOOP(n, globals.num_edicts) {
+            edict_t const *other = EDICT_NUM(n);
+            if (other == tree || !other->inuse || !other->pathtex ||
+                (other->s.renderfx & RF_HIDDEN)) continue;
+            float const other_dist = CM_DistanceToPathingFootprintFlags(other, &p, flags);
+            /* Adjacent tree footprints may touch the spawn point. They do not
+             * own that overlapping sample while it is still inside the
+             * harvested tree, but become blockers as the corridor approaches
+             * their footprint more closely than the harvested one. */
+            if (other_dist + 1.0f < tree_dist && other_dist <= self->collision + CM_PathCellWorldSize())
+                return false;
+        }
+    }
+    return true;
+}
+
+static bool move_wisp_egress_choose_target(edict_t *self, uint8_t flags) {
+    edict_t *tree = self->movement.wisp_egress_tree;
+    float const cell = MAX(4.0f, CM_PathCellWorldSize() * 0.5f);
+    float const radius = (float)MAX(tree->pathtex->width, tree->pathtex->height) * CM_PathCellWorldSize() * 0.5f +
+        self->collision + CM_PathCellWorldSize() * 2.0f;
+    float best = FLT_MAX;
+    vec2_t chosen = {0, 0};
+    bool found = false;
+    for (float y = tree->s.origin2.y - radius; y <= tree->s.origin2.y + radius; y += cell) {
+        for (float x = tree->s.origin2.x - radius; x <= tree->s.origin2.x + radius; x += cell) {
+            vec2_t const p = {x, y};
+            float const d = Vector2_distance(&self->s.origin2, &p);
+            if (d >= best || !CM_PointIsPathableForRadiusFlags(&p, self->collision, flags)) continue;
+            if (!move_wisp_egress_corridor_clear(self, tree, &p, flags)) continue;
+            best = d;
+            chosen = p;
+            found = true;
+        }
+    }
+    self->movement.wisp_egress_target_valid = found;
+    if (found) self->movement.wisp_egress_target = chosen;
+    return found;
+}
+
+void M_StartWispTreeEgress(edict_t *self, edict_t *tree) {
+    if (!self || !tree || !tree->inuse || !tree->pathtex || !G_ActorHasSkill(self, "Awha")) return;
+    self->movement.wisp_egress_tree = tree;
+    self->movement.wisp_egress_tree_spawn_time = tree->spawn_time;
+    self->movement.wisp_egress_active = true;
+    self->movement.wisp_egress_target_valid = false;
+}
+
+/* Is the position 'cand' free for 'self' (static world + other units)?  On a
+ * unit rejection, records the blocking unit in trymove_blocker (NULL otherwise)
+ * so the slide can apply speed-priority give-way. */
 static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
                                  moveCollisionPolicy_t collision_policy) {
     trymove_blocker = NULL;
@@ -1116,8 +1190,14 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
         return true;
 
     /* Static world: terrain + baked building footprints (pathmap.original). */
-    if (!move_static_point(self, cand))
+    bool const wisp_egress = move_wisp_egress_tree_valid(self) &&
+        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, M_UnitStaticPathingFlags(self));
+    if (wisp_egress) {
+        if (!move_wisp_egress_corridor_clear(self, self->movement.wisp_egress_tree, cand, M_UnitStaticPathingFlags(self)))
+            return false;
+    } else if (!move_static_point(self, cand)) {
         return false;
+    }
     /* WC3's pathing grid rejects a swept step that cuts a diagonal corner. Keep
      * the escape case for units spawned inside stale/changed pathing, where the
      * endpoint remains the authoritative legal position. */
@@ -2464,6 +2544,10 @@ static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
  * visibly rotate/wobble and crab sideways past each other and trees. */
 static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
+    /* A Wisp leaving its harvested tree starts inside that tree's footprint;
+     * unit_changeangle_policy steers it toward the egress target. */
+    bool const wisp_egress = move_wisp_egress_tree_valid(self) &&
+        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, M_UnitStaticPathingFlags(self));
     if ((self->aiflags & AI_IMMOBILE) || self->movement.turn_blocked) {
         /* Preserve upstream's Stand clip while using retail's pre-turn gate. */
         if (self->movement.turn_blocked && !G_AnimationHasPrimary(self->animation,"stand"))
@@ -2488,20 +2572,22 @@ static void unit_moveindirection_policy(edict_t *self,
      * step using the unit's previous facing/heading while the requested route
      * is still being built.  This is the common safety net for Move, Harvest,
      * Patrol, Attack, Build, Repair, and resource-return walkers. */
-    if (!self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0 &&
+    if (!wisp_egress && !self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0 &&
         !self->movement.route_resume_active) {
         self->movement.velocity = (vec2_t){0};
         move_route_wait_diag(self, true, MOVE_DIAG_ROUTE_WAIT);
         return;
     }
 
+    if (wisp_egress && !self->movement.wisp_egress_target_valid) return;
     if (!G_AnimationHasPrimary(self->animation,"walk")) unit_setanimation(self,"walk");
     moveStep_t motion;
     vec2_t facing_dir, heading_dir;
     wc3_sincos(self->s.angle, &facing_dir.y, &facing_dir.x);
     wc3_sincos(self->movement.heading, &heading_dir.y, &heading_dir.x);
     vec2_t const origin = self->s.origin2;
-    vec2_t const progress_goal = self->movement.displacement_active ? self->movement.displacement_target :
+    vec2_t const progress_goal = self->movement.wisp_egress_active && self->movement.wisp_egress_target_valid ?
+        self->movement.wisp_egress_target : self->movement.displacement_active ? self->movement.displacement_target :
         self->goalentity ? self->goalentity->s.origin2 : self->s.origin2;
     vec2_t const by_facing = unit_step_heading(self, self->s.angle, &motion);
     bool const facing_progress = !self->goalentity ||
@@ -3201,6 +3287,31 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     }
     if (move_displacement_steer(self, policy))
         return;
+    if (move_wisp_egress_tree_valid(self)) {
+        uint8_t const flags = M_UnitStaticPathingFlags(self);
+        if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, flags)) {
+            self->movement.wisp_egress_tree = NULL;
+            self->movement.wisp_egress_active = false;
+            self->movement.wisp_egress_target_valid = false;
+        } else {
+            if (!self->movement.wisp_egress_target_valid ||
+                !CM_PointIsPathableForRadiusFlags(&self->movement.wisp_egress_target,
+                                                   self->collision, flags))
+                move_wisp_egress_choose_target(self, flags);
+            if (self->movement.wisp_egress_target_valid) {
+                vec2_t const dir = Vector2_sub(&self->movement.wisp_egress_target, &self->s.origin2);
+                self->movement.flow_direct = true;
+                self->movement.flow_generation = 0;
+                self->movement.flow_unreachable = false;
+                unit_apply_heading(self, &dir, policy);
+            }
+            return;
+        }
+    } else if (self->movement.wisp_egress_active) {
+        self->movement.wisp_egress_tree = NULL;
+        self->movement.wisp_egress_active = false;
+        self->movement.wisp_egress_target_valid = false;
+    }
     if (move_fallback_steer(self, policy))
         return;
     self->movement.route_resume_active = false;
@@ -4094,6 +4205,8 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     speed = unit_apply_earthquake_speed(ent, speed);
     speed *= 1.0f - S_PurgeMoveReduction(ent);
     speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
+    /* Retail Banish slows movement by 50%; other ethereal sources need not. */
+    if (S_UnitHasStatus(ent, MAKEFOURCC('B','H','b','n'))) speed *= 0.5f;
     speed=S_ApplyEnduranceMoveSpeed(ent,speed);
     bool building = G_UnitIsStructure(ent);
     UnitBalance_t const *profile = S_PolymorphMovementProfile(ent);
@@ -4245,6 +4358,13 @@ static uint32_t move_allocate_group_id(void) {
     } while (used);
     move_group_id_bound=MAX(move_group_id_bound,level.next_move_group_id);
     return level.next_move_group_id;
+}
+
+/* Near-goal band where a Move settles when its exact goal is occupied; creep
+ * guard arrival uses the same rule so a creep parked beside a filled anchor
+ * counts as home. */
+float move_settle_distance(edict_t *ent) {
+    return unit_movedistance(ent) + ent->collision + MOVE_SLOT_MARGIN;
 }
 
 bool move_should_arrive(edict_t *ent, float move_distance) {
@@ -4747,7 +4867,7 @@ bool move_is_active_order_walk(edict_t const *ent) {
 }
 
 bool S_UnitIsEntanglingRooted(edict_t const *unit) {
-    return unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r'));
+    return unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')); /* Distinct from generic ROOTED: Roots also disarms. */
 }
 
 /* Move owns translation eligibility. False means the unit cannot change
@@ -4756,7 +4876,7 @@ bool S_UnitIsEntanglingRooted(edict_t const *unit) {
 bool S_UnitCanTranslate(edict_t const *unit) {
     if (!unit) return false;
     if ((unit->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(unit) ||
-        S_UnitIsEntanglingRooted(unit) || S_UnitIsEnsnared(unit) || S_PurgeIsImmobilized(unit)) return false;
+        unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED) || S_PurgeIsImmobilized(unit)) return false;
     return true;
 }
 
@@ -4765,8 +4885,8 @@ bool S_UnitCanTranslate(edict_t const *unit) {
 static void move_begin_walk(edict_t *self, edict_t *target, bool patrol_leg) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || S_UnitIsEntanglingRooted(self)
-        || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
+    if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || unit_hasstatusstate(self, WC3_STATUS_STATE_ROOTED)
+        || S_PurgeIsImmobilized(self))
         return;
     if (self->movement.clock_valid) unit_commit_current_pose(self);
     move_cancel_displacement(self);
@@ -6201,6 +6321,16 @@ static void move_run_group_updates(void) {
         group->ticking=true;
         move_group_prepare_members(group);
         if (!group->count) { move_release_group(group); continue; }
+        /* A Wisp leaving harvest starts inside its tree's footprint and has no
+         * legal route source; walk it out before physical group steering. */
+        if (!group->individual) FOR_LOOP(m,group->count) {
+            edict_t *unit=group->members[m].unit;
+            if (!unit || !move_wisp_egress_tree_valid(unit) || S_UnitExecutionPaused(unit) || unit->stunned) continue;
+            if (CM_PointIsPathableForRadiusFlags(&unit->s.origin2,unit->collision,M_UnitStaticPathingFlags(unit))) {
+                unit->movement.wisp_egress_tree=NULL;
+                unit->movement.wisp_egress_active=unit->movement.wisp_egress_target_valid=false;
+            } else { unit_changeangle(unit); unit_moveindirection(unit); }
+        }
         if (group->individual) {
             edict_t *unit=group->members[0].unit;
             if (!S_UnitExecutionPaused(unit) && !unit->stunned) ai_move_walk(unit);
@@ -6452,6 +6582,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             G_ClearUnitOrderQueue(ent);
             ent->movement.holding_position = false;
             S_IssueMoveOrder(ent, waypoint, G_OrderId("move"));
+            G_CreepGuardExplicitOrder(ent);
             if (ent->goalentity == waypoint && ent->currentmove == &move_move_walk) {
                 ent->movement.group_id = group_id;
                 ent->movement.group_speed = group_speed;

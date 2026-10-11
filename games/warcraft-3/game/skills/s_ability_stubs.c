@@ -11,7 +11,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityImmolation) {
 
     FOR_LOOP(i, G_UnitStatusSlotCount(caster)) {
         if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
-            memset(&caster->abilstatus[i], 0, sizeof(caster->abilstatus[i]));
+            unit_removestatus(caster, &caster->abilstatus[i], STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(caster);
             return;
         }
@@ -30,7 +30,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityColdArrows) {
 
     FOR_LOOP(i, G_UnitStatusSlotCount(caster)) {
         if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
-            memset(&caster->abilstatus[i], 0, sizeof(caster->abilstatus[i]));
+            unit_removestatus(caster, &caster->abilstatus[i], STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(caster);
             return;
         }
@@ -110,6 +110,8 @@ void divine_shield_think(edict_t *ent) {
         return;
     }
     if (G_Time() < ent->spawn_time) return;
+    /* Preserve innate/scripted invulnerability; independent status contributors
+     * remain authoritative through unit_hasstatusstate after this thinker ends. */
     caster->invulnerable = ent->resources;
     G_FreeEdict(ent);
 }

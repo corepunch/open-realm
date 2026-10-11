@@ -46,6 +46,12 @@ max(0, timestamp - now) / duration_ms
 
 clamped to `0..1`. `unit_findtimedbarstatus()` scans `abilstatus[]` in slot order and returns the last live qualifying record. This mirrors Warsmash's one-slot behavior, where a later qualifying buff population overwrites the same progress indicator.
 
+Status records now have per-unit instance identities and an explicit stacking
+policy. Multiple independent instances may therefore expire and tick separately
+while ordinary HUD entries and persistent TargetArt continue to deduplicate by
+buff rawcode. The timed bar remains one-slot presentation, so among qualifying
+instances the last live array entry is shown.
+
 The full `heroabilitystatus_t` array is already part of the raw `edict_t` save record, so `duration_ms` follows the existing save/load record automatically. Changing the struct changes `sizeof(edict_t)`; the save header already rejects incompatible layouts rather than attempting backwards compatibility.
 
 ## HUD Data Flow

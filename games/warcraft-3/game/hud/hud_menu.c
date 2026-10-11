@@ -306,6 +306,8 @@ void UI_LoadHudMenu(void) {
 
     UI_SetText(hud.menu.PauseButtonText, "Resume Game");
     UI_SetText(hud.menu.ReturnButtonText, "Return to Game");
+    /* PauseButton duplicates ReturnButton's resume action in this menu. */
+    UI_SetHidden(hud.menu.PauseButton, true);
     UI_SetText(hud.menu.RestartButtonText, "Restart Mission");
     UI_SetOnClick(hud.menu.PauseButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
     UI_SetOnClick(hud.menu.ReturnButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
@@ -328,7 +330,6 @@ void UI_LoadHudMenu(void) {
                       "menu_save_named \"{SaveGameFileEditBox}\"");
         MenuSetButton(hud.save_menu.SaveGameDeleteButton, false, NULL);
         MenuSetButton(hud.save_menu.SaveGameCancelButton, true, "menu");
-        MenuSetButton(hud.save_menu.LoadGameCancelButton, true, "menu");
     }
 }
 
@@ -357,6 +358,17 @@ static void MenuSelectPanel(menuPanel_t panel) {
     UI_CenterFrame(hud.menu.EscMenuBackdrop);
 }
 
+/* A single-player result is terminal: Blizzard.j's CustomDefeatBJ and the
+ * fallback both RemovePlayer before any result dialog offers Load, so a removed
+ * player may only load, restart or quit from every Esc-menu page. */
+static bool MenuReturnLocked(edict_t const *ent) {
+    return G_IsSinglePlayer() && ent->client->jass.removed;
+}
+
+static uint32_t MenuWindowFlags(edict_t const *ent) {
+    return UI_WINDOW_MODAL | UI_WINDOW_UNIQUE | (MenuReturnLocked(ent) ? UI_WINDOW_NO_ESCAPE : 0);
+}
+
 static void MenuWrite(edict_t *ent, menuPanel_t panel) {
     if (!ent || !ent->client || !ent->client->connected) return;
     /* Decorated Esc-menu art is resolved while the FDF is first loaded, so
@@ -370,10 +382,10 @@ static void MenuWrite(edict_t *ent, menuPanel_t panel) {
      * operation. Keep the authored button visible in multiplayer but disabled,
      * and enforce the same policy again in the command handler. */
     UI_SetEnabled(hud.menu.RestartButton, G_IsSinglePlayer());
+    UI_SetEnabled(hud.menu.ReturnButton, !MenuReturnLocked(ent));
     MenuSelectPanel(panel);
     UI_WriteWindow(ent, hud.menu.EscMenuMainPanel, &MAKE(uiWindowDef_t,
-        .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU,
-        .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
+        .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU, .flags = MenuWindowFlags(ent)));
     UI_SetCurrentClient(NULL);
 }
 
@@ -416,6 +428,8 @@ static void MenuSelectSavePanel(menuSavePanel_t panel) {
                  list->Name);
     }
     MenuSetButton(hud.save_menu.LoadGameLoadButton, !saving && can_load, can_load ? load_command : NULL);
+    /* Cancel replaces the unique window with the main page, whose flags re-derive the result lock. */
+    MenuSetButton(hud.save_menu.LoadGameCancelButton, true, "menu");
     MenuSetButton(hud.save_menu.SaveGameDeleteButton, saving && saves > 0,
                   saving && saves > 0 ? "menu_delete_named \"{SaveFileList}\"" : NULL);
 
@@ -431,20 +445,21 @@ static void MenuSelectSavePanel(menuSavePanel_t panel) {
 
 }
 
-static void MenuWriteSavePanel(edict_t *ent, menuSavePanel_t panel) {
+static bool MenuWriteSavePanel(edict_t *ent, menuSavePanel_t panel) {
     if (!ent || !ent->client || !ent->client->connected ||
-        !G_IsSinglePlayer() || !MenuSavePanelReady()) return;
+        !G_IsSinglePlayer() || !MenuSavePanelReady()) return false;
 
     UI_SetCurrentClient(ent->client);
     MenuSelectSavePanel(panel);
     /* Reuse the same unique menu identity as MainPanel. Replacing the window
      * preserves modal ownership while Main <-> Save/Load transitions occur. */
-    UI_WriteWindowStart(&MAKE(uiWindowDef_t, .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU, .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
+    UI_WriteWindowStart(&MAKE(uiWindowDef_t, .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU, .flags = MenuWindowFlags(ent)));
     UI_WriteFrameWithChildren(hud.menu.EscMenuMainPanel, NULL);
     UI_WriteFrame(&hud.save_list);
     UI_WriteFrameWithChildren(hud.save_list_art.MapListScrollBar, &hud.save_list);
     UI_WriteWindowEnd(ent);
     UI_SetCurrentClient(NULL);
+    return true;
 }
 
 static void MenuSetOptionCheckBox(frameDef_t *frame, cstring_t cvar, bool fallback) {
@@ -515,8 +530,7 @@ static void MenuWriteOptions(edict_t *ent, menuOptionsPanel_t panel) {
     UI_SetCurrentClient(ent->client);
     MenuSelectOptionsPanel(panel);
     UI_WriteWindow(ent, hud.menu.EscMenuMainPanel, &MAKE(uiWindowDef_t,
-        .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU,
-        .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
+        .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU, .flags = MenuWindowFlags(ent)));
     UI_SetCurrentClient(NULL);
 }
 
@@ -536,8 +550,8 @@ void UI_ShowGameMenuSave(edict_t *ent) {
     MenuWriteSavePanel(ent, MENU_SAVE_PANEL_SAVE);
 }
 
-void UI_ShowGameMenuLoad(edict_t *ent) {
-    MenuWriteSavePanel(ent, MENU_SAVE_PANEL_LOAD);
+bool UI_ShowGameMenuLoad(edict_t *ent) {
+    return MenuWriteSavePanel(ent, MENU_SAVE_PANEL_LOAD);
 }
 
 void UI_ShowGameMenuOptions(edict_t *ent) {

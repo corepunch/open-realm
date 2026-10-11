@@ -208,6 +208,28 @@ TEST(wc3_spell, unsummon_interruption_while_approaching_preserves_target) {
     uns_done(&fix);
 }
 
+/* Cancellation of a newer cast must not erase an older approach thinker.
+ * The shared channel serial is authoritative even after code is cleared. */
+TEST(wc3_spell, unsummon_cancel_only_matches_channel_serial) {
+    unsFix_t fix;
+    edict_t *old_thinker;
+    uns_setup(&fix);
+    fix.caster->s.origin2.x = fix.caster->s.origin.x = 0;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    old_thinker = uns_thinker(fix.caster);
+    T_NOT_NULL(old_thinker);
+    T_ASSERT(old_thinker->unsummon->approaching);
+    T_NOT_NULL(fix.caster->channel);
+    T_NE(old_thinker->channel->serial, 0);
+    /* Simulate a newer cast serial while the earlier approach still exists. */
+    fix.caster->channel->serial++;
+    S_SpellCancelChannel(fix.caster);
+    T_ASSERT(old_thinker->inuse);
+    T_ASSERT(old_thinker->unsummon->approaching);
+    T_ASSERT(fix.caster->unsummon->approaching);
+    uns_done(&fix);
+}
+
 TEST(wc3_spell, unsummon_order_interruption_after_start_keeps_earned_refund) {
     unsFix_t fix;
     uint16_t gold;

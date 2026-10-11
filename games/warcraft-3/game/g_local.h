@@ -189,7 +189,7 @@ typedef struct {
 #define MAX_HERO_ABILITIES 4
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
 #define MAX_UNIT_COOLDOWNS 16 // independent per-unit ability cooldown records; does not consume buff/status capacity
-#define MAX_UNIT_STATUSES 8
+#define MAX_UNIT_STATUSES 16
 #define PLAYER_TEXT_BACKUP 16
 #define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
 #define MAX_START_PRIO 16 // slots; one possible priority entry per WC3 player start location
@@ -860,6 +860,12 @@ typedef enum {
     GUARD_RETURNING,
 } unitGuardState_t;
 
+typedef enum {
+    CREEP_GUARD_IDLE,
+    CREEP_GUARD_COMBAT,
+    CREEP_GUARD_RETURNING
+} creepGuardPhase_t;
+
 /* Independent policies consumed by ability command and cast dispatch. */
 #define AB_PASSIVE      (1u << 0)  // bit 0; passive command policy; used in ability flags
 #define AB_TOGGLE       (1u << 1)  // bit 1; reversible on/off action; used in ability flags
@@ -943,6 +949,18 @@ typedef struct {
     ability_t const *ability;
 } abilityitem_t;
 
+/* Why a Warcraft timed status is ending; exposed to A_STATUS_REMOVE owners. */
+typedef enum {
+    STATUS_REMOVE_EXPIRE,
+    STATUS_REMOVE_DISPEL,
+    STATUS_REMOVE_STEAL,
+    STATUS_REMOVE_REPLACED,
+    STATUS_REMOVE_DEATH,
+    STATUS_REMOVE_SOURCE_LOST,
+    STATUS_REMOVE_TRANSFORM,
+    STATUS_REMOVE_SCRIPT
+} status_remove_reason_t;
+
 typedef enum {
     A_INIT,             /* InitAbilities: initialize shared data from call->classname. */
     A_COMMAND,          /* Command card: begin the ability through call->client; return handled. */
@@ -995,6 +1013,7 @@ typedef enum {
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
     A_NO_RETALIATE,     /* Damage query: return true to suppress automatic counter-attacks. */
     A_CANCEL,           /* Explicit cancellation: return to the unit's ordinary idle behavior. */
+    A_TARGET_MODE_EXIT, /* Target-selection UI is being cleared; owning ability releases its cursor presentation. */
     A_DEATH,            /* unit_die: ability-owned death behavior on the dying unit. */
     A_QUEUE_VALIDATE,   /* Train scheduler: queued item may progress this tick; return validity. Payload: call->queue.{producer,item}. */
     A_QUEUE_COMPLETE,   /* Train completion after placement: owner consumes inputs and activates the result. Payload: call->queue. */
@@ -1143,7 +1162,7 @@ struct ability_call_s {
         struct { edict_t *source; uint32_t flags; edict_t *victim; } combat_alert;
         struct { edict_t *producer; edict_t *item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
-        struct { heroabilitystatus_t *slot; uint32_t ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
+        struct { heroabilitystatus_t *slot; uint32_t ability; status_remove_reason_t reason; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
     };
 };
 
@@ -1660,16 +1679,110 @@ typedef enum {
     HERO_SKILL_MAXED
 } heroSkillState_t;
 
+/* Categorical state contributions owned by a live status slot. These are
+ * independent of ability rawcodes; callers may combine several sources. */
+typedef enum {
+    WC3_STATUS_STATE_STUNNED       = 1u << 0,
+    WC3_STATUS_STATE_ROOTED        = 1u << 1,
+    WC3_STATUS_STATE_SILENCED      = 1u << 2,
+    WC3_STATUS_STATE_SLEEPING      = 1u << 3,
+    WC3_STATUS_STATE_MAGIC_IMMUNE  = 1u << 4,
+    WC3_STATUS_STATE_INVULNERABLE  = 1u << 5,
+    WC3_STATUS_STATE_ETHEREAL      = 1u << 6
+} wc3_status_state_t;
+
+/* Status-owned numeric contributions.  The shared resolver performs only
+ * arithmetic; each ability remains responsible for interpreting its data.
+ * Family zero is reserved for independent/additive contributions. */
+#define WC3_STATUS_MAX_MODIFIERS 4
+
+typedef enum {
+    WC3_STATUS_MOD_MOVE_SPEED_PERCENT,
+    WC3_STATUS_MOD_MOVE_SPEED_FLAT,
+    WC3_STATUS_MOD_ATTACK_SPEED_PERCENT,
+    WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT,
+    WC3_STATUS_MOD_ATTACK_DAMAGE_FLAT,
+    WC3_STATUS_MOD_ARMOR_FLAT,
+    WC3_STATUS_MOD_HP_REGEN_FLAT,
+    WC3_STATUS_MOD_MANA_REGEN_FLAT
+} wc3_status_modifier_type_t;
+
+typedef enum {
+    WC3_STATUS_MOD_ADD,
+    WC3_STATUS_MOD_STRONGEST_POSITIVE,
+    WC3_STATUS_MOD_STRONGEST_NEGATIVE
+} wc3_status_modifier_policy_t;
+
+typedef struct {
+    uint32_t type;    /* wc3_status_modifier_type_t */
+    uint32_t family;  /* nonzero identifier for strongest-wins resolution */
+    uint32_t policy;  /* wc3_status_modifier_policy_t */
+    float value;
+    /* 0: external/custom provider; 1: stock AbilityData authored contributor. */
+    uint32_t owner;
+} wc3_status_modifier_t;
+
+#define WC3_STATUS_MOD_OWNER_AUTHORED 1u
+
+/* Classification is deliberately explicit; zero means unclassified legacy status. */
+typedef enum {
+    WC3_STATUS_BUFF_POSITIVE = 1u << 0,
+    WC3_STATUS_BUFF_NEGATIVE = 1u << 1,
+    WC3_STATUS_BUFF_MAGICAL = 1u << 2,
+    WC3_STATUS_BUFF_PHYSICAL = 1u << 3,
+    WC3_STATUS_BUFF_UNDISPELLABLE = 1u << 4,
+    WC3_STATUS_BUFF_TRANSFERABLE = 1u << 5,
+    /* Opt-in persistent TargetArt owned by the status lifecycle, not the caster. */
+    WC3_STATUS_BUFF_TARGET_ART = 1u << 6
+} wc3_status_buff_flag_t;
+
 typedef struct heroabilitystatus_s {
     uint32_t code;
+    uint32_t instance_id; /* generation-safe within the owning edict */
+    uint32_t stack_policy;
     uint32_t level;
     uint32_t timestamp;
     uint32_t duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
-    uint32_t data; /* applying ability rawcode or ability-specific numeric payload */
+    uint32_t data; /* legacy ability rawcode or ability-specific numeric payload; retain unchanged */
+    uint32_t source_ability; /* explicit applying ability rawcode; zero means legacy/unattributed */
+    uint32_t state_mask; /* composable categorical contributors owned by this slot */
+    uint32_t buff_flags; /* explicit dispel/transfer semantics; zero preserves legacy policy */
+    uint32_t modifier_count;
+    wc3_status_modifier_t modifiers[WC3_STATUS_MAX_MODIFIERS];
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
     uint32_t prevention_mask; /* captured Attacks Prevented mask; zero after its inverse */
 } heroabilitystatus_t;
+
+/* Status application is authoritative for identity and source metadata.  The
+ * legacy data payload is intentionally independent of source_ability. */
+typedef struct {
+    cstring_t buff;
+    uint32_t level;
+    float duration;
+    uint32_t source_ability;
+    uint32_t state_mask;
+    uint32_t buff_flags;
+    uint32_t data;
+    edict_t *source;
+    uint32_t rank;
+    uint32_t stack_policy;
+} status_application_t;
+
+typedef enum {
+    WC3_STATUS_STACK_DEFAULT,
+    WC3_STATUS_STACK_INDEPENDENT
+} wc3_status_stack_policy_t;
+
+/* Bounded status storage: capacity is checked before any gameplay side effects.
+ * The existing rawcode-keyed representation does not yet support multiple
+ * independent instances of the same buff from distinct sources. */
+typedef enum {
+    WC3_STATUS_APPLY_INVALID,
+    WC3_STATUS_APPLY_REUSE,
+    WC3_STATUS_APPLY_FREE_SLOT,
+    WC3_STATUS_APPLY_FULL
+} wc3_status_apply_check_t;
 
 typedef struct {
     heroabilitystatus_t slots[MAX_UNIT_STATUSES];
@@ -2102,6 +2215,7 @@ struct edict_s {
     uint32_t hero_proper_name; /* original 28a460 Propernames slot, chosen once at creation */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t *abilstatus; /* optional pool; fixed slot order when present */
+    uint32_t next_status_instance_id;
     abilityCooldown_t abilitycooldowns[MAX_UNIT_COOLDOWNS];
     edictAbilities_s abilities;
     uint32_t autocast_code; /* one selected autocast ability; zero means disabled */
@@ -2224,6 +2338,10 @@ struct edict_s {
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
         uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
         bool worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
+        edict_t *wisp_egress_tree;   /* harvested tree whose footprint a Wisp is currently leaving */
+        uint32_t wisp_egress_tree_spawn_time;
+        vec2_t wisp_egress_target;   /* nearest local point clear of the harvested tree footprint */
+        bool wisp_egress_active, wisp_egress_target_valid;
         edict_t *attackmove_waypoint;  // resume attack-move after a combat detour
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
@@ -2235,6 +2353,14 @@ struct edict_s {
          * that point temporarily, then returns once the combat detour ends. */
         vec2_t guard_position;
         unitGuardState_t guard_state;
+        /* Neutral Hostile's spawn anchor is independent of player Stop. */
+        vec2_t creep_guard_origin;
+        uint32_t creep_guard_last_hit_ms;
+        uint32_t creep_guard_outside_ms;
+        uint32_t creep_guard_return_retries;
+        uint32_t creep_guard_retry_at_ms;
+        bool creep_guard_enabled;
+        creepGuardPhase_t creep_guard_phase;
         bool explicit_allied_attack;
         bool cargo_unload_pending; /* Drop ability: unload after point-move arrival */
         uint32_t cargo_unload_ability; /* initiating concrete AbilityData rawcode */
@@ -2415,6 +2541,9 @@ struct game_locals {
         float attackNotifyDelay;
         float attackNotifyRange;
         float callForHelp, creepCallForHelp;
+        /* Neutral Hostile leash, read once per map instead of per creep tick. */
+        float maxGuardDistance;
+        uint32_t guardReturnMs;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         float defenseArmor;
@@ -2460,6 +2589,7 @@ typedef struct {
     uint32_t texture;
     BLEND_MODE blendmode;
     TEXMAP_FLAGS texmapflags;
+    bool masked; /* texture has its own alpha channel (vignettes), not a plain fade mask */
     struct {
         box2_t uv;
         color32_t color;
@@ -2898,8 +3028,9 @@ cstring_t G_HeroProperName(edict_t const *, char *, size_t);
 void G_ClearHeroNames(void);
 cstring_t G_MapString(mapInfo_t const *info, cstring_t name);
 cstring_t G_UnitName(uint32_t);
-float G_Cinefade(void);
 bool G_SkipCutscene(void);
+BLEND_MODE G_BlendModeFromJass(uint32_t mode);
+bool G_ImageHeaderHasAlpha(uint8_t const *data, uint32_t size);
 vec2_t G_ClampCameraPosition(gameClient_t *client, vec2_t const *position);
 vec3_t G_MakeServerOrigin(float x, float y, float z_offset);
 void G_SetCameraBounds(float const bounds[8]);
@@ -3005,6 +3136,9 @@ void G_BotRemoveSiege(player_t *);
 int32_t G_BotCaptainReadiness(player_t *, bool);
 bool G_BotAddDefenders(player_t *, int32_t, uint32_t);
 void G_BotAddGuardPost(player_t *, uint32_t, float, float);
+void G_BotRemoveGuardPosition(edict_t *);
+void G_BotRecycleGuardPosition(edict_t *);
+void G_BotRemoveAllGuardPositions(player_t *);
 void G_BotFillGuardPosts(player_t *);
 void G_BotReturnGuardPosts(player_t *);
 void G_BotHeroLevelUp(edict_t *);
@@ -3366,14 +3500,33 @@ void unit_stand_no_queue(edict_t *);
 void unit_entercombat(edict_t *, edict_t *);
 void unit_leavecombat(edict_t *);
 bool unit_affectingcombat(edict_t *);
+/* Consume one due pulse. Advances its deadline before the caller applies damage,
+ * avoiding a duplicate pulse when damage recursively updates statuses.
+ * A zero deadline is unscheduled; expiry is exclusive. */
+bool unit_status_take_due_tick(heroabilitystatus_t *, uint32_t interval_ms, uint32_t now_ms);
 void unit_updatestatuses(edict_t *);
 void unit_expirestatus(edict_t *, heroabilitystatus_t *);
+void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
+/* For grouped removal/replacement; caller must reconcile flags once afterward. */
+void unit_removestatus_deferred(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
+void unit_status_enabletargetart(edict_t *, heroabilitystatus_t *, cstring_t attach_point);
+bool unit_status_can_dispel(heroabilitystatus_t const *);
+/* Magical dispels reject explicitly physical-only statuses; legacy unclassified buffs retain compatibility. */
+bool unit_status_can_magic_dispel(heroabilitystatus_t const *);
+bool unit_status_can_steal(heroabilitystatus_t const *);
 uint32_t unit_removebuffs(edict_t *, bool, bool, bool, bool, bool, bool, bool);
 heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);
+heroabilitystatus_t *unit_findstatussource(edict_t *, uint32_t, edict_t const *);
 void unit_statusdeath(edict_t *);
 void incinerate_explode_think(edict_t *);
 void monsoon_think(edict_t *);
 void unit_refreshstatusflags(edict_t *);
+bool unit_hasstatusstate(edict_t const *, wc3_status_state_t);
+/* Modifier descriptors belong to live status slots. These APIs do not yet
+ * feed combat/movement arithmetic; ability migrations do that in phase 7. */
+bool unit_status_setmodifier(heroabilitystatus_t *, uint32_t index, wc3_status_modifier_t const *);
+float unit_status_modifier_total(edict_t const *, wc3_status_modifier_type_t);
+
 
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
 float unit_turnspeed(edict_t const *);
@@ -3804,7 +3957,7 @@ void G_EffectThink(edict_t *);
 void G_EffectValidateTarget(edict_t *);
 
 // hud/hud_resource_text.c
-void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amount);
+void G_ResourceGainEvent(edict_t *source, uint32_t recipient, uint32_t resource_state, int32_t amount);
 void G_BountyGainEvent(edict_t *victim, uint32_t recipient, uint32_t resource_state, int32_t amount);
 
 // hud/hud_unit.c
@@ -3947,7 +4100,7 @@ void UI_ShowGameMenuOptionsSound(edict_t *);
 void UI_ShowGameMenuEndGame(edict_t *);
 void UI_ShowGameMenuConfirmExit(edict_t *);
 void UI_ShowGameMenuSave(edict_t *);
-void UI_ShowGameMenuLoad(edict_t *);
+bool UI_ShowGameMenuLoad(edict_t *);
 void UI_ShowRealmSelect(edict_t *, bool);
 void UI_ShowSinglePlayerMenu(edict_t *);
 void UI_ShowMultiplayerMenu(edict_t *);
@@ -3999,6 +4152,7 @@ jassDialogButton_t *G_JassDialogButton(handle_t);
 jassDialog_t *G_JassDialogById(uint32_t);
 jassDialogButton_t *G_JassDialogButtonById(uint32_t);
 jassDialog_t *G_JassDialogCreate(void);
+void G_JassDialogSetMessage(jassDialog_t *, cstring_t);
 jassDialogButton_t *G_JassDialogAddButton(jassDialog_t *, cstring_t, jassDialogButtonOptions_t const *);
 void G_JassDialogDestroy(jassDialog_t *);
 void G_JassDialogClear(jassDialog_t *);
@@ -4287,8 +4441,10 @@ edict_t *unit_create(uint32_t, uint32_t, vec2_t const *, float);
 edict_t *unit_createorfind(uint32_t, uint32_t, vec2_t const *, float);
 bool unit_additemtoslot(edict_t *, edict_t *, uint32_t);
 bool unit_additem(edict_t *, edict_t *);
-void unit_addstatus(edict_t *, cstring_t, uint32_t);
-void unit_addtimedstatus(edict_t *, cstring_t, uint32_t, float);
+bool unit_addstatus(edict_t *, cstring_t, uint32_t);
+bool unit_addtimedstatus(edict_t *, cstring_t, uint32_t, float);
+wc3_status_apply_check_t unit_status_checkapplication(edict_t const *, status_application_t const *);
+heroabilitystatus_t *unit_applystatus(edict_t *, status_application_t const *);
 uint32_t G_UnitStatusLevel(edict_t const *, uint32_t);
 static inline uint32_t G_UnitStatusSlotCount(edict_t const *unit) {
     return unit && unit->abilstatus ? MAX_UNIT_STATUSES : 0;
@@ -4420,12 +4576,22 @@ typedef enum {
 moveTargetResult_t S_MoveTargetStatus(edict_t const *, edict_t const *);
 bool move_is_active_order_walk(edict_t const *);
 void move_start_displacement(edict_t *, vec2_t const *);
+void M_StartWispTreeEgress(edict_t *, edict_t *);
 void move_cancel_displacement(edict_t *);
 bool move_displacement_active(edict_t const *);
 bool move_displacement_reached(edict_t *);
 void order_stop(edict_t *);
 void order_stop_cleanup(edict_t *);
 void order_stop_queued(edict_t *);
+void G_CreepGuardInit(edict_t *);
+void G_CreepGuardAutoCombat(edict_t *);
+void G_CreepGuardSetEnabled(edict_t *, bool);
+void G_CreepGuardDamaged(edict_t *);
+void G_CreepGuardCallForHelp(edict_t *, edict_t *);
+void G_CreepGuardConstructionStarted(edict_t *);
+void G_CreepGuardTick(edict_t *);
+bool G_CreepGuardCombatEnd(edict_t *);
+void G_CreepGuardExplicitOrder(edict_t *);
 void G_SetUnitGuardPosition(edict_t *);
 void G_ClearUnitGuardPosition(edict_t *);
 void order_attackmove(edict_t *, edict_t *);
@@ -4551,6 +4717,7 @@ void possession_two_think(edict_t *);
 void lsh_think(edict_t *);
 bool move_selectlocation(edict_t *, vec2_t const *);
 bool move_should_arrive(edict_t *, float);
+float move_settle_distance(edict_t *);
 bool move_is_blocked(edict_t *, float, float);
 bool move_is_settled_near_goal(edict_t *, float, float);
 bool move_is_terminal_hold(edict_t const *);

@@ -30,6 +30,7 @@
 /* Pull in the net types + common types without game state. */
 #include "../client/client.h"
 #include "../client/cl_input_local.h"
+#include "../client/ui_layout.h"
 
 static cstring_t minimap_map;
 static void capture_minimap(rect_t const *screen, cstring_t map) { (void)screen; minimap_map = map; }
@@ -52,7 +53,9 @@ void SCR_LayoutDrawTexture(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawTextArea(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawListBox(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawOverlay(handle_t layout);
+void SCR_DrawScreenField(uint32_t msec);
 void SCR_LayoutDrawLoadingBar(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutClampSelectionRect(rect_t *rect);
 bool SCR_LayoutModalActive(void);
@@ -82,12 +85,11 @@ static rect_t test_status_rect;
 static uint32_t test_status_draws;
 static texture_t const *test_status_textures[16];
 static color32_t test_status_colors[16];
-static rect_t test_fade_rect;
-static color32_t test_fade_color;
-static uint32_t test_fade_draws;
 static PATHSTR test_model_load_paths[4];
 static char test_sprite_anim[96];
 static uint32_t test_sprite_draws;
+static model_t const *test_portrait_model;
+static rect_t test_portrait_viewport;
 
 static model_t *capture_load_model(cstring_t filename) {
     uint32_t slot = test_model_loads;
@@ -132,9 +134,6 @@ static void capture_status_image(texture_t const *texture, rect_t const *screen,
         test_status_colors[test_status_draws] = color;
     }
     test_status_draws++;
-}
-static void capture_fade_image(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color) {
-    (void)texture; (void)uv; test_fade_rect = *screen; test_fade_color = color; test_fade_draws++;
 }
 static texture_t *capture_load_texture(cstring_t name) {
     (void)name; test_tex_loads++; return (texture_t *)(uintptr_t)test_tex_loads;
@@ -1885,7 +1884,7 @@ TEST(net, ui_frame_delta_preserves_widescreen_extension_flag) {
     int number;
 
     to.flags.type = FT_BACKDROP;
-    to.flagsvalue |= UIFLAG_EXTEND_WIDESCREEN_X;
+    to.flagsvalue |= UIFLAG_EXTEND_WIDESCREEN_X | UIFRAME_DISABLED;
     MSG_WriteDeltaUIFrame(&sb, &from, &to, true);
     sb.readcount = 0;
     number = MSG_ReadEntityBits(&sb, &bits);
@@ -1894,6 +1893,18 @@ TEST(net, ui_frame_delta_preserves_widescreen_extension_flag) {
     T_EQ(number, 8);
     T_EQ(out.flags.type, FT_BACKDROP);
     T_ASSERT(out.flagsvalue & UIFLAG_EXTEND_WIDESCREEN_X);
+    T_ASSERT(out.flagsvalue & UIFRAME_DISABLED);
+}
+
+TEST(client_layout, disabled_control_cannot_issue_click_command) {
+    uiFrame_t frame = { .onclick = "menu" };
+
+    T_ASSERT(SCR_LayoutFrameHasClickCommand(&frame));
+    frame.flagsvalue |= UIFRAME_DISABLED;
+    T_ASSERT(!SCR_LayoutFrameHasClickCommand(&frame));
+    frame.flagsvalue &= ~UIFRAME_DISABLED;
+    frame.onclick = "";
+    T_ASSERT(!SCR_LayoutFrameHasClickCommand(&frame));
 }
 
 TEST(net, ui_frame_delta_preserves_timed_status_binding) {
@@ -1922,22 +1933,58 @@ static vec2_t text_length_mock_size(drawText_t const *text) {
     return MAKE(vec2_t, 0.018f, 0.012f);
 }
 
-TEST(net, cinematic_fade_covers_widescreen_canvas) {
-    test_client_stubs_init();
-    test_client_stubs_set_canvas_policy(UI_CANVAS_EXPAND_CENTER);
-    test_client_stubs_set_window_size(1280, 720);
-    test_fade_draws = 0;
-    cl.playerstate.cinefade = 1.0f;
-    re.DrawImage = capture_fade_image;
+TEST(client_screen, view_blend_maps_cinefade_to_untextured_black) {
+    texture_t const *pics[MAX_IMAGES] = {0};
+    player_t ps = {0};
+    viewDef_t view = {0};
 
-    SCR_DrawLayout();
+    ps.cinefade = 1.0f;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_NULL(view.blendTexture);
+    T_EQ(view.blendColor.r, 0);
+    T_EQ(view.blendColor.a, 255);
+    T_EQ(view.blendMode, BLEND_MODE_BLEND);
 
-    T_EQ(test_fade_draws, 1);
-    T_FEQ(test_fade_rect.x, 0.0f, 0.0001f);
-    T_FEQ(test_fade_rect.y, 0.0f, 0.0001f);
-    T_FEQ(test_fade_rect.w, UI_BASE_HEIGHT * (1280.0f / 720.0f), 0.0001f);
-    T_FEQ(test_fade_rect.h, UI_BASE_HEIGHT, 0.0001f);
-    T_EQ(test_fade_color.a, 255);
+    T_FEQ(view.blendUV.w, 1.0f, 0.0001f);
+    T_EQ(view.blendWrap, TEXMAP_FLAG_NONE);
+
+    ps.cinefade = 0.0f;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_EQ(view.blendColor.a, 0);
+}
+
+TEST(client_screen, view_blend_prefers_textured_filter) {
+    texture_t const *pics[MAX_IMAGES] = {0};
+    player_t ps = {0};
+    viewDef_t view = {0};
+
+    pics[513] = (texture_t const *)(uintptr_t)513;
+    ps.cinefade = 1.0f;
+    ps.cinefilter_image = 513;
+    ps.cinefilter_color = MAKE(color32_t, 28, 84, 173, 96);
+    ps.cinefilter_blendmode = BLEND_MODE_MODULATE;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_EQ((uintptr_t)view.blendTexture, 513);
+    T_EQ(view.blendColor.r, 28);
+    T_EQ(view.blendColor.g, 84);
+    T_EQ(view.blendColor.b, 173);
+    T_EQ(view.blendColor.a, 96);
+    T_EQ(view.blendMode, BLEND_MODE_MODULATE);
+
+    ps.cinefilter_uv = MAKE(box2_t, .min = { 0.5f, 0.25f }, .max = { 2.5f, 1.25f });
+    ps.cinefilter_texmapflags = TEXMAP_FLAG_WRAP_U;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_FEQ(view.blendUV.x, 0.5f, 0.0001f);
+    T_FEQ(view.blendUV.y, 0.25f, 0.0001f);
+    T_FEQ(view.blendUV.w, 2.0f, 0.0001f);
+    T_FEQ(view.blendUV.h, 1.0f, 0.0001f);
+    T_EQ(view.blendWrap, TEXMAP_FLAG_WRAP_U);
+
+    /* Out-of-range images still draw the tint rather than indexing past pics. */
+    ps.cinefilter_image = MAX_IMAGES;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_NULL(view.blendTexture);
+    T_EQ(view.blendColor.a, 96);
 }
 
 TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {
@@ -2682,6 +2729,38 @@ TEST(net, playerinfo_view_offsets_roundtrip_into_camera_sample) {
     T_FEQ(cl.viewDef.camerastate[1].viewoffset.z, 0.0f, 0.001f);
 }
 
+TEST(net, playerinfo_cinematic_filter_state_roundtrips) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    player_t from = { 0 }, to = { 0 }, out = { 0 };
+    uint32_t bits;
+    int number;
+
+    to.number = 1;
+    to.cinefilter_image = 513;
+    to.cinefilter_color = MAKE(color32_t, 28, 84, 173, 96);
+    to.cinefilter_blendmode = BLEND_MODE_MODULATE;
+    to.cinefilter_uv = MAKE(box2_t, .min = { 0.25f, -0.5f }, .max = { 2.25f, 1.5f });
+    to.cinefilter_texmapflags = TEXMAP_FLAG_WRAP_UV;
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(out.cinefilter_image, 513);
+    T_EQ(out.cinefilter_color.r, 28);
+    T_EQ(out.cinefilter_color.g, 84);
+    T_EQ(out.cinefilter_color.b, 173);
+    T_EQ(out.cinefilter_color.a, 96);
+    T_EQ(out.cinefilter_blendmode, BLEND_MODE_MODULATE);
+    T_FEQ(out.cinefilter_uv.min.x, 0.25f, 0.0001f);
+    T_FEQ(out.cinefilter_uv.min.y, -0.5f, 0.0001f);
+    T_FEQ(out.cinefilter_uv.max.x, 2.25f, 0.0001f);
+    T_FEQ(out.cinefilter_uv.max.y, 1.5f, 0.0001f);
+    T_EQ(out.cinefilter_texmapflags, TEXMAP_FLAG_WRAP_UV);
+    T_EQ(sb.readcount, sb.cursize);
+}
+
 TEST(net, environment_variant_stat_roundtrips) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -2716,6 +2795,69 @@ TEST(net, game_presentation_variant_stat_roundtrips) {
 
     T_EQ(number, 3);
     T_EQ(out.stats[UI_PLAYERSTAT_GAME_VARIANT], 2);
+}
+
+TEST(net, cinematic_portrait_model_index_roundtrips_above_byte_range) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    player_t from = { 0 }, to = { 0 }, out = { 0 };
+    uint32_t bits;
+    int number;
+
+    to.number = 1;
+    to.cinematic_portrait = 1;
+    to.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] = 258;
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(out.cinematic_portrait, 1);
+    T_EQ(out.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL], 258);
+}
+
+static bool capture_portrait_anim(model_t const *model, cstring_t anim, renderEntity_t *entity) {
+    T_ASSERT(model != NULL);
+    T_STREQ(anim, "Portrait Talk");
+    test_portrait_model = model;
+    entity->frame = 12;
+    return true;
+}
+
+static void capture_portrait_frame(viewDef_t const *view) {
+    T_EQ(view->num_entities, 1);
+    test_portrait_model = view->entities[0].model;
+    test_portrait_viewport = view->viewport;
+}
+
+TEST(client_layout, cinematic_portrait_uses_full_registered_model_index) {
+    uiFrame_t frame = {
+        .number = 7,
+        .flags.type = FT_PORTRAIT,
+        .tex.index = 258,
+        .stat = 4,
+        .text = "Portrait Talk",
+    };
+    rect_t const screen = { 0.2f, 0.3f, 0.1f, 0.12f };
+    model_t const *model = (model_t const *)(uintptr_t)258;
+    __typeof__(re.SetEntityAnimFrame) old_anim;
+    __typeof__(re.RenderFrame) old_render;
+
+    test_client_stubs_init();
+    cl.models[258] = (model_t *)model;
+    old_anim = re.SetEntityAnimFrame;
+    old_render = re.RenderFrame;
+    re.SetEntityAnimFrame = capture_portrait_anim;
+    re.RenderFrame = capture_portrait_frame;
+    test_portrait_model = NULL;
+
+    SCR_LayoutDrawPortrait(&frame, &screen);
+
+    T_ASSERT(test_portrait_model == model);
+    T_FEQ(test_portrait_viewport.x, screen.x / SCR_UICanvasWidth(), 0.0001f);
+    T_FEQ(test_portrait_viewport.h, screen.h / UI_BASE_HEIGHT, 0.0001f);
+    re.SetEntityAnimFrame = old_anim;
+    re.RenderFrame = old_render;
 }
 
 TEST(net, playerstat_pair_after_gameplay_states_roundtrips) {

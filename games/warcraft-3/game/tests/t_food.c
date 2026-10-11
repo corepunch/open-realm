@@ -28,6 +28,10 @@ typedef struct {
     uint32_t multicast_count;
     multicast_t multicast_to;
     vec3_t multicast_origin;
+    uint32_t unicast_count;
+    edict_t *unicast_viewer;
+    edict_t *unicast_viewers[MAX_CLIENTS];
+    uint32_t writes_at_unicast[MAX_CLIENTS];
 } resourceGainCapture_t;
 
 static resourceGainCapture_t resource_gain_capture;
@@ -69,6 +73,15 @@ static void resource_gain_test_multicast(vec3_t const *origin, multicast_t to) {
     resource_gain_capture.multicast_count++;
     resource_gain_capture.multicast_to = to;
     if (origin) resource_gain_capture.multicast_origin = *origin;
+}
+
+static void resource_gain_test_unicast(edict_t *viewer) {
+    uint32_t const slot = resource_gain_capture.unicast_count++;
+    resource_gain_capture.unicast_viewer = viewer;
+    if (slot < MAX_CLIENTS) {
+        resource_gain_capture.unicast_viewers[slot] = viewer;
+        resource_gain_capture.writes_at_unicast[slot] = resource_gain_capture.count;
+    }
 }
 
 TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
@@ -271,14 +284,23 @@ TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
     edict_t *source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 200.0f);
     void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
     void (*saved_multicast)(vec3_t const *, multicast_t) = gi.multicast;
+    void (*saved_unicast)(edict_t *) = gi.unicast;
     int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
+    gameClient_t *saved_entity_client = g_edicts[0].client;
+    bool const saved_connected = game.clients[0].connected;
+    uint32_t const saved_number = player->number;
 
     memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
     source->s.origin = MAKE(vec3_t, 100.0f, 200.0f, 3.0f);
+    source->s.player = 1; /* Presentation follows the credited player, not the source owner. */
+    player->number = 0;
+    game.clients[0].connected = true;
+    g_edicts[0].client = &game.clients[0];
     player->stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
     player->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 70;
     gi.Write = resource_gain_test_write;
     gi.multicast = resource_gain_test_multicast;
+    gi.unicast = resource_gain_test_unicast;
     gi.FontIndex = resource_gain_test_font;
 
     T_EQ(G_CreditResourceIncome(player, source, PLAYERSTATE_RESOURCE_GOLD, 10), 7);
@@ -308,13 +330,155 @@ TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
     T_FEQ(resource_gain_capture.real[9], 60.0f, 0.001f);
     T_STREQ(resource_gain_capture.font_name, "Fonts\\FRIZQT__.TTF");
     T_EQ(resource_gain_capture.font_size, 12);
-    T_EQ(resource_gain_capture.multicast_count, 1);
-    T_EQ(resource_gain_capture.multicast_to, MULTICAST_ALL);
-    T_FEQ(resource_gain_capture.multicast_origin.z, 13.0f, 0.001f);
+    T_EQ(resource_gain_capture.multicast_count, 0);
+    T_EQ(resource_gain_capture.unicast_count, 1);
+    T_ASSERT(resource_gain_capture.unicast_viewer == &g_edicts[0]);
 
     gi.Write = saved_write;
     gi.multicast = saved_multicast;
+    gi.unicast = saved_unicast;
     gi.FontIndex = saved_font;
+    g_edicts[0].client = saved_entity_client;
+    game.clients[0].connected = saved_connected;
+    player->number = saved_number;
+}
+
+/* Income for AI or disconnected players still changes their resources, but must
+ * not serialize an unsent temporary event into the shared network buffer. */
+TEST(wc3_food, income_for_unconnected_player_writes_no_floating_text) {
+    player_t *player = &game.clients[1].ps;
+    edict_t *source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 200.0f);
+    void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*saved_multicast)(vec3_t const *, multicast_t) = gi.multicast;
+    void (*saved_unicast)(edict_t *) = gi.unicast;
+    int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
+    uint32_t const saved_number = player->number;
+    bool const saved_connected = game.clients[1].connected;
+
+    player->number = 1;
+    game.clients[1].connected = false;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 50;
+    player->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
+    memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
+    gi.Write = resource_gain_test_write;
+    gi.multicast = resource_gain_test_multicast;
+    gi.unicast = resource_gain_test_unicast;
+    gi.FontIndex = resource_gain_test_font;
+
+    T_EQ(G_CreditResourceIncome(player, source, PLAYERSTATE_RESOURCE_LUMBER, 10), 10);
+    T_EQ(player->stats[PLAYERSTATE_RESOURCE_LUMBER], 60);
+    T_EQ(resource_gain_capture.count, 0);
+    T_EQ(resource_gain_capture.unicast_count, 0);
+    T_EQ(resource_gain_capture.multicast_count, 0);
+
+    gi.Write = saved_write;
+    gi.multicast = saved_multicast;
+    gi.unicast = saved_unicast;
+    gi.FontIndex = saved_font;
+    player->number = saved_number;
+    game.clients[1].connected = saved_connected;
+}
+
+/* Exercise real resource credit and presentation delivery, not just the
+ * permission helper. Directional advanced sharing grants access even if the
+ * owner is disconnected; shared vision/basic control and enemies never do. */
+TEST(wc3_food, income_text_uses_directional_advanced_control_only) {
+    gameClient_t *owner = &game.clients[0];
+    edict_t *source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 200.0f);
+    struct {
+        uint32_t number;
+        bool connected;
+        gameClient_t *entity_client;
+        uint16_t toward_owner;
+    } saved[4];
+    uint16_t const saved_reverse = level.alliances[0][3];
+    void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*saved_unicast)(edict_t *) = gi.unicast;
+    void (*saved_multicast)(vec3_t const *, multicast_t) = gi.multicast;
+    int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
+
+    FOR_LOOP(i, 4) {
+        saved[i].number = game.clients[i].ps.number;
+        saved[i].connected = game.clients[i].connected;
+        saved[i].entity_client = g_edicts[i].client;
+        saved[i].toward_owner = level.alliances[i][0];
+        game.clients[i].ps.number = i;
+        game.clients[i].connected = true;
+        g_edicts[i].client = &game.clients[i];
+        level.alliances[i][0] = 0;
+    }
+    level.alliances[1][0] = (1u << ALLIANCE_PASSIVE) |
+                             (1u << ALLIANCE_SHARED_ADVANCED_CONTROL);
+    level.alliances[2][0] = (1u << ALLIANCE_PASSIVE) |
+                             (1u << ALLIANCE_SHARED_CONTROL) |
+                             (1u << ALLIANCE_SHARED_VISION);
+    /* Advanced grant in the wrong direction does not authorise player 3. */
+    level.alliances[0][3] = (1u << ALLIANCE_PASSIVE) |
+                             (1u << ALLIANCE_SHARED_ADVANCED_CONTROL);
+    level.alliances[3][0] = 1u << ALLIANCE_SHARED_ADVANCED_CONTROL;
+    source->s.player = 3; /* Source ownership is deliberately unrelated. */
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    owner->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+    owner->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
+    gi.Write = resource_gain_test_write;
+    gi.multicast = resource_gain_test_multicast;
+    gi.unicast = resource_gain_test_unicast;
+    gi.FontIndex = resource_gain_test_font;
+
+    memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
+    T_EQ(G_CreditResourceIncome(&owner->ps, source, PLAYERSTATE_RESOURCE_GOLD, 10), 10);
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 110);
+    T_EQ(resource_gain_capture.count, 20); /* One complete message per viewer. */
+    T_EQ(resource_gain_capture.unicast_count, 2);
+    T_ASSERT(resource_gain_capture.unicast_viewers[0] == &g_edicts[0]);
+    T_ASSERT(resource_gain_capture.unicast_viewers[1] == &g_edicts[1]);
+    T_EQ(resource_gain_capture.writes_at_unicast[0], 10);
+    T_EQ(resource_gain_capture.writes_at_unicast[1], 20);
+    T_EQ(resource_gain_capture.multicast_count, 0);
+    T_STREQ(resource_gain_capture.text, "+10");
+
+    /* Lumber uses the same safe recipients as gold. */
+    memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
+    T_EQ(G_CreditResourceIncome(&owner->ps, source, PLAYERSTATE_RESOURCE_LUMBER, 6), 6);
+    T_EQ(resource_gain_capture.unicast_count, 2);
+    T_EQ(resource_gain_capture.count, 20);
+    T_EQ(resource_gain_capture.multicast_count, 0);
+
+    /* Allied full control does not expand the bounty audience. */
+    memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
+    G_BountyGainEvent(source, 0, PLAYERSTATE_RESOURCE_GOLD, 10);
+    T_EQ(resource_gain_capture.count, 10);
+    T_EQ(resource_gain_capture.unicast_count, 1);
+    T_ASSERT(resource_gain_capture.unicast_viewers[0] == &g_edicts[0]);
+
+    /* Computer/departed owners may still have connected advanced controllers. */
+    owner->connected = false;
+    memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
+    T_EQ(G_CreditResourceIncome(&owner->ps, source, PLAYERSTATE_RESOURCE_GOLD, 4), 4);
+    T_EQ(resource_gain_capture.unicast_count, 1);
+    T_ASSERT(resource_gain_capture.unicast_viewers[0] == &g_edicts[1]);
+    T_EQ(resource_gain_capture.count, 10);
+
+    /* Removing the only eligible viewer must leave the buffer empty. */
+    game.clients[1].connected = false;
+    memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
+    T_EQ(G_CreditResourceIncome(&owner->ps, source, PLAYERSTATE_RESOURCE_GOLD, 4), 4);
+    T_EQ(resource_gain_capture.unicast_count, 0);
+    T_EQ(resource_gain_capture.count, 0);
+    T_EQ(resource_gain_capture.multicast_count, 0);
+
+    gi.Write = saved_write;
+    gi.unicast = saved_unicast;
+    gi.multicast = saved_multicast;
+    gi.FontIndex = saved_font;
+    FOR_LOOP(i, 4) {
+        game.clients[i].ps.number = saved[i].number;
+        game.clients[i].connected = saved[i].connected;
+        g_edicts[i].client = saved[i].entity_client;
+        level.alliances[i][0] = saved[i].toward_owner;
+    }
+    level.alliances[0][3] = saved_reverse;
 }
 
 /* Mirrors the server contract behind gi.Write: every field lands in one shared

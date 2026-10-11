@@ -821,6 +821,18 @@ void S_WispHarvestRelease(edict_t * worker) {
     }
 }
 
+static edict_t *wisp_harvest_attached_tree(edict_t const *worker) {
+    if (!worker) return NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = globals.edicts + i;
+        if (wisp_harvest_effect_matches(effect, worker) && effect->goalentity &&
+            effect->goalentity->inuse && effect->goalentity->targtype == TARG_TREE &&
+            effect->damage == effect->goalentity->spawn_time)
+            return effect->goalentity;
+    }
+    return NULL;
+}
+
 static void wisp_harvest_ensure_effect(edict_t * worker, edict_t * tree) {
     uint32_t const alias = wisp_harvest_alias(worker);
     wispHarvestTuning_t const tuning = wisp_harvest_tuning(worker);
@@ -841,6 +853,7 @@ static void wisp_harvest_ensure_effect(edict_t * worker, edict_t * tree) {
     edict_t * effect = G_SpawnOwnedAbilityEffectTarget(worker, alias, WC3_EFFECT_TARGET, 0, tree, NULL);
     if (!effect) return;
     effect->summon_ability = alias;
+    effect->damage = tree->spawn_time;
     effect->wait = tuning.art_attachment_height;
     effect->s.origin.z += tuning.art_attachment_height;
     /* Warsmash starts Awha EffectSoundLooped with the tree attachment and
@@ -959,10 +972,13 @@ static void ai_wisp_walktree(edict_t * ent) {
         wisp_harvest_retarget_or_stop(ent);
         return;
     }
-    if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
-        unit_changeangle(ent);
-        unit_moveindirection(ent);
-        return;
+    {
+        float const distance = M_DistanceToGoal(ent);
+        if (distance > HARVEST_RANGE) {
+            unit_changeangle_for_radius_worker(ent, ent->collision);
+            unit_moveindirection(ent);
+            return;
+        }
     }
 
     /* The attached Wisp lives at the tree while harvesting and never damages
@@ -1034,6 +1050,10 @@ BZ_ABILITY_PROC(CAbilityWispHarvest) {
     }
     case A_MOVE_LEAVE:
         if (call && call->next_move_proc == CAbilityWispHarvest) return true;
+        if (call && call->next_move_proc == CAbilityMove) {
+            edict_t *tree = wisp_harvest_attached_tree(ent);
+            M_StartWispTreeEgress(ent, tree);
+        }
         S_WispHarvestRelease(ent);
         return true;
     case A_DISABLE:

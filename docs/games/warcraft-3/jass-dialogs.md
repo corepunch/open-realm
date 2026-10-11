@@ -24,6 +24,9 @@ only the window ID. It is not a Warcraft-specific UI protocol. It lets
 `DialogDisplay(false)`, `DialogClear`, and `DialogDestroy` release modal focus
 without synthesizing an answer. The client's `close_window_command` handles a
 selected button's local closure without changing simulation state.
+When a result dialog has paused the single-player game, the selected dialog
+event is drained synchronously so its JASS button action can run without
+waiting for a simulation frame.
 
 The generic interactive window uses `UI_WINDOW_MODAL | UI_WINDOW_UNIQUE |
 UI_WINDOW_NO_PAUSE | UI_WINDOW_NO_ESCAPE`; it captures gameplay input without

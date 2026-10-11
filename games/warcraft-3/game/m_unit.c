@@ -1119,6 +1119,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
         else if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','h','a','r')) && S_GoldMineCanHarvest(target))
             accepted = harvest_gold_order(self, target);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             self->current_order_id=G_OrderId(order);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedTargetOrder(self, order, target, issuer_player);
@@ -1136,6 +1137,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             G_ClearUnitOrderQueue(self);
             accepted = S_IssueUnitTargetSpell(self, spell_code, target);
             if (accepted) {
+                G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
                 G_PublishIssuedTargetOrder(self, order, target, issuer_player);
             }
@@ -1158,6 +1160,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     {
         bool const accepted = unit_issuetargetorder_now(self, order, target, NULL);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedTargetOrder(self, order, target, issuer_player);
         }
@@ -1197,6 +1200,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
             G_ClearUnitOrderQueue(self);
             accepted = S_IssuePointTargetSpell(self, spell_code, point);
             if (accepted) {
+                G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
                 G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                           issuer_player, order);
@@ -1227,11 +1231,15 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     }
     if (!queue) G_ClearUnitOrderQueue(self);
     if (!owned && (!owner || owner->proc==CAbilityMove) &&
-        (!strcmp(order,"move") || !strcmp(order,"smart")))
-        return S_IssuePointMoveOrder(self,order,point,issuer_player,group_speed);
+        (!strcmp(order,"move") || !strcmp(order,"smart"))) {
+        bool const accepted = S_IssuePointMoveOrder(self,order,point,issuer_player,group_speed);
+        if (accepted) G_CreepGuardExplicitOrder(self);
+        return accepted;
+    }
     {
         bool const accepted = unit_issueorder_now(self, order, point, group_speed, NULL);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
@@ -1273,7 +1281,7 @@ static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t c
     return S_UnitQueuedOrderEvent(self,queued,A_QUEUE_ORDER_START);
 }
 
-bool G_UnitStartNextQueuedOrder(edict_t *self) {
+static bool unit_start_next_queued_order(edict_t *self) {
     unitOrder_t queued;
 
     if (!self || M_IsDead(self) || (G_IsDeferredFree(self) || self->construction_held) || !S_AncientCanReceiveOrder(self)) return false;
@@ -1322,6 +1330,14 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
         self->current_order_id=0;
     }
     return false;
+}
+
+/* A queued order takes creep-guard ownership when it starts, not when it is
+ * accepted: until then the running auto-acquired attack stays leashed. */
+bool G_UnitStartNextQueuedOrder(edict_t *self) {
+    bool const started = unit_start_next_queued_order(self);
+    if (started) G_CreepGuardExplicitOrder(self);
+    return started;
 }
 
 bool unit_issuetargetorder(edict_t *self, cstring_t order, edict_t *target) {
@@ -1374,6 +1390,13 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     float temporary_attack1, temporary_attack2;
     uint32_t old_flags;
     bool source_building, target_building;
+    /* SP_SpawnUnit initializes guards for new entities; a morph is not a spawn.
+     * Snapshot just the guard-owned fields, not the entire movement state. */
+    vec2_t creep_guard_origin;
+    uint32_t creep_guard_last_hit_ms, creep_guard_outside_ms;
+    uint32_t creep_guard_return_retries, creep_guard_retry_at_ms;
+    bool creep_guard_enabled;
+    creepGuardPhase_t creep_guard_phase;
 
     if (!unit || !type || !G_UnitUI(type)->modelFile) return false;
     source_building = G_UnitIsBuilding(unit->class_id);
@@ -1390,6 +1413,13 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     temporary_attack1 = S_AttackProfileRead(unit, 0)->temporaryDamageBonus;
     temporary_attack2 = S_AttackProfileRead(unit, 1)->temporaryDamageBonus;
     old_flags = unit->s.flags;
+    creep_guard_origin = unit->movement.creep_guard_origin;
+    creep_guard_last_hit_ms = unit->movement.creep_guard_last_hit_ms;
+    creep_guard_outside_ms = unit->movement.creep_guard_outside_ms;
+    creep_guard_return_retries = unit->movement.creep_guard_return_retries;
+    creep_guard_retry_at_ms = unit->movement.creep_guard_retry_at_ms;
+    creep_guard_enabled = unit->movement.creep_guard_enabled;
+    creep_guard_phase = unit->movement.creep_guard_phase;
 
     G_ClearUnitFood(unit);
     if (source_building && unit->pathtex) {
@@ -1412,6 +1442,15 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     unit->temporary_health_bonus = 0.0f;
     unit->temporary_mana_bonus = 0.0f;
     SP_SpawnUnit(unit);
+    /* A transformation retains the same handle, owner, and guard post. Do not
+     * silently recapture its current position or re-enable a disabled guard. */
+    unit->movement.creep_guard_origin = creep_guard_origin;
+    unit->movement.creep_guard_last_hit_ms = creep_guard_last_hit_ms;
+    unit->movement.creep_guard_outside_ms = creep_guard_outside_ms;
+    unit->movement.creep_guard_return_retries = creep_guard_return_retries;
+    unit->movement.creep_guard_retry_at_ms = creep_guard_retry_at_ms;
+    unit->movement.creep_guard_enabled = creep_guard_enabled;
+    unit->movement.creep_guard_phase = creep_guard_phase;
     G_ApplyTemporaryMaxHealthBonus(unit, temporary_health);
     G_ApplyTemporaryMaxManaBonus(unit, temporary_mana);
     G_SetHealth(unit, MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio)));
@@ -1447,7 +1486,9 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_NONE,NULL,NULL,false,self->s.player,0);
     }
     if (!strcmp(order, "stop")) {
-        return S_IssueStopOrder(self);
+        bool const accepted = S_IssueStopOrder(self);
+        if (accepted) G_CreepGuardExplicitOrder(self);
+        return accepted;
     }
     /* Core Stop bypasses disabled ability validation (69dc80); other
      * immediate orders validate before touching the suspended chain. */
@@ -1455,6 +1496,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         }
@@ -1466,6 +1508,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
         bool const accepted = S_AbilityMessage(self, A_ORDER, &call);
         if (accepted) {
+            G_CreepGuardExplicitOrder(self);
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         }
@@ -1479,6 +1522,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         if (spell_code) {
             bool const accepted = S_CastNoTargetSpell(self, spell_code);
             if (accepted) {
+                G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
                 G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
             }
@@ -1512,6 +1556,10 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
      * commit; the former64-unit circle spiral chose different destinations. */
     S_InitUnitPosition(unit,location);
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_PLACEMENT, unit, NULL);
+    /* SP_SpawnUnit captured the requested location before placement.
+     * Guard the actual final spawn point, not an obstructed requested point. */
+    if (unit->movement.creep_guard_enabled)
+        unit->movement.creep_guard_origin = unit->s.origin2;
     if (unit->stand) {
         unit->stand(unit);
     }
@@ -1580,12 +1628,6 @@ static void unit_timed_status_log(cstring_t stage, edict_t const *ent, heroabili
             unit_statusremainingfraction(status));
 }
 
-static bool unit_status_stuns(uint32_t code) {
-    return code == MAKEFOURCC('B', 's', 't', 'u') || code == MAKEFOURCC('B', 'U', 's', 'l') ||
-           code == MAKEFOURCC('B', 'p', 'o', 's') || /* Possession channel victim lock */
-           code == MAKEFOURCC('B', 's', 't', 'a'); /* Stasis Trap stun */
-}
-
 static bool unit_status_timedlife(uint32_t code) {
     return code == MAKEFOURCC('B', 'T', 'L', 'F');
 }
@@ -1642,8 +1684,9 @@ float G_UnitArmorValue(edict_t const *ent) {
             armor += G_AbilityLevel(MAKEFOURCC('A', 'I', 'd', 'a'), status->level)->data[0].number;
         }
     }
-    return armor + S_DevotionArmorBonus((edict_t *)ent) + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent) +
-        S_FaerieArmorDelta(ent) + S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent) +
+    return armor + unit_status_modifier_total(ent, WC3_STATUS_MOD_ARMOR_FLAT) +
+        S_DevotionArmorBonus((edict_t *)ent) + S_SpikedArmorBonus(ent) +
+        S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent) +
         S_ManaFlareArmorBonus(ent);
 }
 
@@ -1653,14 +1696,14 @@ float G_UnitArmorValue(edict_t const *ent) {
  * status's origin ability rawcode, never from the victim's learned abilities
  * (the victim may not own the casting ability). REMOVE arrives while the slot
  * is still valid; the wipe happens after every owner has run. */
-static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg) {
+static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg, status_remove_reason_t reason) {
     abilityitem_t item;
     abilityCall_t call;
     if (!ent || !slot || (!slot->level && msg != A_STATUS_REMOVED) || !ability) return;
     item = S_AbilityItem(ability);
     if (!item.ability || !item.ability->proc) return;
     call = MAKE(abilityCall_t, .item = &item);
-    call.status.slot = slot; call.status.ability = ability;
+    call.status.slot = slot; call.status.ability = ability; call.status.reason = reason;
     S_AbilityMessage(ent, msg, &call);
 }
 
@@ -1671,13 +1714,140 @@ heroabilitystatus_t *unit_findstatus(edict_t *ent, uint32_t code) {
     return NULL;
 }
 
+heroabilitystatus_t *unit_findstatussource(edict_t *ent, uint32_t code, edict_t const *source) {
+    if (ent) FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
+        heroabilitystatus_t *status = ent->abilstatus + i;
+        if (status->level && status->code == code && status->source == source &&
+            (!status->timestamp || status->timestamp > G_Time()) &&
+            (!source || status->source_spawn_time == source->spawn_time)) return status;
+    }
+    return NULL;
+}
+
 /* Notify active victim statuses before death cleanup can discard their applying state. */
 void unit_statusdeath(edict_t *ent) {
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *slot = ent->abilstatus + i;
         if (slot->level && (!slot->timestamp || slot->timestamp > G_Time()))
-            UnitDispatchStatus(ent, slot, slot->data, A_STATUS_DEATH);
+            UnitDispatchStatus(ent, slot, (slot->source_ability ? slot->source_ability : slot->data), A_STATUS_DEATH, STATUS_REMOVE_DEATH);
     }
+}
+
+/* Legacy Warcraft buff identities provide their categorical contributions even
+ * when applied by the old unit_addtimedstatus() API. Keep this in the status
+ * owner rather than duplicating rawcode checks in movement/spell consumers.
+ * The explicit state_mask remains available for custom/app-authored states. */
+static uint32_t unit_builtin_status_states(uint32_t code) {
+    switch (code) {
+    case MAKEFOURCC('B','s','t','u'):
+    case MAKEFOURCC('B','s','t','a'):
+    case MAKEFOURCC('B','p','o','s'):
+        return WC3_STATUS_STATE_STUNNED;
+    case MAKEFOURCC('B','U','s','l'):
+        return WC3_STATUS_STATE_STUNNED | WC3_STATUS_STATE_SLEEPING;
+    case MAKEFOURCC('B','N','s','i'):
+    case MAKEFOURCC('B','N','s','o'):
+        return WC3_STATUS_STATE_SILENCED;
+    case MAKEFOURCC('B','E','e','r'):
+    case MAKEFOURCC('B','e','n','s'):
+    case MAKEFOURCC('B','e','n','a'):
+    case MAKEFOURCC('B','e','n','g'):
+    case MAKEFOURCC('B','w','e','a'):
+    case MAKEFOURCC('B','w','e','b'):
+        return WC3_STATUS_STATE_ROOTED;
+    case MAKEFOURCC('B','H','b','n'):
+        return WC3_STATUS_STATE_ETHEREAL;
+    case MAKEFOURCC('B','H','d','s'):
+        return WC3_STATUS_STATE_INVULNERABLE;
+    case MAKEFOURCC('B','H','a','v'):
+    case MAKEFOURCC('B','a','m','s'):
+    case MAKEFOURCC('B','u','n','s'):
+        return WC3_STATUS_STATE_MAGIC_IMMUNE;
+    default:
+        return 0;
+    }
+}
+
+/* Query only live contributions; expired slots must never grant a state
+ * while waiting for their next authoritative cleanup update. Multiple slots
+ * compose by OR, so removing one cannot remove another's contribution. */
+bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
+    uint32_t mask = (uint32_t)state;
+    if (!ent || !mask || (mask & (mask - 1u))) return false;
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
+        heroabilitystatus_t const *status = ent->abilstatus + i;
+        if (!status->level || !((status->state_mask | unit_builtin_status_states(status->code)) & mask)) continue;
+        if (!status->timestamp || status->timestamp > G_Time()) return true;
+    }
+    return false;
+}
+
+/* Strongest-only families are resolved separately from independent additions.
+ * A slot's values are consulted only while the owning status is live, so
+ * removal/expiry/replace cannot leave a stale numeric contribution behind.
+ * A nonzero family must use one consistent policy for a given modifier type.
+ */
+bool unit_status_setmodifier(heroabilitystatus_t *status, uint32_t index,
+                             wc3_status_modifier_t const *modifier) {
+    if (!status || !status->level || !modifier || index >= WC3_STATUS_MAX_MODIFIERS ||
+        modifier->type > WC3_STATUS_MOD_MANA_REGEN_FLAT ||
+        modifier->policy > WC3_STATUS_MOD_STRONGEST_NEGATIVE ||
+        (modifier->policy != WC3_STATUS_MOD_ADD && !modifier->family) || !isfinite(modifier->value)) return false;
+    status->modifiers[index] = *modifier;
+    if (status->modifier_count <= index) status->modifier_count = index + 1;
+    return true;
+}
+
+float unit_status_modifier_total(edict_t const *unit, wc3_status_modifier_type_t type) {
+    typedef struct {
+        uint32_t family;
+        uint32_t policy;
+        float value;
+        bool used;
+    } modifierFamily_t;
+    /* Most units have no strongest-wins modifiers. Do not zero this
+     * table until the first applicable strongest-wins contribution. */
+    modifierFamily_t families[MAX_UNIT_STATUSES * WC3_STATUS_MAX_MODIFIERS];
+    bool have_families = false;
+    float result = 0.0f;
+    if (!unit || type > WC3_STATUS_MOD_MANA_REGEN_FLAT) return 0.0f;
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t const *status = unit->abilstatus + i;
+        if (!status->level || !status->modifier_count ||
+            (status->timestamp && status->timestamp <= G_Time())) continue;
+        FOR_LOOP(j, MIN(status->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
+            wc3_status_modifier_t const *mod = status->modifiers + j;
+            uint32_t key;
+            uint32_t probe;
+            if (mod->type != (uint32_t)type) continue;
+            if (mod->policy == WC3_STATUS_MOD_ADD || !mod->family) {
+                result += mod->value;
+                continue;
+            }
+            if (!have_families) {
+                memset(families, 0, sizeof(families));
+                have_families = true;
+            }
+            key = (mod->family * 2654435761u ^ (uint32_t)type * 17u ^ mod->policy) & 63u;
+            for (probe = 0; probe < sizeof(families) / sizeof(families[0]); probe++) {
+                modifierFamily_t *family = families + ((key + probe) & 63u);
+                if (!family->used) {
+                    family->used = true; family->family = mod->family;
+                    family->policy = mod->policy; family->value = mod->value;
+                    break;
+                }
+                if (family->family != mod->family || family->policy != mod->policy) continue;
+                if ((mod->policy == WC3_STATUS_MOD_STRONGEST_POSITIVE && mod->value > family->value) ||
+                    (mod->policy == WC3_STATUS_MOD_STRONGEST_NEGATIVE && mod->value < family->value))
+                    family->value = mod->value;
+                break;
+            }
+        }
+    }
+    if (have_families)
+        FOR_LOOP(i, sizeof(families) / sizeof(families[0]))
+            if (families[i].used) result += families[i].value;
+    return result;
 }
 
 /* Derived locks come only from statuses that actually remain; owners
@@ -1688,21 +1858,120 @@ void unit_refreshstatusflags(edict_t *ent) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
         if(status->code==MAKEFOURCC('A','O','a','e'))S_MarkAuraSource(ent);
-        if (unit_status_stuns(status->code)) stunned = true;
-        UnitDispatchStatus(ent, status, status->data, A_STATUS_REFRESH);
+        if (((status->state_mask | unit_builtin_status_states(status->code)) & WC3_STATUS_STATE_STUNNED) &&
+            (!status->timestamp || status->timestamp > G_Time())) stunned = true;
+        UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_REFRESH, STATUS_REMOVE_SCRIPT);
     }
     ent->stunned = stunned;
 }
 
-/* Dispel/Purge share this so owners run their inverse before the slot is wiped. */
-void unit_expirestatus(edict_t *ent, heroabilitystatus_t *status) {
-    uint32_t origin;
+/* Dispatch the inverse while the old record is still available. Callers may
+ * choose the reason, but all termination paths must use this lifecycle. */
+/* Zero metadata retains the pre-migration timed-status dispel behavior.
+ * Timed-life/verified Cyclone exceptions remain in the existing predicate. */
+bool unit_status_can_dispel(heroabilitystatus_t const *status) {
+    if (!status || !status->level || !status->timestamp) return false;
+    if (status->buff_flags & WC3_STATUS_BUFF_UNDISPELLABLE) return false;
+    return !S_StatusIsUndispellable(status);
+}
+
+/* Dispel Magic, Purge and Abolish Magic are magical dispels. Explicitly
+ * physical-only effects cannot be removed by these abilities. Unclassified
+ * legacy statuses keep their existing dispellability until producers are
+ * explicitly categorized. Ambiguous dual classification fails closed. */
+bool unit_status_can_magic_dispel(heroabilitystatus_t const *status) {
+    uint32_t kind;
+    if (!unit_status_can_dispel(status)) return false;
+    kind = status->buff_flags & (WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_PHYSICAL);
+    return kind == 0 || kind == WC3_STATUS_BUFF_MAGICAL;
+}
+
+/* A transferred status must be explicitly opted in.  Never steal a generic
+ * status with unknown payload, callbacks, source or periodic state. */
+bool unit_status_can_steal(heroabilitystatus_t const *status) {
+    uint32_t classification = status ? status->buff_flags & (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_NEGATIVE) : 0;
+    return unit_status_can_dispel(status) && (classification == WC3_STATUS_BUFF_POSITIVE ||
+        classification == WC3_STATUS_BUFF_NEGATIVE) &&
+        (status->buff_flags & WC3_STATUS_BUFF_TRANSFERABLE);
+}
+
+/* Opt-in only: many existing abilities/aura systems already manage their own
+ * visuals. The buff rawcode, not its source ability, resolves TargetArt. */
+void unit_status_enabletargetart(edict_t *ent, heroabilitystatus_t *status, cstring_t attach_point) {
     if (!ent || !status || !status->level) return;
+    status->buff_flags |= WC3_STATUS_BUFF_TARGET_ART;
+    G_SpawnStatusEffectTarget(status->code, ent, attach_point ? attach_point : "origin");
+}
+
+/* A_STATUS_REMOVE owners can perform nested cleanup. Keep the original slot
+ * readable for callbacks, but never enter removal for the same slot twice. */
+typedef struct status_removal_guard_s {
+    edict_t *entity;
+    heroabilitystatus_t *slot;
+    struct status_removal_guard_s *previous;
+} status_removal_guard_t;
+static status_removal_guard_t *status_removal_stack;
+
+static void unit_removestatus_core(edict_t *ent, heroabilitystatus_t *status,
+                                   status_remove_reason_t reason, bool reconcile) {
+    uint32_t origin;
+    bool other_targetart_owner = false;
+    status_removal_guard_t guard;
+    if (!ent || !status || !status->level) return;
+    for (status_removal_guard_t *it = status_removal_stack; it; it = it->previous)
+        if (it->entity == ent && it->slot == status) return;
+    guard = (status_removal_guard_t){ .entity = ent, .slot = status,
+                                    .previous = status_removal_stack };
+    status_removal_stack = &guard;
     S_HumanStatusExpired(ent, status->code, status->level);
-    origin = status->data;
-    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE);
+    origin = status->source_ability ? status->source_ability : status->data;
+    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE, reason);
+    /* Callback can remove its own TargetArt; this second cleanup is safe and
+     * ensures ordinary expiry/dispel/replacement also retires owned visuals. */
+    if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART) FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
+        heroabilitystatus_t const *other = ent->abilstatus + i;
+        if (other != status && other->level && other->code == status->code &&
+            (other->buff_flags & WC3_STATUS_BUFF_TARGET_ART) &&
+            (!other->timestamp || other->timestamp > G_Time())) {
+            other_targetart_owner = true;
+            break;
+        }
+    }
+    if ((status->buff_flags & WC3_STATUS_BUFF_TARGET_ART) && !other_targetart_owner)
+        G_DestroyStatusEffectTarget(status->code, ent);
     memset(status, 0, sizeof(*status));
-    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVED);
+    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVED, reason);
+    status_removal_stack = guard.previous;
+    if (reconcile) {
+        unit_refreshstatusflags(ent);
+        G_InvalidateUnitInfoPanel(ent);
+    }
+}
+
+void unit_removestatus(edict_t *ent, heroabilitystatus_t *status, status_remove_reason_t reason) {
+    unit_removestatus_core(ent, status, reason, true);
+}
+
+void unit_removestatus_deferred(edict_t *ent, heroabilitystatus_t *status, status_remove_reason_t reason) {
+    unit_removestatus_core(ent, status, reason, false);
+}
+
+/* Compatibility API: existing explicit callers historically use this for all
+ * removal causes; new sites should call unit_removestatus with their reason. */
+void unit_expirestatus(edict_t *ent, heroabilitystatus_t *status) {
+    unit_removestatus(ent, status, STATUS_REMOVE_EXPIRE);
+}
+
+bool unit_status_take_due_tick(heroabilitystatus_t *slot, uint32_t interval_ms, uint32_t now_ms) {
+    if (!slot || !slot->level || !interval_ms || !slot->next_tick ||
+        slot->timestamp <= now_ms || slot->next_tick > now_ms || slot->next_tick >= slot->timestamp) return false;
+    /* Do not wrap a live deadline back into an earlier game tick. */
+    if (UINT32_MAX - slot->next_tick < interval_ms) {
+        slot->next_tick = 0;
+    } else {
+        slot->next_tick += interval_ms;
+    }
+    return true;
 }
 
 /* The native filter asks the applying owner, not the victim's ability list.
@@ -1767,9 +2036,9 @@ void unit_updatestatuses(edict_t *ent) {
                 militia_expired = true;
             }
             unit_timed_status_log("expire", ent, status);
-            unit_expirestatus(ent, status);
+            unit_removestatus_deferred(ent, status, STATUS_REMOVE_EXPIRE);
             changed = true;
-        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, status->data, A_STATUS_TICK);
+        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, (status->source_ability ? status->source_ability : status->data), A_STATUS_TICK, STATUS_REMOVE_SCRIPT);
     }
     if (changed) {
         unit_refreshstatusflags(ent);
@@ -1792,15 +2061,48 @@ heroabilitystatus_t *G_EnsureUnitStatusSlots(edict_t *ent) {
     return ent->abilstatus;
 }
 
-void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float duration) {
+/* Pure preflight for producers: validate before resource commit.
+ * Default and independent records do not replace each other's owners.
+ * An unallocated status pool has every slot free. */
+wc3_status_apply_check_t unit_status_checkapplication(edict_t const *ent, status_application_t const *app) {
+    uint32_t code;
+    bool free_slot = false;
+    if (!ent || !app || !app->buff || !app->buff[0] ||
+        strlen(app->buff) < 4 || !app->level)
+        return WC3_STATUS_APPLY_INVALID;
+    memcpy(&code, app->buff, sizeof(code));
+    if (!code) return WC3_STATUS_APPLY_INVALID;
+    if (!ent->abilstatus) return WC3_STATUS_APPLY_FREE_SLOT;
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
+        heroabilitystatus_t const *status = ent->abilstatus + i;
+        if (status->level && status->code == code &&
+            ((app->stack_policy == WC3_STATUS_STACK_DEFAULT &&
+              status->stack_policy == WC3_STATUS_STACK_DEFAULT) ||
+             (app->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+              status->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+              status->source == app->source && (!app->source ||
+              status->source_spawn_time == app->source->spawn_time))))
+            return WC3_STATUS_APPLY_REUSE;
+        if (!status->level) free_slot = true;
+    }
+    return free_slot ? WC3_STATUS_APPLY_FREE_SLOT : WC3_STATUS_APPLY_FULL;
+}
+
+heroabilitystatus_t *unit_applystatus(edict_t *ent, status_application_t const *app) {
+    cstring_t skill = app ? app->buff : NULL;
+    uint32_t level = app ? app->level : 0;
+    float duration = app ? app->duration : 0.0f;
     uint32_t code;
     uint32_t now;
     uint32_t duration_ms;
     heroabilitystatus_t *slot = NULL;
     cstring_t stacktype;
+    wc3_status_apply_check_t preflight;
 
-    if (!ent || !skill || !*skill || level == 0) {
-        return;
+    /* Fail before any removal or state mutation when allocation is impossible. */
+    preflight = unit_status_checkapplication(ent, app);
+    if (preflight == WC3_STATUS_APPLY_INVALID || preflight == WC3_STATUS_APPLY_FULL) {
+        return NULL;
     }
 
     code = *((uint32_t const *)skill);
@@ -1811,7 +2113,13 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
 
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *status = ent->abilstatus + i;
-        if (status->level && status->code == code) {
+        if (status->level && status->code == code &&
+            ((app->stack_policy == WC3_STATUS_STACK_DEFAULT &&
+              status->stack_policy == WC3_STATUS_STACK_DEFAULT) ||
+             (app->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+              status->stack_policy == WC3_STATUS_STACK_INDEPENDENT &&
+              status->source == app->source && (!app->source ||
+              status->source_spawn_time == app->source->spawn_time)))) {
             /* Existing buff of same code found — apply stacking rule. */
             if (stacktype && !strcmp(stacktype, "Stack")) {
                 status->level += level;
@@ -1825,12 +2133,22 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
                     status->duration_ms = duration_ms;
                 }
             } else {
-                /* "Replace" (default): overwrite level and timestamp. */
-                UnitDispatchStatus(ent, status, status->data, A_STATUS_REPLACE);
+                /* "Replace" (default): the applying owner releases its
+                 * contribution before the payload is replaced. */
+                UnitDispatchStatus(ent, status, status->data, A_STATUS_REPLACE, STATUS_REMOVE_REPLACED);
+                status->code = code;
+                status->instance_id = ++ent->next_status_instance_id;
+                if (!status->instance_id) status->instance_id = ++ent->next_status_instance_id;
+                status->stack_policy = app->stack_policy;
                 status->level = level;
-                status->data = 0;
-                status->source = NULL;
-                status->source_spawn_time = status->rank = status->next_tick = 0;
+                status->data = app->data;
+                status->source_ability = app->source_ability;
+                status->state_mask = app->state_mask;
+                status->buff_flags = app->buff_flags;
+                status->source = app->source;
+                status->source_spawn_time = app->source ? app->source->spawn_time : 0;
+                status->rank = app->rank;
+                status->next_tick = 0;
                 if (duration_ms) {
                     status->timestamp = now + duration_ms;
                     status->duration_ms = duration_ms;
@@ -1839,33 +2157,52 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
                     status->duration_ms = 0;
                 }
             }
+            if (status->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
+                G_SpawnStatusEffectTarget(status->code, ent, "origin");
             unit_refreshstatusflags(ent);
             unit_timed_status_log("refresh", ent, status);
             G_InvalidateUnitInfoPanel(ent);
-            return;
+            return status;
         }
         if (!status->level && !slot) {
             slot = status;
         }
     }
     if (!slot) {
-        return;
+        return NULL;
     }
 
     slot->code = code;
+    slot->instance_id = ++ent->next_status_instance_id;
+    if (!slot->instance_id) slot->instance_id = ++ent->next_status_instance_id;
+    slot->stack_policy = app->stack_policy;
     slot->level = level;
     slot->timestamp = duration_ms ? now + duration_ms : 0;
     slot->duration_ms = duration_ms;
-    slot->data = 0;
-    slot->source = NULL;
-    slot->source_spawn_time = slot->rank = slot->next_tick = 0;
+    slot->data = app->data;
+    slot->source_ability = app->source_ability;
+    slot->state_mask = app->state_mask;
+    slot->buff_flags = app->buff_flags;
+    slot->source = app->source;
+    slot->source_spawn_time = app->source ? app->source->spawn_time : 0;
+    slot->rank = app->rank;
+    slot->next_tick = 0;
+    if (slot->buff_flags & WC3_STATUS_BUFF_TARGET_ART)
+        G_SpawnStatusEffectTarget(slot->code, ent, "origin");
     unit_refreshstatusflags(ent);
     unit_timed_status_log("add", ent, slot);
     G_InvalidateUnitInfoPanel(ent);
+    return slot;
 }
 
-void unit_addstatus(edict_t *ent, cstring_t skill, uint32_t level) {
-    unit_addtimedstatus(ent, skill, level, 0);
+
+bool unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float duration) {
+    status_application_t app = { .buff = skill, .level = level, .duration = duration };
+    return unit_applystatus(ent, &app) != NULL;
+}
+
+bool unit_addstatus(edict_t *ent, cstring_t skill, uint32_t level) {
+    return unit_addtimedstatus(ent, skill, level, 0);
 }
 
 unitStatusQuery_t *g_unit_status_query;

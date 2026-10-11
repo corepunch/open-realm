@@ -35,7 +35,7 @@ static bool human_has_status(edict_t const *ent, uint32_t code) { return G_UnitS
 static void human_remove_status(edict_t *ent, uint32_t code) {
     FOR_LOOP(i, G_UnitStatusSlotCount(ent))
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code)
-            memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
+            unit_removestatus(ent, ent->abilstatus + i, STATUS_REMOVE_SCRIPT);
 }
 
 static bool defend_projectile_reaction(edict_t *projectile);
@@ -53,6 +53,14 @@ static heroabilitystatus_t *human_status_execute(edict_t *caster, spellTarget_t 
     }
     if (spell->ability->proc == CAbilitySlow)
         S_UnitAbilityEvent(st.entity, A_MOVE_PARAMETERS_CHANGED);
+    /* First verified transfer family: Inner Fire.  Other buffs remain legacy
+     * dispellable but are not transferable until their cleanup is audited. */
+    if (status && status->code == MAKEFOURCC('B','i','n','f')) {
+        status->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL |
+                             WC3_STATUS_BUFF_TRANSFERABLE;
+        status->source_ability = spell->code;
+        status->rank = level;
+    }
     return status;
 }
 
@@ -61,7 +69,7 @@ static void human_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_
     float duration = S_SpellHeroDuration(spell->code, level, caster);
     (void)st;
     if (human_has_status(caster, spell->code)) {
-        human_remove_status(caster, spell->code); S_HumanStatusExpired(caster, spell->code, level); return;
+        human_remove_status(caster, FS_SLKKey(GetClassName(spell->code))); return;
     }
     (void)S_SpellApplyTimedStatus(caster, GetClassName(spell->code), level, duration);
     if (G_AbilityCode(spell->code) == MAKEFOURCC('A','d','e','f'))
@@ -76,21 +84,22 @@ bool S_UnitSpellImmune(edict_t const *unit) {
     };
     if (!unit) return false;
     FOR_LOOP(i, sizeof(passive) / sizeof(*passive)) if (G_UnitAbilityLevel(unit, passive[i])) return true;
-    return G_UnitStatusLevel(unit, BZ_AVATAR_BUFF) || G_UnitStatusLevel(unit, BZ_ANTI_MAGIC_SHELL_BUFF) ||
-           G_UnitStatusLevel(unit, MAKEFOURCC('B','u','n','s')) || S_PossessionSpellImmune(unit);
+    return unit_hasstatusstate(unit, WC3_STATUS_STATE_MAGIC_IMMUNE) || S_PossessionSpellImmune(unit);
 }
 
 /* Spell impacts recheck immunity because a missile may have launched before Avatar was cast.
  * Bam2 absorption is not targeting immunity: leftover damage after the shell breaks still applies. */
 bool S_SpellDamage(edict_t *target, edict_t *caster, int damage) {
     if (!target || S_UnitSpellImmune(target)) return false;
+    if (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL))
+        damage = (int)((float)damage * 1.66f);
     damage = S_AntiMagicShellAbsorb(target, damage);
     if (damage <= 0) return false;
     T_Damage(target, caster, damage); return true;
 }
 
 /* Retail removes the stored deltas and clamps current health instead of subtracting it. */
-void S_AvatarExpire(edict_t *unit) {
+static void avatar_expire_internal(edict_t *unit, bool remove_buff) {
     if (!unit || !unit->avatar || !unit->avatar->level) return;
     G_ApplyTemporaryArmorBonus(unit, -unit->avatar->armor);
     G_ApplyTemporaryAttackDamageBonus(unit, -(float)unit->avatar->damage);
@@ -98,20 +107,22 @@ void S_AvatarExpire(edict_t *unit) {
     unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar->health);
     G_SetHealth(unit, MIN(unit->health.value, unit->health.max_value));
     G_FreeAvatar(unit);
-    human_remove_status(unit, BZ_AVATAR_BUFF);
+    if (remove_buff) human_remove_status(unit, BZ_AVATAR_BUFF);
     G_AddUnitAnimationProperties(unit, "alternate", false); G_InvalidateUnitInfoPanel(unit);
+}
+
+void S_AvatarExpire(edict_t *unit) {
+    avatar_expire_internal(unit, true);
 }
 
 /* Reserve the Avatar buff slot before spell_commit spends mana; cooldowns have independent storage. */
 static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t const *spell) {
+    wc3_status_apply_check_t check;
     (void)spell;
-    uint32_t slots = 0;
     (void)target; unit_updatestatuses(caster);
     if (!S_SpellIsAliveTarget(caster) || (caster->avatar && caster->avatar->level)) return false;
-    if (!caster->abilstatus) return true;
-    FOR_LOOP(i, G_UnitStatusSlotCount(caster))
-        if (!caster->abilstatus[i].level) slots++;
-    if (slots >= 1) return true;
+    check = unit_status_checkapplication(caster, &(status_application_t){ .buff = "BHav", .level = 1 });
+    if (check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT) return true;
     fprintf(stderr, "WC3 Avatar: status capacity exhausted for unit %u\n", caster->s.number); return false;
 }
 
@@ -144,9 +155,27 @@ static uint32_t shackles_buff(uint32_t code, uint32_t rank) {
     return 0;
 }
 
+static heroabilitystatus_t *shackles_find_status_instance(edict_t *target, uint32_t code, uint32_t instance_id) {
+    if (!target || !code || !instance_id) return NULL;
+    FOR_LOOP(i, G_UnitStatusSlotCount(target)) {
+        heroabilitystatus_t *slot = target->abilstatus + i;
+        if (slot->level && slot->code == code && slot->instance_id == instance_id) return slot;
+    }
+    return NULL;
+}
+
 static bool aerial_shackles_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    return st.entity && st.entity->targtype == TARG_AIR && S_SpellIsEnemy(caster, st.entity) &&
-        shackles_buff(spell->code, S_SpellLevel(caster, spell->code));
+    uint32_t level, buff;
+    wc3_status_apply_check_t check;
+    if (!caster || !spell || !st.entity || !S_SpellIsAliveTarget(st.entity) ||
+        st.entity->targtype != TARG_AIR || !S_SpellIsEnemy(caster, st.entity)) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = shackles_buff(spell->code, level);
+    if (!buff) return false;
+    check = unit_status_checkapplication(st.entity, &(status_application_t){
+        .buff = GetClassName(buff), .level = level
+    });
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 static bool control_magic_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -169,8 +198,15 @@ static bool cloud_validate(edict_t *caster, spellTarget_t st, abilityitem_t cons
 }
 
 static bool inner_fire_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsFriend(caster, st.entity);
+    uint32_t level;
+    cstring_t buff;
+    wc3_status_apply_check_t check;
+    if (!spell || !st.entity || !S_SpellIsFriend(caster, st.entity)) return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = human_buff(spell, level);
+    if (!buff) return false;
+    check = unit_status_checkapplication(st.entity, &(status_application_t){ .buff = buff, .level = level });
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 static bool heal_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -261,6 +297,7 @@ static uint32_t polymorph_form_type(edict_t const *target, uint32_t level, uint3
 static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level, max_creep_level, form_type;
     UnitBalance_t const *balance;
+    wc3_status_apply_check_t check;
 
     if (!st.entity || !S_SpellIsEnemy(caster, st.entity) || G_UnitIsHero(st.entity) ||
         st.entity->summon_ability || (st.entity->aiflags & AI_ILLUSION) ||
@@ -279,7 +316,10 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
         fprintf(stderr, "WC3 Polymorph: morph form %08x has no model data\n", form_type);
         return false;
     }
-    return true;
+    check = unit_status_checkapplication(st.entity, &(status_application_t){
+        .buff = human_buff(spell, level), .level = level
+    });
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 /*64c090 removes the authored speed delta from the current Move base. A
@@ -395,13 +435,26 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
 
 static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    edict_t *thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
-    thinker->resources = shackles_buff(spell->code, level);
-    thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1); thinker->spawn_time = G_Time() +
-        (uint32_t)(S_SpellHeroDuration(spell->code, level, st.entity) * 1000.0f);
+    uint32_t buff = shackles_buff(spell->code, level);
+    float duration;
+    edict_t *thinker;
+    heroabilitystatus_t *slot;
+    if (!st.entity || !buff) return;
+    duration = S_SpellHeroDuration(spell->code, level, st.entity);
+    /* Reserve the thinker before status mutation; if status insertion fails,
+     * discard it before it can begin a channel or deal its first damage tick. */
+    thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
+    if (!thinker) return;
+    slot = S_SpellApplyTimedStatus(st.entity, GetClassName(buff), level, duration);
+    if (!slot) {
+        G_FreeEdict(thinker);
+        return;
+    }
+    thinker->variation = slot->instance_id;
+    thinker->resources = buff;
+    thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1);
+    thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->think = human_ability_think;
-    (void)S_SpellApplyTimedStatus(st.entity, GetClassName(thinker->resources), level,
-                                  S_SpellHeroDuration(spell->code, level, st.entity));
     human_ability_think(thinker);
 }
 
@@ -410,11 +463,16 @@ static void shackles_end(edict_t *thinker) {
     edict_t *target = S_SpellChannelTarget(thinker);
     bool retained = false;
     if (target) {
-        FILTER_EDICTS(other, other != thinker && other->think == human_ability_think &&
-            S_SpellChannelTarget(other) == target && other->resources == thinker->resources) {
-            if (S_SpellChannelActive(other)) { retained = true; break; }
+        heroabilitystatus_t *slot = shackles_find_status_instance(target, thinker->resources, thinker->variation);
+        /* Never remove a replacement or independently owned status. */
+        if (slot) {
+            FILTER_EDICTS(other, other != thinker && other->think == human_ability_think &&
+                S_SpellChannelTarget(other) == target && other->resources == thinker->resources &&
+                other->variation == thinker->variation) {
+                if (S_SpellChannelActive(other)) { retained = true; break; }
+            }
+            if (!retained) unit_removestatus(target, slot, STATUS_REMOVE_SCRIPT);
         }
-        if (!retained) human_remove_status(target, thinker->resources);
     }
     S_SpellEndChannel(thinker);
 }
@@ -433,30 +491,93 @@ void human_ability_think(edict_t *thinker) {
     if (now >= thinker->spawn_time || !S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target)) {
         shackles_end(thinker); return;
     }
+    /* A dispel or replacement ends this cast; rawcode alone is not ownership. */
+    {
+        heroabilitystatus_t *slot = shackles_find_status_instance(target, thinker->resources, thinker->variation);
+        if (!slot || (slot->timestamp && slot->timestamp <= now)) {
+            shackles_end(thinker); return;
+        }
+    }
     if (!thinker->freetime || now >= thinker->freetime) {
         S_SpellDamage(target, thinker->owner, thinker->damage); thinker->freetime = now + 1000;
     }
 }
 
-static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    edict_t *receiver = NULL;
-    heroabilitystatus_t stolen = {0};
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+/* Find a transferable source/recipient pair before committing a Spell Steal cast.
+ * Keep validation and execution on the same eligibility policy. A candidate
+ * with a full array or an already-owned buff must not hide a later candidate. */
+static bool spell_steal_select(edict_t *caster, spellTarget_t st, abilityitem_t const *spell,
+                               heroabilitystatus_t **selected, edict_t **recipient) {
+    uint32_t now, level;
+    float area;
+    bool positive, negative;
+    if (!caster || !spell || st.type != SPELL_TARGET_UNIT || !st.entity ||
+        !S_SpellIsAliveTarget(st.entity) ||
+        !S_SpellAllowsTarget(spell->code, caster, st.entity)) return false;
+    positive = S_SpellIsEnemy(caster, st.entity);
+    negative = S_SpellIsFriend(caster, st.entity);
+    if (!positive && !negative) return false;
+    now = G_Time(); level = S_SpellLevel(caster, spell->code);
+    area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FOR_LOOP(i, G_UnitStatusSlotCount(st.entity)) {
-        if (st.entity->abilstatus[i].level && st.entity->abilstatus[i].timestamp) {
-            stolen = st.entity->abilstatus[i];
-            S_HumanStatusExpired(st.entity, stolen.code, stolen.level);
-            memset(st.entity->abilstatus + i, 0, sizeof(st.entity->abilstatus[i]));
-            break;
+        heroabilitystatus_t *status = st.entity->abilstatus + i;
+        char buff[5];
+        edict_t *receiver = NULL;
+        bool source_positive;
+        if (!unit_status_can_steal(status) || status->timestamp <= now) continue;
+        source_positive = (status->buff_flags & WC3_STATUS_BUFF_POSITIVE) != 0;
+        if (source_positive != positive) continue;
+        memcpy(buff, &status->code, 4); buff[4] = '\0';
+        FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) &&
+                      (positive ? S_SpellIsFriend(caster, unit) : S_SpellIsEnemy(caster, unit)) &&
+                      Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) {
+            if (unit_status_checkapplication(unit, &(status_application_t){
+                .buff = buff, .level = status->level
+            }) == WC3_STATUS_APPLY_FREE_SLOT) { receiver = unit; break; }
         }
+        if (!receiver && positive && caster != st.entity && S_SpellIsAliveTarget(caster) &&
+            unit_status_checkapplication(caster, &(status_application_t){
+                .buff = buff, .level = status->level
+            }) == WC3_STATUS_APPLY_FREE_SLOT) receiver = caster;
+        if (!receiver) continue;
+        if (selected) *selected = status;
+        if (recipient) *recipient = receiver;
+        return true;
     }
-    if (!stolen.level) return;
-    FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) && S_SpellIsFriend(caster, unit) &&
-                  Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) { receiver = unit; break; }
-    if (!receiver) receiver = caster;
-    (void)S_SpellApplyTimedStatus(receiver, (cstring_t)&stolen.code, stolen.level,
-                                  stolen.timestamp > G_Time() ? (stolen.timestamp - G_Time()) / 1000.0f : 0.0f);
+    return false;
+}
+
+static bool spell_steal_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    return spell_steal_select(caster, st, spell, NULL, NULL);
+}
+
+static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    heroabilitystatus_t *source, *destination;
+    heroabilitystatus_t snapshot;
+    edict_t *receiver;
+    status_application_t app;
+    char buff[5];
+    uint32_t now = G_Time();
+    if (!spell_steal_select(caster, st, spell, &source, &receiver)) return;
+    snapshot = *source;
+    if (snapshot.timestamp <= now) return;
+    memcpy(buff, &snapshot.code, 4); buff[4] = '\0';
+    /* This is an exact, fresh allocation: never replace recipient ownership. */
+    if (unit_status_checkapplication(receiver, &(status_application_t){
+        .buff = buff, .level = snapshot.level
+    }) != WC3_STATUS_APPLY_FREE_SLOT) return;
+    app = (status_application_t){
+        .buff = buff, .level = snapshot.level,
+        .duration = (snapshot.timestamp - now) / 1000.0f,
+        .source_ability = snapshot.source_ability, .data = snapshot.data,
+        .state_mask = snapshot.state_mask, .buff_flags = snapshot.buff_flags,
+        .source = caster, .rank = snapshot.rank
+    };
+    destination = unit_applystatus(receiver, &app);
+    if (!destination) return;
+    destination->modifier_count = MIN(snapshot.modifier_count, WC3_STATUS_MAX_MODIFIERS);
+    memcpy(destination->modifiers, snapshot.modifiers, sizeof(destination->modifiers));
+    unit_removestatus(st.entity, source, STATUS_REMOVE_STEAL);
 }
 
 /* The message selects the union member: boolean toggles must never be decoded as target pointers. */
@@ -486,7 +607,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityControlMagic, control_magic_validate, control_mag
 /* Name=Magic Defense; Untip=Stop Magic Defense */
 BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense) { human_toggle_execute(caster, st, spell); }
 /* Name=Spell Steal; Untip="Right-click to activate auto-casting." */
-BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, true, spell_steal_execute, false, false)
+BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, spell_steal_validate(ent, target, call ? call->item : NULL), spell_steal_execute, false, false)
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
 BZ_ABILITY_PROC(CAbilityCloudOfFog) {
     switch (msg) {
@@ -622,14 +743,18 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
     float summon_dmg = data_e > 0.0f ? data_e : data_b;
     float heal_hp = data_e > 0.0f ? data_a : 0.0f, heal_mana = data_e > 0.0f ? data_b : 0.0f;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
+        uint32_t target_removed = 0;
         FOR_LOOP(i, G_UnitStatusSlotCount(target)) {
             if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
-                if (S_StatusIsUndispellable(&target->abilstatus[i])) continue;
-                unit_expirestatus(target, target->abilstatus + i);
-                removed++;
+                if (!unit_status_can_magic_dispel(&target->abilstatus[i])) continue;
+                unit_removestatus_deferred(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
+                removed++; target_removed++;
             }
         }
-        unit_refreshstatusflags(target);
+        if (target_removed) {
+            unit_refreshstatusflags(target);
+            G_InvalidateUnitInfoPanel(target);
+        }
         if (dispel_is_summoned(target) && !S_SummonIsDispelImmune(target) && summon_dmg > 0.0f)
             S_SpellDamage(target, caster, (int)summon_dmg);
     }
@@ -832,6 +957,7 @@ void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
     uint32_t count = 0, limit = barrage ? (uint32_t)S_SpellData(MAKEFOURCC('A','r','o','c'), barrage, 3) : UINT_MAX;
     if (radius <= 0.0f) return;
     FILTER_EDICTS(other, count < limit && other != target && S_SpellIsAliveTarget(other) && S_SpellIsEnemy(attacker, other) &&
+                  S_AttackHitAllowed(attacker, target, other) &&
                   (!flak || other->targtype == TARG_AIR) && Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius) {
         float distance = Vector2_distance(&other->s.origin2, &target->s.origin2), splash = damage;
         if (flak) splash = distance <= S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 1) ?

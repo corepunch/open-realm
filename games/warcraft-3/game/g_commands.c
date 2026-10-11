@@ -43,6 +43,7 @@ edict_t *G_NextSelectedEntity(gameClient_t const *client, uint32_t from) {
     uint32_t index = entity_set_next(selection_members + client->ps.number, from);
     return index < globals.num_edicts ? g_edicts + index : NULL;
 }
+#include "skills/s_skills.h"
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(edict_t *clent, uint32_t argc, cstring_t argv[])
 /* Server authority and HUD share the same WC3-only selection policy. Only the
@@ -749,6 +750,7 @@ bool G_CancelTargetMode(edict_t *clent) {
 
     if (!client || (!client->menu.on_entity_selected && !client->menu.on_location_selected))
         return false;
+    S_AbilityTargetModeExit(clent);
     /* Reset a possible item-owned building model preview as well as the
      * generic targeting state. A zero-model cursor is harmless for spells. */
     gi.Write(PF_BYTE, &(int32_t){svc_cursor});
@@ -853,6 +855,15 @@ CLIENTCOMMAND(Select) {
          * player can click several waypoints/targets without reopening it. */
         if (accepted && !queued) Get_Commands_f(clent);
     } else {
+        if (S_SpellPointTargetMode(clent)) {
+            uint32_t number;
+            if (argc < 2 || !G_ParseEntityNumber(argv[1], &number) || number >= globals.num_edicts)
+                return;
+            edict_t *target = &globals.edicts[number];
+            bool accepted = S_SpellPointTargetEntity(clent, target);
+            if (accepted) Get_Commands_f(clent);
+            return;
+        }
 #ifdef WC3_DEBUG_MINING
         if (client->menu.on_location_selected) {
             fprintf(stderr, "WC3_MINING select-while-building client=%ld building=%.4s callback=%p argc=%d",

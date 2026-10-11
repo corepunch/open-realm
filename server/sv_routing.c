@@ -1219,7 +1219,8 @@ bool CM_FindDirectApproachPointForRadius(vec2_t const *from, vec2_t const *targe
     return found;
 }
 
-float CM_DistanceToPathingFootprint(struct edict_s const *target, vec2_t const *point) {
+float CM_DistanceToPathingFootprintFlags(struct edict_s const *target, vec2_t const *point,
+                                         uint8_t blocked_flags) {
     point2_t center;
     pathTex_t const *pt;
     float best = FLT_MAX;
@@ -1236,7 +1237,11 @@ float CM_DistanceToPathingFootprint(struct edict_s const *target, vec2_t const *
             vec2_t a, b;
             float min_x, max_x, min_y, max_y, dx = 0.0f, dy = 0.0f;
 
-            if (!pt->map[x + y * pt->width].b || !is_valid_point(px, py))
+            /* Blue marks ground and water occupancy; green marks air. */
+            bool const blocks_ground = pt->map[x + y * pt->width].b != 0;
+            if (!( ((blocked_flags & (CM_PATHING_UNWALKABLE | CM_PATHING_UNFLOATABLE)) && blocks_ground) ||
+                   ((blocked_flags & CM_PATHING_UNFLYABLE) && pathtex_pixel_blocks_fly(pt, x, y)) ) ||
+                !is_valid_point(px, py))
                 continue;
 
             /* Use the exact same cell placement as stamp_entity_obstacle(),
@@ -1256,6 +1261,10 @@ float CM_DistanceToPathingFootprint(struct edict_s const *target, vec2_t const *
         }
     }
     return best;
+}
+
+float CM_DistanceToPathingFootprint(struct edict_s const *target, vec2_t const *point) {
+    return CM_DistanceToPathingFootprintFlags(target, point, CM_PATHING_UNWALKABLE);
 }
 
 static bool find_approach_point_to_footprint_for_radius(

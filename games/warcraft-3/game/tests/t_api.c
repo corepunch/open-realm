@@ -1308,7 +1308,7 @@ TEST(wc3_api, region_add_rect_reports_capacity_rejection) {
     T_EQ(dup2(saved_stderr, STDERR_FILENO), STDERR_FILENO);
     close(saved_stderr);
     rewind(capture);
-    (void)fread(diagnostic, 1, sizeof(diagnostic) - 1, capture);
+    diagnostic[fread(diagnostic, 1, sizeof(diagnostic) - 1, capture)] = '\0';
     fclose(capture);
 
     FOR_LOOP(i, level.num_regions)
@@ -1474,6 +1474,128 @@ static uint32_t unit_team_color(edict_t const *unit) {
 
 static cstring_t skip_cutscene_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
+}
+
+static cstring_t cinefilter_render_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "skip_cutscene") ? "0" : fallback;
+}
+
+static cstring_t cinefilter_skip_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "skip_cutscene") ? "1" : fallback;
+}
+
+TEST(wc3_api, cinefilter_interpolates_and_publishes_player_state) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t saved_client = game.clients[0];
+    uint32_t saved_max_clients = game.max_clients;
+    uint32_t saved_time = level.time;
+    cineFilter_t saved_filter = level.cinefilter;
+    edict_t *player;
+    vec3_t saved_origin;
+
+    gi.CvarString = cinefilter_render_cvar;
+    game.max_clients = 1;
+    game.clients[0].connected = false;
+    game.clients[0].ps.number = 0;
+    player = G_GetPlayerEntityByNumber(0);
+    saved_origin = player ? player->s.origin : (vec3_t){ 0 };
+    level.cinefilter = (cineFilter_t){
+        .texture = 73,
+        .displayed = true,
+        .texmapflags = TEXMAP_FLAG_WRAP_UV,
+        .start = { .color = MAKE(color32_t, 10, 20, 30, 40), .time = 0,
+                   .uv = { .min = { 0, 0 }, .max = { 1, 1 } } },
+        .end = { .color = MAKE(color32_t, 110, 120, 130, 200), .time = 2000,
+                 .uv = { .min = { 1, 0.5f }, .max = { 3, 2.5f } } },
+    };
+    level.time = 1000;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_image, 73);
+    T_EQ(game.clients[0].ps.cinefilter_color.r, 60);
+    T_EQ(game.clients[0].ps.cinefilter_color.g, 70);
+    T_EQ(game.clients[0].ps.cinefilter_color.b, 80);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 120);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.min.x, 0.5f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.min.y, 0.25f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.max.x, 2.0f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.max.y, 1.75f, 0.0001f);
+    T_EQ(game.clients[0].ps.cinefilter_texmapflags, TEXMAP_FLAG_WRAP_UV);
+
+    level.time = 2000;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_color.r, 110);
+    T_EQ(game.clients[0].ps.cinefilter_color.g, 120);
+    T_EQ(game.clients[0].ps.cinefilter_color.b, 130);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 200);
+
+    /* Natives that never set UVs leave an empty box; that means full UVs. */
+    level.cinefilter.start.uv = level.cinefilter.end.uv = (box2_t){ 0 };
+    G_RunClients();
+    T_FEQ(game.clients[0].ps.cinefilter_uv.min.x, 0.0f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.max.x, 1.0f, 0.0001f);
+    T_FEQ(game.clients[0].ps.cinefilter_uv.max.y, 1.0f, 0.0001f);
+
+    /* Alpha-masked filters (vignettes) draw at half the authored alpha. */
+    level.cinefilter.masked = true;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 100);
+    level.cinefilter.masked = false;
+
+    /* CinematicFadeBJ to black must reach opaque. */
+    level.cinefilter.end.color = MAKE(color32_t, 0, 0, 0, 255);
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 255);
+
+    /* An untextured filter still publishes its tint; the client draws it plain. */
+    level.cinefilter.texture = 0;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_image, 0);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 255);
+    T_EQ(game.clients[0].ps.cinefade, 0.0f);
+
+    level.cinefilter.texture = 73;
+    level.cinefilter.displayed = false;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_image, 0);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 0);
+
+    level.cinefilter.displayed = true;
+    gi.CvarString = cinefilter_skip_cvar;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_image, 0);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 0);
+
+    game.clients[0] = saved_client;
+    if (player) player->s.origin = saved_origin;
+    game.max_clients = saved_max_clients;
+    level.time = saved_time;
+    level.cinefilter = saved_filter;
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_api, cinefilter_detects_masks_with_alpha) {
+    uint8_t blp1[12] = { 'B', 'L', 'P', '1', 0, 0, 0, 0, 8, 0, 0, 0 };
+    uint8_t blp1_opaque[12] = { 'B', 'L', 'P', '1' };
+    uint8_t blp2[10] = { 'B', 'L', 'P', '2', 1, 0, 0, 0, 2, 8 };
+    uint8_t tga[18] = { 0, 0, 2 };
+
+    T_ASSERT(G_ImageHeaderHasAlpha(blp1, sizeof(blp1)));
+    T_ASSERT(!G_ImageHeaderHasAlpha(blp1_opaque, sizeof(blp1_opaque)));
+    T_ASSERT(G_ImageHeaderHasAlpha(blp2, sizeof(blp2)));
+    T_ASSERT(!G_ImageHeaderHasAlpha(tga, sizeof(tga)));
+    tga[17] = 8;
+    T_ASSERT(G_ImageHeaderHasAlpha(tga, sizeof(tga)));
+    T_ASSERT(!G_ImageHeaderHasAlpha(NULL, 0));
+}
+
+TEST(wc3_api, cinefilter_blend_mode_maps_jass_constants) {
+    T_EQ(G_BlendModeFromJass(0), BLEND_MODE_NONE);
+    T_EQ(G_BlendModeFromJass(1), BLEND_MODE_ALPHAKEY);
+    T_EQ(G_BlendModeFromJass(2), BLEND_MODE_BLEND);
+    T_EQ(G_BlendModeFromJass(3), BLEND_MODE_ADD);
+    T_EQ(G_BlendModeFromJass(4), BLEND_MODE_MODULATE);
+    T_EQ(G_BlendModeFromJass(5), BLEND_MODE_MODULATE_2X);
+    T_EQ(G_BlendModeFromJass(99), BLEND_MODE_BLEND);
 }
 
 static cstring_t group_debug_cvar(cstring_t name, cstring_t fallback) {
@@ -3986,6 +4108,29 @@ TEST(wc3_api, createunit_avoids_live_unit_collision) {
     }
 }
 
+/* Creation initializes guard policy before CreateUnit's collision-based
+ * unstuck search. The guard anchor must follow the final legal location. */
+TEST(wc3_api, neutral_creep_createunit_anchor_uses_resolved_spawn) {
+    vec2_t const requested = { 256.0f, 256.0f };
+    edict_t *blocker, *creep;
+
+    reset_entities(); setup_test_world();
+    blocker = unit_create(0, BZ_WC3_UNIT_PEASANT, &requested, 0);
+    T_NOT_NULL(blocker);
+    if (!blocker) return;
+    blocker->s.model = 1;
+    blocker->collision = 16.0f;
+    gi.LinkEntity(blocker);
+
+    creep = unit_create(PLAYER_NEUTRAL_AGGRESSIVE, BZ_WC3_UNIT_PEASANT, &requested, 0);
+    T_NOT_NULL(creep);
+    if (!creep) return;
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_ASSERT(Vector2_distance(&creep->s.origin2, &requested) > 0.01f);
+    T_FEQ(creep->movement.creep_guard_origin.x, creep->s.origin2.x, 0.001f);
+    T_FEQ(creep->movement.creep_guard_origin.y, creep->s.origin2.y, 0.001f);
+}
+
 TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};
@@ -6137,7 +6282,8 @@ TEST(wc3_api, nonlooping_effect_stand_hides_without_invalidating_handle) {
 }
 
 TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
-    gsound_t handle_storage = {0};
+    /* Runtime sound handles point to gsound_t; integer storage corrupted the stack in release builds. */
+    gsound_t handle_storage = { 0 };
     handle_t handle = &handle_storage;
     jassSoundPlayback_t playback;
     edict_t *unit;
@@ -7093,7 +7239,7 @@ TEST(wc3_api, selection_limit_warns_once_for_unsupported_values) {
     T_EQ(dup2(saved_stderr, STDERR_FILENO), STDERR_FILENO);
     close(saved_stderr);
     rewind(capture);
-    (void)fread(diagnostic, 1, sizeof(diagnostic) - 1, capture);
+    diagnostic[fread(diagnostic, 1, sizeof(diagnostic) - 1, capture)] = '\0';
     fclose(capture);
     gi.CvarString = old_cvar;
 
@@ -10409,10 +10555,10 @@ TEST(wc3_api, blight_tileset_line_parse_truncates_long_value) {
 }
 
 TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
-    static DestructableData_t const row = { .file = "Gate.mdx", .displayName = "WESTRING_DEST_ELVEN_GATE_HORIZONTAL" };
+    static DestructableData_t const row = { .file = "Gate.mdx", .displayName = "WESTRING_DEST_ELVEN_GATE_HORIZONTAL", .selectable = true };
     destructable_t destructable_state = { 0 };
-    edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('A','T','g','1'),
-        .svflags = SVF_STATIC_SCENERY, .targtype = TARG_STRUCTURE,
+    edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('D','T','g','1'),
+        .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
         .data = { .DestructableData = &row }, .destructable = &destructable_state,
         .health = { .value = 500, .max_value = 500 } };
     entityState_t state = { .number = 7, .model = 11 };
@@ -10423,7 +10569,7 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     T_ASSERT(entity_name_slot_equals(names + ((state.name - 1) % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE,
                                     "Ancient Elven Gate"));
     T_ASSERT(state.flags & EF_NEUTRAL);
-    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
     ent.destructable->dead = true; ent.health.value = 0;
     globals.CustomizeEntity(0, &ent, &state);
     T_EQ(state.name, 0); T_ASSERT(!(state.flags & EF_NEUTRAL));
@@ -10437,6 +10583,76 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     state.renderfx = 0;
     globals.CustomizeEntity(0, &ent, &state);
     T_NE(state.name, 0);
+}
+
+static cstring_t hover_test_expansion(cstring_t name, cstring_t fallback) {
+    return name && !strcmp(name, "fs_expansion") ? "1" : fallback;
+}
+
+static cstring_t hover_test_roc(cstring_t name, cstring_t fallback) {
+    return name && !strcmp(name, "fs_expansion") ? "0" : fallback;
+}
+
+TEST(wc3_api, customize_entity_selectable_debris_publishes_hover_health) {
+    enum { RAWCODE_COUNT = 7 };
+    static DestructableData_t row = { .file = "Gate.mdx", .displayName = "Ancient Elven Gate", .selectable = true };
+    static uint32_t const debris[RAWCODE_COUNT] = {
+        MAKEFOURCC('D','T','g','1'), MAKEFOURCC('D','T','g','3'),
+        MAKEFOURCC('D','T','g','5'), MAKEFOURCC('D','T','g','7'),
+        MAKEFOURCC('A','T','g','3'), MAKEFOURCC('L','T','g','1'), MAKEFOURCC('L','T','g','2'),
+    };
+    destructable_t destructable_state = { 0 };
+    cstring_t (*old_cvar_string)(cstring_t, cstring_t) = gi.CvarString;
+    edict_t ent = { .inuse = true, .svflags = SVF_STATIC_SCENERY, .targtype = TARG_DEBRIS,
+        .data = { .DestructableData = &row }, .destructable = &destructable_state,
+        .health = { .value = 500, .max_value = 500 } };
+
+    gi.CvarString = hover_test_expansion;
+
+    FOR_LOOP(i, RAWCODE_COUNT) {
+        entityState_t state = { .number = 7, .model = 11 };
+        ent.class_id = debris[i];
+        globals.CustomizeEntity(0, &ent, &state);
+        T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    }
+
+    /* Selectability, not a recognized gate prefix, owns the bar. */
+    ent.class_id = MAKEFOURCC('X','x','x','x');
+    row.selectable = false;
+    entityState_t state = { .number = 7, .model = 11 };
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+
+    gi.CvarString = hover_test_roc;
+    ent.invulnerable = false;
+    state = (entityState_t){ .number = 7, .model = 11 };
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    gi.CvarString = old_cvar_string;
+
+    row.selectable = true;
+    ent.invulnerable = true;
+    state = (entityState_t){ .number = 7, .model = 11 };
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+}
+
+TEST(wc3_api, customize_entity_non_debris_destructables_have_no_hover_label) {
+    enum { TARGET_TYPE_COUNT = 3 };
+    static DestructableData_t const row = { .file = "Scenery.mdx", .displayName = "Scenery" };
+    static TARGTYPE const target_types[TARGET_TYPE_COUNT] = { TARG_WALL, TARG_BRIDGE, TARG_DECORATION };
+    destructable_t destructable_state = { 0 };
+    edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('T','e','s','t'),
+        .svflags = SVF_STATIC_SCENERY, .data = { .DestructableData = &row },
+        .destructable = &destructable_state, .health = { .value = 500, .max_value = 500 } };
+
+    FOR_LOOP(i, TARGET_TYPE_COUNT) {
+        entityState_t state = { .number = 7, .model = 11 };
+        ent.targtype = target_types[i];
+        globals.CustomizeEntity(0, &ent, &state);
+        T_EQ(state.name, 0);
+        T_ASSERT(!(state.flags & (EF_NEUTRAL | EF_HOVER_HEALTH)));
+    }
 }
 
 /* Missing Warcraft natives must execute through the production JASS dispatcher. */

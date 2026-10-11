@@ -79,7 +79,9 @@ const char *Test_TempPath(const char *name) {
     static char ring[TEST_TEMP_RING][TEST_TEMP_PATH_SIZE];
     static unsigned next;
     char *path = ring[next++ % TEST_TEMP_RING];
-    snprintf(path, TEST_TEMP_PATH_SIZE, "%s/%s", Test_TempDir(), name ? name : "");
+    strlcpy(path, Test_TempDir(), TEST_TEMP_PATH_SIZE);
+    strlcat(path, "/", TEST_TEMP_PATH_SIZE);
+    strlcat(path, name ? name : "", TEST_TEMP_PATH_SIZE);
     return path;
 }
 

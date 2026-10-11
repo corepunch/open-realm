@@ -257,7 +257,12 @@ static int CL_UI_ReadFile(cstring_t fileName, void **buf) {
     if (len <= 0) { fclose(f); return -1; }
     *buf = MemAlloc((size_t)len + 1);
     if (!*buf) { fclose(f); return -1; }
-    fread(*buf, 1, (size_t)len, f);
+    if (fread(*buf, 1, (size_t)len, f) != (size_t)len) {
+        MemFree(*buf);
+        *buf = NULL;
+        fclose(f);
+        return -1;
+    }
     ((char *)*buf)[len] = '\0';
     fclose(f);
     return (int)len;

@@ -134,7 +134,7 @@ netField_t uiFrameFields[] = {
     { NULL }
 };
 
-/* Player-state deltas use a 32-bit mask; map metadata moved to configstrings, leaving room for generic camera fields. */
+/* Player-state deltas use a 32-bit mask; map metadata moved to configstrings, leaving room for generic camera and presentation fields. */
 netField_t playerStateFields[] = {
     { NETF(player_t, viewangles), NFT_VECTOR3_FLOAT },
     { NETF(player_t, vieworigin), NFT_VECTOR3_FLOAT },
@@ -146,14 +146,20 @@ netField_t playerStateFields[] = {
     { NETF(player_t, rdflags), NFT_LONG },
     { NETF(player_t, uiflags), NFT_LONG },
     { NETF(player_t, client_ui_state), NFT_LONG },
-    /* cinematic_portrait, team, color, race are consecutive BYTEs; one int32_t keeps the 32-bit mask. */
+    /* portrait-present flag, team, color, race are consecutive BYTEs; full portrait model index is a 16-bit stat. */
     { NETF(player_t, cinematic_portrait), NFT_LONG },
     { NETF(player_t, name), NFT_DUPTEXT },
     { NETF(player_t, start_location), NFT_LONG },
     { NETF(player_t, cinefade), NFT_FLOAT },
     { NETF(player_t, texts[0]), NFT_DUPTEXT },
     { NETF(player_t, texts[1]), NFT_DUPTEXT },
-    /* Map metadata moved to the WoW map-info configstring; only cinematic text remains in player state. */
+    /* Append fields so existing player-state delta bit assignments stay stable. */
+    { NETF(player_t, cinefilter_image), NFT_LONG },
+    { NETF(player_t, cinefilter_color), NFT_LONG },
+    { NETF(player_t, cinefilter_blendmode), NFT_LONG },
+    { NETF(player_t, cinefilter_uv), NFT_BOX2 },
+    { NETF(player_t, cinefilter_texmapflags), NFT_LONG },
+    /* Map metadata moved to the WoW map-info configstring; only small generic presentation values remain here. */
     { NULL }
 };
 

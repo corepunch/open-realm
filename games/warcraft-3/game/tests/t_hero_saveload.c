@@ -178,6 +178,7 @@ TEST(wc3_save, hero_audit_skips_hidden_first_hero) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     edict_t *hidden, *visible;
     float hidden_x, visible_x;
+    FILE *save;
 
     reset_entities();
     setup_test_world();
@@ -192,6 +193,12 @@ TEST(wc3_save, hero_audit_skips_hidden_first_hero) {
     gi.CvarString = old_cvar;
     T_FEQ(hidden->s.origin.x, hidden_x, 0.01f);
     T_ASSERT(visible->s.origin.x > visible_x + 1.0f);
+    /* The audit reloads its fixed slot name mid-test. Through the shared per-user
+     * saves directory a parallel shard's hero_audit_* save replaced it between
+     * WriteGame and ReadGame, restoring that process's walking Hero over `hidden`. */
+    save = fopen(Test_TempPath("hero-saveload-audit"), "rb");
+    T_NOT_NULL(save);
+    if (save) fclose(save);
 }
 
 /* PauseAllUnitsBJ during intro; walk only after cleanup unpauses. */

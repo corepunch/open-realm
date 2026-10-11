@@ -415,7 +415,7 @@ static void SinglePlayer_FinalizeLegacyCampaigns(void) {
         FOR_LOOP(j, SINGLE_PLAYER_CINEMATIC_COUNT) {
             singlePlayerCinematic_t *cinematic = &campaign->cinematics[j];
             if (cinematic->movie_path[0] && !cinematic->header[0])
-                memcpy(cinematic->header, legacy_cinematic_labels[j], sizeof(cinematic->header));
+                strlcpy(cinematic->header, legacy_cinematic_labels[j], sizeof(cinematic->header));
         }
     }
 }
@@ -1021,9 +1021,7 @@ static void SinglePlayer_PopulateCampaignList(void) {
         }
         item = &campaign_list.items[campaign_list.count++];
         if (campaign->header[0] && campaign->name[0]) {
-            char name[47]; strlcpy(name, campaign->name, sizeof(name));
-            snprintf(item->name, sizeof(item->name), "%.80s: ", campaign->header);
-            strlcat(item->name, name, sizeof(item->name));
+            snprintf(item->name, sizeof(item->name), "%.79s: %.45s", campaign->header, campaign->name);
         } else {
             snprintf(item->name, sizeof(item->name), "%s", campaign->name[0] ? campaign->name : campaign->key);
         }

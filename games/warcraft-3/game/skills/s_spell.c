@@ -1,4 +1,7 @@
 #include "s_skills.h"
+#ifdef BZ_TESTS
+#include "test.h"
+#endif
 
 #include <ctype.h>
 #include <float.h>
@@ -71,6 +74,9 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
     case A_COMMAND:
         if (!call->client) return false;
         spell_cmd(call->client);
+        return true;
+    case A_TARGET_MODE_EXIT:
+        S_SpellCursorSplat(call->client, 0.0f);
         return true;
     case A_VALIDATE: return true;
     case A_MOVE_LEAVE:
@@ -461,7 +467,7 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
     if (!row || !row->targs || !S_SpellTargetHasToken(row->targs, "enemy", NULL)) return false;
     status = unit_findstatus(target, MAKEFOURCC('B', 'N', 's', 's'));
     if (!status) return false;
-    unit_expirestatus(target, status);
+    unit_removestatus(target, status, STATUS_REMOVE_SCRIPT);
     unit_refreshstatusflags(target);
     G_InvalidateUnitInfoPanel(target);
     return true;
@@ -570,7 +576,7 @@ void S_SpellReleaseCorpse(edict_t *corpse, uint32_t code) {
     FOR_LOOP(i, G_UnitStatusSlotCount(corpse)) {
         heroabilitystatus_t *status = corpse->abilstatus + i;
         if (status->level && status->code == code) {
-            memset(status, 0, sizeof(*status));
+            unit_removestatus(corpse, status, STATUS_REMOVE_SCRIPT);
             G_InvalidateUnitInfoPanel(corpse);
             return;
         }
@@ -658,6 +664,7 @@ edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
  * ability still decides range checks, duration, tick policy and cleanup. */
 edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *target) {
     edict_t *ent = S_SpellChannelThinker(caster, code);
+    if (!ent) return NULL;
     S_SetMoveGoal(ent, &ent->goalentity, target);
     ent->channel->target_spawn_time = target ? target->spawn_time : 0;
     return ent;
@@ -1548,6 +1555,33 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     return true;
 }
 
+/* Entity hits arrive as Select commands from the universal client. While a
+ * spell's point cursor is active, treat those hits as point casts at the
+ * entity's ground position (retail accepts clicks on pickups for Blink). */
+bool S_SpellPointTargetMode(edict_t *clent) {
+    return clent && clent->client &&
+           clent->client->menu.on_location_selected == spell_point_target_selected;
+}
+
+static void spell_target_mode_exit(edict_t *clent) {
+    abilityitem_t item = S_AbilityItem(S_SpellCurrentCode(clent, 0));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .client = clent);
+    if (item.ability) S_AbilityMessage(G_GetMainSelectedUnit(clent->client), A_TARGET_MODE_EXIT, &call);
+}
+
+/* The generic command/HUD paths can clear target selection without knowing
+ * which ability owns its cursor presentation. Dispatch cleanup through the
+ * active ability while its target callback is still available. */
+void S_AbilityTargetModeExit(edict_t *clent) {
+    if (!S_SpellPointTargetMode(clent)) return;
+    spell_target_mode_exit(clent);
+}
+
+bool S_SpellPointTargetEntity(edict_t *clent, edict_t *target) {
+    if (!S_SpellPointTargetMode(clent) || !target || !target->inuse) return false;
+    return spell_point_target_selected(clent, &target->s.origin2);
+}
+
 /* No-target (self-cast / instant) execute in-place. */
 static void spell_no_target_execute(edict_t *clent) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
@@ -1811,12 +1845,128 @@ cstring_t S_SpellBuffToken(cstring_t list, uint32_t index) {
     }
 }
 
+/* Translate supported authored buff data into owned numeric contributions.
+ * Existing ability procedures still own application and removal; the shared
+ * resolver owns aggregation.  Use per-buff families to avoid accidentally
+ * merging unrelated Warcraft stacking rules. */
+/* Update exactly the contributor owned by authored AbilityData, never a
+ * caller's custom contribution. Stable descriptor indices are not assumed. */
+static bool status_authored_modifier(heroabilitystatus_t *slot,
+                                     wc3_status_modifier_type_t type, float value) {
+    wc3_status_modifier_t modifier = {
+        .type = type, .family = slot->code,
+        .policy = value < 0.0f ? WC3_STATUS_MOD_STRONGEST_NEGATIVE :
+                                 WC3_STATUS_MOD_STRONGEST_POSITIVE,
+        .value = value, .owner = WC3_STATUS_MOD_OWNER_AUTHORED
+    };
+    uint32_t index;
+    /* An authored refresh must update its existing descriptor in place. */
+    FOR_LOOP(i, MIN(slot->modifier_count, WC3_STATUS_MAX_MODIFIERS)) {
+        wc3_status_modifier_t const *current = slot->modifiers + i;
+        if (current->owner == WC3_STATUS_MOD_OWNER_AUTHORED && current->type == (uint32_t)type)
+            return unit_status_setmodifier(slot, i, &modifier);
+    }
+    index = slot->modifier_count;
+    /* Never evict an external descriptor to make room for an authored one. */
+    return index < WC3_STATUS_MAX_MODIFIERS && unit_status_setmodifier(slot, index, &modifier);
+}
+
+
+#ifdef BZ_TESTS
+TEST(wc3_spell, authored_modifier_refresh_keeps_external_contributors) {
+    heroabilitystatus_t slot = { .level = 1, .code = MAKEFOURCC('B','i','n','f') };
+    wc3_status_modifier_t custom = {
+        .type = WC3_STATUS_MOD_ARMOR_FLAT, .policy = WC3_STATUS_MOD_ADD, .value = 7.0f
+    };
+    T_ASSERT(status_authored_modifier(&slot, WC3_STATUS_MOD_ARMOR_FLAT, 2.0f));
+    T_ASSERT(unit_status_setmodifier(&slot, 1, &custom));
+    T_ASSERT(status_authored_modifier(&slot, WC3_STATUS_MOD_ARMOR_FLAT, 5.0f));
+    T_EQ(slot.modifier_count, 2);
+    T_EQ(slot.modifiers[0].owner, WC3_STATUS_MOD_OWNER_AUTHORED);
+    T_FEQ(slot.modifiers[0].value, 5.0f, 0.001f);
+    T_EQ(slot.modifiers[1].owner, 0);
+    T_FEQ(slot.modifiers[1].value, 7.0f, 0.001f);
+}
+
+TEST(wc3_spell, authored_modifier_full_slot_does_not_evict_custom_contributors) {
+    heroabilitystatus_t slot = { .level = 1, .code = MAKEFOURCC('B','i','n','f') };
+    FOR_LOOP(i, WC3_STATUS_MAX_MODIFIERS) {
+        wc3_status_modifier_t custom = {
+            .type = WC3_STATUS_MOD_ARMOR_FLAT, .policy = WC3_STATUS_MOD_ADD,
+            .value = (float)i + 1.0f
+        };
+        T_ASSERT(unit_status_setmodifier(&slot, i, &custom));
+    }
+    T_ASSERT(!status_authored_modifier(&slot, WC3_STATUS_MOD_ARMOR_FLAT, 8.0f));
+    T_EQ(slot.modifier_count, WC3_STATUS_MAX_MODIFIERS);
+    FOR_LOOP(i, WC3_STATUS_MAX_MODIFIERS) {
+        T_EQ(slot.modifiers[i].owner, 0);
+        T_FEQ(slot.modifiers[i].value, (float)i + 1.0f, 0.001f);
+    }
+}
+#endif
+
+static void status_apply_authored_modifiers(heroabilitystatus_t *slot, uint32_t ability) {
+    uint32_t rank;
+    if (!slot || !slot->level) return;
+    rank = slot->rank ? slot->rank : slot->level;
+    /* Only stock families whose modifiers are owned by this resolver may be rebuilt. */
+    switch (slot->code) {
+    case MAKEFOURCC('B','c','r','i'): case MAKEFOURCC('B','b','l','o'):
+    case MAKEFOURCC('B','f','z','y'): case MAKEFOURCC('B','U','h','f'):
+    case MAKEFOURCC('B','u','h','f'): case MAKEFOURCC('B','s','p','o'):
+    case MAKEFOURCC('B','i','n','f'): case MAKEFOURCC('B','f','a','e'):
+        break;
+    default: return;
+    }
+    /* Unknown/custom statuses own their descriptors: never erase them. */
+    switch (slot->code) {
+    case MAKEFOURCC('B','c','r','i'):
+        if (!ability) ability = MAKEFOURCC('A','c','r','i');
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT, -S_SpellData(ability, rank, 3));
+        break;
+    case MAKEFOURCC('B','b','l','o'):
+        if (!ability) ability = MAKEFOURCC('A','b','l','o');
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, S_SpellData(ability, rank, 2));
+        break;
+    case MAKEFOURCC('B','f','z','y'):
+        ability = MAKEFOURCC('A','f','z','y');
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 2));
+        break;
+    case MAKEFOURCC('B','U','h','f'):
+    case MAKEFOURCC('B','u','h','f'):
+        ability = MAKEFOURCC('A','u','h','f');
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, S_SpellData(ability, rank, 1));
+        break;
+    case MAKEFOURCC('B','s','p','o'):
+        ability = MAKEFOURCC('A','s','p','o');
+        status_authored_modifier(slot, WC3_STATUS_MOD_MOVE_SPEED_PERCENT, -S_SpellData(ability, rank, 2));
+        status_authored_modifier(slot, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT, -S_SpellData(ability, rank, 3));
+        break;
+    case MAKEFOURCC('B','i','n','f'):
+        ability = MAKEFOURCC('A','i','n','f');
+        status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT, S_SpellData(ability, rank, 2));
+        break;
+    case MAKEFOURCC('B','f','a','e'):
+        ability = MAKEFOURCC('A','f','a','e');
+        status_authored_modifier(slot, WC3_STATUS_MOD_ARMOR_FLAT, -S_SpellData(ability, rank, 1));
+        break;
+    default: return;
+    }
+}
+
 /* Lowest common timed-status lifecycle: apply/replace the authored status and
  * return its authoritative slot.  Presentation and payload remain caller-owned. */
 heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, uint32_t level, float duration) {
     if (!target || !buff || strlen(buff) < 4) return NULL;
-    unit_addtimedstatus(target, buff, level, duration);
-    return unit_findstatus(target, FS_SLKKey(buff));
+    status_application_t app = { .buff = buff, .level = level, .duration = duration };
+    heroabilitystatus_t *status = unit_applystatus(target, &app);
+    if (status) status_apply_authored_modifiers(status, status->source_ability);
+    return status;
 }
 
 /* BTLF is lifecycle ownership rather than an ordinary dispellable buff.
@@ -1829,8 +1979,16 @@ heroabilitystatus_t *S_SpellApplyTimedLife(edict_t *unit, uint32_t level, float 
 /* Ordinary target buffs add the standard authored TargetArt on top of the
  * shared timed-status lifecycle. */
 heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {
-    heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, level, duration);
+    /* Pass the actual ability identity before installing authored modifiers.
+     * Calling the generic wrapper first would populate descriptors from a
+     * stock alias, leaving the custom caster's Data fields ignored. */
+    status_application_t app = { .buff = buff, .level = level, .duration = duration,
+                                 .source_ability = code, .rank = level };
+    heroabilitystatus_t *status;
+    if (!target || !buff || strlen(buff) < 4) return NULL;
+    status = unit_applystatus(target, &app);
     if (!status) return NULL;
+    status_apply_authored_modifiers(status, code);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     return status;
 }
@@ -1857,7 +2015,7 @@ void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {
     FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *status = unit->abilstatus + i;
         if (status->level && status->code == code) {
-            memset(status, 0, sizeof(*status));
+            unit_removestatus(unit, status, STATUS_REMOVE_SCRIPT);
             return;
         }
     }
@@ -1972,6 +2130,7 @@ void spell_cmd(edict_t *clent) {
             return;
         }
         UI_AddCancelButton(clent);
+        clent->client->menu.ability_code = code;
         if (!spell_is_tiny_structure(spell)) {
             float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
             S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);

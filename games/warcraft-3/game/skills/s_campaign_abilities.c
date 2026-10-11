@@ -54,7 +54,10 @@ BZ_SIMPLE_SPELL_PROC(AbilityFeedbackCampaign) { campaign_toggle_execute(caster, 
 BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
     uint32_t level = S_SpellLevel(caster, spell->code), count = 0; float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, count < (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)) && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        FOR_LOOP(i, G_UnitStatusSlotCount(target)) if (target->abilstatus[i].level && target->abilstatus[i].timestamp) memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+        FOR_LOOP(i, G_UnitStatusSlotCount(target)) if (unit_status_can_magic_dispel(target->abilstatus + i))
+            unit_removestatus_deferred(target, target->abilstatus + i, STATUS_REMOVE_DISPEL);
+        unit_refreshstatusflags(target);
+        G_InvalidateUnitInfoPanel(target);
         count++;
     }
 }
@@ -294,6 +297,8 @@ bool S_StatusIsEnsnare(uint32_t code) {
 }
 
 bool S_UnitIsEnsnared(edict_t const *unit) {
+    /* Ensnare/Web remain distinct from Entangling Roots (which also disarms).
+     * They are bound status families, so avoid making ROOTED mean Ensnared. */
     if (unit) FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (S_StatusIsEnsnare(unit->abilstatus[i].code) && S_UnitHasStatus(unit, unit->abilstatus[i].code)) return true;
     return false;
@@ -381,7 +386,13 @@ static void ensnare_execute(edict_t *caster, spellTarget_t st, abilityitem_t con
     if (!buff || strlen(buff) < 4) buff = spell->ability->proc == CAbilityWeb ? "Bwea" : "Bens";
     slot = S_SpellApplyTimedStatus(st.entity, buff, level,
                                      S_SpellResistantDuration(spell->code, level, st.entity));
-    if (slot) slot->data = spell->code;
+    if (!slot) return; /* A failed allocation must not start a ground-bind transition. */
+    slot->data = spell->code;
+    /* Ensnare/Web are physical binds, not removable by magical dispels.
+     * Limit classification to stock identities; custom BuffIDs retain policy. */
+    if (S_StatusIsEnsnare(slot->code))
+        slot->buff_flags = (slot->buff_flags & ~(WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE)) |
+                           WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_PHYSICAL;
     ensnare_begin_land(st.entity, spell->code, level);
     ensnare_refresh(st.entity);
     S_SetMoveGoal(st.entity, &st.entity->goalentity, NULL);

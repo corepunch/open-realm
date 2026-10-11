@@ -96,6 +96,14 @@ instead of only base `AEev`/`AHbh`. Critical Strike keeps its explicit
 `ACct` fallback. Tests use 0/100 chances; low-percentage rolls are not
 asserted probabilistically.
 
+`S_AttackHitAllowed(attacker, primary, victim)` applies the Ethereal gate to primary hits, Moon Glaive bounce candidates,
+Cleave victims, and Human weapon splash victims. Secondary effects carry the weapon selected for the primary target;
+do not select a different magic weapon for an Ethereal secondary victim. These effects already receive mitigated primary damage,
+so calling `G_AttackDamage` again would apply armor/type scaling twice. Keep the gate out of untyped `T_Damage`, which also serves
+direct/scripted damage. Artillery splash already resolves each victim through `attack_damage_type` with its snapshotted attack type.
+`wc3_spell.ethereal_secondary_targets_reject_physical_attacks` covers all three secondary paths, status removal restoring physical
+damage, and a magic primary weapon accepting Ethereal victims. It runs with both Classic and TFT fixtures.
+
 ## Gameplay Constants
 
 `InitConstants()` loads combat values from the active Misc data cache. `war3mapMisc.txt` is loaded after stock Misc files and can override them.

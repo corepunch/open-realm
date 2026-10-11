@@ -7599,6 +7599,90 @@ TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
     T_ASSERT(attacker->goalentity == gate);
 }
 
+TEST(wc3_movement, group_smart_attack_keeps_unreachable_member_on_its_side_of_water) {
+    enum { CELLS = 16 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    edict_t *clent, *blocked, *reachable, *target;
+    vec2_t const target_origin = {432.0f, 272.0f};
+    char target_number[16];
+    cstring_t command[2] = { "smart", target_number };
+    bool reachable_advanced = false;
+    bool reachable_jumped = false, blocked_jumped = false, target_jumped = false;
+    float blocked_start_x;
+
+    reset_entities(); setup_test_world();
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    G_SetClientConnected(clent, true);
+    blocked = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 80.0f, 272.0f);
+    reachable = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 320.0f, 272.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), target_origin.x, target_origin.y);
+    blocked->s.player = reachable->s.player = 0;
+    target->s.player = 6;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[6].playerType = kPlayerTypeHuman;
+    target->targtype = TARG_GROUND;
+    target->collision = 16.0f;
+    target->health.value = target->health.max_value = 100000.0f;
+    FOR_LOOP(i, 2) {
+        edict_t *unit = i ? reachable : blocked;
+        unit->svflags |= SVF_MONSTER;
+        unit->movetype = MOVETYPE_STEP;
+        unit->unitinfo.MoveSpeed = 80.0f;
+        unit->collision = 16.0f;
+        S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+        S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+        S_AttackProfileWrite(unit, 0)->range = 48.0f;
+        unit->stand = unit_stand;
+        unit_stand(unit);
+        G_SelectEntity(clent->client, unit);
+    }
+    for (int y = 0; y < CELLS; ++y)
+        pathmap[y * CELLS + 7] = CM_PATHING_UNWALKABLE | CM_PATHING_UNFLOATABLE;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    blocked_start_x = blocked->s.origin2.x;
+    snprintf(target_number, sizeof(target_number), "%u", (unsigned)target->s.number);
+    G_ClientCommand(clent, 2, command);
+    T_ASSERT(blocked->goalentity == target);
+    T_ASSERT(reachable->goalentity == target);
+
+    FOR_LOOP(frame, 200) {
+        vec2_t const old_blocked = blocked->s.origin2;
+        vec2_t const old_reachable = reachable->s.origin2;
+        vec2_t const old_target = target->s.origin2;
+        CM_ProcessPathJobs(4096);
+        /* Physical cohorts are stepped by their owner, not by member callbacks. */
+        FOR_LOOP(i, 2) {
+            edict_t *unit = i ? reachable : blocked;
+            moveGroup_t const *group = move_unit_group(unit);
+            /* One owner pass steps every cohort; run it once per frame. */
+            if (group && !group->individual && i) continue;
+            if (unit->currentmove && unit->currentmove->think) movement_test_tick(unit);
+        }
+        reachable_advanced |= Vector2_distance(&old_reachable, &reachable->s.origin2) > 0.01f;
+        blocked_jumped |= Vector2_distance(&old_blocked, &blocked->s.origin2) > unit_movedistance(blocked) + 1.0f;
+        reachable_jumped |= Vector2_distance(&old_reachable, &reachable->s.origin2) >
+            unit_movedistance(reachable) + 1.0f;
+        target_jumped |= Vector2_distance(&old_target, &target->s.origin2) > 0.01f;
+    }
+
+    T_ASSERT(reachable_advanced);
+    T_ASSERT(Vector2_distance(&reachable->s.origin2, &target->s.origin2) < 112.0f);
+    /* Retail routes the cut-off member to its nearest reachable point on
+     * its own shore; it must never cross or jump over the water. */
+    T_ASSERT(blocked->s.origin2.x < 224.0f - blocked->collision);
+    T_ASSERT(blocked->s.origin2.x >= blocked_start_x - 1.0f);
+    T_ASSERT(!blocked_jumped);
+    T_ASSERT(!reachable_jumped);
+    T_ASSERT(!target_jumped);
+    T_ASSERT(blocked->goalentity == target);
+    T_ASSERT(reachable->goalentity == target);
+    T_FEQ(target->s.origin2.x, target_origin.x, 0.01f);
+    T_FEQ(target->s.origin2.y, target_origin.y, 0.01f);
+}
+
 TEST(wc3_movement, shift_smart_walkable_bridge_queues_clicked_ground_point) {
     static DestructableData_t const bridge_data = {
         .file = "Doodads/Terrain/WoodBridgeLarge45/WoodBridgeLarge45.mdx",
@@ -8005,6 +8089,166 @@ TEST(wc3_movement, wisp_harvest_move_leave_releases_its_tree_effect) {
     unit_stand(wisp);
     T_ASSERT(!effect->inuse);
 
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* A real Move order must interrupt a Wisp's attached lumber harvest, release
+ * its tree effect, and let the unit start walking toward the new point. */
+TEST(wc3_movement, wisp_harvest_move_order_leaves_tree) {
+    enum { CELLS = 64 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
+    UnitData_t wisp_data;
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(0.0f, 0.0f, 100.0f);
+    edict_t *blocking_tree = make_harvest_tree(64.0f, 0.0f, 100.0f);
+    pathTex_t *tree_path = gi.MemAlloc(sizeof(*tree_path) + 9 * sizeof(color32_t));
+    vec2_t destination = { 256.0f, 0.0f };
+    edict_t *effect = alloc_test_unit(MAKEFOURCC('e','f','f','t'), 0.0f, 0.0f);
+
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    /* Wisps use the air pathing layer: tree clearance is UNFLYABLE (green
+     * pathing texture channel), not the ground UNWALKABLE channel. */
+    wisp_data = *wisp->data.UnitData;
+    wisp_data.moveTypeName = "fly";
+    wisp->data.UnitData = &wisp_data;
+    wisp->collision = 16.0f;
+    wisp->unitinfo.MoveSpeed = 220.0f;
+    tree->destructable->placement_solid = true;
+    tree->destructable->pathing_active = true;
+    tree_path->width = tree_path->height = 3;
+    /* Stock tree pathing blocks ground (blue) and air (green). The static
+     * query follows the Wisp's movement profile, so both layers are authored. */
+    FOR_LOOP(i, 9) tree_path->map[i] = (color32_t){0, 255, 255, 255};
+    tree->pathtex = blocking_tree->pathtex = tree_path;
+    tree->destructable->alive_pathtex = blocking_tree->destructable->alive_pathtex = tree_path;
+    tree->destructable->placement_solid = blocking_tree->destructable->placement_solid = true;
+    tree->destructable->pathing_active = blocking_tree->destructable->pathing_active = true;
+    CM_BakeStaticObstacles();
+    T_ASSERT(tree->destructable && !tree->destructable->dead && tree->destructable->placement_solid);
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&wisp->s.origin2, wisp->collision,
+                                                M_UnitStaticPathingFlags(wisp)));
+    HARVEST_RANGE = 128.0f;
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", tree));
+    wisp->currentmove->think(wisp); /* attach to the tree */
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityWispHarvest);
+    T_STREQ(wisp->currentmove->animation, "stand lumber");
+    effect->owner = wisp;
+    effect->goalentity = tree;
+    effect->damage = tree->spawn_time;
+    effect->summon_ability = MAKEFOURCC('A','w','h','a');
+    effect->s.flags |= EF_NOT_SELECTABLE;
+
+    T_ASSERT(unit_issueorder(wisp, "move", &destination));
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc != CAbilityWispHarvest);
+    T_STREQ(wisp->currentmove->animation, "walk");
+    T_ASSERT(wisp->goalentity != tree);
+    T_ASSERT(!effect->inuse);
+    T_ASSERT(wisp->movement.wisp_egress_active);
+    T_ASSERT(wisp->movement.wisp_egress_tree == tree);
+
+    CM_ProcessPathJobs(4096);
+    if (wisp->currentmove && wisp->currentmove->think)
+        movement_test_tick(wisp);
+    T_ASSERT(wisp->movement.wisp_egress_target_valid);
+    T_ASSERT(Vector2_distance(&wisp->movement.wisp_egress_target, &tree->s.origin2) <= 96.0f);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&wisp->movement.wisp_egress_target,
+        wisp->collision, M_UnitStaticPathingFlags(wisp)));
+
+    for (int i = 0; i < 39; i++) {
+        level.time += FRAMETIME;
+        CM_ProcessPathJobs(4096);
+        if (wisp->currentmove && wisp->currentmove->think)
+            movement_test_tick(wisp);
+    }
+    T_ASSERT(Vector2_distance(&wisp->s.origin2, &tree->s.origin2) > 64.0f);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&wisp->s.origin2, wisp->collision,
+                                               M_UnitStaticPathingFlags(wisp)));
+    T_ASSERT(!wisp->movement.wisp_egress_active);
+    /* The nearby exit is completed before the ordinary Move path resumes;
+     * any later detour around the adjacent tree belongs to normal routing. */
+
+    HARVEST_RANGE = old_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* NightElf07's ewsp_0164 repeatedly stopped 117-134 units from its assigned
+ * ATtr, just outside Awha's 116-unit range, after a route field became
+ * available. Recreate that stalled position, prebuild the collision-sized
+ * field, and require the targetless order to complete without a manual
+ * move/reorder. */
+TEST(wc3_movement, wisp_autoharvest_reaches_tree_from_blocked_approach) {
+    enum { CELLS_X = 384, CELLS_Y = 640 };
+    static uint8_t pathmap[CELLS_X * CELLS_Y];
+    static bool setup_pathmap;
+    static color32_t tree_cells[16];
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
+    vec2_t const start = {2818.6f, 4828.7f};
+    vec2_t const tree_pos = {2752.0f, 4928.0f};
+    edict_t *wisp = make_moving_unit(start.x, start.y);
+    edict_t *tree = make_harvest_tree(tree_pos.x, tree_pos.y, 100.0f);
+    edict_t *nearby_trees[3];
+    pathTex_t *tree_path = gi.MemAlloc(sizeof(*tree_path) + sizeof(tree_cells));
+
+    if (!setup_pathmap) {
+        memset(pathmap, 64, sizeof(pathmap)); /* Logged NightElf07 WPM cells are water-only and walkable. */
+        setup_pathmap = true;
+    }
+    memset(tree_cells, 0, sizeof(tree_cells));
+    for (int i = 0; i < 16; i++) tree_cells[i].b = 255; /* 4x4Default.tga has blocked red channel in every texel. */
+    nearby_trees[0] = make_harvest_tree(2816.0f, 5056.0f, 100.0f);
+    nearby_trees[1] = make_harvest_tree(2624.0f, 4928.0f, 100.0f);
+    nearby_trees[2] = make_harvest_tree(2688.0f, 5056.0f, 100.0f);
+    CM_SetupTestPathmap(CELLS_X, CELLS_Y, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {-4096.0f, -8192.0f},
+        .max = { 8192.0f,  12288.0f}));
+    wisp->class_id = MAKEFOURCC('e','w','s','p');
+    wisp->svflags |= SVF_MONSTER;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->collision = 16.0f;
+    wisp->unitinfo.MoveSpeed = 220.0f;
+    tree_path->width = tree_path->height = 4;
+    memcpy(tree_path->map, tree_cells, sizeof(tree_cells));
+    tree->pathtex = tree->destructable->alive_pathtex = tree_path;
+    tree->s.angle = 4.712389f; /* NightElf07 ATtr records use this rotation. */
+    tree->destructable->placement_solid = true;
+    tree->destructable->pathing_active = true;
+    for (int i = 0; i < 3; i++) {
+        nearby_trees[i]->pathtex = nearby_trees[i]->destructable->alive_pathtex = tree_path;
+        nearby_trees[i]->s.angle = 4.712389f;
+        nearby_trees[i]->destructable->placement_solid = true;
+        nearby_trees[i]->destructable->pathing_active = true;
+    }
+    CM_BakeStaticObstacles();
+
+    HARVEST_RANGE = 116.0f;
+    T_ASSERT(CM_BuildHeatmapForRadius(tree, wisp->collision) != 0);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&start, wisp->collision,
+                                               M_UnitStaticPathingFlags(wisp)));
+    T_ASSERT(!CM_LineIsPathableForRadiusFlags(&start, &tree_pos, wisp->collision,
+                                               M_UnitStaticPathingFlags(wisp)));
+    T_ASSERT(unit_issueimmediateorder(wisp, "autoharvestlumber"));
+    for (int i = 0; i < 256 && strcmp(wisp->currentmove->animation, "stand lumber"); i++) {
+        level.time += FRAMETIME;
+        CM_ProcessPathJobs(4096);
+        if (wisp->currentmove && wisp->currentmove->think) wisp->currentmove->think(wisp);
+    }
+    T_ASSERT(wisp->currentmove && !strcmp(wisp->currentmove->animation, "stand lumber"));
+    T_EQ(wisp->goalentity, tree);
+
+    HARVEST_RANGE = old_range;
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }

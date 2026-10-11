@@ -856,8 +856,11 @@ static void hero_aura_sync_source(edict_t *unit, uint32_t base_code, edict_t * *
 
 void S_UpdateHeroAuraEffects(edict_t *unit) {
     heroAuraPresentation_t devotion, unholy;
+    uint32_t old_devotion, old_unholy;
 
     if (!unit || !unit->inuse || unit->s.number >= MAX_ENTITIES) return;
+    old_devotion = devotion_recipient_buff[unit->s.number];
+    old_unholy = unholy_recipient_buff[unit->s.number];
     devotion = hero_aura_presentation(unit, ID_DEVOTION_AURA);
     devotion_recipient_buff[unit->s.number] = devotion.alias ? devotion.buff : 0;
     hero_aura_sync_overlay(unit, ID_DEVOTION_AURA, devotion_overlays, devotion.alias ? &devotion : NULL);
@@ -867,6 +870,10 @@ void S_UpdateHeroAuraEffects(edict_t *unit) {
     unholy_recipient_buff[unit->s.number] = unholy.alias ? unholy.buff : 0;
     hero_aura_sync_overlay(unit, ID_UNHOLY_AURA, unholy_overlays, unholy.alias ? &unholy : NULL);
     hero_aura_sync_source(unit, ID_UNHOLY_AURA, unholy_source_fx, unholy_overlays);
+
+    if (old_devotion != devotion_recipient_buff[unit->s.number] ||
+        old_unholy != unholy_recipient_buff[unit->s.number])
+        G_InvalidateUnitInfoPanel(unit);
 }
 
 uint32_t S_DevotionAuraBuff(edict_t *unit) {
@@ -973,7 +980,7 @@ static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
 static void mana_shield_remove(edict_t *unit, uint32_t buff) {
     FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == buff)
-            memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
+            unit_removestatus(unit, unit->abilstatus + i, STATUS_REMOVE_SCRIPT);
     G_InvalidateUnitInfoPanel(unit);
 }
 

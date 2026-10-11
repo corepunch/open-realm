@@ -301,7 +301,7 @@ clock rather than the entity animation frame.
 This renderer path intentionally does not consume gameplay `rand()`, does not
 emit a network sound packet, and processes off-screen (but client-visible)
 entities before frustum culling. `SND` now shares the MDX event-key dispatcher
-with `SPN` child-model events; see [MDX Event Objects](mdx-event-objects.md).
+with `SPN` child-model events; see [MDX Event Objects](../../docs/games/warcraft-3/mdx-event-objects.md).
 Presentation events are skipped during the shadow-map pass so one animation key
 cannot play/spawn twice in a shadow-enabled frame. The generic renderer import
 currently carries the resolved path, world position, and authored volume. `Pitch`,
@@ -309,6 +309,11 @@ currently carries the resolved path, world position, and authored volume. `Pitch
 from `AnimSounds.slk` but remain mixer/API fidelity work.
 
 ### JASS sound handles
+
+`G_JassSoundRuntimeInit` and the other `G_JassSound*` runtime helpers interpret their handle as a `gsound_t *`.
+Tests must allocate a real zero-initialized `gsound_t`; an integer token provides insufficient storage and corrupts the stack,
+which optimized builds trap. `wc3_api.jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely` covers volume, position,
+attachment, and edict-slot reuse using that storage contract.
 
 `CreateSoundFromLabel` resolves Warcraft sound labels from the shared sound
 catalogs. It preserves the Warsmash-style Ability -> Ambience -> UI precedence

@@ -2041,14 +2041,17 @@ void G_RunShowMapCheats(void) {
 bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent) {
     uint32_t x, y, index;
     fowPlayerGrid_t const *grid;
+    bool const world_item = G_IsItem(ent);
 
     if (!ent || player >= MAX_PLAYERS || !G_FowReady()) {
         return true;
     }
-    if (ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
+    /* World items have no owner; map-created items often retain player zero
+     * from edict initialization and must still obey their position in fog. */
+    if (!world_item && ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
         return true;
     }
-    if (G_UnitIsForcedVisibleToPlayer(ent, player)) return true;
+    if (!world_item && G_UnitIsForcedVisibleToPlayer(ent, player)) return true;
     if (S_UnitIsInvisibleToPlayer(ent, player)) {
         return false;
     }
@@ -2098,14 +2101,17 @@ bool G_FowPlayerCanTrackUnit(uint32_t player, edict_t const *ent) {
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent) {
     uint32_t x, y, index;
     fowPlayerGrid_t const *grid;
+    bool const world_item = G_IsItem(ent);
 
     if (!ent || player >= MAX_PLAYERS || !G_FowReady()) {
         return true;
     }
-    if (ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
+    /* Items are neutral world objects, not owned entities. Their edict's
+     * default player number must not make pickups visible through fog. */
+    if (!world_item && ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
         return true;
     }
-    if (G_UnitIsForcedVisibleToPlayer(ent, player)) return true;
+    if (!world_item && G_UnitIsForcedVisibleToPlayer(ent, player)) return true;
     if (S_UnitIsInvisibleToPlayer(ent, player)) {
         return false;
     }

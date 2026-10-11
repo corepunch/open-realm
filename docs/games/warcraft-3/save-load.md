@@ -405,6 +405,10 @@ Version 75 includes the persistent `edict_t.ignore_alarm` per-unit flag and reje
 
 Version 76 persists texttag presentation readiness and slot generations, alongside the existing text and unit anchor. The `wc3_save.texttag_presentation_state_round_trips` regression checks those fields and the anchor survive save/load; version 75 saves are rejected.
 
+Version 77 persists Wisp tree egress ownership and its local exit target.
+
+Version 78 changes the cinematic portrait byte to a presence flag and stores the complete model index in the existing 16-bit player stat array. Version 77 saves are rejected; the loader does not migrate old portrait state.
+
 Version 74 changes only the footer checksum to the word-wise `SaveChecksum`. Save and load streams also use a 1 MB stdio buffer. Version 73 and earlier saves are rejected.
 
 Version 67 adds `construction_t.duration_ms` so autonomous item-created Tiny Structures resume using their ability-authored build duration, independently of the unit's normal build time. Exact-version readers reject older layouts. `wc3_save.tiny_construction_round_trips_in_roc_and_tft_map_state` covers the `CONSTRUCTION_TINY` type, mid-progress `duration_ms`, and the building's self-linked `build` pointer in both archive variants.
@@ -436,7 +440,7 @@ is part of the normal edict schema and follows the existing `goalentity` /
 
 The version 3 layout expands the fixed-size `GAMECLIENT` cinematic camera state with target Z offset, near/far clipping planes, and target-controller orientation inheritance. Version 2 saves are rejected because the raw client record layout changed; this prevents older saves from being misread with shifted fields.
 
-The version 4 layout packs `PLAYER.cinematic_portrait`, `team`, `color`, and `race` as consecutive `BYTE`s (one `NFT_LONG` on the wire), drops `PLAYER.camera_bounds` (the rectangle lives on `level`), and writes `level.camera_bounds` with the other level clocks. Version 3 saves are rejected because both the raw `GAMECLIENT` record and the level stream changed.
+The version 4 layout packs the portrait-present flag, `team`, `color`, and `race` as consecutive `BYTE`s (one `NFT_LONG` on the wire); the full portrait model index travels in the existing 16-bit player stat array. Older saves recover portrait indices that fit in the legacy byte. It also drops `PLAYER.camera_bounds` (the rectangle lives on `level`) and writes `level.camera_bounds` with the other level clocks. Version 3 saves are rejected because both the raw `GAMECLIENT` record and the level stream changed.
 
 Version 10 extends the authoritative `level.timeofday` record with the Warsmash-style temporary/false clock (`hour`, `minute`,
 remaining simulation ticks, active, initialized), so a loaded save cannot silently resume the canonical day/night cycle while a saved
@@ -619,9 +623,15 @@ Integer handle tables inside the interpreter would duplicate that field table, b
 
 HUD FDF trees cache `CS_IMAGES` / `CS_FONTS` slots. Those tables die with `memset(&sv)` in `SV_Map`. `G_LoadMap` memsets the single `hud` accumulator and clears the FDF pool; serialize then re-`ImageIndex`es from names. See [HUD Media Lifetime](hud-media.md).
 
-The format does not yet snapshot gameplay fog-of-war grids, bot runtime, alliances, or cinematic filter. Environmental distance-fog state is serialized since version 16. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Edict C callbacks persist through `F_CFUNCTION` (see [C Callbacks](#c-callbacks_f_cfunction)); the active `umove_t` is restored by `F_MMOVE` relocation (see [Active Behavior](#active-behavior_f_mmove)). Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v12 or earlier saves. Version 9 packs C-callback roster indexes into the edict blob that version 8 zeroed and rebound from class data. Version 10 adds the fixed weather-effect registry, weather handle IDs, the `weathereffect` JASS handle codec, and false-time state to the level stream; after load the authoritative weather set is replayed to connected clients. Version 11 adds per-slot JASS group lifecycle state so destroyed group slots can be safely recycled and restored. Version 12 expands `GAMECLIENT` with semantic music state; the client decoder itself is not serialized, so music resumes from the last JASS-defined start/seek position rather than an exact continuously advancing decoder head. Version 13 serializes the dynamically sized JASS group registry outside the fixed level-field schema while preserving group-handle ordinals. The current music session fields expand the raw `GAMECLIENT` record and therefore use save format version 36; version 35 saves are rejected by the exact-version guard.
+Version 85 snapshots gameplay fog-of-war exploration per player. On load, `explored` is restored, `visible` is cleared so living revealers can recompute it, and fog rows are dirtied for client resynchronization. The packed-mask build also rebuilds its packed explored mask. Version 84 and earlier saves are rejected by the format-version check. Bot runtime, alliances, and cinematic filter are not part of the save. Environmental distance-fog state is serialized since version 16. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Edict C callbacks persist through `F_CFUNCTION` (see [C Callbacks](#c-callbacks_f_cfunction)); the active `umove_t` is restored by `F_MMOVE` relocation (see [Active Behavior](#active-behavior_f_mmove)). Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v12 or earlier saves. Version 9 packs C-callback roster indexes into the edict blob that version 8 zeroed and rebound from class data. Version 10 adds the fixed weather-effect registry, weather handle IDs, the `weathereffect` JASS handle codec, and false-time state to the level stream; after load the authoritative weather set is replayed to connected clients. Version 11 adds per-slot JASS group lifecycle state so destroyed group slots can be safely recycled and restored. Version 12 expands `GAMECLIENT` with semantic music state; the client decoder itself is not serialized, so music resumes from the last JASS-defined start/seek position rather than an exact continuously advancing decoder head. Version 13 serializes the dynamically sized JASS group registry outside the fixed level-field schema while preserving group-handle ordinals. The current music session fields expand the raw `GAMECLIENT` record and therefore use save format version 36; version 35 saves are rejected by the exact-version guard.
 
 The checksum and header preflight protect normal partial/corrupt-file and wrong-map failures before mutation. Record-level semantic validation later in the stream is not fully transactional; do not treat save files as untrusted input until native records are decoded into temporary state before commit.
+
+The saved quest graph occupies fixed `MAX_QUESTS` slots. `header.quests` is diagnostic metadata only: load restores the saved quest slots, so the number of active quests created during map startup may differ from the snapshot. This avoids rejecting valid same-map saves when startup has already recreated a different active quest set. `wc3_save.active_quest_count_may_differ_before_restore` covers this case.
+
+Persisted model configstring indexes are invalidated when the map is reloaded. After the lifecycle pools are restored, `ReadGame` runs `RebindEntityModels` on every classed edict to re-register each index from its stable object-data path: an item's `s.model` from `ItemData.file`; a unit's `s.model` from `UnitUI.modelFile`, or from the morph form's `UnitUI.modelFile` while `polymorph` is live, in which case `polymorph->original_model` is re-registered from the unit's own `UnitUI.modelFile`; and `attack1/attack2.projectile.model` from `UnitProfile.attack[n].art` for missile and artillery weapons. The `wc3_save.*_reregistered_after_load` and `polymorphed_unit_rebinds_form_and_original_models_after_load` tests substitute a per-path model-index callback to verify each restored index was registered from the expected path.
+
+`wc3_save.fog_exploration_round_trips_and_visibility_restarts_clear` checks that exploration survives, transient visibility clears, dirty rows request resynchronization, and (when compiled) packed masks match the byte grids.
 
 ## Simulation Clock Continuity
 
@@ -678,7 +688,12 @@ steps until origin changes while `currentmove` is still `walk`, then
 `WriteGame`/`ReadGame` and checks origin, `heroabilities[]`, `abilities.added[]`,
 inventory class/charges, and that one more walk think still advances.
 `wc3_save.hero_audit_*` drives `G_HeroSaveLoadAuditFrame` for hidden-first-Hero,
-paused/cinematic wait, and dest-snap retries.
+paused/cinematic wait, and dest-snap retries. The audit saves through
+`gi.SavePath("hero-saveload-audit")`, a fixed slot name; the in-engine test
+fixture redirects `gi.SavePath` into the per-process `Test_TempPath` directory
+because parallel `make test` shards otherwise share one per-user `saves/` file
+and a sibling shard's `WriteGame` can land between this process's save and
+reload (the hidden-first-Hero test then restored the sibling's walking Hero).
 
 Campaign maps are a local diagnostic, not `make test`. Arm the production
 binary with `wc3_hero_saveload_audit=1`; after `G_LoadMap` the game module waits

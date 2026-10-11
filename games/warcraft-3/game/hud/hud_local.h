@@ -231,7 +231,7 @@ void UI_ShowGameMenuEndGame(edict_t *ent);
 void UI_ShowGameMenuConfirmExit(edict_t *ent);
 void UI_ShowGameMenuOptions(edict_t *ent);
 void UI_ShowGameMenuSave(edict_t *ent);
-void UI_ShowGameMenuLoad(edict_t *ent);
+bool UI_ShowGameMenuLoad(edict_t *ent); /* false when the authored in-game Load panel cannot be written */
 
 /* Game result dialog (hud_game_result.c) */
 void UI_ShowGameResult(edict_t *ent, uint32_t result);

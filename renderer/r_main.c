@@ -928,6 +928,7 @@ void R_RenderView(void) {
     if (!(tr.viewDef.rdflags & RDF_NOPARTICLES)) {
         R_DrawParticles();
     }
+    R_DrawViewBlend();
     tr.render_phase = RENDER_PHASE_SOLID;
     R_RevertSettings();
     R_SetupScissor(&(rect_t){0, 0, 1, 1});

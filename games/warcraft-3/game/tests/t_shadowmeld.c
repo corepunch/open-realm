@@ -115,6 +115,50 @@ TEST(wc3_shadowmeld, ability_classes_are_not_wind_walk) {
     T_EQ(G_OrderId("ambush"), 852131);
 }
 
+TEST(wc3_shadowmeld, availability_is_scoped_to_each_shadowmeld_class) {
+    shadowmeldFix_t fix;
+    abilityitem_t standard, akama;
+    abilityCall_t standard_call, akama_call;
+    gameClient_t *client;
+
+    shadowmeld_setup(&fix);
+    fix.unit->abilities.added[1] = ID_AHID;
+    ARRAY_COUNT(fix.unit->abilities.added) = 2;
+    client = &game.clients[0];
+    client->ps.number = 0;
+    fix.unit->s.player = 0;
+    standard = S_AbilityItem(ID_ASHM);
+    akama = S_AbilityItem(ID_AHID);
+    standard_call = MAKE(abilityCall_t, .item = &standard);
+    akama_call = MAKE(abilityCall_t, .item = &akama);
+
+    G_SetPlayerAbilityAvailable(client, ID_ASHM, false);
+    T_ASSERT(!S_AbilityMessage(fix.unit, A_VALIDATE, &standard_call));
+    T_ASSERT(S_AbilityMessage(fix.unit, A_VALIDATE, &akama_call));
+    T_ASSERT(!CAbilityShadowMeld(fix.unit, A_NO_ACQUIRE, &standard_call));
+    T_ASSERT(CAbilityShadowMeldAkama(fix.unit, A_NO_ACQUIRE, &akama_call));
+
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(!S_AbilityMessage(fix.unit, A_EXECUTE, &standard_call));
+    T_ASSERT(S_AbilityMessage(fix.unit, A_EXECUTE, &akama_call));
+    shadowmeld_tick(fix.unit, 1);
+    shadowmeld_tick(fix.unit, 1500);
+    T_ASSERT(S_ShadowMeldActive(fix.unit));
+
+    fix.unit->shadowmeld->hide_order_active = true;
+    G_SetPlayerAbilityAvailable(client, ID_ASHM, true);
+    G_SetPlayerAbilityAvailable(client, ID_AHID, false);
+    T_ASSERT(S_AbilityMessage(fix.unit, A_VALIDATE, &standard_call));
+    T_ASSERT(!S_AbilityMessage(fix.unit, A_VALIDATE, &akama_call));
+    T_ASSERT(CAbilityShadowMeld(fix.unit, A_NO_ACQUIRE, &standard_call));
+    T_ASSERT(!CAbilityShadowMeldAkama(fix.unit, A_NO_ACQUIRE, &akama_call));
+
+    G_SetPlayerAbilityAvailable(client, ID_ASHM, true);
+    G_SetPlayerAbilityAvailable(client, ID_AHID, true);
+    shadowmeld_done(&fix);
+}
+
 TEST(wc3_shadowmeld, akama_variant_is_distinct_and_suppresses_auto_acquire) {
     shadowmeldFix_t fix;
     shadowmeld_setup(&fix);

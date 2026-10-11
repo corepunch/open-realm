@@ -60,6 +60,45 @@ static purgeFix_t purge_setup(cstring_t slk, uint32_t code) {
 
 static void purge_done(purgeFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
+static void fill_area_status_slots(edict_t *unit, uint32_t count, bool protected) {
+    FOR_LOOP(i, count) {
+        char buff[5] = { 'B', 'q', '0', '0', 0 };
+        heroabilitystatus_t *slot;
+        buff[2] = (char)('0' + i / 10);
+        buff[3] = (char)('0' + i % 10);
+        slot = unit_applystatus(unit, &(status_application_t){ .buff = buff, .level = 1, .duration = 30.0f });
+        T_NOT_NULL(slot);
+        if (protected) slot->buff_flags = WC3_STATUS_BUFF_UNDISPELLABLE;
+    }
+}
+
+/* Purge dispels before applying its slow. A full target of protected buffs
+ * must not lose one just to make room for Bprg. */
+TEST(wc3_spell, purge_full_protected_target_preserves_statuses) {
+    purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
+    fill_area_status_slots(fix.enemy, MAX_UNIT_STATUSES, true);
+    T_EQ(unit_status_checkapplication(fix.enemy, &(status_application_t){
+        .buff = "Bprg", .level = 1 }), WC3_STATUS_APPLY_FULL);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
+    T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 0);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        T_EQ(fix.enemy->abilstatus[i].level, 1);
+        T_ASSERT(fix.enemy->abilstatus[i].buff_flags & WC3_STATUS_BUFF_UNDISPELLABLE);
+    }
+    purge_done(fix);
+}
+
+/* When a dispellable status frees space, the Purge slow may use it. */
+TEST(wc3_spell, purge_reuses_slot_freed_by_dispel) {
+    purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
+    fill_area_status_slots(fix.enemy, MAX_UNIT_STATUSES, true);
+    fix.enemy->abilstatus[0].buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
+    T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 1);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) T_ASSERT(fix.enemy->abilstatus[i].level);
+    purge_done(fix);
+}
+
 TEST(wc3_spell, purge_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_APRG).ability->proc, CAbilityPurge);
 	T_EQ(S_AbilityItem(BZ_APG2).ability->proc, CAbilityPurge);

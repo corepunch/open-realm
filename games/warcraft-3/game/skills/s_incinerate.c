@@ -35,7 +35,7 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
     stacks = G_UnitStatusLevel(target, FS_SLKKey(buff)) + 1;
     slot = S_SpellApplyTimedStatus(target, buff, stacks, S_SpellDuration(code, rank, false));
     if (!slot) return;
-    slot->data = code; slot->rank = rank;
+    slot->data = code; slot->source_ability = code; slot->rank = rank;
     slot->source = attacker; slot->source_spawn_time = attacker->spawn_time;
     S_SpellDamage(target, attacker, (int)(MAX(0.0f, S_SpellData(code, rank, 1)) * stacks));
 }
@@ -47,7 +47,8 @@ BZ_ABILITY_PROC(CAbilityIncinerate) {
     if (msg != A_STATUS_DEATH || !slot) return CAbilityPassive(ent, msg, call);
     source = S_SpellStatusSource(slot);
     if (!source) {
-        memset(slot, 0, sizeof(*slot));
+        /* An invalidated source cannot explode; retire the mark normally. */
+        unit_removestatus_deferred(ent, slot, STATUS_REMOVE_DEATH);
         return true;
     }
     blast = G_Spawn(); blast->owner = source;
@@ -57,7 +58,10 @@ BZ_ABILITY_PROC(CAbilityIncinerate) {
     blast->class_id = slot->data; blast->resources = slot->rank; blast->s.origin2 = ent->s.origin2;
     blast->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellData(slot->data, slot->rank, 6)) * 1000.0f);
     blast->think = incinerate_explode_think;
-    memset(slot, 0, sizeof(*slot));
+    /* Retire before any immediate explosion damage. The removal callback only
+     * handles A_STATUS_DEATH, so this cannot schedule a second explosion.
+     * Do not reconcile a dying unit during its death dispatch. */
+    unit_removestatus_deferred(ent, slot, STATUS_REMOVE_DEATH);
     ent->aiflags |= AI_CORPSE_UNRAISABLE;
     incinerate_explode_think(blast);
     return true;

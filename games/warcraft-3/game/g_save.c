@@ -10,6 +10,7 @@ void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
+static char save_test_model_paths[4][MAX_PATHLEN];
 #endif
 
 typedef enum {
@@ -84,12 +85,13 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format181 retains Build completion targets independently of worker waits. */
-static uint32_t const save_version = 181;
+/* Format182 merges upstream status records (instance ids, modifiers, state/buff masks),
+ * neutral creep guard state and Wisp tree egress into the Format181 layout. */
+static uint32_t const save_version = 182;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
-#define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
+#define UMOVE_RELOC_RANGE (256 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays inside one module image (large pooled .bss included)
 
 /* F_MMOVE anchor: umove_t instances are file-scope statics, so a move pointer
  * survives a save as a signed offset from a fixed symbol in the same data segment. */
@@ -1038,9 +1040,21 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, follow_order_point, F_VECTOR),
     TF(edictMovement_s, follow_target_spawn_time, F_INT, 0, FIELD_NONE),
     TF(edictMovement_s, follow_sequence, F_INT, 2),
+    TF(edictMovement_s, wisp_egress_tree, F_EDICT, 0, FIELD_NONE),
+    F(edictMovement_s, wisp_egress_tree_spawn_time, F_INT),
+    F(edictMovement_s, wisp_egress_target, F_VECTOR),
+    F(edictMovement_s, wisp_egress_active, F_INT),
+    F(edictMovement_s, wisp_egress_target_valid, F_INT),
     F(edictMovement_s, holding_position, F_INT),
     F(edictMovement_s, guard_position, F_VECTOR),
     F(edictMovement_s, guard_state, F_INT),
+    F(edictMovement_s, creep_guard_origin, F_VECTOR),
+    F(edictMovement_s, creep_guard_last_hit_ms, F_INT),
+    F(edictMovement_s, creep_guard_outside_ms, F_INT),
+    F(edictMovement_s, creep_guard_return_retries, F_INT),
+    F(edictMovement_s, creep_guard_retry_at_ms, F_INT),
+    F(edictMovement_s, creep_guard_enabled, F_INT),
+    F(edictMovement_s, creep_guard_phase, F_INT),
     F(edictMovement_s, explicit_allied_attack, F_INT),
     TF(edictMovement_s, cargo_unload_pending, F_INT),
     TF(edictMovement_s, cargo_unload_ability, F_INT),
@@ -1100,6 +1114,8 @@ static field_t const channel_fields[] = {
 
 /* Status sources survive saves by entity index; all scalar payload/timing fields remain in the raw record. */
 static field_t const status_fields[] = {
+    TF(heroabilitystatus_t, instance_id, F_INT),
+    TF(heroabilitystatus_t, stack_policy, F_INT),
     TF(heroabilitystatus_t, source, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -1203,6 +1219,7 @@ field_t edict_fields[] = {
     F(edict_s, aiflags, F_INT),
     F(edict_s, autocast_code, F_INT),
     F(edict_s, abilstatus, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, next_status_instance_id, F_INT),
     F(edict_s, damage, F_INT),
     F(edict_s, projectile_attack_type, F_INT),
     F(edict_s, projectile_reflected, F_INT),
@@ -1458,7 +1475,8 @@ bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size) {
     uint32_t magic, version;
     if (!f || !map || !map_size) { if (f) fclose(f); return false; }
     if (!ReadFooter(f) || !LoadBytes(f, &magic, sizeof(magic)) || !LoadBytes(f, &version, sizeof(version)) ||
-        magic != save_magic || version != save_version || fseek(f, 0, SEEK_SET) || !LoadBytes(f, &header, sizeof(header)) ||
+        magic != save_magic || version != save_version ||
+        fseek(f, 0, SEEK_SET) || !LoadBytes(f, &header, sizeof(header)) ||
         header.edict_size != sizeof(edict_t) || !header.map_path[0]) {
         fprintf(stderr, "WC3 LoadGame: invalid or incompatible save map header %s\n", filename);
         if (f) fclose(f);
@@ -3297,6 +3315,40 @@ done:
     return ok;
 }
 
+/* Model indices belong to the freshly rebuilt map configstring table. Re-register every
+ * persisted index from the entity's stable object-data model paths. Runs after the pools
+ * are back so a live polymorph keeps its morph form and restores its own model on expiry. */
+static void RebindEntityModels(edict_t *ent) {
+    PATHSTR model_filename;
+    if (!(ent->s.flags & EF_UNIT)) {
+        if (ent->data.ItemData->file) ent->s.model = G_RegisterModel(ent->data.ItemData->file);
+        return;
+    }
+    if (ent->data.UnitUI->modelFile) {
+        G_NormalizeModelFilename(ent->data.UnitUI->modelFile, model_filename, sizeof(model_filename));
+        if (ent->polymorph) {
+            ent->polymorph->original_model = G_RegisterModel(model_filename);
+            G_NormalizeModelFilename(G_UnitUI(ent->polymorph->form_type)->modelFile, model_filename, sizeof(model_filename));
+        }
+        ent->s.model = G_RegisterModel(model_filename);
+    }
+    /* Shared profiles are re-interned; an owned override is patched in place. */
+    FOR_LOOP(slot, 2) {
+        unitAttack_t const *base = ent->attack_profiles[slot];
+        unitAttack_t *owned = ent->attack_overrides[slot];
+        bool const base_missile = base && (base->weapon == WPN_MISSILE || base->weapon == WPN_ARTILLERY);
+        bool const owned_missile = owned && (owned->weapon == WPN_MISSILE || owned->weapon == WPN_ARTILLERY);
+        if (!base_missile && !owned_missile) continue;
+        int const model = G_RegisterModel(ent->data.UnitProfile->attack[slot].art);
+        if (owned_missile) owned->projectile.model = model;
+        if (base_missile) {
+            unitAttack_t value = *base;
+            value.projectile.model = model;
+            ent->attack_profiles[slot] = S_InternAttackProfile(&value, slot);
+        }
+    }
+}
+
 bool ReadGame(cstring_t filename) {
     FILE *f = fopen(filename, "rb");
     if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
@@ -3326,7 +3378,8 @@ bool ReadGame(cstring_t filename) {
         else if (header.num_edicts > globals.max_edicts) field = "num_edicts";
         else if (header.max_clients != game.max_clients) field = "max_clients";
         else if (header.script_identity != script) field = "script_identity";
-        else if (header.quests != ActiveQuestCount()) field = "quests";
+        /* Quests are stored in the fixed-capacity level.quests array below;
+         * the active count can differ before the saved level state is restored. */
         else if (header.groups < level.num_groups) field = "groups";
         else if (header.triggers < level.num_triggers) field = "triggers";
         else if (header.timers < level.num_timers) field = "timers";
@@ -3518,6 +3571,7 @@ bool ReadGame(cstring_t filename) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = g_edicts + i;
         if (!ent->inuse) continue;
+        if (ent->class_id) RebindEntityModels(ent);
         if (ent->destructable) G_RestoreDestructableData(ent);
         M_TrackMove(ent);
         S_TrackMoveTimers(ent);
@@ -3624,6 +3678,142 @@ TEST(wc3_save, disabled_player_abilities_grow_and_round_trip) {
     G_SetPlayerAbilityAvailable(client, abilities[32], true);
     T_ASSERT(G_IsPlayerAbilityAvailable(client, abilities[32]));
     T_ASSERT(!G_IsPlayerAbilityAvailable(client, abilities[95]));
+    remove(filename);
+}
+
+TEST(wc3_save, active_quest_count_may_differ_before_restore) {
+    cstring_t const filename = Test_TempPath("wc3-save-quest-count.bin");
+
+    reset_entities();
+    setup_test_world();
+    strlcpy(level.map_path, "Maps\\Campaign\\QuestCount.w3m", sizeof(level.map_path));
+    level.quests[0] = (quest_t){ .title = strdup("Saved quest"), .inuse = true, .enabled = true };
+    T_ASSERT(WriteGame(filename));
+
+    level.quests[0].inuse = false;
+    level.quests[1] = (quest_t){ .title = strdup("Map startup quest"), .inuse = true, .enabled = true };
+    level.quests[2] = (quest_t){ .title = strdup("Another startup quest"), .inuse = true, .enabled = true };
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(level.quests[0].inuse);
+    T_STREQ(level.quests[0].title, "Saved quest");
+    T_ASSERT(!level.quests[1].inuse);
+    T_ASSERT(!level.quests[2].inuse);
+    remove(filename);
+}
+
+/* Deterministic stand-in for gi.ModelIndex: each distinct path gets 91 + its first-seen slot,
+ * so a test can prove which authored path a restored index was registered from. */
+static int save_test_model_index(cstring_t filename, bool insert) {
+    if (!filename) return 0;
+    FOR_LOOP(i, 4) {
+        if (!save_test_model_paths[i][0]) { if (!insert) return 0; strlcpy(save_test_model_paths[i], filename, MAX_PATHLEN); }
+        if (!strcmp(save_test_model_paths[i], filename)) return 91 + (int)i;
+    }
+    return 0;
+}
+
+static int save_test_model_index_fn(cstring_t filename) { return save_test_model_index(filename, true); }
+
+static bool save_test_read_with_model_stub(cstring_t filename) {
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    bool loaded;
+    memset(save_test_model_paths, 0, sizeof(save_test_model_paths));
+    gi.ModelIndex = save_test_model_index_fn;
+    loaded = ReadGame(filename);
+    gi.ModelIndex = old_model_index;
+    return loaded;
+}
+
+TEST(wc3_save, ordinary_unit_model_is_reregistered_after_load) {
+    cstring_t const filename = Test_TempPath("wc3-save-unit-model.bin");
+    PATHSTR model_filename;
+    edict_t *unit;
+
+    reset_entities();
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
+    T_ASSERT(unit->data.UnitUI && unit->data.UnitUI->modelFile);
+    if (!unit->data.UnitUI || !unit->data.UnitUI->modelFile) return;
+    unit->s.flags |= EF_UNIT;
+    unit->s.model = 4;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(save_test_read_with_model_stub(filename));
+    G_NormalizeModelFilename(unit->data.UnitUI->modelFile, model_filename, sizeof(model_filename));
+    T_ASSERT(save_test_model_index(model_filename, false) > 0);
+    T_EQ(unit->s.model, save_test_model_index(model_filename, false));
+    remove(filename);
+}
+
+TEST(wc3_save, item_model_is_reregistered_after_load) {
+    cstring_t const filename = Test_TempPath("wc3-save-item-model.bin");
+    edict_t *item;
+
+    reset_entities();
+    setup_test_world();
+    item = alloc_test_unit(MAKEFOURCC('r', 'a', 't', 'f'), 32.0f, 64.0f);
+    SP_SpawnItem(item);
+    T_ASSERT(item->data.ItemData->file && item->s.model);
+    item->s.model = 4;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(save_test_read_with_model_stub(filename));
+    T_ASSERT(save_test_model_index(item->data.ItemData->file, false) > 0);
+    T_EQ(item->s.model, save_test_model_index(item->data.ItemData->file, false));
+    remove(filename);
+}
+
+TEST(wc3_save, polymorphed_unit_rebinds_form_and_original_models_after_load) {
+    static char const ui_slk[] =
+        "C;Y1;X1;K\"unitUIID\"\nC;Y1;X2;K\"file\"\n"
+        "C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"TestUI\\\\Models\\\\footman.mdx\"\n"
+        "C;Y3;X1;K\"opeo\"\nC;Y3;X2;K\"TestUI\\\\Models\\\\sheep.mdx\"\nE\n";
+    cstring_t const filename = Test_TempPath("wc3-save-polymorph-model.bin");
+    slkTestData_t *rows = parse_slk_string(ui_slk), *old;
+    PATHSTR original, form;
+    edict_t *unit;
+
+    reset_entities();
+    setup_test_world();
+    old = G_SetSLKRows("UnitUI", rows);
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
+    unit->s.flags |= EF_UNIT;
+    unit->polymorph = G_AllocPolymorph();
+    unit->polymorph->form_type = MAKEFOURCC('o', 'p', 'e', 'o');
+    unit->polymorph->original_model = 4;
+    unit->s.model = 5;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(save_test_read_with_model_stub(filename));
+    G_NormalizeModelFilename(G_UnitUI(unit->class_id)->modelFile, original, sizeof(original));
+    G_NormalizeModelFilename(G_UnitUI(MAKEFOURCC('o', 'p', 'e', 'o'))->modelFile, form, sizeof(form));
+    T_ASSERT(original[0] && form[0] && strcmp(original, form));
+    T_ASSERT(save_test_model_index(original, false) > 0 && save_test_model_index(form, false) > 0);
+    T_NOT_NULL(unit->polymorph);
+    if (unit->polymorph) T_EQ(unit->polymorph->original_model, save_test_model_index(original, false));
+    T_EQ(unit->s.model, save_test_model_index(form, false));
+    G_SetSLKRows("UnitUI", old); free_slk_rows(rows);
+    remove(filename);
+}
+
+TEST(wc3_save, missile_attack_projectile_models_are_reregistered_after_load) {
+    static char const profile_slk[] =
+        "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Missileart\"\n"
+        "C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"TestUI\\\\Missiles\\\\arrow.mdx\"\nE\n";
+    cstring_t const filename = Test_TempPath("wc3-save-projectile-model.bin");
+    slkTestData_t *rows = parse_slk_string(profile_slk), *old = G_SetProfileRows(rows);
+    edict_t *unit;
+
+    reset_entities();
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
+    unit->s.flags |= EF_UNIT;
+    S_AttackProfileWrite(unit, 0)->weapon = WPN_MISSILE; S_AttackProfileWrite(unit, 0)->projectile.model = 6;
+    S_AttackProfileWrite(unit, 1)->weapon = WPN_ARTILLERY; S_AttackProfileWrite(unit, 1)->projectile.model = 7;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(save_test_read_with_model_stub(filename));
+    T_ASSERT(save_test_model_index(unit->data.UnitProfile->attack[0].art, false) > 0);
+    T_ASSERT(save_test_model_index(unit->data.UnitProfile->attack[1].art, false) > 0);
+    T_EQ(S_AttackProfileRead(unit, 0)->projectile.model, save_test_model_index(unit->data.UnitProfile->attack[0].art, false));
+    T_EQ(S_AttackProfileRead(unit, 1)->projectile.model, save_test_model_index(unit->data.UnitProfile->attack[1].art, false));
+    G_SetProfileRows(old); free_slk_rows(rows);
     remove(filename);
 }
 
@@ -4234,6 +4424,27 @@ TEST(wc3_save, rejects_previous_combat_cargo_format_before_restoring_world) {
     remove(filename); remove(old_filename);
 }
 
+TEST(wc3_save, rejects_version_77_after_cinematic_portrait_format_change) {
+    cstring_t filename = Test_TempPath("save-portrait-format-current.bin");
+    cstring_t previous_filename = Test_TempPath("save-portrait-format-v77.bin");
+    saveHeader_t header;
+    char map[sizeof(((saveHeader_t *)0)->map_path)];
+
+    setup_test_world();
+    reset_entities();
+    T_ASSERT(WriteGame(filename));
+    FILE *f = fopen(filename, "rb");
+    T_NOT_NULL(f);
+    if (!f) return;
+    T_ASSERT(LoadBytes(f, &header, sizeof(header)));
+    fclose(f);
+    T_EQ(header.version, save_version);
+    T_ASSERT(write_save_fixture_header(filename, previous_filename, 77, header.edict_size));
+    T_ASSERT(!G_GetSaveMap(previous_filename, map, sizeof(map)));
+    T_ASSERT(!ReadGame(previous_filename));
+    remove(filename); remove(previous_filename);
+}
+
 TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
     cstring_t filename = Test_TempPath("save-current-layout.bin");
     cstring_t bad_filename = Test_TempPath("save-layout-mismatch.bin");
@@ -4249,20 +4460,18 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 180, 179, 178, 177, 176, 175, 174, 173, 172, 171, 170, 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
-
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));
     reset_entities();
     setup_test_world();
     T_ASSERT(WriteGame(filename));
-    FOR_LOOP(i, sizeof(old_versions) / sizeof(*old_versions)) {
+    for (uint32_t version = 39; version < save_version; version++) {
         PATHSTR name;
         cstring_t old_path;
-        snprintf(name, sizeof(name), "wc3-save-version-%u.bin", old_versions[i]);
+        snprintf(name, sizeof(name), "wc3-save-version-%u.bin", version);
         old_path = Test_TempPath(name);
-        T_ASSERT(write_save_fixture_header(filename, old_path, old_versions[i], sizeof(edict_t)));
-        T_NE(save_version, old_versions[i]);
+        T_ASSERT(write_save_fixture_header(filename, old_path, version, sizeof(edict_t)));
+        T_NE(save_version, version);
         T_ASSERT(!ReadGame(old_path));
         remove(old_path);
     }
@@ -4378,11 +4587,19 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     unit->movement.cargo_unload_ability = MAKEFOURCC('A','t','d','p');
     S_SetMoveGoal(unit, &unit->movement.cargo_unload_goal, goal);
     unit->movement.cargo_unload_goal_spawn_time = goal->spawn_time;
+    unit->movement.wisp_egress_tree = goal;
+    unit->movement.wisp_egress_tree_spawn_time = goal->spawn_time;
+    unit->movement.wisp_egress_target = (vec2_t){ -32.0f, 48.0f };
+    unit->movement.wisp_egress_active = true;
+    unit->movement.wisp_egress_target_valid = true;
     unit->unitinfo.PropWindow = 0.0f;
     T_ASSERT(WriteGame(filename));
     unit->attack_cooldown_active = false;
     unit->movement.cargo_unload_pending = false;
     S_SetMoveGoal(unit, &unit->movement.cargo_unload_goal, NULL);
+    unit->movement.wisp_egress_tree = NULL;
+    unit->movement.wisp_egress_active = false;
+    unit->movement.wisp_egress_target_valid = false;
     unit->unitinfo.PropWindow = 1.0f;
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + index;
@@ -4397,6 +4614,12 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     T_EQ(unit->movement.cargo_unload_ability, MAKEFOURCC('A','t','d','p'));
     T_EQ(unit->movement.cargo_unload_goal, goal);
     T_EQ(unit->movement.cargo_unload_goal_spawn_time, goal->spawn_time);
+    T_ASSERT(unit->movement.wisp_egress_active);
+    T_ASSERT(unit->movement.wisp_egress_target_valid);
+    T_EQ(unit->movement.wisp_egress_tree, goal);
+    T_EQ(unit->movement.wisp_egress_tree_spawn_time, goal->spawn_time);
+    T_FEQ(unit->movement.wisp_egress_target.x, -32.0f, 0.001f);
+    T_FEQ(unit->movement.wisp_egress_target.y, 48.0f, 0.001f);
     remove(filename);
 }
 

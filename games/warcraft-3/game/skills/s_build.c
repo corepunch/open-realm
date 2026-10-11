@@ -674,7 +674,10 @@ void build_build(edict_t *ent) {
                 ent->build ? (long)(ent->build - globals.edicts) : -1L,
                 building->build ? (long)(building->build - globals.edicts) : -1L);
     }
-    if (!construction_started) G_DispatchPlayerUnitEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    if (!construction_started) {
+        G_CreepGuardConstructionStarted(building);
+        G_DispatchPlayerUnitEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    }
     G_RefreshResourceBar(G_GetPlayerEntityByNumber(ent->s.player));
     Get_Portrait_f(G_GetPlayerEntityByNumber(ent->s.player));
 }

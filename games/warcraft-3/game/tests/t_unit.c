@@ -2521,6 +2521,44 @@ TEST(wc3_unit, stoneform_order_requires_authored_ability_ownership) {
     T_EQ(ent->class_id, MAKEFOURCC('u','g','a','r'));
 }
 
+/* Morphing an existing creep must not treat its current position as a new
+ * guard spawn. Exercise the production transform path with authored test data. */
+TEST(wc3_unit, creep_transform_preserves_guard_anchor_and_active_phase) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    edict_t *creep = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    G_CreepGuardInit(creep);
+    creep->s.origin2.x = 512.0f;
+    creep->movement.creep_guard_phase = CREEP_GUARD_COMBAT;
+    creep->movement.creep_guard_last_hit_ms = 1234;
+    creep->movement.creep_guard_outside_ms = 2345;
+    T_ASSERT(G_TransformUnitType(creep, MAKEFOURCC('h','f','o','o')));
+    T_ASSERT(creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_COMBAT);
+    T_FEQ(creep->movement.creep_guard_origin.x, 64.0f, 0.001f);
+    T_EQ(creep->movement.creep_guard_last_hit_ms, 1234u);
+    T_EQ(creep->movement.creep_guard_outside_ms, 2345u);
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+TEST(wc3_unit, creep_transform_does_not_reenable_disabled_guard) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    edict_t *creep = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    G_CreepGuardInit(creep);
+    G_CreepGuardSetEnabled(creep, false);
+    creep->s.origin2.x = 512.0f;
+    T_ASSERT(G_TransformUnitType(creep, MAKEFOURCC('h','f','o','o')));
+    T_ASSERT(!creep->movement.creep_guard_enabled);
+    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
+    T_FEQ(creep->movement.creep_guard_origin.x, 64.0f, 0.001f);
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
 TEST(wc3_unit, stoneform_uses_authored_transform_endpoints_in_both_directions) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
     reset_test_entities(); setup_test_world();
@@ -2975,5 +3013,117 @@ TEST(wc3_unit, animation_text_serializes_logical_values_without_sharing_mutation
         fclose(stream);
     }
     remove(file); reset_entities(); setup_test_world();
+}
+TEST(wc3_unit, status_modifiers_stack_by_family_and_retire_with_slot) {
+    unitStatusStorage_t storage = { 0 };
+    edict_t unit = { .abilstatus = storage.slots };
+    uint32_t old_time = level.time;
+    heroabilitystatus_t *a = &unit.abilstatus[0];
+    heroabilitystatus_t *b = &unit.abilstatus[1];
+    heroabilitystatus_t *c = &unit.abilstatus[2];
+    wc3_status_modifier_t weak = {
+        .type = WC3_STATUS_MOD_MOVE_SPEED_PERCENT, .family = 1,
+        .policy = WC3_STATUS_MOD_STRONGEST_NEGATIVE, .value = -0.2f
+    };
+    wc3_status_modifier_t strong = weak;
+    wc3_status_modifier_t additive = {
+        .type = WC3_STATUS_MOD_MOVE_SPEED_PERCENT, .policy = WC3_STATUS_MOD_ADD,
+        .value = 0.1f
+    };
+    a->level = b->level = c->level = 1;
+    strong.value = -0.5f;
+    T_ASSERT(unit_status_setmodifier(a, 0, &weak));
+    T_ASSERT(unit_status_setmodifier(b, 0, &strong));
+    T_ASSERT(unit_status_setmodifier(c, 0, &additive));
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.4f, 0.001f);
+    b->level = 0; /* simulate expired/removed owner */
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.1f, 0.001f);
+    b->level = 1;
+    b->timestamp = 1; /* expired strongest source falls back immediately */
+    level.time = 2;
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.1f, 0.001f);
+    level.time = old_time;
+    T_ASSERT(!unit_status_setmodifier(a, WC3_STATUS_MAX_MODIFIERS, &weak));
+}
+
+/* Fast-path coverage: a unit with no descriptors and an additive-only
+ * unit both bypass the strongest-wins table without changing arithmetic. */
+TEST(wc3_unit, status_modifier_fast_path_preserves_additive_and_strongest_results) {
+    unitStatusStorage_t storage = { 0 };
+    edict_t unit = { .abilstatus = storage.slots };
+    wc3_status_modifier_t add = {
+        .type = WC3_STATUS_MOD_MOVE_SPEED_PERCENT, .policy = WC3_STATUS_MOD_ADD,
+        .value = 0.125f
+    };
+    wc3_status_modifier_t weak = {
+        .type = WC3_STATUS_MOD_MOVE_SPEED_PERCENT, .family = 77,
+        .policy = WC3_STATUS_MOD_STRONGEST_NEGATIVE, .value = -0.20f
+    };
+    wc3_status_modifier_t strong = weak;
+    uint32_t old_time = level.time;
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.0f, 0.001f);
+    unit.abilstatus[0].level = 1;
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.0f, 0.001f);
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[0], 0, &add));
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.125f, 0.001f);
+    unit.abilstatus[1].level = unit.abilstatus[2].level = 1;
+    strong.value = -0.45f;
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[1], 0, &weak));
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[2], 0, &strong));
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.325f, 0.001f);
+    unit.abilstatus[2].timestamp = 1;
+    level.time = 2;
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), -0.075f, 0.001f);
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_ARMOR_FLAT), 0.0f, 0.001f);
+    level.time = old_time;
+}
+
+TEST(wc3_unit, status_modifiers_ignore_other_types_and_support_positive_families) {
+    unitStatusStorage_t storage = { 0 };
+    edict_t unit = { .abilstatus = storage.slots };
+    wc3_status_modifier_t first = {
+        .type = WC3_STATUS_MOD_ARMOR_FLAT, .family = 19,
+        .policy = WC3_STATUS_MOD_STRONGEST_POSITIVE, .value = 2.0f
+    };
+    wc3_status_modifier_t second = first;
+    unit.abilstatus[0].level = unit.abilstatus[1].level = 1;
+    second.value = 4.0f;
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[0], 0, &first));
+    T_ASSERT(unit_status_setmodifier(&unit.abilstatus[1], 0, &second));
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_ARMOR_FLAT), 4.0f, 0.001f);
+    T_FEQ(unit_status_modifier_total(&unit, WC3_STATUS_MOD_MOVE_SPEED_PERCENT), 0.0f, 0.001f);
+}
+
+TEST(wc3_unit, status_periodic_scheduler_advances_before_callback_and_stops_at_expiry) {
+    heroabilitystatus_t slot = {0};
+    slot.level = 1;
+    slot.timestamp = 5500;
+    slot.next_tick = 1000;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 999));
+    T_ASSERT(unit_status_take_due_tick(&slot, 1000, 1000));
+    T_EQ(slot.next_tick, 2000);
+    /* Recursive status updates during damage cannot consume the same pulse. */
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 1000));
+    T_ASSERT(unit_status_take_due_tick(&slot, 1000, 4500));
+    T_EQ(slot.next_tick, 3000);
+    T_ASSERT(unit_status_take_due_tick(&slot, 1000, 4500));
+    T_ASSERT(unit_status_take_due_tick(&slot, 1000, 4500));
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 4500));
+    T_EQ(slot.next_tick, 5000);
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 6000));
+}
+
+TEST(wc3_unit, status_periodic_scheduler_rejects_unscheduled_expired_or_invalid_ticks) {
+    heroabilitystatus_t slot = {0};
+    slot.level = 1;
+    slot.timestamp = 3000;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 2000));
+    slot.next_tick = 3000;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 3000));
+    slot.next_tick = 2000;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 0, 2000));
+    slot.level = 0;
+    T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 2000));
+    T_ASSERT(!unit_status_take_due_tick(NULL, 1000, 2000));
 }
 #endif /* BZ_TESTS */

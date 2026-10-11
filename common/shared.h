@@ -558,6 +558,7 @@ typedef enum {
     UI_PLAYERSTAT_CURSOR_INTERACTION,  /* opaque game-owned pointer interaction */
     UI_PLAYERSTAT_CURSOR_IMAGE, /* registered game-owned cursor image; zero clears it */
     UI_PLAYERSTAT_CURSOR_FLAGS, /* generic pointer input policies */
+    UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL = 29, /* full 16-bit registered model index; 0 = none */
 } UIPLAYERSTAT;
 
 typedef enum {
@@ -612,6 +613,8 @@ enum { CURSOR_INPUT_MINIMAP_POINT = 1u << 0 };
 
 _Static_assert(UI_PLAYERSTAT_CURSOR_FLAGS < MAX_STATS,
                "presentation stats must fit playerState.stats[]");
+_Static_assert(UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL < MAX_STATS,
+               "cinematic portrait model index must fit playerState.stats[]");
 
 /* Controller input is independent of whether the player edict has a visible model. */
 #define BZ_INPUT_MAX_MSEC 250 // milliseconds; bounds one controller movement sample after stalls
@@ -650,12 +653,17 @@ struct playerState_s {
     uint32_t rdflags;                  // refdef flags (underwater tint, etc.)
     uint32_t uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline
     uint32_t client_ui_state;          // coarse UI mode: CLIENT_UI_LOADING/GAME/CINEMATIC; state machine, not a bitfield like uiflags
-    uint8_t cinematic_portrait;        // model index, 0 = none; packed with team/color/race as one NFT_LONG
+    uint8_t cinematic_portrait;        // portrait-present flag; packed with team/color/race as one NFT_LONG
     uint8_t team;                      // alliance group (1-based, 0 = none); not the same as color
     uint8_t color;                     // cosmetic color slot (0 = red, 1 = blue, …)
     uint8_t race;                      // playerRace_t
     string_t name;                     // player display name from mapplayer or JASS script; NOTE: string_t but no caller mutates through this — cstring_t would be correct
     int32_t  start_location;           // start location index for JASS GetStartLocationX/Y (-1 = none)
+    uint32_t cinefilter_image;         // server-selected filter image index; 0 draws the tint untextured
+    color32_t cinefilter_color;        // server-interpolated filter RGBA tint; alpha 0 hides the filter
+    uint32_t cinefilter_blendmode;
+    box2_t cinefilter_uv;              // server-interpolated filter texture UV box (min/max)
+    uint32_t cinefilter_texmapflags;   // TEXMAP_FLAGS: which UV axes repeat instead of clamping     // BLEND_MODE applied to the filter texture
     float cinefade;                 // full-screen fade alpha [0,1]; collapsed from Q2's blend[4] since no game here uses tinted overlays
     uint16_t stats[MAX_STATS];        // fast-update integer stats; uint16_t (vs Q3's int) to halve wire size
     cstring_t texts[PLAYERTEXT_COUNT]; // named player text channels used by server-authored UI
@@ -1048,14 +1056,16 @@ typedef enum {
 #define UIFLAG_TEXTURE_OVERLAY (1 << 19) // flag bit; draws a texture after the containing layout artwork
 #define UIFLAG_MINIMAP_PREVIEW (1 << 15) // flag bit; frame text names a static map preview; excludes fog, camera and input
 #define UIFLAG_ALERT_RED_PULSE (1 << 14) // flag bit; command-button art pulses red until frame.value absolute milliseconds; used for transient alerts
-/* Shared uiFrame_t.flagsvalue bits 9..19; bits 0..8 are the per-game FDF state
- * bits (UIFLAG_PRESSED..UIFLAG_PASSTHROUGH in stb_fdf.h).  Distinct bits add up
- * to exactly their bitwise union, so any overlap fails the build. */
+/* Generic disabled-control state carried in the high bits of uiFrame_t.flagsvalue.
+ * Low bits overlap the frame type/alpha-mode union and cannot carry control state. */
+#define UIFRAME_DISABLED (1u << 20)
+/* Shared uiFrame_t.flagsvalue bits 9..20; low bits overlap the frame type/alpha-mode
+ * union. Distinct bits add up to exactly their bitwise union, so any overlap fails the build. */
 #define UIFLAG_SHARED_BITS(op) \
     (UIFLAG_RADIAL_SHADE op UIFLAG_SIZE_TO_CONTENT op UIFLAG_ALTERNATE_ACTIVE op \
      UIFLAG_SPRITE_STAT_SEQUENCE op UIFLAG_EXTEND_WIDESCREEN_X op UIFLAG_ALERT_RED_PULSE op \
      UIFLAG_MINIMAP_PREVIEW op UIFLAG_SPRITE_OVERLAY op UIFLAG_ABILITY_ENGAGED op \
-     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY)
+     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFRAME_DISABLED)
 _Static_assert(UIFLAG_SHARED_BITS(+) == UIFLAG_SHARED_BITS(|), "UIFLAG_* bits overlap");
 _Static_assert((UIFLAG_SHARED_BITS(|) & ((1 << 9) - 1)) == 0, "UIFLAG_* bits collide with FDF state bits 0..8");
 

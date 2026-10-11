@@ -177,8 +177,8 @@ TEST(wc3_spell, devour_magic_summoned_damage_uses_datae) {
 	dispel_done(fix);
 }
 
-/* Dispel must restore AI_FLYING; Ensnare expiry is not only a timed-status path. */
-TEST(wc3_spell, dispel_restores_ensnared_flyer) {
+/* Magical Dispel preserves a physical bind; expiry still restores flight. */
+TEST(wc3_spell, magical_dispel_preserves_ensnared_flyer_until_expiry) {
 	static UnitData_t flyer_data;
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y3;X10\n"
@@ -218,6 +218,10 @@ TEST(wc3_spell, dispel_restores_ensnared_flyer) {
 	T_ASSERT(!(flyer->aiflags & AI_FLYING));
 	point = flyer->s.origin2;
 	T_ASSERT(S_CastPointTargetSpell(priest, BZ_ADIS, &point));
+	T_ASSERT(S_UnitIsEnsnared(flyer));
+	T_ASSERT(!(flyer->aiflags & AI_FLYING));
+	level.time += 7000;
+	unit_updatestatuses(flyer);
 	T_ASSERT(!S_UnitIsEnsnared(flyer));
 	T_ASSERT(flyer->aiflags & AI_FLYING);
 	T_FEQ(flyer->unitinfo.FlyHeight, 180, 0.001f);

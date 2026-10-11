@@ -1179,7 +1179,7 @@ uint32_t DialogClear(jass_t *j) {
 uint32_t DialogSetMessage(jass_t *j) {
     jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
     cstring_t message = jass_checkstring(j, 2);
-    if (dialog) snprintf(dialog->message, sizeof(dialog->message), "%s", message ? G_LevelString(message) : "");
+    G_JassDialogSetMessage(dialog, message);
     return 0;
 }
 uint32_t DialogAddButton(jass_t *j) {
@@ -1874,6 +1874,7 @@ uint32_t SetCinematicScene(jass_t *j) {
         if (gc && gc->ps.client_ui_state == CLIENT_UI_GAME)
             UI_RecordTransmissionMessage(PLAYER_ENT(currentplayer));
         currentplayer->cinematic_portrait = 0;
+        currentplayer->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] = 0;
         /* The renderer currently owns 16 replaceable team-color textures.
          * Keep unsupported extended player colors deterministic instead of
          * allowing the renderer's bit mask to wrap them onto another color. */
@@ -1884,7 +1885,11 @@ uint32_t SetCinematicScene(jass_t *j) {
             if (model && *model) {
                 PATHSTR mf;
                 G_NormalizeModelFilename(model, mf, sizeof(mf));
-                currentplayer->cinematic_portrait = G_RegisterModel(mf);
+                int const model_index = G_RegisterModel(mf);
+                if (model_index > 0 && model_index < MAX_MODELS) {
+                    currentplayer->cinematic_portrait = 1;
+                    currentplayer->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] = (uint16_t)model_index;
+                }
             }
         }
         if (gc) {
@@ -1910,6 +1915,7 @@ uint32_t EndCinematicScene(jass_t *j) {
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, "");
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, "");
         currentplayer->cinematic_portrait = 0;
+        currentplayer->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] = 0;
         currentplayer->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR] = 0;
         if (gc) {
             gc->cinematic_end_time = 0;

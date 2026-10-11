@@ -22,6 +22,7 @@ texture_t const *MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_
 void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 
 static char shader_src[16384];
+static void reset_shader(void);
 static rect_t backdrop_uv, backdrop_rect;
 static bool backdrop_repeat;
 static uint32_t backdrop_calls, backdrop_opaque_calls;
@@ -1515,6 +1516,33 @@ TEST(renderer_bones, instanced_shader_uses_the_same_palette_contract) {
 TEST(renderer_shader, normal_model_defines_do_not_inherit_instancing) {
     T_NOT_NULL(strstr(R_ShaderDefines(true), "#define BZ_USE_INSTANCING 1\n"));
     T_NULL(strstr(R_ShaderDefines(false), "BZ_USE_INSTANCING"));
+}
+
+TEST(renderer_shader, model_fog_masks_unshaded_fragments) {
+    char const *unshaded, *fog_sample;
+
+    test_shader_source(1, &sd_model, false, NULL);
+    unshaded = strstr(shader_src, "if (!u_unshaded)");
+    fog_sample = strstr(shader_src, "float fog = get_fogofwar();");
+    T_NOT_NULL(unshaded);
+    T_NOT_NULL(fog_sample);
+    if (!unshaded || !fog_sample) return;
+    T_ASSERT(unshaded < fog_sample);
+    T_NOT_NULL(strstr(shader_src, "if (fog <= 0.0) discard;"));
+    T_NOT_NULL(strstr(shader_src, "col.rgb *= fog;"));
+}
+
+/* gs_load assigns sampler units in declaration order (texture, shadowmap, fogOfWar);
+ * the world frame binds the fog texture on unit 2, so the model layout must keep that slot. */
+TEST(renderer_shader, model_fog_sampler_uses_world_fog_texture_unit) {
+    FOR_LOOP(instancing, 2) {
+        modelProg_t shader = {0};
+
+        reset_shader();
+        R_LoadModelShader(&shader, instancing != 0);
+        T_EQ(shader.state.fogOfWar, 2);
+        R_DeleteShader(&shader.prog);
+    }
 }
 
 /* GLSL 120 does not accept implicit integer-to-float conversion in these fog-raycast expressions. */

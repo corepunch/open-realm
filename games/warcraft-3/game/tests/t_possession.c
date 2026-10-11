@@ -187,6 +187,52 @@ TEST(wc3_spell, possession_aps2_channel_completes_takeover) {
     pos_done(fix);
 }
 
+/* The cast must not spend resources or start a channel if either side
+ * cannot allocate its ownership record. */
+TEST(wc3_spell, possession_aps2_rejects_full_target_or_caster_before_commit) {
+    posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
+    float mana = fix.caster->mana.value;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        char id[5] = { 'B', 'q', '0', '0', 0 };
+        id[2] = '0' + (i / 10);
+        id[3] = '0' + (i % 10);
+        T_ASSERT(unit_addtimedstatus(fix.enemy, id, 1, 10.0f));
+    }
+    T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
+    T_FEQ(fix.caster->mana.value, mana, 0.001f);
+    T_NULL(pos_thinker(fix.caster));
+    T_EQ(G_UnitStatusLevel(fix.caster, BZ_BPOC), 0);
+    T_ASSERT(!fix.enemy->invulnerable);
+    pos_done(fix);
+
+    pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
+    mana = fix.caster->mana.value;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        char id[5] = { 'B', 'q', '0', '0', 0 };
+        id[2] = '0' + (i / 10);
+        id[3] = '0' + (i % 10);
+        T_ASSERT(unit_addtimedstatus(fix.caster, id, 1, 10.0f));
+    }
+    T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
+    T_FEQ(fix.caster->mana.value, mana, 0.001f);
+    T_NULL(pos_thinker(fix.caster));
+    T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPOS), 0);
+    pos_done(fix);
+}
+
+TEST(wc3_spell, possession_aps2_does_not_replace_existing_channel_buff) {
+    posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
+    heroabilitystatus_t *preexisting = S_SpellApplyTimedStatus(fix.enemy, "Bpos", 2, 8.0f);
+    float mana = fix.caster->mana.value;
+    T_NOT_NULL(preexisting);
+    T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
+    T_FEQ(fix.caster->mana.value, mana, 0.001f);
+    T_EQ(unit_findstatus(fix.enemy, BZ_BPOS), preexisting);
+    T_EQ(preexisting->level, 2);
+    T_NULL(pos_thinker(fix.caster));
+    pos_done(fix);
+}
+
 /* Cancel mid-channel restores the target and does not transfer ownership. */
 TEST(wc3_spell, possession_aps2_abort_keeps_owner) {
     posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);

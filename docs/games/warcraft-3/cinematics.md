@@ -45,6 +45,46 @@ Cutscenes in Warcraft III are driven entirely by the map's JASS script (`war3map
 
 Pre-rendered campaign movies are a separate client media path driven by `PlayCinematic`; see [Pre-rendered Movies](pre-rendered-movies.md). They do not use the in-engine cinematic HUD/camera pipeline described below.
 
+### Cinematic portrait and filter transport
+
+The cinematic dialogue path sends the portrait model through the existing
+16-bit player stat `UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL` (slot 29), so model
+indices above 255 survive; `cinematic_portrait` is only a presence flag. This
+reuses an existing stats slot and does not add player-state delta bits.
+
+Cinematic filters use five player-state fields: `cinefilter_image`,
+`cinefilter_color`, `cinefilter_blendmode`, `cinefilter_uv`, and
+`cinefilter_texmapflags`, appended to
+`playerStateFields` so existing delta bit assignments stay stable. Every
+`CinematicFadeBJ` and `CinematicFilterGenericBJ` call sets a mask texture
+(`White_mask`, `Black_mask`, `DreamFilter_Mask`, ...), so all WC3 fades go
+through this path; WC3 no longer writes `cinefade`. `G_RunClients()`
+interpolates the authored RGBA. Plain fade masks (`White_mask`, `Black_mask`
+have no alpha channel) keep the authored alpha, so a fade to black reaches
+opaque. `SetCineFilterTexture` reads the mask's image header; masks with their
+own alpha (`DreamFilter_Mask`) draw at half the authored alpha, which matches
+the lighter retail vignette in footage of the Gul'dan glyph scenes. Alpha 0 means hidden (not displayed, or cutscene skipped).
+`SetCineFilterBlendMode` maps the JASS `blendmode` constants onto `BLEND_MODE`
+with `G_BlendModeFromJass()`: JASS has no ADDALPHA entry, so its MODULATE and
+MODULATE_2X values are one below the engine's. The start/end UV boxes are
+interpolated like the color (an empty box, from natives that never set UVs,
+means full UVs) and sent as `NFT_BOX2`; `SetCineFilterTexMapFlags` selects which
+axes repeat instead of clamping, so scrolling haze filters tile.
+
+The client turns the filter (or a game's plain `cinefade`) into the generic
+`viewDef` overlay in `SCR_SetupViewBlend()`. Image 0 or an unknown image draws
+the tint untextured. The renderer draws it at the end of `R_RenderView()` while
+the scene viewport and scissor are still bound, so it covers exactly the 3D
+view, stays below every HUD layer, and is unaffected by `r_hud`. Mask
+textures keep their own alpha: `DreamFilter_Mask` is a JPEG BLP whose alpha is
+0 at the centre and about 38% on average, which gives the Gul'dan vignette
+its clear centre.
+
+This is a network protocol change; protocol 23 rejects older peers. The
+portrait meaning change is part of the serialized player contract, so the WC3
+save version is 78; version 77 saves are rejected rather than migrated.
+Cinematic filter state is transient and is not persisted.
+
 ### Flow
 
 1. **Enter cinematic mode:** JASS calls `CinematicModeBJ(true, player)` → `ShowInterface(false)` → sets `client_ui_state = CLIENT_UI_CINEMATIC`.
@@ -83,7 +123,7 @@ This is separate from the JASS-level ESC skip mechanism.
 | `games/warcraft-3/game/api/api_trigger.h` | `TriggerSleepAction`, `TriggerWaitForSound` |
 | `games/warcraft-3/game/api/api_unit.h` | `IssuePointOrderLoc`, `SetUnitAnimation`, `SetUnitPosition` |
 | `games/warcraft-3/game/g_commands.c` | `CMD_Cancel` — publishes `EVENT_PLAYER_END_CINEMATIC` |
-| `games/warcraft-3/game/g_main.c` | `G_SkipCutscene()` (cvar check), `G_Cinefade()`, `G_RunClients()` (camera lerp) |
+| `games/warcraft-3/game/g_main.c` | `G_SkipCutscene()` (cvar check), `G_CineFilterColor()`, `G_RunClients()` (camera lerp, filter state) |
 | `games/warcraft-3/game/g_ai.c` | `unit_setmove()`, `unit_changeangle()`, `unit_moveindirection()` |
 | `games/warcraft-3/game/g_monster.c` | `M_MoveFrame()` (animation clock), `monster_think()` |
 | `games/warcraft-3/game/skills/s_move.c` | `order_move()`, `ai_move_walk()` |
@@ -362,7 +402,7 @@ A 2880x1620 trace demonstrated the failure mode: canvas width was `1.06667`, HUD
 
 ### Cinefilter
 
-Full-screen overlay effects (fades, blurs) use `SetCineFilterTexture`/`SetCineFilterStartColor`/`SetCineFilterEndColor`/`SetCineFilterDuration`/`DisplayCineFilter`. The runtime interpolation is in `G_Cinefade()` which lerps between start/end alpha.
+Full-screen overlay effects (fades, blurs) use `SetCineFilterTexture`/`SetCineFilterStartColor`/`SetCineFilterEndColor`/`SetCineFilterDuration`/`DisplayCineFilter`. `G_RunClients()` publishes the filter image, interpolated RGBA and blend mode in player state; the renderer draws them as the view overlay over the 3D viewport, below the HUD (see [Cinematic portrait and filter transport](#cinematic-portrait-and-filter-transport) above).
 
 The client-side fade is physical-screen presentation, not centered 4:3 HUD content. `SCR_DrawLayout()` must cover `{ x=0, y=0, w=SCR_UICanvasWidth(), h=UI_BASE_HEIGHT }`, the full canvas scene; under the widened (1.30+ data) policy that is wider than the centered HUD root returned by `SCR_LayoutSceneRect()`, under the classic stretched policy both are the authored 0.8 width. Renderer projection and input use that same canvas ([ui-canvas.md](../../architecture/ui-canvas.md)); the world camera retains the physical viewport aspect.
 

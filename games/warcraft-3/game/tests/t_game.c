@@ -1356,6 +1356,139 @@ TEST(wc3_game, ingame_options_commands_write_categories_then_sound_window) {
     hud.save_menu = old_save_menu;
     game.clients[0].connected = old_connected;
 }
+
+/* Capture the svc_window open header: byte svc_window, byte UI_WINDOW_OPEN, long id, long class, long flags. */
+static uint32_t menu_window_flags, menu_window_state, menu_window_opens;
+static void menu_window_test_write(pfWriteType_t type, void const *data) {
+    int32_t const value = type == PF_BYTE || type == PF_LONG ? *(int32_t const *)data : -1;
+    if (menu_window_state == 0) menu_window_state = type == PF_BYTE && value == svc_window;
+    else if (menu_window_state == 1) menu_window_state = type == PF_BYTE && value == UI_WINDOW_OPEN ? 2 : 0;
+    else if (menu_window_state < 4) menu_window_state++;
+    else menu_window_flags = (uint32_t)value, menu_window_opens++, menu_window_state = 0;
+}
+static char menu_action_capture[64];
+static void menu_test_action(cstring_t action, cstring_t arg) {
+    snprintf(menu_action_capture, sizeof(menu_action_capture), "%s %s", action, arg);
+}
+
+/* Authored Esc-menu controls plus a ready Load panel; one placeholder stands in for the controls under test. */
+static FRAMEDEF menu_test_placeholder;
+static edict_t *menu_test_setup(void) {
+    edict_t *player = &g_edicts[0];
+    frameDef_t *root, *backdrop;
+
+    setup_test_world();
+    UI_ResetHud();
+    root = UI_Spawn(FT_FRAME, NULL);
+    backdrop = UI_Spawn(FT_FRAME, root);
+    hud.menu.EscMenuMainPanel = root;
+    hud.menu.EscMenuBackdrop = backdrop;
+    hud.menu.MainPanel = UI_Spawn(FT_FRAME, backdrop);
+    hud.menu.EndGamePanel = UI_Spawn(FT_FRAME, backdrop);
+    hud.menu.ReturnButton = UI_Spawn(FT_GLUETEXTBUTTON, hud.menu.MainPanel);
+    hud.options.EscMenuOptionsPanel = UI_Spawn(FT_FRAME, backdrop);
+    hud.options.OptionsPanel = UI_Spawn(FT_FRAME, hud.options.EscMenuOptionsPanel);
+    memset(&menu_test_placeholder, 0, sizeof(menu_test_placeholder));
+    hud.save_menu.EscMenuSaveGamePanel = hud.save_menu.EscMenuSaveLoadContainer = &menu_test_placeholder;
+    hud.save_list_art.MapListBox = hud.save_list_art.MapListBoxBackdrop = &menu_test_placeholder;
+    hud.save_list_art.MapListScrollBar = &menu_test_placeholder;
+    hud.save_menu.SaveOnly = hud.save_menu.LoadOnly = &menu_test_placeholder;
+    hud.save_menu.SaveGameFileEditBox = hud.save_menu.SaveGameFileEditBoxText = &menu_test_placeholder;
+    hud.save_menu.SaveGameSaveButton = hud.save_menu.SaveGameCancelButton = &menu_test_placeholder;
+    hud.save_menu.LoadGameLoadButton = &menu_test_placeholder;
+    hud.save_menu.LoadGameCancelButton = UI_Spawn(FT_GLUETEXTBUTTON, backdrop);
+    UI_InitFrame(&hud.save_list, FT_LISTBOX);
+    UI_SetParent(&hud.save_list, hud.save_list_art.MapListBox);
+    player->client = &game.clients[0];
+    player->client->connected = true;
+    player->client->ps.number = 0;
+    menu_action_capture[0] = '\0';
+    menu_window_opens = menu_window_state = menu_window_flags = 0;
+    return player;
+}
+
+TEST(wc3_game, ingame_menu_stays_locked_after_cancelling_result_load) {
+    __typeof__(gi.Write) old_write = gi.Write;
+    __typeof__(gi.unicast) old_unicast = gi.unicast;
+    __typeof__(gi.MenuAction) old_action = gi.MenuAction;
+    edict_t *player = menu_test_setup();
+
+    gi.Write = menu_window_test_write;
+    gi.unicast = options_window_test_unicast;
+    gi.MenuAction = menu_test_action;
+    /* Blizzard.j's CustomDefeatBJ removes the player before the defeat dialog offers Load. */
+    T_ASSERT(G_RemovePlayerWithResult(0, 1));
+
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_load" });
+    T_EQ(menu_window_opens, 1u);
+    T_ASSERT(menu_window_flags & UI_WINDOW_NO_ESCAPE);
+    T_STREQ(hud.save_menu.LoadGameCancelButton->OnClick, "menu");
+    T_STREQ(menu_action_capture, "");
+
+    G_ClientCommand(player, 1, (cstring_t[]){ "menu" }); /* Cancel */
+    T_ASSERT(hud.menu.ReturnButton->disabled);
+    T_ASSERT(menu_window_flags & UI_WINDOW_NO_ESCAPE);
+    G_ClientCommand(player, 1, (cstring_t[]){ "menu_endgame" });
+    T_ASSERT(menu_window_flags & UI_WINDOW_NO_ESCAPE);
+    G_ClientCommand(player, 1, (cstring_t[]){ "menu" }); /* Previous */
+    T_ASSERT(hud.menu.ReturnButton->disabled);
+    T_ASSERT(menu_window_flags & UI_WINDOW_NO_ESCAPE);
+    G_ClientCommand(player, 1, (cstring_t[]){ "wc3_menu_options" });
+    T_ASSERT(menu_window_flags & UI_WINDOW_NO_ESCAPE);
+    T_EQ(menu_window_opens, 5u);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.MenuAction = old_action;
+    UI_ResetHud();
+}
+
+TEST(wc3_game, ingame_quick_load_cancel_keeps_return_to_game) {
+    __typeof__(gi.Write) old_write = gi.Write;
+    __typeof__(gi.unicast) old_unicast = gi.unicast;
+    __typeof__(gi.MenuAction) old_action = gi.MenuAction;
+    edict_t *player = menu_test_setup();
+
+    gi.Write = menu_window_test_write;
+    gi.unicast = options_window_test_unicast;
+    gi.MenuAction = menu_test_action;
+
+    G_ClientCommand(player, 1, (cstring_t[]){ "menu_load_quick" });
+    T_EQ(menu_window_opens, 1u);
+    T_ASSERT(!(menu_window_flags & UI_WINDOW_NO_ESCAPE));
+    T_STREQ(hud.save_menu.LoadGameCancelButton->OnClick, "menu");
+    G_ClientCommand(player, 1, (cstring_t[]){ "menu" }); /* Cancel */
+    T_ASSERT(!hud.menu.ReturnButton->disabled);
+    T_ASSERT(!(menu_window_flags & UI_WINDOW_NO_ESCAPE));
+    T_STREQ(menu_action_capture, "");
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.MenuAction = old_action;
+    UI_ResetHud();
+}
+
+TEST(wc3_game, result_load_without_ingame_panel_opens_front_end_load_screen) {
+    __typeof__(gi.Write) old_write = gi.Write;
+    __typeof__(gi.unicast) old_unicast = gi.unicast;
+    __typeof__(gi.MenuAction) old_action = gi.MenuAction;
+    edict_t *player = menu_test_setup();
+
+    gi.Write = menu_window_test_write;
+    gi.unicast = options_window_test_unicast;
+    gi.MenuAction = menu_test_action;
+    hud.save_menu.EscMenuSaveGamePanel = NULL;
+
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_load" });
+    T_EQ(menu_window_opens, 0u);
+    T_STREQ(menu_action_capture, "menu menu_loadgame");
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.MenuAction = old_action;
+    UI_ResetHud();
+}
+
 TEST(wc3_game, hud_status_icon_keys_follow_upgrade_and_neutral_families) {
     char key[96];
 
@@ -2060,6 +2193,49 @@ TEST(wc3_game, portrait_live_stats_refresh_reserved_connected_client_edict) {
     T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA], 21);
 }
 
+TEST(wc3_game, selected_unit_status_invalidation_resends_info_panel) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *unit, *other;
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->connected = true;
+    client->ps.number = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->s.player = 0;
+    G_SelectEntity(client, unit);
+    /* Simulate a panel already serialized, then status application invalidates
+     * it. The next ordinary refresh must not accept the old cache as current. */
+    client->infopanel.entity = unit->s.number;
+    client->infopanel.hp = (int32_t)unit->health.value;
+    client->infopanel.xp = (int32_t)unit->hero.xp;
+    G_InvalidateUnitInfoPanel(unit);
+    T_EQ(client->infopanel.entity, UINT32_MAX);
+
+    gi.Write = selection_test_write;
+    gi.unicast = selection_test_unicast;
+    multiselect_capture_count = 0;
+    G_RefreshInfoPanel(player);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(client->infopanel.entity, unit->s.number);
+    T_EQ(client->infopanel.xp, (int32_t)unit->hero.xp);
+
+    other = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    other->s.player = 0;
+    G_SelectEntity(client, other);
+    client->infopanel.entity = 0;
+    client->infopanel.hp = 2;
+    G_InvalidateUnitInfoPanel(unit);
+    T_EQ(client->infopanel.entity, 0);
+    T_EQ(client->infopanel.hp, 2);
+}
+
 TEST(wc3_game, loading_rows_support_roc_and_tft_schema) {
     static const struct { cstring_t row, model; uint32_t seq; bool valid; } cases[] = {
         { "WESTRING_LOADINGSCREEN_HUMAN01,0,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl",
@@ -2387,6 +2563,20 @@ TEST(wc3_game, hud_disabled_button_label_uses_authored_disabled_color) {
     T_EQ(out.color.g, label.Font.DisabledColor.g);
     T_EQ(out.color.b, label.Font.DisabledColor.b);
     T_EQ(out.color.a, label.Font.DisabledColor.a);
+}
+
+TEST(wc3_game, hud_disabled_button_state_reaches_client_frame) {
+    uint8_t typedata[256];
+    char textbuf[128];
+    uiFrame_t out;
+    frameDef_t button = { .Type = FT_FRAME };
+
+    button.disabled = true;
+    UI_SetOnClick(&button, "menu");
+    T_ASSERT(UI_BuildFrameForWrite(&button, &out, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_ASSERT(out.flagsvalue & UIFRAME_DISABLED);
+    T_STREQ(out.onclick, "menu");
 }
 
 static PATHSTR hud_test_images[MAX_IMAGES];
@@ -4027,6 +4217,33 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
     G_FowShutdown();
 }
 
+TEST(wc3_game, fow_world_items_follow_position_instead_of_default_owner) {
+    edict_t *revealer, *item;
+
+    reset_entities(); setup_test_world();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    revealer->s.player = 0;
+    revealer->runtime.sight_radius.day = 128.0f;
+    revealer->health.value = revealer->health.max_value = 1.0f;
+    item = alloc_test_unit(MAKEFOURCC('I','t','e','m'), 1024.0f, 1024.0f);
+    item->s.player = 0; /* Unowned map items can retain this default owner. */
+    item->targtype = TARG_ITEM;
+    item->item = G_AllocItem();
+    item->item->in_world = true;
+
+    G_FowUpdate();
+
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, item));
+    T_ASSERT(!G_FowPlayerCanHoverEntity(0, item));
+    item->s.origin = revealer->s.origin;
+    item->s.origin2 = revealer->s.origin2;
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, item));
+    T_ASSERT(G_FowPlayerCanHoverEntity(0, item));
+    G_FowShutdown();
+}
+
 TEST(wc3_game, acquisition_range_uses_spawn_cache) {
     edict_t *ent = make_test_unit();
     ent->class_id = MAKEFOURCC('n', 'o', 'n', 'e');
@@ -4620,7 +4837,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_STREQ(saved_item->description, "Find the key");
     T_ASSERT(saved_item->completed);
     G_RemoveQuest(saved_quest);
-    T_ASSERT(!ReadGame(filename));
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(saved_quest->inuse);
+    T_STREQ(saved_quest->title, "Open the Gate");
     T_ASSERT(g_edicts[0].client == &game.clients[0]);
     remove(filename);
 }
@@ -5300,6 +5519,80 @@ TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
     remove(filename);
 }
 
+/* Persist both an active creep return Move and a pending retry. The original
+ * Stop-guard round-trip above exercises a different state machine. */
+TEST(wc3_save, live_creep_guard_return_move_resumes_after_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-save-live-creep-return.bin");
+    int unit_index;
+    edict_t *unit;
+    setup_test_world();
+    reset_entities();
+    unit_index = globals.num_edicts;
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128, 0);
+    unit->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    unit->stand = unit_stand;
+    unit->die = unit_die;
+    unit_stand(unit);
+    G_CreepGuardInit(unit);
+    unit->s.origin2.x = unit->s.origin.x = 900;
+    gi.LinkEntity(unit);
+    G_CreepGuardAutoCombat(unit);
+    T_ASSERT(G_CreepGuardCombatEnd(unit));
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityMove);
+    T_ASSERT(unit->goalentity);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + unit_index;
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityMove);
+    T_ASSERT(unit->goalentity);
+    T_FEQ(unit->goalentity->s.origin2.x, 128.0f, 0.001f);
+    unit->s.origin2 = unit->movement.creep_guard_origin;
+    unit->s.origin.x = unit->s.origin2.x;
+    gi.LinkEntity(unit);
+    G_CreepGuardTick(unit);
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_IDLE);
+    remove(filename);
+}
+
+TEST(wc3_save, creep_guard_return_retry_state_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-save-creep-guard-return.bin");
+    int unit_index;
+    edict_t *unit;
+
+    setup_test_world();
+    reset_entities();
+    unit_index = globals.num_edicts;
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128, 0);
+    unit->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    unit->stand = unit_stand;
+    unit->die = unit_die;
+    unit_stand(unit);
+    G_CreepGuardInit(unit);
+    unit->s.origin2.x = unit->s.origin.x = 900;
+    gi.LinkEntity(unit);
+    unit->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    unit->movement.creep_guard_return_retries = 2;
+    unit->movement.creep_guard_retry_at_ms = 9000;
+    unit->movement.creep_guard_last_hit_ms = 2000;
+    unit->movement.creep_guard_outside_ms = 3000;
+    T_ASSERT(WriteGame(filename));
+    if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
+    unit->movement.creep_guard_return_retries = 0;
+    unit->movement.creep_guard_retry_at_ms = 0;
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + unit_index;
+    T_ASSERT(unit->movement.creep_guard_enabled);
+    T_ASSERT(unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
+    T_EQ(unit->movement.creep_guard_return_retries, 2u);
+    T_EQ(unit->movement.creep_guard_retry_at_ms, 9000u);
+    T_EQ(unit->movement.creep_guard_last_hit_ms, 2000u);
+    T_EQ(unit->movement.creep_guard_outside_ms, 3000u);
+    T_FEQ(unit->movement.creep_guard_origin.x, 128, 0.001f);
+    remove(filename);
+}
+
 TEST(wc3_save, field_vertex_tint_round_trip) {
     cstring_t filename = Test_TempPath("wc3-save-field-vertex-tint.bin");
     edict_t *unit;
@@ -5536,15 +5829,31 @@ TEST(wc3_save, status_source_incarnation_round_trip) {
 
     slot->code = MAKEFOURCC('B', 'E', 'e', 'r');
     slot->level = 1;
+    slot->instance_id = 19;
+    slot->stack_policy = WC3_STATUS_STACK_INDEPENDENT;
     slot->source = source;
     slot->source_spawn_time = source->spawn_time;
+    slot->modifier_count = 1;
+    slot->modifiers[0] = (wc3_status_modifier_t){
+        .type = WC3_STATUS_MOD_ARMOR_FLAT, .family = slot->code,
+        .policy = WC3_STATUS_MOD_ADD, .value = 2.0f,
+        .owner = WC3_STATUS_MOD_OWNER_AUTHORED
+    };
+    unit->next_status_instance_id = 20;
     T_ASSERT(WriteGame(filename));
     slot->source = NULL;
     slot->source_spawn_time = 0;
+    slot->modifiers[0].owner = 0;
     T_ASSERT(ReadGame(filename));
     slot = unit->abilstatus + 3;
     T_ASSERT(slot->source == source);
     T_EQ(slot->source_spawn_time, source->spawn_time);
+    T_EQ(slot->instance_id, 19);
+    T_EQ(slot->stack_policy, WC3_STATUS_STACK_INDEPENDENT);
+    T_EQ(slot->modifier_count, 1);
+    T_EQ(slot->modifiers[0].owner, WC3_STATUS_MOD_OWNER_AUTHORED);
+    T_FEQ(slot->modifiers[0].value, 2.0f, 0.001f);
+    T_EQ(unit->next_status_instance_id, 20);
     source->spawn_time++;
     T_NULL(S_SpellStatusSource(slot));
     remove(filename);

@@ -44,21 +44,48 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
     }
     if (spell->ability->proc == CAbilityBloodlust)
         S_UnitAbilityEvent(st.entity, A_MOVE_PARAMETERS_CHANGED);
+    if (status && status->code == MAKEFOURCC('B','b','l','o'))
+        status->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
+    else if (status && status->code == MAKEFOURCC('B','f','a','e'))
+        status->buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
+    else if (status && (status->code == MAKEFOURCC('B','r','e','j') ||
+                        status->code == MAKEFOURCC('B','r','o','a')))
+        status->buff_flags |= WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL;
+    else if (status && (status->code == MAKEFOURCC('B','c','r','s') ||
+                        status->code == MAKEFOURCC('B','U','h','f') ||
+                        status->code == MAKEFOURCC('B','u','h','f')))
+        status->buff_flags |= WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL;
+}
+
+static bool melee_status_capacity(edict_t *caster, edict_t *target, abilityitem_t const *spell) {
+    uint32_t const level = S_SpellLevel(caster, spell->code);
+    cstring_t const buff = melee_buff(spell, level);
+    wc3_status_apply_check_t const check = buff ? unit_status_checkapplication(target,
+        &(status_application_t){ .buff = buff, .level = level }) : WC3_STATUS_APPLY_INVALID;
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 static bool bloodlust_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity);
+    return spell && st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity) &&
+        melee_status_capacity(caster, st.entity, spell);
 }
 
 static bool faerie_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity);
+    return spell && st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity) &&
+        melee_status_capacity(caster, st.entity, spell);
 }
 
 static bool rejuv_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity);
+    uint32_t level;
+    cstring_t buff;
+    wc3_status_apply_check_t check;
+    if (!spell || !st.entity || !S_SpellIsAliveTarget(st.entity) || !S_SpellIsFriend(caster, st.entity))
+        return false;
+    level = S_SpellLevel(caster, spell->code);
+    buff = melee_buff(spell, level);
+    if (!buff) return false;
+    check = unit_status_checkapplication(st.entity, &(status_application_t){ .buff = buff, .level = level });
+    return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
 /* Name=Bloodlust
@@ -118,8 +145,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityRoar) {
     float duration = S_SpellDuration(spell->code, level, false);
     if (!buff) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
-                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
-        S_SpellApplyTimedStatus(target, buff, level, duration);
+                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+        heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, level, duration);
+        if (status && status->code == MAKEFOURCC('B','r','o','a'))
+            status->buff_flags |= WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL;
+    }
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
 }
 
@@ -178,13 +208,13 @@ BZ_ABILITY_PROC(CAbilityFrenzy) {
 
 /* DataA owns the attack-rate bonus as a fraction; DataB owns the armor reduction (flat). */
 float S_FrenzyAttackBonus(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'z', 'y'));
-    return level ? S_SpellData(MAKEFOURCC('A', 'f', 'z', 'y'), level, 1) : 0.0f;
+    (void)unit;
+    return 0.0f; /* Consumed through WC3_STATUS_MOD_ATTACK_SPEED_PERCENT. */
 }
 
 float S_FrenzyArmorDelta(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'z', 'y'));
-    return level ? -S_SpellData(MAKEFOURCC('A', 'f', 'z', 'y'), level, 2) : 0.0f;
+    (void)unit;
+    return 0.0f; /* Consumed through WC3_STATUS_MOD_ARMOR_FLAT. */
 }
 
 /* Name=Unholy Frenzy
@@ -206,8 +236,8 @@ static uint32_t unholy_frenzy_level(edict_t const *unit) {
 
 /* DataA owns the attack-rate bonus as a fraction; DataB owns the life drain in HP/second. */
 float S_UnholyFrenzyAttackBonus(edict_t const *unit) {
-    uint32_t level = unholy_frenzy_level(unit);
-    return level ? S_SpellData(MAKEFOURCC('A', 'u', 'h', 'f'), level, 1) : 0.0f;
+    (void)unit;
+    return 0.0f; /* Consumed through WC3_STATUS_MOD_ATTACK_SPEED_PERCENT. */
 }
 
 float S_UnholyFrenzyLifeDrain(edict_t const *unit) {

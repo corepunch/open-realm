@@ -474,6 +474,15 @@ static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const
         if (S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return S_AttackProfileRead(attacker, 0);
         if (S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return S_AttackProfileRead(attacker, 1);
     }
+    /* Target eligibility and active weapon selection must agree for Ethereal
+     * victims, including dual-weapon units and rooted Ancient retaliation. */
+    if (attacker && target && flag && unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL)) {
+        if (S_AttackProfileRead(attacker, 0)->type == ATK_MAGIC && (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag) &&
+            (S_UnitAttackSlotEnabled(attacker, 0) || (retaliation & 1u))) return S_AttackProfileRead(attacker, 0);
+        if (S_AttackProfileRead(attacker, 1)->type == ATK_MAGIC && (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag) &&
+            (S_UnitAttackSlotEnabled(attacker, 1) || (retaliation & 2u))) return S_AttackProfileRead(attacker, 1);
+        return S_AttackProfileRead(attacker, 0); /* Callers reject unqualified targets. */
+    }
     if (attacker && flag && S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) &&
         (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag)) return S_AttackProfileRead(attacker, 0);
     if (attacker && flag && S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
@@ -594,7 +603,8 @@ static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
 }
 
 static bool can_attack(edict_t const *ent) {
-    if (S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
+    if (unit_hasstatusstate(ent, WC3_STATUS_STATE_ETHEREAL) ||
+        S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
     if (!attack_mask_has_weapon(ent, attack_retaliation_mask(ent))) return false;
     return !ent->currentmove || ent->currentmove->proc != CAbilityAttack;
@@ -606,7 +616,13 @@ static bool can_attack(edict_t const *ent) {
 static bool attack_can_target_mask(edict_t const *attacker, edict_t const *target, uint32_t mask) {
     uint32_t flag;
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
-        !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target)) return false;
+        !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target) ||
+        unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) ||
+        (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) &&
+         !(((mask & 1u) && S_AttackProfileRead(attacker, 0)->type == ATK_MAGIC &&
+             (S_AttackProfileRead(attacker, 0)->targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target)))) ||
+           ((mask & 2u) && S_AttackProfileRead(attacker, 1)->type == ATK_MAGIC &&
+             (S_AttackProfileRead(attacker, 1)->targetsAllowed & G_TargetFlagForType(G_UnitTargetType(target))))))) return false;
     if ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target)) return false;
     /* Native4968e0 TargetLost uses flags1: detection without the fog test. */
     if (!G_FowPlayerCanQueryUnit(attacker->s.player,target,UNIT_VISIBILITY_IGNORE_FOG)) return false;
@@ -673,6 +689,8 @@ static void attack_resume_after_combat(edict_t *attacker) {
         order_attackmove(attacker, attacker->movement.attackmove_waypoint);
     } else if (attacker->movement.follow_target) {
         order_follow_resume(attacker);
+    } else if (G_CreepGuardCombatEnd(attacker)) {
+        return;
     } else if (S_UnitAbilityEvent(attacker, A_AUTO_COMBAT_END)) {
         return;
     } else if (attacker->stand) {
@@ -740,6 +758,12 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
                                   ? game.constants.defenseArmor
                                   : 0.06f;
     float dmg = (float)base * mult;
+    /* Ethereal receivers reject physical attack damage, and amplify magic attacks.
+     * Source: Blizzard Warcraft III spell basics (66% bonus). */
+    if (unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL)) {
+        if (atk != ATK_MAGIC && atk != ATK_SPELLS) return 0;
+        dmg *= 1.66f;
+    }
     float armor = G_UnitArmorValue(target);
     if (armor >= 0.0f)
         dmg = dmg / (1.0f + armor * armor_coefficient);
@@ -756,7 +780,9 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
 void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     bool instant_kill;
 
-    if (!target || target->invulnerable || S_UnitIsCycloned(target) || M_IsDead(target)) {
+    if (!target || target->invulnerable ||
+        unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE) ||
+        S_UnitIsCycloned(target) || M_IsDead(target)) {
         return;
     }
     /* Instant-kill follows the same combat path for units and attackable destructables; the old
@@ -790,11 +816,14 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     G_AlertHeroShortcutDamage(target);
     FOR_LOOP(i, G_UnitStatusSlotCount(target))
         if (target->abilstatus[i].level && target->abilstatus[i].code == MAKEFOURCC('B','U','s','l'))
-            memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+            unit_removestatus(target, target->abilstatus + i, STATUS_REMOVE_SCRIPT);
     unit_updatestatuses(target);
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);
 
+    /* Notify the camp while the victim is still alive: killing blows must
+     * alert surviving allies too. This is a single non-recursive fan-out. */
+    G_CreepGuardCallForHelp(target, attacker);
     if (target->health.value <= damage) {
         G_SetHealth(target, 0);
         unit_leavecombat(target);
@@ -803,6 +832,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
         return;
     }
     G_AddHealth(target, -damage);
+    G_CreepGuardDamaged(target);
     /* Only a survivor reacts to the hit. A killing blow goes straight to die();
      * dispatching first would let Awan start a flee Move that death tears down. */
     {
@@ -810,17 +840,29 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
         S_UnitAbilityEventWithCall(target, A_DAMAGED, &call);
     }
     if (can_attack(target) && !unit_is_walking(target) &&
+        target->movement.creep_guard_phase != CREEP_GUARD_RETURNING &&
         S_SpellIsEnemy(target, attacker)) {
         if (!S_UnitAbilityEvent(target, A_NO_RETALIATE)) {
             S_UnitAbilityEvent(target, A_AUTO_COMBAT_START);
             order_attack_internal(target, attacker, true);
+            if (target->goalentity == attacker && target->currentmove &&
+                target->currentmove->proc == CAbilityAttack)
+                G_CreepGuardAutoCombat(target);
         }
     } else if (target->pain) {
         target->pain(target);
     }
 }
 
+/* Secondary hits carry the primary weapon's type, not a different weapon selected for the victim.
+ * Previously only the primary hit rejected physical damage against Ethereal. */
+bool S_AttackHitAllowed(edict_t const *attacker, edict_t const *primary, edict_t const *target) {
+    return !unit_hasstatusstate(attacker, WC3_STATUS_STATE_ETHEREAL) &&
+           (!unit_hasstatusstate(target, WC3_STATUS_STATE_ETHEREAL) || attack_profile(attacker, primary)->type == ATK_MAGIC);
+}
+
 void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
+    if (!S_AttackHitAllowed(attacker, target, target)) return;
     if (S_EvasionRoll(target)) return;
     { float const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (float)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
@@ -829,7 +871,8 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
         S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage))));
     damage = (int)((float)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
                                          S_WarDrumsAttackBonus(attacker) + S_RoarDamageBonus(attacker)
-                                         - S_CrippleDamageReduction(attacker) - S_SoulBurnDamageReduction(attacker)));
+                                         + unit_status_modifier_total(attacker, WC3_STATUS_MOD_ATTACK_DAMAGE_PERCENT)
+                                         - S_SoulBurnDamageReduction(attacker)));
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
     { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
@@ -855,7 +898,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     if (cleave_level) {
         float radius = S_SpellNumber(cleave_code, ABILITY_NUMBER_AREA, cleave_level);
         float fraction = S_SpellData(cleave_code, cleave_level, 1);
-        FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) &&
+        FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) && S_AttackHitAllowed(attacker, target, other) &&
                       S_SpellIsEnemy(attacker, other) &&
                       Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius)
             T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
@@ -1422,9 +1465,8 @@ static float attack_speed_divisor(edict_t *self) {
     float const agi_bonus = game.constants.combatConstantsLoaded
                           ? game.constants.agiAttackSpeedBonus
                           : 0.02f;
-    float total_bonus = (float)self->hero.agi * agi_bonus + S_BloodlustAttackBonus(self)
-                      + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
-                      - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self)
+    float total_bonus = (float)self->hero.agi * agi_bonus +
+                      unit_status_modifier_total(self, WC3_STATUS_MOD_ATTACK_SPEED_PERCENT)
                       - S_DefendAttackReduction(self) - S_CreepAttackSpeedReduction(self) - S_SlowAuraAttackReduction(self);
     total_bonus=S_ApplyEnduranceAttackBonus(self,total_bonus);
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
@@ -1704,7 +1746,12 @@ static void ai_attackmove_walk(edict_t *ent) {
 
     if (!S_UnitCanTranslate(ent)) return;
     if (move_should_arrive(ent, move_distance)) {
-        if (M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
+        /* A shared attack-move waypoint may be across blocked terrain. Don't
+         * snap onto it based only on Euclidean proximity: each mover must be
+         * able to reach the goal in its own collision-sized flow field. */
+        uint32_t const heatmap = M_RefreshHeatmapForMover(ent, ent->goalentity, ent->collision);
+        if (heatmap && CM_FlowCanReach(heatmap, ent->s.origin.x, ent->s.origin.y) &&
+            M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
             ent->s.origin2 = ent->goalentity->s.origin2;
             gi.LinkEntity(ent);
         }

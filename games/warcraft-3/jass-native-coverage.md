@@ -212,7 +212,8 @@ server-authored HUD and texttags publish keyed generic world-text events. Remain
 
 `EndGame`, `ChangeLevel`, `RestartGame`, and `DisplayLoadDialog` cross the existing `gi.MenuAction` session boundary.
 `EndGame` returns the local client to the frontend, `ChangeLevel` loads the requested map, `RestartGame` reloads the
-current `map` cvar, and `DisplayLoadDialog` enters the frontend load-game screen. `ForceCampaignSelectScreen` is different:
+current `map` cvar, and `DisplayLoadDialog` opens the in-game Load panel, entering the frontend load-game screen only
+when that panel is unavailable. `ForceCampaignSelectScreen` is different:
 stock `SetCampaignAvailableBJ` calls it while an ending cinematic can still be running, so the native only latches campaign
 selection as the destination for the eventual `EndGame`. This is required by `Prologue02`, whose `NextLevelPrep` unlocks
 the Human campaign before a long final cinematic and calls `CustomVictoryBJ` only after that cinematic finishes.

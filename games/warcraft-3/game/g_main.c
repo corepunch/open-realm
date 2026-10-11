@@ -422,6 +422,12 @@ static void InitConstants(void) {
     InitMiscValueDefault("AttackNotifyRange", &game.constants.attackNotifyRange, 1250.0f);
     InitMiscValueDefault("CallForHelp", &game.constants.callForHelp, 600.0f);
     InitMiscValueDefault("CreepCallForHelp", &game.constants.creepCallForHelp, 600.0f);
+    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 creep leash. GuardDistance/GuardReturnTime load above;
+     * seconds become the uint32 simulation clock, so clamp malformed or extreme map values first. */
+    InitMiscValueDefault("MaxGuardDistance", &game.constants.maxGuardDistance, 1000.0f);
+    game.constants.guardDistance = MAX(0.0f, game.constants.guardDistance);
+    game.constants.maxGuardDistance = MAX(game.constants.guardDistance, game.constants.maxGuardDistance);
+    game.constants.guardReturnMs = (uint32_t)(MIN(MAX(game.constants.guardReturnTime, 0.0f), (float)(UINT32_MAX / 1000u)) * 1000.0f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {
@@ -616,20 +622,43 @@ static void G_ShutdownGame(void) {
     SAFE_DELETE(game.clients, gi.MemFree);
 }
 
-float G_Cinefade(void) {
-    if (G_SkipCutscene()) {
-        return 0;
-    }
-    uint32_t duration = level.cinefilter.end.time - level.cinefilter.start.time;
-    if (!level.cinefilter.displayed) {
-        return 0;
-    }
-    if (!duration || G_Time() > level.cinefilter.end.time) {
-        return level.cinefilter.end.color.a / 255.0;
-    } else {
-        float k = (G_Time() - level.cinefilter.start.time) / (float)duration;
-        return LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k) / 255.0;
-    }
+/* Every JASS fade and filter is a textured cinefilter. Plain fade masks keep
+ * the authored alpha so CinematicFadeBJ reaches opaque; masks with their own
+ * alpha (DreamFilter's vignette) draw at half the authored alpha, which
+ * matches retail footage. Alpha 0 hides the filter. */
+static float G_CineFilterProgress(void) {
+    uint32_t const duration = level.cinefilter.end.time - level.cinefilter.start.time;
+    uint32_t const now = G_Time();
+    if (!duration || now >= level.cinefilter.end.time) return 1.0f;
+    if (now <= level.cinefilter.start.time) return 0.0f;
+    return (now - level.cinefilter.start.time) / (float)duration;
+}
+
+static color32_t G_CineFilterColor(void) {
+    float const k = G_CineFilterProgress();
+    if (!level.cinefilter.displayed || G_SkipCutscene()) return MAKE(color32_t, 0, 0, 0, 0);
+    return MAKE(color32_t,
+                (uint8_t)LerpNumber(level.cinefilter.start.color.r, level.cinefilter.end.color.r, k),
+                (uint8_t)LerpNumber(level.cinefilter.start.color.g, level.cinefilter.end.color.g, k),
+                (uint8_t)LerpNumber(level.cinefilter.start.color.b, level.cinefilter.end.color.b, k),
+                (uint8_t)(LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k) *
+                          (level.cinefilter.masked ? 0.5f : 1.0f)));
+}
+
+/* Natives that never set UVs leave an empty box; draw those with full UVs. */
+static box2_t G_CineFilterUVBox(box2_t uv) {
+    if (uv.min.x == uv.max.x && uv.min.y == uv.max.y)
+        return MAKE(box2_t, .min = { 0, 0 }, .max = { 1, 1 });
+    return uv;
+}
+
+static box2_t G_CineFilterUV(void) {
+    box2_t const a = G_CineFilterUVBox(level.cinefilter.start.uv);
+    box2_t const b = G_CineFilterUVBox(level.cinefilter.end.uv);
+    float const k = G_CineFilterProgress();
+    return MAKE(box2_t,
+                .min = { LerpNumber(a.min.x, b.min.x, k), LerpNumber(a.min.y, b.min.y, k) },
+                .max = { LerpNumber(a.max.x, b.max.x, k), LerpNumber(a.max.y, b.max.y, k) });
 }
 
 bool G_SkipCutscene(void) {
@@ -895,7 +924,9 @@ static vec3_t G_CameraNoiseOffset(gameClient_t const *client, cameraNoiseSlot_t 
 }
 
 static void G_RunClients(void) {
-    float cinefade = G_Cinefade();
+    color32_t const cinefilter_color = G_CineFilterColor();
+    uint32_t const cinefilter_image = cinefilter_color.a ? level.cinefilter.texture : 0;
+    box2_t const cinefilter_uv = G_CineFilterUV();
     G_UpdateUnitResponsePresentation();
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients+i;
@@ -950,6 +981,7 @@ static void G_RunClients(void) {
             G_SetPlayerText(client, PLAYERTEXT_SPEAKER, "");
             G_SetPlayerText(client, PLAYERTEXT_DIALOGUE, "");
             client->ps.cinematic_portrait = 0;
+            client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] = 0;
             client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR] = 0;
             client->cinematic_end_time = 0;
             client->cinematic_voice_end_time = 0;
@@ -968,7 +1000,11 @@ static void G_RunClients(void) {
             client->presentation_dirty = false;
         }
         if (client->connected) UI_UpdateCursorPresentation(client);
-        client->ps.cinefade = cinefade;
+        client->ps.cinefilter_image = cinefilter_image;
+        client->ps.cinefilter_color = cinefilter_color;
+        client->ps.cinefilter_blendmode = level.cinefilter.blendmode;
+        client->ps.cinefilter_uv = cinefilter_uv;
+        client->ps.cinefilter_texmapflags = level.cinefilter.texmapflags;
     }
     G_CameraTraceFrame();
 }
@@ -1070,11 +1106,17 @@ void G_GameResultDebug(cstring_t format, ...) {
     fputc('\n', stderr);
 }
 
+static bool G_IsCampaignMapPath(cstring_t path);
+
 void G_RequestEndGame(bool do_score_screen) {
     /* Score-screen transport is not implemented yet. Keep the argument at the
      * game/session boundary so EndGame(true) does not get baked into HUD code. */
-    G_GameResultDebug("request EndGame score_screen=%u", (unsigned)do_score_screen);
-    if (level.campaign_select_on_end) {
+    cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
+    bool campaign_select = level.campaign_select_on_end ||
+        (G_IsSinglePlayer() && G_IsCampaignMapPath(map));
+    G_GameResultDebug("request EndGame score_screen=%u campaign_select=%u map=%s",
+        (unsigned)do_score_screen, (unsigned)campaign_select, map ? map : "(null)");
+    if (campaign_select) {
         level.campaign_select_on_end = false;
         gi.MenuAction("menu", "menu_single_player_campaign");
         return;
@@ -1084,7 +1126,7 @@ void G_RequestEndGame(bool do_score_screen) {
 
 static bool G_IsCampaignMapPath(cstring_t path) {
     if (!path) return false;
-    /* Campaign prefixes identify maps that should return to the campaign selector. */
+    /* Campaign prefixes identify single-player maps that should return to the campaign selector. */
     FOR_LOOP(i, sizeof(wc3_campaign_paths) / sizeof(wc3_campaign_paths[0]))
         if (!strncasecmp(path, wc3_campaign_paths[i], strlen(wc3_campaign_paths[i]))) return true;
     return false;
@@ -1114,8 +1156,17 @@ void G_RequestRestartGame(bool do_score_screen) {
 }
 
 void G_RequestLoadGameMenu(void) {
+    bool shown = false;
     G_GameResultDebug("request LoadGameMenu");
-    gi.MenuAction("menu", "menu_loadgame");
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t *client = game.clients + i;
+        edict_t *ent;
+        if (!client->connected) continue;
+        ent = G_GetPlayerEntityByNumber(client->ps.number);
+        if (ent) shown |= UI_ShowGameMenuLoad(ent);
+    }
+    /* Without the authored in-game panel, the front-end load screen beats a paused map with no UI. */
+    if (!shown) gi.MenuAction("menu", "menu_loadgame");
 }
 
 void G_RequestLoadGameNamed(cstring_t name) {
@@ -1766,10 +1817,12 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         }
         return;
     }
-    /* Destructables are scenery, not units. Their live hover contract still
-     * exposes the authored name and neutral Select cursor, without unit bars. */
+    /* Destructables are scenery, not units. Retail world-hover names are
+     * limited to debris targets such as gates; walls, bridges, and decorations
+     * do not publish a hover name, even when they carry health. */
     if (G_IsDestructable(ent)) {
-        if (G_DestructableIsAttackable(ent) && !(state->flags & EF_NOT_SELECTABLE) &&
+        if (G_DestructableIsAttackable(ent) && ent->targtype == TARG_DEBRIS &&
+            !(state->flags & EF_NOT_SELECTABLE) &&
             !(state->renderfx & RF_HIDDEN) && G_FowPlayerCanHoverEntity(player, ent)) {
             char localized[MAX_PATHLEN];
             cstring_t name = ent->data.DestructableData->displayName;
@@ -1787,6 +1840,13 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
             state->name = G_UnitNameConfigstring(G_LevelString(name));
             state->stats[ENT_HEALTH] = compress_stat(&ent->health);
             state->flags |= EF_NEUTRAL;
+            /* TFT authors breakable selectability explicitly. ROC predates
+             * that column, where the debris target contract is the available
+             * gate after normal destructable attackability checks. */
+            if (!ent->invulnerable &&
+                (ent->data.DestructableData->selectable ||
+                 atoi(gi.CvarString ? gi.CvarString("fs_expansion", "0") : "0") == 0))
+                state->flags |= EF_HOVER_HEALTH;
         }
         return;
     }

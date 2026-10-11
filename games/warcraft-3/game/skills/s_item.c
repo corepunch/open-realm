@@ -731,7 +731,7 @@ BZ_ABILITY_PROC(CAbilityItemGold) {
     balance = owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
     credited = (uint32_t)MIN((double)amount, (double)(USHRT_MAX - balance));
     owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)(balance + credited);
-    if (credited) G_ResourceGainEvent(caster, PLAYERSTATE_RESOURCE_GOLD, (int32_t)credited);
+    if (credited) G_ResourceGainEvent(caster, owner->ps.number, PLAYERSTATE_RESOURCE_GOLD, (int32_t)credited);
     return true;
 }
 
@@ -754,7 +754,7 @@ BZ_ABILITY_PROC(CAbilityItemLumber) {
     balance = owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
     result = (uint32_t)MAX(0.0, MIN((double)USHRT_MAX, (double)balance + (double)amount));
     owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)result;
-    if (result > balance) G_ResourceGainEvent(caster, PLAYERSTATE_RESOURCE_LUMBER, (int32_t)(result - balance));
+    if (result > balance) G_ResourceGainEvent(caster, owner->ps.number, PLAYERSTATE_RESOURCE_LUMBER, (int32_t)(result - balance));
     return true;
 }
 
@@ -815,8 +815,8 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
 
     FILTER_EDICTS(target, ITEM_DEFENSE_AOE_TARGET(target)) {
         float duration = S_SpellHeroDuration(code, level, target);
-        S_SpellApplyTimedTargetStatus(target, code, level, buff, duration);
-        affected++;
+        if (S_SpellApplyTimedTargetStatus(target, code, level, buff, duration))
+            affected++;
     }
 #undef ITEM_DEFENSE_AOE_TARGET
 

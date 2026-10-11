@@ -11,6 +11,10 @@ static particleScene_t *captured_particle_scene;
 static particleScene_t *captured_particle_scenes[16];
 static int particle_scene_clears;
 static int particle_order;
+static int alpha_draws;
+static render_phase_t entity_phase, alpha_phase;
+static int camera_pass_order;
+static bool capture_camera_pass_order;
 static handle_t test_particle_scene_alloc(long size);
 static void test_particle_scene_free(handle_t ptr);
 
@@ -43,12 +47,20 @@ uint32_t R_GetFogOfWarTexture(void) { return 0; }
 void R_DrawEntityCameraEventSpawns(model_t const *source_model, uintptr_t source_instance_id) {
     (void)source_model;
     (void)source_instance_id;
+    if (capture_camera_pass_order) camera_pass_order = camera_pass_order * 10 + 1;
 }
 void R_ReleaseGameEntityCameraEvents(uintptr_t instance_id) { (void)instance_id; }
 void R_DrawEntities(void) {
     drawn = tr.viewDef;
+    entity_phase = tr.render_phase;
+    if (capture_camera_pass_order) camera_pass_order = camera_pass_order * 10 + 2;
     entities++;
     if (particle_scene_begins > particle_scene_ends) particle_order = particle_order * 10 + 4;
+}
+void R_DrawAlphaSurfaces(void) {
+    alpha_draws++;
+    alpha_phase = tr.render_phase;
+    if (capture_camera_pass_order) camera_pass_order = camera_pass_order * 10 + 3;
 }
 void R_RenderView(void) { drawn = tr.viewDef; scenes++; }
 cparticle_t *R_BeginParticleScene(particleScene_t *scene) {
@@ -73,6 +85,7 @@ void R_DrawParticles(void) {
     drawn = tr.viewDef;
     particle_draws++;
     particle_order = particle_order * 10 + 2;
+    if (capture_camera_pass_order) camera_pass_order = camera_pass_order * 10 + 4;
 }
 
 /* Shadow batches must follow fog changes and never inherit world fog in a portrait view. */
@@ -139,6 +152,27 @@ TEST(renderer_view, isolated_entity_camera_draws_its_particle_scene) {
     R_ClearEntityCameraParticleScenes();
     ri.MemAlloc = saved_alloc;
     ri.MemFree = saved_free;
+}
+
+TEST(renderer_view, entity_camera_draws_transparent_layers_before_particles) {
+    renderEntity_t entity = {0};
+    viewDef_t view = { .time = 1234, .entities = &entity, .num_entities = 1,
+        .rdflags = RDF_NOWORLDMODEL | RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES };
+    render_phase_t saved_phase = tr.render_phase;
+
+    camera = true;
+    alpha_draws = 0;
+    camera_pass_order = 0;
+    capture_camera_pass_order = true;
+    tr.render_phase = RENDER_PHASE_ALPHA; /* A borrowed camera must establish its own solid pass. */
+    R_RenderFrame(&view);
+    T_EQ(entity_phase, RENDER_PHASE_SOLID);
+    T_EQ(alpha_draws, 1);
+    T_EQ(alpha_phase, RENDER_PHASE_ALPHA);
+    T_EQ(camera_pass_order, 1234);
+    capture_camera_pass_order = false;
+    T_EQ(tr.render_phase, RENDER_PHASE_ALPHA);
+    tr.render_phase = saved_phase;
 }
 
 static handle_t test_particle_scene_alloc(long size) { return calloc(1, (size_t)size); }

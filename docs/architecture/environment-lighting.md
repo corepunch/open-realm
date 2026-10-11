@@ -68,7 +68,8 @@ time-indicator sequence while the same normalized phase continues to drive DNC e
 Evaluated `ENVIRONLIGHT` is **not** on `playerState_t` yet. The 32-bit player-state field mask has
 spare bits (`MSG_FIELD_COUNT(playerStateFields)` in `common/msg.c`); a new netField still needs an
 explicit table entry. Lighting is world-global, and WC3/WoW evaluation sources live in the renderer
-(MDX tracks, camera-dependent DBC). `cinematic_portrait`/`team`/`color`/`race` pack as one `NFT_LONG`.
+(MDX tracks, camera-dependent DBC). The portrait-present flag, `team`, `color`, and `race` pack as one `NFT_LONG`;
+the full portrait model index is sent separately in `UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL`.
 
 The interpolated quantity today is the phase stat at snapshot rate (10 Hz). The game renderer
 samples authored tracks at that phase every render frame. Camera-style `lightstate[0/1]` lerp of
