@@ -20429,9 +20429,20 @@ TEST(wc3_movement, target168_positive_fades_match_original_listener_requests) {
         edict_t *unit,*target;target166_setup(&unit,&target);
         target->s.player=PLAYER_NEUTRAL_PASSIVE;
         level.pathing_clock.time=wc3_float(row->origin);level.timer_clock_valid=false;
+        /* The fixture durations are controlled input words. Author SLK text that the
+         * original parser (070de0) reads back as that word: the shortest decimal when one
+         * exists (0.001), otherwise a nearby twelve-place decimal (0.01's word 3c23d70a). */
+        char duration[32];
+        for(int digits=1;digits<=9;digits++) {
+            snprintf(duration,sizeof(duration),"%.*g",digits,wc3_float(row->duration));
+            if(wc3_float_bits(wc3_decimal(duration))==row->duration)break;
+        }
+        for(int step=-2000;step<=2000 && wc3_float_bits(wc3_decimal(duration))!=row->duration;step++)
+            snprintf(duration,sizeof(duration),"%.12f",(double)wc3_float(row->duration)+step*1e-12);
+        T_EQ(wc3_float_bits(wc3_decimal(duration)),row->duration);
         char slk[512];snprintf(slk,sizeof(slk),"ID;PWXL;N;E\n"
             "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
-            "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"%.9g\"\nE\n",wc3_float(row->duration));
+            "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"%s\"\nE\n",duration);
         slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
         /* Exercise native persistent cancellation without advancing movement. */
         T_ASSERT(unit_issuetargetorder(unit,"move",target));

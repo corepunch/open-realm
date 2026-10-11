@@ -17,6 +17,21 @@ void setup_test_world(void);
 void reset_entities(void);
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 
+/* Original SLK loading uses the S2R decimal parser070de0 (wc3_decimal), not host
+ * strtod: "0.4" is 0x3eccccce, one word above nearest rounding. Turning, and thus
+ * every Abomination/Gryphon/Keeper journey, depends on the exact authored word. */
+TEST(wc3_slk, authored_scalars_use_the_original_decimal_parser) {
+    reset_entities(); setup_test_world();
+    edict_t *gryphon = alloc_test_unit(MAKEFOURCC('h','g','r','y'), 0, 0), *footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    T_NOT_NULL(gryphon); T_NOT_NULL(footman);
+    if (gryphon && footman) {
+        T_EQ(wc3_float_bits(gryphon->data.UnitData->turnRate), 0x3eccccceu);
+        T_EQ(wc3_float_bits(unit_turnspeed(gryphon)), 0x3eccccceu);
+        T_EQ(wc3_float_bits(footman->data.UnitData->turnRate), 0x3f19999au);
+    }
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_slk, map_game_data_set_matches_w3i_and_melee_fallback) {
     mapInfo_t info = { 0 };
 

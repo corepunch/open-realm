@@ -5,6 +5,7 @@
 
 #include "common/common.h"
 #include "common/stb_slk.h"
+#include "games/warcraft-3/common/wc3_math.h"
 
 #define MAX_INI_LINE 1024
 #define MAX_SHEET_COLUMNS 256
@@ -368,7 +369,9 @@ static void SheetSetTypedField(uint8_t *dst, bzFieldType_t type, cstring_t value
 {
     switch (type) {
     case BZ_FIELD_U32: *(uint32_t *)dst = value ? (uint32_t)atoi(value) : 0; break;
-    case BZ_FIELD_FLOAT: *(float *)dst = value ? (float)atof(value) : 0.f; break;
+    /* Original SLK/profile scalars use the S2R decimal parser070de0. Host atof rounds to
+     * nearest and differs by a word for authored values such as turnRate "0.4". */
+    case BZ_FIELD_FLOAT: *(float *)dst = value ? wc3_decimal(value) : 0.f; break;
     case BZ_FIELD_BOOL: *(bool *)dst = value && (atoi(value) != 0 || !strcasecmp(value, "true")); break;
     case BZ_FIELD_CSTR: {
         size_t len = value ? strlen(value) : 0;

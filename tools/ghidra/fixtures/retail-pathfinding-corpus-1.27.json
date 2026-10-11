@@ -55503,7 +55503,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "563cff139e1b88a1ddf31996457cd3275876fa71ed6fe6c12f2de03b48fb89b3"
+      "sha256": "523cbad5a1d5f7f3929d1c2a3d22a10786706b4cdbcfa0d1222f22d62b1a44fb"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
