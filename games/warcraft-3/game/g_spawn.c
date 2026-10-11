@@ -755,29 +755,78 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     ps->name = clent->client->jass.name;
 }
 
-/* Special war3map.doo XY is the pathing footprint's lower-left W3E
- * cell, unlike ordinary doodads' world-space point placements. */
-static vec3_t G_CenterSpecialDoodad(vec3_t min_corner, pathTex_t const *footprint) {
+/* Special war3map.doo XY is the lower-left terrain cell of the pathing
+ * footprint. The model has no authored world Z, but OpenRealm draws it as an
+ * ordinary MDX instance (without W3E heightmap deformation). Place its origin
+ * at the underlying terrain elevation rather than forcing the world Z to 0.
+ * This is map data, not a hard-coded OrcX01/cliff-level adjustment. */
+static vec3_t G_CenterSpecialDoodad(vec3_t min_corner, pathTex_t const *footprint,
+                                    box2_t bounds, float (*terrain_height)(float, float)) {
     if (footprint) {
         min_corner.x += (float)footprint->width * (TILE_SIZE / 8.0f);
         min_corner.y += (float)footprint->height * (TILE_SIZE / 8.0f);
     }
-    min_corner.z = 0.0f;
+    /* CM_GetHeightAtPoint bilinearly reads two adjacent W3E vertices. Keep
+     * both of them inside the map even for a malformed/edge-clipped footprint. */
+    float const inset = TILE_SIZE * 0.5f;
+    float const min_x = bounds.min.x + inset;
+    float const min_y = bounds.min.y + inset;
+    float const max_x = MAX(min_x, bounds.max.x - inset);
+    float const max_y = MAX(min_y, bounds.max.y - inset);
+    float const sample_x = MAX(min_x, MIN(min_corner.x, max_x));
+    float const sample_y = MAX(min_y, MIN(min_corner.y, max_y));
+    if (terrain_height) min_corner.z = terrain_height(sample_x, sample_y);
     return min_corner;
 }
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
-TEST(wc3_doodad, special_pathing_footprint_centers_model) {
+static vec2_t special_doodad_sample;
+static float special_doodad_test_height;
+static float G_TestSpecialDoodadHeight(float x, float y) {
+    special_doodad_sample = (vec2_t){x, y};
+    return special_doodad_test_height;
+}
+
+TEST(wc3_doodad, special_pathing_footprint_centers_model_at_terrain_height) {
     pathTex_t footprint = { .width = 16, .height = 8 };
-    vec3_t origin = G_CenterSpecialDoodad((vec3_t){ 1000.0f, -400.0f, 99.0f }, &footprint);
+    box2_t const bounds = { .min = {0, -1000}, .max = {4096, 3096} };
+    special_doodad_test_height = 128.0f;
+    vec3_t origin = G_CenterSpecialDoodad((vec3_t){1000, -400, 99}, &footprint,
+                                           bounds, G_TestSpecialDoodadHeight);
     T_FEQ(origin.x, 1256.0f, 0.001f);
     T_FEQ(origin.y, -272.0f, 0.001f);
-    T_FEQ(origin.z, 0.0f, 0.001f);
-    origin = G_CenterSpecialDoodad((vec3_t){ 10.0f, 20.0f, 30.0f }, NULL);
+    T_FEQ(origin.z, 128.0f, 0.001f);
+    T_FEQ(special_doodad_sample.x, origin.x, 0.001f);
+    T_FEQ(special_doodad_sample.y, origin.y, 0.001f);
+
+    /* Flat, low and below-baseline maps should not acquire a constant cliff
+     * offset. Keep the original XY when no footprint is available. */
+    special_doodad_test_height = 0;
+    origin = G_CenterSpecialDoodad((vec3_t){10, 20, 30}, NULL, bounds, G_TestSpecialDoodadHeight);
     T_FEQ(origin.x, 10.0f, 0.001f);
     T_FEQ(origin.y, 20.0f, 0.001f);
     T_FEQ(origin.z, 0.0f, 0.001f);
+    special_doodad_test_height = -128;
+    origin = G_CenterSpecialDoodad((vec3_t){100, 200, 0}, NULL, bounds, G_TestSpecialDoodadHeight);
+    T_FEQ(origin.z, -128.0f, 0.001f);
+}
+
+TEST(wc3_doodad, special_height_samples_remain_inside_heightmap) {
+    pathTex_t footprint = { .width = 16, .height = 8 };
+    box2_t const bounds = { .min = {-256, -256}, .max = {256, 256} };
+    special_doodad_test_height = 256;
+    vec3_t origin = G_CenterSpecialDoodad((vec3_t){256, 256, 0}, &footprint,
+                                           bounds, G_TestSpecialDoodadHeight);
+    T_FEQ(origin.x, 512, 0.001f); /* Placement is never clamped. */
+    T_FEQ(origin.y, 384, 0.001f);
+    T_FEQ(special_doodad_sample.x, 192, 0.001f);
+    T_FEQ(special_doodad_sample.y, 192, 0.001f);
+    T_FEQ(origin.z, 256, 0.001f);
+    origin = G_CenterSpecialDoodad((vec3_t){-1000, -1000, 0}, NULL,
+                                   bounds, G_TestSpecialDoodadHeight);
+    T_FEQ(special_doodad_sample.x, -192, 0.001f);
+    T_FEQ(special_doodad_sample.y, -192, 0.001f);
 }
 #endif
 
@@ -873,7 +922,8 @@ void G_SpawnEntities(void) {
              * W3E tile of their pathing footprint. The pathTex is 4 pixels
              * per terrain cell; each cell is 128 world units. */
             pathTex_t *footprint = M_LoadPathTex(row->pathTex);
-            ent->s.origin = G_CenterSpecialDoodad(ent->s.origin, footprint);
+            ent->s.origin = G_CenterSpecialDoodad(ent->s.origin, footprint,
+                                                   CM_GetWorldBounds(), CM_GetHeightAtPoint);
             if (footprint) gi.MemFree(footprint);
             ent->s.angle = DEG2RAD(row->fixedRot);
             ent->s.scale = row->defScale > 0.0f ? row->defScale : 1.0f;

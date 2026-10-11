@@ -409,3 +409,26 @@ footprint's ground cells and hides ordinary cliff meshes at those same cells.
 It does **not** change the MDX cave model's scale/rotation or the existing
 replaceable cliff-texture selection. Recheck Rexxar's Goblin Cave visually in
 retail: any remaining offset or missing faces must be investigated separately.
+
+### Special terrain doodad elevation (W3E terrain height)
+
+Special `war3map.doo` records provide indexed XY cells, not an absolute model
+Z. OpenRealm currently renders special doodads through the ordinary MDX entity
+path, which does **not** deform their vertices using the W3E heightmap.
+Previously the spawn helper forced every special model origin to `Z=0`, even
+where surrounding terrain/cliffs were raised. That could bury the cave model
+behind the terrain, leaving only stray geometry visible after cutouts.
+
+After pathing-footprint XY centering, the WC3 game module now samples the
+underlying W3E terrain at that XY (using `CM_GetHeightAtPoint`, including the
+map's cliff-level baseline) and sets the **special doodad only** to that Z.
+Sampling is clamped one-half tile inside the W3E vertex bounds for edge/
+malformed placements; the actual drawn XY is never clamped. No hard-coded
+cliff offset is added, and normal doodads, Forcewall entities, cutout masks,
+textures and collision remain unchanged.
+
+The exact retail mesh/heightmap deformation for these special models has not
+been visually verified from OrcX01 assets. Compare its Goblin Cave against
+retail: if the cavern silhouette remains incomplete, investigate the model
+origin/vertex geometry and terrain-cutout correspondence before adding
+further offsets.
