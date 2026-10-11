@@ -1,4 +1,5 @@
 #include "r_mdx.h"
+#include "../w3m/r_war3map.h"
 #include "renderer/r_emit.h"
 #include "renderer/r_local.h"
 #include "renderer/r_shader.h"
@@ -570,6 +571,19 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
                                mdxModel_t const *model)
 {
     bool forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
+    texture_t const *skin = entity->skin;
+    uint32_t skin_slot = entity->skin_slot;
+    /* Cliff/cave meshes usually have an empty TEXS path for replacement ID 11.
+     * Resolve their map-specific image only when an explicit skin is absent. */
+    if (!skin) {
+        FOR_LOOP(i, model->num_textures) {
+            if (model->textures[i].replaceableID == 11) {
+                skin = R_W3CliffReplacementAt(entity->origin.x, entity->origin.y);
+                skin_slot = 11;
+                break;
+            }
+        }
+    }
     color32_t const color = (entity->tint_valid || entity->tint.a) ? entity->tint : COLOR32_WHITE;
     vec4_t const tint = {
         BYTE2FLOAT(color.r), BYTE2FLOAT(color.g),
@@ -590,7 +604,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
         material = MDLX_GetMaterialAtIndex(geoset, model);
         if (MDLX_RenderPhaseIncludesPass(tr.render_phase, false, translucent_instance) &&
             MDLX_MaterialHasPass(material, false)) {
-            MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, entity->skin_slot, forceUnshaded, entity->frame, &tint, false);
+            MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, false);
         }
     }
 
@@ -608,7 +622,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
             if (MDLX_IsGeosetVisible(model, geoset, entity->frame) &&
                 MDLX_MaterialHasPass(material, true))
             {
-                MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, entity->skin_slot, forceUnshaded, entity->frame, &tint, true);
+                MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, true);
             }
         }
         return;
@@ -637,7 +651,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
 
     FOR_LOOP(i, drawCount) {
         mdxGeoset_t const *geoset = drawOrder[i].geoset;
-        MDLX_RenderGeoset(model, geoset, drawOrder[i].material, entity->team&TEAM_MASK, entity->skin, entity->skin_slot, forceUnshaded, entity->frame, &tint, true);
+        MDLX_RenderGeoset(model, geoset, drawOrder[i].material, entity->team&TEAM_MASK, skin, skin_slot, forceUnshaded, entity->frame, &tint, true);
     }
 
     if (drawOrder != stackDrawOrder) {

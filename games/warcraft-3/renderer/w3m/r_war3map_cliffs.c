@@ -216,6 +216,27 @@ static texture_t const *R_LoadCliffTexture(uint32_t cliffID, char tileset, cliff
     return entry->texture;
 }
 
+/* Terrain cave special doodads use MDX replaceable texture slot 11. Choose
+ * the same tileset cliff image as the W3E cell beneath the instance, rather
+ * than binding a white fallback or hardcoding Cliff0 across every map. */
+texture_t const *R_W3CliffReplacementAt(float world_x, float world_y) {
+    war3map_t const *map = (war3map_t const *)tr.world;
+    if (!map || !map->vertices || map->width < 2 || map->height < 2 || !map->num_cliffs)
+        return NULL;
+    int x = (int)floorf((world_x - map->center.x) / TILE_SIZE);
+    int y = (int)floorf((world_y - map->center.y) / TILE_SIZE);
+    x = MAX(0, MIN(x, (int)map->width - 2));
+    y = MAX(0, MIN(y, (int)map->height - 2));
+    uint32_t slot = R_CliffTexture(map, x, y);
+    if (slot >= map->num_cliffs) return NULL;
+    uint32_t cliff_id = map->cliffs[slot];
+    if (cliff_id == NO_CLIFF) return NULL;
+    w3CliffType_t const *row = R_CliffType(cliff_id);
+    if (!row || !row->texDir || !row->texFile || !*row->texFile) return NULL;
+    cliffData_t data = { .texDir = row->texDir, .texFile = row->texFile };
+    return R_LoadCliffTexture(cliff_id, map->tileset, &data);
+}
+
 /* Like SC2, only snap mesh edges that border emitted terrain, leaving stacked/internal faces intact. */
 static bool R_CliffGroundJoin(war3map_t const *map, vec3_t *pos) {
     float gx = (pos->x - map->center.x) / TILE_SIZE, gy = (pos->y - map->center.y) / TILE_SIZE;

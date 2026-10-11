@@ -376,3 +376,24 @@ progress, including the same-map reload. Use actual `map` commands in an `exec` 
 startup `+map` arguments are cvar assignments, so the last value wins instead of scheduling multiple transitions.
 
 LAN loading uses bounded startup pages and an engine-owned client map reader; see [LAN lobby and startup](../../architecture/network.md#lan-lobby-and-startup) for the timeout, UDP-size, and remote-only import-crash fixes.
+
+### Special terrain doodad cave placement and cliff replacement textures
+
+The 16-byte special-doodad records after the ordinary `war3map.doo` placements
+are terrain-cell anchored, not conventional world-space doodad transforms. The
+last two words name the minimum tile coordinates. The second word is reserved
+metadata and must not be added to the sampled ground height. Warcraft's
+`Doodads.slk` `pathTex` defines a footprint in 4-pixel-per-cell coordinates.
+The model is centred at `(map.center + tile * 128 + pathTexPixelSize * 16)`
+per XY axis, with `fixedRot` and `defScale` supplied by the SLK row. The
+original footprint remains authored data, not a hardcoded cave offset.
+
+Models with MDX replacement ID 11 use the nearby W3E-selected `CliffTypes.slk`
+texture (`texDir`/`texFile`) from the current map tileset. Do not make slot 11
+white or replace it globally with a fixed Cliff0: the correct cliff tile varies
+by map location and tileset. Explicit unit/destructable skins retain priority.
+
+Special terrain doodads can also suppress ground/cliff cells beneath their
+pathing footprint. The currently implemented model placement/skin correction
+does not yet remove these renderer-owned cells; inspect actual map data before
+claiming that cave interiors and terrain occlusion match retail.

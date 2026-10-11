@@ -755,6 +755,32 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     ps->name = clent->client->jass.name;
 }
 
+/* Special war3map.doo XY is the pathing footprint's lower-left W3E
+ * cell, unlike ordinary doodads' world-space point placements. */
+static vec3_t G_CenterSpecialDoodad(vec3_t min_corner, pathTex_t const *footprint) {
+    if (footprint) {
+        min_corner.x += (float)footprint->width * (TILE_SIZE / 8.0f);
+        min_corner.y += (float)footprint->height * (TILE_SIZE / 8.0f);
+    }
+    min_corner.z = 0.0f;
+    return min_corner;
+}
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+TEST(wc3_doodad, special_pathing_footprint_centers_model) {
+    pathTex_t footprint = { .width = 16, .height = 8 };
+    vec3_t origin = G_CenterSpecialDoodad((vec3_t){ 1000.0f, -400.0f, 99.0f }, &footprint);
+    T_FEQ(origin.x, 1256.0f, 0.001f);
+    T_FEQ(origin.y, -272.0f, 0.001f);
+    T_FEQ(origin.z, 0.0f, 0.001f);
+    origin = G_CenterSpecialDoodad((vec3_t){ 10.0f, 20.0f, 30.0f }, NULL);
+    T_FEQ(origin.x, 10.0f, 0.001f);
+    T_FEQ(origin.y, 20.0f, 0.001f);
+    T_FEQ(origin.z, 0.0f, 0.001f);
+}
+#endif
+
 void G_SpawnEntities(void) {
     mapInfo_t const *mapinfo = CM_GetMapInfo();
     doodad_t const *entities = CM_GetDoodads();
@@ -843,8 +869,14 @@ void G_SpawnEntities(void) {
         ent->s.scale = doodad->scale.x;
         if (doodad->specialDoodad) {
             Doodads_t const *row = G_Doodad(doodad->doodID);
+            /* Unlike ordinary doodads, special placements store the minimum
+             * W3E tile of their pathing footprint. The pathTex is 4 pixels
+             * per terrain cell; each cell is 128 world units. */
+            pathTex_t *footprint = M_LoadPathTex(row->pathTex);
+            ent->s.origin = G_CenterSpecialDoodad(ent->s.origin, footprint);
+            if (footprint) gi.MemFree(footprint);
             ent->s.angle = DEG2RAD(row->fixedRot);
-            ent->s.scale = row->defScale;
+            ent->s.scale = row->defScale > 0.0f ? row->defScale : 1.0f;
         }
         SP_CallSpawn(ent);
         if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (uint32_t)-1)

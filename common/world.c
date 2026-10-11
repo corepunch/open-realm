@@ -531,7 +531,14 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
                 }
                 doodad->position.x = world.map->center.x + x * TILE_SIZE;
                 doodad->position.y = world.map->center.y + y * TILE_SIZE;
-                doodad->position.z = CM_GetHeightAtPoint(doodad->position.x, doodad->position.y) + (int32_t)z;
+                /* The second special-record integer is reserved metadata, not
+                 * an elevation. Terrain doodad models are positioned at Z=0. */
+                (void)z;
+                doodad->position.z = 0.0f;
+                if (x >= world.map->width || y >= world.map->height) {
+                    MemFree(doodad);
+                    continue;
+                }
                 ADD_TO_LIST(doodad, world.doodads);
             }
         }
