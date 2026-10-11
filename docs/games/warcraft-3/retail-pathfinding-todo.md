@@ -56,6 +56,11 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **290 done / 336 tasks; 46 remaining.**
+Payoff294 routes queued Build notifications through shared point activation,
+with callback-discard indicator cleanup and cold-save/nested Move/Stop/removal
+regressions. Twelve controlled original append/dispatch cases and unchanged293
+Build/263 Shift captures support the contract. Wider construction timing and
+inverses keep ORDER-01.16 open; no task count changes. See [queued Build](build-repair-routing.md#queued-build-publishes-only-when-activated-payoff294).
 Payoff293 integrates accepted Build/rawcode and primary Human Repair head
 ownership, preserves queues on rejection and clears old successors on accepted
 native replacement. Two original observed repeats and an uninstrumented control

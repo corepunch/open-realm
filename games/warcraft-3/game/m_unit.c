@@ -1284,7 +1284,7 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
         self->current_order_id=queued.order_id;
         /* Busy693490 appends without notification.67abe0 publishes the new
          * user head before its task, including a lost target's point event. */
-        if(queued.target_type==UNIT_ORDER_TARGET_POINT)
+        if(queued.target_type==UNIT_ORDER_TARGET_POINT || queued.target_type==UNIT_ORDER_TARGET_BUILD)
             G_PublishIssuedPointOrder(self,queued.order_id,&queued.point,queued.issuer_player,queued.order);
         else if(queued.target_type==UNIT_ORDER_TARGET_ENTITY) {
             edict_t *target=unit_queued_target(&queued);
@@ -1292,8 +1292,13 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
             else G_PublishIssuedPointOrder(self,queued.order_id,&queued.point,queued.issuer_player,queued.order);
         } else if(queued.target_type==UNIT_ORDER_TARGET_NONE)
             G_PublishIssuedImmediateOrder(self,queued.order_id,queued.issuer_player,queued.order);
-        if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self))return true;
-        if(G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision)return true;
+        if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self) ||
+           (G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision)) {
+            /* Pop transferred ownership before callbacks. A discarded command
+             * still owns presentation state that its ability must release. */
+            S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_CANCEL);
+            return true;
+        }
         /* Instant Stop can retire the public head without retaining a task.
          * Its callback does not prevent the original outer task construction. */
         uint32_t head=self->current_order_id;

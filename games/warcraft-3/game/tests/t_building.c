@@ -7237,4 +7237,104 @@ TEST(wc3_building, build293_issued_callback_replaces_accepted_head) {
     reset_entities();setup_test_world();
 }
 
+/* Build is a point packet: busy append retains it, and activation alone notifies. */
+static slkTestData_t *build294_profiles(UnitProfile_t rows[2]) {
+    rows[0] = *G_UnitProfile(MAKEFOURCC('h','p','e','a'));
+    rows[1] = *G_UnitProfile(MAKEFOURCC('h','b','a','r'));
+    rows[0].id = MAKEFOURCC('h','p','e','a');
+    rows[1].id = MAKEFOURCC('h','b','a','r');
+    rows[0].builds = "hbar";
+    slkTestData_t table = {.rows = rows, .count = 2};
+    return G_SetProfileRows(&table);
+}
+static edict_t *build294_setup(void) {
+    reset_entities();setup_test_world();
+    edict_t *worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
+    worker->stand = unit_stand;
+    gameClient_t *client = G_GetPlayerClientByNumber(worker->s.player);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 30000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 30000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    return worker;
+}
+static unsigned build294_points;
+static uint32_t build294_head;
+static unsigned build294_action;
+static void build294_point_event(edict_t *worker) {
+    build294_points++;
+    build294_head = worker->current_order_id;
+    if (build294_head != MAKEFOURCC('h','b','a','r')) return;
+    T_EQ(worker->build_project, 0);
+    switch (build294_action) {
+    case 1: G_IssueUnitPointOrder(worker, "move", &(vec2_t){-256,128}, false, 0, 0); break;
+    case 2: order_stop(worker); break;
+    case 3: G_DeferFreeEdict(worker); break;
+    }
+}
+
+TEST(wc3_building, build294_queued_notification_waits_for_activation_and_cold_save) {
+    UnitProfile_t profiles[2];slkTestData_t *old = build294_profiles(profiles);
+    FOR_LOOP(saved,2) {
+        edict_t *worker = build294_setup();
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){-128,-256}, false, 0, 0));
+        build294_points = build294_head = build294_action = 0;
+        G_TestIssuedPointObserver(build294_point_event);
+        T_ASSERT(G_IssueUnitBuildOrder(worker, MAKEFOURCC('h','b','a','r'), &(vec2_t){64,64}, true, 0));
+        T_EQ(build294_points, 0);
+        T_EQ(worker->current_order_id, G_OrderId("move"));
+        T_EQ(G_UnitQueuedOrderCount(worker), 1);
+        edict_t *preview = building_queued_build_preview(worker, 0);
+        T_NOT_NULL(preview);uint32_t const generation = preview ? preview->spawn_time : 0;
+        if (saved) {
+            cstring_t file = Test_TempPath("build294-queued.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        }
+        build294_points = 0;
+        unit_stand(worker);
+        T_EQ(build294_points, 1);T_EQ(build294_head, MAKEFOURCC('h','b','a','r'));
+        T_EQ(worker->current_order_id, MAKEFOURCC('h','b','a','r'));
+        T_EQ(worker->build_project, MAKEFOURCC('h','b','a','r'));
+        T_EQ(G_UnitQueuedOrderCount(worker), 0);
+        T_ASSERT(!preview || !preview->inuse || preview->spawn_time != generation);
+        T_NOT_NULL(worker->build_preview);
+        G_TestIssuedPointObserver(NULL);
+    }
+    reset_entities();setup_test_world();
+    free(G_SetProfileRows(old));free(old);
+}
+
+TEST(wc3_building, build294_activation_callback_keeps_nested_owner_and_releases_indicator) {
+    UnitProfile_t profiles[2];slkTestData_t *old = build294_profiles(profiles);
+    FOR_LOOP(mode,3) {
+        edict_t *worker = build294_setup();
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){-128,-256}, false, 0, 0));
+        T_ASSERT(G_IssueUnitBuildOrder(worker, MAKEFOURCC('h','b','a','r'), &(vec2_t){64,64}, true, 0));
+        edict_t *preview = building_queued_build_preview(worker, 0);
+        T_NOT_NULL(preview);uint32_t const generation = preview ? preview->spawn_time : 0;
+        build294_points = build294_head = 0;build294_action = mode + 1;
+        G_TestIssuedPointObserver(build294_point_event);
+        unit_stand(worker);
+        T_EQ(build294_points, mode ? 1 : 2);
+        T_EQ(G_UnitQueuedOrderCount(worker), 0);
+        T_ASSERT(!preview || !preview->inuse || preview->spawn_time != generation);
+        if (!mode) {
+            T_EQ(worker->current_order_id, G_OrderId("move"));
+            T_EQ(worker->build_project, 0);T_NULL(worker->build_preview);
+            T_NOT_NULL(worker->goalentity);
+            if (worker->goalentity) T_EQ(worker->goalentity->s.origin2.x, -256.0f);
+        } else if (mode == 1) {
+            /* Instant Stop leaves no task, so original outer dispatch resumes. */
+            T_EQ(worker->current_order_id, 0);
+            T_EQ(worker->build_project, MAKEFOURCC('h','b','a','r'));
+            T_NOT_NULL(worker->build_preview);
+        } else {
+            T_ASSERT(G_IsDeferredFree(worker));
+            T_EQ(worker->build_project, 0);T_NULL(worker->build_preview);
+        }
+        G_TestIssuedPointObserver(NULL);
+    }
+    reset_entities();setup_test_world();
+    free(G_SetProfileRows(old));free(old);
+}
+
 #endif

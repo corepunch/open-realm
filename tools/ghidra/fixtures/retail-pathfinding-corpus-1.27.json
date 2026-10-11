@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "248 executable original/evidence contracts;529 total entries; provenance and limitations remain per-entry.",
+  "scope": "249 executable original/evidence contracts;530 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53299,6 +53299,57 @@
       "exclusions": [
         "No complete ORDER-01.16 closure: construction-notification order, original pending Build underneath Repair, queued Build publication timing, exact Undead summon clock and broader inverse/refund/death/reuse compositions remain open. This is not complete original work-journey or performance parity."
       ]
+    },
+    {
+      "id": "oracle-build294",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_build294.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "build294.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 264
+        },
+        "original_calls": {
+          "equal": 24
+        },
+        "engine": {
+          "length": 2
+        },
+        "retail_build": {
+          "length": 4
+        },
+        "retail_queue": {
+          "length": 5
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": [
+        "Twelve controlled original append/dispatch cases, repeated twice, execute unmodified canonical registry, copy, linking and shared point-subtype branches. Event receiver and ability execution are supplied boundaries, not complete construction callbacks.",
+        "Existing immutable293 Frida Build factory/current-head captures and263 genuine Shift Attack/Repair queue captures are reverified unchanged. There is no newly captured public UI Shift-Build trajectory.",
+        "Engine queued Build notifies only at activation and releases its consumed indicator on nested callback discard. Production cold-save, nested Move, instant Stop and pending removal regressions cover ownership; full construction notification ordering, transient Repair resumption, Undead clock and refund/death/reuse compositions remain open. No broad task closure or performance claim."
+      ],
+      "exclusions": [
+        "Engine queued Build notifies only at activation and releases its consumed indicator on nested callback discard. Production cold-save, nested Move, instant Stop and pending removal regressions cover ownership; full construction notification ordering, transient Repair resumption, Undead clock and refund/death/reuse compositions remain open. No broad task closure or performance claim."
+      ]
     }
   ],
   "fixtures": [
@@ -54197,7 +54248,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e6e941d970118bd52d32995b50923ae43e3bb41fadd68338ac335fae7f8c784e"
+      "sha256": "bfadbd7877c0a6bd483bd1c53ae7c5e72c1edc4544e0bd0dbee05217704cb74d"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55989,7 +56040,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "bc0b415da240e077fd911bfa00d27b996b75ca011bd992baa4ad2920f7eb7325"
+      "sha256": "eed115cb66b6d0848ffeda72fd1c6418e0a11a0dcdc01cbcc00e129892dd66e0"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -56001,11 +56052,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "588873b36c14ba16ae7314fc779146f9c688da89632976bcc56b875e5606dc11"
+      "sha256": "0e8226a11c67a2118a4117f90eb4c49c70c72cb6d7652a90521db00d45787e34"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "811e997b665520988272281384aedc44168a3240ec75b08119150b0d4bbdd245"
+      "sha256": "40314b6380e99f5fa86cac6bffed9d9d5be69911c5b3832c52dc47f4b065987d"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -56953,7 +57004,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "df53ddcb8aff0f80a59180b7a21f5a71c0c3db5b6a245c2a1d65d2a1408b6df7"
+      "sha256": "f07e050db90188682c5c8d1c7c93a89993421095aee27becef76b5bb6a02da2a"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -57085,7 +57136,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_building.c",
-      "sha256": "00e5cb1f45b9914c160defd164a87bac6c9f5cd4ca85a8cd6d0d853d9371db15"
+      "sha256": "98c701106bdd7fbf82081c1e0f0661796219ab3e6adb417dadd298b8c7460d8a"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
@@ -61245,7 +61296,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_build.c",
-      "sha256": "4bf2a0eb0a77950fd6365ea87f619d9dea859538b24244abf85c1cb0f8fc1a71"
+      "sha256": "593eb6ee954590962c9507e1b741febdb3fee272688a7e7ea99d63b250a07f08"
     },
     {
       "path": "tools/frida/research/build293_make_map.py",
@@ -61281,11 +61332,31 @@
     },
     {
       "path": "docs/games/warcraft-3/build-repair-routing.md",
-      "sha256": "30a6c262a8cb436ee94460e766bc2c3885b576b54e13229298af633f779c711d"
+      "sha256": "822c346c8e3c84a94a300c780ad46222dbf5a98bad000a11c2b4cabb7f766ee4"
     },
     {
       "path": "docs/games/warcraft-3/building-construction.md",
       "sha256": "f86e5257ada6847d4e8a75de845dfd51b08f41de3ac320d32e1328e25f0fbd1e"
+    },
+    {
+      "path": "tools/ghidra/research/Build294Evidence.java",
+      "sha256": "a6cd91e280d8585c8f04982dfc5a7ddb6e9ff648ae3899e319195775f8f3cc76"
+    },
+    {
+      "path": "tools/ghidra/research/build294_oracle.py",
+      "sha256": "685c5d462ca2298079c098254036aec646452692d98fa9e40d966bb8e62b66e6"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_build294.py",
+      "sha256": "60451f70c0a999e1468b5d4f989613b7d0a28da5a5df7cd4f9668d749f8ef703"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-build294-1.27.json",
+      "sha256": "df6858e6105c1819c130390d04965bb5173c099e5fe72d59fecabbff8d04c53a"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_build294.py",
+      "sha256": "221d97c2f88871bfb81f5b2d35c927e700b8478db2860ce8bb2df0ea133808f1"
     }
   ]
 }

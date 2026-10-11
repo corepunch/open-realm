@@ -271,7 +271,6 @@ bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const 
             G_FreeEdict(preview);
             return false;
         }
-        G_PublishIssuedPointOrder(builder, building_id, &snapped, issuer_player, "build");
         return true;
     }
     if (!G_ExecuteBuildOrder(builder, building_id, &snapped)) return false;

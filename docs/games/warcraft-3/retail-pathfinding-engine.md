@@ -18257,3 +18257,14 @@ callbacks are covered by new production/save regressions and repeated original
 captures (2211 public markers,256 selected native boundaries). See
 [Build ownership](build-repair-routing.md#build-approach-and-human-repair-work-own-distinct-heads-payoff293)
 for the still-open notification timing and transient-order boundaries.
+
+
+## Queued Build enters shared point activation (Payoff294)
+
+Busy Build append no longer emits an issued event. Activation publishes the
+structure rawcode before its ability, preserving nested Move, instant Stop and
+removal behavior. Callback discard also releases the popped command's owned
+indicator. Twelve controlled complete original append/dispatch cases, repeated
+execution,264 instruction guards and unchanged293/263 Frida evidence support
+this shared point contract. See [queued Build](build-repair-routing.md#queued-build-publishes-only-when-activated-payoff294)
+for production/save regressions and remaining construction-lifecycle scope.

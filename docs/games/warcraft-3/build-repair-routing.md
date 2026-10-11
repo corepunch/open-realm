@@ -111,3 +111,62 @@ saved readback is identical and `MapPathfinding.java` retains the mapping.
 Raw captures, failed attempts, map assets, sources and test artifacts are archived
 under `research/ORDER-01.16/payoff293/` in the1.27 report root.
 See also [building construction](building-construction.md).
+
+
+## Queued Build publishes only when activated (Payoff294)
+
+Build's rawcode enters the original point-order factory at `6f206a20`. Neither
+`Unit_AppendUserOrder` (`6f693490`) nor `Unit_DispatchUserOrderHead` (`6f67abe0`)
+contains a Build command exception. Busy append retains the existing head and
+notifies its internal task with `d02a5`; it does not publish an issued event.
+When the point packet becomes the head, dispatch publishes its point event
+before querying the internal task and executing the ability.
+
+Twelve controlled original-code cases use two structure commands, idle/busy
+admission and none/nested-task/instant-Stop callbacks. The full append and
+user-head dispatcher run unchanged, including canonical registry lookup, copy,
+predecessor linking, head/tail/count writes and subtype checks. The script-event
+receiver and ability execution are supplied boundaries. The verifier repeats
+all twelve cases twice and checks264 original instruction encodings. Existing
+Payoff293 public Build captures establish the point factory/head binding;
+Payoff263 genuine Shift Attack/Repair captures establish shared busy-queue
+publication. Both prior evidence bundles are reverified unchanged. There is no
+newly captured public UI Shift-Build placement/work trajectory.
+
+The engine's Build-only append notification is removed. `G_UnitStartNextQueuedOrder`
+now treats its typed Build point like the other point packets, publishing the
+new head before invoking the Build owner. Nested Move installs an active task
+and prevents the outer Build. Instant Stop leaves no task, so outer dispatch
+can continue with its public head absent. Deferred removal prevents work.
+
+The popped command is already owned by the dispatch stack when callbacks run.
+If they discard it, the dispatcher now invokes that owner's queue-cancellation
+operation. For Build this releases the consumed construction indicator. Clearing
+the remaining queue cannot release a command already popped from it, which was
+the source of the orphaned-indicator risk. Successful execution continues to
+release the indicator in the Build owner before creating the active preview.
+No new pool, entity scan, frame callback or serialized field is introduced.
+
+`wc3_building.build294*` drives the production append/stand/activation paths,
+including cold saves, nested Move, instant Stop and pending removal. Its authored
+profile catalog survives save rebinding; per-instance pointer overrides would
+not establish this contract. Seventeen of57 assertions fail before the fix.
+Preliminary zero-test/invalid-player test setups are archived and rejected.
+The final verifier also exercises construction, order lifecycle/reentry,
+subscribers, interrupts and save neighbors in Classic/TFT.
+
+This resolves queued Build's publication and consumed-indicator ownership
+within ORDER-01.16. It does not close the broader leaf: construction-start
+callback timing, transient Build below Human Repair, exact Undead summon clock,
+and the wider placement/refund/death/reuse matrix remain required.
+
+```sh
+python tools/ghidra/verify_wc3_pathing_build294.py \
+  --binary /path/to/retail/game.dll --data build/tests \
+  --report /tmp/build294-fresh.json
+```
+
+The original-code cases require Unicorn. `Build294Evidence.java` persists the
+function comments, assembly/xrefs and identical saved readback; mapping notes
+are retained in `MapPathfinding.java`. Sources, original cases and test artifacts
+are archived under `research/ORDER-01.16/payoff294/` in the1.27 report root.
