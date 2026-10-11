@@ -1757,7 +1757,6 @@ typedef struct {
     bool restore_invulnerable;
     bool restore_paused;
     bool restore_hidden;
-    uint32_t worker_release_time; /* Undead summon animation release time; 0 for other strategies */
     float progress;
     float duration_ms; /* override of UnitBalance buildTime for Tiny Structures; 0 uses normal duration */
     bool paid;
@@ -2284,6 +2283,7 @@ struct edict_s {
     float attack_cooldown_remaining;
     uint32_t attack_cooldown_end_time;
     uint32_t attack_backswing_end_time;
+    abilityPrimaryTimer_t build_summon_wait; /* Unit-owned d019d work completion. */
     abilityPrimaryTimer_t attack_speed_cap; /* Independent of the public order. */
     abilityPrimaryTimer_t combat_help; /* Unit's primary d01b3 suppression request. */
     abilityPrimaryTimer_t attack_swing; /* Attack d01b2: completion independent of weapon cooldown. */
@@ -3847,6 +3847,7 @@ float G_BuildApproachDistance(uint32_t building_id);
 bool G_StartWorkerConstruction(edict_t *builder, edict_t *building, constructionType_t type);
 bool G_StartHumanConstruction(edict_t *builder, edict_t *building);
 bool G_StartOrcConstruction(edict_t *builder, edict_t *building);
+void S_BeginUndeadConstructionWork(edict_t *worker);
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building);
 bool G_StartNightElfConstruction(edict_t *builder, edict_t *building);
 bool G_StartNagaConstruction(edict_t *builder, edict_t *building);

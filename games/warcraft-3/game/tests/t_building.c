@@ -4477,7 +4477,7 @@ TEST(wc3_building, orc_construction_restores_worker_state_after_cancel) {
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
 }
 
-TEST(wc3_building, undead_worker_restore_releases_script_pause_suppression) {
+TEST(wc3_building, undead_parent_teardown_preserves_script_pause_suppression) {
     setup_test_world();
     edict_t *worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
     edict_t *building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,0);
@@ -4485,8 +4485,12 @@ TEST(wc3_building, undead_worker_restore_releases_script_pause_suppression) {
     S_SetUnitPaused(worker,true);
     T_EQ(worker->movement.repulse.disable_depth,1);
     G_StopConstruction(building);
+    T_ASSERT(worker->paused);
+    T_ASSERT(worker->movement.repulse.pause_suppression);
+    T_EQ(worker->movement.repulse.disable_depth,1);
+    S_SetUnitPaused(worker,false);
+    level.pathing_clock=worker->movement.pause_deadline;S_RunMoveTimers();
     T_ASSERT(!worker->paused);
-    T_ASSERT(!worker->movement.repulse.pause_suppression);
     T_EQ(worker->movement.repulse.disable_depth,0);
 }
 
@@ -4494,7 +4498,7 @@ TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) 
     edict_t *worker;
     edict_t *building;
     UnitBalance_t balance;
-    uint32_t release_time;
+    wc3Clock_t release_time;
 
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -4505,16 +4509,17 @@ TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) 
     level.time = 1000;
 
     T_ASSERT(G_StartUndeadConstruction(worker, building));
-    release_time = building->construction->worker_release_time;
+    release_time = worker->build_summon_wait.deadline;
     T_EQ(building->construction->type, CONSTRUCTION_UNDEAD);
     T_ASSERT(building->construction->worker == worker);
     T_ASSERT(!building->construction || !building->construction->worker_inside);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
     T_ASSERT(!worker->paused);
     T_ASSERT(!worker->invulnerable);
-    T_ASSERT(release_time > level.time);
+    T_ASSERT(release_time.time > level.pathing_clock.time);
 
-    level.time = release_time;
+    level.pathing_clock = release_time;
+    S_RunAbilityTimers();
     G_RunConstructionFrame(building);
     T_ASSERT(building->construction);
     T_NULL(building->construction->worker);
@@ -7183,7 +7188,14 @@ TEST(wc3_building, build293_public_head_follows_approach_and_race_work) {
         worker=g_edicts+slot;target=g_edicts+parent;
         T_EQ(worker->current_order_id,kind?MAKEFOURCC('h','b','a','r'):G_OrderId("repair"));
         T_EQ(target->construction->type,kinds[kind]);
-        G_StopConstruction(target);T_EQ(worker->current_order_id,0);T_ASSERT(!worker->construction_held);
+        G_StopConstruction(target);
+        /* Original296 parent destruction leaves Undead work until its own
+         * d019d deadline. Retain the original terminal-order assertion. */
+        if(kinds[kind]==CONSTRUCTION_UNDEAD) {
+            T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+            level.pathing_clock=worker->build_summon_wait.deadline;S_RunAbilityTimers();
+        }
+        T_EQ(worker->current_order_id,0);T_ASSERT(!worker->construction_held);
     }
     reset_entities();building_restore_repair_data(old,rows);setup_test_world();
 }
@@ -7418,6 +7430,151 @@ TEST(wc3_building, build295_start_callback_precedes_work_and_preserves_nested_or
     }
     jass_callbyname(level.vm,"finish",false);
     reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
+
+/* Original544350 ->69c620: unit's one-second work wait, not the structure clock. */
+TEST(wc3_building, build296_summon_wait_is_independent_and_replacement_safe) {
+    reset_entities();setup_test_world();
+    slkTestData_t *rows=NULL,*old=building_install_repair_data(&rows);
+    T_ASSERT(run_test_jass(
+        "globals\nunit worker=null\nunit structure=null\ntrigger started=null\nendglobals\n"
+        "function onStart takes nothing returns nothing\nset structure=GetConstructingStructure()\nendfunction\n"
+        "function create takes nothing returns nothing\nset structure=null\n"
+        "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"
+        "function action takes nothing returns nothing\nlocal integer kind=GetUnitUserData(worker)\n"
+        "if kind==2 then\ncall PauseUnit(worker,true)\n"
+        "elseif kind==3 then\ncall PauseUnit(structure,true)\n"
+        "elseif kind==4 then\ncall BJassAssert(IssuePointOrder(worker,\"move\",-256,128),\"replace summon with Move\")\n"
+        "elseif kind==5 then\ncall RemoveUnit(structure)\n"
+        "elseif kind==6 then\ncall BJassAssert(IssueImmediateOrder(worker,\"stop\"),\"stop summon\")\n"
+        "elseif kind==7 then\ncall KillUnit(structure)\n"
+        "elseif kind==8 then\ncall BJassAssert(IssueBuildOrderById(worker,'hbar',-256,128),\"replace summon with Build\")\nendif\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall PauseUnit(worker,false)\nendfunction\n"
+        "function finish takes nothing returns nothing\ncall DestroyTrigger(started)\nendfunction\n"
+        "function main takes nothing returns nothing\nset started=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(started,Player(0),ConvertPlayerUnitEvent(26),null)\n"
+        "call TriggerAddAction(started,function onStart)\nendfunction\n"));
+    FOR_LOOP(kind,9) {
+        jass_callbyname(level.vm,"create",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);if(!worker)break;
+        UnitData_t data=*worker->data.UnitData;data.race=STR_UNDEAD;worker->data.UnitData=&data;
+        UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+        worker->user_data=kind;
+        gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+        level.time=360;level.pathing_clock=(wc3Clock_t){.time=wc3_float(0x3eb851e1),.span=300};
+        T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){64,64}));
+        T_NOT_NULL(worker->goalentity);if(!worker->goalentity)break;
+        worker->s.origin2=worker->goalentity->s.origin2;build_build(worker);
+        edict_t *building=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','b','a','r'))building=ent;
+        T_NOT_NULL(building);if(!building)break;
+        UnitBalance_t balance=*building->data.UnitBalance;balance.buildTime=kind==1?12:3;building->data.UnitBalance=&balance;
+        T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+        level.time=560;level.pathing_clock.time=wc3_add(wc3_float(0x3eb851e1),.2f);
+        jass_callbyname(level.vm,"action",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        if(kind==5) {G_FreeEdict(building);building=NULL;}
+        /* Engine-only same-owner replacement invariant: accepting a new Build
+         * must cancel work immediately, even though both moves use Build. */
+        if(kind==8) {T_ASSERT(!worker->build_summon_wait.active);T_NULL(building->construction->worker);}
+        if(kind==5 || kind==7)T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+        float due=wc3_add(wc3_float(0x3eb851e1),1);
+        level.time=1359;level.pathing_clock.time=nextafterf(due,-INFINITY);S_RunAbilityTimers();
+        if(kind<2 || kind==3 || kind==5 || kind==7)T_EQ(worker->current_order_id,MAKEFOURCC('h','b','a','r'));
+        level.time=1360;level.pathing_clock.time=due;S_RunAbilityTimers();
+        if(kind==2) {T_ASSERT(worker->paused);T_EQ(worker->current_order_id,MOVE_ORDER_SUSPENDED);}
+        else T_EQ(worker->current_order_id,kind==4?G_OrderId("move"):kind==8?MAKEFOURCC('h','b','a','r'):0);
+        if(kind==3) {T_ASSERT(building->paused);T_NULL(building->construction->worker);}
+        if(kind==4) {T_NOT_NULL(worker->goalentity);T_EQ(worker->goalentity->s.origin2.x,-256.0f);}
+        if(kind==2) {
+            level.pathing_clock.time=wc3_add(wc3_float(0x3eb851e1),1.4f);level.time=1760;
+            jass_callbyname(level.vm,"resume",false);
+            level.pathing_clock=worker->movement.pause_deadline;S_RunMoveTimers();
+            if(worker->currentmove && worker->currentmove->think)worker->currentmove->think(worker);
+            T_EQ(worker->current_order_id,0);T_ASSERT(!worker->paused);
+        }
+        level.time=3000;level.pathing_clock.time=3;S_RunAbilityTimers();
+        if(building && building->construction)G_RunConstructionFrame(building);
+        T_EQ(worker->current_order_id,kind==4?G_OrderId("move"):kind==8?MAKEFOURCC('h','b','a','r'):0);
+        if(building)G_FreeEdict(building);
+        G_FreeEdict(worker);CM_BakeStaticObstacles();
+    }
+    jass_callbyname(level.vm,"finish",false);
+    reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
+
+/* Persistence and epoch drain exercise the same production primary queue. */
+TEST(wc3_building, build296_summon_primary_request_survives_save_rebase_and_reuse) {
+    reset_entities();setup_test_world();
+    edict_t *worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,0);
+    worker->stand=unit_stand;
+    worker->current_order_id=MAKEFOURCC('h','b','a','r');
+    level.pathing_clock=(wc3Clock_t){.time=299.75f,.span=300};
+    T_ASSERT(G_StartUndeadConstruction(worker,building));
+    abilityTimerRequest_t request;
+    T_ASSERT(S_NextAbilityPrimaryTimer(&request));
+    T_ASSERT(request.proc==CAbilityBuild);T_EQ(request.deadline.time,300.75f);
+    uint32_t serial=request.sequence;
+    cstring_t save=Test_TempPath("summon296.bin");
+    T_ASSERT(WriteGame(save));
+    worker->build_summon_wait.active=false;S_ResetAbilityTimers();
+    T_ASSERT(ReadGame(save));
+    T_ASSERT(worker->currentmove==&build_move_summon);
+    T_ASSERT(S_NextAbilityPrimaryTimer(&request));T_EQ(request.sequence,serial);
+    T_EQ(request.deadline.time,300.75f);T_EQ(request.deadline.span,300.0f);
+    S_RebaseAbilityPrimaryTimers(300);
+    level.pathing_clock=(wc3Clock_t){.time=.75f,.epoch=1,.span=300};
+    T_ASSERT(S_NextAbilityPrimaryTimer(&request));
+    T_EQ(request.deadline.epoch,1);T_EQ(request.deadline.time,.75f);
+    level.scheduled_frame=true;
+    request.proc(NULL,A_PRIMARY_TIMER_FIRE,NULL);
+    level.scheduled_frame=false;
+    T_EQ(worker->current_order_id,0);T_NULL(worker->build);T_NULL(building->construction->worker);
+    T_ASSERT(!worker->build_summon_wait.active);
+    G_FreeEdict(worker);G_FreeEdict(building);remove(save);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_building, build296_summon_heap_orders_and_cancels_only_owned_waits) {
+    reset_entities();setup_test_world();
+    edict_t *workers[33],*buildings[33];
+    FOR_LOOP(i,33) {
+        workers[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),i*64,0);
+        buildings[i]=alloc_test_unit(MAKEFOURCC('h','b','a','r'),i*64,128);
+        level.pathing_clock=(wc3Clock_t){.time=i%5==0?.25f:(float)((i*13)%33)/64,.span=300};
+        workers[i]->stand=unit_stand;
+        workers[i]->current_order_id=MAKEFOURCC('h','b','a','r');
+        T_ASSERT(G_StartUndeadConstruction(workers[i],buildings[i]));
+    }
+    FOR_LOOP(i,33)if(i%3==1) {
+        S_IssueMoveOrder(workers[i],Waypoint_add(&(vec2_t){-256,128}),G_OrderId("move"));
+        T_ASSERT(!workers[i]->build_summon_wait.active);
+    }
+    /* Physical removal before expiry must not deliver to a reused slot. */
+    uint32_t retired=workers[0]-g_edicts;
+    G_FreeEdict(workers[0]);workers[0]=NULL;level.time+=1001;
+    edict_t *replacement=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,-128);
+    T_EQ(replacement-g_edicts,retired);
+    replacement->current_order_id=G_OrderId("holdposition");
+    float previous=0;unsigned fired=0;uint32_t previous_serial=0;
+    abilityTimerRequest_t request;
+    while(S_NextAbilityPrimaryTimer(&request) && request.proc==CAbilityBuild) {
+        T_ASSERT(request.deadline.time>=previous);
+        if(request.deadline.time==previous)T_ASSERT(request.sequence>previous_serial);
+        previous=request.deadline.time;previous_serial=request.sequence;
+        level.pathing_clock=request.deadline;
+        level.scheduled_frame=true;request.proc(NULL,A_PRIMARY_TIMER_FIRE,NULL);level.scheduled_frame=false;fired++;
+    }
+    T_EQ(fired,21);T_EQ(replacement->current_order_id,G_OrderId("holdposition"));
+    FOR_LOOP(i,33) {
+        if(workers[i]) {
+            T_EQ(workers[i]->current_order_id,i%3==1?G_OrderId("move"):0);
+            T_ASSERT(!workers[i]->build_summon_wait.active);G_FreeEdict(workers[i]);
+        }
+        G_FreeEdict(buildings[i]);
+    }
+    G_FreeEdict(replacement);reset_entities();setup_test_world();
 }
 
 #endif

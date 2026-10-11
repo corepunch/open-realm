@@ -1645,3 +1645,9 @@ and accepts those slots on restore, while rejecting null/nonzero generations,
 nonfinite fields and invalid live ownership. Runtime `ticking` remains unsaved.
 Earlier formats are rejected; network layouts are unchanged. See
 [completion boundaries](retail-pathfinding-engine.md#completion-callbacks-preserve-traversal-and-retirement-boundaries-payoff194).
+
+
+Save179 replaces the building's millisecond Undead release marker with the
+unit's `build_summon_wait` primary deadline/epoch/span/serial/active fields.
+The Build owner rebuilds its derived heap on load; no heap positions or process
+pointers are persisted. See [worker-clock contract](retail-pathfinding-engine.md#undead-work-completion-belongs-to-the-worker-clock-payoff296).

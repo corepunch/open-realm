@@ -18340,3 +18340,75 @@ checkpoint reports and exact built artifacts are retained under
 `research/ORDER-01.16/payoff295/` in the1.27 report root. This checkpoint resets
 the twelve-implementation-commit validation cadence. No frame-budget claim or
 broader task closure is made.
+
+
+## Undead work completion belongs to the worker clock (Payoff296)
+
+Original `544350` (`UndeadBuild_BeginUnitWorkWait`, virtual340 of `6fb18a18`)
+passes the registered `Math_RuntimeOne` scalar and scale zero to `69c620`.
+That generic unit producer cancels the prior `Unit+180` control and schedules
+`d019d`. The receiver is `690490`: pop the internal task head, then dispatch
+its successor. It also serves scripted unpause and removal; one second is
+specific to Undead construction work, not a global task-completion constant.
+
+Two read-only eight-scene original captures and an uninstrumented control agree
+on all794 public markers per run (2382 total). Both observed streams agree on
+104 native boundaries (208 total). The ordinary3-second and modified12-second
+structure both release their worker at the one-second work boundary. Pausing
+the structure, removing it, or killing it leaves that worker request running.
+Move, Stop and pausing the worker cancel it. Worker unpause schedules the
+existing .01-second suspension release, after which the completed Build head
+is gone; it does not resume the remaining construction-work wait.
+
+The frozen native rows retain exact request deadline words and cancellation
+flags. The observer's global primary-clock sample is not the request's queried
+producer time; do not derive the deadline by adding one to that sampled word.
+Dispatch records show the request clock at its exact deadline. No independent
+claim of complete preceding motion or every cross-clock word is made here.
+The full stream also retains zero-delay cleanup requests and one observer
+address reused for another unit identity during cleanup. Semantic checks track
+actual identity/work delay, rather than labeling every recorded request Build.
+
+The engine replaces the building-polled Warsmash2.267-second approximation with
+a unit-owned `abilityPrimaryTimer_t`, merged into the existing deterministic
+primary scheduler. Only active waits enter a derived heap: arm/cancel/pop are
+O(log active waits), earliest lookup is O(1); there is no new per-frame entity
+scan. Parent teardown drops references and leaves the wait alone. Order
+replacement and worker lifecycle cancel their own request before slot reuse.
+Save format179 stores deadline, epoch/span, serial and active state; heap indexes
+rebuild after load. Clock rebasing preserves the request through a300-second
+epoch boundary. No frame-budget or performance-target claim accompanies this
+correctness change.
+
+Three focused regressions cover eight public action paths, persistence/rebase,
+33 interleaved waits, cancellation and physical entity-slot reuse. A ninth
+engine-only action checks immediate cancellation when another Build replaces
+summon work under the same ability owner; it is not an additional claimed
+retail scene. The main
+regression first failed11 assertions against the old implementation. Older C
+helper tests expected parent teardown to release Undead work immediately;
+these assertions were changed only where the original removal/death/pause
+captures contradict them. The previous final-order assertion remains, with the
+worker's actual deadline advanced before checking it. Historical captured
+fixtures and literal retail golden headers are unchanged.
+
+`Build296Evidence.java` saves the function names/comments, xrefs and561 original
+instruction guards; saved annotations read back identically. The mapper and
+strict fresh-report verifier retain the same interpretation. New evidence is in
+`tools/ghidra/fixtures/retail-build296-1.27.json` and its compressed capture bundle.
+Reproduce affected engine validation with:
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_build296.py \
+  --binary /path/to/retail/game.dll --data /absolute/path/to/build/tests \
+  --report /tmp/build296-fresh.json
+```
+
+Broader ORDER-01.16 remains open. `543f00` statically validates a retained
+Haunted Mine parent and conditionally sends Smart; that continuation is not
+exercised or implemented by this ordinary Ziggurat clock chunk. Pending Human
+Repair resumption, cancellation/refund details and alternate producer runtime
+coverage also remain. Sources, map, observed/control streams, failing and passing
+regressions, saved Ghidra output and exact built artifacts are archived under
+`research/ORDER-01.16/payoff296/` in the1.27 report root. This is the first
+implementation commit after the Payoff295 full-validation checkpoint.

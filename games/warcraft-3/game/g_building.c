@@ -74,7 +74,6 @@ void G_ClearBuildPreview(edict_t *builder) {
     builder->build_preview = NULL;
     G_FreeEdict(preview);
 }
-#define WC3_UNDEAD_BUILD_WORK_MS 2267 // milliseconds; Warsmash CBehaviorUndeadBuild summon-work window
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
 #define WC3_PATH_BLOCKVISION 0x10
@@ -1643,7 +1642,6 @@ static bool G_PrepareConstruction(edict_t *building, constructionType_t type, bo
     building->construction->restore_invulnerable = false;
     building->construction->restore_paused = false;
     building->construction->restore_hidden = false;
-    building->construction->worker_release_time = 0;
     building->construction->progress = 0.0f;
     building->construction->duration_ms = 0.0f;
     building->construction->paid = false;
@@ -1708,6 +1706,7 @@ static bool G_StartWorkerConstructionInternal(edict_t *builder, edict_t *buildin
     bool inside = type == CONSTRUCTION_ORC || type == CONSTRUCTION_NAGA || type == CONSTRUCTION_NIGHTELF;
     if (!builder || !G_PrepareConstruction(building, type, type == CONSTRUCTION_HUMAN)) return false;
     uint32_t builder_spawn = builder->spawn_time, building_spawn = building->spawn_time;
+    uint32_t builder_revision = G_UnitMoveRevision(builder);
     construction_t *state = building->construction;
     /* Direct helpers retain their original work-before-attachment contract. */
     if (!notify_start) G_BeginConstructionWork(building);
@@ -1717,16 +1716,25 @@ static bool G_StartWorkerConstructionInternal(edict_t *builder, edict_t *buildin
     if (notify_start) {
         G_DispatchPlayerUnitEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
         /* Never bind a replacement occupying the same edict slot to this work. */
-        if (!building->inuse || building->spawn_time != building_spawn || building->construction != state) return true;
-        G_BeginConstructionWork(building);
+        bool parent_valid = building->inuse && building->spawn_time == building_spawn && building->construction == state;
+        if (parent_valid) G_BeginConstructionWork(building);
         if (!builder->inuse || builder->spawn_time != builder_spawn) return true;
+        /* The unit's wait survives parent removal even in construct-start. */
+        if (!parent_valid) {
+            if (type == CONSTRUCTION_UNDEAD && !G_IsDeferredFree(builder) &&
+                (G_UnitMoveRevision(builder) == builder_revision || !G_UnitHasActiveOrder(builder)))
+                S_BeginUndeadConstructionWork(builder);
+            return true;
+        }
         if (inside) {
             state->worker_work_active = true;
             S_AcquireUnitSeparationSuppression(builder);
             builder->invulnerable = true;
         }
     }
-    if (type == CONSTRUCTION_UNDEAD) state->worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
+    if (type == CONSTRUCTION_UNDEAD && !G_IsDeferredFree(builder) &&
+        (G_UnitMoveRevision(builder) == builder_revision || !G_UnitHasActiveOrder(builder)))
+        S_BeginUndeadConstructionWork(builder);
     if (type == CONSTRUCTION_NIGHTELF && G_ConstructionHasClassification(building, "ancient")) {
         state->consumes_worker = true;
         G_SetUnitFoodUsed(builder, 0);
@@ -1785,7 +1793,6 @@ static edict_t *G_ConstructionWorker(edict_t *building) {
         building->construction->worker = NULL;
         building->construction->worker_spawn_time = 0;
         building->construction->worker_inside = false;
-        building->construction->worker_release_time = 0;
         return NULL;
     }
     return worker;
@@ -1804,8 +1811,14 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
     building->construction->worker = NULL;
     building->construction->worker_spawn_time = 0;
     building->construction->worker_inside = false;
-    building->construction->worker_release_time = 0;
     if (!worker) return;
+    if (building->construction->type == CONSTRUCTION_UNDEAD) {
+        /*544350 schedules on the worker: destruction/completion of the parent
+         * drops references without canceling or completing that request. */
+        if (worker->build == building) worker->build = NULL;
+        if (worker->goalentity == building) S_SetMoveGoal(worker, &worker->goalentity, NULL);
+        return;
+    }
 
     if (completed && consumes) {
         /* The Wisp was already removed from Food Used at construction start. */
@@ -1846,7 +1859,8 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
  * inverse (KillUnit and completion do deliver it). Drop dead parent pointers,
  * retaining the worker-owned absence/work contributions until worker removal. */
 void G_DetachRemovedConstructionWorker(edict_t *building) {
-    if(!building || !building->construction || !building->construction->worker_inside)return;
+    if(!building || !building->construction || (!building->construction->worker_inside &&
+        building->construction->type != CONSTRUCTION_UNDEAD))return;
     edict_t *worker=G_ConstructionWorker(building);
     building->construction->worker=NULL;
     building->construction->worker_spawn_time=0;
@@ -1882,12 +1896,6 @@ void G_RunConstructionFrame(edict_t *building) {
         building->construction->type != CONSTRUCTION_NIGHTELF &&
         building->construction->type != CONSTRUCTION_NAGA &&
         building->construction->type != CONSTRUCTION_TINY) return;
-
-    if (building->construction->type == CONSTRUCTION_UNDEAD &&
-        building->construction->worker_release_time &&
-        G_Time() >= building->construction->worker_release_time) {
-        G_ReleaseConstructionWorker(building, false);
-    }
 
     building->construction->progress += (float)FRAMETIME;
     hp_gain = (hp->max_value - MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE)) *

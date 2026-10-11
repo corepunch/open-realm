@@ -55,7 +55,11 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**290 done / 336 tasks; 46 remaining.** Payoff295 fixes construction-start delivery at its retail observation boundary: full structure health and Build head precede Human Repair, with inside world presence already retired. Nested Human Move retains execution; instant Stop permits Repair. Two repeated25-scene original captures plus an uninstrumented control agree on3810 public markers; broader ORDER-01.16 stays open. See [construction callback stages](retail-pathfinding-engine.md#construction-start-precedes-work-and-retains-nested-ownership-payoff295).
+**290 done / 336 tasks; 46 remaining.** Payoff296 replaces the building-polled Undead summon approximation with the worker's one-second deterministic primary request. Parent pause/removal/death leave it running; Move/Stop and worker Pause cancel it. Two original repeats plus control agree2382 public markers, with208 native boundaries. Save179/rebase/reuse regressions accompany the implementation. Broader ORDER-01.16 remains open. See [worker clock](retail-pathfinding-engine.md#undead-work-completion-belongs-to-the-worker-clock-payoff296).
+
+Payoff295 stages full-health construction-start callbacks before race work,
+retaining nested Human Move and balancing inside worker suppression. Its full
+validation checkpoint resets the twelve-commit cadence; Payoff296 is1/12.
 
 Payoff294 routes queued Build notifications through shared point activation,
 with callback-discard indicator cleanup and cold-save/nested Move/Stop/removal

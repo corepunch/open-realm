@@ -32,7 +32,7 @@ static ability_t abilitylist[] = {
     { "BTLF", CAbilityTimedLife, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
     { "spellcast", CAbilitySpellCast, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
-    { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
+    { STR_CmdBuild, CAbilityBuild, AB_COMMAND | AB_PRIMARY_TIMER | AB_ENGINE_EVENTS, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
     { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Hold command policy
     { STR_CmdPatrol, CAbilityPatrol, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE, .orders = patrol_orders },  // Patrol — engine command
     { STR_CmdRally, CAbilityRally, AB_COMMAND },  // Rally — engine command
@@ -1486,7 +1486,10 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
     if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH ||
         msg == A_UNIT_REMOVING || msg == A_UNIT_RETIRE || msg == A_UNIT_REMOVE)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
-    if (msg == A_UNIT_SUSPEND) {S_AcquireScriptedAbilityDisables(ent);return true;}
+    if (msg == A_UNIT_SUSPEND) {
+        unit_dispatch_engine_event_abilities(ent,msg,payload);
+        S_AcquireScriptedAbilityDisables(ent);return true;
+    }
     if (msg == A_REQUIREMENTS_CHANGED)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, false, false) != 0;
     if (msg == A_UNIT_INIT)

@@ -176,3 +176,9 @@ Construction-start callbacks run synchronously before work starts: they see the
 Build head and full-health structure, with inside workers already hidden.
 Human Repair follows an instant callback Stop, while a live callback Move keeps
 execution and leaves construction paused. See [Payoff295 evidence and scope](retail-pathfinding-engine.md#construction-start-precedes-work-and-retains-nested-ownership-payoff295).
+
+
+Undead summon work now uses the worker's one-second primary completion request,
+independent of structure duration, pause and destruction. Move/Stop and worker
+Pause cancel it; teardown cannot steal a replacement order. See
+[Payoff296 clock evidence, persistence and scope](retail-pathfinding-engine.md#undead-work-completion-belongs-to-the-worker-clock-payoff296).

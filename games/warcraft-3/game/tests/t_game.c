@@ -5375,7 +5375,6 @@ TEST(wc3_save, construction_payment_round_trip) {
     unit->construction->worker_inside = true;
     unit->construction->consumes_worker = true;
     unit->construction->restore_invulnerable = true;
-    unit->construction->worker_release_time = 5678;
     unit->construction->restore_paused = true;
     unit->construction->restore_hidden = true;
     unit->construction->paid = true;
@@ -5392,7 +5391,6 @@ TEST(wc3_save, construction_payment_round_trip) {
     unit->construction->restore_invulnerable = false;
     unit->construction->restore_paused = false;
     unit->construction->restore_hidden = false;
-    unit->construction->worker_release_time = 0;
     unit->construction->paid = false;
     unit->construction->payer = 0;
     unit->construction->gold = 0;
@@ -5406,7 +5404,6 @@ TEST(wc3_save, construction_payment_round_trip) {
     T_ASSERT(unit->construction->restore_invulnerable);
     T_ASSERT(unit->construction->restore_paused);
     T_ASSERT(unit->construction->restore_hidden);
-    T_EQ(unit->construction->worker_release_time, 5678);
     T_ASSERT(unit->construction->paid);
     T_EQ(unit->construction->payer, 3);
     T_EQ(unit->construction->gold, 100);
