@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "222 executable original/evidence contracts;503 total entries.",
+  "scope": "223 executable original/evidence contracts;504 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -51815,6 +51815,70 @@
         "Ground unit-target physical approach public identity; point, air, structures, instant/current execution, spell Shift admission and channel ownership remain ORDER-01.13.",
         "Alias, interruption, rejection, queued movement and game save compositions are engine regressions; not new retail trajectory certificates."
       ]
+    },
+    {
+      "id": "oracle-spell268",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_spell268.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}/research/ORDER-01.13/captures268",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "spell268.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 3
+        },
+        "observed_repeats": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 1521
+        },
+        "public_head_queries": {
+          "equal": 1482
+        },
+        "native_queries": {
+          "equal": 988
+        },
+        "ability_dispatches": {
+          "equal": 24
+        },
+        "instructions": {
+          "equal": 666
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Shared accepted point/flying spell head; complete repeated public lifetime and Stop witnesses, original initial producer distinction, production native/card/save/inverse regressions.",
+      "exclusions": [
+        "Bounded point/flying public pre-effect approach ownership and Stop; engine save/rejection/death/replacement compositions are not retail timing certificates.",
+        "Structures, full cast/effect/channel timelines, instant actions and spell Shift policy remain ORDER-01.13.",
+        "Initial Destroyer scene has zero mana and rejected Holy Light: retained diagnostic only.",
+        "No exact numerical point/flying motion claim; legacy per-frame range polling remains until actual physical producers are integrated.",
+        "Original185 captures have no438680 entries; initial spell producer40a7a0 and d0161 continuation438680 are distinct."
+      ]
     }
   ],
   "fixtures": [
@@ -51880,7 +51944,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "7b80bcdbbdc11cd51d2125c631cbbf9cbe062260b522ee1054385fec50180d91"
+      "sha256": "3fe12c41f1c29d90cc7b3069010a4ed8f8f882827e4c44bedc270954f3d81290"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -52713,7 +52777,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "6c983fcec0f1fe88c8870958db9392f09d54b072130e45b89de2317b026944bd"
+      "sha256": "8abe58b73e99c7aca3d3172471a7182eeb54311137cbac78eec90374c7ec444e"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -53565,7 +53629,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "785bc7103b96f9826df4fda60e7cce3d0e2cc329a9f1e17270ff5985f80750dc"
+      "sha256": "f5e6908d1e4988629a4a9a027a1ffa037c9c041436c21c16338551c779367dec"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
@@ -54505,7 +54569,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "4bdb291e25fa7a52446306f0230d97ed4b174e0204505e11a8702a69b77b21f9"
+      "sha256": "1c5f6d0d7127f7c7ef6aa3560d7dcea989be9e8761d062bb0e0ad94345eafe0e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -54517,11 +54581,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "0a1f14cecf94836c452b915b8aa4ac32ac43a53c12f777bca56f3bb7353f72ee"
+      "sha256": "3192af976d87c4b8aa552853b201cda67538acf3d975d312b61507175f9a6085"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "000e31264e493d937c19ec0f58a708e054775ab106c8e89f6be4cbc0a32d8647"
+      "sha256": "f1c45c2a1f6197b30ddbe7c5314c3dbf3890ba01920945e61e2703d04de0eef8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55321,7 +55385,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_spell.c",
-      "sha256": "c1d48acdab74042ccee5ddaadc7fac67fa83b7ffe58763bd7afdc8d5c942ef5c"
+      "sha256": "849a4e66ba950f313b41686210c4a12f52f2efb1f40796228ad49d6babb6e173"
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_random.c",
@@ -58722,6 +58786,34 @@
     {
       "path": "tests/test_wc3_pathfinding_spell267.py",
       "sha256": "12ec61ab9b215bb98eeecd89fd95cf75df0ab32b1d78bc7f5d82c4709b0d88d0"
+    },
+    {
+      "path": "tools/ghidra/research/Spell268Evidence.java",
+      "sha256": "1b080b2a088e4bf1642ea6bdf70adcb77395a9762f71c06891fbd2e63ab7c082"
+    },
+    {
+      "path": "tools/frida/research/owner268_probe.j",
+      "sha256": "e50d7fdcfbb8bd140dfc53a92ceeba99ecc0eb7fa6d2b4aba30bf2dfc21bccfe"
+    },
+    {
+      "path": "tools/frida/research/owner268_make_map.py",
+      "sha256": "75d9ede8ccd678ef33ad461a3d29127060206c1b043a925b343acd374fde0758"
+    },
+    {
+      "path": "tools/frida/research/owner268_observer.js",
+      "sha256": "6e497fccebc47136b7316d3ff1a2c5c10278b57364bfe41843f623ce78d845f6"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_spell268.py",
+      "sha256": "12ad7a66c715afd05a197d16c34611c6ad00027f8e3836982fd0ca15b3320132"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-spell268-1.27.json",
+      "sha256": "7b1c00306b461d127f6bfc5e51341fe1bc2ee897969b175eba16f7c1d26d1b04"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_spell268.py",
+      "sha256": "e3b1e47d075824bdb684dc619e630c38803c82bf69e497996b10c7640425208c"
     }
   ]
 }

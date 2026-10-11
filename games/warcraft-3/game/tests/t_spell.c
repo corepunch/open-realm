@@ -6222,4 +6222,80 @@ TEST(wc3_spell, owner267_ground_approach_retains_public_spell_head) {
     }
 }
 
+/* Retail268 point and flying-caster witnesses retain the spell command through
+ * the pre-effect approach. Exercise both legacy entry shapes without claiming
+ * their numerical trajectory or full effect/channel timing. */
+TEST(wc3_spell, owner268_legacy_approaches_retain_public_spell_head) {
+    FOR_LOOP(shape,2) FOR_LOOP(entry,3) FOR_LOOP(mode,6) {
+        edict_t *caster=make_hero(shape ? MAKEFOURCC('e','d','t','m') : MAKEFOURCC('H','b','l','m'),500,200,288,288);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1500,288);
+        slkTestData_t *rows=parse_slk_string(
+            "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+            "C;Y1;X3;K\"Cost1\"\nC;Y1;X4;K\"Cool1\"\nC;Y1;X5;K\"Rng1\"\n"
+            "C;Y1;X6;K\"targs\"\n"
+            "C;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"DataD1\"\n"
+            "C;Y1;X9;K\"Data21\"\nC;Y1;X10;K\"Data41\"\n"
+            "C;Y2;X1;K\"AHfs\"\nC;Y2;X2;K\"AHfs\"\nC;Y2;X3;K13\nC;Y2;X4;K7\nC;Y2;X5;K100\n"
+            "C;Y2;X7;K0.25\nC;Y2;X8;K0.75\nC;Y2;X9;K0.25\nC;Y2;X10;K0.75\n"
+            "C;Y3;X1;K\"AHhb\"\nC;Y3;X2;K\"AHhb\"\nC;Y3;X3;K13\nC;Y3;X4;K7\nC;Y3;X5;K100\nC;Y3;X6;K\"ground,friend\"\nE\n");
+        slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+        cstring_t order=shape ? "holybolt" : "flamestrike";
+        cstring_t raw=shape ? "AHhb" : "AHfs";uint32_t code=FS_SLKKey(raw);
+        UnitAbilities_t abilities={.abilList=raw};caster->data.UnitAbilities=&abilities;
+        caster->s.player=target->s.player=0;caster->unitinfo.MoveSpeed=270;
+        caster->movetype=shape ? MOVETYPE_FLY : MOVETYPE_STEP;
+        if(shape)caster->aiflags|=AI_FLYING;
+        caster->collision=32;target->collision=31;target->targtype=TARG_GROUND;
+        target->svflags|=SVF_MONSTER;target->health.value=100;target->health.max_value=1000;
+        T_ASSERT(run_test_jass(
+            "globals\nunit caster=null\nunit target=null\nendglobals\n"
+            "function checkPoint takes nothing returns nothing\ncall BJassAssert(GetUnitCurrentOrder(caster)==OrderId(\"flamestrike\"),\"point owns approach\")\nendfunction\n"
+            "function checkFly takes nothing returns nothing\ncall BJassAssert(GetUnitCurrentOrder(caster)==OrderId(\"holybolt\"),\"fly owns approach\")\nendfunction\n"
+            "function issuePoint takes nothing returns nothing\ncall BJassAssert(IssuePointOrder(caster,\"flamestrike\",1500,288),\"point accepted\")\nendfunction\n"
+            "function issueFly takes nothing returns nothing\ncall BJassAssert(IssueTargetOrder(caster,\"holybolt\",target),\"fly accepted\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal unit u=null\n"
+            "call GroupEnumUnitsOfPlayer(g,Player(0),null)\nloop\nset u=FirstOfGroup(g)\nexitwhen u==null\n"
+            "if GetUnitTypeId(u)=='hfoo' then\nset target=u\nelse\nset caster=u\nendif\n"
+            "call GroupRemoveUnit(g,u)\nendloop\ncall DestroyGroup(g)\nendfunction\n"));
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        vec2_t point={1500,288},move={288,1500};
+        T_ASSERT(G_IssueUnitPointOrder(caster,"move",&move,false,0,0));
+        T_EQ(caster->current_order_id,G_OrderId("move"));
+        if(entry==0) {jass_callbyname(level.vm,shape ? "issueFly" : "issuePoint",true);jass_runevents(level.vm);T_STREQ(jass_rterror_message(level.vm),"");}
+        if(entry==1)T_ASSERT(shape ? S_IssueUnitTargetSpell(caster,code,target) : S_IssuePointTargetSpell(caster,code,&point));
+        if(entry==2) {
+            edict_t *clent=g_edicts;clent->client=game.clients;G_SelectEntity(clent->client,caster);
+            cstring_t button[]={"button",raw};G_ClientCommand(clent,2,button);
+            if(shape) {
+                char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+                cstring_t select[]={"select",number};G_ClientCommand(clent,2,select);
+            } else {cstring_t select[]={"point","1500","288"};G_ClientCommand(clent,3,select);}
+        }
+        edict_t *child=NULL;
+        FILTER_EDICTS(ent,ent->owner==caster && ent->think==S_SpellTargetApproachThink) {child=ent;break;}
+        T_NOT_NULL(child);T_NULL(S_UnitTargetApproachReceiver(caster));
+        T_EQ(caster->current_order_id,G_OrderId(order));T_ASSERT(move_is_active_order_walk(caster));
+        jass_callbyname(level.vm,shape ? "checkFly" : "checkPoint",true);jass_runevents(level.vm);T_STREQ(jass_rterror_message(level.vm),"");
+        FOR_LOOP(tick,5) {level.time+=30;globals.RunFrame();T_EQ(caster->current_order_id,G_OrderId(order));}
+        T_FEQ(caster->mana.value,200,0.1f);
+        if(mode==4) {
+            cstring_t file=Test_TempPath("wc3-owner268-live.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(caster->current_order_id,G_OrderId(order));T_ASSERT(child && child->inuse);
+        }
+        if(mode==5) {
+            caster->mana.value=0;
+            T_ASSERT(!(shape ? S_IssueUnitTargetSpell(caster,code,target) : S_IssuePointTargetSpell(caster,code,&point)));
+            caster->mana.value=200;T_EQ(caster->current_order_id,G_OrderId(order));T_ASSERT(child && child->inuse);
+        }
+        if(mode==1)T_ASSERT(G_IssueUnitPointOrder(caster,"move",&move,false,0,0));
+        else if(mode==2) {caster->health.value=0;unit_die(caster,NULL);}
+        else if(mode==3)G_FreeEdict(caster);
+        else T_ASSERT(unit_issueimmediateorder(caster,"stop"));
+        level.time+=30;globals.RunFrame();
+        T_ASSERT(child && !child->inuse);
+        if(mode!=3)T_EQ(caster->current_order_id,mode==1 ? G_OrderId("move") : 0);
+        reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+}
+
 #endif /* BZ_TESTS */

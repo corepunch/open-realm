@@ -16685,3 +16685,67 @@ focused validation passes77 tests/21204 assertions in each Classic/TFT mode,
 are unchanged; this adds executable contract222. The exact commit, source,
 binaries, reports and saved Ghidra readback are archived under
 `research/ORDER-01.13/payoff267/`.
+
+
+## Point and flying casts share spell-owned admission (Payoff268)
+
+Two read-only original-retail runs and an unhooked control agree on all507
+markers each (1521 total). They replace a prior Move with an out-of-range point
+Flame Strike or a flying Storm Crow Druid's Holy Light. All494 native getter
+results in each observed run match the public markers. Flame Strike retains
+852488 through sample31 and clears from32; Holy Light retains852092 through20
+and clears from21. Separate pre-effect Stop controls clear both heads at10.
+The initial Destroyer fixture had zero mana and rejected Holy Light; it is
+retained as a diagnostic and is not accepted-cast evidence. Original UnitData
+identifies `edtm` as flying at height240, with authored200 maximum mana.
+
+Ghidra now maps initial spell shape dispatch40a650 and task construction40a7a0.
+Holy Bolt's virtual404 points to40a650; its virtual400 points to40a7a0. The former
+resolves the incoming packet's order, copies point48/50, releases its temporary
+reference, then delegates the concrete target/point arguments. The decompiler
+reuses the input stack slot for the temporary order, so its packet/order variable
+substitution is misleading. Instruction-checked prototypes are ECX spell plus
+one stack argument/RET4 and four stack arguments/RET10, respectively. Saved
+exports assert parameter storage and widths, including implicit `this`, rather
+than trusting a printed prototype that hides auto-parameters.
+
+The initial ordinary target branch in40a7a0 creates internald0174 with captured
+virtual408 range; its point branch createsd016b with virtual410 range. Other-widget
+handling appendsd0161 andd016e. This corrects earlier prose that associated the
+initial Holy Light producer with438680: that function is thed0161 continuation.
+Existing185 repeats have range/result hooks but **zero438680 entry rows**.
+Their public heads, captured ranges and all50 committed motion rows remain valid
+and unchanged. The correction is appended in Ghidra, the mapper and type schema;
+no old numerical/capture expectation is regenerated.
+
+The engine now publishes the resolved spell command once, at the common
+successful approach-admission boundary. The ground physical branch and legacy
+point/flying branches use that owner contract. Internal Move supplies locomotion;
+rejected no-mana replacements leave the spell and its owned work intact. There is
+no added per-frame scan, conversion, allocation or save field.
+
+The new36-case production regression drives JASS natives, direct spell admission
+and the actual command card for both shapes. It checks pre-effect frames, native
+GetUnitCurrentOrder, Stop, new Move, death, removal, live save/load and rejected
+replacement. Its corrected baseline fails264 ownership assertions out of660;
+fixture diagnostics retain an initially omitted Flame Strike interval and missing
+JASS VM setup. Exact full cast/effect timing and point/flying numerical movement
+are not certified. Legacy per-frame range polling is still present; replacing it
+requires porting the actual40a7a0 physical producers. Structures, instant actions,
+channels and spell-aware Shift remain in ORDER-01.13, which stays open.
+
+Run the strict verifier with a new report:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_spell268.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-01.13/captures268 \
+  --report /tmp/spell268-fresh.json
+```
+
+Final focused validation passes77 tests/21549 assertions per Classic/TFT; the
+unchanged exact ground-motion185 regression also passes315 assertions in each.
+The new regression passes660/660; evidence14 and corpus37 checks pass. All503
+previous corpus entries are unchanged; this adds executable contract223. Exact
+committed sources, binaries, saved Ghidra exports, captures and reports are
+archived under `research/ORDER-01.13/payoff268/`.

@@ -1037,17 +1037,17 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     spell_cancel_target_approaches(caster, thinker);
     if(target && S_BeginUnitTargetApproach(caster,target,S_SpellRange(code,S_SpellLevel(caster,code)),
                                          thinker,S_SpellTargetApproachComplete)) {
-        /* Retail438680 submits internal d0174 while2039d0 still reports the
-         * owning spell's user head. Internal Move must not retain an old Move ID. */
-        caster->current_order_id=G_AbilityOrderId(S_SpellAbilityForCode(code));
         thinker->think=NULL;
-        return true;
+    } else {
+        order_move(caster, goal);
+        if (caster->goalentity != goal || !move_is_active_order_walk(caster)) {
+            G_FreeEdict(thinker);
+            return false;
+        }
     }
-    order_move(caster, goal);
-    if (caster->goalentity != goal || !move_is_active_order_walk(caster)) {
-        G_FreeEdict(thinker);
-        return false;
-    }
+    /* Retail40a7a0 constructs internal approach tasks under the spell's user
+     * head. Every accepted shape publishes the same owning-command contract. */
+    caster->current_order_id=G_AbilityOrderId(S_SpellAbilityForCode(code));
     return true;
 }
 
