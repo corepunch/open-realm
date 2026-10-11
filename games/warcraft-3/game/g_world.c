@@ -181,6 +181,9 @@ static wc3FineObject_t move_cell_object(void *data,wc3RecordObject_t const *obje
         object->flags|(G_IsItem(ent) ? 0 : S_UnitMoveFineObjectFlags(ent)),true};
 }
 static bool entity_is_pathing_ignored(edict_t const *ent) {
+    /* Items publish only their own mover category (18) and no static region:
+     * the original hierarchy and terrain masks never include them (BASE-02.2). */
+    if (G_IsItem(ent)) return true;
     /* A construction-site indicator is a visible reservation, not a building
      * obstacle. Once construction starts, the real structure blocks movement. */
     return G_UnitIsStructure(ent) && (ent->s.flags & EF_NOT_SELECTABLE) && !ent->construction;

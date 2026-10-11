@@ -39,6 +39,7 @@ python3 tools/frida/make_wc3_journey_spec.py --data $W --base 'war3.mpq:Maps\Cam
 # Head-on stress: --headon PAIRS pairs Hero-led groups at distant open spots and swaps each
 # pair three times; Hero followers (target Move) and lone crossers are added. --choke puts
 # each pair across a narrow passage found from war3map.wpm clearance (2-4 cells).
+# --converge GROUPS sends Hero-led groups to one shared point, home, then a second point.
 python3 tools/frida/make_wc3_journey_map.py --data $W --spec tools/frida/journeys/human05_crossing.json \
     --output $W/Maps/Journey/human05_crossing.w3m
 # Original (isolated Xvfb display, Frida server on 127.0.0.1:27046):
@@ -148,6 +149,21 @@ Each rule below was found by a journey divergence, then checked against the orig
   types differed from the original. `FS_ComparePaths` (`common/common.c`) now mounts the
   patch last. The `pathing` probe (`IsTerrainPathable` walk/fly/build/amphibious bits over a
   box) matches all 1,444 Orc07 cells after the fix.
+- **Items never enter static pathing.** An item publishes only its own mover category
+  (`0x18`, BASE-02.2) and no static region. The engine treated in-world items as
+  collision-only scenery: each preplaced item stamped a `0xc2` static region. That blocked
+  base hierarchy cells and terrain masks, so on Orc07 a coarse search reached seven extra
+  nodes and chose another partial endpoint. `entity_is_pathing_ignored` now excludes items.
+  With the fix, the Orc07 hierarchy matches the original's in-memory maps at all four levels
+  (`trace_wc3_journey.py --hierarchy MARKER` dumps the original's 8-byte cells:
+  owner `[0x6fd53a48]`, maps `+0x23c+4*level`, width `+0x3c`, height `+0x40`, data `+0x28`,
+  byte 7 = 2 class bits per lane).
+- **Group completion recovers the stopped position.** When a point group member
+  completes, the original stops it through `171340`, whose recovery `170080` (return
+  `0x1713d8`) moves a member that ended overlapping a peer. The engine stood the unit
+  without recovery. On Orc07 an Abomination stayed on a Crypt Fiend, and the next order's
+  recovery then moved the Crypt Fiend instead. `move_group_complete_members` now recovers
+  before `stand`.
 - **SLK reals** use the original decimal parser `070de0` (`wc3_decimal`), which is not
   correctly rounded: `"0.4"` gives `3eccccce`, and `"1.5"` gives `3fc00001`. Tests that author
   a captured float word as SLK text must search for text that this parser maps to the word
@@ -196,6 +212,9 @@ is the state that `1d62bb` (retry init) uses. Draws made before the probe's
 | Undead07 head-on (seed 22, 3 pairs) | 59 | bit-exact over 2400 ticks: six Hero-led groups, four Hero followers, four lone crossers |
 | Human05 chokepoints (seed 31, 3 pairs) | 58 | bit-exact over 2400 ticks: each pair swaps through a 4–8-cell passage three times |
 | Undead05 chokepoints (seed 34, 3 pairs) | 58 | bit-exact over 2400 ticks |
+| Orc07 chokepoints (seed 33, 3 pairs) | 60 | bit-exact over 2400 ticks (needed War3Patch priority, item pathing and completion recovery) |
+| NightElf04 chokepoints (seed 32, 3 pairs) | 59 | diverges at 0.03 s: Player 0 is authored as a Computer and its Town AI sends the Wisp to work (as NightElf02) |
+| Human05/Orc05/Undead07 converge (seeds 41-43) | 42/56/47 | specs committed; original traces not yet recorded |
 | NightElf02 crossing (seed 7) | 31 | diverges at 0.03 s: the map authors Player 0 as a Computer (see below) |
 
 NightElf02: config makes Player 0 `MAP_CONTROL_COMPUTER`, so `6f1e9a40` creates its Town AI

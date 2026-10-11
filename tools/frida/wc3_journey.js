@@ -1,7 +1,7 @@
 // WC3 1.27.1.7085 long-journey observer: exported probe rows, PATHMETA markers and
 // (optionally) raw velocity commits. Read-only entry/exit hooks; rows are batched so
 // multi-minute journeys do not send one message per hooked call.
-let installed = false, active = false, buffer = [];
+let installed = false, active = false, buffer = [], hierarchyDumped = false;
 const flush = () => {if (buffer.length) {send({event: 'batch', rows: buffer}); buffer = [];}};
 const push = row => {buffer.push(row); if (buffer.length >= 4096) flush();};
 
@@ -27,6 +27,19 @@ function install(module) {
         if (value.startsWith('PATHMETA case=metadata_')) active = true;
         push([value.startsWith('PATHMETA ') ? 'metadata-marker' : 'marker', value]);
         flush();
+        // One-shot accelerator hierarchy: owner [d53a48], level maps +23c, width +3c,
+        // height +40, 8-byte cells at +28 (byte 6 markers, byte 7 two class bits per lane).
+        if (config.hierarchyMarker && !hierarchyDumped && value.startsWith(config.hierarchyMarker)) {
+            hierarchyDumped = true;
+            const owner = base.add(0xd53a48).readPointer(), maps = [];
+            for (let level = 0; level < 4; level++) {
+                const map = owner.add(0x23c + 4 * level).readPointer();
+                const width = map.add(0x3c).readU32(), height = map.add(0x40).readU32();
+                maps.push({level, width, height, cells: Array.from(new Uint8Array(map.add(0x28).readPointer().readByteArray(8 * width * height)))
+                    .map(b => (b < 16 ? '0' : '') + b.toString(16)).join('')});
+            }
+            send({event: 'hierarchy', marker: value, maps});
+        }
     }});
     // Optional thiscall observations: ECX, the first stack words and EAX on return; `out`
     // also reads the dword its first argument points to after return. `group` snapshots a

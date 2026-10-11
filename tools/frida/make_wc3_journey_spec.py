@@ -12,6 +12,10 @@ same corridor. Single units follow the Heroes (target Move), and lone units
 exchange places with each other. --choke places those pairs on opposite sides
 of narrow walkable passages found in war3map.wpm, so they meet inside them.
 
+--converge GROUPS sends Hero-led groups from spread-out spots to one shared
+point at the same time, scatters them home, then converges again on a second
+point, with a Patrol through the jam and Stop/re-issue orders mid-crowd.
+
   python3 tools/frida/make_wc3_journey_spec.py --data "$WC3_DATA" \
       --base 'war3.mpq:Maps\\Campaign\\Human05.w3m' --name human05_crossing --seed 5 \
       --output tools/frida/journeys/human05_crossing.json
@@ -138,6 +142,32 @@ def headon(a, rng, spots, units, timeline, eighth, pairs=None):
             timeline.append(dict(tick=10 + leg * a.ticks // 4, unit=i, order='move', to=[eighth(to[0]), eighth(to[1])]))
 
 
+def converge(a, rng, spots, units, timeline, eighth):
+    homes = spread(spots, a.converge + 2, rng); meet = homes[-2:]; homes = homes[:-2]
+    size = min(12, (64 - 4) // a.converge); spans = []
+    for g, (sx, sy) in enumerate(homes):
+        first = len(units)
+        types = [rng.choice(HEROES)] + [rng.choice(LARGE if rng.random() < 0.35 else GROUND[:18]) for _ in range(rng.randint(size - 3, size) - 1)]
+        for i, kind in enumerate(types):
+            units.append(dict(type=kind, at=[eighth(sx + (i % 4) * 112.0 - 168), eighth(sy + (i // 4) * 112.0 - 112)],
+                              facing=float(rng.choice([0, 90, 180, 270]))))
+        spans.append((first, len(units) - 1))
+    third = a.ticks // 3
+    for g, span in enumerate(spans):
+        home = homes[g]
+        timeline.append(dict(tick=10 + g, group=list(span), order='move', to=[eighth(meet[0][0]), eighth(meet[0][1])]))
+        timeline.append(dict(tick=third + 3 * g, group=list(span), order='move', to=[eighth(home[0]), eighth(home[1])]))
+        timeline.append(dict(tick=2 * third + 2 * g, group=list(span), order='move', to=[eighth(meet[1][0]), eighth(meet[1][1])]))
+        # Mid-crowd interruptions: one member stops and is re-issued, another patrols through.
+        stop = span[0] + 1 + g % max(1, span[1] - span[0])
+        timeline.append(dict(tick=third // 2 + 7 * g, unit=stop, immediate='stop'))
+        timeline.append(dict(tick=third // 2 + 7 * g + 15, unit=stop, order='move', to=[eighth(meet[0][0]), eighth(meet[0][1])]))
+    for k in range(4):
+        (sx, sy) = rng.choice(spots); i = len(units)
+        units.append(dict(type=rng.choice(GROUND[:6] + LARGE), at=[eighth(sx), eighth(sy)], facing=0.0))
+        timeline.append(dict(tick=20 + k, unit=i, order='patrol', to=[eighth(meet[k % 2][0]), eighth(meet[k % 2][1])]))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--data', type=Path, required=True); p.add_argument('--base', required=True)
@@ -146,6 +176,7 @@ def main():
     p.add_argument('--groups', type=int, default=3); p.add_argument('--singles', type=int, default=8)
     p.add_argument('--headon', type=int, default=0, metavar='PAIRS', help='Hero-led group pairs that swap places')
     p.add_argument('--choke', action='store_true', help='with --headon: put each pair across a narrow passage')
+    p.add_argument('--converge', type=int, default=0, metavar='GROUPS', help='Hero-led groups converging on one point')
     p.add_argument('--tool', type=Path, default=Path('build/bin/mpqtool')); p.add_argument('--output', type=Path, required=True)
     a = p.parse_args(); rng = random.Random(a.seed); tool = str(a.tool.resolve())
     w, h, cells, ox, oy, objects = world(tool, a.data, a.base)
@@ -158,6 +189,9 @@ def main():
         pairs = chokepoints(w, h, cells, ox, oy, a.headon, rng) if a.choke else None
         if a.choke and len(pairs) < a.headon: p.error(f'only {len(pairs)} separated chokepoints')
         headon(a, rng, spots, units, timeline, eighth, pairs)
+        a.groups = a.singles = 0
+    elif a.converge:
+        converge(a, rng, spots, units, timeline, eighth)
         a.groups = a.singles = 0
     for g in range(a.groups):
         size = rng.randint(6, 12); (sx, sy) = anchors[g]; first = len(units)

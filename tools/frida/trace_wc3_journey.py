@@ -36,6 +36,7 @@ def main():
     p.add_argument('--continue-after-start', type=float, default=3, help='second key after the probe start marker')
     p.add_argument('--seconds', type=float, default=1800, help='hard deadline')
     p.add_argument('--commits', action='store_true', help='also record every velocity commit')
+    p.add_argument('--hierarchy', metavar='MARKER', help='dump the accelerator hierarchy maps (8-byte cells) once, at the first marker with this prefix')
     p.add_argument('--call', action='append', default=[], metavar="RVA[:ARGS[:out|group|eOFF|ra|bt|aN/K|dOFF/K|lOFF]...]",
                    help='also record a thiscall function: ECX, ARGS stack words and EAX (out: dword at arg0 after '
                         'return; group: physical group snapshot at entry; eOFF: dword at ECX+OFF at entry; ra: caller RVA; bt: game.dll backtrace; aN/K: K dwords through stack argument N at entry; '
@@ -46,7 +47,7 @@ def main():
     if hashlib.sha256(binary).hexdigest() != HASH: p.error('unsupported game.dll; requires 1.27.1.7085')
     pe = struct.unpack_from('<I', binary, 0x3c)[0]
     config = {'timestamp': struct.unpack_from('<I', binary, pe + 8)[0], 'imageSize': struct.unpack_from('<I', binary, pe + 80)[0],
-              'commits': a.commits, 'calls': [call_spec(c) for c in a.call]}
+              'commits': a.commits, 'calls': [call_spec(c) for c in a.call], 'hierarchyMarker': a.hierarchy}
     here = Path(__file__)
     sources = [here, here.with_name('wc3_journey.js'), here.with_name('wc3_journey_probe.j'), here.with_name('wc3_unitdata_probe.j'), here.with_name('wc3_alliance_probe.j'), here.with_name('wc3_grouporder_probe.j'),
                here.with_name('make_wc3_journey_map.py')]

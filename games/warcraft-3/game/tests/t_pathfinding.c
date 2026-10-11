@@ -2137,6 +2137,35 @@ TEST(pathfinding, coarse_scopes_match_complete_native_overlapping_hierarchy_matr
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
 }
 
+/* BASE-02.2: an item publishes only its own mover category (18). It has no static
+ * region, so neither the fine terrain masks nor the hierarchy lanes change. A
+ * collision-only scenery footprint here blocked Orc07 hierarchy cells under items. */
+TEST(pathfinding, items_publish_no_static_pathing_or_hierarchy_region) {
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    unsigned fine[2]={32,32},coarse[2]={16,16};
+    T_EQ(G_TestStaticPathMask(fine[0],fine[1]),0);
+    T_EQ(G_TestMovePathClass(2,0,coarse[0],coarse[1]),0);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "call CreateItem('spro',1040.,1040.)\nendfunction\n"));
+    edict_t *item=NULL;
+    FILTER_EDICTS(ent,ent->inuse && G_IsItem(ent)) item=ent;
+    T_NOT_NULL(item); if(!item) return;
+    T_ASSERT(item->collision>0);
+    CM_BakeStaticObstacles();
+    FOR_LOOP(dy,2) FOR_LOOP(dx,2) {
+        T_EQ(G_TestStaticPathMask(fine[0]-dx,fine[1]-dy),0);
+        T_EQ(G_TestMovePathClass(2,0,coarse[0]-dx,coarse[1]-dy),0);
+        T_EQ(G_TestMovePathClass(0x80,0,coarse[0]-dx,coarse[1]-dy),0);
+    }
+    /* The item remains a fine-index mover with its own category. */
+    G_PublishMoveSpatialObject(item);
+    T_NOT_NULL(G_GetMoveSpatialObject(item-g_edicts));
+    reset_entities(); setup_test_world();
+}
+
 TEST(pathfinding, terrain_producers_preserve_retail_size2_passage_veto_and_partial_route) {
     reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
     uint8_t cells[64*64]={0},masks[]={2,0x80,0x40,4};

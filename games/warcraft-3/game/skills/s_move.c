@@ -6136,7 +6136,10 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
                     unit->movement.captain_home.active=true;
                     move_start_follow_group(unit,actor,true);
                 } else if (!S_PatrolMoveArrive(unit)) {
-                    /* A Patrol leg's d0175 continuation owns completion. */
+                    /* A Patrol leg's d0175 continuation owns completion. Completion
+                     * stops the mover through 171340, whose 170080 recovery moves a
+                     * member that ended overlapping a peer (retail RA 1713d8). */
+                    S_RecoverStoppedUnitPosition(unit);
                     unit->stand(unit);
                     if (unit->movement.captain_actor_owned) G_BotCaptainGoalEvent(unit);
                 }

@@ -265,6 +265,41 @@ static void premature_change_member(edict_t **out,moveGroup_t **out_group,vec2_t
     unit->s.angle=0;
 }
 
+/* Original group completion stops each finished point mover through 171340, whose
+ * 170080 recovery (return 1713d8) moves a member that ended overlapping a peer.
+ * Orc07: an Abomination completing on a Crypt Fiend was recovered at completion. */
+typedef struct {edict_t const *unit;unsigned recoveries;} completionRecovery_t;
+static void completion_recovery_trace(void *data,unsigned stage,edict_t const *unit) {
+    completionRecovery_t *trace=data;
+    if(!stage && unit==trace->unit)trace->recoveries++;
+}
+
+TEST(wc3_movement, group_point_completion_recovers_stopped_position) {
+    uint32_t counter=level.pathing_counter;bool responsive=level.move_fine_responsive;
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.move_fine_responsive=false;S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+    edict_t *unit=make_moving_unit(20.5f*32,20.5f*32);
+    vec2_t goal={24.5f*32,20.5f*32};
+    groupPointOrder_t request={.count=1,.units={{unit,unit->spawn_time}},.point=&goal,
+        .order="move",.order_id=G_OrderId("move"),.issuer_player=0};
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    completionRecovery_t trace={unit,0};
+    S_TestMoveRecoveryTrace(completion_recovery_trace,&trace);
+    unsigned visits=0;
+    while(unit->movement.group_id && visits<400) {
+        level.pathing_clock.time=wc3_add(level.pathing_clock.time,wc3_float(0x3cf5c290));
+        level.pathing_counter++;visits++;
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    }
+    S_TestMoveRecoveryTrace(NULL,NULL);
+    T_EQ(unit->movement.group_id,0);T_ASSERT(visits<400);
+    T_EQ(trace.recoveries,1);
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+    level.pathing_counter=counter;level.move_fine_responsive=responsive;
+}
+
 TEST(wc3_movement, premature_destination_change_keeps_retry_status_without_forced_arrival) {
     uint32_t counter=level.pathing_counter;bool responsive=level.move_fine_responsive;
     uint8_t cells[64*64]={0};
