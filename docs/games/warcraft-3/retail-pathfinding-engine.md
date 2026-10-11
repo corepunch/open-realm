@@ -17096,3 +17096,80 @@ reload thresholds and Captain producer policy are preserved. Complete original
 threshold/prediction/countdown checks, actual17/182-counter retail intervals and
 real engine Follow/save regressions close TARGET-04.1. See [the producer and
 validation contract](retail-pathfinding-routes.md#target-refresh-thresholds-and-captain-delay-payoff274).
+
+## Game speed schedules fixed primary steps (Payoff275)
+
+SCHED-01.1 is closed. `SetGameSpeed` (`213350`) respects `MAP_LOCK_SPEED`
+(`4000`), then `2300e0` narrows the argument to an unsigned byte and clamps it
+at 2. `GetGameSpeed` (`2001d0`) returns that canonical byte. Public values
+0/1/2/3/4 therefore read back as 0/1/2/2/2; the JASS constants themselves retain
+their original values. This disproves the old test expectation that setting
+`MAP_SPEED_FAST` (3) reads back 3. Only that expectation changes. Existing
+trajectory fixtures are preserved.
+
+`32ce50` stores the canonical selector at network-owner `22a8` and the binary32
+rate at `22ac`, using table `ce54dc = {3,4,5}` divided by five. `32d670` emits
+3/4/5 primary events per available 25-ms host quantum. Every primary event still
+supplies `3ba3d70a` (0.005). Scaling the movement delta would change numerical
+integration; the engine instead schedules its existing fixed simulation frames
+at these wall-time ratios. Integer remainder accumulation avoids rounding drift.
+Equivalent rate settings preserve the remainder. Pause freezes fixed steps;
+unpause and hitches use the existing bounded resumption policy. Shutdown restores
+the generic 1/1 rate. Ordinary game-speed changes and cold Save168 loads apply
+the game-owned rate through the generic server import `SetSimulationRate`.
+
+The startup initializer `001c40` prepares the 300-second span (`43960000`).
+`157610` passes it to both `156ca0` clock constructors: primary owner `14` and
+presentation owner `68`. `15c650` chooses them by the sign of wrapper identity
+`14`. `04c1a0` respects primary gate `38`; `04c0d0` respects presentation gate
+`3c`. Each domain also has its own pause state. The original wrapper matrix
+executes both domains and selector signs with explicitly supplied fixture inputs.
+The initial harness did not run the startup span initializer and was rejected;
+accepted expectations use the initialized original constructor.
+
+Two complete read-only Frida captures and an unhooked control agree on all 104
+public markers. Each instrumented capture reaches 2,001 primary events, covers
+all three host rates, and retains the original scalar step at every marker.
+Public timer callbacks run before the current increment, so their clock word is
+replayed with one fewer addition than the event-entry count. Both selectors and
+both spans are observed. Public script pause/resume is followed by an F10 menu
+pause held for two wall seconds and closed with Escape. The current host batch
+finishes after pause entry; settled heartbeat samples show both clocks and the
+primary counter frozen, although presentation callbacks continue. No immediate
+freeze at the entry hook is claimed. The helper operation named `unpause` performs
+that menu cycle; it does not patch engine memory. An earlier persistent script
+pause attempt did not resume and remains incomplete diagnostic evidence.
+
+The fresh verifier executes 1,542 original setter/getter cases, 32 clock timelines,
+five selector cases and 748 instruction guards. Three production-path game tests
+and one actual `SV_Frame` test run in both Classic and TFT: 11,618 assertions.
+They cover byte conversion, the map lock, original clock words, fractional rates,
+pause, hitch resumption, unchanged per-step movement and cold-save continuation.
+Nine Python checks reject rescaled deltas, wrong canonical speeds, missing
+selectors, bad host batches, pause drift and perturbed controls. Saved Ghidra
+functions, comments, labels and xrefs are mirrored in `MapPathfinding.java`.
+
+Limits: forced gate/identity inputs establish wrapper contracts rather than new
+public producers. Gameplay movers retain their primary clock; this chunk invents
+no presentation-domain movement producer. OpenRealm keeps its existing 100-ms
+server frames and does not claim identical retail host batching, rendering cadence
+or throughput. Save168 changes the save layout and rejects earlier versions.
+The fixed-step speed contract is separate from outstanding pathfinding fidelity
+and performance gates.
+
+The broader checkpoint executes 8,139 tests / 35,496,539 assertions in 32 JUnit
+reports. Twelve failing cases (50 assertions) reproduce the complete archived
+Payoff271 Patrol/Follow failure sequences; no corresponding expectations are
+changed. This is not a green full-suite claim. The initial umbrella also exposed
+an outdated deadline-helper test call (fixed without changing its expected
+values) and ran corpus initialization before the new oracle was registered.
+All other 1,582 Python cases passed; refreshed 37-case corpus and nine-case clock
+runs pass. Final focused scheduling checks run against the rebuilt artifacts.
+
+Sources: `clock275_probe.j`, `clock275_observer.js`, `clock275_capture.py`,
+`clock275_make_map.py`, `clock275_ui_input.c`, `clock275_oracle.py`,
+`Clock275Evidence.java`, `verify_wc3_pathing_clock275.py`, and the frozen
+`retail-clock275-1.27` evidence/header. Original DLL SHA:
+`d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`.
+Research archive:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SCHED-01.1/payoff275/`.

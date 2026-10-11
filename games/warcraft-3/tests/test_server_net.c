@@ -117,10 +117,10 @@ TEST(server_net, pause_publishes_client_render_state) {
 }
 
 TEST(server_net, scheduler_clamps_multi_tick_wall_clock_backlog) {
-    T_EQ(SV_ClampSimulationDeadline(3602, 0), 3602);
-    T_EQ(SV_ClampSimulationDeadline(220, 100), 220);
-    T_EQ(SV_ClampSimulationDeadline(200, 100), 100);
-    T_EQ(SV_ClampSimulationDeadline(180, 100), 100);
+    T_EQ(SV_ClampSimulationDeadline(3602, 0, FRAMETIME), 3602);
+    T_EQ(SV_ClampSimulationDeadline(220, 100, FRAMETIME), 220);
+    T_EQ(SV_ClampSimulationDeadline(200, 100, FRAMETIME), 100);
+    T_EQ(SV_ClampSimulationDeadline(180, 100, FRAMETIME), 100);
 }
 
 void SV_HandleUnitUIRequest(client_t *client, sizeBuf_t *msg) { (void)client; (void)msg; }

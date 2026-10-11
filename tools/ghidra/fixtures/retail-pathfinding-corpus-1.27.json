@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "229 executable original/evidence contracts;510 total entries; provenance and limitations remain per-entry.",
+  "scope": "230 executable original/evidence contracts;511 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -52254,6 +52254,79 @@
         "Generic runner metadata retains GROUP-03.2; map/probe/observer/binary/helper hashes identify this TARGET-04.1 capture.",
         "Focused baseline already correct; conversion removal preserves simulation. No failing-before retail fix, full-suite or frame-time claim."
       ]
+    },
+    {
+      "id": "oracle-clock275",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_clock275.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "clock275.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 104
+        },
+        "primary_events": {
+          "equal": 2001
+        },
+        "both_selectors": {
+          "equal": true
+        },
+        "host_quanta_verified": {
+          "equal": true
+        },
+        "pause_frozen": {
+          "equal": true
+        },
+        "original_speeds": {
+          "equal": 1542
+        },
+        "original_timeline": {
+          "equal": 32
+        },
+        "original_selectors": {
+          "equal": 5
+        },
+        "instructions": {
+          "equal": 748
+        },
+        "engine": {
+          "length": 4
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "SCHED-01.1 original clock selectors/spans and speed canonicalization; repeated public fixed-step host-rate/pause evidence with unhooked control; production game/server rate and saved movement tests.",
+      "exclusions": [
+        "The original wrapper matrix supplies empty heaps, pause gates and identity-sign choices; these are explicitly forced inputs.",
+        "Public primary/presentation selectors, spans, ordinary movement and menu pause are observed; no secondary gameplay-agent implementation is invented.",
+        "A current host batch completes after pause entry. Settled pause retains both clock words; the observer does not assume an immediate entry-hook freeze.",
+        "0.6/0.8/1 rates preserve fixed5-ms primary integration. Engine server frames remain100-ms simulation frames; no claim that host rendering or network batching cadence is identical to retail.",
+        "Game speed is saved in version168. Other existing frozen trajectory expectations are unchanged; corrected FAST3 round-trip expectation is separately supported by original and public retail evidence.",
+        "Earlier unresumed Pause-key and incomplete test-rig attempts are diagnostic only, retained in the external archive."
+      ]
     }
   ],
   "fixtures": [
@@ -53152,7 +53225,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "a90017a55fded0a0bd108942c6fb84cf629e196ed0506548a21083db26c6b285"
+      "sha256": "e081b1b522367e5f198ad1b929c0a932785ae9562c40a77305c1091519235c5a"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -54444,7 +54517,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "ea1e44c4079a3b68105875380317673f75a5510d6d1a907d13ab35663394e9e6"
+      "sha256": "da980079db2f5b038ecb0e74a3c5df0fb51e284d5ee7bad134e343cd3ce257e9"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -54452,7 +54525,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "196feb17390fa858b1d5ee0161248e46d6b675304f54e2ec623294cff2d7e1cb"
+      "sha256": "8e283f04b90deeb8299ff931500c5f4c443e776426524c3da544c31565c137e7"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -54944,7 +55017,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "bb64e49aee0ac6b4c62602119bca886bdb7bab0d5d49b778a2132ce9804bafb6"
+      "sha256": "aa79ed4ba044c9058a642b54c5c495e0b0709ea7b1f07abd346f00b1f4bc7d79"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -54952,15 +55025,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "e38f49544ac2b4bf438637754f253b1e8dc166ff7e7f60defb267b54fc63f533"
+      "sha256": "d04e21c763104ec5d8c63dc1f0b6c7b90bf065268ec234dd85f05e44bc55eb50"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "458c777f68e608dc1eee7a7b8062a3252c3f715191ac3a365a992dab6def66b8"
+      "sha256": "214ed823235ad2e4beb370c2130d1570b9a11daab590eb522c915fc7f42acde7"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "9902b41d3595b1f29f465b8f12900c4faae2f0da57c52ecbb8cebb72e6d00cad"
+      "sha256": "c19702ee6c7105f782febfc7c5f97db10be8589bd13185672d765c24c80cdfd5"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55016,7 +55089,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_main.c",
-      "sha256": "6b41a319056a4c7a1447c28ca8487203d2d9104309ec22c4f03b212367833cdd"
+      "sha256": "68e9cb8cdb327141709505719ecdf37a41f139612f01e0aca08b581b34c2fb6a"
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
@@ -55088,7 +55161,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_spawn.c",
-      "sha256": "415100f4c6164f7c4e33dc5fdeac43e7fda6c538a772f0ed31fcc133ee439d73"
+      "sha256": "a36fa11fd47c9d3d462ed57aba5b01803644564e6f7587e212096d16b7b87a53"
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
@@ -55736,11 +55809,11 @@
     },
     {
       "path": "server/game.h",
-      "sha256": "e576e18765a9bec6818787bad2f8d624eb1799f886197b5e0c3822f12f151c56"
+      "sha256": "be8314c0caf4db48988bf6e3e0fb4acf247af9bc0189dad25bfc4c91b6e268b0"
     },
     {
       "path": "server/sv_game.c",
-      "sha256": "af79ad0ffdcaf7e5593e2889ee59aa4392314f4dacf406c8a2a5e53921603300"
+      "sha256": "793378ca036ef45c54fbe57a18aff2c1bf1780e915fd6ad3c5b77edee6dce8c2"
     },
     {
       "path": "games/warcraft-3/game/api/api_player.h",
@@ -55756,7 +55829,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_jass_map.c",
-      "sha256": "8afdbdfe22392bbb582e05c4f4091214edf59bf1c6d1da1266853efcda530943"
+      "sha256": "cc4fe200403217caf875cd380b094db33cea703e84a1420a9d5d61c22dabe2eb"
     },
     {
       "path": "games/warcraft-3/game/tests/t_spell.c",
@@ -55852,7 +55925,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_misc.h",
-      "sha256": "2d79ffc0966b0679bb25f333ade81ba15dd828b06c903c9162731ce5a9252657"
+      "sha256": "6f71b9a2ea09944bc366a4509c24f007ae430e94206c78783749f536737b0be8"
     },
     {
       "path": "games/warcraft-3/game/tests/t_random_streams.c",
@@ -56032,7 +56105,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_utils.c",
-      "sha256": "e68adb3a4da696d46b0ce840155e8d259e34491db048a286ea463fe7259f9ef6"
+      "sha256": "3f3dd610ef0b2a370aa80b1058c5019cb0f2bf40099fb868ec3652300aee0434"
     },
     {
       "path": "games/warcraft-3/game/skills/s_patrol.c",
@@ -59417,6 +59490,54 @@
     {
       "path": "tests/test_wc3_pathfinding_refresh274.py",
       "sha256": "2cce103c378a5b7175cc1e1565b0e192778ea9fc7cb7e6f93a3e38ec91200b36"
+    },
+    {
+      "path": "tools/frida/research/clock275_probe.j",
+      "sha256": "64ea2b4814a874a9b5c9e4d30da8caf6e5b73eec0485029ef7c97f7d8499a49d"
+    },
+    {
+      "path": "tools/frida/research/clock275_observer.js",
+      "sha256": "2ef6fc04f9c0b0440074f71310bc7eaa58c61b85c6374c1d1b5523496c040b5f"
+    },
+    {
+      "path": "tools/frida/research/clock275_make_map.py",
+      "sha256": "2df9fd9c4edcad7a897d08becfa60e86d867991b59cb74c07dd07ee943a4cfab"
+    },
+    {
+      "path": "tools/frida/research/clock275_capture.py",
+      "sha256": "511d5232ccf703c98134f957131df9132b730d0a04b97aff76697ffaa4d94524"
+    },
+    {
+      "path": "tools/frida/research/clock275_ui_input.c",
+      "sha256": "5a67e72f2d4ed68bcac02ad08dc4fb84b61d38f9878e19cffdd840c0a562fcd1"
+    },
+    {
+      "path": "tools/ghidra/research/Clock275Evidence.java",
+      "sha256": "33a85ec576da76bc765f746fd79478d90df64212cb57b35aee0c48711b89b375"
+    },
+    {
+      "path": "tools/ghidra/research/clock275_oracle.py",
+      "sha256": "1edc22992978108bdccf865b652cd1de99a006cd7766db2ee2f3e07fcdcff0f0"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_clock275.py",
+      "sha256": "e9558feed6fba7e90f40cfe556e2dc9183e106c2e9217b7fff5665b4fd70f98d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-clock275-1.27.json",
+      "sha256": "d0d16dd5ca6dc9e30b0356a5b217a3f97a4d350ecb76569594675d0c9fc2d261"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-clock275-1.27.json.gz",
+      "sha256": "35d11437d69355834c728c853f2854602c5d1658d313562107c666798c20af11"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_clock275.h",
+      "sha256": "d0d183505434e6f39d4c8d7b51d9bd579c0340f80a1e3e48184144163d9b5c1d"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_clock275.py",
+      "sha256": "4dd7e4562965ff2ed30c7841d3fe42bc8765882fe4b79845ab81c38e5fe37f76"
     }
   ]
 }

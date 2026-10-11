@@ -4,6 +4,18 @@ OpenWarcraft3 uses Quake-style runtime configuration: small cvars select subsyst
 
 Project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants use the `BZ_` prefix. Keep new project-prefixed names on that prefix instead of adding another project namespace.
 
+## Fixed simulation scheduling
+
+The game import `SetSimulationRate(numerator, denominator)` selects the wall-time
+rate of fixed `RunFrame` steps. Game time still advances by `FRAMETIME` per step;
+movement and gameplay timers receive their usual simulation delta. Both arguments
+must be positive and produce an interval from 1 through `INT32_MAX` milliseconds.
+Zero-initialized server state means 1/1. Integer remainder accumulation preserves
+fractional deadlines, and setting an equivalent ratio preserves its phase.
+Pause freezes simulation. Existing unpause and hitch handling bounds catch-up.
+The game restores 1/1 at shutdown and reapplies its authored rate after loading.
+Rate scheduling state is derived; games save their logical speed setting.
+
 ## Cvar System Internals
 
 ### The `cvar_t` Struct

@@ -351,6 +351,29 @@ void SV_SetPaused(bool paused) {
     }
 }
 
+/* The game chooses a rate; the server owns its wall-clock scheduling. Keep
+ * fractional milliseconds between deadlines so 3/5 does not drift to 100/166.
+ * This state is wall-clock scheduling, never a saved gameplay clock. */
+void SV_SetSimulationRate(uint32_t numerator, uint32_t denominator) {
+    if (!numerator || !denominator) return;
+    uint64_t total = (uint64_t)FRAMETIME * denominator;
+    if (total < numerator || (total + numerator - 1) / numerator > INT32_MAX) return;
+    uint32_t old_numerator = sv.rate_numerator ? sv.rate_numerator : 1;
+    uint32_t old_denominator = sv.rate_denominator ? sv.rate_denominator : 1;
+    if ((uint64_t)old_numerator * denominator == (uint64_t)numerator * old_denominator) return;
+    sv.rate_numerator = numerator;
+    sv.rate_denominator = denominator;
+    sv.frame_remainder = 0;
+}
+
+static uint32_t SV_FrameInterval(bool consume) {
+    uint32_t numerator = sv.rate_numerator ? sv.rate_numerator : 1;
+    uint32_t denominator = sv.rate_denominator ? sv.rate_denominator : 1;
+    uint64_t total = (uint64_t)FRAMETIME * denominator + sv.frame_remainder;
+    if (consume) sv.frame_remainder = total % numerator;
+    return total / numerator;
+}
+
 /* Main server tick called from the platform event loop with the elapsed
  * milliseconds since the last call.  Network input remains live while the
  * authoritative simulation is paused. */
@@ -393,8 +416,8 @@ void SV_Frame(uint32_t msec) {
         return;
     }
 
-    sv.next_frame_msec = SV_ClampSimulationDeadline(svs.realtime, sv.next_frame_msec);
+    sv.next_frame_msec = SV_ClampSimulationDeadline(svs.realtime, sv.next_frame_msec, SV_FrameInterval(false));
     SV_RunGameFrame();
-    sv.next_frame_msec += FRAMETIME;
+    sv.next_frame_msec += SV_FrameInterval(true);
     SV_SendClientMessages();
 }

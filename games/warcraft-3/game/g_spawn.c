@@ -927,6 +927,7 @@ void G_SpawnEntities(void) {
     if (mapinfo) FOR_LOOP(i, MAX_PLAYERS) level.setup.players += mapinfo->players[i].used;
     level.setup.game_type = 4;
     level.setup.speed = 2;
+    G_ApplyGameSpeed();
     if ((!strncasecmp(map_path, "Maps\\Campaign\\", 14) ||
          !strncasecmp(map_path, "Maps/Campaign/", 14) ||
          !strncasecmp(map_path, "Maps\\FrozenThrone\\Campaign\\", 26) ||

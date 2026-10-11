@@ -676,7 +676,7 @@ TEST(wc3_jass_map, map_configuration_roundtrip) {
         "  call BJassAssert(IsMapFlagSet(MAP_FOG_MAP_EXPLORED), \"explored flag\")\n"
         "  call BJassAssert(not IsMapFlagSet(MAP_FOG_HIDE_TERRAIN), \"hide terrain disabled\")\n"
         "  call BJassAssert(GetGamePlacement() == MAP_PLACEMENT_FIXED, \"placement\")\n"
-        "  call BJassAssert(GetGameSpeed() == MAP_SPEED_FAST, \"speed\")\n"
+        "  call BJassAssert(GetGameSpeed() == ConvertGameSpeed(2), \"speed\")\n"
         "  call BJassAssert(GetGameDifficulty() == MAP_DIFFICULTY_HARD, \"difficulty\")\n"
         "  call BJassAssert(GetDefaultDifficulty() == MAP_DIFFICULTY_EASY, \"default difficulty\")\n"
         "  call BJassAssert(GetResourceDensity() == MAP_DENSITY_HEAVY, \"resource density\")\n"

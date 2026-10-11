@@ -2808,6 +2808,8 @@ bool G_CampaignProgressSetTutorialCleared(bool cleared);
 bool G_CampaignProgressSetCampaignAvailable(int32_t campaign, bool available);
 bool G_CampaignProgressSetMissionAvailable(int32_t campaign, int32_t mission, bool available);
 void G_SetScriptPaused(bool paused);
+void G_SetGameSpeed(uint32_t speed);
+void G_ApplyGameSpeed(void);
 void G_SetClientModal(edict_t *player, uint32_t modal, bool open);
 void G_SetQuestDialogOpen(edict_t *player, bool open);
 TARGTYPE G_GetTargetType(cstring_t);

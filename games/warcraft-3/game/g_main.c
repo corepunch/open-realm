@@ -584,6 +584,7 @@ static void G_ShutdownGame(void) {
     G_CommandErrorReset();
     UI_ResetHud();
     gi.SetPaused(false);
+    if (gi.SetSimulationRate) gi.SetSimulationRate(1, 1);
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_ClearJassGroupRegistry();
@@ -1437,6 +1438,20 @@ cstring_t G_UnitName(uint32_t id) {
     UnitProfile_t const *profile = G_UnitProfile(id);
     cstring_t name = profile->name && *profile->name ? profile->name : GetClassName(id);
     return G_LevelString(name);
+}
+
+/* 213350/2300e0 use a byte, saturate at 2 and respect MAP_LOCK_SPEED.
+ * 32d670 emits 3/4/5 five-ms events per 25-ms host quantum. Apply that
+ * rate outside the simulation; scaling Move's delta would alter its words. */
+void G_ApplyGameSpeed(void) {
+    if (gi.SetSimulationRate) gi.SetSimulationRate(3 + level.setup.speed, 5);
+}
+
+void G_SetGameSpeed(uint32_t speed) {
+    enum { MAP_LOCK_SPEED = 0x4000 };
+    if (level.setup.map_flags & MAP_LOCK_SPEED) return;
+    level.setup.speed = MIN((uint8_t)speed, 2);
+    G_ApplyGameSpeed();
 }
 
 static void G_RefreshPauseState(void) { gi.SetPaused(level.script_paused || level.modal_paused); }

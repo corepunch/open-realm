@@ -1,3 +1,8 @@
+Save168 retains the canonical game speed (0..2) and reapplies its wall-time rate
+on load. Movement and request clocks retain fixed simulation steps; scheduling
+remainders are derived server state. Invalid speed values and older save layouts
+are rejected. See [game-speed scheduling](retail-pathfinding-engine.md#game-speed-schedules-fixed-primary-steps-payoff275).
+
 Save167 persists game-authored support orientation and its heading cache.
 The entity snapshot prefix adds generic `pose_offset` radians, while movement
 retains `support_angle` to reproduce position/heading refresh boundaries.

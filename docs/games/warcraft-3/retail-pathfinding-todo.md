@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**289 done / 336 tasks; 47 remaining.**
+**290 done / 336 tasks; 46 remaining.**
+
+Payoff275 closes SCHED-01.1: both original clock selectors use 300-second spans,
+and game speed schedules fixed primary steps at 3/5, 4/5 or 5/5 of wall time.
+Public pause/speed repeats and an unhooked control agree. The engine applies
+speed through deterministic scheduling and retains it in Save168. [Evidence](retail-pathfinding-engine.md#game-speed-schedules-fixed-primary-steps-payoff275).
 
 Payoff274 closes TARGET-04.1 with complete original refresh arithmetic and
 first-member prediction, public Captain extra-delay producer repeats/control,
@@ -1501,7 +1506,7 @@ Evidence: [movement evidence][M] and [routes][R]. Tools/artifacts: scheduler, mo
 
 ### SCHED-01 — Clock domains
 
-- [ ] **SCHED-01.1** Trace both clock selectors and configured spans to simulation time; assert pause, scaling and ordinary advancement against a fixed event timeline.
+- [x] **SCHED-01.1** Trace both clock selectors and configured spans to simulation time; assert pause, scaling and ordinary advancement against a fixed event timeline. Payoff275: original 1,542 setter cases, 32 clock timelines, five selector cases, repeated public speed/pause captures and unhooked control; real game/server scheduling and cold-save tests. [Evidence](retail-pathfinding-engine.md#game-speed-schedules-fixed-primary-steps-payoff275).
 - [x] **SCHED-01.2** Cross clock rollover and a reachable backward-time transition; assert request deadlines, integration and admission behavior. Payoff261: natural public getter-driven movement crosses300s with exact poses; UI load restores absolute requests and backward movement/save suffixes. A new original-code composition and production save regression preserve all four FIFO policies, retry timestamps and elapsed words across rollover. Existing behavior was correct; no old expectations changed. [Evidence](retail-pathfinding-engine.md#clock-rollover-preserves-path-admission-state-payoff261).
 
 ### SCHED-02 — Owner pass ordering

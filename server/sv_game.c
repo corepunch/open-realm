@@ -152,6 +152,7 @@ void SV_InitGameProgs(void) {
     import.GetTime = SV_GetTime;
     import.SetGameTime = SV_SetGameTime;
     import.SetPaused = SV_SetPaused;
+    import.SetSimulationRate = SV_SetSimulationRate;
     import.ReadFile = FS_ReadFile;
     import.OpenFile = FS_OpenFile;
     import.CloseFile = FS_CloseFile;

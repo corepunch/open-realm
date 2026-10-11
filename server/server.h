@@ -123,6 +123,7 @@ extern struct server {
     uint32_t time;
     bool paused;
     uint32_t next_frame_msec; /* real-time deadline for the next simulation frame */
+    uint32_t rate_numerator, rate_denominator, frame_remainder;
     uint32_t pause_msec; /* wall-clock accumulator used only for paused keepalive snapshots */
     uint32_t keepalive; /* real-time deadline for connected clients without gameplay snapshots */
     entityState_t *baselines;
@@ -137,8 +138,8 @@ extern struct server {
  * work that should later be replayed at render-loop speed. Preserve normal
  * sub-tick lateness, but rebase a deadline that is more than one fixed step
  * overdue before running the next game frame. */
-static inline uint32_t SV_ClampSimulationDeadline(uint32_t realtime, uint32_t deadline) {
-    if (realtime >= deadline && realtime - deadline > FRAMETIME) {
+static inline uint32_t SV_ClampSimulationDeadline(uint32_t realtime, uint32_t deadline, uint32_t interval) {
+    if (realtime >= deadline && realtime - deadline > interval) {
         return realtime;
     }
     return deadline;
@@ -182,6 +183,7 @@ bool SV_ClientLinkBusy(client_t const *client);
 void SV_AcknowledgeFrames(client_t *client);
 void SV_ResetDeltaBase(client_t *client);
 void SV_SetPaused(bool paused);
+void SV_SetSimulationRate(uint32_t numerator, uint32_t denominator);
 void SV_ParseClientMessage(sizeBuf_t *msg, client_t *client);
 int SV_ModelIndex(cstring_t name);
 int SV_SoundIndex(cstring_t name);

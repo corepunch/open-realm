@@ -315,7 +315,7 @@ uint32_t SetGamePlacement(jass_t *j) {
 }
 uint32_t SetGameSpeed(jass_t *j) {
     uint32_t *value = jass_checkhandle(j, 1, "gamespeed");
-    if (value) level.setup.speed = *value;
+    if (value) G_SetGameSpeed(*value);
     return 0;
 }
 uint32_t SetGameDifficulty(jass_t *j) {

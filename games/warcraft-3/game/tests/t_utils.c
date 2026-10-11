@@ -123,6 +123,7 @@ static war3mapVertex_t test_vertices[(TEST_PATHMAP_CELLS + 1) * (TEST_PATHMAP_CE
 
 static uint32_t test_get_time(void) { return level.time; }
 static void test_set_paused(bool paused) { (void)paused; }
+static void test_set_simulation_rate(uint32_t n, uint32_t d) { (void)n; (void)d; }
 
 /* Pathmap tests need an explicit world-space transform; production maps normally provide it via war3map.w3e. */
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells) {
@@ -225,6 +226,7 @@ static void reset_test_state(void) {
     G_InitPlayerAlliances(level.mapinfo);
     gi.GetTime = test_get_time;
     gi.SetPaused = test_set_paused;
+    gi.SetSimulationRate = test_set_simulation_rate;
     CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0, 0}, .max = {512, 384}));
     gi.ClearWorld();
 }

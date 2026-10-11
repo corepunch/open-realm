@@ -91,6 +91,10 @@ struct game_import {
     /* Freeze only authoritative simulation advancement. The server keeps
      * packet processing and client transport alive while paused. */
     void (*SetPaused)(bool paused);
+    /* Schedule fixed simulation steps at numerator/denominator of wall time.
+     * Game time and each RunFrame step remain unchanged. Both values must be
+     * positive, with a resulting interval from 1 through INT32_MAX ms. */
+    void (*SetSimulationRate)(uint32_t numerator, uint32_t denominator);
     void (*multicast)(vec3_t const *origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);
