@@ -339,6 +339,14 @@ bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
     return range <= 0 || Vector2_distance(&caster->s.origin2, &target->s.origin2) <= range;
 }
 
+static float spell_approach_range(uint32_t code, uint32_t level, ability_t const *spell) {
+    /* Asds has Rng=0 in stock data, but its DataA radius is the range at which
+     * the selected target is already inside Kaboom's full-damage blast. */
+    if (spell && spell->proc == CAbilitySelfDestruct)
+        return MAX(0.0f, S_SpellData(code, level, 1));
+    return S_SpellRange(code, level);
+}
+
 bool S_SpellIsAliveTarget(edict_t *target) {
     return G_UnitIsWorldActive(target) && (target->svflags & SVF_MONSTER) && !M_IsDead(target);
 }
@@ -908,7 +916,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         return;
     }
     level = S_SpellLevel(caster, code);
-    range = S_SpellRange(code, level);
+    range = spell_approach_range(code, level, spell);
     if (point_target) {
         edict_t *clent = G_GetPlayerEntityByNumber(caster->s.player);
         spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
@@ -1005,8 +1013,8 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
-    float range = S_SpellRange(code, level);
     ability_t const *spell = S_SpellAbilityForCode(code);
+    float range = spell_approach_range(code, level, spell);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = clent->client->menu.ability_item;
     uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
@@ -1075,8 +1083,8 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
-    float range = S_SpellRange(code, level);
     ability_t const *spell = S_SpellAbilityForCode(code);
+    float range = spell_approach_range(code, level, spell);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = clent->client->menu.ability_item;
     uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
@@ -1106,6 +1114,18 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     else S_SpellCursorSplat(clent, 0.0f);
     G_SendPointConfirmation(clent, point, false);
     return true;
+}
+
+/* Kaboom keeps its point-based blast semantics, but picks an entity as the
+ * destination so the command uses the ordinary attack-style target cursor. */
+static bool spell_self_destruct_target_selected(edict_t *clent, edict_t *target) {
+    edict_t *caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
+
+    if (!caster || !target || !target->inuse || target == caster ||
+        (!G_IsDestructable(target) && !S_SpellIsAliveTarget(target)) ||
+        (G_IsDestructable(target) && (target->destructable->dead || target->invulnerable)))
+        return false;
+    return spell_point_target_selected(clent, &target->s.origin2);
 }
 
 /* Entity hits arrive as Select commands from the universal client. While a
@@ -1682,11 +1702,17 @@ void spell_cmd(edict_t *clent) {
         }
         UI_AddCancelButton(clent);
         clent->client->menu.ability_code = code;
-        if (!spell_is_tiny_structure(spell)) {
+        if (spell->proc == CAbilitySelfDestruct) {
+            /* Kaboom targets a world entity as a destination, then detonates
+             * at the caster after the normal point-spell approach reaches range. */
+            clent->client->menu.on_location_selected = NULL;
+            clent->client->menu.on_entity_selected = spell_self_destruct_target_selected;
+        } else if (!spell_is_tiny_structure(spell)) {
             float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
             S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
         }
-        clent->client->menu.on_location_selected = spell_point_target_selected;
+        if (spell->proc != CAbilitySelfDestruct)
+            clent->client->menu.on_location_selected = spell_point_target_selected;
         break;
     }
     case SPELL_TARGET_UNIT_OR_POINT:

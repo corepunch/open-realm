@@ -134,8 +134,12 @@ TEST(wc3_spell, self_destruct_asds_destroys_support_column_not_decoration) {
     sdFix_t fix = sd_setup(BZ_ASDS);
     edict_t *column = G_Spawn(), *decoration = G_Spawn();
     vec2_t point = MAKE(vec2_t, 0, 0);
-    /* Stock Asds DataB is 250; other tests retain the non-stock 175 fixture. */
-    ((abilityLevel_t *)G_AbilityLevel(BZ_ASDS, 1))->data[1].number = 250;
+    /* Stock Asds has DataA=100, DataB=250, DataC=250, DataD=100. */
+    abilityLevel_t *asds = (abilityLevel_t *)G_AbilityLevel(BZ_ASDS, 1);
+    asds->data[0].number = 100;
+    asds->data[1].number = 250;
+    asds->data[2].number = 250;
+    asds->data[3].number = 100;
     column->class_id = MAKEFOURCC('B', 'T', 's', 'c');
     column->s.origin2 = MAKE(vec2_t, 45, 0);
     column->targtype = TARG_WALL;
@@ -150,6 +154,52 @@ TEST(wc3_spell, self_destruct_asds_destroys_support_column_not_decoration) {
     T_ASSERT(column->destructable->dead);
     T_FEQ(column->health.value, 0, 0.001f);
     T_FEQ(decoration->health.value, 500, 0.001f);
+    sd_done(fix);
+}
+
+/* Kaboom uses an entity target cursor, walks to cast range, then detonates. */
+TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
+    sdFix_t fix = sd_setup(BZ_ASDS);
+    edict_t *clent = &g_edicts[0], *approach = NULL;
+    gameClient_t *client = &game.clients[0];
+    edict_t *column = G_Spawn();
+    char number[16];
+    cstring_t button[] = { "button", "Asds" };
+    cstring_t select[] = { "select", number };
+
+    ((abilityLevel_t *)G_AbilityLevel(BZ_ASDS, 1))->data[1].number = 250;
+
+    clent->client = client;
+    fix.goblin->s.player = client->ps.number;
+    G_SelectEntity(client, fix.goblin);
+    column->class_id = MAKEFOURCC('B', 'T', 's', 'c');
+    column->s.origin2 = MAKE(vec2_t, 200, 0);
+    column->s.origin.x = 200;
+    column->targtype = TARG_WALL;
+    column->health.value = column->health.max_value = 50;
+    column->destructable = G_AllocDestructable();
+
+    G_ClientCommand(clent, 2, button);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    T_NULL(client->menu.on_location_selected);
+    snprintf(number, sizeof(number), "%u", (unsigned)column->s.number);
+    G_ClientCommand(clent, 2, select);
+
+    T_ASSERT(fix.goblin->health.value > 0);
+    T_ASSERT(!column->destructable->dead);
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == fix.goblin && ent->think == S_SpellTargetApproachThink) {
+        approach = ent;
+        break;
+    }
+    T_NOT_NULL(approach);
+    T_NOT_NULL(fix.goblin->goalentity);
+    T_FEQ(fix.goblin->goalentity->s.origin2.x, 200, 0.001f);
+
+    fix.goblin->s.origin2.x = fix.goblin->s.origin.x = 100;
+    approach->think(approach);
+    T_ASSERT(M_IsDead(fix.goblin));
+    T_ASSERT(column->destructable->dead);
+    T_FEQ(column->health.value, 0, 0.001f);
     sd_done(fix);
 }
 

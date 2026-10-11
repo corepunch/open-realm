@@ -18,12 +18,16 @@ Clockwerk FOURCC special cases in `unit_die`.
 `DataF=1`. Stock Goblin Sapper `Asds` leaves `DataF` empty/0 and does **not**
 explode when killed.
 
-Kaboom! is a point-target autocast command-card spell (Hotkey B, Untip
-right-click autocast). Intentional cast always deals DataA–E blast and kills
-the caster, independent of `DataF`. Stock `Asds` is registered
-`AB_SPELL | AB_AUTOCAST` with `SPELL_TARGET_POINT`. Clockwerk aliases stay
-`AB_PASSIVE` death-only (they share Untip/Hotkey strings but this leftover
-keeps click on the Sapper row).
+Kaboom! is an autocast command-card spell (Hotkey B, Untip right-click
+autocast). Its click command uses entity targeting without a spell-area
+overlay. The selected entity's position is the approach destination; since
+stock `Rng` is zero, the Goblin walks until it is within `DataA` (the full
+damage radius), then detonates at its own position. Intentional cast always
+deals DataA–E blast and kills the caster, independent of `DataF`. Stock `Asds`
+is registered `AB_SPELL | AB_AUTOCAST` with `SPELL_TARGET_POINT` so the blast
+still executes as a point cast. Clockwerk aliases stay `AB_PASSIVE` death-only
+(they share Untip/Hotkey strings but this leftover keeps click on the Sapper
+row).
 
 ## Authoritative Fields
 
@@ -51,7 +55,8 @@ armor applies; spell immunity does not block it. Buildings multiply by `DataE`. 
 UnitAbilities.abilList (Asdg / Asd2 / Asd3 / Asds)
   -> unit carries Self Destruct
 Click / autocast (Asds only):
-  S_CastPointTargetSpell(Asds, point)
+  click Asds -> select entity -> approach its position to DataA range
+    -> point-target execute -> detonate at the Goblin's position
     -> CAbilitySelfDestruct(A_EXECUTE)
        self_destruct_explode(DataA–E)
        unit_die(caster)   /* DataF=0 => no second blast */
