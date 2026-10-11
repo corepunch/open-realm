@@ -18231,3 +18231,17 @@ Two retail repeats/control agree151 public markers and202 native boundaries;
 [shared Captain defaults](retail-pathfinding-captain-policy.md#shared-default-homes-and-ordered-resetcaptainlocs-payoff291)
 for source contracts, regressions, Ghidra reproduction and remaining producers.
 No historical retail expected values or broad task count changed.
+
+
+## Initial Town selection through StopGathering (Payoff292)
+
+The AI native now selects a shared initial Town spot by owned insertion rank,
+which supplies actual Captain defaults. It preserves active harvest orders and
+mine occupancy. The public registration proves this producer is `StopGathering`,
+correcting the earlier timer attribution. One O(entity-count) selection pass and
+O(1) existing-spot return reuse the ordinary admission owner. Six retail repeats
+and three uninstrumented controls agree720 recorded public markers;100 original
+instruction guards and eight controlled selector calls support the binding.
+See [initial Town selection](retail-pathfinding-captain-policy.md#stopgathering-selects-the-initial-town-spot-payoff292)
+for regression coverage and the unported automatic economy policy boundary.
+Historical retail expected fixtures and the broad task count remain unchanged.

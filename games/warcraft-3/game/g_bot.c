@@ -590,16 +590,7 @@ edict_t *G_BotGetAllianceTarget(player_t *player) {
     return bot->alliance_target;
 }
 
-/* Stop only active gather orders; carried resources remain available for an explicit return order. */
-void G_BotStopGathering(player_t *player) {
-    if (!player) return;
-    FILTER_EDICTS(unit, unit->inuse && unit->s.player == PLAYER_NUM(player) && unit->currentmove &&
-        (unit->currentmove->proc == CAbilityHarvest || unit->currentmove->proc == CAbilityGoldMine ||
-         unit->currentmove->proc == CAbilityWispHarvest)) {
-        S_GoldMineReleaseWorker(unit);
-        order_stop_cleanup(unit);
-    }
-}
+
 
 static bool G_BotHarvesterReserved(bot_t *bot, edict_t *unit) {
     FOR_EACH_ARRAY(edict_t *, assigned, bot->harvesters) if (*assigned == unit) return true;

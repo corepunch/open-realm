@@ -118,4 +118,57 @@ TEST(wc3_bot, captain291_resource_building_defaults_survive_save_and_removal) {
     original->ps.start_location=start;original->mapplayer=mapplayer;
     level.ai_owned_players=owned;
 }
+
+/* StopGathering9c02a0 selects defaults; it is not a harvest cancellation native.
+ * Original selector cases and repeated public AI captures freeze priority. */
+TEST(wc3_bot, captain292_stop_gathering_selects_town_in_owned_insertion_order) {
+    uint32_t owned=level.ai_owned_players;
+    /* The minimal archive omits classification. Supply authored peon metadata;
+     * preserve the remaining stock defaults so this is not a rawcode exception. */
+    uint32_t codes[]={MAKEFOURCC('h','f','o','o'),MAKEFOURCC('h','b','a','r'),MAKEFOURCC('h','p','e','a')};
+    UnitBalance_t rows[3];FOR_LOOP(i,3)rows[i]=*G_UnitBalance(codes[i]);rows[2].type="peon";
+    slkTestData_t table={.rows=rows,.count=3};slkTestData_t *prior=G_SetSLKRows("UnitBalance",&table);
+    FOR_LOOP(kind,5) {
+        G_BotShutdown();reset_entities();setup_test_world();
+        static uint8_t cells[128*128];
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});CM_SetupTestPathmap(128,128,cells);
+        level.pathing_clock=(wc3Clock_t){.time=10,.span=300};level.ai_owned_players=1;
+        edict_t *units[3];
+        FOR_LOOP(i,3) {
+            uint32_t code=kind==1 && i ? MAKEFOURCC('h','b','a','r') :
+                (kind==2 || kind==4) && i ? MAKEFOURCC('h','p','e','a') : MAKEFOURCC('h','f','o','o');
+            units[i]=unit_create(0,code,&(vec2_t){512+512*i,1024},0);
+            if(kind==1 && i)T_ASSERT(G_UnitIsStructure(units[i]));
+        }
+        if(kind==3)G_UnitOwnerInsert(units[0]); /* Reinserted oldest ID becomes newest owned insertion. */
+        if(kind==4)G_FreeEdict(units[2]); /* Removed newest worker must not remain selectable. */
+        unsigned selected=kind==1 || kind==3 || kind==4 ? 1 : kind==2 ? 2 : 0;
+        G_BotStopGathering(&game.clients[0].ps);
+        uint32_t index=level.bots[0].town_spots[0];T_NE(index,0);
+        if(index) {
+            botTownSpot_t *spot=level.ai_town_spots+index-1;
+            T_EQ(spot->building.unit,units[selected]);
+            G_BotCreateCaptains(&game.clients[0].ps);
+            botCaptain_t *attack=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+            T_FEQ(attack->home.x,units[selected]->s.origin2.x,0);
+            T_FEQ(attack->home.y,units[selected]->s.origin2.y,0);
+            uint32_t number=units[selected]->s.number;
+            cstring_t file=Test_TempPath("wc3-captain292-town.bin");
+            T_ASSERT(WriteGame(file));G_BotShutdown();T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(level.bots[0].town_spots[0],index);
+            T_EQ(level.ai_town_spots[index-1].building.unit,g_edicts+number);
+            G_BotStopGathering(&game.clients[0].ps);
+            T_EQ(level.bots[0].town_spots[0],index);T_EQ(level.ai_town_spots_count,1);
+            T_ASSERT(G_BotValidateTownSpots(false));
+        }
+    }
+    G_BotShutdown();reset_entities();setup_test_world();level.ai_owned_players=owned;
+    slkTestData_t *replaced=G_SetSLKRows("UnitBalance",prior);free(replaced);free(prior);
+}
+
+TEST(wc3_bot, captain292_empty_town_does_not_invent_start_location) {
+    G_BotShutdown();reset_entities();setup_test_world();
+    G_BotStopGathering(&game.clients[0].ps);
+    T_EQ(level.bots[0].town_spots[0],0);T_EQ(level.ai_town_spots_count,0);
+}
 #endif

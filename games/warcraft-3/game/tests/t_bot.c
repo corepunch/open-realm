@@ -838,7 +838,7 @@ TEST(wc3_bot, hero_item_policy_buys_trigger_added_stock) {
     T_EQ(shop->stock->items[0].current, 0);
 }
 
-TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
+TEST(wc3_bot, stop_gathering_retains_active_harvest_orders_and_cargo) {
     static umove_t lumber_move = { "attack", NULL, NULL, CAbilityHarvest };
     static umove_t gold_move = { "attack", NULL, NULL, CAbilityGoldMine };
     static umove_t attack_move = { "attack", NULL, NULL, CAbilityAttack };
@@ -860,14 +860,14 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_stop_gathering.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
-    T_NULL(lumber->currentmove->proc);
-    T_NULL(gold->currentmove->proc);
+    T_EQ(lumber->currentmove->proc, CAbilityHarvest);
+    T_EQ(gold->currentmove->proc, CAbilityGoldMine);
     T_EQ(lumber->harvested_lumber, 7);
     T_EQ(gold->harvested_gold, 5);
-    T_NULL(gold->goldmine->mine);
-    T_EQ(mine->peonsinside, 0);
-    T_ASSERT(!(gold->s.renderfx & RF_HIDDEN));
-    T_ASSERT(!gold->invulnerable);
+    T_EQ(gold->goldmine->mine, mine);
+    T_EQ(mine->peonsinside, 1);
+    T_ASSERT(gold->s.renderfx & RF_HIDDEN);
+    T_ASSERT(gold->invulnerable);
     T_EQ(other->currentmove->proc, CAbilityHarvest);
     T_EQ(fighter->currentmove->proc, CAbilityAttack);
 }

@@ -345,3 +345,80 @@ Final focused validation on the merged coarse-waypoint/Hero-name commits passes
 351 tests /2,649,785 assertions per Classic/TFT, plus two adjacent tests /585
 assertions per edition. Eleven evidence checks and37 corpus checks pass. These
 are focused checks; the full repository checkpoint is not claimed here.
+
+
+## StopGathering selects the initial Town spot (Payoff292)
+
+The public AI native `StopGathering` resolves the current Town and enters
+`TownAI_SelectInitialSpot`. It does not issue Stop to harvesters, release mine
+occupants or discard an active unit order. The previous OpenRealm implementation
+inferred cancellation from the name and was wrong. Its old engine-only test is
+corrected; no historical retail expected fixture is changed.
+
+The native registration at `6f9be280..28f` supplies `StopGathering` at `6fb850c0`,
+`()`/void at `6fa974ac`, and callback `6f9c02a0`. That callback resolves the
+current AI context identity and tail-calls `6f9cc6b0`. This corrects Payoff291's
+unverified description of an independent timer producer.
+
+With an existing first Town slot, selection returns without changing it.
+Otherwise the original owned list is traversed newest first, skipping Unit20
+bit0. The first worker (Unit248 bit10) wins immediately. Without a worker,
+the last encountered structure wins; without a structure, the last other unit
+wins. These are newest worker, oldest structure and oldest combat unit in
+owned insertion order. Reused edict indexes are not insertion order.
+The selected unit enters ordinary `TownAI_AdmitSpot(unit,null)`, whose shared
+building anchor and defaults then feed actual Captain construction.
+
+`G_BotStopGathering` now performs this selection in one O(entity-count) pass
+using retained `own_seq`; it needs no sort, allocation or quadratic predecessor
+search. A present spot is an O(1) return. Shared admission now has one owning
+implementation for this native, gold-return buildings and assigned-start
+fallback. Ordinary creation and callbacks remain synchronous.
+
+Three public original-terrain scenarios each have two read-only instrumented
+runs and an observer-free control. All80 recorded public markers per run agree,
+including ongoing Move orders and unit coordinates. Each observed run contains
+11 identical selected native boundaries: the first call admits one spot, actual
+attack/defense actors receive that spot's defaults, and the repeated native
+leaves selection unchanged. Three samples after `PreloadGenEnd` exist only in
+the observer stream; these are frozen separately, not invented as on-disk output.
+
+Eight controlled original-code cases execute the selector's real instructions:
+empty, combat, structure, worker, disabled worker, existing spot, all disabled
+and reordered owned nodes. Identity resolution, node-to-Unit lookup, structure
+classification and terminal admission recording are supplied dependencies;
+this is not a complete original allocation/placement journey. The live captures
+independently establish ordinary priority and Captain construction. The100
+instruction guards also include the public registration and callback.
+
+Engine regressions cover actual creation, priority, owned reinsertion, removed
+worker, empty/no-op selection, real Captain homes and cold engine save/load.
+The minimal test archive omits worker classification, so this test supplies its
+`peon` type through object-data rows while preserving other authored defaults.
+The existing public AI-script test now requires active harvest orders, carried
+resources, hidden mine occupancy and invulnerability to remain intact.
+
+The native also clears Town2d0 bit0. Original fixtures verify that write, but
+OpenRealm does not yet model the complete automatic economy/enrollment policy
+that consumes the bit. That policy, overlay admission, moved-slot inverses and
+broader combat remain within BASE-01.4/GROUP-03.4.7.3. This change closes no broad
+TODO and makes no full-retail-save, complete movement-journey or FPS claim.
+
+Reproduce the focused evidence and engine checks with:
+
+```sh
+python tools/ghidra/verify_wc3_pathing_captain292.py \
+  --binary /path/to/retail/game.dll --data build/tests \
+  --report /tmp/captain292-fresh.json
+```
+
+The original-code calls require Unicorn. `Captain292Evidence.java` saves the
+registration/selector comments and exports assembly/xrefs; saved readback is
+identical. `MapPathfinding.java` retains the mapping. Raw captures, failed-first
+and final tests, exact sources and artifacts are archived under
+`research/GROUP-03.4.7.3/payoff292/` in the1.27 report root.
+
+Final focused validation passes353 tests /2,649,844 assertions per Classic/TFT;
+9 evidence and37 corpus Python checks pass.615 historical retail fixture files
+and527 prior corpus contracts remain unchanged. This is cadence7/12after the
+Payoff287 checkpoint, with no new full-suite claim.

@@ -118,6 +118,40 @@ static uint32_t G_BotSpotForOwnedUnit(bot_t const *bot,edict_t *unit) {
     return best ? best : bot->town_spots[0];
 }
 
+/*9c01f0 owns both explicit initial selection and gold-return building admission.
+ * Keep nullable unit/start-point domains and shared anchor publication in one path. */
+static void G_BotAdmitTownSpot(bot_t *bot,edict_t *unit,vec2_t point) {
+    uint32_t index=G_BotSpotForBuilding(unit,point);
+    if(!index)index=G_BotNewSpot(point);
+    botTownSpot_t *spot=G_BotSpot(index);
+    if(unit) {
+        if(G_BotSpotAnchor(&spot->building))spot->building.unit->ai_anchor_spot=0;
+        spot->building=(botTownAnchor_t){unit,unit->spawn_time};unit->ai_anchor_spot=index;
+        G_BotRefreshTownSpot(spot);
+    }
+    G_BotAddSpot(bot,index);
+}
+
+/* Public StopGathering9c02a0 selects the first Town spot. It never cancels
+ * harvest orders. Select by owned insertion rank in one O(units) pass rather
+ * than sorting, rescanning each predecessor, or relying on reusable edict IDs. */
+void G_BotStopGathering(player_t *player) {
+    if(!player || PLAYER_NUM(player)>=MAX_PLAYERS)return;
+    bot_t *bot=level.bots+PLAYER_NUM(player);
+    if(bot->town_spots[0])return;
+    edict_t *worker=NULL,*building=NULL,*other=NULL;
+    FILTER_EDICTS(unit,unit->inuse && unit->s.player==PLAYER_NUM(player) &&
+        (unit->aiflags&AI_TOWN_OWNED) && !M_IsDead(unit)) {
+        if(G_BotTownWorker(unit)) {
+            if(!worker || unit->own_seq>worker->own_seq)worker=unit;
+        } else if(G_UnitIsStructure(unit)) {
+            if(!building || unit->own_seq<building->own_seq)building=unit;
+        } else if(!other || unit->own_seq<other->own_seq)other=unit;
+    }
+    edict_t *unit=worker ? worker : building ? building : other;
+    if(unit)G_BotAdmitTownSpot(bot,unit,unit->s.origin2);
+}
+
 void G_BotRegisterTownUnit(edict_t *unit) {
     if(!unit || !unit->inuse || !level.ai_owned_players)return;
     if(S_GoldMineIsMine(unit)) {
@@ -135,14 +169,7 @@ void G_BotRegisterTownUnit(edict_t *unit) {
     }
     if(!(unit->aiflags&AI_TOWN_OWNED) || unit->ai_town_player)return;
     bot_t *bot=level.bots+unit->s.player;
-    if(S_UnitTypeReturnsGold(unit->class_id)) {
-        uint32_t index=G_BotSpotForBuilding(unit,unit->s.origin2);
-        if(!index)index=G_BotNewSpot(unit->s.origin2);
-        botTownSpot_t *spot=G_BotSpot(index);
-        if(G_BotSpotAnchor(&spot->building))spot->building.unit->ai_anchor_spot=0;
-        spot->building=(botTownAnchor_t){unit,unit->spawn_time};unit->ai_anchor_spot=index;
-        G_BotRefreshTownSpot(spot);G_BotAddSpot(bot,index);
-    }
+    if(S_UnitTypeReturnsGold(unit->class_id))G_BotAdmitTownSpot(bot,unit,unit->s.origin2);
     /*9c4a20 restricts worker/ordinary building selection to the four owner
      * slots. Combat-unit9b9130 uses the shared pool directly. */
     unit->ai_town_spot=G_BotTownWorker(unit) || G_UnitIsStructure(unit) ?
@@ -184,9 +211,7 @@ void G_BotDefaultCaptainHomes(player_t *player) {
         gameClient_t const *client=G_GetPlayerClientByNumber(PLAYER_NUM(player));
         if(!level.mapinfo || client->ps.start_location>=MAX_PLAYERS)return;
         vec2_t point=level.mapinfo->players[client->ps.start_location].startingPosition;
-        uint32_t index=G_BotSpotForBuilding(NULL,point);
-        if(!index)index=G_BotNewSpot(point);
-        G_BotAddSpot(bot,index);
+        G_BotAdmitTownSpot(bot,NULL,point);
     }
     botTownSpot_t const *spot=G_BotSpot(bot->town_spots[0]);
     if(!spot)return;

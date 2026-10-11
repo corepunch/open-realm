@@ -56,6 +56,12 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **290 done / 336 tasks; 46 remaining.**
+Payoff292 connects the missing public `StopGathering` initial Town selector,
+reusing shared admission and preserving active harvest/mine state. Two repeats
+and an uninstrumented control per combat/structure/worker case preserve720 public
+markers; eight original selector cases and100 instruction guards establish
+priority. This corrects291's timer attribution. Automatic economy policy remains
+open; no broader leaf closes. See [initial Town selection](retail-pathfinding-captain-policy.md#stopgathering-selects-the-initial-town-spot-payoff292).
 Payoff291 integrates shared map-owned Captain default homes and the actual ordered
 ResetCaptainLocs path, with live mine/hall admission, O(4) owner-slot pruning and
 cold-save restoration. Two retail repeats/control,16 original refresh calls and
