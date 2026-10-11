@@ -694,6 +694,8 @@ void G_PublishMoveSpatialObject(edict_t const *ent) {
     move_spatial_visits++;
 #endif
     if (!ent || !pathmap.width || !pathmap.height) return;
+    /* Only world edicts own spatial records; detached copies have no slot. */
+    if (!g_edicts || ent < g_edicts || ent >= g_edicts + MAX_ENTITIES) return;
     S_PublishMoveProximity(ent);
     move_spatial_clean(ent-g_edicts);
     if (!ent->inuse || !move_has_spatial_record(ent)) {
