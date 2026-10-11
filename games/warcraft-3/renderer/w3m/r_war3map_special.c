@@ -162,17 +162,24 @@ static uint32_t R_W3ReadCutoutOverrides(handle_t archive, w3CutoutDoodadOverride
 static cstring_t R_W3CutoutPath(uint32_t id, slkIndex_t const *slk,
                                 w3CutoutDoodadOverride_t const *overrides, uint32_t count) {
     uint32_t parent = id;
-    cstring_t original_override = NULL;
-    for (uint32_t i = 0; i < count; i++) {
-        if (overrides[i].target != id) continue;
-        parent = overrides[i].base;
-        if (overrides[i].overrides_path) return overrides[i].pathTex;
+    w3CutoutDoodadRow_t const *row;
+
+    /* Map-local doodad rows can inherit from other map-local rows. Bound the
+     * walk by the table size so malformed cyclic input cannot loop forever. */
+    for (uint32_t depth = 0; depth <= count; depth++) {
+        w3CutoutDoodadOverride_t const *override = NULL;
+        for (uint32_t i = 0; i < count; i++) {
+            if (overrides[i].target == parent) {
+                override = overrides + i;
+                break;
+            }
+        }
+        if (!override) break;
+        if (override->overrides_path) return override->pathTex;
+        if (override->base == parent) break;
+        parent = override->base;
     }
-    for (uint32_t i = 0; i < count; i++)
-        if (overrides[i].target == parent && overrides[i].overrides_path)
-            original_override = overrides[i].pathTex;
-    if (original_override) return original_override;
-    w3CutoutDoodadRow_t const *row = FS_SLKLookup(slk, parent);
+    row = FS_SLKLookup(slk, parent);
     return row ? row->pathTex : NULL;
 }
 
@@ -299,6 +306,26 @@ TEST(wc3_terrain, special_doodad_path_inherits_map_custom_id) {
     strlcpy(overrides[0].pathTex, "PathTextures/Changed.tga", sizeof(overrides[0].pathTex));
     T_STREQ(R_W3CutoutPath(overrides[0].target, &slk, overrides, 1), "PathTextures/Changed.tga");
     T_NULL(R_W3CutoutPath(MAKEFOURCC('D','0','0','F'), &slk, overrides, 1));
+}
+
+TEST(wc3_terrain, special_doodad_path_follows_map_custom_inheritance) {
+    w3CutoutDoodadRow_t parent = { .id = MAKEFOURCC('L','O','f','l'),
+                                    .pathTex = "PathTextures\\CavePath.tga" };
+    uint32_t key = parent.id;
+    void *value = &parent;
+    slkIndex_t slk = { .keys = &key, .rows = &value, .count = 1 };
+    w3CutoutDoodadOverride_t overrides[] = {
+        { .target = MAKEFOURCC('D','0','0','E'), .base = MAKEFOURCC('D','0','0','D') },
+        { .target = MAKEFOURCC('D','0','0','D'), .base = parent.id },
+    };
+
+    T_STREQ(R_W3CutoutPath(overrides[0].target, &slk, overrides, 2), parent.pathTex);
+    overrides[1].overrides_path = true;
+    strlcpy(overrides[1].pathTex, "PathTextures/Changed.tga", sizeof(overrides[1].pathTex));
+    T_STREQ(R_W3CutoutPath(overrides[0].target, &slk, overrides, 2), "PathTextures/Changed.tga");
+    overrides[1].overrides_path = false;
+    overrides[1].base = overrides[0].target;
+    T_NULL(R_W3CutoutPath(overrides[0].target, &slk, overrides, 2));
 }
 
 TEST(wc3_terrain, special_cliff_cutout_preserves_side_and_rear_rim) {
