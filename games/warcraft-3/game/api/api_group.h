@@ -2,10 +2,17 @@
 
 #define IS_UNIT(ent) (ent->svflags & SVF_MONSTER)
 
+/* Original group insertion (227b80) prepends Heroes and appends other units: ForGroup,
+ * FirstOfGroup and group orders visit the newest Hero first, then the rest in insertion
+ * order. The physical Move member order (23acd0 snapshot) inherits this order. */
 bool group_add_entity(ggroup_t *group, edict_t *ent) {
     if (!G_JassGroupValid(group) || !ent || group->num_units >= MAX_GROUP_SIZE) return false;
     FOR_LOOP(i, group->num_units) if (group->units[i] == ent) return false;
-    group->units[group->num_units++] = ent;
+    if (G_UnitIsHero(ent)) {
+        memmove(group->units + 1, group->units, group->num_units * sizeof(*group->units));
+        group->units[0] = ent;
+        group->num_units++;
+    } else group->units[group->num_units++] = ent;
     return true;
 }
 

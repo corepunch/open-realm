@@ -7972,6 +7972,29 @@ TEST(wc3_api, group_add_is_set_semantics) {
     G_FreeJassGroup(group);
 }
 
+/* Retail ForGroup order (tools/frida/journeys/grouporder.json): GroupAddUnit prepends
+ * Heroes and appends other units; [Hpal,hfoo,Hamg,hfoo,Hmkg] enumerates Hmkg,Hamg,Hpal,hfoo,hfoo. */
+TEST(wc3_api, group_add_prepends_heroes_like_original) {
+    uint32_t const types[] = {MAKEFOURCC('H','p','a','l'), MAKEFOURCC('h','f','o','o'),
+        MAKEFOURCC('H','a','m','g'), MAKEFOURCC('h','f','o','o'), MAKEFOURCC('H','m','k','g')};
+    uint32_t const order[] = {4, 2, 0, 1, 3};
+    UnitBalance_t const hero_row = {.strength = 20}, unit_row = {0};
+    edict_t *units[5];
+    reset_entities();
+    ggroup_t *group = G_AllocJassGroup();
+    T_NOT_NULL(group);
+    FOR_LOOP(i, 5) {
+        units[i] = alloc_test_unit(types[i], (float)i, 0);
+        units[i]->data.UnitBalance = i % 2 == 0 ? &hero_row : &unit_row;
+        T_EQ(G_UnitIsHero(units[i]), (bool)(i % 2 == 0));
+        T_ASSERT(group_add_entity(group, units[i]));
+    }
+    T_EQ(group->num_units, 5);
+    FOR_LOOP(i, 5) T_ASSERT(group->units[i] == units[order[i]]);
+    G_FreeJassGroup(group);
+    reset_entities();
+}
+
 TEST(wc3_api, group_debug_creator_follows_slot_lifecycle) {
     ggroup_t *group = G_AllocJassGroup();
 

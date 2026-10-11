@@ -56551,7 +56551,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_api.c",
-      "sha256": "50eb4724f581a0b31a27f311da20aa9da5fd4c760eba727099d29800595894f1"
+      "sha256": "6e17ecebb6c1055042887b43bd35ff3605f0a4f76bc23f73c6a95ea5cb9e2a05"
     },
     {
       "path": "games/warcraft-3/game/tests/t_collision.c",
