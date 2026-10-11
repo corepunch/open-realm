@@ -416,6 +416,21 @@ false, so any remaining open gap must be investigated before widening the
 cutout or adding synthetic geometry. The MDX cave model's position, scale,
 rotation and replaceable cliff-texture selection are unchanged.
 
+### Selective cliff joins at special cave mouths
+
+The initial special-doodad cutout removed every generated cliff tile within
+its `pathTex` rectangle. In Rexxar's OrcX01 Goblin Cave this left visible,
+straight model boundaries along the roof and sides, even once ground rendering
+and the cave's terrain-sampled Z were corrected. Cliff cutouts now keep the
+north/rear footprint row and both side columns above the front row, retaining
+surrounding authored cliff pieces to cover the model's upper and side seams.
+The front row still suppresses cliffs all the way across the mouth, preserving
+the opening and shimmering barrier. Tiny or clipped footprints too narrow for
+an inset retain full suppression. This is a **visual-only, provisional** join
+policy; the original map's special doodad/MDX placement should be compared
+with retail before treating the north/rear assumption as universal. No pathing,
+height, ground, model scale/rotation, or textures are changed.
+
 ### Special terrain doodad elevation (W3E terrain height)
 
 Special `war3map.doo` records provide indexed XY cells, not an absolute model

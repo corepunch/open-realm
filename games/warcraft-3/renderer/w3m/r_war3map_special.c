@@ -1,9 +1,9 @@
 #include "r_war3map.h"
 #include "common/stb_slk.h"
 
-/* Special war3map.doo entries are terrain replacements, not just model instances.
- * Retail suppresses both ground and generated cliffs across the doodad's authored
- * pathTex footprint. Keep that presentation mask independent of gameplay pathing. */
+/* Visual-only generated-cliff suppression for special terrain doodads.
+ * Keep enough of the surrounding cliff at footprint edges to meet the model;
+ * ground geometry and gameplay pathing are separate from this mask. */
 static uint8_t *w3_special_cutouts;
 static uint32_t w3_cutout_width, w3_cutout_height;
 
@@ -34,11 +34,29 @@ static bool R_W3BeginSpecialCutouts(war3map_t const *map) {
 static void R_W3MarkSpecialCutout(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
     if (!w3_special_cutouts || !width || !height ||
         x >= w3_cutout_width || y >= w3_cutout_height) return;
-    /* Clip even malformed or edge-overlapping footprints; never wrap indexes. */
+    /* Clip even malformed or edge-overlapping footprints; never wrap indexes.
+     * The authored pathing rectangle is broader than the mouth which replaces
+     * generated cliff faces. Cutting its full rectangle left unnaturally straight
+     * holes above and beside the special cliff model (Rexxar Goblin Cave).
+     *
+     * Retain the north/rear row and the two side columns behind the entrance,
+     * but keep the south/front row clear for the mouth and its barrier. This
+     * preserves the surrounding cliff where it can hide the cave model's flat
+     * upper/side boundaries without bringing back the complete cliff wall.
+     * Small footprints cannot be inset safely: preserve the original mask. */
     uint32_t right = x + MIN(width, w3_cutout_width - x);
     uint32_t bottom = y + MIN(height, w3_cutout_height - y);
-    for (uint32_t cy = y; cy < bottom; cy++)
-        memset(w3_special_cutouts + (size_t)cy * w3_cutout_width + x, 1, right - x);
+    bool const refine = right - x >= 3 && bottom - y >= 2;
+    for (uint32_t cy = y; cy < bottom; cy++) {
+        if (refine && cy == bottom - 1) continue; /* keep rear rim */
+        uint32_t from = x, to = right;
+        if (refine && cy != y) { /* keep side joins above the mouth */
+            from++;
+            to--;
+        }
+        if (to > from)
+            memset(w3_special_cutouts + (size_t)cy * w3_cutout_width + from, 1, to - from);
+    }
 }
 
 /* A renderer-local view of only the doodad property needed for cutouts. */
@@ -283,21 +301,33 @@ TEST(wc3_terrain, special_doodad_path_inherits_map_custom_id) {
     T_NULL(R_W3CutoutPath(MAKEFOURCC('D','0','0','F'), &slk, overrides, 1));
 }
 
-TEST(wc3_terrain, special_doodad_cutout_is_rectangular_and_clipped) {
-    war3map_t map = { .width = 9, .height = 9 };
+TEST(wc3_terrain, special_cliff_cutout_preserves_side_and_rear_rim) {
+    war3map_t map = { .width = 12, .height = 12 };
     war3map_t const *saved_world = tr.world;
     tr.world = &map;
     T_ASSERT(R_W3BeginSpecialCutouts(&map));
-    R_W3MarkSpecialCutout(2, 3, 3, 2);
+    R_W3MarkSpecialCutout(2, 3, 5, 4);
+    /* Mouth/front edge stays unobstructed, including its two corners. */
     T_ASSERT(R_W3SpecialCellCovered(&map, 2, 3));
-    T_ASSERT(R_W3SpecialCellCovered(&map, 4, 4));
-    T_ASSERT(!R_W3SpecialCellCovered(&map, 5, 4));
+    T_ASSERT(R_W3SpecialCellCovered(&map, 6, 3));
+    /* Cliff faces beside the inner rows are retained for natural joins. */
+    T_ASSERT(!R_W3SpecialCellCovered(&map, 2, 4));
+    T_ASSERT(R_W3SpecialCellCovered(&map, 3, 4));
+    T_ASSERT(R_W3SpecialCellCovered(&map, 5, 5));
+    T_ASSERT(!R_W3SpecialCellCovered(&map, 6, 5));
+    /* Restore the whole rear row over the model's upper rectangle. */
+    T_ASSERT(!R_W3SpecialCellCovered(&map, 3, 6));
+    T_ASSERT(!R_W3SpecialCellCovered(&map, 5, 6));
     T_ASSERT(!R_W3SpecialCellCovered(&map, 1, 3));
-    R_W3MarkSpecialCutout(7, 7, UINT32_MAX, UINT32_MAX);
-    T_ASSERT(R_W3SpecialCellCovered(&map, 7, 7));
-    T_ASSERT(!R_W3SpecialCellCovered(&map, 6, 7));
+    /* Edge clipping and tiny footprints retain the old safe behaviour. */
+    R_W3MarkSpecialCutout(10, 10, UINT32_MAX, UINT32_MAX);
+    T_ASSERT(R_W3SpecialCellCovered(&map, 10, 10));
+    T_ASSERT(!R_W3SpecialCellCovered(&map, 9, 10));
+    R_W3MarkSpecialCutout(0, 0, 2, 1);
+    T_ASSERT(R_W3SpecialCellCovered(&map, 0, 0));
+    T_ASSERT(R_W3SpecialCellCovered(&map, 1, 0));
     R_W3ClearSpecialCutouts();
-    T_ASSERT(!R_W3SpecialCellCovered(&map, 2, 3));
+    T_ASSERT(!R_W3SpecialCellCovered(&map, 3, 4));
     tr.world = saved_world;
 }
 #endif
