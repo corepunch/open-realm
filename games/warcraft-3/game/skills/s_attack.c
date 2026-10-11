@@ -1827,8 +1827,24 @@ static void attack_target_available(edict_t *target) {
             S_UnitAbilityEvent(target,A_NO_ACQUIRE) || !S_AttackCanAutoAcquire(unit,target) ||
             !G_FowPlayerCanTrackUnit(unit->s.player,target))continue;
         float range=G_AcquisitionRange(unit);
+        /*498e50 clamps a movement-ineligible owner's acquisition radius to
+         * its maximum enabled weapon range. Speed zero is still an enabled
+         * Move ability; removal and translation prevention are separate. */
+        bool can_approach=G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) &&
+            S_UnitCanTranslate(unit);
+        if(!can_approach) {
+            float maximum;
+            S_UnitAttackApproachRange(unit,&maximum);
+            range=MIN(range,maximum);
+        }
         /*49e256 passes prediction selector0: stored centers, both radii. */
         if(!S_UnitTargetInCommittedMoveRange(unit,target,range))continue;
+        /*49e277/49e2b7 then require the selected weapon's predicted reach.
+         * A long-range incompatible second slot cannot admit this target. */
+        if(!can_approach) {
+            float selected=MIN(attack_profile(unit,target)->range,G_AcquisitionRange(unit));
+            if(!S_UnitTargetInMoveRange(unit,target,MAX(ATTACK_MINIMUM_CHASE_RANGE,selected)))continue;
+        }
         attack_cap_begin(unit);
         /* Exemption also survives ranking rejection, as in49e130. */
         if(attack_should_replace_available_target(unit,target))order_attack(unit,target);

@@ -18478,6 +18478,97 @@
         }
       ],
       "evidence": "Payoff269 ORDER-01.13: spell virtual410, ECX typed spell prefix; stack4 output scalar*,8 x*,c y*,10 buffer flag, RET10. x/y/buffer unused:417a70 reads rank50 authored Rng and returns output*. Two complete read-only point Flame Strike repeats observe range44480000 at admission buffer0 and later buffer1. Do not infer a single-argument ABI from the decompiler; keep unused stack arguments."
+    },
+    {
+      "address": "6f498e50",
+      "name": "Attack_GetAvailabilityRange",
+      "convention": "__thiscall",
+      "returns": "ptr:WC3PathScalar",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff270: ECX Attack, stack4 scalar output*, RET4, EAX output*. Ordinary invalid retained2bc/2c0 branch reads acquisition244;4985c0 returns maximum enabled effective slot range; if maximum is less and Unit66f030(1,0) rejects, clamp acquisition to that maximum. Public removed-Amov Footman yields90 instead of authored400. Dual-slot ground90/air500 retains400 but later selected ground guard rejects300-distance target. Retained-adjusted branch remains subject to prior setter reachability exclusion."
+    },
+    {
+      "address": "6f498520",
+      "name": "Attack_GetCandidateEffectiveRange",
+      "convention": "__thiscall",
+      "returns": "ptr:WC3PathScalar",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "candidate",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff270: ECX Attack, stack4 scalar output*, stack8 candidate Unit*, RET8, EAX output*.496b80 selects compatible slot, then4984a0/4984b0 returns its effective range; unresolved slot writes runtime zero. Do not confuse maximum enabled range4985c0 with this target-specific range. Public authored ground90/air500 selects90 for ground candidate."
+    },
+    {
+      "address": "6f66f030",
+      "name": "Unit_CanMoveWithQueryFlags",
+      "convention": "__thiscall",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "check_disabled",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "check_sleep",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff270 ABI from all10 instructions: ECX Unit, stack4 check_disabled, stack8 check_sleep, RET8. Null Unit1ec Move returns0; otherwise tailcalls5fb040 preserving both arguments. No movement-speed read. Public UnitRemoveAbility Amov returns0; SetUnitMoveSpeed0 retains1. Prediction guard49e277 supplies1,0."
+    },
+    {
+      "address": "6f5fb040",
+      "name": "Move_IsEnabledForQuery",
+      "convention": "__thiscall",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "self",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "check_disabled",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "check_sleep",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff270: ECX Move, stack4 check_disabled, stack8 check_sleep, RET8. Positive7c rejects; nonzero first flag tests20.200.3c prevention is reduced for sleep and unit suspension flags/depth. No speed check: the public zero-speed setter retains Move eligibility. Full prevention/sleep compositions are not certified by that lane."
     }
   ],
   "globals": [

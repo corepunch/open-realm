@@ -16823,3 +16823,72 @@ python3 tools/ghidra/verify_wc3_pathing_spell269.py \
   --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-01.13/captures269 \
   --report /tmp/spell269-fresh.json
 ```
+
+
+### Availability respects both acquisition and selected-weapon reach (Payoff270)
+
+An ordinary Attack availability notification now distinguishes an enabled Move
+ability from a zero movement speed. When the unit cannot approach, `498e50`
+limits its acquisition range to the maximum enabled effective weapon range.
+`49e256` tests that range against committed centers. If it passes, `49e277`
+checks movement eligibility and `49e2b7` separately tests predicted centers with
+`max(32, selected effective weapon range)`. Both tests precede the Attack-owned
+speed-cap exemption and replacement ranking.
+
+A longer incompatible weapon does not authorize an unreachable target. The new
+public `hG27` Footman has ground range90, air range500 and acquisition400, with
+`Amov` removed. Its ground target300 units away passes the first400-range test
+and fails the second90-range test. An ordinary removed-Amov Footman instead
+fails the first90-range test. A target128 units away passes both; mobile and
+publicly zero-speed controls retain Move eligibility and acquire at300.
+Native `SetUnitMoveSpeed(0)` is subject to its existing clamp, so the public lane
+establishes that it retains an enabled Move, not a physically motionless unit.
+The separate engine zero-speed composition directly checks the eligibility rule.
+
+The implementation uses the existing maximum-range, slot-selection and exact
+Move range APIs. It adds constant work to each notification recipient, with no
+additional spatial scan, allocation, timer or saved field. Existing indexed
+recipient encounter order, accepted public command and exemption scheduling
+remain intact. The earlier generic immobile auto-acquisition policy and wider
+prevention/sleep/minimum-range/TownAI branches are not certified by this change.
+
+Two complete read-only Frida repeats preserve175 ordered events each and25
+public markers each; an unhooked control matches all25 markers. The frozen raw
+bundle retains every event, including other units' legitimate availability
+notifications. `guard270_probe.j`, its map builder and observer reproduce the
+five-lane map. The fourth lane's speed-zero setter is not a substitute for
+removing `Amov`. The initial four-lane diagnostic is retained in the archive;
+it did not independently witness rejection at the second guard. The authored
+fifth lane was added specifically to distinguish the two stages.
+
+The production regression drives actual owner-change delivery, with absent and
+restored Move, near/far and dual-slot controls, a predicted departing target,
+a non-stock range override, the native32 minimum and saved ability removal.
+The final pre-change fixture fails10 assertions. It preserves public identity
+and RNG state across these cases. Original instruction pins, explicit ECX/stack
+ABIs and Ghidra annotations accompany the captures. Network and save layout are
+unchanged; GROUP-03.2 stays open for its remaining producers and ranking domains.
+
+Reproduce the original/evidence and focused Classic/TFT checks with:
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_guard270.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --test-binary /tmp/rank264-review/build/bin/openwarcraft3-tests \
+  --data build/tests --report /tmp/guard270-fresh.json
+```
+
+The complete diagnostic and accepted reports, source snapshots and binaries are
+archived under `research/GROUP-03.2/payoff270/` in the WC3 analysis report root.
+
+Focused release validation passes **71 tests /16,381 assertions per edition**;
+nearby combat, Ensnare, Purge and Ancient Root checks pass another **236 tests /
+7,862 assertions per edition**. The new regression itself passes89 assertions.
+Ten Python evidence checks and37 corpus checks pass; all505 previous entry
+contracts and earlier retail expected words are preserved.
+
+Both `498e50` and `498520` return the output scalar pointer in EAX, despite
+previous void decompiler types. `Guard270Evidence.java` temporarily restores
+dynamic storage before changing those returns, then reinstates verified custom
+ECX/stack parameters. This avoids Ghidra's `Storage can't be resized: <VOID>`
+error. The saved export and subsequent readback are byte-identical.

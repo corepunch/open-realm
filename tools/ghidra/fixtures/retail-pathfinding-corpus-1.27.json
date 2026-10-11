@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "224 executable original/evidence contracts;505 total entries.",
+  "scope": "225 executable original/evidence contracts;506 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -51946,6 +51946,57 @@
         "No changes to previous retail captures or expected numerical words. Old267/268 internal polling assertions are updated only where new retail physical ownership disproves that implementation detail.",
         "No performance threshold or complete ORDER-01.13 closure claim."
       ]
+    },
+    {
+      "id": "oracle-guard270",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_guard270.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "guard270.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 3
+        },
+        "public_markers": {
+          "equal": 75
+        },
+        "ordered_events": {
+          "equal": 350
+        },
+        "public_lanes": {
+          "equal": 10
+        },
+        "instructions": {
+          "equal": 434
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Movement-ineligible availability maximum-enabled committed range and selected-weapon predicted range before speed-cap exemption; dual-slot public controls and removal/restoration/save regressions.",
+      "exclusions": [
+        "Public ordinary human Footman availability guards only; full TownAI ranking, optional overrides, other notification gates and target-speed domains remain open.",
+        "Saved ability removal, minimum32 and predicted-pose compositions are engine regressions using existing retail scalar range contracts, not additional live mutation witnesses.",
+        "No change to previous retail expected values, save layout or network state. No complete GROUP-03.2 closure or performance threshold claim."
+      ]
     }
   ],
   "fixtures": [
@@ -52011,7 +52062,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "9bc1df60545083ea315ca761fe89357a7a0ee3d8b48a3eb3b94d52817f442d82"
+      "sha256": "4243a5bb1273adaeb827d4763e64b7971e06862fa1c0904e8444f1f9060972f5"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -52844,7 +52895,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "abb1a6919e166e8ce6c4164326daa097a2604da7633e60454cbb9af59fa7d210"
+      "sha256": "50e1149727f63eacdb53209bb42112becd73510f4fc68333927c3a794ee9683b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -54636,7 +54687,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "7cc70d452d15e153ca18e3c145ac6209f4c567a89c38a91db227aa5b2c6e7f6f"
+      "sha256": "4671b5d2494421adb06f852fb9eee9a483bb82aa6de5c4c8fdfe669383752411"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -54648,11 +54699,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "511b8148da2e2a9bfaa65e90e1b2ed9f3f09d1b5e790ee97fabf922dcf45ba77"
+      "sha256": "31260ea3cb7b313b08e180b558c3719309793f573f6fcaac5051e202d410d3a0"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "257b3d94b327dd6937784e10442177d076b3a1dbba25b49d37b82e6c07179794"
+      "sha256": "d9c539d5e0f4d42d4377efc180299b9c06fa155de402fb0c51c71a5298a966d8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -54660,7 +54711,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "d38c89d1f6af568157e328cae4dfcafaf240d88a1d38805c01678a7d49c03dcb"
+      "sha256": "883f0f874763a84db9e0e23a419cde9fdc73cca05a680a4abd319624b63f30a5"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -55736,7 +55787,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
-      "sha256": "981b2db395253b410c2c979f19b0c395861d1a86f21aeedba5285f0495bc173d"
+      "sha256": "7cb8a28e650566e6c04914a02c396e5344fc21d436773b24eb29944d29495df2"
     },
     {
       "path": "games/warcraft-3/game/tests/t_patrol_orders.c",
@@ -58905,6 +58956,38 @@
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_spell_approach269.h",
       "sha256": "eb6bcedad62107289e264aab8432c2d359976624cbe78f818d9e58861fa9e9c9"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_guard270.py",
+      "sha256": "97fcbffcdbbb603e70b975c24fc09340089fefe11d8a472e12fb844e09b3c4ed"
+    },
+    {
+      "path": "tools/frida/research/guard270_make_map.py",
+      "sha256": "5d2aba9824dcb673d984c62aa3b68d1728aab5c77c948d2b08744441cf936b0b"
+    },
+    {
+      "path": "tools/frida/research/guard270_observer.js",
+      "sha256": "70b1eecca2c7281777ea769f42fd160493168d76e24d550e42cbda3fa1ab4c7b"
+    },
+    {
+      "path": "tools/frida/research/guard270_probe.j",
+      "sha256": "60c683ea8cefe7c1c5970c3b137ce22f5e8037ffebba1460d56b35233a1bcb9a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-guard270-1.27.json",
+      "sha256": "c22782515d5473c7682bdd31f4a746d08ad56730520a2724998f2d36cddf6cf9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-guard270-1.27.json.gz",
+      "sha256": "8ac823fe32b7854507811123c9f62ab94c407d0cc8fd6b1754d60e5d89c24f0f"
+    },
+    {
+      "path": "tools/ghidra/research/Guard270Evidence.java",
+      "sha256": "4794367b678112ea477768796a3d0768693a62f04522bb922a7bba2b7c338729"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_guard270.py",
+      "sha256": "d35e88f3ea5cf9f9770d5723c13f25c14b6f77039333d77acabc482ea01d6ece"
     }
   ]
 }

@@ -1561,4 +1561,56 @@ TEST(wc3_order_lifecycle, queue263_direct_append_resolves_optional_user_order_id
     queue263_close();
 }
 
+
+/* Native49e277/49e2b7: missing Move does not admit targets merely inside
+ * acquisition range. A zero-speed Move ability still owns eligibility. */
+TEST(wc3_order_lifecycle, guard270_available_target_requires_reachable_weapon_range) {
+    FOR_LOOP(mode,11) {
+        reset_entities();setup_test_world();level.show_map_cheat=true;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        level.timer_clock_valid=false;level.pathing_clock=(wc3Clock_t){8,0,300};
+        edict_t *unit=review_order_unit(0,0),*candidate=review_order_unit(mode==1 || mode==5 ? 128 : mode==10 ? 80 : 300,0);
+        unit->s.model=candidate->s.model=1;unit->collision=candidate->collision=31;
+        unit->runtime.acquisition_range=400;unit->invulnerable=true;
+        S_AttackProfileWrite(unit,0)->range=90;
+        if(mode!=2 && mode!=3)
+            T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','m','o','v')));
+        if(mode==3)unit->unitinfo.MoveSpeed=0; /* Not an absent/disabled Move. */
+        if(mode==4)S_AttackProfileWrite(unit,0)->range=300; /* Authored override. */
+        UnitWeapons_t weapons=*unit->data.UnitWeapons;
+        if(mode==5 || mode>=8) {
+            weapons.attacksEnabled=mode==9 ? 1 : 3;unit->data.UnitWeapons=&weapons;
+            S_AttackProfileWrite(unit,1)->type=ATK_NORMAL;
+            S_AttackProfileWrite(unit,1)->targetsAllowed=WC3_TARGET_FLAG_AIR;
+            S_AttackProfileWrite(unit,1)->range=500;
+        }
+        if(mode==10)S_AttackProfileWrite(unit,0)->range=10;
+        if(mode==5) {
+            candidate->movement.fine_pose=(vec2_t){4,0};
+            candidate->movement.pose_world=candidate->s.origin2;
+            candidate->movement.pose_valid=candidate->movement.clock_valid=true;
+            candidate->movement.pose_clock=(wc3Clock_t){7.5f,0,300};
+            candidate->movement.velocity=(vec2_t){400,0}; /* Leaves predicted weapon reach. */
+        }
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(candidate);
+        if(mode==6) {
+            uint32_t u=unit->s.number,c=candidate->s.number;
+            UnitWeapons_t const *weapons=unit->data.UnitWeapons;
+            cstring_t file=Test_TempPath("wc3-guard270.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit=g_edicts+u;candidate=g_edicts+c;
+            unit->data.UnitWeapons=candidate->data.UnitWeapons=weapons;
+        }
+        if(mode==7)T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('A','m','o','v')));
+        uint32_t head=unit->current_order_id;wc3Random_t random=level.pathing_random;
+        T_ASSERT(!unit->attack_speed_cap.active);T_NULL(unit->attack_target);
+        G_SetUnitPlayer(candidate,1);
+        bool accepted=mode==1 || mode==2 || mode==3 || mode==4 || mode==7 || mode==10;
+        T_EQ(unit->attack_speed_cap.active,accepted);
+        T_EQ(unit->attack_target,accepted ? candidate : NULL);
+        T_EQ(unit->current_order_id,head);
+        T_EQ(level.pathing_random.sum,random.sum);T_EQ(level.pathing_random.index,random.index);
+    }
+    reset_entities();setup_test_world();
+}
 #endif
