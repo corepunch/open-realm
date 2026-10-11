@@ -620,6 +620,8 @@ bool S_UnitCanTranslate(edict_t const *unit);
 float S_EnsnareMeleeRange(edict_t const *unit);
 bool S_SpellIsEnemy(edict_t *caster, edict_t *target);
 bool S_SpellIsFriend(edict_t *caster, edict_t *target);
+bool S_SpellIsNeutral(edict_t const *caster, edict_t const *target);
+bool S_TargsAllowsOwner(cstring_t targets, edict_t const *source, edict_t const *target);
 bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target);
 bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target);
 bool S_SpellShieldImpactDeferred(uint32_t code);

@@ -715,7 +715,7 @@ void SP_CallSpawn(edict_t *edict) {
 void SP_worldspawn(edict_t *ent) {
 }
 
-static uint32_t G_MapPlayerTeam(mapInfo_t const *mapinfo, uint32_t playernum) {
+uint32_t G_MapPlayerTeam(mapInfo_t const *mapinfo, uint32_t playernum) {
     if (!mapinfo || !mapinfo->teams) {
         return playernum;
     }
@@ -850,7 +850,8 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
         }
     }
     clent->client->mapplayer = player;
-    clent->client->jass.controller = G_MapControl(player);
+    /* Original 1e7c20 seats the four neutral owners as playing MAP_CONTROL_CREEP slots. */
+    clent->client->jass.controller = playernum >= PLAYER_NEUTRAL_AGGRESSIVE ? 4 : G_MapControl(player);
     clent->client->jass.race_pref = G_RacePreference(player);
     clent->client->jass.race_selectable = true;
     clent->client->jass.handicap = 100.0f;
@@ -1022,6 +1023,7 @@ void G_SpawnEntities(void) {
     cstring_t setup_seed = gi.CvarString("wc3_random_seed", "");
     level.setup.random_seed = *setup_seed ? (uint32_t)strtoul(setup_seed, NULL, 0) : gi.Milliseconds();
     G_BotInitPlayers();
+    G_InitControllerAlliances();
     UI_Init();
     CM_BakeStaticObstacles();
     /* Start simulation from the map load itself so dedicated and listen-server restores share one lifecycle. */

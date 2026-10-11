@@ -1236,7 +1236,10 @@ TEST(wc3_spell, aura_targets_follow_source_team_alliances_and_neutral_mask) {
     ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[3].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_PASSIVE].playerType = kPlayerTypeNeutral;
+    /* Original 6ac5d0: an ally is PASSIVE with SHARED_SPELLS (the force setup grants both);
+     * PASSIVE alone classifies the owner as neutral. */
     G_SetPlayerAlliance(&game.clients[1].ps, &game.clients[2].ps, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(&game.clients[1].ps, &game.clients[2].ps, ALLIANCE_SHARED_SPELLS, true);
     source->s.player = 1;
     source->heroabilities[0] = MAKE(heroability_t, .code = ally_code, .level = 1);
     neutral_source->s.player = 1;
@@ -1254,6 +1257,9 @@ TEST(wc3_spell, aura_targets_follow_source_team_alliances_and_neutral_mask) {
     T_FEQ(S_DevotionArmorBonus(enemy), 0.0f, 0.001f);
     T_FEQ(S_DevotionArmorBonus(neutral), 7.0f, 0.001f);
     T_FEQ(S_DevotionArmorBonus(neutral_outside_mask), 0.0f, 0.001f);
+    G_SetPlayerAlliance(&game.clients[1].ps, &game.clients[2].ps, ALLIANCE_SHARED_SPELLS, false);
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(ally), 0.0f, 0.001f);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

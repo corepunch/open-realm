@@ -130,9 +130,9 @@ uint32_t GetPlayerSlotState(jass_t *j) {
 
     if (client && client->jass.removed) {
         state = 2;
-    } else if (client && client->mapplayer &&
+    } else if (client && (client->ps.number >= PLAYER_NEUTRAL_AGGRESSIVE || (client->mapplayer &&
         (client->mapplayer->playerType == kPlayerTypeHuman ||
-         client->mapplayer->playerType == kPlayerTypeComputer))
+         client->mapplayer->playerType == kPlayerTypeComputer))))
     {
         state = 1;
     }

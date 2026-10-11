@@ -371,6 +371,55 @@ bool S_SpellIsFriend(edict_t *caster, edict_t *target) {
     return G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
+/* Original 6ac5d0 owner classes, from the source owner's directional diplomacy
+ * (GetPlayerAlliance types 0 and 4): ally is PASSIVE with SHARED_SPELLS, neutral is
+ * PASSIVE without it, enemy lacks PASSIVE. The owner's W3I slot type is not consulted. */
+#define TARGS_SELF 0x1000u
+#define TARGS_PLAYER 0x2000u
+#define TARGS_ALLY 0x4000u
+#define TARGS_NEUTRAL 0x8000u
+#define TARGS_ENEMY 0x10000u
+#define TARGS_RELATIONS 0x1f000u
+
+static uint32_t targs_owner_class(uint32_t source, uint32_t owner) {
+    uint32_t alliances;
+    if (source == owner) return TARGS_PLAYER;
+    alliances = level.alliances[source][owner];
+    if (!(alliances & (1u << ALLIANCE_PASSIVE))) return TARGS_ENEMY;
+    return alliances & (1u << ALLIANCE_SHARED_SPELLS) ? TARGS_ALLY : TARGS_NEUTRAL;
+}
+
+bool S_SpellIsNeutral(edict_t const *caster, edict_t const *target) {
+    return caster && target && caster->s.player < MAX_PLAYERS && target->s.player < MAX_PLAYERS &&
+        targs_owner_class(caster->s.player, target->s.player) == TARGS_NEUTRAL;
+}
+
+/* Original ce61f0 token table, matched whole and case-insensitively like the other targs tokens. */
+static uint32_t targs_relation_bits(cstring_t targets) {
+    static struct { cstring_t full, short_name; uint32_t bits; } const tokens[] = {
+        {"self", NULL, TARGS_SELF}, {"player", "play", TARGS_PLAYER}, {"allies", "alli", TARGS_ALLY},
+        {"ally", NULL, TARGS_ALLY}, {"friend", "frie", TARGS_PLAYER | TARGS_ALLY},
+        {"neutral", "neut", TARGS_NEUTRAL}, {"enemies", "enem", TARGS_ENEMY}, {"enemy", NULL, TARGS_ENEMY},
+        {"notself", "nots", TARGS_PLAYER | TARGS_ALLY | TARGS_NEUTRAL | TARGS_ENEMY},
+    };
+    uint32_t bits = 0;
+    FOR_LOOP(i, sizeof(tokens) / sizeof(tokens[0]))
+        if (S_SpellTargetHasToken(targets, tokens[i].full, tokens[i].short_name)) bits |= tokens[i].bits;
+    return bits;
+}
+
+/* Original 6ae260 targs owner filter: 6a9ef0 admits every owner when no relation token is
+ * authored; otherwise 6ac5d0 admits the matching classes, and the source's own player only
+ * through player/friend (2000) or self (1000). The self token's unit-level restriction is the
+ * caller's. Ground,enemy,organic,neutral (Disease Cloud) therefore never reaches its owner's units. */
+bool S_TargsAllowsOwner(cstring_t targets, edict_t const *source, edict_t const *target) {
+    uint32_t const bits = targets ? targs_relation_bits(targets) : 0;
+    if (!(bits & TARGS_RELATIONS) || (bits & TARGS_RELATIONS) == TARGS_RELATIONS) return true;
+    if (!source || !target || source->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) return false;
+    if (source->s.player == target->s.player) return (bits & (TARGS_PLAYER | TARGS_SELF)) != 0;
+    return (bits & targs_owner_class(source->s.player, target->s.player)) != 0;
+}
+
 bool S_SpellTargetHasToken(cstring_t targets, cstring_t full, cstring_t short_name) {
     char token[32];
     cstring_t cursor = targets;
@@ -457,17 +506,7 @@ bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
     /* organic/mechanical are targtype tokens, not air/ground; TFT Cyclone authors organic. */
     if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
     if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;
-    if (strstr(targets, "friend") && S_SpellIsFriend(caster, target)) {
-        return true;
-    }
-    if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) {
-        return true;
-    }
-    if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) {
-        return true;
-    }
-    return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
+    return S_TargsAllowsOwner(targets, caster, target);
 }
 
 static bool spell_allows_corpse_target(uint32_t code, edict_t *caster, edict_t *target, bool stored) {
@@ -489,13 +528,7 @@ static bool spell_allows_corpse_target(uint32_t code, edict_t *caster, edict_t *
     if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
     if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;
 
-    if (strstr(targets, "player") && target->s.player == caster->s.player) return true;
-    if (strstr(targets, "friend") && S_SpellIsFriend(caster, target)) return true;
-    if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) return true;
-    if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) return true;
-    return !strstr(targets, "player") && !strstr(targets, "friend") &&
-        !strstr(targets, "enemy") && !strstr(targets, "neutral");
+    return S_TargsAllowsOwner(targets, caster, target);
 }
 
 bool S_SpellAllowsCorpseTarget(uint32_t code, edict_t *caster, edict_t *target) {

@@ -54807,7 +54807,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "41e5dbb371051ad321b6e321d06c0c5d3e800994970dd86889566b17b08dc9f0"
+      "sha256": "2622aa4c652db93f97e00632c825e6da21385801810234eb69e6deb8657e3825"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
@@ -55255,7 +55255,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "0b10db57be48ba1d0d557b1a828ef79f02838685254fa62e518586af4dc2e6cf"
+      "sha256": "e6b9dc39c29f1d3c5c35a22b9b18949341183c534702fed4c49747005aa898f9"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -55823,7 +55823,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
-      "sha256": "6476c8fb4d99cb3401482fb2c2fcbe0654628ab4bb71c2fb4cf7c49dd4dba691"
+      "sha256": "596b2d2be1ed442c06eeb0f2a14f0131664a7aceb96faa4ea59a29d8301391c1"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_attack_help.py",
@@ -55891,7 +55891,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_spawn.c",
-      "sha256": "a36fa11fd47c9d3d462ed57aba5b01803644564e6f7587e212096d16b7b87a53"
+      "sha256": "1f071c009425e3449b46fbfd61a98ef7268d118d6675610350c11d493b1520a1"
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
@@ -56547,11 +56547,11 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_player.h",
-      "sha256": "236c70702e8be183d57a6fec90b4e9e47194c6bd35e67415f79f63c942256c42"
+      "sha256": "fedfedf335a2114a059499209480b75bf5850bbd558270b6cad8344463d37166"
     },
     {
       "path": "games/warcraft-3/game/tests/t_api.c",
-      "sha256": "beba6d8e05fee7c4e985d8972c07ed2d6ec635145c66b2059074f6e0e19ea9c7"
+      "sha256": "50eb4724f581a0b31a27f311da20aa9da5fd4c760eba727099d29800595894f1"
     },
     {
       "path": "games/warcraft-3/game/tests/t_collision.c",
@@ -56563,7 +56563,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_spell.c",
-      "sha256": "d63d6ccdef15b339e826b15836d717d0c4b121b3742390674fbceeb709b0ec17"
+      "sha256": "5c9e4620491ba2e4f95ad72972084b7a57aeec14c7c650cf2f3d823dcfeb4b7b"
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_random.c",
@@ -56971,7 +56971,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "5be5ca7c17574503e818ae8078e85e973d2c93fb3d0b0a64b24b860d2d570e3e"
+      "sha256": "be6a72a54a34fe7da9ab5280ace9c5642df27c3c1aa868aeabc00bcbde7e15c2"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",

@@ -348,28 +348,12 @@ static bool aura_target_has_token(cstring_t targets, cstring_t full, cstring_t s
 }
 
 static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targets) {
-    bool is_self, is_friend, is_enemy, is_neutral;
+    bool is_self;
     bool const wants_vulnerability = aura_target_has_token(targets, "vulnerable", "vuln") ||
         aura_target_has_token(targets, "invulnerable", "invu");
 
     if (!S_AuraUnitActive(source) || !S_AuraUnitActive(target)) return false;
-    /* `neutral` is a relation to the source, not a property of the target's
-     * slot: another owner's Neutral-typed slot can appear friendly under the
-     * default passive alliances, yet its authored relation remains neutral and
-     * requires an explicit mask token. A unit on the source's own slot is
-     * always a friend, whatever that slot's type (a creep aura buffs creeps). */
-    is_neutral = target->s.player != source->s.player &&
-        target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
     is_self = source == target;
-    is_friend = !is_neutral && S_SpellIsFriend(source, target);
-    is_enemy = !is_neutral && S_SpellIsEnemy(source, target);
-    bool const wants_relation = aura_target_has_token(targets, "friend", "frie") ||
-        aura_target_has_token(targets, "allies", "alli") ||
-        aura_target_has_token(targets, "enemy", "enem") ||
-        aura_target_has_token(targets, "enemies", NULL) ||
-        aura_target_has_token(targets, "neutral", "neut") ||
-        aura_target_has_token(targets, "self", NULL);
 
     if (!targets || !*targets) return true;
     if (aura_target_has_token(targets, "dead", NULL)) return false;
@@ -387,12 +371,9 @@ static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targe
     if ((aura_target_has_token(targets, "air", NULL) || aura_target_has_token(targets, "ground", "grou")) &&
         !(aura_target_has_token(targets, "air", NULL) && G_UnitTargetType(target) == TARG_AIR) &&
         !(aura_target_has_token(targets, "ground", "grou") && G_UnitTargetType(target) == TARG_GROUND)) return false;
-    if (wants_relation &&
-        !(aura_target_has_token(targets, "self", NULL) && is_self) &&
-        !((aura_target_has_token(targets, "friend", "frie") || aura_target_has_token(targets, "allies", "alli")) && is_friend) &&
-        !((aura_target_has_token(targets, "enemy", "enem") || aura_target_has_token(targets, "enemies", NULL)) && is_enemy) &&
-        !(aura_target_has_token(targets, "neutral", "neut") && is_neutral)) return false;
-    return true;
+    /* `neutral` is the source owner's diplomatic relation (PASSIVE without SHARED_SPELLS),
+     * not the target slot's W3I type; the source's own units qualify through friend/player. */
+    return (aura_target_has_token(targets, "self", NULL) && is_self) || S_TargsAllowsOwner(targets, source, target);
 }
 
 typedef struct {

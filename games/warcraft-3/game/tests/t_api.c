@@ -7438,16 +7438,36 @@ TEST(wc3_api, alliance_passive_default_false) {
     T_ASSERT(!G_GetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE));
 }
 
+/* Original 1e7c20/1e9bf0 defaults, verified against retail GetPlayerAlliance matrices
+ * (tools/frida/wc3_alliance_probe.j): every player holds types 0..7 toward itself and is
+ * mutually PASSIVE with Neutral Passive; after config, controllers (not W3I slot types) make
+ * Neutral/Rescuable players mutually PASSIVE with User/Computer ones and with each other. */
 TEST(wc3_api, alliance_defaults_include_neutral_passive_and_neutral_controller_slots) {
     mapInfo_t *mapinfo = (mapInfo_t *)level.mapinfo;
+    uint32_t const controllers[] = {0, 1, 5, 3, 2, 0};
 
     mapinfo->players[3].playerType = kPlayerTypeNeutral;
+    mapinfo->players[5].playerType = kPlayerTypeNeutral;
     G_InitPlayerAlliances(level.mapinfo);
+    T_ASSERT(!G_GetPlayerAlliance(test_player(0), test_player(3), ALLIANCE_PASSIVE));
+    FOR_LOOP(i, sizeof(controllers) / sizeof(controllers[0]))
+        PLAYER_CLIENT(test_player(i))->jass.controller = controllers[i];
+    G_InitControllerAlliances();
 
+    FOR_LOOP(type, ALLIANCE_SHARED_ADVANCED_CONTROL + 1)
+        T_ASSERT(G_GetPlayerAlliance(test_player(2), test_player(2), (PLAYERALLIANCE)type));
+    T_ASSERT(!G_GetPlayerAlliance(test_player(2), test_player(2), ALLIANCE_RESCUABLE));
     T_ASSERT(G_GetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_PASSIVE));
     T_ASSERT(G_GetPlayerAlliance(test_player(PLAYER_NEUTRAL_PASSIVE), test_player(0), ALLIANCE_PASSIVE));
+    /* Neutral controller 3 and rescuable 4 pair with user/computer 0/1, each other, themselves. */
     T_ASSERT(G_GetPlayerAlliance(test_player(0), test_player(3), ALLIANCE_PASSIVE));
-    T_ASSERT(G_GetPlayerAlliance(test_player(3), test_player(0), ALLIANCE_PASSIVE));
+    T_ASSERT(G_GetPlayerAlliance(test_player(3), test_player(1), ALLIANCE_PASSIVE));
+    T_ASSERT(G_GetPlayerAlliance(test_player(4), test_player(3), ALLIANCE_PASSIVE));
+    T_ASSERT(!G_GetPlayerAlliance(test_player(3), test_player(0), ALLIANCE_SHARED_SPELLS));
+    /* Player 2 (controller none) and the W3I-neutral user slot 5 are not neutral partners. */
+    T_ASSERT(!G_GetPlayerAlliance(test_player(3), test_player(2), ALLIANCE_PASSIVE));
+    T_ASSERT(!G_GetPlayerAlliance(test_player(5), test_player(0), ALLIANCE_PASSIVE));
+    T_ASSERT(!G_GetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE));
     T_ASSERT(!G_GetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_PASSIVE));
 }
 

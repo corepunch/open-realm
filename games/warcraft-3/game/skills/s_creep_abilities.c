@@ -86,13 +86,7 @@ static bool death_damage_aoe_allows(uint32_t code, uint32_t ability_level, edict
     if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
     if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;
 
-    if (strstr(targets, "player") && target->s.player == source->s.player) return true;
-    if (strstr(targets, "friend") && S_SpellIsFriend(source, target)) return true;
-    if (strstr(targets, "enemy") && S_SpellIsEnemy(source, target)) return true;
-    if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) return true;
-    return !strstr(targets, "player") && !strstr(targets, "friend") &&
-        !strstr(targets, "enemy") && !strstr(targets, "neutral");
+    return S_TargsAllowsOwner(targets, source, target);
 }
 
 /* AIdm was the old tree/wall helper; retail Amnx/Adda now uses its own

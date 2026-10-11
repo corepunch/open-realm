@@ -752,35 +752,63 @@ void G_RemoveQuest(quest_t *quest) {
     if (quest && quest->inuse) DeleteQuest(quest);
 }
 
+/* A W3I Human/Computer slot is a playing slot for this loader. */
+static bool alliance_slot_playing(mapInfo_t const *mapinfo, uint32_t player) {
+    mapPlayer_t const *slot = mapinfo && player < PLAYER_NEUTRAL_AGGRESSIVE ? mapinfo->players + player : NULL;
+    return slot && slot->used && (slot->playerType == kPlayerTypeHuman || slot->playerType == kPlayerTypeComputer);
+}
+
+static void alliance_set_mutual(uint32_t a, uint32_t b, uint32_t flags) {
+    level.alliances[a][b] |= flags;
+    level.alliances[b][a] |= flags;
+}
+
+/* Diplomacy before config. Original 1e7c20 gives every player PASSIVE through
+ * SHARED_ADVANCED_CONTROL toward itself and mutual PASSIVE with Neutral Passive.
+ * Original 29e300 then joins playing slots 0..10 with later slots 0..11 of the same
+ * custom force: force flag 1 grants PASSIVE..SHARED_SPELLS, 8 shared vision, 2 allied
+ * victory, 10/20 (shared/advanced control). Without custom forces the lobby owns teams;
+ * this single-player loader seats every player alone, as the original test loader does. */
 void G_InitPlayerAlliances(mapInfo_t const *mapinfo) {
     uint32_t const passive = 1u << ALLIANCE_PASSIVE;
+    uint32_t const allied = passive | (1u << ALLIANCE_HELP_REQUEST) | (1u << ALLIANCE_HELP_RESPONSE) |
+        (1u << ALLIANCE_SHARED_XP) | (1u << ALLIANCE_SHARED_SPELLS);
 
     memset(level.alliances, 0, sizeof(level.alliances));
-
-    /* Warcraft's reserved Neutral Passive owner is mutually passive-allied
-     * with every player.  Keep this in the normal directional alliance table
-     * so triggers can subsequently revoke/change the relation instead of
-     * relying on owner-ID special cases in every consumer. */
     FOR_LOOP(player, MAX_PLAYERS) {
-        /* Retail help queries intersect both directional diplomacy masks,
-         * including their own-owner bit. Keep it mutable like other relations. */
-        level.alliances[player][player] |= (1u<<ALLIANCE_HELP_REQUEST)|(1u<<ALLIANCE_HELP_RESPONSE);
-        level.alliances[player][PLAYER_NEUTRAL_PASSIVE] |= passive;
-        level.alliances[PLAYER_NEUTRAL_PASSIVE][player] |= passive;
+        level.alliances[player][player] |= allied | (1u << ALLIANCE_SHARED_VISION) |
+            (1u << ALLIANCE_SHARED_CONTROL) | (1u << ALLIANCE_SHARED_ADVANCED_CONTROL);
+        alliance_set_mutual(player, PLAYER_NEUTRAL_PASSIVE, passive);
     }
-
-    /* Ordinary W3I player slots controlled by MAP_CONTROL_NEUTRAL receive the
-     * same bilateral passive alliance defaults.  The four reserved neutral
-     * slots have distinct Warcraft semantics; only Neutral Passive is covered
-     * above, so do not turn Neutral Aggressive/Victim/Extra into allies here. */
-    if (!mapinfo) return;
-    FOR_LOOP(neutral, PLAYER_NEUTRAL_AGGRESSIVE) {
-        if (mapinfo->players[neutral].playerType != kPlayerTypeNeutral) continue;
-        FOR_LOOP(player, MAX_PLAYERS) {
-            level.alliances[neutral][player] |= passive;
-            level.alliances[player][neutral] |= passive;
+    if (!mapinfo || !(mapinfo->flags & use_custom_forces) || !mapinfo->teams) return;
+    for (uint32_t i = 0; i < PLAYER_NEUTRAL_AGGRESSIVE - 1; i++) {
+        uint32_t team = G_MapPlayerTeam(mapinfo, i);
+        if (!alliance_slot_playing(mapinfo, i) || team >= mapinfo->num_teams) continue;
+        uint32_t const flags = mapinfo->teams[team].flags;
+        for (uint32_t j = i + 1; j < PLAYER_NEUTRAL_AGGRESSIVE; j++) {
+            if (!alliance_slot_playing(mapinfo, j) || G_MapPlayerTeam(mapinfo, j) != team) continue;
+            if (flags & 0x01u) alliance_set_mutual(i, j, allied);
+            if (flags & 0x08u) alliance_set_mutual(i, j, 1u << ALLIANCE_SHARED_VISION);
+            if (flags & 0x10u) alliance_set_mutual(i, j, 1u << ALLIANCE_SHARED_CONTROL);
+            if (flags & 0x20u) alliance_set_mutual(i, j, 1u << ALLIANCE_SHARED_ADVANCED_CONTROL);
         }
     }
+}
+
+/* Original 1e9bf0 after config and Town AI creation: every Neutral/Rescuable-controlled
+ * player is mutually PASSIVE with each User/Computer-controlled player and with every
+ * other Neutral/Rescuable one, itself included. Controllers, not W3I slot types, decide. */
+void G_InitControllerAlliances(void) {
+    uint32_t neutral = 0, active = 0;
+    FOR_LOOP(player, MAX_PLAYERS) {
+        gameClient_t const *client = G_GetPlayerClientByNumber(player);
+        uint32_t const control = client ? client->jass.controller : 5;
+        if (control == 2 || control == 3) neutral |= 1u << player;
+        else if (control == 0 || control == 1) active |= 1u << player;
+    }
+    FOR_LOOP(player, MAX_PLAYERS) if (neutral & (1u << player))
+        FOR_LOOP(other, MAX_PLAYERS) if ((neutral | active) & (1u << other))
+            alliance_set_mutual(player, other, 1u << ALLIANCE_PASSIVE);
 }
 
 void G_SetPlayerAlliance(player_t const *p1, player_t const *p2, PLAYERALLIANCE type, bool value) {

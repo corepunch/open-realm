@@ -576,18 +576,13 @@ BZ_ABILITY_PROC(CAbilityRaiseDead) {
 #define BZ_BPOC MAKEFOURCC('B', 'p', 'o', 'c') // rawcode; caster Possession damage amp
 #define BZ_POS_MAGIC_IMMUNE 1u // Bpos.data bit; authored DataD > 0 during channel
 
-static bool possession_is_neutral(edict_t const *target) {
-    return target && target->s.player < MAX_PLAYERS && level.mapinfo &&
-        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
-}
-
 static bool possession_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     edict_t *target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t max_level = (uint32_t)S_SpellData(spell->code, level, 1);
     if (!target || !target->data.UnitBalance) return false;
     if (G_UnitIsHero(target)) return false;
-    if (!S_SpellIsEnemy(caster, target) && !possession_is_neutral(target)) return false;
+    if (!S_SpellIsEnemy(caster, target) && !S_SpellIsNeutral(caster, target)) return false;
     if (max_level && (uint32_t)target->data.UnitBalance->level > max_level) return false;
     return true;
 }

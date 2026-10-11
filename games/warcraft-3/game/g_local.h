@@ -4197,6 +4197,8 @@ quest_t *G_MakeQuest(void);
 bool G_RegionContains(region_t const *, vec2_t const *);
 void G_RemoveQuest(quest_t *);
 void G_InitPlayerAlliances(mapInfo_t const *);
+void G_InitControllerAlliances(void);
+uint32_t G_MapPlayerTeam(mapInfo_t const *, uint32_t);
 void G_SetPlayerAlliance(player_t const *, player_t const *, PLAYERALLIANCE, bool);
 bool G_GetPlayerAlliance(player_t const *, player_t const *, PLAYERALLIANCE);
 bool G_PlayerTreatsPlayerAsAlly(uint32_t, uint32_t);
