@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff283 integrates class-owned CHANNEL/CAST/EFFECT/FINISH/ENDCAST timing for
+ordered Flame Strike and Inner Fire, active-only deadline heaps and Save171.
+Two repeat/control sets verify2,130 public markers and616 native request rows;
+interruption clears live target getters exactly as retail. Thirty-five failing-first
+phase/growth/save cases accompany the implementation. Other cast classes and
+broader ORDER-01.13 remain open;46 remain. See [ordered spell phases](retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).
+
+
 Payoff282 ports synchronous pre-spend EFFECT, preserving frozen player/unit
 context and honoring Stop/Move/removal before execution. Unit-target coordinates
 now match retail. Two repeats/control agree on1,093 markers;30 failing-first

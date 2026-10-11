@@ -100,38 +100,28 @@ GetAttacker()    = attacker
 The attacked unit is `GAMEEVENT.edict`; the attacker is `GAMEEVENT.source`.
 Destructable attacks do not synthesize unit-attacked events.
 
-## Spell effect events
+## Spell phase events
 
-The current unified spell pipeline supports the high-confidence **starts the
-effect** transition:
+The shared pipeline emits both EFFECT families synchronously before resource
+commit and gameplay execution. Ordered Flame Strike and Inner Fire additionally
+own CHANNEL, CAST, delayed EFFECT, FINISH and ENDCAST transitions. Their concrete
+procedures supply class timing through `A_CAST_PROFILE`; the shared dispatcher
+retains ownership, executes exact primary deadlines and cancels through Move,
+Stop, death and removal. These verified classes expose distinct phases for
+in-range and completed physical approaches. Other concrete classes and true
+channels retain explicit gaps under ORDER-01.13.
 
-```text
-validation succeeds
-    -> mana/cooldown commit where applicable
-    -> EVENT_PLAYER_UNIT_SPELL_EFFECT
-    -> EVENT_UNIT_SPELL_EFFECT
-    -> spell gameplay callback
-```
+Player delivery precedes unit delivery with frozen subscriber presence. Spell
+source/ability identity is retained, but target response getters query current
+ability state during synchronous phases. Nested interruption ENDCAST sees the
+old target; the returning unit CHANNEL/CAST/EFFECT sees cleared target and zero
+coordinates. Normal FINISH/ENDCAST also have cleared target fields. Unit targets
+supply their coordinates, and point targets supply the authored point.
+`GetSpellTargetLoc` follows those same current values; item/destructable getters
+classify the current secondary target. `GetSpellAbility` instance handles and
+live target responses across suspended callbacks remain unsupported.
 
-Response context is:
-
-```text
-GetSpellAbilityUnit() = caster
-GetSpellAbilityId()   = ability rawcode
-GetSpellTargetUnit()  = entity target when the current spell target is a unit
-GetSpellTargetX/Y()   = point target coordinates when the current target is a point
-GetSpellTargetLoc()   = location for a point target
-```
-
-`GetSpellTargetItem()` / `GetSpellTargetDestructable()` safely classify the
-secondary target handle if future spell target modes carry those widget types.
-OpenRealm does not yet expose a confident ability-instance handle for
-`GetSpellAbility()`.
-
-Do **not** fake the rest of the lifecycle. `SPELL_CHANNEL`, `SPELL_CAST`,
-`SPELL_FINISH`, and `SPELL_ENDCAST` remain unsupported until the spell state
-machine has distinct authoritative transitions for them; event diagnostics
-continue to report registrations for those gaps.
+See [retail evidence, phase timing and save ownership](retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).
 
 ## Orders, items, Hero skills, regions and range
 

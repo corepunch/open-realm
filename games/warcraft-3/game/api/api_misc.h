@@ -797,33 +797,46 @@ uint32_t GetSpellAbilityUnit(jass_t *j) {
 uint32_t GetSpellAbilityId(jass_t *j) {
     return jass_pushinteger(j, jass_getcontext(j)->eventValue);
 }
+/* Original spell responses retain an ability, whose target fields can be
+ * cleared by a nested Stop before the next family or query. Direct synthetic
+ * events and suspended contexts retain their existing authored packet. */
+typedef struct {edict_t *entity;vec2_t point;} apiSpellTarget_t;
+static apiSpellTarget_t api_spell_target(jass_t *j) {
+    jassContext_t const *ctx=jass_getcontext(j);
+    spellTarget_t live;
+    apiSpellTarget_t result={.entity=ctx->source,.point=ctx->hasPoint ? ctx->point : (vec2_t){0}};
+    bool spell=(ctx->eventType>=EVENT_PLAYER_UNIT_SPELL_CHANNEL && ctx->eventType<=EVENT_PLAYER_UNIT_SPELL_ENDCAST) ||
+        (ctx->eventType>=EVENT_UNIT_SPELL_CHANNEL && ctx->eventType<=EVENT_UNIT_SPELL_ENDCAST);
+    if(spell && S_QuerySpellEventTarget(ctx->unit,ctx->eventValue,&live)) {
+        result.entity=live.type==SPELL_TARGET_UNIT ? live.entity : NULL;
+        result.point=live.type==SPELL_TARGET_POINT ? live.point : result.entity ? result.entity->s.origin2 : (vec2_t){0};
+    }
+    return result;
+}
 uint32_t GetSpellTargetUnit(jass_t *j) {
-    edict_t *target = jass_getcontext(j)->source;
+    edict_t *target = api_spell_target(j).entity;
     return target && (target->svflags & SVF_MONSTER) ?
         jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
 }
 uint32_t GetSpellTargetDestructable(jass_t *j) {
-    edict_t *target = jass_getcontext(j)->source;
+    edict_t *target = api_spell_target(j).entity;
     return target && G_IsDestructable(target) ?
         jass_pushlighthandle(j, target, "destructable") : jass_pushnullhandle(j, "destructable");
 }
 uint32_t GetSpellTargetItem(jass_t *j) {
-    edict_t *target = jass_getcontext(j)->source;
+    edict_t *target = api_spell_target(j).entity;
     return target && G_IsItem(target) ?
         jass_pushlighthandle(j, target, "item") : jass_pushnullhandle(j, "item");
 }
 uint32_t GetSpellTargetX(jass_t *j) {
-    jassContext_t const *ctx = jass_getcontext(j);
-    return jass_pushnumber(j, ctx->hasPoint ? ctx->point.x : 0.0f);
+    return jass_pushnumber(j,api_spell_target(j).point.x);
 }
 uint32_t GetSpellTargetY(jass_t *j) {
-    jassContext_t const *ctx = jass_getcontext(j);
-    return jass_pushnumber(j, ctx->hasPoint ? ctx->point.y : 0.0f);
+    return jass_pushnumber(j,api_spell_target(j).point.y);
 }
 uint32_t GetSpellTargetLoc(jass_t *j) {
-    jassContext_t const *ctx = jass_getcontext(j);
     API_ALLOC(vec2_t, location);
-    *location = ctx->hasPoint ? ctx->point : (vec2_t){ 0.0f, 0.0f };
+    *location = api_spell_target(j).point;
     return 1;
 }
 uint32_t GetEventPlayerState(jass_t *j) {

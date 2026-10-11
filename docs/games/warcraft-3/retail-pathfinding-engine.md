@@ -17653,3 +17653,93 @@ runner, and `verify_wc3_pathing_cast282.py --binary /path/to/game.dll
 The rejected probe builds and compiler diagnostics are retained separately:
 PJASS accepted a local named `player`, whereas retail rejected its line136;
 renaming it to `isPlayer` yielded the accepted repeated/control captures.
+
+
+## Ordered spell phases use active-only deadlines (Payoff283)
+
+Ordered Flame Strike and Inner Fire now retain a concrete spell owner from
+CHANNEL through CAST, delayed EFFECT, FINISH and ENDCAST. The shared dispatcher
+asks the concrete ability for `A_CAST_PROFILE`; unsupported classes keep their
+existing path. Class policy is declared by the ability procedure, including
+aliases resolved through that procedure, rather than a central rawcode table.
+Unit cast point and backswing use captured authored defaults. Inner Fire uses
+AbilityData.Cast before CAST and unit backswing after EFFECT; Flame Strike has
+no CHANNEL delay and uses AbilityData.Cast after EFFECT. Its area creation occurs
+at completion, without applying Cast a second time in its damage thinker.
+
+Original `425aa0` selects five independent requests: d015f activates ownership,
+d0160 starts CHANNEL, d01bb calls CAST, d01bc calls EFFECT, and d01bd calls virtual
+39c completion. d01be calls virtual3a8 and expires cooldown; it is not a finish
+request. `3fbb80` validates after CHANNEL. `3fb5d0` does not revalidate after CAST:
+a nested CAST Stop still arms the delayed EFFECT request, whose later failed
+validation emits FINISH without spending resources. Stop during an ordinary
+waiting windup removes the pending request and does not emit FINISH. Completion
+`40e3a0` emits FINISH even for inactive ownership, then emits ENDCAST only if the
+owner remains active. Normal completion clears target fields first. The observed
+unit cast point .3 is ten primary counters; Inner Fire Cast.2 is seven counters
+before CAST and authored backswing2.4 is eighty counters after EFFECT. Flame
+Strike Cast.2 instead adds seven counters after EFFECT.
+
+The new pooled records grow in blocks of64, have O(1) owner lookup/unlink, and
+index only pending casts in a binary deadline heap. Insert, cancellation and
+firing cost O(log active casts); idle units add no per-tick scan. Equal deadlines
+use the existing global primary request sequence. Reentrant callbacks retain
+stack-owned records until their continuation ends. CHANNEL RemoveUnit detaches
+the removal roster but preserves that continuation through failed validation
+and immediate FINISH. A completed callback's replacement keeps its own move
+and FIFO. Pool capacity and heap positions are derived state.
+
+Two original repeat/control sets cover the original twelve timing scenes plus
+CHANNEL Stop/Move/removal and EFFECT Move/removal for point and unit casts. Each
+set has two read-only observations and one observer-free control. They agree on
+2,130 public markers; the repeats also match all616 retained ordered native
+request/method/cleanup rows. The timing set's entire public stream equals the
+unchanged frozen Payoff282 fixture. All1,861 instructions/xrefs from21 functions
+are exported; names/comments and the scalar/prefix structures are saved in
+Ghidra by `Cast283Evidence.java`, with the same findings in `MapPathfinding.java`.
+
+Original `202e30`, `202d00` and `202c10` resolve the event's ability identity and
+query its current target through virtual methods. Frozen subscriber presence
+and retained ability identity do not freeze target response values. Player
+CHANNEL/CAST/EFFECT interruption nests ENDCAST with the old target; returning
+to the unit family yields null target and zero X/Y. Normal FINISH/ENDCAST also
+see cleared fields. Payoff281's probe sampled target coordinates only in the
+player CHANNEL family; its engine-only unit getter assertion was not original
+evidence. The new repeated Cast283d captures prove clearing for Stop, Move and
+RemoveUnit. Engine assertions were corrected only after these captures; no old
+retail fixture, numerical word, position, membership or RNG expectation changed.
+The synchronous producer stack supplies live getters without retaining a pointer
+to a retired pool record. Suspended callbacks still use their saved packet and
+are explicitly outside this port's fidelity claim.
+
+Save171 serializes logical caster/target/item incarnations, class profile,
+phase, active/committed state and exact absolute deadline/sequence. Cold load
+rebuilds heap membership without rearming. Older formats are rejected. Saving
+inside a synchronous phase continuation is rejected instead of writing an
+incomplete request; general reentrant save remains outside this slice.
+
+Thirty-five failing-first engine cases exercise both targets, cancellation at
+CHANNEL/CAST/EFFECT and windup, target death, mana mutation, non-stock cast point,
+cold saves and130 concurrent casts with arbitrary cancellation and stable saved
+deadline order. The initial point test accidentally omitted the actual DataB/D
+columns and was rejected as an invalid harness; corrected fixtures were rerun
+against the prior engine. The bulk harness also needed distinct allocations
+(the single-unit helper resets the world) and an explicit player entity for
+saved event subscriptions; both were fixed before accepting its baseline. The accepted baseline and final JUnit are archived.
+The full spell suite passes497 tests /15,354 assertions in each mode; focused
+Classic/TFT timer/save/approach checks pass242 tests /68,352 assertions. Fourteen evidence/corruption checks reject altered clocks/delays/dispatch/flags/success,
+missing rows, source changes and hooked controls. This is implementation commit
+seven after full checkpoint276; the twelve-chunk full-suite cadence continues.
+
+ORDER-01.13 stays open for other concrete cast classes, true channel lifetimes,
+instant actions, Shift admission, runtime metadata edits and suspended response
+contexts. Target range/reapproach and wider rejection compositions retain their
+existing task ownership. This chunk does not certify all abilities through a
+single guessed profile and makes no new frame-budget performance claim.
+
+Reproduce with `cast283_make_map.py --base /path/to/Human02Interlude.w3m
+--output /tmp/Cast283.w3m`, the leased B/C `cast283_capture.py` observe/control
+runner, and `verify_wc3_pathing_cast283.py --binary /path/to/game.dll
+--test-binary /path/to/openwarcraft3-tests --data /path/to/build/tests
+--report /tmp/fresh-cast283.json`. Archive:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SPELL-PHASES/payoff283`.

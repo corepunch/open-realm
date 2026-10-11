@@ -580,7 +580,21 @@ BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
     thinker->think = human_ability_think; human_ability_think(thinker);
 }
 /* Name=Inner Fire; Untip="Right-click to activate auto-casting." */
-BZ_HUMAN_AUTOCAST_SPELL(AbilityInnerFire, inner_fire_validate(ent, target, call ? call->item : NULL), human_status_execute, true, false)
+BZ_ABILITY_PROC(CAbilityInnerFire) {
+    uint32_t code=call && call->item ? call->item->code : 0;
+    spellTarget_t target=(msg==A_VALIDATE || msg==A_EXECUTE) && call && call->target ?
+        *call->target : (spellTarget_t){.type=SPELL_TARGET_NONE};
+    switch(msg) {
+    case A_CAST_PROFILE:
+        S_DefaultSpellCastProfile(ent,code,call->cast_profile);return true;
+    case A_VALIDATE:return inner_fire_validate(ent,target,call ? call->item : NULL);
+    case A_EXECUTE:human_status_execute(ent,target,call ? call->item : NULL);return true;
+    case A_AUTOCAST_ON:return ent && ent->autocast_code==code;
+    case A_AUTOCAST_SET:return true;
+    case A_AUTOCAST_ACQUIRE:return S_AutocastAcquireUnit(ent,code,true,false,900.0f);
+    default:return CAbilitySimpleSpell(ent,msg,call);
+    }
+}
 /* Dispel Magic family (Adis/Adch/Advm): area timed-status clear; Advm also heals per buff.
  * Adis/Adch author summoned damage in DataB; Advm authors heals in DataA/DataB and damage in DataE.
  * Summons are marked with owner (S_SummonAt), and optionally summon_ability / AI_ILLUSION. */

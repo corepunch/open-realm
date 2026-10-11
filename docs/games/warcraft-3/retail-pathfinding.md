@@ -817,3 +817,10 @@ player/unit packet, and aborts after callback replacement/removal. Unit-target
 spell coordinates now match the original. Twelve fresh scenes, two repeats and
 unhooked control agree on1,093 markers;30 failing-first engine regressions pass.
 Complete per-class phase scheduling remains open. See [EFFECT boundary](retail-pathfinding-engine.md#effect-callbacks-precede-resource-commitment-payoff282).
+
+
+Payoff283 integrates ordered spell phase deadlines and public ownership for
+Flame Strike/Inner Fire, including reentrant interruption and saved continuation.
+Read-only repeat/control evidence corrects previously unverified engine getter
+assertions while preserving every older retail fixture. Other concrete classes
+remain open. See [ordered spell phases](retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).

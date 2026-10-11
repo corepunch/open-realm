@@ -6345,7 +6345,7 @@ TEST(wc3_spell, point269_admission_uses_predicted_collision_edge) {
 
 /* Retail point approaches enter SPELL_CHANNEL before resources/effect. Script
  * replacement during the player family owns the successor; unit family keeps
- * the captured point even after Stop, Move or deferred RemoveUnit. */
+ * the retained ability. Payoff283 captures live target clearing in the unit family. */
 extern void (*test_preload_marker)(cstring_t);
 static unsigned cast281_channels,cast281_units,cast281_effects,cast281_checked;
 static void cast281_marker(cstring_t text) {
@@ -6381,7 +6381,7 @@ static void cast281_point_arrival(bool flying, unsigned mode, bool saved) {
             "function unitChannel takes nothing returns nothing\nset units=units+1\n"
             "call assert281(channels==1,\"player before unit\")\n"
             "call assert281(GetSpellAbilityId()=='AHfs' and GetSpellAbilityUnit()==caster and GetTriggerUnit()==caster,\"unit spell source\")\n"
-            "call assert281(GetSpellTargetUnit()==null and GetSpellTargetX()==1536.0 and GetSpellTargetY()==288.0,\"unit retained point snapshot\")\n"
+            "call assert281(GetSpellTargetUnit()==null and GetSpellTargetX()==%.1f and GetSpellTargetY()==%.1f,\"unit sees live ability target\")\n"
             "endfunction\nfunction effect takes nothing returns nothing\nset effects=effects+1\n"
             "call assert281(channels==1 and units==1,\"effect follows channel families\")\nendfunction\n"
             "function check takes nothing returns nothing\ncall Preload(\"C281 counts \"+I2S(channels)+\" \"+I2S(units)+\" \"+I2S(effects))\ncall DestroyTrigger(p)\ncall DestroyTrigger(u)\ncall DestroyTrigger(e)\nendfunction\n"
@@ -6392,7 +6392,8 @@ static void cast281_point_arrival(bool flying, unsigned mode, bool saved) {
             "call TriggerRegisterUnitEvent(u,caster,ConvertUnitEvent(289))\ncall TriggerAddAction(u,function unitChannel)\n"
             "call TriggerRegisterPlayerUnitEvent(e,Player(0),ConvertPlayerUnitEvent(274),null)\ncall TriggerAddAction(e,function effect)\nendfunction\n",
             mode==1 ? "call IssueImmediateOrder(caster,\"stop\")" : mode==2 ? "call IssuePointOrder(caster,\"move\",288,1536)" :
-            mode==3 ? "call RemoveUnit(caster)" : "");
+            mode==3 ? "call RemoveUnit(caster)" : "",
+            mode ? 0.0 : 1536.0,mode ? 0.0 : 288.0);
         cast281_channels=cast281_units=cast281_effects=cast281_checked=0;test_preload_marker=cast281_marker;
         T_ASSERT(run_test_jass(script));level.started=level.scriptsConfigured=level.scriptsStarted=true;
         level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
@@ -6469,7 +6470,9 @@ static void cast282_effect_boundary(bool unit_target,unsigned mode,bool far,bool
         "function assert282 takes boolean ok,string text returns nothing\nif not ok then\ncall Preload(\"C282 failure \"+text)\nendif\nendfunction\n"
         "function context282 takes nothing returns nothing\n"
         "call assert282(GetSpellAbilityId()=='%s' and GetSpellAbilityUnit()==caster and GetTriggerUnit()==caster,\"spell source\")\n"
-        "call assert282(GetSpellTargetUnit()==target and GetSpellTargetX()==%.1f and GetSpellTargetY()==288.0,\"spell target snapshot\")\nendfunction\n"
+        "if players==1 and units==1 then\n"
+        "call assert282(GetSpellTargetUnit()==%s and GetSpellTargetX()==%.1f and GetSpellTargetY()==%.1f,\"unit live target\")\n"
+        "else\ncall assert282(GetSpellTargetUnit()==target and GetSpellTargetX()==%.1f and GetSpellTargetY()==288.0,\"player target\")\nendif\nendfunction\n"
         "function playerEffect takes nothing returns nothing\nset players=players+1\ncall context282()\n"
         "call assert282(GetUnitState(caster,ConvertUnitState(2))==200.0,\"effect precedes mana\")\n%s\nendfunction\n"
         "function unitEffect takes nothing returns nothing\nset units=units+1\ncall context282()\n"
@@ -6482,7 +6485,8 @@ static void cast282_effect_boundary(bool unit_target,unsigned mode,bool far,bool
         "set p=CreateTrigger()\nset u=CreateTrigger()\n"
         "call TriggerRegisterPlayerUnitEvent(p,Player(0),ConvertPlayerUnitEvent(274),null)\ncall TriggerAddAction(p,function playerEffect)\n"
         "call TriggerRegisterUnitEvent(u,caster,ConvertUnitEvent(291))\ncall TriggerAddAction(u,function unitEffect)\nendfunction\n",
-        unit_target ? "Ainf" : "AHfs",x,
+        unit_target ? "Ainf" : "AHfs",mode>=1 && mode<=3 ? "null" : "target",
+        mode>=1 && mode<=3 ? 0.0 : x,mode>=1 && mode<=3 ? 0.0 : 288.0,x,
         mode==1 ? "call IssueImmediateOrder(caster,\"stop\")" : mode==2 ? "call IssuePointOrder(caster,\"move\",288,1536)" :
         mode==3 ? "call RemoveUnit(caster)" : mode==4 ? "call SetUnitState(caster,ConvertUnitState(2),0)" : "",mode==4 ? 0.0 : 200.0);
     cast282_players=cast282_units=cast282_checked=0;test_preload_marker=cast282_marker;
@@ -6545,4 +6549,200 @@ TEST(wc3_spell, cast282_unit_saved_stop) { cast282_effect_boundary(1,1,1,1); }
 TEST(wc3_spell, cast282_unit_saved_move) { cast282_effect_boundary(1,2,1,1); }
 TEST(wc3_spell, cast282_unit_saved_remove) { cast282_effect_boundary(1,3,1,1); }
 TEST(wc3_spell, cast282_unit_saved_drain) { cast282_effect_boundary(1,4,1,1); }
-#endif /* BZ_TESTS */
+
+/* Original425aa0 routes exact primary requests to channel/cast/effect/finish.
+ * Public callbacks retain the spell head until ENDCAST; Cast is class-owned. */
+static unsigned cast283_counts[2][5];
+static float cast283_times[2][5];
+static void cast283_marker(cstring_t text) {
+    unsigned family,phase;
+    if(!strncmp(text,"C283 failure ",13))T_ASSERT(false);
+    if(sscanf(text,"C283 event %u %u",&family,&phase)==2 && family<2 && phase<5) {
+        cast283_counts[family][phase]++;
+        cast283_times[family][phase]=G_TimerQueryClock(jass_getcontext(level.vm)).time;
+    }
+}
+static void cast283_phases(bool unit_target,unsigned mode,bool saved,float castpoint) {
+    edict_t *caster=make_hero(MAKEFOURCC('H','b','l','m'),500,200,288,288);
+    g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
+    UnitData_t data=*caster->data.UnitData;data.castPoint=castpoint;data.castBackSwing=2.4f;
+    UnitWeapons_t weapons=*caster->data.UnitWeapons;weapons.castPoint=castpoint;weapons.castBackSwing=2.4f;
+    caster->data.UnitData=&data;caster->data.UnitWeapons=&weapons;
+    UnitAbilities_t abilities={.abilList=unit_target ? "Ainf" : "AHfs"};caster->data.UnitAbilities=&abilities;
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"Cost1\"\nC;X4;K\"Cool1\"\n"
+        "C;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"DataB1\"\nC;X8;K\"DataD1\"\n"
+        "C;X9;K\"targs\"\nC;X10;K\"BuffID1\"\nC;X11;K\"Dur1\"\n"
+        "C;Y2;X1;K\"AHfs\"\nC;X2;K\"AHfs\"\nC;X3;K13\nC;X4;K7\nC;X5;K333\n"
+        "C;X6;K0.2\nC;X7;K0.25\nC;X8;K0.75\n"
+        "C;Y3;X1;K\"Ainf\"\nC;X2;K\"Ainf\"\nC;X3;K13\nC;X4;K7\nC;X5;K333\n"
+        "C;X6;K0.2\nC;X9;K\"air,ground,friend,self,vuln,invu\"\nC;X10;K\"Binf\"\nC;X11;K30\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    edict_t *target=unit_target ? alloc_test_unit(MAKEFOURCC('h','f','o','o'),384,288) : NULL;
+    if(target){target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_GROUND;target->health.value=500;}
+    caster->collision=24;caster->targtype=TARG_GROUND;
+    char script[16000],callbacks[11000]={0};size_t used=0;
+    for(unsigned f=0;f<2;f++)for(unsigned q=0;q<5;q++) {
+        bool clear=q==3 || (q==4 && (mode==0 || mode==5 || mode==6)) ||
+            (f==1 && ((q==1 && mode==1) || (q==2 && mode==2) || (q==0 && mode>=7)));
+        char context[600];snprintf(context,sizeof(context),
+            "if GetSpellTargetUnit()!=%s or GetSpellTargetX()!=%.1f or GetSpellTargetY()!=%.1f then\ncall Preload(\"C283 failure live target\")\nendif\n",
+            !clear && unit_target ? "target" : "null",clear ? 0.0 : 384.0,clear ? 0.0 : 288.0);
+        used+=snprintf(callbacks+used,sizeof(callbacks)-used,
+            "function cb%u%u takes nothing returns nothing\n"
+            "call Preload(\"C283 event %u %u\")\n"
+            "if GetSpellAbilityUnit()!=caster or GetTriggerUnit()!=caster or GetSpellAbilityId()!='%s' then\ncall Preload(\"C283 failure source\")\nendif\n"
+            "%s%s\nendfunction\n",f,q,f,q,unit_target ? "Ainf" : "AHfs",context,
+            f==0 && ((mode==1 && q==1)||(mode==2 && q==2)||(mode==7 && q==0)) ? "call IssueImmediateOrder(caster,\"stop\")" :
+            f==0 && mode==8 && q==0 ? "call IssuePointOrder(caster,\"move\",288,1536)" :
+            f==0 && mode==9 && q==0 ? "call RemoveUnit(caster)" :
+            f==0 && mode==6 && q==2 ? "call SetUnitState(caster,ConvertUnitState(2),0.0)" : "");
+    }
+    snprintf(script,sizeof(script),
+        "globals\nunit caster=null\nunit target=null\ntrigger array t\nendglobals\n%s\n"
+        "function mutate takes nothing returns nothing\n%s\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsOfPlayer(g,Player(0),null)\nset caster=FirstOfGroup(g)\ncall GroupRemoveUnit(g,caster)\nset target=FirstOfGroup(g)\ncall DestroyGroup(g)\n",
+        callbacks, mode==3 ? "call IssueImmediateOrder(caster,\"stop\")" : mode==4 ? "call RemoveUnit(caster)" :
+        mode==5 ? "call KillUnit(target)" : "");
+    used=strlen(script);
+    for(unsigned f=0;f<2;f++)for(unsigned q=0;q<5;q++) {
+        used+=snprintf(script+used,sizeof(script)-used,
+            "set t[%u]=CreateTrigger()\ncall %s(t[%u],%s,Convert%sEvent(%u)%s)\ncall TriggerAddAction(t[%u],function cb%u%u)\n",
+            f*5+q,f ? "TriggerRegisterUnitEvent" : "TriggerRegisterPlayerUnitEvent",f*5+q,
+            f ? "caster" : "Player(0)",f ? "Unit" : "PlayerUnit",(f ? 289 : 272)+q,f ? "" : ",null",f*5+q,f,q);
+    }
+    snprintf(script+used,sizeof(script)-used,"endfunction\nfunction cleanup takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==10\ncall DestroyTrigger(t[i])\nset i=i+1\nendloop\nendfunction\n");
+    memset(cast283_counts,0,sizeof(cast283_counts));memset(cast283_times,0,sizeof(cast283_times));
+    test_preload_marker=cast283_marker;T_ASSERT(run_test_jass(script));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;level.pathing_msec=level.time=level.pathing_phase=0;
+    T_ASSERT(unit_target ? G_IssueUnitTargetOrder(caster,"innerfire",target,false,0) :
+        G_IssueUnitPointOrder(caster,"flamestrike",&(vec2_t){384,288},false,0,0));
+    T_EQ(cast283_counts[0][0],1);T_EQ(cast283_counts[1][0],1);
+    T_EQ(cast283_counts[0][2],0);T_EQ(caster->mana.value,200);
+    while(level.time<3500) {
+        level.time+=5;globals.RunFrame();
+        if(saved && level.time==100) {
+            /* ReadGame flushes the discarded live timeline first. These C
+             * counters are observers outside saved state; rewind them too. */
+            unsigned counts[2][5];float times[2][5];
+            memcpy(counts,cast283_counts,sizeof(counts));memcpy(times,cast283_times,sizeof(times));
+            cstring_t path=Test_TempPath("wc3-cast283.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            memcpy(cast283_counts,counts,sizeof(counts));memcpy(cast283_times,times,sizeof(times));
+        }
+        if(level.time==120 && mode>=3 && mode<=5)jass_callbyname(level.vm,"mutate",false);
+    }
+    unsigned effect=mode==0 || mode==6;
+    unsigned finish=mode==0 || mode==1 || mode==5 || mode==6 || mode>=7;
+    FOR_LOOP(f,2) {
+        T_EQ(cast283_counts[f][0],1);T_EQ(cast283_counts[f][1],!(mode>=7 || (unit_target && (mode==3 || mode==4 || mode==5))));
+        T_EQ(cast283_counts[f][2],effect || mode==2);T_EQ(cast283_counts[f][3],finish);T_EQ(cast283_counts[f][4],1);
+        if(effect) {
+            T_FEQ(cast283_times[f][1],unit_target ? .2f : 0,1e-6f);
+            T_FEQ(cast283_times[f][2],wc3_add(unit_target ? .2f : 0,castpoint),1e-6f);
+            T_FEQ(cast283_times[f][3],wc3_add(wc3_add(unit_target ? .2f : 0,castpoint),unit_target ? 2.4f : .2f),1e-6f);
+        }
+        if(mode==1)T_FEQ(cast283_times[f][3],wc3_add(unit_target ? .2f : 0,castpoint),1e-6f);
+    }
+    if(mode!=4 && mode!=9)T_EQ(caster->mana.value,mode==6 ? 0 : effect ? 187 : 200);
+    if(target)T_EQ(G_UnitStatusLevel(target,FS_SLKKey("Binf")),effect);
+    T_ASSERT(!jass_rterror_pending(level.vm));jass_callbyname(level.vm,"cleanup",false);
+    test_preload_marker=NULL;level.started=false;reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+TEST(wc3_spell, cast283_point_success) { cast283_phases(0,0,0,.3f); }
+TEST(wc3_spell, cast283_point_success_saved) { cast283_phases(0,0,1,.3f); }
+TEST(wc3_spell, cast283_point_cast_stop) { cast283_phases(0,1,0,.3f); }
+TEST(wc3_spell, cast283_point_cast_stop_saved) { cast283_phases(0,1,1,.3f); }
+TEST(wc3_spell, cast283_point_effect_stop) { cast283_phases(0,2,0,.3f); }
+TEST(wc3_spell, cast283_point_effect_stop_saved) { cast283_phases(0,2,1,.3f); }
+TEST(wc3_spell, cast283_point_windup_stop) { cast283_phases(0,3,0,.3f); }
+TEST(wc3_spell, cast283_point_windup_stop_saved) { cast283_phases(0,3,1,.3f); }
+TEST(wc3_spell, cast283_point_windup_remove) { cast283_phases(0,4,0,.3f); }
+TEST(wc3_spell, cast283_point_windup_remove_saved) { cast283_phases(0,4,1,.3f); }
+TEST(wc3_spell, cast283_point_mana_zero) { cast283_phases(0,6,0,.3f); }
+TEST(wc3_spell, cast283_point_mana_zero_saved) { cast283_phases(0,6,1,.3f); }
+TEST(wc3_spell, cast283_unit_success) { cast283_phases(1,0,0,.3f); }
+TEST(wc3_spell, cast283_unit_success_saved) { cast283_phases(1,0,1,.3f); }
+TEST(wc3_spell, cast283_unit_cast_stop) { cast283_phases(1,1,0,.3f); }
+TEST(wc3_spell, cast283_unit_cast_stop_saved) { cast283_phases(1,1,1,.3f); }
+TEST(wc3_spell, cast283_unit_effect_stop) { cast283_phases(1,2,0,.3f); }
+TEST(wc3_spell, cast283_unit_effect_stop_saved) { cast283_phases(1,2,1,.3f); }
+TEST(wc3_spell, cast283_unit_windup_stop) { cast283_phases(1,3,0,.3f); }
+TEST(wc3_spell, cast283_unit_windup_stop_saved) { cast283_phases(1,3,1,.3f); }
+TEST(wc3_spell, cast283_unit_windup_remove) { cast283_phases(1,4,0,.3f); }
+TEST(wc3_spell, cast283_unit_windup_remove_saved) { cast283_phases(1,4,1,.3f); }
+TEST(wc3_spell, cast283_unit_target_dies) { cast283_phases(1,5,0,.3f); }
+TEST(wc3_spell, cast283_unit_target_dies_saved) { cast283_phases(1,5,1,.3f); }
+TEST(wc3_spell, cast283_unit_mana_zero) { cast283_phases(1,6,0,.3f); }
+TEST(wc3_spell, cast283_unit_mana_zero_saved) { cast283_phases(1,6,1,.3f); }
+TEST(wc3_spell, cast283_authored_cast_point) {cast283_phases(1,0,0,.17f);}
+
+TEST(wc3_spell, cast283_point_channel_stop) {cast283_phases(0,7,0,.3f);}
+TEST(wc3_spell, cast283_point_channel_move) {cast283_phases(0,8,0,.3f);}
+TEST(wc3_spell, cast283_point_channel_remove) {cast283_phases(0,9,0,.3f);}
+TEST(wc3_spell, cast283_unit_channel_stop) {cast283_phases(1,7,0,.3f);}
+TEST(wc3_spell, cast283_unit_channel_move) {cast283_phases(1,8,0,.3f);}
+TEST(wc3_spell, cast283_unit_channel_remove) {cast283_phases(1,9,0,.3f);}
+/* Active-record growth, arbitrary heap deletion and stable equal deadlines.
+ * This checks the engine's established primary sequence contract, not a new
+ * retail tie-order claim. ReadGame must rebuild the same logical schedule. */
+static unsigned cast283_bulk_effects,cast283_bulk_finishes;
+static void cast283_bulk_marker(cstring_t text) {
+    unsigned id;
+    if(sscanf(text,"C283 bulk effect %u",&id)==1) {
+        T_EQ(id,cast283_bulk_effects*2);cast283_bulk_effects++;
+    }
+    if(sscanf(text,"C283 bulk finish %u",&id)==1) {
+        T_EQ(id,cast283_bulk_finishes*2);cast283_bulk_finishes++;
+    }
+}
+static void cast283_bulk(bool saved) {
+    reset_entities();setup_test_world();
+    g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
+    edict_t *casters[130],*target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),384,288);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_GROUND;target->health.value=500;
+    UnitAbilities_t abilities={.abilList="Ainf"};
+    UnitData_t data={0};UnitWeapons_t weapons={.castPoint=.3f,.castBackSwing=2.4f};
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"Cost1\"\nC;X4;K\"Cool1\"\n"
+        "C;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"targs\"\nC;X8;K\"BuffID1\"\nC;X9;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Ainf\"\nC;X2;K\"Ainf\"\nC;X3;K13\nC;X4;K7\nC;X5;K333\nC;X6;K0.2\n"
+        "C;X7;K\"air,ground,friend,self,vuln,invu\"\nC;X8;K\"Binf\"\nC;X9;K30\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    FOR_LOOP(i,130) {
+        casters[i]=alloc_test_unit(MAKEFOURCC('H','b','l','m'),288,288);
+        casters[i]->health=(typeof(casters[i]->health)){.value=500,.max_value=500};
+        casters[i]->mana=(typeof(casters[i]->mana)){.value=200,.max_value=200};
+        casters[i]->svflags|=SVF_MONSTER;casters[i]->stand=unit_stand;casters[i]->movetype=MOVETYPE_NONE;
+        unit_stand(casters[i]);
+        casters[i]->data.UnitData=&data;casters[i]->data.UnitWeapons=&weapons;casters[i]->data.UnitAbilities=&abilities;
+        casters[i]->collision=24;casters[i]->targtype=TARG_GROUND;casters[i]->user_data=i;
+    }
+    T_ASSERT(run_test_jass(
+        "function effect takes nothing returns nothing\ncall Preload(\"C283 bulk effect \"+I2S(GetUnitUserData(GetSpellAbilityUnit())))\nendfunction\n"
+        "function finish takes nothing returns nothing\ncall Preload(\"C283 bulk finish \"+I2S(GetUnitUserData(GetSpellAbilityUnit())))\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger e=CreateTrigger()\nlocal trigger f=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(e,Player(0),ConvertPlayerUnitEvent(274),null)\ncall TriggerAddAction(e,function effect)\n"
+        "call TriggerRegisterPlayerUnitEvent(f,Player(0),ConvertPlayerUnitEvent(275),null)\ncall TriggerAddAction(f,function finish)\nendfunction\n"));
+    cast283_bulk_effects=cast283_bulk_finishes=0;test_preload_marker=cast283_bulk_marker;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;level.pathing_msec=level.time=level.pathing_phase=0;
+    FOR_LOOP(i,130)T_ASSERT(G_IssueUnitTargetOrder(casters[i],"innerfire",target,false,0));
+    while(level.time<100){level.time+=5;globals.RunFrame();}
+    /* Odd slots include root/interior/leaf removals as the heap changes. */
+    FOR_LOOP(i,130)if(i&1)T_ASSERT(unit_issueimmediateorder(casters[i],"stop"));
+    T_EQ(cast283_bulk_effects,0);T_EQ(cast283_bulk_finishes,0);
+    if(saved) {
+        cstring_t path=Test_TempPath("wc3-cast283-bulk.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+        cast283_bulk_effects=cast283_bulk_finishes=0;
+    }
+    while(level.time<3500){level.time+=5;globals.RunFrame();}
+    T_EQ(cast283_bulk_effects,65);T_EQ(cast283_bulk_finishes,65);
+    FOR_LOOP(i,130)T_EQ(casters[i]->mana.value,(i&1) ? 200 : 187);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    test_preload_marker=NULL;level.started=false;reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+TEST(wc3_spell, cast283_active_pool_growth_and_deadline_order) {cast283_bulk(false);}
+TEST(wc3_spell, cast283_active_pool_growth_and_deadline_order_saved) {cast283_bulk(true);}
+#endif

@@ -1,3 +1,9 @@
+Save171 retains ordered spell phase records as logical owner/target/item
+incarnations, class timing, phase, active/committed state and primary absolute
+deadline/sequence. Heap/pool membership is rebuilt without rearming; older
+formats are rejected. Reentrant saves inside a synchronous phase are rejected.
+See [ordered spell phases](retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).
+
 Save170 retains each target task's captured spatial-object owner/slot and
 restores its runtime pooled identity after spatial loading. Retired references fall back to
 the ordinary target mover; invalid slots and Save169 or earlier are rejected.

@@ -1003,6 +1003,7 @@ typedef enum {
     A_TARGET_OWNER_CHANGED, /* Retained target's owner event; distinct from TargetLost validation. */
     A_POINT_ORDER_PRIORITY, /* Authored owners reduce the unsigned point-order score. */
     A_TARGET_AVAILABLE, /* Nearby Attack subscribers reconsider a published target transition. */
+    A_CAST_PROFILE,    /* Concrete spell supplies its verified ordered phase policy. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -1066,12 +1067,19 @@ typedef enum {
     ABILITY_ORDER_POINT, /* Owner converts a target order to its captured point before admission. */
 } abilityOrderResult_t;
 
+typedef struct {
+    float channel_delay, cast_point, backswing;
+    bool effect_at_finish;
+} spellCastProfile_t;
+
 struct ability_call_s {
     abilityitem_t const *item;
+    bool ordered_cast; /* Concrete effect has already passed the ordered cast delay. */
     edict_t *source_item; /* inventory item that initiated an asynchronous item spell, if any */
     uint32_t source_item_spawn_time;
     union {
         spellTarget_t const *target;
+        spellCastProfile_t *cast_profile; /* A_CAST_PROFILE: borrowed output, no instance allocation. */
         edict_t *client;
         edict_t *projectile;
         edict_t *removed_target; /* A_TARGET_REMOVED; valid throughout the notification. */

@@ -5043,13 +5043,19 @@
     },
     {
       "name": "WC3SpellAbilityPrefix",
-      "length": 88,
+      "length": 152,
       "fields": [
         {
           "offset": 0,
           "name": "vtable",
           "type": "ptr:void",
           "evidence": "HolyBolt RTTI vtable6fb61628 and shared spell dispatch4259e0."
+        },
+        {
+          "offset": 32,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "Payoff283:425aa0/3f5930/405510 active bit1, CAST instant100 and cooldown200; repeated original phase words."
         },
         {
           "offset": 48,
@@ -5068,6 +5074,24 @@
           "name": "cached_rank_rows",
           "type": "ptr:void",
           "evidence": "417a70 lazily resolves ability54 through6ac530 then reads row count50/data54."
+        },
+        {
+          "offset": 128,
+          "name": "channel_delay",
+          "type": "WC3FloatMini",
+          "evidence": "Payoff283:3fbb80 reads84; Ainf Cast.2 schedules d01bb while AHfs keeps zero. Wrapper dispatch RVA a9de14 observed."
+        },
+        {
+          "offset": 136,
+          "name": "cast_point",
+          "type": "WC3FloatMini",
+          "evidence": "Payoff283:3fb5d0 reads8c after CAST and schedules d01bc, even after callback Stop. Wrapper dispatch RVA a9de14 observed."
+        },
+        {
+          "offset": 144,
+          "name": "backswing",
+          "type": "WC3FloatMini",
+          "evidence": "Payoff283:40b380 reads94 after concrete EFFECT body; class may replace it. InnerFire2.4/FlameStrike Cast.2 captured."
         }
       ]
     },

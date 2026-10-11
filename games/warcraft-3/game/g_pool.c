@@ -169,6 +169,7 @@ void G_PoolsReportPeaks(void) {
 
 void G_PoolsReset(void) {
     S_ClearTimedLives();
+    S_ClearSpellCasts();
     G_ResetWaypointCache();
     S_InvalidateCargoHolders();
     S_InvalidateRallyProducers();

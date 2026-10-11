@@ -2186,3 +2186,18 @@ queue checks were corrected only after original67ce30/40b380 and repeated public
 callbacks established synchronous delivery before mana spend. No frozen retail
 motion or numerical expectation was replaced. See [implementation, remaining
 phase scope and reproducer](retail-pathfinding-engine.md#effect-callbacks-precede-resource-commitment-payoff282).
+
+
+## Ordered spell phase deadlines (Payoff283)
+
+`oracle-cast283` adds two original repeat/control sets:2,130 public markers,
+616 owned native phase request/method/cleanup rows and1,861 instructions from21
+functions. The timing set preserves the exact prior Payoff282 public stream.
+The additional mutation set verifies CHANNEL Stop/Move/removal and EFFECT
+Move/removal, including live target getter clearing before the unit family.
+
+Inventory:519 entries /238 executable original/evidence contracts. All518 prior
+entry objects and old frozen retail fixture pins remain unchanged. Only mutable
+engine/test/documentation/mapper pins are refreshed. Thirty-five failing-first
+engine cases and fourteen evidence/corruption checks cover this slice. Full ORDER-01.13
+stays open. See [implementation and scope](retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).
