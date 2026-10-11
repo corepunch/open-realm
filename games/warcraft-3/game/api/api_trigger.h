@@ -259,9 +259,16 @@ uint32_t TriggerRegisterDialogButtonEvent(jass_t *j) {
     return jass_pushlighthandle(j, event, "event");
 }
 uint32_t TriggerRegisterGameEvent(jass_t *j) {
-    //trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //handle_t whichGameEvent = jass_checkhandle(j, 2, "gameevent");
-    return jass_pushnullhandle(j, "event");
+    trigger_t *trigger = jass_checkhandle(j, 1, "trigger");
+    uint32_t *game_event = jass_checkhandle(j, 2, "gameevent");
+    event_t *registration;
+    if (!trigger || !game_event ||
+        (*game_event != EVENT_GAME_SAVE && *game_event != EVENT_GAME_LOADED))
+        return jass_pushnullhandle(j, "event");
+    registration = G_MakeEvent((EVENTTYPE)*game_event);
+    if (!registration) return jass_pushnullhandle(j, "event");
+    registration->trigger = trigger;
+    return jass_pushlighthandle(j, registration, "event");
 }
 uint32_t TriggerRegisterEnterRegion(jass_t *j) {
     trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");

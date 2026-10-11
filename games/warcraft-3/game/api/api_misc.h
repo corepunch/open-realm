@@ -915,6 +915,9 @@ uint32_t CopySaveGame(jass_t *j) {
     cstring_t target = jass_checkstring(j, 2);
     return jass_pushboolean(j, gi.ScriptCopySave && gi.ScriptCopySave(source, target));
 }
+uint32_t GetSaveBasicFilename(jass_t *j) {
+    return jass_pushstring(j, G_GetSaveBasicFilename());
+}
 uint32_t SaveGameExists(jass_t *j) {
     cstring_t name = jass_checkstring(j, 1);
     return jass_pushboolean(j, gi.ScriptSaveExists && gi.ScriptSaveExists(name));

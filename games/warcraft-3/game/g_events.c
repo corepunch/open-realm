@@ -3,6 +3,55 @@
 bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
 bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit);
 
+/* GetSaveBasicFilename is a short-lived context provided by the host save/load
+ * operation, not a physical filesystem path or a script-selectable scope. */
+static char save_basic_filename[MAX_PATHLEN];
+static bool save_event_dispatching;
+
+cstring_t G_GetSaveBasicFilename(void) { return save_basic_filename; }
+
+static bool G_DispatchSaveLoadEvent(EVENTTYPE type, cstring_t name) {
+    cstring_t base, slash, backslash, extension;
+    size_t length;
+    if (!level.vm || !name || !*name || save_event_dispatching) return false;
+    slash = strrchr(name, '/');
+    backslash = strrchr(name, '\\');
+    base = name;
+    if (slash && slash >= base) base = slash + 1;
+    if (backslash && backslash >= base) base = backslash + 1;
+    length = strlen(base);
+    extension = strrchr(base, '.');
+    if (extension && (!strcasecmp(extension, ".sav") || !strcasecmp(extension, ".w3z")))
+        length = (size_t)(extension - base);
+    if (!length || length >= sizeof(save_basic_filename)) return false;
+
+    memcpy(save_basic_filename, base, length);
+    save_basic_filename[length] = '\0';
+    save_event_dispatching = true;
+    if (!G_PublishEvent(NULL, type)) {
+        save_basic_filename[0] = '\0';
+        save_event_dispatching = false;
+        return false;
+    }
+    /* Flush both the event queue and queued JASS actions while the name is
+     * valid. Actions that sleep resume later without this transient context. */
+    G_RunEvents();
+    jass_runevents(level.vm);
+    bool ok = !jass_rterror_pending(level.vm);
+    save_basic_filename[0] = '\0';
+    save_event_dispatching = false;
+    return ok;
+}
+
+bool G_BeforeSaveGame(cstring_t name) {
+    return G_DispatchSaveLoadEvent(EVENT_GAME_SAVE, name);
+}
+
+void G_AfterLoadGame(cstring_t name) {
+    if (!G_DispatchSaveLoadEvent(EVENT_GAME_LOADED, name))
+        fprintf(stderr, "WC3: restored game-loaded event handlers could not complete\n");
+}
+
 bool G_LimitMatches(uint32_t op, float value, float limit) {
     switch (op) {
         case WC3_LIMITOP_LESS_THAN: return value < limit;
@@ -123,6 +172,12 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
             case EVENT_DIALOG_BUTTON_CLICK:
                 if (evt->responseTo == e && evt->dialog_id == e->dialog_id &&
                     (!e->button_id || evt->button_id == e->button_id))
+                    jass_calltriggerevent(level.vm, e->trigger, evt);
+                break;
+            case EVENT_GAME_SAVE:
+            case EVENT_GAME_LOADED:
+                /* Game events are global, with no unit/player subject. */
+                if (evt->type == e->type && !evt->responseTo)
                     jass_calltriggerevent(level.vm, e->trigger, evt);
                 break;
             case EVENT_GAME_VICTORY:

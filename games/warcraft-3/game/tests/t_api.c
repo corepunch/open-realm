@@ -8760,4 +8760,91 @@ TEST(wc3_api, captain_ai_natives_accept_null_script_player) {
         "endfunction\n"));
 }
 
+/* Real game save/load event registration and filename context are exposed by
+ * the server callbacks; these tests deliberately avoid invoking the JASS
+ * SaveGame native, which still needs the deferred VM-safe transaction patch. */
+TEST(wc3_api, game_save_loaded_events_have_scoped_filename_context) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " integer saves = 0\n"
+        " integer loads = 0\n"
+        " integer disabledSaves = 0\n"
+        "endglobals\n"
+        "function onSave takes nothing returns nothing\n"
+        " call BJassAssert(GetSaveBasicFilename() == \"Slot One\", \"save basic filename missing\")\n"
+        " set saves = saves + 1\n"
+        "endfunction\n"
+        "function onLoad takes nothing returns nothing\n"
+        " call BJassAssert(GetSaveBasicFilename() == \"Slot Two\", \"loaded basic filename missing\")\n"
+        " set loads = loads + 1\n"
+        "endfunction\n"
+        "function onDisabled takes nothing returns nothing\n"
+        " set disabledSaves = disabledSaves + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        " local trigger saveTrigger = CreateTrigger()\n"
+        " local trigger loadTrigger = CreateTrigger()\n"
+        " local trigger disabledTrigger = CreateTrigger()\n"
+        " call BJassAssert(GetSaveBasicFilename() == \"\", \"filename leaked outside save event\")\n"
+        " call BJassAssert(TriggerRegisterGameEvent(saveTrigger, EVENT_GAME_SAVE) != null, \"save event unregistered\")\n"
+        " call BJassAssert(TriggerRegisterGameEvent(loadTrigger, EVENT_GAME_LOADED) != null, \"load event unregistered\")\n"
+        " call BJassAssert(TriggerRegisterGameEvent(disabledTrigger, EVENT_GAME_SAVE) != null, \"disabled event unregistered\")\n"
+        " call BJassAssert(TriggerRegisterGameEvent(saveTrigger, ConvertGameEvent(258)) == null, \"unsupported game event registered\")\n"
+        " call TriggerAddAction(saveTrigger, function onSave)\n"
+        " call TriggerAddAction(loadTrigger, function onLoad)\n"
+        " call TriggerAddAction(disabledTrigger, function onDisabled)\n"
+        " call DisableTrigger(disabledTrigger)\n"
+        "endfunction\n"
+        "function verifySave takes nothing returns nothing\n"
+        " call BJassAssert(saves == 1 and loads == 0 and disabledSaves == 0, \"save event dispatch mismatch\")\n"
+        " call BJassAssert(GetSaveBasicFilename() == \"\", \"save filename retained outside event\")\n"
+        "endfunction\n"
+        "function verifyLoad takes nothing returns nothing\n"
+        " call BJassAssert(saves == 1 and loads == 1 and disabledSaves == 0, \"loaded event dispatch mismatch\")\n"
+        " call BJassAssert(GetSaveBasicFilename() == \"\", \"load filename retained outside event\")\n"
+        "endfunction\n"));
+    T_ASSERT(G_BeforeSaveGame("Slot One.sav"));
+    jass_callbyname(level.vm, "verifySave", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_AfterLoadGame("Blizzard\\Slots\\Slot Two.w3z");
+    jass_callbyname(level.vm, "verifyLoad", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, game_save_event_registration_survives_snapshot) {
+    cstring_t filename = Test_TempPath("wc3-game-save-events.sav");
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " integer saves = 0\n"
+        " integer loads = 0\n"
+        "endglobals\n"
+        "function onSave takes nothing returns nothing\n"
+        " set saves = saves + 1\n"
+        "endfunction\n"
+        "function onLoad takes nothing returns nothing\n"
+        " call BJassAssert(GetSaveBasicFilename() == \"reloaded\", \"wrong restored load name\")\n"
+        " set loads = loads + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        " local trigger saveTrigger = CreateTrigger()\n"
+        " local trigger loadTrigger = CreateTrigger()\n"
+        " call TriggerRegisterGameEvent(saveTrigger, EVENT_GAME_SAVE)\n"
+        " call TriggerRegisterGameEvent(loadTrigger, EVENT_GAME_LOADED)\n"
+        " call TriggerAddAction(saveTrigger, function onSave)\n"
+        " call TriggerAddAction(loadTrigger, function onLoad)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        " call BJassAssert(saves == 1 and loads == 1, \"save/load event registrations were not restored\")\n"
+        "endfunction\n"));
+    T_ASSERT(G_BeforeSaveGame("reloaded.sav"));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    G_AfterLoadGame("reloaded.sav");
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
 #endif /* BZ_TESTS */

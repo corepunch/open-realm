@@ -6,6 +6,33 @@ authoritative gameplay publishes an event only when the corresponding state
 transition actually happens. Tutorial/campaign behavior must use this generic
 bridge rather than map-specific checks.
 
+## Player save/load game events
+
+`TriggerRegisterGameEvent` registers `EVENT_GAME_SAVE` (`259`) and
+`EVENT_GAME_LOADED` (`256`) using the normal bounded event registry. Other game
+IDs remain unsupported and return null event handles. The global registrations
+have no unit/player subject, respect disabled triggers, and survive a game
+snapshot alongside the other registered events.
+
+Normal ESC-menu Save Game / Quick Save and the server's `save` command issue
+`EVENT_GAME_SAVE` **before** writing the full snapshot, allowing map handlers
+such as the Rexxar zone-backup scripts to copy their existing zone files.
+The session loader issues `EVENT_GAME_LOADED` **after** a successful full-game
+restore; this lets campaign scripts restore a saved slot's zone backups. Both
+entry points run event conditions and queued actions through the existing JASS
+scheduler while the save-name context is valid. The event is not issued after
+failed restore. The save is aborted if pre-save event execution reports a JASS
+runtime error or the event queue cannot accept the event.
+
+`GetSaveBasicFilename` returns the logical save basename (stripping a `.sav`
+or `.w3z` suffix) during these callbacks, not an OS path. Outside the callback
+it is empty. Actions that yield and run later do not retain this transient
+filename; asynchronous save-handler completion is **not** supported yet.
+JASS-initiated `SaveGame` / `LoadGame` are not part of the server/menu hooks
+in this patch. They still need a deferred safe-point and session transition
+pipeline before their corresponding events can be emitted reliably. See
+[save/load](save-load.md).
+
 ## Event response payload
 
 `GAMEEVENT` carries the response state that must survive until the JASS action

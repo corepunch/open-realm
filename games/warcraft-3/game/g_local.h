@@ -344,6 +344,8 @@ typedef enum {
     EVENT_GAME_TRACKABLE_TRACK = 8,
     EVENT_GAME_SHOW_SKILL = 9,
     EVENT_GAME_BUILD_SUBMENU = 10,
+    EVENT_GAME_LOADED = 256,
+    EVENT_GAME_SAVE = 259,
     EVENT_PLAYER_STATE_LIMIT = 11,
     EVENT_PLAYER_ALLIANCE_CHANGED = 12,
     EVENT_PLAYER_DEFEAT = 13,
@@ -3721,6 +3723,10 @@ void jass_runevents(jass_t *);
 // g_events.c
 void G_RunEntities(void);
 void G_RunEvents(void);
+/* Host save/restore lifecycle; the basic filename is only visible during these callbacks. */
+bool G_BeforeSaveGame(cstring_t name);
+void G_AfterLoadGame(cstring_t name);
+cstring_t G_GetSaveBasicFilename(void);
 void G_DrainPausedResultEvents(void);
 
 // g_items.c

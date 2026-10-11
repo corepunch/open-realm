@@ -53,7 +53,10 @@ static void SV_SaveGame_f(void) {
 
     if (Cmd_Argc() != 2) { fprintf(stderr, "usage: save <name>\n"); return; }
     if (sv.state != ss_game || !SV_SavePath(Cmd_Argv(1), path)) return;
-    if (!ge || !ge->SaveGame || !ge->SaveGame(path)) fprintf(stderr, "save: failed to write %s\n", path);
+    if (!ge || !ge->SaveGame ||
+        (ge->BeforeSaveGame && !ge->BeforeSaveGame(Cmd_Argv(1))) ||
+        !ge->SaveGame(path))
+        fprintf(stderr, "save: failed to write %s\n", path);
 }
 
 bool SV_LoadGame(cstring_t name, cstring_t map) {
@@ -68,6 +71,7 @@ bool SV_LoadGame(cstring_t name, cstring_t map) {
         SV_Map(map);
         return false;
     }
+    if (ge->AfterLoadGame) ge->AfterLoadGame(name);
     return true;
 }
 #endif

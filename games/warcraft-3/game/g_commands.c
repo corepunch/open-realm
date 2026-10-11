@@ -2207,7 +2207,7 @@ CLIENTCOMMAND(MenuSaveNamed) {
         return;
     }
     gi.SavePath(name, path, sizeof(path));
-    if (path[0] && !WriteGame(path))
+    if (path[0] && (!G_BeforeSaveGame(name) || !WriteGame(path)))
         fprintf(stderr, "WC3 menu: failed to save %s\n", path);
 }
 

@@ -568,6 +568,19 @@ with runtime errors instead of process assertions, and protects global-initializ
 queryable until VM close via `jass_missingcount`/`jass_missingname`. See [Galaxy protected calls and coverage](../../docs/games/starcraft-2/galaxy-scripting.md#protected-calls-and-missing-native-inventory)
 for the SC2 reproduction, inventory workflow, and shared VM regressions. This does not change WC3 quest state ownership or native IDs.
 
+### Game save/load event and filename natives
+
+`TriggerRegisterGameEvent` supports `EVENT_GAME_SAVE` and `EVENT_GAME_LOADED`
+with real event handles, normal trigger enabled-state semantics and save/load
+registry identity. `GetSaveBasicFilename` exposes the logical slot basename
+only while the menu/server save or successful load notification is dispatched.
+The in-game named/quick save, server `save`, and server cross-map restore paths
+invoke the handlers at their respective boundaries. JASS-initiated `SaveGame`
+and `LoadGame` still require the later deferred transaction patches before
+they can use these notifications. See
+[trigger events](../../docs/games/warcraft-3/trigger-events.md) and
+[save/load](../../docs/games/warcraft-3/save-load.md).
+
 ### Scripted save filesystem natives (Rexxar zone paths)
 
 `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` are registered and use engine-owned restricted filesystem callbacks. These only operate within the current script-save session namespace and accept `Blizzard\Zones` / `Blizzard\<slot>` directories, plus flat scripted slots. Copying is bounded and atomic on POSIX; the parent directory cannot be renamed or removed. Manual save slots are not accessible. The unrelated scripted `SaveGame` / `LoadGame` lifecycle is still synchronous and cannot safely snapshot an active JASS frame; first-visit/return-visit integration remains pending. See `docs/games/warcraft-3/save-load.md`.

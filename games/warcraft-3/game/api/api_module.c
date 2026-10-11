@@ -727,6 +727,7 @@ jassModule_t jass_funcs[] = {
     { "SetReservedLocalHeroButtons", SetReservedLocalHeroButtons },
     { "CopySaveGame", CopySaveGame },
     { "SaveGameExists", SaveGameExists },
+    { "GetSaveBasicFilename", GetSaveBasicFilename },
     { "RenameSaveDirectory", RenameSaveDirectory },
     { "RemoveSaveDirectory", RemoveSaveDirectory },
     { "GetTerrainType", GetTerrainType },

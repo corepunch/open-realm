@@ -202,6 +202,28 @@ call LoadGame("chapter-01", false)
 
 `LoadGame` completely reloads the saved map before restoring state. The initialized map must have the same JASS program. `main()` recreates the baseline native registries; objects created later in gameplay are allocated from the save and filled from trigger/event/timer records. The JASS natives resolve paths through `gi.ScriptSavePath` (the menu uses `FS_SavePath()`).
 
+## Save/load trigger callbacks (Patch 2)
+
+The game module registers `EVENT_GAME_SAVE` and `EVENT_GAME_LOADED` with the
+normal event registry; `GetSaveBasicFilename` is registered as a transient
+string native. ESC-menu named/quick saves and the server `save` command call
+the optional `game_export.BeforeSaveGame(name)` hook before `WriteGame`, so
+synchronous map save handlers can copy Rexxar zone backups into
+`Blizzard\<slot>` within the authorized script sandbox. The server calls
+`game_export.AfterLoadGame(name)` only when its normal cross-map restoration
+has succeeded, giving map handlers a chance to restore zone backups. Events
+run through the JASS event dispatcher and scheduler with the logical basename
+available only during this callback. Normal save requests abort on a pre-save
+JASS error or exhausted event queue, instead of taking a knowingly incomplete
+snapshot. If an event action sleeps, its later continuation cannot use this
+transient name; maps should perform file-copy actions synchronously.
+
+JASS `SaveGame` and `LoadGame` still use the older inline serializer and do
+not yet emit these events. Patch 3/4 must route them through the same hooks at
+a VM-safe session boundary. This patch also does not solve session scope
+restoration on application restart, atomic full-game save replacement, or the
+campaign cache/zone snapshot consistency requirements.
+
 ## Quake 2 Lifecycle
 
 `data/Quake-2-master` is the reference. WC3 cannot copy the files 1:1 (one map, embedded JASS instead of cross-level `game.ssv`), but the steps must stay in Q2 order.
