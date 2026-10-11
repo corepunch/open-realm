@@ -27,6 +27,7 @@ interactions. See also [retail-pathfinding.md](retail-pathfinding.md) and the
 | `unitdata` | `tools/frida/wc3_unitdata_probe.j` | default/current turn, prop window, move speed, acquire range, fly height per type |
 | `alliances` | `tools/frida/wc3_alliance_probe.j` | `GetPlayerAlliance` 16x16x10, controller, slot state, allied-victory state, team; before and after `SetPlayerController(Player(0), USER)` |
 | `grouporder` | `tools/frida/wc3_grouporder_probe.j` | ForGroup enumeration order after `GroupAddUnit` in creation order |
+| `pathing` | `tools/frida/wc3_pathing_probe.j` | `IsTerrainPathable` bits (1 walk, 2 fly, 4 build, 8 amphibious) per cell of spec `box` at `step`, one row per tick |
 
 ## Diagnostic Workflow
 
@@ -139,6 +140,14 @@ Each rule below was found by a journey divergence, then checked against the orig
   engine only checked partial fine routes, so it classified the cohort when the cooldown ran
   out. It then held members (`0x200000`) and dropped speed sharing, while the original kept
   denying. Engine: `moveFineRoute_t.adaptive_short` (save 180).
+- **War3Patch.mpq outranks every base archive.** The original searches War3Patch.mpq first.
+  The engine mounted a data directory's archives in name order, and later mounts win, so in
+  TFT mode `War3x.mpq` and `War3xlocal.mpq` shadowed the patch. Engine TFT runs therefore
+  used the 1.0x `common.j` (no `PATHING_TYPE_*` globals, so `IsTerrainPathable` received a
+  null type) and pre-patch SLK rows: 28 move speeds, 21 turn rates and 24 TFT neutral
+  types differed from the original. `FS_ComparePaths` (`common/common.c`) now mounts the
+  patch last. The `pathing` probe (`IsTerrainPathable` walk/fly/build/amphibious bits over a
+  box) matches all 1,444 Orc07 cells after the fix.
 - **SLK reals** use the original decimal parser `070de0` (`wc3_decimal`), which is not
   correctly rounded: `"0.4"` gives `3eccccce`, and `"1.5"` gives `3fc00001`. Tests that author
   a captured float word as SLK text must search for text that this parser maps to the word
@@ -164,11 +173,11 @@ is the state that `1d62bb` (retry init) uses. Draws made before the probe's
 - RoC data changes authored speeds (mortar): use `-tft` against the TFT original.
 - The engine's dump must keep the velocity zero sign (`wc3_velocity_scale`). `wc3_div`
   canonicalizes it.
-- The unitdata probe still differs for acquire range (default = authored UnitWeapons
-  `acquire`, else sight, no sight clamp; current is 0 while weapons are off), for twelve move
-  speeds (for example Obla 320 in the original, 300 in the engine; owyv 320/350; current
-  speed `43afffff` against the engine's 352), and for 24 TFT neutral types that the engine's
-  CreateUnit rejects (`Nal2`, `Nfir`, `ncg1`, `nlv1`, ...).
+- The unitdata probe still differs for acquire range on 642 types (default = authored
+  UnitWeapons `acquire`, else sight, no sight clamp; current is 0 while weapons are off) and
+  for five current move speeds. Default and current turn rate, propulsion window and default
+  move speed match for all 643 types, and every TFT neutral type is created, since
+  War3Patch.mpq takes priority (see Verified Original Rules).
 - `-loadfile` on a melee map seats a Computer in slot 1 and leaves the other W3I slots empty.
   The engine loader seats every W3I Human slot, so melee GetPlayerSlotState/controller rows
   still differ. Retail GetPlayerTeam returns -1 for non-playing slots, but the engine returns
@@ -206,4 +215,5 @@ units yet. That is the captain/Town AI work tracked as GROUP-03.4.x.
   `wc3_slk.authored_scalars_use_the_original_decimal_parser`,
   `pathfinding.partial_coarse_endpoint_becomes_request_goal_until_destination_changes`,
   `wc3_movement.premature_destination_change_keeps_retry_status_without_forced_arrival`,
-  `wc3_movement.selected_blocked_formation_classifies_before_destination_adjustment` (short-result variants).
+  `wc3_movement.selected_blocked_formation_classifies_before_destination_adjustment` (short-result variants),
+  `commands.patch_archive_outranks_expansion_archives` (`test-commands`).

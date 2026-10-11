@@ -6,8 +6,10 @@
 #include <string.h>
 #include <time.h>
 #ifdef _WIN32
+#include <direct.h>
 #include <sys/utime.h>
 #else
+#include <sys/stat.h>
 #include <utime.h>
 #endif
 
@@ -395,6 +397,37 @@ TEST(commands, data_command_line_sets_data_cvar) {
     Cvar_ApplyCommandLine(3, argv);
 
     T_STREQ(Cvar_String("data", NULL), "tests/data dir");
+}
+
+/* The original searches War3Patch.mpq before War3xLocal/War3x/War3Local/War3:
+ * its patched common.j, Blizzard.j and SLK rows must not be shadowed by name order. */
+TEST(commands, patch_archive_outranks_expansion_archives) {
+    static cstring_t const names[] = { "war3.mpq", "War3Patch.mpq", "War3x.mpq", "War3xlocal.mpq" };
+    PATHSTR root;
+    char path[sizeof(PATHSTR) + 32];
+    uint32_t size = 0;
+    setup_command_tests();
+    Cvar_Set("fs_expansion", "1");
+    snprintf(root, sizeof(root), "%s", Test_TempPath("archive-priority"));
+#ifdef _WIN32
+    _mkdir(root);
+#else
+    mkdir(root, 0755);
+#endif
+    FOR_LOOP(i, sizeof(names) / sizeof(*names)) {
+        handle_t archive = NULL;
+        snprintf(path, sizeof(path), "%s/%s", root, names[i]);
+        remove(path);
+        T_ASSERT(SFileCreateArchive(path, 0, 16, &archive));
+        if (!archive) continue;
+        T_ASSERT(SFileAddFileFromBuffer(archive, "Scripts\\archive-priority.txt", names[i], (uint32_t)strlen(names[i])));
+        T_ASSERT(SFileCloseArchive(archive));
+    }
+    T_ASSERT(FS_AddDataDirectory(root));
+    char *data = FS_ReadFile("Scripts\\archive-priority.txt", &size);
+    T_NOT_NULL(data);
+    if (data) { T_EQ(size, strlen("War3Patch.mpq")); T_ASSERT(!memcmp(data, "War3Patch.mpq", size)); }
+    FS_FreeFile(data);
 }
 
 TEST(commands, tft_command_line_exposes_expansion_archives) {

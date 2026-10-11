@@ -16,6 +16,7 @@ PROBE = Path(__file__).with_name('wc3_journey_probe.j')
 UNITDATA = Path(__file__).with_name('wc3_unitdata_probe.j')
 ALLIANCES = Path(__file__).with_name('wc3_alliance_probe.j')
 GROUPORDER = Path(__file__).with_name('wc3_grouporder_probe.j')
+PATHING = Path(__file__).with_name('wc3_pathing_probe.j')
 MAIN_CALLS = [('call CreateAllUnits(  )', 'call PathProbeInit()'),
               ('call InitCustomTriggers(  )', '// Journey probe: map triggers disabled.'),
               ('call RunInitializationTriggers(  )', '// Journey probe: timer owns this experiment.')]
@@ -72,6 +73,12 @@ def probe_source(spec):
             lines.extend(f' call GroupOrderAdd(g,{fourcc(t)},{i})' for i, t in enumerate(case))
             lines.append(f' call GroupOrderCase(g,{len(case)})')
         return GROUPORDER.read_text().replace('@CASES@', '\n'.join(lines))
+    if spec.get('probe') == 'pathing':
+        x0, y0, x1, y1 = spec['box']; step = spec.get('step', 32)
+        cols, rows = int((x1 - x0) // step) + 1, int((y1 - y0) // step) + 1
+        if cols > 256: raise ValueError('pathing rows hold at most 256 cells')
+        return (PATHING.read_text().replace('@X0@', real(x0)).replace('@Y0@', real(y0)).replace('@STEP@', real(step))
+                .replace('@COLS@', str(cols)).replace('@ROWS@', str(rows)))
     if spec.get('probe') == 'unitdata':
         return UNITDATA.read_text().replace('@TYPES@', '\n'.join(f" call UnitDataRecord({fourcc(t)})" for t in spec['types']))
     units = spec['units']
@@ -125,7 +132,7 @@ def main():
         subprocess.run(command, check=True, capture_output=True)
         args.output.write_bytes(original[:512] + (root / 'payload.mpq').read_bytes())
     result = {'spec': spec['name'], 'spec_sha256': hashlib.sha256(args.spec.read_bytes()).hexdigest(),
-              'probe_sha256': hashlib.sha256({'unitdata': UNITDATA, 'alliances': ALLIANCES, 'grouporder': GROUPORDER}.get(spec.get('probe'), PROBE).read_bytes()).hexdigest(),
+              'probe_sha256': hashlib.sha256({'unitdata': UNITDATA, 'alliances': ALLIANCES, 'grouporder': GROUPORDER, 'pathing': PATHING}.get(spec.get('probe'), PROBE).read_bytes()).hexdigest(),
               'base_sha256': hashlib.sha256(original).hexdigest(),
               'map_sha256': hashlib.sha256(args.output.read_bytes()).hexdigest(), 'changed_members': ['war3map.j']}
     args.output.with_suffix('.json').write_text(json.dumps(result, indent=2) + '\n')

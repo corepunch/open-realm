@@ -56987,7 +56987,7 @@
     },
     {
       "path": "games/warcraft-3/tests/test_commands.c",
-      "sha256": "9164e24d3ab2b1f6c386ea131dd35b02aa2e413dc77eb2f4177831176c368c29"
+      "sha256": "c030159dcd2d1ffe2b38f4edc892bbbb3c5d83749a43172e587b9b2ad646843b"
     },
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_startup_seed_171.h",
