@@ -1226,6 +1226,9 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         return accepted;
     }
     if (!queue) G_ClearUnitOrderQueue(self);
+    if (!owned && (!owner || owner->proc==CAbilityMove) &&
+        (!strcmp(order,"move") || !strcmp(order,"smart")))
+        return S_IssuePointMoveOrder(self,order,point,issuer_player,group_speed);
     {
         bool const accepted = unit_issueorder_now(self, order, point, group_speed, NULL);
         if (accepted) {

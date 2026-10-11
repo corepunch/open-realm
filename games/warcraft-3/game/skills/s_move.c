@@ -5166,6 +5166,35 @@ static bool move_queued_cohort_candidate(void *data,edict_t *other) {
     return false;
 }
 
+/*680320 retires the old internal task before67abe0 notifies the new user
+ * head. The point constructor then owns its own d0144 cleanup. Callback
+ * commands cannot inherit the pending outer group's prepared admission. */
+bool S_IssuePointMoveOrder(edict_t *self, cstring_t order, vec2_t const *point,
+                          uint32_t issuer, float speed) {
+    vec2_t const requested=*point;
+    uint32_t const spawn=self->spawn_time,order_id=G_OrderId(order);
+    S_StopUnitMovementWithRecovery(self);
+    self->current_order_id=order_id;
+    uint32_t const revision=G_UnitMoveRevision(self);
+    typeof(move_group_admission) admission=move_group_admission;
+    move_group_admission=(typeof(move_group_admission)){0};
+    G_PublishIssuedPointOrder(self,order_id,&requested,issuer,order);
+    move_group_admission=admission;
+    if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) ||
+       M_IsDead(self) || S_UnitExecutionPaused(self))return true;
+    if(G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision)return true;
+    /* A completed nested Stop retires the public head but leaves the outer
+     * point constructor eligible. Retain the head left by that notification. */
+    uint32_t const head=self->current_order_id;
+    edict_t *goal=Waypoint_add(&requested);
+    if(!goal)return false;
+    S_IssueMoveOrder(self,goal,order_id);
+    self->current_order_id=head;
+    self->movement.group_speed=speed;
+    S_UnitAbilityOrderAccepted(self,order);
+    return true;
+}
+
 static queuedOrderResult_t move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return QUEUED_ORDER_UNHANDLED;
     uint32_t spawn=unit->spawn_time,revision=G_UnitMoveRevision(unit);

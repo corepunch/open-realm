@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.** Payoff298 implements Human Repair target notification before work, callback cancellation/removal guards and saved Pause/resume re-notification. Two original repeats/control agree3027 public markers and324 native boundaries. Build retires before Repair activation; it is not a hidden resumable head underneath active Repair. ORDER-01.16 remains open for cancellation/refunds and alternate producers. See [Human Repair activation](retail-pathfinding-engine.md#human-build-activates-and-resumes-a-real-repair-head-payoff298).
 
+Payoff299 implements ordinary public Move/point Smart cancellation, issued
+notification and replacement construction as distinct stages. Exact frozen Stop284
+Move callback counts now pass fresh and saved. All918 prior fixture/header hashes
+remain unchanged; no TODO is closed for the still-missing pause/death/removal
+cleanup owners. See [ordinary point admission](retail-pathfinding-engine.md#ordinary-point-admission-separates-cancellation-from-construction-payoff299).
+
+
 Payoff295 stages full-health construction-start callbacks before race work,
 retaining nested Human Move and balancing inside worker suppression. Its full
 validation checkpoint resets the twelve-commit cadence; Payoff298 is4/12 (including the committed short-coarse group fix).

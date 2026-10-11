@@ -18576,3 +18576,53 @@ passes64/64 assertions. All754 historical evidence fixtures and162 literal retai
 headers remain byte-identical. The tested parent includes the independently
 committed patch-archive precedence fix. This is4/12 since Payoff295's full-suite
 checkpoint.
+
+## Ordinary point admission separates cancellation from construction (Payoff299)
+
+Ordinary public Move and point Smart now retire the old physical task before
+publishing the new issued-point event, then construct the replacement task. Each
+stage owns its own Move cleanup/recovery scope. A callback that installs an active
+replacement prevents outer construction; a completed instantaneous Stop permits
+outer construction while retaining the absent public head it left behind.
+`S_IssuePointMoveOrder` isolates the pending group admission context while invoking
+callbacks, so an independent nested command cannot borrow the outer cohort.
+Identity, removal, death, suspension and movement-revision checks guard the return
+from notification. The ordinary queued activation path remains a separate producer. A replaced
+ability procedure retains the complete point dispatch, including procedures that
+return unhandled at admission but consume the execution message; the new path is
+selected only for the original Move procedure or an unowned point Smart.
+
+The evidence is the **unchanged** [Stop284 capture](../../../tools/ghidra/fixtures/retail-stop284-1.27.json)
+and its two read-only original repeats plus uninstrumented control. In scenes2/10,
+a Stop subscriber issues Move. The outer Stop contributes one recovery; the nested
+Move contributes old-task cancellation and new-task cleanup, yielding three before
+that subscriber returns. Both nested calls return to `600433` in the `600340`
+cleanup-task consumer. Static `680320 -> 673610 -> 673fe0` and `67abe0` establish
+cancellation, notification, post-callback task testing and construction order.
+`5fc120` ability-disable cancellation is a separate owner, not an explanation for
+these two Move cleanups.
+
+The new `scope299_idle_nested_move` and `scope299_active_nested_move` production
+regressions assert the existing literal `retail_stop284.h` projection at every
+public boundary, fresh and after engine save/load, with caller exclusion depths0/3.
+They fail against the previous implementation. The earlier `stop247` test's single
+public-Move scope assertion was an engine integration assumption, not a frozen
+original result: its original-code fixture covers bridge geometry. That assertion
+now requires both scopes, as independently witnessed by Stop284. **None of the
+existing retail fixture/header bytes or their pose expectations changed.**
+
+The [Scope299 verifier](../../../tools/ghidra/verify_wc3_pathing_scope299.py) rechecks
+original provenance, all16 capture scenes, unchanged header projection and370
+Ghidra instruction guards before running the affected Classic/TFT engine suites.
+`Scope299Evidence.java` saves comments, bodies and xrefs; apply/save/readback were
+byte-identical. The fixture explicitly records that this chunk adds no new retail
+capture or performance-target claim.
+
+MAP-04.2 remains open. Enabling the frozen recovery-count assertions for callback
+Pause, Kill and Remove exposed additional missing owner stages. Those diagnostic
+failures and the native chronology are archived under
+`research/MAP-04.2/payoff299`; they are not repaired by accepting different expected
+counts. Death/removal fine-object lifetime and counted ability-disable cancellation
+need their own complete implementation. In particular, bridge `05bf20` changes
+**proximity** object flags through mover+94; it must not be misread as a write to the
+fine object at mover+98. The six remaining diagnostic cases are not claimed passing.

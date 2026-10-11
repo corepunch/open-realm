@@ -4388,6 +4388,7 @@ bool S_UnitAttackApproachRange(edict_t const *attacker,float *maximum);
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
 void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);
+bool S_IssuePointMoveOrder(edict_t *, cstring_t, vec2_t const *, uint32_t, float);
 bool S_IssueCaptainHomeMove(edict_t *, botCaptain_t const *);
 bool S_AdmitTemporaryCaptainUnit(edict_t *, botCaptain_t const *, edict_t *);
 void S_DetachCaptainUnit(edict_t *);

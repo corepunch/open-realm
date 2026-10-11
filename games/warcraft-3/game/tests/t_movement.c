@@ -21345,7 +21345,7 @@ TEST(wc3_movement, stop247_public_stop_and_move_recover_inside_outer_scope) {
         if(command)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1200,1200}));
         else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
         S_TestMoveRecoveryTrace(NULL,NULL);stop247_stand_trace=NULL;unit->stand=unit_stand;
-        T_EQ(trace.stages,command?4:8);if(!command)T_EQ(trace.stands,1);
+        T_EQ(trace.stages,8);if(!command)T_EQ(trace.stands,1);
         T_EQ(record->flags,expected->outer);
         T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(trace.admitted.x));
         T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(trace.admitted.y));
@@ -23286,7 +23286,7 @@ TEST(wc3_movement, stop257_unit_scope_excludes_all_regions_after_save_and_restor
         stop257Trace_t trace={outer*3,0};S_TestMoveRecoveryTrace(stop257_recovery,&trace);
         if(command)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1200,1200}));
         else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
-        S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(trace.stages,command?4:8);
+        S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(trace.stages,8);
         map=S_GetMoveFineSpatial();regions=S_GetMoveRegions(index);
         T_EQ(wc3_records_owned(map,index)->flags,outer*3);
         FOR_LOOP(i,regions->count)T_EQ(wc3_records_object(map,regions->objects[i])->flags,WC3_RECORD_REGION+outer*3);
@@ -24166,6 +24166,7 @@ TEST(wc3_movement, flight280_six_captured_approaches_and_cold_saves_match_retail
 #ifdef BZ_TESTS
 #include "fixtures/retail_stop284.h"
 static struct {unsigned scene,row,stages,outer;bool exact_scopes;} stop284;
+static bool stop299_all_scopes;
 static void stop284_scope(void *data,unsigned stage,edict_t const *unit) {
     (void)data;
     T_EQ(stage,stop284.stages++%4);
@@ -24219,6 +24220,7 @@ static void stop284_public(unsigned action,bool moving) {
             action==2 ? "call IssuePointOrder(u,\"move\",1200,656)" :
             action==3 ? "call IssueImmediateOrder(u,\"stop\")" :
             action==4 ? "call RemoveUnit(u)" :
+            action==5 ? "call PauseUnit(u,true)" :
             action==6 ? "call KillUnit(u)" :
             action==7 ? "call SetUnitPosition(u,800,800)" : "",
             moving ? "call IssuePointOrder(u,\"move\",1200,656)" : "");
@@ -24235,7 +24237,7 @@ static void stop284_public(unsigned action,bool moving) {
         wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),index);
         T_NOT_NULL(record);if(!record)continue;
         stop284=(typeof(stop284)){.scene=action+(moving?8:0),.outer=saved?3:0,
-            .exact_scopes=action==0 || action==1 || action==3 || action==7};
+            .exact_scopes=stop299_all_scopes || action==0 || action==1 || action==3 || action==7};
         record->flags=stop284.outer;
         test_preload_marker=stop284_marker;S_TestMoveRecoveryTrace(stop284_scope,NULL);
         jass_callbyname(level.vm,"issue",false);T_ASSERT(!jass_rterror_pending(level.vm));
@@ -24243,10 +24245,10 @@ static void stop284_public(unsigned action,bool moving) {
         T_EQ(stop284.row,action==3 || action==7?8:5);
         if(unit->inuse && !G_IsDeferredFree(unit) && !M_IsDead(unit)) {
             T_EQ(wc3_records_owned(S_GetMoveFineSpatial(),index)->flags,stop284.outer);
-            if(action!=2){T_EQ(unit->movement.guard_position.x,unit->s.origin2.x);T_EQ(unit->movement.guard_position.y,unit->s.origin2.y);}
+            if(action!=2 && action!=5){T_EQ(unit->movement.guard_position.x,unit->s.origin2.x);T_EQ(unit->movement.guard_position.y,unit->s.origin2.y);}
             cstring_t file=Test_TempPath("wc3-stop284-after.bin");
             T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
-            T_EQ(g_edicts[index].current_order_id,action==2?G_OrderId("move"):0);
+            T_EQ(g_edicts[index].current_order_id,action==2?G_OrderId("move"):action==5?MOVE_ORDER_SUSPENDED:0);
         }
         G_TestFinishDeferredFrees();
     }
@@ -24264,6 +24266,34 @@ TEST(wc3_movement, stop284_remove_during_notification) {stop284_public(4,false);
 TEST(wc3_movement, stop284_death_during_notification) {stop284_public(6,true);}
 TEST(wc3_movement, stop285_idle_nested_position_notifies) {stop284_public(7,false);}
 TEST(wc3_movement, stop285_active_nested_position_notifies) {stop284_public(7,true);}
+
+/* Existing repeated retail capture freezes every recovery at callback boundaries,
+ * including the previously excluded replacement/pause/death/removal domains. */
+#define SCOPE299_CASE(name,action,moving) \
+    TEST(wc3_movement, scope299_##name) { \
+        stop299_all_scopes=true;stop284_public(action,moving);stop299_all_scopes=false; \
+    }
+SCOPE299_CASE(idle_nested_move,2,false)
+SCOPE299_CASE(active_nested_move,2,true)
+static abilityProc_t scope299_original_point;
+static unsigned scope299_custom_points;
+static intptr_t scope299_custom_point(edict_t *unit, abilityMsg_t msg, abilityCall_t const *call) {
+    if(msg==A_POINT_ORDER) {scope299_custom_points++;return ABILITY_ORDER_ACCEPTED;}
+    return scope299_original_point(unit,msg,call);
+}
+TEST(wc3_movement, scope299_replaced_point_owner_keeps_complete_dispatch) {
+    reset_entities();setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,256);
+    ability_t *owner=(ability_t *)FindAbilityByOrder("move");
+    T_NOT_NULL(owner);if(!owner)return;
+    scope299_original_point=owner->proc;scope299_custom_points=0;
+    S_ReplaceAbilityProcedure(owner,scope299_custom_point);
+    T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){512,256}));
+    S_ReplaceAbilityProcedure(owner,scope299_original_point);
+    T_EQ(scope299_custom_points,1);
+}
+#undef SCOPE299_CASE
+
 #endif
 
 #ifdef BZ_TESTS
@@ -24347,7 +24377,7 @@ static void stop285_public(unsigned action,bool moving,bool paused) {
         T_EQ(stop285.row,paused?(action==3?9:6):(action==3?8:5));T_EQ(wc3_records_owned(S_GetMoveFineSpatial(),index)->flags,stop285.outer);
         cstring_t file=Test_TempPath("wc3-stop285-after.bin");
         T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
-        T_EQ(g_edicts[index].current_order_id,action==2?G_OrderId("move"):0);
+        T_EQ(g_edicts[index].current_order_id,action==2?G_OrderId("move"):action==5?MOVE_ORDER_SUSPENDED:0);
     }
     reset_entities();setup_test_world();
 }
