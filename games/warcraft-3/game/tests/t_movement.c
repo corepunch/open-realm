@@ -23445,4 +23445,97 @@ TEST(wc3_movement, capscope273_captain_nested_replacement_rejection_and_cold_sav
     reset_entities();setup_test_world();
 }
 
+
+#include "fixtures/retail_refresh274.h"
+
+/* TARGET-04.1: feed original full-function threshold outputs through the
+ * actual owner reload, including predicted first-member lookup. */
+TEST(wc3_movement, refresh274_original_thresholds_and_captain_extra_policy) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    S_SetUnitPosition(unit,&(vec2_t){0,0});
+    unit->movement.fine_pose=(vec2_t){0,0};
+    unit->movement.velocity=(vec2_t){0,0};
+    unit->movement.clock_valid=true;unit->movement.pose_clock=level.pathing_clock;
+    moveGroup_t group={.target=target,.count=1};group.members[0].unit=unit;
+    FOR_LOOP(i,sizeof(refresh274_rows)/sizeof(*refresh274_rows)) {
+        uint32_t const *row=refresh274_rows[i];
+        group.route.group_goal=(vec2_t){wc3_float(row[0]),wc3_float(row[1])};
+        group.flags=row[2];group.target_refresh=-1;
+        move_group_update_refresh(&group);
+        T_EQ(group.target_refresh,row[3]);
+        int32_t reload=group.target_refresh;
+        FOR_LOOP(j,reload) {move_group_update_refresh(&group);T_EQ(group.target_refresh,reload-j-1);}
+        move_group_update_refresh(&group);T_EQ(group.target_refresh,0);
+    }
+    reset_entities();setup_test_world();
+}
+
+static void refresh274_tick(void) {
+    wc3_clock_advance(&level.pathing_clock,.03f,0);
+    level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+}
+
+/* A path request consumes the zero countdown on the NEXT owner visit.
+ * Keep the actual Follow owner and cold-load midway, without delaying a
+ * public order or altering a retail expected trajectory. */
+TEST(wc3_movement, refresh274_actual_owner_cadence_and_saved_captain_delay) {
+    unsigned const reloads[]={16,17,132,181,182,297};
+    FOR_LOOP(n,sizeof(reloads)/sizeof(*reloads)) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+        refresh274_tick();
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)continue;
+        group->target_refresh=reloads[n];
+        group->flags|=1; /* Retain the real persistent Follow owner at arrival. */
+        if(reloads[n]>=181)group->flags|=0x400;
+        vec2_t cached=group->route.group_goal,point={672,768};
+        S_SetUnitPosition(target,&point);G_FowUpdate();
+        uint32_t start=level.pathing_counter;
+        cstring_t file=Test_TempPath("wc3-refresh274.bin");
+        FOR_LOOP(j,reloads[n]) {
+            refresh274_tick();group=move_unit_group(unit);T_NOT_NULL(group);if(!group)break;
+            T_EQ(group->target_refresh,reloads[n]-j-1);
+            T_EQ(group->route.group_goal.x,cached.x);T_EQ(group->route.group_goal.y,cached.y);
+            if(j==reloads[n]/2) {
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+                group=move_unit_group(unit);T_NOT_NULL(group);if(!group)break;
+                T_EQ(group->target_refresh,reloads[n]-j-1);
+                T_EQ(level.pathing_counter,start+j+1);
+            }
+        }
+        if(group) {
+            refresh274_tick();group=move_unit_group(unit);T_NOT_NULL(group);
+            if(group) {
+                T_EQ(level.pathing_counter-start,reloads[n]+1);
+                T_EQ(group->route.group_goal.x,move_point_fine(&point).x);
+                T_EQ(group->route.group_goal.y,move_point_fine(&point).y);
+                T_ASSERT(group->target_refresh>0);
+            }
+        }
+        remove(file);
+    }
+    reset_entities();setup_test_world();
+}
+
+
+/* Original GetElapsedTime -> PredictFinePosition -> refresh kernel. The
+ * second member must not replace the first member as the distance source. */
+TEST(wc3_movement, refresh274_original_prediction_order_and_fine_only_reload) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    moveGroup_t group={.target=target,.count=2};group.members[0].unit=unit;group.members[1].unit=target;
+    FOR_LOOP(i,sizeof(refresh274_prediction)/sizeof(*refresh274_prediction)) {
+        uint32_t const *row=refresh274_prediction[i];
+        unit->movement.fine_pose=(vec2_t){wc3_float(row[0]),wc3_float(row[1])};
+        unit->movement.pose_world=unit->s.origin2;
+        unit->movement.pose_valid=unit->movement.clock_valid=true;
+        unit->movement.pose_clock=(wc3Clock_t){8,0,300};
+        unit->movement.velocity=(vec2_t){wc3_mul(wc3_float(row[2]),32),wc3_mul(wc3_float(row[3]),32)};
+        level.pathing_clock=(wc3Clock_t){wc3_float(row[4]),0,300};
+        group.route.group_goal=(vec2_t){wc3_float(row[5]),wc3_float(row[6])};
+        group.flags=row[7];group.target_refresh=-1;
+        move_group_update_refresh(&group);T_EQ(group.target_refresh,row[8]);
+    }
+    reset_entities();setup_test_world();
+}
+
 #endif

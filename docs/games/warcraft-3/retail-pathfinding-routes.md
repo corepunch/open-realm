@@ -1540,3 +1540,70 @@ remain usable. Together with Payoffs141/142 this closes ROUTE-01.2 without a new
 leaf. Cold outside-source calls lack an established safe native return and do
 not certify physical recovery or native crash/hang emulation. See
 [engine integration](retail-pathfinding-engine.md#invalid-start-consumers-and-fresh-search-owners-after-load-payoff143).
+
+## Target refresh thresholds and Captain delay (Payoff274)
+
+TARGET-04.1 is closed. The existing reload policy was correct; this chunk removes
+unneeded world projection and pose-cache key construction from its production
+reload by using `S_PredictUnitFinePointAt` directly. Original `169680` consumes
+only the first member's predicted fine coordinates. Distance remains measured
+against the cached group-path destination, with the exact software scalar
+coefficient `3ea8f5c3` (0.33), integer conversion and clamp16..132. Flag400 adds165
+after the clamp. Zero remains zero; -1 reloads; every other nonzero value decrements.
+No native arithmetic, owner schedule, search admission or save layout changes.
+
+The complete original function, including its actual `161040 -> 05bdd0`
+prediction chain, supplies4,418 threshold/adjacent-float cases,180 nonzero velocity,
+negative/zero/positive/deadzone elapsed cases, and298 countdown cases. Fixture
+memory, clocks and the already initialized0.33 global are explicit inputs. Only
+the inherited Storm allocation adapters replace executable functions; no numeric
+callee is stubbed. The generated engine header copies these original outputs.
+The engine checks both the pure reload and real Follow owners at periods
+17/18/133/182/183/298, including cold saves. A distant second member cannot replace
+the first as the distance source. These fixtures establish arithmetic/timing
+contracts, not public production of every artificial input combination.
+
+Captain shared requests enable400 through `9d1040` callsite`9d1131` (observed
+returnaddress`9d1136`) -> `89cca0(1)` -> `16dc00(1)`. Point policy900 becomesd00;
+target policy800 becomesc00. Persistent/refresh flags are present by canonical
+handoff1c01, and physical activation yields21c01. `16bdb0` copies canonical100
+to physical80 without translation. Private Captain target requests1801/21801
+retain their ordinary cadence and must not inherit the shared producer's400.
+
+The accepted map extends the frozen public payoff120 removal/refill scene.
+Geometry, object data and AI are preserved. Fresh units receive authored public
+speed20. Public `SetUnitX` holds roster member12 atx=-2936 during ticks120..280,
+keeping it outside the Captain's arrival range; the script then releases it.
+This is a deliberately controlled public producer, not an unmodified campaign
+claim. The Frida observer only reads memory; no executable writes or native calls.
+Two complete captures match all22,394 normalized native events, and an unhooked
+control matches all402 public markers. Each capture records5,473 refresh updates,
+218 reloads,195 ordinary17-counter intervals and eight extra182-counter intervals.
+Both shared target cohorts reload at counters1425,1607,1789,1971,2153 and survive
+834 owner visits. Each interval is measured in actual simulation counters, not
+wall time or an assumed milliseconds-to-ticks conversion. The last reload is
+censored by retirement; no further sample is invented.
+
+Earlier probe attempts are retained in the research archive. Natural arrival
+retired the shared owners after68 visits, so those captures did not prove an
+extra-delay interval. Pausing the wrong producer and holding the member at the
+Captain's own location likewise did not prolong that owner. The first original
+matrix omitted initialized0.33 and was rejected before freezing expectations.
+A first engine test placed only the fine field while leaving its world-validity
+contract inconsistent; another manually advanced the owner counter twice. Both
+harness mistakes were corrected and recorded. Correct old production code passes
+the final regression baseline; no retail bug or failing-before fix is claimed.
+
+Validation: six new Classic/TFT executions pass1,455,738 assertions. Twenty
+adjacent executions pass534,772 assertions, including complete Captain removal,
+retarget and Stop journeys, target visibility reacquisition, denied-route refresh
+ordering and saved premature-sample cadence. Production and test modules build.
+No full-suite, frame-time or throughput improvement is claimed from this focused
+conversion removal. Existing trajectory expectations are unchanged.
+
+Sources: `refresh274_probe.j`, `refresh274_observer.js`,
+`refresh274_make_map.py`, `refresh274_oracle.py`, `Refresh274Evidence.java`,
+`verify_wc3_pathing_refresh274.py`, and the frozen `retail-refresh274-1.27`
+fixture. The original binary is hash-checked and instruction-guarded. Saved
+Ghidra notes and xrefs are mirrored into `MapPathfinding.java`. Research archive:
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-04.1/payoff274/`.

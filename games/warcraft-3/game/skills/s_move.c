@@ -5920,9 +5920,11 @@ static int move_compare_group_visits(void const *a, void const *b) {
 static void move_group_update_refresh(moveGroup_t *group) {
     if (!group->target) return;
     if (group->target_refresh==-1) {
-        wc3GridPose_t pose;unit_predicted_pose(group->members[0].unit,&pose);
+        /*169680 consumes only fine coordinates. Reuse the fine predictor,
+         * avoiding a world projection and a full pose-cache key per reload. */
+        float pose[2];S_PredictUnitFinePointAt(group->members[0].unit,&level.pathing_clock,pose);
         vec2_t goal=group->route.group_goal;
-        float x=wc3_sub(goal.x,pose.grid[0]),y=wc3_sub(goal.y,pose.grid[1]);
+        float x=wc3_sub(goal.x,pose[0]),y=wc3_sub(goal.y,pose[1]);
         float distance=wc3_sqrt(wc3_add(wc3_mul(x,x),wc3_mul(y,y)));
         int32_t reload=(int32_t)wc3_int_bits(wc3_float_bits(wc3_add(wc3_mul(distance,wc3_float(0x3ea8f5c3)),.5f)));
         group->target_refresh=reload<16 ? 16 : reload>132 ? 132 : reload;

@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**288 done / 336 tasks; 48 remaining.**
+**289 done / 336 tasks; 47 remaining.**
+
+Payoff274 closes TARGET-04.1 with complete original refresh arithmetic and
+first-member prediction, public Captain extra-delay producer repeats/control,
+eight actual182-counter intervals and production Follow/cold-save timing checks.
+The engine reload now avoids unnecessary world projection. Existing retail
+trajectory expectations are unchanged. [Evidence](retail-pathfinding-routes.md#target-refresh-thresholds-and-captain-delay-payoff274).
 
 Payoff273 removes the separate Captain prebinding path: Captain packets now use
 canonical attachments/readiness, target-first/member-counted exclusion scopes
@@ -1486,7 +1492,7 @@ Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh,
 
 ### TARGET-04 — Delayed refresh
 
-- [ ] **TARGET-04.1** Trace refresh-threshold and Captain AI extra-delay producers; assert actual simulation ticks to the next request.
+- [x] **TARGET-04.1** Trace refresh-threshold and Captain AI extra-delay producers; assert actual simulation ticks to the next request. Payoff274: complete original4,418 thresholds/180 predictions/298 countdowns,195 ordinary17-counter and eight Captain182-counter live intervals, actual engine periods17/18/133/182/183/298 with cold saves; fine-only production prediction removes unused world projection. [Evidence](retail-pathfinding-routes.md#target-refresh-thresholds-and-captain-delay-payoff274).
 - [x] **TARGET-04.2** Payoff196: complete repeated47-stage original two/three-member retries with bridge range changes, normal completion resetting the counter, terminal per-member failures and following preparation. Production stage fixture matches flags/ranges/counters/events; public unreachable Holy Light failing-first regression fixes blocked receiver success and preserves queued continuation. Two actual Frida observations match186 public markers against an unhooked control. Controlled long-lifetime inputs remain labelled; public range producer breadth stays TARGET-01.2. [Evidence](retail-pathfinding-engine.md#long-member-retries-preserve-range-and-failure-outcomes-payoff196).
 
 ## SCHED — Scheduling and owner updates

@@ -17087,3 +17087,12 @@ therefore **not green**. Its first Python corpus class ran before refreshed
 source pins; the final isolated37-case rerun passes. Missing queued targets were
 run explicitly after make stopped scheduling on a failure. All failed attempts,
 baseline comparisons and final reports remain in the archive for follow-up.
+
+## Fine-only target refresh prediction (Payoff274)
+
+The Move owner reload now reads predicted fine coordinates directly instead of
+building a world-projected pose and its cache key. Exact first-member arithmetic,
+reload thresholds and Captain producer policy are preserved. Complete original
+threshold/prediction/countdown checks, actual17/182-counter retail intervals and
+real engine Follow/save regressions close TARGET-04.1. See [the producer and
+validation contract](retail-pathfinding-routes.md#target-refresh-thresholds-and-captain-delay-payoff274).
