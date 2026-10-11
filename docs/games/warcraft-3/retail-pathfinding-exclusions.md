@@ -733,3 +733,13 @@ The global type-schema replay refuses a pre-existing incompatible
 `WC3MoverPrefix` in the shared Ghidra database; it does not overwrite that type.
 The focused evidence script persists and verifies its own field/prototypes;
 saved exports3/4 are byte-identical. This is not a global schema/database audit.
+
+## Public Stop notification boundary (Payoff284)
+
+The previously unexplained pair of recovery calls is now attributed: cancellation
+`673fe0(d0144)` runs before player/unit issued callbacks; new Stop task
+`690b80 → d0144` runs afterwards. Both enter `600340 → 69a840`. A callback
+terrain edit changes the second admitted position, while completed nested Stop
+permits outer cleanup and active nested Move suppresses it. Existing247/258
+frozen numeric fixtures remain unchanged. See [complete evidence, implementation
+and limits](retail-pathfinding-engine.md#stop-retirement-and-new-task-recovery-straddle-callbacks-payoff284).

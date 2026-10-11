@@ -37,28 +37,35 @@ static bool start_guard_return(edict_t *ent) {
 // Disabled until stop owns a custom stand move; Linux -Wall warns on unused static hooks.
 // static umove_t stop_stand = { "stand", ai_stand, NULL, CAbilityStop};
 
-/* Apply Stop's shared cleanup, optionally preserving queued work and recording its guard point. */
-static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guard) {
-    if (S_GoldMineWorkerIsInside(ent))
-        return;
-    /* Channeling can retain the idle move, so Stop must cancel even without a move-leave notification. */
-    S_SpellCancelChannel(ent);
-    /* A rooted structure's Stop has no Move cleanup task. Mobile Ancients
-     * take the ordinary unit/bridge recovery scopes after uprooting. */
-    if(G_UnitIsStructure(ent))S_StopUnitMovement(ent);
+/* A d0144 consumer cancels physical movement independently of the public
+ * animation state. The old-task and new-task consumers are separate scopes. */
+static void stop_cancel_movement(edict_t *ent) {
+    /* A rooted structure has no Move subscriber; mobile Ancients do. */
+    if (G_UnitIsStructure(ent)) S_StopUnitMovement(ent);
     else S_StopUnitMovementWithRecovery(ent);
     S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_a, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_b, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_target, NULL);
-    S_SetFollowTarget(ent,NULL);
+    S_SetFollowTarget(ent, NULL);
     ent->movement.holding_position = false;
-    if (record_guard) G_SetUnitGuardPosition(ent);
     unit_leavecombat(ent);
-    /* Optional movement lifecycle still admits stopped placement. */
+}
+
+/* Finish only after the new Stop task has admitted its position. */
+static void stop_finish(edict_t *ent, bool preserve_queue, bool record_guard) {
+    if (record_guard) G_SetUnitGuardPosition(ent);
     ent->current_order_id = 0;
     if (preserve_queue) unit_stand_no_queue(ent);
     else if (ent->stand) ent->stand(ent);
+}
+
+/* Internal cleanup already owns its task; it does not issue a new Stop. */
+static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guard) {
+    if (S_GoldMineWorkerIsInside(ent)) return;
+    S_SpellCancelChannel(ent);
+    stop_cancel_movement(ent);
+    stop_finish(ent, preserve_queue, record_guard);
 }
 
 void order_stop(edict_t *ent) {
@@ -66,16 +73,25 @@ void order_stop(edict_t *ent) {
     order_stop_state(ent, false, true);
 }
 
-/* An instantaneous order retains its head throughout synchronous notification.
- * A nested replacement owns its own head and must survive this completion. */
+/*673fe0 retires the old task before notification.690b80 constructs a separate
+ * Stop cleanup after both synchronous event families. A callback can change
+ * terrain between the two recovery scopes or replace the pending task. */
 bool S_IssueStopOrder(edict_t *ent) {
-    uint32_t const order_id=G_OrderId("stop"),spawn_time=ent->spawn_time;
-    order_stop(ent);
-    ent->current_order_id=order_id;
-    S_UnitAbilityOrderAccepted(ent,"stop");
-    G_PublishIssuedImmediateOrder(ent,order_id,ent->s.player,"stop");
-    if(ent->inuse && ent->spawn_time==spawn_time && ent->current_order_id==order_id)
-        ent->current_order_id=0;
+    uint32_t const order_id = G_OrderId("stop"), spawn_time = ent->spawn_time;
+    G_ClearUnitOrderQueue(ent);
+    S_SpellCancelChannel(ent);
+    stop_cancel_movement(ent);
+    uint32_t const revision = G_UnitMoveRevision(ent);
+    ent->current_order_id = order_id;
+    S_UnitAbilityOrderAccepted(ent, "stop");
+    G_PublishIssuedImmediateOrder(ent, order_id, ent->s.player, "stop");
+    if (!ent->inuse || ent->spawn_time != spawn_time || G_IsDeferredFree(ent) ||
+        M_IsDead(ent) || ent->paused) return true;
+    if (G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent) != revision) return true;
+    /* A completed nested Stop leaves no active task, so the outer cleanup
+     * resumes even though its public user head has already retired to zero. */
+    stop_cancel_movement(ent);
+    stop_finish(ent, false, true);
     return true;
 }
 

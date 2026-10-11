@@ -846,12 +846,13 @@ TEST(wc3_ancient_root, spell_structure_filter_tracks_runtime_mode) {
 #ifdef BZ_TESTS
 void S_TestMoveRecoveryTrace(void (*)(void *,unsigned,edict_t const *),void *);
 static void ancient_stop258_recovery(void *data,unsigned stage,edict_t const *unit) {
-    unsigned *stages=data;T_EQ(stage,(*stages)++);T_ASSERT(!G_UnitIsStructure(unit));
+    unsigned *stages=data;T_EQ(stage,(*stages)++%4);T_ASSERT(!G_UnitIsStructure(unit));
 }
 
 /* Authored building identity survives uproot; the live form selects recovery.
  * Retail's etol witness retains10000 but sets low-byte80, entering ordinary
- * unit/bridge recovery and toggling its three footprint regions. */
+ * unit/bridge recovery and toggling its three footprint regions. Both258
+ * and attributed284 captures retain old-task and new-task recovery scopes. */
 TEST(wc3_ancient_root, stop258_uprooted_form_recovers_despite_authored_building_identity) {
     reset_entities();setup_test_world();uint8_t cells[64*64]={0};
     CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
@@ -868,7 +869,7 @@ TEST(wc3_ancient_root, stop258_uprooted_form_recovers_despite_authored_building_
     T_ASSERT(G_UnitIsBuilding(unit->class_id));T_ASSERT(!G_UnitIsStructure(unit));
     stages=0;S_TestMoveRecoveryTrace(ancient_stop258_recovery,&stages);
     T_ASSERT(unit_issueimmediateorder(unit,"stop"));
-    S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(stages,4);
+    S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(stages,8);
     reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);setup_test_world();
 }
 #endif

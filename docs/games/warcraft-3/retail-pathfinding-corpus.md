@@ -2201,3 +2201,16 @@ entry objects and old frozen retail fixture pins remain unchanged. Only mutable
 engine/test/documentation/mapper pins are refreshed. Thirty-five failing-first
 engine cases and fourteen evidence/corruption checks cover this slice. Full ORDER-01.13
 stays open. See [implementation and scope](retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).
+
+## Stop retirement and notification chronology (Payoff284)
+
+`oracle-stop284` preserves two16-scene read-only repeats and one uninstrumented
+control:110 public markers per capture,1,218 native events per observation,
+813 original instructions and the original five-operation Stop task producer.
+The engine projection is exported from the retail callback/native-return stream.
+Broader mutation-owner recovery counts remain explicit exclusions.
+
+Inventory:520 entries /239 executable original/evidence contracts. All519 prior
+entry objects and old frozen retail fixture pins remain unchanged; mutable
+engine/test/documentation/mapper pins track the reviewed change. See [Stop
+implementation and rejection gates](retail-pathfinding-engine.md#stop-retirement-and-new-task-recovery-straddle-callbacks-payoff284).

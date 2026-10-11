@@ -21187,7 +21187,7 @@ static void stop247_stand(edict_t *unit) {
 }
 static void stop247_recovery(void *data,unsigned stage,edict_t const *unit) {
     stop247Trace_t *trace=data;wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
-    T_EQ(stage,trace->stages++);T_NOT_NULL(record);
+    T_EQ(stage,trace->stages++%4);T_NOT_NULL(record);
     if(record)T_EQ(record->flags,trace->outer+2+((stage==1 || stage==2)?1:0));
 }
 
@@ -21221,7 +21221,7 @@ TEST(wc3_movement, stop247_public_stop_and_move_recover_inside_outer_scope) {
         if(command)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1200,1200}));
         else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
         S_TestMoveRecoveryTrace(NULL,NULL);stop247_stand_trace=NULL;unit->stand=unit_stand;
-        T_EQ(trace.stages,4);if(!command)T_EQ(trace.stands,1);
+        T_EQ(trace.stages,command?4:8);if(!command)T_EQ(trace.stands,1);
         T_EQ(record->flags,expected->outer);
         T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(trace.admitted.x));
         T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(trace.admitted.y));
@@ -23116,7 +23116,7 @@ TEST(wc3_movement, target256_order_during_fade_cancels_then_requires_explicit_re
 typedef struct {unsigned outer,stages;} stop257Trace_t;
 static void stop257_recovery(void *data,unsigned stage,edict_t const *unit) {
     stop257Trace_t *trace=data;wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
-    T_EQ(stage,trace->stages++);
+    T_EQ(stage,trace->stages++%4);
     T_EQ(wc3_records_owned(map,unit-g_edicts)->flags,trace->outer+2+((stage==1 || stage==2)?1:0));
     wc3RegionCollection_t const *regions=S_GetMoveRegions(unit-g_edicts);
     T_EQ(regions->count,4);
@@ -23160,7 +23160,7 @@ TEST(wc3_movement, stop257_unit_scope_excludes_all_regions_after_save_and_restor
         stop257Trace_t trace={outer*3,0};S_TestMoveRecoveryTrace(stop257_recovery,&trace);
         if(command)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1200,1200}));
         else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
-        S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(trace.stages,4);
+        S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(trace.stages,command?4:8);
         map=S_GetMoveFineSpatial();regions=S_GetMoveRegions(index);
         T_EQ(wc3_records_owned(map,index)->flags,outer*3);
         FOR_LOOP(i,regions->count)T_EQ(wc3_records_object(map,regions->objects[i])->flags,WC3_RECORD_REGION+outer*3);
@@ -24035,4 +24035,104 @@ TEST(wc3_movement, flight280_six_captured_approaches_and_cold_saves_match_retail
     }
     reset_entities();setup_test_world();
 }
+#endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_stop284.h"
+static struct {unsigned scene,row,stages,outer;bool exact_scopes;} stop284;
+static void stop284_scope(void *data,unsigned stage,edict_t const *unit) {
+    (void)data;
+    T_EQ(stage,stop284.stages++%4);
+    wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
+    T_NOT_NULL(record);
+    if(record)T_EQ(record->flags,stop284.outer+2+((stage==1 || stage==2)?1:0));
+}
+static void stop284_marker(cstring_t text) {
+    char label[32];unsigned order;float x,y;
+    if(sscanf(text,"S284T label=%31s order=%u x=%f y=%f",label,&order,&x,&y)!=4)return;
+    T_ASSERT(stop284.row<9);if(stop284.row>=9)return;
+    typeof(stop284_rows[0][0]) *row=stop284_rows[stop284.scene]+stop284.row++;
+    T_NOT_NULL(row->label);if(!row->label)return;
+    T_STREQ(label,row->label);T_EQ(order,row->order);T_EQ(x,row->x);T_EQ(y,row->y);
+    if(stop284.exact_scopes)T_EQ(stop284.stages,row->recoveries*4);
+}
+/* Retirement and new Stop-task cleanup straddle both public event families.
+ * A callback terrain edit is observed by the second bounded recovery; a
+ * nested completed Stop still permits the original outer cleanup. */
+static void stop284_public(unsigned action,bool moving) {
+    FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
+        uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        char script[7000];snprintf(script,sizeof(script),
+            "globals\nunit u=null\nboolean nested=false\nendglobals\n"
+            "function mark takes string label returns nothing\n"
+            "call Preload(\"S284T label=\"+label+\" order=\"+I2S(GetUnitCurrentOrder(u))+\" x=\"+R2S(GetUnitX(u))+\" y=\"+R2S(GetUnitY(u)))\nendfunction\n"
+            "function player takes nothing returns nothing\n"
+            "if GetIssuedOrderId()!=OrderId(\"stop\") then\nreturn\nendif\ncall mark(\"player-enter\")\n"
+            "if not nested then\nset nested=true\n%s\nendif\ncall mark(\"player-exit\")\nendfunction\n"
+            "function oneunit takes nothing returns nothing\n"
+            "if GetIssuedOrderId()==OrderId(\"stop\") then\ncall mark(\"unit-event\")\nendif\nendfunction\n"
+            "function issue takes nothing returns nothing\ncall mark(\"before\")\n"
+            "call BJassAssert(IssueImmediateOrder(u,\"stop\"),\"Stop accepted\")\ncall mark(\"after\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "set u=CreateUnit(Player(0),'hfoo',656,656,0)\ncall SetUnitAcquireRange(u,0)\n"
+            "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\n"
+            "call TriggerAddAction(t,function player)\nset t=CreateTrigger()\n"
+            "call TriggerRegisterUnitEvent(t,u,EVENT_UNIT_ISSUED_ORDER)\ncall TriggerAddAction(t,function oneunit)\n%s\nendfunction\n",
+            action==1 ?
+                "call SetTerrainPathable(624,624,PATHING_TYPE_WALKABILITY,false)\n"
+                "call SetTerrainPathable(656,624,PATHING_TYPE_WALKABILITY,false)\n"
+                "call SetTerrainPathable(688,624,PATHING_TYPE_WALKABILITY,false)\n"
+                "call SetTerrainPathable(624,656,PATHING_TYPE_WALKABILITY,false)\n"
+                "call SetTerrainPathable(656,656,PATHING_TYPE_WALKABILITY,false)\n"
+                "call SetTerrainPathable(688,656,PATHING_TYPE_WALKABILITY,false)\n"
+                "call SetTerrainPathable(624,688,PATHING_TYPE_WALKABILITY,false)\n"
+                "call SetTerrainPathable(656,688,PATHING_TYPE_WALKABILITY,false)\n"
+                "call SetTerrainPathable(688,688,PATHING_TYPE_WALKABILITY,false)" :
+            action==2 ? "call IssuePointOrder(u,\"move\",1200,656)" :
+            action==3 ? "call IssueImmediateOrder(u,\"stop\")" :
+            action==4 ? "call RemoveUnit(u)" :
+            action==6 ? "call KillUnit(u)" : "",
+            moving ? "call IssuePointOrder(u,\"move\",1200,656)" : "");
+        T_ASSERT(run_test_jass(script));
+        edict_t *unit=NULL;FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','f','o','o'))unit=e;
+        T_NOT_NULL(unit);if(!unit)continue;
+        /* Local hfoo SLK omits collision; supply the retail31-world input. */
+        unit->collision=31;G_PublishMoveSpatialObject(unit);
+        unsigned index=unit-g_edicts;
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-stop284-before.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+index;
+        }
+        wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),index);
+        T_NOT_NULL(record);if(!record)continue;
+        stop284=(typeof(stop284)){.scene=action+(moving?8:0),.outer=saved?3:0,
+            .exact_scopes=action==0 || action==1 || action==3};
+        record->flags=stop284.outer;
+        test_preload_marker=stop284_marker;S_TestMoveRecoveryTrace(stop284_scope,NULL);
+        jass_callbyname(level.vm,"issue",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        test_preload_marker=NULL;S_TestMoveRecoveryTrace(NULL,NULL);
+        T_EQ(stop284.row,action==3?8:5);
+        if(unit->inuse && !G_IsDeferredFree(unit) && !M_IsDead(unit)) {
+            T_EQ(wc3_records_owned(S_GetMoveFineSpatial(),index)->flags,stop284.outer);
+            if(action!=2){T_EQ(unit->movement.guard_position.x,unit->s.origin2.x);T_EQ(unit->movement.guard_position.y,unit->s.origin2.y);}
+            cstring_t file=Test_TempPath("wc3-stop284-after.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(g_edicts[index].current_order_id,action==2?G_OrderId("move"):0);
+        }
+        G_TestFinishDeferredFrees();
+    }
+    reset_entities();setup_test_world();
+}
+TEST(wc3_movement, stop284_idle_retirement_and_new_cleanup) {stop284_public(0,false);}
+TEST(wc3_movement, stop284_active_retirement_and_new_cleanup) {stop284_public(0,true);}
+TEST(wc3_movement, stop284_idle_callback_terrain_edit) {stop284_public(1,false);}
+TEST(wc3_movement, stop284_active_callback_terrain_edit) {stop284_public(1,true);}
+TEST(wc3_movement, stop284_idle_nested_completed_stop) {stop284_public(3,false);}
+TEST(wc3_movement, stop284_active_nested_completed_stop) {stop284_public(3,true);}
+TEST(wc3_movement, stop284_idle_nested_move_survives) {stop284_public(2,false);}
+TEST(wc3_movement, stop284_active_nested_move_survives) {stop284_public(2,true);}
+TEST(wc3_movement, stop284_remove_during_notification) {stop284_public(4,false);}
+TEST(wc3_movement, stop284_death_during_notification) {stop284_public(6,true);}
 #endif

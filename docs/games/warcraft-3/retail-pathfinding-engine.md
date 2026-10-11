@@ -17743,3 +17743,81 @@ runner, and `verify_wc3_pathing_cast283.py --binary /path/to/game.dll
 --test-binary /path/to/openwarcraft3-tests --data /path/to/build/tests
 --report /tmp/fresh-cast283.json`. Archive:
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/SPELL-PHASES/payoff283`.
+
+## Stop retirement and new-task recovery straddle callbacks (Payoff284)
+
+Public Stop has two independently owned cleanup stages. Replacement admission
+`680320 → 673610 → 673fe0` broadcasts `d0144` while retiring the previous task,
+even when Move is idle. Its Move consumer `600340 → 69a840` completes the first
+bounded recovery before the new user head and its player/unit issued-order
+callbacks become observable. Core dispatch `690490(d0004) → 690b80` then
+prepends `d0148,d014a,d0178,d0144,action0`. Execution reverses that construction:
+`action0 → d0144 → d0178 → d014a → d0148`. The new `d0144` performs the second
+recovery after both callback families. Both ordinary public Stop recoveries
+return to `600433`; neither is an arrival nor the separate virtual cancellation
+method `5fc120`.
+
+The distinction changes gameplay. In the new public arena, a Stop callback
+marks the nine cells around `(656,656)` unwalkable. Player and unit callbacks
+still see `(656,656)`; the second recovery admits `(624,592)` before the native
+returns. Moving and idle sources agree. A nested completed Stop leaves current
+order zero but no active replacement task: the outer Stop still executes its
+own cleanup. A nested active Move retains its owner and suppresses the outer
+Stop task. Checking only `current_order_id == stop` would incorrectly skip the
+completed nested Stop case.
+
+`S_IssueStopOrder` now separates physical retirement, synchronous notification
+and new-task completion. The existing Move-owned recovery helper is unchanged.
+`stop_cancel_movement` owns physical/target cleanup; `stop_finish` records the
+admitted guard point and enters stand once per executed Stop task. Internal
+`order_stop`, queued cleanup and placement retain their existing single-owner
+entry. Entity incarnation, removal/death, pause and the existing synchronous
+movement revision prevent stale outer execution. No new per-frame scan,
+allocation, timer, wire field or saved layout is introduced.
+
+Two read-only Frida repeats and an observer-free control match all110 public
+markers. The observations match all1,218 native events, including52 unit
+recoveries across16 idle/moving mutation scenes. The complete streams retain
+nested Move, PauseUnit, removal, death and position-setter diagnostics; their
+**complete internal recovery counts are not claimed as integrated** by this
+Stop-owned change. Ghidra names/comments/xrefs and813 original instructions
+from10 functions are saved and reflected in `MapPathfinding.java`. An original
+`690b80` Unicorn execution confirms its five factory arguments and plain-RET
+ABI with explicitly supplied factories; it does not certify allocation or
+dispatch on its own.
+
+Ten production-path regressions cover twenty fresh/cold-save cases. The
+corrected parent-engine baseline fails28 assertions across six tests. Its
+initial missing-collision harness failure is excluded: the local Footman row
+omits collision, so the harness explicitly supplies retail's31-world radius.
+The remaining replacement/removal/death controls already pass on the parent.
+Final validation passes141 tests /25,032 assertions in each Classic/TFT mode,
+including all ten new Stop tests /1,480 assertions. The full spell suite also
+passes497 tests /15,354 assertions in each mode. Eleven Stop evidence checks and
+37 corpus checks pass. All519 previous corpus entries and all prior frozen retail
+fixture pins remain unchanged. This is implementation chunk8/12 after the full
+checkpoint276; no new frame-budget or throughput claim is made.
+
+No old retail pose, route, RNG or numerical fixture was regenerated. Fresh
+original247 bridge calls and258 structure predicates match all retained words
+(32 bridge cases plus16 structure cases). The older engine-only assertions that
+expected **one public recovery** in247/257/258 now check two scopes, supported by
+the retained258 public witness and the newly attributed284 chronology. Their
+original geometry, counter depths and stand-count expectations are unchanged.
+
+MAP-04.2 stays open for cached-region producers and wider recovery notification/
+stale-handle compositions. This closes the previously unexplained duplicate
+public Stop chronology without inventing another TODO or claiming the whole
+lifecycle audit is complete.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_stop284.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --test-binary build/bin/openwarcraft3-tests --data build/tests \
+  --report /tmp/stop284-fresh.json
+python3 -m unittest discover -s tests -p test_wc3_pathfinding_stop284.py
+```
+
+Raw captures, map, original-byte inventory, accepted baseline and final binaries/
+reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-04.2/payoff284`.

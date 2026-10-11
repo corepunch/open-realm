@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff284 separates public Stop retirement from its new cleanup task around
+player/unit callbacks. Callback terrain edits now receive the retail second
+recovery; completed nested Stop resumes outer cleanup while active Move survives.
+Two repeats/control and failing-first fresh/cold-save regressions retain all old
+retail fixture words. MAP-04.2 remains open for its wider owners;46 remain.
+See [Stop notification boundary](retail-pathfinding-engine.md#stop-retirement-and-new-task-recovery-straddle-callbacks-payoff284).
+
+
 Payoff283 integrates class-owned CHANNEL/CAST/EFFECT/FINISH/ENDCAST timing for
 ordered Flame Strike and Inner Fire, active-only deadline heaps and Save171.
 Two repeat/control sets verify2,130 public markers and616 native request rows;

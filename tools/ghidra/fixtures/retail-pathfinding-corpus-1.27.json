@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "238 executable original/evidence contracts;519 total entries; provenance and limitations remain per-entry.",
+  "scope": "239 executable original/evidence contracts;520 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -52761,6 +52761,64 @@
         "Concurrent heap growth/save order exercises the established engine sequence contract, not a newly observed retail tie rule.",
         "No prior frozen retail fixture was regenerated; no new frame-budget performance claim."
       ]
+    },
+    {
+      "id": "oracle-stop284",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_stop284.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "stop284.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 813
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 330
+        },
+        "native_events": {
+          "equal": 2436
+        },
+        "scenes": {
+          "equal": 16
+        },
+        "producer_operations": {
+          "equal": 5
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Ports public Stop old-task retirement before issued player/unit events and new-task recovery afterwards, including callback terrain edits and nested completed Stop; nested active Move/death/removal prevent stale outer execution. Does not certify full cancellation scope counts for nested Move, PauseUnit, KillUnit, RemoveUnit or SetUnitPosition owners; captured diagnostic scenes retained in full. Cached-region producers and wider MAP-04.2 notification/stale-handle paths remain open. Constructor oracle supplies factories and proves only production order/ABI. Existing retail fixtures remain unchanged.",
+      "exclusions": [
+        "Complete nested Move/Pause/death/removal/position-setter recovery counts are retained diagnostics, not an integrated parity claim.",
+        "Cached-region producers and wider recovery notification/stale-handle compositions remain MAP-04.2.",
+        "Original Stop producer substitutes two task factories and proves order/ABI only.",
+        "No prior frozen retail fixture words or pins replaced; no new throughput or frame-budget acceptance."
+      ]
     }
   ],
   "fixtures": [
@@ -53659,7 +53717,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "eedc1e606b4e646c0027b2d5f8130bbe627f92cded7337ae63ee1a3df5960a91"
+      "sha256": "2917e98828831fc62ac76ff057515f7efb0e26ca467948350b4cdd4dfab909cc"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55207,7 +55265,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "8dbc78d2ccd4914eae609374535fee2706747dfe210febb9adcbf3d246f4ae02"
+      "sha256": "1923d68867f9d13b020371a91659ff4715262351eb9af2efa7c959991dc3489a"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -55451,7 +55509,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "03aef48f0add7f52e2e45aad46108611ecd159edec0a653c67e900c0235228e0"
+      "sha256": "2c4716632857b5c5b14f82220768dc988351e2b5309db042108c0de79b5653d1"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -55463,11 +55521,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "8215cbed658ff245f3fae4e513211f2b9871a7329e7b1c706fb572319088d07a"
+      "sha256": "47cff3248c500bfe21b5d6f59fbc64098c49a5dabfd4f13fef60db7c326d2445"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "22c203b016fc8bd7d56b0db81928a5755878361ab97cf6d4517331524a18b3e7"
+      "sha256": "c564b15aef9b0c6b496f6f38dae9990be25ae884acebc1b65df6b4c9bff2026f"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -56679,7 +56737,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
-      "sha256": "9c41e5279182e2a2936a78d663e073f998bc8f1f67b62578cfa1916f2eff7b5a"
+      "sha256": "edc2fd27acc2b53944a226ba21a7dd6f81c3bbe666e3e7014b93c233e58c0100"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_reentry.c",
@@ -58331,7 +58389,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-exclusions.md",
-      "sha256": "0db6af08e200c6f9f5fb7c92cad94c17ee5b146b6b2ab14afaefde7433c9175a"
+      "sha256": "b43f6e8576bfd0bc4a9b15b996d29aeaa77409bb4599b6f0afcc99d8766bbeef"
     },
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_region_bounds230.h",
@@ -60284,6 +60342,50 @@
     {
       "path": "tools/frida/research/cast283_probe.j",
       "sha256": "6272ac622d319a90dfa1060785b25099b2c36c50929de2c68956e0bf5dcd7b95"
+    },
+    {
+      "path": "tools/frida/research/stop284_capture.py",
+      "sha256": "0fc1c43c7b4930b994b476deaf8f8aad6dfa1f3cf96969c1d9ae123927f1c666"
+    },
+    {
+      "path": "tools/frida/research/stop284_observer.js",
+      "sha256": "b67e60673ba384afe254c5fdcce4fc5c525774045d306444a399dbad2320c68d"
+    },
+    {
+      "path": "tools/frida/research/stop284_make_map.py",
+      "sha256": "2077713865311f08e57569ba0a80d7531ad625e6b103044b2709e71261b8632b"
+    },
+    {
+      "path": "tools/frida/research/stop284_probe.j",
+      "sha256": "cc40e406d97fdda67a3df75ee4df690b4d6871b5c9fc2509200ad8a96ff16530"
+    },
+    {
+      "path": "tools/ghidra/research/Stop284Evidence.java",
+      "sha256": "c8c9d6503d183d9c6a4ad20902e7a9f2d408871028adac741da9a6a4d79762ea"
+    },
+    {
+      "path": "tools/ghidra/research/stop284_oracle.py",
+      "sha256": "a90f48eb92bfafdef0d70d40c18ece52c2345ea7edddc55b480854ca9694612a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_stop284.py",
+      "sha256": "4fc1aba44625e22e6761de8354dca1c2a002cadbdefa5ebf6003ab99d4a96d42"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-stop284-1.27.json",
+      "sha256": "ddf6b90bf2267bf7a913b1dcd4551eb9d8b378a490cb6c3cd615f7b59667c463"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-stop284-1.27.json.gz",
+      "sha256": "69ba38b4b684f101046a427173a91338d20fff975c861773b0ae7fb5ea3a6198"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_stop284.py",
+      "sha256": "ff4d96bce5361c8d8e4360b823d10b41d0858c8b2e3dba11870872a87f99442a"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_stop284.h",
+      "sha256": "57c299ea604519cd6f8c34e613501d802cf9c036b2a7bddceba98904368c2809"
     }
   ]
 }
