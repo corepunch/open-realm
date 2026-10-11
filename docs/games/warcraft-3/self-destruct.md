@@ -43,7 +43,7 @@ WorldEdit `AbilityMetaData` labels (`WESTRING_AEVAL_DDA*` / `SDS*`):
 | `targs` | | ground,structure,debris,enemy,neutral | same | same | ground,structure,debris,tree,ward |
 
 Ubertips reference `DataB` as the listed damage. Damage is physical (`T_Damage`):
-armor applies; spell immunity does not block it. Buildings multiply by `DataE`.
+armor applies; spell immunity does not block it. Buildings multiply by `DataE`. Destructables matching the authored `targs` classes (such as `debris` and `tree`) also take the full/partial blast through the destructable damage lifecycle; the building factor does not apply to them.
 
 ## Data Flow
 

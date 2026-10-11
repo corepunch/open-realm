@@ -18,6 +18,26 @@ static bool self_destruct_allows(uint32_t code, edict_t *caster, edict_t *target
 	return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
+/* Destructables use their own damage lifecycle and have no player alliance.
+ * Respect the authored target classes rather than treating them as units. */
+static bool self_destruct_allows_destructable(uint32_t code, uint32_t level, edict_t *target) {
+    abilityLevel_t const *row;
+    cstring_t targets;
+    if (!G_IsDestructable(target) || target->destructable->dead || target->invulnerable)
+        return false;
+    row = G_AbilityLevel(code, level);
+    targets = row ? row->targs : NULL;
+    if (!targets) return false;
+    switch (target->targtype) {
+    case TARG_TREE:       return strstr(targets, "tree") != NULL;
+    case TARG_WALL:       return strstr(targets, "wall") != NULL;
+    case TARG_DEBRIS:     return strstr(targets, "debris") != NULL;
+    case TARG_BRIDGE:     return strstr(targets, "bridge") != NULL;
+    case TARG_DECORATION: return strstr(targets, "decoration") != NULL;
+    default:              return false;
+    }
+}
+
 static void self_destruct_explode(edict_t *ent, uint32_t code) {
 	uint32_t level = MAX(1u, G_UnitAbilityLevel(ent, code));
 	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
@@ -33,6 +53,12 @@ static void self_destruct_explode(edict_t *ent, uint32_t code) {
 		if (damage <= 0.0f) continue;
 		if (build != 1.0f && G_UnitIsStructure(target)) damage *= build;
 		T_Damage(target, ent, (int)damage);
+	}
+	FILTER_EDICTS(target, self_destruct_allows_destructable(code, level, target)) {
+		float dist = Vector2_distance(&target->s.origin2, &origin), damage;
+		if (dist > part_r) continue;
+		damage = dist <= full_r ? full_d : part_d;
+		if (damage > 0.0f) G_DestructableApplyDamage(target, ent, damage);
 	}
 }
 
