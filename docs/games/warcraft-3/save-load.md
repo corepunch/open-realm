@@ -1651,3 +1651,9 @@ Save179 replaces the building's millisecond Undead release marker with the
 unit's `build_summon_wait` primary deadline/epoch/span/serial/active fields.
 The Build owner rebuilds its derived heap on load; no heap positions or process
 pointers are persisted. See [worker-clock contract](retail-pathfinding-engine.md#undead-work-completion-belongs-to-the-worker-clock-payoff296).
+
+
+Save181 adds the generation-checked `build_mine` reference retained by Undead
+Build after its one-second worker wait. Its per-target creator index is derived
+and rebuilt on load; stale/duplicate references fail validation. See
+[completion ownership](retail-pathfinding-engine.md#haunted-mine-completion-retains-an-ability-owned-harvest-target-payoff297).

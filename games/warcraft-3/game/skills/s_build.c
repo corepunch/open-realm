@@ -16,14 +16,14 @@ static bool build_actor_has_base_ability(edict_t *ent, uint32_t base_code) {
             uint32_t code = 0;
             if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
             memcpy(&code, token, 4);
-            if (G_AbilityCode(code) == base_code) return true;
+            if (code == base_code || G_AbilityCode(code) == base_code) return true;
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
         uint32_t const code = ent->abilities.added[i];
         if (!code) continue;
         memcpy(alias, &code, 4);
-        if (G_ActorHasSkill(ent, alias) && G_AbilityCode(code) == base_code) return true;
+        if (G_ActorHasSkill(ent, alias) && (code == base_code || G_AbilityCode(code) == base_code)) return true;
     }
     return false;
 }
@@ -149,6 +149,54 @@ static void ai_build_walk(edict_t *ent) {
 }
 
 static umove_t build_move_walk = { "walk", ai_build_walk, NULL, CAbilityBuild };
+/* Each constructed overlay has one creator. Persist the worker's canonical
+ * relationship; this reverse index is derived and never scans the world at
+ * completion/retirement. Bind, unbind and target delivery are O(1). */
+static uint32_t build_mine_workers[MAX_ENTITIES];
+static uint32_t build_mine_id(edict_t const *unit) {
+    uintptr_t offset=(uintptr_t)unit-(uintptr_t)g_edicts;
+    return g_edicts && offset<sizeof(*unit)*globals.num_edicts && !(offset%sizeof(*unit)) ?
+        offset/sizeof(*unit)+1 : 0;
+}
+static void build_mine_set(edict_t *worker,edict_t *mine) {
+    uint32_t old=build_mine_id(worker->build_mine),id=build_mine_id(worker);
+    if(old && build_mine_workers[old-1]==id)build_mine_workers[old-1]=0;
+    worker->build_mine=mine;worker->build_mine_spawn_time=mine ? mine->spawn_time : 0;
+    if(mine)build_mine_workers[mine-g_edicts]=id;
+}
+static edict_t *build_mine_worker(edict_t *mine) {
+    uint32_t id=build_mine_workers[mine-g_edicts];
+    if(!id)return NULL;
+    edict_t *worker=g_edicts+id-1;
+    return worker->inuse && !G_IsDeferredFree(worker) && worker->build_mine==mine &&
+        worker->build_mine_spawn_time==mine->spawn_time ? worker : NULL;
+}
+bool S_ValidateBuildMines(void) {
+    uint8_t seen[MAX_ENTITIES]={0};
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t const *worker=g_edicts+i,*mine=worker->build_mine;
+        if(!worker->inuse)continue;
+        if(!mine) {if(worker->build_mine_spawn_time)return false;continue;}
+        uint32_t id=build_mine_id(mine);
+        if(!id || !mine->inuse || worker==mine || worker->build_mine_spawn_time!=mine->spawn_time || seen[id-1])return false;
+        seen[id-1]=1;
+    }
+    return true;
+}
+static void build_mine_retire(edict_t *unit) {
+    edict_t *worker=build_mine_worker(unit);
+    if(worker)build_mine_set(worker,NULL);
+    build_mine_set(unit,NULL);
+}
+static void build_mine_complete(edict_t *mine) {
+    edict_t *worker=build_mine_worker(mine);
+    /*543f00 uses ability identity, not a raw unit type or an idle-unit test.
+     * Stop retains this continuation. New work and scripted Pause cancel it. */
+    if(worker && !(worker->aiflags&AI_TOWN_OWNED) &&
+       build_actor_has_base_ability(mine,MAKEFOURCC('A','b','g','m')))
+        G_IssueUnitTargetOrder(worker,"harvest",mine,false,worker->s.player);
+}
+
 /*544350 ->69c620: the unit owns a one-second d019d request. Only live
  * waits enter this derived heap: O(log n) arm/cancel, O(1) earliest request. */
 static uint32_t build_wait_heap[MAX_ENTITIES], build_wait_positions[MAX_ENTITIES], build_wait_count;
@@ -212,6 +260,10 @@ void S_BeginUndeadConstructionWork(edict_t *worker) {
     worker->build_summon_wait.deadline.time=wc3_add(now.time,1.0f); /* Math_RuntimeOne,544453. */
     build_wait_insert(worker);
     unit_setmove(worker,&build_move_summon);
+    edict_t *mine=worker->build;
+    if(mine && mine->mineoverlay && mine->mineoverlay->parent &&
+       build_actor_has_base_ability(mine,MAKEFOURCC('A','b','g','m')))
+        build_mine_set(worker,mine);
 }
 static void build_wait_fire(void) {
     edict_t *worker=g_edicts+build_wait_heap[0];
@@ -297,6 +349,7 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
     /* Accepted replacement Build has the same procedure as summon work, so
      * the cross-owner Move-leave notification cannot retire its old wait. */
     build_wait_cancel(builder);
+    build_mine_set(builder,NULL);
     S_SetMoveGoal(builder, &builder->goalentity, waypoint);
     builder->build_project = building_id;
     move_reset_progress(builder);
@@ -792,11 +845,15 @@ BZ_ABILITY_PROC(CAbilityBuild) {
 
     switch(msg) {
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_LEAVE,A_UNIT_SUSPEND,A_DEATH,A_UNIT_RETIRE,A_UNIT_REMOVING,A_UNIT_REMOVE);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_LEAVE,A_UNIT_SUSPEND,A_DEATH,A_UNIT_RETIRE,A_UNIT_REMOVING,A_UNIT_REMOVE,A_CONSTRUCTION_FINISH);
+    case A_CONSTRUCTION_FINISH:
+        build_mine_complete(ent);return false;
     case A_MOVE_LEAVE:
+        if(call && call->next_move_proc)build_mine_set(ent,NULL);
         if(call && call->next_move_proc!=CAbilityBuild)build_wait_cancel(ent);
         return false;
     case A_UNIT_SUSPEND:
+        build_mine_set(ent,NULL);
         if(ent && ent->build_summon_wait.active) {
             build_wait_cancel(ent);ent->movement.pause_order_id=0;
         }
@@ -805,10 +862,14 @@ BZ_ABILITY_PROC(CAbilityBuild) {
     case A_UNIT_RETIRE:
     case A_UNIT_REMOVING:
     case A_UNIT_REMOVE:
-        build_wait_cancel(ent);return false;
+        build_wait_cancel(ent);build_mine_retire(ent);return false;
     case A_TIMERS_RESET:
+        memset(build_mine_workers,0,sizeof(build_mine_workers));
         build_wait_count=0;memset(build_wait_positions,0,sizeof(build_wait_positions));return true;
     case A_TIMERS_REBUILD:
+        memset(build_mine_workers,0,sizeof(build_mine_workers));
+        FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].build_mine)
+            build_mine_workers[g_edicts[i].build_mine-g_edicts]=i+1;
         build_wait_count=0;memset(build_wait_positions,0,sizeof(build_wait_positions));
         FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].build_summon_wait.active)
             build_wait_insert(g_edicts+i);

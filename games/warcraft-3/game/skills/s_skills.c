@@ -1483,7 +1483,7 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
     bool owner_event = msg == A_UNIT_OWNER_CHANGING || msg == A_UNIT_OWNER_CHANGED;
     if (owner_event)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
-    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH ||
+    if (msg == A_CONSTRUCTION_FINISH || msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH ||
         msg == A_UNIT_REMOVING || msg == A_UNIT_RETIRE || msg == A_UNIT_REMOVE)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
     if (msg == A_UNIT_SUSPEND) {

@@ -55,11 +55,11 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**290 done / 336 tasks; 46 remaining.** Payoff296 replaces the building-polled Undead summon approximation with the worker's one-second deterministic primary request. Parent pause/removal/death leave it running; Move/Stop and worker Pause cancel it. Two original repeats plus control agree2382 public markers, with208 native boundaries. Save179/rebase/reuse regressions accompany the implementation. Broader ORDER-01.16 remains open. See [worker clock](retail-pathfinding-engine.md#undead-work-completion-belongs-to-the-worker-clock-payoff296).
+**290 done / 336 tasks; 46 remaining.** Payoff297 implements Haunted Mine completion Harvest with independent retained ownership, synchronous finish callbacks, O(1) creator lookup and Save181/reuse regressions. Two original repeats/control agree5814 public markers and104 native boundaries. Stop retains the handoff; Move, new Build and Pause cancel it. This corrects Payoff296's static "Smart" label. ORDER-01.16 remains open. See [completion ownership](retail-pathfinding-engine.md#haunted-mine-completion-retains-an-ability-owned-harvest-target-payoff297).
 
 Payoff295 stages full-health construction-start callbacks before race work,
 retaining nested Human Move and balancing inside worker suppression. Its full
-validation checkpoint resets the twelve-commit cadence; Payoff296 is1/12.
+validation checkpoint resets the twelve-commit cadence; Payoff297 is3/12 (including the committed short-coarse group fix).
 
 Payoff294 routes queued Build notifications through shared point activation,
 with callback-discard indicator cleanup and cold-save/nested Move/Stop/removal

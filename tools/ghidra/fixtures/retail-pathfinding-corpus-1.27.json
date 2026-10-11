@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "251 executable original/evidence contracts;532 total entries; provenance and limitations remain per-entry.",
+  "scope": "252 executable original/evidence contracts;533 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53432,6 +53432,47 @@
       "exclusions": [
         "Haunted Mine Smart continuation, Human transient Repair resumption, cancellation/refunds and alternate producer runtime coverage remain open."
       ]
+    },
+    {
+      "id": "oracle-build297",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_build297.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "build297.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 184
+        },
+        "engine": {
+          "length": 2
+        },
+        "retail": {
+          "length": 5
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "Haunted Mine completion retains a target independently of the summon work timer; synchronous finish callbacks precede Harvest. Two read-only12-scene repeats plus control agree5814 public markers and104 native boundaries. Engine certifies ownership/order/event sequence only; full approach poses and harvest cadence are not claimed. AI flag gate is static/controlled engine evidence; computer controller alone did not reach it.",
+      "exclusions": [
+        "Human transient Repair resumption, cancellation/refunds and alternate producer runtime scope remain open in ORDER-01.16."
+      ]
     }
   ],
   "fixtures": [
@@ -54330,7 +54371,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "162da5583678e672aacb0ba10672175fab692984bdcbfdca9010fbd0e3a58359"
+      "sha256": "59e0fb569d445fb01556dfe44c61007dea26c95da61babefea2f06d0ac0d0766"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55622,7 +55663,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "d7dc48d2fb83937b47708434853e415e4c09f610c27b8ccb4218747eb30c1a5e"
+      "sha256": "074732df936f8cd143d1117a2e3f206a13658ef9446df38adf54aa4da65615c5"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -55630,7 +55671,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "60020918ec34dc4731061260e32ea5f57f7bfa7ff7850c7a9b639144fb30582a"
+      "sha256": "765014bf25de8a0824f378a02be61c104dbf1c5ac30f58ba2d8867eca19cc4cf"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -56122,7 +56163,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "2ab7c6c4080d3d19769e16a36188c8f169af1cd4d08f429ee9cae95c6b2cec2d"
+      "sha256": "9de0b34ea14a34fd4f7515f44858b918a007066bc881e14f8b2ee80eb1a6395c"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -56130,15 +56171,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "6c2b187639f1bd69026dcc8b83d5ac0f8e8a823a7ad10d7d253678bc1f096116"
+      "sha256": "a2ffe29a1ddb49ab1f52e6512dafa0d845942f285e35a8687937f09ac8ec48a8"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "989a6c5ae14e894cc81782f0be279e257e205f59c0ef29e45e250ce6c31450cb"
+      "sha256": "99790dffded3114e989f5b9d9edff3b41d87c4de3fd690f3fc1150dfd0dc9d09"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "606cf72d7876377a6b152649b205e739fe2fd8c96fe6a0f58ec08e3a672b3197"
+      "sha256": "7a8e4d71b6dc741e857b58d8a73e7f15a753911a05c35be14f216fc0c8a22996"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -56150,7 +56191,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "2ceeb8112fa59acea6c8d069c5b53047b94ae766a2a5ac1244b90474c13efef3"
+      "sha256": "c655e55ca728e0310a25afd90375e1e1f5668abfb815f48b1a31d1cd6adfd5f4"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -57086,7 +57127,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "f07e050db90188682c5c8d1c7c93a89993421095aee27becef76b5bb6a02da2a"
+      "sha256": "23e1fa014ee3cf393467cbaf877e7f35d311b11745b4d3a28ee5bc2570e6b47e"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -57218,7 +57259,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_building.c",
-      "sha256": "7bba66d81cdefcff24a2ff1c9dac6fb4ee7637b3cea46344c07bfa320f751a0d"
+      "sha256": "ff14be63a9dd37c0dda674104ad02298bb53d36b469f8cd3b77b9e0c530eeb9f"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
@@ -61378,7 +61419,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_build.c",
-      "sha256": "6863ad6ce754655a55b172b95c7c94f67c453bcf556f5bfccb73e7d868859ea1"
+      "sha256": "8a0a947b6a4d630421cd8776f9df2d6aba701ab3b42b079b9117d1c266b544e7"
     },
     {
       "path": "tools/frida/research/build293_make_map.py",
@@ -61414,7 +61455,7 @@
     },
     {
       "path": "docs/games/warcraft-3/build-repair-routing.md",
-      "sha256": "105292f06384d213507ada22a9c50e05129a13e91d85c5f256650a711ef9d884"
+      "sha256": "6ab641f9d17982e21009321122e5e7cafb87be66bb67d809adad7640ace00d4d"
     },
     {
       "path": "docs/games/warcraft-3/building-construction.md",
@@ -61442,7 +61483,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_building.c",
-      "sha256": "8ccca50b77b8231efea3dd8231a9b44e9a326d650b91e61eef583d624092342b"
+      "sha256": "e35c89773d9e2165c6dd5cfba8ad2c79d8c4e5dd20d1242b4d132949a00c5a0f"
     },
     {
       "path": "tools/frida/research/build295_make_map.py",
@@ -61511,6 +61552,38 @@
     {
       "path": "tests/test_wc3_pathfinding_build296.py",
       "sha256": "d7598c9c6d639d964077f5fd2971731287d5904d36120c01963618ff2874a6fe"
+    },
+    {
+      "path": "tools/frida/research/build297_make_map.py",
+      "sha256": "c76da5aa9f761a758f2e6e27ebff91463169bff64771ebc395d0897f41ffe97b"
+    },
+    {
+      "path": "tools/frida/research/build297_probe.j",
+      "sha256": "fcf49b95b8abdc9b28fbab90b7dc91402b3f1e28e2200356004b1c4fe89ce49e"
+    },
+    {
+      "path": "tools/frida/research/build297_observer.js",
+      "sha256": "4b4399333e1c5538451238673f6caa2686e686d009a77c747e1d8ff85d5a2edb"
+    },
+    {
+      "path": "tools/ghidra/research/Build297Evidence.java",
+      "sha256": "5639e53dd105b75cb3a5ca938e531f9760180d7dd9cfacdfccd14803ead25d0f"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_build297.py",
+      "sha256": "dfe5f189bc5ff4e995e737d552b40c870accaa1b594a640247549160abd18234"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-build297-1.27.json",
+      "sha256": "719a5259d777a55df6cc164be435da27dabaeb0dd56a2dca6a6526800e06a976"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-build297-1.27.json.gz",
+      "sha256": "0a4a58a230cdd5494b0d233d672fe383ad5e658205f9946f1ce28745b3ebdea9"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_build297.py",
+      "sha256": "05259c4b2b7ff639edb865ab880d6746e139efd242bceeb7578a6477d6ca659b"
     }
   ]
 }

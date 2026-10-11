@@ -1038,6 +1038,7 @@ typedef enum {
     A_CAST_PROFILE,    /* Concrete spell supplies its verified ordered phase policy. */
     A_UNIT_SUSPEND,     /* Temporary execution suspension; distinct from ability detach. */
     A_TRANSIENT_ORDER,  /* Execute a retained owner packet without public native validation. */
+    A_CONSTRUCTION_FINISH, /* Structure completion is published; ability-owned continuations run now. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -2286,6 +2287,8 @@ struct edict_s {
     float attack_cooldown_remaining;
     uint32_t attack_cooldown_end_time;
     uint32_t attack_backswing_end_time;
+    edict_t *build_mine; /* Undead Build retained completion target, independent of the work wait. */
+    uint32_t build_mine_spawn_time;
     abilityPrimaryTimer_t build_summon_wait; /* Unit-owned d019d work completion. */
     abilityPrimaryTimer_t attack_speed_cap; /* Independent of the public order. */
     abilityPrimaryTimer_t combat_help; /* Unit's primary d01b3 suppression request. */
@@ -3851,6 +3854,7 @@ bool G_StartWorkerConstruction(edict_t *builder, edict_t *building, construction
 bool G_StartHumanConstruction(edict_t *builder, edict_t *building);
 bool G_StartOrcConstruction(edict_t *builder, edict_t *building);
 void S_BeginUndeadConstructionWork(edict_t *worker);
+bool S_ValidateBuildMines(void);
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building);
 bool G_StartNightElfConstruction(edict_t *builder, edict_t *building);
 bool G_StartNagaConstruction(edict_t *builder, edict_t *building);

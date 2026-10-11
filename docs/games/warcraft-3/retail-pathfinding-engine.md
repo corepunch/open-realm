@@ -18412,3 +18412,89 @@ coverage also remain. Sources, map, observed/control streams, failing and passin
 regressions, saved Ghidra output and exact built artifacts are archived under
 `research/ORDER-01.16/payoff296/` in the1.27 report root. This is the first
 implementation commit after the Payoff295 full-validation checkpoint.
+
+
+## Haunted Mine completion retains an ability-owned Harvest target (Payoff297)
+
+`543f00` is Undead Build's **structure-completion** callback (`v344`), separate
+from the one-second unit work request. It resolves the retained structure at
+ability `b0/b4`, requires the structure's active `Abgm`, and skips an AI/Town-owned
+worker (`Unit+5c.4`). It constructs target order `0xd0032` through `69bd80` and
+admits it through `680320`. **Correction to Payoff296:** that value is Harvest
+852018; Smart is851971. The earlier static "Smart" label was incorrect.
+
+Two read-only twelve-scene original repeats and an uninstrumented control agree
+on all1938 public markers each (5814 total). The repeats agree on52 identity/
+callback boundaries each (104 total); full streams also preserve102 read-only
+validation calls per repeat, whose raw pointer arguments naturally differ.
+The first point-based `IssueBuildOrderById` setup was rejected and discarded;
+the accepted probe uses `IssueTargetOrderById` against the neutral gold mine.
+Neither failed setup is used as a completion witness.
+
+Normal completion and an intervening Stop issue one Harvest after the public
+construction-finish callback. Move during or after the summon wait clears the
+retained mine, as do worker Pause/resume and replacement Build. A Move issued
+inside construction-finish runs before `543f00` and prevents Harvest. Removing
+`Abgm` prevents Harvest while leaving the retained identity unchanged. Structure
+kill invokes `543e00` (`v348`) and clears the matching retained identity without
+canceling the independent worker wait. Removed structures/workers never deliver
+a completion handoff in these captures.
+
+The computer-controller scene still has original worker flags513, without bit4.
+It proves controller configuration alone does not exercise the AI/Town gate;
+that branch is assembly evidence plus an engine-controlled regression, not a
+new live AI witness. The complete public approach/harvest poses are preserved,
+but the engine regression certifies order identity, ownership and callback
+sequence, not full approach motion, slot selection or harvesting cadence.
+
+The Build owner now retains a generation-checked mine independently of
+`build_summon_wait`. A derived per-target creator index makes bind, cancellation,
+retirement and completion O(1); only map/load rebuilding scans existing units.
+Stop/ordinary stand do not erase retention. New active work, worker suspension
+and retirement do. Undead construction dispatches its finish notifications
+synchronously before the ability continuation, so callback replacement wins.
+Other race completion dispatch remains unchanged pending its own evidence.
+
+The shared target-order entry also now commits the accepted Harvest head and
+publishes its issued-target event; it previously entered harvesting silently
+with current order zero. Retail's completion marker already has852018 during
+the notification. Ability checks retain authored race-specific identities:
+stock `Abgm` can have generic `Agld` in its data `code` column, so resolving only
+the generic code loses the Haunted Mine distinction.
+
+Save181 persists the logical target/generation and rebuilds the reverse index.
+It rejects stale or duplicate target references and prior formats. Regressions
+cover public callback ordering, Stop/Move/Pause/replacement Build, missing `Abgm`,
+the static AI gate, save/load and target-slot reuse. The completed old-engine
+regression fails15 of53 assertions before implementation; an earlier unguarded
+assertion crashed the new test harness and is retained separately as a diagnostic.
+The evidence/verifier mutation tests reject substituted Smart, canceled Stop
+retention, resurrected Move retention, missing stages and altered source pins.
+Existing retail fixture expectations remain unchanged.
+
+Final validation passes512 affected engine tests/67,910 assertions per edition,
+plus four coarse-route/Harvest compatibility checks/494 assertions per edition.
+The new completion/persistence pair passes88 assertions, included in those
+counts. Eleven new evidence mutation checks, twelve previous summon checks and
+37 corpus checks pass (60 Python tests). All752 pre-existing capture/evidence
+fixtures and162 literal retail headers remain byte-identical to the parent.
+The tested source includes the committed short-coarse classification change.
+This is3/12 since Payoff295's full-suite checkpoint, counting that intervening
+commit; no additional full-suite repeat is claimed.
+
+`Build297Evidence.java` saves corrected names, comments, xrefs and184 original
+instruction guards; save/readback agrees. `MapPathfinding.java` carries the same
+correction. Frozen original evidence is `retail-build297-1.27.json` and its capture
+bundle. Reproduce the focused Classic/TFT checks with:
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_build297.py \
+  --binary /path/to/retail/game.dll --data /absolute/path/to/build/tests \
+  --report /tmp/build297-fresh.json
+```
+
+ORDER-01.16 stays open for remaining Human transient Repair resumption,
+cancellation/refunds and alternate producer runtime scope. Evidence, rejected
+setups, failing/passing regressions and built artifacts are archived under
+`research/ORDER-01.16/payoff297/` in the1.27 report root. No FPS or complete
+construction/routing parity claim is made by this ownership change.

@@ -7577,4 +7577,98 @@ TEST(wc3_building, build296_summon_heap_orders_and_cancels_only_owned_waits) {
     G_FreeEdict(replacement);reset_entities();setup_test_world();
 }
 
+/* Original297: structure finish callbacks precede the retained Harvest handoff. */
+TEST(wc3_building, build297_haunted_mine_completion_respects_worker_ownership) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\nunit worker=null\ninteger finishes=0\ninteger harvests=0\ntrigger done=null\ntrigger ordered=null\nendglobals\n"
+        "function completed takes nothing returns nothing\nset finishes=finishes+1\n"
+        "if GetUnitUserData(worker)==11 then\ncall BJassAssert(IssuePointOrder(worker,\"move\",-256,128),\"finish callback Move\")\nendif\nendfunction\n"
+        "function targetOrder takes nothing returns nothing\nif GetIssuedOrderId()==OrderId(\"harvest\") then\n"
+        "call BJassAssert(finishes==1,\"finish callback before Harvest\")\ncall BJassAssert(GetUnitCurrentOrder(worker)==OrderId(\"harvest\"),\"Harvest visible during issued event\")\nset harvests=harvests+1\nendif\nendfunction\n"
+        "function create takes nothing returns nothing\nset finishes=0\nset harvests=0\nset worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"
+        "function pause takes nothing returns nothing\ncall PauseUnit(worker,true)\ncall PauseUnit(worker,false)\nendfunction\n"
+        "function check takes nothing returns nothing\ncall BJassAssert(finishes==1,\"synchronous construction finish\")\n"
+        "if GetUnitUserData(worker)==0 or GetUnitUserData(worker)==3 then\ncall BJassAssert(harvests==1,\"exactly one completion Harvest\")\n"
+        "else\ncall BJassAssert(harvests==0,\"no stale completion Harvest\")\nendif\nendfunction\n"
+        "function finish takes nothing returns nothing\ncall DestroyTrigger(done)\ncall DestroyTrigger(ordered)\nendfunction\n"
+        "function main takes nothing returns nothing\nset done=CreateTrigger()\nset ordered=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(done,Player(0),ConvertPlayerUnitEvent(28),null)\ncall TriggerAddAction(done,function completed)\n"
+        "call TriggerRegisterPlayerUnitEvent(ordered,Player(0),ConvertPlayerUnitEvent(40),null)\ncall TriggerAddAction(ordered,function targetOrder)\nendfunction\n"));
+    UnitAbilities_t worker_abilities={.abilList="Aaha,AUbu"},mine_abilities={.abilList="Abgm"},parent_abilities={.abilList="Agld"};
+    unsigned const cases[]={0,1,2,3,4,7,8,9,11};
+    FOR_LOOP(i,sizeof(cases)/sizeof(*cases)) {
+        unsigned kind=cases[i];jass_callbyname(level.vm,"create",false);
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);if(!worker)break;
+        worker->user_data=kind;worker->data.UnitAbilities=&worker_abilities;
+        edict_t *building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,64);
+        edict_t *parent=alloc_test_unit(MAKEFOURCC('n','g','o','l'),64,64);
+        building->data.UnitAbilities=&mine_abilities;parent->data.UnitAbilities=&parent_abilities;parent->resources=12500;
+        T_ASSERT(S_MineOverlayBind(building,parent));
+        level.pathing_clock=(wc3Clock_t){.time=.36f,.span=300};level.time=360;
+        T_ASSERT(G_StartUndeadConstruction(worker,building));
+        if(kind==1)T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,128},false,0,0));
+        if(kind==3)T_ASSERT(unit_issueimmediateorder(worker,"stop"));
+        if(kind==4)jass_callbyname(level.vm,"pause",false);
+        level.pathing_clock.time=1.36f;level.time=1360;S_RunAbilityTimers();
+        if(kind==2)T_ASSERT(G_IssueUnitPointOrder(worker,"move",&(vec2_t){-256,128},false,0,0));
+        if(kind==7)worker->aiflags|=AI_TOWN_OWNED; /* Static original5c.4 branch, not a live AI witness. */
+        if(kind==8) {UnitProfile_t const profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+            gameClient_t *c=G_GetPlayerClientByNumber(0);c->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=10000;c->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=10000;
+            T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){-256,128}));worker->data.UnitProfile=NULL;}
+        if(kind==9)T_ASSERT(G_ActorRemoveSkill(building,MAKEFOURCC('A','b','g','m')));
+        G_CompleteConstruction(building);
+        if(kind==0 || kind==3) {T_EQ(worker->current_order_id,G_OrderId("harvest"));T_ASSERT(worker->goalentity==building);}
+        if(kind==1 || kind==2 || kind==11) {T_EQ(worker->current_order_id,G_OrderId("move"));T_NOT_NULL(worker->goalentity);if(worker->goalentity)T_EQ(worker->goalentity->s.origin2.x,-256.0f);}
+        jass_callbyname(level.vm,"check",false);T_ASSERT(!jass_rterror_pending(level.vm));jass_rterror_clear(level.vm);
+        G_CompleteConstruction(building); /* A second completion cannot reissue. */
+        G_FreeEdict(worker);G_FreeEdict(building);G_FreeEdict(parent);G_RunEvents();CM_BakeStaticObstacles();
+    }
+    jass_callbyname(level.vm,"finish",false);reset_entities();setup_test_world();
+}
+
+TEST(wc3_building, build297_completion_reference_survives_save_and_rejects_reuse) {
+    reset_entities();setup_test_world();
+    UnitAbilities_t worker_abilities={.abilList="Aaha,AUbu"},mine_abilities={.abilList="Abgm"},parent_abilities={.abilList="Agld"};
+    edict_t *worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,-128);
+    edict_t *building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,64);
+    edict_t *parent=alloc_test_unit(MAKEFOURCC('n','g','o','l'),64,64);
+    worker->stand=unit_stand;worker->data.UnitAbilities=&worker_abilities;
+    building->data.UnitAbilities=&mine_abilities;parent->data.UnitAbilities=&parent_abilities;parent->resources=12500;
+    T_ASSERT(S_MineOverlayBind(building,parent));
+    level.pathing_clock=(wc3Clock_t){.time=.36f,.span=300};level.time=360;
+    T_ASSERT(G_StartUndeadConstruction(worker,building));T_ASSERT(worker->build_mine==building);
+    level.pathing_clock.time=1.36f;level.time=1360;S_RunAbilityTimers();
+    T_ASSERT(!worker->build_summon_wait.active);T_ASSERT(worker->build_mine==building);
+    uint32_t spawn=building->spawn_time;building->spawn_time++;
+    T_ASSERT(!WriteGame(Test_TempPath("stale-build297.bin")));building->spawn_time=spawn;
+    cstring_t save=Test_TempPath("build297.bin");T_ASSERT(WriteGame(save));
+    build_mine_set(worker,NULL);T_NULL(worker->build_mine);
+    T_ASSERT(ReadGame(save));T_ASSERT(worker->build_mine==building);T_EQ(worker->build_mine_spawn_time,spawn);
+    T_ASSERT(S_ValidateBuildMines());T_ASSERT(build_mine_worker(building)==worker);
+    worker->data.UnitAbilities=&worker_abilities;building->data.UnitAbilities=&mine_abilities;parent->data.UnitAbilities=&parent_abilities;
+    G_CompleteConstruction(building);T_EQ(worker->current_order_id,G_OrderId("harvest"));T_ASSERT(worker->goalentity==building);
+    T_NULL(worker->build_mine);T_ASSERT(S_ValidateBuildMines());
+    G_FreeEdict(worker);G_FreeEdict(building);G_FreeEdict(parent);remove(save);
+    reset_entities();setup_test_world();
+    /* A dead or removed structure cannot hand its identity to a reused slot;
+     * its retirement still leaves the separate worker work timer alive. */
+    FOR_LOOP(kind,2) {
+        worker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,-128);worker->stand=unit_stand;worker->data.UnitAbilities=&worker_abilities;
+        building=alloc_test_unit(MAKEFOURCC('h','b','a','r'),64,64);building->data.UnitAbilities=&mine_abilities;
+        parent=alloc_test_unit(MAKEFOURCC('n','g','o','l'),64,64);parent->data.UnitAbilities=&parent_abilities;parent->resources=12500;
+        T_ASSERT(S_MineOverlayBind(building,parent));level.pathing_clock=(wc3Clock_t){.time=.36f,.span=300};level.time=360;
+        T_ASSERT(G_StartUndeadConstruction(worker,building));T_ASSERT(worker->build_mine==building);
+        if(kind)unit_die(building,NULL);else G_FreeEdict(building);
+        T_NULL(worker->build_mine);T_ASSERT(worker->build_summon_wait.active);
+        if(kind)G_FreeEdict(building);
+        level.time=2000;edict_t *replacement=G_Spawn();T_ASSERT(replacement==building);
+        replacement->class_id=MAKEFOURCC('h','b','a','r');G_BindEntityData(replacement);
+        T_NULL(build_mine_worker(replacement));
+        level.pathing_clock.time=1.36f;S_RunAbilityTimers();T_EQ(worker->current_order_id,0);
+        G_FreeEdict(worker);G_FreeEdict(replacement);G_FreeEdict(parent);CM_BakeStaticObstacles();
+    }
+    reset_entities();setup_test_world();
+}
+
 #endif

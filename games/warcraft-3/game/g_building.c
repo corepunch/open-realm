@@ -2001,6 +2001,8 @@ void G_CompleteConstruction(edict_t *building) {
                 building->build ? (long)(building->build - globals.edicts) : -1L,
                 building->health.value, building->health.max_value);
     }
+    bool undead=building->construction && building->construction->type==CONSTRUCTION_UNDEAD;
+    uint32_t spawn=building->spawn_time;
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number != building->s.player) client = NULL;
     if (building->construction) G_ReleaseConstructionWorker(building, true);
@@ -2024,8 +2026,17 @@ void G_CompleteConstruction(edict_t *building) {
     G_SetUnitFoodMade(building, building->data.UnitBalance->foodMade);
     G_QueueOwnerUISound(building, "JobDoneSound");
     G_SendOwnerMinimapAlert(building);
-    G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
-    G_PublishEvent(building, EVENT_UNIT_CONSTRUCT_FINISH);
+    if(undead) {
+        /* Original543f00 observes synchronous construct-finish mutations.
+         * The worker's one-second wait has already ended independently. */
+        G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=building,
+            .type=EVENT_PLAYER_UNIT_CONSTRUCT_FINISH},EVENT_UNIT_CONSTRUCT_FINISH,false);
+        if(!building->inuse || building->spawn_time!=spawn || G_IsDeferredFree(building) || M_IsDead(building))return;
+        S_UnitAbilityEvent(building,A_CONSTRUCTION_FINISH);
+    } else {
+        G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
+        G_PublishEvent(building, EVENT_UNIT_CONSTRUCT_FINISH);
+    }
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-publish building=%ld id=%.4s player=%u event=%u build_link=%ld food_made=%d\n",

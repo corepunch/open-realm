@@ -1118,7 +1118,11 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             accepted = S_AcolyteHarvestOrder(self, target);
         else if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','h','a','r')) && S_GoldMineCanHarvest(target))
             accepted = harvest_gold_order(self, target);
-        if (accepted) S_UnitAbilityOrderAccepted(self, order);
+        if (accepted) {
+            self->current_order_id=G_OrderId(order);
+            S_UnitAbilityOrderAccepted(self, order);
+            unit_publish_target_order(self, order, target, issuer_player);
+        }
         return accepted;
     }
     {

@@ -182,3 +182,9 @@ Undead summon work now uses the worker's one-second primary completion request,
 independent of structure duration, pause and destruction. Move/Stop and worker
 Pause cancel it; teardown cannot steal a replacement order. See
 [Payoff296 clock evidence, persistence and scope](retail-pathfinding-engine.md#undead-work-completion-belongs-to-the-worker-clock-payoff296).
+
+
+Haunted Mine completion now issues Harvest from Build's retained target after
+synchronous finish callbacks. Stop keeps that handoff; Move, replacement Build,
+Pause and worker retirement cancel it independently of summon work. See
+[Payoff297 ownership and evidence](retail-pathfinding-engine.md#haunted-mine-completion-retains-an-ability-owned-harvest-target-payoff297).
