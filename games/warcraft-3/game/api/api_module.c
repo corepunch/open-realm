@@ -764,6 +764,7 @@ jassModule_t jass_funcs[] = {
     { "DialogAddQuitButton", DialogAddQuitButton },
     { "DialogDisplay", DialogDisplay },
     { "InitGameCache", InitGameCache },
+    { "ReloadGameCachesFromDisk", ReloadGameCachesFromDisk },
     { "SaveGameCache", SaveGameCache },
     { "StoreInteger", StoreInteger },
     { "StoreReal", StoreReal },

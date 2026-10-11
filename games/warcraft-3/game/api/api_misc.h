@@ -2132,3 +2132,7 @@ uint32_t VersionSupported(jass_t *j) {
     uint32_t *version = jass_checkhandle(j, 1, "version");
     return jass_pushboolean(j, version && *version == 0);
 }
+uint32_t ReloadGameCachesFromDisk(jass_t *j) {
+    (void)j;
+    return jass_pushboolean(j, true);
+}

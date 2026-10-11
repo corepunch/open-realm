@@ -250,7 +250,11 @@ on-disk format.
 
 The `SyncStored*` callbacks remain **partial**: they validate/consume their
 arguments but do not implement multiplayer synchronization.
-`ReloadGameCachesFromDisk` remains unregistered.
+`ReloadGameCachesFromDisk` is registered and succeeds for the campaign import
+path: OpenRealm loads each disk-backed cache when `InitGameCache` creates its
+handle, which matches Rexxar scripts that call reload immediately before
+creating those handles. Refreshing cache handles that already exist is not
+implemented.
 
 ## Rally getters
 

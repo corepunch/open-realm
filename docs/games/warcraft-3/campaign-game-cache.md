@@ -184,7 +184,10 @@ Implemented campaign-cache operations:
 sufficient for the local single-player campaign path; multiplayer synchronization
 semantics remain separate work.
 
-`ReloadGameCachesFromDisk` is still outside the registered native surface.
+`ReloadGameCachesFromDisk` is registered and returns success. OpenRealm loads the
+committed sidecar when `InitGameCache()` creates a handle, and the retail
+campaign flow calls this native immediately before creating its cache handles.
+Refreshing already-created cache handles mid-map is not implemented.
 
 ## Verification
 
