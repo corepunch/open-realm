@@ -17304,3 +17304,56 @@ reproduction artifacts are archived in
 Enemy targets, non-unit widget/interaction owners and complete trajectory parity
 remain outside this evidence. This repairs an integration gap without closing a
 broader open TODO.
+
+
+## Structure targets use one physical approach task (Payoff278)
+
+Target Move and ordinary allied Smart now use the scheduled physical target
+owner for structures. The separate `follow_move_legacy` traversal and its
+Warsmash footprint-margin interpretation are removed. `Move_CreateTasksFromOrder`
+(`5fd270`) selects a single `d0174` with authored range zero for the captured
+static buildings and rooted Ancient. `Move_BeginTargetRequest` (`05a5c0`) adds
+both physical radii before dividing by32 and applying the minimum arrival range.
+A footprint remains an obstacle; it does not contribute a Misc follow margin.
+
+Two owned read-only retail runs and an unhooked control use the same six-scene
+map: mobile Footman Move, Barracks Move, Barracks Smart, Keep Move, rooted Tree
+of Life Move and uprooted Tree of Life Move. All797 public samples agree.
+Barracks and Keep have no Move ability. A rooted Ancient retains Move but sets
+`08000000`; uprooting clears that gate. The four structure scenes produce exactly
+one zero-range `d0174` at caller `5fd81c` and end with public order zero. Mobile
+and uprooted controls produce `d0173` with FollowRange300 at `5fd7b1` and retain
+Move. This distinguishes current form from authored building type and temporary
+pause from absence of Move capability.
+
+`moveGroup_t` now records the pending Follow continuation and its authored world
+range. Structure approaches have no Follow successor: arrival retires the parent
+before advancing a queued order. A form change cannot invent or delete an already
+constructed successor. The successor captures authored range when built; its
+physical activation reads live radii, as `05a5c0` does. Captain-owned ranges keep
+their separate producer. Save169 retains the continuation and rejects invalid
+Boolean/range/owner combinations and prior formats. Empty detached owners clear
+the pending task alongside their target reference.
+
+Three production-path `wc3_movement.follow278*` regressions cover nonstock radii
+and Misc values, Move/Smart, exact cold-save pose/velocity/head/group suffixes,
+form changes in both directions, queued Move, Stop, removal, paused mobile
+controls and an actually blocked8x8 footprint without overlap. The first two
+fail eight assertions on the previous implementation. Two existing structure
+range fixtures are corrected only after the original task selection and radius
+arithmetic establish their old margin expectations were invalid; no historical
+retail motion fixture is regenerated. The complete instruction bodies of
+`5fd270`, `05a5c0`, `6926b0` and `68c190` are pinned (867 instructions), and Ghidra
+and `MapPathfinding.java` retain the producer boundary.
+
+Reproduce with `tools/frida/research/follow278_make_map.py`, using the original
+Human02Interlude archive; `follow278_capture.py` supports read-only observation
+and an unhooked control in the leased B/C research environments. Portable captures
+are in `retail-follow278-1.27.json.gz`. `verify_wc3_pathing_follow278.py` checks
+source/binary/capture pins, repeated public samples and nonempty Classic/TFT
+engine regressions. The corpus entry is `oracle-follow278`.
+
+This advances TARGET-01.2/TARGET-02.1 without closing their wider producer and
+trajectory contracts. Full structure trajectory parity, custom nonstructure
+units without Move, and the special `056a40` producer branches are not certified.
+No new TODO leaves, full-suite claim or performance claim is added.

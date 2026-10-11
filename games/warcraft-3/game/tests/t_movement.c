@@ -23487,6 +23487,9 @@ TEST(wc3_movement, refresh274_actual_owner_cadence_and_saved_captain_delay) {
         moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)continue;
         group->target_refresh=reloads[n];
         group->flags|=1; /* Retain the real persistent Follow owner at arrival. */
+        /* This fixture forces the persistent phase directly. Retire its
+         * pending approach successor too; numerical expectations stay fixed. */
+        group->follow_continuation=false;group->follow_range=0;
         if(reloads[n]>=181)group->flags|=0x400;
         vec2_t cached=group->route.group_goal,point={672,768};
         S_SetUnitPosition(target,&point);G_FowUpdate();
@@ -23598,6 +23601,130 @@ TEST(wc3_movement, smart277_queued_optional_target_retains_point_through_loss_an
         if(fog)G_FogModifierDestroy(fog);
         G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
     }
+}
+
+
+/* Two retail repeats and an observer-free control: static and rooted
+ * structures own one d0174(range0); uprooted targets own d0173(FollowRange).
+ * Use nonstock radii and Misc values to test the rule rather than a unit ID. */
+TEST(wc3_movement, follow278_structure_approach_is_physical_one_shot_and_saved) {
+    float old_follow=game.constants.followRange,old_structure=game.constants.structureFollowRange;
+    FOR_LOOP(n,4) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        target->s.flags|=EF_BUILDING;target->aiflags|=AI_IMMOBILE;
+        target->collision=144+16*n;
+        game.constants.followRange=413;game.constants.structureFollowRange=79;
+        char const *order=n&1 ? "smart" : "move";
+        T_ASSERT(unit_issuetargetorder(unit,order,target));
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(!group) {G_FowShutdown();continue;}
+        T_ASSERT(unit->currentmove->scheduled_think);
+        T_EQ(group->target,target);T_EQ(group->flags&1,0);
+        T_EQ(wc3_float_bits(group->members[0].arrival_range),wc3_float_bits((31+target->collision)/32));
+        FOR_LOOP(i,8)target166_tick();
+        T_ASSERT(unit->s.origin2.x>256);
+        cstring_t file=Test_TempPath("wc3-follow278.bin");T_ASSERT(WriteGame(file));
+        uint32_t expected[240][7];
+        FOR_LOOP(i,240) {
+            target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            expected[i][0]=wc3_float_bits(pose.grid[0]);expected[i][1]=wc3_float_bits(pose.grid[1]);
+            expected[i][2]=wc3_float_bits(unit->movement.velocity.x);expected[i][3]=wc3_float_bits(unit->movement.velocity.y);
+            expected[i][4]=unit->current_order_id;expected[i][5]=unit->movement.group_id;
+            expected[i][6]=unit->movement.follow_target!=NULL;
+        }
+        T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_NULL(unit->goalentity);T_NULL(move_unit_group(unit));
+        T_ASSERT(ReadGame(file));remove(file);
+        FOR_LOOP(i,240) {
+            target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            T_EQ(wc3_float_bits(pose.grid[0]),expected[i][0]);T_EQ(wc3_float_bits(pose.grid[1]),expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x),expected[i][2]);T_EQ(wc3_float_bits(unit->movement.velocity.y),expected[i][3]);
+            T_EQ(unit->current_order_id,expected[i][4]);T_EQ(unit->movement.group_id,expected[i][5]);
+            T_EQ(unit->movement.follow_target!=NULL,expected[i][6]);
+        }
+        G_FowShutdown();
+    }
+    game.constants.followRange=old_follow;game.constants.structureFollowRange=old_structure;
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, follow278_structure_task_continuation_survives_form_change_and_interruptions) {
+    FOR_LOOP(n,4) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        target->s.flags|=EF_BUILDING;target->aiflags|=AI_IMMOBILE;target->collision=144;
+        T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        T_NOT_NULL(move_unit_group(unit));
+        if(!move_unit_group(unit)) {G_FowShutdown();continue;}
+        FOR_LOOP(i,8)target166_tick();
+        if(n==0) {
+            /* The pending task list was fixed at admission, before unroot. */
+            target->s.flags&=~EF_BUILDING;target->aiflags&=~AI_IMMOBILE;
+        } else if(n==1) {
+            T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){256,768},true,0,0));
+        } else if(n==2) {
+            T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        } else G_FreeEdict(target);
+        FOR_LOOP(i,400)target166_tick();
+        T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_NULL(move_unit_group(unit));
+        T_EQ(unit->order_queue.count,0);
+        if(n==1)T_ASSERT(unit->s.origin2.y>700);
+        G_FowShutdown();
+    }
+    /* A paused mobile target retains Move, as does an uprooted building type.
+     * Transient translation gates must not select a one-shot task. */
+    FOR_LOOP(n,2) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        target->paused=n==0;target->runtime.flags|=UNIT_BALANCE_BUILDING;
+        T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group)T_EQ(group->flags&1,1);
+        FOR_LOOP(i,240)target166_tick();
+        T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->movement.follow_target,target);
+        G_FowShutdown();
+    }
+    /* The reverse morph must preserve an already-built Follow successor,
+     * including captured authored range and live activation-time radii. */
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        T_ASSERT(group->follow_continuation);T_EQ(group->follow_range,game.constants.followRange);
+        float range=wc3_div(wc3_add(wc3_add(game.constants.followRange,unit->collision),63),32);
+        target->s.flags|=EF_BUILDING;target->aiflags|=AI_IMMOBILE;target->collision=63;
+        float follow=game.constants.followRange;game.constants.followRange=931;
+        cstring_t file=Test_TempPath("wc3-follow278-pending.bin");
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        FOR_LOOP(i,240)target166_tick();
+        group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            T_EQ(group->flags&1,1);
+            T_EQ(wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(range));
+        }
+        game.constants.followRange=follow;
+    }
+    G_FowShutdown();
+    reset_entities();setup_test_world();
+}
+
+
+TEST(wc3_movement, follow278_blocked_structure_footprint_arrives_without_overlap) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    target->s.flags|=EF_BUILDING;target->aiflags|=AI_IMMOBILE;target->collision=144;
+    pathTex_t *footprint=gi.MemAlloc(sizeof(*footprint)+64*sizeof(color32_t));
+    memset(footprint,0,sizeof(*footprint)+64*sizeof(color32_t));
+    footprint->width=footprint->height=8;
+    FOR_LOOP(i,64)footprint->map[i].b=255;
+    target->pathtex=footprint;
+    uint8_t cells[64*64]={0};
+    for(unsigned y=4;y<12;y++)for(unsigned x=17;x<25;x++)cells[y*64+x]=CM_PATHING_UNWALKABLE;
+    CM_SetupTestPathmap(64,64,cells);gi.LinkEntity(target);G_PublishMoveSpatialObject(target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));T_NOT_NULL(move_unit_group(unit));
+    FOR_LOOP(i,400) {
+        target166_tick();
+        T_ASSERT(CM_DistanceToPathingFootprint(target,&unit->s.origin2)>=unit->collision);
+    }
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_NULL(move_unit_group(unit));
+    T_ASSERT(unit->s.origin2.x>256);
+    target->pathtex=NULL;gi.MemFree(footprint);G_FowShutdown();reset_entities();setup_test_world();
 }
 
 #endif

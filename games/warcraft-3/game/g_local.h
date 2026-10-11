@@ -98,6 +98,8 @@ typedef struct moveGroup_s {
     vec2_t goal, point; /* Native fine destination and selected formation point. */
     edict_t *target;
     uint32_t target_spawn;
+    bool follow_continuation; /* Pending d0173 after this ordinary approach. */
+    float follow_range; /* Captured authored world range; radii are read at activation. */
     /* Optional ability-owned completion receiver. Cancellation calls it with
      * arrived=false and must only release the receiver's pending work. */
     edict_t *receiver;

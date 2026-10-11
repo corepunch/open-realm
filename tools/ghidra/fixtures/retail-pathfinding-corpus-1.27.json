@@ -52444,6 +52444,55 @@
       "exclusions": [
         "Enemy/non-unit interaction owners and full trajectory parity are not certified."
       ]
+    },
+    {
+      "id": "oracle-follow278",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_follow278.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "follow278.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 867
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 797
+        },
+        "task_cases": {
+          "equal": 6
+        },
+        "engine": {
+          "length": 16
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Static/rooted building Move/Smart task selection versus mobile/uprooted Follow; scheduled physical zero-range approach, queued completion, interruption and exact cold-save continuation.",
+      "exclusions": [
+        "Complete trajectory parity and other absent-Move nonstructure/special producer families are not certified."
+      ]
     }
   ],
   "fixtures": [
@@ -53342,7 +53391,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "510d078baf6e4fca8a97bd732e0ee61ef6a3220682f7bd597097034476fe2b96"
+      "sha256": "12a37c2f3924176e30f5ed0065bc866e89e8aae6fb644727b2e73315b1cf6990"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -54198,7 +54247,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "00a8adc74a5b3acd86fcebae052bc50d7c0f2cdfdb381b569f46e6bb546445b6"
+      "sha256": "cba31fea89111b5cfd021ff1e7fd25b7d5d61b5ef748bc7b416f932a550e3673"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -54634,7 +54683,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "da980079db2f5b038ecb0e74a3c5df0fb51e284d5ee7bad134e343cd3ce257e9"
+      "sha256": "b030201b7cd0bf19553eb6e1d00fa77ba01cfe3c17e20997b96df22573ee0819"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -54642,7 +54691,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "5a6730b23be8cd1c1abccb357ada74e205eb7f1b3a23192cdece9c30f67914ec"
+      "sha256": "7ecaacee44f52640b483f745808ac28b98911edf575895df37ee64e349047669"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -54890,7 +54939,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "b802fbbde4c55cf827b6f245cccd5655ef83e7bd6b24c4886270d8edf1454858"
+      "sha256": "8134afbdac7c8c53511e7fe67dd5f125f5c194491dce04fe7d0b860b4a01d07e"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -55134,7 +55183,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "345e1fc198ab924d25251b8e764c1abd03b13654ede460dd728212e8ed6a3030"
+      "sha256": "939903f93a6386dcb804d992c9c15f8409b81cc70c30664924fc81c124acda8e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -55142,15 +55191,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "d04e21c763104ec5d8c63dc1f0b6c7b90bf065268ec234dd85f05e44bc55eb50"
+      "sha256": "7ea2a57a4852c405e2549d0a179a03fd6f3e6343abdc5516802dfba79cafcfb4"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ca764f4f81b12d4860684527c0370dd58448b40862fd8d7b3d3aa3b792e2f4c2"
+      "sha256": "974a9cba040a38a33e422028662fc264732f88a8acbb6f16688f06707c7155b0"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "bbb70403a732ca07b6e1c0882f335263b5344ecb20a91d139dcbef2cccbc7df1"
+      "sha256": "2cd85197b3980676eae73ec7874f69aee815064014ba8ce9d7cb782568c82eb9"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -56586,7 +56635,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit.c",
-      "sha256": "9d45113c2513689c685f48b55c49f735a80007d329a467d24214dda60704f188"
+      "sha256": "304fb52b0c9af1d14ae947bf9217a8f839ce9979df7189cb79e916c6a79d8bcb"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/common.j",
@@ -59751,6 +59800,42 @@
     {
       "path": "tools/frida/research/smart277_ui_input.c",
       "sha256": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233"
+    },
+    {
+      "path": "tools/ghidra/research/Follow278Evidence.java",
+      "sha256": "38189e0d63b914d1f31a1420454b783c019c26887c857c4f16004f1b29b6c9b4"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_follow278.py",
+      "sha256": "fbdac473d7f44445a14b4eb985a1c3559722241f24901c9c57c4974ebfee6acd"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-follow278-1.27.json",
+      "sha256": "01cb4ed48b96e07d9b54135acc5acc8eadb29f56051431fa0110f5f2b2efbb35"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-follow278-1.27.json.gz",
+      "sha256": "3d81873a112e74070ec981256155f14bf05e5496f44b3b37c4f2d87fa2761033"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_follow278.py",
+      "sha256": "3b60790decaa2d854d7506ff595494c862690898bf39bda41f6f89aca4f2595f"
+    },
+    {
+      "path": "tools/frida/research/follow278_capture.py",
+      "sha256": "0f97d749dbcd86304d1db5d39b53ae2615e30e63ac9369dd7bf9e9d5b6687e61"
+    },
+    {
+      "path": "tools/frida/research/follow278_make_map.py",
+      "sha256": "90f9b6c747e3d5c70cab38cc77c0cd926bafb473a6dbbc13559fd450975b8bd4"
+    },
+    {
+      "path": "tools/frida/research/follow278_observer.js",
+      "sha256": "f3f1f6f984b336d9cf05ba3be879382effa52aabeca76c4e7434745275349073"
+    },
+    {
+      "path": "tools/frida/research/follow278_probe.j",
+      "sha256": "c8ba38e3def23ce7c2f7c287230b39e70b408b82d862591d559dbcf6ad905b44"
     }
   ]
 }

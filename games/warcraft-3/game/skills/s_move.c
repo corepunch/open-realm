@@ -752,6 +752,7 @@ static void move_detach_group(edict_t *unit) {
         if (!live) {
             group->target = NULL;
             group->target_spawn = group->target_refresh = 0;
+            group->follow_continuation=false;group->follow_range=0;
             group->flags &= ~0x1000u;
         }
         /* Native171340 detaches now, but16c150 retires the empty owner at its
@@ -4269,57 +4270,16 @@ static bool follow_can_auto_attack(edict_t const *self) {
 }
 
 float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
-    float configured;
-    float collision_range;
-
     if (!follower || !target) return 0.0f;
-    configured = G_UnitIsStructure(target)
-        ? game.constants.structureFollowRange
-        : game.constants.followRange;
-    /* A pathing-footprint distance already includes the building extent, so
-     * only the follower radius remains as its no-overlap lower bound. */
-    if (!G_UnitIsStructure(target))
-        return wc3_mul(MAX(wc3_float(0x3efae148),wc3_div(wc3_add(wc3_add(configured,follower->collision),target->collision),32)),32);
-    /* TODO TARGET-01.2: retain the existing footprint-edge structure policy
-     * until its complete native approach producer is captured. */
-    collision_range = follower->collision;
-    if (!G_UnitIsStructure(target) || !target->pathtex)
-        collision_range += target->collision;
-    return MAX(configured, collision_range);
-}
-
-/* Warsmash's unit canReach() tests a building target against its authored
- * pathing pixels instead of requiring the follower to approach the building
- * centre.  OpenRealm already uses the same footprint distance for Attack,
- * Repair, harvesting, militia, and cargo interactions; follow/rally must use
- * it too or a freshly trained unit can be nudged legally out of its producer
- * and then immediately walk back into the producer's blocked footprint.
- *
- * CM_DistanceToPathingFootprint() measures from the follower centre to the
- * blocked footprint edge.  StructureFollowRange remains the authored follow
- * margin, while the follower radius is the hard no-overlap lower bound.  The
- * target collision radius is intentionally not added when a real footprint is
- * available because that would count the building extent twice. */
-static bool follow_footprint_distance(edict_t const *follower, edict_t const *target,
-                                      float *distance) {
-    float footprint;
-
-    if (!follower || !target || !distance ||
-        !G_UnitIsStructure(target) || !target->pathtex) {
-        return false;
-    }
-    footprint = CM_DistanceToPathingFootprint(target, &follower->s.origin2);
-    if (footprint >= FLT_MAX) return false;
-
-    *distance = footprint;
-    return true;
+    /*5fd270: current static/rooted structures select d0174(range0), not
+     * StructureFollowRange.05a5c0 adds both mover radii before divide32. */
+    float range=G_UnitIsStructure(target) ? 0 : game.constants.followRange;
+    return wc3_mul(MAX(wc3_float(0x3efae148),
+        wc3_div(wc3_add(wc3_add(range,follower->collision),target->collision),32)),32);
 }
 
 static void ai_follow_walk(edict_t *ent) {
     edict_t *target = ent->movement.follow_target;
-    float distance;
-    float follow_range;
-    bool standing;
 
     if (!follow_target_is_valid(ent, target) ||
         ent->movement.follow_target_spawn_time != target->spawn_time) {
@@ -4337,36 +4297,13 @@ static void ai_follow_walk(edict_t *ent) {
             return;
         }
     }
-
-    if (move_unit_group(ent)) return;
-
-    distance = M_DistanceToGoal(ent);
-    follow_range = G_FollowStopRange(ent, target);
-    follow_footprint_distance(ent, target, &distance);
-    standing = G_AnimationHasPrimary(ent->animation, "stand");
-    if (distance <= follow_range) {
-        if (!standing) {
-            move_reset_progress(ent);
-            unit_setanimation(ent, "stand");
-        }
-        return;
-    }
-
-    if (standing) move_reset_progress(ent);
-    unit_changeangle(ent);
-    if (ent->movement.flow_unreachable) {
-        unit_setanimation(ent, "stand");
-        return;
-    }
-    unit_moveindirection(ent);
 }
 
 static umove_t follow_move_walk = { .animation="walk", .think=ai_follow_walk, .proc=CAbilityMove,
     .scheduled_think=true, .sample_pose=S_PublishMovement, .leave=move_leave };
-static umove_t follow_move_legacy = { .animation="walk", .think=ai_follow_walk, .proc=CAbilityMove };
 
 static bool move_is_following(edict_t const *unit) {
-    return unit && (unit->currentmove==&follow_move_walk || unit->currentmove==&follow_move_legacy);
+    return unit && unit->currentmove==&follow_move_walk;
 }
 
 static void move_follow_resume(edict_t *self, bool persistent) {
@@ -4386,18 +4323,12 @@ static void move_follow_resume(edict_t *self, bool persistent) {
     S_SetMoveGoal(self, &self->goalentity, target);
     self->movement.holding_position = false;
     move_reset_progress(self);
-    bool physical=!G_UnitIsStructure(target);
-    unit_setmove(self, physical ? &follow_move_walk : &follow_move_legacy);
-    if (physical) {
-        self->movement.flat_speed_bonus=S_MoveSpeedBonus(self);
-        unit_commit_current_pose(self); self->movement.pose_clock=level.pathing_clock;
-        self->movement.clock_valid=true;
-        move_start_follow_group(self,target,persistent);
-        unit_setanimation(self,"stand");
-    }
-    /* Native5fd270 chooses physical target tasks for nonstructures regardless
-     * of either mover's flight lane. Structure-footprint producers remain
-     * TARGET-02.1 on the existing traversal. */
+    unit_setmove(self,&follow_move_walk);
+    self->movement.flat_speed_bonus=S_MoveSpeedBonus(self);
+    unit_commit_current_pose(self); self->movement.pose_clock=level.pathing_clock;
+    self->movement.clock_valid=true;
+    move_start_follow_group(self,target,persistent);
+    unit_setanimation(self,"stand");
 }
 
 void order_follow_resume(edict_t *self) {
@@ -4429,7 +4360,7 @@ bool S_IssueFollowOrder(edict_t *self, edict_t *target, uint32_t order_id) {
     if (!self || S_MoveTargetStatus(self,target)!=MOVE_TARGET_VALID) return false;
     /*5fd270: distant target Move enters d0173 directly; Smart retains its
      * d0174 approach. A nearby Move still owns the half-edge approach. */
-    bool persistent=order_id==G_OrderId("move") && !target->movement.captain_actor_type &&
+    bool persistent=order_id==G_OrderId("move") && !G_UnitIsStructure(target) && !target->movement.captain_actor_type &&
         !move_follow_in_range(self,target);
     move_follow_order(self,target,persistent);
     if (!self || self->goalentity != target || !move_is_following(self))
@@ -4997,7 +4928,7 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
         return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(world,MAX(1,unit->collision)),32));
     }
     float range=wc3_div(G_FollowStopRange(unit,target),32);
-    if (persistent) return range;
+    if (persistent || G_UnitIsStructure(target)) return range;
     wc3GridPose_t source,point;
     unit_predicted_pose(unit,&source); unit_predicted_pose(target,&point);
     float x=wc3_sub(point.grid[0],source.grid[0]),y=wc3_sub(point.grid[1],source.grid[1]);
@@ -5036,7 +4967,13 @@ static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool
 }
 
 static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent) {
-    move_start_target_group(unit,target,persistent,move_follow_approach_range(unit,target,persistent),false);
+    moveGroup_t *group=move_start_target_group(unit,target,persistent,
+        move_follow_approach_range(unit,target,persistent),false);
+    /* Capture the already-built successor task. A later morph must neither
+     * invent a Follow after a one-shot approach nor erase a pending Follow. */
+    group->follow_continuation=!persistent && !G_UnitIsStructure(target);
+    if(group->follow_continuation && !target->movement.captain_actor_type)
+        group->follow_range=game.constants.followRange;
 }
 
 /* Original05a5c0 adds world radii before converting the captured range. The
@@ -6010,11 +5947,20 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
             }
             if (target && (group->flags&1) && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) continue;
             completed=true;
+            bool follow=group->follow_continuation;
+            float range=group->follow_range;
             move_detach_group(unit); unit->movement.group_id=0;
             if (target) {
-                if (S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) {
+                if (follow && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) {
                     move_reset_local_path(unit);
-                    move_start_follow_group(unit,target,true);
+                    if(target->movement.captain_actor_type)move_start_follow_group(unit,target,true);
+                    else {
+                        /* The task captures authored range at construction;
+                         *05a5c0 reads live mover radii when it activates. */
+                        range=MAX(wc3_float(0x3efae148),
+                            wc3_div(wc3_add(wc3_add(range,unit->collision),target->collision),32));
+                        move_start_target_group(unit,target,true,range,false);
+                    }
                 }
                 else move_end_follow(unit);
             }

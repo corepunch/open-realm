@@ -1567,7 +1567,7 @@ TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
     T_FEQ(G_FollowStopRange(follower, target), 332.0f, 0.001f);
 
     target->s.flags |= EF_BUILDING;
-    T_FEQ(G_FollowStopRange(follower, target), 100.0f, 0.001f);
+    T_FEQ(G_FollowStopRange(follower, target), 32.0f, 0.001f);
 
     /* Collision remains a hard lower bound so large widgets never overlap
      * merely because Misc requests a smaller follow distance. */
@@ -1578,7 +1578,7 @@ TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
     game.constants.structureFollowRange = old_structure;
 }
 
-TEST(wc3_unit, smart_follow_building_stops_at_pathing_footprint_range) {
+TEST(wc3_unit, smart_follow_building_uses_zero_range_physical_task) {
     enum { W = 8, H = 8 };
     float const old_structure = game.constants.structureFollowRange;
     size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(color32_t);
@@ -1605,16 +1605,17 @@ TEST(wc3_unit, smart_follow_building_stops_at_pathing_footprint_range) {
     FOR_LOOP(i, W * H) pathtex->map[i].b = 0xff;
     building->pathtex = pathtex;
 
-    /* The building centre is 200 units away, outside StructureFollowRange,
-     * while the authored 8x8 footprint edge is only about 72 units away.  A
-     * centre-distance follow therefore walks back toward the blocked producer;
-     * footprint-aware follow is already within the intended structure range. */
+    /* Retail5fd270 selects d0174(range0), whose physical arrival range
+     * includes both radii. A footprint does not add a Misc follow margin. */
     T_ASSERT(M_DistanceToGoal(follower) == 0.0f);
     T_ASSERT(unit_issuetargetorder(follower, "smart", building));
     T_ASSERT(follower->movement.follow_target == building);
     T_ASSERT(follower->goalentity == building);
     T_ASSERT(M_DistanceToGoal(follower) > G_FollowStopRange(follower, building));
-    T_FEQ(G_FollowStopRange(follower, building), 100.0f, 0.001f);
+    T_FEQ(G_FollowStopRange(follower, building), 176.0f, 0.001f);
+    moveGroup_t const *group=move_unit_group(follower);T_NOT_NULL(group);
+    if(group)T_FEQ(group->members[0].arrival_range,5.5f,0.0f);
+    T_ASSERT(follower->currentmove->scheduled_think);
     T_ASSERT(CM_DistanceToPathingFootprint(building, &follower->s.origin2) <
              game.constants.structureFollowRange);
 

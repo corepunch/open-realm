@@ -2117,3 +2117,15 @@ Move and lifecycle regressions include exact saved continuation. The portable
 `retail-smart277-1.27.json.gz` preserves original captures; no historical expected
 capture is rewritten. Inventory:232 executable contracts,513 total entries.
 See [queued Smart ownership](retail-pathfinding-engine.md#queued-smart-keeps-its-optional-target-fallback-point-payoff277).
+
+
+## Structure target task selection (Payoff278)
+
+`oracle-follow278` verifies two read-only original runs and one unhooked control,
+797 public markers, six task-selection cases and867 original instruction guards.
+Static/rooted targets select a zero-range one-shot approach; mobile/uprooted
+controls retain Follow. Actual Classic/TFT tests cover the shared scheduler,
+blocked footprint, queue/Stop/removal, current-form changes and exact saved
+continuation. Historical captured expectations are unchanged. Inventory:233
+executable contracts,514 total entries. See
+[structure approach ownership](retail-pathfinding-engine.md#structure-targets-use-one-physical-approach-task-payoff278).

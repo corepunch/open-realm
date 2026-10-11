@@ -84,8 +84,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format168 retains canonical game speed and reapplies its scheduling rate. */
-static uint32_t const save_version = 168;
+/* Format169 retains physical target-task continuation and its captured range. */
+static uint32_t const save_version = 169;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -928,6 +928,8 @@ static field_t const move_group_fields[] = {
     TF(moveGroup_t, point, F_VECTOR),
     TF(moveGroup_t, target, F_EDICT, 0, FIELD_NONE),
     TF(moveGroup_t, target_spawn, F_INT),
+    TF(moveGroup_t, follow_continuation, F_INT),
+    TF(moveGroup_t, follow_range, F_FLOAT),
     TF(moveGroup_t, receiver, F_EDICT, 0, FIELD_NONE),
     TF(moveGroup_t, receiver_spawn, F_INT),
     TF(moveGroup_t, owner_ability, F_INT),
@@ -2355,6 +2357,9 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
         !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
         !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
         return false;
+    if (*(uint8_t const *)&group->follow_continuation>1 || !isfinite(group->follow_range) ||
+        (group->follow_continuation ? (!group->target || group->receiver || (group->flags&1)) :
+            group->follow_range!=0)) return false;
     if (group->shared_id && !S_FindMoveShared(group->shared_id)) return false;
     if(group->owner_ability && (!group->receiver || !GetAbilityByIndex(group->owner_ability-1)))return false;
     if(group->receiver) {
@@ -4013,6 +4018,19 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     follow.target_refresh=16; follow.flags|=0x1000;
     S_SetFollowTarget(first,S_SetMoveGoal(first, &first->goalentity, second));
     T_ASSERT(ValidMoveGroup(&follow));
+    moveGroup_t pending=follow;pending.flags&=~1u;
+    pending.follow_continuation=true;pending.follow_range=11.3125f;
+    T_ASSERT(ValidMoveGroup(&pending));
+    FOR_LOOP(i,6) {
+        moveGroup_t invalid=pending;
+        if(i==0)*(uint8_t *)&invalid.follow_continuation=2;
+        if(i==1)invalid.follow_range=NAN;
+        if(i==2)invalid.follow_range=INFINITY;
+        if(i==3)invalid.flags|=1;
+        if(i==4)invalid.target=NULL;
+        if(i==5)invalid.follow_continuation=false;
+        T_ASSERT(!ValidMoveGroup(&invalid));
+    }
     edict_t *receiver=G_Spawn();
     moveGroup_t approach=follow;approach.receiver=receiver;
     approach.receiver_spawn=receiver->spawn_time;approach.complete=S_SpellTargetApproachComplete;
@@ -4085,7 +4103,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
+    uint32_t const old_versions[] = { 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

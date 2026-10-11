@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff278 replaces legacy structure Follow with scheduled zero-range physical
+approaches and explicit saved successor ownership. Two retail repeats/control
+agree on797 public markers; static/rooted targets finish their head while
+mobile/uprooted controls retain Follow. Failing-first engine regressions cover
+queue/Stop/removal, blocked footprints and cold saves. This advances the broader
+TARGET-01.2/02.1 contracts;46 remain and no new leaves are added. See
+[structure approach ownership](retail-pathfinding-engine.md#structure-targets-use-one-physical-approach-task-payoff278).
+
 Payoff276 replaces the legacy Patrol walker with ordinary scheduled point tasks.
 Repeated original motion and fresh group repeats/control support the integration;
 FIFO, combat, blocked arrival and cold-save regressions pass. Queue activation

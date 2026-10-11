@@ -1,3 +1,9 @@
+Save169 retains each physical target approach's pending Follow continuation and
+captured authored range. One-shot structure approaches retire their public head;
+current-form changes and cold saves preserve the already-built task sequence.
+Older formats and invalid continuation payloads are rejected. See
+[structure approaches](retail-pathfinding-engine.md#structure-targets-use-one-physical-approach-task-payoff278).
+
 Save168 retains the canonical game speed (0..2) and reapplies its wall-time rate
 on load. Movement and request clocks retain fixed simulation steps; scheduling
 remainders are derived server state. Invalid speed values and older save layouts
