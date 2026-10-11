@@ -5809,13 +5809,15 @@ static bool move_group_route(moveGroup_t *group) {
 }
 
 /* Native167070 advances a nonfinal coarse leg without consuming retry.
- * Final partial endpoints retain165c60/167290's stopped retry transition. */
+ * Final partial endpoints retain165c60/167290's stopped retry transition.
+ * 16fd0a forces arrival only when this visit's 167e40 reported ready: a
+ * changed destination still inside its request interval keeps the status. */
 static uint32_t move_group_advance_endpoint(moveGroup_t *group, moveGroupMember_t *member,
-                                            wc3GridPose_t const *pose, vec2_t *direction) {
+                                            wc3GridPose_t const *pose, vec2_t *direction, bool ready) {
     edict_t *unit=member->unit;
     uint32_t result=move_advance_endpoint(unit,pose,member->destination,group->count,direction);
     if(result==2)return result;
-    if (result==4) {member->forced_arrival=true;member->flags|=0x20000;}
+    if (result==4 && ready) {member->forced_arrival=true;member->flags|=0x20000;}
     return result;
 }
 
@@ -5873,8 +5875,9 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
      * before Path_Advance consumes a pending wait. Slot publication alone does
      * not replace the path's cached destination or clear its retry state. */
     moveFineRoute_t *route=&unit->movement.fine_route;
-    if (route->adaptive_points && move_destination_changed(route->adaptive_goal,member->destination) &&
-        move_destination_ready(unit->movement.fine_request_time,route->adaptive_admission.time)) {
+    bool changed=route->adaptive_points && move_destination_changed(route->adaptive_goal,member->destination);
+    bool ready=!changed || move_destination_ready(unit->movement.fine_request_time,route->adaptive_admission.time);
+    if (changed && ready) {
         route->count=route->adaptive_count=0;
         route->index=route->adaptive_index=UINT32_MAX;route->partial=false;
         unit->movement.retry_count=unit->movement.wait_delay=0;
@@ -5892,7 +5895,7 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
      * Original165ae0 checks a retained coarse point (165f10) before167070: one already in
      * accelerator range is consumed and refilled by this visit's route update instead. */
     uint32_t progress=G_UnitMoveAdaptiveWaypointDue(&unit->movement.fine_route,(vec2_t){pose.grid[0],pose.grid[1]}) ? 0 :
-        move_group_advance_endpoint(group,member,&pose,&direction);
+        move_group_advance_endpoint(group,member,&pose,&direction,ready);
     if (progress==2) {
         /* Native returns the consumed fine point, including a zero vector.
          * 16fbd0 passes stop1 for every nonzero Path_Advance status. */
@@ -5904,7 +5907,7 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     } else {
         vec2_t goal=move_point_world(&group->goal);
         if ((route_result=unit_accel_direction(unit,(moveRoutePoint_t){&goal,unit->collision,MOVE_AVOID_GENERIC},&direction))) {
-            progress=move_group_advance_endpoint(group,member,&pose,&direction);
+            progress=move_group_advance_endpoint(group,member,&pose,&direction,ready);
             if (progress==2) {
                 unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
                 unit_turn_toward(unit,unit->movement.heading);

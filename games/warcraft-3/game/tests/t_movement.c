@@ -235,6 +235,70 @@ TEST(wc3_movement, invalid_start_decisions_match_original_public_consumers) {
     level.pathing_counter=counter;level.move_fine_responsive=responsive;level.pathing_random=random;
 }
 
+/* Original16fd0a sets forced arrival after Path_Advance 3/4 only when this visit's
+ * 167e40 reported ready. A refreshed destination still inside its 10-visit request
+ * interval keeps the stopped retry status without forcing the next arrival. */
+static void premature_change_member(edict_t **out,moveGroup_t **out_group,vec2_t shift,uint32_t age) {
+    edict_t *unit=make_moving_unit(20.5f*32,20.5f*32);
+    vec2_t goal={40.5f*32,20.5f*32};
+    groupPointOrder_t request={.count=1,.units={{unit,unit->spawn_time}},.point=&goal,
+        .order="move",.order_id=G_OrderId("move"),.issuer_player=0};
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    moveGroup_t *group=move_find_group(unit->movement.group_id);
+    *out=unit;*out_group=group;
+    if(!group)return;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    vec2_t at={pose.grid[0],pose.grid[1]};
+    group->flags=0;group->initialized=true;
+    moveGroupMember_t *member=group->members;
+    member->destination=(vec2_t){wc3_add(at.x,shift.x),wc3_add(at.y,shift.y)};
+    member->arrival_range=wc3_float(0x3efae148);member->flags=0;member->forced_arrival=false;
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    G_ReserveMoveRouteBuffer(&route->points,&route->capacity,1);
+    route->points[0]=at;route->count=1;route->index=0;route->partial=true;
+    G_ReserveMoveRouteBuffer(&route->adaptive_points,&route->adaptive_capacity,2);
+    route->adaptive_points[0]=route->adaptive_points[1]=(vec2_t){wc3_mul(at.x,.5f),wc3_mul(at.y,.5f)};
+    route->adaptive_count=2;route->adaptive_index=0;route->adaptive_goal=at;
+    route->adaptive_admission.time=0;
+    unit->movement.retry_count=1;unit->movement.wait_delay=0;
+    level.pathing_counter=200;unit->movement.fine_request_time=200-age;
+    unit->s.angle=0;
+}
+
+TEST(wc3_movement, premature_destination_change_keeps_retry_status_without_forced_arrival) {
+    uint32_t counter=level.pathing_counter;bool responsive=level.move_fine_responsive;
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(c,3) {
+        reset_entities();setup_test_world();
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        level.move_fine_responsive=false;S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+        /* c0: changed cell, request 5 visits old; c1: same 167e40 cell; c2: changed, 10 visits old. */
+        edict_t *unit;moveGroup_t *group;
+        premature_change_member(&unit,&group,c==1 ? (vec2_t){1.25f,0} : (vec2_t){10,0},c==2 ? 10 : 5);
+        T_NOT_NULL(group);if(!group)continue;
+        moveGroupMember_t *member=group->members;
+        moveFineRoute_t *route=&unit->movement.fine_route;
+        vec2_t old_goal=route->adaptive_goal;
+        /* Outside the 0.49 arrival range; c1 stays in the same shift-1 comparison cell. */
+        T_ASSERT((((int)floorf(member->destination.x))>>1==((int)floorf(old_goal.x))>>1)==(c==1));
+        move_group_decide(group,member);
+        if(c==0) {
+            T_ASSERT(!member->forced_arrival);T_EQ(member->flags&0x20000,0);
+            T_EQ(unit->movement.retry_count,1);T_EQ(route->adaptive_count,2);
+            T_EQ(wc3_float_bits(route->adaptive_goal.x),wc3_float_bits(old_goal.x));
+            T_EQ(member->speed,0);
+        } else if(c==1) {
+            T_ASSERT(member->forced_arrival);T_EQ(member->flags&0x20000,0x20000);
+        } else {
+            /* The ready replacement discards the exhausted retry instead. */
+            T_ASSERT(!member->forced_arrival);T_EQ(member->flags&0x20000,0);
+            T_ASSERT(unit->movement.retry_count!=1 || route->adaptive_count!=2);
+        }
+    }
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+    level.pathing_counter=counter;level.move_fine_responsive=responsive;
+}
+
 /* Retail reconstructs both search owners on load. A different query after
  * saving must not become the loaded game's initialized invalid-source history. */
 wc3FineSearch_t const *G_TestMoveFineSearch(void);

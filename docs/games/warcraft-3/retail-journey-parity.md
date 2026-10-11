@@ -35,6 +35,8 @@ W=/run/media/lofcz/ssd_external/Games/w3            # original install, also the
 R=/GitHub/wc3-analysis/reports/journey
 python3 tools/frida/make_wc3_journey_spec.py --data $W --base 'war3.mpq:Maps\Campaign\Human05.w3m' \
     --name human05_crossing --seed 5 --output tools/frida/journeys/human05_crossing.json
+# Head-on stress: --headon PAIRS pairs Hero-led groups at distant open spots and swaps each
+# pair three times; Hero followers (target Move) and lone crossers are added.
 python3 tools/frida/make_wc3_journey_map.py --data $W --spec tools/frida/journeys/human05_crossing.json \
     --output $W/Maps/Journey/human05_crossing.w3m
 # Original (isolated Xvfb display, Frida server on 127.0.0.1:27046):
@@ -118,6 +120,14 @@ Each rule below was found by a journey divergence, then checked against the orig
   the re-request on the next visit. Engine: `moveFineRoute_t.adaptive_adjusted*`, used by
   `move_adaptive_waypoint` and `move_retry_goal`, and saved since format 177. Requesting
   the click again moved Orc05's forced arrival one visit early at 113.3 s.
+- **Forced arrival needs a ready destination (`16fd0a`).** After `Path_Advance` returns 3 or 4,
+  `Mover_StepRoute` (`16fbd0`) sets forced arrival (mover `+d8` `0x10000`, member flag
+  `0x20000`) only when this visit's `167e40` reported ready. A target refresh that moves
+  the destination into another comparison cell while a request timestamp is under ten
+  visits old keeps the stopped status but no longer forces arrival. The member stays out of
+  the forced/arrived cycle until the interval admits the replacement. In the Undead07
+  head-on journey, a Peasant following a Hero restarted one visit late because the engine
+  re-forced arrival on the refresh visit. Engine: `move_group_advance_endpoint(..., ready)`.
 - **SLK reals** use the original decimal parser `070de0` (`wc3_decimal`), which is not
   correctly rounded: `"0.4"` gives `3eccccce`, and `"1.5"` gives `3fc00001`. Tests that author
   a captured float word as SLK text must search for text that this parser maps to the word
@@ -160,6 +170,10 @@ is the state that `1d62bb` (retry init) uses. Draws made before the probe's
 | Lost Temple crossing | 24 | bit-exact over 2400 ticks (~80k commits) |
 | Human05 crossing (seed 5) | 35 | bit-exact over 2400 ticks: every sample and velocity commit (the original adds two commits after its completion marker) |
 | Orc05 crossing (seed 6) | 39 | bit-exact over 2400 ticks, every sample and velocity commit (the original's trace ends two commits later) |
+| Undead07 crossing (seed 8) | 35 | bit-exact over 2400 ticks, every sample and velocity commit |
+| Human08 crossing (seed 9) | 35 | bit-exact over 2400 ticks, every sample and velocity commit |
+| Orc05 head-on (seed 21, 2 pairs) | 47 | bit-exact over 2400 ticks: two pairs of Hero-led 12-unit groups swap places three times |
+| Undead07 head-on (seed 22, 3 pairs) | 59 | bit-exact over 2400 ticks: six Hero-led groups, four Hero followers, four lone crossers |
 | NightElf02 crossing (seed 7) | 31 | diverges at 0.03 s: the map authors Player 0 as a Computer (see below) |
 
 NightElf02: config makes Player 0 `MAP_CONTROL_COMPUTER`, so `6f1e9a40` creates its Town AI
@@ -177,4 +191,5 @@ units yet. That is the captain/Town AI work tracked as GROUP-03.4.x.
   `wc3_api.group_add_prepends_heroes_like_original`,
   `wc3_spell.aura_targets_follow_source_team_alliances_and_neutral_mask`,
   `wc3_slk.authored_scalars_use_the_original_decimal_parser`,
-  `pathfinding.partial_coarse_endpoint_becomes_request_goal_until_destination_changes`.
+  `pathfinding.partial_coarse_endpoint_becomes_request_goal_until_destination_changes`,
+  `wc3_movement.premature_destination_change_keeps_retry_status_without_forced_arrival`.

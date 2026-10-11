@@ -6,6 +6,11 @@ war3map.doo object positions. Subjects mix races, collision sizes, speeds and
 movement types; the timeline issues cross-map group orders (up to twelve members,
 i.e. formations), individual Move/Patrol/Stop, mid-route redirects and flyers.
 
+--headon PAIRS instead pairs Hero-led groups of mixed collision sizes at distant
+spots and swaps each pair simultaneously three times, so both groups meet on the
+same corridor. Single units follow the Heroes (target Move), and lone units
+exchange places with each other.
+
   python3 tools/frida/make_wc3_journey_spec.py --data "$WC3_DATA" \
       --base 'war3.mpq:Maps\\Campaign\\Human05.w3m' --name human05_crossing --seed 5 \
       --output tools/frida/journeys/human05_crossing.json
@@ -13,6 +18,8 @@ i.e. formations), individual Move/Patrol/Stop, mid-route redirects and flyers.
 import argparse, json, random, struct, subprocess, tempfile
 from pathlib import Path
 
+HEROES = ['Hpal', 'Obla', 'Udea', 'Ekee', 'Hamg', 'Ofar', 'Ulic', 'Emoo']
+LARGE = ['hkni', 'otau', 'uabo', 'hmtm', 'edry', 'ucry']
 GROUND = ['hfoo', 'hkni', 'hrif', 'hmtm', 'hsor', 'hpea', 'ogru', 'otau', 'ohun', 'opeo', 'ugho', 'uabo', 'ucry',
           'uaco', 'earc', 'esen', 'edry', 'ewsp', 'Hpal', 'Obla', 'Udea', 'Ekee']
 FLYING = ['hgry', 'owyv', 'hgyr', 'ehip', 'ugar']
@@ -61,12 +68,43 @@ def spread(spots, k, rng):
     return chosen
 
 
+def headon(a, rng, spots, units, timeline, eighth):
+    ends = spread(spots, a.headon * 2, rng)
+    heroes = []
+    for pair in range(a.headon):
+        sides = (ends[2 * pair], ends[2 * pair + 1]); spans = []
+        for side, (sx, sy) in enumerate(sides):
+            size = rng.randint(8, min(12, (64 - 8) // (2 * a.headon))); first = len(units); heroes.append(first)
+            types = [rng.choice(HEROES)] + [rng.choice(LARGE if rng.random() < 0.4 else GROUND[:18]) for _ in range(size - 1)]
+            for i, kind in enumerate(types):
+                units.append(dict(type=kind, at=[eighth(sx + (i % 4) * 112.0 - 168), eighth(sy + (i // 4) * 112.0 - 112)],
+                                  facing=float(rng.choice([0, 90, 180, 270]))))
+            spans.append((first, len(units) - 1))
+        for leg in range(3):
+            tick = 10 + leg * a.ticks // 3 + pair
+            for side, span in enumerate(spans):
+                dest = sides[(side + leg + 1) % 2]
+                timeline.append(dict(tick=tick, group=list(span), order='move', to=[eighth(dest[0]), eighth(dest[1])]))
+    for hero in heroes[:4]:
+        (hx, hy) = units[hero]['at']; i = len(units)
+        units.append(dict(type=rng.choice(GROUND[:18]), at=[eighth(hx - 256), eighth(hy - 256)], facing=0.0))
+        timeline.append(dict(tick=12, unit=i, order='move', target=hero))
+    lanes = spread(spots, 4, rng)
+    for k in range(4):
+        (sx, sy), (dx, dy) = lanes[k], lanes[(k + 2) % 4]; i = len(units)
+        units.append(dict(type=rng.choice(LARGE + GROUND[:6]), at=[eighth(sx), eighth(sy)], facing=float(rng.randrange(0, 360, 45))))
+        for leg in range(4):
+            to = (dx, dy) if leg % 2 == 0 else (sx, sy)
+            timeline.append(dict(tick=10 + leg * a.ticks // 4, unit=i, order='move', to=[eighth(to[0]), eighth(to[1])]))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--data', type=Path, required=True); p.add_argument('--base', required=True)
     p.add_argument('--name', required=True); p.add_argument('--seed', type=int, default=1)
     p.add_argument('--ticks', type=int, default=2400); p.add_argument('--sample-every', type=int, default=2)
     p.add_argument('--groups', type=int, default=3); p.add_argument('--singles', type=int, default=8)
+    p.add_argument('--headon', type=int, default=0, metavar='PAIRS', help='Hero-led group pairs that swap places')
     p.add_argument('--tool', type=Path, default=Path('build/bin/mpqtool')); p.add_argument('--output', type=Path, required=True)
     a = p.parse_args(); rng = random.Random(a.seed); tool = str(a.tool.resolve())
     w, h, cells, ox, oy, objects = world(tool, a.data, a.base)
@@ -75,6 +113,9 @@ def main():
     anchors = spread(spots, a.groups * 2 + 4, rng)
     eighth = lambda v: round(v * 8) / 8
     units, timeline = [], []
+    if a.headon:
+        headon(a, rng, spots, units, timeline, eighth)
+        a.groups = a.singles = 0
     for g in range(a.groups):
         size = rng.randint(6, 12); (sx, sy) = anchors[g]; first = len(units)
         for i in range(size):

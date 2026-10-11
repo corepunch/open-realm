@@ -55145,7 +55145,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "7028dd340801f9f02799631737799da91c86adb60ffc7c5a788ec0a8dc39a435"
+      "sha256": "da533bf9b32b7f6b1fa341e43d0e3cc0b5157358cacaf2864850a69f042cfbf8"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -55837,7 +55837,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "68cbffdfa127e414104131c36230035be4754fd5062155143404061631542bab"
+      "sha256": "ecbb39736f40a92079512bedf0d4e69e8585fd63431f4e640ba7f70c9373db56"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
