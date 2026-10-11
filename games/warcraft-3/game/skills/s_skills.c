@@ -33,7 +33,7 @@ static ability_t abilitylist[] = {
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
     { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Hold command policy
-    { STR_CmdPatrol, CAbilityPatrol, AB_COMMAND, .orders = patrol_orders },  // Patrol — engine command
+    { STR_CmdPatrol, CAbilityPatrol, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE, .orders = patrol_orders },  // Patrol — engine command
     { STR_CmdRally, CAbilityRally, AB_COMMAND },  // Rally — engine command
     { STR_CmdCancel, CAbilityCancel, AB_COMMAND },  // Cancel — engine command
     { STR_CmdCancelBuild, CAbilityCancel, AB_COMMAND },  // Cancel Build — engine command

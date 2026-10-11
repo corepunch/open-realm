@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff276 replaces the legacy Patrol walker with ordinary scheduled point tasks.
+Repeated original motion and fresh group repeats/control support the integration;
+FIFO, combat, blocked arrival and cold-save regressions pass. Queue activation
+retains the owner's resulting head without an order-ID substitution. No checkbox
+is closed for broader Move gaps. [Evidence](retail-pathfinding-engine.md#patrol-legs-run-as-ordinary-point-move-tasks-payoff276).
+
 Payoff275 closes SCHED-01.1: both original clock selectors use 300-second spans,
 and game speed schedules fixed primary steps at 3/5, 4/5 or 5/5 of wall time.
 Public pause/speed repeats and an unhooked control agree. The engine applies

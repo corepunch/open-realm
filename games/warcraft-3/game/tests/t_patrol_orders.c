@@ -8,10 +8,17 @@ void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *);
 void free_slk_rows(slkTestData_t *);
+void CM_SetupTestPathmap(unsigned, unsigned, uint8_t const *);
+void CM_SetupTestWorldBounds(box2_t const *);
 
 static edict_t *patrol_orders_setup(void) {
     reset_entities();setup_test_world();
-    T_ASSERT(run_test_jass("globals\n unit actor=null\nendglobals\n"
+    T_ASSERT(run_test_jass("globals\n unit actor=null\n real activationX=0.0\n real activationY=0.0\nendglobals\n"
+        "function captureOrigin takes nothing returns nothing\n"
+        " if GetIssuedOrderId()==OrderId(\"patrol\") and GetOrderPointX()==256.0 and GetOrderPointY()==320.0 then\n"
+        "  set activationX=GetUnitX(actor)\n  set activationY=GetUnitY(actor)\n endif\nendfunction\n"
+        "function verifyOrigin takes real x, real y returns nothing\n"
+        " call BJassAssert(x==activationX and y==activationY,\"Patrol captures the exact activation pose\")\nendfunction\n"
         "function short takes nothing returns nothing\n"
         " call BJassAssert(IssuePointOrder(actor,\"patrol\",124.0,64.0),\"Short Patrol accepted\")\n"
         " call BJassAssert(GetUnitCurrentOrder(actor)==0,\"Short Patrol retires synchronously\")\nendfunction\n"
@@ -24,7 +31,10 @@ static edict_t *patrol_orders_setup(void) {
         "function kill takes nothing returns nothing\n call KillUnit(actor)\n"
         " call BJassAssert(GetUnitCurrentOrder(actor)==0,\"Death retires Patrol\")\nendfunction\n"
         "function main takes nothing returns nothing\n"
-        " set actor=CreateUnit(Player(0),'hpea',64.0,64.0,0.0)\nendfunction\n"));
+        " local trigger t=CreateTrigger()\n"
+        " set actor=CreateUnit(Player(0),'hpea',64.0,64.0,0.0)\n"
+        " call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+        " call TriggerAddAction(t,function captureOrigin)\nendfunction\n"));
     edict_t *actor=NULL;FILTER_EDICTS(unit,unit->class_id==MAKEFOURCC('h','p','e','a')) actor=unit;
     T_NOT_NULL(actor);if(!actor)return NULL;
     actor->health.value=actor->health.max_value=420;actor->collision=8;
@@ -58,6 +68,16 @@ TEST(wc3_patrol_orders, public_expansion_uses_retail_minimum_distance) {
     T_EQ(actor->current_order_id,WC3_ORDER_ID_PATROL_TWO_POINTS);
 }
 
+TEST(wc3_patrol_orders, queued_short_patrol_does_not_restore_issued_head) {
+    edict_t *actor=patrol_orders_setup();if(!actor)return;
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){384,64},false,0,0));
+    T_ASSERT(G_IssueUnitPointOrder(actor,"patrol",&(vec2_t){390,64},true,0,0));
+    patrol_orders_frames(80);
+    T_EQ(actor->current_order_id,0);
+    T_EQ(actor->order_queue.count,0);
+    T_NULL(actor->movement.patrol_target);
+}
+
 TEST(wc3_patrol_orders, queued_move_runs_at_leg_end_then_return_leg_resumes) {
     edict_t *actor=patrol_orders_setup();if(!actor)return;
     T_ASSERT(G_IssueUnitPointOrder(actor,"patrol",&(vec2_t){384,64},false,0,0));
@@ -87,6 +107,28 @@ TEST(wc3_patrol_orders, queued_patrol_rotates_behind_non_patrol_then_routes_alte
     T_ASSERT(second);T_EQ(actor->order_queue.count,1);
 }
 
+TEST(wc3_patrol_orders, scheduled_patrol_pause_survives_cold_save) {
+    edict_t *actor=patrol_orders_setup();if(!actor)return;
+    T_ASSERT(G_IssueUnitPointOrder(actor,"patrol",&(vec2_t){600,64},false,0,0));
+    patrol_orders_frames(4);
+    S_SetUnitPaused(actor,true);
+    vec2_t pose=actor->s.origin2;
+    patrol_orders_frames(8);
+    T_FEQ(actor->s.origin2.x,pose.x,0);T_FEQ(actor->s.origin2.y,pose.y,0);
+    T_EQ(actor->current_order_id,MOVE_ORDER_SUSPENDED);
+    T_EQ(actor->movement.pause_order_id,WC3_ORDER_ID_PATROL_TWO_POINTS);
+    cstring_t save=Test_TempPath("wc3-patrol-pause276.bin");
+    T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);
+    T_ASSERT(actor->paused);
+    patrol_orders_frames(4);
+    T_FEQ(actor->s.origin2.x,pose.x,0);T_FEQ(actor->s.origin2.y,pose.y,0);
+    S_SetUnitPaused(actor,false);
+    patrol_orders_frames(4);
+    T_ASSERT(Vector2_distance(&pose,&actor->s.origin2)>0);
+    T_EQ(actor->current_order_id,WC3_ORDER_ID_PATROL_TWO_POINTS);
+    T_NOT_NULL(actor->movement.patrol_target);
+}
+
 TEST(wc3_patrol_orders, full_user_fifo_keeps_its_return_continuation) {
     edict_t *actor=patrol_orders_setup();if(!actor)return;
     T_ASSERT(G_IssueUnitPointOrder(actor,"patrol",&(vec2_t){384,64},false,0,0));
@@ -110,8 +152,14 @@ TEST(wc3_patrol_orders, saved_rotated_pair_retains_activation_origin_and_fifo_or
     unitOrder_t first=queue->entries[queue->head],second=queue->entries[(queue->head+1)%queue->capacity];
     T_FEQ(first.point.x,64,0);T_FEQ(first.continuation.x,384,0);
     T_FEQ(second.point.x,256,0);T_FEQ(second.point.y,320,0);
-    T_FEQ(second.continuation.x,actor->s.origin2.x,0);
-    T_FEQ(second.continuation.y,actor->s.origin2.y,0);
+    /*5fe1a0 captures the origin at activation, before the remaining owner
+     * work in this frame. Compare against that public issued-order callback,
+     * rather than a later frame-end pose or a relaxed distance tolerance. */
+    jass_pushfunction(level.vm,jass_functionbyname(level.vm,"verifyOrigin"));
+    jass_pushnumber(level.vm,second.continuation.x);
+    jass_pushnumber(level.vm,second.continuation.y);
+    jass_call(level.vm,2);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     cstring_t save=Test_TempPath("wc3-patrol-rotation176.bin");
     T_ASSERT(WriteGame(save));T_ASSERT(unit_issueimmediateorder(actor,"stop"));
     T_EQ(queue->count,0);T_ASSERT(ReadGame(save));remove(save);
@@ -177,13 +225,18 @@ TEST(wc3_patrol_orders, combat_resumes_same_leg_before_starting_queued_move) {
 
 TEST(wc3_patrol_orders, blocked_leg_appends_return_behind_pending_commands) {
     edict_t *actor=patrol_orders_setup();if(!actor)return;
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    /* Enclose the endpoint: retail's leg ends at its closest reachable cell and
+     * the generic can't-path fallback still runs the d0175 continuation. */
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n local real x=352.0\n local real y\n"
+        " loop\n  exitwhen x>416.0\n  set y=32.0\n  loop\n   exitwhen y>96.0\n"
+        "   call SetTerrainPathable(x,y,PATHING_TYPE_WALKABILITY,false)\n   set y=y+32.0\n  endloop\n"
+        "  set x=x+32.0\n endloop\nendfunction\n"));
     T_ASSERT(G_IssueUnitPointOrder(actor,"patrol",&(vec2_t){384,64},false,0,0));
-    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){600,64},true,0,0));
-    /* Exercise the real generic blocked decision at its retained watermark. */
-    actor->movement.last_distance=1;actor->movement.last_origin=actor->s.origin2;
-    actor->movement.blocked_frames=MOVE_BLOCKED_FRAMES;
-    actor->currentmove->think(actor);
-    T_EQ(actor->current_order_id,G_OrderId("move"));T_EQ(actor->order_queue.count,1);
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){64,320},true,0,0));
+    patrol_orders_until(actor,G_OrderId("move"),80);
+    T_ASSERT(Vector2_distance(&actor->s.origin2,&(vec2_t){384,64})<96);T_EQ(actor->order_queue.count,1);
     if(actor->order_queue.count){
         unitOrder_t const *ret=&actor->order_queue.entries[actor->order_queue.head];
         T_FEQ(ret->point.x,64,0);T_FEQ(ret->continuation.x,384,0);

@@ -2095,3 +2095,14 @@ public control and original heading/turn/request-point words. The frozen inputs
 are `retail-root211-1.27.json` and its portable timeline; the engine consumes
 `retail_root211.h`. It leaves full Root trajectory/timing, placement45 retries
 and wider FORM-01.3 producers open. See [Root facing](retail-pathfinding-engine.md#root-approaches-then-faces-before-morphing-payoff211).
+
+## Physical Patrol point legs (Payoff276)
+
+`oracle-patrol276` rechecks two archived3,000-sample motion streams, four fresh
+group Patrol captures and an unhooked control,554 original instruction guards,
+and actual Classic/TFT motion, FIFO/save/combat and E2E tests. The engine now
+uses ordinary scheduled point legs and preserves the point owner's head result.
+Frozen retail coordinates remain unchanged; vertical startup, wall detours,
+head-on avoidance and facing remain outside the claimed parity. This adds one
+executable evidence contract (231 contracts;512 total entries). See
+[physical Patrol integration](retail-pathfinding-engine.md#patrol-legs-run-as-ordinary-point-move-tasks-payoff276).

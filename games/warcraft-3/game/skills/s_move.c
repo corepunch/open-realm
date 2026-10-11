@@ -767,6 +767,7 @@ static void move_run_group_updates(void);
 static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent);
 static bool move_follow_in_range(edict_t *unit, edict_t *target);
 static void move_leave(edict_t *self);
+static bool move_point_order_id(uint32_t order);
 static void move_captain_actor_point(edict_t *,vec2_t const *,float);
 
 static edict_t *trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
@@ -2093,8 +2094,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
     if (paused) {
         move_visual_track(self);
         uint32_t order=self->current_order_id;
-        bool point=self->currentmove==&move_move_walk && self->goalentity &&
-            (order==G_OrderId("move") || order==G_OrderId("smart"));
+        bool point=self->currentmove==&move_move_walk && self->goalentity && move_point_order_id(order);
         if (point) {
             move_leave(self); move_reset_progress(self);
             self->movement.pause_order_id=order;
@@ -2762,9 +2762,15 @@ static uint32_t move_advance_endpoint(edict_t *unit, wc3GridPose_t const *pose, 
     return result;
 }
 
+/* Original5fdff0 runs each Patrol leg as an ordinary d016b point task beneath
+ * the 851991 head, so point Move ownership also applies to that head. */
+static bool move_point_order_id(uint32_t order) {
+    return order==G_OrderId("move") || order==G_OrderId("smart") || order==WC3_ORDER_ID_PATROL_TWO_POINTS;
+}
+
 static bool move_point_retry_endpoint(edict_t *unit) {
     if (!level.scheduled_think || move_find_member(unit) || !unit->movement.fine_route.group_count ||
-        (unit->current_order_id!=G_OrderId("move") && unit->current_order_id!=G_OrderId("smart"))) return false;
+        !move_point_order_id(unit->current_order_id)) return false;
     wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
     vec2_t goal=unit->movement.fine_route.group_goal;
     vec2_t direction;
@@ -4447,6 +4453,9 @@ static void move_hold(edict_t *ent) {
         unit_stand(ent);
         return;
     }
+    /* The original generic can't-path fallback reaches5fa7a0 arrival, so a
+     * blocked Patrol leg runs its d0175 continuation like an arrival. */
+    if (S_PatrolMoveArrive(ent)) return;
     /* A terminal blocked/unreachable Move is complete for queue purposes.
      * Continue a Shift chain instead of stranding pending commands behind the
      * legacy hold pose. */
@@ -4513,6 +4522,7 @@ static bool move_point_arrival(edict_t *ent) {
             ent->movement.path.valid=false;
             return true;
         }
+        if (S_PatrolMoveArrive(ent)) return true;
         if (!S_UnitAbilityMoveArrive(ent)) ent->stand(ent);
     }
     return true;
@@ -4557,7 +4567,7 @@ static void ai_move_walk(edict_t *ent) {
 
     /* Completing a temporary escape can expose the ordinary point order in
      * this same visit. Classify it after retiring displacement ownership. */
-    point_order = (ent->current_order_id == G_OrderId("move") || ent->current_order_id == G_OrderId("smart")) &&
+    point_order = move_point_order_id(ent->current_order_id) &&
         ent->goalentity && (ent->goalentity->svflags & SVF_MOVE_WAYPOINT);
 
     if (point_order && (!ent->movement.group_id || (owner && owner->individual))) {
@@ -4713,7 +4723,7 @@ bool S_UnitCanTranslate(edict_t const *unit) {
 
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
-void order_move(edict_t *self, edict_t *target) {
+static void move_begin_walk(edict_t *self, edict_t *target, bool patrol_leg) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || S_UnitIsEntanglingRooted(self)
@@ -4728,9 +4738,11 @@ void order_move(edict_t *self, edict_t *target) {
     S_SetMoveGoal(self, &self->goalentity, target);
     self->attack_target_spawn_time = 0;
     S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);
-    S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
-    S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
-    S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
+    if (!patrol_leg) {
+        S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
+        S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
+        S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
+    }
     S_SetFollowTarget(self,NULL);
     self->movement.holding_position = false;
 #ifdef WC3_DEBUG_BUILD
@@ -4750,6 +4762,10 @@ void order_move(edict_t *self, edict_t *target) {
     unit_setanimation(self, "stand");
 }
 
+void order_move(edict_t *self, edict_t *target) {
+    move_begin_walk(self, target, false);
+}
+
 /* A public point command owns the current user head. Internal approaches use
  * order_move without replacing that identity. Queue replay comes here only
  * when this command actually becomes active. */
@@ -4757,7 +4773,7 @@ void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
     /* Public admission69a881 stops through05ca50 before the new point task,
      * even for an idle actor embedded in a peer. Recover before cohort seeding. */
     S_StopUnitMovementWithRecovery(self);
-    order_move(self, goal);
+    move_begin_walk(self, goal, order_id==WC3_ORDER_ID_PATROL_TWO_POINTS);
     if (self->goalentity == goal && self->currentmove == &move_move_walk)
         self->current_order_id = order_id;
 }
@@ -6022,7 +6038,8 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
                     S_TrackMoveTimers(unit);
                     unit->movement.captain_home.active=true;
                     move_start_follow_group(unit,actor,true);
-                } else {
+                } else if (!S_PatrolMoveArrive(unit)) {
+                    /* A Patrol leg's d0175 continuation owns completion. */
                     unit->stand(unit);
                     if (unit->movement.captain_actor_owned) G_BotCaptainGoalEvent(unit);
                 }

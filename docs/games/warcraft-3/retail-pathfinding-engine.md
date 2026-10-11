@@ -854,6 +854,93 @@ composition, precise blocked/combat movement and queued continuation save/reuse
 remain **ORDER-01.18**. This payoff closes no checkbox and claims no complete
 Patrol numerical or combat-trajectory parity.
 
+## Patrol legs run as ordinary point Move tasks (Payoff276)
+
+**Engine regression plus repeated original captures:** each Patrol leg is the
+ordinary d016b point task that `5fdff0` prepends, so its route, heading, arrival
+and blocked fallback are point Move's. The engine instead drove Patrol with a
+legacy100 ms walker (`ai_patrol_walk`): a flow-field follower that treated any
+block as arrival and swapped waypoints in place. Visible results were spinning
+at endpoints, wall-hugging instead of detours, and reversal before reaching
+open endpoints.
+
+`s_patrol.c` now issues every leg through `S_IssueMoveOrder` under head851991, so
+the30 ms scheduled point owner, fine routes and group admission apply unchanged.
+Move point ownership (`move_point_order_id`) includes851991 for pause, endpoint
+retry and arrival. The d0175 continuation (`S_PatrolMoveArrive`) runs where Move
+completes a point task: individual arrival, singleton group completion and the
+generic can't-path hold. Without queued work it reuses the retained endpoints;
+otherwise it appends the reversed leg behind the FIFO as Payoff176 specifies.
+Automatic acquisition uses the existing once-per-frame ability update pass; a
+prepared pointer gate skips units without Patrol state. No unsaved frame stamp
+is added, and movement remains on the scheduled owner clock. Public
+Patrol points are not snapped, unlike Attack Move. Queued activation accepts the point owner's resulting head, including the
+expanded851991 and synchronous retirement of a short Patrol. It does not
+substitute order constants. The new queued-short regression fails before that
+head-result correction.
+
+The `patrol_motion` probe (`wc3_patrol_motion_probe.j`) runs ten Footmen for300
+0.1 s samples: Move/Patrol pairs on open, walled and enclosed-endpoint lanes,
+plus head-on pairs. Two complete original captures repeat all3,000 public
+samples. `retail-patrol-motion-1.27.json` freezes them, and
+`verify_wc3_patrol_motion_trace.py` derives the claims. Patrol shares the paired
+Move journey until that Move's idle reissue: for58 samples on the open lane,16
+on the walled lane and33 on the enclosed lane. The enclosed endpoint reverses at
+its closest reachable point (peak y1094.05 at sample31). The head stays851991
+throughout.
+
+`wc3_patrol_motion.*` replays the scene through actual JASS creation and
+orders. Open-lane Move and Patrol match every original sample within0.01. Patrol
+equals its paired Move over prefixes58/16/28. The last vertical prefix is
+shorter than retail's33 because the shared Move startup gap remains open. Patrol lanes 1, 3 and 8 never
+stand still for more than two samples, and the enclosed lane reverses at least
+five times. The old walker fails all three tests.
+
+Remaining gaps are Move-level and also appear in paired Move subjects:
+
+- Vertical starts move one sample early.
+- Walled detours differ by up to16 units.
+- Head-on pairs can livelock in the full scene: from sample209, the route
+  alternates between a ready detour and Stop. Isolated head-on pairs do not
+  reproduce this (0/36 Patrol, 0/36 Move).
+
+Facing animation is not certified.
+
+A separate fresh group probe gives three Footmen one `GroupPointOrder(Patrol)`.
+Two observed runs and an unhooked control agree on all405 public markers. Each
+observed run creates11 ordinary d016b point tasks across three unit identities,
+with zero range and null association, as5fdff0 specifies. The ownership test
+therefore expects three retired owners after shared Smart, two singleton Patrol
+legs, then Attack replacement. The original group capture directly supports
+this changed internal expectation. Two additional read-only repeats observe
+physical binding itself:12 bindings across four movers (three Patrol and one
+Move control), every bound group containing exactly one member. First bindings
+have four distinct group identities; the complete normalized binding sequence
+repeats and all405 markers still match the unhooked control.
+
+The saved continuation regression captures the activation pose in the public
+issued-point callback and checks both retained coordinates exactly. Comparing
+with the later frame-end pose was invalid once the scheduled owner continued
+within that frame. The blocked-leg regression now uses actual enclosed terrain
+and arrival/continuation, rather than injecting the removed walker's counter.
+The literal3,000-sample retail fixture is unchanged.
+
+`oracle-patrol276` rechecks both archived motion captures, the four fresh group
+captures/control, all554 original instruction guards, and fresh Classic/TFT motion,
+FIFO/save/combat, public native/UI and combined E2E tests. Reproduction:
+
+```sh
+python3 tools/ghidra/run_wc3_pathfinding_corpus.py --only oracle-patrol276 \
+  --binary "$WC3_DLL" --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --output /tmp/patrol276-corpus-fresh
+```
+
+The external archive is `research/PATROL-MOTION/payoff276`. Saved Ghidra notes,
+prototypes, instruction bodies and xrefs are exported by
+`tools/ghidra/research/Patrol276Evidence.java` and retained in MapPathfinding.java.
+This closes no further checkbox: full crowd/trajectory fidelity and the separate
+existing Follow target-removal checkpoint failure remain open.
+
 ## Current Follow and Hold ownership
 
 **S/L plus engine regression:** the `order_lifecycle` probe uses actual public

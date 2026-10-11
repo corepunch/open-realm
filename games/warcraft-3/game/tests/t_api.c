@@ -8129,12 +8129,13 @@ TEST(wc3_api, group_point_order_ability_ownership) {
         "call BJassAssert(GroupPointOrder(g,\"attack\",640,512),\"Attack batch accepted\")\n"
         "call DestroyGroup(g)\nendfunction\n";
     T_ASSERT(run_test_jass(script));
-    /* Replacement detaches members now; the owner retires at its next visit. */
+    /* Replacement detaches members now; the owner retires at its next visit.
+     * Each Patrol leg is its own physical singleton (5fdff0 d016b point task). */
     unsigned empty=0;
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse) {
         empty++;T_EQ(level.move_groups[i]->count,0);
     }
-    T_EQ(empty,1);
+    T_EQ(empty,3);
     S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
     unsigned count=0;

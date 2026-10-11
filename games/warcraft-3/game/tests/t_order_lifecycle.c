@@ -603,7 +603,9 @@ TEST(wc3_order_lifecycle, auto_attack_resumes_patrol_but_smart_attack_replaces_i
     order_attack(unit, first);
     T_Damage(first, unit, (int)first->health.value);
     T_ASSERT(unit->goalentity == patrol);
-    T_ASSERT(unit->currentmove->proc == CAbilityPatrol);
+    /* Retail resumes the same leg as an ordinary point task beneath851991. */
+    T_ASSERT(move_is_active_order_walk(unit));
+    T_EQ(unit->current_order_id, WC3_ORDER_ID_PATROL_TWO_POINTS);
     T_ASSERT(unit_issuetargetorder(unit, "smart", second));
     T_ASSERT(unit->goalentity == second);
     T_ASSERT(unit->currentmove->proc == CAbilityAttack);
@@ -631,7 +633,7 @@ TEST(wc3_order_lifecycle, patrol_head_differs_from_issued_command_through_combat
     T_Damage(enemy, unit, (int)enemy->health.value);
     T_EQ(unit->current_order_id, 851991);
     T_ASSERT(unit->goalentity == patrol);
-    T_ASSERT(unit->currentmove->proc == CAbilityPatrol);
+    T_ASSERT(move_is_active_order_walk(unit));
     T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 0}, false, 0, 0));
     T_EQ(unit->current_order_id, 851986);
     T_NULL(unit->movement.patrol_a);

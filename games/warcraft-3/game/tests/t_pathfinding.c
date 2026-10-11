@@ -102,7 +102,7 @@ uint32_t M_RefreshHeatmap(edict_t *goal, float radius);
 
 /* From s_move.c — needed to set up a moving unit. */
 void order_move(edict_t *self, edict_t *target);
-void order_patrol(edict_t *self, edict_t *target);
+bool order_patrol(edict_t *self, edict_t *target);
 void order_attackmove(edict_t *self, edict_t *target);
 bool M_MoveIsValid(edict_t *self, vec2_t const *pos);
 void unit_changeangle(edict_t *self);

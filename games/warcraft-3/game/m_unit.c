@@ -897,7 +897,7 @@ uint32_t G_UnitQueuedOrderCount(edict_t const *self) {
     return self ? self->order_queue.count : 0;
 }
 
-static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed);
+static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed, uint32_t *owner_head);
 
 static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *target) {
     if (!self || !order || !target) return false;
@@ -956,7 +956,7 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
         if ((target->svflags & SVF_MONSTER) && unit_smart_target_is_followable(self, target)) {
             return S_IssueFollowOrder(self, target, G_OrderId(order));
         }
-        return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f);
+        return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f, NULL);
     }
     if (!strcmp(order, "move") && (target->svflags & SVF_MONSTER)) {
         return S_IssueFollowOrder(self, target, G_OrderId(order));
@@ -981,7 +981,7 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     return false;
 }
 
-static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed) {
+static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed, uint32_t *owner_head) {
     vec2_t target;
     edict_t *waypoint;
 
@@ -1012,19 +1012,27 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
         self->movement.group_speed = group_speed;
         return true;
     }
-    if (strcmp(order,"attack") && strcmp(order,"patrol")) return false;
+    if (!strcmp(order, "patrol")) {
+        /* Original5fe1a0 keeps the clicked point48/50 and runs each leg as an
+         * ordinary point task; Move's endpoint retry owns unreachable clicks. */
+        waypoint = Waypoint_add(point);
+        if (!waypoint) return false;
+        self->movement.holding_position = false;
+        bool accepted=S_IssuePatrolOrder(self,waypoint);
+        /* This owner expands the issued point into a two-point order, or
+         * retires a short leg. Report its actual head to queued activation. */
+        if(accepted && owner_head)*owner_head=self->current_order_id;
+        return accepted;
+    }
+    if (strcmp(order,"attack")) return false;
     target = *point;
     pathAccelParams_t query = { point, NULL, self->collision, M_UnitStaticPathingFlags(self) };
     G_ClosestMovePathPoint(&query, &target);
     waypoint = Waypoint_add(&target);
     if (!waypoint) return false;
     self->movement.holding_position = false;
-    if (!strcmp(order, "attack")) {
-        order_attackmove(self, waypoint);
-        return true;
-    }
-    if (!strcmp(order, "patrol")) return S_IssuePatrolOrder(self, waypoint);
-    return false;
+    order_attackmove(self, waypoint);
+    return true;
 }
 
 /* Removal or inside construction still owns execution. Retain the user head in the typed FIFO
@@ -1190,7 +1198,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     }
     if (!queue) G_ClearUnitOrderQueue(self);
     {
-        bool const accepted = unit_issueorder_now(self, order, point, group_speed);
+        bool const accepted = unit_issueorder_now(self, order, point, group_speed, NULL);
         if (accepted) {
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
@@ -1209,9 +1217,9 @@ static edict_t *unit_queued_target(unitOrder_t const *queued) {
         target->spawn_time==queued->target_spawn_time ? target : NULL;
 }
 
-static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t const *queued) {
+static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t const *queued,uint32_t *owner_head) {
     if(queued->target_type==UNIT_ORDER_TARGET_POINT)
-        return unit_issueorder_now(self,queued->order,&queued->point,queued->group_speed) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
+        return unit_issueorder_now(self,queued->order,&queued->point,queued->group_speed,owner_head) ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
     if(queued->target_type==UNIT_ORDER_TARGET_ENTITY) {
         /* Move owns visibility and its retained-point fallback. Other owners
          * see the same original target-or-point dispatch shape (67abe0). */
@@ -1223,7 +1231,7 @@ static queuedOrderResult_t unit_execute_queued_order(edict_t *self,unitOrder_t c
          * must not manufacture widget movement from an unsupported packet. */
         if(!target && !queued->target_is_unit)return QUEUED_ORDER_UNHANDLED;
         bool accepted=target ? unit_issuetargetorder_now(self,queued->order,target) :
-            unit_issueorder_now(self,queued->order,&queued->point,queued->group_speed);
+            unit_issueorder_now(self,queued->order,&queued->point,queued->group_speed,owner_head);
         return accepted ? QUEUED_ORDER_STARTED : QUEUED_ORDER_UNHANDLED;
     }
     if(queued->target_type==UNIT_ORDER_TARGET_NONE) {
@@ -1263,8 +1271,8 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
         if(G_UnitHasActiveOrder(self) && G_UnitMoveRevision(self)!=revision)return true;
         /* Instant Stop can retire the public head without retaining a task.
          * Its callback does not prevent the original outer task construction. */
-        uint32_t const head=self->current_order_id;
-        queuedOrderResult_t result=unit_execute_queued_order(self,&queued);
+        uint32_t head=self->current_order_id;
+        queuedOrderResult_t result=unit_execute_queued_order(self,&queued,&head);
         if(result==QUEUED_ORDER_REPLACED)return true;
         if(result==QUEUED_ORDER_STARTED) {
             if(queued.target_type!=UNIT_ORDER_TARGET_NONE)self->current_order_id=head;
