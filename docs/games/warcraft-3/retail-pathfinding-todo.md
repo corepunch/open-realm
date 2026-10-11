@@ -55,7 +55,8 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**290 done / 336 tasks; 46 remaining.**
+**290 done / 336 tasks; 46 remaining.** Payoff295 fixes construction-start delivery at its retail observation boundary: full structure health and Build head precede Human Repair, with inside world presence already retired. Nested Human Move retains execution; instant Stop permits Repair. Two repeated25-scene original captures plus an uninstrumented control agree on3810 public markers; broader ORDER-01.16 stays open. See [construction callback stages](retail-pathfinding-engine.md#construction-start-precedes-work-and-retains-nested-ownership-payoff295).
+
 Payoff294 routes queued Build notifications through shared point activation,
 with callback-discard indicator cleanup and cold-save/nested Move/Stop/removal
 regressions. Twelve controlled original append/dispatch cases and unchanged293

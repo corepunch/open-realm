@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "249 executable original/evidence contracts;530 total entries; provenance and limitations remain per-entry.",
+  "scope": "250 executable original/evidence contracts;531 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53350,6 +53350,47 @@
       "exclusions": [
         "Engine queued Build notifies only at activation and releases its consumed indicator on nested callback discard. Production cold-save, nested Move, instant Stop and pending removal regressions cover ownership; full construction notification ordering, transient Repair resumption, Undead clock and refund/death/reuse compositions remain open. No broad task closure or performance claim."
       ]
+    },
+    {
+      "id": "oracle-build295",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_build295.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "build295.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 841
+        },
+        "engine": {
+          "length": 2
+        },
+        "retail": {
+          "length": 4
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "25 public scenes across five worker construction styles: normal, nested Move/Stop, building/worker removal. Exact full-health synchronous start, hidden inside presence and Human Repair callback ownership; wider transient Repair queues, summon timing, cancellation/refunds and all alternate producers remain open.",
+      "exclusions": [
+        "Transient Repair resumption, summon clock, cancellation/refunds and alternate producer runtime coverage remain open."
+      ]
     }
   ],
   "fixtures": [
@@ -54248,7 +54289,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "bfadbd7877c0a6bd483bd1c53ae7c5e72c1edc4544e0bd0dbee05217704cb74d"
+      "sha256": "d15dae72da6baa66bd99fa012a38384e23885bee2fb98fbd1fee6686bf7f7502"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55540,7 +55581,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "4e44a6ebb0e4a3798290bfeb648452d0a14f873e02978393630763f4f5ee5f74"
+      "sha256": "108e3ee970c34ee22d5ca1ff7858a61f70ee9ecaa77216d5ec730c054134f205"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -55548,7 +55589,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "e59ad278db8678ff1317a31d73fdd048450fa555ddccf396aae0a24073e3cc70"
+      "sha256": "5265193568046ccf135c6a5e0ecbfd77d60d13015f5071fa3c1c33c6deac2245"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -55796,7 +55837,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "55d446c81cccba7d42421d64d731512cbeca7be3bf320cc5d0c5e14f22226ce7"
+      "sha256": "68cbffdfa127e414104131c36230035be4754fd5062155143404061631542bab"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -56040,7 +56081,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "eed115cb66b6d0848ffeda72fd1c6418e0a11a0dcdc01cbcc00e129892dd66e0"
+      "sha256": "48f3dbbcb69b0b28b13f6d52a42c28f4a1867172764264d5719e0e8239a0bc04"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -56052,11 +56093,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "0e8226a11c67a2118a4117f90eb4c49c70c72cb6d7652a90521db00d45787e34"
+      "sha256": "c2941808dd169fee4ebba2f587033686e04d9209ee6567df0b88a33d1c734b43"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "40314b6380e99f5fa86cac6bffed9d9d5be69911c5b3832c52dc47f4b065987d"
+      "sha256": "7004e555eb713203fadb275c07796242fdda8540912f5358b8a06c713932b1b8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -57136,7 +57177,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_building.c",
-      "sha256": "98c701106bdd7fbf82081c1e0f0661796219ab3e6adb417dadd298b8c7460d8a"
+      "sha256": "bb3225b4fc093b8309af34d4acc3f67c2edf852b093487a79603978d390bcf72"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
@@ -57180,7 +57221,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_subscriptions.c",
-      "sha256": "b6a15fca7f0433380d14db58094988ff7aa1d633461073ee6b7ebc5be6ac3c0f"
+      "sha256": "3423e7c7ebfe03609c8963c76a6e31d11cf0c446de0feaef2d88c04f69402690"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_subscribers.c",
@@ -59368,7 +59409,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_work242.py",
-      "sha256": "842a8dfd7e766c3fdbd8895f9d6141e7e93b97cf83340594239585851038b670"
+      "sha256": "3706e98767822ab1c9ad6a11d7fe65ccfb026de1b01b9a4a655e6a1027ec4178"
     },
     {
       "path": "tools/ghidra/fixtures/retail-work242-1.27.json",
@@ -61180,7 +61221,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_teleport290.py",
-      "sha256": "9914814702c029904de3ced610cf82fab43a9cea86b22206ce70b965c2162a87"
+      "sha256": "172d14f9e247964f7a3e34de1876062b116fa4042d34e463597a5c7721c7e060"
     },
     {
       "path": "tools/ghidra/fixtures/retail-teleport290-1.27.json",
@@ -61236,7 +61277,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_captain291.py",
-      "sha256": "df3735f7c4bf6cb41b9c3afc9ab096764775ab3043000f2e83ea7ee241bae277"
+      "sha256": "989d5b14bff7f6a2719712476b4e6d15b9a68e7186fcbd458c1cd2bc2c03fefc"
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain291-types-1.27.json",
@@ -61280,7 +61321,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_captain292.py",
-      "sha256": "19fa3d93f3002c66f858aad2e2b1fba15c15bc0c1f3824c427a688de74f640be"
+      "sha256": "9ce15572a8ebe58a364926becf3d524c50f6ef223a3089fab79936f5254c2c48"
     },
     {
       "path": "tools/ghidra/fixtures/retail-captain292-1.27.json",
@@ -61296,7 +61337,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_build.c",
-      "sha256": "593eb6ee954590962c9507e1b741febdb3fee272688a7e7ea99d63b250a07f08"
+      "sha256": "36f3c9a8a66a8ba14cf44de5915c0aecad0767ee60a19dc6f15f79bf85589ff8"
     },
     {
       "path": "tools/frida/research/build293_make_map.py",
@@ -61316,7 +61357,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_build293.py",
-      "sha256": "a421c73147057f210b4b2fd8fc6eb4c47fd9630859124ce760dc138c9e2639ba"
+      "sha256": "de9bc57d018d44ca6ceb1b51754b30f041486ae7f9992de797ac01e5b6b215ec"
     },
     {
       "path": "tools/ghidra/fixtures/retail-build293-1.27.json",
@@ -61332,7 +61373,7 @@
     },
     {
       "path": "docs/games/warcraft-3/build-repair-routing.md",
-      "sha256": "822c346c8e3c84a94a300c780ad46222dbf5a98bad000a11c2b4cabb7f766ee4"
+      "sha256": "036784fe14a65fc0ccbe2f4f49daea4cd1448d6cbe861d6e98d60cecb860415d"
     },
     {
       "path": "docs/games/warcraft-3/building-construction.md",
@@ -61348,7 +61389,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_build294.py",
-      "sha256": "60451f70c0a999e1468b5d4f989613b7d0a28da5a5df7cd4f9668d749f8ef703"
+      "sha256": "7abf941fe21b2591e798e36cf9d15afefd08081b76ebca8bc6cc2dfd6ba0e2d6"
     },
     {
       "path": "tools/ghidra/fixtures/retail-build294-1.27.json",
@@ -61357,6 +61398,46 @@
     {
       "path": "tests/test_wc3_pathfinding_build294.py",
       "sha256": "221d97c2f88871bfb81f5b2d35c927e700b8478db2860ce8bb2df0ea133808f1"
+    },
+    {
+      "path": "games/warcraft-3/game/g_building.c",
+      "sha256": "a6efd1b4201588ec489b3d89d58e164fd275cc58f8aeaec3f816f9084414ca5d"
+    },
+    {
+      "path": "tools/frida/research/build295_make_map.py",
+      "sha256": "15217485eb4aec204493c9f61f16513e5648ce1736d7862d01b9bf0c0f70d358"
+    },
+    {
+      "path": "tools/frida/research/build295_probe.j",
+      "sha256": "f8715a9948e81170e830afc2a6516ad7b74a1954743af015bc01d2b22af0f879"
+    },
+    {
+      "path": "tools/frida/research/build295_observer.js",
+      "sha256": "b281bfe1a3e07aabd56d6d025f721328ac7aa8a5e2679d8ca012afefd39cb3a5"
+    },
+    {
+      "path": "tools/ghidra/research/Build295Evidence.java",
+      "sha256": "4fbd3772b93996ec96fc0ff1dfe2b7d1b8502f4bc832318fdeb0e0dde7108c3a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_build295.py",
+      "sha256": "db08ec2280c810153cc990730cfc423636cca4c6d53abaa0c204a8471b670b55"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-build295-1.27.json",
+      "sha256": "88ef44da706b5e75414eaf9af46a0a6b3ae92914c37a28ab7f54b212ae2500c4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-build295-1.27.json.gz",
+      "sha256": "6e64623781c3fb9aaee0c506a9f3cf3923a67a06178e738677cc2de92b20ac63"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_build295.py",
+      "sha256": "bf70fd86677fe6640ecd3be5e97fe209e7e053aa11ca11537760c54de3914e2b"
+    },
+    {
+      "path": "tools/ghidra/wc3_pathfinding_engine_tests.py",
+      "sha256": "b49420ae5212c137594e3d9925239dea80ce055a2af2d02e5e1d72c15ebc7193"
     }
   ]
 }

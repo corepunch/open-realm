@@ -57,10 +57,8 @@ def main():
  spec=json.loads(SPEC.read_text());retail=validate(spec);original_bytes(a.binary,spec['instructions'])
  sys.path.insert(0,str(ROOT/'tools/ghidra/research'));import teleport290_oracle
  if teleport290_oracle.original(a.binary)!=spec['original']:raise ValueError('original wrapper differs')
- import verify_wc3_pathing_work242 as runner
- old=runner.TESTS
- try:runner.TESTS=TESTS;engine=runner.run_engine(a.test_binary,a.data,a.report,timeout=300)
- finally:runner.TESTS=old
+ import wc3_pathfinding_engine_tests as runner
+ engine=runner.run_engine(a.test_binary,a.data,a.report,TESTS,timeout=300)
  report=dict(passed=True,status='verified',retail=retail,original_wrappers=len(spec['original']),instructions=len(spec['instructions']),engine=engine,binary_sha256=SHA,game_library_sha256=digest(a.test_binary.parent.parent/'lib/libgame-wc3-test.so'),limits=spec['scope'])
  a.report.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
 if __name__=='__main__':main()

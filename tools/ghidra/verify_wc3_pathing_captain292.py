@@ -56,10 +56,8 @@ def main():
  sys.path.insert(0,str(ROOT/'tools/ghidra/research'));import captain292_oracle
  cases=[{k:v for k,v in x.items()if k not in('selected','flags')}for x in spec['original']]
  if captain292_oracle.original(a.binary,cases)!=spec['original']:raise ValueError('original selection changed')
- import verify_wc3_pathing_work242 as runner
- old=runner.TESTS
- try:runner.TESTS=TESTS;engine=runner.run_engine(a.test_binary,a.data,a.report,timeout=300)
- finally:runner.TESTS=old
+ import wc3_pathfinding_engine_tests as runner
+ engine=runner.run_engine(a.test_binary,a.data,a.report,TESTS,timeout=300)
  report=dict(passed=True,status='verified',retail=retail,original_calls=8,instructions=len(spec['instructions']),engine=engine,game_library_sha256=digest(a.test_binary.parent.parent/'lib/libgame-wc3-test.so'),scope=spec['scope'])
  a.report.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
 if __name__=='__main__':main()

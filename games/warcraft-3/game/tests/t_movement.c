@@ -15542,6 +15542,9 @@ static void public_group_radius_journey(unsigned scenario, uint32_t const (*moti
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
+/* Original captain captures project physical recruits, excluding virtual actors. */
+static void record_captain_observed_commit(edict_t *unit);
+
 static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motion)[7], unsigned count, bool verify_cleanup) {
     bool blocked=goal_case==0 || goal_case==6,captain=goal_case>=2,far=goal_case==3,pair=goal_case>=4,mixed=goal_case==5;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
@@ -15591,7 +15594,8 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
     edict_t *unit=NULL,*peer=NULL;FILTER_EDICTS(ent,ent->inuse && (ent->class_id==custom.newUnitID || (mixed && ent->class_id==types[1].newUnitID))){if(!unit)unit=ent;else peer=ent;}
     T_NOT_NULL(unit);if(mixed && peer){T_EQ(peer->collision,32);T_EQ(peer->data.UnitData->turnRate,.5f);}
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    followCommitTrace_t trace={0};trace.units[0]=unit;trace.units[1]=peer;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    followCommitTrace_t trace={0};trace.units[0]=unit;trace.units[1]=peer;follow_commit_trace=&trace;
+    move_test_motion_commit=captain ? record_captain_observed_commit : record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
     cstring_t files[8]={Test_TempPath("wc3-blocked-goal-before-partial.bin"),Test_TempPath("wc3-blocked-goal-retry.bin"),Test_TempPath("wc3-blocked-goal-forced.bin"),Test_TempPath("wc3-blocked-goal-final-turn.bin")};
     if(captain) {

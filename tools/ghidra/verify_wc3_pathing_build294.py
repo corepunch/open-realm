@@ -39,10 +39,8 @@ def main():
  cases=[{k:x[k]for k in('command','busy','callback')}for x in spec['original']]
  for repeat in range(2):
   if build294_oracle.original(a.binary,cases)!=spec['original']:raise ValueError('original append/dispatch differs')
- import verify_wc3_pathing_work242 as runner
- old=runner.TESTS
- try:runner.TESTS=TESTS;engine=runner.run_engine(a.test_binary,a.data,a.report,timeout=300)
- finally:runner.TESTS=old
+ import wc3_pathfinding_engine_tests as runner
+ engine=runner.run_engine(a.test_binary,a.data,a.report,TESTS,timeout=300)
  report=dict(passed=True,status='verified',original_calls=24,instructions=len(spec['instructions']),retail_build=retail_build,retail_queue=retail_queue,engine=engine,game_library_sha256=digest(a.test_binary.parent.parent/'lib/libgame-wc3-test.so'),scope=spec['scope'])
  a.report.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
 if __name__=='__main__':main()

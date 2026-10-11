@@ -170,3 +170,9 @@ The original-code cases require Unicorn. `Build294Evidence.java` persists the
 function comments, assembly/xrefs and identical saved readback; mapping notes
 are retained in `MapPathfinding.java`. Sources, original cases and test artifacts
 are archived under `research/ORDER-01.16/payoff294/` in the1.27 report root.
+
+
+Construction-start callbacks run synchronously before work starts: they see the
+Build head and full-health structure, with inside workers already hidden.
+Human Repair follows an instant callback Stop, while a live callback Move keeps
+execution and leaves construction paused. See [Payoff295 evidence and scope](retail-pathfinding-engine.md#construction-start-precedes-work-and-retains-nested-ownership-payoff295).

@@ -363,6 +363,7 @@ void build_build(edict_t *ent) {
     char reason[128];
     bool construction_started = false;
     unitRace_t race;
+    constructionType_t type = CONSTRUCTION_NONE;
 
     if (!ent || !ent->goalentity || !ent->build_project) {
         if (ent) ent->stand(ent);
@@ -487,20 +488,26 @@ void build_build(edict_t *ent) {
      * aliases that resolve to AGbu) before race fallback so custom-map workers
      * keep the worker-inside Naga lifecycle without requiring race=naga. */
     if (build_actor_has_base_ability(ent, BZ_NAGA_BUILD)) {
-        construction_started = G_StartNagaConstruction(ent, building);
+        type = CONSTRUCTION_NAGA;
     } else if (race == RACE_HUMAN && G_UnitHasHumanRepair(ent)) {
         /* Repair is shared by worker data, but only Human construction uses the
          * external Repair clock; Orc Peons must enter the hidden worker-owned path. */
-        construction_started = G_StartHumanConstruction(ent, building);
+        type = CONSTRUCTION_HUMAN;
     } else {
         switch (race) {
-        case RACE_ORC: construction_started = G_StartOrcConstruction(ent, building); break;
-        case RACE_UNDEAD: construction_started = G_StartUndeadConstruction(ent, building); break;
-        case RACE_NIGHTELF: construction_started = G_StartNightElfConstruction(ent, building); break;
-        case RACE_NAGA: construction_started = G_StartNagaConstruction(ent, building); break;
+        case RACE_ORC: type = CONSTRUCTION_ORC; break;
+        case RACE_UNDEAD: type = CONSTRUCTION_UNDEAD; break;
+        case RACE_NIGHTELF: type = CONSTRUCTION_NIGHTELF; break;
+        case RACE_NAGA: type = CONSTRUCTION_NAGA; break;
         default: break;
         }
     }
+    uint32_t worker_spawn = ent->spawn_time, building_spawn = building->spawn_time;
+    uint32_t worker_revision = G_UnitMoveRevision(ent);
+    if (type != CONSTRUCTION_NONE) construction_started = G_StartWorkerConstruction(ent, building, type);
+    if (!building->inuse || building->spawn_time != building_spawn ||
+        !ent->inuse || ent->spawn_time != worker_spawn) return;
+    if (construction_started && !building->construction) return;
     if (construction_started) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD construction-start worker=%ld building=%ld id=%.4s type=%d health=%.1f/%.1f\n",
@@ -516,9 +523,14 @@ void build_build(edict_t *ent) {
             building->construction->gold = MAX(0, building->data.UnitBalance->goldCost);
             building->construction->lumber = MAX(0, building->data.UnitBalance->lumberCost);
         }
-        if (building->construction->type == CONSTRUCTION_HUMAN)
-            repair_build_primary(ent, building);
-        else if (building->construction->type == CONSTRUCTION_UNDEAD)
+        /* A live callback replacement retains execution. Instant Stop leaves
+         * no task, so the construction continuation may begin after it. */
+        bool continue_work = !G_IsDeferredFree(ent) && !G_IsDeferredFree(building) &&
+            (G_UnitMoveRevision(ent) == worker_revision || !G_UnitHasActiveOrder(ent));
+        if (building->construction->type == CONSTRUCTION_HUMAN) {
+            if (continue_work) repair_build_primary(ent, building);
+            else building->construction->primary_builder = NULL;
+        } else if (building->construction->type == CONSTRUCTION_UNDEAD && continue_work)
             unit_setmove(ent, &build_move_summon);
     } else {
         /* Preserve the old generic fallback for custom/unknown workers. */
@@ -537,7 +549,7 @@ void build_build(edict_t *ent) {
                 ent->build ? (long)(ent->build - globals.edicts) : -1L,
                 building->build ? (long)(building->build - globals.edicts) : -1L);
     }
-    G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    if (!construction_started) G_DispatchPlayerUnitEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
     G_RefreshResourceBar(G_GetPlayerEntityByNumber(ent->s.player));
     Get_Portrait_f(G_GetPlayerEntityByNumber(ent->s.player));
 }

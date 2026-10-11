@@ -7337,4 +7337,87 @@ TEST(wc3_building, build294_activation_callback_keeps_nested_owner_and_releases_
     free(G_SetProfileRows(old));free(old);
 }
 
+/* Live original25 scenes: full-health start precedes Human Repair/work acquisition. */
+TEST(wc3_building, build295_start_callback_precedes_work_and_preserves_nested_orders) {
+    reset_entities();setup_test_world();
+    slkTestData_t *rows=NULL,*old=building_install_repair_data(&rows);
+    T_ASSERT(run_test_jass(
+        "globals\nunit worker=null\nunit structure=null\ntrigger started=null\ninteger calls=0\nendglobals\n"
+        "function onStart takes nothing returns nothing\nlocal integer action=GetUnitUserData(worker)/5\n"
+        "set structure=GetConstructingStructure()\nset calls=calls+1\n"
+        "call BJassAssert(GetTriggerUnit()==structure,\"construct context\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(worker)=='hbar',\"Build head before work\")\n"
+        "call BJassAssert(GetWidgetLife(structure)==GetUnitState(structure,ConvertUnitState(1)),\"start precedes construction health\")\n"
+        "call BJassAssert(IsUnitHidden(worker)==((GetUnitUserData(worker)-action*5)==1 or (GetUnitUserData(worker)-action*5)==3 or (GetUnitUserData(worker)-action*5)==4),\"inside presence before start\")\n"
+        "if action==1 then\ncall BJassAssert(IssuePointOrder(worker,\"move\",-256,128),\"nested Move\")\n"
+        "elseif action==2 then\ncall BJassAssert(IssueImmediateOrder(worker,\"stop\"),\"nested Stop\")\n"
+        "elseif action==3 then\ncall RemoveUnit(structure)\n"
+        "elseif action==4 then\ncall RemoveUnit(worker)\nelseif action==5 then\ncall KillUnit(structure)\nendif\nendfunction\n"
+        "function create takes nothing returns nothing\nset calls=0\nset structure=null\n"
+        "set worker=CreateUnit(Player(0),'hpea',-128,-128,0)\nendfunction\n"
+        "function verify takes nothing returns nothing\ncall BJassAssert(calls==1,\"start is synchronous and once\")\nendfunction\n"
+        "function finish takes nothing returns nothing\ncall DestroyTrigger(started)\nendfunction\n"
+        "function main takes nothing returns nothing\nset started=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(started,Player(0),ConvertPlayerUnitEvent(26),null)\n"
+        "call TriggerAddAction(started,function onStart)\nendfunction\n"));
+    cstring_t races[]={STR_HUMAN,STR_ORC,STR_UNDEAD,STR_NIGHTELF,STR_NAGA};
+    FOR_LOOP(scene,30) {
+        unsigned kind=scene%5,action=scene/5;
+        jass_callbyname(level.vm,"create",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        edict_t *worker=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(worker);
+        if(!worker)break;
+        UnitData_t data=*worker->data.UnitData;data.race=races[kind];worker->data.UnitData=&data;
+        UnitProfile_t profile={.builds="hbar"};worker->data.UnitProfile=&profile;
+        UnitAbilities_t abilities={.abilList=kind==4?"AGbu":"Arep"};worker->data.UnitAbilities=&abilities;
+        worker->user_data=kind+action*5;
+        if(action==5) S_AcquireUnitSeparationSuppression(worker);
+        gameClient_t *client=G_GetPlayerClientByNumber(worker->s.player);
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]=30000;client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]=30000;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]=100;
+        T_ASSERT(G_IssueBuildOrder(worker,MAKEFOURCC('h','b','a','r'),&(vec2_t){64,64}));
+        T_NOT_NULL(worker->goalentity);if(!worker->goalentity)break;
+        worker->s.origin2=worker->goalentity->s.origin2;build_build(worker);
+        jass_callbyname(level.vm,"verify",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        edict_t *building=NULL;FILTER_EDICTS(ent,ent->inuse&&ent->class_id==MAKEFOURCC('h','b','a','r'))building=ent;
+        T_NOT_NULL(building);
+        if(building) {
+            if(action!=3 && action!=5) {
+                T_NOT_NULL(building->construction);
+                T_FEQ(building->health.value,building->health.max_value*0.1f,0.001f);
+            }
+            if(kind==0 && action<3) {
+                T_EQ(worker->current_order_id,action==1?G_OrderId("move"):G_OrderId("repair"));
+                T_ASSERT(building->construction->paused);
+                if(action!=1) T_NOT_NULL(worker->buildwork);
+                else {
+                    float health=building->health.value;
+                    FOR_LOOP(tick,10) G_RunConstructionFrame(building);
+                    T_EQ(building->health.value,health);
+                }
+                if(action==1) {T_NULL(worker->buildwork);T_NOT_NULL(worker->goalentity);
+                    T_EQ(worker->goalentity->s.origin2.x,-256.0f);}
+            }
+            if(kind && action<3) {
+                bool inside=kind==1 || kind==3 || kind==4;
+                T_EQ(worker->current_order_id,inside || !action?MAKEFOURCC('h','b','a','r'):action==1?G_OrderId("move"):0);
+                T_EQ(worker->construction_held,inside);
+                if(inside) T_EQ(G_UnitQueuedOrderCount(worker),action?1:0);
+            }
+            if(action==5) {
+                T_NULL(building->construction);
+                T_ASSERT(!worker->construction_held);
+                T_EQ(worker->movement.repulse.disable_depth,1);
+                S_ReleaseUnitSeparationSuppression(worker);
+            }
+            if(action==3) {T_ASSERT(G_IsDeferredFree(building));T_NULL(worker->buildwork);}
+            if(action==4) {T_ASSERT(G_IsDeferredFree(worker));T_NULL(worker->buildwork);}
+            G_FreeEdict(building);
+        }
+        G_FreeEdict(worker);
+        CM_BakeStaticObstacles();
+    }
+    jass_callbyname(level.vm,"finish",false);
+    reset_entities();building_restore_repair_data(old,rows);setup_test_world();
+}
+
 #endif

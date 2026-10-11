@@ -1752,6 +1752,7 @@ typedef struct {
     edict_t *worker;          /* Orc/Night Elf internal worker; Undead summoner while casting */
     uint32_t worker_spawn_time; /* validates worker pointer across remove/reuse */
     bool worker_inside;
+    bool worker_work_active; /* separately acquired after construct-start returns */
     bool consumes_worker;
     bool restore_invulnerable;
     bool restore_paused;
@@ -3843,6 +3844,7 @@ bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *loc
 bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location, bool queue, uint32_t issuer_player);
 bool G_FindBuildOnTarget(uint32_t building_id, vec2_t const *point, edict_t * *out);
 float G_BuildApproachDistance(uint32_t building_id);
+bool G_StartWorkerConstruction(edict_t *builder, edict_t *building, constructionType_t type);
 bool G_StartHumanConstruction(edict_t *builder, edict_t *building);
 bool G_StartOrcConstruction(edict_t *builder, edict_t *building);
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building);
@@ -4212,6 +4214,7 @@ void G_ResetEventSubscribers(void);
 void G_TrackEventSubscriber(event_t *);
 void G_SetEventTrigger(event_t *, trigger_t *);
 bool G_EventSlotAvailable(event_t const *);
+void G_DispatchPlayerUnitEvent(edict_t *, EVENTTYPE);
 void G_DispatchUnitEventFamilies(gameEventPointParams_t const *, EVENTTYPE, bool);
 void G_TriggerRequestDestroy(trigger_t *, wc3Clock_t const *);
 bool G_NextTriggerRelease(wc3Clock_t *, uint32_t *);

@@ -18268,3 +18268,75 @@ indicator. Twelve controlled complete original append/dispatch cases, repeated
 execution,264 instruction guards and unchanged293/263 Frida evidence support
 this shared point contract. See [queued Build](build-repair-routing.md#queued-build-publishes-only-when-activated-payoff294)
 for production/save regressions and remaining construction-lifecycle scope.
+
+### Construction start precedes work and retains nested ownership (Payoff295)
+
+Original `Build_CreateStructureFromPointTask` (`54d0f0`) creates the structure,
+resolves its owner, then calls `Player_PublishConstructStart` (`2609b0`) at
+`54d460`. This producer synchronously delivers player event `8021a`. Construction
+ability initialization/attachment and the race work virtual call follow it.
+The target and summon producers have the same static ordering; the point-task
+path supplies the runtime witnesses here.
+
+The new five-style map runs normal construction, Move, Stop, building removal,
+and worker removal from inside construct-start. Two read-only Frida repeats and
+an uninstrumented control agree on all 1,270 public markers per run. The two
+observed runs also agree on 282 native boundaries each. At start, the structure
+still has full health and the worker exposes its Build rawcode. Orc, Night Elf
+and Naga workers are already hidden: ordinary inside-work entry observes
+suppression depth one and returns at two. Worker removal adds its independent
+contribution, so those entries instead progress from two to three.
+
+Human Move inside the callback keeps current Move and leaves the structure at
+10% life without Repair progress. Instant Stop returns with order zero, then
+Repair begins. `544090` is entered in all five Human scenes, but actual
+`409630` Repair work begins only in normal/Stop scenes. This rules out eagerly
+starting Repair before the event or overwriting a live callback replacement.
+
+The engine separates construction preparation, world absence, synchronous
+notification and work activation. It reuses the indexed subscriber dispatcher
+for the single player-event family. Existing direct construction helpers keep
+their established contract. The Build owner checks participant identity,
+retirement and live replacement before acquiring Human/Undead continuation
+work. Construction and worker removal are included in the regressions. Five additional
+engine cases kill the structure during notification while retaining an unrelated
+suppression owner. The prepared phase has acquired world absence but no work
+contribution: teardown must release only what was acquired. A persisted
+`worker_work_active` flag records that distinction (save format178). This owner
+balance check first failed in the new staged implementation; it is an engine
+invariant, not an additional claimed retail Kill-at-start capture.
+
+Evidence: `tools/ghidra/fixtures/retail-build295-1.27.json` and its capture bundle;
+`Build295Evidence.java` saves producer names, comments, xrefs and 841 instruction
+guards. Saved Ghidra annotations were read back identically. The fresh-report
+verifier runs the affected engine and save suites in Classic and TFT modes.
+The event-stage regression first fails against the old engine. Prior retail
+fixtures remain unchanged. Pending transient Repair resumption, exact summon
+clock, cancellation/refund details and alternate producer runtime coverage
+remain open; this is a scoped implementation improvement, not closure of
+ORDER-01.16.
+
+
+The recovered batch checkpoint records 8,485 C tests and 35,832,961 assertions in32 JUnit
+reports. Classic and TFT each pass 3,606 tests/17,895,723 assertions. The original full
+aggregate also ran1784 Python tests; its two tooling failures are repaired and
+119 affected checks pass. All eight WC3 shards were rerun after the test observer
+correction. This is aggregate validation plus targeted repairs/retests, not a
+claim that the initial aggregate invocation passed.
+
+The captain observer now projects physical recruits, as the five unchanged
+original capture validators do; its virtual actor is not a recruit. No captured
+motion word or generated golden header changed. The mapper restores the frozen
+SEP comment prefix already present in saved Ghidra. The historically pinned
+work242 verifier is restored; configurable execution for current users lives in
+`wc3_pathfinding_engine_tests.py` rather than changing a frozen evidence source.
+A relative-data engine rerun lost `Scripts\common.j` during reload and is retained
+as rejected diagnostics. The accepted rerun uses an absolute fixture path.
+All748 historical retail fixture files and162 literal C retail headers remain
+unchanged; the corpus adds one oracle while retaining its530 prior entry contracts.
+
+Sources, three captures, fresh map, saved Ghidra evidence, accepted/rejected logs,
+checkpoint reports and exact built artifacts are retained under
+`research/ORDER-01.16/payoff295/` in the1.27 report root. This checkpoint resets
+the twelve-implementation-commit validation cadence. No frame-budget claim or
+broader task closure is made.

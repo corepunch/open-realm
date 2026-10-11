@@ -140,6 +140,16 @@ static void SubscriberDispatch(edict_t *subject, gameEvent_t const *event) {
     event_depth--;SubscribersReclaim();
 }
 
+/* Single player-unit producers, including2609b0 construct-start, have no
+ * corresponding unit-event family and execute at their owner's boundary. */
+void G_DispatchPlayerUnitEvent(edict_t *unit, EVENTTYPE type) {
+    if (!unit || !level.vm) return;
+    SubscribersPrepare();
+    edict_t *player = G_GetPlayerEntityByNumber(unit->s.player);
+    if (SubscriberExists(player, type))
+        SubscriberDispatch(player, &(gameEvent_t){.edict=unit, .type=type});
+}
+
 void G_DispatchUnitEventFamilies(gameEventPointParams_t const *params, EVENTTYPE unit_type,
                                   bool freeze_unit_presence) {
     if(!level.vm)return;

@@ -48,7 +48,7 @@ def validate_runtime(bundle,spec):
    if r['order']!=851986 or r['flags']!=(9 if n==0 else 8)or [k[1:3]for k in r['keys']]!=[[n+1,n+1]]*4 or r['published']!=[0,3,1,2]:raise ValueError('pending user head omitted')
  return dict(captures=2,public_markers=164,public_packets=4)
 
-def run_engine(binary,data,report,timeout=180):
+def run_engine(binary,data,report):
  import os,subprocess,xml.etree.ElementTree as ET
  results={}
  for edition in('classic','tft'):
@@ -57,7 +57,7 @@ def run_engine(binary,data,report,timeout=180):
    log=report.with_name(report.stem+'-'+edition+'-'+str(i)+'.log');junit=log.with_suffix('.xml')
    env=dict(os.environ,TEST_JUNIT=str(junit),LD_LIBRARY_PATH='/GitHub/wc3-analysis/native-sdl2'+os.pathsep+os.environ.get('LD_LIBRARY_PATH',''))
    args=[str(binary.resolve()),'-data',str(data.resolve())]+(['-tft']if edition=='tft'else[])+['+dedicated','1','+test',name]
-   with log.open('w')as f:subprocess.run(args,env=env,stdout=f,stderr=subprocess.STDOUT,timeout=timeout,check=True)
+   with log.open('w')as f:subprocess.run(args,env=env,stdout=f,stderr=subprocess.STDOUT,timeout=180,check=True)
    suite=ET.parse(junit).getroot();totals=re.findall(r'=== (\d+)/(\d+) assertions passed in (\d+) test\(s\) ===',log.read_text())
    if len(totals)!=1 or totals[0][0]!=totals[0][1]or int(totals[0][2])<1 or any(suite.attrib[k]!='0'for k in('failures','errors','skipped')):raise ValueError('missing/failed queue engine test')
    tests+=int(totals[0][2]);assertions+=int(totals[0][0])

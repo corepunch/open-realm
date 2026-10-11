@@ -1627,20 +1627,18 @@ static bool G_ConstructionHasClassification(edict_t const *unit, cstring_t wante
     return false;
 }
 
-static bool G_StartConstruction(edict_t *builder, edict_t *building, constructionType_t type, bool paused,
-                                bool worker_inside) {
-    edictStat_s *hp;
+static bool G_PrepareConstruction(edict_t *building, constructionType_t type, bool paused) {
 
     if (!building || !G_UnitIsStructure(building)) return false;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    hp = &building->health;
     building->construction->paused = paused;
     building->construction->type = type;
     building->construction->primary_builder = NULL;
     building->construction->worker = NULL;
     building->construction->worker_spawn_time = 0;
     building->construction->worker_inside = false;
+    building->construction->worker_work_active = false;
     building->construction->consumes_worker = false;
     building->construction->restore_invulnerable = false;
     building->construction->restore_paused = false;
@@ -1652,8 +1650,12 @@ static bool G_StartConstruction(edict_t *builder, edict_t *building, constructio
     building->construction->payer = 0;
     building->construction->gold = 0;
     building->construction->lumber = 0;
+    return true;
+}
+
+static void G_BeginConstructionWork(edict_t *building) {
     building->aiflags |= AI_HOLD_FRAME;
-    G_SetHealth(building, MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE));
+    G_SetHealth(building, MAX(1.0f, building->health.max_value * WC3_BUILD_START_LIFE));
     G_SetConstructionLoopSound(building, true);
 
     /* Only the translucent Construction Site Indicator is walk-through. The
@@ -1662,10 +1664,16 @@ static bool G_StartConstruction(edict_t *builder, edict_t *building, constructio
     CM_BakeStaticObstacles();
 
     G_UpdateConstructionAnimation(building);
+}
+
+static bool G_StartConstruction(edict_t *builder, edict_t *building, constructionType_t type, bool paused,
+                                bool worker_inside) {
+    if (!G_PrepareConstruction(building, type, paused)) return false;
+    G_BeginConstructionWork(building);
     return true;
 }
 
-static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool inside) {
+static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool inside, bool begin_work) {
     if (!building || !worker) return;
     assert(building->construction);
     building->construction->worker = worker;
@@ -1684,46 +1692,70 @@ static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool 
     S_RefreshUnitPauseSuppression(worker);
     S_AcquireUnitSeparationSuppression(worker);
     G_SetEntityHidden(worker,true);
-    S_AcquireUnitSeparationSuppression(worker);
-    worker->invulnerable = true;
+    if (begin_work) {
+        building->construction->worker_work_active = true;
+        S_AcquireUnitSeparationSuppression(worker);
+        worker->invulnerable = true;
+    }
     G_InvalidateUnitShortcutsForUnit(worker);
 }
 
-bool G_StartHumanConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_HUMAN, true, false)) return false;
-    building->construction->primary_builder = builder;
-    return true;
-}
+/* Point-task construction publishes the full-health structure before its work
+ * ability starts (54d460 ->533490 ->virtual340). World absence precedes that
+ * callback for inside workers; their second suppression belongs to work. */
+static bool G_StartWorkerConstructionInternal(edict_t *builder, edict_t *building,
+                                             constructionType_t type, bool notify_start) {
+    bool inside = type == CONSTRUCTION_ORC || type == CONSTRUCTION_NAGA || type == CONSTRUCTION_NIGHTELF;
+    if (!builder || !G_PrepareConstruction(building, type, type == CONSTRUCTION_HUMAN)) return false;
+    uint32_t builder_spawn = builder->spawn_time, building_spawn = building->spawn_time;
+    construction_t *state = building->construction;
+    /* Direct helpers retain their original work-before-attachment contract. */
+    if (!notify_start) G_BeginConstructionWork(building);
+    if (type == CONSTRUCTION_HUMAN) state->primary_builder = builder;
+    else G_AssignConstructionWorker(building, builder, inside, !notify_start);
 
-bool G_StartOrcConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_ORC, false, true)) return false;
-    G_AssignConstructionWorker(building, builder, true);
-    return true;
-}
-
-bool G_StartUndeadConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_UNDEAD, false, false)) return false;
-    G_AssignConstructionWorker(building, builder, false);
-    building->construction->worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
-    return true;
-}
-
-bool G_StartNagaConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_NAGA, false, true)) return false;
-    G_AssignConstructionWorker(building, builder, true);
-    return true;
-}
-
-bool G_StartNightElfConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false, true)) return false;
-    G_AssignConstructionWorker(building, builder, true);
-    if (G_ConstructionHasClassification(building, "ancient")) {
-        building->construction->consumes_worker = true;
-        /* Warsmash removes the Wisp's food contribution as soon as it becomes
-         * part of an Ancient. Cancellation restores the worker and its food. */
+    if (notify_start) {
+        G_DispatchPlayerUnitEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+        /* Never bind a replacement occupying the same edict slot to this work. */
+        if (!building->inuse || building->spawn_time != building_spawn || building->construction != state) return true;
+        G_BeginConstructionWork(building);
+        if (!builder->inuse || builder->spawn_time != builder_spawn) return true;
+        if (inside) {
+            state->worker_work_active = true;
+            S_AcquireUnitSeparationSuppression(builder);
+            builder->invulnerable = true;
+        }
+    }
+    if (type == CONSTRUCTION_UNDEAD) state->worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
+    if (type == CONSTRUCTION_NIGHTELF && G_ConstructionHasClassification(building, "ancient")) {
+        state->consumes_worker = true;
         G_SetUnitFoodUsed(builder, 0);
     }
     return true;
+}
+
+bool G_StartWorkerConstruction(edict_t *builder, edict_t *building, constructionType_t type) {
+    return G_StartWorkerConstructionInternal(builder, building, type, true);
+}
+
+bool G_StartHumanConstruction(edict_t *builder, edict_t *building) {
+    return G_StartWorkerConstructionInternal(builder, building, CONSTRUCTION_HUMAN, false);
+}
+
+bool G_StartOrcConstruction(edict_t *builder, edict_t *building) {
+    return G_StartWorkerConstructionInternal(builder, building, CONSTRUCTION_ORC, false);
+}
+
+bool G_StartUndeadConstruction(edict_t *builder, edict_t *building) {
+    return G_StartWorkerConstructionInternal(builder, building, CONSTRUCTION_UNDEAD, false);
+}
+
+bool G_StartNagaConstruction(edict_t *builder, edict_t *building) {
+    return G_StartWorkerConstructionInternal(builder, building, CONSTRUCTION_NAGA, false);
+}
+
+bool G_StartNightElfConstruction(edict_t *builder, edict_t *building) {
+    return G_StartWorkerConstructionInternal(builder, building, CONSTRUCTION_NIGHTELF, false);
 }
 
 /* Entangle Gold Mine creates a Night Elf building without consuming/owning a
@@ -1761,12 +1793,14 @@ static edict_t *G_ConstructionWorker(edict_t *building) {
 
 static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
     edict_t *worker;
-    bool consumes, inside;
+    bool consumes, inside, work_active;
 
     if (!building) return;
     worker = G_ConstructionWorker(building);
     consumes = building->construction->consumes_worker;
     inside = building->construction->worker_inside;
+    work_active = building->construction->worker_work_active;
+    building->construction->worker_work_active = false;
     building->construction->worker = NULL;
     building->construction->worker_spawn_time = 0;
     building->construction->worker_inside = false;
@@ -1799,7 +1833,7 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
         }
     }
     if(inside) {
-        S_ReleaseUnitSeparationSuppression(worker); /*566dd0: active work. */
+        if (work_active) S_ReleaseUnitSeparationSuppression(worker); /*566dd0: active work. */
         S_RefreshUnitPauseSuppression(worker);
     }
     gi.LinkEntity(worker);
