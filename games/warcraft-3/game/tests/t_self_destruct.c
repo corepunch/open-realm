@@ -128,16 +128,18 @@ TEST(wc3_spell, self_destruct_asds_click_detonates_and_kills_caster) {
 	sd_done(fix);
 }
 
-/* A Sapper blast must damage nearby debris columns via the destructable lifecycle,
- * without touching a class that the ability's target list excludes. */
-TEST(wc3_spell, self_destruct_asds_damages_debris_not_decoration) {
+/* OrcX01_02's six BTsc support-column destructables use the stock data row:
+ * targType=wall and HP=50. A full-radius Kaboom hit must kill one in a blast. */
+TEST(wc3_spell, self_destruct_asds_destroys_support_column_not_decoration) {
     sdFix_t fix = sd_setup(BZ_ASDS);
     edict_t *column = G_Spawn(), *decoration = G_Spawn();
     vec2_t point = MAKE(vec2_t, 0, 0);
-    column->class_id = MAKEFOURCC('B', '0', '0', '4');
+    /* Stock Asds DataB is 250; other tests retain the non-stock 175 fixture. */
+    ((abilityLevel_t *)G_AbilityLevel(BZ_ASDS, 1))->data[1].number = 250;
+    column->class_id = MAKEFOURCC('B', 'T', 's', 'c');
     column->s.origin2 = MAKE(vec2_t, 45, 0);
-    column->targtype = TARG_DEBRIS;
-    column->health.value = column->health.max_value = 500;
+    column->targtype = TARG_WALL;
+    column->health.value = column->health.max_value = 50;
     column->destructable = G_AllocDestructable();
     decoration->class_id = MAKEFOURCC('B', '0', '0', '5');
     decoration->s.origin2 = MAKE(vec2_t, 50, 0);
@@ -145,7 +147,8 @@ TEST(wc3_spell, self_destruct_asds_damages_debris_not_decoration) {
     decoration->health.value = decoration->health.max_value = 500;
     decoration->destructable = G_AllocDestructable();
     T_ASSERT(S_CastPointTargetSpell(fix.goblin, BZ_ASDS, &point));
-    T_FEQ(column->health.value, 325, 0.001f);
+    T_ASSERT(column->destructable->dead);
+    T_FEQ(column->health.value, 0, 0.001f);
     T_FEQ(decoration->health.value, 500, 0.001f);
     sd_done(fix);
 }

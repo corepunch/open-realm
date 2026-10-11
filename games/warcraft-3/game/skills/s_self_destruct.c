@@ -19,7 +19,8 @@ static bool self_destruct_allows(uint32_t code, edict_t *caster, edict_t *target
 }
 
 /* Destructables use their own damage lifecycle and have no player alliance.
- * Respect the authored target classes rather than treating them as units. */
+ * Kaboom's stock target list includes debris but omits wall; retail still lets
+ * that blast destroy BTsc support columns, whose destructable class is wall. */
 static bool self_destruct_allows_destructable(uint32_t code, uint32_t level, edict_t *target) {
     abilityLevel_t const *row;
     cstring_t targets;
@@ -30,7 +31,7 @@ static bool self_destruct_allows_destructable(uint32_t code, uint32_t level, edi
     if (!targets) return false;
     switch (target->targtype) {
     case TARG_TREE:       return strstr(targets, "tree") != NULL;
-    case TARG_WALL:       return strstr(targets, "wall") != NULL;
+    case TARG_WALL:       return strstr(targets, "wall") != NULL || strstr(targets, "debris") != NULL;
     case TARG_DEBRIS:     return strstr(targets, "debris") != NULL;
     case TARG_BRIDGE:     return strstr(targets, "bridge") != NULL;
     case TARG_DECORATION: return strstr(targets, "decoration") != NULL;
