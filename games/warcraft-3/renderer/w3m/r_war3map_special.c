@@ -163,6 +163,7 @@ static cstring_t R_W3CutoutPath(uint32_t id, slkIndex_t const *slk,
                                 w3CutoutDoodadOverride_t const *overrides, uint32_t count) {
     uint32_t parent = id;
     w3CutoutDoodadRow_t const *row;
+    bool reached_base = false;
 
     /* Map-local doodad rows can inherit from other map-local rows. Bound the
      * walk by the table size so malformed cyclic input cannot loop forever. */
@@ -174,11 +175,18 @@ static cstring_t R_W3CutoutPath(uint32_t id, slkIndex_t const *slk,
                 break;
             }
         }
-        if (!override) break;
+        if (!override) {
+            reached_base = true;
+            break;
+        }
         if (override->overrides_path) return override->pathTex;
-        if (override->base == parent) break;
+        if (override->base == parent) {
+            reached_base = true;
+            break;
+        }
         parent = override->base;
     }
+    if (!reached_base) return NULL;
     row = FS_SLKLookup(slk, parent);
     return row ? row->pathTex : NULL;
 }
@@ -324,6 +332,8 @@ TEST(wc3_terrain, special_doodad_path_follows_map_custom_inheritance) {
     strlcpy(overrides[1].pathTex, "PathTextures/Changed.tga", sizeof(overrides[1].pathTex));
     T_STREQ(R_W3CutoutPath(overrides[0].target, &slk, overrides, 2), "PathTextures/Changed.tga");
     overrides[1].overrides_path = false;
+    overrides[0].base = parent.id;
+    overrides[1].target = parent.id;
     overrides[1].base = overrides[0].target;
     T_NULL(R_W3CutoutPath(overrides[0].target, &slk, overrides, 2));
 }
