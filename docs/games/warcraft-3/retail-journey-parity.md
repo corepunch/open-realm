@@ -112,7 +112,11 @@ Each rule below was found by a journey divergence, then checked against the orig
   a captured float word as SLK text must search for text that this parser maps to the word
   (see `target168_positive_fades_match_original_listener_requests`).
 
-The journey tracer also accepts `ra` (caller RVA) and `bt` (game.dll backtrace) call options.
+The journey tracer also accepts `ra` (caller RVA) and `bt` (game.dll backtrace) call options,
+`aN/K` (K dwords behind stack argument N at entry), `dOFF/K` (K dwords behind `[ECX+OFF]` on
+leave) and `lOFF` (the dword at `ECX+OFF` on leave). Dereferences of unmapped memory are
+recorded as missing instead of faulting. `WC3_JOURNEY_RETRIES=<file>` makes the engine replay
+log every retry seed draw as `time edict count word`, for comparison with `--call 1b7130::ra`.
 `--call 1b7130::ra` records every `PathRandom_Next` draw with its caller, and the owner stream
 is the state that `1d62bb` (retry init) uses. Draws made before the probe's
 `PATHMETA case=` marker (race resolution at `1e9dd0`) are not recorded.

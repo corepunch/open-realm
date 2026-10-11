@@ -31,12 +31,18 @@ function install(module) {
     // Optional thiscall observations: ECX, the first stack words and EAX on return; `out`
     // also reads the dword its first argument points to after return. `group` snapshots a
     // physical group at entry: flags80 and, per member (array28, stride2c, count38), member
-    // flags28, mover14 and moverD8. `peek` reads ECX-relative dwords at entry; `ra` appends the caller RVA; `bt` appends up to twelve fuzzy-backtrace game.dll RVAs.
+    // flags28, mover14 and moverD8. `peek` reads ECX-relative dwords at entry; `ra` appends the caller RVA; `bt` appends up to twelve fuzzy-backtrace game.dll RVAs; `argDerefs` read dwords through stack-argument
+    // pointers at entry and `leaveDerefs` read dwords through [ECX+offset] on return; `leavePeek` reads ECX-relative dwords on return.
     for (const call of config.calls || []) hook(call.rva, {
         onEnter() {
             this.ecx = this.context.ecx; this.args = Array.from({length: call.args || 0}, (_, i) => this.context.esp.add(4 + i * 4).readU32());
             this.peek = (call.peek || []).map(off => this.ecx.add(off).readU32());
             if (call.ra) this.peek.push(this.returnAddress.sub(base).toUInt32());
+            const words = (address, count) => {
+                try { return Array.from({length: count}, (_, i) => address.add(i * 4).readU32()); } catch (e) { return null; }
+            };
+            this.words = words;
+            for (const [index, count] of call.argDerefs || []) this.peek.push(words(ptr(this.args[index]), count));
             if (call.bt && active) this.peek.push(Thread.backtrace(this.context, Backtracer.FUZZY).slice(0, 12)
                 .map(a => a.sub(base).toUInt32()).filter(a => a < 0x1000000));
             if (call.group && active) {
@@ -50,6 +56,11 @@ function install(module) {
         onLeave(ret) {
             if (!active) return;
             const row = ['call', call.rva, this.ecx.toString(), this.args, ret.toUInt32()];
+            for (const offset of call.leavePeek || []) this.peek.push(this.ecx.add(offset).readU32());
+            for (const [offset, count] of call.leaveDerefs || []) {
+                const data = this.ecx.add(offset).readPointer();
+                this.peek.push(data.isNull() ? [] : this.words(data, count));
+            }
             row.push(call.out ? ptr(this.args[0]).readU32() : null, this.group || null, this.peek);
             push(row);
         }

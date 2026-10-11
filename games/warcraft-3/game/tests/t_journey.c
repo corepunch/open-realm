@@ -13,7 +13,7 @@ void reset_entities(void);
 void setup_test_world(void);
 void CM_SetupTestWorldBounds(box2_t const *);
 
-static FILE *journey_out, *journey_commits;
+static FILE *journey_out, *journey_commits, *journey_retries;
 static bool journey_complete;
 
 static hashtableEntry_t const *journey_cell(hashtable_t const *table, int32_t row, int32_t col) {
@@ -71,11 +71,21 @@ static void journey_commit(edict_t *u) {
             wc3_float_bits(wc3_velocity_scale(u->movement.velocity.y, wc3_float(0x3d000000))), wc3_float_bits(u->s.angle));
 }
 
+/* 167290 retry transitions. A seed that consumed the 1d62b0 owner draw logs that word;
+ * a short single-member seed (count 2) draws nothing and logs 0. */
+static void journey_retry(edict_t *unit, moveRetryTrace_t const *trace) {
+    uint32_t word = trace->owner.sum != level.pathing_random.sum ? level.pathing_random.sum : 0;
+    fprintf(journey_retries, "%08x %d %u %08x\n", wc3_float_bits(level.pathing_clock.time), (int)(unit - g_edicts),
+            trace->count, word);
+}
+
 TEST(wc3_journey, replay) {
     char const *map = getenv("WC3_JOURNEY_MAP"), *out = getenv("WC3_JOURNEY_OUT"), *commits = getenv("WC3_JOURNEY_COMMITS");
+    char const *retries = getenv("WC3_JOURNEY_RETRIES");
     if (!map || !out) return;
     journey_out = fopen(out, "w"); T_NOT_NULL(journey_out); if (!journey_out) return;
     if (commits) journey_commits = fopen(commits, "w"), move_test_motion_commit = journey_commit;
+    if (retries) journey_retries = fopen(retries, "w"), move_test_retry = journey_retry;
     reset_entities(); setup_test_world();
     /* setup_test_world owns static terrain; the real loader owns heap terrain. */
     world.map = NULL; CM_SetupTestWorldBounds(NULL);
@@ -85,7 +95,8 @@ TEST(wc3_journey, replay) {
     while (!journey_complete && level.time < 3600000) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(journey_complete);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    test_preload_marker = NULL; move_test_motion_commit = NULL;
+    test_preload_marker = NULL; move_test_motion_commit = NULL; move_test_retry = NULL;
+    if (journey_retries) fclose(journey_retries), journey_retries = NULL;
     fclose(journey_out); journey_out = NULL;
     if (journey_commits) fclose(journey_commits), journey_commits = NULL;
     G_ReleaseLevel(); CM_W3ClearMapData();
