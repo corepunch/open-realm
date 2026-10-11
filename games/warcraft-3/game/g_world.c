@@ -840,26 +840,36 @@ static void move_acc_widget_rectangle(edict_t const *owner,bool clear) {
  * class0 and its own5000-work budget. It excludes target, auxiliary source,
  * then predicted source, followed by target and source first widget regions.
  * Restoration repeats that order and re-reads every rectangle. */
-bool G_CaptainMoveReachable(edict_t const *actor,edict_t const *source,edict_t const *target,
-                          vec2_t const *from,vec2_t const *to) {
-    if (!pathmap.width || !pathmap.height) return false;
+uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *input,uint32_t *work) {
+    edict_t const *actor=input->actor,*source=input->source,*target=input->target;
+    vec2_t const *from=&input->from,*to=&input->to;
+    if(work)*work=0;
+    if (!pathmap.width || !pathmap.height) return UINT32_MAX;
     unsigned lane=0;uint8_t mask=S_UnitMoveCoarseMask(actor);
     while (lane<4 && move_acc_masks[lane]!=mask) lane++;
     if (lane==4) gi.error("Captain: unsupported coarse mask %02x",mask);
     move_acc_prepare();move_acc_enable_gates();move_spatial_sync();
     FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
-    edict_t const *objects[]={target ? target : actor,source ? source : actor,source ? source : actor};
+    edict_t const *objects[]={target,source,source};
     FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],true,0);
-    edict_t const *widgets[]={target ? target : actor,source ? source : actor};
+    edict_t const *widgets[]={target,source};
     FOR_LOOP(i,2) move_acc_widget_rectangle(widgets[i],true);
     vec2_t a=move_grid_from_world(from->x,from->y),b=move_grid_from_world(to->x,to->y);
     wc3AccRequest_t request={{wc3_mul(a.x,.5f),wc3_mul(a.y,.5f)},
-        {wc3_mul(b.x,.5f),wc3_mul(b.y,.5f)},1,BZ_WC3_GROUP_ACC_WORK};
+        {wc3_mul(b.x,.5f),wc3_mul(b.y,.5f)},1,input->budget};
     wc3FineVector_t endpoint;
     uint32_t result=wc3_acc_query_distance(&move_acc,&request,&endpoint);
+    if(work)*work=move_acc.work.pops;
     FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],false,0);
     FOR_LOOP(i,2) move_acc_widget_rectangle(widgets[i],false);
-    return result!=UINT32_MAX;
+    return result;
+}
+
+bool G_CaptainMoveReachable(edict_t const *actor,edict_t const *source,edict_t const *target,
+                          vec2_t const *from,vec2_t const *to) {
+    moveOwnerDistance_t input={.actor=actor,.source=source ? source : actor,
+        .target=target ? target : actor,.from=*from,.to=*to,.budget=BZ_WC3_GROUP_ACC_WORK};
+    return G_MoveOwnerDistance(&input,NULL)!=UINT32_MAX;
 }
 
 /*16b7b0 preferred-pair branch: source lane, maximum coarse footprint,

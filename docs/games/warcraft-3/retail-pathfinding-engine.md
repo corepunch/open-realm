@@ -18218,3 +18218,16 @@ binding/ABI. Seven frozen placement cases and cold saves exercise the engine.
 See [Captain relocation](retail-pathfinding-captain-policy.md#teleportcaptain-relocates-the-retained-actor-payoff290)
 for exact scope, reproduction and the separate default-location Reset producer.
 No previous retail fixture changes, save-layout change or broad TODO closure.
+
+
+## Shared Captain defaults and physical reset (Payoff291)
+
+Map-owned town spots now drive real attack/defense creation and ordered
+`ResetCaptainLocs`; live mine/hall anchors produce distinct exact-scalar defaults.
+Owner slots retain shared stable indexes, and reference counts bound withdrawal
+to four slots. Save176 preserves logical associations and rebuilds derived counts.
+Two retail repeats/control agree151 public markers and202 native boundaries;
+16 original refresh cases retain exact words. See
+[shared Captain defaults](retail-pathfinding-captain-policy.md#shared-default-homes-and-ordered-resetcaptainlocs-payoff291)
+for source contracts, regressions, Ghidra reproduction and remaining producers.
+No historical retail expected values or broad task count changed.

@@ -66,6 +66,7 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
 }
 
 void reset_entities(void) {
+    G_BotClearTownSpots();
     G_ResetUnitAbilityCodes();
     G_ResetSpawnCache();
     S_ResetWaygateCache();

@@ -959,8 +959,8 @@ TEST(wc3_bot, create_captains_resets_both_bot_owned_captains) {
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_create_captains.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
-        T_EQ(bot->captains[i].state, BOT_CAPTAIN_IDLE);
-        T_ASSERT(!bot->captains[i].full);T_ASSERT(!bot->captains[i].home_set);
+        T_EQ(bot->captains[i].state, i==BOT_CAPTAIN_ATTACK ? BOT_CAPTAIN_ACTIVE : BOT_CAPTAIN_FORMING);
+        T_ASSERT(!bot->captains[i].full);T_ASSERT(bot->captains[i].home_set);T_NOT_NULL(bot->captains[i].home_actor);
         T_EQ(ARRAY_COUNT(bot->captains[i].units), 0);
         T_NULL(bot->captains[i].units);
         T_FEQ(bot->captains[i].home.x, 0, 0.001f);
@@ -1310,7 +1310,7 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 3, type));
     T_ASSERT(!G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), true));
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_IDLE);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
 
     T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), false));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
@@ -1379,6 +1379,8 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
 TEST(wc3_bot, public_captain_go_home_near_home_keeps_the_actor_and_roster_request) {
     setup_test_world();
     player_t *player=&game.clients[2].ps;
+    /* Supply the original near-home actor creation state through its actual producer. */
+    ((mapInfo_t *)level.mapinfo)->players[player->start_location].startingPosition=(vec2_t){128,256};
     edict_t *unit=make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'),32,64,2,NULL);
     T_ASSERT(G_BotStart(player,"test_captain_go_home_near.ai",BOT_CAMPAIGN));
     G_BotRunFrame();
@@ -2171,6 +2173,8 @@ TEST(wc3_bot, teleport_captain_preserves_home_goal_and_members) {
     botCaptain_t *defense = &level.bots[2].captains[BOT_CAPTAIN_DEFENSE];
     reset_entities();
     memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    ((mapInfo_t *)level.mapinfo)->players[player->start_location].startingPosition=(vec2_t){100,200};
+    G_BotCreateCaptains(player);
     G_BotSetCaptainHome(player, 1, 100.0f, 200.0f);
     G_BotSetCaptainHome(player, 2, 700.0f, 800.0f);
     G_BotCaptainAttack(player, &(vec2_t){400.0f, 500.0f});
@@ -2184,7 +2188,8 @@ TEST(wc3_bot, teleport_captain_preserves_home_goal_and_members) {
     T_ASSERT(!defense->position_valid);
     T_ASSERT(G_BotCaptainAtGoal(player));
     G_BotResetCaptainLocs(player);
-    T_FEQ(attack->position.x, 100.0f, 0.01f);
+    T_FEQ(attack->home_actor->s.origin2.x,100,0);
+    T_ASSERT(!attack->position_valid);
     T_ASSERT(G_BotCaptainIsHome(player));
 }
 
@@ -2286,6 +2291,59 @@ TEST(wc3_bot, captain_targeting_selects_one_visible_group_objective) {
     T_ASSERT(a->goalentity == enemy_a && b->goalentity == enemy_a);
     player->rdflags = rdflags;
     G_BotCreateCaptains(player);
+}
+
+
+/* Public bare-town producer observed in Captain291: Create uses the player's
+ * assigned start-location slot. Reset restores that default, independently of
+ * subsequent authored homes, and relocates actual actors. */
+TEST(wc3_bot, captain291_default_start_and_reset_move_both_actors) {
+    G_BotShutdown();reset_entities();setup_test_world();
+    static uint8_t cells[256*256];
+    box2_t bounds={{-3072,-3072},{5120,5120}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(256,256,cells);
+    level.pathing_clock=(wc3Clock_t){.time=10,.span=300};
+    gameClient_t *client=G_GetPlayerClientByNumber(0);
+    uint32_t old_start=client->ps.start_location;
+    mapInfo_t *map=(mapInfo_t *)level.mapinfo;
+    vec2_t old_position=map->players[2].startingPosition;
+    client->ps.start_location=2;
+    map->players[2].startingPosition=(vec2_t){-2192,-144};
+    edict_t *units[3];
+    FOR_LOOP(i,3) units[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){-2064.0f+80.0f*i,-144},0);
+    G_BotCreateCaptains(&client->ps);
+    botCaptain_t *attack=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    botCaptain_t *defense=level.bots[0].captains+BOT_CAPTAIN_DEFENSE;
+    T_NOT_NULL(attack->home_actor);T_NOT_NULL(defense->home_actor);
+    T_FEQ(attack->home.x,-2192,0);T_FEQ(attack->home.y,-144,0);
+    T_FEQ(defense->home.x,-2192,0);T_FEQ(defense->home.y,-144,0);
+    if (attack->home_actor && defense->home_actor) {
+        T_NE(attack->home_actor,defense->home_actor);
+        T_ASSERT(G_BotAddAssault(&client->ps,3,MAKEFOURCC('h','f','o','o')));
+        G_BotSetCaptainHome(&client->ps,3,-1936,-560);
+        G_BotCaptainAttack(&client->ps,&(vec2_t){-1936,-1424});
+        vec2_t poses[3];FOR_LOOP(i,3)poses[i]=units[i]->s.origin2;
+        vec2_t request=attack->goal;
+        G_BotResetCaptainLocs(&client->ps);
+        T_FEQ(attack->home.x,-2192,0);T_FEQ(attack->home.y,-144,0);
+        T_FEQ(defense->home.x,-2192,0);T_FEQ(defense->home.y,-144,0);
+        T_FEQ(attack->home_actor->s.origin2.x,-2192,0);
+        T_FEQ(attack->home_actor->s.origin2.y,-144,0);
+        T_FEQ(defense->home_actor->s.origin2.x,-2192,0);
+        /* The attack actor occupies the exact point; defense undergoes its
+         * own ordinary admission, as observed in the retail two-actor trace. */
+        T_ASSERT(S_CaptainNearHome(defense));
+        T_ASSERT(defense->home_actor->s.origin2.y!=-560);
+        T_FEQ(attack->goal.x,request.x,0);T_FEQ(attack->goal.y,request.y,0);
+        T_ASSERT(!attack->position_valid && !defense->position_valid);
+        FOR_LOOP(i,3) {
+            T_FEQ(units[i]->s.origin2.x,poses[i].x,0);
+            T_FEQ(units[i]->s.origin2.y,poses[i].y,0);
+            T_EQ(units[i]->movement.captain_home.roster_actor,attack->home_actor);
+        }
+    }
+    client->ps.start_location=old_start;map->players[2].startingPosition=old_position;
+    G_BotShutdown();reset_entities();setup_test_world();
 }
 
 #endif /* BZ_TESTS */

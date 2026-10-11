@@ -1042,6 +1042,7 @@ void G_BotCreateCaptains(player_t *player) {
     if (!bot) return;
     G_BotClearCaptains(bot);
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) bot->captains[i].created = level.pathing_clock;
+    G_BotDefaultCaptainHomes(player);
 }
 
 /* Captain members remain in TownCount, so common.ai adds this count when requesting their replacements. */
@@ -1178,6 +1179,7 @@ static void G_BotWithdrawCaptainUnit(edict_t *unit,bool removed) {
 
 void G_BotRemoveCaptainUnit(edict_t *unit) {
     G_BotWithdrawCaptainUnit(unit,true);
+    G_BotWithdrawTownUnit(unit,true);
 }
 
 /* InitAssault requests formation without resetting either captain. */
@@ -1249,10 +1251,12 @@ typedef struct {
 } botCaptainSave_t;
 
 bool G_WriteCaptainState(FILE *file) {
+    if(!G_BotValidateTownSpots(false) || !G_WriteTownSpots(file))return false;
     bool seen[MAX_ENTITIES]={0};
     FOR_LOOP(p,MAX_PLAYERS) {
         bot_t const *bot=level.bots+p;
         uint32_t policy[]={bot->flags,bot->town_initialized,bot->mode};
+        if(fwrite(bot->town_spots,sizeof(bot->town_spots),1,file)!=1)return false;
         if (fwrite(policy,sizeof(policy),1,file)!=1) return false;
         FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
             botCaptain_t const *captain=bot->captains+c;
@@ -1278,9 +1282,11 @@ bool G_WriteCaptainState(FILE *file) {
 }
 
 bool G_ReadCaptainState(FILE *file) {
+    if(!G_ReadTownSpots(file))return false;
     bool seen[MAX_ENTITIES]={0};
     FOR_LOOP(p,MAX_PLAYERS) {
         bot_t *bot=level.bots+p;
+        if(fread(bot->town_spots,sizeof(bot->town_spots),1,file)!=1)return false;
         uint32_t policy[3];
         if (fread(policy,sizeof(policy),1,file)!=1 || policy[0]>>16 || policy[1]>1 || policy[2]>BOT_MELEE) return false;
         bot->flags=policy[0];bot->town_initialized=policy[1];bot->mode=policy[2];
@@ -1326,7 +1332,7 @@ bool G_ReadCaptainState(FILE *file) {
             }
         }
     }
-    return true;
+    return G_BotValidateTownSpots(true);
 }
 
 /* Captain requests reconcile totals by type, including retained assault recruits.
@@ -1668,11 +1674,7 @@ void G_BotClearCaptainTargets(player_t *player) {
 void G_BotResetCaptainLocs(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
-    FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
-        bot->captains[i].position = bot->captains[i].home;
-        bot->captains[i].position_valid = true;
-        bot->captains[i].goal = bot->captains[i].home;
-    }
+    G_BotResetTownCaptainHomes(player);
 }
 
 void G_BotSetStagePoint(player_t *player, float x, float y) {
@@ -2254,6 +2256,7 @@ static void G_BotAdmitUnit(edict_t *unit) {
     if(!unit || !unit->inuse || !(unit->svflags & SVF_MONSTER) || M_IsDead(unit) ||
        unit->targtype==TARG_WARD || unit->s.player>=MAX_PLAYERS)return;
     if(level.ai_owned_players&(1u<<unit->s.player))unit->aiflags|=AI_TOWN_OWNED;
+    G_BotRegisterTownUnit(unit);
 }
 
 /* Native1e9a40 creates Town AI for playing computer slots and always for
@@ -2277,6 +2280,7 @@ void G_BotInitPlayers(void) {
 void G_BotUnitOwnerChanged(edict_t *unit) {
     /* Native698ce0 clears bit4 after the owner event, then9b9230 reenrolls.
      * An already armed help request retains its original deadline. */
+    G_BotWithdrawTownUnit(unit,false);
     unit->aiflags&=~AI_TOWN_OWNED;
     G_BotAdmitUnit(unit);
 }
@@ -2307,7 +2311,10 @@ void G_BotStop(uint32_t player) {
     if (bot->commands) gi.MemFree(bot->commands);
     if (bot->harvesters) gi.MemFree(bot->harvesters);
     if (bot->guards) gi.MemFree(bot->guards);
+    uint32_t spots[BOT_TOWN_SPOTS];
+    memcpy(spots,bot->town_spots,sizeof(spots));
     memset(bot, 0, sizeof(*bot));
+    memcpy(bot->town_spots,spots,sizeof(spots));
 }
 
 /* Removal can originate inside the player's AI coroutine, so teardown waits until that resume returns. */
@@ -2317,6 +2324,7 @@ void G_BotRequestStop(uint32_t player) {
 }
 
 void G_BotShutdown(void) {
+    G_BotClearTownSpots();
     FOR_LOOP(player, MAX_PLAYERS) G_BotStop(player);
 }
 

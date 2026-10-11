@@ -2011,6 +2011,7 @@ struct edict_s {
     uint32_t scheduled_think_frame; /* transient: prevent two owner thinks after a frame-local transition */
     uint32_t class_id;
     uint64_t own_seq; /* Current owned-pool insertion order; independent of edict address. */
+    uint32_t ai_town_spot, ai_town_player, ai_anchor_spot; /* Map-owned CTownSpot indexes; zero is absent. */
     uint32_t variation;
     uint32_t build_project;
     edict_t *build_preview; /* translucent Construction Site Indicator for an accepted build order */
@@ -2605,6 +2606,14 @@ typedef enum {
     BOT_DISABLE_PATHING = 1 << 17, /* AI policy only; never ignore collision in orders */
 } botFlag_t;
 
+#define BOT_TOWN_SPOTS 4 /* Original Town1b8..1c4. */
+typedef struct {edict_t *unit;uint32_t spawn_time;} botTownAnchor_t;
+typedef struct {
+    vec2_t attack_home,defense_home;
+    botTownAnchor_t building,mine,overlay;
+    uint32_t members[MAX_PLAYERS]; /* Derived unit associations; constant-time slot pruning. */
+} botTownSpot_t;
+
 typedef struct {
     jass_t *vm;
     player_t *player;
@@ -2625,6 +2634,7 @@ typedef struct {
     botMode_t mode;
     uint32_t flags;
     bool town_initialized; /* Town policy survives independent AI script startup. */
+    uint32_t town_spots[BOT_TOWN_SPOTS];
     int32_t replacement_count;
     uint32_t hero_id;
     uint32_t hero_level;
@@ -2722,6 +2732,8 @@ struct level_locals {
     gLightning_t lightning_effects[MAX_LIGHTNING_EFFECTS];
     uint32_t next_lightning_id;
     bot_t bots[MAX_PLAYERS];
+    ARRAY(botTownSpot_t,ai_town_spots);
+    uint32_t ai_town_spots_capacity;
     uint32_t ai_owned_players; /* Configured Town AI objects; independent of script startup. */
     uint32_t ai_vm_initialized; /* Player bits: retail AI+248 gates initial VM creation. */
     mapInfo_t const *mapinfo;
@@ -2985,6 +2997,15 @@ void G_BotFillGuardPosts(player_t *);
 void G_BotReturnGuardPosts(player_t *);
 void G_BotHeroLevelUp(edict_t *);
 void G_BotInitPlayers(void);
+void G_BotRegisterTownUnit(edict_t *);
+void G_BotWithdrawTownUnit(edict_t *,bool);
+void G_BotRefreshTownSpot(botTownSpot_t *);
+void G_BotDefaultCaptainHomes(player_t *);
+void G_BotResetTownCaptainHomes(player_t *);
+void G_BotClearTownSpots(void);
+bool G_WriteTownSpots(FILE *);
+bool G_ReadTownSpots(FILE *);
+bool G_BotValidateTownSpots(bool);
 void G_BotTemporaryUnitReady(edict_t *);
 bool G_WriteCaptainState(FILE *);
 bool G_ReadCaptainState(FILE *);
@@ -4353,6 +4374,12 @@ void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);
 bool S_IssueCaptainHomeMove(edict_t *, botCaptain_t const *);
 bool S_AdmitTemporaryCaptainUnit(edict_t *, botCaptain_t const *, edict_t *);
 void S_DetachCaptainUnit(edict_t *);
+typedef struct {
+    edict_t const *actor, *source, *target;
+    vec2_t from, to;
+    uint32_t budget;
+} moveOwnerDistance_t;
+uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *,uint32_t *);
 bool G_CaptainMoveReachable(edict_t const *, edict_t const *, edict_t const *, vec2_t const *, vec2_t const *);
 void S_SetCaptainHomeActor(botCaptain_t *, uint32_t, uint32_t);
 void S_TeleportCaptainActor(botCaptain_t *, vec2_t const *);

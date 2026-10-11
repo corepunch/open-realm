@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "245 executable original/evidence contracts;526 total entries; provenance and limitations remain per-entry.",
+  "scope": "246 executable original/evidence contracts;527 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53157,6 +53157,55 @@
       "exclusions": [
         "Default Town/first actor creation, ResetCaptainLocs default-location selection, nonfinite/outside domains and wider combat/roster/goal lifetimes remain existingBASE-01.4/GROUP-03.4.7.3. No broad closure or performance claim."
       ]
+    },
+    {
+      "id": "oracle-captain291",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_captain291.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "captain291.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 1537
+        },
+        "original_refreshes": {
+          "equal": 16
+        },
+        "engine": {
+          "length": 2
+        },
+        "retail": {
+          "length": 7
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": [
+        "Two observed original-terrain public AI repeats and observer-free control preserve151 public markers and101 ordered native boundaries each; bare map is one additional exploratory observation, not independently repeated.",
+        "Sixteen original unmodified refresh calls control external identity/bridge/notification completion. First nine outputs match live captures; seven supplied pre-call cases are labelled arithmetic domains, not public placement journeys.",
+        "Engine fixtures exercise actual stock capability classification with a supplied authored htow Argd row (absent from minimal test archive), creation, owner-excluding hierarchy selection, actor placement/reset, removal and cold engine saves. They do not certify full preceding retail unit trajectories or retail save equivalence.",
+        "Independent initial Town-selection timer, ugol overlay producer, moved-slot owner policy inverses and broader combat/roster defaults remain BASE-01.4/GROUP-03.4.7.3. No broad task closure or performance claim."
+      ],
+      "exclusions": [
+        "Independent initial Town-selection timer, ugol overlay producer, moved-slot owner policy inverses and broader combat/roster defaults remain BASE-01.4/GROUP-03.4.7.3. No broad task closure or performance claim."
+      ]
     }
   ],
   "fixtures": [
@@ -53222,7 +53271,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "a8c2705d6f0613f459ce3396fa8383c1debe2752a388e2573c1b4b81b743b8d6"
+      "sha256": "b26477f394b714ea63d5d234705b0ebe62a4951ab15e290cd11c8d766e587962"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -54055,7 +54104,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "f2d315ab5745172d2552c8c4149e8f984ed34f397b56b519d9bd0467e2c7597b"
+      "sha256": "c975753e14018b12d764a0b4bbc94c8193417b45d0ce84c17aad2db49f210686"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55343,11 +55392,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "81fc4ab94ca03f4c5689b098d05774c3a562eed80cfaf8c5c4f910de260f0fad"
+      "sha256": "2d3a960d1cf655ffcfd2b80a5adf0e5ee7b3e21551de814b965675a00032c407"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "991519b76e6970770c738e14e930a38c8193b19583bf40daf2880cf0c32848f5"
+      "sha256": "578119150013c72ba6a6653df6310aa1b80fb1123525b00902320831967e7dbe"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -55355,7 +55404,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "b722f870f098780246d97d05bebd94289ef1505d285f64aac564de8e0e945ac8"
+      "sha256": "7cb44b8ad7a7426b7bdc997f8272bff8717d49ac1c1744f2536d6393e75549b6"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -55603,7 +55652,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "b3f9104402897da1352796e0bb55e451adc0bd8f80e9caa7dae9518f53a64c64"
+      "sha256": "55d446c81cccba7d42421d64d731512cbeca7be3bf320cc5d0c5e14f22226ce7"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -55847,7 +55896,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "c1ea646b1d13f28687eae29975c30ece9d6d8b1f08e1a894fd1b60671b052e1f"
+      "sha256": "0dd90c3ec6f9588f7e04529c14ee6e256991ad48f88e97771cd886c790b7b643"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -55859,11 +55908,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "5b92e4ecff45ff069620e407c7531a7c22d201d7c8cd353a16eb98e67422c826"
+      "sha256": "72488987eff922f7bb507f961845fdfbdc39404f9a684407757f6a287d73f5ba"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "d6340b40d763aebddd44adb8a7ab186b38c188f31ee4e700b38de9fa3f1a96e0"
+      "sha256": "73af877285697e0e2851abc40fd0be4081a52b326ef3d0008e545db7fe148cbe"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -55983,7 +56032,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_bot.c",
-      "sha256": "b8bb95dd57130aee8670471bf178c0c4d13c6f6f5843ab349ff5194e19b9d111"
+      "sha256": "e7237b0cc71593c3fe496c291b43a06f44cca9bd99c393ac0db9c64604ed723b"
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
@@ -55995,7 +56044,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
-      "sha256": "b3e9853f40c18198872d4d8bd6e3f277801903032ff411c4f062dec07a608f6c"
+      "sha256": "16047a23995e0c65e20e22629bacb9333e066d1d21020f22ab4ea5cc782a6806"
     },
     {
       "path": "tools/frida/research/attack_help153_probe.j",
@@ -56259,7 +56308,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
-      "sha256": "1e0a4df1ab1aecfce4aa2e6caa3dbdf73a1865b3664504a9328806411940354c"
+      "sha256": "76801bae8ee8534b46e0c625ab4768af050e31dfc9a845812a48d5c23c2422f6"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.7.3/HANDOFF.md",
@@ -56935,7 +56984,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_utils.c",
-      "sha256": "3f3dd610ef0b2a370aa80b1058c5019cb0f2bf40099fb868ec3652300aee0434"
+      "sha256": "48a03d4d17b52e522c912676e429559485edfc0e78a28ca95d918d9e1086b6a2"
     },
     {
       "path": "games/warcraft-3/game/skills/s_patrol.c",
@@ -61000,6 +61049,66 @@
     {
       "path": "tests/test_wc3_pathfinding_teleport290.py",
       "sha256": "13f9a0c71587eea2b9eafcc42e891944b700d74ef78cc290b302bac2fa5d1636"
+    },
+    {
+      "path": "games/warcraft-3/game/g_bot_town.c",
+      "sha256": "e94f61375930eca172bc3e31eab3b7cfa16d308ff275b96dc44c8fb2e8b437af"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_captain_enrollment.c",
+      "sha256": "5d493711633fad2c74b6efc45aee8effd15ea55d82ad9d1682c3e9e8e3054b1e"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_captain_town.c",
+      "sha256": "4c7b44e9c535bc9676af94ca089e3b614695609192653428e4c9df551ca68735"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_captain291.h",
+      "sha256": "f2582883fc5fff9e2a0a8adb0d786be010edb44f5f3d68e0718715cb8c36dcd6"
+    },
+    {
+      "path": "tools/frida/research/captain291_make_map.py",
+      "sha256": "f34c07652cca7c767142a21d7ad678660bcde9bff36ebeadbff5c51193e9721a"
+    },
+    {
+      "path": "tools/frida/research/captain291_probe.j",
+      "sha256": "73b27f2fc07bbd995ab43c9dd587f627d348b4c76be60646e3dd87e066eae365"
+    },
+    {
+      "path": "tools/frida/research/captain291_probe.ai",
+      "sha256": "4d516cf1a03b78367e784d66650a4ed84da3502e1e20ae48270344f0307230be"
+    },
+    {
+      "path": "tools/frida/research/captain291_observer.js",
+      "sha256": "11055c92941edbd48497ce5442268963c62cccc7aa47b3c09ffae48b5fcf62d2"
+    },
+    {
+      "path": "tools/ghidra/research/captain291_oracle.py",
+      "sha256": "81a7c179244882c65a8e968ce5cf0d359f353bbc5b05e13376fd2a2f02fbc448"
+    },
+    {
+      "path": "tools/ghidra/research/Captain291Evidence.java",
+      "sha256": "92f9df97d84a23b8d31fba3d5c677a3d2f433a509c0b50f11041d68a576de833"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_captain291.py",
+      "sha256": "df3735f7c4bf6cb41b9c3afc9ab096764775ab3043000f2e83ea7ee241bae277"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain291-types-1.27.json",
+      "sha256": "ada84861d2123231c7b5a07ec6011ceb2e8609a49e97d67cdbdcd2caf1a44693"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain291-1.27.json",
+      "sha256": "8fb3b1a90b4c2add6cc77d02fc6fd9604b56a467fe6978e942194bf4cfbefb08"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain291-1.27.json.gz",
+      "sha256": "8d6427e32c3c11d298bf52e05bc699f3edb05d7e06450fb1ff8eb2b43bf1ace1"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain291.py",
+      "sha256": "7c73744c5802191bb1a2d6d725680921c998bcbde974f0051919e9029c5246d4"
     }
   ]
 }

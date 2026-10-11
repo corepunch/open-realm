@@ -3806,6 +3806,7 @@ typedef struct {
     edict_t *units[14];
     uint32_t rows[52][7];
     unsigned count;
+    float actor_observed_from; /* Original capture begins actor motion after its public GoHome. */
 } followCommitTrace_t;
 static followCommitTrace_t *follow_commit_trace;
 
@@ -17046,6 +17047,20 @@ TEST(wc3_movement, public_ai_mixed_recruits_match_original_captain_home) {
     public_point_goal_journey(5,captain_mixed_motion,sizeof(captain_mixed_motion)/sizeof(*captain_mixed_motion),false);
 }
 
+/* These retail fixtures capture roster commits and, when explicitly enrolled
+ * below, the attack actor. CreateCaptains also constructs a defense actor;
+ * its independent commits are not rows in this captured projection. */
+static void record_captain_observed_commit(edict_t *unit) {
+    FOR_LOOP(i,sizeof(follow_commit_trace->units)/sizeof(*follow_commit_trace->units)) {
+        if(follow_commit_trace->units[i]==unit) {
+            if(unit->movement.captain_actor_type &&
+               unit->movement.pose_clock.time<follow_commit_trace->actor_observed_from)return;
+            record_follow_commit(unit);return;
+        }
+    }
+    T_ASSERT(unit->movement.captain_actor_type);
+}
+
 /* Recruitment must retain owned insertion order before and after saves. The
  * delayed birth goes through the public RemoveUnit/CreateUnit path and really
  * reuses the lower slot; neither freetime nor movement words are injected. */
@@ -17098,7 +17113,7 @@ static void public_captain_pool_journey(unsigned mode) {
     T_NOT_NULL(trace.units[0]); T_NOT_NULL(trace.units[1]);
     edict_t *selected=trace.units[mode==1],*idle=trace.units[mode!=1];
     uint64_t original=trace.units[0]->own_seq;
-    follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
+    follow_commit_trace=&trace; move_test_motion_commit=record_captain_observed_commit;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     unsigned times[8]={995,1200,1500,1995,2010,6255,6270,6300},saved[8]={0};
     if(reuse)memcpy(times,(unsigned[]){495,995,1995,2100,2995,3010,7270,7300},sizeof(times));
@@ -17237,12 +17252,17 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     globals.RunFrame();
     T_EQ(level.pathing_random.sum,4273436052u);T_EQ(level.pathing_random.index,209508436u);
     followCommitTrace_t trace={0};
+    /* Frozen retail actor commits start at the GoHome travel observation;
+     * constructor/empty-roster recovery commits are a separate291 producer. */
+    if(go_home)FOR_LOOP(i,count)if(motion[i][0]==13) {
+        trace.actor_observed_from=wc3_float(motion[i][1]);break;
+    }
     unsigned found=0;
     FILTER_EDICTS(unit,unit->inuse && (unit->class_id==types[0].newUnitID || (mixed && unit->class_id==types[1].newUnitID))) {
         T_ASSERT(found<members); if(found<members)trace.units[found++]=unit;
     }
     T_EQ(found,members);
-    follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
+    follow_commit_trace=&trace; move_test_motion_commit=record_captain_observed_commit;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     unsigned times[8]={995,1500,1995,2010,6390,6420,6750,7950},saved[8]={0};
     if(members==13)memcpy(times,(unsigned[]){995,1500,1995,2010,6390,7750,10000,13500},sizeof(times));
@@ -17930,7 +17950,7 @@ static void public_captain_lifetime_journey(unsigned operation,uint32_t const (*
     followCommitTrace_t trace={0};unsigned found=0;
     FILTER_EDICTS(unit,unit->inuse && (unit->class_id==types[0].newUnitID || unit->class_id==types[1].newUnitID))
         if(found<13)trace.units[found++]=unit;
-    T_EQ(found,13);follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    T_EQ(found,13);follow_commit_trace=&trace;move_test_motion_commit=record_captain_observed_commit;
     groupRadiusTrace_t radii_trace={0};group_radius_trace=&radii_trace;move_test_group_route=record_captain_shared_radius;
     unsigned steps=0,footprint_steps=0,saved_steps[5]={0},saved_footprints[5]={0},suffix=0;
     unsigned times[]={10150,12000,14000,20000,30000};char files[5][80];

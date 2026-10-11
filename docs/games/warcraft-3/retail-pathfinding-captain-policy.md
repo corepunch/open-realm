@@ -252,6 +252,96 @@ format are unchanged. This chunk makes no frame-budget or full-motion claim.
 `ResetCaptainLocs` is separate: AI native `6f9bee60` calls `6f9c9c10`, which
 fetches default AI locations through `6f9bb750`, updates selected homes and
 teleports attack and defense Captains. It does not copy the currently authored
-homes. That default-location producer, first/default Town actor creation,
-exceptional coordinate domains and wider combat/roster/goal lifetimes remain
+homes. Payoff291 below integrates the shared default-location producer and first actor
+creation. Independent Town timers, exceptional coordinate domains and wider
+combat/roster/goal lifetimes remain
 under BASE-01.4/GROUP-03.4.7.3; this bounded integration closes neither broad leaf.
+
+
+## Shared default homes and ordered ResetCaptainLocs (Payoff291)
+
+`CreateCaptains` now obtains its attack and defense homes from a map-owned
+`CTownSpot`. `ResetCaptainLocs` refreshes that spot from its live anchors, calls
+the attack home callback and teleports the attack actor, then performs the same
+ordered pair for defense. It preserves the existing home-callback policy and
+ordinary physical admission. Authored homes, shared defaults and admitted actor
+positions are separate state: moving the defaults does not rewrite every old
+Captain request, and competing actors need not admit to identical positions.
+
+The original `9c5360` first uses Town slot `1b8`. If absent, it admits the player's
+**assigned start-location slot** through `9c01f0`; it does not use the player
+number or world zero. Attack construction receives native state2; defense gets
+state1. Their identities occupy `2ac/2b0` and `2b8/2bc` respectively.
+
+A spot stores independent building, mine and overlay identities. With no live
+building/mine, refresh retains its defaults. One live anchor supplies both homes.
+With both anchors, `9bfe80` computes, in original software-scalar order:
+
+```
+delta = building.xyz - mine.xyz
+length = sqrt((delta.x*delta.x + delta.y*delta.y) + delta.z*delta.z)
+defense.xy = mine.xy + delta.xy*0.5
+attack.xy = building.xy + (delta.xy*300)*(1/length)
+```
+
+The runtime scalar at `d3c7d8` is300. The Z term and multiply/divide order matter;
+seven labelled supplied-input cases cover absent, coincident, nonplanar,
+subpixel and large coordinates. The original binary executes all arithmetic,
+with only external identity, position and FloatMini notification completion
+controlled. First nine oracle results also equal live refresh words.
+
+`g_bot_town.c` owns the shared append-only pool and four ordered slots per Town.
+Natural mine registration and gold-return building admission use real
+owner-excluding coarse distance, preserving strict thresholds80/70, encounter
+ties and tightening150/5000 work budgets. Workers/ordinary structures select
+among owner slots; ordinary combat units use the global pool. Logical unit
+associations carry stable pool indexes and owner identities. Derived per-player
+reference counts replace repeated owned-unit scans during slot removal: prune
+and compact at most four slots. Anchor backreferences make withdrawal constant
+time. Global identities are retained until map teardown, even after owner slots
+are cleared. Explicit authored homes and construction `ShiftTownSpot` hints stay
+independent.
+
+Save176 serializes logical homes, anchor edict identities/spawn generations,
+owner slots and unit associations. Load rebuilds derived membership counts.
+Invalid indexes, inconsistent owners/counts and truncated oversized pool data
+are rejected. Fresh and cold-save tests drive actual creation, spatial selection,
+physical reset, mine/hall removal, fallback creation and shutdown.
+
+Two read-only original-terrain runs preserve151 public markers against an
+unhooked control, including member positions and public Captain queries.
+Their101 ordered native boundaries agree exactly, including four actor creates,
+nine refreshes and seven resets. A separate bare-start observation witnesses the
+fallback but is labelled exploratory because it has no independent repeat/control.
+Failed flat-map launches and the superseded temporary Frida ReturnValue observer
+remain diagnostic archive material, excluded from the accepted fixture.
+
+Reproduce with `tools/ghidra/verify_wc3_pathing_captain291.py --binary <game.dll>
+--report <fresh.json>`. Frozen fixtures, sixteen original calls,1537 original
+instruction guards and engine tests are checked together. `Captain291Evidence.java`,
+`MapPathfinding.java` and the focused `retail-captain291-types-1.27.json` retain
+21 function annotations, two newly recovered partial layouts, six explicit x86
+ABIs and three globals. Saved Ghidra exports are read back and compared.
+
+No old retail expected words were edited. Two earlier captured movement tests
+now supply their required initial pose through assigned-start setup; their
+expected trajectories remain unchanged. Old engine-only assertions that creation
+left idle, absent actors were corrected from native construction evidence. The motion recorders now limit their projection to captured roster members;
+the extended GoHome fixture observes the attack actor from its first captured
+GoHome commit. Constructor/empty-roster recovery commits before that captured
+window are outside that older fixture, and remain a separate producer contract.
+No early constructor motion parity is inferred from the later trace. The
+minimal archive lacks a Town Hall ability row, so the new lifecycle test supplies
+its authored `Argd` gold-return capability explicitly.
+
+The independent initial Town-selection timer `9cc6b0`, special `ugol` overlay
+producer `9c0280`, moved-slot owner policy inverses and broader combat/roster
+compositions remain open in BASE-01.4/GROUP-03.4.7.3. This chunk does not establish
+complete retail save parity, preceding unit trajectories, or a frame-budget win.
+Archive: `research/GROUP-03.4.7.3/payoff291/` under the1.27 report root.
+
+
+Final focused validation on the merged coarse-waypoint/Hero-name commits passes
+351 tests /2,649,785 assertions per Classic/TFT, plus two adjacent tests /585
+assertions per edition. Eleven evidence checks and37 corpus checks pass. These
+are focused checks; the full repository checkpoint is not claimed here.

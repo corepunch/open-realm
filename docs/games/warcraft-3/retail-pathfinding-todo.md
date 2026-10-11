@@ -56,6 +56,13 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **290 done / 336 tasks; 46 remaining.**
+Payoff291 integrates shared map-owned Captain default homes and the actual ordered
+ResetCaptainLocs path, with live mine/hall admission, O(4) owner-slot pruning and
+cold-save restoration. Two retail repeats/control,16 original refresh calls and
+saved Ghidra structures/ABIs support the implementation. Independent Town timers,
+overlay producers and combat policies keep the broad leaves open;46 remain.
+See [shared defaults](retail-pathfinding-captain-policy.md#shared-default-homes-and-ordered-resetcaptainlocs-payoff291).
+
 Payoff290 replaces the fake TeleportCaptain position override with real actor
 placement, retaining velocity, routes, group/request and roster. Two retail
 repeats/control, seven exact placement cases and12 original wrapper cases cover

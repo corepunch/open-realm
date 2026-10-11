@@ -5532,6 +5532,102 @@
           "evidence": "Payoff272 66d990/1c7ba0 column-major support basis."
         }
       ]
+    },
+    {
+      "name": "WC3CaptainDefaultTownSpot",
+      "length": 108,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "index",
+          "type": "u32",
+          "evidence": "Payoff291 instruction9bc1c0/9bfe80 and two repeated read-only anchor/default-home captures."
+        },
+        {
+          "offset": 40,
+          "name": "attack_x",
+          "type": "WC3FloatMini",
+          "evidence": "Payoff291 instruction9bc1c0/9bfe80 and two repeated read-only anchor/default-home captures."
+        },
+        {
+          "offset": 48,
+          "name": "attack_y",
+          "type": "WC3FloatMini",
+          "evidence": "Payoff291 instruction9bc1c0/9bfe80 and two repeated read-only anchor/default-home captures."
+        },
+        {
+          "offset": 56,
+          "name": "defense_x",
+          "type": "WC3FloatMini",
+          "evidence": "Payoff291 instruction9bc1c0/9bfe80 and two repeated read-only anchor/default-home captures."
+        },
+        {
+          "offset": 64,
+          "name": "defense_y",
+          "type": "WC3FloatMini",
+          "evidence": "Payoff291 instruction9bc1c0/9bfe80 and two repeated read-only anchor/default-home captures."
+        },
+        {
+          "offset": 72,
+          "name": "building",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff291 instruction9bc1c0/9bfe80 and two repeated read-only anchor/default-home captures."
+        },
+        {
+          "offset": 84,
+          "name": "mine",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff291 instruction9bc1c0/9bfe80 and two repeated read-only anchor/default-home captures."
+        },
+        {
+          "offset": 96,
+          "name": "overlay",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff291 instruction9bc1c0/9bfe80 and two repeated read-only anchor/default-home captures."
+        }
+      ]
+    },
+    {
+      "name": "WC3TownSpotSlotsPrefix",
+      "length": 456,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "player",
+          "type": "u32",
+          "evidence": "Payoff2919c5360/9ccb60/9c4280 owner slots and enrollment associations."
+        },
+        {
+          "offset": 40,
+          "name": "owned_head",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff2919c5360/9ccb60/9c4280 owner slots and enrollment associations."
+        },
+        {
+          "offset": 440,
+          "name": "spot_0",
+          "type": "i32",
+          "evidence": "Payoff2919c5360/9ccb60/9c4280 owner slots and enrollment associations."
+        },
+        {
+          "offset": 444,
+          "name": "spot_1",
+          "type": "i32",
+          "evidence": "Payoff2919c5360/9ccb60/9c4280 owner slots and enrollment associations."
+        },
+        {
+          "offset": 448,
+          "name": "spot_2",
+          "type": "i32",
+          "evidence": "Payoff2919c5360/9ccb60/9c4280 owner slots and enrollment associations."
+        },
+        {
+          "offset": 452,
+          "name": "spot_3",
+          "type": "i32",
+          "evidence": "Payoff2919c5360/9ccb60/9c4280 owner slots and enrollment associations."
+        }
+      ]
     }
   ],
   "methods": [
@@ -18888,6 +18984,108 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f9bb750",
+      "name": "TownSpot_Lookup",
+      "returns": "ptr:WC3CaptainDefaultTownSpot",
+      "parameters": [
+        {
+          "name": "index",
+          "type": "i32",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f9bfe80",
+      "name": "TownSpot_RefreshDefaultCaptainHomes",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "spot",
+          "type": "ptr:WC3CaptainDefaultTownSpot",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f9bc1c0",
+      "name": "TownSpot_Initialize",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "spot",
+          "type": "ptr:WC3CaptainDefaultTownSpot",
+          "storage": "ECX"
+        },
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f9ccb60",
+      "name": "TownAI_AppendSpot",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "town",
+          "type": "ptr:WC3TownSpotSlotsPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "index",
+          "type": "i32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f9c01f0",
+      "name": "TownAI_AdmitSpot",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "town",
+          "type": "ptr:WC3TownSpotSlotsPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3FloatVector3",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f9c9c10",
+      "name": "TownAI_ResetCaptainLocations",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "town",
+          "type": "ptr:WC3TownSpotSlotsPrefix",
+          "storage": "ECX"
+        }
+      ]
     }
   ],
   "globals": [
@@ -19316,6 +19514,24 @@
       "name": "Attack_BlinkRetentionRange",
       "type": "WC3PathScalar",
       "evidence": "Payoff224:013500 EDX2000 ->070d80 startup converter; runtime44fa0000 observed at49b555. Selector0 committed-center range."
+    },
+    {
+      "address": "6fd3c7d8",
+      "name": "TownSpot_AttackHomeOffset",
+      "type": "WC3PathScalar",
+      "evidence": "Payoff291 runtime scalar300.0 in both live repeats, read by9bfe80."
+    },
+    {
+      "address": "6fd77e58",
+      "name": "TownSpot_Count",
+      "type": "u32",
+      "evidence": "Payoff2919bd2a0/9bd390 append;9ba5d0/9ba790 encounter-order scans."
+    },
+    {
+      "address": "6fd77e74",
+      "name": "TownSpot_Table",
+      "type": "ptr:ptr:WC3CaptainDefaultTownSpot",
+      "evidence": "Payoff2919bb750 index lookup; shared map-owned stable identity table."
     }
   ]
 }

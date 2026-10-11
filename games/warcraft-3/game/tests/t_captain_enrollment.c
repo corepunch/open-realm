@@ -104,6 +104,8 @@ TEST(wc3_bot, temporary_captain_disconnected_admission_uses_point_and_no_issued_
     ((mapInfo_t *)level.mapinfo)->players[0].used=true;
     game.clients[0].mapplayer=level.mapinfo->players;
     game.clients[0].jass.controller=1;G_BotInitPlayers();
+    /* Keep the captured fallback pose; default actor creation now uses this producer. */
+    ((mapInfo_t *)level.mapinfo)->players[game.clients[0].ps.start_location].startingPosition=(vec2_t){1600,1024};
     G_BotCreateCaptains(&game.clients[0].ps);G_BotSetCaptainHome(&game.clients[0].ps,1,1600,1024);
     /* Native058900 supplies the committed fallback, whereas0594f0
      * predicts the source of a reachability query. Separate those poses. */
