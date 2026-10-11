@@ -392,6 +392,17 @@ static void SheetSetTypedField(uint8_t *dst, bzFieldType_t type, cstring_t value
     }
 }
 
+/* Profile keys such as Missileart hold one comma-separated element per weapon;
+ * out-of-range indexes reuse the last element so a single value covers both. */
+static cstring_t SheetListElement(cstring_t value, uint32_t index, char *buf, size_t size)
+{
+    cstring_t start = value, comma;
+    while (--index && (comma = strchr(start, ','))) start = comma + 1;
+    comma = strchr(start, ',');
+    snprintf(buf, size, "%.*s", (int)(comma ? comma - start : (ptrdiff_t)strlen(start)), start);
+    return buf;
+}
+
 static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *schema, size_t row_size, uint32_t *count_out)
 {
     uint32_t capacity = 0, out_count = 0;
@@ -438,6 +449,7 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
 
             for (slkField_t const *field = schema; field->column; field++) {
                 cstring_t value;
+                char element[MAX_PATHLEN];
                 uint8_t *field_dst = dst + field->offset;
 
                 if (!field->column[0]) {
@@ -448,6 +460,7 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
                 if (!value) value = field->default_value;
                 if (!value)
                     continue;
+                if (field->list) value = SheetListElement(value, field->list, element, sizeof(element));
                 SheetSetTypedField(field_dst, field->type, value, field->column);
             }
             out_count++;

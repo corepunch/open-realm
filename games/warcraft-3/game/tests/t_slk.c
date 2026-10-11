@@ -666,6 +666,61 @@ TEST(wc3_slk, profile_ddx_and_fourcc_metadata_share_typed_row) {
     G_SetProfileRows(old);
 }
 
+/* Retail profiles list one missile element per weapon (hgyr: two arts, speeds 2000,900);
+ * a single value covers both attacks, as WarSmash's indexed field lookup does. */
+TEST(wc3_slk, profile_missile_fields_select_element_per_attack) {
+    slkTestData_t *row = parse_slk_string(
+        "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Missileart\"\nC;Y1;X3;K\"Missilespeed\"\nC;Y1;X4;K\"Missilearc\"\nC;Y1;X5;K\"MissileHoming\"\n"
+        "C;Y2;X1;K\"hgyr\"\nC;Y2;X2;K\"Impact.mdl,Missile.mdl\"\nC;Y2;X3;K\"2000,900\"\nC;Y2;X4;K\"0.1,0.35\"\nC;Y2;X5;K\"1,0\"\n"
+        "C;Y3;X1;K\"hrif\"\nC;Y3;X2;K\"Rifle.mdl\"\nC;Y3;X3;K\"1800\"\nC;Y3;X4;K\"0.15\"\nC;Y3;X5;K\"1\"\nE\n");
+    slkTestData_t *old = G_SetProfileRows(row);
+    UnitProfile_t const *gyro = G_UnitProfile(MAKEFOURCC('h','g','y','r')), *rifle = G_UnitProfile(MAKEFOURCC('h','r','i','f'));
+    edict_t unit = { .class_id = MAKEFOURCC('h','g','y','r') };
+    G_BindEntityData(&unit);
+
+    T_STREQ(gyro->attack[0].art, "Impact.mdl");
+    T_STREQ(gyro->attack[1].art, "Missile.mdl");
+    T_FEQ(gyro->attack[0].speed, 2000.f, 0.01f);
+    T_FEQ(gyro->attack[1].speed, 900.f, 0.01f);
+    T_FEQ(gyro->attack[0].arc, 0.1f, 0.001f);
+    T_FEQ(gyro->attack[1].arc, 0.35f, 0.001f);
+    T_ASSERT(gyro->attack[0].homing);
+    T_ASSERT(!gyro->attack[1].homing);
+    T_STREQ(UnitMetaString(&unit, MAKEFOURCC('u','a','2','m')), "Missile.mdl");
+    T_FEQ(UnitMetaReal(&unit, MAKEFOURCC('u','a','2','z')), 900.f, 0.01f);
+    T_STREQ(rifle->attack[0].art, "Rifle.mdl");
+    T_STREQ(rifle->attack[1].art, "Rifle.mdl");
+    T_FEQ(rifle->attack[1].speed, 1800.f, 0.01f);
+    T_ASSERT(rifle->attack[1].homing);
+    G_SetProfileRows(old);
+}
+
+/* The same selection applies to INI-decoded rows, which is how production loads *Func.txt. */
+TEST(wc3_slk, ini_decode_selects_list_element_by_schema_index) {
+    typedef struct { uint32_t id; string_t first; string_t second; string_t third; float speed2; } row_t;
+    static slkField_t const schema[] = {
+        { "",      offsetof(row_t, id),     STB_SLK_FOURCC },
+        { "Art",   offsetof(row_t, first),  STB_SLK_STR,   NULL, NULL, 1 },
+        { "Art",   offsetof(row_t, second), STB_SLK_STR,   NULL, NULL, 2 },
+        { "Art",   offsetof(row_t, third),  STB_SLK_STR,   NULL, NULL, 3 },
+        { "Speed", offsetof(row_t, speed2), STB_SLK_FLOAT, NULL, NULL, 2 },
+        { 0 }
+    };
+    stbIniCache_t cache = { 0 };
+    row_t *rows = NULL;
+    uint32_t count;
+
+    T_ASSERT(Stb_IniCacheLoadBuffer(&cache, "[echm]\nArt=Acid.mdl,Lightning.mdl\nSpeed=1200,1500\n"));
+    count = Stb_IniDecode(&cache, schema, (void **)&rows, sizeof(*rows));
+    T_EQ(count, 1);
+    T_STREQ(rows[0].first, "Acid.mdl");
+    T_STREQ(rows[0].second, "Lightning.mdl");
+    T_STREQ(rows[0].third, "Lightning.mdl");
+    T_FEQ(rows[0].speed2, 1500.f, 0.01f);
+    FS_SLKFreeRows(schema, rows, count, sizeof(*rows));
+    Stb_IniCacheFree(&cache);
+}
+
 TEST(wc3_slk, unitabilities_default_active_ability_is_fourcc) {
     static char const slk[] =
         "ID;PWXL;N;E\n"

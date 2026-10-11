@@ -197,6 +197,7 @@ as gameplay instead of returning to `sheetRow_t`. Add fields to the owning row a
 | `UNIT_ACQUISITION_RANGE` | `uacq` | auto-attack trigger range |
 | `UNIT_MODEL` | `umdl` | MDX path |
 | `UNIT_ABILITIES_NORMAL` | `uabi` | comma-separated ability codes |
+| `G_UnitProfile(id)->attack[n].art/speed/arc/homing` | `ua1m`/`ua2m`, `ua1z`/`ua2z`, `uma1`/`uma2`, `umh1`/`umh2` | `Missileart`, `Missilespeed`, `Missilearc`, `MissileHoming` in `*UnitFunc.txt` hold one comma-separated element per weapon (retail `hgyr`: `2000,900`); the schema's `list` index selects the element, and a single value covers both attacks, matching WarSmash's indexed field lookup |
 | `UNIT_ABILITIES_HERO` | `uhab` | hero abilities |
 | `G_UnitProfile(id)->trains` | `utra` | trainable unit codes |
 | `G_UnitProfile(id)->builds` | `ubui` | buildable structure codes |
