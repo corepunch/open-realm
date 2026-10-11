@@ -3733,6 +3733,7 @@ void G_RunEvents(void);
 /* Host save/restore lifecycle; the basic filename is only visible during these callbacks. */
 bool G_BeforeSaveGame(cstring_t name);
 void G_AfterLoadGame(cstring_t name);
+void G_AfterScriptLoadGame(cstring_t name);
 cstring_t G_GetSaveBasicFilename(void);
 void G_DrainPausedResultEvents(void);
 

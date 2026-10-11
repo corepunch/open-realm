@@ -2110,6 +2110,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.GetSaveMap = G_GetSaveMap;
     globals.BeforeSaveGame = G_BeforeSaveGame;
     globals.AfterLoadGame = G_AfterLoadGame;
+    globals.AfterScriptLoadGame = G_AfterScriptLoadGame;
     globals.GetWorldBounds = CM_GetWorldBounds;
     globals.PathingEntityIsIgnored = entity_is_pathing_ignored;
     globals.edict_size = sizeof(struct edict_s);

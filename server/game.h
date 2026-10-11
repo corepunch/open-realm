@@ -189,6 +189,9 @@ struct game_export {
     int max_edicts;
     int max_clients;
     int edict_size;
+    /* Internal scripted zone restores notify the map after its snapshot has
+     * been applied, separately from user save-slot loads. */
+    void (*AfterScriptLoadGame)(cstring_t name);
 };
 
 struct game_export *GetGameAPI(struct game_import *game_import);

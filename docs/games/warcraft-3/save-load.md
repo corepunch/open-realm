@@ -218,8 +218,10 @@ string native. ESC-menu named/quick saves and the server `save` command call
 the optional `game_export.BeforeSaveGame(name)` hook before `WriteGame`, so
 synchronous map save handlers can copy Rexxar zone backups into
 `Blizzard\<slot>` within the authorized script sandbox. The server calls
-`game_export.AfterLoadGame(name)` only when its normal cross-map restoration
-has succeeded, giving map handlers a chance to restore zone backups. Events
+`game_export.AfterLoadGame(name)` when normal named-load restoration succeeds,
+giving map handlers a chance to restore zone backups. Scripted zone restores
+use a separate `AfterScriptLoadGame(name)` callback after the zone snapshot is
+applied. Events
 run through the JASS event dispatcher and scheduler with the logical basename
 available only during this callback. Normal save requests abort on a pre-save
 JASS error or exhausted event queue, instead of taking a knowingly incomplete
@@ -248,10 +250,12 @@ serialized snapshot. `doScoreScreen` remains presentation-only and is not
 implemented.
 
 `EVENT_GAME_LOADED` is reserved for normal named player save restoration.
-Loading a scripted zone does **not** send this event: Rexxar's named-save
-handler copies backed-up zone files into the active `Blizzard/Zones` directory,
-and running that handler on every return visit could overwrite newer zone
-snapshots. The user-initiated save/load path is unchanged.
+After a scripted zone snapshot is applied, the server dispatches
+`EVENT_GAME_LOADED` with `MAP_RELOADED` temporarily set. This runs the map's
+return handler (including transition-cache hero import) while keeping its
+ordinary user-load handler gated off; that handler copies backed-up zone files
+into `Blizzard/Zones` and could overwrite newer snapshots. The flag is restored
+after synchronous event dispatch. Normal named-load behavior is unchanged.
 
 **Remaining limitations:** the map identity/footer are checked before changing
 maps, but a damaged payload can still fail during `ReadGame` after replacement.
@@ -732,8 +736,11 @@ original Rexxar `EVENT_GAME_LOADED` handler still owns copying its backed-up
 zone files into the active `Blizzard/Zones` directory.
 
 Scripted zone `LoadGame` deliberately does **not** adopt a named-save binding
-or create a new scope: it continues within the current campaign's live storage
-and does not send `EVENT_GAME_LOADED`. In disk-cache mode, `InitGameCache`
+or create a new scope: it continues within the current campaign's live storage.
+After applying the snapshot, its return callback dispatches
+`EVENT_GAME_LOADED` with `MAP_RELOADED` temporarily set, so the map imports
+travelling Heroes from its transition cache without running the user-load
+directory-copy handler. In disk-cache mode, `InitGameCache`
 reads committed cache sidecars in the active scope, invalidating in-memory
 cache entries when the engine changes scope. The campaign's `Export_All` and
 `Import_All` scripts remain authoritative for travelling heroes and their

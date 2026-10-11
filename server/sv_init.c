@@ -94,6 +94,7 @@ static bool SV_RestoreSaveFile(cstring_t path, cstring_t name, cstring_t map, bo
      * campaign's backed-up zones. Internal zone loads must not fire it or
      * overwrite the live Blizzard/Zones directory with an older backup. */
     if (notify_loaded && ge->AfterLoadGame) ge->AfterLoadGame(name);
+    else if (!notify_loaded && ge->AfterScriptLoadGame) ge->AfterScriptLoadGame(name);
     return true;
 }
 

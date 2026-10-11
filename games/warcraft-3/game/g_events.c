@@ -52,6 +52,19 @@ void G_AfterLoadGame(cstring_t name) {
         fprintf(stderr, "WC3: restored game-loaded event handlers could not complete\n");
 }
 
+void G_AfterScriptLoadGame(cstring_t name) {
+    /* Rexxar zone snapshots omit travelling Heroes before saving. Run the
+     * map's reload trigger after restoration so it imports those Heroes from
+     * the transition cache. MAP_RELOADED selects that trigger while keeping
+     * the user-load handler (which replaces the live zone-save directory)
+     * disabled. Restore the saved flag after synchronous trigger dispatch. */
+    uint32_t const reloaded_flag = 8192u * 64u;
+    bool const was_reloaded = (level.setup.map_flags & reloaded_flag) != 0;
+    SET_FLAG(level.setup.map_flags, reloaded_flag, true);
+    G_AfterLoadGame(name);
+    SET_FLAG(level.setup.map_flags, reloaded_flag, was_reloaded);
+}
+
 bool G_LimitMatches(uint32_t op, float value, float limit) {
     switch (op) {
         case WC3_LIMITOP_LESS_THAN: return value < limit;
