@@ -1683,6 +1683,119 @@ TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
     gi.ModelIndex = old_index;
 }
 
+/* W3D doodads have original-object edits and custom objects.  A Rexxar
+ * forcewall-style custom ID must inherit LOfl, then use its dfil override;
+ * base SLK entries must remain untouched when the overlay is removed. */
+TEST(wc3_slk, map_w3d_custom_forcewall_model_inherits_parent_and_clears_on_switch) {
+    static cstring_t const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"numVar\"\n"
+        "C;Y1;X4;K\"walkable\"\n"
+        "C;Y2;X1;K\"LOfl\"\n"
+        "C;Y2;X2;K\"Doodads\\Dungeon\\Props\\Original\\Original.mdx\"\n"
+        "C;Y2;X3;K1\n"
+        "C;Y2;X4;K1\n"
+        "E\n";
+    char original_file[] = "Doodads\\Dungeon\\Props\\OriginalEdited\\OriginalEdited.mdl";
+    char forcewall_file[] = "Doodads\\Dungeon\\Props\\Forcewall\\Forcewall.mdl";
+    int32_t variants = 1;
+    unitModification_t orig_mod = {
+        .modID = MAKEFOURCC('d','f','i','l'), .type = mod_string, .data = original_file
+    };
+    unitModification_t custom_mods[] = {
+        { .modID = MAKEFOURCC('d','f','i','l'), .type = mod_string, .data = forcewall_file },
+        { .modID = MAKEFOURCC('d','v','a','r'), .type = mod_int, .data = &variants },
+    };
+    unitData_t originals[] = { {
+        .originalUnitID = MAKEFOURCC('L','O','f','l'),
+        .numbeOfModifications = 1, .modifications = &orig_mod
+    } };
+    unitData_t customs[] = { {
+        .originalUnitID = MAKEFOURCC('L','O','f','l'),
+        .newUnitID = MAKEFOURCC('D','0','0','E'),
+        .numbeOfModifications = 2, .modifications = custom_mods
+    } };
+    mapInfo_t mapinfo = {
+        .num_originalDoodads = 1, .originalDoodads = originals,
+        .num_userCreatedDoodads = 1, .userCreatedDoodads = customs
+    };
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old;
+    int (*old_model)(cstring_t) = gi.ModelIndex;
+    edict_t ent = { .class_id = MAKEFOURCC('D','0','0','E') };
+
+    setup_test_world();
+    old = G_SetSLKRows("Doodads", rows);
+    gi.ModelIndex = capture_spawn_model;
+    G_SetMapUnitOverrides(&mapinfo);
+    T_STREQ(G_Doodad(MAKEFOURCC('L','O','f','l'))->file, original_file);
+    T_STREQ(G_Doodad(ent.class_id)->file, forcewall_file);
+    T_ASSERT(G_Doodad(ent.class_id)->walkable);
+    T_EQ(G_Doodad(ent.class_id)->numVar, 1);
+    SP_CallSpawn(&ent);
+    T_STREQ(spawn_model, "Doodads\\Dungeon\\Props\\Forcewall\\Forcewall.mdx");
+
+    G_SetMapUnitOverrides(NULL);
+    T_EQ(G_Doodad(ent.class_id)->id, 0);
+    T_STREQ(G_Doodad(MAKEFOURCC('L','O','f','l'))->file,
+            "Doodads\\Dungeon\\Props\\Original\\Original.mdx");
+    gi.ModelIndex = old_model;
+    G_SetSLKRows("Doodads", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_slk, map_w3d_original_variations_and_custom_inheritance) {
+    static cstring_t const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"numVar\"\n"
+        "C;Y2;X1;K\"LOfl\"\n"
+        "C;Y2;X2;K\"Doodads\\Original\\Original\"\n"
+        "C;Y2;X3;K1\nE\n";
+    int32_t variants = 3;
+    unitModification_t mod = {
+        .modID = MAKEFOURCC('d','v','a','r'), .type = mod_int,
+        .level = 0, .data = &variants
+    };
+    unitData_t original = {
+        .originalUnitID = MAKEFOURCC('L','O','f','l'),
+        .numbeOfModifications = 1, .modifications = &mod
+    };
+    unitData_t custom = {
+        .originalUnitID = MAKEFOURCC('L','O','f','l'),
+        .newUnitID = MAKEFOURCC('D','0','0','1')
+    };
+    mapInfo_t info = {
+        .num_originalDoodads = 1, .originalDoodads = &original,
+        .num_userCreatedDoodads = 1, .userCreatedDoodads = &custom
+    };
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old;
+    int (*old_model)(cstring_t) = gi.ModelIndex;
+    handle_t (*old_read)(cstring_t, uint32_t *) = gi.ReadFile;
+    edict_t ent = { .class_id = MAKEFOURCC('D','0','0','1'), .variation = 2 };
+
+    setup_test_world();
+    old = G_SetSLKRows("Doodads", rows);
+    G_SetMapUnitOverrides(&info);
+    T_EQ(G_Doodad(ent.class_id)->numVar, 3);
+    gi.ModelIndex = capture_spawn_model;
+    gi.ReadFile = doodad_model_probe_read;
+    doodad_model_probe_existing = "Doodads\\Original\\Original2.mdx";
+    SP_CallSpawn(&ent);
+    T_STREQ(spawn_model, "Doodads\\Original\\Original2.mdx");
+
+    doodad_model_probe_existing = NULL;
+    gi.ReadFile = old_read;
+    gi.ModelIndex = old_model;
+    G_SetMapUnitOverrides(NULL);
+    G_SetSLKRows("Doodads", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_slk, roc_doodad_short_file_uses_dir_and_model_folder) {
     static cstring_t const slk =
         "ID;PWXL;N;E\n"

@@ -258,6 +258,8 @@ struct mapInfo_s {
     uint32_t num_userCreatedAbilities;
     uint32_t num_originalDestructables;
     uint32_t num_userCreatedDestructables;
+    uint32_t num_originalDoodads;
+    uint32_t num_userCreatedDoodads;
     uint32_t num_weatherRegions;
     mapPlayer_t players[MAX_PLAYERS];
     mapTeam_t *teams;
@@ -276,6 +278,8 @@ struct mapInfo_s {
     unitData_t *userCreatedAbilities;
     unitData_t *originalDestructables; /* war3map.w3b original-table rows */
     unitData_t *userCreatedDestructables;
+    unitData_t *originalDoodads; /* war3map.w3d: leveled/variation modifications */
+    unitData_t *userCreatedDoodads;
     mapWeatherRegion_t *weatherRegions;
     string_t mapscript;
 };

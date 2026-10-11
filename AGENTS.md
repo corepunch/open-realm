@@ -42,6 +42,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 retail audio admission, Ghidra/r2 setup, recovered structures and parity gaps | [docs/games/warcraft-3/audio-retail-analysis.md](docs/games/warcraft-3/audio-retail-analysis.md) |
 | WC3 background music, `Music.slk`/skin lookup, `svc_music`, optional FFmpeg streaming | [docs/games/warcraft-3/music.md](docs/games/warcraft-3/music.md) |
 | WC3 MDX `EVTS` presentation events, `SND` sounds, `SPN` child models, `SPL`/`FPT` SplatData decals, `UBR` UberSplats, transient lifetimes | [docs/games/warcraft-3/mdx-event-objects.md](docs/games/warcraft-3/mdx-event-objects.md) |
+| WC3 custom doodad `.w3d` models, animation ownership and Rexxar Forcewall presentation | [docs/games/warcraft-3/doodad-animation.md](docs/games/warcraft-3/doodad-animation.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | WC3 critter wandering (`Awan`): idle scheduling, Move ownership events, flee, building clearance, save fields, scheduler-path tests | [docs/games/warcraft-3/critter-ai.md](docs/games/warcraft-3/critter-ai.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |

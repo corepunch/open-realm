@@ -906,6 +906,11 @@ typedef struct {
 } mapDestructableDataOverride_t;
 
 typedef struct {
+    uint32_t id;
+    Doodads_t row;
+} mapDoodadOverride_t;
+
+typedef struct {
     uint32_t id, num_levels;
     AbilityData_t row;
     abilityLevel_t *extra_levels;
@@ -924,6 +929,8 @@ static mapItemDataOverride_t *map_item_data_overrides;
 static uint32_t map_item_data_override_count;
 static mapDestructableDataOverride_t *map_destructable_data_overrides;
 static uint32_t map_destructable_data_override_count;
+static mapDoodadOverride_t *map_doodad_overrides;
+static uint32_t map_doodad_override_count;
 static mapAbilityOverride_t *map_ability_overrides;
 static uint32_t map_ability_override_count;
 static uint32_t ability_data_generation;
@@ -1386,6 +1393,12 @@ static DestructableData_t const *FindMapDestructableDataOverride(uint32_t id) {
     return NULL;
 }
 
+static Doodads_t const *FindMapDoodadOverride(uint32_t id) {
+    FOR_LOOP(i, map_doodad_override_count)
+        if (map_doodad_overrides[i].id == id) return &map_doodad_overrides[i].row;
+    return NULL;
+}
+
 static bool UnitModificationString(unitModification_t const *mod) {
     switch (mod->type) {
     case mod_string:
@@ -1541,8 +1554,37 @@ static void AddMapDestructableDataOverride(unitData_t const *object, uint32_t ta
     override->row.armor = G_NormalizeArmorType(override->row.armorSoundType, override->row.armor);
 }
 
+/* Map-local W3D records inherit an existing Doodads.slk row, then replace
+ * authored fields.  In particular, Rexxar's forcewall types are custom IDs
+ * whose dfil model path is absent from the stock Doodads.slk.  No campaign
+ * rawcode or model path is hardcoded here. */
+static void AddMapDoodadOverride(unitData_t const *object, uint32_t target_id, uint32_t base_id) {
+    Doodads_t const *base = FindMapDoodadOverride(base_id);
+    mapDoodadOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&doodad_idx, base_id);
+    override = map_doodad_overrides + map_doodad_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+    override->row.id = target_id;
+
+    FOR_LOOP(i, object->numbeOfModifications) {
+        unitModification_t const *mod = object->modifications + i;
+        /* dfil is a model stem/path; dvar controls numbered MDX variations.
+         * Do not apply unrelated variation-specific fields to every instance. */
+        if (mod->modID == MAKEFOURCC('d','f','i','l') &&
+            UnitModificationString(mod) && mod->data)
+            override->row.file = (cstring_t)mod->data;
+        else if (mod->modID == MAKEFOURCC('d','v','a','r') &&
+                 mod->type == mod_int && mod->data &&
+                 *(int32_t const *)mod->data > 0)
+            override->row.numVar = *(int32_t const *)mod->data;
+    }
+}
+
 void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
-    uint32_t unit_capacity, item_capacity, destructable_capacity;
+    uint32_t unit_capacity, item_capacity, destructable_capacity, doodad_capacity;
 
     free(map_unit_balance_overrides);
     map_unit_balance_overrides = NULL;
@@ -1562,12 +1604,16 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     free(map_destructable_data_overrides);
     map_destructable_data_overrides = NULL;
     map_destructable_data_override_count = 0;
+    free(map_doodad_overrides);
+    map_doodad_overrides = NULL;
+    map_doodad_override_count = 0;
     if (!mapinfo) return;
 
     unit_capacity = mapinfo->num_originalUnits + mapinfo->num_userCreatedUnits;
     item_capacity = mapinfo->num_originalItems + mapinfo->num_userCreatedItems;
     destructable_capacity = mapinfo->num_originalDestructables + mapinfo->num_userCreatedDestructables;
-    if (!unit_capacity && !item_capacity && !destructable_capacity) return;
+    doodad_capacity = mapinfo->num_originalDoodads + mapinfo->num_userCreatedDoodads;
+    if (!unit_capacity && !item_capacity && !destructable_capacity && !doodad_capacity) return;
     if (unit_capacity) {
         map_unit_balance_overrides = calloc(unit_capacity, sizeof(*map_unit_balance_overrides));
         map_unit_profile_overrides = calloc(unit_capacity, sizeof(*map_unit_profile_overrides));
@@ -1578,16 +1624,20 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
         map_item_data_overrides = calloc(item_capacity, sizeof(*map_item_data_overrides));
     if (destructable_capacity)
         map_destructable_data_overrides = calloc(destructable_capacity, sizeof(*map_destructable_data_overrides));
+    if (doodad_capacity)
+        map_doodad_overrides = calloc(doodad_capacity, sizeof(*map_doodad_overrides));
     if ((unit_capacity && (!map_unit_balance_overrides || !map_unit_profile_overrides ||
                            !map_unit_ui_overrides || !map_unit_abilities_overrides)) ||
         (item_capacity && !map_item_data_overrides) ||
-        (destructable_capacity && !map_destructable_data_overrides)) {
+        (destructable_capacity && !map_destructable_data_overrides) ||
+        (doodad_capacity && !map_doodad_overrides)) {
         free(map_unit_balance_overrides); map_unit_balance_overrides = NULL;
         free(map_unit_profile_overrides); map_unit_profile_overrides = NULL;
         free(map_unit_ui_overrides); map_unit_ui_overrides = NULL;
         free(map_unit_abilities_overrides); map_unit_abilities_overrides = NULL;
         free(map_item_data_overrides); map_item_data_overrides = NULL;
         free(map_destructable_data_overrides); map_destructable_data_overrides = NULL;
+        free(map_doodad_overrides); map_doodad_overrides = NULL;
         return;
     }
 
@@ -1621,6 +1671,14 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     FOR_LOOP(i, mapinfo->num_userCreatedDestructables) {
         unitData_t const *object = mapinfo->userCreatedDestructables + i;
         AddMapDestructableDataOverride(object, object->newUnitID, object->originalUnitID);
+    }
+    FOR_LOOP(i, mapinfo->num_originalDoodads) {
+        unitData_t const *object = mapinfo->originalDoodads + i;
+        AddMapDoodadOverride(object, object->originalUnitID, object->originalUnitID);
+    }
+    FOR_LOOP(i, mapinfo->num_userCreatedDoodads) {
+        unitData_t const *object = mapinfo->userCreatedDoodads + i;
+        AddMapDoodadOverride(object, object->newUnitID, object->originalUnitID);
     }
 }
 
@@ -2069,7 +2127,12 @@ cstring_t G_AbilityDataText(cstring_t name, cstring_t column) {
     }
     return NULL;
 }
-Doodads_t const *G_Doodad(uint32_t id) { static Doodads_t zero; Doodads_t *row = FS_SLKLookup(&doodad_idx, id); return row ? row : &zero; }
+Doodads_t const *G_Doodad(uint32_t id) {
+    static Doodads_t zero;
+    Doodads_t const *row = FindMapDoodadOverride(id);
+    if (!row) row = FS_SLKLookup(&doodad_idx, id);
+    return row ? row : &zero;
+}
 WaterData_t const *G_WaterData(uint32_t id) { static WaterData_t zero; WaterData_t *row = FS_SLKLookup(&water_idx, id); return row ? row : &zero; }
 UberSplatData_t const *G_UberSplat(uint32_t id) { static UberSplatData_t zero; UberSplatData_t *row = FS_SLKLookup(&uber_idx, id); return row ? row : &zero; }
 UnitAckSounds_t const *G_UnitAckSound(cstring_t name) {

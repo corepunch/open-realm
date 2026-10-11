@@ -899,6 +899,22 @@ void CM_ReadDestructables(handle_t archive) {
                       &world.info.num_userCreatedDestructables, &world.info.userCreatedDestructables);
 }
 
+/* Doodads use the W3A-style modification layout (variation and data pointer
+ * before the value), not the simple W3B destructable layout.  Keep the map's
+ * original/custom records alive for the game-side Doodads.slk overlay. */
+void CM_ReadDoodadOverrides(handle_t archive) {
+    handle_t file;
+    uint32_t version;
+
+    world.info.num_originalDoodads = world.info.num_userCreatedDoodads = 0;
+    world.info.originalDoodads = world.info.userCreatedDoodads = NULL;
+    if (!SFileOpenFileEx(archive, "war3map.w3d", SFILE_OPEN_FROM_MPQ, &file)) return;
+    SFileReadFile(file, &version, sizeof(version), NULL, NULL);
+    world.info.originalDoodads = CM_ReadAbilityOverrides(file, &world.info.num_originalDoodads);
+    world.info.userCreatedDoodads = CM_ReadAbilityOverrides(file, &world.info.num_userCreatedDoodads);
+    SFileCloseFile(file);
+}
+
 string_t FS_ReadArchiveFileIntoString(handle_t archive, cstring_t filename) {
     handle_t file;
     if (!SFileOpenFileEx(archive, filename, SFILE_OPEN_FROM_MPQ, &file)) {

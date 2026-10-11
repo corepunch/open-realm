@@ -9,7 +9,7 @@ SetDoodadAnimation(x, y, radius, doodadID, nearestOnly, animName, animRandom)
 SetDoodadAnimationRect(rect, doodadID, animName, animRandom)
 ```
 
-The map's `war3map.doo` placement owns each doodad's type, position, variation, scale and facing.  OpenRealm represents those placements as `SVF_STATIC_SCENERY` edicts whose `data.Doodads` row comes from `Doodads\Doodads.slk`.
+The map's `war3map.doo` placement owns each doodad's type, position, variation, scale and facing. OpenRealm represents those placements as `SVF_STATIC_SCENERY` edicts. The `data.Doodads` row comes from `Doodads\Doodads.slk` **plus map-local `war3map.w3d` edits and custom IDs** when present. Original-object edits are applied before custom IDs inherit their parent rows; the original global SLK data is not mutated.
 
 Changing a doodad animation is presentation state only.  It does not turn the doodad into a destructable and does not change its pathing footprint.
 
@@ -59,3 +59,45 @@ Automated coverage should verify:
 - looping sequences wrap to their authored start.
 
 Runtime verification for `Maps\Campaign\Prologue01.w3m` is to reach `gg_rct_Spot01`: the centre banner should play its death transition and smoke, while the Circle of Power ground marker remains.
+
+## Custom Doodads and Rexxar Zone Boundaries
+
+`war3map.w3d` is a separate doodad **object-data** file, not the `war3map.doo`
+placement list and not `war3map.w3b` (destructables). Its modification records
+include variation and data-pointer integers, as in `war3map.w3a`. The game
+reads both original and custom rows, resolves the `dfil` (model file) and
+`dvar` (model variation count) changes through map-local typed rows, and then
+spawns each placed doodad using the already-existing MDX model pipeline.
+
+The extracted Rexxar campaign map report identifies custom IDs `D00E` and
+`D001` derived from `LOfl`, with a `dfil` override pointing at
+`Doodads\Dungeon\Props\Forcewall\Forcewall.mdl`. This is **map data**, not a
+hardcoded type-to-asset mapping. `.mdl` and `.mdx` model suffixes resolve to
+the renderer's `.mdx` filename. If the selected model is missing from the
+active game archives/imports, adding a custom ID will not supply the missing
+asset; check mounted archives before treating that as a rendering defect.
+
+The original zone transition itself is **not** activated by the doodad model.
+Its JASS script polls tripwire rectangles and queues a fade/transition; this
+visual path is separate from the script and the SaveGame/ChangeLevel pipeline.
+The normal W3I/WTS destination loading UI and JASS-controlled camera fades
+already have independent owners, so no Rexxar-specific client code is required.
+
+Only `dfil` and `dvar` W3D fields are applied by this initial support. Other
+object-editor doodad overrides (including per-variation tint, pathing, and
+render flags) still require an evidence-driven extension. Detailed Forcewall
+materials, alpha tracks and texture dependencies still require the original
+MDX bytes; this patch does not invent shader or animation changes.
+
+### Validation
+
+- A `.w3d` custom ID with `dfil` must render its custom MDX rather than fall
+  through to a missing stock-SLK row.
+- A custom row inherits base doodad fields, including `walkable` and `numVar`.
+- Original-object edits affect derived custom rows but not the global SLK.
+- A per-map overlay is discarded on map replacement; absent `war3map.w3d`
+  leaves standard doodad resolution unchanged.
+- A model with `dvar > 1` probes the authored numbered MDX variant and falls
+  back to the unsuffixed model if that variant is absent.
+- On an actual Rexxar map, compare Forcewall geometry/animation and loading
+  presentation with retail, and validate tripwire JASS separately.
