@@ -55521,11 +55521,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "47cff3248c500bfe21b5d6f59fbc64098c49a5dabfd4f13fef60db7c326d2445"
+      "sha256": "f6409d4be6a8b94775771c495df8e2e27f3fe546533da5cf9dbf3997b9e8e1da"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "c564b15aef9b0c6b496f6f38dae9990be25ae884acebc1b65df6b4c9bff2026f"
+      "sha256": "c040894897d54d3f8b620e780b79d693a027b9857d97e369033aab3164b88f3a"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -56817,7 +56817,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "b0e48476bceeb95e007e47755c79fe287ba2a6527def831d647d67ec33796801"
+      "sha256": "fd1d308c6674aa2c1162ab0745ce392fe7fbacb371df2f715ce68306e3f30fc3"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -60037,7 +60037,7 @@
     },
     {
       "path": "tools/frida/verify_wc3_patrol_motion_trace.py",
-      "sha256": "0247cfec4a7136b9e60eb986c0eb9daf632cece57505119f9efdc1607311a15a"
+      "sha256": "3adffb15e3b4a1115b708e0085425234ef7415e5ed14676e786a10a8d1f32e9e"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_patrol276.py",
@@ -60049,7 +60049,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-patrol-motion-1.27.json",
-      "sha256": "a2d43590637a90934235c072ab58e11f1ce2fec63a27c56ac9ed3d8755c7bc93"
+      "sha256": "9aa798e3b202b1779c38a49ff043aa5be7e4ab03cf25deedbe12e31da4f8137c"
     },
     {
       "path": "tools/ghidra/fixtures/retail-patrol276-1.27.json",
@@ -60057,7 +60057,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/retail_patrol_motion.h",
-      "sha256": "aacf86e653270c9a5efd4dd0b4dca25874449842fd67faca020216c2512180d7"
+      "sha256": "e9657328d0dc841518d123fdcc146453c7d15d420e527aed6caad066455fcc64"
     },
     {
       "path": "tests/test_wc3_pathfinding_patrol_motion.py",

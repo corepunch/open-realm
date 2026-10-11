@@ -4,102 +4,67 @@
 #include "retail_patrol_motion.h"
 
 bool run_test_jass(cstring_t);
+extern void (*test_preload_marker)(cstring_t);
 void reset_entities(void);
 void setup_test_world(void);
 void CM_SetupTestPathmap(unsigned, unsigned, uint8_t const *);
 void CM_SetupTestWorldBounds(box2_t const *);
 
-/* Paired Move/Patrol Footmen on the retail patrol_motion probe geometry
- * (tools/frida/wc3_patrol_motion_probe.j): a 64x64 fine pathmap over 2048x2048,
- * with the same SetTerrainPathable walls. Move subjects are reissued toward the
- * opposite endpoint once idle, as the probe does at its 0.1s sample. */
-typedef struct { bool patrol; vec2_t a, b; } patrolMotionCase_t;
-static patrolMotionCase_t const patrol_motion_cases[10] = {
-    {false,{272,256},{1008,256}}, {true,{272,448},{1008,448}},
-    {false,{272,768},{1008,768}}, {true,{272,1216},{1008,1216}},
-    {true,{272,1600},{1008,1600}}, {true,{1008,1600},{272,1600}},
-    {false,{272,1792},{1008,1792}}, {false,{1008,1792},{272,1792}},
-    {true,{1392,320},{1392,1088}}, {false,{1648,320},{1648,1088}},
-};
-
+/* Replays the captured patrol_motion probe (tools/frida/wc3_patrol_motion_probe.j)
+ * on its flat 64x64 copied map: the probe's own timer issues Move/Patrol and
+ * reissues idle Move subjects, and its exported hashtable rows are the samples. */
 typedef struct { float x, y, facing; uint32_t order; } patrolMotionSample_t;
-typedef struct { bool ran; edict_t *units[10]; bool toward_b[10]; patrolMotionSample_t samples[301][10]; } patrolMotionRun_t;
+typedef struct { bool ran; unsigned rows; patrolMotionSample_t samples[301][10]; } patrolMotionRun_t;
+static patrolMotionRun_t *patrol_motion_active;
 
-static void patrol_motion_sample(patrolMotionRun_t *run, unsigned tick) {
-    FOR_LOOP(i, 10) {
-        edict_t const *u = run->units[i];
-        run->samples[tick][i] = (patrolMotionSample_t){u->s.origin2.x, u->s.origin2.y,
-            S_UnitFacing((edict_t *)u) * 180.0f / (float)M_PI, u->current_order_id};
-    }
+static hashtableEntry_t const *patrol_motion_cell(int32_t row, int32_t col) {
+    hashtable_t const *table = &level.hashtables[0];
+    for (uint32_t i = table->num_entries; i-- > 0;)
+        if (table->entries[i].parent == row && table->entries[i].child == col) return table->entries + i;
+    return NULL;
 }
 
-static void patrol_motion_dump(patrolMotionRun_t const *run, char const *path) {
-    FILE *f = fopen(path, "w"); if (!f) return;
-    FOR_LOOP(t, 301) FOR_LOOP(i, 10) {
-        patrolMotionSample_t const *s = &run->samples[t][i];
-        fprintf(f, "{\"t\":%u,\"case\":%u,\"order\":%u,\"facing\":%.3f,\"x\":%.3f,\"y\":%.3f}\n",
-                (unsigned)t, (unsigned)i, s->order, s->facing, s->x, s->y);
-    }
-    fclose(f);
+/* Each probe row is exported before its PATHMETA marker; read it back at the marker. */
+static void patrol_motion_marker(cstring_t text) {
+    unsigned row, tick, unit; char label[16];
+    if (sscanf(text, "PATHMETA patrol_motion row=%u tick=%u case=%u label=%15s", &row, &tick, &unit, label) != 4) return;
+    patrolMotionRun_t *run = patrol_motion_active;
+    T_EQ(row, run->rows); run->rows++;
+    if (strcmp(label, "sample") || tick > 300 || unit >= 10) return;
+    hashtableEntry_t const *cells[6];
+    FOR_LOOP(c, 6) { cells[c] = patrol_motion_cell(row, c); T_NOT_NULL(cells[c]); if (!cells[c]) return; }
+    T_EQ(cells[0]->value.integer, (int32_t)tick); T_EQ(cells[1]->value.integer, (int32_t)unit);
+    run->samples[tick][unit] = (patrolMotionSample_t){cells[4]->value.real, cells[5]->value.real,
+        cells[3]->value.real, (uint32_t)cells[2]->value.integer};
 }
 
-static void patrol_motion_run(patrolMotionRun_t *run) {
+static void patrol_motion_run(patrolMotionRun_t *run, unsigned step) {
     run->ran = true;
+    FOR_LOOP(i, level.num_timers) G_TimerDestroy(level.timers + i);
     reset_entities(); setup_test_world();
     uint8_t cells[64*64] = {0}; CM_SetupTestPathmap(64, 64, cells);
     CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
-    T_ASSERT(run_test_jass("function block takes real x0, real y0, real x1, real y1 returns nothing\n"
-        " local real x=x0\n local real y\n loop\n  exitwhen x>x1\n  set y=y0\n  loop\n   exitwhen y>y1\n"
-        "   call SetTerrainPathable(x,y,PATHING_TYPE_WALKABILITY,false)\n   set y=y+32.0\n  endloop\n"
-        "  set x=x+32.0\n endloop\nendfunction\n"
-        "function main takes nothing returns nothing\n"
-        " call block(608.0,608.0,672.0,928.0)\n call block(608.0,1056.0,672.0,1376.0)\n"
-        " call block(1344.0,1040.0,1440.0,1136.0)\n call block(1600.0,1040.0,1696.0,1136.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',272.0,256.0,0.0),0.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',272.0,448.0,0.0),0.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',272.0,768.0,0.0),0.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',272.0,1216.0,0.0),0.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',272.0,1600.0,0.0),0.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',1008.0,1600.0,0.0),0.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',272.0,1792.0,0.0),0.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',1008.0,1792.0,0.0),0.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',1392.0,320.0,0.0),0.0)\n"
-        " call SetUnitAcquireRange(CreateUnit(Player(0),'hfoo',1648.0,320.0,0.0),0.0)\nendfunction\n"));
-    unsigned n = 0;
-    FILTER_EDICTS(u, u->inuse && u->class_id == MAKEFOURCC('h','f','o','o')) {
-        if (n < 10) run->units[n] = u, run->toward_b[n] = true;
-        n++;
-    }
-    T_EQ(n, 10); if (n != 10) return;
-    FOR_LOOP(i, 10) {
-        edict_t *u = run->units[i];
-        T_FEQ(u->s.origin2.x, patrol_motion_cases[i].a.x, 0.01f); T_FEQ(u->s.origin2.y, patrol_motion_cases[i].a.y, 0.01f);
-        if (!u->collision) u->collision = 16;
-    }
+    level.waypoints = (typeof(level.waypoints)){0}; level.pathing_clock = (wc3Clock_t){0,0,300};
+    level.time = level.pathing_msec = 0; level.pathing_phase = 0; level.pathing_due = false;
+    patrol_motion_active = run; test_preload_marker = patrol_motion_marker;
+    static char script[sizeof(patrol_motion_probe) + 128];
+    snprintf(script, sizeof(script), "%sfunction main takes nothing returns nothing\n call PathProbeInit()\nendfunction\n",
+             patrol_motion_probe);
+    T_ASSERT(run_test_jass(script));
+    G_FinishMovePathingInitialization();
+    /* TODO: the fixture MPQ's hfoo row lacks the authored Footman collision16. */
+    FILTER_EDICTS(u, u->inuse && u->class_id == MAKEFOURCC('h','f','o','o')) if (!u->collision) u->collision = 16;
     level.started = level.scriptsConfigured = level.scriptsStarted = true;
-    patrol_motion_sample(run, 0);
-    FOR_LOOP(i, 10)
-        T_ASSERT(unit_issueorder(run->units[i], patrol_motion_cases[i].patrol ? "patrol" : "move",
-                                 &patrol_motion_cases[i].b));
-    for (unsigned tick = 1; tick <= 300; tick++) {
-        level.time += FRAMETIME; globals.RunFrame();
-        FOR_LOOP(i, 10) {
-            edict_t *u = run->units[i];
-            if (patrol_motion_cases[i].patrol || u->current_order_id) continue;
-            run->toward_b[i] = !run->toward_b[i];
-            T_ASSERT(unit_issueorder(u, "move", run->toward_b[i] ? &patrol_motion_cases[i].b : &patrol_motion_cases[i].a));
-        }
-        patrol_motion_sample(run, tick);
-    }
-    char const *path = getenv("WC3_PATROL_MOTION_DUMP");
-    if (path) patrol_motion_dump(run, path);
-    reset_entities(); setup_test_world();
+    while (level.time < 31000 && !run->samples[300][9].order) { level.time += step; globals.RunFrame(); }
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    test_preload_marker = NULL; patrol_motion_active = NULL;
+    FOR_LOOP(i, level.num_timers) G_TimerDestroy(level.timers + i);
+    level.started = false; reset_entities(); setup_test_world();
 }
-
 
 static patrolMotionRun_t patrol_motion;
 
-static void patrol_motion_scene(void) { if (!patrol_motion.ran) patrol_motion_run(&patrol_motion); }
+static void patrol_motion_scene(void) { if (!patrol_motion.ran) patrol_motion_run(&patrol_motion, 5); }
 
 static float patrol_motion_word(uint32_t word) { float f; memcpy(&f, &word, sizeof f); return f; }
 
@@ -112,19 +77,34 @@ static unsigned patrol_motion_split(unsigned m, unsigned p, float dx, float dy, 
     return 0;
 }
 
-TEST(wc3_patrol_motion, open_lane_matches_original_public_samples) {
+TEST(wc3_patrol_motion, every_subject_matches_original_public_samples) {
     patrol_motion_scene();
-    /* Open lanes: an alternating Patrol and a reissued Move both replay the original journey. */
-    FOR_LOOP(i, 2) {
+    /* All ten subjects (open, walled, enclosed and head-on lanes) replay the original
+     * journey word for word: current order, GetUnitFacing, GetUnitX and GetUnitY. */
+    FOR_LOOP(i, 10) {
         unsigned diverged = 0;
         for (unsigned t = 1; t <= 300 && !diverged; t++) {
             patrolMotionSample_t const *s = &patrol_motion.samples[t][i];
             uint32_t const *r = patrol_motion_retail[i][t - 1];
-            if (s->order != r[0] || fabsf(s->x - patrol_motion_word(r[2])) > 0.01f ||
-                fabsf(s->y - patrol_motion_word(r[3])) > 0.01f) diverged = t;
+            uint32_t const actual[4] = {s->order, wc3_float_bits(s->facing), wc3_float_bits(s->x), wc3_float_bits(s->y)};
+            if (memcmp(actual, r, sizeof(actual))) {
+                diverged = t;
+                fprintf(stderr, "patrol_motion subject%u tick%u actual=%u/%08x/%08x/%08x expected=%u/%08x/%08x/%08x\n",
+                        (unsigned)i, t, actual[0], actual[1], actual[2], actual[3], r[0], r[1], r[2], r[3]);
+            }
         }
         T_EQ(diverged, 0u);
     }
+}
+
+TEST(wc3_patrol_motion, server_frame_cadence_replays_the_same_journey) {
+    /* The scheduler subdivides each frame on the retail clock, so the shipped 10 Hz
+     * server loop reproduces the 5 ms replay (and thus the original) sample for sample. */
+    patrol_motion_scene();
+    static patrolMotionRun_t coarse;
+    patrol_motion_run(&coarse, FRAMETIME);
+    T_EQ(coarse.rows, patrol_motion.rows);
+    T_ASSERT(!memcmp(coarse.samples, patrol_motion.samples, sizeof(coarse.samples)));
 }
 
 TEST(wc3_patrol_motion, patrol_legs_are_move_legs) {
@@ -140,17 +120,16 @@ TEST(wc3_patrol_motion, patrol_legs_are_move_legs) {
         for (unsigned t = 1; t <= 300; t++) if (patrol_motion.samples[t][patrols[k]].order != WC3_ORDER_ID_PATROL_TWO_POINTS) other++;
         T_EQ(other, 0u);
     }
-    /* No stalls or in-place spinning on the open, walled and enclosed lanes. The head-on pair
-     * (4/5) is excluded: its stalls are the shared Move avoidance gap, not Patrol ownership. */
-    unsigned const lanes[] = {1, 3, 8};
-    FOR_LOOP(k, 3) {
+    /* No stalls or in-place spinning on any Patrol lane, including the head-on pair. */
+    unsigned const lanes[] = {1, 3, 4, 5, 8};
+    FOR_LOOP(k, 5) {
         unsigned still = 0, worst = 0;
         for (unsigned t = 2; t <= 300; t++) {
             patrolMotionSample_t const *a = &patrol_motion.samples[t - 1][lanes[k]], *b = &patrol_motion.samples[t][lanes[k]];
             still = a->x == b->x && a->y == b->y ? still + 1 : 0;
             if (still > worst) worst = still;
         }
-        T_ASSERT(worst <= 2);
+        T_ASSERT(worst <= 5);
     }
 }
 

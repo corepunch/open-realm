@@ -125,8 +125,9 @@ uint32_t GetUnitFacing(jass_t *j) {
     if (!whichUnit) {
         return jass_pushnumber(j, 0);
     }
-    float facingAngle = S_UnitFacing(whichUnit);
-    jass_pushnumber(j, RAD2DEG(facingAngle));
+    /* Original203b80 scales by software-float Math_Multiply with 6fcd5468;
+     * host RAD2DEG rounded one ULP away from the original public result. */
+    jass_pushnumber(j, wc3_radians_to_degrees(S_UnitFacing(whichUnit)));
     return 1;
 }
 

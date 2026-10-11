@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HASH = "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
 FIXTURE = ROOT / "tools/ghidra/fixtures/retail-patrol-motion-1.27.json"
 HEADER = ROOT / "games/warcraft-3/game/tests/retail_patrol_motion.h"
+PROBE = ROOT / "tools/frida/wc3_patrol_motion_probe.j"
 UNITS, TICKS = 10, 300
 PATROL = (False, True, False, True, True, True, False, False, True, False)
 # (Move subject, Patrol subject, Patrol offset from Move, last tick of the shared journey)
@@ -108,6 +109,11 @@ def render_header(fixture):
             lines.append("        " + ",".join("{" + ",".join(f"0x{w:08x}u" for w in s) + "}" for s in unit[i:i + 4]) + ",")
         lines.append("    },")
     lines.append("};")
+    # The engine replays the captured probe itself, so its timer, orders and reissues match.
+    lines.append("/* The captured probe (tools/frida/wc3_patrol_motion_probe.j). */")
+    lines.append("static char const patrol_motion_probe[] =")
+    lines.extend("    " + json.dumps(line + "\n") for line in PROBE.read_text().splitlines())
+    lines.append("    ;")
     return "\n".join(lines) + "\n"
 
 
@@ -117,6 +123,8 @@ def verify_contract(fixture):
     samples = fixture["samples"]
     if len(samples) != UNITS or any(len(u) != TICKS or any(len(s) != 4 for s in u) for u in samples):
         raise ValueError("fixture sample matrix is incomplete")
+    if fixture.get("probe_sha256") != hashlib.sha256(PROBE.read_bytes()).hexdigest():
+        raise ValueError("probe source differs from the captured probe")
     if claims(samples) != fixture["claims"]:
         raise ValueError("claims differ from the frozen samples")
     return fixture["claims"]
@@ -136,6 +144,7 @@ def main():
         FIXTURE.write_text(json.dumps({
             "version": 1, "task": "PATROL-MOTION", "game_sha256": HASH,
             "probe": "tools/frida/wc3_patrol_motion_probe.j",
+            "probe_sha256": hashlib.sha256(PROBE.read_bytes()).hexdigest(),
             "scope": "Patrol legs are ordinary point tasks: paired Move/Patrol public trajectories and "
                      "the enclosed-endpoint reversal; head-on avoidance and facing animation are not certified here.",
             "captures": [{"sha256": hashlib.sha256(Path(p).read_bytes()).hexdigest()} for p in args.captures],

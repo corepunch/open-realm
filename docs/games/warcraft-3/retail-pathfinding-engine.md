@@ -889,22 +889,29 @@ on the walled lane and33 on the enclosed lane. The enclosed endpoint reverses at
 its closest reachable point (peak y1094.05 at sample31). The head stays851991
 throughout.
 
-`wc3_patrol_motion.*` replays the scene through actual JASS creation and
-orders. Open-lane Move and Patrol match every original sample within0.01. Patrol
-equals its paired Move over prefixes58/16/28. The last vertical prefix is
-shorter than retail's33 because the shared Move startup gap remains open. Patrol lanes 1, 3 and 8 never
-stand still for more than two samples, and the enclosed lane reverses at least
-five times. The old walker fails all three tests.
+`wc3_patrol_motion.*` replays the captured probe itself: the generated
+`retail_patrol_motion.h` embeds `wc3_patrol_motion_probe.j`, the test runs its
+`PathProbeInit` on the same flat 64x64 copy, and reads the exported hashtable rows
+at each `PATHMETA` marker. All ten subjects (open, walled, enclosed and head-on
+lanes) match every original sample word for word: current order, `GetUnitFacing`,
+`GetUnitX` and `GetUnitY`. A diagnostic comparison of the archived
+`velocity-commit` rows also matched every motion commit (clock, fine pose, velocity
+and angle) through30 s. A second replay at the shipped `FRAMETIME` server cadence
+reproduces the5 ms replay exactly. Patrol lanes, including the head-on pair, never
+stand still for more than five samples. The old walker fails these tests.
 
-Remaining gaps are Move-level and also appear in paired Move subjects:
+`GetUnitFacing` follows original `203b80`: software-float `Math_Multiply` by
+`6fcd5468` (`wc3_radians_to_degrees`). Host `RAD2DEG` rounded one ULP away from
+the original result in several samples.
 
-- Vertical starts move one sample early.
-- Walled detours differ by up to16 units.
-- Head-on pairs can livelock in the full scene: from sample209, the route
-  alternates between a ready detour and Stop. Isolated head-on pairs do not
-  reproduce this (0/36 Patrol, 0/36 Move).
-
-Facing animation is not certified.
+**Misleading harness to avoid:** an earlier version issued orders before the
+first frame, stepped `FRAMETIME` and skipped `G_FinishMovePathingInitialization`.
+Without the published hierarchy, a head-on pair livelocked: one member rebuilt the
+same blocked detour every visit, consuming fine admission while its peer waited.
+Production always finishes pathing initialization at map start (`g_main.c`), and
+the timer-driven probe replay never stalls. That livelock is not a Move defect.
+Test replays must run the probe's own timer after
+`G_FinishMovePathingInitialization` with the original pathing clock.
 
 A separate fresh group probe gives three Footmen one `GroupPointOrder(Patrol)`.
 Two observed runs and an unhooked control agree on all405 public markers. Each
