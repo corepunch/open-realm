@@ -3,7 +3,7 @@
  * restricted Blizzard/ namespace. The recorded digest rejects stale bindings
  * after a manual save file has been replaced outside the save lifecycle. The
  * digest is an integrity check, NOT cryptographic file authentication. */
-#define FS_SCOPE_BINDING_MAGIC "ORCSCOPE1"
+#define FS_SCOPE_BINDING_MAGIC "ORCSCOPE2"
 #define FS_SCOPE_BINDING_MAX_FILE (512u * 1024u * 1024u)
 
 static bool FS_ScopeManualName(cstring_t name, PATHSTR leaf) {
@@ -103,9 +103,27 @@ bool FS_BindScriptSaveScope(cstring_t name) {
     if (!FS_ScopeManualName(name, leaf) || !FS_EnsureScriptSession() ||
         !FS_ScopeManualFingerprint(name, &size, &hash) ||
         snprintf(binding, sizeof(binding), "%s.scope", leaf) >= (int)sizeof(binding)) return false;
+    /* A failed replacement must not leave an earlier binding authorized for
+     * an overwritten manual save (even if its payload hashes the same). */
+#ifndef _WIN32
+    int revoke_dir = FS_ScopeBindingDir(true);
+    if (revoke_dir < 0) return false;
+    bool revoked = unlinkat(revoke_dir, binding, 0) == 0 || errno == ENOENT;
+    close(revoke_dir);
+    if (!revoked) return false;
+#else
+    PATHSTR revoke_dir, revoke_path;
+    if (!FS_ScopeBindingDir(true, revoke_dir) ||
+        snprintf(revoke_path, sizeof(revoke_path), "%s/%s", revoke_dir, binding) >= (int)sizeof(revoke_path)) return false;
+    DWORD revoke_attr = GetFileAttributesA(revoke_path);
+    if (revoke_attr != INVALID_FILE_ATTRIBUTES &&
+        ((revoke_attr & FILE_ATTRIBUTE_REPARSE_POINT) || !DeleteFileA(revoke_path))) return false;
+#endif
+    char checkpoint[33];
+    if (!FS_CreateScriptCheckpoint(checkpoint)) return false;
     char line[160];
     int length = snprintf(line, sizeof(line), FS_SCOPE_BINDING_MAGIC " %s %016llx %016llx\n",
-                          fs_script_session, (unsigned long long)size, (unsigned long long)hash);
+                          checkpoint, (unsigned long long)size, (unsigned long long)hash);
     if (length <= 0 || length >= (int)sizeof(line)) return false;
 #ifndef _WIN32
     int dir = FS_ScopeBindingDir(true);
@@ -179,12 +197,9 @@ bool FS_RestoreScriptSaveScope(cstring_t name) {
                id, &saved_size, &saved_hash, &extra) != 3 ||
         strlen(id) != 32 || saved_size != size || saved_hash != hash) return false;
     for (unsigned i = 0; i < 32; ++i) if (!isxdigit((unsigned char)id[i])) return false;
-    /* Adopt only an existing directory; never let a forged binding create a
-     * new location or escape the script root through a symlink. */
-    strlcpy(fs_script_session, id, sizeof(fs_script_session));
-    PATHSTR root;
-    if (!FS_ScriptRoot(root, false)) { FS_ResetScriptSaveScope(); return false; }
-    return true;
+    /* Checkpoint IDs are only adopted through an engine-owned binding; restore
+     * them into a fresh scope so named saves cannot modify one another. */
+    return FS_CloneScriptCheckpoint(id);
 }
 
 /* Trusted game-module code can query this opaque scope for cache invalidation.
@@ -219,10 +234,13 @@ TEST(script_saves, manual_save_reauthorizes_only_its_previous_scope) {
     FS_ResetScriptSaveScope();
     T_ASSERT(!FS_ScriptSaveExists("Blizzard/Zones/OrcX01.w3z"));
     T_ASSERT(FS_RestoreScriptSaveScope("save-slot"));
-    T_STREQ(FS_ScriptScopeIdentity(), first_scope);
+    T_ASSERT(strcmp(FS_ScriptScopeIdentity(), first_scope) != 0);
     T_ASSERT(FS_ScriptSaveExists("Blizzard/Zones/OrcX01.w3z"));
     T_ASSERT(FS_ScriptCachePath("gamecache-Campaigns.w3v.orcgc", other_zone, sizeof(other_zone)));
-    T_STREQ(cache, other_zone);
+    T_ASSERT(strcmp(cache, other_zone) != 0);
+    f = fopen(other_zone, "rb");
+    T_NOT_NULL(f);
+    if (f) { char text[6] = {0}; T_EQ(fread(text, 1, 5, f), 5); T_STREQ(text, "cache"); fclose(f); }
     FS_ResetScriptSaveScope();
     T_ASSERT(!FS_RestoreScriptSaveScope("missing-slot"));
     T_ASSERT(!FS_RestoreScriptSaveScope("../save-slot"));
@@ -236,9 +254,103 @@ TEST(script_saves, manual_save_reauthorizes_only_its_previous_scope) {
     strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
 }
 
+/* Two named saves from the same live campaign must not observe each other's
+ * later disk-cache updates when restored. Loading also branches to a fresh
+ * scope so mutations in one loaded slot cannot rewrite either checkpoint. */
+TEST(script_saves, older_named_slot_restores_its_own_cache_checkpoint) {
+    PATHSTR old_home, old_save, zone, cache, manual_a, manual_b;
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-slot-checkpoints"));
+    FS_ResetScriptSaveScope();
+
+    T_ASSERT(FS_ScriptSavePath("Blizzard/Zones/OrcX01.w3z", zone, sizeof(zone)));
+    FILE *f = fopen(zone, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("zone-A", 1, 6, f), 6); fclose(f); }
+    T_ASSERT(FS_ScriptCachePath("gamecache-Campaigns.w3v.orcgc", cache, sizeof(cache)));
+    f = fopen(cache, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("level-3", 1, 7, f), 7); fclose(f); }
+    FS_SavePath("slot-A", manual_a, sizeof(manual_a));
+    f = fopen(manual_a, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("manual-A", 1, 8, f), 8); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("slot-A"));
+
+    f = fopen(zone, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("zone-B", 1, 6, f), 6); fclose(f); }
+    f = fopen(cache, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("level-5", 1, 7, f), 7); fclose(f); }
+    FS_SavePath("slot-B", manual_b, sizeof(manual_b));
+    f = fopen(manual_b, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("manual-B", 1, 8, f), 8); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("slot-B"));
+
+    FS_ResetScriptSaveScope(); /* simulate an application restart */
+    T_ASSERT(FS_RestoreScriptSaveScope("slot-A"));
+    T_ASSERT(FS_ScriptCachePath("gamecache-Campaigns.w3v.orcgc", cache, sizeof(cache)));
+    f = fopen(cache, "rb");
+    T_NOT_NULL(f);
+    if (f) { char v[8] = {0}; T_EQ(fread(v, 1, 7, f), 7); T_STREQ(v, "level-3"); fclose(f); }
+    T_ASSERT(FS_ScriptSavePath("Blizzard/Zones/OrcX01.w3z", zone, sizeof(zone)));
+    f = fopen(zone, "rb");
+    T_NOT_NULL(f);
+    if (f) { char v[7] = {0}; T_EQ(fread(v, 1, 6, f), 6); T_STREQ(v, "zone-A"); fclose(f); }
+    f = fopen(cache, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("level-9", 1, 7, f), 7); fclose(f); }
+
+    T_ASSERT(FS_RestoreScriptSaveScope("slot-B"));
+    T_ASSERT(FS_ScriptCachePath("gamecache-Campaigns.w3v.orcgc", cache, sizeof(cache)));
+    f = fopen(cache, "rb");
+    T_NOT_NULL(f);
+    if (f) { char v[8] = {0}; T_EQ(fread(v, 1, 7, f), 7); T_STREQ(v, "level-5"); fclose(f); }
+    T_ASSERT(FS_ScriptSavePath("Blizzard/Zones/OrcX01.w3z", zone, sizeof(zone)));
+    f = fopen(zone, "rb");
+    T_NOT_NULL(f);
+    if (f) { char v[7] = {0}; T_EQ(fread(v, 1, 6, f), 6); T_STREQ(v, "zone-B"); fclose(f); }
+
+    T_ASSERT(FS_RestoreScriptSaveScope("slot-A"));
+    T_ASSERT(FS_ScriptCachePath("gamecache-Campaigns.w3v.orcgc", cache, sizeof(cache)));
+    f = fopen(cache, "rb");
+    T_NOT_NULL(f);
+    if (f) { char v[8] = {0}; T_EQ(fread(v, 1, 7, f), 7); T_STREQ(v, "level-3"); fclose(f); }
+
+    strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
+    strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
+}
+
+TEST(script_saves, empty_campaign_scope_can_be_checkpointed) {
+    PATHSTR old_home, old_save, manual;
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-empty-checkpoint"));
+    FS_ResetScriptSaveScope();
+    FS_SavePath("empty", manual, sizeof(manual));
+    FILE *f = fopen(manual, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("empty", 1, 5, f), 5); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("empty"));
+    FS_ResetScriptSaveScope();
+    T_ASSERT(FS_RestoreScriptSaveScope("empty"));
+    T_ASSERT(!FS_ScriptSaveExists("Blizzard/Zones/OrcX01.w3z"));
+    strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
+    strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
+}
+
 #ifndef _WIN32
-TEST(script_saves, forged_scope_directory_symlink_is_rejected) {
-    PATHSTR old_home, old_save, zone, manual, root;
+TEST(script_saves, checkpoint_symlink_is_rejected_on_restore) {
+    PATHSTR old_home, old_save, zone, manual;
     char old_session[sizeof(fs_script_session)];
     strlcpy(old_home, fs_home_dir, sizeof(old_home));
     strlcpy(old_save, fs_save_dir, sizeof(old_save));
@@ -251,16 +363,48 @@ TEST(script_saves, forged_scope_directory_symlink_is_rejected) {
     T_NOT_NULL(f);
     if (f) { T_EQ(fwrite("file", 1, 4, f), 4); fclose(f); }
     T_ASSERT(FS_BindScriptSaveScope("slot"));
-    T_ASSERT(FS_ScriptRoot(root, false));
-    /* An attacker that can manipulate the host filesystem must not trick
-     * scope adoption into following a replaced script-scope directory. */
-    char renamed[MAX_PATHLEN];
-    if (snprintf(renamed, sizeof(renamed), "%s.old", root) < (int)sizeof(renamed) &&
-        rename(root, renamed) == 0) {
-        T_EQ(symlink(Test_TempPath("outside-scope"), root), 0);
-        FS_ResetScriptSaveScope();
-        T_ASSERT(!FS_RestoreScriptSaveScope("slot"));
+    int bindings = FS_ScopeBindingDir(false);
+    T_ASSERT(bindings >= 0);
+    char contents[160] = {0}, id[33] = {0};
+    int binding = openat(bindings, "slot.sav.scope", O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+    T_ASSERT(binding >= 0);
+    if (binding >= 0) {
+        ssize_t count = read(binding, contents, sizeof(contents) - 1);
+        T_ASSERT(count > 0);
+        close(binding);
     }
+    if (bindings >= 0) close(bindings);
+    T_EQ(sscanf(contents, FS_SCOPE_BINDING_MAGIC " %32s", id), 1);
+    int checkpoints = FS_CheckpointRootDir(false);
+    T_ASSERT(checkpoints >= 0);
+    if (checkpoints >= 0) {
+        T_EQ(renameat(checkpoints, id, checkpoints, "replaced-checkpoint"), 0);
+        T_EQ(symlinkat(Test_TempPath("outside-checkpoint"), checkpoints, id), 0);
+        close(checkpoints);
+    }
+    FS_ResetScriptSaveScope();
+    T_ASSERT(!FS_RestoreScriptSaveScope("slot"));
+    strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
+    strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
+}
+
+TEST(script_saves, checkpoint_rejects_symlinks_in_live_cache) {
+    PATHSTR old_home, old_save, cache, manual;
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-checkpoint-link"));
+    FS_ResetScriptSaveScope();
+    T_ASSERT(FS_ScriptCachePath("gamecache-Campaigns.w3v.orcgc", cache, sizeof(cache)));
+    T_EQ(symlink(Test_TempPath("outside-cache"), cache), 0);
+    FS_SavePath("unsafe", manual, sizeof(manual));
+    FILE *f = fopen(manual, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("manual", 1, 6, f), 6); fclose(f); }
+    T_ASSERT(!FS_BindScriptSaveScope("unsafe"));
+    T_ASSERT(!FS_RestoreScriptSaveScope("unsafe"));
     strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
     strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
     strlcpy(fs_script_session, old_session, sizeof(fs_script_session));

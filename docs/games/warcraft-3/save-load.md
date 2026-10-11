@@ -256,9 +256,9 @@ snapshots. The user-initiated save/load path is unchanged.
 **Remaining limitations:** the map identity/footer are checked before changing
 maps, but a damaged payload can still fail during `ReadGame` after replacement.
 The server's existing fallback loads a clean destination map, not the previous
-source map. A fully atomic cross-map rollback, persistent scope restoration
-across process restarts, and cache refresh after loading an older zone remain
-subsequent work. As with Patch 3, this patch is designed for local session
+source map. A fully atomic cross-map rollback remains subsequent work.
+The later named-save checkpoint work addresses scope recovery across restarts
+and isolation of disk game caches between manual slots. As with Patch 3, this patch is designed for local session
 transitions; verify dedicated-server handling separately.
 
 ### Deferred JASS saves and conditional ChangeLevel (Patch 3)
@@ -281,14 +281,13 @@ save in place. POSIX uses a same-directory atomic rename; Windows uses a
 replace-existing move. This does not add an application-wide disk quota or
 protect against unrelated privileged processes mutating files concurrently.
 
-**Still pending:** Scripted `LoadGame` is deliberately rejected instead of
-calling `ReadGame` within an active JASS frame. Patch 4 must route it through
-the cross-map server loader and bind the already validated script namespace.
+**Patch 3 scope:** Scripted `LoadGame` was deliberately rejected instead of
+calling `ReadGame` within an active JASS frame. Patch 4 subsequently routes it
+through the cross-map server loader and keeps the active script namespace.
 Scripted zone saves are distinct from the player's named manual save events:
 `EVENT_GAME_SAVE` is still dispatched only by the normal save entry points.
-Patch 5 must restore authorized campaign scope across application restarts and
-validate campaign-cache/zone coherence; no such behaviour is implied by this
-patch. This deferred mechanism captures the state at the simulation safe point,
+Patches 5 and 5a subsequently add restart-safe campaign scope bindings and
+per-named-slot checkpoints; Rexxar hero-import fidelity remains unverified. This deferred mechanism captures the state at the simulation safe point,
 not necessarily the exact JASS instruction where `SaveGame` was called.
 
 
@@ -709,34 +708,43 @@ Attack cooldown begins at swing start, independently of animation `wait`; it con
 
 Regression coverage includes prior/future version rejection, map-selection layout rejection, current combat/cargo round-trips, invalid cargo goal references, and payloads with unexpected trailing records. Shared Warcraft III ability lifecycles also have combined round trips for an ability-owned timed summon, a live homing spell projectile (owner/target generations plus movement state), corpse reservation (flag plus owning status marker), an owned attached effect (owner plus target-generation guard), and Flare's caster-bound reveal thinker (callback, point, expiry, and owner incarnation). Far Sight remains covered separately as a player-scoped reveal thinker whose saved lifecycle is intentionally independent of caster identity. The movement suite saves a Zeppelin en route and completes its unload after restoration. Run `make test-wc3-engine WC3_PATTERN='wc3_save.*'` for both ROC and TFT.
 
-### Manual save scope binding and campaign cache (Patch 5)
+### Manual-save script checkpoints (Patches 5 and 5a)
 
-A successful ESC-menu or server-console manual save establishes an engine-only
-binding in `saves/script/bindings/`. It identifies the randomly generated
-script scope along with the file size and a fingerprint of the committed manual
-save. No map-controlled path or cache key can target binding metadata. The
-binding is written only after `WriteGame` completes, and a later load validates
-it against that save file. Missing/mismatched bindings cause a fresh scope
-instead of granting stale or guessed access. Loading the save still follows
-the existing `SV_LoadGame` path.
+After a successful ESC-menu or console manual save, the engine snapshots the
+active script-save scope into a **private, immutable checkpoint** under
+`saves/script/checkpoints/<engine-generated-id>/`. It includes exactly the
+permitted flat scripted saves, `Blizzard/<slot-or-Zones>/` zone files, and the
+`cache/` game-cache sidecars. The engine writes an `ORCSCOPE2` binding in
+`saves/script/bindings/` after the checkpoint copy completes; that binding
+contains the checkpoint ID plus the player-save file size and fingerprint.
+The file name / checkpoint ID is never supplied by JASS. A failed checkpoint
+must not publish a binding. The old `ORCSCOPE1` binding format is deliberately
+not accepted because it referred to mutable live storage.
 
-Scripted `LoadGame` does not restore a manual binding, rotate the scope, or
-publish `EVENT_GAME_LOADED`: it continues to use the active campaign's
-current zone files. For `wc3_gamecache_mode=disk`, `InitGameCache` prefers the
-latest committed disk cache and invalidates process-memory cache entries when
-the engine changes scopes. The original campaign script remains responsible
-for exporting the latest heroes, removing source-party instances, and
-re-importing units on arrival. Fully verifying its stale-handle/hero behaviour
-requires the Rexxar map-data integration run.
+Loading a named manual save validates its file fingerprint, reads the private
+binding, then **clones the checkpoint into a new, random script scope** before
+loading the destination map. It does not continue writing to the original
+campaign session or to the checkpoint itself. Loading an older named save
+therefore reads its original `Campaigns.w3v` sidecar and saved zones, not later
+mutations made while playing a newer slot. Repeat loads create fresh branches,
+so evolving one loaded save never modifies either slot's checkpoint. The
+original Rexxar `EVENT_GAME_LOADED` handler still owns copying its backed-up
+zone files into the active `Blizzard/Zones` directory.
 
-The patch does not add a storage quota, cryptographic authentication for
-manually imported saves, full rollback of a failed cross-map restore, or
-compatibility with Blizzard's binary `.w3z` or `.w3v` formats.
+Scripted zone `LoadGame` deliberately does **not** adopt a named-save binding
+or create a new scope: it continues within the current campaign's live storage
+and does not send `EVENT_GAME_LOADED`. In disk-cache mode, `InitGameCache`
+reads committed cache sidecars in the active scope, invalidating in-memory
+cache entries when the engine changes scope. The campaign's `Export_All` and
+`Import_All` scripts remain authoritative for travelling heroes and their
+current quest progression; actual Rexxar integration remains to be tested.
 
-**Known multi-slot limitation:** separate manual saves made during one play
-session currently share the same live campaign cache directory. Restoring an
-older manual slot triggers Rexxar's own zone backup restoration, but the
-`cache/` sidecar may reflect later progress from another slot in that scope.
-An engine-owned per-manual-slot cache checkpoint (or fully branched scope)
-is still needed before older named slots can be claimed as isolated campaign
-checkpoints. Do not rely on this patch alone for that use case.
+The copy is no-follow and fail-closed on POSIX, rejecting symlinks and special
+files. Both platforms enforce a narrow directory shape and a checkpoint limit
+of **512 MiB and 2,048 regular files**. These are per-checkpoint safeguards,
+not a total disk quota. Superseded and failed checkpoints may consume storage
+until a future garbage collector removes unreferenced private directories.
+The storage is engine-owned; host-level tampering or modification is not
+cryptographically authenticated. Other limitations include full rollback after
+failed cross-map restoration and native compatibility with Blizzard's binary
+`.w3z` and `.w3v` formats. The engine's existing versioned save format is used.

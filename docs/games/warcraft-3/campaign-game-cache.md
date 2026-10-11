@@ -27,19 +27,22 @@ wc3_gamecache_mode disabled
 `disk` is the default: an explicit `SaveGameCache()` commits the
 cache to the process snapshot and an OpenRealm sidecar in the engine-owned
 script-save session sandbox so later maps in **the same session** can restore it.
-The previous global sidecar location is no longer accessible to map scripts:
-without this isolation, a malicious custom map could overwrite another
-campaign's `Campaigns.w3v` cache. Patch 5 binds the random script-save scope to a successfully committed
-player-created named save using private engine-owned metadata. Loading that
-specific named save (even after restarting) reauthorizes its existing script
-scope, including `Blizzard/Zones` and `cache/` sidecars. Untrusted JASS can
-neither select the scope nor read its binding. If the binding is absent, stale
-or invalid, the loader starts with a new scope and does not expose the old
-files. A legacy manual save without a binding therefore cannot restore its
-older scripted zones; the manual game-state snapshot itself can still load. `memory` keeps the same explicit save boundary but
-commits only to process memory. `disabled` gives every `InitGameCache()` call a
-fresh empty handle; handle-local `Store*()`/`GetStored*()` still work and
-`SaveGameCache()` returns success, but commits nowhere.
+The previous global sidecar location is not accessible to map scripts:
+without isolation, an untrusted map could overwrite another campaign's
+`Campaigns.w3v`. On a player-created named save, the engine checkpoints the
+entire permitted live script namespace, including cache sidecars, into an
+engine-owned immutable directory. A binding tied to that manual save's
+fingerprint authorizes restoring a **fresh writable clone** of the checkpoint
+after a restart or after loading an older save slot. Loading one slot can no
+longer overwrite another slot's cached hero/quest data. JASS cannot select
+checkpoint IDs or access binding files. Missing, stale, or invalid bindings
+yield a new empty scope; the manual game snapshot may still load. See
+[save/load](save-load.md#manual-save-script-checkpoints-patches-5-and-5a).
+
+`memory` keeps the explicit save boundary but commits only to process memory,
+so it cannot provide restart-safe game-cache checkpointing. `disabled` creates
+empty new handles and does not commit campaign values, although handle-local
+`Store*` and `GetStored*` continue to work.
 
 This distinction matters for the Reign of Chaos Human campaign. Human02 first
 tries to restore the carried-over Arthas. If that data is absent, its map script

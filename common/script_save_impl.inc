@@ -8,9 +8,8 @@ void FS_ResetScriptSaveScope(void) {
     fs_script_session[0] = '\0';
 }
 
-static bool FS_EnsureScriptSession(void) {
+static bool FS_GenerateScriptScopeId(char out[33]) {
     unsigned char id[16];
-    if (fs_script_session[0]) return true;
 #ifdef _WIN32
     /* Dynamically load the system RNG to avoid an additional link dependency. */
     HMODULE bcrypt = LoadLibraryA("bcrypt.dll");
@@ -28,8 +27,13 @@ static bool FS_EnsureScriptSession(void) {
     if (!success) return false;
 #endif
     for (size_t i = 0; i < sizeof(id); ++i)
-        snprintf(fs_script_session + i * 2, 3, "%02x", id[i]);
+        snprintf(out + i * 2, 3, "%02x", id[i]);
+    out[32] = '\0';
     return true;
+}
+
+static bool FS_EnsureScriptSession(void) {
+    return fs_script_session[0] || FS_GenerateScriptScopeId(fs_script_session);
 }
 
 /* Only Warcraft's authored 'Blizzard/Zones' and 'Blizzard/<slot>'

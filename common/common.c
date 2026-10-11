@@ -469,6 +469,7 @@ void FS_SavePath(cstring_t rel, string_t out, uint32_t out_size) {
 }
 
 #include "script_save_impl.inc"
+#include "script_scope_checkpoint.inc"
 #include "script_scope_binding.inc"
 
 /* Delete one resolved save slot without exposing unrestricted filesystem removal to game modules. */
