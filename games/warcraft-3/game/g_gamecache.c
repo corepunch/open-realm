@@ -128,8 +128,8 @@ static bool G_GameCachePath(cstring_t campaign, string_t out, uint32_t out_size)
         fprintf(stderr, "Game cache: resolved cache name is too long for '%s'\n", campaign);
         return false;
     }
-    gi.UserPath(rel, out, out_size);
-    return true;
+    /* A map must not read or overwrite other maps' campaign caches. */
+    return gi.ScriptCachePath && gi.ScriptCachePath(rel, out, out_size);
 }
 
 static bool G_GameCacheWriteBytes(FILE *f, void const *data, size_t size) {

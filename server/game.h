@@ -97,6 +97,14 @@ struct game_import {
     void (*UserPath)(cstring_t rel, string_t out, uint32_t out_size);
     /* Resolve save files under the platform's per-user data directory. */
     void (*SavePath)(cstring_t rel, string_t out, uint32_t out_size);
+    /* Untrusted JASS save natives are confined to an engine-owned session
+     * sandbox. The game cannot choose its root or access manual saves. */
+    bool (*ScriptSavePath)(cstring_t name, string_t out, uint32_t out_size);
+    bool (*ScriptCachePath)(cstring_t name, string_t out, uint32_t out_size);
+    bool (*ScriptSaveExists)(cstring_t name);
+    bool (*ScriptCopySave)(cstring_t source, cstring_t target);
+    bool (*ScriptRenameSaveDirectory)(cstring_t source, cstring_t target);
+    bool (*ScriptRemoveSaveDirectory)(cstring_t name);
     /* Enumerate save basenames as a double-NUL-terminated list. */
     uint32_t (*ListSaves)(string_t out, uint32_t out_size);
     /* Delete one save basename from the writable save directory. */

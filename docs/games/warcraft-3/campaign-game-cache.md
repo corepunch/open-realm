@@ -24,9 +24,14 @@ wc3_gamecache_mode memory
 wc3_gamecache_mode disabled
 ```
 
-`disk` is the retail-like default: an explicit `SaveGameCache()` commits the
-cache to the process snapshot and the OpenRealm sidecar so later maps and later
-processes can restore it. `memory` keeps the same explicit save boundary but
+`disk` is the default: an explicit `SaveGameCache()` commits the
+cache to the process snapshot and an OpenRealm sidecar in the engine-owned
+script-save session sandbox so later maps in **the same session** can restore it.
+The previous global sidecar location is no longer accessible to map scripts:
+without this isolation, a malicious custom map could overwrite another
+campaign's `Campaigns.w3v` cache. Persisting/re-authorizing a specific session
+namespace across application restarts is follow-up work, and is not claimed
+by this patch. `memory` keeps the same explicit save boundary but
 commits only to process memory. `disabled` gives every `InitGameCache()` call a
 fresh empty handle; handle-local `Store*()`/`GetStored*()` still work and
 `SaveGameCache()` returns success, but commits nowhere.
@@ -84,9 +89,10 @@ projectile state, or trigger-local references. Those require separate saved-game
 
 ## Storage Modes and Persistence Format
 
-The default `disk` mode loads the last committed sidecar when `InitGameCache()`
-opens a campaign cache and writes a new committed sidecar only when map script
-calls `SaveGameCache()`. Ordinary Hero XP changes, skill learning, `StoreUnit()`,
+The default `disk` mode loads the last committed sidecar in the active
+script-save session namespace when `InitGameCache()` opens a campaign cache,
+and writes a new committed sidecar only when map script calls
+`SaveGameCache()`. Ordinary Hero XP changes, skill learning, `StoreUnit()`,
 and other `Store*()` calls do **not** write to disk by themselves. Unsaved handle
 mutations remain private until the explicit save call, matching the retail
 campaign-script lifecycle.
@@ -127,19 +133,22 @@ Campaigns.w3v
 ```
 
 OpenRealm writes a versioned private sidecar through the engine-owned
-`FS_UserPath()` policy:
+`FS_ScriptCachePath()` policy:
 
 ```text
 gamecache-Campaigns.w3v.orcgc
 ```
 
 The game module does not link directly against `common` to call that resolver.
-`server/game.h` exposes it as `game_import.UserPath`, and `SV_InitGameProgs()`
-provides `FS_UserPath`. This keeps writable-path ownership on the engine side and
-avoids unresolved engine symbols in `libgame`.
+`server/game.h` exposes it as `game_import.ScriptCachePath`, and
+`SV_InitGameProgs()` provides `FS_ScriptCachePath`. This keeps path ownership
+on the engine side and avoids unresolved symbols in `libgame`.
 
-This places writable campaign state under the normal per-game user directory
-(`$XDG_DATA_HOME/warcraft-3/` on Unix when set to an absolute path, otherwise `~/.local/share/warcraft-3/`, with the existing portable `share/warcraft-3/` fallback when no writable per-user directory is available).
+The cache resides at `saves/script/<session-id>/cache/gamecache-Campaigns.w3v.orcgc`
+under the normal per-user game directory (or existing portable fallback), not
+beside general game configuration. The session ID is engine-generated and
+never supplied by a map. Scripted save-copy and directory operations cannot
+address the cache directory.
 
 The sidecar uses an explicit little-endian, length-prefixed format with the
 `ORGCACHE` magic and version `1`. Writes go to a temporary file and are renamed
@@ -185,7 +194,9 @@ semantics remain separate work.
 
 For a retail-like campaign run, use the default `disk` mode: complete Human01 so
 its script reaches `SaveGameCache()`, then load Human02. The carried state may be
-restored in the same process or after restarting OpenRealm. Use
+restored when both maps run in the same play session. At present, restarting
+OpenRealm creates a new isolated cache namespace, so older sidecars are not
+restored until the follow-up session-persistence work is implemented. Use
 `+set wc3_gamecache_mode memory` when persistence should stop at process exit, or
 `+set wc3_gamecache_mode disabled` when intentionally testing Human02's
 cache-miss fallback. Starting Human02 without a previously committed Human01

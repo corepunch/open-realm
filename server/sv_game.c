@@ -170,6 +170,12 @@ void SV_InitGameProgs(void) {
     import.CvarString = Cvar_String;
     import.UserPath = FS_UserPath;
     import.SavePath = FS_SavePath;
+    import.ScriptSavePath = FS_ScriptSavePath;
+    import.ScriptCachePath = FS_ScriptCachePath;
+    import.ScriptSaveExists = FS_ScriptSaveExists;
+    import.ScriptCopySave = FS_ScriptCopySave;
+    import.ScriptRenameSaveDirectory = FS_ScriptRenameDirectory;
+    import.ScriptRemoveSaveDirectory = FS_ScriptRemoveDirectory;
     import.ListSaves = FS_ListSaves;
     import.DeleteSave = FS_DeleteSave;
 

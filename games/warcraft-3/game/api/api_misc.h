@@ -858,11 +858,10 @@ uint32_t SaveGame(jass_t *j) {
     cstring_t name = jass_checkstring(j, 1);
     PATHSTR path;
 
-    if (!name || !*name || strchr(name, '/') || strchr(name, '\\') || !gi.SavePath) {
-        fprintf(stderr, "WC3 SaveGame: invalid save name\n");
+    if (!gi.ScriptSavePath || !gi.ScriptSavePath(name, path, sizeof(path))) {
+        fprintf(stderr, "WC3 SaveGame: invalid or inaccessible script save name\n");
         return 0;
     }
-    gi.SavePath(name, path, sizeof(path));
     if (!WriteGame(path)) fprintf(stderr, "WC3 SaveGame: could not write %s\n", path);
     return 0;
 }
@@ -870,11 +869,10 @@ uint32_t LoadGame(jass_t *j) {
     cstring_t name = jass_checkstring(j, 1);
     PATHSTR path;
 
-    if (!name || !*name || strchr(name, '/') || strchr(name, '\\') || !gi.SavePath) {
-        fprintf(stderr, "WC3 LoadGame: invalid save name\n");
+    if (!gi.ScriptSavePath || !gi.ScriptSavePath(name, path, sizeof(path))) {
+        fprintf(stderr, "WC3 LoadGame: invalid or inaccessible script save name\n");
         return 0;
     }
-    gi.SavePath(name, path, sizeof(path));
     if (!ReadGame(path)) fprintf(stderr, "WC3 LoadGame: could not read %s\n", path);
     return 0;
 }
@@ -913,9 +911,22 @@ uint32_t EnablePreSelect(jass_t *j) { (void)jass_checkboolean(j, 1); (void)jass_
 uint32_t EnableSelect(jass_t *j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
 uint32_t SetReservedLocalHeroButtons(jass_t *j) { (void)jass_checkinteger(j, 1); return 0; }
 uint32_t CopySaveGame(jass_t *j) {
-    (void)jass_checkstring(j, 1);
-    (void)jass_checkstring(j, 2);
-    return jass_pushboolean(j, false); /* PMV Lua bridge; no save-file copy */
+    cstring_t source = jass_checkstring(j, 1);
+    cstring_t target = jass_checkstring(j, 2);
+    return jass_pushboolean(j, gi.ScriptCopySave && gi.ScriptCopySave(source, target));
+}
+uint32_t SaveGameExists(jass_t *j) {
+    cstring_t name = jass_checkstring(j, 1);
+    return jass_pushboolean(j, gi.ScriptSaveExists && gi.ScriptSaveExists(name));
+}
+uint32_t RenameSaveDirectory(jass_t *j) {
+    cstring_t source = jass_checkstring(j, 1);
+    cstring_t target = jass_checkstring(j, 2);
+    return jass_pushboolean(j, gi.ScriptRenameSaveDirectory && gi.ScriptRenameSaveDirectory(source, target));
+}
+uint32_t RemoveSaveDirectory(jass_t *j) {
+    cstring_t name = jass_checkstring(j, 1);
+    return jass_pushboolean(j, gi.ScriptRemoveSaveDirectory && gi.ScriptRemoveSaveDirectory(name));
 }
 uint32_t GetTerrainType(jass_t *j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
 uint32_t GetTerrainVariance(jass_t *j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }

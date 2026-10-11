@@ -166,6 +166,8 @@ TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort) common/mpq.c common/mpq.h
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 COMMON_HEADERS := $(shell find common -name '*.h' | sort)
+# Included implementation fragments must invalidate unity-build dependents.
+COMMON_HEADERS += common/script_save_impl.inc
 SERVER_HEADERS := $(shell find server -name '*.h' | sort)
 WORLD_CORE_SRCS := common/world.c server/sv_routing.c server/routing.h
 FONT_SRC := renderer/conchars.pcx

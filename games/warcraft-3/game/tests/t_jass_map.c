@@ -1596,7 +1596,7 @@ TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
     G_ClientCommand(&g_edicts[0], 1, command);
 
     T_ASSERT(!level.script_paused);
-    T_STREQ(victory_menu_action, "map");
+    T_STREQ(victory_menu_action, "level");
     T_STREQ(victory_menu_arg, "Maps\\Campaign\\Human03.w3m");
 
     gi.MenuAction = old_menu_action;

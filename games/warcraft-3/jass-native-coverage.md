@@ -567,3 +567,7 @@ The shared VM now also unwinds unknown (undeclared) calls through its protected 
 with runtime errors instead of process assertions, and protects global-initializer evaluation. Unique missing function names remain
 queryable until VM close via `jass_missingcount`/`jass_missingname`. See [Galaxy protected calls and coverage](../../docs/games/starcraft-2/galaxy-scripting.md#protected-calls-and-missing-native-inventory)
 for the SC2 reproduction, inventory workflow, and shared VM regressions. This does not change WC3 quest state ownership or native IDs.
+
+### Scripted save filesystem natives (Rexxar zone paths)
+
+`SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` are registered and use engine-owned restricted filesystem callbacks. These only operate within the current script-save session namespace and accept `Blizzard\Zones` / `Blizzard\<slot>` directories, plus flat scripted slots. Copying is bounded and atomic on POSIX; the parent directory cannot be renamed or removed. Manual save slots are not accessible. The unrelated scripted `SaveGame` / `LoadGame` lifecycle is still synchronous and cannot safely snapshot an active JASS frame; first-visit/return-visit integration remains pending. See `docs/games/warcraft-3/save-load.md`.

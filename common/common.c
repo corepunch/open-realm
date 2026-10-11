@@ -6,6 +6,10 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <time.h>
+#include <ctype.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #ifdef _WIN32
 #include <io.h>
@@ -335,6 +339,7 @@ static PATHSTR fs_share_dir = { 0 };
  * absent or not writable, in which case FS_UserPath falls back to share/<game>/. */
 static PATHSTR fs_home_dir = { 0 };
 static PATHSTR fs_save_dir = { 0 };
+static char fs_script_session[33]; // 32 hex digits plus NUL for the session's random 128-bit token.
 
 /* Create every component of a user path because ~/.local/share/<game> may not exist on first launch. */
 static bool FS_CreateDirectoryPath(cstring_t dir) {
@@ -390,6 +395,7 @@ void FS_SetHomeDirectory(cstring_t dir) {
     /* Save paths are cached after first use. A runtime/test home-directory
      * change must invalidate that derived directory as well. */
     fs_save_dir[0] = '\0';
+    FS_ResetScriptSaveScope();
 }
 
 cstring_t FS_BasePath(void) {
@@ -460,6 +466,8 @@ void FS_SavePath(cstring_t rel, string_t out, uint32_t out_size) {
     extension = FS_PathHasExtension(rel, ".sav") ? "" : ".sav";
     snprintf(out, out_size, "%s/%s%s", fs_save_dir, rel, extension);
 }
+
+#include "script_save_impl.inc"
 
 /* Delete one resolved save slot without exposing unrestricted filesystem removal to game modules. */
 bool FS_DeleteSave(cstring_t rel) {

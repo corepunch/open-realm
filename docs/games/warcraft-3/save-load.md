@@ -2,7 +2,7 @@
 
 ## Contract
 
-The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`; the JASS `SaveGame` and `LoadGame` natives use the same callbacks and resolve names through `gi.SavePath`.
+The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`. Player-facing menu saves continue to use `gi.SavePath`; untrusted JASS `SaveGame` and `LoadGame` are resolved through `gi.ScriptSavePath` into a **separate engine-owned session sandbox**. This change does not yet make JASS save/load asynchronous or fix the active-JASS-frame snapshot restriction (see Scripted zone saves below).
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
@@ -191,14 +191,16 @@ This follows the Quake 2 `g_save.c` pattern while avoiding Quake 2's old global 
 
 ## Native Usage
 
-JASS save names are relative user-state names. Names containing `/` or `\\` are rejected. The engine's `FS_SavePath()` policy determines the writable directory.
+JASS save names are relative virtual names. Patch 1 accepts simple flat slots, `Blizzard\Zones\<filename>`, and `Blizzard\<slot>\<filename>` only. The engine uses a fresh private `saves/script/<random-session-id>/` root per player-selected map session. It preserves that root for authored JASS `ChangeLevel`/`RestartGame` actions; player-started maps, returning to the menu, and manual load requests rotate it. Map scripts never receive or choose the physical root, and cannot enumerate or manipulate manual saves or saves from other sessions. Disk-backed `gamecache-*.orcgc` sidecars are likewise under that session's private `cache/` directory, which JASS save-copy/delete natives cannot address. Valid names use ASCII letters/digits, dot, dash, underscore and internal spaces, at most 64 characters per component. Device names, trailing dots, absolute paths, traversal and extra directory depth are rejected. Existing `.sav` suffixes are preserved, otherwise `.sav` is appended consistently for scripted saves. These rules apply to `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` too. Directory operations are limited to `Blizzard\<slot>` and `Blizzard\Zones`; they cannot target the sandbox root or the `Blizzard` parent. Filesystem copying on POSIX uses directory-relative no-follow file descriptors and temporary replacement; the Windows implementation rejects reparse points.
+
+**Patch 1 limitation:** the private scope is not yet stored in full-game save metadata. Consequently, restarting the application or choosing a manual save creates a new scope and cannot access an older zone-save collection until the subsequent campaign persistence patch provides an authenticated scope-restoration policy. Original Rexxar zone travel also remains blocked by the independently known VM-safe save/load and game-event gaps. Do not treat the filename work as an end-to-end Rexxar fix. Scripted `SaveGame`/`LoadGame` still call the current synchronous serializer, whose filename-based `fopen` path is not fully safe against concurrent external filesystem modification; the transactional save patch must enforce the same scope when opening the final file, add per-session storage quotas, and fix safe-point ordering.
 
 ```jass
 call SaveGame("chapter-01")
 call LoadGame("chapter-01", false)
 ```
 
-`LoadGame` completely reloads the saved map before restoring state. The initialized map must have the same JASS program. `main()` recreates the baseline native registries; objects created later in gameplay are allocated from the save and filled from trigger/event/timer records. The native names resolve through `FS_SavePath()`.
+`LoadGame` completely reloads the saved map before restoring state. The initialized map must have the same JASS program. `main()` recreates the baseline native registries; objects created later in gameplay are allocated from the save and filled from trigger/event/timer records. The JASS natives resolve paths through `gi.ScriptSavePath` (the menu uses `FS_SavePath()`).
 
 ## Quake 2 Lifecycle
 

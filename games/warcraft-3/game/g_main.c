@@ -1098,13 +1098,13 @@ void G_RequestQuitGame(void) {
 
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {
     G_GameResultDebug("request ChangeLevel map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
-    if (map && *map) gi.MenuAction("map", map);
+    if (map && *map) gi.MenuAction("level", map);
 }
 
 void G_RequestRestartGame(bool do_score_screen) {
     cstring_t map = gi.CvarString("map", "");
     G_GameResultDebug("request RestartGame map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
-    if (map && *map) gi.MenuAction("map", map);
+    if (map && *map) gi.MenuAction("level", map);
 }
 
 void G_RequestLoadGameMenu(void) {

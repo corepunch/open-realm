@@ -183,6 +183,14 @@ cstring_t FS_HomePath(void);
 void FS_UserPath(cstring_t rel, string_t out, uint32_t out_size);
 void FS_ConfigPath(cstring_t rel, string_t out, uint32_t out_size);
 void FS_SavePath(cstring_t rel, string_t out, uint32_t out_size);
+/* JASS-only filesystem API: engine-scoped sandbox, not the manual save area. */
+void FS_ResetScriptSaveScope(void);
+bool FS_ScriptSavePath(cstring_t name, string_t out, uint32_t out_size);
+bool FS_ScriptCachePath(cstring_t name, string_t out, uint32_t out_size);
+bool FS_ScriptSaveExists(cstring_t name);
+bool FS_ScriptCopySave(cstring_t source, cstring_t target);
+bool FS_ScriptRenameDirectory(cstring_t source, cstring_t target);
+bool FS_ScriptRemoveDirectory(cstring_t name);
 uint32_t FS_ListSaves(string_t out, uint32_t out_size);
 bool FS_DeleteSave(cstring_t rel);
 void FS_Shutdown(void);
