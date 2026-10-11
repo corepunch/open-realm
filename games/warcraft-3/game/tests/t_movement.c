@@ -24440,4 +24440,68 @@ TEST(wc3_movement, pause287_resumed_point_nested_stop_keeps_outer_task) {pause28
 TEST(wc3_movement, pause287_resumed_point_nested_move_replaces_outer_task) {pause287_public(16);}
 TEST(wc3_movement, pause287_rifleman_suspension_without_modal_ability) {pause287_public(17);}
 TEST(wc3_movement, pause287_structure_suspension_without_move_ability) {pause287_public(18);}
+#include "fixtures/retail_pause288.h"
+static struct {unsigned scene,row;} pause288;
+static void pause288_marker(cstring_t text) {
+    unsigned tick,scene,order,paused,target,defend;float x,y,px,py,speed;char label[64];
+    if(sscanf(text,"P287 tick=%u scene=%u label=%63s order=%u paused=%u x=%f y=%f px=%f py=%f target=%u defend=%u speed=%f",
+        &tick,&scene,label,&order,&paused,&x,&y,&px,&py,&target,&defend,&speed)!=12)return;
+    if(!strcmp(label,"scene-start") || !strcmp(label,"settled") || !strcmp(label,"complete"))return;
+    T_EQ(scene,pause288.scene);T_ASSERT(pause288.row<24);if(pause288.row>=24)return;
+    typeof(pause288_rows[0][0]) *row=pause288_rows[scene]+pause288.row++;
+    if(row->label && strcmp(label,row->label))fprintf(stderr,"pause288 expected %s, received %s\n",row->label,text);
+    T_NOT_NULL(row->label);if(!row->label)return;
+    T_STREQ(label,row->label);T_EQ(order,row->order);T_EQ(paused,row->paused);
+    T_EQ(speed,row->speed);T_EQ(defend,row->defend);
+    if(!strncmp(label,"player-",7) || !strncmp(label,"unit-",5)) {
+        T_EQ(px,row->px);T_EQ(py,row->py);T_EQ(target,row->target);
+    }
+}
+static void pause288_public(unsigned scene) {
+    FOR_LOOP(saved,2) {
+        reset_entities();reset_test_state();setup_test_world();g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
+        uint8_t cells[64*64]={0};CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        /* tests.mpq has authored Adef membership but lacks its AbilityData row.
+         * This minimal stock-shaped row enables the actual modal owner. */
+        char const *defend_slk="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataC1\"\n"
+            "C;Y2;X1;K\"Adef\"\nC;X2;K\"Adef\"\nC;X3;K0.3\nE\n";
+        slkTestData_t *defend_rows=parse_slk_string(defend_slk),*old_defend=G_SetSLKRows("AbilityData",defend_rows);
+        slkTestData_t *rifleman[3]={0},*old_rows[3]={0};
+        if(scene==19)FOR_LOOP(i,3) {rifleman[i]=parse_slk_string(pause287_rifleman[i]);old_rows[i]=G_SetSLKRows(pause287_tables[i],rifleman[i]);}
+        char script[sizeof(pause287_script)+180];snprintf(script,sizeof(script),"%s\nfunction P288Start takes nothing returns nothing\ncall P287Setup(%u)\nendfunction\n",pause287_script,scene);
+        T_ASSERT(run_test_jass(script));jass_callbyname(level.vm,"P288Start",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        edict_t *unit=NULL;FILTER_EDICTS(e,e->inuse && e->svflags&SVF_MONSTER && !e->s.player)unit=e;
+        T_NOT_NULL(unit);if(!unit)continue;unsigned number=unit-g_edicts;
+        T_NULL(unit->ability_orders);T_NULL(unit->ability_disables);
+        pause288=(typeof(pause288)){.scene=scene};test_preload_marker=pause288_marker;
+        jass_callbyname(level.vm,"P287Tick",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(G_CountUnitOrders(unit,0),pause288_counts[scene]);
+        if(saved) {cstring_t file=Test_TempPath("wc3-pause288-admitted.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;}
+        for(unitAbilityDisable_t *state=unit->ability_disables;state;state=state->next)
+            if(state->code==MAKEFOURCC('A','d','e','f')) {
+                T_EQ(state->depth,1);T_EQ(state->order_depth,1);T_ASSERT(state->pause_owned);
+            }
+        jass_callbyname(level.vm,"P287Resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        /* Retail inverse disable-exit precedes the native's return, while
+         * physical separation remains held for the later scheduler visit. */
+        for(unitAbilityDisable_t *state=unit->ability_disables;state;state=state->next) {
+            T_EQ(state->depth,0);T_EQ(state->order_depth,0);T_ASSERT(!state->pause_owned);
+        }
+        if(saved) {cstring_t file=Test_TempPath("wc3-pause288-pending.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;}
+        FOR_LOOP(i,2) {wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);S_RunMoveTimers();}
+        jass_callbyname(level.vm,"P287Tick",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(pause288.row<24);if(pause288.row<24)T_NULL(pause288_rows[scene][pause288.row].label);
+        T_ASSERT(!unit->paused);T_ASSERT(!S_UnitExecutionPaused(unit));
+        test_preload_marker=NULL;reset_entities();
+        if(scene==19)FOR_LOOP(i,3) {G_SetSLKRows(pause287_tables[i],old_rows[i]);free_slk_rows(rifleman[i]);}
+        G_SetSLKRows("AbilityData",old_defend);free_slk_rows(defend_rows);
+        reset_test_state();setup_test_world();
+    }
+}
+TEST(wc3_movement,pause288_inactive_modal_off_is_retained_and_notified_twice) {pause288_public(0);}
+TEST(wc3_movement,pause288_active_modal_stance_survives_until_retained_execution) {pause288_public(2);}
+TEST(wc3_movement,pause288_modal_off_executes_before_retained_move) {pause288_public(3);}
+TEST(wc3_movement,pause288_runtime_modal_ability_owns_retained_packet) {pause288_public(19);}
+TEST(wc3_movement,pause288_detach_before_suspend_does_not_repeat_off) {pause288_public(11);}
+TEST(wc3_movement,pause288_detach_inside_off_callback_retains_both_packet_owners) {pause288_public(12);}
 #endif

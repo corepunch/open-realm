@@ -1483,7 +1483,7 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
     if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH ||
         msg == A_UNIT_REMOVING || msg == A_UNIT_RETIRE || msg == A_UNIT_REMOVE)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
-    if (msg == A_REQUIREMENTS_CHANGED)
+    if (msg == A_REQUIREMENTS_CHANGED || msg == A_UNIT_SUSPEND)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, false, false) != 0;
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, payload, false, true, false) != 0;
@@ -1763,11 +1763,72 @@ uint32_t S_TestMoveBonusMessages(bool reset) {
 }
 #endif
 
+static unitAbilityDisable_t *ability_disable_owner(edict_t *ent,uint32_t code) {
+    for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next)
+        if(state->code==code)return state;
+    unitAbilityDisable_t *state=calloc(1,sizeof(*state));
+    if(!state) {gi.error("Cannot allocate ability availability state");abort();}
+    state->code=code;state->references=1;state->next=ent->ability_disables;
+    ent->ability_disables=state;return state;
+}
+
+static void ability_disable_release(unitAbilityDisable_t *state) {
+    if(!--state->references)free(state);
+}
+
+static void ability_disable_unlink(edict_t *ent,unitAbilityDisable_t *state) {
+    for(unitAbilityDisable_t **link=&ent->ability_disables;*link;link=&(*link)->next)
+        if(*link==state) {*link=state->next;ability_disable_release(state);return;}
+}
+
+void S_ClearAbilityDisables(edict_t *ent) {
+    while(ent && ent->ability_disables)ability_disable_unlink(ent,ent->ability_disables);
+}
+
+/*4076e0 commits3c before the zero-to-positive refresh, then40 afterwards.
+ * A callback can detach the live owner; this invocation retains its record
+ * until its trailing store completes instead of using a recycled attachment. */
+static intptr_t ability_disable_add(edict_t *ent,unitAbilityDisable_t *state,
+        abilityitem_t const *item,bool orders) {
+    state->references++;
+    int32_t before=state->depth;
+    state->depth=(int32_t)((uint32_t)before+1);
+    intptr_t result=false;
+    if(before<=0 && state->depth>0) {
+        abilityCall_t call={.item=item};
+        result=item->ability->proc(ent,A_UNIT_SUSPEND,&call);
+    }
+    if(orders)state->order_depth=(int32_t)((uint32_t)state->order_depth+1);
+    ability_disable_release(state);return result;
+}
+
+void S_ReleaseScriptedAbilityDisables(edict_t *ent) {
+    /* The concrete modal enable endpoint is a no-op. Keep the counted inverse
+     * separate from retained off execution; native40bb00 subtracts40 first. */
+    for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next) {
+        if(!state->pause_owned)continue;
+        state->pause_owned=false;
+        state->order_depth=(int32_t)((uint32_t)state->order_depth-1);
+        state->depth=(int32_t)((uint32_t)state->depth-1);
+    }
+}
+
 BZ_ABILITY_PROC(S_AbilityMessage) {
 #ifdef BZ_TESTS
     if(msg==A_MOVE_SPEED_BONUS)move_bonus_messages++;
 #endif
     ability_t const *ability = call && call->item ? call->item->ability : NULL;
+    if(ent && ability && ability->proc && call->item->code &&
+       (msg==A_UNIT_SUSPEND || msg==A_UNIT_RETIRE) &&
+       known_unit_ability_receives(*call->item,A_UNIT_SUSPEND)) {
+        unitAbilityDisable_t *state=ability_disable_owner(ent,call->item->code);
+        if(msg==A_UNIT_SUSPEND) {
+            if(state->pause_owned)return false;
+            state->pause_owned=true;
+            return ability_disable_add(ent,state,call->item,true);
+        }
+        ability_disable_add(ent,state,call->item,false);
+    }
     bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_POINT_ORDER_ADMIT ||
                       msg == A_POINT_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
                       msg == A_AUTOCAST_ACQUIRE || (msg == A_AUTOCAST_SET && call && call->enabled);
@@ -1822,11 +1883,64 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
     return handled;
 }
 
+/* Original688790 publishes before the dead gate. A physical hold retains
+ * the immutable packet; its activation publishes again and calls its owner,
+ * even when that owner has since been detached from the unit. */
+void S_DispatchTransientAbilityOrder(edict_t *ent, abilityitem_t const *item, cstring_t order) {
+    if(!ent || !item || !item->code || !item->ability || !order || !G_OrderId(order))return;
+    unitAbilityOrder_t packet={.code=item->code,.issuer_player=ent->s.player};
+    strlcpy(packet.order,order,sizeof(packet.order));
+    uint32_t const spawn=ent->spawn_time;
+    G_PublishIssuedImmediateOrder(ent,G_OrderId(packet.order),packet.issuer_player,packet.order);
+    if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent))return;
+    if(S_UnitExecutionPaused(ent)) {
+        uint32_t count=ent->ability_orders ? ent->ability_orders->remaining : 0;
+        /*691c70 rejects only when the existing user count exceeds500. The
+         * suspension itself owns one head outside the engine's Shift FIFO. */
+        if(G_CountUnitOrders(ent,0)>MAX_UNIT_ORDER_QUEUE)return;
+        unitAbilityOrder_t *stored=malloc(sizeof(*stored));
+        if(!stored) {gi.error("Cannot retain ability order");abort();}
+        *stored=packet;stored->next=ent->ability_orders;stored->remaining=count+1;
+        ent->ability_orders=stored;
+    } else {
+        abilityCall_t call={.item=item,.order=packet.order};
+        S_AbilityMessage(ent,A_TRANSIENT_ORDER,&call);
+    }
+}
+
+void S_ClearTransientAbilityOrders(edict_t *ent) {
+    while(ent && ent->ability_orders) {
+        unitAbilityOrder_t *packet=ent->ability_orders;
+        ent->ability_orders=packet->next;free(packet);
+    }
+}
+
+void S_ExecuteTransientAbilityOrders(edict_t *ent) {
+    while(ent->ability_orders && !S_UnitExecutionPaused(ent)) {
+        unitAbilityOrder_t packet=*ent->ability_orders;
+        free(ent->ability_orders);ent->ability_orders=packet.next;
+        uint32_t const spawn=ent->spawn_time,previous=ent->current_order_id;
+        uint32_t const order=G_OrderId(packet.order);
+        ent->current_order_id=order;
+        G_PublishIssuedImmediateOrder(ent,order,packet.issuer_player,packet.order);
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent))return;
+        abilityitem_t item=S_AbilityItem(packet.code);
+        abilityCall_t call={.item=&item,.order=packet.order};
+        S_AbilityMessage(ent,A_TRANSIENT_ORDER,&call);
+        if(ent->current_order_id==order)ent->current_order_id=previous;
+    }
+}
+
 void S_EnableAbility(edict_t *ent, uint32_t code) {
     S_MarkAuraSource(ent);
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
-    if (item.ability) S_AbilityMessage(ent, A_ENABLE, &call);
+    if (item.ability) {
+        S_AbilityMessage(ent, A_ENABLE, &call);
+        /*48b4c0 applies existing disable contributions to a newly attached
+         * owner; it does not wait for the next pause transition. */
+        if(S_UnitOrdersPaused(ent))S_AbilityMessage(ent,A_UNIT_SUSPEND,&call);
+    }
 }
 
 void S_DisableAbility(edict_t *ent, uint32_t code) {
@@ -1834,7 +1948,17 @@ void S_DisableAbility(edict_t *ent, uint32_t code) {
     if (ent && ent->autocast_code == code) G_SetUnitAutocast(ent, code, false);
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
-    if (item.ability) S_AbilityMessage(ent, A_DISABLE, &call);
+    if(item.ability) {
+        unitAbilityDisable_t *state=NULL;
+        if(known_unit_ability_receives(item,A_UNIT_SUSPEND)) {
+            state=ability_disable_owner(ent,code);state->references++;
+            /*3f4c70 first adds a non-order disable contribution, then always
+             * refreshes c4. These are two producers when3c was zero. */
+            ability_disable_add(ent,state,&item,false);
+        }
+        S_AbilityMessage(ent,A_DISABLE,&call);
+        if(state) {ability_disable_unlink(ent,state);ability_disable_release(state);}
+    }
 }
 
 void S_RefreshAbilityLevel(edict_t *ent, ability_t const *ability) {

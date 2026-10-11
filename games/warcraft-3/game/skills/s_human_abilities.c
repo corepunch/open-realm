@@ -530,7 +530,7 @@ BZ_ABILITY_PROC(CAbilityDefend) {
     uint32_t const code = call && call->item ? call->item->code : 0;
     switch (msg) {
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_MOVE_LEAVE,A_UNIT_RETIRE,A_UNIT_REMOVE);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_MOVE_LEAVE,A_UNIT_RETIRE,A_UNIT_REMOVE,A_UNIT_SUSPEND);
     case A_COMMAND: {
         edict_t *clent=call ? call->client : NULL;
         if (!clent || !clent->client) return false;
@@ -551,7 +551,18 @@ BZ_ABILITY_PROC(CAbilityDefend) {
         abilityitem_t item=S_AbilityItem(ref.alias);
         return ref.alias && defend_set(ent,&item,!strcmp(call->order,"defend"));
     }
+    case A_UNIT_SUSPEND:
+        S_DispatchTransientAbilityOrder(ent,call ? call->item : NULL,"undefend");
+        return true;
     case A_DISABLE:
+        S_DispatchTransientAbilityOrder(ent,call ? call->item : NULL,"undefend");
+        /*5c56a0 removes modifiers AFTER3f5080 retirement notifications. */
+        /* fall through */
+    case A_TRANSIENT_ORDER:
+        if(msg==A_TRANSIENT_ORDER && (!call || !call->order || strcmp(call->order,"undefend")))return false;
+        /* A forced off is not a public stance change: it neither revalidates
+         * research/attachment nor cancels the retained movement task. */
+        /* fall through */
     case A_UNIT_RETIRE:
     case A_UNIT_REMOVE:
         if (human_has_status(ent,code)) {
@@ -562,7 +573,8 @@ BZ_ABILITY_PROC(CAbilityDefend) {
         /* Modal605aa0 emits the off selector even for an inactive stance.
          * Availability retirement and ability detach are distinct operations;
          * both notify synchronously while the unit identity is still held. */
-        G_PublishIssuedImmediateOrder(ent,G_OrderId("undefend"),ent->s.player,"undefend");
+        if(msg==A_UNIT_REMOVE)
+            G_PublishIssuedImmediateOrder(ent,G_OrderId("undefend"),ent->s.player,"undefend");
         return true;
     case A_PROJECTILE_HIT: return defend_projectile_reaction(call ? call->projectile : NULL);
     default: return CAbilitySimpleSpell(ent, msg, call);

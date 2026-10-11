@@ -818,8 +818,13 @@ uint32_t G_CountUnitOrders(edict_t const *self,uint32_t order) {
     uint32_t count=0;
     if(!G_IsDeferredFree(self) && !self->construction_held && self->current_order_id &&
        (!order || self->current_order_id==order))count++;
+    /* Suspension replaces the public head while retaining its predecessor;
+     * forced owner packets sit between that head and its user successors. */
+    if(self->movement.pause_order_id && (!order || self->movement.pause_order_id==order))count++;
     unitOrderQueue_t const *queue=&self->order_queue;
-    if(!order)return count+queue->count;
+    if(!order)return count+queue->count+(self->ability_orders ? self->ability_orders->remaining : 0);
+    for(unitAbilityOrder_t const *packet=self->ability_orders;packet;packet=packet->next)
+        if(G_OrderId(packet->order)==order)count++;
     FOR_LOOP(i,queue->count) {
         unitOrder_t const *entry=queue->entries+(queue->head+i)%queue->capacity;
         /* Direct ability-owned FIFO entries may retain the optional zero ID.

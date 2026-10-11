@@ -57,6 +57,15 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.**
 
+Payoff288 retains forced modal-off packets through suspension and cold saves,
+executes them before the retained Move, and preserves independent removal owners.
+Sparse counted availability distinguishes zero-to-positive refresh from unconditional
+retirement; Unpause releases ability counts before the delayed physical resume.
+Six exact retail projections, two additional1043-event ownership repeats and213
+original cases cover the integrated chunk. Full ordered per-ability admission and
+wider reentrant owners remain open;46 remain. No previous retail fixture changed.
+See [retained modal commands](retail-pathfinding-engine.md#temporary-modal-off-retains-an-independently-owned-packet-payoff288).
+
 Payoff287 separates the public pause flag, synchronous POINT suspension
 notification and physical hold. Reentrant Move can prevent the outer suspension;
 resume re-notifies the retained point head before constructing its task, preserving

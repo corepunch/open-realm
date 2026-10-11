@@ -1686,9 +1686,13 @@ void S_RunMoveTimers(void) {
             (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
         if(!ready)continue;
         uint32_t order=ent->movement.pause_order_id;
-        ent->movement.pause_resume_pending=false;ent->movement.pause_order_id=0;
+        ent->movement.pause_resume_pending=false;
         ent->movement.pause_phase=UNIT_PAUSE_NONE;
         S_TrackMoveTimers(ent);S_RefreshUnitPauseSuppression(ent);
+        uint32_t const spawn=ent->spawn_time;
+        S_ExecuteTransientAbilityOrders(ent);
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent) || S_UnitExecutionPaused(ent))continue;
+        ent->movement.pause_order_id=0;
         if(!order && G_UnitQueuedOrderCount(ent)) {
             unit_stand(ent);
         } else if(order && ent->goalentity && ent->currentmove==&move_move_walk) {
@@ -1874,6 +1878,7 @@ void S_RefreshUnitPauseSuppression(edict_t *self) {
  * release any scripted pause contribution already owned by this unit. It does
  * not acquire a new counted owner for an unresearched internal hold. */
 void S_SetUnitPauseFlag(edict_t *self, bool paused) {
+    S_ReleaseScriptedAbilityDisables(self);
     self->paused=paused;self->movement.pause_phase=UNIT_PAUSE_NONE;
     if(self->movement.repulse.pause_suppression)S_RefreshUnitPauseSuppression(self);
 }
@@ -2119,6 +2124,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
          * They do not admit another point head or retire its retained user. */
         if(self->movement.pause_phase==UNIT_PAUSE_SUSPENDED) {
             self->paused=true;self->movement.pause_resume_pending=false;
+            S_UnitAbilityEvent(self,A_UNIT_SUSPEND);
             S_TrackMoveTimers(self);S_RefreshUnitPauseSuppression(self);return;
         }
         move_visual_track(self);
@@ -2148,12 +2154,17 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
         } else if(self->paused) {
             self->movement.pause_phase=UNIT_PAUSE_SUSPENDED;
             S_SuspendRepairWork(self);
+            S_UnitAbilityEvent(self,A_UNIT_SUSPEND);
+            if(!self->inuse || self->spawn_time!=spawn || G_IsDeferredFree(self) || M_IsDead(self))return;
         } else {
             self->movement.pause_phase=UNIT_PAUSE_NONE;
             self->movement.pause_order_id=0;
             if(self->current_order_id==MOVE_ORDER_SUSPENDED)self->current_order_id=0;
         }
     } else {
+        /*6977c0 releases ability availability immediately; the physical
+         * hold and its retained packets remain until the scheduled boundary. */
+        S_ReleaseScriptedAbilityDisables(self);
         self->paused=false;
         /* Nested Unpause during notification has not acquired a physical
          * hold. The outer dispatch retires the unconstructed suspension. */

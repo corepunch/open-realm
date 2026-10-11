@@ -85,7 +85,7 @@ enum {
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format172 persists scripted pause admission and physical suspension stages. */
-static uint32_t const save_version = 172;
+static uint32_t const save_version = 173;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1125,6 +1125,8 @@ static field_t const stock_fields[] = {
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
 field_t edict_fields[] = {
     F(edict_s, order_queue.entries, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, ability_orders, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, ability_disables, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, scheduled_think_frame, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, target_loss_transient, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, construction_held, F_INT),
@@ -2718,6 +2720,81 @@ static bool ValidUnitOrderBounds(unitOrderQueue_t const *queue) {
         queue->head<queue->capacity && queue->count<=queue->capacity;
 }
 
+typedef struct {
+    uint32_t code,issuer_player;
+    char order[UNIT_ORDER_NAME_SIZE];
+} savedAbilityOrder_t;
+
+typedef struct {
+    uint32_t code;
+    int32_t depth,order_depth;
+    bool pause_owned;
+} savedAbilityDisable_t;
+
+static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
+    uint32_t count=0;
+    for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
+        if(count==UINT32_MAX || !s->references)return false;
+        count++;
+    }
+    if(!SaveBytes(f,&count,sizeof(count)))return false;
+    for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
+        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned};
+        if(!SaveBytes(f,&saved,sizeof(saved)))return false;
+    }
+    return true;
+}
+
+static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
+    uint32_t count;
+    if(!LoadBytes(f,&count,sizeof(count)))return false;
+    unitAbilityDisable_t **tail=&ent->ability_disables;
+    FOR_LOOP(i,count) {
+        savedAbilityDisable_t saved;
+        if(!LoadBytes(f,&saved,sizeof(saved)) || !saved.code || !S_AbilityItem(saved.code).ability)goto failed;
+        for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)
+            if(s->code==saved.code)goto failed;
+        unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
+        state->code=saved.code;state->depth=saved.depth;state->order_depth=saved.order_depth;
+        state->pause_owned=saved.pause_owned;state->references=1;*tail=state;tail=&state->next;
+    }
+    return true;
+failed:
+    S_ClearAbilityDisables(ent);return false;
+}
+
+static bool WriteAbilityOrders(FILE *f,edict_t const *ent) {
+    uint32_t count=ent->ability_orders ? ent->ability_orders->remaining : 0;
+    if(count>UNIT_ORDER_STORAGE_CAPACITY || !SaveBytes(f,&count,sizeof(count)))return false;
+    unitAbilityOrder_t const *packet=ent->ability_orders;
+    FOR_LOOP(i,count) {
+        if(!packet || packet->remaining!=count-i)return false;
+        savedAbilityOrder_t saved={.code=packet->code,.issuer_player=packet->issuer_player};
+        strlcpy(saved.order,packet->order,sizeof(saved.order));
+        if(!SaveBytes(f,&saved,sizeof(saved)))return false;
+        packet=packet->next;
+    }
+    return !packet;
+}
+
+static bool ReadAbilityOrders(FILE *f,edict_t *ent) {
+    uint32_t count;
+    if(!LoadBytes(f,&count,sizeof(count)) || count>UNIT_ORDER_STORAGE_CAPACITY)return false;
+    unitAbilityOrder_t **tail=&ent->ability_orders;
+    FOR_LOOP(i,count) {
+        savedAbilityOrder_t saved;
+        if(!LoadBytes(f,&saved,sizeof(saved)) || !memchr(saved.order,0,sizeof(saved.order)) ||
+           !saved.code || !G_OrderId(saved.order) || !S_AbilityItem(saved.code).ability)goto failed;
+        unitAbilityOrder_t *packet=calloc(1,sizeof(*packet));
+        if(!packet)goto failed;
+        packet->code=saved.code;packet->issuer_player=saved.issuer_player;packet->remaining=count-i;
+        memcpy(packet->order,saved.order,sizeof(packet->order));*tail=packet;tail=&packet->next;
+    }
+    return true;
+failed:
+    S_ClearTransientAbilityOrders(ent);return false;
+}
+
 static bool WriteEdict(FILE *f, edict_t const *ent) {
     edict_t temp = *ent;
     field_t const *field;
@@ -2732,7 +2809,7 @@ static bool WriteEdict(FILE *f, edict_t const *ent) {
         if (!WriteField1(field, (uint8_t *)&temp)) return false;
     return SaveBytes(f, &temp, sizeof(temp)) && WriteAttackProfiles(f, ent) &&
            WriteUnitSoundProfile(f, ent) && WriteUnitAnimationText(f, ent) &&
-           WriteMoveRouteBuffers(f,&ent->movement.fine_route);
+           WriteMoveRouteBuffers(f,&ent->movement.fine_route) && WriteAbilityOrders(f,ent) && WriteAbilityDisables(f,ent);
 }
 
 static bool WriteClient(FILE *f, gameClient_t const *client) {
@@ -2901,7 +2978,7 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
         return false;
     }
     moveFineRoute_t *route = &ent->movement.fine_route;
-    if (!ReadAttackProfiles(f, ent) || !ReadUnitSoundProfile(f, ent) || !ReadUnitAnimationText(f, ent) || !ReadMoveRouteBuffers(f,route)) return false;
+    if (!ReadAttackProfiles(f, ent) || !ReadUnitSoundProfile(f, ent) || !ReadUnitAnimationText(f, ent) || !ReadMoveRouteBuffers(f,route) || !ReadAbilityOrders(f,ent) || !ReadAbilityDisables(f,ent)) return false;
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (uint8_t *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
@@ -4117,7 +4194,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 171, 170, 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
+    uint32_t const old_versions[] = { 172, 171, 170, 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150, 149, 147, 148, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145, 146 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

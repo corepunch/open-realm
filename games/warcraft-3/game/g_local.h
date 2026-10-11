@@ -810,6 +810,22 @@ typedef struct {
     uint32_t owner_context; /* Owning ability interprets this retained queue payload. */
 } unitOrder_t;
 
+/* Forced ability commands retain their concrete owner independently of the
+ * unit's live ability list and the player's Shift queue. New packets insert
+ * immediately after the suspended head, before existing successors. */
+typedef struct unitAbilityDisable_s {
+    struct unitAbilityDisable_s *next;
+    uint32_t code, references;
+    int32_t depth, order_depth;
+    bool pause_owned;
+} unitAbilityDisable_t;
+
+typedef struct unitAbilityOrder_s {
+    struct unitAbilityOrder_s *next;
+    uint32_t code, issuer_player, remaining;
+    char order[UNIT_ORDER_NAME_SIZE];
+} unitAbilityOrder_t;
+
 typedef struct {
     unitOrder_t entries[UNIT_ORDER_INITIAL_CAPACITY];
 } unitOrderStorage_t;
@@ -1013,6 +1029,8 @@ typedef enum {
     A_POINT_ORDER_PRIORITY, /* Authored owners reduce the unsigned point-order score. */
     A_TARGET_AVAILABLE, /* Nearby Attack subscribers reconsider a published target transition. */
     A_CAST_PROFILE,    /* Concrete spell supplies its verified ordered phase policy. */
+    A_UNIT_SUSPEND,     /* Temporary execution suspension; distinct from ability detach. */
+    A_TRANSIENT_ORDER,  /* Execute a retained owner packet without public native validation. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -2091,6 +2109,8 @@ struct edict_s {
     bool uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
     vec2_t old_origin;
     unitOrderQueue_t order_queue;
+    unitAbilityDisable_t *ability_disables; /* Counted state only for owners participating in availability changes. */
+    unitAbilityOrder_t *ability_orders; /* Sparse forced commands beneath the suspended user head. */
     uint32_t current_order_id; /* Active user command, distinct from pending FIFO and issued-event history. */
     waygate_t *waygate;
     struct edictMovement_s {
@@ -3459,6 +3479,11 @@ void G_ApplyPermanentAttackDamageBonus(edict_t *, float);
 void G_ApplyTemporaryAttackDamageBonus(edict_t *, float);
 void S_EnableAbility(edict_t *, uint32_t);
 void S_DisableAbility(edict_t *, uint32_t);
+void S_DispatchTransientAbilityOrder(edict_t *, abilityitem_t const *, cstring_t);
+void S_ExecuteTransientAbilityOrders(edict_t *);
+void S_ClearTransientAbilityOrders(edict_t *);
+void S_ClearAbilityDisables(edict_t *);
+void S_ReleaseScriptedAbilityDisables(edict_t *);
 void S_RefreshAbilityLevel(edict_t *, ability_t const *);
 bool S_UnitPolymorphed(edict_t const *unit);
 BZ_ABILITY_PROC(CAbilityOnFireHuman);

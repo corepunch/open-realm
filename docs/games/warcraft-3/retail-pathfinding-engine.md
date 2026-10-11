@@ -18078,3 +18078,63 @@ or original-instruction checks. Saved Ghidra evidence, accepted captures, failin
 baselines and final reports are archived under
 `research/MAP-04.2/payoff287` in the established report root. Broader task closure
 and performance-budget acceptance remain separate;46 tasks remain.
+
+### Temporary modal off retains an independently owned packet (Payoff288)
+
+Scripted pause no longer erases Defend before its forced off command executes.
+The game retains concrete ability commands separately from the player's Shift
+FIFO. Each packet owns its rawcode, issuer and command; insertion is constant
+time immediately beneath the suspension head, ahead of older successors.
+Activation publishes both immediate-order families again, executes the owning
+procedure without public native revalidation, then resumes the retained Move.
+Ordinary unpaused construction and movement allocate neither packets nor
+availability records. Total user-order counting includes these packets and the
+point head beneath suspension; the unfiltered count stays constant time.
+
+The availability transition has its own sparse counted record. Original4076e0
+stores `3c` before refreshing availability and stores `40` after that callback
+returns. A held reference protects the old record when a callback removes its
+live attachment. Detach3f4c70 adds a non-order contribution, then refreshes
+unconditionally. Consequently removal from zero produces two off commands;
+removal inside an existing off callback produces its unconditional command
+alongside the original command. This is two producers, not a duplicated event.
+Concrete Defend's `e0/e4` call its no-op `2f4`; its `c4=605aa0` actually emits off.
+Unpause subtracts `40` before `3c` immediately, while physical separation and
+retained packets await the existing deterministic resume boundary.
+
+Six public scenarios preserve the unchanged retail callback sequence, order,
+paused flag, event payload, ability level and reported movement speed: inactive
+and active Defend, active Defend with Move, runtime-added Defend, removal before
+suspension construction, and removal inside the off callback. The native total
+user counts at pause return are respectively2,2,3,2,1,3. Each runs fresh and with
+cold saves after admission and before physical resume. Packet order and counted
+state serialize as logical values; pointers and invocation references do not.
+Save layout173 rejects172. The accepted failing baseline for the first four
+scenarios has80 failures; extending removal-before-construction exposed another20
+failures before integrating the retirement producer. All prior expected retail
+fixture values remain unchanged.
+
+The six projections come from the accepted Payoff287 two observations and
+observer-free control. Two additional read-only Frida captures contain1043 native
+events each and preserve every previous815-event chronology entry plus all285
+public markers exactly. Only the separately added ownership hooks are filtered
+when comparing the original chronology; raw streams remain frozen. Trampoline
+return addresses in the retire hook are not treated as retail code addresses.
+The original-code verifier executes32 transient-dispatch,81 counted/retirement,
+and100 prior pause-stage cases, guarded by Ghidra instruction bytes. Helpers
+record ABI and stores; they supply no substitute disabling or queue algorithm.
+
+Reproducer: `tools/ghidra/verify_wc3_pathing_pause288.py --binary <retail game.dll>
+--report <fresh.json>`. The fixed capture/projection and source contracts are in
+`tools/ghidra/fixtures/retail-pause288-1.27.json`; the two additional raw observations
+are in its `.json.gz` sibling. `Pause288Evidence.java` saves13 function annotations,
+xrefs and transient-order/availability structures in Ghidra. Its observer is
+`tools/frida/research/pause288_observer.js`; run the existing pause287 capture tool
+with `--observer <absolute observer path>` against the unchanged unique copied
+probe map in an owned B/C environment.
+
+MAP-04.2/ORDER-01.13 stay open. Complete non-modal per-ability contributions and
+ordered live membership, nested Move/Stop/unpause during forced off, wider active
+removal, post-nested getter lifetime, and mixed user/transient queue compositions
+still need their owning evidence. This change makes no full trajectory, universal
+ability-toggle, performance-budget or broad TODO closure claim.
