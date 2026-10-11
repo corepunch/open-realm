@@ -220,5 +220,13 @@ field stream plus a per-slot entry payload **after edicts**, so nested unit/item
 handles resolve against restored `inuse` bits (production `SV_Map` runs `main()`
 before `ReadGame`). See [Save/Load](save-load.md).
 
+Each table keeps a dense entry array, which is the saved payload, plus a runtime
+open-addressing index keyed by `(parent, child, type)` (`G_HashtableFind`/`Ensure`/`RemoveAt`
+in `g_hashtable.c`). `ReadHashtables` rebuilds the index, so the save format is unchanged.
+`Save*`, `Load*`, `HaveSaved*` and `RemoveSaved*` are constant-time. Tables grow without
+the former 65,536-slot cap, which retail does not have; `MAX_HASHTABLE_ENTRIES` (2^24) only
+guards against corrupt saves. The previous linear scan made long-journey probes and
+hashtable-heavy maps quadratic.
+
 See also [Campaign Map Audit](map-audit.md), [JASS Native Coverage](jass-native-coverage.md),
 [WC3 Data Model](../../wc3-data-model.md), and [Loading and Assets](loading-and-assets.md).

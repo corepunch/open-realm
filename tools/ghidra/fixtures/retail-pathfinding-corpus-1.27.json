@@ -55067,7 +55067,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "ef42f272197beb9761adefbd713ae2b9abdef5df57aa2046438953db4d908008"
+      "sha256": "9543b2c25d68b59b9f082f9cdc0944b428e5d8f040cdd139af893600b768a0c9"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -55075,7 +55075,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "0fd0dcf20f4b6461bafb4a2662f685522ad3d2e444604c3b76c15f922c5092ff"
+      "sha256": "e6157c8c758f688b04332cf5a886809e866a6928d986db59b1a1711807100de6"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",

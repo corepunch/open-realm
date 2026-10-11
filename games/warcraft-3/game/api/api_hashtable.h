@@ -88,44 +88,9 @@ static uint32_t hashtable_handle_id(handle_t h) {
     return HASHTABLE_HANDLE_ID_BASE + 0x1000u + (uint32_t)((p >> 3) ^ (p >> 32));
 }
 
-static hashtableEntry_t *hashtable_find(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type) {
-    uint32_t i;
-    if (!table || !table->inuse) return NULL;
-    for (i = 0; i < table->num_entries; i++) {
-        hashtableEntry_t *e = table->entries + i;
-        if (e->parent == parent && e->child == child && e->type == type) return e;
-    }
-    return NULL;
-}
-
-static hashtableEntry_t *hashtable_ensure(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type) {
-    hashtableEntry_t *e = hashtable_find(table, parent, child, type);
-    if (e) return e;
-    if (!table || !G_HashtableReserve(table, table->num_entries + 1)) return NULL;
-    e = table->entries + table->num_entries++;
-    memset(e, 0, sizeof(*e));
-    e->parent = parent;
-    e->child = child;
-    e->type = type;
-    return e;
-}
-
-static void hashtable_remove_at(hashtable_t *table, uint32_t index) {
-    if (!table || index >= table->num_entries) return;
-    table->entries[index] = table->entries[table->num_entries - 1];
-    table->num_entries--;
-}
-
 static void hashtable_remove(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type) {
-    uint32_t i;
-    if (!table) return;
-    for (i = 0; i < table->num_entries; i++) {
-        hashtableEntry_t *e = table->entries + i;
-        if (e->parent == parent && e->child == child && e->type == type) {
-            hashtable_remove_at(table, i);
-            return;
-        }
-    }
+    hashtableEntry_t *e = G_HashtableFind(table, parent, child, type);
+    if (e) G_HashtableRemoveAt(table, (uint32_t)(e - table->entries));
 }
 
 static handle_t hashtable_live_handle(handle_t h) {
@@ -157,21 +122,21 @@ uint32_t StringHash(jass_t *j) {
 
 uint32_t SaveInteger(jass_t *j) {
     hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
-    hashtableEntry_t *e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_INTEGER);
+    hashtableEntry_t *e = G_HashtableEnsure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_INTEGER);
     if (e) e->value.integer = jass_checkinteger(j, 4);
     return 0;
 }
 
 uint32_t SaveReal(jass_t *j) {
     hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
-    hashtableEntry_t *e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_REAL);
+    hashtableEntry_t *e = G_HashtableEnsure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_REAL);
     if (e) e->value.real = jass_checknumber(j, 4);
     return 0;
 }
 
 uint32_t SaveBoolean(jass_t *j) {
     hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
-    hashtableEntry_t *e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_BOOLEAN);
+    hashtableEntry_t *e = G_HashtableEnsure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_BOOLEAN);
     if (e) e->value.boolean = jass_checkboolean(j, 4);
     return 0;
 }
@@ -181,7 +146,7 @@ uint32_t SaveStr(jass_t *j) {
     cstring_t text = jass_checkstring(j, 4);
     hashtableEntry_t *e;
     if (!table || !text) return jass_pushboolean(j, false);
-    e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_STRING);
+    e = G_HashtableEnsure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_STRING);
     if (!e) return jass_pushboolean(j, false);
     snprintf(e->value.string, sizeof(e->value.string), "%s", text);
     return jass_pushboolean(j, true);
@@ -190,7 +155,7 @@ uint32_t SaveStr(jass_t *j) {
 static bool hashtable_save_handle(hashtable_t *table, int32_t parent, int32_t child, handle_t value, cstring_t type) {
     hashtableEntry_t *e;
     if (!table || !value || !type) return false;
-    e = hashtable_ensure(table, parent, child, HT_HANDLE);
+    e = G_HashtableEnsure(table, parent, child, HT_HANDLE);
     if (!e) return false;
     e->value.handle = value;
     snprintf(e->handle_type, sizeof(e->handle_type), "%s", type);
@@ -198,47 +163,47 @@ static bool hashtable_save_handle(hashtable_t *table, int32_t parent, int32_t ch
 }
 
 uint32_t LoadInteger(jass_t *j) {
-    hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"),
+    hashtableEntry_t *e = G_HashtableFind(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_INTEGER);
     return jass_pushinteger(j, e ? e->value.integer : 0);
 }
 
 uint32_t LoadReal(jass_t *j) {
-    hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"),
+    hashtableEntry_t *e = G_HashtableFind(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_REAL);
     return jass_pushnumber(j, e ? e->value.real : 0.0f);
 }
 
 uint32_t LoadBoolean(jass_t *j) {
-    hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"),
+    hashtableEntry_t *e = G_HashtableFind(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_BOOLEAN);
     return jass_pushboolean(j, e ? e->value.boolean : false);
 }
 
 uint32_t LoadStr(jass_t *j) {
-    hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"),
+    hashtableEntry_t *e = G_HashtableFind(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_STRING);
     return jass_pushstring(j, e ? e->value.string : "");
 }
 
 uint32_t HaveSavedInteger(jass_t *j) {
-    return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
+    return jass_pushboolean(j, !!G_HashtableFind(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_INTEGER));
 }
 uint32_t HaveSavedReal(jass_t *j) {
-    return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
+    return jass_pushboolean(j, !!G_HashtableFind(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_REAL));
 }
 uint32_t HaveSavedBoolean(jass_t *j) {
-    return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
+    return jass_pushboolean(j, !!G_HashtableFind(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_BOOLEAN));
 }
 uint32_t HaveSavedString(jass_t *j) {
-    return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
+    return jass_pushboolean(j, !!G_HashtableFind(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_STRING));
 }
 uint32_t HaveSavedHandle(jass_t *j) {
-    return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
+    return jass_pushboolean(j, !!G_HashtableFind(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_HANDLE));
 }
 
@@ -265,11 +230,7 @@ uint32_t RemoveSavedHandle(jass_t *j) {
 
 uint32_t FlushParentHashtable(jass_t *j) {
     hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
-    if (table && table->inuse) {
-        if (table->entries) gi.MemFree(table->entries);
-        table->entries = NULL;
-        table->num_entries = table->capacity = 0;
-    }
+    G_HashtableFlush(table);
     return 0;
 }
 
@@ -279,7 +240,7 @@ uint32_t FlushChildHashtable(jass_t *j) {
     uint32_t i;
     if (!table) return 0;
     for (i = 0; i < table->num_entries; ) {
-        if (table->entries[i].parent == parent) hashtable_remove_at(table, i);
+        if (table->entries[i].parent == parent) G_HashtableRemoveAt(table, i);
         else i++;
     }
     return 0;
@@ -292,7 +253,7 @@ uint32_t Save##Name##Handle(jass_t *j) { \
 }
 #define HT_LOAD_HANDLE(Name, Type) \
 uint32_t Load##Name##Handle(jass_t *j) { \
-    hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"), \
+    hashtableEntry_t *e = G_HashtableFind(jass_checkhandle(j, 1, "hashtable"), \
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_HANDLE); \
     handle_t value = e ? hashtable_live_handle(e->value.handle) : NULL; \
     return value ? jass_pushlighthandle(j, value, Type) : jass_pushnullhandle(j, Type); \

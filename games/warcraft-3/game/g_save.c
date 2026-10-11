@@ -2215,8 +2215,9 @@ static bool ReadHashtables(FILE *f) {
     FOR_LOOP(i, MAX_HASHTABLES) {
         hashtable_t *table = &level.hashtables[i];
         uint32_t count = 0;
-        if (table->entries) { gi.MemFree(table->entries); table->entries = NULL; }
-        table->num_entries = table->capacity = 0;
+        bool inuse = table->inuse;
+        /* Process-owned entries/index belong to the replaced level; rebuild both below. */
+        table->inuse = true; G_HashtableFlush(table); table->inuse = inuse;
         if (!table->inuse) continue;
         if (!LoadBytes(f, &count, sizeof(count)) || count > MAX_HASHTABLE_ENTRIES) {
             fprintf(stderr, "WC3 LoadGame: failed at hashtable %u header\n", (unsigned)i);
@@ -2230,6 +2231,7 @@ static bool ReadHashtables(FILE *f) {
             }
             table->num_entries = j + 1;
         }
+        if (!G_HashtableRebuildIndex(table)) return false;
     }
     return true;
 }

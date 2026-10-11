@@ -1311,7 +1311,7 @@ typedef struct {
 #define MAX_MULTIBOARD_ITEMS 256 // views; MultiboardGetItem refcounted cell handles
 #define MAX_TEXTTAGS 100 // handles; retail-ish floating-text pool
 #define MAX_HASHTABLES 256 // handles; DotA uses many tables but not thousands; overflow logs to stderr
-#define MAX_HASHTABLE_ENTRIES 65536 // hard cap per table; grow from a small capacity
+#define MAX_HASHTABLE_ENTRIES (1u << 24) // slots per table; corrupt-save guard only, retail tables grow without a fixed limit (journey probes exceed 65536)
 #define MAX_HASHTABLE_TYPE 24 // chars; longest JASS handle type name + NUL for nested HT_HANDLE slots
 #define HASHTABLE_HANDLE_ID_BASE 0x100000u // keep allocated GetHandleId values out of low edict range
 #define MAX_GAMECACHE_ENTRIES 256 // mission/key slots per campaign cache blob
@@ -1516,6 +1516,7 @@ struct ghashtable_s {
     bool inuse;
     uint32_t num_entries, capacity; /* capacity is runtime only; entries pointer is not in the level schema */
     hashtableEntry_t *entries;
+    uint32_t *slots, slot_mask; /* runtime open-addressing index of entry+1; rebuilt after load */
 };
 
 struct gquestitem_s {
@@ -3188,6 +3189,11 @@ void G_FreeHashtable(hashtable_t *table);
 void G_ClearHashtableRegistry(void);
 bool G_HashtableIndex(hashtable_t const *table, uint32_t *index);
 bool G_HashtableReserve(hashtable_t *table, uint32_t need);
+hashtableEntry_t *G_HashtableFind(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type);
+hashtableEntry_t *G_HashtableEnsure(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type);
+void G_HashtableRemoveAt(hashtable_t *table, uint32_t index);
+void G_HashtableFlush(hashtable_t *table);
+bool G_HashtableRebuildIndex(hashtable_t *table);
 void G_ClearSaveRegistries(void);
 bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size);
 void G_HeroSaveLoadAuditFrame(void);
