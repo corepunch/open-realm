@@ -2205,7 +2205,8 @@ bool ReadGame(cstring_t filename) {
         else if (header.num_edicts > globals.max_edicts) field = "num_edicts";
         else if (header.max_clients != game.max_clients) field = "max_clients";
         else if (header.script_identity != script) field = "script_identity";
-        else if (header.quests != ActiveQuestCount()) field = "quests";
+        /* Quests are stored in the fixed-capacity level.quests array below;
+         * the active count can differ before the saved level state is restored. */
         else if (header.groups < level.num_groups) field = "groups";
         else if (header.triggers < level.num_triggers) field = "triggers";
         else if (header.timers < level.num_timers) field = "timers";
@@ -2381,6 +2382,24 @@ TEST(wc3_save, disabled_player_abilities_grow_and_round_trip) {
     G_SetPlayerAbilityAvailable(client, abilities[32], true);
     T_ASSERT(G_IsPlayerAbilityAvailable(client, abilities[32]));
     T_ASSERT(!G_IsPlayerAbilityAvailable(client, abilities[95]));
+    remove(filename);
+}
+
+TEST(wc3_save, active_quest_count_may_differ_before_restore) {
+    cstring_t const filename = Test_TempPath("wc3-save-quest-count.bin");
+
+    reset_entities();
+    setup_test_world();
+    strlcpy(level.map_path, "Maps\\Campaign\\QuestCount.w3m", sizeof(level.map_path));
+    level.quests[0] = (quest_t){ .title = "Saved quest", .inuse = true, .enabled = true };
+    T_ASSERT(WriteGame(filename));
+
+    level.quests[0].inuse = false;
+    level.quests[1] = (quest_t){ .title = "Map startup quest", .inuse = true, .enabled = true };
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(level.quests[0].inuse);
+    T_STREQ(level.quests[0].title, "Saved quest");
+    T_ASSERT(!level.quests[1].inuse);
     remove(filename);
 }
 

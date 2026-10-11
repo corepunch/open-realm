@@ -235,6 +235,8 @@ The format does not yet snapshot gameplay fog-of-war grids, bot runtime, allianc
 
 The checksum and header preflight protect normal partial/corrupt-file and wrong-map failures before mutation. Record-level semantic validation later in the stream is not fully transactional; do not treat save files as untrusted input until native records are decoded into temporary state before commit.
 
+The saved quest graph occupies fixed `MAX_QUESTS` slots. `header.quests` is diagnostic metadata only: load restores the saved quest slots, so the number of active quests created during map startup may differ from the snapshot. This avoids rejecting valid same-map saves when startup has already recreated a different active quest set. `wc3_save.active_quest_count_may_differ_before_restore` covers this case.
+
 ## Simulation Clock Continuity
 
 `level.time` is the only clock the game may read. Game code calls `G_Time()` (an inline read of
