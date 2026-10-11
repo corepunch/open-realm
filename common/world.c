@@ -472,6 +472,7 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
         char context[128];
 
         snprintf(context, sizeof(context), "war3map.doo doodad %u", (unsigned)index);
+        doodad->specialDoodad = false;
         doodad->player = PLAYER_NEUTRAL_PASSIVE;
         doodad->hitPoints = (uint32_t)-1;
         doodad->manaPoints = (uint32_t)-1;
@@ -497,6 +498,43 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
         SFileReadFile(file, &doodad->unitID, sizeof(uint32_t), NULL, NULL);
         
         ADD_TO_LIST(doodad, world.doodads);
+    }
+
+    /* The tail of war3map.doo stores cliff/special doodads separately from
+     * regular placements. Their X/Y are W3E vertex coordinates, not world
+     * coordinates, and their model orientation/scale come from Doodads.slk. */
+    if (world.map && world.map->vertices) {
+        uint32_t special_version, special_count;
+        if (SFileReadFile(file, &special_version, sizeof(special_version), NULL, NULL) &&
+            SFileReadFile(file, &special_count, sizeof(special_count), NULL, NULL) &&
+            special_version == 0 && special_count <= SFileBytesRemaining(file) / 16) {
+            FOR_LOOP(index, special_count) {
+                uint32_t z, x, y;
+                doodad_t *doodad = MemAlloc(sizeof(*doodad));
+                memset(doodad, 0, sizeof(*doodad));
+                doodad->player = PLAYER_NEUTRAL_PASSIVE;
+                doodad->hitPoints = (uint32_t)-1;
+                doodad->manaPoints = (uint32_t)-1;
+                doodad->droppedItemSetPtr = (uint32_t)-1;
+                doodad->goldAmount = 12500;
+                doodad->targetAcquisition = -1.0f;
+                doodad->scale = (vec3_t){ 1.0f, 1.0f, 1.0f };
+                doodad->flags = 2;
+                doodad->treeLife = 100;
+                doodad->specialDoodad = true;
+                if (!SFileReadFile(file, &doodad->doodID, sizeof(doodad->doodID), NULL, NULL) ||
+                    !SFileReadFile(file, &z, sizeof(z), NULL, NULL) ||
+                    !SFileReadFile(file, &x, sizeof(x), NULL, NULL) ||
+                    !SFileReadFile(file, &y, sizeof(y), NULL, NULL)) {
+                    MemFree(doodad);
+                    break;
+                }
+                doodad->position.x = world.map->center.x + x * TILE_SIZE;
+                doodad->position.y = world.map->center.y + y * TILE_SIZE;
+                doodad->position.z = CM_GetHeightAtPoint(doodad->position.x, doodad->position.y) + (int32_t)z;
+                ADD_TO_LIST(doodad, world.doodads);
+            }
+        }
     }
 
     SFileCloseFile(file);

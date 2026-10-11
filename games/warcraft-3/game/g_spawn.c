@@ -841,6 +841,11 @@ void G_SpawnEntities(void) {
         ent->s.origin = doodad->position;
         ent->s.angle = doodad->angle;
         ent->s.scale = doodad->scale.x;
+        if (doodad->specialDoodad) {
+            Doodads_t const *row = G_Doodad(doodad->doodID);
+            ent->s.angle = DEG2RAD(row->fixedRot);
+            ent->s.scale = row->defScale;
+        }
         SP_CallSpawn(ent);
         if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (uint32_t)-1)
             ent->resources = doodad->goldAmount;
