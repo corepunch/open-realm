@@ -64,8 +64,10 @@ Runtime verification for `Maps\Campaign\Prologue01.w3m` is to reach `gg_rct_Spot
 
 `war3map.w3d` is a separate doodad **object-data** file, not the `war3map.doo`
 placement list and not `war3map.w3b` (destructables). Its modification records
-include variation and data-pointer integers, as in `war3map.w3a`. The game
-reads both original and custom rows, resolves the `dfil` (model file) and
+use the simple field/type/value layout followed by a four-byte end marker, as
+in `war3map.w3b`; they do not include the level/data-pointer integers used by
+`war3map.w3a`. The game reads both original and custom rows, resolves the
+`dfil` (model file) and
 `dvar` (model variation count) changes through map-local typed rows, and then
 spawns each placed doodad using the already-existing MDX model pipeline.
 
@@ -77,6 +79,16 @@ the renderer's `.mdx` filename. If the selected model is missing from the
 active game archives/imports, adding a custom ID will not supply the missing
 asset; check mounted archives before treating that as a rendering defect.
 
+OrcX01's Forcewall MDX has no geoset vertices: its appearance comes from two
+`PRE2` particle emitters using `Textures\Clouds8x8ModBlight.blp` and
+`Textures\ForceField.blp`. The renderer queues PRE2 particles through
+`MDLX_RenderParticleEmitters`. `MDX_CalculateBounds` normally rebuilds bounds
+from geoset vertices, which collapses a particle-only model to a zero-size box
+and can cull its plume when the emitter anchor is outside the view. For models
+without vertices, preserve the authored `MODL` box and derive a conservative
+sphere radius from its half-extents when the authored radius is zero. This lets
+both the entity culler and MDX culler retain particle-only models.
+
 The original zone transition itself is **not** activated by the doodad model.
 Its JASS script polls tripwire rectangles and queues a fade/transition; this
 visual path is separate from the script and the SaveGame/ChangeLevel pipeline.
@@ -85,9 +97,9 @@ already have independent owners, so no Rexxar-specific client code is required.
 
 Only `dfil` and `dvar` W3D fields are applied by this initial support. Other
 object-editor doodad overrides (including per-variation tint, pathing, and
-render flags) still require an evidence-driven extension. Detailed Forcewall
-materials, alpha tracks and texture dependencies still require the original
-MDX bytes; this patch does not invent shader or animation changes.
+render flags) still require an evidence-driven extension. Forcewall particle
+textures and authored bounds are confirmed in the base `War3.mpq`; other
+effects still require inspection of their own model data.
 
 ### Validation
 
