@@ -18800,3 +18800,43 @@ exists. A scripted pause recorded during world absence has no such task owner;
 removal retains that public pause. Its regression fails1/7 before guarding the
 inverse and passes7/7 afterward. This is original caller/branch evidence plus an
 engine regression, without a new live absent-worker removal witness.
+
+
+## Death recovery requires an attached Move owner (Payoff303)
+
+A physical mover does not imply a Move ability. Two new, complete read-only
+retail captures create a positive-speed Footman clone, a zero-speed ground
+clone, a zero-speed flyer and a Town Hall, then exercise direct `KillUnit` and
+`RemoveUnit`. The observer walks the canonical ability chain and reads class
+getters without invoking game methods. All three captures, including the
+observer-free control, agree on42 public markers each.
+
+Direct death of the movable clone runs two `d0144` cleanup consumers returning
+to`600433`, followed by the first counted-disable cancellation returning
+`5fc18a`. Both zero-speed forms and the structure lack the Move class and run
+zero recoveries. The engine now checks actual ability membership at each death
+cleanup stage. Generic availability retirement also avoids manufacturing an
+absent intrinsic owner from a cached event plan. A public-native regression
+failed four assertions before the fix and now checks all four forms, unchanged
+immobile positions, absence of phantom Move retirement and recursive death.
+Its blocked-terrain variation is an engine negative control, not a claimed
+retail blocked-death capture.
+
+The expanded observer window additionally finds a first-disable recovery during
+`69c510` after direct`RemoveUnit` returns. Older Stop284 fixtures stopped their
+window at native return; their expectations remain unchanged. This new finding
+requires a separate removal integration, including nested and paused controls.
+The observer's fine-record resolver returned null, so this evidence makes no
+claim about fine identity, bounds or exclusion depths. MAP-04.2 remains open.
+
+`Owner303Evidence.java` saves four function annotations, references and218
+original instruction guards; the persisted readback matches the apply export.
+The complete raw captures, uninstrumented control, maps, failed initial probe,
+source/helper pins and failing/accepted engine reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-04.2/payoff303/`.
+
+Focused Classic and TFT validation each passes549 tests /82,325 assertions,
+including the56-assertion new public-native regression. No full-suite run was
+needed at this second implementation chunk after checkpoint301. Existing
+retail fixture files and expected words are retained unchanged. Save185 is
+unchanged because no serialized layout or field interpretation changes.

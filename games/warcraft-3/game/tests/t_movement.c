@@ -25231,4 +25231,65 @@ TEST(wc3_movement, teleport290_captain_relocates_actor_and_retains_physical_owne
     }
 }
 
+/* Retail owner303: only an attached Move owner receives old-task, d0144 and
+ * first-disable recovery. Zero authored speed is independent of collision and
+ * separation eligibility; death must not push an immobile unit out of terrain. */
+static unsigned owner303_recoveries;
+static void owner303_trace(void *data,unsigned stage,edict_t const *unit) {
+    (void)data;(void)unit;
+    T_EQ(stage,owner303_recoveries++%4);
+}
+TEST(wc3_movement, owner303_death_recovery_requires_attached_move) {
+    FOR_LOOP(kind,4) {
+        reset_entities();setup_test_world();uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        mapInfo_t const *saved=level.mapinfo;mapInfo_t info=*saved;
+        int speed=kind?0:100,repulse=1;float height=60;
+        char movement[]="fly";
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_int,.data=&speed},
+            {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&repulse},
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=movement},
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_real,.data=&height}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','3','0','3'),
+            .numbeOfModifications=kind==2?4:2,.modifications=mods};
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        char script[1024];snprintf(script,sizeof(script),
+            "globals\nunit u=null\nendglobals\nfunction main takes nothing returns nothing\n"
+            "set u=CreateUnit(Player(0),'%s',656,656,0)\ncall SetUnitAcquireRange(u,0)\nendfunction\n"
+            "function kill takes nothing returns nothing\ncall KillUnit(u)\nendfunction\n",
+            kind==3?"htow":"h303");
+        T_ASSERT(run_test_jass(script));
+        edict_t *unit=NULL;FILTER_EDICTS(e,e->inuse && e->class_id==(kind==3?MAKEFOURCC('h','t','o','w'):custom.newUnitID))unit=e;
+        T_NOT_NULL(unit);
+        if(unit) {
+            T_EQ(G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')),kind==0);
+            vec2_t before=unit->s.origin2;
+            /* A blocked post-creation footprint must not grant death a
+             * placement operation on an immobile unit. */
+            if(kind==1) {
+                int x=(int)(before.x/32),y=(int)(before.y/32);
+                FOR_LOOP(dy,3)FOR_LOOP(dx,3)cells[(y+dy-1)*64+x+dx-1]=CM_PATHING_UNWALKABLE;
+                CM_SetupTestPathmap(64,64,cells);
+            }
+            owner303_recoveries=0;S_TestMoveRecoveryTrace(owner303_trace,NULL);
+            jass_callbyname(level.vm,"kill",false);S_TestMoveRecoveryTrace(NULL,NULL);
+            T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(M_IsDead(unit));
+            T_EQ(owner303_recoveries,kind==0?12:0);
+            bool move_retired=false;
+            for(unitAbilityDisable_t *owner=unit->ability_disables;owner;owner=owner->next)
+                if(owner->code==MAKEFOURCC('A','m','o','v')) {
+                    move_retired=true;T_ASSERT(owner->retire_owned);T_EQ(owner->depth,1);
+                }
+            T_EQ(move_retired,kind==0);
+            if(kind) {T_EQ(unit->s.origin2.x,before.x);T_EQ(unit->s.origin2.y,before.y);}
+            /* Recursive native death must never re-run the retired owner. */
+            jass_callbyname(level.vm,"kill",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(owner303_recoveries,kind==0?12:0);
+        }
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;
+    }
+    setup_test_world();
+}
+
 #endif

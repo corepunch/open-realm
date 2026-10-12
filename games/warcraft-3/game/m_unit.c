@@ -437,7 +437,10 @@ void unit_die(edict_t *self, edict_t *attacker) {
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
     self->svflags |= SVF_DEADMONSTER;
-    S_StopUnitMovementWithRecovery(self); /*679bb0 cancels the old task first. */
+    /* Death task events reach the attached Move owner, not every physical
+     * mover. Zero-speed units still have collision and separation storage. */
+    if(G_ActorHasAbilityCode(self,MAKEFOURCC('A','m','o','v')))
+        S_StopUnitMovementWithRecovery(self); /* Old-task cancellation. */
     /* Marks belong to their applying abilities, even when another unit lands the killing blow. */
     unit_statusdeath(self);
     /* Construction owns Repair workers and a self-linked HUD queue marker.
@@ -473,7 +476,8 @@ void unit_die(edict_t *self, edict_t *attacker) {
     G_SetEntitySelectionMask(self, 0);
     self->s.flags |= EF_NOT_SELECTABLE;
     self->aiflags &= ~AI_HOLD_FRAME;
-    S_StopUnitMovementWithRecovery(self); /* New death d0144 task cleanup. */
+    if(G_ActorHasAbilityCode(self,MAKEFOURCC('A','m','o','v')))
+        S_StopUnitMovementWithRecovery(self); /* New death d0144 task cleanup. */
     unit_setmove(self, &unit_move_death);
     /* Warsmash advances the render Death animation after KillUnit even when
      * the simulation unit is paused by a cinematic. Keep the explicit frame

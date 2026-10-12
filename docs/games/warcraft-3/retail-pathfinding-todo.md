@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.** Payoff298 implements Human Repair target notification before work, callback cancellation/removal guards and saved Pause/resume re-notification. Two original repeats/control agree3027 public markers and324 native boundaries. Build retires before Repair activation; it is not a hidden resumable head underneath active Repair. ORDER-01.16 remains open for cancellation/refunds and alternate producers. See [Human Repair activation](retail-pathfinding-engine.md#human-build-activates-and-resumes-a-real-repair-head-payoff298).
 
+Payoff303 fixes direct death recovery and counted retirement for units without
+an attached Move owner. Two new retail repeats and observer-free control agree;
+zero-speed ground/flyer and building deaths perform no Move recovery. Earlier
+fixtures remain unchanged. Deferred direct-removal first-disable recovery is
+newly observed and remains a separate integration; MAP-04.2 stays open,46 remain.
+See [death ownership](retail-pathfinding-engine.md#death-recovery-requires-an-attached-move-owner-payoff303).
+
 Payoff302 replaces pending-removal separation's lifetime predicate with a saved
 counted owner and final inverse, preserving old-pause cancellation and transient
 repulsor recreation before destruction. Unchanged original204 repeats/control

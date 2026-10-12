@@ -1912,6 +1912,10 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
     if(ent && ability && ability->proc && call->item->code &&
        (msg==A_UNIT_SUSPEND || msg==A_UNIT_RETIRE) &&
        known_unit_ability_receives(*call->item,A_UNIT_SUSPEND)) {
+        /* Intrinsic event plans describe possible owners. Retirement must not
+         * manufacture an attachment absent from this unit (e.g. zero-speed
+         * Move); a physical mover alone does not own ability availability. */
+        if((ability->flags&AB_INTRINSIC) && !G_ActorHasAbilityCode(ent,call->item->code))return false;
         unitAbilityDisable_t *state=ability_disable_owner(ent,call->item->code);
         if(msg==A_UNIT_SUSPEND) {
             if(state->pause_owned)return false;
