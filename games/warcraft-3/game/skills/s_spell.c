@@ -340,11 +340,12 @@ bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
 }
 
 static float spell_approach_range(uint32_t code, uint32_t level, ability_t const *spell) {
-    /* Asds has Rng=0 in stock data, but its DataA radius is the range at which
-     * the selected target is already inside Kaboom's full-damage blast. */
-    if (spell && spell->proc == CAbilitySelfDestruct)
-        return MAX(0.0f, S_SpellData(code, level, 1));
-    return S_SpellRange(code, level);
+    abilityCall_t call;
+    if (!spell) return S_SpellRange(code, level);
+    abilityitem_t item = MAKE(abilityitem_t, .code = code, .ability = spell);
+    call = MAKE(abilityCall_t, .item = &item, .spell_approach_range = S_SpellRange(code, level));
+    spell->proc(NULL, A_SPELL_APPROACH_RANGE, &call);
+    return MAX(0.0f, call.spell_approach_range);
 }
 
 bool S_SpellIsAliveTarget(edict_t *target) {
@@ -1116,15 +1117,21 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     return true;
 }
 
-/* Kaboom keeps its point-based blast semantics, but picks an entity as the
- * destination so the command uses the ordinary attack-style target cursor. */
-static bool spell_self_destruct_target_selected(edict_t *clent, edict_t *target) {
-    edict_t *caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
-
-    if (!caster || !target || !target->inuse || target == caster ||
-        (!G_IsDestructable(target) && !S_SpellIsAliveTarget(target)) ||
-        (G_IsDestructable(target) && (target->destructable->dead || target->invulnerable)))
-        return false;
+static bool spell_ability_entity_target_selected(edict_t *clent, edict_t *target) {
+    edict_t *caster;
+    ability_t const *spell;
+    abilityitem_t item;
+    spellTarget_t selected;
+    abilityCall_t call;
+    if (!clent || !clent->client || !target || !target->inuse) return false;
+    caster = G_GetMainSelectedUnit(clent->client);
+    spell = S_SpellAbilityForCode(S_SpellCurrentCode(clent, 0));
+    if (!caster || !spell) return false;
+    if (!S_SpellEntityTargetMode(clent)) return false;
+    item = MAKE(abilityitem_t, .code = S_SpellCurrentCode(clent, 0), .ability = spell);
+    selected = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+    call = MAKE(abilityCall_t, .item = &item, .target = &selected, .client = clent);
+    if (!S_AbilityMessage(caster, A_VALIDATE, &call)) return false;
     return spell_point_target_selected(clent, &target->s.origin2);
 }
 
@@ -1132,8 +1139,28 @@ static bool spell_self_destruct_target_selected(edict_t *clent, edict_t *target)
  * spell's point cursor is active, treat those hits as point casts at the
  * entity's ground position (retail accepts clicks on pickups for Blink). */
 bool S_SpellPointTargetMode(edict_t *clent) {
-    return clent && clent->client &&
+    return clent && clent->client && !clent->client->menu.on_entity_selected &&
            clent->client->menu.on_location_selected == spell_point_target_selected;
+}
+
+bool S_SpellEntityTargetMode(edict_t *clent) {
+    ability_t const *spell;
+    abilityitem_t item;
+    abilityCall_t call;
+    if (!clent || !clent->client) return false;
+    spell = S_SpellAbilityForCode(S_SpellCurrentCode(clent, 0));
+    if (!spell) return false;
+    item = MAKE(abilityitem_t, .code = S_SpellCurrentCode(clent, 0), .ability = spell);
+    call = MAKE(abilityCall_t, .item = &item);
+    spell->proc(G_GetMainSelectedUnit(clent->client), A_SPELL_TARGET_MODE, &call);
+    return call.spell_entity_target_mode;
+}
+
+bool S_SpellEntityTarget(edict_t *clent, edict_t *target) {
+    return clent && clent->client && target && target->inuse &&
+           (clent->client->menu.on_entity_selected ?
+             clent->client->menu.on_entity_selected(clent, target) :
+             spell_ability_entity_target_selected(clent, target));
 }
 
 static void spell_target_mode_exit(edict_t *clent) {
@@ -1146,7 +1173,8 @@ static void spell_target_mode_exit(edict_t *clent) {
  * which ability owns its cursor presentation. Dispatch cleanup through the
  * active ability while its target callback is still available. */
 void S_AbilityTargetModeExit(edict_t *clent) {
-    if (!S_SpellPointTargetMode(clent)) return;
+    if (!clent || !clent->client ||
+        (!clent->client->menu.on_entity_selected && !clent->client->menu.on_location_selected)) return;
     spell_target_mode_exit(clent);
 }
 
@@ -1702,16 +1730,17 @@ void spell_cmd(edict_t *clent) {
         }
         UI_AddCancelButton(clent);
         clent->client->menu.ability_code = code;
-        if (spell->proc == CAbilitySelfDestruct) {
-            /* Kaboom targets a world entity as a destination, then detonates
-             * at the caster after the normal point-spell approach reaches range. */
+        abilityCall_t target_mode = MAKE(abilityCall_t, .item = &item);
+        spell->proc(caster, A_SPELL_TARGET_MODE, &target_mode);
+        bool const entity_target = target_mode.spell_entity_target_mode;
+        if (entity_target) {
             clent->client->menu.on_location_selected = NULL;
-            clent->client->menu.on_entity_selected = spell_self_destruct_target_selected;
+            clent->client->menu.on_entity_selected = spell_ability_entity_target_selected;
         } else if (!spell_is_tiny_structure(spell)) {
             float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
             S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
         }
-        if (spell->proc != CAbilitySelfDestruct)
+        if (!entity_target)
             clent->client->menu.on_location_selected = spell_point_target_selected;
         break;
     }

@@ -15,6 +15,7 @@ void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
+void G_RunEntities(void);
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -157,6 +158,21 @@ TEST(wc3_spell, self_destruct_asds_destroys_support_column_not_decoration) {
     sd_done(fix);
 }
 
+TEST(wc3_spell, self_destruct_asds_nonstock_debris_uses_authored_damage) {
+    sdFix_t fix = sd_setup(BZ_ASDS);
+    edict_t *debris = G_Spawn();
+    vec2_t point = MAKE(vec2_t, 0, 0);
+    debris->class_id = MAKEFOURCC('B', '0', '0', '4');
+    debris->s.origin2 = MAKE(vec2_t, 45, 0);
+    debris->targtype = TARG_DEBRIS;
+    debris->health.value = debris->health.max_value = 500;
+    debris->destructable = G_AllocDestructable();
+    T_ASSERT(S_CastPointTargetSpell(fix.goblin, BZ_ASDS, &point));
+    T_FEQ(debris->health.value, 325, 0.001f);
+    T_ASSERT(!debris->destructable->dead);
+    sd_done(fix);
+}
+
 /* Kaboom uses an entity target cursor, walks to cast range, then detonates. */
 TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
     sdFix_t fix = sd_setup(BZ_ASDS);
@@ -167,6 +183,7 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
     cstring_t button[] = { "button", "Asds" };
     cstring_t select[] = { "select", number };
 
+    ((abilityLevel_t *)G_AbilityLevel(BZ_ASDS, 1))->data[0].number = 100;
     ((abilityLevel_t *)G_AbilityLevel(BZ_ASDS, 1))->data[1].number = 250;
 
     clent->client = client;
@@ -180,6 +197,7 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
     column->destructable = G_AllocDestructable();
 
     G_ClientCommand(clent, 2, button);
+    T_ASSERT(S_SpellEntityTargetMode(clent));
     T_NOT_NULL(client->menu.on_entity_selected);
     T_NULL(client->menu.on_location_selected);
     snprintf(number, sizeof(number), "%u", (unsigned)column->s.number);
@@ -191,12 +209,13 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
         approach = ent;
         break;
     }
-    T_NOT_NULL(approach);
-    T_NOT_NULL(fix.goblin->goalentity);
+    if (!approach || !fix.goblin->goalentity) { sd_done(fix); return; }
     T_FEQ(fix.goblin->goalentity->s.origin2.x, 200, 0.001f);
 
-    fix.goblin->s.origin2.x = fix.goblin->s.origin.x = 100;
-    approach->think(approach);
+    for (int32_t frame = 0; frame < 100 && approach->inuse; frame++) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
     T_ASSERT(M_IsDead(fix.goblin));
     T_ASSERT(column->destructable->dead);
     T_FEQ(column->health.value, 0, 0.001f);

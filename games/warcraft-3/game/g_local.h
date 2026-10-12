@@ -828,6 +828,8 @@ typedef enum {
     A_SPELL_COMMIT,      /* Accepted spell commit notification; call->item is the spell being committed. */
     A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
     A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
+    A_SPELL_APPROACH_RANGE, /* Spell query: ability-specific distance for the shared approach behavior. */
+    A_SPELL_TARGET_MODE, /* Spell query: choose generic point or entity target selection. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call)
@@ -846,6 +848,10 @@ struct ability_call_s {
     uint32_t source_item_spawn_time;
     union {
         spellTarget_t const *target;
+        union {
+            float spell_approach_range;
+            bool spell_entity_target_mode;
+        };
         edict_t *client;
         edict_t *projectile;
         cstring_t order;

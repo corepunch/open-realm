@@ -99,8 +99,27 @@ BZ_ABILITY_PROC(CAbilitySelfDestruct) {
 	uint32_t code = call && call->item ? call->item->code : 0;
 	uint32_t level;
 	switch (msg) {
-	case A_VALIDATE:
-		return call && call->target && call->target->type == SPELL_TARGET_POINT;
+    case A_COMMAND:
+        if (!call || !call->client) return false;
+        spell_cmd(call->client);
+        return true;
+    case A_SPELL_APPROACH_RANGE:
+        if (code && call) ((abilityCall_t *)call)->spell_approach_range = MAX(0.0f,
+            S_SpellData(code, MAX(1u, S_SpellLevel(ent, code)), 1));
+        return true;
+    case A_SPELL_TARGET_MODE:
+        if (call) ((abilityCall_t *)call)->spell_entity_target_mode = true;
+        return true;
+    case A_VALIDATE:
+        if (!call || !call->target) return false;
+        if (call->target->type == SPELL_TARGET_POINT) return true;
+        if (call->target->type == SPELL_TARGET_UNIT) {
+            edict_t *target = call->target->entity;
+            return target && target->inuse && target != ent &&
+                ((G_IsDestructable(target) && !target->destructable->dead && !target->invulnerable) ||
+                 S_SpellIsAliveTarget(target));
+        }
+        return false;
 	case A_EXECUTE:
 		if (!ent || !code) return false;
 		self_destruct_kaboom(ent, code);

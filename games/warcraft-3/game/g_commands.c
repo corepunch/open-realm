@@ -811,6 +811,14 @@ CLIENTCOMMAND(Select) {
          * player can click several waypoints/targets without reopening it. */
         if (accepted && !queued) Get_Commands_f(clent);
     } else {
+        if (S_SpellEntityTargetMode(clent)) {
+            uint32_t number;
+            if (argc < 2 || !G_ParseEntityNumber(argv[1], &number) || number >= globals.num_edicts)
+                return;
+            bool accepted = S_SpellEntityTarget(clent, &globals.edicts[number]);
+            if (accepted) Get_Commands_f(clent);
+            return;
+        }
         if (S_SpellPointTargetMode(clent)) {
             uint32_t number;
             if (argc < 2 || !G_ParseEntityNumber(argv[1], &number) || number >= globals.num_edicts)
