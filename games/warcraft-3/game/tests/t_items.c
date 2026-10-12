@@ -3255,13 +3255,17 @@ TEST(wc3_items, targeted_give_revalidates_cancelled_or_invalid_target) {
 
 TEST(wc3_items, targeted_give_rejects_enemy_and_undroppable_item) {
     edict_t *source, *recipient, *item;
+    uint16_t saved_alliance;
 
     setup_test_world();
     source = make_item_test_inventory_unit(0, 0);
     recipient = make_item_test_inventory_unit(64, 0);
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
     T_ASSERT(G_AddItemToSlot(source, item, 0));
+    source->s.player = 0;
     recipient->s.player = 1;
+    saved_alliance = level.alliances[0][1];
+    level.alliances[0][1] = 0;
     T_ASSERT(!G_OrderGiveItemTarget(source, item, recipient));
     recipient->s.player = source->s.player;
     item->item->droppable_set = true;
@@ -3274,6 +3278,7 @@ TEST(wc3_items, targeted_give_rejects_enemy_and_undroppable_item) {
         T_ASSERT(!G_TransferCarriedItem(world_item, item));
     }
     T_ASSERT(source->inventory[0] == item);
+    level.alliances[0][1] = saved_alliance;
 }
 
 TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {

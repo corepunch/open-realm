@@ -879,9 +879,10 @@ bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
     if (!G_CanGiveItemTarget(source, item, recipient) || (source->aiflags & AI_IMMOBILE))
         return false;
     source->goalentity = recipient;
-    source->item_drop = item;
     move_reset_progress(source);
     unit_setmove(source, &item_move_give);
+    /* unit_setmove clears a pending item_drop when replacing an old order. */
+    source->item_drop = item;
     unit_setanimation(source, "stand");
     return true;
 }
