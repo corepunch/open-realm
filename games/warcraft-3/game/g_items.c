@@ -412,7 +412,9 @@ void G_RunConsumedItemFrees(void) {
             level.pending_consumed_item_cleanup = true;
             continue;
         }
-        if (item->item->pending_use_carrier && item->item->pending_use_carrier->inuse) {
+        if (item->item->pending_use_carrier && item->item->pending_use_carrier->inuse &&
+            item->item->pending_use_carrier->spawn_time == item->item->pending_use_carrier_spawn_time &&
+            !G_IsDeferredFree(item->item->pending_use_carrier)) {
             abilityCall_t call = MAKE(abilityCall_t, .source_item = item,
                                       .source_item_spawn_time = item->spawn_time);
             S_UnitAbilityMessage(item->item->pending_use_carrier, A_ITEM_FINALIZE, &call);
@@ -884,6 +886,44 @@ void G_RemoveItem(edict_t *item) {
     item->item->inventory_slot = -1;
     item->item->in_world = false;
     G_FreeEdict(item);
+}
+
+/* RemoveUnit is not a death drop: inventory objects carried by the retired
+ * unit are disposed of, not spawned into the world or orphaned. Run after
+ * A_UNIT_REMOVE so ability-owned releases (e.g. Soul Trap) happen first.
+ *
+ * A script may temporarily detach an item from its slot while keeping the
+ * carrier pointer (A_ITEM_SCRIPT_REMOVE). Also, consumed items can retain a
+ * pending-use carrier pointer while an event action reads their JASS handle.
+ * Scan only inventory-capable owners; ordinary unit and effect removal must
+ * not turn into an O(num_edicts) operation on every frame. */
+void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
+    bool inventory_owner;
+
+    if (!unit || !unit->inuse || unit->targtype == TARG_ITEM) return;
+    inventory_owner = G_InventoryCapacity(unit) > 0;
+    FOR_LOOP(slot, MAX_INVENTORY) {
+        edict_t *item = unit->inventory[slot];
+        if (!item) continue;
+        inventory_owner = true;
+        if (G_IsItem(item) && item->item->carrier == unit)
+            G_RemoveItem(item);
+        else
+            unit->inventory[slot] = NULL;
+    }
+    if (!inventory_owner) return;
+    /* Detached items have carrier==unit but are not present in any slot.
+     * Pending-use items keep their own handle until queued events complete;
+     * clear only the obsolete carrier link in that case. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *item = globals.edicts + i;
+        if (!item->inuse || item->targtype != TARG_ITEM || !item->item) continue;
+        if (item->item->carrier == unit) G_RemoveItem(item);
+        else if (item->item->pending_use_carrier == unit) {
+            item->item->pending_use_carrier = NULL;
+            item->item->pending_use_carrier_spawn_time = 0;
+        }
+    }
 }
 
 /* Use an item in inventory by slot index. Calls the item's ability cmd handler. */

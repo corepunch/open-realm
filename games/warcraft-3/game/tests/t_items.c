@@ -3154,6 +3154,87 @@ TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {
     T_ASSERT(unit->inventory[0] == item);
 }
 
+/* Forced RemoveUnit must retire owned inventory items rather than leaving
+ * live items pointing at a recyclable carrier edict. This is different from
+ * the inventory ability's drop-on-death semantics. */
+TEST(wc3_items, remove_unit_cleans_six_carried_items_without_world_drops) {
+    edict_t *carrier, *items[MAX_INVENTORY];
+
+    setup_test_world();
+    carrier = make_item_test_inventory_unit(0, 0);
+    T_EQ(G_InventoryCapacity(carrier), MAX_INVENTORY);
+    FOR_LOOP(slot, MAX_INVENTORY) {
+        items[slot] = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16 + slot, 0);
+        G_SetItemCharges(items[slot], slot + 2);
+        T_ASSERT(G_AddItemToSlot(carrier, items[slot], slot));
+    }
+    G_DeferFreeEdict(carrier);
+    /* RemoveUnit leaves the unit and inventory intact until its deferred
+     * teardown; StoreUnit can still capture that state beforehand. */
+    T_ASSERT(carrier->inuse);
+    FOR_LOOP(slot, MAX_INVENTORY) T_ASSERT(carrier->inventory[slot] == items[slot]);
+    G_RunDeferredFrees();
+    T_ASSERT(!carrier->inuse);
+    FOR_LOOP(slot, MAX_INVENTORY) {
+        T_ASSERT(!items[slot]->inuse);
+        T_NULL(carrier->inventory[slot]);
+    }
+}
+
+TEST(wc3_items, remove_unit_preserves_items_already_transferred_elsewhere) {
+    edict_t *carrier, *survivor, *moved, *left;
+
+    setup_test_world();
+    carrier = make_item_test_inventory_unit(0, 0);
+    survivor = make_item_test_inventory_unit(96, 0);
+    moved = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
+    left = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    T_ASSERT(G_AddItemToSlot(carrier, moved, 0));
+    T_ASSERT(G_AddItemToSlot(carrier, left, 1));
+    G_SetItemCharges(moved, 5);
+    T_ASSERT(G_TransferCarriedItem(survivor, moved));
+    G_FreeEdict(carrier);
+    T_ASSERT(!carrier->inuse);
+    T_ASSERT(!left->inuse);
+    T_ASSERT(moved->inuse);
+    T_ASSERT(survivor->inventory[0] == moved);
+    T_ASSERT(moved->item->carrier == survivor);
+    T_EQ(G_ItemCharges(moved), 5);
+}
+
+TEST(wc3_items, remove_unit_cleans_script_detached_item) {
+    edict_t *carrier, *item;
+
+    setup_test_world();
+    carrier = make_item_test_inventory_unit(0, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
+    T_ASSERT(G_AddItemToSlot(carrier, item, 0));
+    T_ASSERT(G_DetachItemAtScripted(carrier, 0));
+    T_NULL(carrier->inventory[0]);
+    T_ASSERT(item->item->carrier == carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    G_FreeEdict(carrier);
+    T_ASSERT(!carrier->inuse);
+    T_ASSERT(!item->inuse);
+}
+
+TEST(wc3_items, remove_unit_severs_pending_consumed_item_carrier_link) {
+    edict_t *carrier, *consumed;
+
+    setup_test_world();
+    carrier = make_item_test_inventory_unit(0, 0);
+    consumed = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
+    consumed->item->in_world = false;
+    consumed->item->pending_use_removal = true;
+    consumed->item->pending_use_carrier = carrier;
+    consumed->item->pending_use_carrier_spawn_time = carrier->spawn_time;
+    G_FreeEdict(carrier);
+    T_ASSERT(consumed->inuse); /* Its JASS event may still own the handle. */
+    T_NULL(consumed->item->pending_use_carrier);
+    T_EQ(consumed->item->pending_use_carrier_spawn_time, 0);
+    G_FreeEdict(consumed);
+}
+
 TEST(wc3_items, removing_carried_item_clears_slot) {
     setup_test_world();
     edict_t *unit = make_item_test_inventory_unit(0, 0);

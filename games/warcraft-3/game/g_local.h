@@ -3751,6 +3751,8 @@ bool G_ItemAbilityScriptedReattach(edict_t *unit, edict_t const *item);
 bool G_DetachItemAtScripted(edict_t *unit, uint32_t slot);
 bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot);
 void G_DropInventoryOnDeath(edict_t *unit);
+/* Forced RemoveUnit retires carried items without the death-drop rules. */
+void G_ReleaseInventoryOnUnitRemoval(edict_t *unit);
 bool G_UnitHasInventory(edict_t *unit);
 uint32_t G_ItemCharges(edict_t const *item);
 void G_SetItemCharges(edict_t *item, uint32_t charges);

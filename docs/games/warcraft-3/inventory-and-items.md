@@ -6,6 +6,20 @@ retained across pickup and drop; normal transitions do not destroy and recreate
 it. `MAX_INVENTORY` remains the six-slot storage/UI ceiling, while gameplay
 capacity comes from the unit's inventory ability.
 
+## Inventory ownership on forced unit removal
+
+`RemoveUnit` defers edict destruction until the current simulation tick has
+finished. Immediately before `G_PoolsReleaseEdict`, the WC3 game module retires
+all items still carried by the unit via `G_ReleaseInventoryOnUnitRemoval`.
+The cleanup also finds script-detached items whose inventory slot was cleared
+but whose carrier pointer still names the unit. These items do **not** become
+world drops; the `inv2` drop-on-death rule is separate. Items already given to
+other carriers survive. Pending consumed-item event handles remain alive, but
+cannot finalize against a carrier that has been removed or recycled.
+
+See [campaign game cache](campaign-game-cache.md#rexxar-stash-temporary-carrier-removal-patch-b)
+for Rexxar's hidden `Obla` stash-export sequence and the regression coverage.
+
 ## State Contract
 
 Item lifecycle state lives on the game edict alongside the existing unit
