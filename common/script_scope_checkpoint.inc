@@ -36,6 +36,92 @@ static bool FS_CheckpointAllowed(cstring_t name, unsigned depth, bool directory,
 
 static const uint8_t fs_checkpoint_gzip_magic[8] = {'O','R','C','P','G','Z','1','!'};
 
+/* Only data actually persisted by map scripts needs a named-save checkpoint.
+ * Merely allocating a session ID, resolving a path, or initializing an empty
+ * game cache must not allocate checkpoints for ordinary single-map saves.
+ * Return 1 for data, 0 for an absent/empty workspace, -1 for unsafe or
+ * unreadable contents (never silently discard data on an I/O error). */
+#ifndef _WIN32
+static int FS_CheckpointTreeHasData(int directory, unsigned depth, cstring_t top) {
+    int scan = dup(directory);
+    if (scan < 0) return -1;
+    DIR *entries = fdopendir(scan);
+    if (!entries) { close(scan); return -1; }
+    int found = 0;
+    for (;;) {
+        errno = 0;
+        struct dirent *entry = readdir(entries);
+        if (!entry) { if (errno) found = -1; break; }
+        cstring_t name = entry->d_name;
+        if (!strcmp(name, ".") || !strcmp(name, "..")) continue;
+        struct stat info;
+        if (fstatat(directory, name, &info, AT_SYMLINK_NOFOLLOW) != 0) { found = -1; break; }
+        bool is_dir = S_ISDIR(info.st_mode);
+        if ((!is_dir && !S_ISREG(info.st_mode)) ||
+            !FS_CheckpointAllowed(name, depth, is_dir, top)) { found = -1; break; }
+        if (!is_dir) { found = 1; break; }
+        int child = openat(directory, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (child < 0) { found = -1; break; }
+        int state = FS_CheckpointTreeHasData(child, depth + 1, depth == 0 ? name : top);
+        close(child);
+        if (state != 0) { found = state; break; }
+    }
+    closedir(entries);
+    return found;
+}
+
+static int FS_ScriptScopeStorageState(void) {
+    if (!fs_script_session[0]) return 0;
+    int live = FS_ScriptRootFd(false); // Never create a workspace to inspect it.
+    if (live < 0) return errno == ENOENT ? 0 : -1;
+    int state = FS_CheckpointTreeHasData(live, 0, NULL);
+    close(live);
+    return state;
+}
+#else
+static int FS_CheckpointWinTreeHasData(cstring_t directory, unsigned depth, cstring_t top) {
+    PATHSTR pattern;
+    if (snprintf(pattern, sizeof(pattern), "%s/*", directory) >= (int)sizeof(pattern)) return -1;
+    WIN32_FIND_DATAA entry;
+    HANDLE listing = FindFirstFileA(pattern, &entry);
+    if (listing == INVALID_HANDLE_VALUE)
+        return GetLastError() == ERROR_FILE_NOT_FOUND ? 0 : -1;
+    int found = 0;
+    do {
+        cstring_t name = entry.cFileName;
+        if (!strcmp(name, ".") || !strcmp(name, "..")) continue;
+        bool is_dir = (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        if ((entry.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) ||
+            !FS_CheckpointAllowed(name, depth, is_dir, top)) { found = -1; break; }
+        if (!is_dir) { found = 1; break; }
+        PATHSTR child;
+        if (snprintf(child, sizeof(child), "%s/%s", directory, name) >= (int)sizeof(child)) {
+            found = -1; break;
+        }
+        int state = FS_CheckpointWinTreeHasData(child, depth + 1, depth == 0 ? name : top);
+        if (state != 0) { found = state; break; }
+    } while (FindNextFileA(listing, &entry));
+    if (found == 0 && GetLastError() != ERROR_NO_MORE_FILES) found = -1;
+    FindClose(listing);
+    return found;
+}
+
+static int FS_ScriptScopeStorageState(void) {
+    if (!fs_script_session[0] || !FS_EnsureSaveDirectory()) return fs_script_session[0] ? -1 : 0;
+    PATHSTR live;
+    if (snprintf(live, sizeof(live), "%s/campaigns/%s/live", fs_save_dir,
+                 fs_script_session) >= (int)sizeof(live)) return -1;
+    DWORD attr = GetFileAttributesA(live);
+    if (attr == INVALID_FILE_ATTRIBUTES) {
+        DWORD error = GetLastError();
+        return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND ? 0 : -1;
+    }
+    if (!(attr & FILE_ATTRIBUTE_DIRECTORY) || (attr & FILE_ATTRIBUTE_REPARSE_POINT) ||
+        !FS_ScriptRoot(live, false)) return -1;
+    return FS_CheckpointWinTreeHasData(live, 0, NULL);
+}
+#endif
+
 #ifndef _WIN32
 static int FS_CheckpointRootDir(bool create) {
     if (!FS_EnsureSaveDirectory()) return -1;

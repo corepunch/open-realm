@@ -114,7 +114,9 @@ static int FS_CampaignWorkspacesFd(bool create) {
     if (root < 0) return -1;
     if (create && mkdirat(root, "campaigns", 0700) && errno != EEXIST) { close(root); return -1; }
     int campaigns = openat(root, "campaigns", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    int error = errno;
     close(root);
+    if (campaigns < 0) errno = error;
     return campaigns;
 }
 
@@ -133,7 +135,9 @@ static int FS_ScriptRootFd(bool create) {
         close(playthrough); return -1;
     }
     int live = openat(playthrough, "live", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    int error = errno;
     close(playthrough);
+    if (live < 0) errno = error;
     return live;
 }
 #endif

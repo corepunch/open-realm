@@ -758,6 +758,25 @@ failed cross-map restoration and native compatibility with Blizzard's binary
 
 ### Campaign-owned live workspaces and compact snapshots
 
+#### Lazy manual-save checkpoints
+
+Successful manual saves create campaign checkpoints **only if the active live
+workspace already contains at least one persisted script-save or game-cache
+file**. Simply starting a map, generating an opaque playthrough ID, resolving
+a script filename, or initializing an empty cache does not create a checkpoint.
+A normal single-map save therefore produces just its ordinary `.sav` file;
+loading or deleting it does not manufacture `script/bindings` or checkpoint
+directories. Empty script-workspace directories alone do not require a snapshot.
+
+When committed zone saves, scripted save files, or disk-backed cache sidecars
+exist, the existing immutable checkpoint and `ORCSCOPE2` binding behaviour is
+unchanged. An unreadable or unsafe workspace fails the binding step rather than
+silently dropping campaign state. If an existing named slot is overwritten in
+a map with no persistent script files, the old `.scope` binding is revoked so
+it cannot restore stale campaign data; its previous checkpoint is eligible for
+normal orphan cleanup. Existing bound saves remain loadable.
+
+
 The engine uses a **stable live workspace per playthrough branch**:
 
 ```text

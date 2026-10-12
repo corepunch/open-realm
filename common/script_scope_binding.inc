@@ -78,7 +78,9 @@ static int FS_ScopeBindingDir(bool create) {
     if (scripts < 0) return -1;
     if (create && mkdirat(scripts, "bindings", 0700) != 0 && errno != EEXIST) { close(scripts); return -1; }
     int dir = openat(scripts, "bindings", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    int error = errno;
     close(scripts);
+    if (dir < 0) errno = error;
     return dir;
 }
 #else
@@ -176,6 +178,58 @@ static void FS_ScopeCollectOrphans(void) {
 }
 #endif
 
+/* The last save of a slot might have contained campaign storage while the
+ * new one does not. Remove its former binding rather than authorizing an old
+ * checkpoint for the new ordinary save. If the bindings directory was never
+ * created, do not create it or its lock merely to discover that fact. */
+static bool FS_UnbindScriptSaveScope(cstring_t name) {
+    PATHSTR leaf, binding;
+    if (!FS_ScopeManualName(name, leaf) ||
+        snprintf(binding, sizeof(binding), "%s.scope", leaf) >= (int)sizeof(binding)) return false;
+#ifndef _WIN32
+    int existing = FS_ScopeBindingDir(false);
+    if (existing < 0) return errno == ENOENT;
+    close(existing);
+    int lock = FS_ScopeBindingLock(true);
+    if (lock < 0) return false;
+    int dir = FS_ScopeBindingDir(false);
+    bool ok = dir >= 0 && (unlinkat(dir, binding, 0) == 0 || errno == ENOENT);
+    if (dir >= 0) close(dir);
+    if (ok) FS_ScopeCollectOrphans();
+    flock(lock, LOCK_UN);
+    close(lock);
+    return ok;
+#else
+    PATHSTR directory, path, script;
+    if (!FS_EnsureSaveDirectory() ||
+        snprintf(script, sizeof(script), "%s/script", fs_save_dir) >= (int)sizeof(script) ||
+        snprintf(directory, sizeof(directory), "%s/bindings", script) >= (int)sizeof(directory)) return false;
+    DWORD attr = GetFileAttributesA(directory);
+    if (attr == INVALID_FILE_ATTRIBUTES) {
+        DWORD error = GetLastError();
+        /* Do not mask a reparse point or access-denied error as no binding. */
+        if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND) return false;
+        /* Missing bindings are normal; existing script parents must still
+         * be ordinary directories, not reparse-point redirections. */
+        attr = GetFileAttributesA(script);
+        if (attr == INVALID_FILE_ATTRIBUTES) {
+            error = GetLastError();
+            return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+        }
+        return (attr & FILE_ATTRIBUTE_DIRECTORY) != 0 &&
+               (attr & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
+    }
+    if (!FS_ScopeBindingDir(false, directory) ||
+        snprintf(path, sizeof(path), "%s/%s", directory, binding) >= (int)sizeof(path)) return false;
+    attr = GetFileAttributesA(path);
+    if (attr == INVALID_FILE_ATTRIBUTES) {
+        DWORD error = GetLastError();
+        return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+    }
+    return !(attr & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) && DeleteFileA(path) != 0;
+#endif
+}
+
 /* Binding is established ONLY by engine code after a successful player-save
  * snapshot. No JASS native can select/restore one of these capabilities. */
 static bool FS_BindScriptSaveScopeUnlocked(cstring_t name) {
@@ -240,6 +294,11 @@ static bool FS_BindScriptSaveScopeUnlocked(cstring_t name) {
 }
 
 bool FS_BindScriptSaveScope(cstring_t name) {
+    /* Run the read-only probe before taking a lock or creating any folders.
+     * Ordinary maps with no persistent script files keep only their .sav. */
+    int state = FS_ScriptScopeStorageState();
+    if (state < 0) return false;
+    if (!state) return FS_UnbindScriptSaveScope(name);
 #ifndef _WIN32
     int lock = FS_ScopeBindingLock(true);
     if (lock < 0) return false;
@@ -299,6 +358,9 @@ static bool FS_RestoreScriptSaveScopeUnlocked(cstring_t name) {
 
 bool FS_RestoreScriptSaveScope(cstring_t name) {
 #ifndef _WIN32
+    int bindings = FS_ScopeBindingDir(false);
+    if (bindings < 0) { FS_ResetScriptSaveScope(); return false; }
+    close(bindings);
     int lock = FS_ScopeBindingLock(false);
     if (lock < 0) { FS_ResetScriptSaveScope(); return false; }
     bool success = FS_RestoreScriptSaveScopeUnlocked(name);
@@ -306,29 +368,9 @@ bool FS_RestoreScriptSaveScope(cstring_t name) {
     close(lock);
     return success;
 #else
+    PATHSTR bindings;
+    if (!FS_ScopeBindingDir(false, bindings)) { FS_ResetScriptSaveScope(); return false; }
     return FS_RestoreScriptSaveScopeUnlocked(name);
-#endif
-}
-
-/* Called only by the engine when a player deletes a manual save. */
-static void FS_UnbindScriptSaveScope(cstring_t name) {
-    PATHSTR leaf, binding;
-    if (!FS_ScopeManualName(name, leaf) ||
-        snprintf(binding, sizeof(binding), "%s.scope", leaf) >= (int)sizeof(binding)) return;
-#ifndef _WIN32
-    int lock = FS_ScopeBindingLock(true);
-    if (lock < 0) return;
-    int dir = FS_ScopeBindingDir(false);
-    if (dir >= 0) { unlinkat(dir, binding, 0); close(dir); FS_ScopeCollectOrphans(); }
-    flock(lock, LOCK_UN);
-    close(lock);
-#else
-    PATHSTR dir, path;
-    if (FS_ScopeBindingDir(false, dir) &&
-        snprintf(path, sizeof(path), "%s/%s", dir, binding) < (int)sizeof(path)) {
-        DWORD attr = GetFileAttributesA(path);
-        if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_REPARSE_POINT)) DeleteFileA(path);
-    }
 #endif
 }
 
@@ -339,6 +381,125 @@ cstring_t FS_ScriptScopeIdentity(void) {
 }
 
 #ifdef BZ_TESTS
+TEST(script_saves, ordinary_save_load_and_delete_create_no_campaign_storage) {
+    PATHSTR old_home, old_save, manual;
+    char script_dir[MAX_PATHLEN * 2], campaign_dir[MAX_PATHLEN * 2];
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-lazy-ordinary"));
+    FS_ResetScriptSaveScope();
+    FS_SavePath("ordinary", manual, sizeof(manual));
+    FILE *f = fopen(manual, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("ordinary", 1, 8, f), 8); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("ordinary"));
+    snprintf(script_dir, sizeof(script_dir), "%s/script", fs_save_dir);
+    snprintf(campaign_dir, sizeof(campaign_dir), "%s/campaigns", fs_save_dir);
+    T_ASSERT(!FS_DirectoryExists(script_dir));
+    T_ASSERT(!FS_DirectoryExists(campaign_dir));
+    T_ASSERT(!FS_RestoreScriptSaveScope("ordinary"));
+    T_ASSERT(!FS_DirectoryExists(script_dir));
+    T_ASSERT(!FS_DirectoryExists(campaign_dir));
+    T_ASSERT(FS_DeleteSave("ordinary"));
+    T_ASSERT(!FS_DirectoryExists(script_dir));
+    T_ASSERT(!FS_DirectoryExists(campaign_dir));
+    strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
+    strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
+}
+
+TEST(script_saves, empty_script_directories_do_not_trigger_checkpoints) {
+    PATHSTR old_home, old_save, virtual_file, manual;
+    char bindings[MAX_PATHLEN * 2];
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-lazy-empty-dirs"));
+    FS_ResetScriptSaveScope();
+    /* Path resolution may have allocated directories but did not save data. */
+    T_ASSERT(FS_ScriptSavePath("Blizzard/Zones/OrcX01.w3z", virtual_file, sizeof(virtual_file)));
+    FS_SavePath("empty-path", manual, sizeof(manual));
+    FILE *f = fopen(manual, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("manual", 1, 6, f), 6); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("empty-path"));
+    snprintf(bindings, sizeof(bindings), "%s/script/bindings", fs_save_dir);
+    T_ASSERT(!FS_DirectoryExists(bindings));
+    strlcpy(fs_home_dir, old_home, sizeof(old_home));
+    strlcpy(fs_save_dir, old_save, sizeof(old_save));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
+}
+
+TEST(script_saves, overwriting_campaign_slot_with_plain_save_revokes_checkpoint) {
+    PATHSTR old_home, old_save, zone, manual, keep;
+    char binding[MAX_PATHLEN * 2];
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-lazy-revoke"));
+    FS_ResetScriptSaveScope();
+    T_ASSERT(FS_ScriptSavePath("Blizzard/Zones/OrcX01.w3z", zone, sizeof(zone)));
+    FILE *f = fopen(zone, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("zone", 1, 4, f), 4); fclose(f); }
+    FS_SavePath("reused", manual, sizeof(manual));
+    f = fopen(manual, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("old", 1, 3, f), 3); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("reused"));
+    FS_SavePath("independent", keep, sizeof(keep));
+    f = fopen(keep, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("keep", 1, 4, f), 4); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("independent"));
+    snprintf(binding, sizeof(binding), "%s/script/bindings/reused.sav.scope", fs_save_dir);
+    T_ASSERT(FS_FileOnDiskExists(binding));
+    FS_ResetScriptSaveScope();
+    f = fopen(manual, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("new", 1, 3, f), 3); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("reused"));
+    T_ASSERT(!FS_FileOnDiskExists(binding));
+    T_ASSERT(!FS_RestoreScriptSaveScope("reused"));
+    T_ASSERT(FS_RestoreScriptSaveScope("independent"));
+    T_ASSERT(FS_ScriptSaveExists("Blizzard/Zones/OrcX01.w3z"));
+    strlcpy(fs_home_dir, old_home, sizeof(old_home));
+    strlcpy(fs_save_dir, old_save, sizeof(old_save));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
+}
+
+TEST(script_saves, saved_script_file_uses_checkpoint_without_a_zone_transition) {
+    PATHSTR old_home, old_save, script_file, manual;
+    char binding[MAX_PATHLEN * 2];
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-lazy-flat-file"));
+    FS_ResetScriptSaveScope();
+    T_ASSERT(FS_ScriptSavePath("script-slot", script_file, sizeof(script_file)));
+    FILE *f = fopen(script_file, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("script", 1, 6, f), 6); fclose(f); }
+    FS_SavePath("manual", manual, sizeof(manual));
+    f = fopen(manual, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("manual", 1, 6, f), 6); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("manual"));
+    snprintf(binding, sizeof(binding), "%s/script/bindings/manual.sav.scope", fs_save_dir);
+    T_ASSERT(FS_FileOnDiskExists(binding));
+    FS_ResetScriptSaveScope();
+    T_ASSERT(FS_RestoreScriptSaveScope("manual"));
+    T_ASSERT(FS_ScriptSaveExists("script-slot"));
+    strlcpy(fs_home_dir, old_home, sizeof(old_home));
+    strlcpy(fs_save_dir, old_save, sizeof(old_save));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
+}
+
 TEST(script_saves, manual_save_reauthorizes_only_its_previous_scope) {
     PATHSTR old_home, old_save, manual, zone, other_zone, cache;
     char old_session[sizeof(fs_script_session)], first_scope[sizeof(fs_script_session)];
@@ -471,7 +632,7 @@ TEST(script_saves, empty_campaign_scope_can_be_checkpointed) {
     if (f) { T_EQ(fwrite("empty", 1, 5, f), 5); fclose(f); }
     T_ASSERT(FS_BindScriptSaveScope("empty"));
     FS_ResetScriptSaveScope();
-    T_ASSERT(FS_RestoreScriptSaveScope("empty"));
+    T_ASSERT(!FS_RestoreScriptSaveScope("empty"));
     T_ASSERT(!FS_ScriptSaveExists("Blizzard/Zones/OrcX01.w3z"));
     strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
     strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
@@ -564,6 +725,9 @@ TEST(script_saves, checkpoint_symlink_is_rejected_on_restore) {
     FS_SetHomeDirectory(Test_TempPath("script-binding-symlink"));
     FS_ResetScriptSaveScope();
     T_ASSERT(FS_ScriptSavePath("Blizzard/Zones/zone.w3z", zone, sizeof(zone)));
+    FILE *zone_file = fopen(zone, "wb");
+    T_NOT_NULL(zone_file);
+    if (zone_file) { T_EQ(fwrite("zone", 1, 4, zone_file), 4); fclose(zone_file); }
     FS_SavePath("slot", manual, sizeof(manual));
     FILE *f = fopen(manual, "wb");
     T_NOT_NULL(f);
