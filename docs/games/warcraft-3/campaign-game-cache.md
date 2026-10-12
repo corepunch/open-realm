@@ -152,7 +152,7 @@ The game module does not link directly against `common` to call that resolver.
 `SV_InitGameProgs()` provides `FS_ScriptCachePath`. This keeps path ownership
 on the engine side and avoids unresolved symbols in `libgame`.
 
-The cache resides at `saves/script/<session-id>/cache/gamecache-Campaigns.w3v.orcgc`
+The cache resides at `saves/campaigns/<playthrough-id>/live/cache/gamecache-Campaigns.w3v.orcgc`
 under the normal per-user game directory (or existing portable fallback), not
 beside general game configuration. The session ID is engine-generated and
 never supplied by a map. Scripted save-copy and directory operations cannot
@@ -247,3 +247,12 @@ branches from its checkpoint into a new writable scope. Runtime validation of
 the campaign's serialized cache handles, `Import_All` ordering, and Hero
 deduplication remains necessary before claiming full Rexxar return-visit
 fidelity.
+
+### Workspace storage policy
+
+Campaign caches remain uncompressed in the active live workspace to preserve
+`SaveGameCache`/`InitGameCache` semantics. Named-save checkpoints can share
+cache blocks via reflinks on Linux, or compress them in their private storage
+when CoW is unavailable. Loading a named save expands/copies those files into
+a separate writable playthrough branch before map initialization. Older
+uncompressed checkpoints remain readable. See [save/load](save-load.md#campaign-owned-live-workspaces-and-compact-snapshots).

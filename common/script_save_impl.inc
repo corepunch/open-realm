@@ -4,7 +4,12 @@
 #define FS_SCRIPT_COPY_LIMIT (512u * 1024u * 1024u) // bytes; caps untrusted CopySaveGame source and destination sizes.
 #define FS_SCRIPT_COMPONENT_MAX 64 // bytes; bounds each accepted virtual path component.
 
+/* Reset is a trusted playthrough boundary. Live directories have no external
+ * references (named saves refer to immutable checkpoints), so the engine can
+ * discard the branch it owns; unsuccessful cleanup never blocks a new game. */
+static void FS_RemoveCurrentLiveWorkspace(void);
 void FS_ResetScriptSaveScope(void) {
+    if (fs_script_session[0]) FS_RemoveCurrentLiveWorkspace();
     fs_script_session[0] = '\0';
 }
 
@@ -99,42 +104,61 @@ static bool FS_ParseScriptName(cstring_t name, bool directory, PATHSTR parent, P
     return true;
 }
 
+/* A playthrough owns one persistent, engine-selected live workspace. A
+ * player-selected load creates a *new branch* of that playthrough from a
+ * named-save checkpoint; ordinary cross-map loads keep this workspace. */
 #ifndef _WIN32
+static int FS_CampaignWorkspacesFd(bool create) {
+    if (!FS_EnsureSaveDirectory()) return -1;
+    int root = open(fs_save_dir, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (root < 0) return -1;
+    if (create && mkdirat(root, "campaigns", 0700) && errno != EEXIST) { close(root); return -1; }
+    int campaigns = openat(root, "campaigns", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    close(root);
+    return campaigns;
+}
+
 static int FS_ScriptRootFd(bool create) {
-    if (!FS_EnsureSaveDirectory() || !FS_EnsureScriptSession()) return -1;
-    int fd = open(fs_save_dir, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    if (fd < 0) return -1;
-    if (create && mkdirat(fd, "script", 0700) != 0 && errno != EEXIST) { close(fd); return -1; }
-    int scripts = openat(fd, "script", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    close(fd);
-    if (scripts < 0) return -1;
-    if (create && mkdirat(scripts, fs_script_session, 0700) != 0 && errno != EEXIST) {
-        close(scripts); return -1;
+    if (!FS_EnsureScriptSession()) return -1;
+    int campaigns = FS_CampaignWorkspacesFd(create);
+    if (campaigns < 0) return -1;
+    if (create && mkdirat(campaigns, fs_script_session, 0700) && errno != EEXIST) {
+        close(campaigns); return -1;
     }
-    fd = openat(scripts, fs_script_session, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    close(scripts);
-    return fd;
+    int playthrough = openat(campaigns, fs_script_session,
+                            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    close(campaigns);
+    if (playthrough < 0) return -1;
+    if (create && mkdirat(playthrough, "live", 0700) && errno != EEXIST) {
+        close(playthrough); return -1;
+    }
+    int live = openat(playthrough, "live", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    close(playthrough);
+    return live;
 }
 #endif
 
 static bool FS_ScriptRoot(PATHSTR out, bool create) {
-    PATHSTR directory;
+    PATHSTR campaigns, playthrough;
     if (!FS_EnsureSaveDirectory() || !FS_EnsureScriptSession()) return false;
-    if (snprintf(directory, sizeof(directory), "%s/script", fs_save_dir) >= (int)sizeof(directory)) return false;
-    if (snprintf(out, MAX_PATHLEN, "%s/%s", directory, fs_script_session) >= MAX_PATHLEN) return false;
+    if (snprintf(campaigns, sizeof(campaigns), "%s/campaigns", fs_save_dir) >= (int)sizeof(campaigns) ||
+        snprintf(playthrough, sizeof(playthrough), "%s/%s", campaigns, fs_script_session) >= (int)sizeof(playthrough) ||
+        snprintf(out, MAX_PATHLEN, "%s/live", playthrough) >= MAX_PATHLEN) return false;
 #ifndef _WIN32
-    /* Verify engine-owned layers with no-follow directory handles. */
     int fd = FS_ScriptRootFd(create);
     if (fd < 0) return false;
     close(fd);
-
 #else
-    if (create) { _mkdir(directory); _mkdir(out); }
-    DWORD parentAttr = GetFileAttributesA(directory);
-    DWORD childAttr = GetFileAttributesA(out);
-    if (parentAttr == INVALID_FILE_ATTRIBUTES || childAttr == INVALID_FILE_ATTRIBUTES ||
-        !(parentAttr & FILE_ATTRIBUTE_DIRECTORY) || !(childAttr & FILE_ATTRIBUTE_DIRECTORY) ||
-        (parentAttr & FILE_ATTRIBUTE_REPARSE_POINT) || (childAttr & FILE_ATTRIBUTE_REPARSE_POINT)) return false;
+    if (create) { _mkdir(campaigns); _mkdir(playthrough); _mkdir(out); }
+    PATHSTR layers[3];
+    strlcpy(layers[0], campaigns, sizeof(PATHSTR));
+    strlcpy(layers[1], playthrough, sizeof(PATHSTR));
+    strlcpy(layers[2], out, sizeof(PATHSTR));
+    for (unsigned i = 0; i < 3; ++i) {
+        DWORD attributes = GetFileAttributesA(layers[i]);
+        if (attributes == INVALID_FILE_ATTRIBUTES || !(attributes & FILE_ATTRIBUTE_DIRECTORY) ||
+            (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) return false;
+    }
 #endif
     return true;
 }
@@ -517,7 +541,8 @@ TEST(script_saves, isolates_manual_saves_and_copies_zone_snapshots) {
         T_ASSERT(!FS_ScriptCopySave("cache/gamecache-Campaigns.w3v.orcgc", "Blizzard/Zones/copied"));
         FS_SavePath("manual", manual, sizeof(manual));
         T_ASSERT(strcmp(manual, path) != 0);
-        T_ASSERT(strstr(path, "/script/") != NULL);
+        T_ASSERT(strstr(path, "/campaigns/") != NULL);
+        T_ASSERT(strstr(path, "/live/") != NULL);
         T_ASSERT(!FS_ScriptRemoveDirectory("Blizzard"));
         T_ASSERT(!FS_ScriptRenameDirectory("Blizzard", "Blizzard/Foo"));
         T_ASSERT(FS_ScriptRenameDirectory("Blizzard/MySave", "Blizzard/Archived"));

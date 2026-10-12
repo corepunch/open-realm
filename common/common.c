@@ -6,6 +6,14 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <zlib.h>
+#ifndef _WIN32
+#include <sys/file.h>
+#endif
+#if defined(__linux__)
+#include <sys/ioctl.h>
+#include <linux/fs.h>
+#endif
 #include <time.h>
 #include <ctype.h>
 #ifdef _WIN32
@@ -392,11 +400,11 @@ void FS_SetHomeDirectory(cstring_t dir) {
     if (!FS_CreateDirectoryPath(dir)) {
         return;
     }
-    snprintf(fs_home_dir, sizeof(fs_home_dir), "%s", dir);
-    /* Save paths are cached after first use. A runtime/test home-directory
-     * change must invalidate that derived directory as well. */
-    fs_save_dir[0] = '\0';
+    /* Clean the old playthrough while its original save root is valid. */
     FS_ResetScriptSaveScope();
+    snprintf(fs_home_dir, sizeof(fs_home_dir), "%s", dir);
+    /* Save paths are cached after first use. */
+    fs_save_dir[0] = '\0';
 }
 
 cstring_t FS_BasePath(void) {
@@ -482,7 +490,7 @@ bool FS_DeleteSave(cstring_t rel) {
     }
     FS_SavePath(rel, path, sizeof(path));
     if (!path[0]) return false;
-    if (remove(path) == 0) return true;
+    if (remove(path) == 0) { FS_UnbindScriptSaveScope(rel); return true; }
     fprintf(stderr, "FS_DeleteSave: cannot remove %s: %s\n", path, strerror(errno));
     return false;
 }

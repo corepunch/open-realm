@@ -191,7 +191,7 @@ This follows the Quake 2 `g_save.c` pattern while avoiding Quake 2's old global 
 
 ## Native Usage
 
-JASS save names are relative virtual names. Patch 1 accepts simple flat slots, `Blizzard\Zones\<filename>`, and `Blizzard\<slot>\<filename>` only. Each player-selected map session uses a private `saves/script/<random-session-id>/` root. Authored JASS `ChangeLevel`/`RestartGame` actions preserve that root; player-started maps and returning to the menu rotate it. A named manual save binds an immutable checkpoint of its script-save scope after the save commits. Loading that save clones the checkpoint into a fresh scope before loading the map; an unbound or invalid save receives a fresh empty scope. Map scripts never receive or choose the physical root, and cannot enumerate or manipulate manual saves or saves from other sessions. Disk-backed `gamecache-*.orcgc` sidecars are likewise under the private `cache/` directory, which JASS save-copy/delete natives cannot address. Valid names use ASCII letters/digits, dot, dash, underscore and internal spaces, at most 64 characters per component. Device names, trailing dots, absolute paths, traversal and extra directory depth are rejected. Existing `.sav` suffixes are preserved, otherwise `.sav` is appended consistently for scripted saves. These rules apply to `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` too. Directory operations are limited to `Blizzard\<slot>` and `Blizzard\Zones`; they cannot target the sandbox root or the `Blizzard` parent. Filesystem copying on POSIX uses directory-relative no-follow file descriptors and temporary replacement; the Windows implementation rejects reparse points.
+JASS save names are relative virtual names. Patch 1 accepts simple flat slots, `Blizzard\Zones\<filename>`, and `Blizzard\<slot>\<filename>` only. Each player-selected map session uses a private `saves/campaigns/<playthrough-id>/live/` root. Authored JASS `ChangeLevel`/`RestartGame` actions preserve that root; player-started maps and returning to the menu rotate it. A named manual save binds an immutable checkpoint of its script-save scope after the save commits. Loading that save clones the checkpoint into a fresh scope before loading the map; an unbound or invalid save receives a fresh empty scope. Map scripts never receive or choose the physical root, and cannot enumerate or manipulate manual saves or saves from other sessions. Disk-backed `gamecache-*.orcgc` sidecars are likewise under the private `cache/` directory, which JASS save-copy/delete natives cannot address. Valid names use ASCII letters/digits, dot, dash, underscore and internal spaces, at most 64 characters per component. Device names, trailing dots, absolute paths, traversal and extra directory depth are rejected. Existing `.sav` suffixes are preserved, otherwise `.sav` is appended consistently for scripted saves. These rules apply to `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` too. Directory operations are limited to `Blizzard\<slot>` and `Blizzard\Zones`; they cannot target the sandbox root or the `Blizzard` parent. Filesystem copying on POSIX uses directory-relative no-follow file descriptors and temporary replacement; the Windows implementation rejects reparse points.
 
 **Patch 5:** player-created manual saves now receive a private, engine-owned
 binding to their script-save session after the actual save file is committed.
@@ -749,9 +749,64 @@ current quest progression; actual Rexxar integration remains to be tested.
 The copy is no-follow and fail-closed on POSIX, rejecting symlinks and special
 files. Both platforms enforce a narrow directory shape and a checkpoint limit
 of **512 MiB and 2,048 regular files**. These are per-checkpoint safeguards,
-not a total disk quota. Superseded and failed checkpoints may consume storage
-until a future garbage collector removes unreferenced private directories.
+not a total disk quota. Newer storage-management work optimizes and reclaims
+some of this space as described below.
 The storage is engine-owned; host-level tampering or modification is not
 cryptographically authenticated. Other limitations include full rollback after
 failed cross-map restoration and native compatibility with Blizzard's binary
 `.w3z` and `.w3v` formats. The engine's existing versioned save format is used.
+
+### Campaign-owned live workspaces and compact snapshots
+
+The engine uses a **stable live workspace per playthrough branch**:
+
+```text
+saves/
+  <manual-slot>.sav
+  campaigns/<random-playthrough-id>/live/
+    Blizzard/Zones/<zone>.w3z.sav
+    Blizzard/<slot>/<zone>.w3z.sav
+    cache/gamecache-Campaigns.w3v.orcgc
+  script/bindings/<manual-slot>.sav.scope
+  script/checkpoints/<random-checkpoint-id>/
+    Blizzard/...  (immutable save-time data)
+    cache/...     (immutable save-time data)
+```
+
+`script/bindings` and `script/checkpoints` retain their existing locations and
+`ORCSCOPE2` format, so previously bound manual saves continue to restore from
+older, **uncompressed** checkpoints. No migration of the historical live
+`saves/script/<id>` directories is attempted. The playthrough ID is generated
+and managed by the engine and is never accepted from map JASS. `ChangeLevel`
+and scripted cross-map `LoadGame` keep using `live/`; selecting a manual save
+creates a fresh writable branch from the chosen immutable checkpoint. This
+preserves different save slots even when loading a much older one.
+
+The engine discards its own previous live workspace when resetting the
+playthrough scope (new game, return to menu, named manual load), using
+no-follow recursive deletion on POSIX and reparse-point checks on Windows.
+The underlying save file and immutable named-save checkpoint remain intact.
+Deleting a manual save also removes its private binding. On POSIX, manual-save
+commit/delete opportunistically reclaims up to eight unreferenced checkpoints
+older than seven days under a cross-process advisory binding lock. Windows
+orphan-checkpoint collection and recovery of abandoned branches after an
+abrupt process crash remain follow-up work; never delete unrecognized data.
+
+For each **immutable checkpoint file**, Linux first attempts a CoW reflink.
+This shares physical extents while keeping writable files independent; it is
+safe even when a writer truncates the live copy in place. When reflinking is
+unavailable (or on Windows), the engine can instead write a level-1 gzip
+payload inside an engine-private `ORCPGZ1!` envelope if that consumes fewer
+bytes than the original file. Restoring a checkpoint expands such files back
+into their original uncompressed bytes; legacy plain checkpoint files are also
+accepted. The live zone snapshots and manual `.sav` files retain the existing
+serializer and checksum format. This is intentionally **not** an on-disk WC3
+`.w3z`/`.w3v` format conversion. Compression work is confined to a checkpoint
+copy so normal zone transitions need not compress/decompress an entire zone.
+
+Checkpointing remains bounded by 512 MiB of logical contents / 2,048 files;
+compressed files are expanded with a corresponding upper bound. Checkpoint
+creation may temporarily require extra space, and compression is a fallback,
+not guaranteed. On filesystems without reflink support, restores materialize
+new live files in full. A separate aggregate quota, explicit storage audit
+command, and crash-recovery garbage collector remain future improvements.

@@ -34,6 +34,8 @@ static bool FS_CheckpointAllowed(cstring_t name, unsigned depth, bool directory,
     return false;
 }
 
+static const uint8_t fs_checkpoint_gzip_magic[8] = {'O','R','C','P','G','Z','1','!'};
+
 #ifndef _WIN32
 static int FS_CheckpointRootDir(bool create) {
     if (!FS_EnsureSaveDirectory()) return -1;
@@ -51,8 +53,57 @@ static int FS_CheckpointRootDir(bool create) {
     return checkpoints;
 }
 
+/* Checkpoint-local compressed envelope. These files are not exposed to JASS:
+ * restoration expands them to the original bytes in the playthrough's live
+ * scope. Older uncompressed checkpoint files are still readable. */
+
+static bool FS_CheckpointCompressFile(int input, int output, uint64_t input_size) {
+    if (write(output, fs_checkpoint_gzip_magic, sizeof(fs_checkpoint_gzip_magic)) !=
+        (ssize_t)sizeof(fs_checkpoint_gzip_magic)) return false;
+    int gzip_fd = dup(output);
+    if (gzip_fd < 0) return false;
+    gzFile gz = gzdopen(gzip_fd, "wb1");
+    if (!gz) { close(gzip_fd); return false; }
+    char buffer[65536];
+    uint64_t consumed = 0;
+    bool ok = true;
+    while (consumed < input_size && ok) {
+        size_t remaining = (size_t)MIN((uint64_t)sizeof(buffer), input_size - consumed);
+        ssize_t got = read(input, buffer, remaining);
+        if (got <= 0 || gzwrite(gz, buffer, (unsigned)got) != (int)got) ok = false;
+        else consumed += (uint64_t)got;
+    }
+    if (gzclose(gz) != Z_OK) ok = false;
+    return ok && consumed == input_size;
+}
+
+static bool FS_CheckpointExpandFile(int input, int output, uint64_t max_size) {
+    int gzip_fd = dup(input);
+    if (gzip_fd < 0) return false;
+    gzFile gz = gzdopen(gzip_fd, "rb");
+    if (!gz) { close(gzip_fd); return false; }
+    char buffer[65536];
+    uint64_t expanded = 0;
+    bool ok = true;
+    for (;;) {
+        int got = gzread(gz, buffer, sizeof(buffer));
+        if (got < 0 || (uint64_t)got > max_size - expanded) { ok = false; break; }
+        if (!got) { ok = gzeof(gz) != 0; break; }
+        ssize_t offset = 0;
+        while (offset < got) {
+            ssize_t n = write(output, buffer + offset, (size_t)(got - offset));
+            if (n <= 0) { ok = false; break; }
+            offset += n;
+        }
+        if (!ok) break;
+        expanded += (uint64_t)got;
+    }
+    if (gzclose(gz) != Z_OK) ok = false;
+    return ok;
+}
+
 static bool FS_CheckpointCopyTree(int source, int target, unsigned depth,
-                                  cstring_t top, fs_checkpoint_budget_t *budget) {
+                                  cstring_t top, fs_checkpoint_budget_t *budget, bool snapshot) {
     int source_scan = dup(source);
     if (source_scan < 0) return false;
     DIR *entries = fdopendir(source_scan);
@@ -73,7 +124,7 @@ static bool FS_CheckpointCopyTree(int source, int target, unsigned depth,
             int from = openat(source, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
             int to = openat(target, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
             if (from < 0 || to < 0) ok = false;
-            else ok = FS_CheckpointCopyTree(from, to, depth + 1, depth == 0 ? name : top, budget);
+            else ok = FS_CheckpointCopyTree(from, to, depth + 1, depth == 0 ? name : top, budget, snapshot);
             if (from >= 0) close(from);
             if (to >= 0) close(to);
         } else {
@@ -87,9 +138,39 @@ static bool FS_CheckpointCopyTree(int source, int target, unsigned depth,
                 if (fstat(from, &opened) != 0 || !S_ISREG(opened.st_mode) ||
                     opened.st_size != info.st_size) ok = false;
             }
+            /* Reflink first: shared physical blocks without shared inodes.
+             * On unsupported filesystems, compress immutable snapshots. Live
+             * files are always restored byte-for-byte (never gzip-wrapped). */
+            bool completed = false;
+            uint8_t prefix[sizeof(fs_checkpoint_gzip_magic)] = {0};
+            if (ok && !snapshot) {
+                ssize_t seen = read(from, prefix, sizeof(prefix));
+                if (seen < 0) ok = false;
+                if (ok && seen == sizeof(prefix) &&
+                    !memcmp(prefix, fs_checkpoint_gzip_magic, sizeof(prefix))) {
+                    completed = FS_CheckpointExpandFile(from, to, FS_CHECKPOINT_MAX_BYTES - budget->bytes);
+                    if (!completed) ok = false;
+                }
+                if (ok && !completed && lseek(from, 0, SEEK_SET) != 0) ok = false;
+            }
+#if defined(__linux__) && defined(FICLONE)
+            if (ok && !completed && ioctl(to, FICLONE, from) == 0) completed = true;
+#endif
+            if (ok && snapshot && !completed) {
+                /* A failed clone must not leave a partial target or an offset
+                 * inherited by the compression writer. */
+                if (ftruncate(to, 0) != 0 || lseek(to, 0, SEEK_SET) != 0 ||
+                    lseek(from, 0, SEEK_SET) != 0) ok = false;
+                if (ok) completed = FS_CheckpointCompressFile(from, to, (uint64_t)info.st_size);
+                struct stat packed;
+                if (completed && fstat(to, &packed) == 0 && packed.st_size >= 0 &&
+                    (uint64_t)packed.st_size >= (uint64_t)info.st_size) completed = false;
+                if (!completed && (ftruncate(to, 0) != 0 || lseek(to, 0, SEEK_SET) != 0 ||
+                                   lseek(from, 0, SEEK_SET) != 0)) ok = false;
+            }
             char bytes[65536];
-            uint64_t copied = 0;
-            while (ok) {
+            uint64_t copied = completed ? (uint64_t)info.st_size : 0;
+            while (ok && !completed) {
                 ssize_t n = read(from, bytes, sizeof(bytes));
                 if (n < 0) { ok = false; break; }
                 if (n == 0) break;
@@ -103,11 +184,14 @@ static bool FS_CheckpointCopyTree(int source, int target, unsigned depth,
                 }
             }
             if (copied != (uint64_t)info.st_size) ok = false;
+            struct stat result;
+            if (ok && (fstat(to, &result) != 0 || result.st_size < 0 ||
+                (uint64_t)result.st_size > FS_CHECKPOINT_MAX_BYTES - budget->bytes)) ok = false;
             if (to >= 0 && fsync(to) != 0) ok = false;
             if (from >= 0) close(from);
             if (to >= 0 && close(to) != 0) ok = false;
             if (!ok) break;
-            budget->bytes += copied;
+            budget->bytes += snapshot ? copied : (uint64_t)result.st_size;
             budget->files++;
         }
         errno = 0;
@@ -145,6 +229,27 @@ static bool FS_CheckpointRemoveTree(int root) {
     return ok;
 }
 
+/* A live playthrough is disposable after leaving it. Checkpoints remain
+ * intact; they are immutable and reached only through player-save bindings.
+ * The removal cannot recurse into symlinks or uncontrolled object kinds. */
+static void FS_RemoveCurrentLiveWorkspace(void) {
+    int campaigns = FS_CampaignWorkspacesFd(false);
+    if (campaigns < 0) return;
+    int branch = openat(campaigns, fs_script_session,
+                        O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    if (branch >= 0) {
+        int live = openat(branch, "live", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (live >= 0) {
+            bool removed = FS_CheckpointRemoveTree(live);
+            close(live);
+            if (removed) unlinkat(branch, "live", AT_REMOVEDIR);
+        }
+        close(branch);
+        unlinkat(campaigns, fs_script_session, AT_REMOVEDIR);
+    }
+    close(campaigns);
+}
+
 static bool FS_CreateScriptCheckpoint(char id[33]) {
     int parent = FS_CheckpointRootDir(true);
     if (parent < 0) return false;
@@ -154,7 +259,7 @@ static bool FS_CreateScriptCheckpoint(char id[33]) {
     if (target < 0) ok = false;
     if (ok) {
         fs_checkpoint_budget_t budget = {0};
-        ok = FS_CheckpointCopyTree(source, target, 0, NULL, &budget);
+        ok = FS_CheckpointCopyTree(source, target, 0, NULL, &budget, true);
     }
     if (source >= 0) close(source);
     if (target >= 0) close(target);
@@ -175,37 +280,20 @@ static bool FS_CloneScriptCheckpoint(cstring_t checkpoint) {
     if (source < 0) return false;
     /* Exclusive creation: never overwrite or remove an already existing
      * scope, even if the random ID happened to collide. */
-    int save = open(fs_save_dir, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-    int scripts = save >= 0 ? openat(save, "script", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC) : -1;
-    if (save >= 0) close(save);
-    bool created = scripts >= 0 && mkdirat(scripts, live, 0700) == 0;
-    if (scripts >= 0) close(scripts);
+    int campaigns = FS_CampaignWorkspacesFd(true);
+    bool created = campaigns >= 0 && mkdirat(campaigns, live, 0700) == 0;
+    if (campaigns >= 0) close(campaigns);
     if (!created) { close(source); return false; }
     strlcpy(fs_script_session, live, sizeof(fs_script_session));
-    int target = FS_ScriptRootFd(false);
+    int target = FS_ScriptRootFd(true);
     bool ok = target >= 0;
     if (ok) {
         fs_checkpoint_budget_t budget = {0};
-        ok = FS_CheckpointCopyTree(source, target, 0, NULL, &budget);
+        ok = FS_CheckpointCopyTree(source, target, 0, NULL, &budget, false);
     }
     close(source);
     if (target >= 0) close(target);
-    if (!ok) {
-        int failed = FS_ScriptRootFd(false);
-        if (failed >= 0) {
-            FS_CheckpointRemoveTree(failed);
-            close(failed);
-#ifndef _WIN32
-            int scripts = open(fs_save_dir, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-            if (scripts >= 0) {
-                int root = openat(scripts, "script", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
-                if (root >= 0) { unlinkat(root, live, AT_REMOVEDIR); close(root); }
-                close(scripts);
-            }
-#endif
-        }
-        FS_ResetScriptSaveScope();
-    }
+    if (!ok) FS_ResetScriptSaveScope();
     return ok;
 }
 #else
@@ -225,8 +313,68 @@ static bool FS_CheckpointWinRoot(bool create, PATHSTR path) {
            !(attr & FILE_ATTRIBUTE_REPARSE_POINT);
 }
 
+/* Windows lacks a portable reflink API here. Compress checkpoint files
+ * opportunistically, retaining ordinary copies when compression is not
+ * worthwhile or fails. Restore always expands into a normal writable file. */
+static bool FS_CheckpointWinCompress(cstring_t src, cstring_t dst, uint64_t original_size) {
+    FILE *input = fopen(src, "rb");
+    FILE *header = fopen(dst, "wb");
+    bool ok = input && header &&
+              fwrite(fs_checkpoint_gzip_magic, 1, sizeof(fs_checkpoint_gzip_magic), header) ==
+              sizeof(fs_checkpoint_gzip_magic);
+    if (header && fclose(header)) ok = false;
+    if (!ok) { if (input) fclose(input); DeleteFileA(dst); return false; }
+    gzFile gz = gzopen(dst, "ab1");
+    if (!gz) { fclose(input); DeleteFileA(dst); return false; }
+    char bytes[65536];
+    uint64_t copied = 0;
+    while (ok && copied < original_size) {
+        size_t want = (size_t)MIN(original_size - copied, (uint64_t)sizeof(bytes));
+        size_t n = fread(bytes, 1, want, input);
+        if (n == 0 || gzwrite(gz, bytes, (unsigned)n) != (int)n) { ok = false; break; }
+        copied += n;
+    }
+    if (gzclose(gz) != Z_OK) ok = false;
+    if (fclose(input)) ok = false;
+    if (!ok || copied != original_size) { DeleteFileA(dst); return false; }
+    WIN32_FILE_ATTRIBUTE_DATA data;
+    if (!GetFileAttributesExA(dst, GetFileExInfoStandard, &data) ||
+        data.nFileSizeHigh || data.nFileSizeLow >= original_size) {
+        DeleteFileA(dst);
+        return false;
+    }
+    return true;
+}
+
+static bool FS_CheckpointWinExpand(cstring_t src, cstring_t dst, uint64_t limit) {
+    FILE *input = fopen(src, "rb");
+    if (!input) return false;
+    uint8_t marker[sizeof(fs_checkpoint_gzip_magic)];
+    bool ok = fread(marker, 1, sizeof(marker), input) == sizeof(marker) &&
+              !memcmp(marker, fs_checkpoint_gzip_magic, sizeof(marker));
+    int gzip_fd = ok ? _dup(_fileno(input)) : -1;
+    gzFile gz = gzip_fd >= 0 ? gzdopen(gzip_fd, "rb") : NULL;
+    if (!gz) { if (gzip_fd >= 0) _close(gzip_fd); fclose(input); return false; }
+    FILE *output = fopen(dst, "wb");
+    if (!output) { gzclose(gz); fclose(input); return false; }
+    char bytes[65536];
+    uint64_t written = 0;
+    while (ok) {
+        int n = gzread(gz, bytes, sizeof(bytes));
+        if (n < 0 || (uint64_t)n > limit - written) { ok = false; break; }
+        if (!n) { ok = gzeof(gz) != 0; break; }
+        if (fwrite(bytes, 1, (size_t)n, output) != (size_t)n) { ok = false; break; }
+        written += (uint64_t)n;
+    }
+    if (gzclose(gz) != Z_OK) ok = false;
+    if (fclose(output)) ok = false;
+    fclose(input);
+    if (!ok) DeleteFileA(dst);
+    return ok;
+}
+
 static bool FS_CheckpointWinCopy(cstring_t from, cstring_t to, unsigned depth,
-                                  cstring_t top, fs_checkpoint_budget_t *budget) {
+                                  cstring_t top, fs_checkpoint_budget_t *budget, bool snapshot) {
     char pattern[MAX_PATHLEN];
     if (snprintf(pattern, sizeof(pattern), "%s/*", from) >= (int)sizeof(pattern)) return false;
     WIN32_FIND_DATAA entry;
@@ -244,18 +392,70 @@ static bool FS_CheckpointWinCopy(cstring_t from, cstring_t to, unsigned depth,
             snprintf(dst, sizeof(dst), "%s/%s", to, name) >= (int)sizeof(dst)) { ok = false; break; }
         if (directory) {
             if (_mkdir(dst) != 0) { ok = false; break; }
-            ok = FS_CheckpointWinCopy(src, dst, depth + 1, depth == 0 ? name : top, budget);
+            ok = FS_CheckpointWinCopy(src, dst, depth + 1, depth == 0 ? name : top, budget, snapshot);
         } else {
             uint64_t size = ((uint64_t)entry.nFileSizeHigh << 32) | entry.nFileSizeLow;
             if (size > FS_CHECKPOINT_MAX_BYTES - budget->bytes ||
-                budget->files >= FS_CHECKPOINT_MAX_FILES || !CopyFileA(src, dst, TRUE)) { ok = false; break; }
-            budget->bytes += size;
+                budget->files >= FS_CHECKPOINT_MAX_FILES) { ok = false; break; }
+            bool copied = false;
+            if (snapshot) copied = FS_CheckpointWinCompress(src, dst, size);
+            else {
+                FILE *peek = fopen(src, "rb");
+                uint8_t marker[sizeof(fs_checkpoint_gzip_magic)];
+                size_t n = peek ? fread(marker, 1, sizeof(marker), peek) : 0;
+                if (peek) fclose(peek);
+                if (n == sizeof(marker) && !memcmp(marker, fs_checkpoint_gzip_magic, n)) {
+                    copied = FS_CheckpointWinExpand(src, dst, FS_CHECKPOINT_MAX_BYTES - budget->bytes);
+                    if (!copied) { ok = false; break; }
+                }
+            }
+            if (!copied && !CopyFileA(src, dst, TRUE)) { ok = false; break; }
+            if (!snapshot) {
+                WIN32_FILE_ATTRIBUTE_DATA restored;
+                if (!GetFileAttributesExA(dst, GetFileExInfoStandard, &restored) ||
+                    restored.nFileSizeHigh || restored.nFileSizeLow > FS_CHECKPOINT_MAX_BYTES - budget->bytes) {
+                    ok = false; break;
+                }
+                budget->bytes += restored.nFileSizeLow;
+            } else budget->bytes += size;
             budget->files++;
         }
     } while (ok && FindNextFileA(listing, &entry));
     if (ok && GetLastError() != ERROR_NO_MORE_FILES) ok = false;
     FindClose(listing);
     return ok;
+}
+
+static bool FS_CheckpointWinRemove(cstring_t path) {
+    char pattern[MAX_PATHLEN];
+    if (snprintf(pattern, sizeof(pattern), "%s/*", path) >= (int)sizeof(pattern)) return false;
+    WIN32_FIND_DATAA entry;
+    HANDLE listing = FindFirstFileA(pattern, &entry);
+    if (listing == INVALID_HANDLE_VALUE) return GetLastError() == ERROR_FILE_NOT_FOUND;
+    bool ok = true;
+    do {
+        cstring_t name = entry.cFileName;
+        if (!strcmp(name, ".") || !strcmp(name, "..")) continue;
+        if (entry.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) { ok = false; break; }
+        char child[MAX_PATHLEN];
+        if (snprintf(child, sizeof(child), "%s/%s", path, name) >= (int)sizeof(child)) { ok = false; break; }
+        if (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            if (!FS_CheckpointWinRemove(child) || !RemoveDirectoryA(child)) { ok = false; break; }
+        } else if (!DeleteFileA(child)) { ok = false; break; }
+    } while (FindNextFileA(listing, &entry));
+    FindClose(listing);
+    return ok;
+}
+
+static void FS_RemoveCurrentLiveWorkspace(void) {
+    PATHSTR branch, live;
+    if (!FS_EnsureSaveDirectory() ||
+        snprintf(branch, sizeof(branch), "%s/campaigns/%s", fs_save_dir, fs_script_session) >= (int)sizeof(branch) ||
+        snprintf(live, sizeof(live), "%s/live", branch) >= (int)sizeof(live)) return;
+    DWORD attr = GetFileAttributesA(live);
+    if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY) ||
+        (attr & FILE_ATTRIBUTE_REPARSE_POINT)) return;
+    if (FS_CheckpointWinRemove(live) && RemoveDirectoryA(live)) RemoveDirectoryA(branch);
 }
 
 static bool FS_CreateScriptCheckpoint(char id[33]) {
@@ -265,7 +465,7 @@ static bool FS_CreateScriptCheckpoint(char id[33]) {
         snprintf(target, sizeof(target), "%s/%s", base, id) >= (int)sizeof(target) ||
         _mkdir(target) != 0) return false;
     fs_checkpoint_budget_t budget = {0};
-    return FS_CheckpointWinCopy(source, target, 0, NULL, &budget);
+    return FS_CheckpointWinCopy(source, target, 0, NULL, &budget, true);
 }
 
 static bool FS_CloneScriptCheckpoint(cstring_t checkpoint) {
@@ -277,11 +477,21 @@ static bool FS_CloneScriptCheckpoint(cstring_t checkpoint) {
     DWORD attr = GetFileAttributesA(source);
     if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY) ||
         (attr & FILE_ATTRIBUTE_REPARSE_POINT)) return false;
+    /* Windows fallback uses ordinary file copies: never change the old
+     * checkpoint, and refuse to reuse a branch directory after a collision. */
+    PATHSTR playthrough, campaigns;
+    if (snprintf(campaigns, sizeof(campaigns), "%s/campaigns", fs_save_dir) >= (int)sizeof(campaigns) ||
+        snprintf(playthrough, sizeof(playthrough), "%s/%s", campaigns, live) >= (int)sizeof(playthrough)) return false;
+    _mkdir(campaigns);
+    DWORD campaigns_attr = GetFileAttributesA(campaigns);
+    if (campaigns_attr == INVALID_FILE_ATTRIBUTES || !(campaigns_attr & FILE_ATTRIBUTE_DIRECTORY) ||
+        (campaigns_attr & FILE_ATTRIBUTE_REPARSE_POINT) ||
+        GetFileAttributesA(playthrough) != INVALID_FILE_ATTRIBUTES || _mkdir(playthrough) != 0) return false;
     strlcpy(fs_script_session, live, sizeof(fs_script_session));
     bool ok = FS_ScriptRoot(target, true);
     if (ok) {
         fs_checkpoint_budget_t budget = {0};
-        ok = FS_CheckpointWinCopy(source, target, 0, NULL, &budget);
+        ok = FS_CheckpointWinCopy(source, target, 0, NULL, &budget, false);
     }
     if (!ok) FS_ResetScriptSaveScope();
     return ok;

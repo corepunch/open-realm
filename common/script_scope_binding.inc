@@ -95,9 +95,90 @@ static bool FS_ScopeBindingDir(bool create, PATHSTR path) {
 }
 #endif
 
+#ifndef _WIN32
+/* All OpenRealm instances using this save directory cooperate on this
+ * advisory lock. A checkpoint cannot be reclaimed while another instance
+ * is restoring it through a player-selected save binding. */
+static int FS_ScopeBindingLock(bool write_lock) {
+    int directory = FS_ScopeBindingDir(true);
+    if (directory < 0) return -1;
+    int fd = openat(directory, ".storage.lock", O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0600);
+    close(directory);
+    if (fd < 0) return -1;
+    if (flock(fd, write_lock ? LOCK_EX : LOCK_SH) == 0) return fd;
+    close(fd);
+    return -1;
+}
+
+static bool FS_ScopeCheckpointReferenced(int bindings, cstring_t id) {
+    int scan = dup(bindings);
+    if (scan < 0) return true;
+    DIR *entries = fdopendir(scan);
+    if (!entries) { close(scan); return true; }
+    struct dirent *entry;
+    bool referenced = false;
+    while ((entry = readdir(entries)) != NULL) {
+        size_t n = strlen(entry->d_name);
+        if (n < 7 || strcmp(entry->d_name + n - 6, ".scope")) continue;
+        int fd = openat(bindings, entry->d_name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+        if (fd < 0) { referenced = true; break; }
+        char line[160] = {0}, bound[33] = {0};
+        ssize_t count = read(fd, line, sizeof(line) - 1);
+        close(fd);
+        if (count < 0 || count >= (ssize_t)sizeof(line) - 1) { referenced = true; break; }
+        if (sscanf(line, FS_SCOPE_BINDING_MAGIC " %32s", bound) == 1 && !strcmp(bound, id)) {
+            referenced = true; break;
+        }
+    }
+    closedir(entries);
+    return referenced;
+}
+
+/* Conservative opportunistic GC: prune a few checkpoints with no binding,
+ * only after a seven-day grace period, never while another OpenRealm process
+ * holds the shared restore lock. Unrecognized directories are left alone. */
+static void FS_ScopeCollectOrphans(void) {
+    enum { MAX_GC_PER_SAVE = 8, GC_GRACE_SECONDS = 7 * 24 * 60 * 60 };
+    int checkpoints = FS_CheckpointRootDir(false);
+    int bindings = FS_ScopeBindingDir(false);
+    if (checkpoints < 0 || bindings < 0) {
+        if (checkpoints >= 0) close(checkpoints);
+        if (bindings >= 0) close(bindings);
+        return;
+    }
+    int scan = dup(checkpoints);
+    DIR *entries = scan >= 0 ? fdopendir(scan) : NULL;
+    if (!entries && scan >= 0) close(scan);
+    time_t now = time(NULL);
+    unsigned removed = 0;
+    if (entries && now > GC_GRACE_SECONDS) {
+        struct dirent *entry;
+        while (removed < MAX_GC_PER_SAVE && (entry = readdir(entries)) != NULL) {
+            cstring_t id = entry->d_name;
+            if (strlen(id) != 32) continue;
+            bool valid = true;
+            for (unsigned i = 0; i < 32; i++) if (!isxdigit((unsigned char)id[i])) valid = false;
+            if (!valid) continue;
+            struct stat info;
+            if (fstatat(checkpoints, id, &info, AT_SYMLINK_NOFOLLOW) != 0 ||
+                !S_ISDIR(info.st_mode) || info.st_mtime > now - GC_GRACE_SECONDS ||
+                FS_ScopeCheckpointReferenced(bindings, id)) continue;
+            int checkpoint = openat(checkpoints, id, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+            if (checkpoint < 0) continue;
+            bool empty = FS_CheckpointRemoveTree(checkpoint);
+            close(checkpoint);
+            if (empty && unlinkat(checkpoints, id, AT_REMOVEDIR) == 0) removed++;
+        }
+    }
+    if (entries) closedir(entries);
+    close(bindings);
+    close(checkpoints);
+}
+#endif
+
 /* Binding is established ONLY by engine code after a successful player-save
  * snapshot. No JASS native can select/restore one of these capabilities. */
-bool FS_BindScriptSaveScope(cstring_t name) {
+static bool FS_BindScriptSaveScopeUnlocked(cstring_t name) {
     PATHSTR leaf, binding;
     uint64_t size, hash;
     if (!FS_ScopeManualName(name, leaf) || !FS_EnsureScriptSession() ||
@@ -158,9 +239,23 @@ bool FS_BindScriptSaveScope(cstring_t name) {
 #endif
 }
 
+bool FS_BindScriptSaveScope(cstring_t name) {
+#ifndef _WIN32
+    int lock = FS_ScopeBindingLock(true);
+    if (lock < 0) return false;
+    bool success = FS_BindScriptSaveScopeUnlocked(name);
+    if (success) FS_ScopeCollectOrphans();
+    flock(lock, LOCK_UN);
+    close(lock);
+    return success;
+#else
+    return FS_BindScriptSaveScopeUnlocked(name);
+#endif
+}
+
 /* A binding is local to a particular manual-save *contents*, not merely its
  * basename. Refuse a stale or malformed binding without trying to adopt it. */
-bool FS_RestoreScriptSaveScope(cstring_t name) {
+static bool FS_RestoreScriptSaveScopeUnlocked(cstring_t name) {
     PATHSTR leaf, binding;
     char line[160], id[33] = {0}, extra;
     unsigned long long saved_size = 0, saved_hash = 0;
@@ -200,6 +295,41 @@ bool FS_RestoreScriptSaveScope(cstring_t name) {
     /* Checkpoint IDs are only adopted through an engine-owned binding; restore
      * them into a fresh scope so named saves cannot modify one another. */
     return FS_CloneScriptCheckpoint(id);
+}
+
+bool FS_RestoreScriptSaveScope(cstring_t name) {
+#ifndef _WIN32
+    int lock = FS_ScopeBindingLock(false);
+    if (lock < 0) { FS_ResetScriptSaveScope(); return false; }
+    bool success = FS_RestoreScriptSaveScopeUnlocked(name);
+    flock(lock, LOCK_UN);
+    close(lock);
+    return success;
+#else
+    return FS_RestoreScriptSaveScopeUnlocked(name);
+#endif
+}
+
+/* Called only by the engine when a player deletes a manual save. */
+static void FS_UnbindScriptSaveScope(cstring_t name) {
+    PATHSTR leaf, binding;
+    if (!FS_ScopeManualName(name, leaf) ||
+        snprintf(binding, sizeof(binding), "%s.scope", leaf) >= (int)sizeof(binding)) return;
+#ifndef _WIN32
+    int lock = FS_ScopeBindingLock(true);
+    if (lock < 0) return;
+    int dir = FS_ScopeBindingDir(false);
+    if (dir >= 0) { unlinkat(dir, binding, 0); close(dir); FS_ScopeCollectOrphans(); }
+    flock(lock, LOCK_UN);
+    close(lock);
+#else
+    PATHSTR dir, path;
+    if (FS_ScopeBindingDir(false, dir) &&
+        snprintf(path, sizeof(path), "%s/%s", dir, binding) < (int)sizeof(path)) {
+        DWORD attr = GetFileAttributesA(path);
+        if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_REPARSE_POINT)) DeleteFileA(path);
+    }
+#endif
 }
 
 /* Trusted game-module code can query this opaque scope for cache invalidation.
@@ -343,6 +473,82 @@ TEST(script_saves, empty_campaign_scope_can_be_checkpointed) {
     FS_ResetScriptSaveScope();
     T_ASSERT(FS_RestoreScriptSaveScope("empty"));
     T_ASSERT(!FS_ScriptSaveExists("Blizzard/Zones/OrcX01.w3z"));
+    strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
+    strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
+}
+
+TEST(script_saves, leaving_playthrough_reclaims_live_workspace_but_preserves_slot) {
+    PATHSTR old_home, old_save, zone, manual, workspace, restored;
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-workspace-cleanup"));
+    FS_ResetScriptSaveScope();
+    T_ASSERT(FS_ScriptSavePath("Blizzard/Zones/OrcX01.w3z", zone, sizeof(zone)));
+    FILE *f = fopen(zone, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("zone", 1, 4, f), 4); fclose(f); }
+    T_ASSERT(FS_ScriptRoot(workspace, false));
+    T_ASSERT(strstr(workspace, "/campaigns/") != NULL);
+    T_ASSERT(strstr(workspace, "/live") != NULL);
+    FS_SavePath("slot", manual, sizeof(manual));
+    f = fopen(manual, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("manual", 1, 6, f), 6); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("slot"));
+    FS_ResetScriptSaveScope();
+#ifdef _WIN32
+    T_ASSERT(GetFileAttributesA(workspace) == INVALID_FILE_ATTRIBUTES);
+#else
+    struct stat st;
+    T_ASSERT(stat(workspace, &st) != 0 && errno == ENOENT);
+#endif
+    T_ASSERT(FS_RestoreScriptSaveScope("slot"));
+    T_ASSERT(FS_ScriptRoot(restored, false));
+    T_ASSERT(strcmp(workspace, restored) != 0);
+    T_ASSERT(FS_ScriptSaveExists("Blizzard/Zones/OrcX01.w3z"));
+    strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
+    strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
+}
+
+TEST(script_saves, checkpoint_restores_exact_large_file_after_compression_or_reflink) {
+    PATHSTR old_home, old_save, cache, manual;
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-workspace-compression"));
+    FS_ResetScriptSaveScope();
+    T_ASSERT(FS_ScriptCachePath("gamecache-Campaigns.w3v.orcgc", cache, sizeof(cache)));
+    FILE *f = fopen(cache, "wb");
+    T_NOT_NULL(f);
+    if (f) {
+        char bytes[1024]; memset(bytes, 0x5A, sizeof(bytes));
+        for (int i = 0; i < 96; i++) T_EQ(fwrite(bytes, 1, sizeof(bytes), f), sizeof(bytes));
+        fclose(f);
+    }
+    FS_SavePath("compressed", manual, sizeof(manual));
+    f = fopen(manual, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("manual", 1, 6, f), 6); fclose(f); }
+    T_ASSERT(FS_BindScriptSaveScope("compressed"));
+    FS_ResetScriptSaveScope();
+    T_ASSERT(FS_RestoreScriptSaveScope("compressed"));
+    T_ASSERT(FS_ScriptCachePath("gamecache-Campaigns.w3v.orcgc", cache, sizeof(cache)));
+    f = fopen(cache, "rb");
+    T_NOT_NULL(f);
+    if (f) {
+        char bytes[1024];
+        for (int i = 0; i < 96; i++) {
+            T_EQ(fread(bytes, 1, sizeof(bytes), f), sizeof(bytes));
+            for (size_t n = 0; n < sizeof(bytes); ++n) T_EQ(bytes[n], 0x5A);
+        }
+        T_EQ(fgetc(f), EOF);
+        fclose(f);
+    }
     strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
     strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
     strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
