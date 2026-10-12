@@ -54,6 +54,17 @@ coroutine runs:
 coroutines retain the same response context. The save/JASS snapshot serializers
 persist the queue/context fields introduced by the event bridge.
 
+## Retail event IDs
+
+The retail `common.j` used by current campaign data assigns player sell events
+to 272/273/274 and unit sell events to 289/290/291 (`SELL`, `CHANGE_OWNER`,
+`SELL_ITEM`). The corresponding spell lifecycle events follow those values
+through 279 and 296. Keep the `EVENTTYPE` values and the declarations in
+`game/common.txt` aligned with those IDs: `ConvertPlayerUnitEvent` and
+`ConvertUnitEvent` preserve the numeric value, so a stale producer enum can
+silently publish an event that no retail JASS registration matches. The
+OrcX01 armory regression in `t_items.c` exercises the player sell-item value.
+
 ## Explicit trigger execution
 
 Event dispatch evaluates conditions, then queues action coroutines for the JASS

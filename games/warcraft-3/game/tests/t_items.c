@@ -2026,6 +2026,121 @@ TEST(wc3_items, map_custom_reward_stock_uses_base_item_art_in_shop_buttons) {
     level.mapinfo = old_mapinfo;
 }
 
+TEST(wc3_items, map_created_reward_purchase_runs_sell_item_reward_flow) {
+    static UnitAbilities_t const sell_items = { .abilList = "Asid", .heroAbilList = "" };
+    static uint32_t const stock_ids[] = {
+        MAKEFOURCC('I','0','0','0'), MAKEFOURCC('I','0','0','1'), MAKEFOURCC('I','0','0','2')
+    };
+    static uint32_t const base_ids[] = {
+        MAKEFOURCC('f','r','h','g'), MAKEFOURCC('a','r','s','h'), MAKEFOURCC('b','l','b','a')
+    };
+    unitData_t custom_items[3] = {
+        { .originalUnitID = MAKEFOURCC('f','r','h','g'), .newUnitID = MAKEFOURCC('I','0','0','0') },
+        { .originalUnitID = MAKEFOURCC('a','r','s','h'), .newUnitID = MAKEFOURCC('I','0','0','1') },
+        { .originalUnitID = MAKEFOURCC('b','l','b','a'), .newUnitID = MAKEFOURCC('I','0','0','2') },
+    };
+    mapInfo_t mapinfo = { .num_userCreatedItems = 3, .userCreatedItems = custom_items };
+    mapInfo_t const *old_mapinfo;
+    edict_t *player, *buyer, *armory;
+    int32_t selected = 1; /* Arcanite Shield, matching OrcX01 I001. */
+    bool got_reward = false;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    player->client->connected = true;
+    player->client->ps.number = 0;
+    player->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+
+    old_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    /* This is the OrcX01 EVENT_PLAYER_UNIT_SELL_ITEM reward action in a
+     * compact fixture: remove all three placeholders, grant the matching
+     * base item, then mark the quest complete. */
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  boolean udg_GameOver = false\n"
+        "  integer udg_QuestHarpyThreatProgress = 4\n"
+        "  quest rewardQuest = null\n"
+        "  trigger completeTrigger = null\n"
+        "endglobals\n"
+        "function reward_condition takes nothing returns boolean\n"
+        "  if udg_GameOver then\n"
+        "    return false\n"
+        "  endif\n"
+        "  if udg_QuestHarpyThreatProgress != 4 then\n"
+        "    return false\n"
+        "  endif\n"
+        "  return GetItemTypeId(GetSoldItem()) == 'I000' or GetItemTypeId(GetSoldItem()) == 'I001' or GetItemTypeId(GetSoldItem()) == 'I002'\n"
+        "endfunction\n"
+        "function reward_sold takes nothing returns nothing\n"
+        "  local integer soldId = GetItemTypeId(GetSoldItem())\n"
+        "  call DisableTrigger(GetTriggeringTrigger())\n"
+        "  call RemoveItemFromStock(GetSellingUnit(), 'I000')\n"
+        "  call RemoveItemFromStock(GetSellingUnit(), 'I001')\n"
+        "  call RemoveItemFromStock(GetSellingUnit(), 'I002')\n"
+        "  if soldId == 'I000' then\n"
+        "    call UnitAddItemById(GetBuyingUnit(), 'frhg')\n"
+        "  elseif soldId == 'I001' then\n"
+        "    call UnitAddItemById(GetBuyingUnit(), 'arsh')\n"
+        "  elseif soldId == 'I002' then\n"
+        "    call UnitAddItemById(GetBuyingUnit(), 'blba')\n"
+        "  endif\n"
+        "  call TriggerExecute(completeTrigger)\n"
+        "endfunction\n"
+        "function complete_reward takes nothing returns nothing\n"
+        "  if not udg_GameOver then\n"
+        "    call QuestSetCompleted(rewardQuest, true)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function verify_reward takes nothing returns nothing\n"
+        "  call BJassAssert(IsQuestCompleted(rewardQuest), \"reward purchase did not complete quest\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger sold = CreateTrigger()\n"
+        "  set rewardQuest = CreateQuest()\n"
+        "  set completeTrigger = CreateTrigger()\n"
+        "  call TriggerAddAction(completeTrigger, function complete_reward)\n"
+        "  call TriggerRegisterPlayerUnitEvent(sold, Player(PLAYER_NEUTRAL_PASSIVE), EVENT_PLAYER_UNIT_SELL_ITEM, null)\n"
+        "  call TriggerAddCondition(sold, Condition(function reward_condition))\n"
+        "  call TriggerAddAction(sold, function reward_sold)\n"
+        "endfunction\n"));
+
+    buyer = make_item_test_inventory_unit(0, 0);
+    buyer->s.player = 0;
+    armory = alloc_test_unit(MAKEFOURCC('o','0','0','1'), 0, 0);
+    armory->s.player = PLAYER_NEUTRAL_PASSIVE;
+    armory->data.UnitAbilities = &sell_items;
+    armory->collision = 32.0f;
+    armory->spawn_time = G_Time();
+    armory->selected |= 1;
+    G_SetStockSlots(armory, true, 11);
+    gi.LinkEntity(armory);
+    FOR_LOOP(i, 3) T_ASSERT(G_AddItemStock(armory, stock_ids[i], 1, 1));
+    T_ASSERT(G_FindShopPatron(player->client, armory) == buyer);
+    T_ASSERT(G_ShopPurchaseItem(player, armory, stock_ids[selected]));
+    player->client->commands_dirty = false;
+    /* In the live frame the sell event is published during client-command
+     * handling and dispatched next frame, after end-of-frame item cleanup. */
+    G_RunConsumedItemFrees();
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(player->client->commands_dirty);
+    jass_callbyname(level.vm, "verify_reward", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+
+    T_EQ(armory->stock->item_count, 0);
+    FOR_LOOP(i, MAX_INVENTORY) {
+        if (buyer->inventory[i] && buyer->inventory[i]->class_id == base_ids[selected]) got_reward = true;
+    }
+    T_ASSERT(got_reward);
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = old_mapinfo;
+}
+
 TEST(wc3_items, neutral_unit_shop_runtime_stock_override_is_immediate_and_replenishes) {
     edict_t *player;
     gameClient_t *client;

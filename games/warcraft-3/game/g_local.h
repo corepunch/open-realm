@@ -429,34 +429,28 @@ typedef enum {
     EVENT_DIALOG_BUTTON_CLICK = 90,
     EVENT_DIALOG_CLICK = 91,
 
-    /* Later Warcraft III spell lifecycle event ids retain their retail numeric
-     * values so ConvertPlayerUnitEvent/ConvertUnitEvent handles compare exactly
-     * with the constants authored by common.j.  Only SPELL_EFFECT is currently
-     * published; the surrounding values are reserved for future lifecycle work. */
-    EVENT_PLAYER_UNIT_SPELL_CHANNEL = 272,
-    EVENT_PLAYER_UNIT_SPELL_CAST = 273,
-    EVENT_PLAYER_UNIT_SPELL_EFFECT = 274,
-    EVENT_PLAYER_UNIT_SPELL_FINISH = 275,
-    EVENT_PLAYER_UNIT_SPELL_ENDCAST = 276,
-    EVENT_UNIT_SPELL_CHANNEL = 289,
-    EVENT_UNIT_SPELL_CAST = 290,
-    EVENT_UNIT_SPELL_EFFECT = 291,
-    EVENT_UNIT_SPELL_FINISH = 292,
-    EVENT_UNIT_SPELL_ENDCAST = 293,
+    /* Retail common.j event values after the player mouse events were added. */
+    EVENT_PLAYER_UNIT_SELL = 272,
+    EVENT_PLAYER_UNIT_CHANGE_OWNER = 273,
+    EVENT_PLAYER_UNIT_SELL_ITEM = 274,
+    EVENT_PLAYER_UNIT_SPELL_CHANNEL = 275,
+    EVENT_PLAYER_UNIT_SPELL_CAST = 276,
+    EVENT_PLAYER_UNIT_SPELL_EFFECT = 277,
+    EVENT_PLAYER_UNIT_SPELL_FINISH = 278,
+    EVENT_PLAYER_UNIT_SPELL_ENDCAST = 279,
+    EVENT_PLAYER_UNIT_PAWN_ITEM = 280,
+    EVENT_UNIT_SELL = 289,
+    EVENT_UNIT_CHANGE_OWNER = 290,
+    EVENT_UNIT_SELL_ITEM = 291,
+    EVENT_UNIT_SPELL_CHANNEL = 292,
+    EVENT_UNIT_SPELL_CAST = 293,
+    EVENT_UNIT_SPELL_EFFECT = 294,
+    EVENT_UNIT_SPELL_FINISH = 295,
+    EVENT_UNIT_SPELL_ENDCAST = 296,
+    EVENT_UNIT_PAWN_ITEM = 297,
 
-    /* Ownership-change ids retain their retail common.j numbers (270/287) so
-     * TriggerRegisterPlayerUnitEvent/TriggerRegisterUnitEvent handles match.
-     * The published value carries the previous owner + 1 (zero stays reserved
-     * for "no change context", which keeps death/research/spell callbacks that
-     * share a trigger observing null from GetChangingUnit). */
-    EVENT_PLAYER_UNIT_CHANGE_OWNER = 270,
-    EVENT_UNIT_CHANGE_OWNER = 287,
-
-    /* Shop sell ids retain retail common.j numbers (269/271/286/288). */
-    EVENT_PLAYER_UNIT_SELL = 269,
-    EVENT_PLAYER_UNIT_SELL_ITEM = 271,
-    EVENT_UNIT_SELL = 286,
-    EVENT_UNIT_SELL_ITEM = 288,
+    /* The ownership-change payload carries previous owner + 1 (zero stays
+     * reserved), while the event type matches the retail common.j value above. */
 
     /* Player-unit damaged mirrors EVENT_UNIT_DAMAGED (52) at retail id 308. */
     EVENT_PLAYER_UNIT_DAMAGED = 308,

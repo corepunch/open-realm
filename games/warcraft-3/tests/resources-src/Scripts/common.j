@@ -300,6 +300,7 @@ native SetFogStateRadiusLoc takes player forWhichPlayer, fogstate whichState, lo
 native ConvertPlayerGameResult  takes integer i returns playergameresult
 native RemovePlayer             takes player whichPlayer, playergameresult gameResult returns nothing
 native Player                   takes integer number returns player
+native GetPlayerNeutralPassive  takes nothing returns integer
 
 // Stock Blizzard.j drop helpers: authoritative game-side item creation and
 // position queries, with itemtype's value-handle enum used by stock filters.
@@ -411,11 +412,14 @@ globals
     constant playerunitevent EVENT_PLAYER_UNIT_RESEARCH_FINISH = ConvertPlayerUnitEvent(37)
     constant playerunitevent EVENT_PLAYER_UNIT_ISSUED_ORDER = ConvertPlayerUnitEvent(38)
     constant playerunitevent EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER = ConvertPlayerUnitEvent(39)
-    constant playerunitevent EVENT_PLAYER_UNIT_SPELL_EFFECT = ConvertPlayerUnitEvent(274)
+    constant playerunitevent EVENT_PLAYER_UNIT_SELL_ITEM = ConvertPlayerUnitEvent(274)
+    constant playerunitevent EVENT_PLAYER_UNIT_SPELL_EFFECT = ConvertPlayerUnitEvent(277)
     constant playerunitevent EVENT_PLAYER_HERO_LEVEL = ConvertPlayerUnitEvent(41)
     constant playerunitevent EVENT_PLAYER_UNIT_SUMMON = ConvertPlayerUnitEvent(47)
     constant playerunitevent EVENT_PLAYER_UNIT_PICKUP_ITEM = ConvertPlayerUnitEvent(49)
     constant playerunitevent EVENT_PLAYER_UNIT_USE_ITEM = ConvertPlayerUnitEvent(50)
+    constant unitevent EVENT_UNIT_SELL_ITEM = ConvertUnitEvent(291)
+    constant integer PLAYER_NEUTRAL_PASSIVE = GetPlayerNeutralPassive()
     constant gameevent EVENT_GAME_STATE_LIMIT = ConvertGameEvent(3)
     constant gameevent EVENT_GAME_ENTER_REGION = ConvertGameEvent(5)
     constant gameevent EVENT_GAME_LOADED = ConvertGameEvent(256)
