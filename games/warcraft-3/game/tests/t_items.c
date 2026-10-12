@@ -2956,6 +2956,179 @@ TEST(wc3_items, point_drop_revalidates_carried_item) {
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
+/* Generic handoff is used both by targeted item orders and by scripted
+ * UnitAddItem when the item is already carried. None of these tests needs a
+ * Rexxar-specific unit or game asset. */
+TEST(wc3_items, carried_item_transfer_preserves_identity_and_charges) {
+    edict_t *source, *recipient, *item;
+    uint32_t old_charges = 3;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 2));
+    G_SetItemCharges(item, old_charges);
+    T_ASSERT(G_TransferCarriedItem(recipient, item));
+    T_NULL(source->inventory[2]);
+    T_ASSERT(recipient->inventory[0] == item);
+    T_ASSERT(item->item->carrier == recipient);
+    T_EQ(item->item->inventory_slot, 0);
+    T_EQ(G_ItemCharges(item), old_charges);
+    T_ASSERT(!item->item->in_world);
+    T_ASSERT(item->s.renderfx & RF_HIDDEN);
+    T_ASSERT(item->svflags & SVF_NOCLIENT);
+    T_ASSERT(G_TransferCarriedItem(recipient, item));
+    T_ASSERT(recipient->inventory[0] == item);
+}
+
+TEST(wc3_items, carried_item_transfer_full_recipient_is_atomic) {
+    edict_t *source, *recipient, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    FOR_LOOP(i, G_InventoryCapacity(recipient)) {
+        edict_t *filler = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 30 + i, 0);
+        T_ASSERT(G_AddItemToSlot(recipient, filler, i));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(!G_TransferCarriedItem(recipient, item));
+    T_ASSERT(source->inventory[0] == item);
+    T_ASSERT(item->item->carrier == source);
+    T_EQ(item->item->inventory_slot, 0);
+}
+
+TEST(wc3_items, targeted_give_to_inventory_unit_finishes_on_tick) {
+    edict_t *source, *recipient, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
+    T_ASSERT(source->inventory[0] == item); /* Pending orders do not teleport items. */
+    source->currentmove->think(source);
+    T_NULL(source->inventory[0]);
+    T_ASSERT(recipient->inventory[0] == item);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
+}
+
+TEST(wc3_items, inventory_drag_select_entity_queues_handoff) {
+    void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*saved_unicast)(edict_t *) = gi.unicast;
+    edict_t *source, *recipient, *item, *clent;
+    gameClient_t *client;
+    char target_number[32];
+    cstring_t drag[] = { "itemdrag", "0" };
+    cstring_t select[] = { "select", target_number };
+
+    setup_test_world();
+    gi.Write = item_noop_write;
+    gi.unicast = item_noop_unicast;
+    clent = &g_edicts[0];
+    client = clent->client;
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    source->s.player = recipient->s.player = client->ps.number;
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    G_SelectEntity(client, source);
+    G_ClientCommand(clent, 2, drag);
+    T_ASSERT(client->menu.dragged_item == item);
+    snprintf(target_number, sizeof(target_number), "%u", recipient->s.number);
+    G_ClientCommand(clent, 2, select);
+    T_ASSERT(source->item_drop == item);
+    T_ASSERT(source->goalentity == recipient);
+    T_ASSERT(source->inventory[0] == item);
+    source->currentmove->think(source);
+    T_NULL(source->inventory[0]);
+    T_ASSERT(recipient->inventory[0] == item);
+    gi.Write = saved_write;
+    gi.unicast = saved_unicast;
+}
+
+TEST(wc3_items, targeted_give_to_stationary_container) {
+    edict_t *source, *container, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    container = make_item_test_inventory_unit(80, 0);
+    container->movetype = MOVETYPE_NONE;
+    container->aiflags |= AI_IMMOBILE;
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, container));
+    source->currentmove->think(source);
+    T_ASSERT(container->inventory[0] == item);
+    T_NULL(source->inventory[0]);
+}
+
+TEST(wc3_items, targeted_give_full_container_drops_at_target) {
+    edict_t *source, *recipient, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    FOR_LOOP(i, G_InventoryCapacity(recipient)) {
+        edict_t *filler = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 30 + i, 0);
+        T_ASSERT(G_AddItemToSlot(recipient, filler, i));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
+    source->currentmove->think(source);
+    T_NULL(source->inventory[0]);
+    T_NULL(item->item->carrier);
+    T_ASSERT(item->item->in_world);
+    T_ASSERT(Vector2_distance(&item->s.origin2, &recipient->s.origin2) <= ITEM_DROP_RANGE);
+}
+
+TEST(wc3_items, targeted_give_revalidates_cancelled_or_invalid_target) {
+    edict_t *source, *recipient, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(1000, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
+    source->currentmove->think(source);
+    T_ASSERT(source->inventory[0] == item);
+    T_NULL(recipient->inventory[0]);
+    recipient->health.value = 0.0f;
+    source->currentmove->think(source);
+    T_ASSERT(source->inventory[0] == item);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
+}
+
+TEST(wc3_items, targeted_give_rejects_enemy_and_undroppable_item) {
+    edict_t *source, *recipient, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    recipient->s.player = 1;
+    T_ASSERT(!G_OrderGiveItemTarget(source, item, recipient));
+    recipient->s.player = source->s.player;
+    item->item->droppable_set = true;
+    item->item->droppable = false;
+    T_ASSERT(!G_OrderGiveItemTarget(source, item, recipient));
+    item->item->droppable = true;
+    {
+        edict_t *world_item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 48, 0);
+        T_ASSERT(!G_OrderGiveItemTarget(source, item, world_item));
+        T_ASSERT(!G_TransferCarriedItem(world_item, item));
+    }
+    T_ASSERT(source->inventory[0] == item);
+}
+
 TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {
     gameClient_t *client;
     edict_t *clent;

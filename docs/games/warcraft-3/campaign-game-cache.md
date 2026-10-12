@@ -261,3 +261,13 @@ cache blocks via reflinks on Linux, or compress them in their private storage
 when CoW is unavailable. Loading a named save expands/copies those files into
 a separate writable playthrough branch before map initialization. Older
 uncompressed checkpoints remain readable. See [save/load](save-load.md#campaign-owned-live-workspaces-and-compact-snapshots).
+
+### Rexxar stash handoff prerequisite
+
+OrcX01 moves stash inventory items into a temporary hidden `Obla` carrier and
+stores that carrier under the `Campaigns.w3v` / `OrcX02` / `Stash` key. The
+generic `UnitAddItem` carried-item transfer now supports moving existing item
+handles directly from the stash inventory to the carrier without a world drop.
+The campaign-cache contents, commit boundary, temporary carrier removal and
+OrcX02 restore semantics are independent of that handoff and are not modified
+by the inventory-transfer patch.

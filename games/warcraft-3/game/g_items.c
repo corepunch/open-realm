@@ -461,6 +461,52 @@ bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
     return G_AddItemToSlotInternal(unit, item, slot, true);
 }
 
+/* Transfer a carried item without manufacturing a world item. Native callers
+ * may move an item regardless of player-issued drop permissions; order callers
+ * validate those permissions before beginning an approach. The source and
+ * recipient inventories change together only after every check succeeds. */
+static bool G_TransferCarriedItemInternal(edict_t *recipient, edict_t *item, bool publish_drop) {
+    edict_t *source;
+    int32_t source_slot, target_slot;
+
+    if (!G_IsItem(item) || item->item->in_world || item->item->pending_use_removal ||
+        !recipient || !recipient->inuse || recipient->targtype == TARG_ITEM ||
+        recipient->destructable || recipient->client || M_IsDead(recipient) ||
+        !G_UnitHasInventory(recipient))
+        return false;
+    source = item->item->carrier;
+    source_slot = item->item->inventory_slot;
+    if (!source || !source->inuse || source_slot < 0 || source_slot >= MAX_INVENTORY ||
+        source->inventory[source_slot] != item) return false;
+    if (source == recipient) return true;
+    /* Ability-bound items (notably the filled Soul Gem) are never transferable
+     * to a different carrier, even through a scripted UnitAddItem. Plain
+     * ItemData.droppable=false remains bypassable by scripted natives. */
+    if (G_ItemAbilitiesPreventDrop(source, item)) return false;
+    target_slot = G_FindFreeInventorySlot(recipient);
+    if (target_slot < 0) return false;
+
+    G_ApplyItemStats(source, item, false);
+    source->inventory[source_slot] = NULL;
+    recipient->inventory[target_slot] = item;
+    item->item->carrier = recipient;
+    item->item->inventory_slot = target_slot;
+    G_ApplyItemStats(recipient, item, true);
+    G_RefreshInventoryUI(source);
+    G_RefreshInventoryUI(recipient);
+    if (publish_drop) {
+        G_PublishEventWithSource(source, EVENT_PLAYER_UNIT_DROP_ITEM, item);
+        G_PublishEventWithSource(source, EVENT_UNIT_DROP_ITEM, item);
+    }
+    G_PublishEventWithSource(recipient, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
+    G_PublishEventWithSource(recipient, EVENT_UNIT_PICKUP_ITEM, item);
+    return true;
+}
+
+bool G_TransferCarriedItem(edict_t *recipient, edict_t *item) {
+    return G_TransferCarriedItemInternal(recipient, item, false);
+}
+
 /* Ability-less powerups such as campaign Shimmerweed are quest pickups,
  * not inventory items. Keep ability-bearing powerups on the existing ability
  * dispatch path; an unsupported ability must not silently lose its effect. */
@@ -718,6 +764,78 @@ static void G_DropItemThink(edict_t *unit) {
 static umove_t item_move_drop = {
     .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .proc = CAbilityInventory
 };
+
+/* Use the authored GiveItemRange for unit-target handoff (separate from
+ * DropItemRange). The two collision radii are included in unit reach. */
+static float G_GiveItemReach(edict_t const *source, edict_t const *recipient) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", "GiveItemRange");
+    float range = value ? atof(value) : ITEM_DROP_RANGE;
+    return MAX(0.0f, range) + MAX(0.0f, source->collision) + MAX(0.0f, recipient->collision);
+}
+
+static bool G_CanGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
+    int32_t slot;
+    if (!source || !G_UnitIsWorldActive(source) || M_IsDead(source) ||
+        !G_UnitIsWorldActive(recipient) || M_IsDead(recipient) ||
+        recipient == source || (recipient->s.renderfx & RF_HIDDEN) ||
+        G_IsDeferredFree(recipient) || recipient->targtype == TARG_ITEM ||
+        recipient->destructable || recipient->client || !G_UnitHasInventory(recipient) ||
+        !G_PlayerTreatsPlayerAsAlly(source->s.player, recipient->s.player) ||
+        !G_InventoryCanDropItems(source) || !G_IsItem(item) || item->item->in_world ||
+        item->item->carrier != source || !G_ItemDroppable(item) ||
+        G_ItemAbilitiesPreventDrop(source, item)) return false;
+    slot = item->item->inventory_slot;
+    return slot >= 0 && slot < MAX_INVENTORY && source->inventory[slot] == item;
+}
+
+static void G_GiveItemThink(edict_t *source) {
+    edict_t *item = source ? source->item_drop : NULL;
+    edict_t *recipient = source ? source->goalentity : NULL;
+    float distance, move_distance;
+
+    if (!G_CanGiveItemTarget(source, item, recipient)) {
+        G_StopDropItemOrder(source);
+        return;
+    }
+    distance = M_DistanceToGoal(source);
+    if (distance <= G_GiveItemReach(source, recipient)) {
+        if (!G_TransferCarriedItemInternal(recipient, item, true)) {
+            /* Warcraft drops an unaccepted item at the recipient's feet. A
+             * full inventory is not grounds for deleting the carried item. */
+            vec2_t const position = recipient->s.origin2;
+            if (G_DropItemAt(source, (uint32_t)item->item->inventory_slot, &position)) {
+                G_PublishEventWithSource(source, EVENT_PLAYER_UNIT_DROP_ITEM, item);
+                G_PublishEventWithSource(source, EVENT_UNIT_DROP_ITEM, item);
+            }
+        } else {
+            G_QueueOwnerSoundAlias(source, "ItemDrop");
+        }
+        G_StopDropItemOrder(source);
+        return;
+    }
+    move_distance = unit_movedistance(source);
+    if (move_is_blocked(source, distance, move_distance)) {
+        G_StopDropItemOrder(source);
+        return;
+    }
+    unit_changeangle(source);
+    unit_moveindirection(source);
+}
+
+static umove_t item_move_give = {
+    .animation = "walk", .think = G_GiveItemThink, .endfunc = NULL, .proc = CAbilityInventory
+};
+
+bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
+    if (!G_CanGiveItemTarget(source, item, recipient) || (source->aiflags & AI_IMMOBILE))
+        return false;
+    source->goalentity = recipient;
+    source->item_drop = item;
+    move_reset_progress(source);
+    unit_setmove(source, &item_move_give);
+    unit_setanimation(source, "stand");
+    return true;
+}
 
 bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position) {
     if (!unit || !item || !position || !G_InventoryCanDropItems(unit) ||

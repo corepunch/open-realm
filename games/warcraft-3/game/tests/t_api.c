@@ -7604,6 +7604,50 @@ TEST(wc3_api, gamecache_restore_does_not_publish_pickup_events) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_api, unit_add_item_transfers_carried_handle_without_ground_drop) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit a = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local unit b = CreateUnit(Player(0), 'Hpal', 64.0, 0.0, 0.0)\n"
+        "  local item i = CreateItem('ratf', 32.0, 0.0)\n"
+        "  call BJassAssert(UnitAddItem(a, i), \"initial insertion failed\")\n"
+        "  call SetItemCharges(i, 3)\n"
+        "  call BJassAssert(UnitAddItem(b, i), \"carried item transfer failed\")\n"
+        "  call BJassAssert(not UnitHasItem(a, i), \"source still owns item\")\n"
+        "  call BJassAssert(UnitItemInSlot(b, 0) == i, \"item handle was recreated\")\n"
+        "  call BJassAssert(GetItemCharges(i) == 3, \"transfer lost charges\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, unit_drop_item_target_queues_a_targeted_give) {
+    edict_t *giver = NULL, *receiver = NULL, *item = NULL;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit a = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local unit b = CreateUnit(Player(0), 'Hpal', 64.0, 0.0, 0.0)\n"
+        "  local item i = CreateItem('ratf', 32.0, 0.0)\n"
+        "  call BJassAssert(UnitAddItem(a, i), \"initial insertion failed\")\n"
+        "  call BJassAssert(UnitDropItemTarget(a, i, b), \"target order rejected\")\n"
+        "  call BJassAssert(UnitHasItem(a, i), \"item moved before order tick\")\n"
+        "endfunction\n"));
+    FOR_LOOP(n, globals.num_edicts) {
+        edict_t *ent = g_edicts + n;
+        if (!ent->inuse) continue;
+        if (ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 0) {
+            if (!giver) giver = ent;
+            else receiver = ent;
+        } else if (ent->class_id == MAKEFOURCC('r','a','t','f')) item = ent;
+    }
+    T_NOT_NULL(giver); T_NOT_NULL(receiver); T_NOT_NULL(item);
+    T_ASSERT(giver->inventory[0] == item);
+    T_ASSERT(giver->currentmove && giver->currentmove->think);
+    giver->currentmove->think(giver);
+    T_NULL(giver->inventory[0]);
+    T_ASSERT(receiver->inventory[0] == item);
+}
+
 TEST(wc3_api, gamecache_restore_preserves_hero_progression) {
     edict_t *restored = NULL;
 

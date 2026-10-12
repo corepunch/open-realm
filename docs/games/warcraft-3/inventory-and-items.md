@@ -518,3 +518,41 @@ for transport, renderer ownership and regression commands.
 
 The Signal cursor is a separate overlay: `cmd signal` preserves the held item,
 and Esc/right click or an accepted signal point restores its icon and command.
+
+## Unit-to-Unit Item Handoff
+
+An item dragged from inventory onto an allied inventory-capable unit uses the
+same server-side target order as the `UnitDropItemTarget(unit, item, widget)`
+JASS native. It applies to non-hero inventory containers (including stationary
+buildings), not only Heroes. An unsupported target leaves the client in target
+mode; neutral shop pawn handling remains on the existing shop path.
+
+`G_OrderGiveItemTarget` validates an active, living allied recipient, the
+source's `inv5` permission, the item's droppable state and any item-ability
+prohibition. The source walks toward the target; completion revalidates both
+unit and item state and uses `Misc.GiveItemRange` plus unit collision radii.
+The recipient does not move. A full recipient's inventory causes a normal
+world drop at its position. The item is not transferred when the order is
+issued, and an invalidated target/item cancels without changing inventory.
+
+`G_TransferCarriedItem` performs a direct, atomic transfer of an already-carried
+item entity: first verify both owner/slot and a free target slot, then remove
+source item stats, change the carrier and slot exactly once, apply eligible
+recipient stats, refresh both HUD inventories, and publish recipient pickup
+events. Player-ordered handoffs additionally enqueue a giver drop event before
+the recipient pickup events; scripted transfers do not synthesize a giver drop.
+No new item entity or temporary world item is created. The recipient's
+`inv4` flag is not applied to an incoming handoff: that flag gates the
+recipient's own pickup orders, whereas its inventory capacity governs whether
+it can receive items. The player order checks the *giver's* `inv5` and item
+droppability. By contrast, scripted `UnitAddItem` may transfer an already-carried
+item through the same primitive without imposing player-order drop restrictions.
+It still honours special scripted item reattachment before general transfer.
+`UnitDropItemTarget` queues the normal handoff rather than teleporting the item.
+
+These behaviours are exercised by `wc3_items.carried_item_transfer*`,
+`wc3_items.targeted_give*`,
+`wc3_api.unit_add_item_transfers_carried_handle_without_ground_drop`, and
+`wc3_api.unit_drop_item_target_queues_a_targeted_give`. Campaign `StoreUnit`
+serialization and removal of a temporary carrier are separate lifecycle work;
+this handoff patch does not change game-cache format.
