@@ -266,7 +266,20 @@ static bool run_test_jass_impl(cstring_t src, cstring_t expected) {
     string_t buf = gi.MemAlloc(len + 1);
     memcpy(buf, src, len + 1);
 
-    if (level.vm) { jass_close(level.vm); level.vm = NULL; }
+    if (level.vm) {
+        /* Trigger actions/conditions and timers name functions owned by the
+         * VM being closed. A test that runs a second script must not keep,
+         * or save, registry rows that point into the freed VM. */
+        FOR_LOOP(i, level.num_triggers) {
+            DELETE_LIST(gTriggerAction_t, level.triggers[i].actions, gi.MemFree);
+            DELETE_LIST(gTriggerCondition_t, level.triggers[i].conditions, gi.MemFree);
+        }
+        memset(level.triggers, 0, sizeof(level.triggers)); level.num_triggers = 0;
+        memset(level.timers, 0, sizeof(level.timers)); level.num_timers = 0;
+        memset(&level.events, 0, sizeof(level.events));
+        G_ResetEventSubscribers();
+        jass_close(level.vm); level.vm = NULL;
+    }
 
     jass_sethost(&MAKE(jassHost_t,
         .MemAlloc         = gi.MemAlloc,
