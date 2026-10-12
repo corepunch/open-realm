@@ -76,6 +76,7 @@ typedef struct {
     cstring_t  upgrades;
     /* TFT-only fields -------------------------------------------------------*/
     float   collision;               /* ROC: stored in UnitData.slk        */
+    bool    has_collision;           /* field presence, independent of sign/zero */
     bool    isBuilding;              /* ROC: stored in UnitUI.slk          */
     int32_t    nbrandom;
     cstring_t  preventPlace;
@@ -529,6 +530,7 @@ MusicData_t const *G_MusicData(cstring_t name);
 ItemData_t    const *G_ItemData(uint32_t id);
 ItemData_t    const *G_ItemDataRows(uint32_t *count);
 DestructableData_t const *G_DestructableData(uint32_t id);
+float G_UnitCollisionFromRows(UnitBalance_t const *, UnitData_t const *);
 float G_UnitCollision(uint32_t id); /* TFT UnitBalance.collision → ROC UnitData.collision */
 int32_t G_UnitClassification(uint32_t id); /* TFT UnitBalance.type (string enum) → ROC UnitData.type */
 float G_UnitCastBackSwing(uint32_t id); /* TFT UnitWeapons.castbsw → ROC UnitData.castbsw */

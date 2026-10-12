@@ -378,7 +378,7 @@ TEST(wc3_unit, spawn_classification_is_shared_and_refreshes_bound_rows_and_metad
     T_EQ(unit_spawn_type_traits(unit)->target, TARG_AIR);
     T_EQ(unit_spawn_trait_builds, 2);
     UnitBalance_t balance = *unit->data.UnitBalance;
-    balance.id = unit->class_id; balance.isBuilding = true; balance.collision = 99;
+    balance.id = unit->class_id; balance.isBuilding = true; balance.collision = 99; balance.has_collision = true;
     slkTestData_t table = { .rows = &balance, .count = 1 };
     slkTestData_t *old = G_SetSLKRows("UnitBalance", &table);
     unitSpawnTraits_t const *traits = unit_spawn_type_traits(unit);

@@ -10879,7 +10879,19 @@ TEST(wc3_movement, attack_chase_progresses_with_captured_tower_corridor) {
         S_AttackProfileRead(attacker, 0)->range + attacker->collision + target->collision + 16.0f);
 }
 
-TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes) {
+/* The authoritative primary clock and Move owner must advance together.
+ * Calling only ai_attack_walk leaves its delegated request permanently queued. */
+static void attack_shared_jobs_owner_frame(void) {
+    FOR_LOOP(step,FRAMETIME/5) {
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+        level.pathing_phase=(level.pathing_phase+1)%6;
+        if(!level.pathing_phase) {
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+    }
+}
+
+TEST(wc3_movement, attack_chase_progresses_while_shared_route_jobs_compete) {
     enum { PATH_W = 256, PATH_H = 256, COMPETING_JOBS = 24 };
     static uint8_t pathmap[PATH_W * PATH_H];
     box2_t const bounds = { .min = {-4096.0f, -4096.0f}, .max = {4096.0f, 4096.0f} };
@@ -10932,24 +10944,28 @@ TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes)
     T_ASSERT(S_OrderAttack(attacker, target));
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
     start_distance = Vector2_distance(&attacker->s.origin2, &target->s.origin2);
-    /* Establish a valid route and move several steps before invalidating the
-     * shared field. The retained direction is then tested during contention. */
+    /* Establish the physical chase through its actual owner before invalidating
+     * unrelated shared fields. Public movement must continue under that work. */
     for (int frame = 0; frame < 8; frame++) {
         CM_ProcessPathJobs(UINT_MAX);
         attacker->currentmove->think(attacker);
+        attack_shared_jobs_owner_frame();
         level.time += FRAMETIME;
     }
-    T_ASSERT(attacker->movement.route_resume_valid);
+    /*49a240 delegates physical chase to Move; the old shared-field
+     * route_resume cache is no longer the attack task's progress owner. */
+    T_ASSERT(S_UnitTargetChaseActive(attacker,CAbilityAttack));
+    T_ASSERT(attacker->movement.fine_route.count>0);
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &start_origin) > 0.01f);
 
-    /* Replacing the pathmap invalidates cached shared fields while keeping the
-     * mover's goal and recent validated direction intact. */
+    /* Replacing the pathmap invalidates caches while retaining the chase target. */
     memset(pathmap, 0, sizeof(pathmap));
     for (int y = 126; y <= 132; y++)
         for (int x = 126; x <= 130; x++)
             pathmap[x + y * PATH_W] = 0x42;
     CM_SetupTestPathmap(PATH_W, PATH_H, pathmap);
 
+    vec2_t const contention_origin=attacker->s.origin2;
     /* A lower-numbered mover starts first, matching production entity order. */
     T_EQ(CM_RequestHeatmapForRadius(other_goals[0], 0.0f), 0);
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
@@ -10962,13 +10978,14 @@ TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes)
         }
         T_ASSERT(attacker->currentmove && attacker->currentmove->think);
         attacker->currentmove->think(attacker);
+        attack_shared_jobs_owner_frame();
         T_ASSERT(attacker->goalentity == target);
         T_ASSERT(attacker->currentmove->proc == CAbilityAttack);
-        resumed = Vector2_distance(&attacker->s.origin2, &start_origin) > 0.01f;
+        resumed = Vector2_distance(&attacker->s.origin2, &contention_origin) > 0.01f;
         if (!resumed) {
-            T_ASSERT(attacker->movement.route_resume_active || attacker->movement.path_wait_active);
-            T_FEQ(attacker->s.origin2.x, start_origin.x, 0.01f);
-            T_FEQ(attacker->s.origin2.y, start_origin.y, 0.01f);
+            T_ASSERT(S_UnitTargetChaseActive(attacker,CAbilityAttack));
+            T_FEQ(attacker->s.origin2.x, contention_origin.x, 0.01f);
+            T_FEQ(attacker->s.origin2.y, contention_origin.y, 0.01f);
         }
         CM_ProcessPathJobs(32768);
         level.time += FRAMETIME;
@@ -25976,5 +25993,56 @@ TEST(wc3_movement, bridge311_constructor_and_placement_all_classes) {
         G_TestFinishDeferredFrees();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
     }
     G_SetSLKRows("DestructableData",old_rows);free_slk_rows(rows);
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_numeric312.h"
+TEST(wc3_movement, numeric312_public_geometry_keeps_authored_and_physical_radii_distinct) {
+    static char const *const modes[]={"foot","fly","amph","hover","float"};
+    static float radii[]={-16384,-64,-1,-.0001f,-0.f,0.f,.0001f,.5f,1,8,56,128,256,1024,2048,65536};
+    static float heights[]={0,60,0,0,0};
+    static vec2_t const requests[]={{768,512},{-16384,-512},{32768,2560},{-.0001f,2048.0002f}};
+    FOR_LOOP(scene,320) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+        FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+        unsigned kind=scene/4,mode=kind/16,slot=kind%16;
+        mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radii[slot]},
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=(void *)modes[mode]},
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_real,.data=&heights[mode]}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=__builtin_bswap32(0x684e4141u+kind),
+            .numbeOfModifications=3,.modifications=mods};
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        vec2_t point=requests[scene%4];char script[2048];
+        snprintf(script,sizeof(script),
+            "globals\nunit n312=null\nendglobals\nfunction main takes nothing returns nothing\n"
+            "set n312=CreateUnit(Player(0),%u,%.8f,%.8f,0)\ncall SetUnitAcquireRange(n312,0)\nendfunction\n"
+            "function place takes nothing returns nothing\ncall SetUnitPosition(n312,%.8f,%.8f)\nendfunction\n"
+            "function scale takes nothing returns nothing\ncall SetUnitScale(n312,-2,-2,-2)\nendfunction\n"
+            "function zero takes nothing returns nothing\ncall SetUnitPathing(n312,false)\ncall SetUnitPosition(n312,%.8f,%.8f)\nendfunction\n"
+            "function axes takes nothing returns nothing\ncall SetUnitX(n312,%.8f)\ncall SetUnitY(n312,%.8f)\nendfunction\n",
+            custom.newUnitID,point.x,point.y,point.x,point.y,point.x,point.y,point.x,point.y);
+        T_ASSERT(run_test_jass(script));edict_t *unit=NULL;
+        FILTER_EDICTS(e,e->inuse && e->class_id==custom.newUnitID)unit=e;
+        T_NOT_NULL(unit);
+        if(unit)FOR_LOOP(stage,5) {
+            if(stage){static char const *const calls[]={"place","scale","zero","axes"};jass_callbyname(level.vm,calls[stage-1],false);T_ASSERT(!jass_rterror_pending(level.vm));}
+            uint32_t const *expected=numeric312_states[scene][stage];
+            uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->s.origin.x),wc3_float_bits(unit->s.origin.y),wc3_float_bits(wc3_div(S_MoveCollisionRadius(unit),32)),wc3_float_bits(G_UnitCollision(unit->class_id))};
+            FOR_LOOP(k,6){if(actual[k]!=expected[k])fprintf(stderr,"numeric312 scene%u stage%u field%u actual%08x retail%08x\n",scene,stage,k,actual[k],expected[k]);T_EQ(actual[k],expected[k]);}
+            T_ASSERT(unit->movement.collision_profile);T_EQ(unit->current_order_id,0);T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+            if(stage==0 && (slot==0 || slot==5 || slot==7 || slot==15)) {
+                cstring_t file=Test_TempPath("wc3-numeric312.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                T_ASSERT(unit->movement.collision_profile);T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[0]);T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[1]);
+            }
+        }
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+    }
 }
 #endif

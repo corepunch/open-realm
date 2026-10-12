@@ -1704,3 +1704,13 @@ Cold resource rebinding restores a dead destructable's texture and flags without
 executing the death transition over its saved fine regions. Older save layouts
 are rejected; the network contract is unchanged. See
 [bridge placement](retail-pathfinding-engine.md#retained-bridge-placement-levels-and-replacement-footprints-payoff311).
+
+### Published unit collision profiles (Save187)
+
+Save187 retains `movement.collision_profile`, the logical publication state of a
+unit's physical profile. The mutable authored radius stays in `collision`; Move
+applies its physical minimum only after profile publication. Unpublished agents
+retain explicitly supplied geometry. Cold load restores the publication flag
+before rebuilding fine/proximity indexes. The numeric312 regression saves80
+finite producer scenes and resumes exact retail scalar states. Earlier save
+versions are rejected; no migration or network-format change is introduced.

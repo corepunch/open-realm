@@ -219,7 +219,8 @@ static slkField_t const balance_schema[] = {
     { "AGIplus",          offsetof(UnitBalance_t, agilityPerLevel), STB_SLK_FLOAT },
     { "Primary",          offsetof(UnitBalance_t, primaryAttribute),STB_SLK_STR   },
     { "upgrades",         offsetof(UnitBalance_t, upgrades),        STB_SLK_STR   },
-    { "collision",        offsetof(UnitBalance_t, collision),       STB_SLK_FLOAT }, /* TFT */
+    { "collision",        offsetof(UnitBalance_t, collision), STB_SLK_FLOAT,
+      .presence_offset = offsetof(UnitBalance_t, has_collision) }, /* TFT */
     { "isbldg",           offsetof(UnitBalance_t, isBuilding),      STB_SLK_BOOL  }, /* TFT */
     { "nbrandom",         offsetof(UnitBalance_t, nbrandom),        STB_SLK_INT   }, /* TFT */
     { "preventPlace",     offsetof(UnitBalance_t, preventPlace),    STB_SLK_STR   }, /* TFT */
@@ -1649,8 +1650,13 @@ static void AddMapUnitBalanceOverride(unitData_t const *unit, uint32_t target_id
     override->id = target_id;
     override->row.id = target_id;
 
-    FOR_LOOP(i, unit->numbeOfModifications)
-        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitBalance), unit->modifications + i);
+    FOR_LOOP(i, unit->numbeOfModifications) {
+        unitModification_t const *mod = unit->modifications + i;
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitBalance), mod);
+        if (mod->modID == MAKEFOURCC('u','c','o','l') && mod->data &&
+            (mod->type == mod_int || mod->type == mod_real || mod->type == mod_unreal))
+            override->row.has_collision = true;
+    }
 }
 
 static void AddMapUnitWeaponsOverride(unitData_t const *unit, uint32_t target_id, uint32_t base_id) {
@@ -2466,12 +2472,16 @@ DestructableData_t const *G_DestructableData(uint32_t id) {
     return row ? row : &zero;
 }
 
+/* Source presence is independent of the scalar value. These bound rows are
+ * shared type data; placement must not substitute the physical mover minimum. */
+float G_UnitCollisionFromRows(UnitBalance_t const *balance, UnitData_t const *data) {
+    return balance && balance->has_collision ? balance->collision : data ? data->collision : 0;
+}
+
 /* TFT stores collision in UnitBalance; ROC stores it in UnitData. */
 float G_UnitCollision(uint32_t id) {
     UnitBalance_t const *b = G_UnitBalance(id);
-    if (b && b->collision > 0.f) return b->collision;
-    UnitData_t const *d = G_UnitData(id);
-    return d ? d->collision : 0.f;
+    return G_UnitCollisionFromRows(b, b && b->has_collision ? NULL : G_UnitData(id));
 }
 
 /* Unit classification moved from UnitData (ROC) to UnitBalance (TFT). */

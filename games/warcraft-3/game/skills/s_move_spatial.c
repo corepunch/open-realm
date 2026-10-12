@@ -179,7 +179,7 @@ void S_PublishMoveRegions(edict_t const *owner) {
     pathTex_t const *texture=owner->pathtex;
     pathTexTransform_t transform=CM_GetPathTexTransform(owner);
     float cell=CM_PathCellWorldSize();
-    unsigned radius=MAX(1,(unsigned)ceilf(owner->collision/cell));
+    unsigned radius=MAX(1,(unsigned)ceilf(S_MoveCollisionRadius(owner)/cell));
     state->width=texture ? texture->width : radius*2;
     state->height=texture ? texture->height : radius*2;state->turn=transform.turn;
     uint32_t size=state->width*state->height;
@@ -259,10 +259,10 @@ void S_PublishMoveProximity(edict_t const *unit) {
     if(!unit || !g_edicts || !pathmap.width || !pathmap.height)return;
     uint32_t index=unit-g_edicts;
     if(index>=MAX_ENTITIES)return;
-    if(!unit->inuse || IS_HOLLOW(unit) || !unit->data.UnitData || unit->collision<=0) {S_RemoveMoveProximity(unit);return;}
+    if(!unit->inuse || IS_HOLLOW(unit) || !unit->data.UnitData || S_MoveCollisionRadius(unit)<=0) {S_RemoveMoveProximity(unit);return;}
     move_proximity_prepare();
     moveProximityGeometry_t key={.world=unit->s.origin2,.fine=unit->movement.fine_pose,
-        .published=unit->movement.pose_world,.radius=unit->collision,.valid=true,.pose_valid=unit->movement.pose_valid};
+        .published=unit->movement.pose_world,.radius=S_MoveCollisionRadius(unit),.valid=true,.pose_valid=unit->movement.pose_valid};
     moveProximityGeometry_t const *cached=move_proximity_geometry+index;
     if(cached->valid && cached->pose_valid==key.pose_valid &&
         !memcmp(&cached->world,&key.world,sizeof(vec2_t)) &&
@@ -272,7 +272,7 @@ void S_PublishMoveProximity(edict_t const *unit) {
     box2_t bounds=CM_GetWorldBounds();
     vec2_t point=key.pose_valid && !memcmp(&key.world,&key.published,sizeof(vec2_t)) ? key.fine :
         (vec2_t){wc3_grid_coordinate(key.world.x,bounds.min.x,32),wc3_grid_coordinate(key.world.y,bounds.min.y,32)};
-    wc3FineBox_t box=wc3_proximity_bounds((float[]){point.x,point.y},wc3_div(unit->collision,32));
+    wc3FineBox_t box=wc3_proximity_bounds((float[]){point.x,point.y},wc3_div(S_MoveCollisionRadius(unit),32));
     if(!wc3_proximity_update(&move_proximity,index,box,true))gi.error("Move proximity: cannot publish complete membership");
     move_proximity_geometry[index]=key;
 }
@@ -362,7 +362,7 @@ bool S_LoadMoveProximity(uint32_t index,wc3FineBox_t box) {
     if(!wc3_proximity_update(&move_proximity,index,box,true))return false;
     edict_t const *unit=g_edicts+index;
     move_proximity_geometry[index]=(moveProximityGeometry_t){.world=unit->s.origin2,.fine=unit->movement.fine_pose,
-        .published=unit->movement.pose_world,.radius=unit->collision,.valid=true,.pose_valid=unit->movement.pose_valid};
+        .published=unit->movement.pose_world,.radius=S_MoveCollisionRadius(unit),.valid=true,.pose_valid=unit->movement.pose_valid};
     return true;
 }
 
@@ -429,3 +429,11 @@ void S_SetMoveProximityStamp(uint32_t index,uint32_t stamp) {
 #ifdef BZ_TESTS
 uint32_t S_TestMoveProximityLinks(void) {return move_proximity.records;}
 #endif
+
+/*6945a0's unit profile publisher clamps the physical owner, not the authored
+ * virtual radius. Unpublished agents keep their existing explicitly supplied
+ * geometry. No new per-unit default copy or allocation is necessary. */
+float S_MoveCollisionRadius(edict_t const *unit) {
+    float radius = unit->collision;
+    return unit->movement.collision_profile && radius <= 1 ? 1 : radius;
+}

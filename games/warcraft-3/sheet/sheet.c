@@ -460,6 +460,7 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
                     continue;
                 }
                 value = FS_FindSheetCell(sheet, row->name, field->column);
+                if (field->presence_offset) *(bool *)(dst + field->presence_offset) = value != NULL;
                 if (!value) value = field->default_value;
                 if (!value)
                     continue;

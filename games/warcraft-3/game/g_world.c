@@ -698,7 +698,7 @@ static vec2_t move_object_point(edict_t const *ent) {
  * textures. Items publish their own mover category (BASE-02.2). */
 static bool move_has_spatial_record(edict_t const *ent) {
     if (ent->movement.captain_actor_type) return ent->inuse;
-    return ent->inuse && !(ent->s.renderfx&RF_HIDDEN) && ent->s.model && ent->collision>0 &&
+    return ent->inuse && !(ent->s.renderfx&RF_HIDDEN) && ent->s.model && S_MoveCollisionRadius(ent)>0 &&
         (ent->data.UnitData || (G_IsItem(ent) && ent->item->in_world));
 }
 
@@ -736,9 +736,9 @@ void G_PublishMoveSpatialObject(edict_t const *ent) {
         !memcmp(&geometry->world,&ent->s.origin2,sizeof(vec2_t)) &&
         !memcmp(&geometry->fine,&ent->movement.fine_pose,sizeof(vec2_t)) &&
         !memcmp(&geometry->published,&ent->movement.pose_world,sizeof(vec2_t)) &&
-        wc3_float_bits(geometry->collision)==wc3_float_bits(ent->collision))return;
+        wc3_float_bits(geometry->collision)==wc3_float_bits(S_MoveCollisionRadius(ent)))return;
     vec2_t point=move_object_point(ent);
-    wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(ent->collision/pathmap_cell_world_size()),
+    wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(S_MoveCollisionRadius(ent)/pathmap_cell_world_size()),
         (wc3FinePoint_t){(int)floorf(point.x),(int)floorf(point.y)});
     wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
     wc3RecordObject_t *object=wc3_records_owned(map,index);
@@ -756,7 +756,7 @@ void G_PublishMoveSpatialObject(edict_t const *ent) {
         wc3_records_update(map,id,box);move_spatial_serial++;
     }
     *geometry=(moveSpatialGeometry_t){ent->s.origin2,ent->movement.fine_pose,ent->movement.pose_world,
-        ent->collision,true,ent->movement.pose_valid};
+        S_MoveCollisionRadius(ent),true,ent->movement.pose_valid};
 }
 
 uint64_t G_GetMoveSpatialSerial(void) { return move_spatial_serial; }
@@ -920,8 +920,8 @@ uint32_t G_MoveCohortDistance(moveCohortQuery_t *context,edict_t const *source,e
     while(lane<4 && move_acc_masks[lane]!=mask)lane++;
     if(lane==4)gi.error("Move: unsupported cohort lane %02x",mask);
     FOR_LOOP(i,4)move_acc.maps[i].classes=move_acc_classes[lane][i];
-    unsigned size=MAX(wc3_fine_class(wc3_div(source->collision,32)),
-        wc3_fine_class(wc3_div(candidate->collision,32)))>>1;
+    unsigned size=MAX(wc3_fine_class(wc3_div(S_MoveCollisionRadius(source),32)),
+        wc3_fine_class(wc3_div(S_MoveCollisionRadius(candidate),32)))>>1;
     wc3AccRequest_t request={{wc3_mul(from[0],.5f),wc3_mul(from[1],.5f)},
         {wc3_mul(to[0],.5f),wc3_mul(to[1],.5f)},1u<<size,budget};
     wc3FineVector_t endpoint;
@@ -1463,7 +1463,7 @@ bool G_FindUnitMovePortalPosition(edict_t *unit,vec2_t const *fine,vec2_t *out) 
     if(lane==4)gi.error("Move portal placement: unsupported movement mask %02x",mask);
     move_acc_prepare();move_acc_enable_gates();
     FOR_LOOP(i,4)move_acc.maps[i].classes=move_acc_classes[lane][i];
-    uint32_t cls=wc3_fine_class(unit->collision/pathmap_cell_world_size());
+    uint32_t cls=wc3_fine_class(S_MoveCollisionRadius(unit)/pathmap_cell_world_size());
     movePortalPlacement_t data={.graph={.flags=unit->no_pathing?0:M_UnitStaticPathingFlags(unit),.endpoint=true},
         .source={wc3_mul(fine->x,.5f),wc3_mul(fine->y,.5f)},.size=1u<<(cls>>1)};
     movePathQuery_t objects={.mover=unit,.units=true};move_query_objects(&data.graph,&objects,NULL);
@@ -1875,7 +1875,7 @@ bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec
     FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
     move_acc_enable_gates();
     wc3AccRequest_t req={{wc3_mul(point.x,.5f),wc3_mul(point.y,.5f)},
-        {wc3_mul(dest->x,.5f),wc3_mul(dest->y,.5f)},1u<<(wc3_fine_class(unit->collision/pathmap_cell_world_size())>>1),30};
+        {wc3_mul(dest->x,.5f),wc3_mul(dest->y,.5f)},1u<<(wc3_fine_class(S_MoveCollisionRadius(unit)/pathmap_cell_world_size())>>1),30};
     wc3FineVector_t endpoint;
     uint32_t distance=wc3_acc_query_distance(&move_acc,&req,&endpoint);
     if (distance<=20) return false;

@@ -410,7 +410,7 @@ static unitSpawnTraits_t const *unit_spawn_type_traits_prepared(edict_t const *s
     *entry = (unitSpawnTraits_t){ .class_id = self->class_id, .metadata = metadata, .abilities = abilities,
         .balance = self->data.UnitBalance, .data = self->data.UnitData, .ui = self->data.UnitUI,
         .flags = flags, .runtime = building ? UNIT_BALANCE_BUILDING : 0,
-        .collision = collision > 0 ? collision : 0,
+        .collision = collision,
         .target = G_GetTargetType(self->data.UnitData->targetType), .valid = true };
     return entry;
 }
@@ -687,6 +687,9 @@ static void unit_construct_visuals(unitConstruction_t *construction) {
      * the unit data, matching WC3. Buildings have no meaningful collisionSize
      * and instead block via their pathing footprint (set from pathtex below). */
     self->collision = traits->collision;
+    /* Keep the mutable/public value visible at its original stage.6945a0
+     * publishes a separate physical profile; Move owns its minimum radius. */
+    self->movement.collision_profile = true;
     S_SetMoveFormationRank(self, construction->captured.UnitData->formationRank);
     S_SetMoveVisualPolicy(self, construction->captured.UnitData->orientationInterpolation);
 //    printf("%.4s\n", &self->class_id);

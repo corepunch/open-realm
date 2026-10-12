@@ -2111,3 +2111,39 @@ TEST(wc3_slk, sound_catalog_names_keep_first_row_without_repeated_scans) {
 }
 
 #endif /* BZ_TESTS */
+
+#ifdef BZ_TESTS
+
+TEST(wc3_slk, numeric312_collision_source_presence_is_independent_of_value) {
+    setup_test_world();
+    slkTestData_t data={.text="ID;PWXL;N;E\nC;X1;Y1;K\"unitID\"\nC;X2;K\"collision\"\nC;X1;Y2;K\"n312\"\nC;X2;K31\nC;X1;Y3;K\"n313\"\nC;X2;K31\nC;X1;Y4;K\"n314\"\nC;X2;K31\nC;X1;Y5;K\"n315\"\nC;X2;K31\nE\n"};
+    slkTestData_t balance={.text="ID;PWXL;N;E\nC;X1;Y1;K\"unitBalanceID\"\nC;X2;K\"collision\"\nC;X1;Y2;K\"n312\"\nC;X2;K0\nC;X1;Y3;K\"n313\"\nC;X2;K-0\nC;X1;Y4;K\"n314\"\nC;X2;K-64\nC;X1;Y5;K\"n315\"\nE\n"};
+    slkTestData_t *old_data=G_SetSLKRows("UnitData",&data),*old_balance=G_SetSLKRows("UnitBalance",&balance);
+    T_NOT_NULL(old_data);T_NOT_NULL(old_balance);
+    /* Existing retail-public-numeric-inputs s2r_21: textual -0.0 -> +0.
+     * Binary W3U signed zero remains a separate producer contract. */
+    uint32_t const bits[]={0,0,0xc2800000,0x41f80000};
+    FOR_LOOP(i,4) {
+        uint32_t code=MAKEFOURCC('n','3','1','2'+i);
+        T_EQ(G_UnitBalance(code)->has_collision,i<3);
+        T_EQ(wc3_float_bits(G_UnitCollision(code)),bits[i]);
+    }
+    G_SetSLKRows("UnitBalance",old_balance);free(old_balance);
+    G_SetSLKRows("UnitData",old_data);free(old_data);
+}
+
+TEST(wc3_slk, numeric312_custom_types_inherit_explicit_signed_zero_collision) {
+    setup_test_world();mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+    float zero=-0.f;
+    unitModification_t mod={.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&zero};
+    unitData_t original={.originalUnitID=MAKEFOURCC('h','f','o','o'),.numbeOfModifications=1,.modifications=&mod};
+    unitData_t child={.originalUnitID=original.originalUnitID,.newUnitID=MAKEFOURCC('n','3','1','6')};
+    info.num_originalUnits=1;info.originalUnits=&original;info.num_userCreatedUnits=1;info.userCreatedUnits=&child;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    T_EQ(wc3_float_bits(G_UnitCollision(original.originalUnitID)),0x80000000);
+    T_EQ(wc3_float_bits(G_UnitCollision(child.newUnitID)),0x80000000);
+    T_ASSERT(G_UnitBalance(child.newUnitID)->has_collision);
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+}
+
+#endif

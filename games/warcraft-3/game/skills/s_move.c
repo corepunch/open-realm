@@ -694,7 +694,7 @@ static void move_update_shared(void) {
         FOR_LOOP(i,group->count) {
             moveGroupMember_t const *member=group->members+i; edict_t const *unit=member->unit;
             if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
-                shared->radius=MAX(shared->radius,unit->collision);
+                shared->radius=MAX(shared->radius,S_MoveCollisionRadius(unit));
         }
     }
 }
@@ -855,7 +855,7 @@ static void move_route_wait_diag(edict_t *self, bool waiting, moveDiagState_t re
             (unsigned)(goal ? goal->s.number : 0), (unsigned)(goal ? goal->spawn_time : 0),
             (unsigned)(goal ? goal->class_id : 0), (unsigned)(goal ? goal->s.player : 0),
             goal ? goal->s.origin2.x : 0.0f, goal ? goal->s.origin2.y : 0.0f,
-            self->collision, job.active, job.requester_number,
+            S_MoveCollisionRadius(self), job.active, job.requester_number,
             job.goal_number, job.target_cell_x, job.target_cell_y,
             (unsigned)job.pending_cells, (unsigned)job.pending_jobs, (unsigned)job.work_done);
         return;
@@ -1048,7 +1048,7 @@ bool M_UnitMoveDisabled(edict_t const *ent) {
  * effects, missiles), and the opposite air/ground layer (flyers and ground
  * units pass through each other). */
 static bool filter_blockers(edict_t const *ent) {
-    if (ent == trymove_self || IS_HOLLOW(ent) || ent->collision <= 0.0f)
+    if (ent == trymove_self || IS_HOLLOW(ent) || S_MoveCollisionRadius(ent) <= 0.0f)
         return false;
     /* An alive walkable destructable is a ground surface, not a circle-shaped
      * obstacle. Its authored path texture remains responsible for deck edges. */
@@ -1077,7 +1077,7 @@ static float point_segment_distance(vec2_t const *a, vec2_t const *b, vec2_t con
 
 /* All Move geometry consumers use the same retail footprint class. */
 static bool move_static_point(edict_t const *self, vec2_t const *point) {
-    pathAccelParams_t params = { point, NULL, self->collision, M_UnitStaticPathingFlags(self) };
+    pathAccelParams_t params = { point, NULL, S_MoveCollisionRadius(self), M_UnitStaticPathingFlags(self) };
     return G_MovePathPointIsPathable(&params);
 }
 
@@ -1142,9 +1142,9 @@ static bool move_wisp_egress_corridor_clear(edict_t const *self, edict_t const *
         float const t = (float)i / (float)samples;
         vec2_t const p = { self->s.origin2.x + (target->x - self->s.origin2.x) * t,
                             self->s.origin2.y + (target->y - self->s.origin2.y) * t };
-        if (CM_PointIsPathableForRadiusFlags(&p, self->collision, flags)) continue;
+        if (CM_PointIsPathableForRadiusFlags(&p, S_MoveCollisionRadius(self), flags)) continue;
         float const tree_dist = CM_DistanceToPathingFootprintFlags(tree, &p, flags);
-        if (!CM_TerrainPointIsWalkable(&p) || tree_dist > self->collision + CM_PathCellWorldSize())
+        if (!CM_TerrainPointIsWalkable(&p) || tree_dist > S_MoveCollisionRadius(self) + CM_PathCellWorldSize())
             return false;
         FOR_LOOP(n, globals.num_edicts) {
             edict_t const *other = EDICT_NUM(n);
@@ -1155,7 +1155,7 @@ static bool move_wisp_egress_corridor_clear(edict_t const *self, edict_t const *
              * own that overlapping sample while it is still inside the
              * harvested tree, but become blockers as the corridor approaches
              * their footprint more closely than the harvested one. */
-            if (other_dist + 1.0f < tree_dist && other_dist <= self->collision + CM_PathCellWorldSize())
+            if (other_dist + 1.0f < tree_dist && other_dist <= S_MoveCollisionRadius(self) + CM_PathCellWorldSize())
                 return false;
         }
     }
@@ -1166,7 +1166,7 @@ static bool move_wisp_egress_choose_target(edict_t *self, uint8_t flags) {
     edict_t *tree = self->movement.wisp_egress_tree;
     float const cell = MAX(4.0f, CM_PathCellWorldSize() * 0.5f);
     float const radius = (float)MAX(tree->pathtex->width, tree->pathtex->height) * CM_PathCellWorldSize() * 0.5f +
-        self->collision + CM_PathCellWorldSize() * 2.0f;
+        S_MoveCollisionRadius(self) + CM_PathCellWorldSize() * 2.0f;
     float best = FLT_MAX;
     vec2_t chosen = {0, 0};
     bool found = false;
@@ -1174,7 +1174,7 @@ static bool move_wisp_egress_choose_target(edict_t *self, uint8_t flags) {
         for (float x = tree->s.origin2.x - radius; x <= tree->s.origin2.x + radius; x += cell) {
             vec2_t const p = {x, y};
             float const d = Vector2_distance(&self->s.origin2, &p);
-            if (d >= best || !CM_PointIsPathableForRadiusFlags(&p, self->collision, flags)) continue;
+            if (d >= best || !CM_PointIsPathableForRadiusFlags(&p, S_MoveCollisionRadius(self), flags)) continue;
             if (!move_wisp_egress_corridor_clear(self, tree, &p, flags)) continue;
             best = d;
             chosen = p;
@@ -1207,7 +1207,7 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
 
     /* Static world: terrain + baked building footprints (pathmap.original). */
     bool const wisp_egress = move_wisp_egress_tree_valid(self) &&
-        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, M_UnitStaticPathingFlags(self));
+        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, S_MoveCollisionRadius(self), M_UnitStaticPathingFlags(self));
     if (wisp_egress) {
         if (!move_wisp_egress_corridor_clear(self, self->movement.wisp_egress_tree, cand, M_UnitStaticPathingFlags(self)))
             return false;
@@ -1217,7 +1217,7 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
     /* WC3's pathing grid rejects a swept step that cuts a diagonal corner. Keep
      * the escape case for units spawned inside stale/changed pathing, where the
      * endpoint remains the authoritative legal position. */
-    if (move_static_point(self, &self->s.origin2) && !move_static_line(self, cand, self->collision))
+    if (move_static_point(self, &self->s.origin2) && !move_static_line(self, cand, S_MoveCollisionRadius(self)))
         return false;
 
     if (collision_policy == MOVE_IGNORE_UNITS)
@@ -1233,7 +1233,7 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
      * the unit jump clean over it.  BoxEdicts tests each entity's bounds (which
      * already extend by its own collision radius), so inflating by self's radius
      * is enough to catch any blocker within rr of the corridor. */
-    float const reach = self->collision + 1.0f;
+    float const reach = S_MoveCollisionRadius(self) + 1.0f;
     float const ox = self->s.origin2.x, oy = self->s.origin2.y;
     box2_t const box = {
         { (ox < cand->x ? ox : cand->x) - reach, (oy < cand->y ? oy : cand->y) - reach },
@@ -1243,7 +1243,7 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
     uint32_t const num = gi.BoxEdicts(&box, trymove_colliders, MAX_MOVE_COLLIDERS, filter_blockers);
     FOR_LOOP(i, num) {
         edict_t *const b = trymove_colliders[i];
-        float const rr = self->collision + b->collision;
+        float const rr = S_MoveCollisionRadius(self) + S_MoveCollisionRadius(b);
         /* Swept test: the unit's whole PATH this tick (origin -> cand) must
          * clear b, not just the endpoint — otherwise a fast unit (step ~one
          * cell) jumps clean over a smaller unit between ticks.  Mirrors WC3's
@@ -1455,7 +1455,7 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
     uint32_t counts[MAX_PLAYERS][BOT_CAPTAIN_COUNT]={{0}};
     FILTER_EDICTS(actor,actor->inuse && actor->movement.captain_actor_type) {
         uint32_t type=actor->movement.captain_actor_type;
-        if (type>BOT_CAPTAIN_COUNT || actor->s.player>=MAX_PLAYERS || actor->collision!=0 ||
+        if (type>BOT_CAPTAIN_COUNT || actor->s.player>=MAX_PLAYERS || S_MoveCollisionRadius(actor)!=0 ||
             actor->movement.captain_actor_members>globals.num_edicts) return false;
         if (!actor->movement.captain_actor_owned) continue;
         edict_t **slot=&owners[actor->s.player][type-1];
@@ -1697,7 +1697,7 @@ static void move_captain_home_update(edict_t *self) {
     FOR_LOOP(k,2) delta[k]=wc3_sub(target.grid[k],pose.grid[k]);
     uint32_t members=actor->movement.captain_actor_members;
     bool logical=self->movement.captain_home.roster_actor!=NULL;
-    float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,members)),32),wc3_div(self->collision,32));
+    float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,members)),32),wc3_div(S_MoveCollisionRadius(self),32));
     float distance=wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]));
     bool entered=distance<wc3_mul(radius,radius),was_entered=self->movement.captain_home.entered;
     if (logical) {
@@ -1712,7 +1712,7 @@ static void move_captain_home_update(edict_t *self) {
         /* Native d01cd leaves the registered outer circle and replaces the
          * shared point leg with a private virtual-target approach. Retain the
          * creation-phase deadline through the shared leg, including on load. */
-        float outer=wc3_add(wc3_div(wc3_add(1000,wc3_mul(25,members)),32),wc3_div(self->collision,32));
+        float outer=wc3_add(wc3_div(wc3_add(1000,wc3_mul(25,members)),32),wc3_div(S_MoveCollisionRadius(self),32));
         bool outside=distance>=wc3_mul(outer,outer),was_outer=self->movement.captain_home.outer;
         if (logical) self->movement.captain_home.outer=!outside;
         if (outside && (!logical || was_outer) && !self->movement.captain_home.active) {
@@ -2018,8 +2018,8 @@ static bool move_target_in_range(edict_t const *self,edict_t const *target,float
     if(!self || !target)return false;
     uint32_t word=wc3_float_bits(range);
     range=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
-    float target_radius=wc3_mul(target->collision,wc3_float(0x3d000000));
-    float source_radius=wc3_mul(self->collision,wc3_float(0x3d000000));
+    float target_radius=wc3_mul(S_MoveCollisionRadius(target),wc3_float(0x3d000000));
+    float source_radius=wc3_mul(S_MoveCollisionRadius(self),wc3_float(0x3d000000));
     range=MAX(wc3_float(0x3efae148),wc3_add(wc3_add(range,target_radius),source_radius));
     float source[2],point[2],squared=0;
     if(predict) {
@@ -2085,7 +2085,7 @@ bool S_UnitPointInMoveRange(edict_t const *self,vec2_t const *point,float range)
     if(!self || !point)return false;
     uint32_t word=wc3_float_bits(range);
     range=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
-    range=wc3_add(range,wc3_mul(self->collision,wc3_float(0x3d000000)));
+    range=wc3_add(range,wc3_mul(S_MoveCollisionRadius(self),wc3_float(0x3d000000)));
     box2_t bounds=CM_GetWorldBounds();
     float source[2],target[2]={point->x,point->y},origin[2]={bounds.min.x,bounds.min.y},squared=0;
     S_PredictUnitFinePointAt(self,&level.pathing_clock,source);
@@ -2140,7 +2140,7 @@ static bool move_repulse_candidate(edict_t const *other) {
     moveRepulseQuery_t *query = repulse_query;
     uint32_t word = other->movement.repulse.state.packed;
     if (other == query->self || !other->movement.repulse.active || !G_UnitIsWorldActive(other) ||
-        IS_HOLLOW(other) || other->collision <= 0 || move_repulse_moving(other) || other->paused || other->stunned || other->no_pathing ||
+        IS_HOLLOW(other) || S_MoveCollisionRadius(other) <= 0 || move_repulse_moving(other) || other->paused || other->stunned || other->no_pathing ||
         ((word >> 20) & 255) != query->category || (word >> 28) < query->rank) return false;
     wc3GridPose_t pose; unit_predicted_pose(other,&pose);
     for (unsigned i = 0; i < 2; i++) query->pair.other[i] = pose.grid[i];
@@ -2167,7 +2167,7 @@ static void move_repulse_update(edict_t *self) {
     for (unsigned i = 0; i < 2; i++) next.grid[i] = wc3_add(next.grid[i],state->vector[i]);
     for (unsigned i = 0; i < 2; i++) next.world[i] = wc3_world_coordinate(next.grid[i],next.origin[i],32);
     vec2_t point = {next.world[0],next.world[1]}, old = self->s.origin2;
-    movePathQuery_t endpoint = {{&point,NULL,self->collision,M_UnitStaticPathingFlags(self)},self,NULL,true};
+    movePathQuery_t endpoint = {{&point,NULL,S_MoveCollisionRadius(self),M_UnitStaticPathingFlags(self)},self,NULL,true};
     float sq = wc3_add(wc3_mul(state->vector[0],state->vector[0]),wc3_mul(state->vector[1],state->vector[1]));
     bool admitted=sq != 0 && G_UnitMovePathFinePointIsPathable(&endpoint,next.grid);
 #ifdef BZ_TESTS
@@ -2579,7 +2579,7 @@ static void unit_moveindirection_policy(edict_t *self,
     /* A Wisp leaving its harvested tree starts inside that tree's footprint;
      * unit_changeangle_policy steers it toward the egress target. */
     bool const wisp_egress = move_wisp_egress_tree_valid(self) &&
-        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, M_UnitStaticPathingFlags(self));
+        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, S_MoveCollisionRadius(self), M_UnitStaticPathingFlags(self));
     if ((self->aiflags & AI_IMMOBILE) || self->movement.turn_blocked) {
         /* Preserve upstream's Stand clip while using retail's pre-turn gate. */
         if (self->movement.turn_blocked && !G_AnimationHasPrimary(self->animation,"stand"))
@@ -2818,7 +2818,7 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
         self->movement.worker_avoid_blocked_frames <= MOVE_WORKER_QUEUE_TICKS)
         return goal_angle;
 
-    max_deviation = self->collision *
+    max_deviation = S_MoveCollisionRadius(self) *
         (self->movement.worker_avoid_blocked_frames <= MOVE_WORKER_ESCAPE_TICKS
             ? MOVE_WORKER_MAX_DEVIATION : MOVE_WORKER_ESCAPE_DEVIATION);
 
@@ -2980,7 +2980,7 @@ static uint32_t move_advance_endpoint(edict_t *unit, wc3GridPose_t const *pose, 
     }
     moveGroup_t *group=move_unit_group(unit);
     if(group && group->target) {
-        movePathQuery_t query={.geometry={.radius=unit->collision},.mover=unit,
+        movePathQuery_t query={.geometry={.radius=S_MoveCollisionRadius(unit)},.mover=unit,
             .target=group->target,.target_region=S_MoveGroupTargetRegion(group),.units=true};
         if(G_UnitMoveTargetOnPerimeter(&query,(vec2_t){pose->grid[0],pose->grid[1]}))return 3;
     }
@@ -3029,7 +3029,7 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
     bool wait=false;
     bool fine_heading=false;
     if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self)) {
-        movePathQuery_t query=move_route_query(self,(moveRoutePoint_t){&self->goalentity->s.origin2,self->collision,policy});
+        movePathQuery_t query=move_route_query(self,(moveRoutePoint_t){&self->goalentity->s.origin2,S_MoveCollisionRadius(self),policy});
         wc3GridPose_t prediction;unit_predicted_pose(self,&prediction);
         vec2_t source={prediction.grid[0],prediction.grid[1]};
         if (query.units) query.fine=&source;
@@ -3260,7 +3260,7 @@ static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t po
 /* Exercise the production steering consumer without advancing animation,
  * clocks or translation. Return its own FAILED/READY/STOP result, not EAX. */
 unsigned S_TestMoveRouteDirection(edict_t *self, vec2_t const *point, vec2_t *dir) {
-    return unit_accel_direction(self,(moveRoutePoint_t){point,self->collision,MOVE_AVOID_GENERIC},dir);
+    return unit_accel_direction(self,(moveRoutePoint_t){point,S_MoveCollisionRadius(self),MOVE_AVOID_GENERIC},dir);
 }
 #endif
 
@@ -3299,11 +3299,11 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
      * exact point when it is directly reachable; otherwise use the same
      * collision-sized mover-owned A* accelerator used while shared fields are
      * pending.  Live units remain ignored by the steering/move policy. */
-    if (move_route_line(self, (moveRoutePoint_t){point, self->collision, MOVE_AVOID_STATIC_ONLY})) {
+    if (move_route_line(self, (moveRoutePoint_t){point, S_MoveCollisionRadius(self), MOVE_AVOID_STATIC_ONLY})) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = Vector2_sub(point, &self->s.origin2);
-    } else if (!(route_result=unit_accel_direction(self, (moveRoutePoint_t){point, self->collision, MOVE_AVOID_STATIC_ONLY}, &dir))) {
+    } else if (!(route_result=unit_accel_direction(self, (moveRoutePoint_t){point, S_MoveCollisionRadius(self), MOVE_AVOID_STATIC_ONLY}, &dir))) {
         return false;
     }
 
@@ -3327,14 +3327,14 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         return;
     if (move_wisp_egress_tree_valid(self)) {
         uint8_t const flags = M_UnitStaticPathingFlags(self);
-        if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, flags)) {
+        if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, S_MoveCollisionRadius(self), flags)) {
             self->movement.wisp_egress_tree = NULL;
             self->movement.wisp_egress_active = false;
             self->movement.wisp_egress_target_valid = false;
         } else {
             if (!self->movement.wisp_egress_target_valid ||
                 !CM_PointIsPathableForRadiusFlags(&self->movement.wisp_egress_target,
-                                                   self->collision, flags))
+                                                   S_MoveCollisionRadius(self), flags))
                 move_wisp_egress_choose_target(self, flags);
             if (self->movement.wisp_egress_target_valid) {
                 vec2_t const dir = Vector2_sub(&self->movement.wisp_egress_target, &self->s.origin2);
@@ -3362,7 +3362,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * for its authored interaction-range check. */
     float const radius = (unit_routes_to_location(self) ||
         (self->currentmove && self->currentmove->proc == CAbilityAttack))
-        ? self->collision : 0.0f;
+        ? S_MoveCollisionRadius(self) : 0.0f;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
 
     self->movement.heading = self->s.angle;  /* default if no heading is resolved this tick */
@@ -3584,7 +3584,7 @@ void unit_changeangle_interaction_ignore_units(edict_t *self) {
     /* Warsmash's mover owns a collision-sized path even when the ranged
      * behavior disables unit collision.  Use the worker radius for static
      * routing, but keep mobile-unit collision disabled at steering/move time. */
-    unit_changeangle_for_radius_policy(self, self ? self->collision : 0.0f,
+    unit_changeangle_for_radius_policy(self, self ? S_MoveCollisionRadius(self) : 0.0f,
                                        MOVE_AVOID_STATIC_ONLY, true);
 }
 
@@ -3958,7 +3958,7 @@ void S_RefreshUnitSupport(edict_t *self, bool force) {
     float deck_height = -FLT_MAX;
     uint8_t terrain_flags = 0;
     uint32_t support_flags = 0;
-    if (S_GetWalkableSupport(self->s.origin2,MAX(0.0f,self->collision),&deck_height) && deck_height>height) {
+    if (S_GetWalkableSupport(self->s.origin2,MAX(0.0f,S_MoveCollisionRadius(self)),&deck_height) && deck_height>height) {
         height=deck_height;
         support_flags|=WC3_SUPPORT_ON_DECK;
     }
@@ -4001,7 +4001,7 @@ float M_DistanceToGoal(edict_t *ent) {
 static float move_slot_spacing(edict_t *const *units, uint32_t count) {
     float max_radius = 0;
     FOR_LOOP(i, count) {
-        max_radius = MAX(max_radius, units[i]->collision);
+        max_radius = MAX(max_radius, S_MoveCollisionRadius(units[i]));
     }
     return MAX(MOVE_MIN_SLOT_SPACING, max_radius * 2 + MOVE_SLOT_MARGIN);
 }
@@ -4402,7 +4402,7 @@ static uint32_t move_allocate_group_id(void) {
  * guard arrival uses the same rule so a creep parked beside a filled anchor
  * counts as home. */
 float move_settle_distance(edict_t *ent) {
-    return unit_movedistance(ent) + ent->collision + MOVE_SLOT_MARGIN;
+    return unit_movedistance(ent) + S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN;
 }
 
 bool move_should_arrive(edict_t *ent, float move_distance) {
@@ -4426,11 +4426,11 @@ bool move_should_arrive(edict_t *ent, float move_distance) {
     }
 
     float lateral = fabsf(to_goal.x * direction.y - to_goal.y * direction.x);
-    return lateral <= MAX(MOVE_ARRIVE_TOLERANCE, ent->collision + MOVE_SLOT_MARGIN);
+    return lateral <= MAX(MOVE_ARRIVE_TOLERANCE, S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN);
 }
 
 bool move_is_blocked(edict_t *ent, float distance, float move_distance) {
-    float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
+    float const settle_distance = move_distance + S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN;
     if (ent->movement.last_distance >= 0) {
         /* move_last_distance is the *closest* the unit has come to its goal (a
          * watermark), not just the previous frame's distance.  With move-time
@@ -4479,7 +4479,7 @@ bool move_is_blocked(edict_t *ent, float distance, float move_distance) {
  * progress and reached the same near-goal band where an ordinary Move would
  * settle; a wall or disconnected route farther away is not an arrival. */
 bool move_is_settled_near_goal(edict_t *ent, float distance, float move_distance) {
-    float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
+    float const settle_distance = move_distance + S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN;
     bool const blocked = move_is_blocked(ent, distance, move_distance);
     return blocked && ent->movement.last_distance <= settle_distance;
 }
@@ -4541,7 +4541,7 @@ float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
      * StructureFollowRange.05a5c0 adds both mover radii before divide32. */
     float range=G_UnitIsStructure(target) ? 0 : game.constants.followRange;
     return wc3_mul(MAX(wc3_float(0x3efae148),
-        wc3_div(wc3_add(wc3_add(range,follower->collision),target->collision),32)),32);
+        wc3_div(wc3_add(wc3_add(range,S_MoveCollisionRadius(follower)),S_MoveCollisionRadius(target)),32)),32);
 }
 
 static void ai_follow_walk(edict_t *ent) {
@@ -4739,7 +4739,7 @@ static void ai_move_walk(edict_t *ent) {
     if (owner && owner->individual && level.scheduled_frame && !owner->ticking) return;
     float distance = M_DistanceToGoal(ent);
     float move_distance = unit_movedistance(ent);
-    float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
+    float const settle_distance = move_distance + S_MoveCollisionRadius(ent) + MOVE_SLOT_MARGIN;
     bool blocked;
     bool point_order;
 
@@ -4773,7 +4773,7 @@ static void ai_move_walk(edict_t *ent) {
         ent->goalentity && (ent->goalentity->svflags & SVF_MOVE_WAYPOINT);
 
     if (point_order && (!ent->movement.group_id || (owner && owner->individual))) {
-        movePathQuery_t query=move_route_query(ent,(moveRoutePoint_t){&ent->goalentity->s.origin2,ent->collision,MOVE_AVOID_GENERIC});
+        movePathQuery_t query=move_route_query(ent,(moveRoutePoint_t){&ent->goalentity->s.origin2,S_MoveCollisionRadius(ent),MOVE_AVOID_GENERIC});
         vec2_t destination;
         uint32_t revision=ent->movement.fine_route.group_revision;
         vec2_t previous=ent->movement.fine_route.group_goal;
@@ -4843,7 +4843,7 @@ static void ai_move_walk(edict_t *ent) {
              * order as a terminal hold merely because the original point is
              * temporarily behind the construction footprint. */
             pathAccelParams_t query = { &ent->s.origin2, &ent->goalentity->s.origin2,
-                                        ent->collision, M_UnitStaticPathingFlags(ent) };
+                                        S_MoveCollisionRadius(ent), M_UnitStaticPathingFlags(ent) };
             if (G_ClosestReachableMovePoint(&query, &approach)) {
 #ifdef WC3_DEBUG_BUILD
                 if (ent->class_id == MAKEFOURCC('h','p','e','a'))
@@ -4860,7 +4860,7 @@ static void ai_move_walk(edict_t *ent) {
              * the flow interpolation has no descending neighbour. Use the
              * persistent A* accelerator for the actual detour before falling
              * back to local steering; a cinematic move must not be cancelled. */
-            if ((route_result=unit_accel_direction(ent, (moveRoutePoint_t){&ent->goalentity->s.origin2, ent->collision, MOVE_AVOID_GENERIC}, &direction))) {
+            if ((route_result=unit_accel_direction(ent, (moveRoutePoint_t){&ent->goalentity->s.origin2, S_MoveCollisionRadius(ent), MOVE_AVOID_GENERIC}, &direction))) {
                 ent->movement.flow_unreachable = false;
                 ent->movement.flow_direct = false;
                 unit_apply_route_heading(ent, &direction, MOVE_AVOID_GENERIC, route_result);
@@ -5188,7 +5188,7 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
          * Temporary units return50 before Hero/siege adjustment. Native Hero
          * classification here tests the rawcode, independently of Hero stats. */
         if ((unit->aiflags&AI_ILLUSION) || S_UnitHasTimedLife(unit))
-            return wc3_div(wc3_add(50,MAX(1,unit->collision)),32);
+            return wc3_div(wc3_add(50,MAX(1,S_MoveCollisionRadius(unit))),32);
         float attack_range=0;
         bool armed=S_UnitAttackApproachRange(unit,&attack_range);
         float world=armed ?
@@ -5196,7 +5196,7 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
         uint32_t first=unit->class_id&0xffu;
         if (first>='A' && first<='Z' && world<600) world=600;
         if (target->movement.captain_actor_siege) world=wc3_add(world,200);
-        return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(world,MAX(1,unit->collision)),32));
+        return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(world,MAX(1,S_MoveCollisionRadius(unit))),32));
     }
     float range=wc3_div(G_FollowStopRange(unit,target),32);
     if (persistent || G_UnitIsStructure(target)) return range;
@@ -5206,7 +5206,7 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
     float distance2=wc3_add(wc3_mul(x,x),wc3_mul(y,y));
     float range2=wc3_mul(range,range);
     if (distance2>=range2 && wc3_float(wc3_float_bits(wc3_sub(distance2,range2))&0x7fffffffu)>=wc3_float(0x3a83126f)) return range;
-    float target_radius=wc3_div(MAX(1,target->collision),32),source_radius=wc3_div(MAX(1,unit->collision),32);
+    float target_radius=wc3_div(MAX(1,S_MoveCollisionRadius(target)),32),source_radius=wc3_div(MAX(1,S_MoveCollisionRadius(unit)),32);
     float edge=wc3_sub(wc3_sub(wc3_sqrt(distance2),target_radius),source_radius);
     float world=wc3_mul(MAX(0,edge),32);
     return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(wc3_add(wc3_div(world,2),wc3_mul(source_radius,32)),wc3_mul(target_radius,32)),32));
@@ -5229,7 +5229,7 @@ static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool
     group->flags=0x1000u|(persistent ? 0x801u : 0); group->age=UINT32_MAX;
     if(force_arrival)group->flags|=0x200u;
     if (S_UnitHasAbilityFlags(target,AB_MOVE_TARGET_NO_WARP)) group->flags|=0x10u;
-    group->radius=unit->collision; group->request_id=unit->movement.previous_request_id;
+    group->radius=S_MoveCollisionRadius(unit); group->request_id=unit->movement.previous_request_id;
     wc3GridPose_t pose; unit_predicted_pose(target,&pose);
     group->goal=(vec2_t){pose.grid[0],pose.grid[1]};
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
@@ -5261,7 +5261,7 @@ bool S_BeginUnitTargetApproach(edict_t *unit, edict_t *target, float range,
     order_move(unit,target);
     if(unit->goalentity!=target || unit->currentmove!=&move_move_walk)return false;
     S_SetFollowTarget(unit,target);
-    float world=wc3_add(wc3_add(range,unit->collision),target->collision);
+    float world=wc3_add(wc3_add(range,S_MoveCollisionRadius(unit)),S_MoveCollisionRadius(target));
     uint32_t word=wc3_float_bits(world);
     float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
     moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine),range==FLT_MAX);
@@ -5298,7 +5298,7 @@ bool S_BeginUnitTargetChase(edict_t *unit,edict_t *target,float range,abilityPro
        !S_UnitCanTranslate(unit))return false;
     move_leave(unit);move_reset_local_path(unit);
     unit->movement.flat_speed_bonus=S_MoveSpeedBonus(unit);
-    float world=wc3_add(wc3_add(range,unit->collision),target->collision);
+    float world=wc3_add(wc3_add(range,S_MoveCollisionRadius(unit)),S_MoveCollisionRadius(target));
     uint32_t word=wc3_float_bits(world);
     float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
     moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine),range==FLT_MAX);
@@ -5437,7 +5437,7 @@ static void move_group_bind_ready(moveGroup_t *group,moveReadyCohort_t *ready,un
     }
     group->members[group->count++]=member;
     member.unit->movement.group_id=group->id;move_unit_groups[member.unit-g_edicts]=group;
-    group->radius=MAX(group->radius,member.unit->collision);
+    group->radius=MAX(group->radius,S_MoveCollisionRadius(member.unit));
     if(group->flags&0x200)return;
     wc3GridPose_t source;unit_predicted_pose(member.unit,&source);
     uint32_t limit=group->flags&0x100 ? MOVE_CAPTAIN_COHORT_DISTANCE : MOVE_COHORT_DISTANCE;
@@ -5753,7 +5753,7 @@ static void move_group_seed_route(moveGroup_t *group) {
 static void move_start_point_group(edict_t *actor,vec2_t const *home,float range) {
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
-    group->goal=move_point_fine(home); group->age=UINT32_MAX; group->radius=actor->collision;
+    group->goal=move_point_fine(home); group->age=UINT32_MAX; group->radius=S_MoveCollisionRadius(actor);
     group->members[group->count++]=(moveGroupMember_t){.unit=actor,.spawn=actor->spawn_time,
         .arrival_range=wc3_point_arrival_range(range)};
     actor->movement.group_id=group->id;move_unit_groups[actor-g_edicts]=group;
@@ -5820,7 +5820,7 @@ void S_BeginUnitFacingRequest(edict_t *unit,moveFacingRequest_t const *request) 
     moveGroup_t *group=move_alloc_group();
     group->inuse=true;group->turning=true;group->turn_rate=request->turn;
     group->id=move_allocate_group_id();group->flags=0x10200u;
-    group->point=point;group->radius=unit->collision;
+    group->point=point;group->radius=S_MoveCollisionRadius(unit);
     group->goal=point;
     group->route.group_goal=point;group->route.group_index=UINT32_MAX;
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
@@ -5935,7 +5935,7 @@ static void move_group_classify(moveGroup_t *group) {
         edict_t *unit=group->members[i].unit;wc3GridPose_t pose;
         unit_predicted_pose(unit,&pose);
         float position=wc3_sub(wc3_mul(pose.grid[0],cosine),wc3_mul(pose.grid[1],sine));
-        float radius=wc3_add(wc3_div(unit->collision,32),1);
+        float radius=wc3_add(wc3_div(S_MoveCollisionRadius(unit),32),1);
         intervals[i]=(typeof(intervals[0])){wc3_sub(position,radius),wc3_add(position,radius),i};
     }
     for(uint32_t tail=group->count;tail>1;) {
@@ -5982,8 +5982,8 @@ static bool move_group_route(moveGroup_t *group) {
     /* Original16c940 scans the live resolved members when routing samples a
      * local group. Membership pruning has already removed departed owners. */
     group->radius=0;
-    FOR_LOOP(i,group->count) if (group->members[i].unit->collision>group->radius)
-        group->radius=group->members[i].unit->collision;
+    FOR_LOOP(i,group->count) if (S_MoveCollisionRadius(group->members[i].unit)>group->radius)
+        group->radius=S_MoveCollisionRadius(group->members[i].unit);
     moveShared_t const *shared=move_group_shared(group);
     if (shared) group->radius=shared->radius;
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
@@ -6011,7 +6011,7 @@ static bool move_group_route(moveGroup_t *group) {
     FOR_LOOP(i,group->count) {
         edict_t *unit=group->members[i].unit; unit_predicted_pose(unit,&pose);
         members[i]=(wc3FormationMember_t){.position={pose.grid[0],pose.grid[1]},
-            .radius=wc3_div(unit->collision,32),.rank=unit->movement.captain_actor_type ? 0 : unit->movement.formation_rank};
+            .radius=wc3_div(S_MoveCollisionRadius(unit),32),.rank=unit->movement.captain_actor_type ? 0 : unit->movement.formation_rank};
     }
     wc3Formation_t formation={members,group->count,group->heading};
     if (!wc3_formation_layout(&formation)) gi.error("Move: invalid %u-member formation",group->count);
@@ -6124,7 +6124,7 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
         unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true;
     } else {
         vec2_t goal=move_point_world(&group->goal);
-        if ((route_result=unit_accel_direction(unit,(moveRoutePoint_t){&goal,unit->collision,MOVE_AVOID_GENERIC},&direction))) {
+        if ((route_result=unit_accel_direction(unit,(moveRoutePoint_t){&goal,S_MoveCollisionRadius(unit),MOVE_AVOID_GENERIC},&direction))) {
             progress=move_group_advance_endpoint(group,member,&pose,&direction,ready);
             if (progress==2) {
                 unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
@@ -6280,7 +6280,7 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
                         /* The task captures authored range at construction;
                          *05a5c0 reads live mover radii when it activates. */
                         range=MAX(wc3_float(0x3efae148),
-                            wc3_div(wc3_add(wc3_add(range,unit->collision),target->collision),32));
+                            wc3_div(wc3_add(wc3_add(range,S_MoveCollisionRadius(unit)),S_MoveCollisionRadius(target)),32));
                         move_start_target_group(unit,target,true,range,false);
                     }
                 }
@@ -6378,7 +6378,7 @@ static void move_run_group_updates(void) {
         if (!group->individual) FOR_LOOP(m,group->count) {
             edict_t *unit=group->members[m].unit;
             if (!unit || !move_wisp_egress_tree_valid(unit) || S_UnitExecutionPaused(unit) || unit->stunned) continue;
-            if (CM_PointIsPathableForRadiusFlags(&unit->s.origin2,unit->collision,M_UnitStaticPathingFlags(unit))) {
+            if (CM_PointIsPathableForRadiusFlags(&unit->s.origin2,S_MoveCollisionRadius(unit),M_UnitStaticPathingFlags(unit))) {
                 unit->movement.wisp_egress_tree=NULL;
                 unit->movement.wisp_egress_active=unit->movement.wisp_egress_target_valid=false;
             } else { unit_changeangle(unit); unit_moveindirection(unit); }
@@ -6564,7 +6564,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
         FOR_LOOP(i, num_units) {
             members[i].position[0] = wc3_grid_coordinate(units[i]->s.origin2.x, bounds.min.x, 32);
             members[i].position[1] = wc3_grid_coordinate(units[i]->s.origin2.y, bounds.min.y, 32);
-            members[i].radius = wc3_div(units[i]->collision, 32);
+            members[i].radius = wc3_div(S_MoveCollisionRadius(units[i]), 32);
             members[i].rank = units[i]->movement.formation_rank;
             FOR_LOOP(k, 2) mean[k] = wc3_add(mean[k], members[i].position[k]);
         }
@@ -6600,7 +6600,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 
         if (!move_find_reserved_slot(location,
                                      &preferred,
-                                     ent->collision,
+                                     S_MoveCollisionRadius(ent),
                                      M_UnitStaticPathingFlags(ent),
                                      spacing,
                                      num_units,
@@ -6608,10 +6608,10 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
                                      i,
                                      &target)) {
             target = *location;
-            pathAccelParams_t query = { location, NULL, ent->collision, M_UnitStaticPathingFlags(ent) };
+            pathAccelParams_t query = { location, NULL, S_MoveCollisionRadius(ent), M_UnitStaticPathingFlags(ent) };
             G_ClosestMovePathPoint(&query, &target);
         }
-        reserved[i] = (moveSlot_t){ target, ent->collision };
+        reserved[i] = (moveSlot_t){ target, S_MoveCollisionRadius(ent) };
         if (!have_confirmation) {
             confirmation = target;
             have_confirmation = true;

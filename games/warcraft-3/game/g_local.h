@@ -2298,6 +2298,7 @@ struct edict_s {
         vec2_t velocity;    /* committed Move velocity in world units/second; software scalar cancellation retains its bits */
         vec2_t fine_pose; /* native fine position; world publication can lose these low bits */
         bool pose_valid; /* initialized by accepted Move integration; explicit world commits invalidate it */
+        bool collision_profile; /* unit physical profile published; raw radius remains independently mutable */
         vec2_t sampled_pose; /* exact predicted fine pose at the last published sample */
         vec2_t pose_world; /* last published world pair; detects explicit external position writes */
         wc3Clock_t pose_clock; /* time origin of the retained fine pose */
@@ -3807,6 +3808,7 @@ void G_ClearMoveSpatial(void);
 void G_SyncMoveSpatial(void);
 void S_ClearMoveProximity(void);
 void S_FreeMoveProximity(void);
+float S_MoveCollisionRadius(edict_t const *);
 void S_PublishMoveProximity(edict_t const *);
 void S_RemoveMoveProximity(edict_t const *);
 void S_QueryMoveProximity(edict_t const *,float const[2],float,bool (*)(edict_t const *));

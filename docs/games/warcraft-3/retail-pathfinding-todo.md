@@ -55,7 +55,7 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**291 done / 336 tasks; 45 remaining.** Payoff310 fixes target-footprint arrival before retry. All96 foot/fly/amph goal scenes across four footprint classes replay15141 exact retail commits, with public order lifetime and cold saves; nine Farm approaches exposed the missing perimeter completion. FOOT-04.2 stays open for water/bridge/rejected-support domains. See [target perimeter](retail-pathfinding-engine.md#target-footprint-arrival-before-retry-payoff310).
+**292 done / 336 tasks; 44 remaining.** Payoff312 closes NUM-03.1:320 repeated public producer scenes retain1600 exact scalar states across five movement types. Source presence, mutable authored radius and Move physical profiles stay separate; constructor fingerprints and older retail fixtures are preserved. See [finite inputs](retail-pathfinding-engine.md#finite-public-inputs-preserve-authored-and-physical-radii-payoff312).
 
 Payoff306 removes unsupported flying-source and structure-target gates from
 Attack's physical chase owner. Two fresh read-only repeats and an unhooked control
@@ -1609,7 +1609,7 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 
 ### NUM-03 — Exceptional numeric inputs
 
-- [ ] **NUM-03.1** Drive negative and out-of-range coordinates/radii through public producers; record rejection, sanitization or propagated bit pattern.
+- [x] **NUM-03.1** Repeated320-scene public finite producer contract across five movement types and16 authored radii, including signed zero.1600 states retain9600 exact getter/geometry words; an unhooked control agrees. Typed field presence, mutable authored geometry and Move's separately published physical minimum are implemented, with cold saves and unchanged constructor fingerprints. See [finite producers](retail-pathfinding-engine.md#finite-public-inputs-preserve-authored-and-physical-radii-payoff312).
 - [ ] **NUM-03.2** Do the same for nonfinite values; document producer unreachability where demonstrated instead of treating synthetic helper calls as gameplay evidence.
 
 ### NUM-04 — Random state

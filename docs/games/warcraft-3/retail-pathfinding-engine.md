@@ -19280,3 +19280,67 @@ The bundle includes six complete read-only captures and one unhooked control.
 Fifteen saved Ghidra function annotations, two registry layouts and1080 original
 instruction guards accompany `MapPathfinding.java`. The exact-source archive is
 `research/FOOT-04.2/payoff311` under the external analysis reports.
+
+## Finite public inputs preserve authored and physical radii (Payoff312)
+
+NUM-03.1 is covered by320 public producer scenes: five movement types,16
+collision values from-16384 through65536 (including both signed zeros), and
+four inside, negative, outside and fractional coordinate pairs. Each scene uses
+CreateUnit, SetUnitPosition, negative SetUnitScale, pathing-disabled placement
+and sequential SetUnitX/Y. Two complete read-only runs repeat25602 native
+records; an observer-free control repeats all2241 stored public markers. The
+literal fixture keeps9600 observed words across1600 states, including actual
+GetUnitX/Y native return words. This is finite-input producer coverage, not an
+exhaustive assertion over every floating-point value or a movement benchmark.
+
+The authored getter6742f0 reads cached profile+19c without a positivity test.
+The typed object-data resolver6ad270 selects a value by field presence, then
+inherits only when the field is absent. Physical publication6945a0 separately
+selects a minimum of one world unit before05c2e0 converts to fine units and
+15fef0 publishes the geometry. Negative and zero authored values reach public
+placement unchanged; values at or below one have physical fine radius.03125.
+65536 reaches physical radius2048 fine units without an observed upper clamp.
+Negative scale does not change either radius. Creation and SetUnitPosition
+clamp to0..2016 in the authored64-cell map; axis setters retain outside values.
+
+The engine now stores source presence alongside the immutable typed balance
+row. A schema presence offset records an actual source cell independently of
+its scalar value; map edits and inherited custom rows retain the same fact.
+No new type cache or per-unit metadata copy is introduced. The mutable
+collision value remains available at its original construction stage, including
+changes made by initialization callbacks. Public placement consumes that value.
+Move owns the separately published physical profile and its radius accessor;
+physical fine/proximity geometry and routing consume it. Unpublished agents
+retain their explicitly supplied geometry. Save187 stores the profile publication
+state, and cold load rebuilds derived indexes using the same contract. Network
+contracts are unchanged.
+
+The valid constructor stage fingerprints and existing retail position fixtures
+remain unchanged. An initial attempt to replace the mutable value with its
+minimum or to reread metadata during placement failed those constructor checks;
+it was rejected. The new320-scene regression failed1300 of16640 assertions
+before the fix. The final regression includes cold saves and all directly
+observed scalar words. Textual SLK `-0` follows the existing retail S2R producer
+contract (public numeric fixture `s2r_21` returns positive zero); binary W3U
+signed zero remains negative. Neither old expectation is overwritten.
+
+The frozen capture bundle and verifier are
+[retail-numeric312-1.27.json](../../../tools/ghidra/fixtures/retail-numeric312-1.27.json)
+and [verify_wc3_pathing_numeric312.py](../../../tools/ghidra/verify_wc3_pathing_numeric312.py).
+Eleven saved Ghidra function annotations and327 original instruction guards
+accompany `MapPathfinding.java`. The exact-source archive is
+`research/NUM-03.1/payoff312` under the external analysis reports. Nonfinite
+producer reachability remains NUM-03.2; this chunk closes no performance gate.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_numeric312.py \
+  --binary /path/to/supported/game.dll --report /tmp/numeric312-fresh.json
+```
+
+The batch checkpoint also exposed an older synthetic Attack/shared-job test
+failure on the previous committed build. Its harness called only the Attack
+animation think, leaving the49a240-delegated Move owner and primary clock idle.
+The harness now advances that owner and checks target lifetime and additional
+movement while shared jobs compete. Private legacy `route_resume` fields are
+replaced by the actual chase/retained-route owner checks; retail literal fixtures
+are unchanged. Both sides of the preexisting failure are archived.
