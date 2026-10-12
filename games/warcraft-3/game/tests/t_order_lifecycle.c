@@ -1911,8 +1911,8 @@ static float creep_guard_home_distance(edict_t const *creep) {
     return Vector2_distance(&creep->s.origin2, &creep->movement.creep_guard_origin);
 }
 
-/* Two creeps walk home to the same anchor. B snaps onto it first; A arrives
- * within the Move's own tolerance but cannot snap onto the occupied cell. An
+/* Two creeps walk home to the same anchor. B reaches it first; A's return
+ * Move completes beside the occupied anchor and counts as home. An
  * enemy stands in acquisition range of that spot: a returning creep must not
  * acquire it, and the near-anchor stop must count as home. */
 TEST(wc3_order_lifecycle, returning_creep_ignores_enemy_and_settles_beside_occupied_anchor) {
@@ -1934,9 +1934,12 @@ TEST(wc3_order_lifecycle, returning_creep_ignores_enemy_and_settles_beside_occup
     }
     T_EQ(a->movement.creep_guard_phase, CREEP_GUARD_IDLE);
     T_EQ(b->movement.creep_guard_phase, CREEP_GUARD_IDLE);
-    T_FEQ(b->s.origin2.x, 128, 0.001f);
+    /* Retail point Moves stop inside their arrival band rather than snapping
+     * onto the anchor; A's completed Move ends beside the occupied anchor. */
+    T_ASSERT(creep_guard_home_distance(b) <= move_settle_distance(b));
     T_ASSERT(creep_guard_home_distance(a) > 4.0f);
-    T_ASSERT(creep_guard_home_distance(a) <= move_settle_distance(a));
+    T_ASSERT(a->s.origin2.x > b->s.origin2.x);
+    T_ASSERT(creep_guard_home_distance(a) < game.constants.guardDistance);
     T_ASSERT(!creep_guard_attacking(a));
     T_EQ(a->movement.creep_guard_return_retries, 0u);
     T_ASSERT(enemy->inuse);

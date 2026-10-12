@@ -161,7 +161,7 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
     case A_UNIT_EVENT_MASK:
         return UNIT_MESSAGE_SUBSCRIPTIONS(A_UPDATE, A_NO_ACQUIRE, A_NO_RETALIATE, A_TOGGLE_ON,
             A_MOVE_LEAVE, A_ORDER_ACCEPTED, A_DISABLE, A_DEATH, A_UNIT_REMOVE,
-            A_UNIT_INIT, A_VALIDATE, A_EXECUTE, A_COMMAND);
+            A_UNIT_INIT, A_VALIDATE, A_EXECUTE, A_COMMAND, A_TARGET_MODE_EXIT);
     case A_UPDATE:
         if (shadowmeld_ability_available(ent, akama)) shadowmeld_update(ent);
         return ent && shadowmeld_has_ability(ent);

@@ -4592,6 +4592,8 @@ void G_CreepGuardConstructionStarted(edict_t *);
 void G_CreepGuardTick(edict_t *);
 bool G_CreepGuardCombatEnd(edict_t *);
 void G_CreepGuardExplicitOrder(edict_t *);
+bool G_CreepGuardIssueReturn(edict_t *, vec2_t const *);
+void G_CreepGuardMoveArrived(edict_t *);
 void G_SetUnitGuardPosition(edict_t *);
 void G_ClearUnitGuardPosition(edict_t *);
 void order_attackmove(edict_t *, edict_t *);

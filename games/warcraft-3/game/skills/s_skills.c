@@ -2648,7 +2648,9 @@ TEST(wc3_ability_dispatch, excluded_innate_messages_return_zero_and_leave_unit_u
     FOR_LOOP(i, num_innate) {
         abilityCall_t call = {.item = innate_items + i};
         FOR_LOOP(msg, A_NUM_MESSAGES) {
-            if (msg == A_UNIT_EVENT_MASK || innate_receives(i, msg)) continue;
+            /* S_AbilityMessage counts Retire for every Suspend subscriber. */
+            if (msg == A_UNIT_EVENT_MASK || innate_receives(i, msg) ||
+                (msg == A_UNIT_RETIRE && innate_receives(i, A_UNIT_SUSPEND))) continue;
             edict_t before = unit;
             T_EQ(S_AbilityMessage(&unit, msg, &call), 0);
             T_EQ(memcmp(&unit, &before, sizeof(unit)), 0);

@@ -298,7 +298,7 @@ static void attack_guard_fire(edict_t *unit) {
     }
     /* Timer rearm uses its request deadline; physical queries use the current
      * source-clock quantum. They differ when a request falls between quanta. */
-    G_IssueUnitPointOrder(unit,"move",&unit->attack_guard.point,false,unit->s.player,0);
+    G_CreepGuardIssueReturn(unit,&unit->attack_guard.point);
 }
 
 static void attack_primary_fire(void) {

@@ -2481,8 +2481,11 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
                 unit->movement.group_id==group->id))return false;
             continue;
         }
-        if (!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=member->spawn ||
-            unit->movement.group_id!=group->id || (!group->turning && !unit->goalentity)) return false;
+        if (!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=member->spawn) return false;
+        /* Stop and Pause detach a unit before its owner's next16d1c0 pruning
+         * pass; the retained row is valid state that the pass will drop. */
+        if (unit->movement.group_id!=group->id) continue;
+        if (!group->turning && !unit->goalentity) return false;
         if (group->target) {
             if (group->target->movement.captain_actor_type) {
                 if (!unit->movement.captain_home.active || unit->movement.captain_home.actor!=group->target) return false;
@@ -2705,8 +2708,19 @@ static bool ReadMoveGroups(FILE *f) {
             if (other->id==group->id || other->sequence==group->sequence) goto failed;
             FOR_LOOP(m,group->count) FOR_LOOP(n,other->count)
                 if (!group->members[m].retired && !other->members[n].retired &&
-                    group->members[m].unit && group->members[m].unit==other->members[n].unit) goto failed;
+                    group->members[m].unit && group->members[m].unit==other->members[n].unit &&
+                    group->members[m].unit->movement.group_id==group->id &&
+                    other->members[n].unit->movement.group_id==other->id) goto failed;
         }
+    }
+    /* Departed rows are valid, but a unit bound to a cohort id needs that
+     * restored group (an empty owner still awaits its next Move visit). */
+    FOR_LOOP(e,globals.num_edicts) {
+        edict_t const *unit=g_edicts+e;
+        if (!unit->inuse || !unit->movement.group_id) continue;
+        bool found=false;
+        FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) if (level.move_groups[g]->id==unit->movement.group_id) found=true;
+        if (!found) goto failed;
     }
     return true;
 failed:

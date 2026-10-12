@@ -25,8 +25,16 @@ void test_sound_event(edict_t *ent, uint32_t request, uint32_t event) {
     G_ClientCommand(player, 4, args);
 }
 
+static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
+
+/* ReadGame rebinds object data from the fixture archive, which has no
+ * UnitWeapons.slk; restore the allocator's permissive row afterwards. */
+void reattach_test_weapons(edict_t *ent) {
+    if (ent && (!ent->data.UnitWeapons || !ent->data.UnitWeapons->attacksEnabled))
+        ent->data.UnitWeapons = &test_weapons;
+}
+
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
-    static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     edict_t *ent = G_Spawn();
     ent->class_id = class_id;
     G_BindEntityData(ent);

@@ -70,7 +70,7 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
     if (!call || !call->item || !call->item->ability) return false;
     switch (msg) {
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND, A_VALIDATE, A_MOVE_LEAVE);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND, A_VALIDATE, A_MOVE_LEAVE, A_TARGET_MODE_EXIT);
     case A_COMMAND:
         if (!call->client) return false;
         spell_cmd(call->client);

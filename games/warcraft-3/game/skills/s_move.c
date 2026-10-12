@@ -4682,6 +4682,7 @@ static bool move_point_arrival(edict_t *ent) {
             return true;
         }
         if (S_PatrolMoveArrive(ent)) return true;
+        G_CreepGuardMoveArrived(ent);
         if (!S_UnitAbilityMoveArrive(ent)) ent->stand(ent);
     }
     return true;
@@ -6260,6 +6261,7 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
                      * stops the mover through 171340, whose 170080 recovery moves a
                      * member that ended overlapping a peer (retail RA 1713d8). */
                     S_RecoverStoppedUnitPosition(unit);
+                    G_CreepGuardMoveArrived(unit);
                     unit->stand(unit);
                     if (unit->movement.captain_actor_owned) G_BotCaptainGoalEvent(unit);
                 }
@@ -6643,6 +6645,9 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return result;
     }
     case A_UNIT_SUSPEND:
+        /* Only the attached intrinsic owner subscribes (A_UNIT_EVENT_MASK). */
+        if(!ent || !call || !call->item || !call->item->ability ||
+           !(call->item->ability->flags&AB_INTRINSIC))return false;
         move_suspend_physical_task(ent);
         return true;
     case A_MOVE_PARAMETERS_CHANGED: {

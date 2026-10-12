@@ -565,41 +565,62 @@ void G_CreepGuardConstructionStarted(edict_t *building) {
     }
 }
 
+/* Retry a failed homeward Move at most three times, once per simulation
+ * second. Never force-teleport a blocked creep or override script orders. */
+#define CREEP_GUARD_RETURN_RETRIES 3u
+#define CREEP_GUARD_RETRY_DELAY_MS 1000u
+
+/* Set while the guard itself issues a return; that order is not a player's. */
+static bool creep_guard_issuing;
+
 void G_CreepGuardExplicitOrder(edict_t *unit) {
-    if (!unit) return;
+    if (!unit || creep_guard_issuing) return;
     unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
     unit->movement.creep_guard_outside_ms = 0;
     unit->movement.creep_guard_return_retries = 0;
     unit->movement.creep_guard_retry_at_ms = 0;
 }
 
-/* Retry a failed homeward Move at most three times, once per simulation
- * second. Never force-teleport a blocked creep or override script orders. */
-#define CREEP_GUARD_RETURN_RETRIES 3u
-#define CREEP_GUARD_RETRY_DELAY_MS 1000u
+
+/* Retail walks a neutral home with the public point Move its Attack guard
+ * issues (s_attack.c attack_guard_fire). Every guard return uses that order,
+ * so Move owns arrival and the guard policy only tracks the phase. A rejected
+ * order (root, Cyclone, ...) leaves retry_at set for the tick to retry. */
+bool G_CreepGuardIssueReturn(edict_t *unit, vec2_t const *point) {
+    bool accepted;
+    if (!unit || !point) return false;
+    creep_guard_issuing = true;
+    accepted = G_IssueUnitPointOrder(unit, "move", point, false, unit->s.player, 0);
+    creep_guard_issuing = false;
+    if (!unit->movement.creep_guard_enabled) return accepted;
+    unit->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
+    unit->movement.creep_guard_outside_ms = 0;
+    unit->movement.creep_guard_retry_at_ms = accepted ? 0 : level.time + CREEP_GUARD_RETRY_DELAY_MS;
+    return accepted;
+}
 
 static bool creep_guard_begin_return(edict_t *unit) {
-    edict_t *point;
     if (unit->aiflags & AI_IMMOBILE) return false;
     /* A Shift-queued order outranks the walk home: the leash ends the
      * automatic attack by starting that order, which clears guard ownership. */
     if (G_UnitQueuedOrderCount(unit)) return G_UnitStartNextQueuedOrder(unit);
+    unit->movement.creep_guard_return_retries = 0;
+    unit_leavecombat(unit);
+    unit->attack_target_spawn_time = 0;
+    /* A rejected order keeps the return policy active for the tick's retry. */
+    if (!G_CreepGuardIssueReturn(unit, &unit->movement.creep_guard_origin) && unit->stand)
+        unit->stand(unit);
+    return true;
+}
+
+/* Move completed its point order. Retail stops a point Move short of an
+ * occupied anchor, so a returning creep is home wherever it arrived. */
+void G_CreepGuardMoveArrived(edict_t *unit) {
+    if (!unit || unit->movement.creep_guard_phase != CREEP_GUARD_RETURNING) return;
+    unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
     unit->movement.creep_guard_outside_ms = 0;
-    unit->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
     unit->movement.creep_guard_return_retries = 0;
     unit->movement.creep_guard_retry_at_ms = 0;
-    unit_leavecombat(unit);
-    unit->goalentity = NULL;
-    unit->attack_target_spawn_time = 0;
-    point = Waypoint_add(&unit->movement.creep_guard_origin);
-    if (point) order_move(unit, point);
-    /* order_move can reject movement (root, Cyclone, etc). Keep the return
-     * policy active and let the tick retry when movement is possible. */
-    if (!point || !unit->currentmove || unit->currentmove->proc != CAbilityMove) {
-        unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
-        if (unit->stand) unit->stand(unit);
-    }
-    return true;
 }
 
 bool G_CreepGuardCombatEnd(edict_t *unit) {
@@ -628,8 +649,10 @@ void G_CreepGuardTick(edict_t *unit) {
         G_CreepGuardAutoCombat(unit);
     }
     if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) {
-        /* Home is the Move's own near-goal band: a creep parked beside an
-         * anchor another camp member occupies has arrived. */
+        /* Home is the Move's near-goal band; a completed return Move also
+         * reports arrival through G_CreepGuardMoveArrived. */
+        bool const walking = unit->currentmove && unit->currentmove->proc == CAbilityMove &&
+            unit->currentmove->think != ai_stand && !move_is_terminal_hold(unit);
         if (distance <= move_settle_distance(unit)) {
             unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
             unit->movement.creep_guard_outside_ms = 0;
@@ -640,13 +663,12 @@ void G_CreepGuardTick(edict_t *unit) {
         /* Retry only when the return Move has stopped (idle stand or the
          * terminal blocked hold). A blocked or rooted unit cannot consume
          * infinite waypoints each frame. */
-        if (unit->currentmove && unit->currentmove->proc == CAbilityMove &&
-            unit->currentmove->think != ai_stand && !move_is_terminal_hold(unit))
-            return;
+        if (walking) return;
         if (unit->movement.creep_guard_return_retries >= CREEP_GUARD_RETURN_RETRIES) {
             if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
             return;
         }
+        /* The return stopped without arriving (root, Cyclone, ...). */
         if (!unit->movement.creep_guard_retry_at_ms) {
             unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
             return;
@@ -663,9 +685,7 @@ void G_CreepGuardTick(edict_t *unit) {
             return;
         }
         unit->movement.creep_guard_return_retries++;
-        unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
-        edict_t *point = Waypoint_add(&unit->movement.creep_guard_origin);
-        if (point) order_move(unit, point);
+        G_CreepGuardIssueReturn(unit, &unit->movement.creep_guard_origin);
         return;
     }
     if (unit->movement.creep_guard_phase != CREEP_GUARD_COMBAT) return;

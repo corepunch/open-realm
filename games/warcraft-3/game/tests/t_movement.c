@@ -130,6 +130,7 @@ static bool movement_test_forced_arrival(edict_t const *unit) {
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+void reattach_test_weapons(edict_t *);
 void reset_entities(void);
 void setup_test_world(void);
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
@@ -22432,15 +22433,19 @@ TEST(wc3_movement, target222_attack_uses_physical_target_owner_and_survives_save
         S_SetUnitPaused(unit,true);
         wc3GridPose_t stopped;unit_predicted_pose(unit,&stopped);
         cstring_t file=Test_TempPath("wc3-target222-chase.bin");
-        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
-        group=move_unit_group(unit);T_NOT_NULL(group);
-        if(group)T_EQ(group->sequence,sequence);
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);reattach_test_weapons(unit);
+        /*697770/688d30: Pause cancels the physical task and retains only the
+         * user order, so the chase cohort does not survive the suspension. */
+        (void)sequence;group=NULL;T_EQ(unit->movement.group_id,0);
         T_ASSERT(unit->paused);
         FOR_LOOP(i,4)target166_tick();
         wc3GridPose_t current;unit_predicted_pose(unit,&current);
         T_EQ(current.grid[0],stopped.grid[0]);T_EQ(current.grid[1],stopped.grid[1]);
+        T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+        /* The resumed Attack task rebuilds its chase from its own think. */
+        S_SetUnitPaused(unit,false);
+        FOR_LOOP(i,10) {target166_tick();if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);}
         T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
-        S_SetUnitPaused(unit,false);FOR_LOOP(i,10)target166_tick();
         unit_predicted_pose(unit,&current);T_ASSERT(current.grid[0]>stopped.grid[0]);
         T_EQ(unit->current_order_id,G_OrderId("attack"));T_EQ(unit->goalentity,target);
         T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->movement.group_id,0);
@@ -22648,11 +22653,12 @@ TEST(wc3_movement, target223_point_recovery_freezes_queried_pose_through_save_st
                 T_NULL(group->target);T_EQ(group->goal.y,move_point_fine(&(vec2_t){0,1280}).y);
                 T_EQ(group->members[0].arrival_range,wc3_point_arrival_range(wc3_add(wc3_add(233,31),50)));
                 T_EQ(unit->order_queue.count,queued);T_EQ(unit->current_order_id,G_OrderId("attack"));
-                S_SetUnitPaused(unit,true);uint64_t rank=group->sequence;
+                /* Pause cancels the recovery cohort (697770/688d30); the
+                 * departed row still saves until the owner prunes it. */
+                S_SetUnitPaused(unit,true);T_EQ(unit->movement.group_id,0);
                 cstring_t file=Test_TempPath("wc3-target223-recovery.bin");
                 T_ASSERT(WriteGame(file));S_ResetAbilityTimers();T_ASSERT(ReadGame(file));remove(file);
-                group=move_unit_group(unit);T_NOT_NULL(group);
-                if(group) {T_EQ(group->sequence,rank);T_EQ(group->goal.y,move_point_fine(&(vec2_t){0,1280}).y);T_ASSERT(ValidMoveGroup(group));}
+                T_EQ(unit->movement.group_id,0);unit->data.UnitWeapons=&weapons;
                 T_NULL(unit->attack_target);T_EQ(unit->attack_target_sequence,0);T_ASSERT(unit->paused);
                 S_SetUnitPaused(unit,false);
                 FOR_LOOP(i,2)wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
@@ -22660,8 +22666,15 @@ TEST(wc3_movement, target223_point_recovery_freezes_queried_pose_through_save_st
                 if(!queued) {
                     T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->movement.group_id,0);T_NULL(unit->goalentity);
                 } else {
-                    FOR_LOOP(i,300) {target166_tick();if(unit->current_order_id!=G_OrderId("attack"))break;}
-                    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->order_queue.count,0);
+                    FOR_LOOP(i,300) {
+                        target166_tick();if(unit->current_order_id!=G_OrderId("attack"))break;
+                        if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+                    }
+                    /* The queued successor starts after recovery; with thinks
+                     * driven per tick it may already have arrived. */
+                    T_ASSERT(unit->current_order_id==G_OrderId("move") ||
+                        (!unit->current_order_id && Vector2_distance(&unit->s.origin2,&(vec2_t){1280,1536})<32));
+                    T_EQ(unit->order_queue.count,0);
                     T_ASSERT(unit->goalentity);if(unit->goalentity)T_EQ(unit->goalentity->s.origin2.y,1536);
                 }
             }
