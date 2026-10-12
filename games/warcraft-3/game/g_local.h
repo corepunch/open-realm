@@ -2355,10 +2355,6 @@ struct edict_s {
         unitGuardState_t guard_state;
         /* Neutral Hostile's spawn anchor is independent of player Stop. */
         vec2_t creep_guard_origin;
-        uint32_t creep_guard_last_hit_ms;
-        uint32_t creep_guard_outside_ms;
-        uint32_t creep_guard_return_retries;
-        uint32_t creep_guard_retry_at_ms;
         bool creep_guard_enabled;
         creepGuardPhase_t creep_guard_phase;
         bool explicit_allied_attack;
@@ -2542,8 +2538,6 @@ struct game_locals {
         float attackNotifyRange;
         float callForHelp, creepCallForHelp;
         /* Neutral Hostile leash, read once per map instead of per creep tick. */
-        float maxGuardDistance;
-        uint32_t guardReturnMs;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         float defenseArmor;
@@ -4586,11 +4580,9 @@ void order_stop_queued(edict_t *);
 void G_CreepGuardInit(edict_t *);
 void G_CreepGuardAutoCombat(edict_t *);
 void G_CreepGuardSetEnabled(edict_t *, bool);
-void G_CreepGuardDamaged(edict_t *);
 void G_CreepGuardCallForHelp(edict_t *, edict_t *);
 void G_CreepGuardConstructionStarted(edict_t *);
-void G_CreepGuardTick(edict_t *);
-bool G_CreepGuardCombatEnd(edict_t *);
+void G_CreepGuardCombatEnd(edict_t *);
 void G_CreepGuardExplicitOrder(edict_t *);
 bool G_CreepGuardIssueReturn(edict_t *, vec2_t const *);
 void G_CreepGuardMoveArrived(edict_t *);

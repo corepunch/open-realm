@@ -438,10 +438,6 @@ void G_CreepGuardInit(edict_t *unit) {
     unit->movement.creep_guard_enabled = unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE &&
         !(unit->runtime.flags & UNIT_BALANCE_BUILDING);
     unit->movement.creep_guard_origin = unit->s.origin2;
-    unit->movement.creep_guard_last_hit_ms = level.time;
-    unit->movement.creep_guard_outside_ms = 0;
-    unit->movement.creep_guard_return_retries = 0;
-    unit->movement.creep_guard_retry_at_ms = 0;
     unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
 }
 
@@ -463,13 +459,7 @@ void G_CreepGuardSetEnabled(edict_t *unit, bool enabled) {
             order_stop_cleanup(unit);
         return;
     }
-    if (!unit->movement.creep_guard_enabled) {
-        unit->movement.creep_guard_last_hit_ms = level.time;
-        unit->movement.creep_guard_outside_ms = 0;
-        unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
-        unit->movement.creep_guard_return_retries = 0;
-        unit->movement.creep_guard_retry_at_ms = 0;
-    }
+    if (!unit->movement.creep_guard_enabled) unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
     unit->movement.creep_guard_enabled = true;
 }
 
@@ -477,16 +467,7 @@ void G_CreepGuardAutoCombat(edict_t *unit) {
     if (!unit || !unit->inuse || M_IsDead(unit) || !unit->movement.creep_guard_enabled ||
         unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE ||
         unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) return;
-    if (unit->movement.creep_guard_phase != CREEP_GUARD_COMBAT)
-        unit->movement.creep_guard_last_hit_ms = level.time;
     unit->movement.creep_guard_phase = CREEP_GUARD_COMBAT;
-}
-
-void G_CreepGuardDamaged(edict_t *unit) {
-    if (unit && unit->inuse && !M_IsDead(unit) &&
-        unit->movement.creep_guard_enabled &&
-        unit->s.player == PLAYER_NEUTRAL_AGGRESSIVE)
-        unit->movement.creep_guard_last_hit_ms = level.time;
 }
 
 /* Stage B: assistance is triggered by a concrete surviving unit's damage, not
@@ -565,147 +546,38 @@ void G_CreepGuardConstructionStarted(edict_t *building) {
     }
 }
 
-/* Retry a failed homeward Move at most three times, once per simulation
- * second. Never force-teleport a blocked creep or override script orders. */
-#define CREEP_GUARD_RETURN_RETRIES 3u
-#define CREEP_GUARD_RETRY_DELAY_MS 1000u
-
 /* Set while the guard itself issues a return; that order is not a player's. */
 static bool creep_guard_issuing;
 
 void G_CreepGuardExplicitOrder(edict_t *unit) {
     if (!unit || creep_guard_issuing) return;
     unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
-    unit->movement.creep_guard_outside_ms = 0;
-    unit->movement.creep_guard_return_retries = 0;
-    unit->movement.creep_guard_retry_at_ms = 0;
 }
 
-
-/* Retail walks a neutral home with the public point Move its Attack guard
- * issues (s_attack.c attack_guard_fire). Every guard return uses that order,
- * so Move owns arrival and the guard policy only tracks the phase. A rejected
- * order (root, Cyclone, ...) leaves retry_at set for the tick to retry. */
+/* Retail returns are issued only by the Attack guard timer (s_attack.c
+ * attack_guard_fire: 2s poll, then GuardReturnTime) as a public point Move.
+ * There is no per-frame leash or retry budget: a return the Move cannot
+ * finish is reissued by the next guard poll after the unit stands. */
 bool G_CreepGuardIssueReturn(edict_t *unit, vec2_t const *point) {
     bool accepted;
     if (!unit || !point) return false;
     creep_guard_issuing = true;
     accepted = G_IssueUnitPointOrder(unit, "move", point, false, unit->s.player, 0);
     creep_guard_issuing = false;
-    if (!unit->movement.creep_guard_enabled) return accepted;
-    unit->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
-    unit->movement.creep_guard_outside_ms = 0;
-    unit->movement.creep_guard_retry_at_ms = accepted ? 0 : level.time + CREEP_GUARD_RETRY_DELAY_MS;
+    if (accepted && unit->movement.creep_guard_enabled)
+        unit->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
     return accepted;
-}
-
-static bool creep_guard_begin_return(edict_t *unit) {
-    if (unit->aiflags & AI_IMMOBILE) return false;
-    /* A Shift-queued order outranks the walk home: the leash ends the
-     * automatic attack by starting that order, which clears guard ownership. */
-    if (G_UnitQueuedOrderCount(unit)) return G_UnitStartNextQueuedOrder(unit);
-    unit->movement.creep_guard_return_retries = 0;
-    unit_leavecombat(unit);
-    unit->attack_target_spawn_time = 0;
-    /* A rejected order keeps the return policy active for the tick's retry. */
-    if (!G_CreepGuardIssueReturn(unit, &unit->movement.creep_guard_origin) && unit->stand)
-        unit->stand(unit);
-    return true;
 }
 
 /* Move completed its point order. Retail stops a point Move short of an
  * occupied anchor, so a returning creep is home wherever it arrived. */
 void G_CreepGuardMoveArrived(edict_t *unit) {
-    if (!unit || unit->movement.creep_guard_phase != CREEP_GUARD_RETURNING) return;
-    unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
-    unit->movement.creep_guard_outside_ms = 0;
-    unit->movement.creep_guard_return_retries = 0;
-    unit->movement.creep_guard_retry_at_ms = 0;
-}
-
-bool G_CreepGuardCombatEnd(edict_t *unit) {
-    if (!unit || !unit->movement.creep_guard_enabled ||
-        unit->movement.creep_guard_phase != CREEP_GUARD_COMBAT ||
-        unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE) return false;
-    if (Vector2_distance(&unit->s.origin2, &unit->movement.creep_guard_origin) <= move_settle_distance(unit)) {
+    if (unit && unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING)
         unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
-        return false;
-    }
-    return creep_guard_begin_return(unit);
 }
 
-void G_CreepGuardTick(edict_t *unit) {
-    float distance;
-    uint32_t now;
-    if (!unit || !unit->inuse || !unit->movement.creep_guard_enabled ||
-        unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE || M_IsDead(unit)) return;
-    distance = Vector2_distance(&unit->s.origin2, &unit->movement.creep_guard_origin);
-    /* Returning creeps never acquire, so a live Attack that still reaches one
-     * (Taunt, bot AI) is leashed combat, not a failed return Move whose
-     * exhausted retry budget would strand an unleashed fight. */
-    if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING &&
-        unit->currentmove && unit->currentmove->proc == CAbilityAttack) {
-        G_CreepGuardExplicitOrder(unit);
-        G_CreepGuardAutoCombat(unit);
-    }
-    if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) {
-        /* Home is the Move's near-goal band; a completed return Move also
-         * reports arrival through G_CreepGuardMoveArrived. */
-        bool const walking = unit->currentmove && unit->currentmove->proc == CAbilityMove &&
-            unit->currentmove->think != ai_stand && !move_is_terminal_hold(unit);
-        if (distance <= move_settle_distance(unit)) {
-            unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
-            unit->movement.creep_guard_outside_ms = 0;
-            unit->movement.creep_guard_return_retries = 0;
-            unit->movement.creep_guard_retry_at_ms = 0;
-            return;
-        }
-        /* Retry only when the return Move has stopped (idle stand or the
-         * terminal blocked hold). A blocked or rooted unit cannot consume
-         * infinite waypoints each frame. */
-        if (walking) return;
-        if (unit->movement.creep_guard_return_retries >= CREEP_GUARD_RETURN_RETRIES) {
-            if (unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING) unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
-            return;
-        }
-        /* The return stopped without arriving (root, Cyclone, ...). */
-        if (!unit->movement.creep_guard_retry_at_ms) {
-            unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
-            return;
-        }
-        if ((int32_t)(level.time - unit->movement.creep_guard_retry_at_ms) < 0)
-            return;
-        /* Temporary disables postpone the attempt, but do not spend its
-         * bounded failure budget. A three-second root is not three path
-         * failures. Use the simulation clock for the next eligible check. */
-        if ((unit->aiflags & AI_IMMOBILE) || unit->paused || unit->stunned ||
-            S_UnitIsCycloned(unit) || unit_hasstatusstate(unit, WC3_STATUS_STATE_ROOTED) ||
-            S_PurgeIsImmobilized(unit)) {
-            unit->movement.creep_guard_retry_at_ms = level.time + CREEP_GUARD_RETRY_DELAY_MS;
-            return;
-        }
-        unit->movement.creep_guard_return_retries++;
-        G_CreepGuardIssueReturn(unit, &unit->movement.creep_guard_origin);
-        return;
-    }
-    if (unit->movement.creep_guard_phase != CREEP_GUARD_COMBAT) return;
-    /* An automatically acquired attack can be terminated by an ability or
-     * target removal without passing the normal attack-end callback. Recover
-     * from an idle transition, but never override another active movement. */
-    if (!unit->currentmove || unit->currentmove->think == ai_stand) {
-        G_CreepGuardCombatEnd(unit);
-        return;
-    }
-    if (unit->currentmove->proc != CAbilityAttack) return;
-    now = level.time;
-    if (distance <= game.constants.guardDistance) {
-        unit->movement.creep_guard_outside_ms = 0;
-        return;
-    }
-    if (!unit->movement.creep_guard_outside_ms)
-        unit->movement.creep_guard_outside_ms = now ? now : 1;
-    if (distance > game.constants.maxGuardDistance ||
-        (now - unit->movement.creep_guard_outside_ms >= game.constants.guardReturnMs &&
-         now - unit->movement.creep_guard_last_hit_ms >= game.constants.guardReturnMs))
-        creep_guard_begin_return(unit);
+/* Automatic combat ended; the Attack guard decides whether to walk home. */
+void G_CreepGuardCombatEnd(edict_t *unit) {
+    if (unit && unit->movement.creep_guard_phase == CREEP_GUARD_COMBAT)
+        unit->movement.creep_guard_phase = CREEP_GUARD_IDLE;
 }

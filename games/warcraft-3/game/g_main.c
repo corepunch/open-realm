@@ -422,12 +422,6 @@ static void InitConstants(void) {
     InitMiscValueDefault("AttackNotifyRange", &game.constants.attackNotifyRange, 1250.0f);
     InitMiscValueDefault("CallForHelp", &game.constants.callForHelp, 600.0f);
     InitMiscValueDefault("CreepCallForHelp", &game.constants.creepCallForHelp, 600.0f);
-    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 creep leash. GuardDistance/GuardReturnTime load above;
-     * seconds become the uint32 simulation clock, so clamp malformed or extreme map values first. */
-    InitMiscValueDefault("MaxGuardDistance", &game.constants.maxGuardDistance, 1000.0f);
-    game.constants.guardDistance = MAX(0.0f, game.constants.guardDistance);
-    game.constants.maxGuardDistance = MAX(game.constants.guardDistance, game.constants.maxGuardDistance);
-    game.constants.guardReturnMs = (uint32_t)(MIN(MAX(game.constants.guardReturnTime, 0.0f), (float)(UINT32_MAX / 1000u)) * 1000.0f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {

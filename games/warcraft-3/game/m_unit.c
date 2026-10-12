@@ -1393,8 +1393,6 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     /* SP_SpawnUnit initializes guards for new entities; a morph is not a spawn.
      * Snapshot just the guard-owned fields, not the entire movement state. */
     vec2_t creep_guard_origin;
-    uint32_t creep_guard_last_hit_ms, creep_guard_outside_ms;
-    uint32_t creep_guard_return_retries, creep_guard_retry_at_ms;
     bool creep_guard_enabled;
     creepGuardPhase_t creep_guard_phase;
 
@@ -1414,10 +1412,6 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     temporary_attack2 = S_AttackProfileRead(unit, 1)->temporaryDamageBonus;
     old_flags = unit->s.flags;
     creep_guard_origin = unit->movement.creep_guard_origin;
-    creep_guard_last_hit_ms = unit->movement.creep_guard_last_hit_ms;
-    creep_guard_outside_ms = unit->movement.creep_guard_outside_ms;
-    creep_guard_return_retries = unit->movement.creep_guard_return_retries;
-    creep_guard_retry_at_ms = unit->movement.creep_guard_retry_at_ms;
     creep_guard_enabled = unit->movement.creep_guard_enabled;
     creep_guard_phase = unit->movement.creep_guard_phase;
 
@@ -1445,10 +1439,6 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     /* A transformation retains the same handle, owner, and guard post. Do not
      * silently recapture its current position or re-enable a disabled guard. */
     unit->movement.creep_guard_origin = creep_guard_origin;
-    unit->movement.creep_guard_last_hit_ms = creep_guard_last_hit_ms;
-    unit->movement.creep_guard_outside_ms = creep_guard_outside_ms;
-    unit->movement.creep_guard_return_retries = creep_guard_return_retries;
-    unit->movement.creep_guard_retry_at_ms = creep_guard_retry_at_ms;
     unit->movement.creep_guard_enabled = creep_guard_enabled;
     unit->movement.creep_guard_phase = creep_guard_phase;
     G_ApplyTemporaryMaxHealthBonus(unit, temporary_health);

@@ -689,12 +689,10 @@ static void attack_resume_after_combat(edict_t *attacker) {
         order_attackmove(attacker, attacker->movement.attackmove_waypoint);
     } else if (attacker->movement.follow_target) {
         order_follow_resume(attacker);
-    } else if (G_CreepGuardCombatEnd(attacker)) {
-        return;
-    } else if (S_UnitAbilityEvent(attacker, A_AUTO_COMBAT_END)) {
-        return;
-    } else if (attacker->stand) {
-        attacker->stand(attacker);
+    } else {
+        G_CreepGuardCombatEnd(attacker);
+        if (S_UnitAbilityEvent(attacker, A_AUTO_COMBAT_END)) return;
+        if (attacker->stand) attacker->stand(attacker);
     }
 }
 
@@ -832,7 +830,6 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
         return;
     }
     G_AddHealth(target, -damage);
-    G_CreepGuardDamaged(target);
     /* Only a survivor reacts to the hit. A killing blow goes straight to die();
      * dispatching first would let Awan start a flee Move that death tears down. */
     {

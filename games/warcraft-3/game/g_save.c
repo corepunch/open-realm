@@ -86,8 +86,9 @@ enum {
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format182 merges upstream status records (instance ids, modifiers, state/buff masks),
- * neutral creep guard state and Wisp tree egress into the Format181 layout. */
-static uint32_t const save_version = 182;
+ * neutral creep guard state and Wisp tree egress into the Format181 layout.
+ * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
+static uint32_t const save_version = 183;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1049,10 +1050,6 @@ static field_t const movement_fields[] = {
     F(edictMovement_s, guard_position, F_VECTOR),
     F(edictMovement_s, guard_state, F_INT),
     F(edictMovement_s, creep_guard_origin, F_VECTOR),
-    F(edictMovement_s, creep_guard_last_hit_ms, F_INT),
-    F(edictMovement_s, creep_guard_outside_ms, F_INT),
-    F(edictMovement_s, creep_guard_return_retries, F_INT),
-    F(edictMovement_s, creep_guard_retry_at_ms, F_INT),
     F(edictMovement_s, creep_guard_enabled, F_INT),
     F(edictMovement_s, creep_guard_phase, F_INT),
     F(edictMovement_s, explicit_allied_attack, F_INT),

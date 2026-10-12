@@ -2532,14 +2532,10 @@ TEST(wc3_unit, creep_transform_preserves_guard_anchor_and_active_phase) {
     G_CreepGuardInit(creep);
     creep->s.origin2.x = 512.0f;
     creep->movement.creep_guard_phase = CREEP_GUARD_COMBAT;
-    creep->movement.creep_guard_last_hit_ms = 1234;
-    creep->movement.creep_guard_outside_ms = 2345;
     T_ASSERT(G_TransformUnitType(creep, MAKEFOURCC('h','f','o','o')));
     T_ASSERT(creep->movement.creep_guard_enabled);
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_COMBAT);
     T_FEQ(creep->movement.creep_guard_origin.x, 64.0f, 0.001f);
-    T_EQ(creep->movement.creep_guard_last_hit_ms, 1234u);
-    T_EQ(creep->movement.creep_guard_outside_ms, 2345u);
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 

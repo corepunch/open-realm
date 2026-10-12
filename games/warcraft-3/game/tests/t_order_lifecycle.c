@@ -1679,7 +1679,7 @@ TEST(wc3_order_lifecycle, disable_creep_guard_cancels_active_return_move) {
     creep->s.origin2.x = creep->s.origin.x = 900;
     gi.LinkEntity(creep);
     G_CreepGuardAutoCombat(creep);
-    T_ASSERT(G_CreepGuardCombatEnd(creep));
+    T_ASSERT(G_CreepGuardIssueReturn(creep, &creep->movement.creep_guard_origin));
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_RETURNING);
     T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
 
@@ -1689,9 +1689,6 @@ TEST(wc3_order_lifecycle, disable_creep_guard_cancels_active_return_move) {
     T_ASSERT(creep->currentmove && creep->currentmove->proc != CAbilityMove);
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.001f);
     T_FEQ(creep->movement.guard_position.x, 128, 0.001f);
-    level.time += 5000;
-    G_CreepGuardTick(creep);
-    T_ASSERT(creep->currentmove && creep->currentmove->proc != CAbilityMove);
 }
 
 /* Disabling future automatic guarding must not interrupt a script-owned Move. */
@@ -1707,50 +1704,6 @@ TEST(wc3_order_lifecycle, disable_creep_guard_preserves_explicit_move) {
     T_ASSERT(!creep->movement.creep_guard_enabled);
     T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
     T_ASSERT(creep->goalentity == goal);
-}
-
-TEST(wc3_order_lifecycle, creep_guard_damage_refreshes_only_eligible_unit) {
-    setup_test_world();
-    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
-    G_CreepGuardInit(creep);
-    level.time = 2000;
-    G_CreepGuardDamaged(creep);
-    T_EQ(creep->movement.creep_guard_last_hit_ms, 2000u);
-    G_CreepGuardSetEnabled(creep, false);
-    level.time = 3000;
-    G_CreepGuardDamaged(creep);
-    T_EQ(creep->movement.creep_guard_last_hit_ms, 2000u);
-}
-
-TEST(wc3_order_lifecycle, creep_guard_return_retries_stop_after_bounded_failures) {
-    setup_test_world();
-    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
-    G_CreepGuardInit(creep);
-    creep->s.origin2.x = 900;
-    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
-    /* Simulate interrupted return at stand; do not enter a busy retry loop. */
-    level.time = 1000;
-    G_CreepGuardTick(creep);
-    T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
-    T_EQ(creep->movement.creep_guard_return_retries, 0u);
-    T_EQ(creep->movement.creep_guard_retry_at_ms, 2000u);
-    G_CreepGuardExplicitOrder(creep);
-    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
-    T_EQ(creep->movement.creep_guard_return_retries, 0u);
-    T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
-}
-
-TEST(wc3_order_lifecycle, creep_guard_arrival_clears_retry_state) {
-    setup_test_world();
-    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
-    G_CreepGuardInit(creep);
-    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
-    creep->movement.creep_guard_return_retries = 2;
-    creep->movement.creep_guard_retry_at_ms = 1000;
-    G_CreepGuardTick(creep);
-    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
-    T_EQ(creep->movement.creep_guard_return_retries, 0u);
-    T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
 }
 
 /* Exercise the production post-mitigation damage path: a lethal blow must
@@ -1770,45 +1723,6 @@ TEST(wc3_order_lifecycle, lethal_creep_hit_alerts_surviving_camp_member) {
     T_ASSERT(ally->currentmove && ally->currentmove->proc == CAbilityAttack);
 }
 
-/* Drive the actual tick through each deadline with an immobilized creep so
- * Move never becomes active. This catches unbounded, every-frame retries. */
-TEST(wc3_order_lifecycle, creep_guard_retry_exhaustion_uses_simulation_time) {
-    setup_test_world();
-    edict_t *creep = review_order_unit(128, PLAYER_NEUTRAL_AGGRESSIVE);
-    G_CreepGuardInit(creep);
-    creep->s.origin2.x = 900;
-    creep->aiflags |= AI_IMMOBILE;
-    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
-    level.time = 1000;
-    G_CreepGuardTick(creep);
-    T_EQ(creep->movement.creep_guard_retry_at_ms, 2000u);
-    for (uint32_t attempt = 1; attempt <= 3; attempt++) {
-        level.time = 2000 + (attempt - 1) * 1000;
-        G_CreepGuardTick(creep);
-        T_EQ(creep->movement.creep_guard_return_retries, 0u);
-        T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
-    }
-    /* Once movement is permitted, actual retries are counted. Test the
-     * scheduler callback instead of calling the helper for this transition. */
-    creep->aiflags &= ~AI_IMMOBILE;
-    for (uint32_t attempt = 1; attempt <= 3; attempt++) {
-        level.time = 5000 + (attempt - 1) * 1000;
-        creep->movement.creep_guard_retry_at_ms = level.time;
-        unit_stand(creep); /* emulate a movement failure after each attempt */
-        creep->think = monster_think;
-        G_RunEntities();
-        T_EQ(creep->movement.creep_guard_return_retries, attempt);
-        T_ASSERT(creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING);
-    }
-    level.time = 8000;
-    unit_stand(creep);
-    creep->think = monster_think;
-    G_RunEntities();
-    T_ASSERT(creep->movement.creep_guard_phase != CREEP_GUARD_RETURNING);
-    T_EQ(creep->movement.creep_guard_return_retries, 3u);
-    T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.001f);
-}
-
 /* Explicit immediate orders must cancel return ownership without changing its
  * independently stored original anchor. */
 TEST(wc3_order_lifecycle, creep_guard_stop_and_hold_cancel_return) {
@@ -1817,10 +1731,8 @@ TEST(wc3_order_lifecycle, creep_guard_stop_and_hold_cancel_return) {
     G_CreepGuardInit(creep);
     creep->s.origin2.x = 900;
     creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
-    creep->movement.creep_guard_retry_at_ms = 2000;
     T_ASSERT(unit_issueimmediateorder(creep, "stop"));
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
-    T_EQ(creep->movement.creep_guard_retry_at_ms, 0u);
     T_FEQ(creep->movement.creep_guard_origin.x, 128, 0.01f);
     creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
     T_ASSERT(unit_issueimmediateorder(creep, "holdposition"));
@@ -1848,7 +1760,7 @@ TEST(wc3_order_lifecycle, creep_guard_owner_transfer_preserves_stop_anchor) {
     creep->s.origin2.x = creep->s.origin.x = 900;
     gi.LinkEntity(creep);
     G_CreepGuardAutoCombat(creep);
-    T_ASSERT(G_CreepGuardCombatEnd(creep));
+    T_ASSERT(G_CreepGuardIssueReturn(creep, &creep->movement.creep_guard_origin));
     T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
 
     G_SetUnitPlayer(creep, 0);
@@ -1923,9 +1835,9 @@ TEST(wc3_order_lifecycle, returning_creep_ignores_enemy_and_settles_beside_occup
     int frame;
     S_AttackProfileWrite(b, 0)->cooldown = 0; /* B has no weapon, so it stays parked on the anchor */
     G_CreepGuardAutoCombat(b);
-    T_ASSERT(G_CreepGuardCombatEnd(b));
+    T_ASSERT(G_CreepGuardIssueReturn(b, &b->movement.creep_guard_origin));
     G_CreepGuardAutoCombat(a);
-    T_ASSERT(G_CreepGuardCombatEnd(a));
+    T_ASSERT(G_CreepGuardIssueReturn(a, &a->movement.creep_guard_origin));
     T_EQ(a->movement.creep_guard_phase, CREEP_GUARD_RETURNING);
     T_ASSERT(a->currentmove && a->currentmove->proc == CAbilityMove);
     for (frame = 0; frame < 400 && a->movement.creep_guard_phase == CREEP_GUARD_RETURNING; frame++) {
@@ -1941,7 +1853,6 @@ TEST(wc3_order_lifecycle, returning_creep_ignores_enemy_and_settles_beside_occup
     T_ASSERT(a->s.origin2.x > b->s.origin2.x);
     T_ASSERT(creep_guard_home_distance(a) < game.constants.guardDistance);
     T_ASSERT(!creep_guard_attacking(a));
-    T_EQ(a->movement.creep_guard_return_retries, 0u);
     T_ASSERT(enemy->inuse);
 }
 
@@ -1954,7 +1865,7 @@ TEST(wc3_order_lifecycle, rooted_returning_creep_ignores_enemy_then_walks_home) 
     edict_t *enemy = review_order_unit_at(100, 300, 0);
     int frame;
     G_CreepGuardAutoCombat(creep);
-    T_ASSERT(G_CreepGuardCombatEnd(creep));
+    T_ASSERT(G_CreepGuardIssueReturn(creep, &creep->movement.creep_guard_origin));
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_RETURNING);
     T_ASSERT(unit_addtimedstatus(creep, "BEer", 1, 2.0f));
     for (frame = 0; frame < 10; frame++) {
@@ -1972,47 +1883,6 @@ TEST(wc3_order_lifecycle, rooted_returning_creep_ignores_enemy_then_walks_home) 
     T_ASSERT(creep_guard_home_distance(creep) <= move_settle_distance(creep));
     T_ASSERT(!creep_guard_attacking(creep));
     T_ASSERT(enemy->inuse);
-}
-
-/* A live Attack reaching a returning creep (Taunt, bot AI) is leashed combat,
- * never a failed return Move whose exhausted budget strands an unleashed fight. */
-TEST(wc3_order_lifecycle, creep_guard_live_attack_while_returning_is_leashed) {
-    setup_test_world();
-    edict_t *creep = review_order_unit(-800, PLAYER_NEUTRAL_AGGRESSIVE);
-    edict_t *enemy = review_order_unit(330, 0);
-    G_CreepGuardInit(creep);
-    creep->s.origin2.x = creep->s.origin.x = 300;
-    gi.LinkEntity(creep);
-    creep->movement.creep_guard_phase = CREEP_GUARD_RETURNING;
-    creep->movement.creep_guard_return_retries = 3;
-    order_attack(creep, enemy);
-    T_ASSERT(creep_guard_attacking(creep));
-    level.time = 1000;
-    G_CreepGuardTick(creep);
-    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_RETURNING);
-    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
-    T_EQ(creep->movement.creep_guard_return_retries, 0u);
-}
-
-/* Hard leash through the real scheduler: idle acquisition, then the tick turns
- * the live Attack beyond MaxGuardDistance into a return Move that walks home. */
-TEST(wc3_order_lifecycle, creep_guard_hard_leash_returns_home_through_scheduler) {
-    creep_guard_setup_frame_world();
-    edict_t *creep = scheduled_creep(-800, 300, 0);
-    edict_t *enemy = review_order_unit(330, 0);
-    int frame;
-    for (frame = 0; frame < 4 && creep->movement.creep_guard_phase != CREEP_GUARD_COMBAT; frame++)
-        creep_guard_run_frames(1);
-    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_COMBAT);
-    T_ASSERT(creep_guard_attacking(creep) && creep->goalentity == enemy);
-    creep_guard_run_frames(1);
-    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_RETURNING);
-    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
-    for (frame = 0; frame < 400 && creep->movement.creep_guard_phase == CREEP_GUARD_RETURNING; frame++)
-        creep_guard_run_frames(1);
-    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
-    T_ASSERT(creep_guard_home_distance(creep) <= move_settle_distance(creep));
-    T_ASSERT(!creep_guard_attacking(creep));
 }
 
 /* Soft leash through the real scheduler: between GuardDistance and
@@ -2038,31 +1908,6 @@ TEST(wc3_order_lifecycle, creep_guard_soft_leash_times_out_through_scheduler) {
         creep_guard_run_frames(1);
     T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
     T_ASSERT(creep_guard_home_distance(creep) <= move_settle_distance(creep));
-}
-
-/* A Shift-queued order only takes ownership once it starts. Until then the
- * auto-acquired Attack stays leashed, and the leash hands control to the
- * queued order instead of walking home. */
-TEST(wc3_order_lifecycle, creep_guard_queued_order_defers_reset_and_takes_over_on_leash) {
-    setup_test_world();
-    edict_t *creep = review_order_unit(-800, PLAYER_NEUTRAL_AGGRESSIVE);
-    edict_t *enemy = review_order_unit(330, 0);
-    vec2_t const point = { 500, 0 };
-    G_CreepGuardInit(creep);
-    creep->s.origin2.x = creep->s.origin.x = 300;
-    gi.LinkEntity(creep);
-    order_attack(creep, enemy);
-    G_CreepGuardAutoCombat(creep);
-    T_ASSERT(G_IssueUnitPointOrder(creep, "move", &point, true, creep->s.player, 0.0f));
-    T_EQ(G_UnitQueuedOrderCount(creep), 1u);
-    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_COMBAT);
-    T_ASSERT(creep_guard_attacking(creep));
-    level.time = 1000;
-    G_CreepGuardTick(creep);
-    T_EQ(creep->movement.creep_guard_phase, CREEP_GUARD_IDLE);
-    T_EQ(G_UnitQueuedOrderCount(creep), 0u);
-    T_ASSERT(creep->currentmove && creep->currentmove->proc == CAbilityMove);
-    T_ASSERT(creep->goalentity && creep->goalentity->s.origin2.x == point.x);
 }
 
 #endif
