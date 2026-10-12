@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "259 executable original/evidence contracts;540 total entries; provenance and limitations remain per-entry.",
+  "scope": "260 executable original/evidence contracts;541 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53808,6 +53808,57 @@
         "Observer fine resolver returned null: no retail fine-geometry claim.",
         "Earlier Stop284 native-return marker fixtures are unchanged; a post-return engine-only absence assertion was outside that evidence window."
       ]
+    },
+    {
+      "id": "oracle-group305",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_group305.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "group305.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 134
+        },
+        "original_cases": {
+          "equal": 48
+        },
+        "original_controls": {
+          "equal": 48
+        },
+        "scope_boundaries": {
+          "equal": 16
+        },
+        "unit_counts": {
+          "length": 6
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Physical group save/restore avoids pairwise identity validation and cold registry scans; byte-identical valid mapped stream at1/12/256/1024/1600/4096 owners. Revalidate historical Frida scopes and original48-case controls without changing numerical fixtures.",
+      "exclusions": [
+        "No new live retail save/load capture, complete GROUP-04.6 closure or frame/spawn benchmark is claimed."
+      ]
     }
   ],
   "fixtures": [
@@ -54706,7 +54757,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "a6cbb10fbd1ffedbe531bb150ed0245e391e74340178207ef505eee13191d7b2"
+      "sha256": "e68abc500d029c6881a60042fc3c285eda427dfe3276ae536fb0ea5efbd5b9bc"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55562,7 +55613,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "841ac380a54e172a0254a3a058e2f3a80c69d7d76c40f1db7af86888a89a8083"
+      "sha256": "c482d22dbe4e5d2b9c2d01ebcc6caebb2c562338179e4412de68ac9f90666e26"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -55998,7 +56049,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "4f1bb54c12a005f065604c9beaf79cbede43c69493ab0e907c14000b5c2e130c"
+      "sha256": "3598532c2a3ec2e68263e790d63179fdfbf5d227b61568b3ed6242708779c178"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -56006,7 +56057,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "5a7bcc94b36aa9e1c44af97d7785e959b3f041d7bc215f6da8e35e28b664c9cc"
+      "sha256": "bd3f948ef8f6dcfc5f6fb4e91b00251d70ee81cadcf29693c2a0c6e02d0eb653"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -56498,7 +56549,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "65c3a463e2f631a9b51871b843b4966bf898921dccf1ab3f058c20059948e027"
+      "sha256": "20b54bea404443ffe5e371d57688a2a9500161ee5470c6d60dd59a49132e3f94"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -56514,7 +56565,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "7998b7f22ff0b295048d3ca186345a1b881852ed2ab2f3ecde8d3535b43fb0a8"
+      "sha256": "45765995a888ef3cc17a263b1615557dbb364bd5441bc60ab6f54a61917dd2c5"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -62103,6 +62154,22 @@
     {
       "path": "tools/frida/research/removal304_probe.j",
       "sha256": "613c12bb16be7ffc2c1c0c09a79e48f8f50e0dc4418b6119922820c769c2d6cb"
+    },
+    {
+      "path": "tools/ghidra/research/Group305Evidence.java",
+      "sha256": "fd45178b6d99b8e7f8c8673baf63692f241122750646dfdab24eaadd3cffb15a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_group305.py",
+      "sha256": "a8339adab507e9c5d0861bb7898f8c74a5541903d0eb02298c9f5d8eade7c018"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group305-1.27.json",
+      "sha256": "b28d20deb4f94e84ea47e342cd09300385d56dd108ff06cff9cbff911bc97de0"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_group305.py",
+      "sha256": "1d63485ae4ecd0860946a017fa75f0341d51193c68cf5b601121cd92ff421085"
     }
   ]
 }

@@ -201,3 +201,46 @@ FOOT-03.1/03.2 still require actual raw static region producers, the49-record
 hierarchy limit, layered terrain/region predicates and their full mixed-category
 consumer regressions. This fine ordinary-owner replacement is their prerequisite,
 not a substitute for those integrations.
+
+## Physical group restoration avoids pairwise scans (Payoff305)
+
+Move's physical identities and creation sequences have separate uniqueness
+rules. The previous serializer compared every physical group with every earlier
+group; load also compared member pairs across those groups and scanned every
+group again for each bound unit. A first lookup after load repeated the scan.
+
+The replacement sorts temporary identity and sequence keys. It serializes
+physical groups and members in the original registry order, then reconstructs
+the derived unit lookup by binary search during load. Validation costs
+O(G log G + E log G + G K²), where G is physical groups, E is edicts and K is
+the bounded member count. Auxiliary storage is O(G); ordinary restored unit
+lookup is O(1). The unchanged bounded member validation checks generations,
+tombstones, retired rows, receivers and public ownership.
+
+Cross-group active duplicate checks were redundant: after IDs are unique, one
+unit's canonical group ID cannot equal two different IDs. Retired/unbound rows
+must remain legal until the original reverse preparation. An empty registry
+now also rejects a live unit with an orphan physical binding; the old early
+return skipped that validation. Rejection clears partially rebuilt lookups.
+
+At 4,096 groups the regression changes save comparisons from 8,386,560 to
+65,849; load comparisons from 25,163,776 to 110,919; first consumer registry
+visits from 8,390,656 to zero. The 1,634,308-byte mapped group stream remains
+byte-identical across restoration. These are algorithmic work counts, not a
+new frame-time or spawning benchmark. Cases also cover 1, 12, 256, 1,024 and
+1,600 owners, independent identity/sequence duplicates, a late orphan and a
+truncated payload followed by a valid restore. Save185 is unchanged.
+
+`Group305Evidence.java` saves/readbacks original Mover_BindGroup170fa0,
+PruneInvalidMembers16d1c0 and AppendMemberRows16c060 with134 instruction
+guards. `verify_wc3_pathing_group305.py` rechecks the frozen Work249 Frida
+scopes and original48-case binding/control matrix, then runs real engine
+save/queue/formation/Captain regressions. No numerical fixture is regenerated,
+and no new retail live save/load capture is claimed. Native canonical request
+and formation bounds are unchanged; GROUP-04.6 remains open.
+
+Focused verification passes907 tests /7,209,453 assertions per Classic/TFT
+edition across movement, saves, order lifecycle and interruption;43 Python
+evidence/corpus checks pass. This is chunk4 after full checkpoint301, not a
+new full-repository checkpoint. All540 earlier corpus entries and2,067 other
+historical source/fixture pins are unchanged.

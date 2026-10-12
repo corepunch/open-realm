@@ -186,6 +186,11 @@ static void move_prepare_group_order(void) {
 #ifdef BZ_TESTS
 static uint32_t move_group_id_visits,move_queued_peer_visits,move_group_lookup_visits;
 static uint32_t move_pose_cache_hits,move_pose_cache_misses;
+uint32_t S_TestMoveGroupLookupSteps(bool reset) {
+    uint32_t steps=move_group_lookup_visits;
+    if(reset)move_group_lookup_visits=0;
+    return steps;
+}
 #endif
 /* Registry identity survives callback-driven pool growth and save relocation. */
 static moveGroup_t *move_find_group(uint32_t id) {
@@ -209,6 +214,15 @@ static moveGroup_t *move_unit_group(edict_t const *unit) {
     if(group && group->inuse && group->id==id)return group;
     /* First lookup after activation/restoration repairs the derived binding. */
     return move_unit_groups[index]=move_find_group(id);
+}
+
+/* The save owner has already checked unique physical identities and each
+ * live unit binding. Publish the derived lookup without touching member rows,
+ * canonical ownership or the saved/newest-first encounter order. */
+void S_RestoreMoveGroupBinding(edict_t *unit,moveGroup_t *group) {
+    assert(unit>=g_edicts && unit<g_edicts+globals.num_edicts);
+    assert(group && group->inuse && unit->movement.group_id==group->id);
+    move_unit_groups[unit-g_edicts]=group;
 }
 
 /* An edict address alone is insufficient after removal and slot reuse. */

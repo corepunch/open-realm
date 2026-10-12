@@ -2669,29 +2669,89 @@ failed:
 }
 
 /* Store active owners after edicts so loading can validate restored generations. */
+#ifdef BZ_TESTS
+static uint64_t save_move_group_comparisons;
+#define MOVE_GROUP_COMPARE() (save_move_group_comparisons++)
+#else
+#define MOVE_GROUP_COMPARE() ((void)0)
+#endif
+
+/* Sorting these derived keys never changes pool, member, FIFO or encounter
+ * order. Identity and creation sequence have independent uniqueness rules. */
+typedef struct { uint64_t key; moveGroup_t *group; } saveMoveGroupKey_t;
+static int CompareMoveGroupKey(void const *a,void const *b) {
+    MOVE_GROUP_COMPARE();
+    uint64_t x=((saveMoveGroupKey_t const *)a)->key,y=((saveMoveGroupKey_t const *)b)->key;
+    return (x>y)-(x<y);
+}
+
+static bool IndexMoveGroups(saveMoveGroupKey_t **out,uint32_t count) {
+    *out=NULL;
+    if(!count)return true;
+    saveMoveGroupKey_t *keys=malloc(2*(size_t)count*sizeof(*keys));
+    if(!keys)return false;
+    uint32_t n=0;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t *group=level.move_groups[i];
+        if(!group->inuse)continue;
+        if(n==count) {free(keys);return false;}
+        keys[n]=(saveMoveGroupKey_t){group->id,group};
+        keys[count+n]=(saveMoveGroupKey_t){group->sequence,group};n++;
+    }
+    if(n!=count) {free(keys);return false;}
+    qsort(keys,count,sizeof(*keys),CompareMoveGroupKey);
+    qsort(keys+count,count,sizeof(*keys),CompareMoveGroupKey);
+    FOR_LOOP(i,count) {
+        MOVE_GROUP_COMPARE();
+        if(!keys[i].key || !keys[count+i].key ||
+           (i && (keys[i].key==keys[i-1].key || keys[count+i].key==keys[count+i-1].key))) {
+            free(keys);return false;
+        }
+    }
+    *out=keys;return true;
+}
+
+static moveGroup_t *FindSavedMoveGroup(saveMoveGroupKey_t const *keys,uint32_t count,uint32_t id) {
+    uint32_t first=0,last=count;
+    while(first<last) {
+        MOVE_GROUP_COMPARE();
+        uint32_t middle=first+(last-first)/2;
+        if(keys[middle].key<id)first=middle+1;
+        else if(keys[middle].key>id)last=middle;
+        else return keys[middle].group;
+    }
+    return NULL;
+}
+
 static bool WriteMoveGroups(FILE *f) {
     uint32_t count=0;
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if (level.move_groups[i]->inuse) count++;
-    if (count>globals.num_edicts || !SaveBytes(f,&count,sizeof(count))) return false;
+    saveMoveGroupKey_t *index=NULL;
+    if(count>globals.num_edicts || !IndexMoveGroups(&index,count))return false;
+    bool valid=SaveBytes(f,&count,sizeof(count));
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
         moveGroup_t *group=level.move_groups[i];
         if (!group->inuse) continue;
-        if (!S_SaveMoveGroupTargetRegion(group) || !ValidMoveGroup(group)) return false;
-        FOR_LOOP(j,i) if (level.move_groups[j]->inuse && (level.move_groups[j]->id==group->id || level.move_groups[j]->sequence==group->sequence)) return false;
+        if(!valid || !S_SaveMoveGroupTargetRegion(group) || !ValidMoveGroup(group)) {valid=false;break;}
         moveGroup_t temp=*group;
         ClearRuntimeFields(&temp,move_group_fields,FIELD_RUNTIME);
-        if (!WriteMappedFields(f,move_group_fields,(uint8_t *)&temp) || !WriteMoveRouteBuffers(f,&group->route)) return false;
+        if(!WriteMappedFields(f,move_group_fields,(uint8_t *)&temp) || !WriteMoveRouteBuffers(f,&group->route)) {valid=false;break;}
     }
-    return true;
+    free(index);return valid;
 }
 
-/* Rebuild process-owned allocations; failed payloads release every partial owner. */
+/* Rebuild process-owned allocations; failed payloads release every partial owner.
+ * Distinct validated group IDs cannot both own the same active mover: the mover
+ * has one canonical group_id. Retired/unbound rows deliberately survive until
+ * reverse preparation, so comparing every pair of groups adds no validation. */
 static bool ReadMoveGroups(FILE *f) {
     uint32_t count=0;
+    saveMoveGroupKey_t *index=NULL;
     if (!LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts) goto failed;
-    if (!count) return true;
-    level.move_groups=calloc(count,sizeof(*level.move_groups));
-    if (!level.move_groups) goto failed;
+    if(count) {
+        level.move_groups=calloc(count,sizeof(*level.move_groups));
+        if (!level.move_groups) goto failed;
+    }
     level.move_group_capacity=count;
     FOR_LOOP(i,count) {
         moveGroup_t *group=calloc(1,sizeof(*group));
@@ -2702,29 +2762,21 @@ static bool ReadMoveGroups(FILE *f) {
         ClearRuntimeFields(group,move_group_fields,FIELD_RUNTIME);
         if (!mapped || !ValidMoveGroup(group) || !S_RestoreMoveGroupTargetRegion(group) ||
             !ReadMoveRouteBuffers(f,&group->route)) goto failed;
-        FOR_LOOP(j,i) {
-            moveGroup_t const *other=level.move_groups[j];
-            if (other->id==group->id || other->sequence==group->sequence) goto failed;
-            FOR_LOOP(m,group->count) FOR_LOOP(n,other->count)
-                if (!group->members[m].retired && !other->members[n].retired &&
-                    group->members[m].unit && group->members[m].unit==other->members[n].unit &&
-                    group->members[m].unit->movement.group_id==group->id &&
-                    other->members[n].unit->movement.group_id==other->id) goto failed;
-        }
     }
-    /* Departed rows are valid, but a unit bound to a cohort id needs that
-     * restored group (an empty owner still awaits its next Move visit). */
+    if(!IndexMoveGroups(&index,count))goto failed;
+    /* Also validate the empty-registry case. An early count==0 return used to
+     * accept bound units with no physical owner. Binary lookup repairs only
+     * derived bindings; serialization and later owner visit order are unchanged. */
     FOR_LOOP(e,globals.num_edicts) {
-        edict_t const *unit=g_edicts+e;
+        edict_t *unit=g_edicts+e;
         if (!unit->inuse || !unit->movement.group_id) continue;
-        bool found=false;
-        FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) if (level.move_groups[g]->id==unit->movement.group_id) found=true;
-        if (!found) goto failed;
+        moveGroup_t *group=FindSavedMoveGroup(index,count,unit->movement.group_id);
+        if(!group)goto failed;
+        S_RestoreMoveGroupBinding(unit,group);
     }
-    return true;
+    free(index);return true;
 failed:
-    S_ClearMoveGroups();
-    return false;
+    free(index);S_ClearMoveGroups();return false;
 }
 
 /* Configuration values are saved, never intern addresses. The ownership mask
@@ -4313,6 +4365,122 @@ TEST(wc3_save, rejects_invalid_shared_move_payloads) {
 
 /* Current mapped group records reject bad ownership, generations and curve
  * tails even when their outer container can be read successfully. */
+TEST(wc3_save, groups305_empty_registry_rejects_bound_unit) {
+    reset_entities();setup_test_world();S_ClearMoveGroups();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
+    unit->movement.group_id=7;
+    FILE *file=tmpfile();T_NOT_NULL(file);
+    if(file) {
+        uint32_t count=0;T_ASSERT(SaveBytes(file,&count,sizeof(count)));rewind(file);
+        T_ASSERT(!ReadMoveGroups(file));T_NULL(level.move_groups);
+        T_EQ(ARRAY_COUNT(level.move_groups),0);fclose(file);
+    }
+    unit->movement.group_id=0;reset_entities();setup_test_world();
+}
+
+TEST(wc3_save, groups305_rejects_independent_duplicates_orphans_and_truncation) {
+    reset_entities();setup_test_world();S_ClearMoveGroups();
+    edict_t *units[4];moveGroup_t raw[4];
+    FOR_LOOP(i,4) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
+        S_BeginUnitFacingRequest(units[i],&(moveFacingRequest_t){.angle=1,.turn=.01f});
+        raw[i]=*level.move_groups[i];
+    }
+    S_ClearMoveGroups();
+    FOR_LOOP(c,5) {
+        FILE *file=tmpfile();T_NOT_NULL(file);if(!file)continue;
+        uint32_t count=4;T_ASSERT(SaveBytes(file,&count,sizeof(count)));
+        FOR_LOOP(i,count) {
+            moveGroup_t row=raw[i];
+            if(i==count-1 && c==0)row.id=raw[0].id; /* Distinct sequences. */
+            if(i==count-1 && c==1)row.sequence=raw[0].sequence; /* Distinct IDs. */
+            if(i==count-1 && c==3)row.id=0;
+            if(i==count-1 && c==4)break;
+            T_ASSERT(WriteMappedFields(file,move_group_fields,(uint8_t *)&row));
+            T_ASSERT(WriteMoveRouteBuffers(file,&row.route));
+        }
+        if(c==2)units[3]->movement.group_id=UINT32_MAX;
+        rewind(file);T_ASSERT(!ReadMoveGroups(file));
+        T_NULL(level.move_groups);T_EQ(ARRAY_COUNT(level.move_groups),0);
+        T_EQ(level.move_group_capacity,0);fclose(file);
+        units[3]->movement.group_id=raw[3].id;
+    }
+    /* The late orphan can be discovered after earlier derived bindings have
+     * been repaired. Cleanup must allow a subsequent valid cold restore. */
+    FILE *file=tmpfile();T_NOT_NULL(file);
+    if(file) {
+        uint32_t count=4;T_ASSERT(SaveBytes(file,&count,sizeof(count)));
+        FOR_LOOP(i,count) {
+            T_ASSERT(WriteMappedFields(file,move_group_fields,(uint8_t *)(raw+i)));
+            T_ASSERT(WriteMoveRouteBuffers(file,&raw[i].route));
+        }
+        rewind(file);T_ASSERT(ReadMoveGroups(file));
+        FOR_LOOP(i,count)T_ASSERT(level.move_groups[i]->members[0].unit==units[i]);
+        fclose(file);
+    }
+    reset_entities();setup_test_world();
+}
+
+extern uint32_t S_TestMoveGroupLookupSteps(bool);
+TEST(wc3_save, groups305_cold_4096_owners_avoid_pairwise_validation_and_lookup) {
+    unsigned const sizes[]={1,12,256,1024,1600,4096};
+    FOR_LOOP(case_index,sizeof(sizes)/sizeof(*sizes)) {
+    reset_entities();setup_test_world();S_ClearMoveGroups();
+    unsigned const count=sizes[case_index];
+    edict_t **units=calloc(count,sizeof(*units));T_NOT_NULL(units);if(!units)return;
+    FOR_LOOP(i,count) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
+        S_BeginUnitFacingRequest(units[i],&(moveFacingRequest_t){.angle=1,.turn=.01f});
+    }
+    T_EQ(ARRAY_COUNT(level.move_groups),count);
+    /* Registry encounter order and identity/sequence order are intentionally
+     * different. Validation must not reorder authoritative storage. */
+    FOR_LOOP(i,count) {
+        uint32_t slot=(i*37)%count;
+        level.move_groups[i]->id=10000+slot;
+        units[i]->movement.group_id=10000+slot;
+    }
+    FILE *file=tmpfile();T_NOT_NULL(file);
+    if(file) {
+        save_move_group_comparisons=0;
+        T_ASSERT(WriteMoveGroups(file));
+        uint64_t written=save_move_group_comparisons;
+        T_ASSERT(written<=64*count);
+        long bytes=ftell(file);T_ASSERT(bytes>0);
+        S_ClearMoveGroups();rewind(file);save_move_group_comparisons=0;
+        T_ASSERT(ReadMoveGroups(file));
+        uint64_t read=save_move_group_comparisons;
+        T_ASSERT(read<=128*count);
+        T_EQ(ARRAY_COUNT(level.move_groups),count);T_EQ(ftell(file),bytes);
+        S_TestMoveGroupLookupSteps(true);
+        FOR_LOOP(i,count) {
+            T_EQ(level.move_groups[i]->id,10000+(i*37)%count);
+            T_ASSERT(level.move_groups[i]->members[0].unit==units[i]);
+            T_EQ(level.move_groups[i]->sequence,level.move_groups[0]->sequence+i);
+            /* Real ability consumers resolve the restored physical owner
+             * even before its first scheduled movement visit. */
+            T_NULL(S_UnitTargetApproachReceiver(units[i]));
+        }
+        uint32_t lookups=S_TestMoveGroupLookupSteps(true);
+        fprintf(stderr,"groups305 owners=%u write=%llu read=%llu coldLookup=%u bytes=%ld\n",
+            count,(unsigned long long)written,(unsigned long long)read,lookups,bytes);
+        T_ASSERT(lookups<=count);
+        FILE *again=tmpfile();T_NOT_NULL(again);
+        if(again) {
+            T_ASSERT(WriteMoveGroups(again));rewind(file);rewind(again);
+            unsigned char a[4096],b[4096];
+            while(!feof(file)) {
+                size_t n=fread(a,1,sizeof(a),file),m=fread(b,1,sizeof(b),again);
+                T_EQ(n,m);T_EQ(memcmp(a,b,n),0);
+            }
+            T_EQ(fgetc(file),EOF);T_EQ(fgetc(again),EOF);fclose(again);
+        }
+        fclose(file);
+    }
+    free(units);reset_entities();setup_test_world();
+    }
+}
+
 TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
     edict_t *first=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
