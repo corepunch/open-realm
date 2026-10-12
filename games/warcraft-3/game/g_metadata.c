@@ -2233,13 +2233,28 @@ uint32_t G_ItemBaseID(uint32_t id) {
 
     if (!mapinfo || !mapinfo->userCreatedItems) return current;
     /* Custom map items can inherit from another custom item. Walk the parent
-     * chain so their command buttons use the base item's ItemFunc UI fields. */
+     * chain so their command buttons use the base item's ItemFunc UI fields.
+     * The map item count bounds the walk and detects cyclic parent data. */
     FOR_LOOP(depth, mapinfo->num_userCreatedItems) {
         bool found = false;
         FOR_LOOP(i, mapinfo->num_userCreatedItems) {
             unitData_t const *item = mapinfo->userCreatedItems + i;
             if (item->newUnitID != current || item->originalUnitID == current) continue;
-            current = item->originalUnitID;
+            uint32_t const parent = item->originalUnitID;
+            uint32_t probe = id;
+            FOR_LOOP(seen, depth + 1u) {
+                if (probe == parent) return id;
+                bool probe_found = false;
+                FOR_LOOP(j, mapinfo->num_userCreatedItems) {
+                    unitData_t const *ancestor = mapinfo->userCreatedItems + j;
+                    if (ancestor->newUnitID != probe || ancestor->originalUnitID == probe) continue;
+                    probe = ancestor->originalUnitID;
+                    probe_found = true;
+                    break;
+                }
+                if (!probe_found) break;
+            }
+            current = parent;
             found = true;
             break;
         }

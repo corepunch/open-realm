@@ -2026,6 +2026,22 @@ TEST(wc3_items, map_custom_reward_stock_uses_base_item_art_in_shop_buttons) {
     level.mapinfo = old_mapinfo;
 }
 
+TEST(wc3_items, map_custom_item_art_inheritance_cycle_falls_back_to_item_id) {
+    unitData_t custom_items[] = {
+        { .originalUnitID = MAKEFOURCC('I','0','0','1'), .newUnitID = MAKEFOURCC('I','0','0','0') },
+        { .originalUnitID = MAKEFOURCC('I','0','0','0'), .newUnitID = MAKEFOURCC('I','0','0','1') },
+    };
+    mapInfo_t mapinfo = { .num_userCreatedItems = 2, .userCreatedItems = custom_items };
+    mapInfo_t const *old_mapinfo;
+
+    setup_test_world();
+    old_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    T_EQ(G_ItemBaseID(MAKEFOURCC('I','0','0','0')), MAKEFOURCC('I','0','0','0'));
+    T_EQ(G_ItemBaseID(MAKEFOURCC('I','0','0','1')), MAKEFOURCC('I','0','0','1'));
+    level.mapinfo = old_mapinfo;
+}
+
 TEST(wc3_items, map_created_reward_purchase_runs_sell_item_reward_flow) {
     static UnitAbilities_t const sell_items = { .abilList = "Asid", .heroAbilList = "" };
     static uint32_t const stock_ids[] = {
@@ -2115,6 +2131,9 @@ TEST(wc3_items, map_created_reward_purchase_runs_sell_item_reward_flow) {
     armory->collision = 32.0f;
     armory->spawn_time = G_Time();
     armory->selected |= 1;
+    player->client->connected = true;
+    player->client->ps.number = 0;
+    G_SelectEntity(player->client, armory);
     G_SetStockSlots(armory, true, 11);
     gi.LinkEntity(armory);
     FOR_LOOP(i, 3) T_ASSERT(G_AddItemStock(armory, stock_ids[i], 1, 1));
@@ -2132,6 +2151,7 @@ TEST(wc3_items, map_created_reward_purchase_runs_sell_item_reward_flow) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 
     T_EQ(armory->stock->item_count, 0);
+    T_ASSERT(player->client->commands_dirty);
     FOR_LOOP(i, MAX_INVENTORY) {
         if (buyer->inventory[i] && buyer->inventory[i]->class_id == base_ids[selected]) got_reward = true;
     }
