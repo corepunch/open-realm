@@ -16,6 +16,18 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
+bool run_test_jass(cstring_t src);
+
+static void self_destruct_run_frames(uint32_t frames) {
+    bool const started = level.started, scripts_started = level.scriptsStarted;
+    level.started = level.scriptsStarted = true;
+    FOR_LOOP(i, frames) {
+        level.time += FRAMETIME;
+        globals.RunFrame();
+    }
+    level.started = started;
+    level.scriptsStarted = scripts_started;
+}
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -188,6 +200,13 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
 
     clent->client = client;
     fix.goblin->s.player = client->ps.number;
+    fix.goblin->think = monster_think;
+    fix.goblin->stand = unit_stand;
+    fix.goblin->movetype = MOVETYPE_STEP;
+    fix.goblin->collision = 16.0f;
+    fix.goblin->unitinfo.MoveSpeed = 270.0f;
+    unit_stand(fix.goblin);
+    gi.LinkEntity(fix.goblin);
     G_SelectEntity(client, fix.goblin);
     column->class_id = MAKEFOURCC('B', 'T', 's', 'c');
     column->s.origin2 = MAKE(vec2_t, 200, 0);
@@ -212,10 +231,8 @@ TEST(wc3_spell, self_destruct_asds_entity_target_walks_and_detonates_in_range) {
     if (!approach || !fix.goblin->goalentity) { sd_done(fix); return; }
     T_FEQ(fix.goblin->goalentity->s.origin2.x, 200, 0.001f);
 
-    for (int32_t frame = 0; frame < 100 && approach->inuse; frame++) {
-        level.time += FRAMETIME;
-        G_RunEntities();
-    }
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    self_destruct_run_frames(100);
     T_ASSERT(M_IsDead(fix.goblin));
     T_ASSERT(column->destructable->dead);
     T_FEQ(column->health.value, 0, 0.001f);

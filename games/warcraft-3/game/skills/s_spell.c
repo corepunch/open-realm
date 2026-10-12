@@ -1130,7 +1130,7 @@ static bool spell_ability_entity_target_selected(edict_t *clent, edict_t *target
     if (!S_SpellEntityTargetMode(clent)) return false;
     item = MAKE(abilityitem_t, .code = S_SpellCurrentCode(clent, 0), .ability = spell);
     selected = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
-    call = MAKE(abilityCall_t, .item = &item, .target = &selected, .client = clent);
+    call = MAKE(abilityCall_t, .item = &item, .target = &selected);
     if (!S_AbilityMessage(caster, A_VALIDATE, &call)) return false;
     return spell_point_target_selected(clent, &target->s.origin2);
 }
