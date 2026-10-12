@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "261 executable original/evidence contracts;542 total entries; provenance and limitations remain per-entry.",
+  "scope": "262 executable original/evidence contracts;543 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53915,6 +53915,65 @@
       "exclusions": [
         "Stock Footman/tree remains a point-task control. Full Attack task/damage/backswing timing and large-battle performance are not certified;46 tasks remain."
       ]
+    },
+    {
+      "id": "oracle-foot307",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_foot307.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "foot307.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 663
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 331
+        },
+        "scenes": {
+          "equal": 6
+        },
+        "first_states": {
+          "equal": 54
+        },
+        "first_route_points": {
+          "equal": 104
+        },
+        "repeated_scalar_snapshots": {
+          "equal": 1272
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "Public point/target Move embedded-start recovery; six scenes, repeated full native streams, unhooked public control, exact first route/motion and cold-save regressions.",
+      "exclusions": [
+        "Arbitrary terrain and other producer families remain open. Nonreturning Pow discovery does not claim engine lifetime parity;45 tasks remain."
+      ]
     }
   ],
   "fixtures": [
@@ -54813,7 +54872,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "51e2cc4eb53b2db04f9dc692153025436d6a8705ee1d5cd8d61cf8a4658e816d"
+      "sha256": "24ae60375259a5f32ef5561b7fb4a496bfe27c71796af79dbf9263fd34aff915"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55669,7 +55728,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "ad349bb1ccc6b2d166fe43f2d11365816155e2ffe150696185fde05ffb49a5f8"
+      "sha256": "ba684c297081b9573a7bdeac3afc95006fd6409e747ecaf343fca7a6cabc3a5f"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -56361,7 +56420,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "0c74919fd0a19b5e4d52248135c0cfe3de6ce73ae8106bc3e8e02cb383fda085"
+      "sha256": "9bfa0e3d936763aeb32fe734edec337afba0af3deab2e5ca05c07104d71d00ee"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -56605,7 +56664,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "090446e0beb7e07ed230f1bc3d9e3f6833c52976cc88a27969c9085c19e0cc70"
+      "sha256": "b65b9e294cd6063581f4c821aa5a18d46a85d5765fbf4162eca386eb6389c416"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -56617,11 +56676,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "de2c442d470fb773f7b42f239d829054b09ca43f452d57791f0b189166aec9b3"
+      "sha256": "0f7da84546e633e2715d5088f2d85d2cc5b273bcefc90b74ebda3640dcf7e6ce"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "e48ea65144def822b0739fefdbe048b4a52ca04769d8935df5f18a3dbb8c736c"
+      "sha256": "548994184f1e8c87d831d52efd2e0eb370e3d2943e10613758445236043a3352"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -62270,6 +62329,66 @@
     {
       "path": "games/warcraft-3/game/tests/t_combat.c",
       "sha256": "e2535aae205383fe30470a0f8454e922859c10616102a8b6e3a363ae876e4200"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/fixtures/retail_foot307_motion.h",
+      "sha256": "2b9e0b573feb5ae82c0e490547cabfdd788b610df6b4f33dd6955b5199530915"
+    },
+    {
+      "path": "tools/ghidra/research/Foot307Evidence.java",
+      "sha256": "dfe30802206f85528bcdc27461049a4d904e84dfecf38513b26ab2fed572bf04"
+    },
+    {
+      "path": "tools/ghidra/research/Power307Evidence.java",
+      "sha256": "8deb82844a8fdc5734d0d22c1c4f3f03b98f99901fb12da5206551c2f114c570"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_foot307.py",
+      "sha256": "786bab398d0188baa520d518eb45807cf8bc45092c3f549e2840f083f6a4b5c5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-foot307-1.27.json",
+      "sha256": "2c1cbb0cb00fffd8cb21894fe181d66b01a22d4e18ea37453ae7913cc9100975"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-foot307-1.27.json.gz",
+      "sha256": "950d407b5253c8b407cdea136f3d8051ad62ab681377a6d666318cf6dd1094c3"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_foot307.py",
+      "sha256": "2b0e073e8f4a9be1efb97f14850d7c62673112eb4a621b2839b96e9207529166"
+    },
+    {
+      "path": "tools/frida/research/foot307_capture.py",
+      "sha256": "8020c067832fa4b7fb6b077b3be3688cacf42dbcf6c3881b9021ea0583cac7ce"
+    },
+    {
+      "path": "tools/frida/research/foot307_observer.js",
+      "sha256": "2ccf8b2dcd5d8bedd4d2f9ea6b0c7ddf5cf0407559ec1daf08778b291198e128"
+    },
+    {
+      "path": "tools/frida/research/foot307_make_map.py",
+      "sha256": "9a0cec502bd064bd246a693dc5e3105a27d431502cde2cf22704c1f6907baf23"
+    },
+    {
+      "path": "tools/frida/research/foot307_probe.j",
+      "sha256": "88c1e204ba6dc16fc028c4e57dd80e222ca61cdac53dcaef52d6e79cfa67bf99"
+    },
+    {
+      "path": "tools/frida/research/power307_capture.py",
+      "sha256": "1ea6725d3fd80451b1f0b471c8b8831a49a38fad1442f664fccd8e685b90dee1"
+    },
+    {
+      "path": "tools/frida/research/power307_observer.js",
+      "sha256": "539c54eca6187bb5c4bf8e29c2def2062cd8da45f93d8fc5e1063c0236225966"
+    },
+    {
+      "path": "tools/frida/research/power307_make_map.py",
+      "sha256": "564224ae937c86a769f4a9dd0c127dcc5883e4bf7011b86f8af3149bbc1ef59d"
+    },
+    {
+      "path": "tools/frida/research/power307_probe.j",
+      "sha256": "f09c2765a85dd49ed6954de88d9f7ce54731517a328528e06c49dae784134678"
     }
   ]
 }

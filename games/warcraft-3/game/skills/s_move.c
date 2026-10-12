@@ -4607,6 +4607,10 @@ void order_follow(edict_t *self, edict_t *target) {
 
 bool S_IssueFollowOrder(edict_t *self, edict_t *target, uint32_t order_id) {
     if (!self || S_MoveTargetStatus(self,target)!=MOVE_TARGET_VALID) return false;
+    /* Public target activation stops through the same recovery bridge as
+     * point Move. Excluding the target here strands embedded starts; target
+     * exclusion belongs to the later route query, after this admission. */
+    S_StopUnitMovementWithRecovery(self);
     /*5fd270: distant target Move enters d0173 directly; Smart retains its
      * d0174 approach. A nearby Move still owns the half-edge approach. */
     bool persistent=order_id==G_OrderId("move") && !G_UnitIsStructure(target) && !target->movement.captain_actor_type &&

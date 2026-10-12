@@ -18933,3 +18933,66 @@ Save185 and the network format are unchanged. Full Attack damage/backswing and
 public task timing remain separate work; TARGET/ORDER broad tasks stay open,
 **46 tasks remain**. This is implementation chunk5 since full checkpoint301;
 no new full-suite or large-battle performance result is claimed.
+
+
+## Embedded public target Move recovers before routing (Payoff307)
+
+`FOOT-04.1` now covers clear self occupancy, starts inside an unrelated unit or
+building, starts inside the order's own target, and fractional building overlap.
+Two fresh read-only retail repeats and an unhooked control agree on all **331
+public markers**. Both observed runs also agree on **1,272 scalar commit
+snapshots**, seven complete fine returns and the complete advance stream.
+
+Public admission immediately relocates an embedded Footman from a peer's
+`800,800` to `784,752`; a Farm footprint at `768,768` admits `720,688`, including
+the fractional `799.25,768` start. Target Move to that same blocker performs the
+same recovery. Target exclusion during a later fine search does not apply to
+this initial recovery. Afterward these close target orders only turn and
+complete, so there is no invented fine route or first route point for them.
+Unrelated unit/building point orders retain first fine routes of 25/27 points,
+indices 23/25 and their exact first accepted waypoint. Clear self-only occupancy
+uses index zero and the retained local goal.
+
+The production gap was `S_IssueFollowOrder`: it created a physical target owner
+without the recovery already performed by public point Move. It now stops through
+that existing Move bridge before admitting its target approach. The new engine
+regression first exposed **20 failed assertions** with the public probe's fog
+settings reproduced. The fix matches **54 captured first-segment states**, all
+**104 first-route point pairs**, immediate admission, first waypoint and active
+cold-save continuation across all six scenes (**1,276 assertions**).
+
+An earlier diagnostic harness omitted the probe's `FogEnable(false)`, causing
+legitimate target-to-point fallback. Its failures are archived separately and
+are not evidence against retail or a reason to change any existing expectation.
+One observer attempt also used an undefined argument variable and is explicitly
+excluded from acceptance. Existing numerical fixtures and historical capture
+expectations are unchanged.
+
+Focused Classic and TFT acceptance each passes **166 tests / 169,723 assertions**.
+Five saved Ghidra annotations and 663 original instruction guards cover recovery,
+point/target admission, fine search and advance. Raw evidence and failures are
+archived at `research/FOOT-04.1/payoff307`. Save185 is unchanged. This is chunk six
+after the Payoff301 full-suite checkpoint; it does not claim another full suite
+or arbitrary terrain/producer coverage.
+
+### Nonreturning public power stalls retail simulation (Payoff307 discovery)
+
+Two separately owned, bounded retail processes execute
+`Pow(2.0,I2R(1073741824)*2.0)`. The registered adapter receives exponent word
+`4f000000`; integer power receives signed `80000000`. For twelve wall seconds
+per run, the path-owner counter remains `1090`, the independent timer heartbeat
+stops, and neither the native return nor the after marker occurs. Read-only
+thread samples remain in the integer-power loop or its scalar multiplication.
+The terminating positive control reaches its after marker and completes.
+
+Saved Ghidra evidence identifies the inline native call at `919120`, return
+address `919123`, and opcode15 caller `91ba8a`. Bytecode instruction limits are
+checked after native return; they cannot preempt this loop. This is actual VM
+lifetime evidence, separately labelled from helper-emulator instruction budgets.
+Captures, maps, observer sources and saved/readback listings are retained in the
+same archive under `power-discovery/`.
+
+**NUM-01.14 remains open.** The engine deliberately reports a recoverable runtime
+error for this domain; it does not reproduce retail's simulation stall. Existing
+error/recovery tests remain valid descriptions of that explicit engine deviation
+and were not overwritten. No numeric result or lifetime parity is claimed.
