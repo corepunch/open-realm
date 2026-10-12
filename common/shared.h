@@ -1102,12 +1102,21 @@ typedef enum {
 
 #define UI_PARENT 255
 
-typedef struct { // serialized as 4 bytes
-    uiFramePointPos_t targetPos: 7;
-    uint8_t used: 1;
-    uint8_t relativeTo: 8;
-    int16_t offset: 16;
+/* Serialized as one 4-byte NFT_LONG, so every member declares the same 4-byte type: the MS ABI
+ * (MinGW's -mms-bitfields default) gives each declared type its own allocation unit, which grew this
+ * struct to 8 bytes and pushed used/relativeTo/offset past the wire — every frame point then decoded
+ * at offset 0 and the whole in-game HUD collapsed into the top-left corner. */
+typedef struct {
+    uint32_t targetPos: 7;
+    uint32_t used: 1;
+    uint32_t relativeTo: 8;
+    int32_t offset: 16;
 } uiFramePoint_t;
+
+/* The wire carries exactly one 4-byte NFT_LONG per point, and Linux packs even the broken
+ * mixed-type layout to 4 bytes, so this assert is the guard that catches a regression on every
+ * platform instead of only where the MS ABI applies. */
+_Static_assert(sizeof(uiFramePoint_t) == 4, "uiFramePoint_t must stay 4 bytes: points are one NFT_LONG on the wire");
 
 typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
 
@@ -1138,9 +1147,9 @@ typedef struct uiFrame_s {
         uint8_t coord[4];  // also used as animation start timestamp
     } tex;
     union {
-        struct {
+        struct { // alphaMode shares type's 4-byte unit; a 1-byte type would push it past the wire's NFT_LONG
             FRAMETYPE type: 8;
-            uint8_t alphaMode: 2;
+            uint32_t alphaMode: 2;
         } flags;
         uint32_t flagsvalue;
     };

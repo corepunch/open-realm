@@ -23,7 +23,13 @@
 
 #include <string.h>
 #include <limits.h>
+#ifdef _WIN32
+#include <winsock2.h> /* htons/ntohs live here; the SDK aliases would rename engine API members */
+#undef DrawText
+#undef PlaySound
+#else
 #include <arpa/inet.h>
+#endif
 
 #include "test.h"
 
@@ -796,6 +802,50 @@ TEST(net, layout_textarea_value_scrolls_wrapped_content_inside_clip) {
     T_FEQ(test_textarea_draw.clip.y, 0.21f, 0.0001f);
     T_FEQ(test_textarea_draw.clip.w, 0.28f, 0.0001f);
     T_FEQ(test_textarea_draw.clip.h, 0.38f, 0.0001f);
+}
+
+/* The layout wire carries each frame point as one 4-byte NFT_LONG. Declaring the point's bitfields
+ * with mixed types gave each declared type its own allocation unit under the MS ABI (MinGW's
+ * -mms-bitfields default), so the struct grew past those 4 bytes and used/relativeTo/offset never
+ * reached the client: every point decoded at offset 0 and the whole in-game HUD stacked in the
+ * top-left corner, while the client-parsed main menu stayed correct. */
+TEST(net, layout_point_fields_survive_the_wire) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = {0};
+    int32_t off_x = (int16_t)(0.25f * UI_FRAMEPOINT_SCALE);
+    int32_t off_y = (int16_t)(-0.125f * UI_FRAMEPOINT_SCALE);
+    uiFrame_t const *got;
+
+    frame.number = 1;
+    frame.size.width = 0.1f; frame.size.height = 0.1f;
+    frame.points.x[FPP_MIN].used = 1;
+    frame.points.x[FPP_MIN].targetPos = FPP_MAX;
+    frame.points.x[FPP_MIN].relativeTo = UI_PARENT;
+    frame.points.x[FPP_MIN].offset = (int32_t)off_x;
+    frame.points.y[FPP_MAX].used = 1;
+    frame.points.y[FPP_MAX].targetPos = FPP_MIN;
+    frame.points.y[FPP_MAX].relativeTo = 3;
+    frame.points.y[FPP_MAX].offset = (int32_t)off_y;
+
+    test_client_stubs_init();
+    MSG_WriteByte(&sb, LAYER_COMMANDBAR);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true); MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0); sb.readcount = 0;
+    CL_ParseLayout(&sb);
+    /* CL_ParseLayout only stores the raw blob; the frames[] tree is built when the layer is parsed. */
+    SCR_ClearLayer(cl.layout[LAYER_COMMANDBAR], LAYER_COMMANDBAR);
+
+    got = SCR_Frame(1);
+    T_ASSERT(got != NULL);
+    T_EQ((int)got->points.x[FPP_MIN].used, 1);
+    T_EQ((int)got->points.x[FPP_MIN].targetPos, (int)FPP_MAX);
+    T_EQ((int)got->points.x[FPP_MIN].relativeTo, UI_PARENT);
+    T_EQ((int)got->points.x[FPP_MIN].offset, (int)off_x);
+    T_EQ((int)got->points.y[FPP_MAX].used, 1);
+    T_EQ((int)got->points.y[FPP_MAX].targetPos, (int)FPP_MIN);
+    T_EQ((int)got->points.y[FPP_MAX].relativeTo, 3);
+    T_EQ((int)got->points.y[FPP_MAX].offset, (int)off_y);
 }
 
 /* -----------------------------------------------------------------------
