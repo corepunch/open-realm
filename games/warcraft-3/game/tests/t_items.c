@@ -3214,6 +3214,31 @@ TEST(wc3_items, targeted_give_to_stationary_container) {
     T_NULL(source->inventory[0]);
 }
 
+TEST(wc3_items, stationary_inventory_giver_hands_off_only_in_range) {
+    edict_t *source, *recipient, *item, *far_recipient, *far_item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    source->movetype = MOVETYPE_NONE;
+    source->aiflags |= AI_IMMOBILE;
+    recipient = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
+    T_NULL(source->inventory[0]);
+    T_ASSERT(recipient->inventory[0] == item);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
+
+    far_recipient = make_item_test_inventory_unit(512, 0);
+    far_item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, far_item, 0));
+    T_ASSERT(!G_OrderGiveItemTarget(source, far_item, far_recipient));
+    T_ASSERT(source->inventory[0] == far_item);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
+}
+
 TEST(wc3_items, targeted_give_full_container_drops_at_target) {
     edict_t *source, *recipient, *item;
 

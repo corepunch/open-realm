@@ -876,9 +876,20 @@ static umove_t item_move_give = {
 };
 
 bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
-    if (!G_CanGiveItemTarget(source, item, recipient) || (source->aiflags & AI_IMMOBILE))
+    if (!G_CanGiveItemTarget(source, item, recipient))
         return false;
     source->goalentity = recipient;
+    if (source->aiflags & AI_IMMOBILE) {
+        /* Buildings such as Rexxar's Stash cannot approach a Hero. Permit a
+         * direct handoff when the recipient is already within GiveItemRange. */
+        if (M_DistanceToGoal(source) > G_GiveItemReach(source, recipient)) {
+            source->goalentity = NULL;
+            return false;
+        }
+        source->item_drop = item;
+        G_GiveItemThink(source);
+        return true;
+    }
     move_reset_progress(source);
     unit_setmove(source, &item_move_give);
     /* unit_setmove clears a pending item_drop when replacing an old order. */

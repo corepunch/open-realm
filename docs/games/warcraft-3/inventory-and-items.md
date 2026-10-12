@@ -571,9 +571,11 @@ mode; neutral shop pawn handling remains on the existing shop path.
 
 `G_OrderGiveItemTarget` validates an active, living allied recipient, the
 source's `inv5` permission, the item's droppable state and any item-ability
-prohibition. The source walks toward the target; completion revalidates both
-unit and item state and uses `Misc.GiveItemRange` plus unit collision radii.
-The recipient does not move. A full recipient's inventory causes a normal
+prohibition. The source walks toward the target; an immobile inventory source
+such as a stash building can give directly when the recipient is already in
+range. Completion revalidates both unit and item state and uses
+`Misc.GiveItemRange` plus unit collision radii. The recipient does not move.
+A full recipient's inventory causes a normal
 world drop at its position. The item is not transferred when the order is
 issued, and an invalidated target/item cancels without changing inventory.
 
