@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "262 executable original/evidence contracts;543 total entries; provenance and limitations remain per-entry.",
+  "scope": "263 executable original/evidence contracts;544 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53974,6 +53974,56 @@
       "exclusions": [
         "Arbitrary terrain and other producer families remain open. Nonreturning Pow discovery does not claim engine lifetime parity;45 tasks remain."
       ]
+    },
+    {
+      "id": "oracle-goal308",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_goal308.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "goal308.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 920
+        },
+        "captures": {
+          "equal": 4
+        },
+        "controls": {
+          "equal": 2
+        },
+        "motion_states": {
+          "equal": 1945
+        },
+        "first_route_points": {
+          "equal": 300
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "Public goal routes/removal and unit placement clamp ordering;12+12 scenes,1945 complete in-window commits,300 first-route points and cold saves.",
+      "exclusions": [
+        "All footprint classes, water/bridges/rejected-support, outside constructor admission and later outside-goal lifetimes remain open. No broad task closure or performance acceptance."
+      ]
     }
   ],
   "fixtures": [
@@ -54872,7 +54922,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "24ae60375259a5f32ef5561b7fb4a496bfe27c71796af79dbf9263fd34aff915"
+      "sha256": "7baa46e70aefcf190a4f46ac88689cb76cd4daf5df043eded699117b88ddc86c"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55728,7 +55778,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "ba684c297081b9573a7bdeac3afc95006fd6409e747ecaf343fca7a6cabc3a5f"
+      "sha256": "cca7bfb9201d81ff2dfa1c589d74a26ca914c8f81619fb16b143c0a5d48c2e01"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -56420,7 +56470,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "9bfa0e3d936763aeb32fe734edec337afba0af3deab2e5ca05c07104d71d00ee"
+      "sha256": "9bc671aa17eedbd078f65e416c3dbbd78820af903aba7fd4abc634a94097f2fa"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -56664,7 +56714,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "b65b9e294cd6063581f4c821aa5a18d46a85d5765fbf4162eca386eb6389c416"
+      "sha256": "75a9751dac75571b8d92ea9c2712d8ee8cffd03aeede4b580947d8214228c6e7"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -56676,11 +56726,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "0f7da84546e633e2715d5088f2d85d2cc5b273bcefc90b74ebda3640dcf7e6ce"
+      "sha256": "2cddbe77700de4c6535070f699e5e52acf415e994e125f029aa29b1f058fd194"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "548994184f1e8c87d831d52efd2e0eb370e3d2943e10613758445236043a3352"
+      "sha256": "dde1696c2e7a2c30211e0cd599f4f509a8646c03be298312d61d2f31033cfdb7"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -62389,6 +62439,62 @@
     {
       "path": "tools/frida/research/power307_probe.j",
       "sha256": "f09c2765a85dd49ed6954de88d9f7ce54731517a328528e06c49dae784134678"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/fixtures/retail_goal308_motion.h",
+      "sha256": "d1535480d66982661312eb8381f3068e559e0318b8fb2ec0421626179e08965e"
+    },
+    {
+      "path": "tools/ghidra/research/Goal308Evidence.java",
+      "sha256": "6a9cf5e1056ca0aa574ec051f3dad96676109b271632f2d10ceb2af536ef542d"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_goal308.py",
+      "sha256": "5714c5309d5a9be7cba4aa1d789f606ef31fa1270fdb7aacb219a92522314423"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-goal308-1.27.json",
+      "sha256": "d211d060717d529d4d0e2ceb9bff12bba9796cf848a66794cb68e281eed4d94c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-goal308-1.27.json.gz",
+      "sha256": "8c189e778414d74a49457bfdd62daeabe402d5812ed17bb54cfe24cc0389c6d9"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_goal308.py",
+      "sha256": "5fe8139b06f9c34544f520c52798ef096f88f303b611a599dc85672b68bc2517"
+    },
+    {
+      "path": "tools/frida/research/goal308_capture.py",
+      "sha256": "418280158740f7fcbd82d2a994228f5d311f2cc2fa4eb842b5cd968ccdba8102"
+    },
+    {
+      "path": "tools/frida/research/goal308_observer.js",
+      "sha256": "64e3bf849f409c44087302c778d7e4c187d5731a3838021a46ab78326aee0e1a"
+    },
+    {
+      "path": "tools/frida/research/goal308_make_map.py",
+      "sha256": "f1a7561484ba84708d43a6c7094261b69ff424cff4f0f32ad1f44fc6fee9c09d"
+    },
+    {
+      "path": "tools/frida/research/goal308_probe.j",
+      "sha256": "2be42100d2972d76a556123bbb286889404e1ac20389d9d2b3e541889feffa80"
+    },
+    {
+      "path": "tools/frida/research/place308_capture.py",
+      "sha256": "9a2177275230a8bdec3caa7c5b0ef1e7695145373fd29219eafec5e435f3921b"
+    },
+    {
+      "path": "tools/frida/research/place308_observer.js",
+      "sha256": "f640b9cff0a79d0c2f3dcec6a4bb1c4c96f8d10cb1f42b0355f7923353ebdf5f"
+    },
+    {
+      "path": "tools/frida/research/place308_make_map.py",
+      "sha256": "5fc66a9d6a6729b5fcefdaddbcd4f5eb7b62fabf2921bd68232e65c6fb4a9138"
+    },
+    {
+      "path": "tools/frida/research/place308_probe.j",
+      "sha256": "427bf207e282b297fd87f0263cbc4377f0a823cf43b29a7224fe32029cb1bee1"
     }
   ]
 }

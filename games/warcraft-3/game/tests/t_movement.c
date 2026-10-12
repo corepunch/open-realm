@@ -25580,3 +25580,138 @@ TEST(wc3_movement, removal304_dead_owner_is_not_retired_twice) {
 }
 
 #endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_goal308_motion.h"
+TEST(wc3_movement, goal308_public_goal_routes_match_retail) {
+    FOR_LOOP(scene,sizeof(goal308_motion)/sizeof(*goal308_motion))FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        edict_t *unit=alloc_test_unit(scene==10 ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o'),288,288),*block=NULL,*extra=NULL;
+        unit->svflags=SVF_MONSTER;unit->s.model=1;unit->movetype=scene==10 ? MOVETYPE_FLY : MOVETYPE_STEP;unit->stand=unit_stand;
+        if(scene==10)unit->aiflags|=AI_FLYING;
+        unit->collision=scene==10 ? 8 : 31;unit->unitinfo.MoveSpeed=scene==10 ? 320 : 270;unit->unitinfo.TurnSpeed=.6f;
+        unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->targtype=scene==10 ? TARG_AIR : TARG_GROUND;unit_stand(unit);
+        struct {uint16_t width,height;color32_t pixels[16];} footprint={4,4};
+        vec2_t goal={scene==0 ? 2560 : scene==2 ? -512 : 1536,scene==1 || scene==2 ? 2560 : 800};
+        bool building=scene!=4 && scene!=7 && scene!=9;
+        if(scene>=3) {
+            block=alloc_test_unit(building ? MAKEFOURCC('h','h','o','u') : MAKEFOURCC('h','f','o','o'),1536,building ? 768 : 800);
+            block->svflags=SVF_MONSTER;block->s.model=1;block->stand=unit_stand;
+            block->collision=building ? 72 : 31;block->targtype=building ? TARG_STRUCTURE : TARG_GROUND;
+            if(building) {
+                FOR_LOOP(k,16)footprint.pixels[k]=(color32_t){255,0,255,255};
+                block->pathtex=(pathTex_t *)&footprint;block->s.flags|=EF_BUILDING;block->aiflags|=AI_IMMOBILE;
+                CM_BakeStaticObstacles();
+            }
+            G_PublishMoveSpatialObject(block);S_SetUnitPaused(block,true);goal=block->s.origin2;
+            if(scene==5 || scene==7) {
+                extra=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1312,800);
+                extra->svflags=SVF_MONSTER;extra->s.model=1;extra->stand=unit_stand;
+                extra->collision=31;extra->targtype=TARG_GROUND;G_PublishMoveSpatialObject(extra);S_SetUnitPaused(extra,true);
+                S_SetUnitAxisPosition(extra,0,goal.x);S_SetUnitAxisPosition(extra,1,goal.y);
+            }
+        }
+        unit->no_pathing=scene==11;
+        G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+        level.pathing_clock=(wc3Clock_t){wc3_float(goal308_motion[scene].clock[0]),goal308_motion[scene].clock[1],300};
+        level.pathing_counter=goal308_motion[scene].counter;S_SetUnitAxisPosition(unit,0,288);
+        if(scene>=6 && scene<=9)T_ASSERT(unit_issuetargetorder(unit,"move",block));
+        else T_ASSERT(unit_issueorder(unit,"move",&goal));
+        bool mismatch=false;
+        unsigned count=goal308_motion[scene].count;
+        if(scene==8 || scene==9)T_ASSERT(run_test_jass(
+            "globals\nunit goal308Target=null\nendglobals\n"
+            "function goal308Remove takes nothing returns nothing\ncall RemoveUnit(goal308Target)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+            "call GroupEnumUnitsInRange(g,1536,800,64,null)\nset goal308Target=FirstOfGroup(g)\ncall DestroyGroup(g)\nendfunction\n"));
+        bool removed=false;
+        FOR_LOOP(i,count) {
+            uint32_t const *row=goal308_motion[scene].rows[i];
+            if(scene==8 && !removed && i==goal308_motion[scene].removal_index) {
+                level.pathing_clock=(wc3Clock_t){wc3_float(goal308_motion[scene].removal_clock[0]),goal308_motion[scene].removal_clock[1],300};
+                level.pathing_counter=goal308_motion[scene].removal_counter;
+                jass_callbyname(level.vm,"goal308Remove",false);T_ASSERT(!jass_rterror_pending(level.vm));removed=true;
+                T_EQ(unit->current_order_id,G_OrderId("move"));T_NULL(unit->movement.follow_target);
+            }
+            moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group){mismatch=true;break;}
+            uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,6) {
+                T_EQ(actual[k],row[k+3]);
+                if(actual[k]!=row[k+3]) {fprintf(stderr,"goal308 scene=%u row=%u field=%u engine=%08x retail=%08x\n",scene,i,k,actual[k],row[k+3]);mismatch=true;}
+            }
+            if(mismatch)break;
+            if(saved && (i==1 || ((scene==8 || scene==9) && i==31))) {
+                cstring_t file=Test_TempPath("wc3-goal308-active.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                /* This synthetic footprint is a borrowed fixture asset. Live
+                 * loads rebind authored textures; restore the same fixture
+                 * asset before exercising subsequent removal/reconstruction. */
+                if(block && building) {block->pathtex=(pathTex_t *)&footprint;CM_BakeStaticObstacles();}
+            }
+            level.pathing_clock=(wc3Clock_t){wc3_float(row[1]),row[2],300};level.pathing_counter=row[0]-1;
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            uint32_t after[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,5) {
+                T_EQ(after[k],row[k+9]);
+                if(after[k]!=row[k+9]) {fprintf(stderr,"goal308 scene=%u row=%u after=%u engine=%08x retail=%08x\n",scene,i,k,after[k],row[k+9]);mismatch=true;}
+            }
+            if(mismatch)break;
+            if(!i && goal308_motion[scene].route_count) {
+                moveFineRoute_t const *route=&unit->movement.fine_route;
+                T_EQ(route->count,goal308_motion[scene].route_count);T_EQ(route->index,goal308_motion[scene].index);
+                if(route->count==goal308_motion[scene].route_count)FOR_LOOP(k,route->count) {
+                    T_EQ(wc3_float_bits(route->points[k].x),goal308_motion[scene].route[k][0]);
+                    T_EQ(wc3_float_bits(route->points[k].y),goal308_motion[scene].route[k][1]);
+                }
+            }
+        }
+        T_ASSERT(!mismatch);
+        if(scene==9) {
+            level.pathing_clock=(wc3Clock_t){wc3_float(goal308_motion[scene].removal_clock[0]),goal308_motion[scene].removal_clock[1],300};
+            level.pathing_counter=goal308_motion[scene].removal_counter;
+            jass_callbyname(level.vm,"goal308Remove",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(unit->current_order_id,0);T_NULL(move_unit_group(unit));T_NULL(unit->movement.follow_target);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),1099372768u);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),1094437056u);
+            T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+        }
+        if(block)block->pathtex=NULL;
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+#endif
+
+#ifdef BZ_TESTS
+/* Values come from public retail SetUnitPosition returns, including queryzero.
+ * Clamp before searching: searching from the original out-of-map point selects
+ * a different ring and tie order even if it eventually finds a legal point. */
+TEST(wc3_movement, place308_public_unit_position_clamps_before_admission) {
+    static vec2_t const requested[]={{-512,1024},{2560,1024},{1024,-512},{1024,2560},{-512,2560},{2048,2048}};
+    static vec2_t const admitted[]={{48,1008},{2016,1024},{1072,48},{1024,2016},{48,2000},{2016,2016}};
+    FOR_LOOP(scene,12) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),288,288);
+        unit->svflags=SVF_MONSTER;unit->s.model=1;unit->movetype=MOVETYPE_STEP;unit->stand=unit_stand;
+        unit->collision=31;unit->targtype=TARG_GROUND;unit_stand(unit);
+        char script[1024];snprintf(script,sizeof(script),
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\nlocal unit u=null\n"
+            "call GroupEnumUnitsInRange(g,288,288,16,null)\nset u=FirstOfGroup(g)\ncall DestroyGroup(g)\n"
+            "call SetUnitPathing(u,%s)\ncall SetUnitPosition(u,%.0f,%.0f)\nendfunction\n",
+            scene<6 ? "true" : "false",requested[scene%6].x,requested[scene%6].y);
+        T_ASSERT(run_test_jass(script));T_EQ(unit->current_order_id,0);
+        T_EQ(unit->s.origin2.x,admitted[scene%6].x);T_EQ(unit->s.origin2.y,admitted[scene%6].y);
+        T_EQ(unit->movement.fine_pose.x,admitted[scene%6].x/32);T_EQ(unit->movement.fine_pose.y,admitted[scene%6].y/32);
+        reset_entities();setup_test_world();
+    }
+}
+#endif

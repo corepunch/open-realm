@@ -18996,3 +18996,84 @@ same archive under `power-discovery/`.
 error for this domain; it does not reproduce retail's simulation stall. Existing
 error/recovery tests remain valid descriptions of that explicit engine deviation
 and were not overwritten. No numeric result or lifetime parity is claimed.
+
+
+## Unit placement clamps before admission; lost approaches retain physical ownership (Payoff308)
+
+Payoff308 fixes two independent producer gaps under open `FOOT-04.2`.
+`Widget_WritePositionAfterAdmission` (`653510`) copies and clamps world XY through
+`04c330` before virtual position admission. `Unit_SetPositionWithAdmission`
+(`698050`), reached by public `SetUnitPosition`, uses that shared writer after
+public Stop. The engine had started its32-ring search at the original outside
+request. Even when it eventually found a legal point, the different starting
+ring changed the admission tie order. `S_PlaceUnitPosition` now applies the
+existing exact widget-axis clamp before the existing placement search. Point
+Move clicks, raw axis setters and constructor admission keep their separately
+owned producer contracts.
+
+Two read-only retail repeats plus an observer-free control preserve49 public
+markers for twelve placements, with terrain pathing enabled and disabled. In a
+flat0..2048 arena, the outer clamp is0..2016. Footman admission then produces:
+
+| Requested world point | Admitted world point |
+|---|---|
+|(-512,1024)|(48,1008)|
+|(2560,1024)|(2016,1024)|
+|(1024,-512)|(1072,48)|
+|(1024,2560)|(1024,2016)|
+|(-512,2560)|(48,2000)|
+|(2048,2048)|(2016,2016)|
+
+All six results repeat with `SetUnitPathing(false)`: queryzero does not remove
+footprint bounds or the outer clamp. Public-native engine assertions fail40
+checks before the fix and pass all72 afterward. The captured wrapper outputs
+and clamp outputs are frozen as raw scalar words, separately from rounded
+public strings.
+
+The second gap is internal point-task recovery after target loss. Original
+`CAbilityMove_OnTargetLost` (`5ff490`) retains the user head/order point, recovers
+the old task, then inserts a transient replacement through the normal task
+producer. Removing a Farm during its nonpersistent approach immediately binds
+a new physical singleton; removing the distant Footman's persistent Follow
+cancels it. The engine already retained the correct waypoint and walker but
+omitted the physical-owner admission stage for the fallback. It now invokes
+Move's existing `A_ORDER_ACCEPTED` stage after internal point admission. This
+constructs the physical task without publishing another user command.
+
+A second controlled map has twelve scenes: three outside point goals, point
+goals occupied by a Farm or Footman, a Farm with an overlapping extra occupant,
+a Farm target, an overlapping unit target, both target-removal policies,
+flying point movement and queryzero point movement. Two complete read-only
+repeats agree on all8653 native observer records and785 public markers, also
+matched by the unhooked control. Engine replay checks all1945 in-window physical
+visits before and after commit, all300 first-route point pairs and the captured
+removal clock/order. The corrected failing-first recovery regression fails four
+assertions because the point successor has no physical owner, then passes all
+48030 checks including active cold saves and cancellation. The synthetic Farm
+texture is a borrowed fixture asset and is rebound after loading, matching the
+live asset-rebind contract; the actual saved movement state is not patched.
+
+Earlier captures without marker clocks, an early replay that removed the target
+before an equal-counter preceding commit, and the first synthetic-load attempt
+without rebinding its borrowed texture are retained as diagnostics. None supplies
+replacement retail expectations. The accepted event ordering uses the marker's
+sequence position as well as its native clock, because a marker and preceding
+owner can share the same update counter.
+
+Seven saved Ghidra function annotations and920 original instruction guards are
+retained in `Goal308Evidence.java` and `MapPathfinding.java`; saved/readback listings
+match. The executable verifier is `verify_wc3_pathing_goal308.py`, backed by
+`retail-goal308-1.27.json` and its frozen capture bundle. Archive:
+`research/FOOT-04.2/payoff308`. Save185 is unchanged. This is chunk seven since
+checkpoint301; focused validation follows the approved batch cadence.
+
+Focused validation passes170 tests/392457 assertions per Classic/TFT, plus11
+evidence rejection checks and37 corpus checks. The curated corpus now contains
+263 executable contracts/544 entries; all543 preceding entries and unowned
+historical fixture bytes remain unchanged.
+
+This does not close the broad parent: all footprint classes, water/bridge and
+rejected-support producers, constructor outside-domain cases and later lifetime
+of the six-second outside-goal observations remain unverified here. No new TODO
+IDs, tolerance relaxation, full-suite completion or performance acceptance is
+claimed.

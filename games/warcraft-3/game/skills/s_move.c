@@ -20,6 +20,7 @@
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 #include "games/warcraft-3/common/wc3_pathing_formation.h"
 #include "games/warcraft-3/common/wc3_pathing_coordinates.h"
+#include "games/warcraft-3/common/wc3_pathing_widget.h"
 
 /* With move-time collision (block-and-slide), "blocked" now means the unit
  * could not take a step this frame because it was boxed in — common and
@@ -2497,7 +2498,12 @@ void S_PlaceUnitPosition(edict_t *self,vec2_t const *requested) {
     vec2_t old_position=self->s.origin2,position;
     self->movement.velocity = (vec2_t){0};
     self->movement.clock_valid = false;
-    G_FindUnitPlacementPosition(self, requested, &position);
+    /*653510 clamps world XY before virtual position admission. Preserve the
+     * resulting ring/tie order even when the terrain query is disabled. */
+    box2_t const bounds=CM_GetWorldBounds();
+    vec2_t point_request={wc3_widget_clamp_axis(requested->x,bounds.min.x,bounds.max.x),
+                          wc3_widget_clamp_axis(requested->y,bounds.min.y,bounds.max.y)};
+    G_FindUnitPlacementPosition(self,&point_request,&position);
     wc3GridPose_t pose;
     unit_grid_pose(self, &pose);
     float point[2] = {position.x, position.y};
@@ -6878,6 +6884,10 @@ BZ_ABILITY_PROC(CAbilityMove) {
                 edict_t *goal=Waypoint_add(&point);
                 if(goal) {
                     S_IssueMoveOrder(ent,goal,order);
+                    /*5ff490 reissues a complete point task, including its
+                     * physical owner. This internal recovery has no public
+                     * command dispatcher to finish that admission for it. */
+                    CAbilityMove(ent,A_ORDER_ACCEPTED,NULL);
                     return true;
                 }
             }
