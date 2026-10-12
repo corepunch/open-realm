@@ -18840,3 +18840,46 @@ including the56-assertion new public-native regression. No full-suite run was
 needed at this second implementation chunk after checkpoint301. Existing
 retail fixture files and expected words are retained unchanged. Save185 is
 unchanged because no serialized layout or field interpretation changes.
+
+
+## Final removal runs the first Move disable before freeing storage (Payoff304)
+
+Removal has a later semantic retirement stage after its synchronous task
+cleanup. Two new six-scene read-only retail repeats and one uninstrumented
+control cover idle, moving, paused and nested issued-Stop callback removals.
+Every case enters`69c510` after`RemoveUnit` returns, commits the dead flag and
+zero health, then invokes Move's first counted-disable recovery returning
+`5fc18a`. The callback sees Move availability/order counters`1/0`; finalization
+leaves`1/1`. Two synchronous`600433` cleanups precede native return. Nested Stop
+adds its own earlier cleanup, preserving all previously frozen return markers.
+
+The scheduled engine release now performs semantic availability retirement
+before physical`G_FreeEdict`. This preserves canonical storage through the
+callback, retains the separation inverse introduced by302, and skips duplicate
+retirement for an already-dead unit. A generation/liveness check protects the
+subsequent physical release if a synchronous owner callback changes identity.
+The public-native regression initially fails12 recovery assertions, one per
+fresh/saved combination; its final path runs the real frame scheduler with an
+advanced engine clock. The minimal local Footman fixture explicitly supplies
+its missing retail collision field. A separate dead-then-remove control checks
+that final release does not acquire another retirement contribution.
+
+The earlier301 engine assertion of zero post-return recovery was an extrapolation
+beyond the Stop284 observer window. It is corrected from this new retail evidence;
+the old marker fixtures, captured instruction words and expected native-return
+counts are unchanged.304 freezes an additional fixture rather than regenerating
+those valid expectations. Four Ghidra function annotations,326 original instruction
+guards and saved/readback exports preserve this correction explicitly, including
+the previous annotation's limited observation window.
+
+All36 public markers agree between the new repeats and the observer-free control.
+The captured fine-record resolver returned null: this chunk does not claim new
+retail fine-geometry coverage or a retail save/load capture. Engine checks cover
+inactive fine storage and saved pending-release continuation. Full MAP-04.2 exit
+coverage remains open. Evidence, source/helper pins, failing/accepted reports and
+maps are archived at`research/MAP-04.2/payoff304` beneath the analysis report root.
+
+Focused Classic/TFT each passes551 tests /83,083 assertions, including the two
+new614-assertion scheduler/inverse regressions. Eleven new evidence checks,
+twelve303 checks and37 corpus checks pass. This is implementation chunk3 after
+full checkpoint301; no additional full-suite run is claimed. Save185 is unchanged.

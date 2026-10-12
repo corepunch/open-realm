@@ -24586,7 +24586,9 @@ static void stop284_public(unsigned action,bool moving) {
         unsigned const before_free=stop284.stages;
         if(stop301_action)S_TestMoveRecoveryTrace(stop284_scope,NULL);
         G_TestFinishDeferredFrees();
-        if(stop301_action){S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(stop284.stages,before_free);}
+        /* Stop284's frozen marker rows end at native return. New Removal304
+         * captures prove a separate first-disable recovery at final release. */
+        if(stop301_action){S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(stop284.stages,before_free+(stop301_action==4?4:0));}
         if(stop301_action==4)T_NULL(G_GetMoveSpatialObject(index));
         if(stop301_action==6)T_EQ(G_GetMoveSpatialObject(index),stop300_record);
     }
@@ -25290,6 +25292,84 @@ TEST(wc3_movement, owner303_death_recovery_requires_attached_move) {
         reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;
     }
     setup_test_world();
+}
+
+/* The return-window Stop284 fixture does not observe final availability
+ * retirement. Removal304 follows ordinary, paused and nested removals through
+ * physical destruction and observes exactly one additional Move cancellation. */
+static unsigned removal304_stages;
+static bool removal304_final;
+static edict_t *removal304_unit;
+static void removal304_trace(void *data,unsigned stage,edict_t const *unit) {
+    (void)data;if(unit!=removal304_unit)return;
+    T_EQ(stage,removal304_stages++%4);
+    T_EQ(M_IsDead(unit),removal304_final);
+    if(removal304_final) {
+        wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
+        T_NOT_NULL(record);
+        if(record) {T_EQ(record->category&WC3_RECORD_INSERT,0);T_EQ(record->box.min.x,-128000);}
+    }
+}
+TEST(wc3_movement, removal304_scheduled_first_disable_after_native_return) {
+    FOR_LOOP(saved,2)FOR_LOOP(scene,6) {
+        reset_entities();setup_test_world();uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        char script[1800];snprintf(script,sizeof(script),
+            "globals\nunit u=null\nboolean nested=false\nendglobals\n"
+            "function callback takes nothing returns nothing\n"
+            "if GetIssuedOrderId()==OrderId(\"stop\") and not nested then\n"
+            "set nested=true\ncall RemoveUnit(u)\nendif\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+            "set u=CreateUnit(Player(0),'hfoo',656,656,0)\ncall SetUnitAcquireRange(u,0)\n"
+            "%s\nendfunction\n"
+            "function moving takes nothing returns nothing\ncall IssuePointOrder(u,\"move\",1200,656)\nendfunction\n"
+            "function pause takes nothing returns nothing\ncall PauseUnit(u,true)\nendfunction\n"
+            "function issue takes nothing returns nothing\n%s\nendfunction\n",
+            scene>=4?"call TriggerRegisterUnitEvent(t,u,EVENT_UNIT_ISSUED_ORDER)\ncall TriggerAddAction(t,function callback)":"",
+            scene>=4?"call IssueImmediateOrder(u,\"stop\")":"call RemoveUnit(u)");
+        T_ASSERT(run_test_jass(script));edict_t *unit=NULL;
+        FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','f','o','o'))unit=e;
+        T_NOT_NULL(unit);if(!unit)continue;unsigned index=unit-g_edicts;
+        /* Minimal local hfoo data omits the retail Footman collision field. */
+        unit->s.model=1;unit->collision=31;G_PublishMoveSpatialObject(unit);
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        if(scene&1) {
+            jass_callbyname(level.vm,"moving",false);
+            FOR_LOOP(i,4){level.time+=FRAMETIME;globals.RunFrame();}
+        }
+        if(scene==2 || scene==3)jass_callbyname(level.vm,"pause",false);
+        removal304_unit=unit;removal304_stages=0;removal304_final=false;
+        S_TestMoveRecoveryTrace(removal304_trace,NULL);jass_callbyname(level.vm,"issue",false);
+        S_TestMoveRecoveryTrace(NULL,NULL);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(removal304_stages,scene>=4?12:8);T_ASSERT(G_IsDeferredFree(unit));T_ASSERT(!M_IsDead(unit));
+        T_EQ(unit->current_order_id,0);
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-removal304-pending.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+index;
+        }
+        removal304_unit=unit;removal304_stages=0;removal304_final=true;
+        S_TestMoveRecoveryTrace(removal304_trace,NULL);
+        for(unsigned i=0;i<8 && unit->inuse;i++){level.time+=FRAMETIME;globals.RunFrame();}
+        S_TestMoveRecoveryTrace(NULL,NULL);
+        T_EQ(removal304_stages,4);T_ASSERT(!unit->inuse);T_NULL(G_GetMoveSpatialObject(index));
+        T_ASSERT(!G_IsDeferredFree(unit));
+    }
+    removal304_unit=NULL;reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, removal304_dead_owner_is_not_retired_twice) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("globals\nunit u=null\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set u=CreateUnit(Player(0),'hfoo',656,656,0)\ncall KillUnit(u)\ncall RemoveUnit(u)\nendfunction\n"));
+    edict_t *unit=NULL;FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','f','o','o'))unit=e;
+    T_NOT_NULL(unit);if(!unit)return;T_ASSERT(M_IsDead(unit));T_ASSERT(G_IsDeferredFree(unit));
+    removal304_unit=unit;removal304_stages=0;removal304_final=true;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    S_TestMoveRecoveryTrace(removal304_trace,NULL);
+    for(unsigned i=0;i<8 && unit->inuse;i++){level.time+=FRAMETIME;globals.RunFrame();}
+    S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(removal304_stages,0);T_ASSERT(!unit->inuse);
+    removal304_unit=NULL;reset_entities();setup_test_world();
 }
 
 #endif

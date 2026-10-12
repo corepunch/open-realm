@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.** Payoff298 implements Human Repair target notification before work, callback cancellation/removal guards and saved Pause/resume re-notification. Two original repeats/control agree3027 public markers and324 native boundaries. Build retires before Repair activation; it is not a hidden resumable head underneath active Repair. ORDER-01.16 remains open for cancellation/refunds and alternate producers. See [Human Repair activation](retail-pathfinding-engine.md#human-build-activates-and-resumes-a-real-repair-head-payoff298).
 
+Payoff304 integrates scheduled removal's first counted Move disable before
+storage destruction, including idle/moving/paused/nested and saved engine paths.
+New complete retail repeats/control correct an old engine-only extrapolation
+after native return; existing return-window fixtures remain unchanged. MAP-04.2
+still requires its complete exit inventory;46 remain. See
+[final removal](retail-pathfinding-engine.md#final-removal-runs-the-first-move-disable-before-freeing-storage-payoff304).
+
 Payoff303 fixes direct death recovery and counted retirement for units without
 an attached Move owner. Two new retail repeats and observer-free control agree;
 zero-speed ground/flyer and building deaths perform no Move recovery. Earlier

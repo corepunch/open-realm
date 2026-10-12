@@ -223,7 +223,16 @@ void G_FireUnitRelease(void) {
         G_RunEvents();jass_runevents(level.vm);return;
     }
     DeferredFreeRemove(slot);
-    if(ent->inuse && ent->spawn_time==pending.spawn_time)G_FreeEdict(ent);
+    if(ent->inuse && ent->spawn_time==pending.spawn_time) {
+        /*69c510 finalizes availability while the canonical unit/mover still
+         * exist. First Move disable owns a recovery even after RemoveUnit's
+         * synchronous task cleanup. Storage destruction is a later stage. */
+        if(ent->class_id && !M_IsDead(ent)) {
+            ent->svflags|=SVF_DEADMONSTER;G_SetHealth(ent,0);
+            S_UnitAbilityEvent(ent,A_UNIT_RETIRE);
+        }
+        if(ent->inuse && ent->spawn_time==pending.spawn_time)G_FreeEdict(ent);
+    }
 }
 
 void G_RebaseUnitReleases(float span) {
