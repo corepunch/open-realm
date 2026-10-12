@@ -100,7 +100,9 @@ struct game_import {
     /* Untrusted JASS save natives are confined to an engine-owned session
      * sandbox. The game cannot choose its root or access manual saves. */
     bool (*ScriptSavePath)(cstring_t name, string_t out, uint32_t out_size);
+    /* Read-only cache lookup never creates a workspace; the write path does. */
     bool (*ScriptCachePath)(cstring_t name, string_t out, uint32_t out_size);
+    bool (*ScriptCacheReadPath)(cstring_t name, string_t out, uint32_t out_size);
     /* Trusted engine-only operations, never exposed to JASS. */
     bool (*BindScriptSaveScope)(cstring_t manual_name);
     cstring_t (*ScriptScopeIdentity)(void);

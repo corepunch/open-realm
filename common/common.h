@@ -190,6 +190,7 @@ bool FS_RestoreScriptSaveScope(cstring_t manual_name);
 cstring_t FS_ScriptScopeIdentity(void);
 bool FS_ScriptSavePath(cstring_t name, string_t out, uint32_t out_size);
 bool FS_ScriptCachePath(cstring_t name, string_t out, uint32_t out_size);
+bool FS_ScriptCacheReadPath(cstring_t name, string_t out, uint32_t out_size);
 bool FS_ScriptSaveExists(cstring_t name);
 bool FS_ScriptCopySave(cstring_t source, cstring_t target);
 bool FS_ScriptRenameDirectory(cstring_t source, cstring_t target);

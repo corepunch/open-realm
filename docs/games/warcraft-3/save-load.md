@@ -766,7 +766,11 @@ file**. Simply starting a map, generating an opaque playthrough ID, resolving
 a script filename, or initializing an empty cache does not create a checkpoint.
 A normal single-map save therefore produces just its ordinary `.sav` file;
 loading or deleting it does not manufacture `script/bindings` or checkpoint
-directories. Empty script-workspace directories alone do not require a snapshot.
+directories. Empty script-workspace directories alone do not require a snapshot. Cache
+reads (including `InitGameCache` on ordinary maps) now resolve paths without
+creating a workspace or `cache/` directory; only the `SaveGameCache`
+write path may materialize that directory. Previously created empty workspace trees
+are removed at the ordinary playthrough reset when still owned by that session.
 
 When committed zone saves, scripted save files, or disk-backed cache sidecars
 exist, the existing immutable checkpoint and `ORCSCOPE2` binding behaviour is

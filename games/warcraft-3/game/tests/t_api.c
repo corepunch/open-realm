@@ -7508,6 +7508,47 @@ TEST(wc3_api, gamecache_save_commits_to_process_memory) {
 static char test_gamecache_scope[33] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 static cstring_t test_gamecache_scope_identity(void) { return test_gamecache_scope; }
 
+static int test_gamecache_read_resolutions, test_gamecache_write_resolutions;
+static cstring_t gamecache_disk_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "wc3_gamecache_mode") ? "disk" : fallback;
+}
+static bool gamecache_test_read_path(cstring_t name, string_t out, uint32_t size) {
+    (void)name;
+    if (out && size) out[0] = '\0';
+    test_gamecache_read_resolutions++;
+    return false; /* Absent cache is a normal first-load condition. */
+}
+static bool gamecache_test_write_path(cstring_t name, string_t out, uint32_t size) {
+    (void)name;
+    if (out && size) out[0] = '\0';
+    test_gamecache_write_resolutions++;
+    return false;
+}
+
+TEST(wc3_api, init_game_cache_never_uses_creating_cache_resolver) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    cstring_t (*old_scope)(void) = gi.ScriptScopeIdentity;
+    bool (*old_read)(cstring_t, string_t, uint32_t) = gi.ScriptCacheReadPath;
+    bool (*old_write)(cstring_t, string_t, uint32_t) = gi.ScriptCachePath;
+    gameCache_t *cache = calloc(1, sizeof(*cache));
+    T_NOT_NULL(cache);
+    if (!cache) return;
+    gi.CvarString = gamecache_disk_cvar;
+    gi.ScriptScopeIdentity = test_gamecache_scope_identity;
+    gi.ScriptCacheReadPath = gamecache_test_read_path;
+    gi.ScriptCachePath = gamecache_test_write_path;
+    test_gamecache_read_resolutions = 0;
+    test_gamecache_write_resolutions = 0;
+    G_GameCacheInit(cache, "Unused.w3v");
+    T_EQ(test_gamecache_read_resolutions, 1);
+    T_EQ(test_gamecache_write_resolutions, 0);
+    free(cache);
+    gi.CvarString = old_cvar;
+    gi.ScriptScopeIdentity = old_scope;
+    gi.ScriptCacheReadPath = old_read;
+    gi.ScriptCachePath = old_write;
+}
+
 TEST(wc3_api, gamecache_memory_never_crosses_engine_session_scope) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     cstring_t (*old_identity)(void) = gi.ScriptScopeIdentity;

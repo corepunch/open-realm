@@ -249,13 +249,16 @@ bool FS_ScriptSavePath(cstring_t name, string_t out, uint32_t out_size) {
 
 /* Game-cache sidecars share the session capability but live outside the
  * JASS save-file namespace, so CopySaveGame/RemoveSaveDirectory cannot touch them. */
-bool FS_ScriptCachePath(cstring_t name, string_t out, uint32_t out_size) {
+/* Opening InitGameCache for reading must never materialize an empty live
+ * workspace. Only SaveGameCache may create the cache directory. Both paths
+ * apply the same virtual name and no-follow validation policy. */
+static bool FS_ResolveScriptCachePath(cstring_t name, string_t out, uint32_t out_size, bool create) {
     PATHSTR root;
     if (!out || !out_size) return false;
     out[0] = '\0';
     if (!name || !FS_ScriptComponent(name, strlen(name))) return false;
 #ifndef _WIN32
-    int dir = FS_ScriptDirectory("cache", true);
+    int dir = FS_ScriptDirectory("cache", create);
     if (dir < 0) return false;
     struct stat st;
     bool safe = fstatat(dir, name, &st, AT_SYMLINK_NOFOLLOW) != 0 ? errno == ENOENT : S_ISREG(st.st_mode);
@@ -263,7 +266,7 @@ bool FS_ScriptCachePath(cstring_t name, string_t out, uint32_t out_size) {
     if (!safe) return false;
 #else
     PATHSTR directory, file;
-    if (!FS_ScriptWindowsDirectory("cache", true, directory)) return false;
+    if (!FS_ScriptWindowsDirectory("cache", create, directory)) return false;
     if (snprintf(file, sizeof(file), "%s/%s", directory, name) >= (int)sizeof(file)) return false;
     DWORD attr = GetFileAttributesA(file);
     if (attr != INVALID_FILE_ATTRIBUTES && ((attr & FILE_ATTRIBUTE_REPARSE_POINT) ||
@@ -273,6 +276,14 @@ bool FS_ScriptCachePath(cstring_t name, string_t out, uint32_t out_size) {
     int len = snprintf(out, out_size, "%s/cache/%s", root, name);
     if (len < 0 || (uint32_t)len >= out_size) { out[0] = '\0'; return false; }
     return true;
+}
+
+bool FS_ScriptCachePath(cstring_t name, string_t out, uint32_t out_size) {
+    return FS_ResolveScriptCachePath(name, out, out_size, true);
+}
+
+bool FS_ScriptCacheReadPath(cstring_t name, string_t out, uint32_t out_size) {
+    return FS_ResolveScriptCachePath(name, out, out_size, false);
 }
 
 bool FS_ScriptSaveExists(cstring_t name) {
@@ -505,6 +516,44 @@ TEST(script_saves, accepts_only_explicit_virtual_paths) {
     T_ASSERT(!FS_ParseScriptName("Blizzard/Zones/trail.", false, parent, leaf));
     T_ASSERT(!FS_ParseScriptName("Blizzard/Zones/trail ", false, parent, leaf));
     T_ASSERT(!FS_ParseScriptName("Blizzard/Zones/CON .w3z", false, parent, leaf));
+}
+
+/* InitGameCache on ordinary maps must not leave even an empty cache folder.
+ * A real SaveGameCache retains the existing creating path and readable bytes. */
+TEST(script_saves, cache_read_does_not_create_playthrough_workspace) {
+    PATHSTR old_home, old_save, campaign_dir, cache_write, cache_read;
+    char old_session[sizeof(fs_script_session)];
+    strlcpy(old_home, fs_home_dir, sizeof(old_home));
+    strlcpy(old_save, fs_save_dir, sizeof(old_save));
+    strlcpy(old_session, fs_script_session, sizeof(old_session));
+    FS_SetHomeDirectory(Test_TempPath("script-cache-lazy-read"));
+    FS_ResetScriptSaveScope();
+
+    T_ASSERT(FS_ScriptScopeIdentity()[0] != '\0');
+    T_ASSERT(!FS_ScriptCacheReadPath("gamecache-Campaigns.w3v.orcgc", cache_read, sizeof(cache_read)));
+    T_ASSERT(snprintf(campaign_dir, sizeof(campaign_dir), "%s/campaigns", fs_save_dir) < (int)sizeof(campaign_dir));
+    T_ASSERT(!FS_DirectoryExists(campaign_dir));
+
+    /* Only the path used for an actual cache write is allowed to create it. */
+    T_ASSERT(FS_ScriptCachePath("gamecache-Campaigns.w3v.orcgc", cache_write, sizeof(cache_write)));
+    T_ASSERT(FS_DirectoryExists(campaign_dir));
+    T_ASSERT(FS_ScriptCacheReadPath("gamecache-Campaigns.w3v.orcgc", cache_read, sizeof(cache_read)));
+    T_STREQ(cache_write, cache_read);
+    FILE *f = fopen(cache_write, "wb");
+    T_NOT_NULL(f);
+    if (f) { T_EQ(fwrite("cache", 1, 5, f), 5); fclose(f); }
+    f = fopen(cache_read, "rb");
+    T_NOT_NULL(f);
+    if (f) {
+        char bytes[6] = {0};
+        T_EQ(fread(bytes, 1, 5, f), 5);
+        T_STREQ(bytes, "cache");
+        fclose(f);
+    }
+    FS_ResetScriptSaveScope();
+    strlcpy(fs_home_dir, old_home, sizeof(fs_home_dir));
+    strlcpy(fs_save_dir, old_save, sizeof(fs_save_dir));
+    strlcpy(fs_script_session, old_session, sizeof(fs_script_session));
 }
 
 TEST(script_saves, isolates_manual_saves_and_copies_zone_snapshots) {

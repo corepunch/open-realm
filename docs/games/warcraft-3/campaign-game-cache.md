@@ -148,9 +148,14 @@ gamecache-Campaigns.w3v.orcgc
 ```
 
 The game module does not link directly against `common` to call that resolver.
-`server/game.h` exposes it as `game_import.ScriptCachePath`, and
-`SV_InitGameProgs()` provides `FS_ScriptCachePath`. This keeps path ownership
-on the engine side and avoids unresolved symbols in `libgame`.
+`server/game.h` exposes write resolution as `game_import.ScriptCachePath`,
+provided by `FS_ScriptCachePath`, and read-only resolution as
+`game_import.ScriptCacheReadPath`, provided by `FS_ScriptCacheReadPath`.
+`InitGameCache()` uses the read-only resolver so opening an absent cache does
+**not** create `campaigns/<playthrough-id>/live/cache/` or even a live
+workspace. `SaveGameCache()` uses the creating resolver when attempting to
+persist its sidecar. Both paths retain the same private path validation and
+keep filesystem policy out of `libgame`.
 
 The cache resides at `saves/campaigns/<playthrough-id>/live/cache/gamecache-Campaigns.w3v.orcgc`
 under the normal per-user game directory (or existing portable fallback), not

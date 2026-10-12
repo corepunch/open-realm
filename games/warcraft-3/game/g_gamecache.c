@@ -110,7 +110,7 @@ static bool G_GameCacheKeyFits(cstring_t value, size_t size, cstring_t label) {
     return true;
 }
 
-static bool G_GameCachePath(cstring_t campaign, string_t out, uint32_t out_size) {
+static bool G_GameCachePath(cstring_t campaign, string_t out, uint32_t out_size, bool create) {
     cstring_t base;
     char safe[MAX_PATHLEN];
     char rel[MAX_PATHLEN];
@@ -143,8 +143,10 @@ static bool G_GameCachePath(cstring_t campaign, string_t out, uint32_t out_size)
         fprintf(stderr, "Game cache: resolved cache name is too long for '%s'\n", campaign);
         return false;
     }
-    /* A map must not read or overwrite other maps' campaign caches. */
-    return gi.ScriptCachePath && gi.ScriptCachePath(rel, out, out_size);
+    /* Reads must not create an empty playthrough; only committed writes may
+     * materialize disk storage. Both paths use the private engine namespace. */
+    if (create) return gi.ScriptCachePath && gi.ScriptCachePath(rel, out, out_size);
+    return gi.ScriptCacheReadPath && gi.ScriptCacheReadPath(rel, out, out_size);
 }
 
 static bool G_GameCacheWriteBytes(FILE *f, void const *data, size_t size) {
@@ -393,7 +395,7 @@ static bool G_GameCacheLoadDisk(gameCache_t *cache) {
     uint32_t version;
     uint32_t count;
 
-    if (!G_GameCachePath(cache->campaign, path, sizeof(path))) return false;
+    if (!G_GameCachePath(cache->campaign, path, sizeof(path), false)) return false;
     errno = 0;
     f = fopen(path, "rb");
     if (!f) {
@@ -462,7 +464,7 @@ static bool G_GameCacheSaveDisk(gameCache_t *cache) {
     bool ok = true;
     bool had_backup = false;
 
-    if (!cache || !cache->campaign[0] || !G_GameCachePath(cache->campaign, path, sizeof(path))) {
+    if (!cache || !cache->campaign[0] || !G_GameCachePath(cache->campaign, path, sizeof(path), true)) {
         return false;
     }
     if (snprintf(tmp, sizeof(tmp), "%s.tmp", path) >= (int)sizeof(tmp)) {

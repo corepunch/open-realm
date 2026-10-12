@@ -172,6 +172,7 @@ void SV_InitGameProgs(void) {
     import.SavePath = FS_SavePath;
     import.ScriptSavePath = FS_ScriptSavePath;
     import.ScriptCachePath = FS_ScriptCachePath;
+    import.ScriptCacheReadPath = FS_ScriptCacheReadPath;
     import.BindScriptSaveScope = FS_BindScriptSaveScope;
     import.ScriptScopeIdentity = FS_ScriptScopeIdentity;
     import.ScriptSaveExists = FS_ScriptSaveExists;
