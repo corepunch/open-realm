@@ -863,18 +863,21 @@ execute:
         if (SV_IsActive()) CL_SetLoadingProgress(0.05f);
         break;
     case CL_MENU_ACTION_MENU:
-        FS_ResetScriptSaveScope();
         /* Returning from a world is a session boundary, not an in-place menu
          * navigation.  Shut the client/server world down first, then rebuild
          * the menu after clearing the map asset scope so FDF/model state is
          * valid again even after a runtime menu restart. */
         CL_DisconnectInternal("Game ended.", false, false);
         SV_Shutdown();
+        /* Workspace cleanup now removes files: finish game shutdown first. */
+        FS_ResetScriptSaveScope();
         CL_RebuildMenu(pending.arg[0] ? pending.arg : "menu_main");
         break;
     case CL_MENU_ACTION_LOAD: {
-        FS_ResetScriptSaveScope();
         PATHSTR map;
+        /* Do not delete the running campaign workspace when the named save
+         * is missing or has an unreadable map identity. Restoration itself
+         * starts a fresh scope after this validation succeeds. */
         if (!SV_GetSaveMap(pending.arg, map, sizeof(map))) break;
         /* Only a player-selected manual save may reauthorize its original
          * private campaign storage. Missing/stale bindings leave a new scope. */

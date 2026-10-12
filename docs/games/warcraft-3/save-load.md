@@ -786,6 +786,9 @@ The engine discards its own previous live workspace when resetting the
 playthrough scope (new game, return to menu, named manual load), using
 no-follow recursive deletion on POSIX and reparse-point checks on Windows.
 The underlying save file and immutable named-save checkpoint remain intact.
+A named-load request checks that the save has a readable map identity before
+abandoning the active workspace. A later payload-validation failure can still
+replace the running game and is not yet a transactionally reversible load.
 Deleting a manual save also removes its private binding. On POSIX, manual-save
 commit/delete opportunistically reclaims up to eight unreferenced checkpoints
 older than seven days under a cross-process advisory binding lock. Windows
@@ -797,7 +800,10 @@ This shares physical extents while keeping writable files independent; it is
 safe even when a writer truncates the live copy in place. When reflinking is
 unavailable (or on Windows), the engine can instead write a level-1 gzip
 payload inside an engine-private `ORCPGZ1!` envelope if that consumes fewer
-bytes than the original file. Restoring a checkpoint expands such files back
+bytes than the original file. The restore path requires a real gzip member
+following the private marker, rejecting a malformed marker-only file rather
+than accidentally using zlib's transparent raw-read fallback. Restoring
+checkpoints expands such files back
 into their original uncompressed bytes; legacy plain checkpoint files are also
 accepted. The live zone snapshots and manual `.sav` files retain the existing
 serializer and checksum format. This is intentionally **not** an on-disk WC3

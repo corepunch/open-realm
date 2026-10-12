@@ -78,6 +78,12 @@ static bool FS_CheckpointCompressFile(int input, int output, uint64_t input_size
 }
 
 static bool FS_CheckpointExpandFile(int input, int output, uint64_t max_size) {
+    /* gzread accepts transparent non-gzip input. A private compressed
+     * checkpoint must have an actual gzip member after our envelope marker,
+     * otherwise corruption could be mistaken for a successful restore. */
+    uint8_t header[2];
+    if (pread(input, header, sizeof(header), (off_t)sizeof(fs_checkpoint_gzip_magic)) !=
+            (ssize_t)sizeof(header) || header[0] != 0x1f || header[1] != 0x8b) return false;
     int gzip_fd = dup(input);
     if (gzip_fd < 0) return false;
     gzFile gz = gzdopen(gzip_fd, "rb");
@@ -101,6 +107,64 @@ static bool FS_CheckpointExpandFile(int input, int output, uint64_t max_size) {
     if (gzclose(gz) != Z_OK) ok = false;
     return ok;
 }
+
+#ifdef BZ_TESTS
+TEST(script_saves, gzip_checkpoint_roundtrip_and_invalid_stream_rejection) {
+    cstring_t plain_path = Test_TempPath("checkpoint-gzip-source.bin");
+    cstring_t compressed_path = Test_TempPath("checkpoint-gzip-encoded.bin");
+    cstring_t output_path = Test_TempPath("checkpoint-gzip-restored.bin");
+    int plain = open(plain_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    T_ASSERT(plain >= 0);
+    if (plain < 0) return;
+    char bytes[4096];
+    memset(bytes, 'Z', sizeof(bytes));
+    for (unsigned i = 0; i < 32; ++i) T_EQ(write(plain, bytes, sizeof(bytes)), (ssize_t)sizeof(bytes));
+    close(plain);
+    plain = open(plain_path, O_RDONLY | O_CLOEXEC);
+    int packed = open(compressed_path, O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    T_ASSERT(plain >= 0 && packed >= 0);
+    if (plain < 0 || packed < 0) {
+        if (plain >= 0) close(plain);
+        if (packed >= 0) close(packed);
+        return;
+    }
+    T_ASSERT(FS_CheckpointCompressFile(plain, packed, (uint64_t)sizeof(bytes) * 32));
+    close(plain);
+    struct stat st;
+    T_EQ(fstat(packed, &st), 0);
+    T_ASSERT(st.st_size > 8 && st.st_size < (off_t)sizeof(bytes) * 32);
+    int result = open(output_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    T_ASSERT(result >= 0);
+    if (result >= 0) {
+        T_EQ(lseek(packed, sizeof(fs_checkpoint_gzip_magic), SEEK_SET), (off_t)sizeof(fs_checkpoint_gzip_magic));
+        T_ASSERT(FS_CheckpointExpandFile(packed, result, (uint64_t)sizeof(bytes) * 32));
+        close(result);
+        result = open(output_path, O_RDONLY | O_CLOEXEC);
+        if (result >= 0) {
+            char restored[4096];
+            for (unsigned i = 0; i < 32; ++i) {
+                T_EQ(read(result, restored, sizeof(restored)), (ssize_t)sizeof(restored));
+                T_ASSERT(memcmp(restored, bytes, sizeof(bytes)) == 0);
+            }
+            T_EQ(read(result, restored, 1), 0);
+            close(result);
+        }
+    }
+    /* gzip's transparent-read fallback must not accept a forged envelope. */
+    T_EQ(ftruncate(packed, 0), 0);
+    T_EQ(lseek(packed, 0, SEEK_SET), 0);
+    T_EQ(write(packed, fs_checkpoint_gzip_magic, sizeof(fs_checkpoint_gzip_magic)),
+         (ssize_t)sizeof(fs_checkpoint_gzip_magic));
+    T_EQ(write(packed, "not-gzip", 8), 8);
+    T_EQ(lseek(packed, sizeof(fs_checkpoint_gzip_magic), SEEK_SET), (off_t)sizeof(fs_checkpoint_gzip_magic));
+    result = open(output_path, O_WRONLY | O_TRUNC | O_CLOEXEC);
+    if (result >= 0) {
+        T_ASSERT(!FS_CheckpointExpandFile(packed, result, FS_CHECKPOINT_MAX_BYTES));
+        close(result);
+    }
+    close(packed);
+}
+#endif
 
 static bool FS_CheckpointCopyTree(int source, int target, unsigned depth,
                                   cstring_t top, fs_checkpoint_budget_t *budget, bool snapshot) {
@@ -347,16 +411,28 @@ static bool FS_CheckpointWinCompress(cstring_t src, cstring_t dst, uint64_t orig
 }
 
 static bool FS_CheckpointWinExpand(cstring_t src, cstring_t dst, uint64_t limit) {
-    FILE *input = fopen(src, "rb");
-    if (!input) return false;
+    /* Read directly from the binary descriptor. A buffered stdio fread of
+     * the private header could read ahead past the gzip stream before dup(),
+     * causing the decoder to start in the middle of (or after) the payload. */
+    int input = _open(src, _O_RDONLY | _O_BINARY);
+    if (input < 0) return false;
     uint8_t marker[sizeof(fs_checkpoint_gzip_magic)];
-    bool ok = fread(marker, 1, sizeof(marker), input) == sizeof(marker) &&
+    bool ok = _read(input, marker, sizeof(marker)) == (int)sizeof(marker) &&
               !memcmp(marker, fs_checkpoint_gzip_magic, sizeof(marker));
-    int gzip_fd = ok ? _dup(_fileno(input)) : -1;
-    gzFile gz = gzip_fd >= 0 ? gzdopen(gzip_fd, "rb") : NULL;
-    if (!gz) { if (gzip_fd >= 0) _close(gzip_fd); fclose(input); return false; }
+    if (!ok) { _close(input); return false; }
+    /* gzread also supports transparent raw input; require a gzip member,
+     * not an arbitrary byte stream after the envelope marker. */
+    uint8_t header[2];
+    if (_read(input, header, sizeof(header)) != (int)sizeof(header) ||
+        header[0] != 0x1f || header[1] != 0x8b ||
+        _lseek(input, (long)sizeof(fs_checkpoint_gzip_magic), SEEK_SET) < 0) {
+        _close(input); return false;
+    }
+    /* gzdopen takes ownership of input and begins at offset 8. */
+    gzFile gz = gzdopen(input, "rb");
+    if (!gz) { _close(input); return false; }
     FILE *output = fopen(dst, "wb");
-    if (!output) { gzclose(gz); fclose(input); return false; }
+    if (!output) { gzclose(gz); return false; }
     char bytes[65536];
     uint64_t written = 0;
     while (ok) {
@@ -368,7 +444,6 @@ static bool FS_CheckpointWinExpand(cstring_t src, cstring_t dst, uint64_t limit)
     }
     if (gzclose(gz) != Z_OK) ok = false;
     if (fclose(output)) ok = false;
-    fclose(input);
     if (!ok) DeleteFileA(dst);
     return ok;
 }
@@ -452,9 +527,16 @@ static void FS_RemoveCurrentLiveWorkspace(void) {
     if (!FS_EnsureSaveDirectory() ||
         snprintf(branch, sizeof(branch), "%s/campaigns/%s", fs_save_dir, fs_script_session) >= (int)sizeof(branch) ||
         snprintf(live, sizeof(live), "%s/live", branch) >= (int)sizeof(live)) return;
-    DWORD attr = GetFileAttributesA(live);
-    if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY) ||
-        (attr & FILE_ATTRIBUTE_REPARSE_POINT)) return;
+    /* Validate every directory layer before recursively removing anything.
+     * A junction at the campaign root or branch must never redirect cleanup. */
+    PATHSTR campaigns;
+    if (snprintf(campaigns, sizeof(campaigns), "%s/campaigns", fs_save_dir) >= (int)sizeof(campaigns)) return;
+    cstring_t layers[] = { campaigns, branch, live };
+    for (unsigned i = 0; i < 3; ++i) {
+        DWORD attr = GetFileAttributesA(layers[i]);
+        if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY) ||
+            (attr & FILE_ATTRIBUTE_REPARSE_POINT)) return;
+    }
     if (FS_CheckpointWinRemove(live) && RemoveDirectoryA(live)) RemoveDirectoryA(branch);
 }
 
