@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.** Payoff298 implements Human Repair target notification before work, callback cancellation/removal guards and saved Pause/resume re-notification. Two original repeats/control agree3027 public markers and324 native boundaries. Build retires before Repair activation; it is not a hidden resumable head underneath active Repair. ORDER-01.16 remains open for cancellation/refunds and alternate producers. See [Human Repair activation](retail-pathfinding-engine.md#human-build-activates-and-resumes-a-real-repair-head-payoff298).
 
+Payoff306 removes unsupported flying-source and structure-target gates from
+Attack's physical chase owner. Two fresh read-only repeats and an unhooked control
+match349 public markers;760 scalar commit snapshots repeat exactly. Both routed
+profiles match62 captured input states word-for-word, including cold saves.
+Stock Footman/tree remains a separate point-task control. This closes an engine
+integration gap without declaring whole TARGET/ORDER task closure. See
+[flying/building Attack](retail-pathfinding-engine.md#flying-attackers-and-building-targets-share-physical-chases-payoff306).
+
 Payoff305 replaces quadratic physical-group save/load validation and cold unit
 lookup scans with temporary sorted identity keys and rebuilt derived bindings.
 The 4,096-owner regression retains the exact mapped byte stream and rejects

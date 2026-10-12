@@ -5265,13 +5265,15 @@ void S_CancelUnitTargetApproach(edict_t *unit) {
 
 /* Ability-owned target requests share Move's physical scheduler without
  * replacing the public task or its retained Follow/Patrol/Attack-Move parent.
- * The callback owns arrival validation; cancellation only releases its work. */
+ * The callback owns arrival validation; cancellation only releases its work.
+ * Native5fc640 admits flying sources and structure targets through the same
+ * bridge. Destructible point-task production remains a separate contract. */
 bool S_BeginUnitTargetChase(edict_t *unit,edict_t *target,float range,abilityProc_t owner,
                            void (*complete)(edict_t *,edict_t *,bool)) {
     uint32_t index=GetAbilityIndex(owner);
     if(!unit || !target || !complete || !owner || index==255 ||
        !unit->currentmove || unit->currentmove->proc!=owner ||
-       (unit->aiflags&AI_FLYING) || G_UnitIsStructure(target) || target->destructable ||
+       target->destructable ||
        !S_UnitCanTranslate(unit))return false;
     move_leave(unit);move_reset_local_path(unit);
     unit->movement.flat_speed_bonus=S_MoveSpeedBonus(unit);

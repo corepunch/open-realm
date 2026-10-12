@@ -18883,3 +18883,53 @@ Focused Classic/TFT each passes551 tests /83,083 assertions, including the two
 new614-assertion scheduler/inverse regressions. Eleven new evidence checks,
 twelve303 checks and37 corpus checks pass. This is implementation chunk3 after
 full checkpoint301; no additional full-suite run is claimed. Save185 is unchanged.
+
+## Flying attackers and building targets share physical chases (Payoff306)
+
+`S_BeginUnitTargetChase` no longer excludes flying sources or structure targets.
+Attack retains its public head and arrival callback while the existing Move
+owner handles routing, facing, cancellation and saved state. This removes the
+legacy direct-step fallback for both profiles, using the same captured target
+region and scheduler as ordinary physical target requests. No new per-frame
+poll or routing implementation is introduced.
+
+Two read-only retail runs and an unhooked control match **349 public markers**
+across six scenes: Footman/Farm, Gryphon/Footman and Footman/tree, each from an
+out-of-range or close-facing start, with Pause/resume and Stop. Both observations
+also repeat **760 scalar commit snapshots** exactly. Initial Attack approaches
+enter `Move_HandleTargetTask` → `5fc640` via `5ffa99`; later facing requests can
+enter `49a240`. Farm approach captures range90, a footprint region and fine
+range6.03125. Gryphon captures450, null request region and fine15.28125. These
+stock captures show Gryphon speed320 and radius8, independently of custom caster
+profiles in the earlier flying-spell tests. Close-facing requests use `FLT_MAX`
+and physical flag1200. Neither producer contains the engine's old profile gates.
+
+The tree scenes are an explicit negative control: stock Footman/tree orders
+create **point** groups, with no physical target-request entry. Do not generalize
+this change to destructibles. The existing destructible exclusion remains.
+
+The two new regressions first failed20 assertions against the unchanged gates.
+Their final1174 assertions cover both profile types, routing and facing, cold
+save/load, pause/resume, Stop, replacement and target removal. The numerical test
+compares all **30+32 pre-commit fine position, velocity, range and heading states**
+in the first uninterrupted chase segments, both uninterrupted and with a cold
+save. Those new expectations come only from the frozen retail captures; no
+historical retail fixture or previous corpus entry changes. The existing
+footprint-range combat test now explicitly faces its attacker toward the building,
+retaining its immediate-swing assertion and both range checks; facing away must
+queue the physical turn, as the new public captures demonstrate. Allocator-only test actors
+explicitly publish their initial pose and use the captured stock geometry/speed.
+
+Reproducer sources are `tools/frida/research/attack306_{probe.j,make_map.py,
+capture.py,observer.js}`. `tools/ghidra/verify_wc3_pathing_attack306.py` checks
+capture provenance/completeness, the point-task control, source pins,338 original
+instruction encodings and the focused Classic/TFT engine suites. Ghidra comments
+are saved and read back identically by `Attack306Evidence.java`, mirrored in
+`MapPathfinding.java`. Raw captures, the generated map, failed harness attempts,
+compiled-source pins and reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-01.2/payoff306/`.
+
+Save185 and the network format are unchanged. Full Attack damage/backswing and
+public task timing remain separate work; TARGET/ORDER broad tasks stay open,
+**46 tasks remain**. This is implementation chunk5 since full checkpoint301;
+no new full-suite or large-battle performance result is claimed.

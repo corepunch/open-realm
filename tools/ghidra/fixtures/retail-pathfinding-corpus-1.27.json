@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "260 executable original/evidence contracts;541 total entries; provenance and limitations remain per-entry.",
+  "scope": "261 executable original/evidence contracts;542 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -53859,6 +53859,62 @@
       "exclusions": [
         "No new live retail save/load capture, complete GROUP-04.6 closure or frame/spawn benchmark is claimed."
       ]
+    },
+    {
+      "id": "oracle-attack306",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_attack306.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "attack306.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 338
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 349
+        },
+        "profile_cases": {
+          "equal": 6
+        },
+        "physical_visits": {
+          "equal": 380
+        },
+        "exact_chase_states": {
+          "equal": 62
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "Flying attackers and structure targets use the shared physical target owner, including facing, pause/cancellation and saved state. Two read-only repeats and an unhooked public control;62 exact chase states with cold saves.",
+      "exclusions": [
+        "Stock Footman/tree remains a point-task control. Full Attack task/damage/backswing timing and large-battle performance are not certified;46 tasks remain."
+      ]
     }
   ],
   "fixtures": [
@@ -54757,7 +54813,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e68abc500d029c6881a60042fc3c285eda427dfe3276ae536fb0ea5efbd5b9bc"
+      "sha256": "51e2cc4eb53b2db04f9dc692153025436d6a8705ee1d5cd8d61cf8a4658e816d"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55613,7 +55669,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "c482d22dbe4e5d2b9c2d01ebcc6caebb2c562338179e4412de68ac9f90666e26"
+      "sha256": "ad349bb1ccc6b2d166fe43f2d11365816155e2ffe150696185fde05ffb49a5f8"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -56305,7 +56361,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "79a79eb445b7b6aa7a23ede0239df261b6735efb25d684b5939d90430764569b"
+      "sha256": "0c74919fd0a19b5e4d52248135c0cfe3de6ce73ae8106bc3e8e02cb383fda085"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -56549,7 +56605,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "20b54bea404443ffe5e371d57688a2a9500161ee5470c6d60dd59a49132e3f94"
+      "sha256": "090446e0beb7e07ed230f1bc3d9e3f6833c52976cc88a27969c9085c19e0cc70"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -56561,11 +56617,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "219977e0cfb8a73285c964de19f6a4ff86b4d7563fc661c8432d2f278f66411e"
+      "sha256": "de2c442d470fb773f7b42f239d829054b09ca43f452d57791f0b189166aec9b3"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "45765995a888ef3cc17a263b1615557dbb364bd5441bc60ab6f54a61917dd2c5"
+      "sha256": "e48ea65144def822b0739fefdbe048b4a52ca04769d8935df5f18a3dbb8c736c"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -62170,6 +62226,50 @@
     {
       "path": "tests/test_wc3_pathfinding_group305.py",
       "sha256": "1d63485ae4ecd0860946a017fa75f0341d51193c68cf5b601121cd92ff421085"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/fixtures/retail_attack306_motion.h",
+      "sha256": "666ea5bf955fb446400fd19b80cdd3eba5418779c6f8fac0942f998713c4b15d"
+    },
+    {
+      "path": "tools/ghidra/research/Attack306Evidence.java",
+      "sha256": "245a579bf45b6eec4ed7a829502568c0ddf2847e6d9f59bbe16ea6549a5c7d13"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_attack306.py",
+      "sha256": "10821eef50fde2db1b17ff528ed1dfd69926bd6bef063b3bf36c26208e0d0f6f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack306-1.27.json",
+      "sha256": "630e1879f380054ac160d4349b827d1d0b92c796869abb8db1576fba044af8e9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack306-1.27.json.gz",
+      "sha256": "a31c241c0579a4e3998b2af315e5eda337975425d2d06ee3d6c643ddd0a9a4fb"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_attack306.py",
+      "sha256": "7c7b96bb98785f64613d30f99414b2ee8df9f870f9475075e609ea02873d2a81"
+    },
+    {
+      "path": "tools/frida/research/attack306_capture.py",
+      "sha256": "2f54a091220949d59739a741811b02ba7aa55020ffb3ac9a47f9187a074f6ab8"
+    },
+    {
+      "path": "tools/frida/research/attack306_observer.js",
+      "sha256": "0f7880c5c705fcdeb6816e0495a490baf896c9080bb209e4bcfa3d3adefa69c6"
+    },
+    {
+      "path": "tools/frida/research/attack306_make_map.py",
+      "sha256": "ec046bb4a82213f357bc1e02e7ad8944113687351e263ceba47cf58009c17c8c"
+    },
+    {
+      "path": "tools/frida/research/attack306_probe.j",
+      "sha256": "8b9d45dff5669371b25d3499395ae443ce371bb693dcaa3ad693cc06c7659acb"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_combat.c",
+      "sha256": "e2535aae205383fe30470a0f8454e922859c10616102a8b6e3a363ae876e4200"
     }
   ]
 }

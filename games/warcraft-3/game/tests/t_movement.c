@@ -22454,6 +22454,133 @@ TEST(wc3_movement, target222_attack_uses_physical_target_owner_and_survives_save
     G_FowShutdown();reset_entities();setup_test_world();
 }
 
+/* Public Attack must retain its own head while Move owns both routing and
+ * turning for structures and flying sources (retail attack306 scenes0/1/3/4).
+ * Stock Footman/tree orders are a separate point-task negative control. */
+TEST(wc3_movement, attack306_profiles_share_physical_chase_and_lifecycle) {
+    FOR_LOOP(flying,2)FOR_LOOP(turn,2)FOR_LOOP(interrupt,3) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        target222_arm(unit,target,137);
+        if(flying) {
+            unit->aiflags|=AI_FLYING;unit->movetype=MOVETYPE_FLY;
+            unit->targtype=TARG_AIR;unit->collision=8;
+            S_SetUnitMoveSpeed(unit,350);
+        } else {
+            target->targtype=TARG_STRUCTURE;target->s.flags|=EF_BUILDING;
+            target->aiflags|=AI_IMMOBILE;target->collision=72;
+            S_AttackProfileWrite(unit,0)->targetsAllowed|=WC3_TARGET_FLAG_STRUCTURE;
+            T_ASSERT(G_UnitIsStructure(target));
+        }
+        if(turn) {
+            S_SetUnitAxisPosition(unit,0,target->s.origin2.x-128);
+            S_SetUnitFacingTimed(unit,180,0);
+        }
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+        T_NOT_NULL(unit->currentmove);
+        if(!unit->currentmove || !unit->currentmove->think)continue;
+        unit->currentmove->think(unit);
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            T_EQ(unit->currentmove->proc,CAbilityAttack);T_EQ(unit->goalentity,target);
+            T_EQ(group->target,target);T_EQ(group->receiver,unit);
+            T_EQ(group->flags&0x1a01u,turn ? 0x1200u : 0x1000u);
+            T_NULL(unit->movement.follow_target);
+            if(!turn)T_EQ(group->members[0].arrival_range,(137+unit->collision+target->collision)/32.f);
+            T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+            uint64_t sequence=group->sequence;
+            cstring_t file=Test_TempPath("wc3-attack306.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);reattach_test_weapons(unit);
+            group=move_unit_group(unit);T_NOT_NULL(group);
+            if(group) {
+                T_EQ(group->sequence,sequence);T_EQ(group->target,target);
+                T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+                T_EQ(unit->currentmove->proc,CAbilityAttack);
+            }
+            if(interrupt==0) {
+                S_SetUnitPaused(unit,true);T_EQ(unit->movement.group_id,0);
+                vec2_t stopped=unit->s.origin2;
+                FOR_LOOP(i,4) {target166_tick();}
+                T_EQ(unit->s.origin2.x,stopped.x);T_EQ(unit->s.origin2.y,stopped.y);
+                S_SetUnitPaused(unit,false);
+                unit->currentmove->think(unit);
+                T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+                T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            } else if(interrupt==1) {
+                T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){256,1024},false,0,0));
+                T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+            } else {
+                G_FreeEdict(target);
+                unit->currentmove->think(unit);
+                T_EQ(unit->current_order_id,0);
+            }
+            T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+            if(interrupt!=1)T_EQ(unit->movement.group_id,0);
+        }
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+#include "fixtures/retail_attack306_motion.h"
+TEST(wc3_movement, attack306_routed_profiles_match_retail_motion_and_cold_save) {
+    FOR_LOOP(scene,2)FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        edict_t *target=alloc_test_unit(scene ? MAKEFOURCC('h','f','o','o') : MAKEFOURCC('h','h','o','u'),1536,scene ? 288 : 256);
+        edict_t *unit=alloc_test_unit(scene ? MAKEFOURCC('h','g','r','y') : MAKEFOURCC('h','f','o','o'),288,288);
+        unit->svflags=target->svflags=SVF_MONSTER;unit->s.model=target->s.model=1;
+        unit->movetype=scene ? MOVETYPE_FLY : MOVETYPE_STEP;
+        if(scene)unit->aiflags|=AI_FLYING;
+        unit->stand=target->stand=unit_stand;unit->collision=scene ? 8 : 31;target->collision=scene ? 31 : 72;
+        unit->unitinfo.MoveSpeed=scene ? 320 : 270;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->targtype=scene ? TARG_AIR : TARG_GROUND;target->targtype=scene ? TARG_GROUND : TARG_STRUCTURE;
+        unit_stand(unit);unit_stand(target);target222_arm(unit,target,scene ? 450 : 90);
+        target->targtype=scene ? TARG_GROUND : TARG_STRUCTURE;
+        S_AttackProfileWrite(unit,0)->targetsAllowed|=WC3_TARGET_FLAG_STRUCTURE;
+        struct {uint16_t width,height;color32_t pixels[16];} footprint={4,4};
+        if(!scene) {
+            FOR_LOOP(k,16)footprint.pixels[k]=(color32_t){255,0,255,255};
+            target->pathtex=(pathTex_t *)&footprint;target->s.flags|=EF_BUILDING;
+            target->aiflags|=AI_IMMOBILE;CM_BakeStaticObstacles();G_PublishMoveSpatialObject(target);
+        }
+        G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();
+        level.pathing_clock=(wc3Clock_t){wc3_float(attack306_motion[scene].clock[0]),attack306_motion[scene].clock[1],300};
+        level.pathing_counter=attack306_motion[scene].counter;
+        S_SetUnitAxisPosition(unit,0,288);
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+        unit->currentmove->think(unit);
+        bool mismatch=false;
+        FOR_LOOP(i,attack306_motion[scene].count) {
+            moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group){mismatch=true;break;}
+            uint32_t const *row=attack306_motion[scene].rows[i];
+            uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,6) {
+                T_EQ(actual[k],row[k+3]);
+                if(actual[k]!=row[k+3]) {
+                    fprintf(stderr,"attack306 scene=%u row=%u field=%u actual=%08x retail=%08x\n",scene,i,k,actual[k],row[k+3]);
+                    mismatch=true;
+                }
+            }
+            if(mismatch)break;
+            if(saved && i==15) {
+                cstring_t file=Test_TempPath("wc3-attack306-motion.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);reattach_test_weapons(unit);
+                T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+            }
+            level.pathing_clock=(wc3Clock_t){wc3_float(row[1]),row[2],300};
+            level.pathing_counter=row[0]-1;level.scheduled_think=true;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+        T_ASSERT(!mismatch);T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        T_NULL(move_unit_group(unit));T_EQ(unit->current_order_id,0);
+        target->pathtex=NULL;G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
 TEST(wc3_movement, target222_attack_chase_freezes_hidden_samples_then_validates_arrival) {
     edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,111);
     T_ASSERT(unit_issuetargetorder(unit,"attack",target));unit->currentmove->think(unit);

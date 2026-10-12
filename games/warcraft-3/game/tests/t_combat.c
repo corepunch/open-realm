@@ -940,6 +940,11 @@ TEST(wc3_combat, attack_owned_building_starts_at_pathing_footprint_range) {
     T_ASSERT(CM_DistanceToPathingFootprint(building, &attacker->s.origin2) <=
              attacker->collision + S_AttackProfileRead(attacker, 0)->range);
 
+    /* This test isolates range at the footprint. Retail turns an in-range
+     * attacker through a physical target task when it faces away (attack306
+     * scenes3/4); an immediate swing requires facing the target first. */
+    S_SetUnitFacingTimed(attacker,180,0);
+    T_ASSERT(S_UnitTargetInFacingWindow(attacker,building,game.constants.attackHalfAngle));
     order_attack(attacker, building);
     T_STREQ(attacker->currentmove->animation, "walk");
     attacker->currentmove->think(attacker);
