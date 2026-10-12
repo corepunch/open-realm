@@ -10,6 +10,7 @@
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
+void reset_entities(void);
 bool run_test_jass(cstring_t src);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
@@ -4215,6 +4216,183 @@ TEST(wc3_cursor, inventory_drag_publishes_icon_and_clears_after_cancel_or_remova
     G_ClientCommand(clent, 1, cancel);
     T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
     gi.Write = write; gi.unicast = unicast;
+}
+
+
+/* The active handoff order carries two edict references and an umove_t.
+ * Both must survive a full snapshot before the giver completes the approach. */
+TEST(wc3_items, targeted_give_order_survives_full_game_save_load) {
+    cstring_t filename = Test_TempPath("wc3-item-handoff-inflight.sav");
+    edict_t *giver, *receiver, *item;
+
+    reset_entities();
+    setup_test_world();
+    giver = make_item_test_inventory_unit(0, 0);
+    receiver = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
+    T_ASSERT(G_AddItemToSlot(giver, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(giver, item, receiver));
+    T_ASSERT(WriteGame(filename));
+    /* These transient changes are discarded by the restored save. */
+    giver->goalentity = NULL;
+    giver->item_drop = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(giver->goalentity == receiver);
+    T_ASSERT(giver->item_drop == item);
+    T_NOT_NULL(giver->currentmove);
+    T_ASSERT(giver->inventory[0] == item);
+    if (giver->currentmove && giver->currentmove->think)
+        giver->currentmove->think(giver);
+    T_NULL(giver->inventory[0]);
+    T_ASSERT(receiver->inventory[0] == item);
+    T_NULL(giver->item_drop);
+    T_NULL(giver->goalentity);
+    remove(filename);
+}
+
+/* A zero-slot inventory can still collect auto-usable powerups, but it does
+ * not acquire a regular item slot. inv3 must be enabled for consumption. */
+TEST(wc3_items, zero_slot_inventory_consumes_powerups_but_not_regular_items) {
+    static ItemData_t rune_data = {
+        .abilList = "APsa", .powerup = true, .usable = true, .perishable = true
+    };
+    static ItemData_t quest_data = { .abilList = "_", .powerup = true };
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K0\nC;Y2;X5;K0\nC;Y2;X6;K1\nC;Y2;X7;K1\nC;Y2;X8;K1\nE\n";
+    slkTestData_t *rows, *old_rows;
+    mapInfo_t tft = { .fileFormat = 25 };
+    mapInfo_t const *old_map;
+    edict_t *unit, *rune, *quest, *ordinary;
+
+    setup_test_world();
+    old_map = level.mapinfo;
+    rows = parse_slk_string(ability_slk);
+    old_rows = G_SetSLKRows("AbilityData", rows);
+    level.mapinfo = &tft;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    T_EQ(G_InventoryCapacity(unit), 0);
+    T_ASSERT(G_InventoryCanUseItems(unit));
+    T_ASSERT(G_InventoryCanGetItems(unit));
+    ordinary = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
+    T_ASSERT(!G_CanPickupItem(unit, ordinary));
+    T_ASSERT(!G_PickupItem(unit, ordinary));
+    T_ASSERT(ordinary->item->in_world);
+
+    rune = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_CanPickupItem(unit, rune));
+    T_ASSERT(G_PickupItem(unit, rune));
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(G_InventoryCapacity(unit), 0);
+
+    quest = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), 16, 0);
+    quest->data.ItemData = &quest_data;
+    T_ASSERT(G_CanPickupItem(unit, quest));
+    T_ASSERT(G_PickupItem(unit, quest));
+    T_ASSERT(quest->item->pending_use_removal);
+    T_NULL(quest->item->carrier);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+    level.mapinfo = old_map;
+}
+
+TEST(wc3_items, inventory_without_use_permission_carries_runes_and_quest_items) {
+    static ItemData_t rune_data = {
+        .abilList = "APsa", .powerup = true, .usable = true, .perishable = true
+    };
+    static ItemData_t quest_data = { .abilList = "_", .powerup = true };
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K1\nC;Y2;X6;K0\nC;Y2;X7;K1\nC;Y2;X8;K1\nE\n";
+    slkTestData_t *rows, *old_rows;
+    mapInfo_t tft = { .fileFormat = 25 };
+    mapInfo_t const *old_map;
+    edict_t *unit, *rune, *quest, *third;
+
+    setup_test_world();
+    old_map = level.mapinfo;
+    rows = parse_slk_string(ability_slk);
+    old_rows = G_SetSLKRows("AbilityData", rows);
+    level.mapinfo = &tft;
+    unit = make_item_test_inventory_unit(0, 0);
+    T_EQ(G_InventoryCapacity(unit), 2);
+    T_ASSERT(!G_InventoryCanUseItems(unit));
+
+    rune = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
+    rune->data.ItemData = &rune_data;
+    G_SetItemCharges(rune, 3);
+    T_ASSERT(G_OrderPickupItem(unit, rune));
+    T_ASSERT(G_PickupItem(unit, rune));
+    T_ASSERT(unit->inventory[0] == rune);
+    T_ASSERT(!rune->item->pending_use_removal);
+    T_EQ(G_ItemCharges(rune), 3);
+
+    quest = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), 16, 0);
+    quest->data.ItemData = &quest_data;
+    T_ASSERT(G_PickupItem(unit, quest));
+    T_ASSERT(unit->inventory[1] == quest);
+    T_ASSERT(!quest->item->pending_use_removal);
+
+    third = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
+    third->data.ItemData = &rune_data;
+    T_ASSERT(!G_OrderPickupItem(unit, third));
+    T_ASSERT(!G_PickupItem(unit, third));
+    T_ASSERT(third->item->in_world);
+    T_NULL(third->item->carrier);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+    level.mapinfo = old_map;
+}
+
+TEST(wc3_items, pickup_approach_rechecks_inv4_after_ability_change) {
+    static UnitAbilities_t no_pickup = { .abilList = "A0nc" };
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K0\nC;Y2;X6;K1\nC;Y2;X7;K1\nC;Y2;X8;K1\n"
+        "C;Y3;X1;K\"A0nc\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K1\n"
+        "C;Y3;X4;K2\nC;Y3;X5;K0\nC;Y3;X6;K1\nC;Y3;X7;K0\nC;Y3;X8;K1\nE\n";
+    slkTestData_t *rows, *old_rows;
+    mapInfo_t tft = { .fileFormat = 25 };
+    mapInfo_t const *old_map;
+    edict_t *unit, *item;
+
+    setup_test_world();
+    old_map = level.mapinfo;
+    rows = parse_slk_string(ability_slk);
+    old_rows = G_SetSLKRows("AbilityData", rows);
+    level.mapinfo = &tft;
+    unit = make_item_test_inventory_unit(0, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE + 200, 0);
+    T_ASSERT(G_OrderPickupItem(unit, item));
+    T_ASSERT(unit->goalentity == item);
+    unit->data.UnitAbilities = &no_pickup;
+    T_EQ(G_InventoryCapacity(unit), 2);
+    T_ASSERT(!G_InventoryCanGetItems(unit));
+    T_NOT_NULL(unit->currentmove);
+    if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    T_NULL(unit->goalentity);
+    T_ASSERT(item->item->in_world);
+    T_NULL(item->item->carrier);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+    level.mapinfo = old_map;
 }
 
 #endif /* BZ_TESTS */

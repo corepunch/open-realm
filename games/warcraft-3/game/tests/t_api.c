@@ -7733,6 +7733,80 @@ TEST(wc3_api, rexxar_stash_cache_survives_hidden_carrier_removal) {
     gi.ScriptScopeIdentity = old_scope;
 }
 
+/* Sparse stash inventories must preserve empty slot positions as well as
+ * item IDs and charges when the temporary carrier is retired. */
+TEST(wc3_api, rexxar_stash_cache_sparse_slots_survive_carrier_removal) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    cstring_t (*old_scope)(void) = gi.ScriptScopeIdentity;
+    edict_t *carrier = NULL;
+
+    setup_test_world();
+    gi.CvarString = gamecache_memory_cvar;
+    gi.ScriptScopeIdentity = test_gamecache_scope_identity;
+    strlcpy(test_gamecache_scope, "dddddddddddddddddddddddddddddddd", sizeof(test_gamecache_scope));
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " gamecache stashCache = null\n"
+        " unit stashCarrier = null\n"
+        "endglobals\n"
+        "function verifySparseStash takes nothing returns nothing\n"
+        " local unit restored = RestoreUnit(stashCache, \"OrcX02\", \"Stash\", Player(0), 256.0, 0.0, 0.0)\n"
+        " local item first\n"
+        " local item last\n"
+        " local integer n = 1\n"
+        " call BJassAssert(restored != null, \"sparse carrier snapshot missing\")\n"
+        " call BJassAssert(UnitInventorySize(restored) == 6, \"inventory capacity lost\")\n"
+        " set first = UnitItemInSlot(restored, 0)\n"
+        " set last = UnitItemInSlot(restored, 5)\n"
+        " call BJassAssert(first != null and last != null, \"edge slots missing\")\n"
+        " call BJassAssert(GetItemTypeId(first) == 'ratf', \"first item changed\")\n"
+        " call BJassAssert(GetItemTypeId(last) == 'spro', \"last item changed\")\n"
+        " call BJassAssert(GetItemCharges(first) == 3, \"first charges changed\")\n"
+        " call BJassAssert(GetItemCharges(last) == 7, \"last charges changed\")\n"
+        " loop\n"
+        "  exitwhen n >= 5\n"
+        "  call BJassAssert(UnitItemInSlot(restored, n) == null, \"empty slot filled\")\n"
+        "  set n = n + 1\n"
+        " endloop\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        " local item first\n"
+        " local item last\n"
+        " set stashCarrier = CreateUnit(Player(0), 'Hpal', 128.0, 0.0, 0.0)\n"
+        " call ShowUnit(stashCarrier, false)\n"
+        " set stashCache = InitGameCache(\"Campaigns.w3v\")\n"
+        " call FlushGameCache(stashCache)\n"
+        " call BJassAssert(UnitAddItemToSlotById(stashCarrier, 'ratf', 0), \"first insert failed\")\n"
+        " call BJassAssert(UnitAddItemToSlotById(stashCarrier, 'spro', 5), \"last insert failed\")\n"
+        " set first = UnitItemInSlot(stashCarrier, 0)\n"
+        " set last = UnitItemInSlot(stashCarrier, 5)\n"
+        " call SetItemCharges(first, 3)\n"
+        " call SetItemCharges(last, 7)\n"
+        " call BJassAssert(StoreUnit(stashCache, \"OrcX02\", \"Stash\", stashCarrier), \"StoreUnit failed\")\n"
+        " call RemoveUnit(stashCarrier)\n"
+        " call BJassAssert(SaveGameCache(stashCache), \"SaveGameCache failed\")\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('H','p','a','l') &&
+            fabsf(ent->s.origin2.x - 128.0f) < 0.01f) {
+            carrier = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(carrier);
+    if (carrier) {
+        T_ASSERT(G_IsDeferredFree(carrier));
+        G_RunDeferredFrees();
+        T_ASSERT(!carrier->inuse);
+        jass_callbyname(level.vm, "verifySparseStash", true);
+        jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    gi.CvarString = old_cvar;
+    gi.ScriptScopeIdentity = old_scope;
+}
+
 TEST(wc3_api, gamecache_restore_preserves_hero_progression) {
     edict_t *restored = NULL;
 

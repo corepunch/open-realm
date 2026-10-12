@@ -464,8 +464,18 @@ int32_t G_FindFreeInventorySlot(edict_t const *unit) {
     return -1;
 }
 
+/* A zero-slot inventory may still use a rune or ability-less quest powerup.
+ * Ordinary items still require an available inventory slot. */
+static bool G_IsAbilitylessPowerup(edict_t const *item);
+static bool G_CanConsumePickupPowerup(edict_t *unit, edict_t *item) {
+    return G_InventoryCanUseItems(unit) &&
+           (S_ItemPowerup(unit, item).ability || G_IsAbilitylessPowerup(item));
+}
+
 bool G_CanPickupItem(edict_t *unit, edict_t *item) {
-    if (!G_UnitHasInventory(unit) || M_IsDead(unit) || !G_IsItem(item)) {
+    if (!G_UnitIsWorldActive(unit) || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+        !G_IsItem(item) || G_IsDeferredFree(item) ||
+        (!G_UnitHasInventory(unit) && !G_CanConsumePickupPowerup(unit, item))) {
         return false;
     }
     return item->item->in_world && !item->item->carrier && item->item->inventory_slot == -1 &&
@@ -579,7 +589,8 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
         G_CompletePowerupUse(unit, item);
         return true;
     }
-    if (G_IsAbilitylessPowerup(item) && G_CanPickupItem(unit, item)) {
+    if (G_CanConsumePickupPowerup(unit, item) &&
+        G_IsAbilitylessPowerup(item) && G_CanPickupItem(unit, item)) {
         G_QueueOwnerSoundAlias(unit, "ItemGet");
         G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
         G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
@@ -611,11 +622,13 @@ static void G_PickupItemThink(edict_t *unit) {
     float distance;
     float move_distance;
 
-    if (!G_CanPickupItem(unit, item)) {
+    /* Tech or an ability override may revoke player pickup permission while
+     * the carrier is walking. Recheck at execution, not just at order issue. */
+    if (!G_InventoryCanGetItems(unit) || !G_CanPickupItem(unit, item)) {
         G_StopPickupOrder(unit);
         return;
     }
-    if (G_FindFreeInventorySlot(unit) < 0 && !S_ItemPowerup(unit, item).ability && !G_IsAbilitylessPowerup(item)) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !G_CanConsumePickupPowerup(unit, item)) {
         G_ShowInventoryFull(unit);
         G_StopPickupOrder(unit);
         return;
@@ -624,7 +637,7 @@ static void G_PickupItemThink(edict_t *unit) {
     distance = M_DistanceToGoal(unit);
     if (distance <= ITEM_PICKUP_RANGE) {
         if (!G_PickupItem(unit, item) && G_FindFreeInventorySlot(unit) < 0 &&
-            !S_ItemPowerup(unit, item).ability && !G_IsAbilitylessPowerup(item)) {
+            !G_CanConsumePickupPowerup(unit, item)) {
             G_ShowInventoryFull(unit);
         }
         G_StopPickupOrder(unit);
@@ -647,7 +660,7 @@ bool G_OrderPickupItem(edict_t *unit, edict_t *item) {
         (unit->aiflags & AI_IMMOBILE)) {
         return false;
     }
-    if (G_FindFreeInventorySlot(unit) < 0 && !S_ItemPowerup(unit, item).ability && !G_IsAbilitylessPowerup(item)) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !G_CanConsumePickupPowerup(unit, item)) {
         G_ShowInventoryFull(unit);
         return false;
     }

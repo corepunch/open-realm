@@ -134,6 +134,18 @@ uses a fixture `Hpal` hero with six inventory slots instead of the campaign's
 It does **not** verify OrcX02 map-trigger ordering or the complete cross-map
 script-save workspace, which still require campaign integration testing.
 
+### Sparse inventory restoration regression (Patch D)
+
+In addition to the Patch B full six-slot `Obla`-style carrier fixture,
+`wc3_api.rexxar_stash_cache_sparse_slots_survive_carrier_removal` stores two
+charged items at opposite ends of the inventory (`0`, `5`) and leaves slots
+`1`–`4` empty. The test verifies type, charges and *unchanged slot indexes*
+after `StoreUnit`, carrier removal, `SaveGameCache`, and `RestoreUnit`. The
+cache is in memory mode to keep headless tests independent of external
+campaign files. It does not exercise the engine-owned disk checkpoint scope,
+manual-save binding or OrcX02's original map script: those remain campaign
+integration verification requirements.
+
 ## Storage Modes and Persistence Format
 
 The default `disk` mode loads the last committed sidecar in the active

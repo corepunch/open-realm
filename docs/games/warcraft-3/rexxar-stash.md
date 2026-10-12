@@ -97,3 +97,28 @@ of it and enter OrcX02 without losing or duplicating them. If capacity remains
 two, inspect actual `war3map.w3a` and the gameplay scripts **before** changing
 the engine. Tests do not establish model appearance, sound or the retail map's
 quest-trigger ordering.
+
+## Patch D: item collection and sparse carrier cache coverage
+
+Generic inventory pickup now distinguishes usable powerups from ordinary
+carried items even when `inv1=0`. When `inv3=0` the stash can carry powerups
+instead of automatically using them, provided its active inventory has room.
+If Backpack or the authored ability changes while an item pickup order is
+executing, `inv4` is checked again before pickup. Deferred-free units cannot collect new world items. Hidden units can
+still receive script-driven inventory transfers (including the temporary
+`Obla`), while player selection and ordinary handoff restrictions continue
+to prevent interaction with hidden containers.
+
+`wc3_api.rexxar_stash_cache_sparse_slots_survive_carrier_removal` complements
+the six-full-slots Patch B test: it stores charged item types in slots 0 and 5
+of a hidden temporary hero, calls `StoreUnit`, defers `RemoveUnit`, commits the
+memory-mode game cache, retires the carrier, and verifies `RestoreUnit`
+reconstructs the two items and keeps slots 1 through 4 empty. This is a
+headless cache-value regression, not proof of complete OrcX02 cross-map return
+triggers or of save-file checkpoint restoration after restarting the process.
+
+A separate `wc3_items.targeted_give_order_survives_full_game_save_load`
+regression checks that the live `goalentity`, `item_drop`, and `umove_t`
+pointers of an in-flight player item-give order survive the engine's versioned
+`WriteGame` / `ReadGame` snapshot, then finish the handoff exactly once. This
+is distinct from `StoreUnit` and from Rexxar's scripted zone-load callback.

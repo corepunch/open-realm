@@ -22,6 +22,32 @@ for Rexxar's hidden `Obla` stash-export sequence and the regression coverage.
 
 See [Rexxar's Stash](rexxar-stash.md) for a map-authored non-Hero storage building, Backpack activation, and live inventory refresh after researched tech changes.
 
+## Powerup collection and inventory permissions (Rexxar hardening)
+
+An inventory ability can have **zero item slots** (`inv1=0`) while still
+allowing a hero or unit to collect powerups. Zero slots reject ordinary carried
+items, but an item with a supported automatic powerup ability may be consumed
+without entering an inventory slot when **Can Use Items** (`inv3`) is enabled.
+Ability-less quest powerups (such as Shimmerweed) follow the same slot-free
+pickup response when item use is enabled. This does not create inventory slots
+for the recipient.
+
+When `inv3=0`, an inventory-capable carrier such as a Backpack courier or
+Rexxar's stash **does not automatically consume** the powerup. It can hold the
+item in a free slot instead; if every slot is occupied, the pickup order is
+rejected and the item remains in the world. Direct scripted insertion still
+uses the existing native inventory API. This keeps the distinction between
+`inv3` (automatic use), `inv4` (player pickup permission), and `inv5`
+(player-issued drop/handoff permission). A pickup order reevaluates `inv4`
+on arrival, so removing that permission mid-walk cancels the order without
+collecting the item. Deferred unit removal also prevents new pickup.
+
+Regression fixtures cover zero-slot powerups, carrying rune and ability-less
+powerup items without use permission, full inventory rejection, a revoked
+`inv4` while walking, and a pending item-give order across `WriteGame` /
+`ReadGame`. Original OrcX01 `Aion` ability fields remain unverified:
+these are generic rules, not hardcoded values for `h003`.
+
 ## State Contract
 
 Item lifecycle state lives on the game edict alongside the existing unit
