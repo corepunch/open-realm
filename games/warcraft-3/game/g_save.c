@@ -89,7 +89,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
  * neutral creep guard state and Wisp tree egress into the Format181 layout.
  * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
 /* Format184 retains inactive fine identities with exact empty coverage. */
-static uint32_t const save_version = 185;
+static uint32_t const save_version = 186;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -770,6 +770,10 @@ static field_t const item_fields[] = {
 
 static field_t const destructable_fields[] = {
     TF(destructable_t, blighted, F_INT),
+    TF(destructable_t, placement_surface, F_INT),
+    TF(destructable_t, footprint_origin_valid, F_INT),
+    TF(destructable_t, footprint_origin.x, F_FLOAT),
+    TF(destructable_t, footprint_origin.y, F_FLOAT),
     TF(destructable_t, occluder_height, F_FLOAT),
     TF(destructable_t, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(destructable_t, death_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
@@ -3340,6 +3344,7 @@ bool WriteGame(cstring_t filename) {
     }
     if (!WriteTerrainPathing(f)) { fprintf(stderr, "WC3 SaveGame: failed at terrain pathing state\n"); goto done; }
     if (!WriteMoveAdaptive(f)) { fprintf(stderr,"WC3 SaveGame: failed at adaptive publication state\n"); goto done; }
+    if (!G_WriteMovePlacementLevels(f)) { fprintf(stderr,"WC3 SaveGame: failed at placement levels\n"); goto done; }
     if (!WriteBlight(f)) { fprintf(stderr, "WC3 SaveGame: failed at blight state\n"); goto done; }
     if (!G_WriteFowState(f)) { fprintf(stderr,"WC3 SaveGame: failed at fog planes\n"); goto done; }
     if (!G_WriteFogModifiers(f)) { fprintf(stderr,"WC3 SaveGame: failed at fog modifiers\n"); goto done; }
@@ -3539,6 +3544,7 @@ bool ReadGame(cstring_t filename) {
     }
     if (!ReadTerrainPathing(f)) { fprintf(stderr, "WC3 LoadGame: failed at terrain pathing state\n"); fclose(f); return false; }
     if (!ReadMoveAdaptive(f)) { fprintf(stderr,"WC3 LoadGame: failed at adaptive publication state\n"); fclose(f); return false; }
+    if (!G_ReadMovePlacementLevels(f)) { fprintf(stderr,"WC3 LoadGame: failed at placement levels\n"); fclose(f); return false; }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
     if (!G_ReadFowState(f)) { fprintf(stderr,"WC3 LoadGame: failed at fog planes\n"); fclose(f); return false; }
     G_ResetJassGroupDebug();
@@ -3573,6 +3579,7 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
+    if (!G_ValidateMovePlacementLevels()) { fprintf(stderr,"WC3 LoadGame: invalid placement handles\n"); fclose(f); return false; }
     FILTER_EDICTS(unit,unit->inuse && unit->order_queue.capacity) {
         if(!unit->order_queue.entries) {
             fprintf(stderr,"WC3 LoadGame: missing order queue on edict %u\n",unit->s.number);

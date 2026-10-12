@@ -557,6 +557,36 @@ static vec3_t model_transform_point(vec3_t v,float const *m) {
         model_add(model_add(model_add(model_mul(m[1],v.x),model_mul(m[4],v.y)),model_mul(m[7],v.z)),m[10]),
         model_add(model_add(model_add(model_mul(m[2],v.x),model_mul(m[5],v.y)),model_mul(m[8],v.z)),m[11])};
 }
+/* Immutable geometry retained by the placement registry after an edict retires.
+ * The owner stores only ray inputs; no entity, animation or resource pointer. */
+struct walkableModelSnapshot_s {
+    triangle3_t *triangles;
+    uint32_t count;
+    vec3_t center;
+    float radius;
+    bool has_bounds;
+};
+static int model_walk_height(triangle3_t const *triangles,uint32_t count,bool has_bounds,
+                             vec3_t center,float radius,vec2_t point,float *height) {
+    if (has_bounds) {
+        float fraction;
+        float distance=model_ray_distance(center,(vec3_t){point.x,point.y,2560},(vec3_t){point.x,point.y,-2560},&fraction);
+        if (!(distance<=model_mul(radius,radius)))return 0;
+    }
+    float closest=FLT_MAX;bool hit=false;
+    FOR_LOOP(i,count) {
+        float distance;
+#ifdef BZ_TESTS
+        walkmesh_queries++;
+#endif
+        if(model_ray_triangle((vec3_t){point.x,point.y,2560},(vec3_t){0,0,-1},&triangles[i],&distance)&&distance<closest) {
+            closest=distance;hit=true;
+        }
+    }
+    if(hit)*height=model_sub(2560,closest);
+    return hit;
+}
+
 /* -1 retains the pre-existing support path for unprepared/animated models;
  * zero means a prepared mesh was queried and missed, never a flat-deck hit. */
 int G_WalkableModelHeight(edict_t const *ent,vec2_t point,float *height) {
@@ -614,24 +644,60 @@ int G_WalkableModelHeight(edict_t const *ent,vec2_t point,float *height) {
             ent->s.origin.x,ent->s.origin.y,ent->s.origin.z};
         pose->center=model_transform_point(center,m);pose->radius=model_mul(radius,scale);
     }
-    if (pose->has_bounds) {
-        float fraction;
-        float distance=model_ray_distance(pose->center,(vec3_t){point.x,point.y,2560},(vec3_t){point.x,point.y,-2560},&fraction);
-        if (!(distance<=model_mul(pose->radius,pose->radius)))return 0;
-    }
-    float closest=FLT_MAX;bool hit=false;
-    FOR_LOOP(i,mesh->count) {
-        float distance;
-#ifdef BZ_TESTS
-        walkmesh_queries++;
-#endif
-        if(model_ray_triangle((vec3_t){point.x,point.y,2560},(vec3_t){0,0,-1},&pose->triangles[i],&distance)&&distance<closest) {
-            closest=distance;hit=true;
-        }
-    }
-    if(hit)*height=model_sub(2560,closest);
-    return hit;
+    return model_walk_height(pose->triangles,mesh->count,pose->has_bounds,pose->center,pose->radius,point,height);
 }
+
+walkableModelSnapshot_t *G_CaptureWalkableModel(edict_t const *ent) {
+    float ignored;
+    if(G_WalkableModelHeight(ent,ent->s.origin2,&ignored)<0)return NULL;
+    modelWalkPose_t *pose=walkposes[ent->s.number&255];
+    while(pose && pose->entity!=ent)pose=pose->next;
+    if(!pose || !pose->mesh || !pose->mesh->count)return NULL;
+    walkableModelSnapshot_t *copy=gi.MemAlloc(sizeof(*copy));
+    *copy=(walkableModelSnapshot_t){.count=pose->mesh->count,.center=pose->center,
+        .radius=pose->radius,.has_bounds=pose->has_bounds};
+    copy->triangles=gi.MemAlloc((size_t)copy->count*sizeof(triangle3_t));
+    memcpy(copy->triangles,pose->triangles,(size_t)copy->count*sizeof(triangle3_t));return copy;
+}
+void G_FreeWalkableSnapshot(walkableModelSnapshot_t *pose) {
+    if(pose){gi.MemFree(pose->triangles);gi.MemFree(pose);}
+}
+bool G_WalkableSnapshotBounds(walkableModelSnapshot_t const *pose,box2_t *box) {
+    if(!pose || !pose->count)return false;
+    *box=(box2_t){{FLT_MAX,FLT_MAX},{-FLT_MAX,-FLT_MAX}};
+    FOR_LOOP(i,pose->count)FOR_LOOP(k,3) {
+        vec3_t const *v=(vec3_t const *)(pose->triangles+i)+k;
+        box->min.x=MIN(box->min.x,v->x);box->min.y=MIN(box->min.y,v->y);
+        box->max.x=MAX(box->max.x,v->x);box->max.y=MAX(box->max.y,v->y);
+    }
+    return true;
+}
+int G_WalkableSnapshotHeight(walkableModelSnapshot_t const *pose,vec2_t point,float *height) {
+    return pose?model_walk_height(pose->triangles,pose->count,pose->has_bounds,pose->center,pose->radius,point,height):0;
+}
+bool G_WriteWalkableSnapshot(FILE *f,walkableModelSnapshot_t const *pose) {
+    uint32_t count=pose?pose->count:0,bounds=pose&&pose->has_bounds;
+    if(fwrite(&count,4,1,f)!=1)return false;
+    return !count || (fwrite(&bounds,4,1,f)==1 && fwrite(&pose->center,12,1,f)==1 &&
+        fwrite(&pose->radius,4,1,f)==1 && fwrite(pose->triangles,sizeof(triangle3_t),count,f)==count);
+}
+bool G_ReadWalkableSnapshot(FILE *f,walkableModelSnapshot_t **out) {
+    *out=NULL;uint32_t count,bounds;
+    if(fread(&count,4,1,f)!=1)return false;
+    if(!count)return true;
+    long start=ftell(f);if(start<0 || fseek(f,0,SEEK_END))return false;
+    long limit=ftell(f);
+    if(limit<start || fseek(f,start,SEEK_SET) || (uint64_t)(limit-start)<20+(uint64_t)count*sizeof(triangle3_t))return false;
+    walkableModelSnapshot_t *pose=gi.MemAlloc(sizeof(*pose));memset(pose,0,sizeof(*pose));pose->count=count;
+    if(fread(&bounds,4,1,f)!=1 || bounds>1 || fread(&pose->center,12,1,f)!=1 || fread(&pose->radius,4,1,f)!=1 ||
+       !isfinite(pose->center.x)||!isfinite(pose->center.y)||!isfinite(pose->center.z)||!isfinite(pose->radius))goto bad;
+    pose->has_bounds=bounds;pose->triangles=gi.MemAlloc((size_t)count*sizeof(triangle3_t));
+    if(fread(pose->triangles,sizeof(triangle3_t),count,f)!=count)goto bad;
+    FOR_LOOP(i,count)FOR_LOOP(k,9)if(!isfinite(((float *)(pose->triangles+i))[k]))goto bad;
+    *out=pose;return true;
+bad:G_FreeWalkableSnapshot(pose);return false;
+}
+
 
 
 /* MDLX chunk offsets let simulation read sequence data without inflating
@@ -1607,6 +1673,17 @@ static uint32_t model_test_bridge(uint8_t *data,uint32_t flags) {
     uint32_t span=n-12;memcpy(data+12,&span,4);span=n-12;memcpy(data+8,&span,4);
     return n;
 }
+/* Test adapter loads the frozen native64-triangle bridge, not a rectangle or
+ * fabricated deck height. Public construction still owns registration/levels. */
+void G_TestPrepareBridge311(uint32_t index) {
+    uint8_t data[4096]={0};uint32_t n=model_test_bridge(data,0);
+    model_free_walkmesh(g_models[index].walkmesh);
+    modelWalkMesh_t *mesh=model_load_walkmesh(data,n);
+    mesh->has_bounds=true;mesh->radius=646.2139892578125f;
+    mesh->center=(vec3_t){(-311.3429870605469f+310.8680114746094f)*.5f,
+        (-512.9569702148438f+511.1050109863281f)*.5f,(-134.29400634765625f+446.9490051269531f)*.5f};
+    g_models[index].walkmesh=mesh;g_models[index].walkmesh_loaded=true;
+}
 TEST(wc3_model, prepared_bridge_matches_live_retail_mesh_and_reuses_geometry) {
     extern void reset_entities(void),setup_test_world(void);
     extern edict_t *alloc_test_unit(uint32_t,float,float);
@@ -1795,5 +1872,39 @@ TEST(wc3_model, bridge_water_crossing_clamps_authored_unit_pose_like_retail) {
     T_FEQ(unit->s.pose_offset.yaw,0,0);T_FEQ(unit->s.pose_offset.pitch,0,0);T_FEQ(unit->s.pose_offset.roll,0,0);
     T_ASSERT(tilted>150);T_ASSERT(on_deck>200);T_EQ(deep,0);T_ASSERT(zero>100);
     G_FreeModels();reset_entities();setup_test_world();gi.MemFree(texture);
+}
+#endif
+#ifdef BZ_TESTS
+TEST(wc3_model, bridge311_retained_snapshot_outlives_owner_and_rejects_bad_saves) {
+    extern void reset_entities(void),setup_test_world(void);
+    reset_entities();setup_test_world();
+    uint32_t index=G_MAX_MODELS-2;G_TestPrepareBridge311(index);
+    edict_t *bridge=G_Spawn();bridge->s.model=index;bridge->s.scale=1;
+    bridge->s.angle=wc3_degrees_to_radians(90);bridge->s.origin=(vec3_t){1024,672,-192};
+    walkableModelSnapshot_t *saved=G_CaptureWalkableModel(bridge);T_NOT_NULL(saved);
+    if(!saved)return;
+    G_FreeEdict(bridge);model_free_walkmesh(g_models[index].walkmesh);g_models[index].walkmesh=NULL;
+    FOR_LOOP(i,sizeof(walkmesh229_points)/sizeof(*walkmesh229_points)) {
+        vec2_t p;memcpy(&p,walkmesh229_points[i].point,sizeof(p));float z;
+        int hit=G_WalkableSnapshotHeight(saved,p,&z);T_EQ(hit,walkmesh229_points[i].hit);
+        if(hit)T_EQ(wc3_float_bits(z),walkmesh229_points[i].height);
+    }
+    FILE *f=tmpfile();T_NOT_NULL(f);T_ASSERT(G_WriteWalkableSnapshot(f,saved));long size=ftell(f);
+    rewind(f);walkableModelSnapshot_t *loaded=NULL;T_ASSERT(G_ReadWalkableSnapshot(f,&loaded));T_NOT_NULL(loaded);
+    if(loaded){T_EQ(loaded->count,saved->count);T_ASSERT(!memcmp(loaded->triangles,saved->triangles,saved->count*sizeof(triangle3_t)));}
+    G_FreeWalkableSnapshot(loaded);uint8_t *bytes=gi.MemAlloc(size);rewind(f);T_EQ(fread(bytes,1,size,f),size);fclose(f);
+    FOR_LOOP(c,6) {
+        f=tmpfile();T_NOT_NULL(f);
+        uint32_t before;memcpy(&before,bytes+(c<3?0:4),4);
+        uint32_t bad=c<3?UINT32_MAX:c==3?2:c==4?0x7fc00000:0x7f800000;
+        uint32_t offset=c<3?0:c==3?4:c==4?8:24;
+        if(c==4||c==5)memcpy(&before,bytes+offset,4);
+        if(c!=1&&c!=2)memcpy(bytes+offset,&bad,4);
+        size_t length=c==1?3:c==2?size-1:size;
+        T_EQ(fwrite(bytes,1,length,f),length);rewind(f);loaded=saved;
+        T_ASSERT(!G_ReadWalkableSnapshot(f,&loaded));T_NULL(loaded);
+        memcpy(bytes+offset,&before,4);fclose(f);
+    }
+    gi.MemFree(bytes);G_FreeWalkableSnapshot(saved);G_FreeModels();reset_entities();setup_test_world();
 }
 #endif

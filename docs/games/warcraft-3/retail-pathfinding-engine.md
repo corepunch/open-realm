@@ -19199,3 +19199,84 @@ Water, bridges and rejected-support domains remain in the existing broad
 `FOOT-04.2` item. This chunk adds no TODO IDs and does not claim performance
 acceptance or complete retail pathfinding fidelity. Focused validation follows
 the approved cadence, chunk9 after full checkpoint301.
+
+
+## Retained bridge placement levels and replacement footprints (Payoff311)
+
+Birth admission, `SetUnitPosition` and queryzero now use the retained walkable
+placement-level registry. Previously they compared only the nearest terrain
+vertex. On the water/cliff/bridge arena this produced360 wrong assertions in
+160 public placement cases. The final public regression covers178 scenes and534
+constructor/position/queryzero states across foot, fly, amphibious, hover and
+float profiles, all four collision classes, and death/restore/removal/overlap.
+Its literal expected coordinates come from two complete retail observations,
+not engine output; an unhooked control agrees on all909 stored public markers.
+
+`78bc90` takes the signed maximum of terrain and every containing registry
+rectangle. `784820` captures the rotated texture bounds, inclusive pixel limits,
+base cliff level at the signed integer rectangle midpoint, and additive delta.
+`78e260` writes the base for black pixels and base+delta for decoded categories.
+The entry remains registered after death or public removal. Live pathing regions
+have a separate lifetime. The new game-owned coarse bucket index takes space
+proportional to map cells/64, retained pixels and local overlaps. A ring-cell
+query reads nearby completed integer arrays; it allocates nothing, scans no
+edict table and traces no mesh triangles.
+
+The delta producer `6c1ab0` queries virtual `e4` support at the widget's native
+XY, not its creation-Z field. `6c3370` supplies the authored sampling radius
+(LT06 row50 is200; flyH is256). `6c0040` selects layer-2 for strict
+abs(radius)<float.001, otherwise min(trunc(radius/128),3). Nonnegative layers
+read four prepared cell-centred terrain grids. `748470` builds the first from
+packed vertices, then halves dimensions/doubles cell size and averages four
+previous values in explicit SSE order. All340 values at128/256/512/1024 cells
+are frozen from two additional read-only retail runs. Delta arithmetic stores
+both support results to float, subtracts, multiplies1/128, adds.5, truncates to
+signed integer, then adds authored cliffHeight. The constructor consults prior
+retained model geometry through the same spatial index. Static model snapshots
+own their ray inputs independently of an edict or resource pointer.
+
+Removal exposed two further differences. Public `210950`→`6c3630` retires an
+alive footprint and publishes the death texture before target-loss notification;
+`0557b0` then schedules canonical-wrapper release. The engine now uses the
+existing ordered primary release heap. Removal emits no death event or loot.
+Same-callback placement observes the death footprint; the scheduled release
+retires it. `650c00`/`6501a0` snap a replacement texture's raster origin using
+its own dimensions at the texture-transition stage; the generic0642f0 region
+publisher consumes that captured point unchanged. The20-row death texture therefore has a different raster
+origin from the18-row alive texture, while the physical/model pose stays fixed.
+Existing tests that assumed immediate edict reclamation now verify the native
+return and release boundaries separately. No existing retail fixture words were
+changed to accommodate engine output.
+
+Cold load previously re-executed the death transition after restoring fine
+records, retiring the saved death footprint a second time. Resource rebinding
+now restores textures and derived flags without replacing saved region history.
+Save186 persists retained rectangles, level words and completed static model ray
+inputs, plus each live destructable's logical registry handle and captured raster origin. Derived bucket
+links are rebuilt; process pointers are absent. Invalid handles, bounds,
+non-finite geometry and truncated payloads are rejected. Earlier save layouts
+are rejected. The network contract is unchanged.
+
+Evidence limits remain explicit. Base repeats record registered levels4,6,9.
+Supplemental retirement observers also expose a third delta5 instead of7
+(level7 instead of9), with identical public placement states. The supporting
+model pose/publication phase needs further work; these samples do not establish
+a universal third-provider level or complete model-pose determinism. The strict
+verifier freezes both observed variants and compares the common placement and
+retirement contract without erasing either observation. Dense exploratory
+readbacks and failed hooks remain archived, outside acceptance. Animated support
+retains its existing unimplemented model-owner scope. Water/bridge route-goal
+trajectories and later lifetimes still belong to FOOT-04.2; this chunk adds no
+TODO IDs and does not close that broad leaf or a performance gate.
+
+Reproduce the accepted contract with:
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_bridge311.py \
+  --binary /path/to/supported/game.dll --report /tmp/bridge311-fresh.json
+```
+
+The bundle includes six complete read-only captures and one unhooked control.
+Fifteen saved Ghidra function annotations, two registry layouts and1080 original
+instruction guards accompany `MapPathfinding.java`. The exact-source archive is
+`research/FOOT-04.2/payoff311` under the external analysis reports.

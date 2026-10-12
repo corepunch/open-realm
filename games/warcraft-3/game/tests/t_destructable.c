@@ -1380,8 +1380,10 @@ TEST(wc3_destructable, remove_bypasses_death_event_and_loot) {
     edict_t *dest = make_test_destructable(100.0f, 0.0f, 0.0f);
 
     T_ASSERT(G_RemoveDestructable(dest));
-    T_ASSERT(!dest->inuse);
+    /*210950/6c3630 ends with0557b0, so native return precedes release. */
+    T_ASSERT(G_IsDeferredFree(dest));T_ASSERT(dest->inuse);
     T_EQ(level.events.write, 0);
+    G_TestFinishDeferredFrees();T_ASSERT(!dest->inuse);T_EQ(level.events.write,0);
 }
 
 TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
@@ -1454,7 +1456,8 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
 
     jass_callbyname(level.vm, "removeScriptedDest", true);
     jass_runevents(level.vm);
-    T_ASSERT(!dest->inuse);
+    T_ASSERT(G_IsDeferredFree(dest));
+    G_TestFinishDeferredFrees();T_ASSERT(!dest->inuse);
 
     G_SetSLKRows("DestructableData", saved);
     free_slk_rows(rows);

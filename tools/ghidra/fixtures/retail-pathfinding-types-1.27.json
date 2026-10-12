@@ -5628,6 +5628,108 @@
           "evidence": "Payoff2919c5360/9ccb60/9c4280 owner slots and enrollment associations."
         }
       ]
+    },
+    {
+      "name": "WC3PlacementSurfaceEntry311",
+      "length": 44,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "widget",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 4,
+          "name": "base_level",
+          "type": "i32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 8,
+          "name": "delta_level",
+          "type": "i32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 12,
+          "name": "minimum_y",
+          "type": "i32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 16,
+          "name": "minimum_x",
+          "type": "i32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 20,
+          "name": "maximum_y",
+          "type": "i32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 24,
+          "name": "maximum_x",
+          "type": "i32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 28,
+          "name": "level_capacity",
+          "type": "u32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 32,
+          "name": "level_count",
+          "type": "u32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 36,
+          "name": "levels",
+          "type": "ptr:i32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 40,
+          "name": "level_growth",
+          "type": "u32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        }
+      ]
+    },
+    {
+      "name": "WC3PlacementSurfaceRegistry311",
+      "length": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "capacity",
+          "type": "u32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 4,
+          "name": "count",
+          "type": "u32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 8,
+          "name": "entries",
+          "type": "ptr:WC3PlacementSurfaceEntry311",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        },
+        {
+          "offset": 12,
+          "name": "growth",
+          "type": "u32",
+          "evidence": "Payoff311:77fe80/784820/782bf0 original instructions and repeated bridge311 raw entries."
+        }
+      ]
     }
   ],
   "methods": [

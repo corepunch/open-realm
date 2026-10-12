@@ -5,7 +5,19 @@
 #define NO_RANDOM_ITEM_TABLE ((uint32_t)-1) // table index; war3map.doo sentinel meaning no random-item table
 #define RANDOM_ITEM_PREFIX_MASK 0x00ffffff // bits; compare the YYI prefix while ignoring its encoded selector byte
 
-static void G_ApplyDestructableAlivePathing(edict_t *ent) {
+/*650c00 prepares the new texture's raster point;0642f0 consumes that captured
+ *point unchanged. Keep admission out of the generic region publisher. */
+static void G_CaptureDestructableFootprintOrigin(edict_t *ent) {
+    ent->destructable->footprint_origin_valid=ent->pathtex!=NULL;
+    if(!ent->pathtex)return;
+    pathTexTransform_t transform=CM_GetPathTexTransform(ent);box2_t bounds=CM_GetWorldBounds();
+    float point[]={wc3_widget_clamp_axis(ent->s.origin.x,bounds.min.x,bounds.max.x),
+        wc3_widget_clamp_axis(ent->s.origin.y,bounds.min.y,bounds.max.y)};
+    wc3_widget_snap(point,transform.width,transform.height);
+    ent->destructable->footprint_origin=(vec2_t){point[0],point[1]};
+}
+
+static void G_RefreshDestructableAlivePathing(edict_t *ent) {
     G_MarkMoveSpatialObject(ent);
     ent->pathtex = ent->destructable->placement_solid
         ? ent->destructable->alive_pathtex
@@ -22,8 +34,11 @@ static void G_ApplyDestructableAlivePathing(edict_t *ent) {
         ent->s.flags &= ~EF_GROUND_SURFACE;
 }
 
-static void G_ApplyDestructableDeathPathing(edict_t *ent) {
-    S_RetireMoveRegions(ent);
+static void G_ApplyDestructableAlivePathing(edict_t *ent) {
+    G_RefreshDestructableAlivePathing(ent);G_CaptureDestructableFootprintOrigin(ent);
+}
+
+static void G_RefreshDestructableDeathPathing(edict_t *ent) {
     G_MarkMoveSpatialObject(ent);
     ent->pathtex = ent->destructable->placement_solid
         ? ent->destructable->death_pathtex
@@ -32,6 +47,9 @@ static void G_ApplyDestructableDeathPathing(edict_t *ent) {
     ent->destructable->pathing_active = ent->destructable->placement_solid &&
         ent->pathtex != NULL;
     ent->s.flags &= ~EF_GROUND_SURFACE;
+}
+static void G_ApplyDestructableDeathPathing(edict_t *ent) {
+    S_RetireMoveRegions(ent);G_RefreshDestructableDeathPathing(ent);G_CaptureDestructableFootprintOrigin(ent);
 }
 
 /* The authored constructor selects rotation and snaps pose before publishing
@@ -84,8 +102,10 @@ void G_RestoreDestructableData(edict_t *ent) {
             gi.error("WC3 LoadGame: missing destructable placement");
         }
     }
-    if (ent->destructable->dead) G_ApplyDestructableDeathPathing(ent);
-    else G_ApplyDestructableAlivePathing(ent);
+    /* The save already restored ordered fine-region identities. Rebind texture
+     * resources and derived flags without executing the death transition again. */
+    if (ent->destructable->dead) G_RefreshDestructableDeathPathing(ent);
+    else G_RefreshDestructableAlivePathing(ent);
 }
 
 /*
@@ -421,11 +441,15 @@ bool G_SetDestructableDeadState(edict_t *ent, bool process_death) {
 }
 
 bool G_RemoveDestructable(edict_t *ent) {
-    if (!G_IsDestructable(ent)) {
-        return false;
-    }
-    unit_leavecombat(ent);
-    G_FreeEdict(ent);
+    if (!G_IsDestructable(ent) || G_IsDeferredFree(ent))return false;
+    /*6c3630 retires the alive texture and constructs the death texture before
+     *6c0890 target loss;0557b0 schedules canonical-wrapper release. A placement
+     *inside the same callback observes the new footprint. No death event/loot. */
+    if(ent->destructable->dead)unit_leavecombat(ent);
+    else G_EnterDestructableDeathState(ent,NULL,false,true);
+    G_InvalidateRallyTarget(ent);
+    G_SetEntitySelectionMask(ent,0);
+    wc3Clock_t clock=G_TimerQueryClock(NULL);G_QueueEdictRelease(ent,&clock);
     return true;
 }
 

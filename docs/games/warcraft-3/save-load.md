@@ -1687,3 +1687,20 @@ was already saved; the new owner flag makes deferred destruction release exactly
 that contribution after load, retaining other owners. Older saves are rejected
 under the existing version policy. The flag fits existing instance padding;
 network layouts remain unchanged. See [counted removal](retail-pathfinding-engine.md#removal-owns-a-counted-separation-contribution-and-its-inverse-payoff302).
+
+
+### Retained walkable placement state (Save186)
+
+Save186 retains walkable placement rectangles, integer level arrays and completed
+static model ray inputs independently of live destructables. The spatial bucket
+index is derived and rebuilt. Live destructables save their logical entry
+handle and captured replacement-texture raster origin; duplicate/out-of-range
+handles and non-finite origins are rejected. Model snapshots contain
+no entity, animation, resource or process pointers. Payload bounds, finite
+geometry and truncation are checked before use. The ordinary release heap also
+retains pending destructable removal deadlines without reissuing removal.
+
+Cold resource rebinding restores a dead destructable's texture and flags without
+executing the death transition over its saved fine regions. Older save layouts
+are rejected; the network contract is unchanged. See
+[bridge placement](retail-pathfinding-engine.md#retained-bridge-placement-levels-and-replacement-footprints-payoff311).

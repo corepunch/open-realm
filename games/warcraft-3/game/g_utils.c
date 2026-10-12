@@ -105,7 +105,7 @@ void G_FreeEdict(edict_t *ent) {
     G_CancelDeferredFree(ent);
     /* Native69c510 commits inactivity before availability and detach callbacks.
      * No death event is produced by removal; the identity stays queryable. */
-    if(ent->class_id && !M_IsDead(ent)) {
+    if(ent->class_id && !ent->destructable && !M_IsDead(ent)) {
         ent->svflags|=SVF_DEADMONSTER;
         G_SetHealth(ent,0);
         S_UnitAbilityEventWithCall(ent,A_UNIT_RETIRE,&(abilityCall_t){.retirement.destroying=true});
@@ -166,6 +166,18 @@ void G_FreeEdict(edict_t *ent) {
     if (had_static_pathing) CM_BakeStaticObstacles();
 }
 
+/*0557b0 is shared by units and destructables. This queue owns only physical
+ * release timing; each actor must publish its own synchronous removal stages. */
+void G_QueueEdictRelease(edict_t *ent,wc3Clock_t const *clock) {
+    if(!ent || !ent->inuse || G_IsDeferredFree(ent))return;
+    if(deferred_free_count>=MAX_ENTITIES)gi.error("WC3: deferred entity release queue exhausted");
+    uint32_t slot=ent->s.number;
+    deferred_frees[slot]=(deferred_free_t){.deadline=*clock,.spawn_time=ent->spawn_time,
+        .sequence=++level.timer_sequence};
+    deferred_frees[slot].deadline.time=wc3_add(clock->time,G_ClockMinimumDelay());
+    DeferredFreeInsert(slot);
+}
+
 /* Retail RemoveUnit retires commands now, then queues a primary-clock release. */
 void G_DeferFreeEdict(edict_t *ent) {
     wc3Clock_t clock=G_TimerQueryClock(NULL);G_DeferFreeEdictAt(ent,&clock);
@@ -188,11 +200,7 @@ void G_DeferFreeEdictAt(edict_t *ent,wc3Clock_t const *clock) {
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
     G_RemoveEntityFromJassGroups(ent);
-    uint32_t const slot=ent->s.number;
-    deferred_frees[slot]=(deferred_free_t){.deadline=*clock,.spawn_time=ent->spawn_time,
-        .sequence=++level.timer_sequence};
-    deferred_frees[slot].deadline.time=wc3_add(clock->time,G_ClockMinimumDelay());
-    DeferredFreeInsert(slot);
+    G_QueueEdictRelease(ent,clock);
     /* Native694690 retires the order chain before returning from RemoveUnit;
      * deferred storage release must not keep its commands or physical task. */
     G_ClearUnitOrderQueue(ent);
@@ -227,7 +235,7 @@ void G_FireUnitRelease(void) {
         /*69c510 finalizes availability while the canonical unit/mover still
          * exist. First Move disable owns a recovery even after RemoveUnit's
          * synchronous task cleanup. Storage destruction is a later stage. */
-        if(ent->class_id && !M_IsDead(ent)) {
+        if(ent->class_id && !ent->destructable && !M_IsDead(ent)) {
             ent->svflags|=SVF_DEADMONSTER;G_SetHealth(ent,0);
             S_UnitAbilityEvent(ent,A_UNIT_RETIRE);
         }

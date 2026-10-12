@@ -25892,3 +25892,89 @@ TEST(wc3_movement, goal310_public_goal_routes_match_retail) {
     }
 }
 #endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_bridge311.h"
+TEST(wc3_movement, bridge311_constructor_and_placement_all_classes) {
+    extern void G_TestPrepareBridge311(uint32_t);
+    static vec2_t const requests[]={{1024,640},{576,640},{1024,192},{256,192},{640,1856},{1408,1856},{1024,960},{1024,384}};
+    static char const *const modes[]={"foot","fly","amph","hover","float"};
+    static float radii[]={8,24,40,56},heights[]={0,60,0,0,0};
+    slkTestData_t *rows=parse_slk_string(
+        "ID;PWXL;N;E\nB;X10;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"file\"\nC;X3;K\"walkable\"\n"
+        "C;X4;K\"flyH\"\nC;X5;K\"fixedRot\"\nC;X6;K\"pathTex\"\nC;X7;K\"cliffHeight\"\nC;X8;K\"HP\"\n"
+        "C;X9;K\"radius\"\nC;X10;K\"pathTexDeath\"\n"
+        "C;X1;Y2;K\"LT06\"\nC;X2;K\"Doodads\\Terrain\\WoodBridgeLarge0\"\nC;X3;K1\n"
+        "C;X4;K256\nC;X5;K90\nC;X6;K\"PathTextures\\CityBridgeLarge0.tga\"\nC;X7;K2\nC;X8;K10000\n"
+        "C;X9;K200\nC;X10;K\"PathTextures\\CityBridgeLarge0Death.tga\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("DestructableData",rows);
+    FOR_LOOP(scene,178)FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64];memcpy(cells,bridge311_wpm,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        unsigned kind=scene/8%20,mode=kind/4,cls=kind%4;
+        world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+        FOR_LOOP(y,17)FOR_LOOP(x,17) {
+            bool water=y<=10 && x>=4 && x<=12;
+            ((war3mapVertex_t *)world.map->vertices)[y*17+x]=(war3mapVertex_t){.accurate_height=water ?
+                0x2000-4*((x==4||x==5||x==11||x==12)?64:192) : 0x2000,
+                .waterlevel=8550,.water=water,.level=y>=12 && x>=8?3:2};
+        }
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        S_InitFlightSupport();
+        G_TestPrepareBridge311(G_RegisterModel("Doodads\\Terrain\\WoodBridgeLarge0.mdl"));
+        edict_t *bridge=G_CreateDestructable(MAKEFOURCC('L','T','0','6'),1024,640,CM_GetHeightAtPoint(1024,640),0,1,0);
+        T_NOT_NULL(bridge);edict_t *other=NULL;
+        if(scene>=160)for(unsigned action=160;action<=scene;action++) {
+            G_TestFinishDeferredFrees();
+            if(action==160)T_ASSERT(G_KillDestructable(bridge,NULL));
+            else if(action==162)T_ASSERT(G_RestoreDestructable(bridge,10000,false));
+            else if(action==164){T_ASSERT(G_RemoveDestructable(bridge));T_ASSERT(G_IsDeferredFree(bridge));bridge=NULL;}
+            else if(action==166)bridge=G_CreateDestructable(MAKEFOURCC('L','T','0','6'),1024,640,128,0,1,0);
+            else if(action==168)other=G_CreateDestructable(MAKEFOURCC('L','T','0','6'),1024,640,256,0,1,0);
+            else if(action==170){T_ASSERT(G_RemoveDestructable(bridge));T_ASSERT(G_IsDeferredFree(bridge));bridge=NULL;}
+            else if(action==172)T_ASSERT(G_KillDestructable(other,NULL));
+            else if(action==174)T_ASSERT(G_RestoreDestructable(other,10000,false));
+            else if(action==176){T_ASSERT(G_RemoveDestructable(other));T_ASSERT(G_IsDeferredFree(other));other=NULL;}
+            if(saved) {
+                cstring_t file=Test_TempPath("wc3-bridge311-providers.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            }
+        }
+        T_EQ(G_GetMovePlacementLevel(32,20),scene<166?4:scene<168?6:9);
+        mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radii[cls]},
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=(void *)modes[mode]},
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_real,.data=&heights[mode]}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','Q','0','A'+kind),
+            .numbeOfModifications=3,.modifications=mods};
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        vec2_t request=scene>=160?(vec2_t){1024,640}:requests[scene%8];char script[2048];
+        snprintf(script,sizeof(script),
+            "globals\nunit p311=null\nendglobals\nfunction main takes nothing returns nothing\n"
+            "set p311=CreateUnit(Player(0),'hQ0%c',%.0f,%.0f,0)\ncall SetUnitAcquireRange(p311,0)\nendfunction\n"
+            "function place takes nothing returns nothing\ncall SetUnitPosition(p311,%.0f,%.0f)\nendfunction\n"
+            "function queryzero takes nothing returns nothing\ncall SetUnitPathing(p311,false)\ncall SetUnitPosition(p311,%.0f,%.0f)\nendfunction\n",
+            'A'+kind,request.x,request.y,request.x,request.y,request.x,request.y);
+        T_ASSERT(run_test_jass(script));edict_t *unit=NULL;
+        FILTER_EDICTS(e,e->inuse && e->class_id==custom.newUnitID)unit=e;
+        T_NOT_NULL(unit);
+        if(unit)FOR_LOOP(stage,3) {
+            if(stage){jass_callbyname(level.vm,stage==1?"place":"queryzero",false);T_ASSERT(!jass_rterror_pending(level.vm));}
+            uint32_t const *expected=bridge311_states[scene][stage];
+            uint32_t fine[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y)};
+            FOR_LOOP(axis,2) {
+                if(fine[axis]!=expected[axis])fprintf(stderr,"bridge311 scene%u saved%u stage%u axis%u actual%08x expected%08x\n",scene,saved,stage,axis,fine[axis],expected[axis]);
+                T_EQ(fine[axis],expected[axis]);T_EQ(((float *)&unit->s.origin2)[axis],wc3_float(expected[axis+2]));
+            }
+            T_EQ(wc3_float_bits(wc3_div(unit->collision,32)),expected[4]);
+            T_EQ(unit->current_order_id,0);T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+            if(saved){cstring_t file=Test_TempPath("wc3-bridge311.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[0]);T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[1]);}
+        }
+        G_TestFinishDeferredFrees();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+    }
+    G_SetSLKRows("DestructableData",old_rows);free_slk_rows(rows);
+}
+#endif

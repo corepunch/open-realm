@@ -382,6 +382,7 @@ static void move_free_adaptive(void) {
 
 /* Classification is derived map state; release it when the game module shuts down. */
 void G_FreeMovePathCache(void) {
+    G_ClearMovePlacementLevels();
     S_FreeMoveProximity();
     CM_FinishPathJobs();
     move_grid_geometry.valid = false;
@@ -1150,16 +1151,230 @@ bool G_SetTerrainPathingState(uint8_t const *data, uint32_t size) {
     return true;
 }
 
-/* Original744040/750100 select the nearest W3E vertex from the fine cell.
- * TODO FOOT-04:78bc90 also overlays bridge levels; recover that producer before
- * claiming forced placement across a bridge or a layered support surface. */
+/* Placement levels are a distinct retained registry from both live footprint
+ * occupancy and mesh support. Original77fe80 keeps registered entries across
+ * destructable death/removal. A coarse bucket index makes each ring-cell query
+ * proportional to nearby overlays, rather than all scenery or all bridges. */
+#define PLACEMENT_LEVEL_BUCKET_CELLS 8u
+
+typedef struct {wc3FineBox_t box,index_box;int32_t *levels;walkableModelSnapshot_t *model;} movePlacementSurface_t;
+typedef struct {uint32_t surface,next;} movePlacementLink_t;
+static struct {
+    movePlacementSurface_t *surfaces;
+    movePlacementLink_t *links;
+    uint32_t *buckets;
+    uint32_t count,capacity,link_count,link_capacity,width,height;
+} move_placement;
+
+static uint32_t placement_terrain_cell(int32_t x,int32_t y) {
+    if ((uint32_t)x>=pathmap.width || (uint32_t)y>=pathmap.height || !world.map || !world.map->vertices)
+        return UINT32_MAX;
+    uint32_t vx=((uint32_t)x+2)/4,vy=((uint32_t)y+2)/4;
+    if(vx>=world.map->width || vy>=world.map->height)return UINT32_MAX;
+    return CM_GetWar3MapVertex(vx,vy)->level;
+}
+
+void G_ClearMovePlacementLevels(void) {
+    FOR_LOOP(i,move_placement.count) {
+        free(move_placement.surfaces[i].levels);G_FreeWalkableSnapshot(move_placement.surfaces[i].model);
+    }
+    free(move_placement.surfaces);free(move_placement.links);free(move_placement.buckets);
+    memset(&move_placement,0,sizeof(move_placement));
+    FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].destructable)g_edicts[i].destructable->placement_surface=0;
+}
+
+static void placement_index_surface(uint32_t id) {
+    if(!move_placement.buckets) {
+        move_placement.width=(pathmap.width+PLACEMENT_LEVEL_BUCKET_CELLS-1)/PLACEMENT_LEVEL_BUCKET_CELLS;
+        move_placement.height=(pathmap.height+PLACEMENT_LEVEL_BUCKET_CELLS-1)/PLACEMENT_LEVEL_BUCKET_CELLS;
+        move_placement.buckets=calloc((size_t)move_placement.width*move_placement.height,sizeof(uint32_t));
+        if(!move_placement.buckets)gi.error("Move placement: cannot allocate level index");
+    }
+    wc3FineBox_t b=move_placement.surfaces[id].index_box;
+    b.min.x=MAX(0,b.min.x);b.min.y=MAX(0,b.min.y);
+    b.max.x=MIN((int32_t)pathmap.width,b.max.x);b.max.y=MIN((int32_t)pathmap.height,b.max.y);
+    if(b.min.x>=b.max.x || b.min.y>=b.max.y)return;
+    uint32_t x0=b.min.x/PLACEMENT_LEVEL_BUCKET_CELLS,y0=b.min.y/PLACEMENT_LEVEL_BUCKET_CELLS;
+    uint32_t x1=(b.max.x-1)/PLACEMENT_LEVEL_BUCKET_CELLS,y1=(b.max.y-1)/PLACEMENT_LEVEL_BUCKET_CELLS;
+    for(uint32_t y=y0;y<=y1;y++)for(uint32_t x=x0;x<=x1;x++) {
+        if(move_placement.link_count==move_placement.link_capacity) {
+            if(move_placement.link_capacity>UINT32_MAX/2)gi.error("Move placement: level index overflow");
+            move_placement.link_capacity=move_placement.link_capacity?move_placement.link_capacity*2:64;
+            move_placement.links=wc3_records_memory(move_placement.links,(size_t)move_placement.link_capacity*sizeof(*move_placement.links));
+        }
+        uint32_t *head=move_placement.buckets+y*move_placement.width+x;
+        move_placement.links[move_placement.link_count]=(movePlacementLink_t){id,*head};
+        *head=++move_placement.link_count;
+    }
+}
+
+static wc3FineBox_t placement_surface_index_box(wc3FineBox_t box,walkableModelSnapshot_t const *model) {
+    box2_t bounds;
+    if(G_WalkableSnapshotBounds(model,&bounds)) {
+        vec2_t a=move_grid_from_world(bounds.min.x,bounds.min.y),b=move_grid_from_world(bounds.max.x,bounds.max.y);
+        box.min.x=MIN(box.min.x,(int32_t)floorf(MAX(0.f,MIN(a.x,(float)pathmap.width))));
+        box.min.y=MIN(box.min.y,(int32_t)floorf(MAX(0.f,MIN(a.y,(float)pathmap.height))));
+        box.max.x=MAX(box.max.x,(int32_t)floorf(MAX(0.f,MIN(b.x,(float)pathmap.width)))+1);
+        box.max.y=MAX(box.max.y,(int32_t)floorf(MAX(0.f,MIN(b.y,(float)pathmap.height)))+1);
+    }
+    return box;
+}
+static uint32_t placement_append_surface(wc3FineBox_t box,int32_t *levels,walkableModelSnapshot_t *model) {
+    if(move_placement.count==move_placement.capacity) {
+        if(move_placement.capacity>UINT32_MAX/2)gi.error("Move placement: surface count overflow");
+        move_placement.capacity=move_placement.capacity?move_placement.capacity*2:16;
+        move_placement.surfaces=wc3_records_memory(move_placement.surfaces,(size_t)move_placement.capacity*sizeof(*move_placement.surfaces));
+    }
+    uint32_t id=move_placement.count++;
+    move_placement.surfaces[id]=(movePlacementSurface_t){.box=box,.index_box=placement_surface_index_box(box,model),.levels=levels,.model=model};placement_index_surface(id);return id+1;
+}
+
+/* Mesh support is consulted only when publishing another provider. Fine-ring
+ * rejection reads the completed integer overlay and never traverses triangles. */
+static float placement_support_height(vec2_t point) {
+    float height=CM_GetHeightAtPoint(point.x,point.y);
+    vec2_t fine=move_grid_from_world(point.x,point.y);
+    int32_t x=(int32_t)fine.x,y=(int32_t)fine.y;
+    if((uint32_t)x>=pathmap.width || (uint32_t)y>=pathmap.height || !move_placement.buckets)return height;
+    uint32_t head=move_placement.buckets[(uint32_t)y/PLACEMENT_LEVEL_BUCKET_CELLS*move_placement.width+(uint32_t)x/PLACEMENT_LEVEL_BUCKET_CELLS];
+    while(head) {
+        movePlacementLink_t const *link=move_placement.links+head-1;float deck;
+        if(G_WalkableSnapshotHeight(move_placement.surfaces[link->surface].model,point,&deck) && deck>height)height=deck;
+        head=link->next;
+    }
+    return height;
+}
+bool G_ValidateMovePlacementLevels(void) {
+    uint8_t *used=calloc((size_t)move_placement.count+1,1);
+    if(!used)gi.error("Move placement: cannot validate retained handles");
+    bool valid=true;
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t const *ent=g_edicts+i;
+        if(!ent->inuse || !ent->destructable)continue;
+        if(ent->destructable->footprint_origin_valid>1 ||
+           (ent->destructable->footprint_origin_valid && (!isfinite(ent->destructable->footprint_origin.x) ||
+             !isfinite(ent->destructable->footprint_origin.y)))){valid=false;break;}
+        uint32_t handle=ent->destructable->placement_surface;
+        if(!handle)continue;
+        if(handle>move_placement.count || used[handle]){valid=false;break;}
+        used[handle]=1;
+    }
+    free(used);return valid;
+}
+void G_RefreshMovePlacementModel(edict_t const *ent) {
+    if(!ent || !ent->destructable)return;
+    uint32_t handle=ent->destructable->placement_surface;
+    if(!handle || handle>move_placement.count)return;
+    walkableModelSnapshot_t *pose=G_CaptureWalkableModel(ent);
+    if(!pose)return; /* animated/unprepared support keeps its existing path */
+    movePlacementSurface_t *surface=move_placement.surfaces+handle-1;
+    G_FreeWalkableSnapshot(surface->model);surface->model=pose;
+    wc3FineBox_t box=placement_surface_index_box(surface->box,pose);
+    if(memcmp(&box,&surface->index_box,sizeof(box))) {
+        surface->index_box=box;move_placement.link_count=0;
+        memset(move_placement.buckets,0,(size_t)move_placement.width*move_placement.height*sizeof(uint32_t));
+        FOR_LOOP(i,move_placement.count)placement_index_surface(i);
+    }
+}
+
+/*784820/78e260 snapshot the full rotated texture rectangle. Black pixels
+ * contribute the captured base level; any decoded category adds the delta.
+ * This is independent of the mesh and of the live blocking-region masks. */
+void G_RegisterMovePlacementSurface(edict_t *ent) {
+    if(!G_DestructableIsWalkable(ent) || !ent->pathtex || !pathmap.width || !pathmap.height ||
+       ent->destructable->placement_surface)return;
+    pathTex_t const *texture=ent->pathtex;pathTexTransform_t t=CM_GetPathTexTransform(ent);
+    vec2_t fine=move_grid_from_world(ent->s.origin2.x,ent->s.origin2.y);
+    int32_t x=(int32_t)wc3_int_bits(wc3_float_bits(wc3_sub(fine.x,t.width*.5f)));
+    int32_t y=(int32_t)wc3_int_bits(wc3_float_bits(wc3_sub(fine.y,t.height*.5f)));
+    wc3FineBox_t box={{x,y},{x+(int32_t)t.width,y+(int32_t)t.height}};
+    int32_t base=(int32_t)placement_terrain_cell((box.min.x+box.max.x-1)/2,(box.min.y+box.max.y-1)/2);
+    float height=placement_support_height(ent->s.origin2),support=height;
+    /*6c3370 reads the authored sampling radius (row+50), not flyH. 6c0040
+     * selects layer -2 for abs(radius)<.001, otherwise min(trunc(radius/128),3).
+     * Nonnegative layers exclude decks and use the prepared presentation mip. */
+    float radius=ent->data.DestructableData->radius;
+    if(!(fabsf(radius)<.001f)) {
+        volatile float tiles=radius*(1.f/TILE_SIZE);
+        int32_t layer=MIN((int32_t)tiles,3);
+        if(layer>=0) {
+            if(!S_GetPresentationSupport(ent->s.origin2,(uint32_t)layer,&support))
+                support=CM_GetHeightAtPoint(ent->s.origin2.x,ent->s.origin2.y);
+        } else if(layer==-3) {
+            if(!S_GetFlightSupport(ent->s.origin2,&support))support=CM_GetHeightAtPoint(ent->s.origin2.x,ent->s.origin2.y);
+        }
+    }
+    /*6c1ab0: SSE rounded subtraction, /128, +.5, signed truncation. */
+    volatile float delta_height=height-support;
+    volatile float delta_tiles=delta_height*(1.f/TILE_SIZE);
+    volatile float rounded=delta_tiles+.5f;
+    int32_t delta=(int32_t)rounded+(int32_t)ent->data.DestructableData->cliffHeight;
+    int32_t *levels=wc3_records_memory(NULL,(size_t)t.width*t.height*sizeof(*levels));
+    FOR_LOOP(py,texture->height)FOR_LOOP(px,texture->width) {
+        point2_t pos=pathtex_transformed_point(&(pathTexPointParams_t){.pathtex=texture,.x=px,.y=py,.turn=t.turn});
+        color32_t p=texture->map[py*texture->width+px];
+        bool category=(p.b&1)||(p.r&1)||p.g;
+        levels[(uint32_t)pos.y*t.width+pos.x]=base+(category?delta:0);
+    }
+    ent->destructable->placement_surface=placement_append_surface(box,levels,G_CaptureWalkableModel(ent));
+}
+
+uint32_t G_GetMovePlacementLevel(int32_t x,int32_t y) {
+    uint32_t terrain=placement_terrain_cell(x,y);
+    if(terrain==UINT32_MAX || !move_placement.buckets)return terrain;
+    uint32_t head=move_placement.buckets[(uint32_t)y/PLACEMENT_LEVEL_BUCKET_CELLS*move_placement.width+(uint32_t)x/PLACEMENT_LEVEL_BUCKET_CELLS];
+    int32_t level=(int32_t)terrain,overlay=-1;
+    while(head) {
+        movePlacementLink_t const *link=move_placement.links+head-1;
+        movePlacementSurface_t const *surface=move_placement.surfaces+link->surface;
+        wc3FineBox_t b=surface->box;
+        if(x>=b.min.x && y>=b.min.y && x<b.max.x && y<b.max.y) {
+            int32_t value=surface->levels[(size_t)(y-b.min.y)*(b.max.x-b.min.x)+(x-b.min.x)];
+            overlay=MAX(overlay,value);
+        }
+        head=link->next;
+    }
+    return (uint32_t)MAX(level,overlay);
+}
+
+/* Retained entries can outlive their edicts. Save logical rectangles and
+ * values, never object/resource pointers or derived bucket links. */
+bool G_WriteMovePlacementLevels(FILE *f) {
+    if(fwrite(&move_placement.count,sizeof(uint32_t),1,f)!=1)return false;
+    FOR_LOOP(i,move_placement.count) {
+        movePlacementSurface_t const *surface=move_placement.surfaces+i;
+        size_t n=(size_t)(surface->box.max.x-surface->box.min.x)*(surface->box.max.y-surface->box.min.y);
+        if(fwrite(&surface->box,sizeof(surface->box),1,f)!=1 || fwrite(surface->levels,sizeof(int32_t),n,f)!=n || !G_WriteWalkableSnapshot(f,surface->model))return false;
+    }
+    return true;
+}
+
+bool G_ReadMovePlacementLevels(FILE *f) {
+    uint32_t count;
+    if(fread(&count,sizeof(count),1,f)!=1)return false;
+    long start=ftell(f);if(start<0 || fseek(f,0,SEEK_END))return false;
+    long file_end=ftell(f);if(file_end<start || fseek(f,start,SEEK_SET) || count>(uint64_t)(file_end-start)/sizeof(wc3FineBox_t))return false;
+    G_ClearMovePlacementLevels();
+    FOR_LOOP(i,count) {
+        wc3FineBox_t box;
+        if(fread(&box,sizeof(box),1,f)!=1)return false;
+        int64_t width=(int64_t)box.max.x-box.min.x,height=(int64_t)box.max.y-box.min.y;
+        long here=ftell(f);
+        if(width<=0 || height<=0 || here<0 || file_end<here ||
+           (uint64_t)width>(uint64_t)(file_end-here)/sizeof(int32_t)/(uint64_t)height)return false;
+        size_t n=(size_t)width*height;int32_t *levels=wc3_records_memory(NULL,n*sizeof(int32_t));
+        if(fread(levels,sizeof(int32_t),n,f)!=n){free(levels);return false;}
+        walkableModelSnapshot_t *pose=NULL;
+        if(!G_ReadWalkableSnapshot(f,&pose)){free(levels);return false;}
+        placement_append_surface(box,levels,pose);
+    }
+    return true;
+}
+
+/*744040/750100 nearest W3E vertex, then78bc90's retained level maximum. */
 static uint32_t placement_terrain_level(float const *point) {
-    uint32_t x = wc3_int_bits(wc3_float_bits(point[0]));
-    uint32_t y = wc3_int_bits(wc3_float_bits(point[1]));
-    if (x >= pathmap.width || y >= pathmap.height) return UINT32_MAX;
-    x = (x + 2) / 4; y = (y + 2) / 4;
-    if (x >= world.map->width || y >= world.map->height) return UINT32_MAX;
-    return CM_GetWar3MapVertex(x,y)->level;
+    return G_GetMovePlacementLevel((int32_t)wc3_int_bits(wc3_float_bits(point[0])),
+                                  (int32_t)wc3_int_bits(wc3_float_bits(point[1])));
 }
 
 static bool placement_admit(void const *data, float const *point) {

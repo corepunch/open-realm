@@ -53,6 +53,7 @@ static float support_mul(float a,float b) { volatile float r=a*b; return r; }
 static float support_div(float a,float b) { volatile float r=a/b; return r; }
 
 static flightSupport_t flight_support, slope_support;
+static flightSupport_t presentation_mips[3];
 
 /*748470 builds mode0 from four packed terrain vertices per128-unit tile.
  * It is distinct from both physical height and the maximized flyer field. */
@@ -76,9 +77,26 @@ static void slope_support_initialize(void) {
         }
         f->values[(size_t)y*f->width+x]=support_mul(z,.25f);
     }
+    /*748470: four cell-centred grids; each higher layer averages the previous
+     * four cells in00,10,01,11 order. Prepare once, never during placement. */
+    FOR_LOOP(mode,3) {
+        flightSupport_t const *previous=mode?presentation_mips+mode-1:&slope_support;
+        flightSupport_t *next=presentation_mips+mode;
+        if(previous->width<4 || previous->height<4)break;
+        next->width=previous->width/2;next->height=previous->height/2;
+        next->cell=previous->cell*2;next->origin=previous->origin;
+        next->values=gi.MemAlloc((size_t)next->width*next->height*sizeof(float));
+        FOR_LOOP(y,next->height)FOR_LOOP(x,next->width) {
+            float const *a=previous->values+(size_t)y*2*previous->width+x*2;
+            float z=support_add(a[0],0);z=support_add(z,a[1]);
+            z=support_add(z,a[previous->width]);z=support_add(z,a[previous->width+1]);
+            next->values[(size_t)y*next->width+x]=support_mul(z,.25f);
+        }
+    }
 }
 
 void S_ClearFlightSupport(void) {
+    FOR_LOOP(i,3){gi.MemFree(presentation_mips[i].values);presentation_mips[i]=(flightSupport_t){0};}
     gi.MemFree(flight_support.values);
     flight_support = (flightSupport_t){0};
     gi.MemFree(slope_support.values); slope_support=(flightSupport_t){0};
@@ -225,6 +243,12 @@ static bool support_interpolate(flightSupport_t const *f,vec2_t point,float *hei
     z = support_add(z,support_mul(support_mul(nx,a[f->width]),y));
     *height = support_add(z,support_mul(support_mul(a[f->width+1],x),y));
     return true;
+}
+
+bool S_GetPresentationSupport(vec2_t point,uint32_t layer,float *height) {
+    if(layer>3)return false;
+    if(!slope_support.values)slope_support_initialize();
+    return support_interpolate(layer?presentation_mips+layer-1:&slope_support,point,height);
 }
 
 bool S_GetFlightSupport(vec2_t point,float *height) {
@@ -429,5 +453,33 @@ TEST(wc3_support, presentation_height_grid_matches_read_only_retail_capture) {
     S_InitFlightSupport();T_EQ(slope_support.width,16);T_EQ(slope_support.height,16);
     FOR_LOOP(i,256)T_EQ(wc3_float_bits(slope_support.values[i]),slope272_grid[i]);
     reset_entities();setup_test_world();
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "tests/fixtures/retail_bridge311_grids.h"
+TEST(wc3_support, bridge311_all_sampling_layers_match_retained_retail_grids) {
+    extern void reset_entities(void),setup_test_world(void);
+    reset_entities();setup_test_world();
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    war3mapVertex_t *vertices=world.map->vertices;
+    FOR_LOOP(y,17)FOR_LOOP(x,17) {
+        bool water=y<=10 && x>=4 && x<=12;
+        vertices[y*17+x]=(war3mapVertex_t){.accurate_height=water?
+            0x2000-4*((x==4||x==5||x==11||x==12)?64:192):0x2000,
+            .waterlevel=8550,.water=water,.level=y>=12&&x>=8?3:2};
+    }
+    FOR_LOOP(cold,2) {
+        if(!cold)S_InitFlightSupport();
+        else {S_ClearFlightSupport();float z;T_ASSERT(S_GetPresentationSupport((vec2_t){1024,672},1,&z));}
+        FOR_LOOP(layer,4) {
+            flightSupport_t const *f=layer?presentation_mips+layer-1:&slope_support;
+            T_EQ(f->width,bridge311_grids[layer].shape[0]);T_EQ(f->height,bridge311_grids[layer].shape[1]);
+            T_EQ(wc3_float_bits(f->cell),bridge311_grids[layer].shape[2]);
+            FOR_LOOP(i,f->width*f->height)T_EQ(wc3_float_bits(f->values[i]),bridge311_grids[layer].values[i]);
+        }
+    }
+    float value=123;T_ASSERT(!S_GetPresentationSupport((vec2_t){1024,672},4,&value));T_EQ(value,123);
+    S_ClearFlightSupport();reset_entities();setup_test_world();
 }
 #endif

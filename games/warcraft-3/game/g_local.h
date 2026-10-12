@@ -2066,6 +2066,9 @@ typedef struct {
     bool pathing_active;
     bool placement_solid;
     bool loot_processed;
+    uint32_t placement_surface; /* retained Move-level registry handle, zero before publication */
+    uint32_t footprint_origin_valid;
+    vec2_t footprint_origin; /* texture-transition raster point, independent of physical pose */
     float occluder_height; /* mutable elevator level, measured above the destructable origin */
 
     uint32_t editor_id;
@@ -3444,10 +3447,18 @@ void S_InitFlightSupport(void);
 void S_ClearFlightSupport(void);
 void S_FinalizeFlightSupport(void);
 bool S_GetFlightSupport(vec2_t point, float *height);
+bool S_GetPresentationSupport(vec2_t point,uint32_t layer,float *height);
 bool S_WriteFlightSupport(FILE *);
 bool S_ReadFlightSupport(FILE *);
 void S_RefreshUnitSupport(edict_t *, bool force);
 void G_RegisterGroundSurface(edict_t *);
+void G_RegisterMovePlacementSurface(edict_t *ent);
+void G_ClearMovePlacementLevels(void);
+bool G_ValidateMovePlacementLevels(void);
+void G_RefreshMovePlacementModel(edict_t const *ent);
+uint32_t G_GetMovePlacementLevel(int32_t x,int32_t y);
+bool G_WriteMovePlacementLevels(FILE *file);
+bool G_ReadMovePlacementLevels(FILE *file);
 void G_UnregisterGroundSurface(edict_t *);
 void G_ClearGroundSurfaces(void);
 void monster_start(edict_t *);
@@ -3483,6 +3494,13 @@ void         G_FreeModels(void);
 void G_PrepareWalkableModel(uint32_t model);
 void G_ForgetWalkableModel(edict_t const *ent);
 int G_WalkableModelHeight(edict_t const *ent,vec2_t point,float *height);
+typedef struct walkableModelSnapshot_s walkableModelSnapshot_t;
+walkableModelSnapshot_t *G_CaptureWalkableModel(edict_t const *ent);
+void G_FreeWalkableSnapshot(walkableModelSnapshot_t *pose);
+bool G_WalkableSnapshotBounds(walkableModelSnapshot_t const *pose,box2_t *box);
+int G_WalkableSnapshotHeight(walkableModelSnapshot_t const *pose,vec2_t point,float *height);
+bool G_WriteWalkableSnapshot(FILE *file,walkableModelSnapshot_t const *pose);
+bool G_ReadWalkableSnapshot(FILE *file,walkableModelSnapshot_t **pose);
 
 // g_ai.c
 void ai_birth(edict_t *);
@@ -4357,6 +4375,7 @@ bool G_UnitIsWorldActive(edict_t const *);
 void G_FreeEdict(edict_t *);
 bool G_EntityHasStaticPathing(edict_t const *);
 void G_DeferFreeEdict(edict_t *);
+void G_QueueEdictRelease(edict_t *,wc3Clock_t const *);
 void G_DeferFreeEdictAt(edict_t *,wc3Clock_t const *);
 bool G_IsDeferredFree(edict_t const *);
 void G_RunDeferredFrees(void);

@@ -194,6 +194,10 @@ void S_PublishMoveRegions(edict_t const *owner) {
     }
     wc3_regions_resize(&move_fine_spatial,&state->collection,owner-g_edicts,flight ? 4 : 3);
     state->center[0]=owner->s.origin2.x;state->center[1]=owner->s.origin2.y;
+    if(owner->destructable && owner->destructable->footprint_origin_valid) {
+        state->center[0]=owner->destructable->footprint_origin.x;
+        state->center[1]=owner->destructable->footprint_origin.y;
+    }
     /* Collision-only scenery retains the legacy integer-cell footprint. Its
      * producer is not a texture callback and does not consume rotation. */
     if(!texture) {
