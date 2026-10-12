@@ -897,6 +897,11 @@ typedef struct {
 
 typedef struct {
     uint32_t id;
+    UnitData_t row;
+} mapUnitDataOverride_t;
+
+typedef struct {
+    uint32_t id;
     ItemData_t row;
 } mapItemDataOverride_t;
 
@@ -925,6 +930,8 @@ static mapUnitUIOverride_t *map_unit_ui_overrides;
 static uint32_t map_unit_ui_override_count;
 static mapUnitAbilitiesOverride_t *map_unit_abilities_overrides;
 static uint32_t map_unit_abilities_override_count;
+static mapUnitDataOverride_t *map_unit_data_overrides;
+static uint32_t map_unit_data_override_count;
 static mapItemDataOverride_t *map_item_data_overrides;
 static uint32_t map_item_data_override_count;
 static mapDestructableDataOverride_t *map_destructable_data_overrides;
@@ -1377,6 +1384,14 @@ static UnitAbilities_t const *FindMapUnitAbilitiesOverride(uint32_t id) {
     return NULL;
 }
 
+static UnitData_t const *FindMapUnitDataOverride(uint32_t id) {
+    FOR_LOOP(i, map_unit_data_override_count) {
+        if (map_unit_data_overrides[i].id == id)
+            return &map_unit_data_overrides[i].row;
+    }
+    return NULL;
+}
+
 static ItemData_t const *FindMapItemDataOverride(uint32_t id) {
     FOR_LOOP(i, map_item_data_override_count) {
         if (map_item_data_overrides[i].id == id)
@@ -1522,6 +1537,20 @@ static void AddMapUnitAbilitiesOverride(unitData_t const *unit, uint32_t target_
         ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitAbilities), unit->modifications + i);
 }
 
+static void AddMapUnitDataOverride(unitData_t const *unit, uint32_t target_id, uint32_t base_id) {
+    UnitData_t const *base = FindMapUnitDataOverride(base_id);
+    mapUnitDataOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&data_idx, base_id);
+    override = map_unit_data_overrides + map_unit_data_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+
+    FOR_LOOP(i, unit->numbeOfModifications)
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitData), unit->modifications + i);
+}
+
 static void AddMapItemDataOverride(unitData_t const *item, uint32_t target_id, uint32_t base_id) {
     ItemData_t const *base = FindMapItemDataOverride(base_id);
     mapItemDataOverride_t *override;
@@ -1598,6 +1627,9 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     free(map_unit_abilities_overrides);
     map_unit_abilities_overrides = NULL;
     map_unit_abilities_override_count = 0;
+    free(map_unit_data_overrides);
+    map_unit_data_overrides = NULL;
+    map_unit_data_override_count = 0;
     free(map_item_data_overrides);
     map_item_data_overrides = NULL;
     map_item_data_override_count = 0;
@@ -1619,6 +1651,7 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
         map_unit_profile_overrides = calloc(unit_capacity, sizeof(*map_unit_profile_overrides));
         map_unit_ui_overrides = calloc(unit_capacity, sizeof(*map_unit_ui_overrides));
         map_unit_abilities_overrides = calloc(unit_capacity, sizeof(*map_unit_abilities_overrides));
+        map_unit_data_overrides = calloc(unit_capacity, sizeof(*map_unit_data_overrides));
     }
     if (item_capacity)
         map_item_data_overrides = calloc(item_capacity, sizeof(*map_item_data_overrides));
@@ -1627,7 +1660,7 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     if (doodad_capacity)
         map_doodad_overrides = calloc(doodad_capacity, sizeof(*map_doodad_overrides));
     if ((unit_capacity && (!map_unit_balance_overrides || !map_unit_profile_overrides ||
-                           !map_unit_ui_overrides || !map_unit_abilities_overrides)) ||
+                           !map_unit_ui_overrides || !map_unit_abilities_overrides || !map_unit_data_overrides)) ||
         (item_capacity && !map_item_data_overrides) ||
         (destructable_capacity && !map_destructable_data_overrides) ||
         (doodad_capacity && !map_doodad_overrides)) {
@@ -1635,6 +1668,7 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
         free(map_unit_profile_overrides); map_unit_profile_overrides = NULL;
         free(map_unit_ui_overrides); map_unit_ui_overrides = NULL;
         free(map_unit_abilities_overrides); map_unit_abilities_overrides = NULL;
+        free(map_unit_data_overrides); map_unit_data_overrides = NULL;
         free(map_item_data_overrides); map_item_data_overrides = NULL;
         free(map_destructable_data_overrides); map_destructable_data_overrides = NULL;
         free(map_doodad_overrides); map_doodad_overrides = NULL;
@@ -1648,6 +1682,7 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
         AddMapUnitProfileOverride(unit, unit->originalUnitID, unit->originalUnitID);
         AddMapUnitUIOverride(unit, unit->originalUnitID, unit->originalUnitID);
         AddMapUnitAbilitiesOverride(unit, unit->originalUnitID, unit->originalUnitID);
+        AddMapUnitDataOverride(unit, unit->originalUnitID, unit->originalUnitID);
     }
     FOR_LOOP(i, mapinfo->num_userCreatedUnits) {
         unitData_t const *unit = mapinfo->userCreatedUnits + i;
@@ -1655,6 +1690,7 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
         AddMapUnitProfileOverride(unit, unit->newUnitID, unit->originalUnitID);
         AddMapUnitUIOverride(unit, unit->newUnitID, unit->originalUnitID);
         AddMapUnitAbilitiesOverride(unit, unit->newUnitID, unit->originalUnitID);
+        AddMapUnitDataOverride(unit, unit->newUnitID, unit->originalUnitID);
     }
     FOR_LOOP(i, mapinfo->num_originalItems) {
         unitData_t const *item = mapinfo->originalItems + i;
@@ -2064,7 +2100,14 @@ UnitProfile_t const *G_UnitProfile(uint32_t id) {
     row = FS_SLKLookup(&profile_idx, ResolveUnitID(id));
     return row ? row : &zero;
 }
-UnitData_t const *G_UnitData(uint32_t id) { static UnitData_t zero; UnitData_t *row = FS_SLKLookup(&data_idx, ResolveUnitID(id)); return row ? row : &zero; }
+UnitData_t const *G_UnitData(uint32_t id) {
+    static UnitData_t zero;
+    UnitData_t const *override = FindMapUnitDataOverride(id);
+    UnitData_t *row;
+    if (override) return override;
+    row = FS_SLKLookup(&data_idx, ResolveUnitID(id));
+    return row ? row : &zero;
+}
 UnitUI_t const *G_UnitUI(uint32_t id) {
     static UnitUI_t zero;
     UnitUI_t const *override = FindMapUnitUIOverride(id);

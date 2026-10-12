@@ -90,6 +90,7 @@ void unit_changeangle(edict_t *self);
 
 /* From m_unit.c */
 void unit_stand(edict_t *self);
+void SP_SpawnUnit(edict_t *self);
 
 /* -----------------------------------------------------------------------
  * Test-world helpers
@@ -491,6 +492,83 @@ TEST(wc3_pathfinding, heatmap_cache_separates_ground_and_flying_pathing) {
     T_ASSERT(ground_gen != 0);
     T_NE(fly_gen, ground_gen);
     T_ASSERT(!CM_FlowCanReach(ground_gen, 1.5f, 5.5f));
+}
+
+TEST(wc3_pathfinding, map_wyvern_form_crosses_water_and_ground_form_cannot) {
+    enum { W = 10, H = 5 };
+    uint8_t cells[W * H] = { 0 };
+    uint32_t const ground_id = MAKEFOURCC('h','f','o','o');
+    uint32_t const wyvern_id = MAKEFOURCC('O','0','0','1');
+    cstring_t const movement_type = "fly";
+    unitModification_t const movement_override = {
+        .modID = MAKEFOURCC('u','m','v','t'),
+        .type = mod_moveType,
+        .data = (handle_t)movement_type,
+    };
+    unitData_t const wyvern_object = {
+        .originalUnitID = ground_id,
+        .newUnitID = wyvern_id,
+        .numbeOfModifications = 1,
+        .modifications = (unitModification_t *)&movement_override,
+    };
+    mapInfo_t const mapinfo = {
+        .num_userCreatedUnits = 1,
+        .userCreatedUnits = (unitData_t *)&wyvern_object,
+    };
+    mapInfo_t const *old_mapinfo;
+    edict_t *ground, *wyvern, *returned_ground, *goal;
+    uint32_t ground_generation, fly_generation, returned_generation;
+
+    /* A vertical water strip blocks walkers but leaves the fly channel open. */
+    for (int y = 0; y < H; y++) cells[y * W + 4] = CM_PATHING_UNWALKABLE;
+    setup_test_world();
+    reset_entities();
+    setup_test_pathmap(W, H, cells);
+    old_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    ground = alloc_test_unit(ground_id, 1.5f, 2.5f);
+    SP_SpawnUnit(ground);
+    T_ASSERT(!(ground->aiflags & AI_FLYING));
+
+    /* OrcX01_04's summoning circle swaps this ground hero for map unit O001. */
+    wyvern = alloc_test_unit(wyvern_id, 1.5f, 2.5f);
+    G_BindEntityData(wyvern);
+    SP_SpawnUnit(wyvern);
+    T_STREQ(wyvern->data.UnitData->moveTypeName, "fly");
+    T_ASSERT(wyvern->aiflags & AI_FLYING);
+
+    goal = make_waypoint(8.5f, 2.5f);
+    T_EQ(CM_RequestHeatmapForRadiusFlags(goal, 0.0f, M_UnitStaticPathingFlags(ground)), 0);
+    CM_ProcessPathJobs(UINT_MAX);
+    ground_generation = CM_RequestHeatmapForRadiusFlags(goal, 0.0f, M_UnitStaticPathingFlags(ground));
+    T_ASSERT(ground_generation != 0);
+    T_ASSERT(!CM_FlowCanReach(ground_generation, 1.5f, 2.5f));
+
+    T_EQ(CM_RequestHeatmapForRadiusFlags(goal, 0.0f, M_UnitStaticPathingFlags(wyvern)), 0);
+    CM_ProcessPathJobs(UINT_MAX);
+    fly_generation = CM_RequestHeatmapForRadiusFlags(goal, 0.0f, M_UnitStaticPathingFlags(wyvern));
+    T_ASSERT(fly_generation != 0);
+    T_ASSERT(CM_FlowCanReach(fly_generation, 1.5f, 2.5f));
+
+    /* The script swaps back to the original ground unit after crossing. */
+    returned_ground = alloc_test_unit(ground_id, 8.5f, 2.5f);
+    SP_SpawnUnit(returned_ground);
+    T_ASSERT(!(returned_ground->aiflags & AI_FLYING));
+    returned_generation = CM_RequestHeatmapForRadiusFlags(goal, 0.0f,
+                                                          M_UnitStaticPathingFlags(returned_ground));
+    if (!returned_generation) {
+        CM_ProcessPathJobs(UINT_MAX);
+        returned_generation = CM_RequestHeatmapForRadiusFlags(goal, 0.0f,
+                                                              M_UnitStaticPathingFlags(returned_ground));
+    }
+    T_ASSERT(returned_generation != 0);
+    T_ASSERT(!CM_FlowCanReach(returned_generation, 1.5f, 2.5f));
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = old_mapinfo;
+    setup_test_world();
 }
 
 TEST(wc3_pathfinding, heatmap_cache_hit_same_goal) {
