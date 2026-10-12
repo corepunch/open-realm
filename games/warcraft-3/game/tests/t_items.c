@@ -405,6 +405,152 @@ TEST(wc3_items, inventory_capacity_comes_from_inventory_ability_data) {
     T_EQ(G_InventoryCapacity(none), 0);
 }
 
+/* Rexxar's h003 is an object-data override of hhou, not a new game
+ * subsystem. Use synthetic W3U/W3A records rather than original campaign
+ * archives, which must not be required by the headless test suite. */
+TEST(wc3_items, rexxar_stash_w3u_overrides_inherit_farm_and_inventory_ability) {
+    uint32_t no_food = 0;
+    float model_scale = 0.6f, selection_scale = 2.0f;
+    char name[] = "Rexxar's Stash";
+    char model[] = "buildings\\other\\WyvernCage\\WyvernCage.mdl";
+    char abilities[] = "Aion,Avul";
+    char upgrades[] = "Ropm";
+    char prevention[] = "";
+    char sound[] = "ArcaneObservatory";
+    unitModification_t modifications[] = {
+        { .modID = MAKEFOURCC('u','n','a','m'), .type = mod_string, .data = name },
+        { .modID = MAKEFOURCC('u','m','d','l'), .type = mod_string, .data = model },
+        { .modID = MAKEFOURCC('u','s','c','a'), .type = mod_real, .data = &model_scale },
+        { .modID = MAKEFOURCC('u','s','s','c'), .type = mod_real, .data = &selection_scale },
+        { .modID = MAKEFOURCC('u','a','b','i'), .type = mod_abilityList, .data = abilities },
+        { .modID = MAKEFOURCC('u','p','g','r'), .type = mod_upgradeList, .data = upgrades },
+        { .modID = MAKEFOURCC('u','p','a','p'), .type = mod_string, .data = prevention },
+        { .modID = MAKEFOURCC('u','s','n','d'), .type = mod_string, .data = sound },
+        { .modID = MAKEFOURCC('u','f','m','a'), .type = mod_int, .data = &no_food },
+    };
+    unitData_t stash_object = {
+        .originalUnitID = MAKEFOURCC('h','h','o','u'),
+        .newUnitID = MAKEFOURCC('h','0','0','3'),
+        .numbeOfModifications = sizeof(modifications) / sizeof(modifications[0]),
+        .modifications = modifications,
+    };
+    mapInfo_t mapinfo = { .num_userCreatedUnits = 1, .userCreatedUnits = &stash_object };
+    mapInfo_t const *previous;
+    edict_t *stash;
+    setup_test_world();
+    previous = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    stash = alloc_test_unit(stash_object.newUnitID, 320.0f, -1728.0f);
+    T_STREQ(stash->data.UnitProfile->name, name);
+    T_STREQ(stash->data.UnitUI->modelFile, model);
+    T_FEQ(stash->data.UnitUI->modelScale, 0.6f, 0.0001f);
+    T_FEQ(stash->data.UnitUI->selectionScale, 2.0f, 0.0001f);
+    T_STREQ(stash->data.UnitAbilities->abilList, abilities);
+    T_ASSERT(G_ActorHasSkill(stash, "Aion"));
+    T_ASSERT(G_ActorHasSkill(stash, "Avul"));
+    T_STREQ(stash->data.UnitBalance->upgrades, upgrades);
+    T_STREQ(stash->data.UnitUI->soundLabel, sound);
+    T_STREQ(stash->data.UnitBalance->preventPlace, prevention);
+    T_EQ(stash->data.UnitBalance->foodMade, 0);
+    T_FEQ(stash->s.origin2.x, 320.0f, 0.001f);
+    T_FEQ(stash->s.origin2.y, -1728.0f, 0.001f);
+    /* An associated upgrade is not a researched-upgrade grant. */
+    T_EQ(G_GetPlayerTechResearchedLevel(&game.clients[0], MAKEFOURCC('R','o','p','m')), 0);
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = previous;
+}
+
+TEST(wc3_items, rexxar_stash_backpack_six_slots_and_live_inventory_refresh) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
+        "C;Y2;X1;K\"Aion\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K1\nC;Y2;X6;K0\nC;Y2;X7;K1\nC;Y2;X8;K1\nE\n";
+    slkTestData_t *rows, *old_rows;
+    uint32_t const backpack = MAKEFOURCC('R','o','p','m');
+    uint32_t six = 6;
+    unitModification_t slot_override = {
+        .modID = MAKEFOURCC('i','n','v','1'), .type = mod_int,
+        .level = 1, .dataPointer = 1, .data = &six,
+    };
+    unitData_t original_ability = {
+        .originalUnitID = MAKEFOURCC('A','i','o','n'),
+        .numbeOfModifications = 1, .modifications = &slot_override,
+    };
+    mapInfo_t mapinfo = {
+        .fileFormat = 25, .num_originalAbilities = 1,
+        .originalAbilities = &original_ability,
+    };
+    static UnitAbilities_t stash_abilities = { .abilList = "Aion,Avul" };
+    mapInfo_t const *previous;
+    edict_t *stash, *player, *item;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    setup_test_world();
+    previous = level.mapinfo;
+    rows = parse_slk_string(slk);
+    old_rows = G_SetSLKRows("AbilityData", rows);
+    level.mapinfo = &mapinfo;
+    stash = alloc_test_unit(MAKEFOURCC('h','h','o','u'), 0, 0);
+    stash->s.player = 0;
+    stash->data.UnitAbilities = &stash_abilities;
+    player = &g_edicts[0];
+    player->client->connected = true;
+    player->client->ps.number = 0;
+    G_SelectEntity(player->client, stash);
+    T_EQ(G_InventoryCapacity(stash), 0); /* no researched Ropm */
+    T_ASSERT(!G_InventoryCanDropItems(stash));
+    T_ASSERT(!G_InventoryCanUseItems(stash));
+
+    /* Without an authored W3A capacity override this remains two slots. */
+    G_SetPlayerTechResearched(player->client, backpack, 1);
+    T_EQ(G_InventoryCapacity(stash), 2);
+    G_SetMapAbilityOverrides(&mapinfo);
+    T_EQ(G_InventoryCapacity(stash), 6);
+    T_ASSERT(!G_InventoryCanUseItems(stash));
+    T_ASSERT(G_InventoryCanGetItems(stash));
+    T_ASSERT(G_InventoryCanDropItems(stash));
+
+    /* Changing researched tech while the stash is selected must publish a
+     * fresh inventory layer, not just dirty its command card. */
+    gi.Write = capture_inventory_refresh_write;
+    gi.unicast = capture_inventory_refresh_unicast;
+    reset_inventory_refresh_capture();
+    G_SetPlayerTechResearched(player->client, backpack, 0);
+    T_EQ(G_InventoryCapacity(stash), 0);
+    T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(inventory_refresh_unicast_count > 0);
+    reset_inventory_refresh_capture();
+    G_AddPlayerTechResearched(player->client, backpack, 1);
+    T_EQ(G_InventoryCapacity(stash), 6);
+    T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(inventory_refresh_unicast_count > 0);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    /* A hidden selected unit is never a valid inventory interaction target;
+     * ShowUnit(true) makes the original world entity selectable again. */
+    stash->s.renderfx |= RF_HIDDEN;
+    T_ASSERT(!G_IsEntitySelected(player->client, stash));
+    stash->s.renderfx &= ~RF_HIDDEN;
+    T_ASSERT(G_IsEntitySelected(player->client, stash));
+
+    /* Scripted additions to a building use ordinary inventory objects. */
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 0, 0);
+    T_ASSERT(G_AddItemToSlot(stash, item, 5));
+    T_ASSERT(stash->inventory[5] == item);
+    T_ASSERT(item->item->carrier == stash);
+
+    G_SetMapAbilityOverrides(NULL);
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+    level.mapinfo = previous;
+}
+
 TEST(wc3_items, roc_hero_without_authored_inventory_gets_default_ainv_capacity) {
     UnitAbilities_t no_inventory = { .abilList = "", .heroAbilList = "AHhb" };
     edict_t *hero;

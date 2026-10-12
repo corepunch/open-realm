@@ -95,6 +95,8 @@ The snapshot deliberately does not claim to serialize transient simulation
 objects such as buffs, cooldown timers, current orders, production/revival state,
 projectile state, or trigger-local references. Those require separate saved-game/state contracts.
 
+For the stash's map-authored unit configuration, Backpack activation and still-unverified six-slot ability source, see [Rexxar's Stash](rexxar-stash.md).
+
 ## Rexxar Stash: temporary carrier removal (Patch B)
 
 The extracted OrcX01 script uses a hidden temporary `Obla` to carry the six

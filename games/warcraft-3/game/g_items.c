@@ -179,6 +179,40 @@ static uint32_t G_InventoryRequiredUpgrade(uint32_t ability_id) {
     }
 }
 
+/* Changing a player's Backpack research changes the *effective* inventory
+ * capacity and permissions of owned carriers. Command-card invalidation alone
+ * does not rebuild LAYER_INVENTORY for an already selected carrier. Refresh
+ * its focused presentation for every viewer, including shared-control allies.
+ * This remains generic: object data chooses the inventory ability and the
+ * player-tech table chooses whether that ability is unlocked. */
+void G_RefreshInventoryAfterTechChange(gameClient_t const *owner, uint32_t techid) {
+    if (!owner || !techid || !globals.edicts) return;
+    if (techid != MAKEFOURCC('R','h','p','m') &&
+        techid != MAKEFOURCC('R','o','p','m') &&
+        techid != MAKEFOURCC('R','e','p','m') &&
+        techid != MAKEFOURCC('R','u','p','m')) return;
+
+    FOR_LOOP(i, game.max_clients) {
+        edict_t *player = globals.edicts + i;
+        edict_t *focused;
+        cstring_t abilities;
+        bool affected = false;
+        if (!player->client || !player->client->connected) continue;
+        focused = G_GetMainSelectedUnit(player->client);
+        if (!focused || focused->s.player != owner->ps.number ||
+            !focused->data.UnitAbilities) continue;
+        abilities = focused->data.UnitAbilities->abilList;
+        if (!abilities) continue;
+        PARSE_LIST(abilities, abil, parse_segment) {
+            if (strlen(abil) == 4 && G_InventoryRequiredUpgrade(FS_SLKKey(abil)) == techid) {
+                affected = true;
+                break;
+            }
+        }
+        if (affected) G_RefreshInventoryLayer(player);
+    }
+}
+
 static bool G_InventoryAbilityAvailable(edict_t const *unit, cstring_t ability) {
     uint32_t ability_id;
     uint32_t required_upgrade;

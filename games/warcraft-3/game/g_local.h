@@ -3741,6 +3741,7 @@ void G_DrainPausedResultEvents(void);
 void SP_SpawnItem(edict_t *);
 bool G_IsItem(edict_t const *item);
 uint32_t G_InventoryCapacity(edict_t const *unit);
+void G_RefreshInventoryAfterTechChange(gameClient_t const *owner, uint32_t techid);
 bool G_InventoryCanUseItems(edict_t const *unit);
 bool G_InventoryCanGetItems(edict_t const *unit);
 bool G_InventoryCanDropItems(edict_t const *unit);

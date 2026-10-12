@@ -20,6 +20,8 @@ cannot finalize against a carrier that has been removed or recycled.
 See [campaign game cache](campaign-game-cache.md#rexxar-stash-temporary-carrier-removal-patch-b)
 for Rexxar's hidden `Obla` stash-export sequence and the regression coverage.
 
+See [Rexxar's Stash](rexxar-stash.md) for a map-authored non-Hero storage building, Backpack activation, and live inventory refresh after researched tech changes.
+
 ## State Contract
 
 Item lifecycle state lives on the game edict alongside the existing unit
