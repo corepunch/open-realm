@@ -1509,6 +1509,12 @@ static jassVar_t *ensure_array_value(jass_t *j, jassVar_t *dest, uint32_t index)
     return &jv->value;
 }
 
+static jassVar_t const *find_array_value(jassVar_t const *array, uint32_t index) {
+    for (jassArray_t const *item = array->_array; item; item = item->next)
+        if (item->index == index) return &item->value;
+    return NULL;
+}
+
 void jass_copy(jass_t *j, jassVar_t *var, jassVar_t const *other) {
     float fval = 0;
     jass_setnull(var);
@@ -1748,13 +1754,13 @@ handle_t jass_checkhandle(jass_t *j, int index, cstring_t type) {
 
 bool jass_popboolean(jass_t *j) {
     bool value = jass_toboolean(j, -1);
-    jass_pop(j, 1);
+    jass_discard(j, 1);
     return value;
 }
 
 static uint32_t jass_popinteger(jass_t *j) {
     uint32_t value = jass_checkinteger(j, -1);
-    jass_pop(j, 1);
+    jass_discard(j, 1);
     return value;
 }
 
@@ -1814,14 +1820,19 @@ uint32_t VM_EvalArrayAccess(jass_t *j, token_t const *token) {
     uint32_t count = jass_dotoken(j, token->index);
     if (count != 1) { jass_pushnull(j); }
     uint32_t index_val = jass_popinteger(j);
-    VM_EvalIdentifier(j, token);
-    jassVar_t *var = jass_stackvalue(j, -1);
-    jassVar_t *item = ensure_array_value(j, var, index_val);
-    if (token->body) item = jass_array_value(j, item, token->body);
-    jass_pop(j, 1);
-    jassVar_t tmp;
-    memcpy(&tmp, item, sizeof(jassVar_t));
-    jass_pushvalue(j, &tmp);
+    jassVar_t *var = find_global(j, token->primary);
+    if (!var) var = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary);
+    if (!var) return jass_pushnull(j);
+    jassVar_t null_value = { .type = var->type };
+    jassVar_t const *item = find_array_value(var, index_val);
+    while (token->body) {
+        count = jass_dotoken(j, token->body->index);
+        if (count != 1) jass_pushnull(j);
+        uint32_t nested_index = jass_popinteger(j);
+        item = item ? find_array_value((jassVar_t *)item, nested_index) : NULL;
+        token = token->body;
+    }
+    jass_pushvalue(j, item ? item : &null_value);
     return 1;
 }
 
@@ -1933,7 +1944,7 @@ static void jass_set_value(jass_t *j, jassVar_t *dest, token_t const *init, cstr
     if (stack >= 1) {
         float before = jass_numbervalue(dest);
         jass_copy(j, dest, j->stack + jass_top(j));
-        jass_pop(j, stack);
+        jass_discard(j, stack);
         if (name && jass_host.VariableChanged &&
             (jass_getvarbasetype(dest) == jasstype_integer || jass_getvarbasetype(dest) == jasstype_real))
             jass_host.VariableChanged(name, before, jass_numbervalue(dest));
@@ -1950,7 +1961,7 @@ static void jass_set_array_value(jass_t *j, jassVar_t *dest, token_t const *toke
     count = jass_dotoken(j, init);
     if (count != 1) { jass_pushnull(j); }
     jass_copy(j, index_dest, j->stack + jass_top(j));
-    jass_pop(j, 1);
+    jass_discard(j, 1);
 }
 
 static jassdict_t *parse_dict(jass_t *j, token_t const *token) {

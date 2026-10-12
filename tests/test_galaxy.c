@@ -20,6 +20,7 @@
 
 #include "shared/test.h"
 #include "games/warcraft-3/jass/jass.h"
+#include "games/warcraft-3/jass/jstate.h"
 #include "games/starcraft-2/game/galaxy/galaxy_host.h"
 
 #define BZ_GAL_INDEX_TEST_DECLS 5000 // declarations; exceeds VM bucket count; used to exercise collision chains
@@ -28,8 +29,29 @@
  * Minimal host — stdlib allocator + flat-file ReadFile.
  * ========================================================================= */
 
-static void *gal_alloc(long size) { return calloc(1, (size_t)size); }
-static void  gal_free(void *p)    { free(p); }
+static size_t gal_array_node_allocations;
+typedef struct gal_allocation_s { struct gal_allocation_s *next; void *ptr; } gal_allocation_t;
+static gal_allocation_t *gal_allocations;
+static void *gal_alloc(long size) {
+    void *ptr = calloc(1, (size_t)size);
+    gal_allocation_t *allocation = malloc(sizeof(*allocation));
+    if (!ptr || !allocation) { free(ptr); free(allocation); return NULL; }
+    *allocation = (gal_allocation_t){ .next = gal_allocations, .ptr = ptr };
+    gal_allocations = allocation;
+    if ((size_t)size == sizeof(jassArray_t)) gal_array_node_allocations++;
+    return ptr;
+}
+static void gal_free(void *p) {
+    if (!p) return;
+    gal_allocation_t **link = &gal_allocations;
+    while (*link && (*link)->ptr != p) link = &(*link)->next;
+    if (*link) {
+        gal_allocation_t *allocation = *link;
+        *link = allocation->next;
+        free(allocation);
+    }
+    free(p);
+}
 
 /* ReadFile searches these prefixes in order until one works. */
 static char const *gal_search_dirs[] = {
@@ -608,6 +630,39 @@ TEST(jass_syntax, vm_compact_arithmetic_and_comparison) {
         "local integer value=1+2\n"
         "if value!=3 then\ncall TestFail(\"JASS compact operators failed\")\nendif\n"
         "endfunction\n", JASS_MODE_JASS));
+    gal_destroy(&s);
+}
+
+TEST(jass_vm, absent_array_reads_do_not_allocate_entries) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse_mode(&s,
+        "globals\n"
+        "integer array values\n"
+        "integer result = 0\n"
+        "integer i = 0\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set i = 0\n"
+        "loop\n"
+        "exitwhen i == 10000\n"
+        "set result = values[i]\n"
+        "set i = i + 1\n"
+        "endloop\n"
+        "endfunction\n"
+        "function verify_assignment takes nothing returns nothing\n"
+        "set values[10000] = 42\n"
+        "set result = values[10000]\n"
+        "endfunction\n", JASS_MODE_JASS));
+    size_t array_allocations = gal_array_node_allocations;
+    jass_callbyname(s.j, "main", false);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    T_EQ(gal_array_node_allocations, array_allocations);
+    jass_callbyname(s.j, "verify_assignment", false);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    jassVar_t *result = NULL;
+    for (jassdict_t *global = s.j->globals; global; global = global->next)
+        if (!strcmp(global->key, "result")) result = &global->value;
+    T_EQ(result && result->value ? *(int32_t *)result->value : 0, 42);
     gal_destroy(&s);
 }
 
