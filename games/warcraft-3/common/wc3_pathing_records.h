@@ -47,6 +47,40 @@ static inline bool wc3_records_contains(wc3RecordObject_t const *object,wc3FineP
     return object && object->stamp!=UINT32_MAX && point.x>=object->box.min.x && point.y>=object->box.min.y &&
         point.x<object->box.max.x && point.y<object->box.max.y;
 }
+/*148850/14a710 compare identity against the first nonmetadata record for
+ * that object. Removal shadows older insertion; query masks, exclusion flags
+ * and query stamps do not participate in this target-membership predicate. */
+static inline bool wc3_records_target_cell(wc3SpatialRecords_t const *map,
+        wc3FinePoint_t pos,uint32_t target) {
+    if(target==WC3_RECORD_END || !map->cells || pos.x<0 || pos.y<0 ||
+       (uint32_t)pos.x>=map->width || (uint32_t)pos.y>=map->height ||
+       wc3_records_object(map,target)->stamp==UINT32_MAX)return false;
+    uint32_t id=map->cells[(uint32_t)pos.y*map->width+pos.x]&WC3_RECORD_END;
+    while(id!=WC3_RECORD_END) {
+        wc3SpatialRecord_t const *link=map->links+id;
+        uint32_t kind=link->next&~WC3_RECORD_END;
+        if(kind!=WC3_RECORD_METADATA && link->payload==target)return kind==WC3_RECORD_INSERT;
+        id=link->next&WC3_RECORD_END;
+    }
+    return false;
+}
+
+/*166310/148790: floor the source before selecting the class-specific clockwise
+ * ring. The square has cls+3 cells per side, with no duplicate corners. Stop
+ * at the first target hit; interior occupancy and terrain are irrelevant. */
+static inline bool wc3_records_target_perimeter(wc3SpatialRecords_t const *map,
+        wc3FinePoint_t pos,uint32_t target,unsigned cls) {
+    assert(cls<4);
+    int offset=1+(cls+1)/2;
+    wc3FinePoint_t cell={pos.x-offset,pos.y-offset};
+    static wc3FinePoint_t const directions[]={{1,0},{0,1},{-1,0},{0,-1}};
+    for(unsigned edge=0;edge<4;edge++)for(unsigned i=0;i<cls+2;i++) {
+        if(wc3_records_target_cell(map,cell,target))return true;
+        cell.x+=directions[edge].x;cell.y+=directions[edge].y;
+    }
+    return false;
+}
+
 static inline wc3FineBox_t wc3_records_clip(wc3SpatialRecords_t const *map,wc3FineBox_t box) {
     if(box.min.x<0)box.min.x=0;
     if(box.min.y<0)box.min.y=0;

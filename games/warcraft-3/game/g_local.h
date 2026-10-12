@@ -3847,6 +3847,7 @@ typedef struct {
 void S_GetMoveRegionState(uint32_t,moveRegionSave_t *);
 bool S_LoadMoveRegions(uint32_t,uint32_t,moveRegionSave_t const *);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
+bool G_UnitMoveTargetOnPerimeter(movePathQuery_t const *,vec2_t);
 bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);
 bool G_MovePathLineIsPathable(pathAccelParams_t const *params);

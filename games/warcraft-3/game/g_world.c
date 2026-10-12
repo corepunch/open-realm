@@ -983,6 +983,20 @@ static uint32_t move_query_target_object(movePathQuery_t const *input) {
         input->target && input->target->inuse && map->objects ? map->objects[input->target-g_edicts] : WC3_RECORD_END;
 }
 
+/*167290 tests the captured target identity before touching retry state.
+ * Use the same pooled region/fallback identity as fine search, while retaining
+ * the dedicated raw membership predicate rather than a blocking-cell query. */
+bool G_UnitMoveTargetOnPerimeter(movePathQuery_t const *input,vec2_t source) {
+    if(!input || !input->target)return false;
+    move_spatial_sync();
+    uint32_t target=move_query_target_object(input);
+    wc3FinePoint_t cell={
+        (int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(source.x))),
+        (int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(source.y)))};
+    return wc3_records_target_perimeter(S_GetMoveFineSpatial(),cell,target,
+        wc3_fine_class(wc3_div(input->geometry.radius,32)));
+}
+
 static bool move_occupancy_cell(void const *data,wc3FinePoint_t pos) {
     moveFineGraph_t const *graph=data;
     if(!is_valid_point(pos.x,pos.y))return false;

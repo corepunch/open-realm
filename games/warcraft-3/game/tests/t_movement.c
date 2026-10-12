@@ -25767,3 +25767,128 @@ TEST(wc3_movement, place309_constructor_and_placement_all_classes) {
     }
 }
 #endif
+
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_goal310_motion.h"
+TEST(wc3_movement, goal310_public_goal_routes_match_retail) {
+    FOR_LOOP(scene,sizeof(goal310_motion)/sizeof(*goal310_motion))FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        unsigned kind=scene/8,mode=kind/4,scenario=scene%8,cls=kind%4;
+        static char const *const modes[]={"foot","fly","amph"};
+        static float radii[]={8,24,40,56},heights[]={0,60,0};
+        mapInfo_t const *old_info=level.mapinfo;mapInfo_t info=*old_info;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radii[cls]},
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=(void *)modes[mode]},
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_real,.data=&heights[mode]}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','Q','0','A'+kind),
+            .numbeOfModifications=3,.modifications=mods};
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        edict_t *unit=alloc_test_unit(custom.newUnitID,288,288),*block=NULL,*extra=NULL;
+        unit->svflags=SVF_MONSTER;unit->s.model=1;unit->movetype=mode==1 ? MOVETYPE_FLY : MOVETYPE_STEP;unit->stand=unit_stand;
+        if(mode==1)unit->aiflags|=AI_FLYING;
+        unit->collision=radii[cls];unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;
+        unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->targtype=mode==1 ? TARG_AIR : TARG_GROUND;unit_stand(unit);
+        struct {uint16_t width,height;color32_t pixels[16];} footprint={4,4};
+        vec2_t goal={scenario==0 ? -512 : 1536,scenario==0 ? 2560 : 800};
+        bool building=scenario!=2 && scenario!=4 && scenario!=7;
+        if(scenario) {
+            block=alloc_test_unit(building ? MAKEFOURCC('h','h','o','u') : MAKEFOURCC('h','f','o','o'),1536,building ? 768 : 800);
+            block->svflags=SVF_MONSTER;block->s.model=1;block->stand=unit_stand;
+            block->collision=building ? 72 : 31;block->targtype=building ? TARG_STRUCTURE : TARG_GROUND;
+            if(building) {
+                FOR_LOOP(k,16)footprint.pixels[k]=(color32_t){255,0,255,255};
+                block->pathtex=(pathTex_t *)&footprint;block->s.flags|=EF_BUILDING;block->aiflags|=AI_IMMOBILE;
+                CM_BakeStaticObstacles();
+            }
+            G_PublishMoveSpatialObject(block);S_SetUnitPaused(block,true);goal=block->s.origin2;
+            if(scenario==2) {
+                extra=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1312,800);
+                extra->svflags=SVF_MONSTER;extra->s.model=1;extra->stand=unit_stand;
+                extra->collision=31;extra->targtype=TARG_GROUND;G_PublishMoveSpatialObject(extra);S_SetUnitPaused(extra,true);
+                S_SetUnitAxisPosition(extra,0,goal.x);S_SetUnitAxisPosition(extra,1,goal.y);
+            }
+        }
+        unit->no_pathing=scenario==5;
+        G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+        level.pathing_clock=(wc3Clock_t){wc3_float(goal310_motion[scene].clock[0]),goal310_motion[scene].clock[1],300};
+        level.pathing_counter=goal310_motion[scene].counter;S_SetUnitAxisPosition(unit,0,288);
+        if(scenario==3 || scenario==4 || scenario==6 || scenario==7)T_ASSERT(unit_issuetargetorder(unit,"move",block));
+        else T_ASSERT(unit_issueorder(unit,"move",&goal));
+        bool mismatch=false;
+        unsigned count=goal310_motion[scene].count;
+        if(scenario==3 || scenario==4)T_ASSERT(run_test_jass(
+            "globals\nunit goal310Target=null\nendglobals\n"
+            "function goal310Remove takes nothing returns nothing\ncall RemoveUnit(goal310Target)\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+            "call GroupEnumUnitsInRange(g,1536,800,64,null)\nset goal310Target=FirstOfGroup(g)\ncall DestroyGroup(g)\nendfunction\n"));
+        bool removed=false;
+        FOR_LOOP(i,count) {
+            uint32_t const *row=goal310_motion[scene].rows[i];
+            if(scenario==3 && !removed && i==goal310_motion[scene].removal_index) {
+                level.pathing_clock=(wc3Clock_t){wc3_float(goal310_motion[scene].removal_clock[0]),goal310_motion[scene].removal_clock[1],300};
+                level.pathing_counter=goal310_motion[scene].removal_counter;
+                jass_callbyname(level.vm,"goal310Remove",false);T_ASSERT(!jass_rterror_pending(level.vm));removed=true;
+                T_EQ(unit->current_order_id,G_OrderId("move"));T_NULL(unit->movement.follow_target);
+            }
+            moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group){mismatch=true;break;}
+            uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,6) {
+                T_EQ(actual[k],row[k+3]);
+                if(actual[k]!=row[k+3]) {fprintf(stderr,"goal310 scene=%u row=%u field=%u engine=%08x retail=%08x\n",scene,i,k,actual[k],row[k+3]);mismatch=true;}
+            }
+            if(mismatch)break;
+            if(saved && (i==1 || ((scenario==3 || scenario==4) && i==31))) {
+                cstring_t file=Test_TempPath("wc3-goal310-active.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                /* This synthetic footprint is a borrowed fixture asset. Live
+                 * loads rebind authored textures; restore the same fixture
+                 * asset before exercising subsequent removal/reconstruction. */
+                if(block && building) {block->pathtex=(pathTex_t *)&footprint;CM_BakeStaticObstacles();}
+            }
+            level.pathing_clock=(wc3Clock_t){wc3_float(row[1]),row[2],300};level.pathing_counter=row[0]-1;
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            uint32_t after[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+                wc3_float_bits(unit->s.angle)};
+            FOR_LOOP(k,5) {
+                T_EQ(after[k],row[k+9]);
+                if(after[k]!=row[k+9]) {fprintf(stderr,"goal310 scene=%u row=%u after=%u engine=%08x retail=%08x\n",scene,i,k,after[k],row[k+9]);mismatch=true;}
+            }
+            if(mismatch)break;
+            if(!i && goal310_motion[scene].route_count) {
+                moveFineRoute_t const *route=&unit->movement.fine_route;
+                T_EQ(route->count,goal310_motion[scene].route_count);T_EQ(route->index,goal310_motion[scene].index);
+                if(route->count==goal310_motion[scene].route_count)FOR_LOOP(k,route->count) {
+                    T_EQ(wc3_float_bits(route->points[k].x),goal310_motion[scene].route[k][0]);
+                    T_EQ(wc3_float_bits(route->points[k].y),goal310_motion[scene].route[k][1]);
+                }
+            }
+        }
+        T_ASSERT(!mismatch);
+        if(scenario==4) {
+            level.pathing_clock=(wc3Clock_t){wc3_float(goal310_motion[scene].removal_clock[0]),goal310_motion[scene].removal_clock[1],300};
+            level.pathing_counter=goal310_motion[scene].removal_counter;
+            jass_callbyname(level.vm,"goal310Remove",false);T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(unit->current_order_id,0);T_NULL(move_unit_group(unit));T_NULL(unit->movement.follow_target);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),goal310_motion[scene].final_pose[0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),goal310_motion[scene].final_pose[1]);
+            T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+        }
+        if(!mismatch) {
+            if(unit->current_order_id!=goal310_motion[scene].final_order)
+                fprintf(stderr,"goal310 scene=%u saved=%u final-order engine=%u retail=%u\n",scene,saved,unit->current_order_id,goal310_motion[scene].final_order);
+            T_EQ(unit->current_order_id,goal310_motion[scene].final_order);
+        }
+        if(block)block->pathtex=NULL;
+        G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;setup_test_world();
+    }
+}
+#endif

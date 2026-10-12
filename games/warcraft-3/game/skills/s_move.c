@@ -2978,6 +2978,12 @@ static uint32_t move_advance_endpoint(edict_t *unit, wc3GridPose_t const *pose, 
         unit->movement.path.valid=false;
         return 2;
     }
+    moveGroup_t *group=move_unit_group(unit);
+    if(group && group->target) {
+        movePathQuery_t query={.geometry={.radius=unit->collision},.mover=unit,
+            .target=group->target,.target_region=S_MoveGroupTargetRegion(group),.units=true};
+        if(G_UnitMoveTargetOnPerimeter(&query,(vec2_t){pose->grid[0],pose->grid[1]}))return 3;
+    }
     /* Failed adaptive reconstruction publishes its retained endpoint to the
      * adjusted fine goal used by1689d0, independently of the user click. */
     goal=move_retry_goal(route,goal);
@@ -6023,7 +6029,13 @@ static uint32_t move_group_advance_endpoint(moveGroup_t *group, moveGroupMember_
     edict_t *unit=member->unit;
     uint32_t result=move_advance_endpoint(unit,pose,member->destination,group->count,direction);
     if(result==2)return result;
-    if (result==4 && ready) {member->forced_arrival=true;member->flags|=0x20000;}
+    /*16fd0a forces range for successful target-perimeter3 and exhausted4.
+     * Only exhausted4 publishes the failed-path member bit. Both retain the
+     * independent heading gate and the destination-readiness barrier. */
+    if ((result==3 || result==4) && ready) {
+        member->forced_arrival=true;
+        if(result==4)member->flags|=0x20000;
+    }
     return result;
 }
 

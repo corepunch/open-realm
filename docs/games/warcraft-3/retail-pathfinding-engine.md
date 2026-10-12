@@ -19140,3 +19140,62 @@ later outside-goal lifetime and wider target cases. This chunk establishes all
 four footprint classes for these construction/placement producers on flat
 land; it does not claim the same breadth for route-goal admission. No new TODO
 IDs, performance acceptance or full-suite completion is claimed.
+
+
+## Target footprint arrival before retry (Payoff310)
+
+`FOOT-04.2` now has an all-class trajectory regression on flat land: four
+collision radii8,24,40,56 for foot/fly/amph, each with eight goal/target scenes.
+Outside goals run for twelve game seconds; the other scenes run for six.
+These cover point orders into a Farm, two overlapping Footmen, queryzero into
+that Farm, retained Farm/Footman target orders, and removal during either target
+approach. The twelve custom profiles derive from Footman with movement mode,
+collision and flight height changed in object data, keeping its authored speed
+and turning parameters. Stock Farm placement snaps its center to1536,768.
+
+This expansion exposes a missing target-footprint completion branch. For
+radius8/24/40 Farm approaches, physical motion can match every captured word
+while the engine invents a failed retry and retains the public Move order.
+Radius56 reaches its larger ordinary arrival range and supplies the negative
+control. `Path_CheckTargetOrRetry` (`167290`) first calls `166310`: a hit on the
+retained target region returns3 before retry-count initialization, RNG, or any
+buffer reset. The original target-perimeter predicate is different from the
+fine blocking-cell predicate:
+
+- Floor both source fine coordinates. Footprint classes0..3 use clockwise
+  square rings with offsets1,2,2,3 and widths3,4,5,6, without duplicate corners.
+- Skip out-of-map cells and retired targets. In each raw cell chain, skip
+  metadata and find the first record for that exact pooled identity. INSERT
+  hits; REMOVE shadows older insertion. Terrain, masks, counted exclusions,
+  dynamic flags and query stamps do not participate.
+- Use the captured footprint region, falling back to the target mover through
+  the existing region lifetime policy. Do not approximate with target distance,
+  an axis-aligned building rectangle, or an edict slot that can be reused.
+
+The engine now applies that predicate when consuming a final partial endpoint.
+Status3 retains the fine buffers and retry state and forces the range gate for
+the next visit. Exhausted status4 retains its separate failure-member bit;
+successful3 does not set it. Both obey destination readiness and the independent
+angular tolerance. This is a local spatial-index query with at most8,12,16,20
+ring cells, no entity scan, allocation or new saved state. Existing ordinary
+point retry transitions remain unchanged.
+
+The read-only `goal310` captures freeze15141 physical commits and2448 first-route
+points, plus the public order lifetime. Nine natural perimeter completions have
+status3 at counters2643,4443,6242,9843,11643,13442,17043,18843,20641. The regression
+runs every scene uninterrupted and after cold save/load, including immediately
+before target removal. It fails18 checks before the implementation and passes
+all374688 movement/order assertions afterward. The separate raw-membership
+regression covers metadata, exclusion flags, fractional-source flooring,
+interior misses, target movement leaving removal records, and retirement.
+
+Eight Ghidra functions are annotated, saved and read back identically;
+`Goal310Evidence.java` retains713 original instruction guards. The exact
+capture sources, literal motion tables and frozen bundle are checked by
+`verify_wc3_pathing_goal310.py`. Existing valid retail fixtures remain unchanged.
+Save185 is unchanged. Archive: `research/FOOT-04.2/payoff310`.
+
+Water, bridges and rejected-support domains remain in the existing broad
+`FOOT-04.2` item. This chunk adds no TODO IDs and does not claim performance
+acceptance or complete retail pathfinding fidelity. Focused validation follows
+the approved cadence, chunk9 after full checkpoint301.

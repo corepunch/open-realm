@@ -406,3 +406,41 @@ TEST(wc3_fine_spatial, point_query231_matches_original_counted_scope_and_stamps)
     }
 }
 #endif
+
+#ifdef BZ_TESTS
+/* Native166310 uses raw identity membership, independently of the query's
+ * collision lane or a counted exclusion. Movement leaves removal records
+ * until maintenance; those records must shadow the old cell membership. */
+TEST(wc3_fine_spatial, target_perimeter_respects_raw_membership_and_floor) {
+    fine_spatial_world();edict_t *target=fine_spatial_unit(5.5f,5.5f,8);
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    uint32_t id=map->objects[target-g_edicts];
+    wc3RecordObject_t *object=wc3_records_object(map,id);
+    movePathQuery_t query={.target=target,.units=true};
+    float radii[]={8,24,40,56};unsigned offsets[]={1,2,2,3};
+    FOR_LOOP(cls,4) {
+        query.geometry.radius=radii[cls];
+        vec2_t source={5.75f+offsets[cls],5.75f+offsets[cls]};
+        T_ASSERT(G_UnitMoveTargetOnPerimeter(&query,source));
+        T_ASSERT(!G_UnitMoveTargetOnPerimeter(&query,(vec2_t){5.5f,5.5f}));
+    }
+    query.geometry.radius=8;
+    T_ASSERT(G_UnitMoveTargetOnPerimeter(&query,(vec2_t){4.999f,4.999f}));
+    T_ASSERT(!G_UnitMoveTargetOnPerimeter(&query,(vec2_t){3.999f,3.999f}));
+    T_ASSERT(!G_UnitMoveTargetOnPerimeter(&query,(vec2_t){-1.5f,-1.5f}));
+    uint32_t stamp=map->query,old_flags=object->flags;
+    object->flags|=0x8fffffff;
+    wc3_records_node(map,(wc3FinePoint_t){5,5},0,(uint16_t)id);
+    T_ASSERT(wc3_records_target_cell(map,(wc3FinePoint_t){5,5},id));
+    T_EQ(map->query,stamp);object->flags=old_flags;
+    target->s.origin2=(vec2_t){20.5f*32,20.5f*32};G_PublishMoveSpatialObject(target);
+    T_ASSERT(!wc3_records_target_cell(map,(wc3FinePoint_t){5,5},id));
+    T_ASSERT(wc3_records_target_cell(map,(wc3FinePoint_t){20,20},id));
+    T_ASSERT(!G_UnitMoveTargetOnPerimeter(&query,(vec2_t){4.5f,4.5f}));
+    T_ASSERT(G_UnitMoveTargetOnPerimeter(&query,(vec2_t){19.5f,19.5f}));
+    G_RemoveMoveSpatialObject(target);
+    T_ASSERT(!wc3_records_target_cell(map,(wc3FinePoint_t){20,20},id));
+    T_ASSERT(!G_UnitMoveTargetOnPerimeter(&query,(vec2_t){19.5f,19.5f}));
+    reset_entities();setup_test_world();
+}
+#endif
