@@ -16,6 +16,87 @@
 void setup_test_world(void);
 void reset_entities(void);
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+void CM_ReadDoodadOverrides(handle_t archive);
+
+static void wc3_slk_write_u32(uint8_t **cursor, uint32_t value) {
+    memcpy(*cursor, &value, sizeof(value));
+    *cursor += sizeof(value);
+}
+
+static void wc3_slk_write_w3d_mod(uint8_t **cursor, uint32_t field, uint32_t type,
+                                   uint32_t level, uint32_t data_pointer,
+                                   void const *value, uint32_t value_size) {
+    wc3_slk_write_u32(cursor, field);
+    wc3_slk_write_u32(cursor, type);
+    wc3_slk_write_u32(cursor, level);
+    wc3_slk_write_u32(cursor, data_pointer);
+    memcpy(*cursor, value, value_size);
+    *cursor += value_size;
+    wc3_slk_write_u32(cursor, 0); /* modification terminator */
+}
+
+TEST(wc3_slk, doodad_w3d_uses_ability_style_modification_layout) {
+    uint8_t payload[256] = { 0 }, *cursor = payload;
+    handle_t archive = NULL;
+    cstring_t path = Test_TempPath("doodad-w3d-layout.mpq");
+    uint32_t dfil = MAKEFOURCC('d','f','i','l');
+    uint32_t dvar = MAKEFOURCC('d','v','a','r');
+    uint32_t original_id = MAKEFOURCC('L','O','f','l');
+    uint32_t custom_id = MAKEFOURCC('X','O','f','l');
+    uint32_t variation = 3;
+    char const original_model[] = "Doodads\\Original.mdx";
+    char const custom_model[] = "Doodads\\Custom.mdx";
+    size_t original_length = sizeof(original_model);
+    size_t custom_length = sizeof(custom_model);
+
+    wc3_slk_write_u32(&cursor, 2); /* format version */
+    wc3_slk_write_u32(&cursor, 1); /* original objects */
+    wc3_slk_write_u32(&cursor, original_id);
+    wc3_slk_write_u32(&cursor, 0);
+    wc3_slk_write_u32(&cursor, 1);
+    wc3_slk_write_w3d_mod(&cursor, dfil, mod_string, 0, 0,
+                           original_model, (uint32_t)original_length);
+    wc3_slk_write_u32(&cursor, 1); /* custom objects */
+    wc3_slk_write_u32(&cursor, original_id);
+    wc3_slk_write_u32(&cursor, custom_id);
+    wc3_slk_write_u32(&cursor, 2);
+    wc3_slk_write_w3d_mod(&cursor, dfil, mod_string, 2, 0,
+                           custom_model, (uint32_t)custom_length);
+    wc3_slk_write_w3d_mod(&cursor, dvar, mod_int, 0, 0, &variation, sizeof(variation));
+
+    T_ASSERT(SFileCreateArchive(path, 0, 16, &archive));
+    T_ASSERT(SFileAddFileFromBuffer(archive, "war3map.w3d", payload,
+                                    (uint32_t)(cursor - payload)));
+    T_ASSERT(SFileCloseArchive(archive));
+    T_ASSERT(SFileOpenArchive(path, 0, 0, &archive));
+    CM_ReadDoodadOverrides(archive);
+    SFileCloseArchive(archive);
+
+    T_EQ(world.info.num_originalDoodads, 1);
+    T_EQ(world.info.num_userCreatedDoodads, 1);
+    T_EQ(world.info.originalDoodads[0].modifications[0].type, mod_string);
+    T_EQ(world.info.originalDoodads[0].modifications[0].level, 0);
+    T_EQ(world.info.userCreatedDoodads[0].modifications[0].level, 2);
+    T_EQ(world.info.userCreatedDoodads[0].modifications[0].dataPointer, 0);
+    T_STREQ(world.info.originalDoodads[0].modifications[0].data, original_model);
+    T_STREQ(world.info.userCreatedDoodads[0].modifications[0].data, custom_model);
+    T_EQ(*(uint32_t *)world.info.userCreatedDoodads[0].modifications[1].data, variation);
+
+    FOR_LOOP(i, world.info.num_originalDoodads) {
+        FOR_LOOP(j, world.info.originalDoodads[i].numbeOfModifications)
+            gi.MemFree(world.info.originalDoodads[i].modifications[j].data);
+        gi.MemFree(world.info.originalDoodads[i].modifications);
+    }
+    FOR_LOOP(i, world.info.num_userCreatedDoodads) {
+        FOR_LOOP(j, world.info.userCreatedDoodads[i].numbeOfModifications)
+            gi.MemFree(world.info.userCreatedDoodads[i].modifications[j].data);
+        gi.MemFree(world.info.userCreatedDoodads[i].modifications);
+    }
+    gi.MemFree(world.info.originalDoodads);
+    gi.MemFree(world.info.userCreatedDoodads);
+    world.info.num_originalDoodads = world.info.num_userCreatedDoodads = 0;
+    world.info.originalDoodads = world.info.userCreatedDoodads = NULL;
+}
 
 TEST(wc3_slk, map_game_data_set_matches_w3i_and_melee_fallback) {
     mapInfo_t info = { 0 };
