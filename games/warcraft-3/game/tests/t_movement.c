@@ -25715,3 +25715,55 @@ TEST(wc3_movement, place308_public_unit_position_clamps_before_admission) {
     }
 }
 #endif
+
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_place309.h"
+TEST(wc3_movement, place309_constructor_and_placement_all_classes) {
+    static vec2_t const requests[]={{-512,1024},{2560,1024},{1024,-512},{1024,2560},{-512,2560},{2048,2048}};
+    static char const *const modes[]={"foot","fly","amph"};
+    static float radii[]={8,24,40,56},heights[]={0,60,0};
+    FOR_LOOP(scene,72)FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        unsigned kind=scene/6,mode=kind/4,cls=kind%4;
+        mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radii[cls]},
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=(void *)modes[mode]},
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_real,.data=&heights[mode]}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','Q','0','A'+kind),
+            .numbeOfModifications=3,.modifications=mods};
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        vec2_t request=requests[scene%6];char script[2048];
+        snprintf(script,sizeof(script),
+            "globals\nunit p309=null\nendglobals\nfunction main takes nothing returns nothing\n"
+            "set p309=CreateUnit(Player(0),'hQ0%c',%.0f,%.0f,0)\ncall SetUnitAcquireRange(p309,0)\nendfunction\n"
+            "function place takes nothing returns nothing\ncall SetUnitPosition(p309,%.0f,%.0f)\nendfunction\n"
+            "function queryzero takes nothing returns nothing\ncall SetUnitPathing(p309,false)\ncall SetUnitPosition(p309,%.0f,%.0f)\nendfunction\n",
+            'A'+kind,request.x,request.y,request.x,request.y,request.x,request.y);
+        T_ASSERT(run_test_jass(script));edict_t *unit=NULL;
+        FILTER_EDICTS(e,e->inuse && e->class_id==custom.newUnitID)unit=e;
+        T_NOT_NULL(unit);
+        if(unit)FOR_LOOP(stage,3) {
+            if(stage) {jass_callbyname(level.vm,stage==1 ? "place" : "queryzero",false);T_ASSERT(!jass_rterror_pending(level.vm));}
+            uint32_t const *expected=place309_states[scene][stage];
+            uint32_t fine[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y)};
+            FOR_LOOP(axis,2) {
+                if(fine[axis]!=expected[axis])fprintf(stderr,"place309 scene%u saved%u stage%u axis%u actual%08x expected%08x\n",scene,saved,stage,axis,fine[axis],expected[axis]);
+                T_EQ(fine[axis],expected[axis]);
+                T_EQ(((float *)&unit->s.origin2)[axis],wc3_float(expected[axis+2]));
+            }
+            T_EQ(wc3_float_bits(wc3_div(unit->collision,32)),expected[4]);
+            T_EQ(unit->current_order_id,0);T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+            if(saved) {
+                cstring_t file=Test_TempPath("wc3-place309.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[0]);T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[1]);
+            }
+        }
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+    }
+}
+#endif

@@ -19077,3 +19077,66 @@ rejected-support producers, constructor outside-domain cases and later lifetime
 of the six-second outside-goal observations remain unverified here. No new TODO
 IDs, tolerance relaxation, full-suite completion or performance acceptance is
 claimed.
+
+
+## Constructor placement and flying ring results (Payoff309)
+
+`FOOT-04.2` now covers outside-map construction and repositioning for all four
+footprint classes on flat land. The production fixes are shared policies:
+
+- `S_InitUnitPosition` and `S_PlaceUnitPosition` clamp through the same exact
+  widget-axis helper before placement admission. The constructor previously
+  searched from the original outside point, selecting a different ring or
+  failing support matching entirely. This preserves the factory's separate
+  sentinel cancellation and its second scalar write.
+- `G_FindUnitPlacementPosition` carries the producer's integer-result policy
+  into the indexed placement algorithm. Flying public placement uses integer
+  ring results; ground and amphibious placement add the half-cell offset.
+  An already-legal requested scalar point remains unchanged. Queryzero retains
+  this policy even though its terrain/object mask becomes zero. Stop recovery
+  keeps its independently supplied half-cell result policy.
+- Physical Stop integrates before changing velocity even for a fresh idle
+  mover. Skipping that stage when the engine has no prior movement clock
+  preserved a negative-zero fine word that retail normalized before recovery.
+  The following public world writer can produce negative zero again. The
+  existing scalar integrator now runs with zero elapsed for that case; no
+  coordinate-specific signed-zero patch or tolerance is used.
+
+The read-only `place309` map defines twelve Footman-derived profiles: authored
+collision radii8,24,40,56 for `foot`, `fly` and `amph`. Each profile tests six
+requests in a flat0..2048 world: west/east/south/north outside, northwest outside,
+and the exact upper corner. Each case creates at the requested point, calls
+ordinary `SetUnitPosition`, then repeats with `SetUnitPathing(false)`. Native
+hooks capture both world clamp/admission wrappers, placement policy and result,
+and canonical mover state before/after each scalar delta commit.
+
+Two repeats agree on all3962 native records and361 public markers; an unhooked
+control agrees on all public markers. The frozen216 stage outputs include
+exact fine words, world words, radius and original result1. The216 placement
+calls carry scan2/rings32/filterFFFFFFFF/budget0/lane0, with masks02000002 ground,
+04000004 flight and80000080 amphibious before queryzero. Integer-result is1
+only for the flying public producer, including its queryzero calls. For example,
+a radius24 west-edge request admits48,1008 on ground and32,992 in flight.
+
+The production-native regression runs72 cases both uninterrupted and with
+cold save/load after every stage. It fails947/4896 assertions on the prior
+engine, then passes all4896 after the fixes. The intermediate clamp-only build
+still fails477 checks, distinguishing missing flight policy and idle scalar
+integration from the constructor clamp. The existing indexed-versus-scalar
+placement test only changes its call to the structured policy interface; its
+expected values and scalar oracle remain unchanged.
+
+Nine Ghidra functions are annotated, saved and read back identically, with924
+original instruction guards. `Place309Evidence.java`, `MapPathfinding.java`,
+`verify_wc3_pathing_place309.py` and the frozen `retail-place309-1.27` bundle
+retain the contract. Captures1/2 and their first control predate the explicit
+placement-policy hook and remain diagnostic; accepted repeats3/4 and control2
+pin the final observer. No valid previous retail fixture is overwritten.
+Archive: `research/FOOT-04.2/payoff309`. Save185 is unchanged. Focused Classic/TFT
+validation follows the approved cadence (chunk8 after full checkpoint301).
+
+The broad parent remains open for water, bridges, rejected-support domains,
+later outside-goal lifetime and wider target cases. This chunk establishes all
+four footprint classes for these construction/placement producers on flat
+land; it does not claim the same breadth for route-goal admission. No new TODO
+IDs, performance acceptance or full-suite completion is claimed.

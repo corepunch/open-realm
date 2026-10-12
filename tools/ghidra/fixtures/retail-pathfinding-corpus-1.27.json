@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "263 executable original/evidence contracts;544 total entries; provenance and limitations remain per-entry.",
+  "scope": "264 executable original/evidence contracts;545 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -54024,6 +54024,62 @@
       "exclusions": [
         "All footprint classes, water/bridges/rejected-support, outside constructor admission and later outside-goal lifetimes remain open. No broad task closure or performance acceptance."
       ]
+    },
+    {
+      "id": "oracle-place309",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_place309.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "place309.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 924
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "scenes": {
+          "equal": 72
+        },
+        "states": {
+          "equal": 216
+        },
+        "public_markers": {
+          "equal": 361
+        },
+        "native_records": {
+          "equal": 3962
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "Outside constructor and public placement for four footprints and foot/fly/amph on flat land;216 exact stages, cold saves and separate flying/Stop policy.",
+      "exclusions": [
+        "Water/bridges/rejected-support, wider route-goal/target domains and later outside-goal lifetimes remain open. No broad task closure or performance acceptance."
+      ]
     }
   ],
   "fixtures": [
@@ -54922,7 +54978,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "7baa46e70aefcf190a4f46ac88689cb76cd4daf5df043eded699117b88ddc86c"
+      "sha256": "c1a2d22c2eef2e8fe178bc2b40a8ec550851e7babeb4a70c75350836b8b36051"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -55778,7 +55834,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "cca7bfb9201d81ff2dfa1c589d74a26ca914c8f81619fb16b143c0a5d48c2e01"
+      "sha256": "e6359663358cfb1ca140b7dab4d5ab4450aa34cc1a6b3ef07762bda90da5ac0d"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -56210,7 +56266,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "2a8190c0b12c11056c690031cddd6a85d3e8caeb02900ba1aed34f2d3c417381"
+      "sha256": "50badf2c7bed647d220fed51b3bf688935f32370510ceef79220a2ed477f4d00"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -56274,7 +56330,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_pathfinding.c",
-      "sha256": "3a9fb6c4616fda094b0827cd2d7f5b776744f5b8b1928c45aefb94d85e077259"
+      "sha256": "7aada2d29a45a4d4c995ba4b7ea0becfdb8d59f5ca35b9159c0961314fe04fda"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
@@ -56470,7 +56526,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "9bc671aa17eedbd078f65e416c3dbbd78820af903aba7fd4abc634a94097f2fa"
+      "sha256": "dd9f7fc8c3746a212e0d8fc24189263e520b819bc16a1fb022f7130e6945fc09"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -56714,7 +56770,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "75a9751dac75571b8d92ea9c2712d8ee8cffd03aeede4b580947d8214228c6e7"
+      "sha256": "11229266e3035fb7f3163d9c5039ffdda6cfc98671ff6bf7087150a6e5433931"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -56726,11 +56782,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "2cddbe77700de4c6535070f699e5e52acf415e994e125f029aa29b1f058fd194"
+      "sha256": "f8c1199eb5f7825426e16044ca100b7ea0131509a4c7544120605ee9a5ad25c0"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "dde1696c2e7a2c30211e0cd599f4f509a8646c03be298312d61d2f31033cfdb7"
+      "sha256": "71abf82ebc93eae15df3b90cf97407c9dae57cd35ea88d1ef455a2ecd01cbb80"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -62495,6 +62551,46 @@
     {
       "path": "tools/frida/research/place308_probe.j",
       "sha256": "427bf207e282b297fd87f0263cbc4377f0a823cf43b29a7224fe32029cb1bee1"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/fixtures/retail_place309.h",
+      "sha256": "08214468b6f85fda81d643185a0533a846a2751fad37ace33555c0ce2e85b0fa"
+    },
+    {
+      "path": "tools/ghidra/research/Place309Evidence.java",
+      "sha256": "2061329cdcf7ba9da1151e9de782e36197832fbfd31dabbd1032bb9cbebf1d02"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_place309.py",
+      "sha256": "47fcbef48beb2fe4cdef7e3bc2d3b169c50d1c65fd2e0abe6ac3acc502a22825"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-place309-1.27.json",
+      "sha256": "23d2f26c5eb28ecf5f64ad4ceb0e4cdc7e9718178284c03b4a2a9c3341820ebf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-place309-1.27.json.gz",
+      "sha256": "bb4e996285255d12c9745981d98257ed94e69407aeeb721aab1fe45e779ba2d3"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_place309.py",
+      "sha256": "5888ef374f2637e0d93a23d2fdaf137d051e0bd7838072e8e28ab91116b11130"
+    },
+    {
+      "path": "tools/frida/research/place309_capture.py",
+      "sha256": "1d4fbd97a3e0a84d6f44049039cd25f3b35c93361d487beba143f3a889556edb"
+    },
+    {
+      "path": "tools/frida/research/place309_observer.js",
+      "sha256": "57037463c6be8113806e81d2dd5c2be44524ba4a860a32e44a8a99bb9a858551"
+    },
+    {
+      "path": "tools/frida/research/place309_make_map.py",
+      "sha256": "3e94ef574b92a1f0053133d35061b949a39c980a3ed46f28c1a4274c3ada2d94"
+    },
+    {
+      "path": "tools/frida/research/place309_probe.j",
+      "sha256": "1541db222522cac3d662743e511566bd37056d2d6f7c26d6d70d27cf2ea6eec0"
     }
   ]
 }

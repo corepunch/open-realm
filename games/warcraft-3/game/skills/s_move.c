@@ -1852,10 +1852,10 @@ static void unit_commit_current_pose(edict_t *self) {
     unit_grid_pose(self, &pose);
     bool clocked = self->movement.clock_valid;
     uint32_t blocked = self->movement.worker_avoid_blocked_frames;
-    if (clocked) {
-        float velocity[2] = {self->movement.velocity.x, self->movement.velocity.y};
-        wc3_grid_step(&pose, velocity, wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock));
-    }
+    float velocity[2] = {self->movement.velocity.x, self->movement.velocity.y};
+    /*171340 integrates even an idle fresh mover before changing velocity.
+     * Zero elapsed still normalizes the signed-zero fine state. */
+    wc3_grid_step(&pose, velocity, clocked ? wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock) : 0);
     unit_commit_pose(self, &pose);
     self->movement.worker_avoid_blocked_frames = blocked;
     if (clocked) {
@@ -2327,7 +2327,6 @@ static void move_invalidate_path(edict_t *self) {
 }
 
 static void move_stop_velocity(edict_t *self) {
-    if (!self->movement.clock_valid) return;
     unit_commit_current_pose(self);
     self->movement.velocity = (vec2_t){0};
     self->movement.clock_valid = false;
@@ -2440,6 +2439,14 @@ bool S_MoveThroughPortal(edict_t *self,vec2_t const *fine) {
     return true;
 }
 
+/*653510 and6515f0 clamp before constructing the placement query. Starting
+ * its rings from an outside request changes support and candidate tie order. */
+static vec2_t unit_clamp_placement(vec2_t const *point) {
+    box2_t const bounds=CM_GetWorldBounds();
+    return (vec2_t){wc3_widget_clamp_axis(point->x,bounds.min.x,bounds.max.x),
+                    wc3_widget_clamp_axis(point->y,bounds.min.y,bounds.max.y)};
+}
+
 /* Public ground spawn admits first, then commits from the fresh mover sentinel.
  * Applying the normal setter to an already inverted requested pose loses the
  * original initialization cancellation and publishes different fractional XY. */
@@ -2447,8 +2454,8 @@ void S_InitUnitPosition(edict_t *self, vec2_t const *requested) {
     /* Factory placement belongs to the physical mover, independently of the
      * implicit Move ability. A zero-speed critter still commits the original
      * sentinel cancellation (Payoff201 public authored-speed-zero witness). */
-    vec2_t old = self->s.origin2, point;
-    if (!G_FindUnitPlacementPosition(self,requested,&point))
+    vec2_t old = self->s.origin2, point, clamped=unit_clamp_placement(requested);
+    if (!G_FindUnitPlacementPosition(self,&clamped,&point))
         fprintf(stderr,"WC3 CreateUnit: no legal point for %08x at (%.9g, %.9g); retaining requested position\n",self->class_id,requested->x,requested->y);
     box2_t const bounds = CM_GetWorldBounds();
     /* The retail factory overwrites both fine axes with its sentinel before
@@ -2500,9 +2507,7 @@ void S_PlaceUnitPosition(edict_t *self,vec2_t const *requested) {
     self->movement.clock_valid = false;
     /*653510 clamps world XY before virtual position admission. Preserve the
      * resulting ring/tie order even when the terrain query is disabled. */
-    box2_t const bounds=CM_GetWorldBounds();
-    vec2_t point_request={wc3_widget_clamp_axis(requested->x,bounds.min.x,bounds.max.x),
-                          wc3_widget_clamp_axis(requested->y,bounds.min.y,bounds.max.y)};
+    vec2_t point_request=unit_clamp_placement(requested);
     G_FindUnitPlacementPosition(self,&point_request,&position);
     wc3GridPose_t pose;
     unit_grid_pose(self, &pose);
