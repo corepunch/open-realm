@@ -944,9 +944,8 @@ void CM_ReadDestructables(handle_t archive) {
                       &world.info.num_userCreatedDestructables, &world.info.userCreatedDestructables);
 }
 
-/* W3D doodad object modifications use the simple field/type/value layout,
- * followed by a four-byte end marker, like W3B. Keep the map's original and
- * custom records alive for the game-side Doodads.slk overlay. */
+/* W3D doodad object modifications use the ability-style layout, including
+ * level and data-pointer words before the value. */
 void CM_ReadDoodadOverrides(handle_t archive) {
     handle_t file;
     uint32_t version;
@@ -955,8 +954,8 @@ void CM_ReadDoodadOverrides(handle_t archive) {
     world.info.originalDoodads = world.info.userCreatedDoodads = NULL;
     if (!SFileOpenFileEx(archive, "war3map.w3d", SFILE_OPEN_FROM_MPQ, &file)) return;
     SFileReadFile(file, &version, sizeof(version), NULL, NULL);
-    world.info.originalDoodads = CM_ReadObjectOverrides(file, &world.info.num_originalDoodads);
-    world.info.userCreatedDoodads = CM_ReadObjectOverrides(file, &world.info.num_userCreatedDoodads);
+    world.info.originalDoodads = CM_ReadAbilityOverrides(file, &world.info.num_originalDoodads);
+    world.info.userCreatedDoodads = CM_ReadAbilityOverrides(file, &world.info.num_userCreatedDoodads);
     SFileCloseFile(file);
 }
 
