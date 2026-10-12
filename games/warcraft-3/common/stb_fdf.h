@@ -421,6 +421,15 @@ void UI_SetTexture(frameDef_t *frame, cstring_t name, bool decorate);
 void UI_SetTexture2(frameDef_t *frame, cstring_t name, bool decorate);
 void UI_InheritFrom(frameDef_t *frame, cstring_t inheritName);
 
+/* Marks a host module's own definitions of the host-module entry points below. Each binary has one
+ * host (game module or UI library), so keep them out of the dynamic symbol table where supported;
+ * PE/COFF has no symbol visibility, so GCC ignores and warns on the attribute there. */
+#ifdef _WIN32
+#define BZ_HOST_HIDDEN
+#else
+#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
+#endif
+
 /* -------------------------------------------------------------------------- */
 /* Asset loading (implemented by host module)                                  */
 /* -------------------------------------------------------------------------- */

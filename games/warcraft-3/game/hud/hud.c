@@ -830,8 +830,6 @@ void UI_AddCreateGameSlot(uint32_t slot, cstring_t name, cstring_t race, cstring
     (void)slot; (void)name; (void)race; (void)color; (void)team;
 }
 
-#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
-
 void UI_ResetHud(void) {
     memset(&hud, 0, sizeof(hud));
     UI_ClearTemplates();

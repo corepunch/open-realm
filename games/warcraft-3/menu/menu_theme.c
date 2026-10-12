@@ -8,8 +8,6 @@
 
 #define MAX_THEME_ENTRIES 1024
 
-#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
-
 typedef struct {
     UINAME category;
     UINAME key;

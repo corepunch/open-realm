@@ -596,7 +596,7 @@ static void UI_CheckBoxDraw(frameDef_t const *frame, rect_t const *rect) {
 }
 
 /* Wire per-type event handler and draw function pointers */
-__attribute__((visibility("hidden"))) void UI_WireFrameTypeFunctions(frameDef_t *frame) {
+BZ_HOST_HIDDEN void UI_WireFrameTypeFunctions(frameDef_t *frame) {
     if (!frame) {
         return;
     }

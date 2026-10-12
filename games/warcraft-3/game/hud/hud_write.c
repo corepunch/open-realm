@@ -289,8 +289,6 @@ cstring_t UI_FormatMessageText(cstring_t text) {
     return out;
 }
 
-#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
-
 /* Widescreen console tiles are written for wide clients only (docs/architecture/ui-canvas.md).  Registering
  * their keys while ConsoleUI.fdf is parsed would put the art in CS_IMAGES for every session, so these keys
  * get a deferred handle instead and reach gi.ImageIndex the first time a wide client's console is written. */

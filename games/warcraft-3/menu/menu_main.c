@@ -203,7 +203,7 @@ uiScreen_t *UI_GetCurrentScreen(void) {
     return ui_current_screen;
 }
 
-__attribute__((visibility("hidden"))) void M_ShowMainMenu(void) {
+BZ_HOST_HIDDEN void M_ShowMainMenu(void) {
     if (mi.Cvar_String && !strcmp(mi.Cvar_String("online_mode", "0"), "1")) {
         if (mi.Online_Leave) mi.Online_Leave();
         if (mi.Cvar_Set) mi.Cvar_Set("online_mode", "0");
