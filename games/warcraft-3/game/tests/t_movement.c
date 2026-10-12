@@ -24462,12 +24462,22 @@ static bool stop299_all_scopes,stop300_spatial;
 static wc3RecordObject_t const *stop300_record;
 static wc3FineBox_t stop300_box;
 static uint32_t stop300_category;
+static unsigned stop301_action;
 static void stop284_scope(void *data,unsigned stage,edict_t const *unit) {
     (void)data;
     T_EQ(stage,stop284.stages++%4);
     wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
     T_NOT_NULL(record);
     if(record)T_EQ(record->flags,stop284.outer+2+((stage==1 || stage==2)?1:0));
+    if(record && stop301_action) {
+        T_EQ(record,stop300_record);
+        bool active=stop301_action==6 || stop284.stages<=4;
+        T_EQ(record->category,active ? stop300_category : stop300_category&~WC3_RECORD_INSERT);
+        T_EQ(record->box.min.x,active ? stop300_box.min.x : -128000);
+        T_EQ(record->box.min.y,active ? stop300_box.min.y : -128000);
+        T_EQ(record->box.max.x,active ? stop300_box.max.x : -128000);
+        T_EQ(record->box.max.y,active ? stop300_box.max.y : -128000);
+    }
     if(record && stop300_spatial) {
         /* New read-only repeats retain this same active fine identity through
          * old task, suspension construction and counted Move cancellation. */
@@ -24484,6 +24494,19 @@ static void stop284_marker(cstring_t text) {
     T_NOT_NULL(row->label);if(!row->label)return;
     T_STREQ(label,row->label);T_EQ(order,row->order);T_EQ(x,row->x);T_EQ(y,row->y);
     if(stop284.exact_scopes)T_EQ(stop284.stages,row->recoveries*4);
+    if(stop301_action) {
+        wc3RecordObject_t const *record=G_GetMoveSpatialObject(stop300_record->owner);
+        T_EQ(record,stop300_record);
+        if(record) {
+            bool active=!strcmp(label,"before") || !strcmp(label,"player-enter");
+            T_EQ(record->flags,stop284.outer);
+            T_EQ(record->category,active ? stop300_category : stop300_category&~WC3_RECORD_INSERT);
+            T_EQ(record->box.min.x,active ? stop300_box.min.x : -128000);
+            T_EQ(record->box.min.y,active ? stop300_box.min.y : -128000);
+            T_EQ(record->box.max.x,active ? stop300_box.max.x : -128000);
+            T_EQ(record->box.max.y,active ? stop300_box.max.y : -128000);
+        }
+    }
 }
 /* Retirement and new Stop-task cleanup straddle both public event families.
  * A callback terrain edit is observed by the second bounded recovery; a
@@ -24553,7 +24576,19 @@ static void stop284_public(unsigned action,bool moving) {
             T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
             T_EQ(g_edicts[index].current_order_id,action==2?G_OrderId("move"):action==5?MOVE_ORDER_SUSPENDED:0);
         }
+        if(stop301_action) {
+            T_EQ(G_GetMoveSpatialObject(index),stop300_record);
+            if(G_GetMoveSpatialObject(index)) {
+                T_EQ(G_GetMoveSpatialObject(index)->flags,stop284.outer);
+                T_EQ(G_GetMoveSpatialObject(index)->category,stop300_category&~WC3_RECORD_INSERT);
+            }
+        }
+        unsigned const before_free=stop284.stages;
+        if(stop301_action)S_TestMoveRecoveryTrace(stop284_scope,NULL);
         G_TestFinishDeferredFrees();
+        if(stop301_action){S_TestMoveRecoveryTrace(NULL,NULL);T_EQ(stop284.stages,before_free);}
+        if(stop301_action==4)T_NULL(G_GetMoveSpatialObject(index));
+        if(stop301_action==6)T_EQ(G_GetMoveSpatialObject(index),stop300_record);
     }
     reset_entities();setup_test_world();
 }
@@ -24596,6 +24631,66 @@ TEST(wc3_movement, scope299_replaced_point_owner_keeps_complete_dispatch) {
     T_EQ(scope299_custom_points,1);
 }
 #undef SCOPE299_CASE
+#define SCOPE301_CASE(name,action,moving) \
+    TEST(wc3_movement, scope301_##name) { \
+        stop299_all_scopes=true;stop301_action=action;stop284_public(action,moving); \
+        stop301_action=0;stop299_all_scopes=false; \
+    }
+SCOPE301_CASE(idle_nested_removal,4,false)
+SCOPE301_CASE(active_nested_removal,4,true)
+SCOPE301_CASE(idle_nested_death,6,false)
+SCOPE301_CASE(active_nested_death,6,true)
+#undef SCOPE301_CASE
+static unsigned scope301_inverse_stages;
+static void scope301_inverse_trace(void *data,unsigned stage,edict_t const *unit) {
+    (void)data;(void)unit;T_EQ(stage,scope301_inverse_stages++%4);
+}
+TEST(wc3_movement, scope301_revival_releases_death_contribution_before_next_pause) {
+    FOR_LOOP(saved,2)FOR_LOOP(paused,2) {
+        reset_entities();setup_test_world();uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),656,656);
+        unit->s.model=1;unit->collision=31;unit->svflags=SVF_MONSTER;unit->stand=unit_stand;
+        unit_stand(unit);G_PublishMoveSpatialObject(unit);
+        if(paused)S_SetUnitPaused(unit,true);
+        unit_die(unit,NULL);
+        unsigned index=unit-g_edicts;
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-scope301-revive.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+index;
+        }
+        G_ReviveCorpse(unit,1);
+        if(paused) {
+            S_SetUnitPaused(unit,false);
+            FOR_LOOP(i,4){wc3_clock_advance(&level.pathing_clock,.01f,0);S_RunMoveTimers();}
+        }
+        scope301_inverse_stages=0;S_TestMoveRecoveryTrace(scope301_inverse_trace,NULL);
+        S_SetUnitPaused(unit,true);S_TestMoveRecoveryTrace(NULL,NULL);
+        T_EQ(scope301_inverse_stages,12); /* old task, suspension, first disable */
+    }
+    reset_entities();setup_test_world();
+}
+TEST(wc3_movement, scope301_dead_fine_identity_roundtrips_and_republishes) {
+    reset_entities();setup_test_world();uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),656,656);
+    unit->s.model=1;unit->collision=31;unit->svflags=SVF_MONSTER;unit->stand=unit_stand;
+    unit_stand(unit);G_PublishMoveSpatialObject(unit);
+    unsigned index=unit-g_edicts;wc3RecordObject_t const *record=G_GetMoveSpatialObject(index);
+    T_NOT_NULL(record);unit_die(unit,NULL);G_SyncMoveSpatial();
+    T_EQ(G_GetMoveSpatialObject(index),record);
+    if(record){T_EQ(record->category&WC3_RECORD_INSERT,0);T_EQ(record->box.min.x,-128000);}
+    cstring_t file=Test_TempPath("wc3-scope301-dead.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+index;
+    record=G_GetMoveSpatialObject(index);T_NOT_NULL(record);
+    if(record){T_EQ(record->category&WC3_RECORD_INSERT,0);T_EQ(record->box.max.y,-128000);}
+    /* Engine publication-owner inverse; this is not a retail resurrection capture. */
+    unit->svflags&=~SVF_DEADMONSTER;G_SetHealth(unit,100);unit_stand(unit);
+    G_MarkMoveSpatialObject(unit);G_SyncMoveSpatial();
+    T_EQ(G_GetMoveSpatialObject(index),record);
+    if(record){T_NE(record->category&WC3_RECORD_INSERT,0);T_EQ(record->box.min.x,19);T_EQ(record->box.max.y,21);}
+    reset_entities();setup_test_world();
+}
 TEST(wc3_movement, scope300_idle_nested_pause) {
     stop300_spatial=stop299_all_scopes=true;stop284_public(5,false);stop300_spatial=stop299_all_scopes=false;
 }

@@ -118,6 +118,23 @@ static void move_remove_fine_spatial(edict_t const *ent) {
     move_spatial_geometry[index].valid=false;
 }
 
+/*160590 dispatches ce4588 for an inactive fine object. This is an empty
+ * integer coverage rectangle, independent of the unit's world position. */
+static wc3FineBox_t const move_unpublished_box={{-128000,-128000},{-128000,-128000}};
+void G_UnpublishMoveSpatialObject(edict_t const *ent) {
+    if(!ent)return;
+    S_RemoveMoveProximity(ent);S_RetireMoveRegions(ent);
+    uint32_t index=ent-g_edicts;move_spatial_clean(index);
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RecordObject_t *object=map->objects ? wc3_records_owned(map,index) : NULL;
+    if(object && ((object->category&WC3_RECORD_INSERT) ||
+        memcmp(&object->box,&move_unpublished_box,sizeof(object->box)))) {
+        object->category&=~WC3_RECORD_INSERT;
+        wc3_records_update(map,map->objects[index],move_unpublished_box);move_spatial_serial++;
+    }
+    move_spatial_geometry[index].valid=false;
+}
+
 void G_RemoveMoveSpatialObject(edict_t const *ent) {
     if (ent) {
         S_RemoveMoveProximity(ent);
@@ -680,7 +697,7 @@ static vec2_t move_object_point(edict_t const *ent) {
  * textures. Items publish their own mover category (BASE-02.2). */
 static bool move_has_spatial_record(edict_t const *ent) {
     if (ent->movement.captain_actor_type) return ent->inuse;
-    return !IS_HOLLOW(ent) && ent->collision>0 &&
+    return ent->inuse && !(ent->s.renderfx&RF_HIDDEN) && ent->s.model && ent->collision>0 &&
         (ent->data.UnitData || (G_IsItem(ent) && ent->item->in_world));
 }
 
@@ -698,7 +715,13 @@ void G_PublishMoveSpatialObject(edict_t const *ent) {
     if (!g_edicts || ent < g_edicts || ent >= g_edicts + MAX_ENTITIES) return;
     S_PublishMoveProximity(ent);
     move_spatial_clean(ent-g_edicts);
+    wc3RecordObject_t const *owned=G_GetMoveSpatialObject(ent-g_edicts);
+    /* Death commits its flag before cleanup, but unpublishes only afterward.
+     * Once inactive, ordinary dirty sync must not recreate a corpse/removal. */
+    if(ent->inuse && (!owned || !(owned->category&WC3_RECORD_INSERT)) &&
+        ((ent->svflags&SVF_DEADMONSTER) || G_IsDeferredFree(ent)))return;
     if (!ent->inuse || !move_has_spatial_record(ent)) {
+        if(ent->inuse && owned && !(owned->category&WC3_RECORD_INSERT))return;
         if(move_spatial_geometry[ent-g_edicts].valid ||
             G_GetMoveSpatialObject(ent-g_edicts))
             move_remove_fine_spatial(ent);
@@ -728,6 +751,7 @@ void G_PublishMoveSpatialObject(edict_t const *ent) {
         }
 #endif
         uint32_t id=object ? map->objects[index] : (map->objects[index]=wc3_records_create(map,index,0));
+        wc3_records_object(map,id)->category|=WC3_RECORD_INSERT;
         wc3_records_update(map,id,box);move_spatial_serial++;
     }
     *geometry=(moveSpatialGeometry_t){ent->s.origin2,ent->movement.fine_pose,ent->movement.pose_world,
@@ -745,14 +769,16 @@ wc3RecordObject_t const *G_GetMoveSpatialObject(uint32_t index) {
 }
 
 /*14d000 re-emits the saved logical rectangle in object load order. */
-bool G_LoadMoveSpatialObject(uint32_t index,wc3FineBox_t const *saved) {
+bool G_LoadMoveSpatialObject(uint32_t index,wc3FineBox_t const *saved,bool active) {
     if(!saved)return false;
     wc3FineBox_t box=*saved;
     int64_t width=(int64_t)box.max.x-box.min.x,height=(int64_t)box.max.y-box.min.y;
     if(index>=globals.num_edicts || !g_edicts[index].inuse ||
-        width<=0 || height<=0 || width>4 || height>4 || G_GetMoveSpatialObject(index))return false;
+        (active ? width<=0 || height<=0 || width>4 || height>4 :
+            memcmp(&box,&move_unpublished_box,sizeof(box))!=0) || G_GetMoveSpatialObject(index))return false;
     move_spatial_prepare();wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
     uint32_t id=map->objects[index]=wc3_records_create(map,index,0);
+    if(!active)wc3_records_object(map,id)->category&=~WC3_RECORD_INSERT;
     wc3_records_update(map,id,box);move_spatial_serial++;
     move_spatial_geometry[index].valid=false;
     return true;

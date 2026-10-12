@@ -1672,3 +1672,11 @@ Save181 adds the generation-checked `build_mine` reference retained by Undead
 Build after its one-second worker wait. Its per-target creator index is derived
 and rebuilt on load; stale/duplicate references fail validation. See
 [completion ownership](retail-pathfinding-engine.md#haunted-mine-completion-retains-an-ability-owned-harvest-target-payoff297).
+
+
+Version184 persists inactive ordinary fine identities using the exact empty
+integer rectangle and an explicit active/inactive discriminator. It also saves
+retirement-owned ability contributions separately from scripted Pause, allowing
+corpse/Hero revival to release only death's contribution. Noncanonical inactive
+coverage and older versions are rejected. Network layouts are unchanged. See
+[death/removal fine lifetime](retail-pathfinding-engine.md#death-and-removal-unpublish-fine-occupancy-without-destroying-its-identity-payoff301).

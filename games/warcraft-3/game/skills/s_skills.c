@@ -1804,14 +1804,14 @@ void S_ClearAbilityDisables(edict_t *ent) {
  * A callback can detach the live owner; this invocation retains its record
  * until its trailing store completes instead of using a recycled attachment. */
 static intptr_t ability_disable_add(edict_t *ent,unitAbilityDisable_t *state,
-        abilityitem_t const *item,bool orders) {
+        abilityitem_t const *item,bool orders,bool destroying) {
     state->references++;
     int32_t before=state->depth;
     state->depth=(int32_t)((uint32_t)before+1);
     intptr_t result=false;
     if(before<=0 && state->depth>0 && item->ability && item->ability->proc &&
        known_unit_ability_receives(*item,A_UNIT_SUSPEND)) {
-        abilityCall_t call={.item=item};
+        abilityCall_t call={.item=item,.retirement.destroying=destroying};
         result=item->ability->proc(ent,A_UNIT_SUSPEND,&call);
     }
     if(orders)state->order_depth=(int32_t)((uint32_t)state->order_depth+1);
@@ -1857,7 +1857,7 @@ void S_AcquireScriptedAbilityDisables(edict_t *ent) {
         if(state->linked) {
             state->pause_owned=ent->ability_pause_depth>0;
             abilityitem_t item=S_AbilityItem(state->code);
-            ability_disable_add(ent,state,&item,true);
+            ability_disable_add(ent,state,&item,true,false);
         }
         ability_disable_release(state);
         if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent) || M_IsDead(ent)) {
@@ -1879,6 +1879,16 @@ void S_ReleaseScriptedAbilityDisables(edict_t *ent) {
         state->order_depth=(int32_t)((uint32_t)state->order_depth-1);
         state->depth=(int32_t)((uint32_t)state->depth-1);
     }
+}
+
+/*695620 reverses death availability before constructing the revived Stop.
+ * Remove only the retirement contribution: a scripted pause remains owned. */
+void S_RestoreRetiredAbilityDisables(edict_t *ent) {
+    for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next)
+        if(state->retire_owned) {
+            state->retire_owned=false;
+            state->depth=(int32_t)((uint32_t)state->depth-1);
+        }
 }
 
 bool S_UnitOrderDisabled(edict_t const *ent,cstring_t order) {
@@ -1906,9 +1916,12 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
         if(msg==A_UNIT_SUSPEND) {
             if(state->pause_owned)return false;
             state->pause_owned=true;
-            return ability_disable_add(ent,state,call->item,true);
+            return ability_disable_add(ent,state,call->item,true,false);
         }
-        ability_disable_add(ent,state,call->item,false);
+        if(!state->retire_owned) {
+            state->retire_owned=true;
+            ability_disable_add(ent,state,call->item,false,call->retirement.destroying);
+        }
     }
     bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_POINT_ORDER_ADMIT ||
                       msg == A_POINT_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
@@ -2024,7 +2037,7 @@ void S_EnableAbility(edict_t *ent, uint32_t code) {
             unitAbilityDisable_t *state=ability_disable_owner(ent,code);
             if(ent->ability_pause_depth) {
                 state->pause_owned=true;
-                ability_disable_add(ent,state,&item,true);
+                ability_disable_add(ent,state,&item,true,false);
             }
         }
     }
@@ -2043,7 +2056,7 @@ void S_DisableAbility(edict_t *ent, uint32_t code) {
             state->references++;
             /*3f4c70 first adds a non-order disable contribution, then always
              * refreshes c4. These are two producers when3c was zero. */
-            ability_disable_add(ent,state,&item,false);
+            ability_disable_add(ent,state,&item,false,false);
         }
         S_AbilityMessage(ent,A_DISABLE,&call);
         if(state) {ability_disable_unlink(ent,state);ability_disable_release(state);}

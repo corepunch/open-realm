@@ -108,7 +108,7 @@ void G_FreeEdict(edict_t *ent) {
     if(ent->class_id && !M_IsDead(ent)) {
         ent->svflags|=SVF_DEADMONSTER;
         G_SetHealth(ent,0);
-        S_UnitAbilityEvent(ent,A_UNIT_RETIRE);
+        S_UnitAbilityEventWithCall(ent,A_UNIT_RETIRE,&(abilityCall_t){.retirement.destroying=true});
     }
     /* Repair's work inverse refreshes separation. Finish it before Move
      * detaches storage, so cleanup cannot reinsert a retiring repulsor. */
@@ -181,7 +181,7 @@ void G_DeferFreeEdictAt(edict_t *ent,wc3Clock_t const *clock) {
     }
     bool const had_static_pathing = G_EntityHasStaticPathing(ent);
     G_SetEntityHidden(ent,true);
-    G_RemoveMoveSpatialObject(ent);
+    G_UnpublishMoveSpatialObject(ent);
     /* RemoveUnit becomes absent now; a route issued in the same JASS callback
      * must already see the remaining footprints and terrain baseline. */
     if (had_static_pathing) CM_BakeStaticObstacles();
@@ -198,6 +198,8 @@ void G_DeferFreeEdictAt(edict_t *ent,wc3Clock_t const *clock) {
     G_ClearUnitOrderQueue(ent);
     ent->current_order_id = 0;
     S_SpellReleasePointApproach(ent);
+    if(G_ActorHasAbilityCode(ent,MAKEFOURCC('A','m','o','v')))
+        S_StopUnitMovementWithRecovery(ent); /*694690 old-task cancellation. */
     S_UnitAbilityEvent(ent, A_UNIT_REMOVING);
     G_DetachRemovedConstructionWorker(ent);
     S_UnitTargetRemoved(ent);

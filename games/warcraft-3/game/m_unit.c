@@ -340,6 +340,7 @@ static void revive_corpse_state(edict_t *ent, float life_fraction, bool temporar
     else ent->aiflags &= ~(AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY);
     G_SetHealth(ent, ent->health.max_value * MAX(0.0f, MIN(1.0f, life_fraction)));
     if (!temporary_summon) G_ActivateUnitFood(ent);
+    S_RestoreRetiredAbilityDisables(ent);
     unit_stand(ent); gi.LinkEntity(ent);
 }
 
@@ -435,6 +436,8 @@ void unit_die(edict_t *self, edict_t *attacker) {
     self->current_order_id = 0;
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
+    self->svflags |= SVF_DEADMONSTER;
+    S_StopUnitMovementWithRecovery(self); /*679bb0 cancels the old task first. */
     /* Marks belong to their applying abilities, even when another unit lands the killing blow. */
     unit_statusdeath(self);
     /* Construction owns Repair workers and a self-linked HUD queue marker.
@@ -470,6 +473,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     G_SetEntitySelectionMask(self, 0);
     self->s.flags |= EF_NOT_SELECTABLE;
     self->aiflags &= ~AI_HOLD_FRAME;
+    S_StopUnitMovementWithRecovery(self); /* New death d0144 task cleanup. */
     unit_setmove(self, &unit_move_death);
     /* Warsmash advances the render Death animation after KillUnit even when
      * the simulation unit is paused by a cinematic. Keep the explicit frame
@@ -494,6 +498,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     self->svflags |= SVF_DEADMONSTER;
     G_MarkMoveSpatialObject(self);
     S_UnitAbilityEvent(self,A_UNIT_RETIRE);
+    G_UnpublishMoveSpatialObject(self); /*6744d0: after counted cancellation. */
     S_UnitAbilityEvent(self, A_DEATH);
     G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
         .edict=self,.type=EVENT_PLAYER_UNIT_DEATH,.source=attacker },EVENT_UNIT_DEATH,false);
@@ -3308,6 +3313,7 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
     ent->s.origin.z = CM_GetHeightAtPoint(x, y);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_ActivateUnitFood(ent);
+    S_RestoreRetiredAbilityDisables(ent);
     unit_stand(ent); /* back to a living idle state */
     gi.LinkEntity(ent);
     return true;

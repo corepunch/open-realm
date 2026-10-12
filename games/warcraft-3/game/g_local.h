@@ -824,7 +824,7 @@ typedef struct unitAbilityDisable_s {
     struct unitAbilityDisable_s *next;
     uint32_t code, references;
     int32_t depth, order_depth;
-    bool pause_owned, linked;
+    bool pause_owned, retire_owned, linked;
 } unitAbilityDisable_t;
 
 typedef struct unitAbilityOrder_s {
@@ -1156,6 +1156,7 @@ struct ability_call_s {
             UnitAbilities_t const *unit_type;
             UnitData_t const *unit_data;
         };
+        struct { bool destroying; } retirement; /* A_UNIT_RETIRE: storage teardown after semantic cleanup. */
         abilityMessageSet_t *unit_messages; /* A_UNIT_EVENT_MASK: procedure-owned broadcast subscriptions. */
         abilityTimerRequest_t *primary_timer; /* Exact primary request query/delivery. */
         float clock_span; /* A_PRIMARY_TIMER_REBASE. */
@@ -3676,6 +3677,7 @@ void S_DispatchTransientAbilityOrder(edict_t *, abilityitem_t const *, cstring_t
 void S_ExecuteTransientAbilityOrders(edict_t *);
 void S_ClearTransientAbilityOrders(edict_t *);
 void S_ClearAbilityDisables(edict_t *);
+void S_RestoreRetiredAbilityDisables(edict_t *);
 void S_ReleaseScriptedAbilityDisables(edict_t *);
 void S_AcquireScriptedAbilityDisables(edict_t *);
 bool S_UnitOrderDisabled(edict_t const *, cstring_t);
@@ -3816,11 +3818,12 @@ void G_MarkMoveSpatialObject(edict_t const *);
 void G_SetEntityHidden(edict_t *, bool);
 void G_PublishMoveSpatialObject(edict_t const *);
 void G_RemoveMoveSpatialObject(edict_t const *);
+void G_UnpublishMoveSpatialObject(edict_t const *);
 uint64_t G_GetMoveSpatialSerial(void);
 uint16_t G_GetMoveFineSearchStamp(void);
 void G_SetMoveFineSearchStamp(uint16_t);
 wc3RecordObject_t const *G_GetMoveSpatialObject(uint32_t);
-bool G_LoadMoveSpatialObject(uint32_t, wc3FineBox_t const *);
+bool G_LoadMoveSpatialObject(uint32_t, wc3FineBox_t const *, bool);
 wc3SpatialRecords_t *S_GetMoveFineSpatial(void);
 uint32_t S_CaptureMoveTargetRegion(edict_t const *,uint8_t,uint32_t *);
 uint32_t S_MoveGroupTargetRegion(moveGroup_t *);

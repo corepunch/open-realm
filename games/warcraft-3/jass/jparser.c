@@ -350,7 +350,7 @@ wordExtractor_t(parse_logic_operators) {
 wordExtractor_t(parse_logical_expression) {
     token_t *left = parse_logic_operators(p);
     if (eat_token(p, ",")) left->next = parse_logical_expression(p);
-    else { eat_token(p, ")") || eat_token(p, "]"); }
+    else { (void)(eat_token(p, ")") || eat_token(p, "]")); }
     return left;
 }
 

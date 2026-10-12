@@ -18681,3 +18681,67 @@ assertions including fine identity/geometry checks; the initial test version's
 12 missing-boundary failures remain archived. All919 earlier retail fixture and
 literal-header hashes remain byte-identical. All466 game C/H files match the
 compiled source; separately owned working-tree changes are outside this commit.
+
+## Death and removal unpublish fine occupancy without destroying its identity (Payoff301)
+
+`RemoveUnit` unpublishes fine occupancy before `694690` cancels the old task and
+constructs removal cleanup. `KillUnit` commits death first, but retains active
+fine coverage through old-task cancellation, new death cleanup and counted Move
+cancellation. `6744d0` then calls `650c00`/`05c660` before public death callbacks.
+Both operations retain the fine object and its exclusion counter. Only actual
+mover destruction (`15ee60`) retires that identity. The inactive rectangle is
+`ce4588`: four signed integer coordinates of `-128000`, an empty coverage
+encoding rather than a change to world position.
+
+The engine separates `G_UnpublishMoveSpatialObject` from physical
+`G_RemoveMoveSpatialObject`. Ordinary dirty synchronization preserves inactive
+corpse/deferred-removal records; revival republishes the retained record. Save184
+encodes absent/active/inactive ordinary records as0/1/2, rejects every noncanonical
+inactive rectangle and rejects older save versions. The public death flag is
+independent of the active fine coverage bit while cleanup runs.
+
+Attached Move now participates in retirement cancellation. A retirement-owned
+ability contribution is saved independently of scripted Pause contributions.
+`695620`, reached from public `ReviveHero` through `210f90`/`695ab0`, reverses death
+availability before constructing Stop. `S_RestoreRetiredAbilityDisables` supplies
+that inverse at the existing corpse/Hero revival owners, preserving Pause state.
+This does not claim the full native availability-counter contract is complete.
+
+Evidence reuses the **unchanged** Payoff300 original read-only repeats and Stop284
+observer-free control. Eight death/removal spatial scenes certify identity,
+coverage and counter boundaries. No new capture is claimed. The new
+`Scope301Evidence.java` records fourteen original function bodies/xrefs and the typed
+inactive rectangle; saved Ghidra readback is identical. The strict verifier checks
+1,152 original instruction/data guards and runs Classic/TFT production regressions.
+
+The new engine tests first failed109 assertions across five cases. After the
+fine-lifetime fix they passed1,661; a further fresh/saved paused-revival test then
+exposed four missing-inverse failures. The final six cases pass1,725 assertions.
+The corpse save/publication inverse is engine evidence; revival has static original
+producer evidence, without a new live resurrection witness. Existing retail headers
+and expected fixtures were not regenerated.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_scope301.py \
+  --binary /path/to/original/game.dll --report /tmp/scope301-new.json
+```
+
+Proximity identity lifetime, other inactive producers, wider availability state
+and the complete MAP-04.2 exit inventory remain open. Fine lifetime must not be
+used as evidence that those separate owners are already implemented.
+
+
+The full checkpoint additionally caught a serial-order regression from running
+Move cleanup on bare edicts, and redundant publication during physical free.
+Existing serial/publication expectations remain unchanged. Removal recovery is
+now gated on actual Move ownership; the typed `retirement.destroying` context
+keeps storage retirement from executing death's movement cancellation again.
+The original complete RemoveUnit scenes contain no extra deferred-destruction
+recovery. The existing e2e release case first fails6 assertions and then passes
+41,462; the unchanged publication case recovers from57/58 to58/58.
+
+The accepted batch checkpoint passes8,738 C tests /35,843,773 assertions in32
+JUnit reports and1,848 Python pathfinding tests. The strict original/engine
+contract passes633 tests /616,721 assertions in each edition. The archived
+compiled source pins cover594 C/H files;809 historical retail inputs remain
+byte-identical. The earlier failed checkpoint is retained as superseded evidence.

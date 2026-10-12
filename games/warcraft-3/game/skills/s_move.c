@@ -6641,14 +6641,19 @@ BZ_ABILITY_PROC(CAbilityMove) {
          * this procedure but must not contribute a second disable callback. */
         if(result && call->item && call->item->ability &&
            (call->item->ability->flags&AB_INTRINSIC))
+            {
             call->unit_messages->bits[A_UNIT_SUSPEND/64]|=UINT64_C(1)<<(A_UNIT_SUSPEND%64);
+            call->unit_messages->bits[A_UNIT_RETIRE/64]|=UINT64_C(1)<<(A_UNIT_RETIRE%64);
+        }
         return result;
     }
     case A_UNIT_SUSPEND:
         /* Only the attached intrinsic owner subscribes (A_UNIT_EVENT_MASK). */
         if(!ent || !call || !call->item || !call->item->ability ||
            !(call->item->ability->flags&AB_INTRINSIC))return false;
-        move_suspend_physical_task(ent);
+        /* Physical destruction follows semantic removal cleanup. The original
+         * RemoveUnit trace has no additional69a840 at deferred destruction. */
+        if(!call->retirement.destroying)move_suspend_physical_task(ent);
         return true;
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
@@ -6763,7 +6768,10 @@ BZ_ABILITY_PROC(CAbilityMove) {
         S_RefreshUnitPauseSuppression(ent);
         /* RemoveUnit cancels its task now; the mover and its route storage
          * remain owned until deferred removal, as in native694690/171340. */
-        move_leave(ent);
+        if(call->item && call->item->ability && (call->item->ability->flags&AB_ENGINE_EVENTS) &&
+           G_ActorHasAbilityCode(ent,MAKEFOURCC('A','m','o','v')))
+            S_StopUnitMovementWithRecovery(ent); /* Removal d0144 construction. */
+        else move_leave(ent);
         /* Separation becomes unavailable before target-removal callbacks;
          * waiting for A_UNIT_REMOVE leaves a canceled owner in the live list. */
         move_repulse_unlink(ent);

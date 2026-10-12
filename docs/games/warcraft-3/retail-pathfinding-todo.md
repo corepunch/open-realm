@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **290 done / 336 tasks; 46 remaining.** Payoff298 implements Human Repair target notification before work, callback cancellation/removal guards and saved Pause/resume re-notification. Two original repeats/control agree3027 public markers and324 native boundaries. Build retires before Repair activation; it is not a hidden resumable head underneath active Repair. ORDER-01.16 remains open for cancellation/refunds and alternate producers. See [Human Repair activation](retail-pathfinding-engine.md#human-build-activates-and-resumes-a-real-repair-head-payoff298).
 
+Payoff301 integrates death/removal cleanup with retained fine identities, exact
+inactive coverage, Save184 and revival's owned contribution inverse. Unchanged
+retail repeats/control establish the spatial boundaries; no fixtures are replaced.
+MAP-04.2 remains open for its complete exit inventory;46 remain. See
+[retained fine lifetime](retail-pathfinding-engine.md#death-and-removal-unpublish-fine-occupancy-without-destroying-its-identity-payoff301).
+
 Payoff300 implements Pause old-task and suspension-task cleanup plus the first
 counted intrinsic Move disable. The retained user packet and fine identity survive
 all three owner stages. Two new read-only retail repeats match the unchanged

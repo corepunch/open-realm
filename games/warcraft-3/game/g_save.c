@@ -88,7 +88,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format182 merges upstream status records (instance ids, modifiers, state/buff masks),
  * neutral creep guard state and Wisp tree egress into the Format181 layout.
  * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
-static uint32_t const save_version = 183;
+/* Format184 retains inactive fine identities with exact empty coverage. */
+static uint32_t const save_version = 184;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -2527,7 +2528,7 @@ static bool WriteMoveSpatial(FILE *f) {
         wc3RecordObject_t const *object=G_GetMoveSpatialObject(i);
         wc3RegionCollection_t const *regions=S_GetMoveRegions(i);
         if(!object && !regions->count)continue;
-        uint32_t ordinary=object!=NULL;
+        uint32_t ordinary=object ? (object->category&WC3_RECORD_INSERT ? 1 : 2) : 0;
         if(!success || !g_edicts[i].inuse || !SaveBytes(f,&i,sizeof(i)) ||
             !SaveBytes(f,&ordinary,sizeof(ordinary))) {success=false;break;}
         if(object && (object->stamp==UINT32_MAX || !SaveBytes(f,&object->box,sizeof(object->box)) ||
@@ -2561,11 +2562,11 @@ static bool ReadMoveSpatial(FILE *f) {
     FOR_LOOP(i,count) {
         uint32_t ordinary,region_count;
         if(!LoadBytes(f,&index,sizeof(index)) || index>=globals.num_edicts || seen[index] || !g_edicts[index].inuse ||
-            !LoadBytes(f,&ordinary,sizeof(ordinary)) || ordinary>1)goto failed;
+            !LoadBytes(f,&ordinary,sizeof(ordinary)) || ordinary>2)goto failed;
         if(ordinary) {
             wc3FineBox_t box;
             if(!LoadBytes(f,&box,sizeof(box)) || !LoadBytes(f,&stamp,sizeof(stamp)) || stamp==UINT32_MAX ||
-                !G_LoadMoveSpatialObject(index,&box))goto failed;
+                !G_LoadMoveSpatialObject(index,&box,ordinary==1))goto failed;
             wc3_records_owned(S_GetMoveFineSpatial(),index)->stamp=stamp;
         }
         if(!LoadBytes(f,&region_count,sizeof(region_count)) || region_count>4 ||
@@ -2808,7 +2809,7 @@ typedef struct {
 typedef struct {
     uint32_t code;
     int32_t depth,order_depth;
-    bool pause_owned;
+    bool pause_owned,retire_owned;
 } savedAbilityDisable_t;
 
 static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
@@ -2819,7 +2820,7 @@ static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
     }
     if(!SaveBytes(f,&count,sizeof(count)))return false;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
-        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned};
+        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned};
         if(!SaveBytes(f,&saved,sizeof(saved)))return false;
     }
     return true;
@@ -2836,7 +2837,7 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
             if(s->code==saved.code)goto failed;
         unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
         state->code=saved.code;state->depth=saved.depth;state->order_depth=saved.order_depth;
-        state->pause_owned=saved.pause_owned;state->linked=true;state->references=1;*tail=state;tail=&state->next;
+        state->pause_owned=saved.pause_owned;state->retire_owned=saved.retire_owned;state->linked=true;state->references=1;*tail=state;tail=&state->next;
     }
     return true;
 failed:
@@ -4031,12 +4032,33 @@ TEST(wc3_save, fine_spatial_rectangles_reject_invalid_records) {
         T_EQ(G_GetMoveSpatialSerial(),0);
         fclose(file);
     }
-    T_ASSERT(G_LoadMoveSpatialObject(unit->s.number,&good));
+    T_ASSERT(G_LoadMoveSpatialObject(unit->s.number,&good,true));
     FILE *file=tmpfile();T_NOT_NULL(file);
     if(file){T_ASSERT(WriteMoveSpatial(file));T_EQ(ftell(file),sizeof(uint32_t)*7+sizeof(good));
         G_ClearMoveSpatial();rewind(file);T_ASSERT(ReadMoveSpatial(file));
         T_EQ(G_GetMoveSpatialSerial(),1);
         T_EQ(G_GetMoveSpatialObject(unit->s.number)->stamp,1);fclose(file);}
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_save, inactive_fine_rectangles_reject_noncanonical_coverage) {
+    extern void CM_SetupTestPathmap(unsigned,unsigned,uint8_t const *);
+    extern void CM_SetupTestWorldBounds(box2_t const *);
+    reset_entities();setup_test_world();uint8_t terrain[16*16]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});CM_SetupTestPathmap(16,16,terrain);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),224,224);
+    FOR_LOOP(c,4) {
+        FILE *file=tmpfile();T_NOT_NULL(file);if(!file)continue;
+        wc3FineBox_t box={{-128000,-128000},{-128000,-128000}};
+        if(c==0)box=(wc3FineBox_t){{1,1},{2,2}};
+        if(c==1)box.max.x++;
+        if(c==2)box.min.y--;
+        uint32_t header[]={11,4,1,unit->s.number,c==3 ? 3 : 2};
+        T_ASSERT(SaveBytes(file,header,sizeof(header)));T_ASSERT(SaveBytes(file,&box,sizeof(box)));
+        T_ASSERT(SaveBytes(file,&(uint32_t){7},sizeof(uint32_t)));
+        T_ASSERT(SaveBytes(file,&(uint32_t){0},sizeof(uint32_t)));
+        rewind(file);T_ASSERT(!ReadMoveSpatial(file));T_EQ(G_GetMoveSpatialSerial(),0);fclose(file);
+    }
     reset_entities();setup_test_world();
 }
 
