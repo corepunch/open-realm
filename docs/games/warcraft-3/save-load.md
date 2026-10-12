@@ -1680,3 +1680,10 @@ retirement-owned ability contributions separately from scripted Pause, allowing
 corpse/Hero revival to release only death's contribution. Noncanonical inactive
 coverage and older versions are rejected. Network layouts are unchanged. See
 [death/removal fine lifetime](retail-pathfinding-engine.md#death-and-removal-unpublish-fine-occupancy-without-destroying-its-identity-payoff301).
+
+
+Version185 adds Move's removal-owned separation contribution. Its signed depth
+was already saved; the new owner flag makes deferred destruction release exactly
+that contribution after load, retaining other owners. Older saves are rejected
+under the existing version policy. The flag fits existing instance padding;
+network layouts remain unchanged. See [counted removal](retail-pathfinding-engine.md#removal-owns-a-counted-separation-contribution-and-its-inverse-payoff302).

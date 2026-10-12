@@ -89,7 +89,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
  * neutral creep guard state and Wisp tree egress into the Format181 layout.
  * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
 /* Format184 retains inactive fine identities with exact empty coverage. */
-static uint32_t const save_version = 184;
+static uint32_t const save_version = 185;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -848,6 +848,7 @@ static field_t const repulse_fields[] = {
     TF(struct edictRepulse_s, next, F_EDICT, 0, FIELD_NONE),
     TF(struct edictRepulse_s, active, F_INT),
     TF(struct edictRepulse_s, pause_suppression, F_INT),
+    TF(struct edictRepulse_s, removal_suppression, F_INT),
     TF(struct edictRepulse_s, disable_depth, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };

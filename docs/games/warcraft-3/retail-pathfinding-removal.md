@@ -76,3 +76,15 @@ python3 -m unittest tests.test_wc3_pathing_removal
 The report must be new. The runner rejects missing stages, disabled-only
 controls, incomplete observations, stale raw pins, instrumented controls and
 empty or failed game regressions. Existing numerical fixtures are unchanged.
+
+
+## Counted removal integration (Payoff302)
+
+Payoff302 implements the retained204 capture intervals that were excluded above:
+old suspension cancellation releases its count before removal acquisition, and
+final inactivity releases removal before mover destruction. A fresh repulsor is
+briefly prepended at the latter boundary when the native eligibility predicate
+allows it. Pending owner/pause refresh remains suppressed by the owned count.
+Save185 retains that ownership. The older capture, expected rows and117-assertion
+regression are unchanged. See [counted removal and its inverse](retail-pathfinding-engine.md#removal-owns-a-counted-separation-contribution-and-its-inverse-payoff302)
+for new failing-first tests, original guards and the remaining scope limits.

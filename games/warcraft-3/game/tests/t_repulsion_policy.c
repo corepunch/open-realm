@@ -121,6 +121,147 @@ TEST(wc3_repulsion_policy, removal_retires_membership_before_callbacks_and_survi
     reset_entities(); setup_test_world();
 }
 
+
+typedef struct {
+    int32_t depth;
+    bool active, paused;
+    uint32_t packed;
+} removal302Transition_t;
+static removal302Transition_t removal302_transitions[8];
+static unsigned removal302_count;
+static void removal302_observe(edict_t const *ent) {
+    T_ASSERT(removal302_count<8);
+    if(removal302_count<8)removal302_transitions[removal302_count++]=(removal302Transition_t){
+        ent->movement.repulse.disable_depth,ent->movement.repulse.active,ent->paused,
+        ent->movement.repulse.state.packed};
+}
+
+/* The unchanged204 repeats include both old-pause cancellation and the final
+ * inactivity inverse. Observe real counted transitions, including the brief
+ * head insertion immediately before physical mover destruction. */
+TEST(wc3_repulsion_policy, removal302_counted_inverse_and_saved_pending_lifetime) {
+    FOR_LOOP(saved,2) FOR_LOOP(scene,3) {
+        reset_entities();setup_test_world();
+        mapInfo_t const *prior=level.mapinfo;mapInfo_t info=*prior;
+        int enabled=2,selector=17,category=17,rank=17;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&enabled},
+            {.modID=MAKEFOURCC('u','r','p','p'),.type=mod_int,.data=&selector},
+            {.modID=MAKEFOURCC('u','r','p','g'),.type=mod_int,.data=&category},
+            {.modID=MAKEFOURCC('u','r','p','r'),.type=mod_int,.data=&rank}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','R','E','M'),
+            .numbeOfModifications=4,.modifications=mods};
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        T_ASSERT(run_test_jass("globals\nunit u\nunit peer\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set peer=CreateUnit(Player(0),'hREM',560,304,0)\n"
+            "set u=CreateUnit(Player(0),'hREM',304,304,0)\nendfunction\n"
+            "function freeze takes nothing returns nothing\ncall PauseUnit(u,true)\nendfunction\n"
+            "function removeUnit takes nothing returns nothing\ncall RemoveUnit(u)\nendfunction\n"
+            "function refresh takes nothing returns nothing\ncall SetUnitOwner(u,Player(1),false)\n"
+            "call PauseUnit(u,true)\ncall PauseUnit(u,false)\nendfunction\n"));
+        edict_t *unit=NULL,*peer=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) {
+            if(ent->s.origin.x<400)unit=ent;else peer=ent;
+        }
+        T_NOT_NULL(unit);T_NOT_NULL(peer);
+        if(!unit || !peer){reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=prior;continue;}
+        unsigned slot=unit->s.number,peer_slot=peer->s.number;
+        if(scene==2)jass_callbyname(level.vm,"freeze",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->movement.repulse.disable_depth,scene==2 ? 1 : 0);
+        wc3Random_t random=level.pathing_random;
+        removal302_count=0;move_test_repulse_count_observer=removal302_observe;
+        jass_callbyname(level.vm,"removeUnit",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(G_IsDeferredFree(unit));
+        T_EQ(unit->movement.repulse.disable_depth,1);T_ASSERT(!unit->paused);
+        T_ASSERT(!unit->movement.repulse.active);T_EQ(level.repulse_head,peer);
+        unsigned expected=scene==2 ? 2 : 1;
+        T_EQ(removal302_count,expected);
+        if(scene==2 && removal302_count) {
+            T_EQ(removal302_transitions[0].depth,0);T_ASSERT(removal302_transitions[0].active);
+            T_ASSERT(!removal302_transitions[0].paused);T_EQ(removal302_transitions[0].packed,0x10110000u);
+        }
+        if(removal302_count>=expected) {
+            removal302Transition_t v=removal302_transitions[expected-1];
+            T_EQ(v.depth,1);T_ASSERT(!v.active);T_ASSERT(!v.paused);
+        }
+        if(scene==1)jass_callbyname(level.vm,"refresh",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(unit->movement.repulse.disable_depth,1);
+        T_EQ(removal302_count,expected);T_ASSERT(!unit->movement.repulse.active);
+        jass_callbyname(level.vm,"removeUnit",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(removal302_count,expected);T_EQ(unit->movement.repulse.disable_depth,1);
+        move_test_repulse_count_observer=NULL;
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-removal302-counted.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit=g_edicts+slot;peer=g_edicts+peer_slot;
+            T_ASSERT(G_IsDeferredFree(unit));T_EQ(unit->movement.repulse.disable_depth,1);
+            T_ASSERT(!unit->movement.repulse.active);T_EQ(level.repulse_head,peer);
+        }
+        removal302_count=0;move_test_repulse_count_observer=removal302_observe;
+        wc3Clock_t due;uint32_t serial;T_ASSERT(G_NextUnitRelease(&due,&serial));
+        level.pathing_clock=due;G_RunDeferredFrees();move_test_repulse_count_observer=NULL;
+        T_EQ(removal302_count,1);
+        if(removal302_count) {
+            T_EQ(removal302_transitions[0].depth,0);T_ASSERT(removal302_transitions[0].active);
+            T_ASSERT(!removal302_transitions[0].paused);
+            T_EQ(removal302_transitions[0].packed,scene==1 ? 0x11110000u : 0x10110000u);
+        }
+        T_ASSERT(!unit->inuse);T_ASSERT(!G_IsDeferredFree(unit));
+        T_EQ(level.repulse_head,peer);T_NULL(peer->movement.repulse.next);
+        T_EQ(memcmp(&level.pathing_random,&random,sizeof(random)),0);
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=prior;
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Original INC/DEC and the complete66fc50 predicate also retain other owners.
+ * Negative depth is a labelled supplied-state boundary, not public reachability. */
+TEST(wc3_repulsion_policy, removal302_preserves_independent_signed_contributions) {
+    int32_t inputs[]={-1,1,INT32_MAX};
+    FOR_LOOP(i,3) {
+        reset_entities();setup_test_world();
+        UnitBalance_t balance={.repulse=1};UnitData_t data={.moveTypeName="foot"};
+        edict_t *unit=policy_unit(&balance,&data,0,304,304);
+        unit->movement.repulse.disable_depth=inputs[i];
+        CAbilityMove(unit,A_CHANNEL_STATE_CHANGED,NULL);
+        removal302_count=0;move_test_repulse_count_observer=removal302_observe;
+        G_DeferFreeEdict(unit);
+        int32_t next=(int32_t)((uint32_t)inputs[i]+1);
+        T_EQ(removal302_count,1);T_EQ(unit->movement.repulse.disable_depth,next);
+        T_EQ(unit->movement.repulse.active,next<=0);
+        if(removal302_count) {
+            T_EQ(removal302_transitions[0].depth,next);
+            T_EQ(removal302_transitions[0].active,next<=0);
+        }
+        wc3Clock_t due;uint32_t serial;T_ASSERT(G_NextUnitRelease(&due,&serial));
+        level.pathing_clock=due;G_RunDeferredFrees();move_test_repulse_count_observer=NULL;
+        T_EQ(removal302_count,2);
+        if(removal302_count==2) {
+            T_EQ(removal302_transitions[1].depth,inputs[i]);
+            T_EQ(removal302_transitions[1].active,inputs[i]<=0);
+        }
+        T_ASSERT(!unit->inuse);T_NULL(level.repulse_head);
+    }
+    reset_entities();setup_test_world();
+}
+
+/*673610 reaches67e0e0 only for an actual suspension latch. A scripted
+ * pause recorded while absent has not acquired that physical task owner. */
+TEST(wc3_repulsion_policy, removal302_absent_pause_has_no_suspension_inverse) {
+    reset_entities();setup_test_world();
+    UnitBalance_t balance={.repulse=1};UnitData_t data={.moveTypeName="foot"};
+    edict_t *unit=policy_unit(&balance,&data,0,304,304);
+    unit->construction_held=true;S_SetUnitPaused(unit,true);
+    T_ASSERT(unit->paused);T_ASSERT(!unit->movement.repulse.pause_suppression);
+    T_EQ(unit->movement.pause_phase,UNIT_PAUSE_NONE);T_EQ(unit->movement.repulse.disable_depth,0);
+    G_DeferFreeEdict(unit);
+    T_ASSERT(unit->paused);T_EQ(unit->movement.repulse.disable_depth,1);
+    T_ASSERT(!unit->movement.repulse.active);
+    reset_entities();setup_test_world();
+}
+
 /* Native66fc50 tests suppression, not whether the authored Move ability exists.
  * A stationary repulsor remains a candidate and owns its own update state. */
 TEST(wc3_repulsion_policy, zero_authored_speed_keeps_repulsor_through_public_lifecycle) {

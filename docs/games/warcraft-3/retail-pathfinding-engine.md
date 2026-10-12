@@ -18745,3 +18745,58 @@ JUnit reports and1,848 Python pathfinding tests. The strict original/engine
 contract passes633 tests /616,721 assertions in each edition. The archived
 compiled source pins cover594 C/H files;809 historical retail inputs remain
 byte-identical. The earlier failed checkpoint is retained as superseded evidence.
+
+
+## Removal owns a counted separation contribution and its inverse (Payoff302)
+
+`694690` cancels the old task, acquires `Unit+198` through `688d90`, then builds
+the removal chain. Cancellation of an existing suspension (`67e0e0`) first
+clears its pause/latch and releases that contribution. `69c510` later commits
+inactivity and releases removal through `6785c0`, before physical mover
+destruction. Each INC/DEC immediately refreshes configuration through `693d50`.
+
+The complete `66fc50` predicate has no dead-bit or deferred-identity test. A
+positive signed count suppresses separation; when its final owner releases, an
+otherwise eligible inactive unit briefly creates a new repulsor. `1710e0`
+prepends it, and mover destruction then removes it. The engine now uses a
+saved `removal_suppression` owner instead of substituting `G_IsDeferredFree`
+for the count. It cancels the old Pause contribution before acquisition and
+releases only removal's contribution before Move teardown. Membership follows
+the resulting signed count, including INC/DEC wrap, without an unconditional
+post-configuration unlink. Storage and update complexity remain constant per
+transition; no world scan or additional instance allocation is introduced.
+
+Evidence reuses **unchanged** original204 read-only repeats and their observer-free
+control. They already contain ordinary, nested owner-change and initially paused
+removal, including the final reconfiguration previously excluded from engine
+integration. Owner1 reconstructs `11110000`; owner0 reconstructs `10110000`.
+No new live capture is claimed. `Separation302Evidence.java` saves nine original
+function bodies/xrefs and comments, with identical saved readback; the verifier
+checks235 original instruction guards and reruns all432 unchanged eligibility
+cases. The new specification derives its transition rows from those retail
+captures, never from engine output. No old expected fixture/header is regenerated.
+
+The production native regression first fails53 assertions, then passes238 across
+fresh/saved ordinary, nested-owner and paused-removal lifetimes. A labelled
+supplied-count boundary additionally exposes two failures from unconditional
+unlink; its39 assertions preserve another contribution and signed wrap. These
+negative/overflow controls establish arithmetic behavior, not public reachability.
+Save185 persists removal ownership alongside its existing signed depth. The
+pending-removal save continuation is engine-only evidence. Wider ability, cargo,
+channel and construction compositions remain SEP-01.2; the broad task stays open.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_separation302.py \
+  --binary /path/to/original/game.dll --report /tmp/separation302-new.json
+```
+
+The focused checkpoint passes550 tests /123,789 assertions per edition,
+plus50 Python checks. This is implementation chunk1 after Payoff301's accepted
+full-suite checkpoint; no new full-suite run is claimed for this chunk.
+
+`673610` reaches suspension cancellation only when the physical `100000` latch
+exists. A scripted pause recorded during world absence has no such task owner;
+removal retains that public pause. Its regression fails1/7 before guarding the
+inverse and passes7/7 afterward. This is original caller/branch evidence plus an
+engine regression, without a new live absent-worker removal witness.

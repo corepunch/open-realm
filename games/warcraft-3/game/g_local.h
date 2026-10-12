@@ -2250,7 +2250,7 @@ struct edict_s {
         struct edictRepulse_s {
             wc3Repulse_t state;
             edict_t *next;
-            bool active, pause_suppression;
+            bool active, pause_suppression, removal_suppression;
             int32_t disable_depth; /* Native Unit198 counted owner contributions. */
         } repulse;
         uint32_t support_flags; /* Unit280: deck2 and prior-refresh deep-water20; saved before the next height query. */

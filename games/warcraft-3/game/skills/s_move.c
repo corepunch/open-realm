@@ -124,6 +124,7 @@ static moveRepulseQuery_t *repulse_query;
 static void (*move_test_repulse_pair)(edict_t const *,edict_t const *,wc3RepulsePair_t const *,wc3Repulse_t const *,wc3Random_t);
 static void (*move_test_repulse_endpoint)(edict_t const *,float const [2],bool,bool);
 static uint64_t move_test_repulse_unlink_visits;
+static void (*move_test_repulse_count_observer)(edict_t const *);
 #endif
 static edict_t *trymove_self = NULL;
 static void unit_predicted_pose(edict_t const *, wc3GridPose_t *);
@@ -1918,9 +1919,9 @@ static void move_repulse_init(edict_t *self) {
     UnitBalance_t const *balance = self->data.UnitBalance;
     /* Native66fc50 is independent of the authored Move ability: zero-speed
      * units still own separation, participate in queries and can be displaced. */
-    /* Removal owns suppression before callbacks, like native694690/688d90.
-     * Its generation-checked lifetime also gates owner/type/pause refreshes. */
-    if (!balance || !balance->repulse || G_IsDeferredFree(self) ||
+    /* Native694690 owns a counted contribution. Final69c510 releases it
+     * before destruction, and may legitimately configure a fresh repulsor. */
+    if (!balance || !balance->repulse ||
         self->movement.repulse.disable_depth > 0 || !G_UnitIsWorldActive(self) || self->paused ||
         S_SpellIsChanneling(self) || S_RepairSuppressesSeparation(self)) return;
     move_repulse_prepare_links();
@@ -1940,11 +1941,17 @@ static void move_repulse_init(edict_t *self) {
 void S_AcquireUnitSeparationSuppression(edict_t *self) {
     self->movement.repulse.disable_depth=(int32_t)((uint32_t)self->movement.repulse.disable_depth+1);
     move_repulse_init(self);
+#ifdef BZ_TESTS
+    if(move_test_repulse_count_observer)move_test_repulse_count_observer(self);
+#endif
 }
 
 void S_ReleaseUnitSeparationSuppression(edict_t *self) {
     self->movement.repulse.disable_depth=(int32_t)((uint32_t)self->movement.repulse.disable_depth-1);
     move_repulse_init(self);
+#ifdef BZ_TESTS
+    if(move_test_repulse_count_observer)move_test_repulse_count_observer(self);
+#endif
 }
 
 /* An absent construction worker records scripted pause but has no suspended
@@ -6765,21 +6772,34 @@ BZ_ABILITY_PROC(CAbilityMove) {
         ent->movement.fine_class=ent->s.player;
         move_repulse_init(ent); return true;
     case A_UNIT_REMOVING:
-        S_RefreshUnitPauseSuppression(ent);
+        /*694690 cancels the previous suspension before acquiring its own
+         * contribution. Hidden/pending identity is not66fc50 eligibility. */
+        if(ent->movement.pause_phase==UNIT_PAUSE_SUSPENDED)
+            S_SetUnitPauseFlag(ent,false);
+        else S_RefreshUnitPauseSuppression(ent);
+        if(ent->data.UnitBalance && !ent->movement.repulse.removal_suppression) {
+            ent->movement.repulse.removal_suppression=true;
+            S_AcquireUnitSeparationSuppression(ent);
+        }
         /* RemoveUnit cancels its task now; the mover and its route storage
          * remain owned until deferred removal, as in native694690/171340. */
         if(call->item && call->item->ability && (call->item->ability->flags&AB_ENGINE_EVENTS) &&
            G_ActorHasAbilityCode(ent,MAKEFOURCC('A','m','o','v')))
             S_StopUnitMovementWithRecovery(ent); /* Removal d0144 construction. */
         else move_leave(ent);
-        /* Separation becomes unavailable before target-removal callbacks;
-         * waiting for A_UNIT_REMOVE leaves a canceled owner in the live list. */
-        move_repulse_unlink(ent);
+        /* The counted transition already configures membership before target
+         * callbacks; do not substitute an unconditional unlink for its sign. */
         move_cancel_displacement(ent);
         S_SetMoveGoal(ent, &ent->goalentity, NULL);
         S_SetFollowTarget(ent,NULL);
         return true;
     case A_UNIT_REMOVE:
+        /*69c510 completes inactivity and releases the removal count before
+         *16eb20 destroys its mover. Keep that transient configuration ordered. */
+        if(ent->movement.repulse.removal_suppression) {
+            ent->movement.repulse.removal_suppression=false;
+            S_ReleaseUnitSeparationSuppression(ent);
+        }
         S_SetFollowTarget(ent,NULL);
         move_remove_captain_roster_member(ent);
         move_release_captain_reference(ent);
