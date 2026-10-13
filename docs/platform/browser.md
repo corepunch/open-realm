@@ -157,15 +157,24 @@ module.
 
 ### Renderer on the browser engine worker
 
-The browser build uses `PROXY_TO_PTHREAD` for the OPFS backend. WebGL 2
-contexts created through SDL on that pthread need
-`OFFSCREENCANVAS_SUPPORT` and canvas transfer (`#canvas`). The link also
-enables `OFFSCREEN_FRAMEBUFFER` for Emscripten's fallback support. Without
-the worker WebGL configuration, `glGetIntegerv` can call `getParameter` on
-an undefined JavaScript context.
+The browser build uses `PROXY_TO_PTHREAD` for OPFS, but SDL creates its GL
+context through EGL. Emscripten proxies EGL context creation to the main
+thread, so the HTML canvas must stay there. Browser builds use the
+`OFFSCREEN_FRAMEBUFFER` rendering path instead of transferring the canvas to
+the worker. Emscripten owns frame timing; native swap-interval behavior is
+unchanged. COOP/COEP cross-origin isolation is required for pthreads.
 
-Emscripten owns frame timing. The renderer skips `SDL_GL_SetSwapInterval`
-on the browser target because video initializes before the main loop exists.
-Native swap-interval behavior remains unchanged. The launcher requires
-OffscreenCanvas and cross-origin isolation. Verify runtime rendering in a
-compatible browser; enabling these flags alone does not prove it works.
+### SDL/EGL context ownership on browser pthreads
+
+The engine uses `PROXY_TO_PTHREAD` for WasmFS OPFS. SDL creates the renderer
+context through EGL, and Emscripten's EGL context operations are proxied to
+the browser main thread. Do **not** combine this SDL/EGL path with transferring
+`#canvas` to the pthread: the main-thread EGL implementation then attempts
+`getContext()` on an already-transferred HTML canvas and throws
+`InvalidStateError`. The browser link deliberately uses
+`-sOFFSCREEN_FRAMEBUFFER=1` without `OFFSCREENCANVAS_SUPPORT` or
+`OFFSCREENCANVASES_TO_PTHREAD`, leaving the canvas on the main thread while
+allowing the worker to submit WebGL operations through Emscripten's proxy.
+COOP/COEP isolation is still necessary for pthreads. This resolves the
+canvas-ownership conflict in configuration; WebGL rendering remains to be
+validated on the target Emscripten SDK and browser.

@@ -122,7 +122,9 @@ def main():
     run([emcc, *objects, "-O2", "-sUSE_SDL=2", "-sUSE_ZLIB=1",
          "-sMIN_WEBGL_VERSION=2", "-sMAX_WEBGL_VERSION=2", "-sFULL_ES3=1",
          "-sWASMFS=1", "-pthread", "-sPROXY_TO_PTHREAD=1", "-sPTHREAD_POOL_SIZE=2",
-         "-sOFFSCREENCANVAS_SUPPORT=1", "-sOFFSCREENCANVASES_TO_PTHREAD=#canvas",
+         # SDL creates its GL context through EGL, which Emscripten proxies to
+         # the browser main thread. Do not transfer the HTML canvas away from
+         # that thread; use the worker-to-main offscreen framebuffer path.
          "-sOFFSCREEN_FRAMEBUFFER=1",
          "-sINITIAL_MEMORY=134217728", "-sALLOW_MEMORY_GROWTH=1",
          "-sFILESYSTEM=1", "-sENVIRONMENT=web",
