@@ -189,3 +189,18 @@ SDL still owns the window and input. WebGL 2 uses
 Native rendering remains unchanged. This is an experimental interoperability
 fix requiring runtime verification of GL initialization, frame presentation,
 resize and input handling.
+
+### Worker-owned WebGL context (follow-up)
+
+Direct WebGL context creation in the browser renderer still deadlocked with
+`EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS` after shader loading: a synchronous GL
+proxy on the engine pthread can enter a recursive pthread mutex lock. The
+browser build now transfers `#canvas` to the engine pthread with
+`OFFSCREENCANVAS_SUPPORT`/`OFFSCREENCANVASES_TO_PTHREAD`, and the renderer
+requests `EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW`. The renderer continues to
+create the context directly via Emscripten, **not** via SDL/EGL; this distinction
+avoids the earlier transferred-canvas EGL error. No native build changes.
+
+Requires a cross-origin-isolated page and OffscreenCanvas support. Test worker
+context creation, shader/resource initialization, frame presentation, resize,
+input and shutdown in the browser; a successful C link alone is insufficient.

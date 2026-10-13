@@ -44,6 +44,12 @@ window.addEventListener('error', function (event) {
   document.getElementById('status').textContent = 'Error: ' + event.message;
 });
 window.openrealmStartEngine = function (arguments_) {
+  if (typeof OffscreenCanvas === 'undefined' ||
+      !HTMLCanvasElement.prototype.transferControlToOffscreen) {
+    document.getElementById('status').textContent =
+      'WebGL requires OffscreenCanvas support for the game worker.';
+    return;
+  }
   if (!window.crossOriginIsolated) {
     document.getElementById('status').textContent =
       'The engine requires COOP/COEP cross-origin isolation.';

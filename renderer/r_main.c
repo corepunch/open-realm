@@ -720,9 +720,9 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
     Uint32 win_vis = R_VideoHidden() ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN;
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | win_vis | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
 #ifdef __EMSCRIPTEN__
-    /* The OPFS backend requires PROXY_TO_PTHREAD. SDL's EGL creation and
-     * worker GL calls use incompatible proxy paths on this SDK. Let SDL own
-     * only the window and input; explicitly create a proxied WebGL 2 context. */
+    /* WasmFS OPFS uses a worker. SDL owns window/input but not GL creation:
+     * use the canvas transferred to this worker, with no synchronous GL proxy
+     * to the browser thread (which can recursively lock during GL setup). */
     web_gl_context = 0;
     if (window) {
         EmscriptenWebGLContextAttributes attributes;
@@ -733,7 +733,7 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
         attributes.stencil = EM_FALSE;
         attributes.antialias = requested_msaa > 0;
         attributes.explicitSwapControl = EM_TRUE;
-        attributes.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS;
+        attributes.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW;
         web_gl_context = emscripten_webgl_create_context("#canvas", &attributes);
     }
     if (web_gl_context > 0 &&
@@ -1085,7 +1085,7 @@ void R_EndFrame(void) {
     R_FinishFrameStats();
     R_UpdateSwapInterval();
 #ifdef __EMSCRIPTEN__
-    /* Explicit-swap-control publishes the proxied offscreen framebuffer. */
+    /* Present the worker-owned OffscreenCanvas context's completed frame. */
     if (web_gl_context > 0) emscripten_webgl_commit_frame();
 #else
     SDL_GL_SwapWindow(window);
