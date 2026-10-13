@@ -16,7 +16,7 @@ canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
 <body>
 <main>
 <h1>OpenRealm browser foundation</h1>
-<p id="status" role="status">Loading WebAssembly…</p>
+<p id="status" role="status">Checking browser-local Warcraft III data…</p>
 <section aria-labelledby="data-heading">
 <h2 id="data-heading">Local Warcraft III data (experimental)</h2>
 <p>Select MPQ, W3M or W3X files. They are copied into browser-local OPFS; they are not uploaded.</p>
@@ -43,9 +43,18 @@ var Module = {
 window.addEventListener('error', function (event) {
   document.getElementById('status').textContent = 'Error: ' + event.message;
 });
+window.openrealmStartEngine = function (arguments_) {
+  Module.arguments = arguments_;
+  var script = document.createElement('script');
+  script.src = 'index.js';
+  script.onerror = function () {
+    document.getElementById('status').textContent = 'Could not load the OpenRealm engine.';
+  };
+  document.body.appendChild(script);
+};
 </script>
 <script src="installer.js"></script>
 <script src="filesystem-bridge.js"></script>
-{{{ SCRIPT }}}
+<template id="engine-script">{{{ SCRIPT }}}</template>
 </body>
 </html>

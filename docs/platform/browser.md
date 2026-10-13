@@ -94,10 +94,11 @@ follow-up browser-port patches. In particular, browser networking, audio,
 OpenGL ES/WebGL API compatibility, filesystem persistence, generated font
 header production and startup asset mounts require additional integration.
 
-The output `build/web/engine/` includes the launcher helper scripts, but
-**the OPFS importer is still not mounted into the WASM filesystem**. Existing
-MPQ/game file loading cannot yet read the imported files. Do not upload or
-ship retail data with this target.
+The output `build/web/engine/` includes the launcher helper scripts. The page
+validates its active OPFS installation before loading Emscripten's generated
+script, then passes the active archive directory to native startup. Existing
+MPQ/game file loading and full runtime compatibility still require browser
+verification. Do not upload or ship retail data with this target.
 
 
 ## Phase 10 — engine build source preflight

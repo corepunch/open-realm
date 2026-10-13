@@ -63,29 +63,14 @@
       throw new Error('War3.mpq missing or installation size mismatch');
     return path;
   }
-  Module.preRun = Module.preRun || [];
-  Module.preRun.push(function () {
-    const dependency = 'openrealm-opfs-validate';
-    Module.addRunDependency(dependency);
-    validate().then(path => {
-      // PROXY_TO_PTHREAD runs C main in a worker with a separate Module.
-      // Pass the validated directory in argv so the worker receives it.
-      Module.arguments = ['+openrealm-data=' + path];
-      // Emscripten snapshots Module.arguments into programArgs when index.js
-      // loads, before this asynchronous OPFS validation can finish.
-      if (typeof programArgs !== 'undefined')
-        programArgs = Module.arguments;
-      status('Validated browser installation; starting engine…');
-    }).catch(error => {
-      const message = error && error.message || String(error);
-      // Stop Emscripten from entering main without a validated data path.
-      Module.noInitialRun = true;
-      status('Cannot start OpenRealm: ' + message);
-    }).finally(() => {
-      // Always clear the dependency so Emscripten does not log a pending
-      // dependency forever. noInitialRun keeps failed validation out of C main.
-      Module.removeRunDependency(dependency);
-    });
+  // Validate before loading Emscripten's generated script. It snapshots
+  // Module.arguments as the script loads, so async preRun validation is late.
+  validate().then(path => {
+    status('Validated browser installation; starting engine…');
+    window.openrealmStartEngine(['+openrealm-data=' + path]);
+  }).catch(error => {
+    const message = error && error.message || String(error);
+    status('Cannot start OpenRealm: ' + message + ' Import the game files above, then reload this page.');
   });
   // The previous IDBFS save directory is intentionally left untouched.
   // A follow-up migration is required before claiming old saves are accessible.

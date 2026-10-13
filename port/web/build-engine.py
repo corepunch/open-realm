@@ -125,6 +125,7 @@ def main():
          "-sINITIAL_MEMORY=134217728", "-sALLOW_MEMORY_GROWTH=1",
          "-sFILESYSTEM=1", "-sENVIRONMENT=web",
          "-sASSERTIONS=1", "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency", "-lm", "--shell-file", shell,
+         "-sINCOMING_MODULE_JS_API=canvas,arguments,setStatus,onAbort",
          "-o", out / "index.html"])
     for name in ("installer.js", "install-worker.js", "filesystem-bridge.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
