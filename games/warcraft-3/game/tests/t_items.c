@@ -693,6 +693,7 @@ TEST(wc3_items, pickup_uses_first_empty_slot) {
     T_ASSERT(G_PickupItem(unit, second));
     T_ASSERT(unit->inventory[1] == second);
     T_EQ(second->item->inventory_slot, 1);
+    T_EQ(game.clients[unit->s.player].score.values[WC3_PLAYER_SCORE_ITEMS_GAINED], 1);
 }
 
 TEST(wc3_items, unit_without_inventory_capability_rejects_item) {
@@ -2114,6 +2115,7 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 2);
     T_EQ(shop->stock->unit_count, 1);
     T_EQ(shop->stock->units[0].current, 0);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_MERCS_HIRED], 1);
 }
 
 TEST(wc3_items, map_custom_reward_stock_uses_base_item_art_in_shop_buttons) {

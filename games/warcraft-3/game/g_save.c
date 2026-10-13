@@ -117,7 +117,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 87 persists creep guard return recovery state. */
 /* Version 88 stores a single creep guard lifecycle phase. */
 /* Version 89 retains entity identity for ability-owned point-spell approaches. */
-static uint32_t const save_version = 89;
+/* Version 90 persists authoritative Warcraft player-score counters in GAMECLIENT. */
+static uint32_t const save_version = 90;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -2501,6 +2502,27 @@ TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {
     T_ASSERT(index > 0);
     if (index > 0 && index <= (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0])))
         T_STREQ(save_cfunctions[index - 1].name, "S_SpellTargetApproachThink");
+}
+
+TEST(wc3_save, player_score_state_round_trips) {
+    cstring_t const filename = Test_TempPath("wc3-player-score-save.bin");
+    gameClient_t *client;
+
+    reset_entities();
+    setup_test_world();
+    client = &game.clients[0];
+    client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 7;
+    client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] = 1234;
+    client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] = 73;
+    T_ASSERT(WriteGame(filename));
+
+    memset(&client->score, 0, sizeof(client->score));
+    T_ASSERT(ReadGame(filename));
+    client = &game.clients[0];
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 7);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL], 1234);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 73);
+    remove(filename);
 }
 
 TEST(wc3_save, disabled_player_abilities_grow_and_round_trip) {

@@ -333,6 +333,37 @@ typedef enum {
     WC3_LIMITOP_NOT_EQUAL = 5,
 } WC3LIMITOP;
 
+/* common.j playerscore ids.  Keep the numeric order stable: JASS passes these
+ * handles back to GetPlayerScore and the score screen consumes the same state. */
+typedef enum {
+    WC3_PLAYER_SCORE_UNITS_TRAINED = 0,
+    WC3_PLAYER_SCORE_UNITS_KILLED,
+    WC3_PLAYER_SCORE_STRUCT_BUILT,
+    WC3_PLAYER_SCORE_STRUCT_RAZED,
+    WC3_PLAYER_SCORE_TECH_PERCENT,
+    WC3_PLAYER_SCORE_FOOD_MAXPROD,
+    WC3_PLAYER_SCORE_FOOD_MAXUSED,
+    WC3_PLAYER_SCORE_HEROES_KILLED,
+    WC3_PLAYER_SCORE_ITEMS_GAINED,
+    WC3_PLAYER_SCORE_MERCS_HIRED,
+    WC3_PLAYER_SCORE_GOLD_MINED_TOTAL,
+    WC3_PLAYER_SCORE_GOLD_MINED_UPKEEP,
+    WC3_PLAYER_SCORE_GOLD_LOST_UPKEEP,
+    WC3_PLAYER_SCORE_GOLD_LOST_TAX,
+    WC3_PLAYER_SCORE_GOLD_GIVEN,
+    WC3_PLAYER_SCORE_GOLD_RECEIVED,
+    WC3_PLAYER_SCORE_LUMBER_TOTAL,
+    WC3_PLAYER_SCORE_LUMBER_LOST_UPKEEP,
+    WC3_PLAYER_SCORE_LUMBER_LOST_TAX,
+    WC3_PLAYER_SCORE_LUMBER_GIVEN,
+    WC3_PLAYER_SCORE_LUMBER_RECEIVED,
+    WC3_PLAYER_SCORE_UNIT_TOTAL,
+    WC3_PLAYER_SCORE_HERO_TOTAL,
+    WC3_PLAYER_SCORE_RESOURCE_TOTAL,
+    WC3_PLAYER_SCORE_TOTAL,
+    WC3_PLAYER_SCORE_COUNT
+} WC3PLAYERSCORE;
+
 typedef enum {
     EVENT_GAME_VICTORY = 0,
     EVENT_GAME_END_LEVEL = 1,
@@ -549,6 +580,12 @@ typedef enum {
     CAMERA_TARGET_ORIENT,        // SetCameraOrientController: the source stays at orient_eye and turns toward the unit
 } cameraTargetMode_t;
 
+typedef struct {
+    /* Raw engine-owned score counters.  Aggregate score formulas stay separate
+     * until their retail weighting is established. */
+    uint32_t values[WC3_PLAYER_SCORE_COUNT];
+} wc3PlayerScoreState_t;
+
 struct client_s {
     player_t ps;
     bool connected; /* ClientBegin completed for this reserved player edict. */
@@ -569,6 +606,7 @@ struct client_s {
         size_t disabled_ability_capacity;
     } jass;
     playerTechState_t tech[MAX_PLAYER_TECH_STATE];
+    wc3PlayerScoreState_t score;
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
     uint32_t playerTextCursor[PLAYERTEXT_COUNT];
     mapPlayer_t const *mapplayer;
@@ -2951,6 +2989,15 @@ bool G_GetUnitColorOverride(edict_t const *unit, uint32_t *color);
 void G_SetUnitColorOverride(edict_t *unit, uint32_t color);
 void G_ClearUnitColorOverride(edict_t *unit);
 void G_RecomputePlayerUpkeep(gameClient_t *client);
+void G_PlayerScoreObserveFood(gameClient_t *client);
+void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state);
+void G_PlayerScoreUnitTrained(edict_t *unit);
+void G_PlayerScoreStructureBuilt(edict_t *building);
+void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker);
+void G_PlayerScoreItemGained(edict_t *unit);
+void G_PlayerScoreMercenaryHired(gameClient_t *client);
+void G_PlayerScoreResourceIncome(player_t *player, uint32_t resource_state, int32_t gross_amount, int32_t credited_amount);
+bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *value);
 int32_t G_ApplyResourceIncome(player_t *player, uint32_t resource_state, int32_t gross_amount);
 int32_t G_CreditResourceIncome(player_t *player, edict_t *source, uint32_t resource_state, int32_t gross_amount);
 bool G_UnitCanReviveHeroes(edict_t const *altar);

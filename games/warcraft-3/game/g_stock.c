@@ -991,6 +991,7 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
     G_RefreshResourceBar(clent);
     shop->stock->units[stock_index].current--;
     G_StartUnitRestock(shop, (uint32_t)stock_index);
+    G_PlayerScoreMercenaryHired(client);
     G_InvalidateCommands(client);
     return true;
 }

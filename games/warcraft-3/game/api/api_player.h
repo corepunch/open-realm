@@ -357,6 +357,19 @@ uint32_t GetPlayerStructureCount(jass_t *j) {
     }
     return jass_pushinteger(j, count);
 }
+uint32_t GetPlayerScore(jass_t *j) {
+    player_t *whichPlayer = jass_checkhandle(j, 1, "player");
+    uint32_t *whichScore = jass_checkhandle(j, 2, "playerscore");
+    int32_t value;
+
+    if (!whichPlayer || !whichScore ||
+        !G_GetPlayerScoreValue(PLAYER_CLIENT(whichPlayer), *whichScore, &value)) {
+        jass_rterror(j, "GetPlayerScore: requested score is not implemented");
+        return jass_pushinteger(j, 0);
+    }
+    return jass_pushinteger(j, value);
+}
+
 uint32_t GetPlayerState(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");
     PLAYERSTATE *whichPlayerState = jass_checkhandle(j, 2, "playerstate");
@@ -458,6 +471,14 @@ uint32_t SetPlayerState(jass_t *j) {
             (unsigned)client->ps.stats[*whichPlayerState], (long)value);
     }
     client->ps.stats[*whichPlayerState] = (uint16_t)MIN(MAX(0, value), USHRT_MAX);
+    if (*whichPlayerState == PLAYERSTATE_RESOURCE_FOOD_USED ||
+        *whichPlayerState == PLAYERSTATE_RESOURCE_FOOD_CAP) {
+        G_PlayerScoreObserveFood(client);
+    }
+    if (*whichPlayerState == PLAYERSTATE_GOLD_GATHERED ||
+        *whichPlayerState == PLAYERSTATE_LUMBER_GATHERED) {
+        G_PlayerScoreSetGathered(client, *whichPlayerState);
+    }
     if (*whichPlayerState == PLAYERSTATE_RESOURCE_FOOD_USED) {
         G_RecomputePlayerUpkeep(client);
     }

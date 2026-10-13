@@ -497,6 +497,7 @@ bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool p
     G_ApplyItemStats(unit, item, true);
     G_RefreshInventoryUI(unit);
     if (publish_event) {
+        G_PlayerScoreItemGained(unit);
         G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
         G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
     }

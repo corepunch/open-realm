@@ -229,8 +229,16 @@ movie unlock persistence and camera-button rows remain follow-up work. See [pre-
 change current and default difficulty independently.
 
 The generic `Dialog*` and dialog/button event natives now have bounded registries, server-authoritative click dispatch, and local modal-window presentation. `DialogAddQuitButton` creates handles but its quit policy remains incomplete; see [JASS dialogs](../../docs/games/warcraft-3/jass-dialogs.md). Still incomplete: actual score-screen
-presentation, Reduce Difficulty/observer-on-death result policy, and result-dialog ownership of single-player modal
-pausing. The existing `PauseGame` / modal path should be reused for that work rather than adding a second pause model.
+presentation/transition interposition, Reduce Difficulty/observer-on-death result policy, and result-dialog ownership
+of single-player modal pausing. The existing `PauseGame` / modal path should be reused for that work rather than adding a second pause model.
+
+Player-score accounting now supplies the engine-side foundation for that future screen. `GetPlayerScore` is
+registered and reports completed training/construction, unit/Hero/building kill credit, food maxima, item pickups,
+neutral-unit hiring, and resource income/upkeep counters. Resource income also updates the cumulative gathered
+player states, and explicit JASS `SetPlayerState` writes synchronize the corresponding score sources.
+`PLAYER_SCORE_TECH_PERCENT`, `PLAYER_SCORE_UNIT_TOTAL`, `PLAYER_SCORE_HERO_TOTAL`,
+`PLAYER_SCORE_RESOURCE_TOTAL` and `PLAYER_SCORE_TOTAL` deliberately remain unavailable rather than
+using unverified formulas. See [score-screen.md](../../docs/games/warcraft-3/score-screen.md).
 
 ## Campaign Game Cache
 

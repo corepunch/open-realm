@@ -711,6 +711,8 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     G_ClearPlayerAbilityAvailability(clent->client);
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(clent->client->tech, 0, sizeof(clent->client->tech));
+    /* Score totals belong to the outgoing match, never the next loaded map. */
+    memset(&clent->client->score, 0, sizeof(clent->client->score));
     memset(ps, 0, sizeof(player_t));
     ps->number = playernum;
     ps->team = G_MapPlayerTeam(mapinfo, playernum);

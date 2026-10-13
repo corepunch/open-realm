@@ -238,6 +238,7 @@ jassModule_t jass_funcs[] = {
     { "SetPlayerName", SetPlayerName },
     { "SetPlayerOnScoreScreen", SetPlayerOnScoreScreen },
     { "GetPlayerTeam", GetPlayerTeam },
+    { "GetPlayerScore", GetPlayerScore },
     { "GetPlayerStartLocation", GetPlayerStartLocation },
     { "GetPlayerColor", GetPlayerColor },
     { "GetPlayerSelectable", GetPlayerSelectable },

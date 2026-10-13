@@ -427,7 +427,10 @@ executes, but keep the actual world replacement deferred.
 
 `EndGame(doScoreScreen)` returns single-player campaign maps to the campaign selector and other sessions to the main
 menu, consuming an explicit `ForceCampaignSelectScreen` request as well. It cannot yet honor `doScoreScreen`; there
-is no score-screen controller. `ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
+is no score-screen controller. The engine-owned score accounting and partial `GetPlayerScore` implementation are
+independent of presentation (see [../score-screen.md](../score-screen.md)). Do not interpose a score window until the
+outgoing destination can be retained safely while the window owns the old game state.
+`ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
 `DisplayLoadDialog` opens the in-game save/load panel (or the front-end load screen when that panel is unavailable).
 Every Esc-menu page derives its lock from the player's result state, not from the command that opened it: once a
 single-player player has been removed with a result (Blizzard.j's `CustomDefeatBJ` and the fallback both
