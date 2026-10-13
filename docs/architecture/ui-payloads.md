@@ -298,3 +298,16 @@ Do **not** globally defer every decorated FDF texture. That experiment fixed the
 retain their background pass. `uiFrame_t.flagsvalue` uses `NFT_LONG` as of protocol 6 so this and future high bits survive
 both normal layout and window payloads. The sender owns model selection and attachment; the shared client does not
 inspect game command strings to decide whether to draw effects. See [WC3 button particles](../games/warcraft-3/ui-button-particles.md).
+
+## Gameplay HUD hit testing
+
+The client HUD must not treat every visible `FT_TEXTURE` rectangle as an
+input blocker: layouts can contain large, decorative backing textures that
+overlap the playable viewport. `SCR_LayoutHitTest` blocks world interaction
+for frames with a click command or tooltip, plus individually hittable
+`FT_MULTISELECT` entries. Modal game-result and quest-dialog layers continue
+to block world input globally. A decorative texture with no interaction must
+not prevent left-click selection, marquee selection, or right-click orders.
+
+`SCR_LayoutMouseEvent` independently dispatches actionable frame clicks;
+this change affects only the gameplay-input exclusion test, not HUD rendering.
