@@ -1890,10 +1890,10 @@ bool SCR_LayoutHitTest(int x, int y) {
                 if (SCR_LayoutMultiselectEntityAt(frame, &point)) return true;
                 continue;
             }
-            /* Decorative textures (including full-viewport backdrops) do not
-             * own gameplay input. Only actionable or tooltip-bearing frames
-             * should block world selection and orders. */
-            if (!SCR_LayoutFrameHasClickCommand(frame) &&
+            /* Texture tiles mask console input even without a command or
+             * tooltip; making all textures pass through leaks clicks to the world. */
+            if (frame->flags.type != FT_TEXTURE &&
+                !SCR_LayoutFrameHasClickCommand(frame) &&
                 !(frame->tooltip && *frame->tooltip)) continue;
             if (Rect_contains(SCR_LayoutRect(frame), &point)) return true;
         }

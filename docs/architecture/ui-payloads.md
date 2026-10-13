@@ -301,13 +301,18 @@ inspect game command strings to decide whether to draw effects. See [WC3 button 
 
 ## Gameplay HUD hit testing
 
-The client HUD must not treat every visible `FT_TEXTURE` rectangle as an
-input blocker: layouts can contain large, decorative backing textures that
-overlap the playable viewport. `SCR_LayoutHitTest` blocks world interaction
-for frames with a click command or tooltip, plus individually hittable
-`FT_MULTISELECT` entries. Modal game-result and quest-dialog layers continue
-to block world input globally. A decorative texture with no interaction must
-not prevent left-click selection, marquee selection, or right-click orders.
+`SCR_LayoutHitTest` blocks world interaction for visible `FT_TEXTURE` rectangles,
+frames with a click command or tooltip, and individually hittable `FT_MULTISELECT`
+entries. Console skin tiles intentionally block selection and orders even without
+commands or tooltips; removing the texture case lets clicks leak through the HUD.
+Noninteractive frame containers and `FT_BACKDROP` frames do not block by themselves.
+Hidden layout layers and `LAYER_WORLD_HOVER` are excluded; modal game-result and
+quest-dialog layers block globally. `SCR_LayoutMouseEvent` separately dispatches
+clickable controls.
 
-`SCR_LayoutMouseEvent` independently dispatches actionable frame clicks;
-this change affects only the gameplay-input exclusion test, not HUD rendering.
+`make test-core` covers the console edges across aspect ratios and canvas policies
+in `client_canvas.console_edges_capture_input_under_both_policies`, and hiding,
+restoring, and clearing the layer in
+`client_canvas.console_texture_input_follows_layer_visibility`. Browser selection
+also requires the bundled input bindings; see
+[Browser configuration](../platform/browser.md#bundled-warcraft-iii-defaults).

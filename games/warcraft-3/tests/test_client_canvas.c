@@ -148,6 +148,22 @@ TEST(client_canvas, console_edges_capture_input_under_both_policies) {
     SCR_ClearLayoutLayer(LAYER_CONSOLE);
 }
 
+/* Console art masks input only while its server-authored layer is visible. */
+TEST(client_canvas, console_texture_input_follows_layer_visibility) {
+    test_client_stubs_init();
+    test_client_stubs_set_canvas_policy(UI_CANVAS_STRETCH);
+    test_client_stubs_set_window_size(1024, 768);
+    cl.playerstate.uiflags = 0;
+    parse_retail_console();
+    T_ASSERT(SCR_LayoutHitTest(1, 767));
+    cl.playerstate.uiflags = 1 << LAYER_CONSOLE;
+    T_ASSERT(!SCR_LayoutHitTest(1, 767));
+    cl.playerstate.uiflags = 0;
+    T_ASSERT(SCR_LayoutHitTest(1, 767));
+    SCR_ClearLayoutLayer(LAYER_CONSOLE);
+    T_ASSERT(!SCR_LayoutHitTest(1, 767));
+}
+
 TEST(client_canvas, world_projection_matches_the_pointer_canvas) {
     size2_t sizes[] = { {1024,768}, {1920,1200}, {1920,1080}, {3440,1440} };
     UICANVASPOLICY policies[] = { UI_CANVAS_STRETCH, UI_CANVAS_EXPAND_CENTER, UI_CANVAS_EXPAND };
