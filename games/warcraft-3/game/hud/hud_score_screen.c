@@ -1,29 +1,107 @@
-/* Retail Warcraft III score-screen presentation. The original FDF and MDX/BLP
- * remain in mounted Warcraft game data: this module binds their named frames
- * and emits generic UI windows. Patch 2 replaces the temporary score rows with
- * retail player banners and individually aligned numeric cells. */
+/* Retail Warcraft III score screen: FDF controls/models + runtime score rows.
+ * Player-row templates do not exist in the extracted FDF inventory, so only
+ * their geometry and tint are provisional. No Blizzard artwork is bundled. */
 #include "hud_local.h"
+#include "score_screen_table.h"
 
 #define WC3_SCORE_TABS 4
+/* PRESENTATION GUESSES: approximate row geometry from the retail 4:3
+ * screenshot. Verify against retail's runtime row controller. All coordinates
+ * below use the same 0.8x0.6 normalized space as ScoreScreen.fdf. */
+#define SCORE_ROW_X       0.009f
+#define SCORE_ROW_Y      -0.116f
+#define SCORE_ROW_W       0.733f
+#define SCORE_ROW_H       0.031f
+#define SCORE_ROW_STEP    0.034f
+#define SCORE_ROW_ICON    0.025f
 
-/* Keep the temporary text data rows scoped to the score root. The named FDF
- * controls, columns, buttons, model layers and their coordinates are NEVER
- * replaced with result-dialog clones. Row geometry is a PRESENTATION GUESS
- * until the dynamic retail row implementation in Patch 2. */
-static void ScoreScreenPlaceRow(frameDef_t *frame, frameDef_t *root, uint32_t row) {
-    memset(&frame->Points, 0, sizeof(frame->Points));
-    frame->AnyPointsSet = true;
-    UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, root, FRAMEPOINT_TOPLEFT,
-                0.140f, -0.137f - row * 0.019f);
-    UI_SetSize(frame, 0.610f, 0.018f);
-}
-
-/* The retail FDF uses MODEL layers containing 2-D score-screen meshes. The
- * client sprite renderer preserves their native screen geometry and named MDX
- * animations; the portrait renderer would frame them as a 3-D talking head. */
 static void ScoreScreenUseSprite(frameDef_t *frame) {
     frame->Type = FT_SPRITE;
     UI_SetHidden(frame, false);
+}
+
+static color32_t ScoreScreenPlayerColor(uint32_t player_color) {
+    /* Same stock player palette used by the in-game multiboard. The subdued
+     * translucent banner tint is a PRESENTATION GUESS, not a retail formula. */
+    static color32_t const colors[] = {
+        {255,3,3,155}, {0,66,255,155}, {28,230,185,155}, {84,0,129,155},
+        {255,252,1,155}, {254,138,14,155}, {32,192,0,155}, {229,91,176,155},
+        {149,150,151,155}, {126,191,241,155}, {16,98,70,155}, {78,42,4,155},
+        {155,0,0,155}, {0,0,195,155}, {0,234,255,155}, {190,0,254,155},
+        {235,205,135,155}, {248,164,139,155}, {191,255,128,155}, {220,185,235,155},
+        {40,40,40,155}, {235,240,255,155}, {0,120,30,155}, {164,111,51,155},
+    };
+    return colors[MIN(player_color, (sizeof(colors) / sizeof(colors[0])) - 1)];
+}
+
+static cstring_t ScoreScreenPlayerIcon(uint32_t race) {
+    /* Stock archive files, not replacement art. Preserve nonstandard race
+     * slots without substituting a potentially incorrect icon. */
+    switch (race) {
+    case 1: return "UI\\Glues\\ScoreScreen\\scorescreen-player-human.blp";
+    case 2: return "UI\\Glues\\ScoreScreen\\scorescreen-player-orc.blp";
+    case 3: return "UI\\Glues\\ScoreScreen\\scorescreen-player-undead.blp";
+    case 4: return "UI\\Glues\\ScoreScreen\\scorescreen-player-nightelf.blp";
+    default: return NULL;
+    }
+}
+
+static frameDef_t *ScoreScreenSpawn(frameDef_t *parent, FRAMETYPE type) {
+    frameDef_t *frame = UI_Spawn(type, parent);
+    if (frame) UI_SetHidden(frame, false);
+    return frame;
+}
+
+static void ScoreScreenPlace(frameDef_t *frame, frameDef_t *parent,
+                             float x, float y, float w, float h) {
+    UI_SetSize(frame, w, h);
+    UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, x, y);
+}
+
+/* One immutable viewport row contains its own background, player portrait,
+ * name and five individually positioned score cells. Hiding the parent stops
+ * serialization of the entire offscreen row (no clipping dependency). */
+static bool ScoreScreenMakeRow(uint32_t slot) {
+    ScoreScreen_t *score = &hud.score;
+    frameDef_t *root = ScoreScreenSpawn(score->ScoreScreenFrame, FT_FRAME);
+    frameDef_t *backdrop, *border, *icon, *name;
+    if (!root) return false;
+    hud.score_rows[slot].root = root;
+    ScoreScreenPlace(root, score->ScoreScreenFrame, SCORE_ROW_X,
+                     SCORE_ROW_Y - slot * SCORE_ROW_STEP, SCORE_ROW_W, SCORE_ROW_H);
+
+    backdrop = ScoreScreenSpawn(root, FT_TEXTURE);
+    border = ScoreScreenSpawn(root, FT_TEXTURE);
+    icon = ScoreScreenSpawn(root, FT_TEXTURE);
+    name = ScoreScreenSpawn(root, FT_TEXT);
+    if (!backdrop || !border || !icon || !name) return false;
+    hud.score_rows[slot].backdrop = backdrop;
+    hud.score_rows[slot].border = border;
+    hud.score_rows[slot].icon = icon;
+    hud.score_rows[slot].name = name;
+    ScoreScreenPlace(backdrop, root, 0, 0, SCORE_ROW_W, SCORE_ROW_H);
+    UI_SetTexture(backdrop, "UI\\Widgets\\EscMenu\\Human\\blank-background.blp", false);
+    /* The existing silver banner border is a stock score-screen asset. Its
+     * exact retail runtime placement is NOT defined by ScoreScreen.fdf. */
+    ScoreScreenPlace(border, root, 0, 0, 0.153f, SCORE_ROW_H);
+    UI_SetTexture(border, "UI\\Glues\\ScoreScreen\\scorescreen-silverbannerborder.blp", false);
+    ScoreScreenPlace(icon, root, 0.005f, -0.003f, SCORE_ROW_ICON, SCORE_ROW_ICON);
+    ScoreScreenPlace(name, root, 0.034f, -0.003f, 0.111f, SCORE_ROW_H-0.005f);
+    name->Font = score->ScoreScreen4ColumnHeader[0]->Font;
+    name->Font.Size = 0.011f; /* PRESENTATION GUESS */
+    name->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
+    name->Font.Justification.Vertical = FONT_JUSTIFYMIDDLE;
+
+    FOR_LOOP(c, 5) {
+        frameDef_t *cell = ScoreScreenSpawn(root, FT_TEXT);
+        if (!cell) return false;
+        hud.score_rows[slot].cells[c] = cell;
+        cell->Font = score->ScoreScreen4ColumnHeader[0]->Font;
+        cell->Font.Size = 0.011f; /* PRESENTATION GUESS */
+        cell->Font.Justification.Horizontal = FONT_JUSTIFYCENTER;
+        cell->Font.Justification.Vertical = FONT_JUSTIFYMIDDLE;
+    }
+    return true;
 }
 
 void UI_LoadHudScoreScreen(void) {
@@ -33,8 +111,6 @@ void UI_LoadHudScoreScreen(void) {
         memset(score, 0, sizeof(*score));
         return;
     }
-    /* This root is authored with SetAllPoints, not as a centered in-game
-     * dialog. UI_CenterFrame used to erase its full-screen anchors. */
     UI_SetAllPoints(score->ScoreScreenFrame);
     UI_SetHidden(score->ScoreScreenFrame, false);
     UI_SetHidden(score->ScoreScreenMainPanel, false);
@@ -46,20 +122,25 @@ void UI_LoadHudScoreScreen(void) {
                   UI_WINDOW_CLOSE_COMMAND_PREFIX "scorescreen_continue");
     FOR_LOOP(i, WC3_SCORE_TABS)
         UI_SetOnClick(score->ScoreScreenTabButton[i], "scorescreen_tab %u", (unsigned)i);
+    UI_SetOnClick(score->ScoreScreenScrollBar, "scorescreen_scroll");
 
-    /* Runtime-generated player cells do not exist in retail ScoreScreen.fdf.
-     * Keep a modest legacy text presenter until Patch 2 supplies their actual
-     * template-free scoreboard geometry, scrolling and team art. */
-    FOR_LOOP(i, MAX_PLAYERS + 1) {
-        hud.score_rows[i] = UI_Spawn(FT_TEXT, score->ScoreScreenFrame);
-        if (!hud.score_rows[i]) {
+    FOR_LOOP(i, WC3_SCORE_VISIBLE_ROWS) {
+        if (!ScoreScreenMakeRow(i)) {
             memset(score, 0, sizeof(*score));
             return;
         }
-        UI_InheritFrom(hud.score_rows[i], "ScoreScreenColumnHeaderTemplate");
-        ScoreScreenPlaceRow(hud.score_rows[i], score->ScoreScreenFrame, i);
-        hud.score_rows[i]->Font.Size = 0.010f; /* PRESENTATION GUESS, Patch 2 */
-        UI_SetHidden(hud.score_rows[i], false);
+    }
+    if (!score->ScoreScreenElapsedValue) {
+        /* Runtime value only. The original static label remains in the FDF;
+         * this fallback uses its bottom-left anchor from the agent report. */
+        hud.score_elapsed = ScoreScreenSpawn(score->ScoreScreenFrame, FT_TEXT);
+        if (!hud.score_elapsed) { memset(score, 0, sizeof(*score)); return; }
+        UI_SetSize(hud.score_elapsed, 0.110f, 0.016f);
+        UI_SetPoint(hud.score_elapsed, FRAMEPOINT_BOTTOMLEFT,
+                    score->ScoreScreenFrame, FRAMEPOINT_BOTTOMLEFT, 0.112f, 0.05f);
+        hud.score_elapsed->Font = score->ScoreScreen4ColumnHeader[0]->Font;
+        hud.score_elapsed->Font.Size = 0.011f;
+        hud.score_elapsed->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
     }
 }
 
@@ -76,14 +157,10 @@ static void ScoreScreenSetHeaders(ScoreScreen_t *score, uint32_t tab) {
     FOR_LOOP(i, wide ? 5u : 4u) {
         frameDef_t *header = wide ? score->ScoreScreen5ColumnHeader[i] : score->ScoreScreen4ColumnHeader[i];
         cstring_t key = keys[tab][i];
-        /* FDF header text frames are children of the checkbox controls. */
         UI_SetText(header, "%s", key ? UI_GetString(key) : "");
     }
 }
 
-/* Versioned skin keys select RoC/TFT race-specific artwork. The defeat asset
- * is shared across races. Missing skin metadata falls back to the original
- * asset naming family, not to a newly-authored OpenRealm image. */
 static cstring_t ScoreScreenRaceArt(gameClient_t *viewer) {
     static cstring_t const races[] = { "Human", "Orc", "Undead", "NightElf" };
     static PATHSTR fallback;
@@ -95,9 +172,7 @@ static cstring_t ScoreScreenRaceArt(gameClient_t *viewer) {
     if (defeated) return "UI\\Glues\\ScoreScreen\\ScoreScreen-Defeat\\ScoreScreen-Defeat.mdx";
     from_skin = Theme_PlayerString(viewer, "ScoreScreenVictory", NULL);
     if (from_skin && *from_skin) return from_skin;
-    /* GUESS: if the mission is quit without RemovePlayer(VICTORY/DEFEAT),
-     * retail's choice of outcome art is unknown. Default to victory/race
-     * art rather than claiming a determined game result. */
+    /* GUESS: retail's art after quit without an explicit outcome. */
     {
         uint32_t idx = race >= 1 && race <= 4 ? race - 1 : 0;
         bool const expansion = atoi(gi.CvarString("fs_expansion", "0")) != 0;
@@ -114,15 +189,13 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab) {
     frameDef_t *selected = score->ScoreScreenTabTextSelected;
     cstring_t label;
 
-    /* Background exposes the authentic 4/5-column MDX sequences. */
     UI_SetText(score->ScoreScreenBackground, "%s",
                tab >= 2 ? "Scorescreen-5Button" : "Scorescreen-4Button");
     snprintf(anim, sizeof(anim), "Tab%u", (unsigned)tab + 1);
     UI_SetText(score->ScoreScreenPageTab, "%s", anim);
     score->ScoreScreenRaceArt->Portrait.model = UI_LoadModel(ScoreScreenRaceArt(viewer), false);
     UI_SetText(score->ScoreScreenRaceArt, "Stand");
-    snprintf(anim, sizeof(anim), "TeamColor%02u Stand",
-             (unsigned)(viewer->ps.color % 12));
+    snprintf(anim, sizeof(anim), "TeamColor%02u Stand", (unsigned)(viewer->ps.color % 12));
     UI_SetText(score->ScoreScreenBarTop, "%s", anim);
 
     ScoreScreenSetHeaders(score, tab);
@@ -131,65 +204,97 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab) {
         "SCORESCREEN_TAB0", "SCORESCREEN_TAB1", "SCORESCREEN_TAB2", "SCORESCREEN_TAB3"
     })[tab]);
     UI_SetText(selected, "%s", label);
-    /* Retail defines the selected tab's font separately; its anchor follows
-     * the active tab's FDF position rather than a manually spaced row. */
     memset(&selected->Points, 0, sizeof(selected->Points));
     selected->AnyPointsSet = true;
-    /* These are the tab positions authored by ScoreScreen.fdf, not pixel
-     * guesses. Anchor to an earlier-written background so the wire format
-     * can resolve the relative frame without a forward-reference. */
     UI_SetPoint(selected, FRAMEPOINT_TOP, score->ScoreScreenBackground,
                 FRAMEPOINT_TOP,
                 ((float[]){ -0.200f, -0.074f, 0.055f, 0.180f })[tab], -0.036f);
     UI_SetHidden(selected, false);
 }
 
-bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot, uint32_t tab) {
-    if (!ent || !ent->client || !snapshot || tab >= WC3_SCORE_TABS) return false;
-    if (!hud.score.ScoreScreenFrame) return false;
-    ScoreScreenSetPage(ent->client, tab);
-    FOR_LOOP(i, MAX_PLAYERS + 1) {
-        frameDef_t *frame = hud.score_rows[i];
-        wc3ScorePlayerSnapshot_t const *p;
-        int32_t const *v;
-        if (!frame) return false;
-        UI_SetHidden(frame, i >= snapshot->count);
-        if (i >= snapshot->count) continue;
-        p = &snapshot->players[i];
-        v = p->values;
-        switch (tab) {
-        case 0:
-            UI_SetText(frame, "%.18s    %d    %d    %d    %d    %d%%", p->name,
-                       v[WC3_PLAYER_SCORE_TOTAL], v[WC3_PLAYER_SCORE_UNIT_TOTAL],
-                       v[WC3_PLAYER_SCORE_HERO_TOTAL], v[WC3_PLAYER_SCORE_RESOURCE_TOTAL],
-                       v[WC3_PLAYER_SCORE_TECH_PERCENT]);
-            break;
-        case 1:
-            UI_SetText(frame, "%.18s    %d    %d    %d    %d    %d", p->name,
-                       v[WC3_PLAYER_SCORE_UNITS_TRAINED], v[WC3_PLAYER_SCORE_UNITS_KILLED],
-                       v[WC3_PLAYER_SCORE_STRUCT_BUILT], v[WC3_PLAYER_SCORE_STRUCT_RAZED],
-                       v[WC3_PLAYER_SCORE_UNIT_TOTAL]);
-            break;
-        case 2:
-            UI_SetText(frame, "%.18s    %d    %d    %d    %d", p->name,
-                       v[WC3_PLAYER_SCORE_HEROES_KILLED], v[WC3_PLAYER_SCORE_ITEMS_GAINED],
-                       v[WC3_PLAYER_SCORE_MERCS_HIRED], v[WC3_PLAYER_SCORE_HERO_TOTAL]);
-            break;
-        default:
-            UI_SetText(frame, "%.18s    %d    %d    %d    %d    %d", p->name,
-                       v[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL], v[WC3_PLAYER_SCORE_GOLD_MINED_UPKEEP],
-                       v[WC3_PLAYER_SCORE_LUMBER_TOTAL], v[WC3_PLAYER_SCORE_FOOD_MAXUSED],
-                       v[WC3_PLAYER_SCORE_RESOURCE_TOTAL]);
-            break;
-        }
+static void ScoreScreenFillRow(uint32_t slot, uint32_t tab,
+                               wc3ScorePlayerSnapshot_t const *player,
+                               int32_t const peaks[5]) {
+    static float const cols4[4] = { -0.172f, -0.0273f, 0.1182f, 0.2647f };
+    static float const cols5[5] = { -0.1865f, -0.0703f, 0.0462f, 0.1627f, 0.280f };
+    frameDef_t *root = hud.score_rows[slot].root;
+    uint32_t count = WC3_ScoreColumns(tab);
+    float width = count == 5 ? 0.0935f : 0.1225f;
+    cstring_t icon = ScoreScreenPlayerIcon(player->race);
+    char text[32];
+
+    UI_SetHidden(root, false);
+    hud.score_rows[slot].backdrop->Color = ScoreScreenPlayerColor(player->color);
+    UI_SetHidden(hud.score_rows[slot].border, false);
+    UI_SetHidden(hud.score_rows[slot].icon, !icon);
+    if (icon) UI_SetTexture(hud.score_rows[slot].icon, icon, false);
+    UI_SetText(hud.score_rows[slot].name, "%s", player->name);
+    FOR_LOOP(c, 5) {
+        frameDef_t *cell = hud.score_rows[slot].cells[c];
+        int32_t value = 0;
+        bool percent = false;
+        bool const has_value = c < count && WC3_ScoreCellValue(player, tab, c, &value, &percent);
+        UI_SetHidden(cell, c >= count);
+        if (c >= count) continue;
+        UI_SetSize(cell, width, SCORE_ROW_H - 0.006f);
+        /* Column offsets are the *retail FDF header centers*, in a canvas
+         * of width 0.8. The row start subtracts its independent left inset. */
+        UI_SetPoint(cell, FRAMEPOINT_TOP, root, FRAMEPOINT_TOPLEFT,
+                    0.400f + (count == 5 ? cols5[c] : cols4[c]) - SCORE_ROW_X, -0.003f);
+        if (!has_value) strlcpy(text, "-", sizeof(text));
+        else if (percent) snprintf(text, sizeof(text), "%d%%", value);
+        else snprintf(text, sizeof(text), "%d", value);
+        UI_SetText(cell, "%s", text);
+        /* PRESENTATION GUESS: the highest positive value in a retail column
+         * is gold, based on the provided retail screenshot. */
+        cell->Font.Color = has_value && value > 0 && value == peaks[c]
+            ? MAKE(color32_t, 255, 215, 48, 255) : COLOR32_WHITE;
     }
-    /* One generic exclusive presentation suppresses the gameplay world, HUD
-     * and stale result dialog without changing persistent player UI flags.
-     * Switching tabs refreshes the same unique modal. */
+}
+
+bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
+                        uint32_t tab, uint32_t scroll) {
+    uint32_t max_scroll, start;
+    int32_t peaks[5] = { 0 };
+    ScoreScreen_t *score = &hud.score;
+    frameDef_t *elapsed;
+    uint32_t seconds;
+    if (!ent || !ent->client || !snapshot || tab >= WC3_SCORE_TABS ||
+        snapshot->count > MAX_PLAYERS || !score->ScoreScreenFrame) return false;
+    max_scroll = WC3_ScoreMaxScroll(snapshot->count);
+    start = MIN(scroll, max_scroll);
+    ScoreScreenSetPage(ent->client, tab);
+
+    /* Snapshot peaks are recomputed for each tab and include hidden rows.
+     * Scores are never recalculated from current/possibly removed entities. */
+    FOR_LOOP(i, snapshot->count) FOR_LOOP(c, WC3_ScoreColumns(tab)) {
+        int32_t value;
+        if (WC3_ScoreCellValue(&snapshot->players[i], tab, c, &value, NULL))
+            peaks[c] = MAX(peaks[c], value);
+    }
+    FOR_LOOP(i, WC3_SCORE_VISIBLE_ROWS) {
+        bool visible = start + i < snapshot->count;
+        if (!hud.score_rows[i].root) return false;
+        UI_SetHidden(hud.score_rows[i].root, !visible);
+        if (visible) ScoreScreenFillRow(i, tab, &snapshot->players[start + i], peaks);
+    }
+    /* The stock scrollbar is self-owned; the generic client reports its
+     * normalized position via its authored OnClick on wheel/thumb input. */
+    UI_SetHidden(score->ScoreScreenScrollBar, max_scroll == 0);
+    score->ScoreScreenScrollBar->Slider.MinValue = 0.0f;
+    score->ScoreScreenScrollBar->Slider.MaxValue = 1.0f;
+    score->ScoreScreenScrollBar->Slider.InitialValue = max_scroll
+        ? (float)start / (float)max_scroll : 0.0f;
+
+    elapsed = score->ScoreScreenElapsedValue ? score->ScoreScreenElapsedValue : hud.score_elapsed;
+    if (elapsed) {
+        seconds = snapshot->elapsed_ms / 1000u;
+        UI_SetText(elapsed, "%u:%02u:%02u", seconds / 3600u,
+                   (seconds / 60u) % 60u, seconds % 60u);
+    }
     UI_SetCurrentClient(ent->client);
-    UI_WriteWindow(ent, hud.score.ScoreScreenFrame, &MAKE(uiWindowDef_t,
-        .id = BZ_WC3_WINDOW_SCORE,
-        .class_id = BZ_WC3_WINDOW_SCORE,
+    UI_WriteWindow(ent, score->ScoreScreenFrame, &MAKE(uiWindowDef_t,
+        .id = BZ_WC3_WINDOW_SCORE, .class_id = BZ_WC3_WINDOW_SCORE,
         .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE | UI_WINDOW_NO_ESCAPE |
                  UI_WINDOW_PRESENTATION));
     UI_SetCurrentClient(NULL);

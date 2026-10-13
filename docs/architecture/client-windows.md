@@ -207,6 +207,19 @@ linked-list raise order, keyboard focus, non-modal/modal edit-box arrow ownershi
 The `window_cvar_*` tests cover cvar controls: live checkbox/slider edits, rejection of unflagged and unknown cvars,
 Accept/Cancel, Escape-as-Cancel, repeated Begin, and transaction reset on `CL_WindowClear()`.
 
+### Standalone scrollbar callbacks
+
+A server-authored standalone `FT_SCROLLBAR` can optionally set `OnClick` to an
+ordinary server command prefix. When a user moves the thumb, clicks the track,
+or wheels over that scrollbar, the generic window client appends its normalized
+`[0,1]` position to the authored command and forwards it. No command is sent
+when a window is opened/refreshed or a scrollbar is restored from a snapshot.
+The server must still authenticate the recipient, validate the numeric range,
+and map the value to its own content. Native text areas/listboxes keep their
+existing client-owned scrolling and are not forwarded. Warcraft III uses this
+for the dynamically authored score-table viewport; the client does not know
+about score rows, players, or Warcraft frame names.
+
 ## See Also
 
 - [Shared client input and orbit camera](shared-input.md)

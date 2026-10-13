@@ -101,10 +101,13 @@ typedef struct {
     FRAMEDEF save_list;
     AllianceDialog_t allies;
     GameResultDialog_t result;
-    /* Retail authored presentation; player rows remain provisional until the
-     * follow-on dynamic-table patch. */
+    /* ScoreScreen.fdf authors chrome; player rows/cells are dynamic. */
     ScoreScreen_t score;
-    frameDef_t *score_rows[MAX_PLAYERS + 1];
+    struct {
+        frameDef_t *root, *backdrop, *border, *icon, *name;
+        frameDef_t *cells[5];
+    } score_rows[WC3_SCORE_VISIBLE_ROWS];
+    frameDef_t *score_elapsed;
     CinematicPanel_t cinematic;
     TimerDialog_t timer_dialog;
     LeaderBoard_t leaderboard;
@@ -170,7 +173,7 @@ void UI_LoadHudMenu(void);
 void UI_LoadHudAllies(void);
 void UI_LoadHudGameResult(void);
 void UI_LoadHudScoreScreen(void);
-bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot, uint32_t tab);
+bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot, uint32_t tab, uint32_t scroll);
 void UI_LoadHudCinematic(void);
 void UI_LoadHudMessage(void);
 void UI_LoadHudTimerDialogs(void);

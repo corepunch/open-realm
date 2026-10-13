@@ -1,7 +1,7 @@
 # Warcraft III Score Screen
 
 This file describes the score foundation, controller, campaign-quit follow-on,
-and retail-presentation Patch 1. Score table row reconstruction is Patch 2.
+retail-presentation Patch 1, and dynamic-row Patch 2.
 The installed Warcraft assets are required for visual presentation; the project
 never bundles Blizzard FDF or score artwork.
 
@@ -87,14 +87,49 @@ window. The original tab controls dispatch the existing `scorescreen_tab`
 command and the original OK control dispatches `scorescreen_continue`. The
 header text uses `GlobalStrings.fdf` keys rather than hard-coded headings.
 
-**Still provisional (Patch 2):** player rows are simple runtime text presenters
-using the stock `ScoreScreenColumnHeaderTemplate` font and marked guessed row
-coordinates. The score screen now excludes the gameplay HUD, but it is not a
-retail-complete table; per-player banners, individual cells, icons, scroll
-behavior and elapsed time must be implemented separately. Exact retail model
-sequencing/layout is not runtime-verified. On quit without a recorded
-`RemovePlayer` outcome, the selected victory/race illustration is explicitly
-marked `GUESS` in the controller pending retail observation.
+### Score tables: dynamic-row Patch 2
+
+The retail FDF creates the background, header banks, tabs and scrollbar but **not**
+player score rows. Patch 2 constructs a bounded viewport of ten runtime rows.
+Every row owns a translucent player-colour strip, stock silver banner art,
+original `scorescreen-player-{race}.blp` icon where supported, name, and up to
+five separately positioned numeric cells. Numeric-cell centers reuse the
+**exact FDF header offsets** for 4-/5-column pages, while row start,
+height/spacing, text size, tint and icon placement remain **PRESENTATION
+GUESSES** pending retail runtime verification. The player ordering is the
+frozen score snapshot order; retail's exact order/grouping rules are unknown.
+
+The pages now follow the keys from `GlobalStrings.fdf`:
+
+| Page | Displayed columns |
+|---|---|
+| Overview | Unit Score, Heroes Score, Resource Score, Total Score |
+| Units | Units Produced, Units Killed |
+| Heroes | Heroes Used, Heroes Killed, Items Obtained, Mercenaries Hired, Experience Gained |
+| Resources | Gold Mined, Lumber Harvested, Resources Traded, Tech Percentage, Gold Lost to Upkeep |
+
+Raw counters from the frozen snapshot populate known columns. For untracked
+`Heroes Used`, `Experience Gained`, and `Resources Traded`, show `-`, **not**
+a fabricated zero. Technology percentage and overview aggregate scores retain
+the explicitly marked `GUESS` formulas in `g_score.c`. Highlighting the
+highest positive score per column is an additional **presentation guess**
+inferred from the screenshot, not verified retail sorting logic.
+
+The snapshot now captures player colour and gameplay elapsed time using
+`level.framenum * FRAMETIME`, capped at 32-bit milliseconds. This reflects
+simulation time, not pause time spent reading scores. The existing elapsed
+label is FDF-authored; the controller binds its value if available, otherwise
+positions a runtime text value near the authored label. This fallback needs
+confirmation against the extracted FDF source.
+
+The FDF scrollbar is reused for multi-player overflow. The generic window
+client forwards an opt-in standalone scrollbar's normalized user scroll
+position through its authored command, and the game validates the requesting
+player and frozen result lifecycle before changing which rows are presented.
+No out-of-range player row is serialized. A short table hides the scrollbar.
+Scroll position is per recipient and is retained across score tab changes.
+The scrollbar accepts direct wheel/thumb input; exact drag/track behaviour
+remains subject to local visual/manual verification.
 
 Missing mandatory FDF frames prevent score-window presentation so deferred
 navigation can proceed; optional cosmetic/model data is not replaced with
@@ -106,7 +141,8 @@ OpenRealm art. No local compilation or runtime validation was performed.
   model selection, real FDF tabs/headers, font sizes and OK routing.
 - Compare a defeat screenshot at 4:3 against the provided retail screenshot:
   check parchment and defeat artwork, absent world/console, column bank,
-  tab animation, OK button and black sidebars on widescreen.
+  tab animation, OK button, black sidebars on widescreen, row icon/tint/geometry,
+  aligned scores, elapsed time and horizontal/vertical clipping.
 - Verify no renderer or presentation flicker when switching tabs, closing the
   exclusive score window, or opening with `r_hud 0`.
 - SaveAndChangeLevelBJ: confirm that the script save commits *before* the score
@@ -115,6 +151,11 @@ OpenRealm art. No local compilation or runtime validation was performed.
 - Multiplayer: every connected participant sees frozen columns; a Continue
   from any displayed recipient releases the shared server destination.
 - Compare guessed aggregate values against retail under controlled matches.
+- With more than ten eligible players, wheel and drag the scrollbar; verify
+  the server displays precisely the expected page without stale hidden rows.
+- Verify Heroes Used, Experience and Traded show a dash until tracked, and
+  that resource column values follow the retail headings rather than arbitrary
+  fallback score totals.
 - Ensure a missing `ScoreScreen.fdf` proceeds to the destination.
 
 Compilation, gameplay, rendering and the above observations remain for the

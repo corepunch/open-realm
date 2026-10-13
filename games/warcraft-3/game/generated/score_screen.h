@@ -21,6 +21,8 @@ typedef struct {
     frameDef_t *ScoreScreenTabText[4];
     frameDef_t *ScoreScreenTabTextSelected;
     frameDef_t *ScoreScreenOKButton;
+    frameDef_t *ScoreScreenScrollBar;
+    frameDef_t *ScoreScreenElapsedValue; /* optional binding: extracted FDF not provided */
 } ScoreScreen_t;
 
 static inline bool ScoreScreen_Bind(ScoreScreen_t *out, frameDef_t *root) {
@@ -38,6 +40,10 @@ static inline bool ScoreScreen_Bind(ScoreScreen_t *out, frameDef_t *root) {
     BZ_FDF_BIND_CHILD(out, ScoreScreen5ColumnFrame, root, "ScoreScreen5ColumnFrame");
     BZ_FDF_BIND_CHILD(out, ScoreScreenTabTextSelected, root, "ScoreScreenTabTextSelected");
     BZ_FDF_BIND_CHILD(out, ScoreScreenOKButton, root, "ScoreScreenOKButton");
+    BZ_FDF_BIND_CHILD(out, ScoreScreenScrollBar, root, "ScoreScreenScrollBar");
+    out->ScoreScreenElapsedValue = UI_FindChildFrame(root, "ScoreScreenElapsedTimeValue");
+    if (!out->ScoreScreenElapsedValue)
+        out->ScoreScreenElapsedValue = UI_FindChildFrame(root, "ScoreScreenElapsedTimeText");
     for (uint32_t i = 0; i < 4; i++) {
         char name[48];
         snprintf(name, sizeof(name), "ScoreScreenTabButton%u", (unsigned)i);

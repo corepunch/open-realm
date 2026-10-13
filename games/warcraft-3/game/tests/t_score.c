@@ -1,6 +1,7 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+#include "../hud/score_screen_table.h"
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
@@ -101,5 +102,43 @@ TEST(wc3_score, guessed_aggregate_scores_are_queryable_from_jass) {
         "endfunction\n"));
 }
 
+
+TEST(wc3_score, retail_score_table_uses_separate_columns_and_does_not_fabricate_untracked_values) {
+    wc3ScorePlayerSnapshot_t player = { 0 };
+    int32_t value = -1;
+    bool percent = false;
+
+    player.values[WC3_PLAYER_SCORE_UNIT_TOTAL] = 70;
+    player.values[WC3_PLAYER_SCORE_HEROES_KILLED] = 3;
+    player.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] = 240;
+    player.values[WC3_PLAYER_SCORE_TECH_PERCENT] = 60;
+    T_EQ(WC3_ScoreColumns(0), 4);
+    T_EQ(WC3_ScoreColumns(1), 2);
+    T_EQ(WC3_ScoreColumns(2), 5);
+    T_EQ(WC3_ScoreColumns(3), 5);
+    T_ASSERT(WC3_ScoreCellValue(&player, 0, 0, &value, &percent));
+    T_EQ(value, 70);
+    T_ASSERT(WC3_ScoreCellValue(&player, 2, 1, &value, &percent));
+    T_EQ(value, 3);
+    T_ASSERT(!WC3_ScoreCellValue(&player, 2, 0, &value, &percent)); /* Heroes Used is not tracked. */
+    T_ASSERT(!WC3_ScoreCellValue(&player, 2, 4, &value, &percent)); /* XP is not tracked. */
+    T_ASSERT(WC3_ScoreCellValue(&player, 3, 0, &value, &percent));
+    T_EQ(value, 240);
+    T_ASSERT(WC3_ScoreCellValue(&player, 3, 3, &value, &percent));
+    T_EQ(value, 60);
+    T_ASSERT(percent);
+    T_ASSERT(!WC3_ScoreCellValue(&player, 3, 2, &value, &percent)); /* Traded is not tracked. */
+}
+
+TEST(wc3_score, score_table_scroll_clamps_to_visible_player_range) {
+    T_EQ(WC3_ScoreMaxScroll(0), 0);
+    T_EQ(WC3_ScoreMaxScroll(WC3_SCORE_VISIBLE_ROWS), 0);
+    T_EQ(WC3_ScoreMaxScroll(WC3_SCORE_VISIBLE_ROWS + 5), 5);
+    T_EQ(WC3_ScoreScrollStart(WC3_SCORE_VISIBLE_ROWS + 5, 0.0f), 0);
+    T_EQ(WC3_ScoreScrollStart(WC3_SCORE_VISIBLE_ROWS + 5, 0.51f), 3);
+    T_EQ(WC3_ScoreScrollStart(WC3_SCORE_VISIBLE_ROWS + 5, 1.0f), 5);
+    T_EQ(WC3_ScoreScrollStart(WC3_SCORE_VISIBLE_ROWS + 5, NAN), 0);
+    T_EQ(WC3_ScoreScrollStart(2, 1.0f), 0);
+}
 
 #endif

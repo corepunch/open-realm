@@ -2133,6 +2133,15 @@ CLIENTCOMMAND(ScoreScreenTab) {
     G_ScoreTransitionSelectTab(clent, (uint32_t)tab);
 }
 
+CLIENTCOMMAND(ScoreScreenScroll) {
+    char *end;
+    float pos;
+    if (!clent || argc != 2 || !argv[1] || !argv[1][0]) return;
+    pos = strtof(argv[1], &end);
+    if (*end || !isfinite(pos) || pos < 0.0f || pos > 1.0f) return;
+    G_ScoreTransitionScroll(clent, pos);
+}
+
 CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
     G_GameResultDebug("command gameresult_quit single_player=%u", (unsigned)G_IsSinglePlayer());
@@ -3084,6 +3093,7 @@ clientCommand_t clientCommands[] = {
     { "gameresult_quit", CMD_GameResultQuit },
     { "scorescreen_continue", CMD_ScoreScreenContinue },
     { "scorescreen_tab", CMD_ScoreScreenTab },
+    { "scorescreen_scroll", CMD_ScoreScreenScroll },
     { "jassdialog", CMD_JassDialogChoice },
     { "debugspawn", CMD_DebugSpawn },
     { "enemiesclear", CMD_EnemiesClear },

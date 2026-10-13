@@ -580,6 +580,10 @@ typedef enum {
     CAMERA_TARGET_ORIENT,        // SetCameraOrientController: the source stays at orient_eye and turns toward the unit
 } cameraTargetMode_t;
 
+/* Conservative viewport size until runtime row metrics can be verified against retail.
+ * FDF only authors the fixed header and scrollbar, not dynamic row geometry. */
+#define WC3_SCORE_VISIBLE_ROWS 10u
+
 typedef struct {
     /* Raw engine-owned score counters.  Aggregate score formulas stay separate
      * until their retail weighting is established. */
@@ -589,13 +593,14 @@ typedef struct {
 /* Transient, immutable outgoing-match presentation. Never serialized in
  * gameClient_t or level: a zone save must not resurrect an old score modal. */
 typedef struct {
-    uint32_t number, race, team;
+    uint32_t number, race, team, color;
     char name[64];
     int32_t values[WC3_PLAYER_SCORE_COUNT];
 } wc3ScorePlayerSnapshot_t;
 
 typedef struct {
     uint32_t count;
+    uint32_t elapsed_ms; /* frozen gameplay time; never use wall clock after modal pause */
     wc3ScorePlayerSnapshot_t players[MAX_PLAYERS];
 } wc3ScoreSnapshot_t;
 
@@ -2526,6 +2531,7 @@ void G_RequestEndGame(bool do_score_screen);
 void G_FlushScoreTransition(void);
 void G_ScoreTransitionContinue(edict_t *player);
 void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab);
+void G_ScoreTransitionScroll(edict_t *player, float position);
 #ifdef BZ_TESTS
 bool G_ScoreTransitionPending(void);
 #endif
@@ -3321,7 +3327,7 @@ void UI_WriteLayout(edict_t *, frameDef_t const *, uint32_t);
 void UI_WriteStart(uint32_t);
 void UI_ClearLayer(edict_t *, uint32_t);
 void UI_ShowGameResult(edict_t *, uint32_t);
-bool UI_ShowScoreScreen(edict_t *, wc3ScoreSnapshot_t const *, uint32_t);
+bool UI_ShowScoreScreen(edict_t *, wc3ScoreSnapshot_t const *, uint32_t, uint32_t);
 void UI_FlushPendingGameResults(void);
 void UI_HideGameResult(edict_t *);
 /* JASS interactive choice dialogs: the registry and click authority live in the game. */

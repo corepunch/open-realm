@@ -74,6 +74,7 @@ typedef struct {
     char action[16], argument[MAX_PATHLEN];
     bool awaiting[MAX_CLIENTS];
     uint8_t tab[MAX_CLIENTS];
+    uint8_t scroll[MAX_CLIENTS]; /* starting row; capped by MAX_PLAYERS */
     wc3ScoreSnapshot_t frozen;
 } wc3ScoreTransition_t;
 static wc3ScoreTransition_t score_transition;
@@ -86,6 +87,10 @@ static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
     bool any_enabled = false;
     if (!snapshot) return;
     memset(snapshot, 0, sizeof(*snapshot));
+    /* World simulation ticks, not time spent on the paused score modal.
+     * Saturate before narrowing to the outgoing wire snapshot. */
+    snapshot->elapsed_ms = (uint32_t)MIN((uint64_t)level.framenum * FRAMETIME,
+                                         (uint64_t)UINT32_MAX);
     /* Only the first MAX_PLAYERS client slots are initialized with WC3
      * player handles. The remaining reserved client slots have zeroed IDs
      * and must never masquerade as a second copy of Player(0). */
@@ -106,6 +111,7 @@ static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
         entry->number = number;
         entry->race = client->ps.race;
         entry->team = client->ps.team;
+        entry->color = client->ps.color;
         strlcpy(entry->name,
                 client->jass.name[0] ? client->jass.name :
                 (client->ps.name && *client->ps.name ? client->ps.name : "Player"),
@@ -150,7 +156,21 @@ void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab) {
     slot = (uint32_t)(player->client - game.clients);
     if (slot >= MAX_CLIENTS || !score_transition.awaiting[slot]) return;
     score_transition.tab[slot] = (uint8_t)tab;
-    UI_ShowScoreScreen(player, &score_transition.frozen, tab);
+    UI_ShowScoreScreen(player, &score_transition.frozen, tab, score_transition.scroll[slot]);
+}
+
+void G_ScoreTransitionScroll(edict_t *player, float position) {
+    uint32_t slot, max_start;
+    if (!score_transition.pending || !score_transition.shown || !player ||
+        !player->client || !isfinite(position) || position < 0.0f || position > 1.0f) return;
+    slot = (uint32_t)(player->client - game.clients);
+    if (slot >= MAX_CLIENTS || !score_transition.awaiting[slot]) return;
+    max_start = score_transition.frozen.count > WC3_SCORE_VISIBLE_ROWS
+        ? score_transition.frozen.count - WC3_SCORE_VISIBLE_ROWS : 0;
+    score_transition.scroll[slot] = (uint8_t)(position >= 1.0f ? max_start :
+        MIN((uint32_t)lroundf(position * (float)max_start), max_start));
+    UI_ShowScoreScreen(player, &score_transition.frozen, score_transition.tab[slot],
+                       score_transition.scroll[slot]);
 }
 
 #ifdef BZ_TESTS
@@ -176,7 +196,7 @@ void G_FlushScoreTransition(void) {
         if (!client->connected) continue;
         ent = G_GetPlayerEntityByNumber(client->ps.number);
         if (!ent) continue;
-        if (UI_ShowScoreScreen(ent, &score_transition.frozen, 0)) {
+        if (UI_ShowScoreScreen(ent, &score_transition.frozen, 0, 0)) {
             score_transition.awaiting[i] = true;
             presented = true;
         }
