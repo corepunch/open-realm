@@ -17,8 +17,14 @@
     if (!navigator.storage || !navigator.storage.getDirectory)
       throw new Error('Browser-local OPFS storage is unavailable');
     let dir = await navigator.storage.getDirectory();
-    for (const segment of MANIFEST_PATH)
-      dir = await dir.getDirectoryHandle(segment);
+    try {
+      for (const segment of MANIFEST_PATH)
+        dir = await dir.getDirectoryHandle(segment);
+    } catch (error) {
+      if (error && error.name === 'NotFoundError')
+        throw new Error('No Warcraft III files are installed in this browser. Import the official game MPQs first.');
+      throw error;
+    }
     const text = await (await (await dir.getFileHandle('installation.json')).getFile()).text();
     const manifest = JSON.parse(text);
     if (!manifest || ![1, 2].includes(manifest.version) ||
@@ -62,13 +68,19 @@
     const dependency = 'openrealm-opfs-validate';
     Module.addRunDependency(dependency);
     validate().then(path => {
-      Module.openrealmDataPath = path;
+      // PROXY_TO_PTHREAD runs C main in a worker with a separate Module.
+      // Pass the validated directory in argv so the worker receives it.
+      Module.arguments = ['+openrealm-data=' + path];
       status('Validated browser installation; starting engine…');
     }).catch(error => {
       const message = error && error.message || String(error);
+      // Stop Emscripten from entering main without a validated data path.
+      Module.noInitialRun = true;
       status('Cannot start OpenRealm: ' + message);
-      // Abort rather than continuing with a stale or missing -data argument.
-      // Keep the run dependency pending on validation failure: never enter C main.
+    }).finally(() => {
+      // Always clear the dependency so Emscripten does not log a pending
+      // dependency forever. noInitialRun keeps failed validation out of C main.
+      Module.removeRunDependency(dependency);
     });
   });
   // The previous IDBFS save directory is intentionally left untouched.

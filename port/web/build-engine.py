@@ -49,7 +49,13 @@ def main():
 
     wc3 = "games/warcraft-3"
     module_sources = {
-        "shared": sources("shared") + [ROOT / "vendor/blast/blast.c"],
+        # shared/test.c defines a function-like TEST macro. In a unity build
+        # that leaks into blast.c, where #ifdef TEST enables its standalone
+        # stdin test main instead of the engine. Tests are not part of runtime.
+        "shared": sources("shared", exclude=("test.c",)) + [ROOT / "vendor/blast/blast.c"],
+        # Keep the test API symbol referenced by common command code, but
+        # isolate its TEST macro from vendor unity sources.
+        "test_harness": [ROOT / "shared/test.c"],
         "jass": sources(wc3 + "/jass"),
         "renderer": sources("renderer", wc3 + "/renderer"),
         "game": sources(wc3 + "/game", exclude=("g_save.c",)) +

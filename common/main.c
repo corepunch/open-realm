@@ -416,17 +416,20 @@ int main(int argc, string_t argv[]) {
     Com_Init(argc, (cstring_t *)argv);
 
 #ifdef __EMSCRIPTEN__
-    /* The asynchronous launcher validation finishes before native startup.
-     * Read the selected OPFS generation only after Com_Init created CVars. */
-    char *web_data_dir = (char *)EM_ASM_PTR({
-        return Module.openrealmDataPath ? stringToNewUTF8(Module.openrealmDataPath) : 0;
-    });
-    if (!web_data_dir) {
+    /* The browser launcher passes its validated OPFS generation as argv
+     * because PROXY_TO_PTHREAD runs main in a worker. */
+    const char *web_data_dir = NULL;
+    for (int i = 1; i < argc; i++) {
+        if (!strncmp(argv[i], "+openrealm-data=", 16)) {
+            web_data_dir = argv[i] + 16;
+            break;
+        }
+    }
+    if (!web_data_dir || !*web_data_dir) {
         fprintf(stderr, "OpenRealm: no validated browser installation\n");
         return 1;
     }
     Cvar_Set("data", web_data_dir);
-    free(web_data_dir);
 #endif
     cstring_t data_dir = Cvar_String("data", "");
 #if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)

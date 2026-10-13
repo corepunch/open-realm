@@ -11,11 +11,14 @@ Activate an Emscripten SDK (`emsdk_env.sh`) and run:
 
 ```sh
 make web-warcraft3-foundation
-python3 -m http.server 8000 --directory build/web
+python3 port/web/serve.py
 ```
 
-Open `http://localhost:8000`. A dark canvas and a status of "WebGL 2 probe
-running" indicate browser-side SDL2, WASM and WebGL 2 initialization. This
+Open `http://127.0.0.1:8000/`. The server adds the COOP/COEP headers required
+for Emscripten pthreads and shared memory. Do not open generated HTML from
+`file://` or serve it with a plain static server that omits those headers.
+A dark canvas and a status of "WebGL 2 probe running" indicate browser-side
+SDL2, WASM and WebGL 2 initialization. This
 is **not** proof that OpenRealm's actual GLES3 renderer is WebGL 2 compatible.
 No Warcraft game files are used or distributed.
 
