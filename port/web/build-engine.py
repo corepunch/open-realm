@@ -52,6 +52,11 @@ def main():
         parser.error("emcc not available; activate the Emscripten SDK")
 
     wc3 = "games/warcraft-3"
+    # Engine defaults are open-source assets, separate from user-imported MPQs.
+    # FS_BasePath() is /share in the browser, so embed at that absolute path.
+    wc3_share = ROOT / wc3 / "share"
+    if not (wc3_share / "config.cfg").is_file():
+        raise SystemExit("missing Warcraft III defaults: " + str(wc3_share / "config.cfg"))
     module_sources = {
         # shared/test.c defines a function-like TEST macro. In a unity build
         # that leaks into blast.c, where #ifdef TEST enables its standalone
@@ -138,6 +143,9 @@ def main():
          "-sSTACK_OVERFLOW_CHECK=2" if args.debug else "-sSTACK_OVERFLOW_CHECK=0",
          "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency", "-lm", "--shell-file", shell,
          "-sINCOMING_MODULE_JS_API=canvas,arguments,setStatus,onAbort",
+         # Make shipped bindings available before native Com_Init loads config.
+         # Emscripten's virtual FS maps this to /share/warcraft-3/.
+         "--embed-file", str(wc3_share) + "@/share/warcraft-3",
          "-o", out / "index.html"])
     for name in ("installer.js", "install-worker.js", "filesystem-bridge.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)

@@ -274,3 +274,19 @@ Restore browser sound with a dedicated browser audio adapter or a verified
 main-thread initialization and mixing bridge; do not call the standard SDL
 Emscripten audio device opener from the engine worker. Verify the next browser
 startup stage with both debug and release builds.
+
+### Bundled Warcraft III defaults
+
+The browser engine link embeds the open-source `games/warcraft-3/share/`
+folder under the virtual filesystem path `/share/warcraft-3/`. In particular,
+`/share/warcraft-3/config.cfg` must be present when `Com_Init` reads the
+shipped input bindings (`MOUSE1` selection, `MOUSE2` smart orders, etc.).
+`build-engine.py --check` checks that the source config exists; the normal
+`emcc` link bundles it using `--embed-file`. Rebuild the browser engine after
+changing shared defaults. These files are not copied to OPFS or uploaded by
+users: the OPFS importer continues to manage Warcraft III archives separately.
+
+This built-in configuration is the read-only starting point; user config
+loading and persistence are separate concerns. If HUD clicks work while
+world selection/drag/orders do not, verify this bundle is included before
+investigating mouse hit-testing.
