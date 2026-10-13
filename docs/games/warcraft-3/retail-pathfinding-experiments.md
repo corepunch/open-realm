@@ -547,3 +547,57 @@ decoding and allocator accounting remain separate gaps.
 attach/script/hooks and matches **all310 markers**, including both actual Farm
 positions. Thus the observed relocation and sampled movement also reproduce
 without the observer. Map/reference/controller/raw-output provenance is retained.
+
+
+## Repeated observer-free controls (Payoff322)
+
+E2E-02.2 is complete. The four original maps and observed references remain
+byte-identical to their existing corpus entries. A new owned B/C process repeats
+each historical no-attach control using only Frida spawn/resume/kill and native
+loading-key input directed to that PID. No session, script or interceptor is
+attached. All public markers agree with both the original observed run and the
+historical first control:
+
+| Scene | Markers per run | Terminal mover order | Terminal mover X/Y (R2S) |
+|---|---:|---:|---|
+| Blocked goal | 305 | 0 | -1924.026 / -238.746 |
+| Order replacement | 311 | 0 | -1935.408 / -156.737 |
+| Fog loss/reacquisition | 610 | 851971 | -1937.180 / -247.212 |
+| Building creation/removal | 310 | 0 | -1936.000 / -157.065 |
+
+Each complete stream includes all300 ordered mover samples and the terminal
+completion marker. Fog additionally preserves300 target samples; building
+preserves both actual Farm positions. The retained Follow order at fog completion
+is the observed outcome, not a failed arrival to normalize away.
+
+The [frozen contract](../../../tools/ghidra/fixtures/retail-controls322-1.27.json)
+and its compressed bundle retain all four original raw captures/provenance plus
+the raw preload output, controller snapshot and provenance of all eight controls.
+The verifier cross-checks original capture hashes against the existing corpus
+entries. Rejection tests cover missing scenes/repeats, changed samples/completion,
+failed runs and an attached-observer claim, including mutations with updated
+container hashes. Seven focused Python tests pass. No gameplay implementation
+or numerical expectation changes are needed for this observer-control closure.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_controls322.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/controls322-fresh.json
+python3 -m unittest tests.test_pathfinding_control tests.test_wc3_pathing_controls322
+```
+
+For a new live repeat, run `tools/frida/control_wc3_pathfinding.py` under the
+B/C `research/_env/live.sh` lock with the original reference/map,130 seconds and
+loading input at80 seconds. Supply `--input-helper` and `--wine-prefix` for that
+owned environment. The helper records its hashes, owning PID and successful
+return in provenance. The older xdotool loading path produced no preload file
+in the first two B/C attempts; those failed runs are retained separately and
+excluded, rather than treated as comparisons. Native input produced all four
+complete repeated controls. This establishes the working input path; it does
+not infer why the earlier loading input failed.
+
+Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/E2E-02.2/payoff322/`.
+The equality claim is the full recorded JASS stream, including three-decimal
+R2S positions, sampled orders and lifecycle outcomes. These no-hook controls
+cannot certify unobserved internal words or wall-clock timing. E2E-02.3 retains
+the separate crowd/movement-mode controls; no new TODO is introduced.

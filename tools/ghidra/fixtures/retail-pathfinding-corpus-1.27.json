@@ -54764,6 +54764,52 @@
         "Flat three-member Captain scene; other effects, exceptional payloads and broader shared producers remain open.",
         "Projectile notification opt-outs follow recovered v38c policy; projectile impact behavior is not changed or certified by this scene."
       ]
+    },
+    {
+      "id": "oracle-controls322",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_controls322.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "controls322.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "scenes": {
+          "equal": 4
+        },
+        "controls": {
+          "equal": 8
+        },
+        "repeated_scenes": {
+          "equal": 4
+        },
+        "reference_markers": {
+          "equal": 1536
+        },
+        "control_markers": {
+          "equal": 3072
+        }
+      },
+      "evidence": [
+        "L"
+      ],
+      "scope": "E2E-02.2: repeated observer-free blocked-goal, replacement, fog-reacquisition and building-footprint controls against their unchanged original capture manifests.",
+      "exclusions": [
+        "Complete JASS marker strings, three-decimal R2S positions and sampled lifecycle/order outcomes only; no internal raw-word or wall-clock equivalence claim.",
+        "One historical and one new owned B/C observer-free control per scene. Native loading input uses the owned process ID; no attach, script or interceptor in either control."
+      ]
     }
   ],
   "fixtures": [
@@ -57454,7 +57500,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "015a72924cefac2894a2f4cd631fb8538ec4a7d04946436c948cc11392c44f5f"
+      "sha256": "f004bebd4913f4546229ad03201b9d9af2efacf33393f4607f0a45ef468205f7"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57470,7 +57516,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "599888f9bf6d5934cce70a99cc48e68abf175f7c4b34812fc8a65f9a3558462e"
+      "sha256": "973cf954120628f4b15c192c8fa24ff6ca47c6a1e84e57a4af53270694f0daae"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -62470,7 +62516,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "d443e453314eaea2a122fb4e20d6c97b0476cdf868e7848a63b972c5ae230bdb"
+      "sha256": "daf76484c7470a7842c8b2956155de2d444a17ad55113b1dd6b61bd021a6d201"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -63875,6 +63921,22 @@
     {
       "path": "tools/ghidra/fixtures/retail-captain320-1.27.json.gz",
       "sha256": "14f7a25c9cdc8c52c0fe6ac88c4b338e6a0ef368a0d2b7d6ffa0af322643b111"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_controls322.py",
+      "sha256": "dca6b5e324b72b857bb4461b34a814574a94316815c53aa73ac38cedbc33bb5f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-controls322-1.27.json",
+      "sha256": "7d1ee9ff9d88f2f7ad7818dd60046b81127c9d6df154821e305f217f3817b2b4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-controls322-1.27.json.gz",
+      "sha256": "f8e0ef07ddda019699c29521665ffa4f7cd0aebd0ed908d937616b19167c3412"
+    },
+    {
+      "path": "tests/test_wc3_pathing_controls322.py",
+      "sha256": "2a32cff1719a078438e9c01105117fce3c541114d04800c52b8f6e38764a7e6a"
     }
   ]
 }

@@ -38,11 +38,15 @@ def main():
     parser.add_argument('--seconds', type=float, default=130)
     parser.add_argument('--continue-at', type=float, default=80)
     parser.add_argument('--x11-display', default=':94')
+    parser.add_argument('--input-helper', type=Path, help='owned-PID native loading-key helper')
+    parser.add_argument('--wine-prefix', type=Path, help='Wine prefix for --input-helper')
     args = parser.parse_args()
     if not 0 < args.continue_at < args.seconds <= 3600:
         parser.error('require 0 < continue-at < seconds <= 3600')
     if not re.fullmatch(r'[a-z0-9_]+', args.scenario):
         parser.error('invalid scenario name')
+    if bool(args.input_helper) != bool(args.wine_prefix):
+        parser.error('--input-helper and --wine-prefix must be supplied together')
     data = args.data.resolve()
     digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
     if digest(data / 'game.dll') != HASH:
@@ -73,6 +77,10 @@ def main():
                       controller_sha256=digest(Path(__file__)), frida=frida.__version__,
                       transport='Frida spawn/resume/kill only; no attach, script, or hooks',
                       seconds=args.seconds, continue_at=args.continue_at, display=args.x11_display)
+    if args.input_helper:
+        provenance['input_helper_sha256'] = digest(args.input_helper)
+        provenance['input_helper_so_sha256'] = digest(Path(str(args.input_helper) + '.so'))
+        provenance['wine_prefix'] = str(args.wine_prefix.resolve())
     (args.output / 'controller.py').write_bytes(Path(__file__).read_bytes())
     device = frida.get_device_manager().add_remote_device(args.remote)
     path = 'Z:' + str(data).replace('/', '\\')
@@ -85,7 +93,15 @@ def main():
         sent = False
         while time.monotonic() - start < args.seconds:
             if not sent and time.monotonic() - start >= args.continue_at:
-                subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III',
+                if args.input_helper:
+                    result = subprocess.run([str(args.input_helper.resolve()), str(pid), 'continue'],
+                                            check=True, timeout=5, capture_output=True, text=True,
+                                            env={**os.environ, 'DISPLAY': args.x11_display,
+                                                 'WINEPREFIX': str(args.wine_prefix.resolve()), 'WINEDEBUG': '-all'})
+                    provenance['loading_input'] = dict(pid=pid, returncode=result.returncode,
+                                                      stdout=result.stdout, stderr=result.stderr)
+                else:
+                    subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III',
                                 'windowfocus', '--sync', 'key', 'space'], check=True, timeout=5,
                                env={**os.environ, 'DISPLAY': args.x11_display}, stdout=subprocess.DEVNULL)
                 sent = True

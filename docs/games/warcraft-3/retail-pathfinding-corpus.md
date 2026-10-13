@@ -2290,3 +2290,14 @@ oracles. Existing entry objects and frozen capture pins remain unchanged; the
 mapper pin advances. Strict Classic/TFT:12 tests/132398 assertions each. This is
 focused validation, not a full-suite checkpoint. See
 [Captain evidence](retail-pathfinding-engine.md#captain-slow-notification-and-retained-actor-requests-payoff320).
+
+
+## Repeated observer-free controls (Payoff322)
+
+`oracle-controls322` closes E2E-02.2 by checking all four original blocked-goal,
+replacement, fog and building references against two observer-free controls
+each. The bundled raw references are also checked against their unchanged
+existing corpus capture hashes. Eight complete controls preserve3072 exact JASS
+markers; public position precision remains R2S three decimals. See the
+[control contract and reproducer](retail-pathfinding-experiments.md#repeated-observer-free-controls-payoff322).
+The corpus now contains557 entries, including276 executable oracle entries.

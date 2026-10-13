@@ -55,7 +55,7 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**292 done / 336 tasks; 44 remaining.** Payoff312 closes NUM-03.1:320 repeated public producer scenes retain1600 exact scalar states across five movement types. Source presence, mutable authored radius and Move physical profiles stay separate; constructor fingerprints and older retail fixtures are preserved. See [finite inputs](retail-pathfinding-engine.md#finite-public-inputs-preserve-authored-and-physical-radii-payoff312).
+**293 done / 336 tasks; 43 remaining.** Payoff322 closes E2E-02.2 with all four recorded observer-free controls repeated:305 blocked-goal,311 replacement,610 fog and310 building markers agree exactly. [Repeated controls](retail-pathfinding-experiments.md#repeated-observer-free-controls-payoff322). Payoff312 closes NUM-03.1:320 repeated public producer scenes retain1600 exact scalar states across five movement types. Source presence, mutable authored radius and Move physical profiles stay separate; constructor fingerprints and older retail fixtures are preserved. See [finite inputs](retail-pathfinding-engine.md#finite-public-inputs-preserve-authored-and-physical-radii-payoff312).
 
 Payoff306 removes unsupported flying-source and structure-target gates from
 Attack's physical chase owner. Two fresh read-only repeats and an unhooked control
@@ -2034,7 +2034,7 @@ Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and n
 ### E2E-02 — Observer controls
 
 - [x] **E2E-02.1** Open-ground no-attach control matches 304 markers twice; blocked-goal305, replacement311, fog610 and building310 match once. Evidence: [observer controls][observer]; crowd/mode repeats remain open.
-- [ ] **E2E-02.2** Repeat blocked-goal, replacement, fog and building controls from the recorded manifests; assert matching completion markers and normalized outcomes.
+- [x] **E2E-02.2** Payoff322 repeats all four unchanged map/reference manifests in isolated B/C processes without attach or injection. Each original and repeated control matches the complete305/311/610/310-marker observed stream, including terminal completion, sampled orders, fog target and actual building positions. The frozen verifier checks8 controls/3072 markers and rejects incomplete, altered, attached or failed evidence. JASS R2S precision remains three decimals; internal state and wall-clock parity are outside this observer-control task. [Evidence and reproducer](retail-pathfinding-experiments.md#repeated-observer-free-controls-payoff322).
 - [ ] **E2E-02.3** Run equivalent minimal-hook/no-hook crowd and additional movement-mode controls; compare timing and complete trajectories, retaining mismatches.
 
 ### E2E-03 — Deterministic generated cases
