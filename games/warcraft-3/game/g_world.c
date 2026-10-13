@@ -1398,7 +1398,8 @@ static bool move_place_widget(edict_t *unit, vec2_t point, float radius, uint8_t
     move_query_objects(&graph,&objects,NULL);
     graph.counted_scope=policy.counted_scope;
     wc3FinePlacement_t query = {.point = {point.x,point.y}, .limit = policy.limit,
-        .footprint = {.cls = wc3_fine_class(radius / pathmap_cell_world_size()),
+        /*058cd0 converts authored scalar bits before selecting the footprint, including NaNs. */
+        .footprint = {.cls = wc3_fine_class(wc3_div(radius, pathmap_cell_world_size())),
                       .cell = move_cell_ok, .data = &graph}, .admit = policy.match_level ? placement_admit : NULL,
         .integer_result=policy.integer_result};
     float admitted[2];

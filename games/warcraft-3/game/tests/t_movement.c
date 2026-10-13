@@ -26046,3 +26046,114 @@ TEST(wc3_movement, numeric312_public_geometry_keeps_authored_and_physical_radii_
     }
 }
 #endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_nonfinite313.h"
+/* W3U retains exceptional scalar words; retail chooses its physical minimum on unordered COMISS. */
+TEST(wc3_movement, nonfinite313_authored_radius_public_creation_uses_native_physical_minimum) {
+    static uint32_t const raw[]={0x7fc00001,0x7fa00001,0xffc00001,0x7f800000,0xff800000,
+        0x7f7fffff,0xff7fffff,0};
+    static uint32_t const fine[]={0x3d000000,0x3d000000,0x3d000000,0x7d000000,0x3d000000,
+        0x7cffffff,0x3d000000,0x3d000000};
+    FOR_LOOP(scene,8) {
+        reset_entities();setup_test_world();uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+        FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+        mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;float radius=wc3_float(raw[scene]);
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="foot"}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),
+            .newUnitID=__builtin_bswap32(0x684f4141u+scene),.numbeOfModifications=2,.modifications=mods};
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        char script[2048];snprintf(script,sizeof(script),
+            "globals\nunit n313=null\nendglobals\nfunction main takes nothing returns nothing\n"
+            "set n313=CreateUnit(Player(0),%u,768,512,0)\ncall SetUnitAcquireRange(n313,0)\nendfunction\n"
+            "function axis_x takes nothing returns nothing\ncall SetUnitX(n313,0)\nendfunction\n"
+            "function restore_x takes nothing returns nothing\ncall SetUnitPosition(n313,768,512)\nendfunction\n"
+            "function axis_y takes nothing returns nothing\ncall SetUnitY(n313,0)\nendfunction\n"
+            "function restore_y takes nothing returns nothing\ncall SetUnitPosition(n313,768,512)\nendfunction\n"
+            "function place takes nothing returns nothing\ncall SetUnitPosition(n313,0,0)\nendfunction\n"
+            "function queryzero takes nothing returns nothing\ncall SetUnitPathing(n313,false)\ncall SetUnitPosition(n313,0,0)\nendfunction\n",custom.newUnitID);
+        T_ASSERT(run_test_jass(script));edict_t *unit=NULL;
+        FILTER_EDICTS(e,e->inuse && e->class_id==custom.newUnitID)unit=e;
+        T_NOT_NULL(unit);
+        static char const *const calls[]={"axis_x","restore_x","axis_y","restore_y","place","queryzero"};
+        if(unit)FOR_LOOP(stage,7) {
+            if(stage){jass_callbyname(level.vm,calls[stage-1],false);T_ASSERT(!jass_rterror_pending(level.vm));}
+            uint32_t const *expected=nonfinite313_radius[scene][stage];
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[1]);
+            T_EQ(wc3_float_bits(unit->s.origin.x),expected[2]);
+            T_EQ(wc3_float_bits(unit->s.origin.y),expected[3]);
+            T_EQ(wc3_float_bits(unit->collision),raw[scene]);
+            T_EQ(wc3_float_bits(G_UnitCollision(unit->class_id)),raw[scene]);
+            T_EQ(wc3_float_bits(wc3_div(S_MoveCollisionRadius(unit),32)),fine[scene]);
+            T_ASSERT(unit->movement.collision_profile);T_EQ(unit->current_order_id,0);
+            T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+            if(stage==0 && (scene<3 || scene==4)) {
+                cstring_t file=Test_TempPath("wc3-nonfinite313.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                T_EQ(wc3_float_bits(unit->collision),raw[scene]);T_ASSERT(unit->movement.collision_profile);
+                T_EQ(wc3_float_bits(wc3_div(S_MoveCollisionRadius(unit),32)),fine[scene]);
+            }
+        }
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+    }
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_nonfinite313.h"
+/* Default-height object cells provide exceptional inputs through public JASS, without native injection. */
+TEST(wc3_movement, nonfinite313_public_axis_and_placement_scalar_words) {
+    static uint32_t const inputs[]={0x7fc00001,0x7fa00001,0xffc00001,0x7f800000,
+        0xff800000,0x7f7fffff,0xff7fffff,0};
+    static char const *const calls[]={"axis_x","restore_x","axis_y","restore_y","place","queryzero"};
+    FOR_LOOP(operation,2) FOR_LOOP(scene,8) {
+        reset_entities();setup_test_world();uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+        FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+        mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;float height=wc3_float(inputs[scene]),radius=31;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="foot"},
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height}};
+        unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),
+            .newUnitID=__builtin_bswap32(0x684f4141u+8+scene),.numbeOfModifications=3,.modifications=mods};
+        info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        char script[3072];snprintf(script,sizeof(script),
+            "globals\nunit n313=null\nreal source313=0\nendglobals\nfunction main takes nothing returns nothing\n"
+            "set n313=CreateUnit(Player(0),%u,768,512,0)\ncall SetUnitAcquireRange(n313,0)\n"
+            "set source313=GetUnitDefaultFlyHeight(n313)\nendfunction\n"
+            "function created_source takes nothing returns nothing\ncall RemoveUnit(n313)\n"
+            "set n313=CreateUnit(Player(0),%u,source313,source313,0)\ncall SetUnitAcquireRange(n313,0)\nendfunction\n"
+            "function axis_x takes nothing returns nothing\ncall SetUnitX(n313,source313)\nendfunction\n"
+            "function restore_x takes nothing returns nothing\ncall SetUnitPosition(n313,768,512)\nendfunction\n"
+            "function axis_y takes nothing returns nothing\ncall SetUnitY(n313,source313)\nendfunction\n"
+            "function restore_y takes nothing returns nothing\ncall SetUnitPosition(n313,768,512)\nendfunction\n"
+            "function place takes nothing returns nothing\ncall SetUnitPosition(n313,source313,source313)\nendfunction\n"
+            "function queryzero takes nothing returns nothing\ncall SetUnitPathing(n313,false)\n"
+            "call SetUnitPosition(n313,source313,source313)\nendfunction\n",custom.newUnitID,custom.newUnitID);
+        T_ASSERT(run_test_jass(script));edict_t *unit=NULL;
+        FILTER_EDICTS(e,e->inuse && e->class_id==custom.newUnitID)unit=e;
+        T_NOT_NULL(unit);
+        if(unit)FOR_LOOP(stage,(operation ? nonfinite313_create_counts[scene] : nonfinite313_axes_counts[scene])) {
+            if(stage){jass_callbyname(level.vm,operation ? "created_source" : calls[stage-1],false);T_ASSERT(!jass_rterror_pending(level.vm));}
+            FILTER_EDICTS(e,e->inuse && e->class_id==custom.newUnitID)unit=e;
+            uint32_t const *expected=operation ? nonfinite313_create[scene][stage] : nonfinite313_axes[scene][stage];
+            uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->s.origin.x),wc3_float_bits(unit->s.origin.y),
+                wc3_float_bits(wc3_div(S_MoveCollisionRadius(unit),32)),wc3_float_bits(unit->collision)};
+            FOR_LOOP(k,6) {
+                if(!expected[6] && (k==2 || k==3))continue;
+                if(actual[k]!=expected[k])fprintf(stderr,"nonfinite313 scene%u stage%u field%u actual%08x retail%08x\n",scene,stage,k,actual[k],expected[k]);
+                T_EQ(actual[k],expected[k]);
+            }
+            T_EQ(unit->current_order_id,0);T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+        }
+        reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+    }
+}
+#endif

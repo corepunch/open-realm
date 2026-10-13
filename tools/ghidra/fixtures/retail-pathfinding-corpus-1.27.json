@@ -54257,6 +54257,61 @@
       "exclusions": [
         "Not exhaustive over all finite floats. Nonfinite producer reachability remains NUM-03.2. No performance or broader movement-fidelity acceptance. Retail saves were not invoked by this probe."
       ]
+    },
+    {
+      "id": "oracle-nonfinite313",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_nonfinite313.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "nonfinite313.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 482
+        },
+        "captures": {
+          "equal": 68
+        },
+        "native_events": {
+          "equal": 4872
+        },
+        "public_markers": {
+          "equal": 812
+        },
+        "states": {
+          "equal": 126
+        },
+        "fault_captures": {
+          "equal": 8
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "NUM-03.2: public exceptional authored-radius and coordinate producers,126 literal ground states. Unordered physical minimum and software placement conversion; cold profile saves. Two observed/two unhooked runs per case retain terminal pre-fault states.",
+      "exclusions": [
+        "Ground foot movement, eight literal exceptional/finite-control scalar words.",
+        "Terminal states compare committed fine pose only; retail visibility access violations are not reproduced in engine. NUM-03.2 remains open.",
+        "No claim of general NaN payload, other movement families, subsequent moving orders or nonreturning lifecycle parity."
+      ]
     }
   ],
   "fixtures": [
@@ -55155,7 +55210,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "c84e25f4d7592f539b255fce3c23aaa99b32dec86ce2eda9f7870a39e6460603"
+      "sha256": "f89f73861317a97bcf30b2a23b2f437b0c1d5ed6b1d02b60e59429878333a8b1"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56219,7 +56274,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "295a3f40780b61f08396ccf9b8eca895fd75f62339d38ce290fb434dfa432162"
+      "sha256": "bddd83652047037eef23e2640cd9b42e19c4211a29ba27bd7273a293f0e75ebb"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -56443,7 +56498,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "f87e93272f91ebf7db37aac38dff04caf93866619b04bb023df5b362be55f168"
+      "sha256": "d9be84170b72c9b835c5036817c2ec5a17309ffd0c74611d17fa8ab3ee72acd4"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -56703,7 +56758,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "e8c02d4de9dcafaec54609cdfa5946a4952cd0ad1f33264cf32730a31b757ff5"
+      "sha256": "208b1c055befc6452b2751e2847c516f41a350dbaf7505126f5d6bd0a1c5b73c"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -56947,7 +57002,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "51eafdbd93724153c58b6749b8dc5be926973f6f934ef8edd5a2dc5e08647a88"
+      "sha256": "ffa07632cf67d438df476badd53eb5fa5855a2ce801fad6321631c6725851aa5"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -56959,11 +57014,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "8bc0b0268908d5c962ae3dc729ee762510a900378bebccc1003745e88c41dc83"
+      "sha256": "41a0a5d1408266a820c9662edc70fea403f7ef4ca94cd7eabec9e81b1cce9204"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "d4d95259edd349b745d193f498a8d0a2af9520a357dd154922a273da116027cb"
+      "sha256": "4fbad242f3adcd0ceef7ddbff42ab7d5578f77d6da593ed1d11a2f6f6a4e8d67"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -62904,6 +62959,46 @@
     {
       "path": "tests/test_wc3_pathfinding_numeric312.py",
       "sha256": "067b4fc90baaa502c4c1939e20d60d2750a277852c3c39b31368d414f938a020"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_nonfinite313.h",
+      "sha256": "458dc033b738eb23cb33e37f6023e122fadba4e8eb2f7cb4a76d7a0bd93189e6"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_nonfinite313.py",
+      "sha256": "183f9475925436acd8b4f65dc73a5d23e8ac05a81bc139bb86b51b7f86ac9882"
+    },
+    {
+      "path": "tools/frida/research/nonfinite313_capture.py",
+      "sha256": "2b45f89d25e4bcb213ffb959b3cd90cf7a75cdca35fca44632db03b229455fbf"
+    },
+    {
+      "path": "tools/frida/research/nonfinite313_make_map.py",
+      "sha256": "32feafe47ccc50b3e2ceca97b20a649fba6013807fdc4e0f6a93e78e15eaf048"
+    },
+    {
+      "path": "tools/frida/research/nonfinite313_observer.js",
+      "sha256": "94cafa84713cc5e645c94a8b98a0e5f438b60e89fd558697f0cf08bd528724f0"
+    },
+    {
+      "path": "tools/frida/research/nonfinite313_probe.j",
+      "sha256": "ead4b5494e9716e29d5d6f0e1cf95a0189103ec1b39447ca1e0862f78fb3410b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-nonfinite313-1.27.json",
+      "sha256": "7426c3e35b8fd8b9ef999dcc64c279431ea640fbf25b1cf329e57a02257256eb"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-nonfinite313-1.27.json.gz",
+      "sha256": "4df4f5054af9e7f995d9a2195a5f9cb5ed3080e398f9aa13c4abbb097892c7f5"
+    },
+    {
+      "path": "tools/ghidra/research/Nonfinite313Evidence.java",
+      "sha256": "9321c8c162580bee406e3806a76aac8bbe2814af6316ff4184539b43d03e23b0"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_nonfinite313.py",
+      "sha256": "2001a69cfad4dcaa70ad89c04d9fa3cb8d42619c9d495604550afea3a30312bb"
     }
   ]
 }

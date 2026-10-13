@@ -435,5 +435,6 @@ uint32_t S_TestMoveProximityLinks(void) {return move_proximity.records;}
  * geometry. No new per-unit default copy or allocation is necessary. */
 float S_MoveCollisionRadius(edict_t const *unit) {
     float radius = unit->collision;
-    return unit->movement.collision_profile && radius <= 1 ? 1 : radius;
+    /*6945a0 COMISS/CMOVBE selects RuntimeOne for unordered as well as <=1. */
+    return unit->movement.collision_profile && !(radius > 1) ? 1 : radius;
 }

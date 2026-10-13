@@ -19344,3 +19344,63 @@ The harness now advances that owner and checks target lifetime and additional
 movement while shared jobs compete. Private legacy `route_resume` fields are
 replaced by the actual chase/retained-route owner checks; retail literal fixtures
 are unchanged. Both sides of the preexisting failure are archived.
+
+## Exceptional authored radii retain distinct physical and placement conversions (Payoff313)
+
+NUM-03.2 has a publicly reachable nonfinite producer: binary W3U Unreal cells
+retain their raw words through the collision getter and `GetUnitDefaultFlyHeight`.
+The latter supplies actual JASS coordinate arguments without injected calls or
+memory writes. The probe uses positive quiet/signaling NaNs (`7fc00001`,
+`7fa00001`), negative quiet NaN (`ffc00001`), both infinities, both finite maximum
+values and zero. The ground Footman matrix contains 24 scenes and 126 states.
+Two observed and two observer-free runs per scenario produce 68 captures,
+4,872 native events and 812 public markers. A fresh resumed Frida run of the
+positive quiet-NaN coordinate scene also matches its entire normalized stream.
+
+Two engine differences were reproduced before correction. First, retail
+`6945a0` uses COMISS/CMOVBE: unordered authored radii select one world unit for
+the physical profile. The authored getter still returns the original NaN bits.
+The radius-only regression initially failed six assertions. Second, `058cd0`
+converts the authored placement radius with software exponent arithmetic before
+choosing its footprint class. Hardware division retained NaN and incorrectly
+selected class zero. Positive quiet/signaling NaNs instead become finite fine
+words `7d400001`/`7d200001`, selecting class three. At the map corner, placement
+returns `(80,80)`, including after `SetUnitPathing(false)`. Expanding the test to
+all captured states exposed 16 coordinate failures; the game placement owner
+now uses the existing software scalar conversion. Expected retail words were
+not changed to accommodate either engine result.
+
+The regressions drive public creation, axis setters, ordinary and query-zero
+placement, constructor coordinates from the authored getter, and cold saves of
+NaN/negative-infinity physical profiles. All 126 observed states are checked,
+with terminal rows limited to the fields observed before the native fault.
+The save layout and network contract are unchanged.
+
+Four scenario families do not return in retail: signaling NaN and negative
+quiet NaN reach a committed pose, then fault at visibility lookup `1ddac1`, for
+both two-axis placement and creation. Two hooked and two unhooked runs preserve
+each incomplete public marker sequence. These are reachable consumer faults,
+not rejected inputs or proof of unreachability. The engine matches the observed
+pose but does not reproduce the access violation. NUM-03.2 therefore stays open,
+with no new TODO. General NaN payloads, other movement families, moving-order
+continuations and exceptional terminal lifecycle parity remain unverified.
+
+Focused validation passes32 tests/428,996 assertions in each of Classic and TFT,
+plus13 evidence rejection checks and37 corpus checks. Production and test targets
+build. This is chunk1 after checkpoint312; no new full-suite claim is made.
+
+Eight Ghidra annotations and 482 original instruction guards are saved and read
+back. `MapPathfinding.java` carries the producer/conversion and fault notes.
+The immutable bundle and strict verifier are
+[retail-nonfinite313-1.27.json](../../../tools/ghidra/fixtures/retail-nonfinite313-1.27.json)
+and [verify_wc3_pathing_nonfinite313.py](../../../tools/ghidra/verify_wc3_pathing_nonfinite313.py).
+The capture scripts retain isolated B/C ownership and bounded process runs;
+failed exploratory launches remain outside acceptance in the external archive.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_nonfinite313.py \
+  --binary /path/to/supported/game.dll --report /tmp/nonfinite313-fresh.json
+python3 tests/test_wc3_pathfinding_nonfinite313.py
+```
+
+Archive: `research/NUM-03.2/payoff313` under the external pathfinding reports.
