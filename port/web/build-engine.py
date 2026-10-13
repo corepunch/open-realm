@@ -40,7 +40,11 @@ def main():
     parser.add_argument("--out", default="build/web/engine")
     parser.add_argument("--emcc", default="emcc")
     parser.add_argument("--check", action="store_true", help="validate/generate sources without invoking Emscripten")
+    parser.add_argument("--debug", action="store_true",
+                        help="build an unoptimized, DWARF-symbolized browser engine for runtime failures")
     args = parser.parse_args()
+    if args.debug and args.out == "build/web/engine":
+        args.out = "build/web/engine-debug"
     out = (ROOT / args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     emcc = shutil.which(args.emcc)
@@ -77,7 +81,9 @@ def main():
             raise SystemExit("missing inputs for " + name + ": " + ", ".join(missing))
     # Compile each native unity module separately, preserving module-local static
     # definitions and the direct GetGameAPI/R_GetAPI/M_GetAPI interfaces.
-    flags = ["-O2", "-I.", "-Ishared", "-Ishared/types", "-I" + wc3,
+    optimization = "-O0" if args.debug else "-O2"
+    debug_flags = ["-g3", "-fno-omit-frame-pointer"] if args.debug else []
+    flags = [optimization, *debug_flags, "-I.", "-Ishared", "-Ishared/types", "-I" + wc3,
              "-I" + wc3 + "/common", "-I" + wc3 + "/game",
              "-I" + wc3 + "/game/api", "-I" + wc3 + "/game/skills",
              "-DWC3", "-DUSE_FOGOFWAR", '-DBZ_GAME="warcraft-3"',
@@ -119,7 +125,7 @@ def main():
         print("Source validation complete; generated unity files in", out)
         return
     shell = ROOT / "port/web/site/engine-shell.html"
-    run([emcc, *objects, "-O2", "-sUSE_SDL=2", "-sUSE_ZLIB=1",
+    run([emcc, *objects, optimization, *debug_flags, "-sUSE_SDL=2", "-sUSE_ZLIB=1",
          "-sMIN_WEBGL_VERSION=2", "-sMAX_WEBGL_VERSION=2", "-sFULL_ES3=1",
          "-sWASMFS=1", "-pthread", "-sPROXY_TO_PTHREAD=1", "-sPTHREAD_POOL_SIZE=2",
          # Renderer creates its WebGL context directly on the engine pthread.
@@ -128,7 +134,9 @@ def main():
          "-sOFFSCREENCANVAS_SUPPORT=1", "-sOFFSCREENCANVASES_TO_PTHREAD=#canvas",
          "-sINITIAL_MEMORY=134217728", "-sALLOW_MEMORY_GROWTH=1",
          "-sFILESYSTEM=1", "-sENVIRONMENT=web",
-         "-sASSERTIONS=1", "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency", "-lm", "--shell-file", shell,
+         "-sASSERTIONS=2" if args.debug else "-sASSERTIONS=1",
+         "-sSTACK_OVERFLOW_CHECK=2" if args.debug else "-sSTACK_OVERFLOW_CHECK=0",
+         "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency", "-lm", "--shell-file", shell,
          "-sINCOMING_MODULE_JS_API=canvas,arguments,setStatus,onAbort",
          "-o", out / "index.html"])
     for name in ("installer.js", "install-worker.js", "filesystem-bridge.js"):

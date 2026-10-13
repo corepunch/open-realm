@@ -204,3 +204,32 @@ avoids the earlier transferred-canvas EGL error. No native build changes.
 Requires a cross-origin-isolated page and OffscreenCanvas support. Test worker
 context creation, shader/resource initialization, frame presentation, resize,
 input and shutdown in the browser; a successful C link alone is insufficient.
+
+### Diagnosing browser worker traps
+
+The normal optimized build omits useful names from WASM stack traces. When
+startup reaches `Loading shaders succeeded` but a worker fails with
+`memory access out of bounds`, `operation does not support unaligned accesses`,
+or an Emscripten pthread/proxy-queue assertion, **do not** assume the renderer
+or OPFS is the original cause from the last successful log line alone. A
+secondary worker failure can follow a primary engine-thread failure.
+
+Build a separate, unoptimized DWARF-symbolized version with:
+
+```sh
+source ~/emsdk/emsdk_env.sh
+python3 port/web/build-engine.py --debug
+```
+
+The result is in `build/web/engine-debug/`; it leaves the standard
+`build/web/engine/` untouched. Serve the debug directory using the same
+cross-origin isolation headers as the normal pthread build. In Chrome DevTools
+(Sources), use WebAssembly DWARF debugging to inspect the **first** failing
+thread, its C call stack and source line. Include the failing assertion and
+first symbolic stack in the issue report. If needed, use the DWARF-capable
+`llvm-addr2line` shipped with the Emscripten SDK against the exact matching
+`index.wasm` and the `index.wasm:0x...` offsets; offsets from optimized builds
+cannot be looked up in a different debug binary.
+
+Keep pthread checks enabled. Do not mask WebAssembly traps by relaxing
+alignment, disabling mutex assertions or suppressing errors in proxy queues.
