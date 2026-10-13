@@ -13,3 +13,25 @@ bool ReadGame(cstring_t filename) {
     (void)filename;
     return false;
 }
+
+bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size) {
+    (void)filename;
+    if (map && map_size) map[0] = '\0';
+    return false;
+}
+
+void G_ClearSaveRegistries(void) {
+}
+
+bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
+    (void)type;
+    (void)value;
+    if (id) *id = UINT32_MAX;
+    return false;
+}
+
+handle_t G_LoadJassHandle(cstring_t type, uint32_t id) {
+    (void)type;
+    (void)id;
+    return NULL;
+}

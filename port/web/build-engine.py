@@ -94,6 +94,8 @@ def main():
             # callbacks. Preserve that separation in the single WASM link.
             extra.extend(["-include", "port/web/src/web_fdf_namespace.h",
                           "-DBZ_WEB_FDF_" + name.upper()])
+        if name == "renderer":
+            extra.extend(["-include", "port/web/src/web_renderer_namespace.h"])
         if not args.check:
             run([emcc, *flags, *extra, "-c", unit, "-o", obj])
         objects.append(obj)
@@ -112,9 +114,10 @@ def main():
         return
     shell = ROOT / "port/web/site/engine-shell.html"
     run([emcc, *objects, "-O2", "-sUSE_SDL=2", "-sUSE_ZLIB=1",
-         "-sMIN_WEBGL_VERSION=2", "-sMAX_WEBGL_VERSION=2",
+         "-sMIN_WEBGL_VERSION=2", "-sMAX_WEBGL_VERSION=2", "-sFULL_ES3=1",
          "-sWASMFS=1", "-pthread", "-sPROXY_TO_PTHREAD=1", "-sPTHREAD_POOL_SIZE=2",
-         "-sALLOW_MEMORY_GROWTH=1", "-sFILESYSTEM=1", "-sENVIRONMENT=web",
+         "-sINITIAL_MEMORY=134217728", "-sALLOW_MEMORY_GROWTH=1",
+         "-sFILESYSTEM=1", "-sENVIRONMENT=web",
          "-sASSERTIONS=1", "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency", "-lm", "--shell-file", shell,
          "-o", out / "index.html"])
     for name in ("installer.js", "install-worker.js", "filesystem-bridge.js"):

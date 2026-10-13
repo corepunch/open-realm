@@ -13,6 +13,51 @@
 #else
 #define BZ_WEB_FDF_NAME(sym) WC3Menu_##sym
 #endif
+/* The game statically includes its own WC3 map/world implementation in
+ * g_world.c. Keep those APIs and their state separate from the engine's
+ * client-world copy in the combined browser link. */
+#if defined(BZ_WEB_FDF_GAME)
+#define world BZ_WEB_FDF_NAME(world)
+#define CL_GameCameraUsesWorldUp BZ_WEB_FDF_NAME(CL_GameCameraUsesWorldUp)
+#define CL_GameCameraZoomPolicy BZ_WEB_FDF_NAME(CL_GameCameraZoomPolicy)
+#define CL_GameCanvasPolicy BZ_WEB_FDF_NAME(CL_GameCanvasPolicy)
+#define CL_GameDefaultCamera BZ_WEB_FDF_NAME(CL_GameDefaultCamera)
+#define CL_GameLerpDegrees BZ_WEB_FDF_NAME(CL_GameLerpDegrees)
+#define CM_FreeMapInfo BZ_WEB_FDF_NAME(CM_FreeMapInfo)
+#define CM_GetCameraHeightOffset BZ_WEB_FDF_NAME(CM_GetCameraHeightOffset)
+#define CM_GetDenormalizedMapPosition BZ_WEB_FDF_NAME(CM_GetDenormalizedMapPosition)
+#define CM_GetDoodads BZ_WEB_FDF_NAME(CM_GetDoodads)
+#define CM_GetHeightAtPoint BZ_WEB_FDF_NAME(CM_GetHeightAtPoint)
+#define CM_GetLocalPlayerNumber BZ_WEB_FDF_NAME(CM_GetLocalPlayerNumber)
+#define CM_GetMapChecksum BZ_WEB_FDF_NAME(CM_GetMapChecksum)
+#define CM_GetMapInfo BZ_WEB_FDF_NAME(CM_GetMapInfo)
+#define CM_GetNormalizedMapPosition BZ_WEB_FDF_NAME(CM_GetNormalizedMapPosition)
+#define CM_GetPathingFlagsAt BZ_WEB_FDF_NAME(CM_GetPathingFlagsAt)
+#define CM_GetWaterHeightAtPoint BZ_WEB_FDF_NAME(CM_GetWaterHeightAtPoint)
+#define CM_GetWorldBounds BZ_WEB_FDF_NAME(CM_GetWorldBounds)
+#define CM_IsMapLoaded BZ_WEB_FDF_NAME(CM_IsMapLoaded)
+#define CM_LoadMap BZ_WEB_FDF_NAME(CM_LoadMap)
+#define CM_LoadMapFormat BZ_WEB_FDF_NAME(CM_LoadMapFormat)
+#define CM_ReadAbilities BZ_WEB_FDF_NAME(CM_ReadAbilities)
+#define CM_ReadAbilityModification BZ_WEB_FDF_NAME(CM_ReadAbilityModification)
+#define CM_ReadDestructables BZ_WEB_FDF_NAME(CM_ReadDestructables)
+#define CM_ReadDoodadOverrides BZ_WEB_FDF_NAME(CM_ReadDoodadOverrides)
+#define CM_ReadItems BZ_WEB_FDF_NAME(CM_ReadItems)
+#define CM_ReadMapInfo BZ_WEB_FDF_NAME(CM_ReadMapInfo)
+#define CM_ReadMapScript BZ_WEB_FDF_NAME(CM_ReadMapScript)
+#define CM_ReadModification BZ_WEB_FDF_NAME(CM_ReadModification)
+#define CM_ReadPathMap BZ_WEB_FDF_NAME(CM_ReadPathMap)
+#define CM_ReadStrings BZ_WEB_FDF_NAME(CM_ReadStrings)
+#define CM_ReadUnits BZ_WEB_FDF_NAME(CM_ReadUnits)
+#define CM_ReleaseModel BZ_WEB_FDF_NAME(CM_ReleaseModel)
+#define CM_SetupPathMap BZ_WEB_FDF_NAME(CM_SetupPathMap)
+#define CM_W3SetWaterHeight BZ_WEB_FDF_NAME(CM_W3SetWaterHeight)
+#define CM_W3WaterHeight BZ_WEB_FDF_NAME(CM_W3WaterHeight)
+#define FS_ReadArchiveFileIntoString BZ_WEB_FDF_NAME(FS_ReadArchiveFileIntoString)
+#define SFileReadString BZ_WEB_FDF_NAME(SFileReadString)
+#define SFileReadStringLength BZ_WEB_FDF_NAME(SFileReadStringLength)
+#define removeTrailingWhitespace BZ_WEB_FDF_NAME(removeTrailingWhitespace)
+#endif
 /* stb_fdf.h's implementation also exports lexer/parser helpers and enum
  * tables. These depend on module-local callbacks and frame registries, so
  * they must follow the same module namespace as UI_* and frames.
