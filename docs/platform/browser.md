@@ -299,3 +299,15 @@ engine heap, not its limited WebAssembly pthread stack. In particular,
 `GroupEnumUnitsOfPlayer` may evaluate many filtered units during campaign map
 initialization. Allocation failures reject the corresponding filter or condition
 without modifying the parent VM state.
+
+### Browser audio (AudioWorklet)
+
+On Emscripten the existing 44.1 kHz stereo S16 mixer feeds a dedicated
+producer pthread under a sound mutex (not SDL's browser audio device).
+The producer publishes samples to a shared Wasm memory ring; an AudioWorklet
+consumes them on the browser's real-time audio thread and resamples to the
+AudioContext output rate. The first user gesture unlocks AudioContext.
+The audio worklet script is copied alongside index.js by the browser build.
+The native SDL backend is unchanged. Verify playback for UI sounds, positional
+unit acknowledgements, dialogue and music; also verify tab suspend/resume,
+loading stalls and output-device sample rates. Audio may underrun during stalls.

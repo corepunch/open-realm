@@ -43,6 +43,50 @@ var Module = {
 window.addEventListener('error', function (event) {
   document.getElementById('status').textContent = 'Error: ' + event.message;
 });
+/* AudioContext is created from the first user gesture for browser autoplay policy.
+ * The engine worker supplies shared WASM pointers once S_Init has run. */
+var openrealmAudio = { context: null, node: null, pending: null };
+function openrealmAudioUnlock() {
+  if (!openrealmAudio.context) {
+    try {
+      openrealmAudio.context = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { return; }
+  }
+  if (openrealmAudio.context.state === 'suspended')
+    openrealmAudio.context.resume().catch(function () {});
+  if (openrealmAudio.pending) openrealmAudioConnect();
+}
+document.addEventListener('pointerdown', openrealmAudioUnlock, { capture: true });
+document.addEventListener('keydown', openrealmAudioUnlock, { capture: true });
+async function openrealmAudioConnect() {
+  if (!openrealmAudio.pending || !openrealmAudio.context || openrealmAudio.node) return;
+  var descriptor = openrealmAudio.pending;
+  openrealmAudio.pending = null;
+  try {
+    await openrealmAudio.context.audioWorklet.addModule('audio-worklet.js');
+    var node = new AudioWorkletNode(openrealmAudio.context, 'openrealm-audio', {
+      outputChannelCount: [2],
+      processorOptions: descriptor
+    });
+    node.connect(openrealmAudio.context.destination);
+    openrealmAudio.node = node;
+    await openrealmAudio.context.resume();
+  } catch (error) {
+    console.warn('OpenRealm browser sound unavailable:', error);
+  }
+}
+window.openrealmAudioAttach = function (memory, ring, frames, write, read, rate) {
+  openrealmAudio.pending = { memory: memory, ring: ring, frames: frames,
+                            write: write, read: read, rate: rate };
+  openrealmAudioConnect();
+};
+window.openrealmAudioDetach = function () {
+  openrealmAudio.pending = null;
+  if (openrealmAudio.node) {
+    openrealmAudio.node.disconnect();
+    openrealmAudio.node = null;
+  }
+};
 window.openrealmStartEngine = function (arguments_) {
   if (typeof OffscreenCanvas === 'undefined' ||
       !HTMLCanvasElement.prototype.transferControlToOffscreen) {

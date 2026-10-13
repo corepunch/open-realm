@@ -10,8 +10,31 @@
 #include <ctype.h>
 #include "common/stb_dbc.h"
 #include "common/stb_slk.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten/em_asm.h>
+#include <stdatomic.h>
+#endif
 
 sState_t s;
+
+#ifdef __EMSCRIPTEN__
+/* One producer owns the write index; the AudioWorklet owns the read index.
+ * The indices and samples live in shared WebAssembly memory. */
+#define WEB_AUDIO_FRAMES 16384u
+#define WEB_AUDIO_CHUNK 512u
+static int16_t web_audio_samples[WEB_AUDIO_FRAMES * 2];
+static _Atomic int32_t web_audio_write, web_audio_read;
+static SDL_mutex *web_audio_mutex;
+static SDL_Thread *web_audio_thread;
+static SDL_atomic_t web_audio_running;
+
+static void S_Lock(void) { if (web_audio_mutex) SDL_LockMutex(web_audio_mutex); }
+static void S_Unlock(void) { if (web_audio_mutex) SDL_UnlockMutex(web_audio_mutex); }
+#else
+static void S_Lock(void) { SDL_LockAudioDevice(s.device); }
+static void S_Unlock(void) { SDL_UnlockAudioDevice(s.device); }
+#endif
+
 
 /* Main thread reserves room for every active channel's remaining notifications.
  * The audio callback only appends; it never allocates or calls game/network code. */
@@ -20,7 +43,7 @@ static size_t sound_event_read, sound_event_count, sound_event_capacity;
 static void S_EndChannel(int ch);
 
 static void S_ReserveSoundEvents(void) {
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     if (sound_event_read) {
         memmove(sound_events, sound_events + sound_event_read,
                 (sound_event_count - sound_event_read) * sizeof(*sound_events));
@@ -33,7 +56,7 @@ static void S_ReserveSoundEvents(void) {
         if (!events) { fprintf(stderr, "S_ReserveSoundEvents: out of memory\n"); abort(); }
         sound_events = events; sound_event_capacity = capacity;
     }
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 static void S_SoundEvent(soundPolicy_t const *policy, uint32_t event) {
@@ -45,18 +68,18 @@ static void S_SoundEvent(soundPolicy_t const *policy, uint32_t event) {
 }
 
 bool S_PollSoundEvent(soundEvent_t *event) {
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     bool found = sound_event_read < sound_event_count;
     if (found) *event = sound_events[sound_event_read++];
     if (sound_event_read == sound_event_count) sound_event_read = sound_event_count = 0;
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
     return found;
 }
 
 void S_ClearSoundEvents(void) {
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     sound_event_read = sound_event_count = 0;
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 /* =========================================================================
@@ -448,11 +471,11 @@ void S_EndRegistration(void) {
 
 void S_StopAllSounds(void) {
     if (!s.initialized) return;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     FOR_LOOP(ch, S_MAX_CHANNELS) S_EndChannel(ch);
     memset(s.channels, 0, sizeof(s.channels));
     memset(s.user_cooldown, 0, sizeof(s.user_cooldown));
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 /* =========================================================================
@@ -572,6 +595,34 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
 void S_TestMix(int16_t *out, uint32_t frames) { S_MixAudio(NULL, (Uint8 *)out, frames * 2 * sizeof(int16_t)); }
 #endif
 
+#ifdef __EMSCRIPTEN__
+static int S_WebAudioProduce(void *arg) {
+    (void)arg;
+    int16_t mixed[WEB_AUDIO_CHUNK * 2];
+    while (SDL_AtomicGet(&web_audio_running)) {
+        int32_t read = atomic_load_explicit(&web_audio_read, memory_order_acquire);
+        int32_t write = atomic_load_explicit(&web_audio_write, memory_order_relaxed);
+        uint32_t queued = (uint32_t)(write - read);
+        if (queued > WEB_AUDIO_FRAMES - WEB_AUDIO_CHUNK || queued >= 4096) {
+            SDL_Delay(5);
+            continue;
+        }
+        S_Lock();
+        S_MixAudio(NULL, (Uint8 *)mixed, sizeof(mixed));
+        S_Unlock();
+        for (uint32_t i = 0; i < WEB_AUDIO_CHUNK; ++i) {
+            uint32_t dst = ((uint32_t)write + i) & (WEB_AUDIO_FRAMES - 1);
+            web_audio_samples[dst * 2] = mixed[i * 2];
+            web_audio_samples[dst * 2 + 1] = mixed[i * 2 + 1];
+        }
+        atomic_store_explicit(&web_audio_write, write + WEB_AUDIO_CHUNK,
+                              memory_order_release);
+        SDL_Delay(2);
+    }
+    return 0;
+}
+#endif
+
 /* =========================================================================
  * Init / Shutdown
  * ========================================================================= */
@@ -579,12 +630,31 @@ void S_TestMix(int16_t *out, uint32_t frames) { S_MixAudio(NULL, (Uint8 *)out, f
 bool S_Init(void) {
     memset(&s, 0, sizeof(s));
 #ifdef __EMSCRIPTEN__
-    /* SDL's Emscripten audio backend accesses main-thread JS audio state when
-     * OpenAudioDevice is called on the PROXY_TO_PTHREAD engine worker. Until
-     * browser audio has an explicit main-thread bridge, leave sound disabled.
-     * All playback entry points already reject !s.initialized. */
-    return false;
-#endif
+    web_audio_mutex = SDL_CreateMutex();
+    if (!web_audio_mutex) return false;
+    s.user_volume = 1.0f;
+    S_LoadSoundEntries();
+    s.initialized = true;
+    atomic_store(&web_audio_read, 0);
+    atomic_store(&web_audio_write, 0);
+    SDL_AtomicSet(&web_audio_running, 1);
+    web_audio_thread = SDL_CreateThread(S_WebAudioProduce, "openrealm-audio", NULL);
+    if (!web_audio_thread) {
+        SDL_AtomicSet(&web_audio_running, 0);
+        s.initialized = false;
+        SDL_DestroyMutex(web_audio_mutex);
+        web_audio_mutex = NULL;
+        return false;
+    }
+    /* The browser main thread owns AudioContext, while the worklet reads the
+     * shared WASM heap without invoking the game thread or SDL audio APIs. */
+    MAIN_THREAD_ASYNC_EM_ASM({
+        if (window.openrealmAudioAttach)
+            window.openrealmAudioAttach(HEAPU8.buffer, $0, $1, $2, $3, $4);
+    }, web_audio_samples, WEB_AUDIO_FRAMES, &web_audio_write,
+       &web_audio_read, 44100);
+    return true;
+#else
     if (SDL_Init(SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "[sound] SDL_Init: %s\n", SDL_GetError());
         return false;
@@ -605,18 +675,32 @@ bool S_Init(void) {
     S_LoadSoundEntries();
     s.initialized = true;
     return true;
+#endif
 }
 
 void S_Shutdown(void) {
     if (!s.initialized) return;
     S_StopAllSounds();
+#ifdef __EMSCRIPTEN__
+    SDL_AtomicSet(&web_audio_running, 0);
+    if (web_audio_thread) SDL_WaitThread(web_audio_thread, NULL);
+    web_audio_thread = NULL;
+    MAIN_THREAD_ASYNC_EM_ASM({
+        if (window.openrealmAudioDetach) window.openrealmAudioDetach();
+    });
+#else
     SDL_CloseAudioDevice(s.device);
+#endif
     for (int i = 0; i < s.num_sfx; i++)
         free(s.known_sfx[i].cache);
     FS_FreeFile(s.dbc_data);
     FS_SLKFreeRows(s_slk_sound_schema, s.slk_rows, s.slk_row_count, sizeof(sSlkSound_t));
     FOR_LOOP(stream_id, S_STREAM_COUNT) free(s.streams[stream_id].data);
     memset(&s, 0, sizeof(s));
+#ifdef __EMSCRIPTEN__
+    SDL_DestroyMutex(web_audio_mutex);
+    web_audio_mutex = NULL;
+#endif
 }
 
 /* =========================================================================
@@ -687,10 +771,10 @@ static bool S_StartSound(sfxcache_t *sc, float volume, vec2_t const *origin, boo
     int selected = -1;
     unsigned priority = policy ? policy->priority : SOUND_PRIORITY(channel);
     if (!sc) return false;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     if (policy && policy->cooldown_ms && s.user_cooldown[policy->user].active &&
         (int32_t)(s.user_cooldown[policy->user].end - SDL_GetTicks()) > 0) {
-        SDL_UnlockAudioDevice(s.device);
+        S_Unlock();
         return false;
     }
     if (policy) selected = S_AdmitSound(sc, policy);
@@ -722,10 +806,10 @@ static bool S_StartSound(sfxcache_t *sc, float volume, vec2_t const *origin, boo
         s.channels[ch].is_positional = is_positional;
         s.channels[ch].active       = true;
         S_SoundEvent(policy, SOUND_ACCEPTED);
-        SDL_UnlockAudioDevice(s.device);
+        S_Unlock();
         return true;
     }
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
     return false;
 }
 
@@ -809,7 +893,7 @@ void S_UpdateLoopingSound(uint32_t entity, cstring_t path, vec2_t const *origin,
     sc = S_LoadSfx(sfx);
     if (!sc) return;
 
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     FOR_LOOP(ch, S_MAX_CHANNELS) {
         if (s.channels[ch].active && s.channels[ch].looping && s.channels[ch].entity == entity) {
             if (s.channels[ch].sc != sc) {
@@ -821,7 +905,7 @@ void S_UpdateLoopingSound(uint32_t entity, cstring_t path, vec2_t const *origin,
             s.channels[ch].attenuation = attenuation;
             s.channels[ch].is_positional = origin != NULL;
             s.channels[ch].loop_generation = s.loop_generation;
-            SDL_UnlockAudioDevice(s.device);
+            S_Unlock();
             return;
         }
         if (!s.channels[ch].active && free_channel < 0) free_channel = ch;
@@ -840,18 +924,18 @@ void S_UpdateLoopingSound(uint32_t entity, cstring_t path, vec2_t const *origin,
         s.channels[ch].is_positional = origin != NULL;
         s.channels[ch].active = true;
     }
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 void S_EndLoopingSounds(void) {
     if (!s.initialized) return;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     FOR_LOOP(ch, S_MAX_CHANNELS) {
         if (s.channels[ch].active && s.channels[ch].looping &&
             s.channels[ch].loop_generation != s.loop_generation)
             memset(&s.channels[ch], 0, sizeof(s.channels[ch]));
     }
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 /* Client-owned long-form PCM streams (movie/music), stereo S16 at 44.1 kHz. */
@@ -861,7 +945,7 @@ static bool S_ValidStream(sStreamId_t stream) {
 
 void S_StreamStart(sStreamId_t stream) {
     if (!s.initialized || !S_ValidStream(stream)) return;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     if (!s.streams[stream].data) {
         s.streams[stream].capacity = 44100 * 2; /* two seconds keeps decoder jitter away from the callback */
         s.streams[stream].data = calloc((size_t)s.streams[stream].capacity * 2, sizeof(short));
@@ -871,7 +955,7 @@ void S_StreamStart(sStreamId_t stream) {
     s.streams[stream].volume = 1.0f;
     s.streams[stream].paused = false;
     s.streams[stream].active = s.streams[stream].data != NULL;
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 uint32_t S_StreamSamples(sStreamId_t stream, int16_t const *samples, uint32_t frames) {
@@ -879,7 +963,7 @@ uint32_t S_StreamSamples(sStreamId_t stream, int16_t const *samples, uint32_t fr
 
     if (!s.initialized || !S_ValidStream(stream) || !samples || !frames ||
         !s.streams[stream].active || !s.streams[stream].data) return 0;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     while (written < frames && s.streams[stream].count < s.streams[stream].capacity) {
         uint32_t dst = s.streams[stream].write_pos;
         s.streams[stream].data[dst * 2] = samples[written * 2];
@@ -888,50 +972,50 @@ uint32_t S_StreamSamples(sStreamId_t stream, int16_t const *samples, uint32_t fr
         s.streams[stream].count++;
         written++;
     }
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
     return written;
 }
 
 uint32_t S_StreamBufferedFrames(sStreamId_t stream) {
     uint32_t count = 0;
     if (!s.initialized || !S_ValidStream(stream) || !s.streams[stream].active) return 0;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     count = s.streams[stream].count;
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
     return count;
 }
 
 uint64_t S_StreamPlayedFrames(sStreamId_t stream) {
     uint64_t frames = 0;
     if (!s.initialized || !S_ValidStream(stream) || !s.streams[stream].active) return 0;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     frames = s.streams[stream].played_frames;
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
     return frames;
 }
 
 void S_StreamSetVolume(sStreamId_t stream, float volume) {
     if (!s.initialized || !S_ValidStream(stream)) return;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     s.streams[stream].volume = MAX(0.0f, MIN(volume, 1.0f));
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 void S_StreamSetPaused(sStreamId_t stream, bool paused) {
     if (!s.initialized || !S_ValidStream(stream)) return;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     s.streams[stream].paused = paused;
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 void S_StreamStop(sStreamId_t stream) {
     if (!s.initialized || !S_ValidStream(stream)) return;
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     s.streams[stream].active = false;
     s.streams[stream].paused = false;
     s.streams[stream].read_pos = s.streams[stream].write_pos = s.streams[stream].count = 0;
     s.streams[stream].played_frames = 0;
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 void S_SetListener(vec2_t const *origin, vec2_t const *right) {
@@ -942,13 +1026,15 @@ void S_SetListener(vec2_t const *origin, vec2_t const *right) {
 void S_SetUserVolume(float volume) {
     volume = MAX(0.0f, MIN(volume, 1.0f));
     if (!s.initialized || s.user_volume == volume) return;
+#ifndef __EMSCRIPTEN__
     if (!s.device) {
         s.user_volume = volume;
         return;
     }
-    SDL_LockAudioDevice(s.device);
+#endif
+    S_Lock();
     s.user_volume = volume;
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
 }
 
 
@@ -971,8 +1057,8 @@ bool S_PlaySoundPolicy(cstring_t path, vec3_t const *origin, bool positioned, in
     if (S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(vec2_t){ origin->x, origin->y } : NULL,
                      positioned, channel, attenuation, timeofs, policy)) return true;
 rejected:
-    SDL_LockAudioDevice(s.device);
+    S_Lock();
     S_SoundEvent(policy, SOUND_REJECTED);
-    SDL_UnlockAudioDevice(s.device);
+    S_Unlock();
     return false;
 }
