@@ -377,3 +377,17 @@ With `wc3_game_result_debug 1`, `ShowUnit` emits `score lifecycle`
 `showunit_hide_before/after` and `showunit_show_before/after` records, including
 the hidden bit, unit/owner identity, current food, score food peak, and unit
 score. `showunit_unchanged` and `showunit_rejected_inactive` identify ignored calls.
+
+### Retail Largest Army startup peak correction (2026-10-13)
+
+Retail TFT 1.29.2 Normal-difficulty `UndeadX07c` tracing reports a peak
+food usage of 171 before scripted unit removals. Current food then falls
+to 127, but `Largest Army` remains 171. Keeping the removed units yields
+171 current and peak food without changing the 50 Units Produced or 12,465
+Unit Score. Consequently, the first-playable-frame survivor audit must not
+reset `WC3_PLAYER_SCORE_FOOD_MAXUSED` to current food. The audit remains
+read-only; the food subsystem continues accumulating new peaks.
+
+Retail Hard screenshot reporting 71 has not been reproduced by this Normal
+experiment. The separate unit-cost score discrepancy (12,465 versus OpenRealm
+15,030) and Heroes Used discrepancy remain unresolved and are not adjusted.

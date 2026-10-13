@@ -92,6 +92,26 @@ TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
     T_EQ(value, 290); /* Counter saturation is independent of weighted totals. */
 }
 
+/* Retail Normal map initialization creates an army before RemoveUnit trims it.
+ * The historical peak must survive the first gameplay audit. */
+TEST(wc3_score, gameplay_food_audit_preserves_initialization_peak) {
+    gameClient_t *client;
+    mapPlayer_t *player;
+
+    setup_test_world();
+    client = &game.clients[1];
+    player = &((mapInfo_t *)level.mapinfo)->players[1];
+    player->used = true;
+    client->mapplayer = player;
+    client->ps.number = 1;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 127;
+    client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] = 171;
+
+    G_PlayerScoreSetGameplayFoodBaseline();
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 127);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 171);
+}
+
 TEST(wc3_score, unit_value_uses_authored_cost_not_unit_count) {
     gameClient_t *client = &game.clients[0];
     edict_t *unit;

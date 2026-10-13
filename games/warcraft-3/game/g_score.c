@@ -39,9 +39,10 @@ void G_PlayerScoreObserveFood(gameClient_t *client) {
         MAX(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], used);
 }
 
-/* Reset the *historical* army peak after the first playable simulation
- * pass, when scripted startup removals have settled. This must never alter
- * food reservations or the live player stats used by actual gameplay. */
+/* Audit the first playable food level after scripted startup removals.
+ * Retail Largest Army retains the historical peak reached during map setup,
+ * even when RemoveUnit reduces current food before the first playable frame.
+ * This audit must not overwrite the peak or alter gameplay food accounting. */
 void G_PlayerScoreSetGameplayFoodBaseline(void) {
     FOR_LOOP(i, MAX_PLAYERS) {
         gameClient_t *client = G_ScoreClient(i);
@@ -63,7 +64,6 @@ void G_PlayerScoreSetGameplayFoodBaseline(void) {
         }
         uint32_t previous_peak = client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED];
         uint32_t used = client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
-        client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] = used;
         G_GameResultDebug("score food gameplay baseline player=%u previous_peak=%u current_food=%u surviving_food=%u surviving_units=%u surviving_cost=%llu produced_value=%u",
             i, previous_peak, used, live_food, survivors,
             (unsigned long long)live_cost, client->score.unit_value_produced);
