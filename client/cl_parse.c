@@ -884,8 +884,8 @@ static bool CL_ParseFogOfWar(sizeBuf_t *msg) {
 
 /* Publish only a complete loading layout; offsets reject missing, reordered, or mismatched chunks. */
 static void CL_ParseLoadingScreen(sizeBuf_t *netmsg) {
-    uint8_t buf[MAX_MSGLEN];
-    uLongf size = sizeof(buf);
+    uint8_t *buf;
+    uLongf size = MAX_MSGLEN;
     if (netmsg->cursize - netmsg->readcount < BZ_LOADING_HEADER_SIZE - 1) goto invalid;
     uint32_t total = MSG_ReadLong(netmsg), pos = MSG_ReadLong(netmsg), len = MSG_ReadLong(netmsg);
     if (!total || total > MAX_MSGLEN || pos >= total || !len || len > total - pos ||
@@ -898,18 +898,29 @@ static void CL_ParseLoadingScreen(sizeBuf_t *netmsg) {
     MSG_Read(netmsg, cl.loading.data + pos, len);
     cl.loading.cursize += len;
     if (cl.loading.cursize < total) return;
+    /* A full loading layout may be up to MAX_MSGLEN bytes after inflate.
+     * Keep this scratch buffer off the limited WebAssembly pthread stack. */
+    buf = MemAlloc(MAX_MSGLEN);
     int err = uncompress(buf, &size, cl.loading.data, total);
     SAFE_DELETE(cl.loading.data, MemFree);
     SZ_Clear(&cl.loading);
-    if (err != Z_OK || size < 7 || buf[0] != LAYER_LOADING) goto invalid;
-    if (cl.refresh_prepped) return;
-    sizeBuf_t msg = { .data = buf, .cursize = size, .maxsize = sizeof(buf) };
+    if (err != Z_OK || size < 7 || buf[0] != LAYER_LOADING) {
+        MemFree(buf);
+        goto invalid;
+    }
+    if (cl.refresh_prepped) {
+        MemFree(buf);
+        return;
+    }
+    sizeBuf_t msg = { .data = buf, .cursize = size, .maxsize = MAX_MSGLEN };
     CL_ParseLayout(&msg);
     if (!cl.layout[LAYER_LOADING] || msg.readcount != msg.cursize) {
+        MemFree(buf);
         Com_Error(ERR_DROP, "Incomplete loading screen layout");
         return;
     }
     CL_PrepLoading();
+    MemFree(buf);
     return;
 invalid:
     SAFE_DELETE(cl.loading.data, MemFree);
