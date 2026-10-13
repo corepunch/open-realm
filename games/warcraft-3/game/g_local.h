@@ -3031,6 +3031,7 @@ void G_PlayerScoreObserveFood(gameClient_t *client);
 void G_PlayerScoreSetGameplayFoodBaseline(void);
 void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state);
 void G_PlayerScoreUnitTrained(edict_t *unit);
+void G_PlayerScoreTraceLifecycle(edict_t const *unit, cstring_t event);
 void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount);
 uint32_t G_PlayerScoreScriptedXP(uint32_t player);
 bool G_ScorePlayerEligible(gameClient_t const *client);

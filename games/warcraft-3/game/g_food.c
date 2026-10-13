@@ -60,9 +60,16 @@ static void G_AdjustFoodStat(gameClient_t *client, uint32_t state, int32_t delta
 
     if (!client || !delta) return;
     value = (int32_t)client->ps.stats[state] + delta;
+    int32_t const previous = (int32_t)client->ps.stats[state];
+    uint32_t const old_peak = client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED];
     client->ps.stats[state] = (uint16_t)MAX(0, MIN(value, USHRT_MAX));
-    if (state == PLAYERSTATE_RESOURCE_FOOD_USED || state == PLAYERSTATE_RESOURCE_FOOD_CAP)
+    if (state == PLAYERSTATE_RESOURCE_FOOD_USED || state == PLAYERSTATE_RESOURCE_FOOD_CAP) {
         G_PlayerScoreObserveFood(client);
+        G_GameResultDebug("score food state player=%u kind=%s delta=%d before=%d after=%u peak_before=%u peak_after=%u frame=%u",
+            client->ps.number, state == PLAYERSTATE_RESOURCE_FOOD_USED ? "used" : "cap",
+            delta, previous, client->ps.stats[state], old_peak,
+            client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], (unsigned)level.framenum);
+    }
     if (state == PLAYERSTATE_RESOURCE_FOOD_USED) {
         G_RecomputePlayerUpkeep(client);
     }
@@ -169,6 +176,7 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     G_CancelTrainingQueue(unit, true);
     if (G_BuildingUpgradeActive(unit)) G_CancelBuildingUpgrade(unit);
     old_player = unit->s.player;
+    G_PlayerScoreTraceLifecycle(unit, "owner_transfer_before");
     old_client = G_FoodClient(old_player);
     new_client = G_FoodClient(player);
 
@@ -201,6 +209,7 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     G_InvalidateCommands(new_client);
     G_InvalidateUnitInfoPanel(unit);
     G_InvalidateUnitShortcutsForUnit(unit);
+    G_PlayerScoreTraceLifecycle(unit, "owner_transfer_after");
 }
 
 bool G_ReserveTrainingFood(edict_t *unit) {
@@ -218,6 +227,7 @@ bool G_ReserveTrainingFood(edict_t *unit) {
     client = G_FoodClient(unit->s.player);
     if (!G_PlayerHasFoodFor(client, cost)) return false;
     G_SetUnitFoodUsed(unit, cost);
+    G_PlayerScoreTraceLifecycle(unit, "training_food_reserved");
     return true;
 }
 

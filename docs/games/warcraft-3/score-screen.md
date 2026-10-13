@@ -348,3 +348,25 @@ each included upgrade, and `score tech player` summarizes both the previous
 observed-entry metric and the race-wide result. This reproduces the observed
 UndeadX07c 32%/0% comparison but remains a candidate retail rule pending
 verification in other races, expansions and custom maps.
+
+### Unit/food lifecycle diagnostics (score research)
+
+`wc3_game_result_debug 1` additionally reports `score lifecycle` events for
+map-unit entry, immediate JASS creation, training completion, scripted
+`RemoveUnit` requests, end-of-tick retirement and eventual edict freeing, unit death, ownership transfers,
+and training food reservation. Each entry carries the entity number, rawcode,
+owner, stock-resolved gold/lumber costs, authored and active food usage,
+player's current/peak food, and accumulated produced unit count/value. `score
+food state` shows before/after food-used and cap transitions, with the score
+peak on both sides. `score death attribution` and `score death credit` distinguish
+scripted `KillUnit`, combat kills, and deaths credited to another player.
+`jass_remove_requested` is separate from `free_begin` because removal may be
+deferred to the end of the simulation tick. These diagnostics are **read-only**;
+score totals and gameplay food are unchanged. They are investigative and should
+be removed once the retail inclusion/lifecycle rules are determined.
+
+For UndeadX07c, compare the 10 deterministic Normal/Easy script removals
+against `score_unit_credited`, `jass_remove_requested`, and `free_begin`
+records. Do not infer retail behaviour from the OpenRealm logs alone;
+retail experiments must establish whether particular removed units keep score
+credit and when Largest Army tracking begins.

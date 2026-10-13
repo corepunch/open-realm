@@ -447,6 +447,7 @@ void ai_train_build(edict_t *ent) {
             G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
             G_QueueReadySound(completed);
             G_SendOwnerMinimapAlert(completed);
+            G_PlayerScoreTraceLifecycle(completed, "training_complete_enter");
             G_PlayerScoreUnitTrained(completed);
             G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
             G_BotUnitReady(completed);

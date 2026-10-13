@@ -89,6 +89,36 @@ static uint32_t G_ScoreUnitValue(edict_t const *unit) {
            (uint32_t)MAX(0, unit->data.UnitBalance->lumberCost);
 }
 
+/* Score investigation only: one consistent identity/cost/food snapshot across
+ * creation, training, scripted removal, death, freeing, and ownership transfer.
+ * Never writes a counter or alters gameplay food; disabled unless the existing
+ * result-debug cvar is enabled. No additional persisted fields are required. */
+void G_PlayerScoreTraceLifecycle(edict_t const *unit, cstring_t event) {
+    gameClient_t const *client;
+    uint32_t gold, lumber;
+
+    if (!G_GameResultDebugEnabled() || !unit || !unit->inuse ||
+        !(unit->s.flags & EF_UNIT) || !unit->data.UnitBalance) return;
+    client = G_ScoreClient(unit->s.player);
+    gold = (uint32_t)MAX(0, unit->data.UnitBalance->goldCost);
+    lumber = (uint32_t)MAX(0, unit->data.UnitBalance->lumberCost);
+    G_GameResultDebug("score lifecycle event=%s frame=%u time=%u owner=%u rawcode=%08x entity=%u "
+        "gold=%u lumber=%u cost=%u authored_food=%d tracked_food=%d player_food=%u "
+        "peak_food=%u produced=%u produced_value=%u hero=%u structure=%u training=%u dead=%u hidden=%u deferred=%u",
+        event ? event : "unknown", (unsigned)level.framenum, (unsigned)level.time,
+        unit->s.player, unit->class_id, unit->s.number, gold, lumber, gold + lumber,
+        unit->data.UnitBalance->foodUsed, unit->food ? unit->food->used : 0,
+        client ? client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] : 0,
+        client ? client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] : 0,
+        client ? client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] : 0,
+        client ? client->score.unit_value_produced : 0,
+        (unsigned)G_UnitIsHero(unit), (unsigned)G_UnitIsStructure(unit),
+        (unsigned)(unit->training != NULL),
+        (unsigned)((unit->svflags & SVF_DEADMONSTER) != 0),
+        (unsigned)((unit->s.renderfx & RF_HIDDEN) != 0),
+        (unsigned)G_IsDeferredFree(unit));
+}
+
 static void G_ScoreAddValue(uint32_t *target, uint32_t amount) {
     if (!target) return;
     *target = (uint32_t)MIN((uint64_t)*target + amount, (uint64_t)INT32_MAX);
@@ -101,6 +131,7 @@ void G_PlayerScoreUnitTrained(edict_t *unit) {
     client = G_ScoreClient(unit->s.player);
     G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_UNITS_TRAINED, 1);
     if (client) G_ScoreAddValue(&client->score.unit_value_produced, G_ScoreUnitValue(unit));
+    G_PlayerScoreTraceLifecycle(unit, "score_unit_credited");
     G_GameResultDebug("score unit created owner=%u rawcode=%08x hero=%u cost=%u food=%d produced=%u value=%u",
         unit->s.player, unit->class_id, (unsigned)G_UnitIsHero(unit), G_ScoreUnitValue(unit),
         unit->data.UnitBalance ? unit->data.UnitBalance->foodUsed : 0,
@@ -173,7 +204,13 @@ void G_PlayerScoreStructureBuilt(edict_t *building) {
 void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker) {
     gameClient_t *client;
 
-    if (!victim || !attacker || attacker == victim || attacker->s.player == victim->s.player) return;
+    if (!victim) return;
+    G_GameResultDebug("score death attribution entity=%u rawcode=%08x victim_owner=%u attacker_entity=%u attacker_owner=%u cost=%u eligible=%u",
+        victim->s.number, victim->class_id, victim->s.player,
+        attacker ? attacker->s.number : 0, attacker ? attacker->s.player : MAX_PLAYERS,
+        G_ScoreUnitValue(victim),
+        (unsigned)(attacker && attacker != victim && attacker->s.player != victim->s.player));
+    if (!attacker || attacker == victim || attacker->s.player == victim->s.player) return;
     client = G_ScoreClient(attacker->s.player);
     if (!client) return;
 
@@ -186,6 +223,13 @@ void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker) {
         G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_UNITS_KILLED, 1);
         G_ScoreAddValue(&client->score.unit_value_killed, G_ScoreUnitValue(victim));
     }
+    G_GameResultDebug("score death credit attacker_owner=%u victim_entity=%u hero=%u structure=%u units_killed=%u heroes_killed=%u buildings_razed=%u killed_value=%u razed_value=%u",
+        attacker->s.player, victim->s.number, (unsigned)G_UnitIsHero(victim),
+        (unsigned)G_UnitIsStructure(victim),
+        client->score.values[WC3_PLAYER_SCORE_UNITS_KILLED],
+        client->score.values[WC3_PLAYER_SCORE_HEROES_KILLED],
+        client->score.values[WC3_PLAYER_SCORE_STRUCT_RAZED],
+        client->score.unit_value_killed, client->score.structure_value_razed);
 }
 
 void G_PlayerScoreItemGained(edict_t *unit) {

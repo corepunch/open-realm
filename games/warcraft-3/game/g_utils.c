@@ -59,6 +59,7 @@ void G_SetPlayerText(gameClient_t *client, PLAYERTEXT index, cstring_t text) {
 
 void G_FreeEdict(edict_t *ent) {
     if (!ent) return;
+    G_PlayerScoreTraceLifecycle(ent, "free_begin");
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
@@ -115,6 +116,7 @@ void G_DeferFreeEdict(edict_t *ent) {
         fprintf(stderr, "WC3: deferred unit removal queue exhausted\n");
         return;
     }
+    G_PlayerScoreTraceLifecycle(ent, "jass_remove_requested");
     ent->s.renderfx |= RF_HIDDEN;
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
@@ -134,6 +136,10 @@ void G_RunDeferredFrees(void) {
             jass_runevents(level.vm);
             continue;
         }
+        /* This is the actual end-of-tick retirement of a JASS RemoveUnit;
+         * its request and the generic free are intentionally distinct. */
+        if (pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time)
+            G_PlayerScoreTraceLifecycle(pending.ent, "jass_remove_retiring");
         deferred_free_count--;
         if (pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time) G_FreeEdict(pending.ent);
     }
