@@ -272,3 +272,13 @@ presentation work.
 Save version **91** captures the new hero totals and explicit inclusion marker,
 rejecting prior save versions according to the project's save policy. This
 patch does not change the 25 JASS PLAYER_SCORE_* numeric identifiers.
+
+### Scripted hero level score separation (2026-10-13 follow-on)
+
+`SetHeroLevel` and `SetHeroLevelBJ` use the common hero XP/level transition
+without crediting the XP implicitly required by an authored level increase.
+Direct `SetHeroXP`, `AddHeroXP`, and combat grants still credit positive XP.
+This is a deliberate interpretation of **Experience Gained** as awarded XP
+rather than a hero's cumulative XP threshold; verify against retail maps.
+It does not yet resolve the retail Unit Score formula, Tech Percentage,
+Largest Army (preplaced AI food accounting), or Heroes Used discrepancy.

@@ -486,7 +486,7 @@ uint32_t SetHeroLevelBJ(jass_t *j) {
         G_HeroStripLevels(whichHero, (uint32_t)MIN(remove, (int64_t)UINT32_MAX));
     } else if (newLevel > (int32_t)whichHero->hero.level) {
         uint32_t const target = MIN((uint32_t)newLevel, G_MaxHeroLevel());
-        G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, G_HeroXPForLevel(target)));
+        G_HeroSetXPForLevel(whichHero, MAX(whichHero->hero.xp, G_HeroXPForLevel(target)));
     }
     return 0;
 }
@@ -501,7 +501,7 @@ uint32_t SetHeroLevel(jass_t *j) {
          * identical to ordinary XP gains. */
         uint32_t const target = MIN((uint32_t)level, G_MaxHeroLevel());
         uint32_t const need = G_HeroXPForLevel(target);
-        G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, need));
+        G_HeroSetXPForLevel(whichHero, MAX(whichHero->hero.xp, need));
     }
     return 0;
 }

@@ -2430,7 +2430,7 @@ void G_HeroApplyLevel(edict_t *ent, uint32_t level) {
 }
 
 /* Update a hero's accumulated XP, leveling it up if a threshold was crossed. */
-void G_HeroSetXP(edict_t *ent, uint32_t xp) {
+static void G_HeroSetXPInternal(edict_t *ent, uint32_t xp, bool count_score) {
     uint32_t const oldLevel = ent->hero.level;
     uint32_t newLevel;
 
@@ -2440,7 +2440,7 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
     if (xp <= ent->hero.xp) {
         return;
     }
-    G_PlayerScoreExperienceGained(ent, xp - ent->hero.xp);
+    if (count_score) G_PlayerScoreExperienceGained(ent, xp - ent->hero.xp);
     ent->hero.xp = xp;
     newLevel = G_HeroLevelForXP(xp);
     if (newLevel > oldLevel) {
@@ -2455,6 +2455,17 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
             G_BotHeroLevelUp(ent);
         }
     }
+}
+
+void G_HeroSetXP(edict_t *ent, uint32_t xp) {
+    G_HeroSetXPInternal(ent, xp, true);
+}
+
+/* SetHeroLevel is a scripted level assignment, not experience earned in play.
+ * Keep identical hero-level events and skill updates, but do not score the XP
+ * automatically introduced to reach the requested level. */
+void G_HeroSetXPForLevel(edict_t *ent, uint32_t xp) {
+    G_HeroSetXPInternal(ent, xp, false);
 }
 
 /* Adjust only the level-derived fraction of an attribute. The remaining

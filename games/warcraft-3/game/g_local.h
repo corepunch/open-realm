@@ -3642,6 +3642,7 @@ uint32_t G_HeroXPForLevel(uint32_t level);
 uint32_t G_HeroLevelForXP(uint32_t xp);
 void G_HeroApplyLevel(edict_t *, uint32_t level);
 void G_HeroSetXP(edict_t *, uint32_t xp);
+void G_HeroSetXPForLevel(edict_t *, uint32_t xp);
 bool G_HeroStripLevels(edict_t *, uint32_t levels);
 void G_GrantKillXP(edict_t *victim, edict_t *killer);
 void G_AwardKillBounty(edict_t *victim, edict_t *killer);

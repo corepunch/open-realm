@@ -172,6 +172,20 @@ TEST(wc3_score, hero_experience_appears_in_hero_score) {
     T_EQ(hero_total, 6000); /* Provisional retail reference: 10 points/XP. */
 }
 
+TEST(wc3_score, scripted_level_assignments_do_not_count_as_earned_xp) {
+    edict_t *hero;
+    gameClient_t *client = &game.clients[0];
+    setup_test_world();
+    memset(&client->score, 0, sizeof(client->score));
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    hero->s.player = client->ps.number;
+    hero->hero.level = 1;
+    G_HeroSetXPForLevel(hero, G_HeroXPForLevel(3));
+    T_EQ(client->score.experience_gained, 0);
+    G_HeroSetXP(hero, hero->hero.xp + 500);
+    T_EQ(client->score.experience_gained, 500);
+}
+
 TEST(wc3_score, guessed_aggregate_scores_are_queryable_from_jass) {
     setup_test_world();
     memset(&game.clients[0].score, 0, sizeof(game.clients[0].score));
