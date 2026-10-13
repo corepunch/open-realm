@@ -2301,3 +2301,16 @@ existing corpus capture hashes. Eight complete controls preserve3072 exact JASS
 markers; public position precision remains R2S three decimals. See the
 [control contract and reproducer](retail-pathfinding-experiments.md#repeated-observer-free-controls-payoff322).
 The corpus now contains557 entries, including276 executable oracle entries.
+
+
+## Public Slow admission and phases (Payoff321)
+
+`oracle-cast321` drives the actual public cast instead of supplying its concrete
+completion. Two read-only repeats and an observer-free control retain the exact
+Captain320 projection, four new caster-facing rows and native phase clocks.
+The strict verifier also checks Slow-on rejection/default state, accepted
+Slow-off and target orders,701 instruction guards and Classic/TFT557-test
+engine runs. Reload coverage rebuilds Move/cast owners while the private AI VM
+remains live; it does not certify fresh-process AI restoration. See
+[public Slow casting](retail-pathfinding-engine.md#public-slow-turns-before-its-authored-cast-phases-payoff321).
+The corpus contains558 entries, including277 executable oracle entries.

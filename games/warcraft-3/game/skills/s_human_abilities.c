@@ -789,6 +789,19 @@ BZ_ABILITY_PROC(CAbilitySlow) {
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
+    case A_ORDER: {
+        if (!call || !call->order) return false;
+        bool enabled = !strcmp(call->order, "slowon");
+        if (!enabled && strcmp(call->order, "slowoff")) return false;
+        abilityAliasRef_t ref = S_ResolveAbilityAlias(ent, MAKEFOURCC('A','s','l','o'));
+        if (!ref.alias || !G_UnitAbilityResearchAvailable(ent, ref.alias) ||
+            !G_IsUnitAbilityAvailable(ent, ref.alias) ||
+            G_UnitAutocastIsOn(ent, ref.alias) == enabled) return false;
+        return G_SetUnitAutocast(ent, ref.alias, enabled);
+    }
+    case A_CAST_PROFILE:
+        if(!call || !call->cast_profile)return false;
+        S_DefaultSpellCastProfile(ent,code,call->cast_profile);return true;
     case A_VALIDATE: return slow_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: human_status_execute(ent, target, call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;

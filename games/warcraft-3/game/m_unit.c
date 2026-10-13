@@ -618,6 +618,9 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "undefend", 852056, 0 },
 
     { "innerfire", 852066, MAKEFOURCC('A','i','n','f') },
+    { "slow", 852075, MAKEFOURCC('A','s','l','o') },
+    { "slowon", 852076, 0 },
+    { "slowoff", 852077, 0 },
     { "avatar", 852086, MAKEFOURCC('A','H','a','v') },
     { "blizzard", 852089, MAKEFOURCC('A','H','b','z') },
     { "divineshield", 852090, MAKEFOURCC('A','H','d','s') },

@@ -1426,6 +1426,14 @@ void S_SpellTargetApproachComplete(edict_t *receiver, edict_t *caster, bool arri
     spell_finish_target_approach(receiver,true);
 }
 
+/*40a7a0 tests facing after range. A nearby target still creates d0174 with
+ * FLT_MAX when the source must turn; Move owns that completion before CHANNEL. */
+static bool spell_unit_target_ready(edict_t *caster,edict_t *target,float range) {
+    return S_SpellTargetInRange(caster,target,range) &&
+        (caster==target || !S_UnitCanTranslate(caster) ||
+         S_UnitTargetInFacingWindow(caster,target,wc3_float(0x3e4ccccd)));
+}
+
 /* Start the ordinary walk order used to bring an out-of-range spell target into range. */
 static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t *target,
                                         vec2_t const *point, edict_t *source_item,
@@ -1455,6 +1463,7 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
      * target pointer alone cannot distinguish two casts aimed at that same unit. */
     spell_cancel_target_approaches(caster, thinker);
     float range=S_SpellRange(code,S_SpellLevel(caster,code));
+    if(target && S_SpellTargetInRange(caster,target,range))range=FLT_MAX;
     if((point && S_BeginUnitPointTargetApproach(caster,goal,range,thinker,S_SpellTargetApproachComplete)) ||
        (target && S_BeginUnitTargetApproach(caster,target,range,thinker,S_SpellTargetApproachComplete))) {
         thinker->think=NULL;
@@ -1496,7 +1505,7 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     if (!S_SpellAllowsTarget(code, caster, target)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
 
-    if (!S_SpellTargetInRange(caster, target, range)) {
+    if (!spell_unit_target_ready(caster, target, range)) {
         if (!spell_begin_target_approach(caster, code, target, NULL, source_item, source_item_spawn_time)) return false;
         spell_order_accepted(caster, spell);
         return true;
@@ -2069,7 +2078,7 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
         !S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
-    if (!S_SpellTargetInRange(caster, unit, range))
+    if (!spell_unit_target_ready(caster, unit, range))
         return spell_begin_target_approach(caster, code, unit, NULL, NULL, 0);
 
     spellUnitTargetParams_t params = {

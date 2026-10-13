@@ -13,6 +13,7 @@ cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
 cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
 static cstring_t const defend_orders[] = { "defend", "undefend", NULL };
+static cstring_t const slow_orders[] = { "slow", "slowon", "slowoff", NULL };
 static cstring_t const repair_orders[] = { "repair", "repairon", "repairoff", NULL };
 static cstring_t const renew_orders[] = { "renew", "renewon", "renewoff", NULL };
 static cstring_t const restoration_orders[] = { "restoration", "restorationon", "restorationoff", NULL };
@@ -143,7 +144,7 @@ static ability_t abilitylist[] = {
     { "Ainf", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Inner Fire */
     { "Adis", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Dispel Magic */
     { "Ahea", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal */
-    { "Aslo", CAbilitySlow, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Slow */
+    { "Aslo", CAbilitySlow, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT, slow_orders },  /* Slow */
     { "Aivs", CAbilityInvisibility, AB_SPELL, SPELL_TARGET_UNIT },  /* Invisibility */
     { "Aply", CAbilityPolymorph, AB_SPELL | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Polymorph */
     { "ACpy", CAbilityPolymorph, AB_SPELL | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Polymorph (creep) */

@@ -54810,6 +54810,76 @@
         "Complete JASS marker strings, three-decimal R2S positions and sampled lifecycle/order outcomes only; no internal raw-word or wall-clock equivalence claim.",
         "One historical and one new owned B/C observer-free control per scene. Native loading input uses the owned process ID; no attach, script or interceptor in either control."
       ]
+    },
+    {
+      "id": "oracle-cast321",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_cast321.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "cast321.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 1104
+        },
+        "native_events": {
+          "equal": 16724
+        },
+        "caster_commits": {
+          "equal": 4
+        },
+        "phases": {
+          "equal": 5
+        },
+        "motion_rows": {
+          "equal": 861
+        },
+        "actor_rows": {
+          "equal": 293
+        },
+        "shared_rows": {
+          "equal": 215
+        },
+        "public_rows": {
+          "equal": 270
+        },
+        "instructions": {
+          "equal": 701
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "ORDER-01.13 public Slow default autocast/no-op/disable, registered target order, physical facing and authored phases; unchanged complete Captain320 motion with fresh/reload engine replay.",
+      "exclusions": [
+        "Public stock-shaped Slow uses authored range700, cast point0.45, backswing1.08 and default autocast Aslo. The paired slowon/no-op and slowoff orders preserve native return values before the actual public target cast.",
+        "Complete frozen Captain320 motion and public/shared state stay unchanged. Facing0.2/FLT_MAX admission is certified for this unit-target cast; point-facing, preparatory-item bypass and broader special spell policies remain ORDER-01.13.",
+        "Save/reload rebuilds serialized Move/cast owners during facing, windup and after EFFECT. The private AI VM remains live in this process; fresh-process private AI coroutine restoration is not certified.",
+        "No new stock/alias autocast acquisition timeline, retail save UI or performance claim. All gameplay changes remain in game.dll."
+      ]
     }
   ],
   "fixtures": [
@@ -55708,7 +55778,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "d4f04bfef8fce143482ba4036a74977a0097f7009f7e8da8de6b091831067453"
+      "sha256": "4dbfcb7e59702299a2d236b05ac507ab9df8c2492880203ac69c52810bb39851"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56560,7 +56630,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "8dbc948a49909a3f88ab807f8126586986788cc65dfdaeff88ba1804d8f5236c"
+      "sha256": "41714efc81560cd28c6374c2f9dac8f2d317e6666205de7712877f11e9102aa6"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
@@ -57256,7 +57326,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "534a8cfdc9f72c3c77a8d137f1ecab0d59268fd69dd849e5a98bb716611ab8ed"
+      "sha256": "66f1a205ffca3d084c78e9220a3fb50dacfe8ec9ec11b56225ad6f38329f3717"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -57500,7 +57570,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "f004bebd4913f4546229ad03201b9d9af2efacf33393f4607f0a45ef468205f7"
+      "sha256": "3a6576c28ff3b8845afb427a9c5cfd02adebfc5b19f0bcceaf4f4afe776dcb91"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57512,11 +57582,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "f5d63741fcf524933013c0bae1d5c2b08f2c6752884af7744a769927ca467d94"
+      "sha256": "e985420934b84265b6621fd06bd9835eef4dd1cafc5d1cccd770bd0e1ed9503e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "973cf954120628f4b15c192c8fa24ff6ca47c6a1e84e57a4af53270694f0daae"
+      "sha256": "ae786e11b218c167b838706508593690621373479ebaeccee2f30c1bcb0db59d"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -57528,7 +57598,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "f1900de60e4e4a8511a2c8d80063381bde69eba093051cc8bd6623caeb2095dc"
+      "sha256": "0f3cf5e8fc2ab6f84f0dbff6628722b67228cc8220336b4f6421faafda0a276e"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -58464,7 +58534,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "0f647141baf854853164c2a3ca60992f47e2bd3a49535b8a8c3ba377cce8ef03"
+      "sha256": "8dfbe9207095567b53ca330858569600d88b26bcbd5ff40ece70127b6ae59e67"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -58720,7 +58790,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_human_abilities.c",
-      "sha256": "89deb144475ec0014e84e955fa7cbd4296f0bec24f81ad464e935cf6616e3153"
+      "sha256": "c48a0e552c80ab2fd9054535bdf25e2c3bda55b398e2998c5b9e60b7d09769fe"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
@@ -62516,7 +62586,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "daf76484c7470a7842c8b2956155de2d444a17ad55113b1dd6b61bd021a6d201"
+      "sha256": "6a4bb2a20879c287d140ec8d84536368c91070e30094deaaad87d572c9a174b9"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -63937,6 +64007,46 @@
     {
       "path": "tests/test_wc3_pathing_controls322.py",
       "sha256": "2a32cff1719a078438e9c01105117fce3c541114d04800c52b8f6e38764a7e6a"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_cast321.h",
+      "sha256": "bf322fe4d9324ad18b36619163cb1948b98a559781c49a3b27bee4a27fcbfa03"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Scripts/cast321.j",
+      "sha256": "bfc049822a41213458d22a6e39a093ea9de428471d0c91cf56b7d20e3f997b44"
+    },
+    {
+      "path": "tests/test_wc3_pathing_cast321.py",
+      "sha256": "925ad40d63bb9bfff897acd1b8c242c16d9df06809420c2f3a6336c0749a53f3"
+    },
+    {
+      "path": "tools/frida/research/cast321_capture.py",
+      "sha256": "c55984d90050313ec185321684542868187f3b0e23824080b743fd7eb44609e2"
+    },
+    {
+      "path": "tools/frida/research/cast321_make_map.py",
+      "sha256": "c521313f33f6ad43bca99dcaa763d16fba92bce5e9aa9b5fb917cc58efa187d2"
+    },
+    {
+      "path": "tools/frida/research/cast321_observer.js",
+      "sha256": "3891cdd0a299cbaf96b0d9e859eabd0826c5e88d185844c1e1a6d37e45e334dc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-cast321-1.27.json",
+      "sha256": "7f75714c88991d65afe83b0beef9f978265fafa5335bd1404d04df7ea8615d8c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-cast321-1.27.json.gz",
+      "sha256": "097b22074eedc11fd25285c20f4a530d179a644c048536a4580ba94d76f7f768"
+    },
+    {
+      "path": "tools/ghidra/research/Cast321Evidence.java",
+      "sha256": "f40e0b3a7678a8e3f9d6fe7e7ef4158379b20d867f98a0c221146ee229537c9e"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_cast321.py",
+      "sha256": "66fc94ebdd01601b9693999b6862b5a9e33574d100851e24f193a89b0c999d7f"
     }
   ]
 }

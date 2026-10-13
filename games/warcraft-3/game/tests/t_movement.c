@@ -26906,6 +26906,9 @@ TEST(wc3_movement, target319_structure_isolation_matches_retail_and_cold_saves) 
 
 #ifdef BZ_TESTS
 #include "fixtures/retail_captain320.h"
+#include "fixtures/retail_cast321.h"
+static bool cast321_actual;
+static unsigned cast321_caster_count,cast321_events[3];
 static uint32_t const (*captain320_expected_motion)[8],(*captain320_expected_public)[7],(*captain320_expected_shared)[5];
 static unsigned captain320_motion_count,captain320_public_count,captain320_shared_count;
 static unsigned captain320_motion_size,captain320_public_size,captain320_shared_size;
@@ -26930,6 +26933,16 @@ static void captain320_coordinate(edict_t *unit,unsigned axis,float value) {
 }
 static unsigned captain320_actor_count;
 static void captain320_motion(edict_t *unit) {
+    if(cast321_actual && unit->class_id==MAKEFOURCC('h','s','o','r') && !captain320_mismatch) {
+        uint32_t actual[]={level.pathing_counter,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+            wc3_float_bits(wc3_mul(unit->movement.velocity.x,1.0f/32)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1.0f/32)),
+            wc3_float_bits(unit->s.angle),wc3_float_bits(level.pathing_clock.time)};
+        T_ASSERT(cast321_caster_count<4);
+        if(cast321_caster_count<4)FOR_LOOP(i,7) {uint32_t expected=cast321_caster_rows[cast321_caster_count][i];T_EQ(actual[i],expected);
+            if(actual[i]!=expected){captain320_mismatch=true;fprintf(stderr,"cast321 caster%u field%u expected%08x actual%08x\n",cast321_caster_count,i,expected,actual[i]);}}
+        cast321_caster_count++;
+    }
+
     if(unit->movement.captain_actor_owned && !captain320_mismatch) {
         uint32_t actual[]={level.pathing_counter,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
             wc3_float_bits(wc3_mul(unit->movement.velocity.x,1.0f/32)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1.0f/32)),
@@ -26957,6 +26970,27 @@ static void captain320_motion(edict_t *unit) {
     captain320_motion_count++;
 }
 static void captain320_public(cstring_t message) {
+    unsigned phase321;
+    if(sscanf(message,"C321 phase %u",&phase321)==1 && phase321<3) {
+        uint32_t const clocks[]={0x406665b8u,0x406665b8u,0x40819926u};
+        float clock=level.pathing_clock.time;
+        fprintf(stderr,"C321 phase%u clock%08x time%u\n",phase321,wc3_float_bits(clock),level.time);
+        T_EQ(wc3_float_bits(clock),clocks[phase321]);cast321_events[phase321]++;return;
+    }
+    if(!strcmp(message,"C321 autocast on") || !strcmp(message,"C321 autocast off")) {
+        bool enabled=!strcmp(message,"C321 autocast on");
+        edict_t *caster=NULL;
+        FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','s','o','r'))caster=e;
+        T_NOT_NULL(caster);
+        T_EQ(G_OrderId(enabled ? "slowon" : "slowoff"),enabled ? 852076u : 852077u);
+        T_EQ(G_UnitAutocastIsOn(caster,MAKEFOURCC('A','s','l','o')),enabled);
+        return;
+    }
+    if(!strncmp(message,"C321 ",5)) {
+        fprintf(stderr,"%s time%u\n",message,level.time);
+        T_ASSERT(strcmp(message,"C321 rejected"));return;
+    }
+
     if(!strcmp(message,"CAPTURED_SLOW320")) {
         edict_t *caster=NULL,*target=NULL;
         FILTER_EDICTS(e,e->inuse) {
@@ -27006,28 +27040,32 @@ static void captain320_phase(unsigned phase,uint64_t id) {
     }
     captain320_shared_count++;
 }
-static void captain320_run(bool cold_save) {
-    unsigned scene=0;
+static void captain320_run(bool cold_save, unsigned actual_cast) {
+    unsigned scene=0;cast321_actual=actual_cast;cast321_caster_count=0;memset(cast321_events,0,sizeof(cast321_events));
     captain320_expected_motion=captain320_motion_rows;captain320_motion_size=sizeof(captain320_motion_rows)/sizeof(*captain320_motion_rows);
     captain320_expected_public=captain320_public_rows;captain320_public_size=sizeof(captain320_public_rows)/sizeof(*captain320_public_rows);
     captain320_expected_shared=captain320_shared_rows;captain320_shared_size=sizeof(captain320_shared_rows)/sizeof(*captain320_shared_rows);
     captain320_mismatch=false;captain320_actor_count=0;
     char const *slk="ID;PWXL;N;EBB;Y2;X8\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"BuffID1\"\nC;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\n"
         "C;Y2;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K0.6\nC;X5;K0.25\nC;X6;K\"Bslo\"\nC;X7;K60\nC;X8;K10\nE\n";
+    if(actual_cast)slk="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\nC;Y1;X9;K\"Rng1\"\nC;Y1;X10;K\"Cost1\"\nC;Y1;X11;K\"Cool1\"\nC;Y1;X12;K\"Cast1\"\nC;Y1;X13;K\"targs1\"\nC;Y2;X1;K\"Aslo\"\nC;Y2;X2;K\"Aslo\"\nC;Y2;X3;K1\nC;Y2;X4;K0.6\nC;Y2;X5;K0.25\nC;Y2;X6;K\"Bslo\"\nC;Y2;X7;K60\nC;Y2;X8;K10\nC;Y2;X9;K700\nC;Y2;X10;K50\nC;Y2;X11;K1\nC;Y2;X12;K0\nC;Y2;X13;K\"air,ground,enemy\"\nE\n";
     slkTestData_t *rows=parse_slk_string(slk),*old_rows=G_SetSLKRows("AbilityData",rows);
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotShutdown();reset_entities();setup_test_world();
+    if(actual_cast)FOR_LOOP(i,game.max_clients) {g_edicts[i].client=game.clients+i;game.clients[i].ps.number=i;}
     level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
     uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
     CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
     world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
     FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
     mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+    if(actual_cast) {info.players[0].playerType=kPlayerTypeComputer;info.players[1].playerType=kPlayerTypeNeutral;}
     info.players[0].startingPosition=(vec2_t){272,304};game.clients[0].ps.start_location=0;
     float radius=31,height=0,weapon_range=90,acquire=500;int32_t min=173,max=389,enabled=1;
     unitModification_t actor_mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
         {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="foot"},
+        {.modID=MAKEFOURCC('u','t','a','r'),.type=mod_string,.data="ground"},
         {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height},
         {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&min},
         {.modID=MAKEFOURCC('u','m','a','s'),.type=mod_int,.data=&max},
@@ -27037,15 +27075,28 @@ static void captain320_run(bool cold_save) {
         {.modID=MAKEFOURCC('u','a','1','t'),.type=mod_string,.data="normal"},
         {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled},
         {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
-    float caster_radius=16;
-    unitModification_t caster_mod={.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&caster_radius};
+    float caster_radius=16,cast_point=wc3_decimal("0.45"),backswing=wc3_decimal("1.08"),mana_max=200,mana_initial=75,speed=270,turn=wc3_decimal("0.6"),window=60;
+    uint32_t default_autocast=MAKEFOURCC('A','s','l','o');
+    unitModification_t caster_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&caster_radius},
+        {.modID=MAKEFOURCC('u','t','a','r'),.type=mod_string,.data="ground"},
+        {.modID=MAKEFOURCC('u','c','p','t'),.type=mod_unreal,.data=&cast_point},
+        {.modID=MAKEFOURCC('u','c','b','s'),.type=mod_unreal,.data=&backswing},
+        {.modID=MAKEFOURCC('u','m','p','m'),.type=mod_unreal,.data=&mana_max},
+        {.modID=MAKEFOURCC('u','m','p','i'),.type=mod_unreal,.data=&mana_initial},
+        {.modID=MAKEFOURCC('u','a','b','i'),.type=mod_string,.data="Aslo"},
+        {.modID=MAKEFOURCC('u','d','a','a'),.type=mod_int,.data=&default_autocast},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_unreal,.data=&speed},
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="hover"},
+        {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_unreal,.data=&turn},
+        {.modID=MAKEFOURCC('u','p','r','w'),.type=mod_unreal,.data=&window}};
     unitData_t types[]={
         {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','T','A','A'),.numbeOfModifications=sizeof(actor_mods)/sizeof(*actor_mods),.modifications=actor_mods},
-        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','s','o','r'),.numbeOfModifications=1,.modifications=&caster_mod}};
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','s','o','r'),.numbeOfModifications=actual_cast ? sizeof(caster_mods)/sizeof(*caster_mods) : 1,.modifications=caster_mods}};
     info.num_userCreatedUnits=2;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
     level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
     G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
-    uint32_t size=0;char *script=gi.ReadFile("Scripts\\captain320.j",&size);T_NOT_NULL(script);
+    uint32_t size=0;char *script=gi.ReadFile(actual_cast ? "Scripts\\cast321.j" : "Scripts\\captain320.j",&size);T_NOT_NULL(script);
     if(!script)goto cleanup;
     T_ASSERT(run_test_jass(script));gi.MemFree(script);
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
@@ -27054,9 +27105,9 @@ static void captain320_run(bool cold_save) {
     bool saved=false;
     while(level.time<11000 && !captain320_mismatch) {
         level.time+=5;globals.RunFrame();
-        /* CaptainGoHome has already run; only inert Sleep remains in the private AI VM.
-         * Its continuation is not serialized and must not be treated as tested here. */
-        if(cold_save && level.time>=4100 && !saved) {
+        /* Reload rebuilds serialized Move/cast owners. Private AI VM continuation
+         * remains live in this process; this does not test a fresh-process AI load. */
+        if(cold_save && level.time>=(actual_cast==2 ? 3530u : actual_cast==3 ? 3800u : 4100u) && !saved) {
             T_ASSERT(S_ValidateMoveShared());
             cstring_t file=Test_TempPath("wc3-captain320.bin");
             T_ASSERT(WriteGame(file));
@@ -27070,6 +27121,7 @@ static void captain320_run(bool cold_save) {
     }
     move_test_owner_phase=NULL;
     move_test_motion_commit=NULL;test_preload_marker=NULL;test_unit_position_query=NULL;
+    if(actual_cast){T_EQ(cast321_caster_count,4u);FOR_LOOP(i,3)T_EQ(cast321_events[i],1u);}
     T_EQ(captain320_actor_count,sizeof(captain320_actor_rows)/sizeof(*captain320_actor_rows));
     T_EQ(captain320_motion_count,captain320_motion_size);
     T_EQ(captain320_shared_count,captain320_shared_size);
@@ -27081,8 +27133,8 @@ cleanup:
     G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
     G_FowShutdown();G_BotShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;setup_test_world();
 }
-TEST(wc3_movement, captain320_slow_shared_motion_matches_retail) {captain320_run(false);}
-TEST(wc3_movement, captain320_slow_shared_motion_survives_cold_save) {captain320_run(true);}
+TEST(wc3_movement, captain320_slow_shared_motion_matches_retail) {captain320_run(false,false);}
+TEST(wc3_movement, captain320_slow_shared_motion_survives_cold_save) {captain320_run(true,false);}
 /* Spell receiver diplomacy is directional and independent of buff polarity. */
 TEST(wc3_movement, captain320_spell_notification_uses_receiver_diplomacy) {
     FOR_LOOP(kind,2) FOR_LOOP(mask,8) {
@@ -27114,5 +27166,9 @@ TEST(wc3_movement, captain320_projectile_does_not_notify_at_launch) {
     T_ASSERT(!S_PrepareUnitSpellEffect(caster,MAKEFOURCC('A','s','l','o'),target));
     T_ASSERT(target->attack_speed_cap.active);
     reset_entities();setup_test_world();
+}
+TEST(wc3_movement, cast321_actual_slow_matches_retail) {captain320_run(false,true);}
+TEST(wc3_movement, cast321_facing_cast_and_effect_survive_reload) {
+    for(unsigned mode=2;mode<=4;mode++)captain320_run(true,mode);
 }
 #endif

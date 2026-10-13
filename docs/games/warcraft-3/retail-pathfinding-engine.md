@@ -19816,3 +19816,83 @@ read back identically; `MapPathfinding.java` retains those findings. Save191 and
 network state are unchanged. Archive: `research/NUM-03.2/payoff320/accepted`.
 NUM-03.2/GROUP-04.6 remain open for exceptional compositions, other effects and
 broader shared producers; no TODO was split or closed.
+
+## Public Slow turns before its authored cast phases (Payoff321)
+
+The Captain320 scene now runs the actual public `IssueTargetOrder("slow")`
+through facing, CHANNEL, CAST and EFFECT. The earlier fixture supplied the
+captured concrete effect time. The new replay preserves all861 member commits,
+293 virtual Captain commits,215 shared publications and270 public samples from
+that unchanged original fixture, plus four stationary caster commits.
+
+Three engine omissions prevented the public cast: the Slow order852075 was
+unregistered; `CAbilitySlow` lacked `A_CAST_PROFILE`; an already-in-range unit
+target started casting before facing. The game module now registers the public
+order, uses the authored cast profile and lets the physical target task finish
+turning before entering the phase owner. Both native and command-card admission
+use the same readiness gate. No client or save-format change is introduced.
+
+| Native boundary | Primary clock word | Approximate seconds |
+|---|---|---:|
+| Public target request | `405fff5c` | 3.49996090 |
+| CHANNEL and CAST | `406665b8` | 3.59995842 |
+| EFFECT and concrete Slow | `40819926` | 4.04994488 |
+
+Original `40a7a0` first checks range, then `41d0a0` with half-angle
+`3e4ccccd` (0.2). Failed facing creates task`d0174` with `FLT_MAX` range,
+not a translation toward the nearby target. Its four commits retain position
+and zero velocity; headings are0.6,1.2,1.8,1.8. Stock Sorceress cast point0.45
+and backswing1.08 retain words`3ee66667` and`3f8a3d71`. The phase test reads the
+primary pathing clock; a nominal JASS timer deadline is a different observation.
+
+The repeated map also requests `slowon` then `slowoff` in one callback before
+casting. Stock `UnitAbilities.auto=Aslo` starts enabled, so retail returns0 for
+`slowon`852076 and1 for `slowoff`852077. Both captures agree. The fixture now
+retains that authored default and exact return policy. Slow owns its immediate
+orders through `A_ORDER`, resolves the actual ability and rejects unchanged
+state before calling the existing autocast setter. The failing regression
+exposed the missing order IDs and rejected disable; it now passes without
+changing a frozen trajectory word. This does not certify automatic target
+acquisition/casting or every alias's public command path.
+
+The proper public-order baseline rejected Slow before dispatch. Adding only
+its order mapping exposed immediate EFFECT and premature speed change, with
+no facing commits or CHANNEL/CAST. The final native/cast/reload contract passes
+557 tests/125,510 assertions in **each** Classic/TFT edition, including existing
+point/unit/structure/flying approaches, unreachable targets, all spell tests,
+ability dispatch and save-version rejection. Six asset-free rejection tests
+protect native phase clocks, command results, facing range and complete streams.
+Production and test binaries build. Full repository validation remains on the
+existing pathfinding checkpoint cadence.
+
+Two fresh read-only captures and the observer-free control preserve1104 public
+markers. Their complete raw capture/preload bundle and701 original instruction
+guards are in [the frozen contract](../../../tools/ghidra/fixtures/retail-cast321-1.27.json).
+`Cast321Evidence.java` saves six function annotations and exports their code and
+references; apply/readback exports match exactly. `MapPathfinding.java` carries
+the same findings. Raw accepted captures, failing runs, source versions and
+verification reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-01.13/payoff321/`.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_cast321.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --report /tmp/cast321-fresh.json
+python3 -m unittest tests.test_wc3_pathing_cast321
+```
+
+Save/reload at3530,3800 and4100ms reconstructs serialized Move/cast owners
+while facing, winding up and after EFFECT. The private AI VM stays live in this
+process: this is **not** proof of a fresh-process AI continuation. Initial fixture
+runs registered player events without player entities, losing callbacks after
+load rebuilt player bindings; the fixture now supplies those bindings before
+registration. Those invalid runs are excluded from behavioral evidence.
+
+ORDER-01.13 remains open. Point-facing is statically identified at`41d070` but
+not implemented by this change. Existing immobile/self readiness behavior is
+preserved, not identified with retail's preparatory-order bypass. Original
+`608ed0` sets caster+60 bit8 only around a transient preparatory mana-item order,
+then clears it; this is not a structure/immobility bit. Ability flags02000000,
+preparatory items, broader instant/channel policies, queued casts and complete
+interruption/reuse compositions still require their owning evidence. No new
+TODO is split off and the count remains43.
