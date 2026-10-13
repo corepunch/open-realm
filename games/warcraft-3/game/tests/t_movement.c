@@ -17921,7 +17921,7 @@ TEST(wc3_movement, attack_prevention_slot_matrix_matches_complete_native) {
  * Public casts must change fresh captain admission while retaining old ranges. */
 TEST(wc3_movement, public_attack_prevention_changes_fresh_captain_ranges_and_save) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
-    G_BotStop(0);reset_entities();setup_test_world();
+    G_BotStop(0);G_BotStop(1);reset_entities();setup_test_world();
     char slk[7000];char const *columns[]={"alias","code","BuffID1","BuffID","DataA1","DataA",
         "Dur1","Dur","HeroDur1","HeroDur","Rng1","Rng","Cost1","Cost","Cool1","Cool","targs"};
     char const *aliases[]={"APM1","APM2","APM4","APN2","APS8"};
@@ -17976,12 +17976,16 @@ TEST(wc3_movement, public_attack_prevention_changes_fresh_captain_ranges_and_sav
     UnitAbilities_t abilities={.abilList="APM1,APM2,APM4,APN2,APS8"};
     caster->data.UnitAbilities=&abilities;caster->svflags|=SVF_MONSTER;caster->s.player=0;
     caster->mana.value=caster->mana.max_value=1000;
-    botCaptain_t captain={.home={-1024,1024},.home_set=true,.units=units,.units_count=3,.created={0,0,300}};
-    S_SetCaptainHomeActor(&captain,1,BOT_CAPTAIN_ATTACK+1);
+    /* The recurring Captain actor must have its real logical owner when
+     * saving; a stack-only Captain cannot register its timer or saved roster. */
+    botCaptain_t *captain=&level.bots[1].captains[BOT_CAPTAIN_ATTACK];
+    *captain=(botCaptain_t){.home={-1024,1024},.home_set=true,.created={0,0,300}};
+    FOR_LOOP(i,3)G_BotCaptainAdd(level.bots+1,captain,units[i]);
+    S_SetCaptainHomeActor(captain,1,BOT_CAPTAIN_ATTACK+1);
     uint32_t baseline[]={0x409b0000,0x412a8000,0x40dd0000};
     FOR_LOOP(i,3) {
         T_ASSERT(S_UnitAttackSlotEnabled(units[i],0));
-        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],captain));
         T_EQ(wc3_float_bits(move_find_group(units[i]->movement.group_id)->members[0].arrival_range),baseline[i]);
     }
     T_EQ(G_UnitAbilityLevel(caster,FS_SLKKey("APM1")),1);
@@ -17992,7 +17996,7 @@ TEST(wc3_movement, public_attack_prevention_changes_fresh_captain_ranges_and_sav
         T_NOT_NULL(unit_findstatus(units[i],FS_SLKKey("BNdh")));
         T_ASSERT(!S_UnitAttackSlotEnabled(units[i],0));
         T_EQ(wc3_float_bits(move_find_group(units[i]->movement.group_id)->members[0].arrival_range),baseline[i]);
-        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],captain));
         T_EQ(wc3_float_bits(move_find_group(units[i]->movement.group_id)->members[0].arrival_range),0x404a0000);
     }
     /* Recast replaces the old contribution; distinct buff objects add. */
@@ -18010,8 +18014,8 @@ TEST(wc3_movement, public_attack_prevention_changes_fresh_captain_ranges_and_sav
     T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
     unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNp8")));
     T_ASSERT(!S_UnitIsSilenced(units[1]));
-    captain.home_actor=units[0]->movement.captain_home.roster_actor;
-    T_ASSERT(S_IssueCaptainHomeMove(units[1],&captain));
+    captain->home_actor=units[0]->movement.captain_home.roster_actor;
+    T_ASSERT(S_IssueCaptainHomeMove(units[1],captain));
     T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),baseline[1]);
     caster->data.UnitAbilities=&abilities;
     /* Replacement by an unowned slot still removes the previous owner's
@@ -18037,7 +18041,7 @@ TEST(wc3_movement, public_attack_prevention_changes_fresh_captain_ranges_and_sav
     T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
     remove(Test_TempPath("wc3-prevention155.bin"));
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
-    G_BotStop(0);reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_BotStop(0);G_BotStop(1);reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
     G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
 }
 

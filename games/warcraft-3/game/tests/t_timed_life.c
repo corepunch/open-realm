@@ -128,14 +128,17 @@ TEST(wc3_movement, public_timed_life_factory_publishes_temporary_captain_ranges)
     edict_t *units[9]={0};unsigned count=0;
     FILTER_EDICTS(unit,unit->inuse && unit->class_id==type.newUnitID)if(count<9)units[count++]=unit;
     T_EQ(count,9);
-    botCaptain_t captain={.home={-1024,1024},.home_set=true,.units=units,.units_count=9,.created={0,0,300}};
-    S_SetCaptainHomeActor(&captain,0,BOT_CAPTAIN_ATTACK+1);
+    /* Save the real logical roster and its recurring actor registration. */
+    botCaptain_t *captain=&level.bots[0].captains[BOT_CAPTAIN_ATTACK];
+    *captain=(botCaptain_t){.home={-1024,1024},.home_set=true,.created={0,0,300}};
+    FOR_LOOP(i,9)G_BotCaptainAdd(level.bots,captain,units[i]);
+    S_SetCaptainHomeActor(captain,0,BOT_CAPTAIN_ATTACK+1);
     FOR_LOOP(i,9) {
         T_NOT_NULL(units[i]);if(!units[i])continue;
         T_EQ(G_UnitAbilityLevel(units[i],FS_SLKKey(i==8 ? "BTLF" : buffs[i])),1);
         if(i>0 && i<8)T_EQ(G_UnitAbilityLevel(units[i],FS_SLKKey("BTLF")),0);
         T_NOT_NULL(units[i]->food);if(units[i]->food)T_EQ(units[i]->food->used,0);
-        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],captain));
         moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
         T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),0x40220000);
     }

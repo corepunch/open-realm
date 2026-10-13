@@ -54880,6 +54880,58 @@
         "Save/reload rebuilds serialized Move/cast owners during facing, windup and after EFFECT. The private AI VM remains live in this process; fresh-process private AI coroutine restoration is not certified.",
         "No new stock/alias autocast acquisition timeline, retail save UI or performance claim. All gameplay changes remain in game.dll."
       ]
+    },
+    {
+      "id": "oracle-controls324",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_controls324.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "controls324.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "scenes": {
+          "equal": 7
+        },
+        "repeated_controls": {
+          "equal": 7
+        },
+        "repeated_markers": {
+          "equal": 4416
+        },
+        "observed_repeats": {
+          "equal": 14
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "E2E-02.3: complete repeated no-hook mixed/disabled-ground crowds and foot/fly/amph/hover/float motion controls; unchanged native contracts and actual fresh/saved engine trajectories on both editions.",
+      "exclusions": [
+        "Complete recorded JASS samples and simulation tick labels; no unobserved internal-state or wall-clock equality claim.",
+        "Crowd public coordinates use R2S precision; five-mode finite values use R2SW four decimals and exceptional values retain authored nan/high/low labels.",
+        "Mixed crowd preserves four orders unfinished at tick302; completion marker is tick312. Ground completion is tick412.",
+        "Five modes cover isolated point Move, eight exceptional/zero speed inputs, finite restoration and Stop. This is not all terrain or NUM-03.2 closure.",
+        "Engine comparisons retain their original supplied RNG/clock and saved-spatial-order limits; original fixtures and source expectations are unchanged."
+      ]
     }
   ],
   "fixtures": [
@@ -57326,7 +57378,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "66f1a205ffca3d084c78e9220a3fb50dacfe8ec9ec11b56225ad6f38329f3717"
+      "sha256": "66f9ef02f7b920bf21b56911eeaa94537d0a36db0d6999012f146867c8a9a0fa"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -57570,7 +57622,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "3a6576c28ff3b8845afb427a9c5cfd02adebfc5b19f0bcceaf4f4afe776dcb91"
+      "sha256": "11b283f28f3ab7ac2e4fe8b753be34a5d9ef4762f0d8dbeec2bfa17269bd7d6b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57586,7 +57638,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "ae786e11b218c167b838706508593690621373479ebaeccee2f30c1bcb0db59d"
+      "sha256": "b958e31aa6f578f6080cb21036bc22d4f83c72e72aecbc6102b91fa6b535f81e"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -58978,7 +59030,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_timed_life.c",
-      "sha256": "ec60ff8901f1611d18100ef525a0811fc910cbd704e84d0aae433ace3d8fb389"
+      "sha256": "c458ac053e2579dbe36a478f360bb20130ea28c9bbc7983d8f8e34c82680cb1c"
     },
     {
       "path": "tools/ghidra/research/verify_order181_clocks.py",
@@ -64047,6 +64099,26 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_cast321.py",
       "sha256": "66fc94ebdd01601b9693999b6862b5a9e33574d100851e24f193a89b0c999d7f"
+    },
+    {
+      "path": "tools/frida/research/controls324_capture.py",
+      "sha256": "de067c178ebf6818fc15dcd90a138cca5e3ab651fdb680633f46d1990ac0158c"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_controls324.py",
+      "sha256": "9bde54bd87daf90d57d0436b1679879ca1eea6e2e078a572e00cc64a26e81204"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-controls324-1.27.json",
+      "sha256": "6325279825ed0dfd6f3acd380cf0ac9d452d8f6b8eb525df3d4b0609a162af0a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-controls324-1.27.json.gz",
+      "sha256": "42a92b4ba6e0ea40ec39a75d69671b3e4a24ac474bf0782fa2a32fa757bec0a0"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_controls324.py",
+      "sha256": "99c739d0f78087718354711755686abc1a3fcd2ca974dc0b0ed4a966c5950dec"
     }
   ]
 }

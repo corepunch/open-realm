@@ -599,5 +599,101 @@ not infer why the earlier loading input failed.
 Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/E2E-02.2/payoff322/`.
 The equality claim is the full recorded JASS stream, including three-decimal
 R2S positions, sampled orders and lifecycle outcomes. These no-hook controls
-cannot certify unobserved internal words or wall-clock timing. E2E-02.3 retains
-the separate crowd/movement-mode controls; no new TODO is introduced.
+cannot certify unobserved internal words or wall-clock timing. The separate crowd/movement-mode repeats are recorded in
+[Payoff324](#crowd-and-movement-mode-observer-controls-payoff324).
+
+## Crowd and movement-mode observer controls (Payoff324)
+
+E2E-02.3 is complete. It repeats the unchanged SEP-04.2/04.3 crowd maps and all five Speed314
+movement maps in isolated B/C processes. Each new run uses Frida only to
+spawn, resume and kill its own process. Loading input targets that process ID;
+there is no attach, injected script or interceptor. Every recorded public
+sample agrees with both read-only observed repeats and the existing no-hook
+control. The new seven controls retain **4,416 exact markers**:
+
+| Scene | Markers | Complete marker tick | Covered behavior |
+|---|---:|---:|---|
+| Mixed crowd | 1,515 | 312 | Ten units, mixed owners/radii/ranks/selectors, blocked destinations |
+| Enabled/disabled ground crowd | 1,616 | 412 | Eight units, separation controls, retries and Stop |
+| Foot | 257 | 276 | Exceptional speed, Move, finite restoration, Stop |
+| Fly | 257 | 276 | Same public sequence with flying movement |
+| Amphibious | 257 | 276 | Same sequence with amphibious movement |
+| Hover | 257 | 276 | Same sequence with hovering movement |
+| Float | 257 | 276 | Same sequence in shallow walkable water |
+
+Comparison preserves each marker's tick, sequence, unit/scene identity, position,
+order and authored speed output. It neither drops intermediate samples nor
+normalizes terminal outcomes. Four mixed-crowd orders remain unfinished at the
+last actor sample, tick302; tick312 only terminates the probe. There are no
+public-stream mismatches in these seven new runs. Raw outputs and metadata are
+retained in the compressed [control bundle](../../../tools/ghidra/fixtures/retail-controls324-1.27.json.gz),
+with source/map/helper hashes in its [manifest](../../../tools/ghidra/fixtures/retail-controls324-1.27.json).
+
+The joined verifier also executes the existing original crowd pair/tail oracle,
+revalidates both complete observed owner streams and the five-mode native
+capture contract, checks523 instruction guards, and runs the actual game
+trajectories in Classic and TFT. `wc3_repulsion_crowds.*` checks3,591 owner
+visits,4,410 contributions and142 retries per complete pair of scenes, with
+fresh and mid-order saved continuations. The Speed314 regression checks4,005
+literal actor states, including2,805 motion commits, through public JASS and
+production movement, including saved continuations. The combined fresh check
+passes five regressions and415,570 assertions in each edition. These remain the
+[failing-first crowd implementation](retail-pathfinding-engine.md#mixed-crowds-individual-physical-owners-and-adjusted-retries-payoff144)
+and [failing-first five-mode implementation](retail-pathfinding-engine.md#exceptional-public-speed-and-finite-restoration-payoff314);
+this observer-control closure requires no additional gameplay change or altered
+numeric expectation. The original Ghidra annotations and mapper findings remain
+unchanged and are revalidated through their existing contracts.
+
+```sh
+# Use a Python environment with the existing Unicorn oracle dependency installed.
+python3 tools/ghidra/verify_wc3_pathing_controls324.py \
+  --binary /path/to/supported/game.dll --report /tmp/controls324-fresh.json
+python3 -m unittest tests.test_wc3_pathfinding_controls324
+```
+
+For a live repeat, extract `reference` from the bundle into `reference.json`,
+then use the B/C reservation wrapper and the existing owned input helper:
+
+```sh
+research/_env/live.sh python3 tools/frida/research/controls324_capture.py \
+  --data '{DATA}' --env '{ENV}' --reference reference.json --scene crowd \
+  --input-helper /path/to/owned-ui-input.exe --output /tmp/controls324-crowd-new
+```
+
+`--scene` accepts the seven manifest scene names. Each output directory must be
+new. The controller checks binary/map hashes before launch, removes stale
+preload output after preserving it, caps the run at180 seconds, preserves a
+mismatch rather than rewriting the reference, and kills only its owned PID.
+The verifier rejects missing scenes, changed ticks/positions/orders, failed or
+attached controls, wrong environments/helpers and a rehashed replacement of the
+original retail expectations. The Python rejection tests run under the normal
+`test-pathfinding-tools` target.
+
+Timing here means the complete recorded simulation-tick stream, not wall-clock
+performance. Crowd positions retain JASS R2S precision; five-mode finite values
+use four-decimal R2SW, with explicit `nan`/`high`/`low` exceptional labels. Raw
+internal words cannot be observed in a no-hook run. The engine replays retain
+their documented supplied RNG/clock and saved spatial-order limits. This does
+not close NUM-03.2 or claim every terrain/exceptional-input composition.
+Archive: `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/E2E-02.3/payoff324/`.
+
+The full-suite run also exposed two older Captain save fixtures using stack-only
+rosters (`public_attack_prevention_changes_fresh_captain_ranges_and_save` and
+`public_timed_life_factory_publishes_temporary_captain_ranges`). Their tests now
+use `level.bots[player].captains[BOT_CAPTAIN_ATTACK]` and `G_BotCaptainAdd`, so
+the recurring actor and owned roster have valid serialized identities. The
+save validator and gameplay code are unchanged. Initial save failures remain
+in the archived baseline log. Independently, shard3 hit the documented
+[SDL compatibility-layer text-event crash](../../build-and-renderer-platforms.md#headless-sdl-input-regression-runtime)
+because the umbrella invocation omitted the native SDL2 library path. Its
+core backtrace identifies `SDL_PushEvent` in the menu text-input regression;
+the affected complete shards are rerun with the documented native SDL2 runtime.
+The strict trajectory verifier already selects that runtime. No input assertion
+or production behavior is removed to accommodate the compatibility library.
+
+Final cumulative validation has40 JUnit reports:8,828 tests and37,541,473
+assertions, zero failures/errors after the targeted shard reruns. The2,132
+pathfinding Python tests are accounted for after rerunning the corrected corpus
+inventory class; all43 focused control/corpus tests also pass in the root
+workspace. The original umbrella exit2 is retained, not described as a clean
+first-pass `make test` success.
