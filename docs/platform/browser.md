@@ -290,3 +290,12 @@ This built-in configuration is the read-only starting point; user config
 loading and persistence are separate concerns. If HUD clicks work while
 world selection/drag/orders do not, verify this bundle is included before
 investigating mouse hit-testing.
+
+### JASS callback stack usage
+
+JASS filter, player-filter, AI integer callback, and trigger-condition evaluation
+copy a full VM state to isolate callback context. These scratch VMs live on the
+engine heap, not its limited WebAssembly pthread stack. In particular,
+`GroupEnumUnitsOfPlayer` may evaluate many filtered units during campaign map
+initialization. Allocation failures reject the corresponding filter or condition
+without modifying the parent VM state.
