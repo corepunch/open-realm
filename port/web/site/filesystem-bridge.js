@@ -71,6 +71,10 @@
       // PROXY_TO_PTHREAD runs C main in a worker with a separate Module.
       // Pass the validated directory in argv so the worker receives it.
       Module.arguments = ['+openrealm-data=' + path];
+      // Emscripten snapshots Module.arguments into programArgs when index.js
+      // loads, before this asynchronous OPFS validation can finish.
+      if (typeof programArgs !== 'undefined')
+        programArgs = Module.arguments;
       status('Validated browser installation; starting engine…');
     }).catch(error => {
       const message = error && error.message || String(error);
