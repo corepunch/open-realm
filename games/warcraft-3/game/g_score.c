@@ -106,6 +106,8 @@ void G_PlayerScoreUnitTrained(edict_t *unit) {
         unit->data.UnitBalance ? unit->data.UnitBalance->foodUsed : 0,
         client ? client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] : 0,
         client ? client->score.unit_value_produced : 0);
+    if (G_UnitIsHero(unit)) G_GameResultDebug("score hero lifecycle event=create owner=%u rawcode=%08x entity=%u",
+        unit->s.player, unit->class_id, unit->s.number);
     if (G_UnitIsHero(unit) && client && client->score.heroes_used < INT32_MAX) {
         client->score.heroes_used++;
         G_GameResultDebug("score hero seen owner=%u rawcode=%08x entity=%u heroes_used=%u xp=%u level=%u",
@@ -230,20 +232,41 @@ static int32_t G_ScoreClamp(uint64_t value) {
     return (int32_t)MIN(value, (uint64_t)INT32_MAX);
 }
 
+/* Count authored research levels, not arbitrary JASS tech availability rows.
+ * This remains an approximation: retail's full race denominator is not known.
+ * Emit both variants so comparison runs can establish the missing rule. */
 static int32_t G_ScoreGuessTechPercent(gameClient_t const *client) {
     uint32_t observed = 0, researched = 0;
+    uint32_t upgrade_rows = 0, upgrade_levels = 0, achieved_levels = 0;
     FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
         playerTechState_t const *tech = &client->tech[i];
+        UpgradeData_t const *upgrade;
+        uint32_t achieved, maximum;
         if (!tech->id) continue;
         observed++;
         if (tech->researched > 0) researched++;
+        upgrade = G_UpgradeData(tech->id);
+        if (!upgrade || upgrade->id != tech->id || upgrade->maxLevel <= 0) {
+            G_GameResultDebug("score tech row player=%u id=%08x researched=%d max_allowed=%d category=non_upgrade",
+                client->ps.number, tech->id, tech->researched, tech->max_allowed);
+            continue;
+        }
+        maximum = (uint32_t)upgrade->maxLevel;
+        achieved = (uint32_t)MAX(0, tech->researched);
+        achieved = MIN(achieved, maximum);
+        upgrade_rows++;
+        upgrade_levels += maximum;
+        achieved_levels += achieved;
+        G_GameResultDebug("score tech row player=%u id=%08x researched=%d max_allowed=%d authored_max=%u used=%u category=upgrade",
+            client->ps.number, tech->id, tech->researched, tech->max_allowed,
+            maximum, (unsigned)upgrade->used);
     }
-    /* GUESS: known/observed technology rows are the denominator, not the
-     * retail race/map technology tree. An empty set scores zero. */
-    G_GameResultDebug("score tech player=%u observed=%u researched=%u provisional_pct=%u",
+    G_GameResultDebug("score tech player=%u observed=%u researched=%u provisional_pct=%u upgrade_rows=%u achieved_levels=%u authored_levels=%u classified_pct=%u",
         client->ps.number, observed, researched,
-        observed ? (unsigned)((100ull * researched) / observed) : 0);
-    return observed ? (int32_t)((100ull * researched) / observed) : 0;
+        observed ? (unsigned)((100ull * researched) / observed) : 0,
+        upgrade_rows, achieved_levels, upgrade_levels,
+        upgrade_levels ? (unsigned)((100ull * achieved_levels) / upgrade_levels) : 0);
+    return upgrade_levels ? (int32_t)((100ull * achieved_levels) / upgrade_levels) : 0;
 }
 
 bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *value) {

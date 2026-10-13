@@ -320,3 +320,16 @@ baseline` summary compares the previous peak, authoritative current food,
 surviving unit-food total and accrued unit score. This deliberately does not
 change `Units Produced` or unit score: the retail inclusion rule for scripted
 preplaced armies remains unverified. All subsequent food peaks still update.
+
+### Hero lifecycle and technology classification audit
+
+`wc3_game_result_debug 1` reports hero creation, ownership transfers and game-cache
+restoration with identity, level and XP. These are observational; transfers and
+restoration are not blindly counted as new Heroes Used because retail's
+uniqueness/credit policy has not been established. Tech Percentage now uses
+researched *levels* of authored `UpgradeData` rows seen in the player's tech
+state, instead of treating arbitrary tech-limit rows as researched upgrades.
+The diagnostic retains the previous observed-entry percentage alongside the
+classified numerator and denominator. **The authored race-wide denominator is
+not yet recovered**; therefore the classified result remains provisional and
+should be compared against retail in multiple missions before declaring parity.
