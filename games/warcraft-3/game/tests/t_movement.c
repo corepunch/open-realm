@@ -26770,3 +26770,136 @@ TEST(wc3_movement, slow318_public_split_matches_motion_and_cold_continuations) {
 TEST(wc3_movement, slow318_preslow_admission_matches_motion_and_cold_continuations) {slow318_run_scene(1);}
 TEST(wc3_movement, slow318_morph_overlap_matches_motion_and_cold_continuations) {slow318_run_scene(2);}
 #endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_target319.h"
+#include "fixtures/retail_target319_smart.h"
+#include "fixtures/target319_smart_script.h"
+#include "fixtures/retail_target319_structure.h"
+#include "fixtures/target319_structure_script.h"
+static uint32_t const (*target319_expected_motion)[11],(*target319_expected_public)[8];
+static unsigned target319_motion_count,target319_public_count;
+#include "fixtures/target319_script.h"
+static edict_t *target319_units[2],*target319_caster;
+static unsigned target319_motion_index,target319_public_index;
+static bool target319_mismatch;
+static void target319_find_units(void) {
+    unsigned n=0;
+    FILTER_EDICTS(e,e->inuse) {
+        if((e->class_id==MAKEFOURCC('h','T','A','A') || e->class_id==MAKEFOURCC('h','t','o','w')) && n<2)target319_units[n++]=e;
+        if(e->class_id==MAKEFOURCC('h','s','o','r'))target319_caster=e;
+    }
+}
+static void target319_record(edict_t *unit) {
+    unsigned actor=unit==target319_units[0] ? 0 : unit==target319_units[1] ? 1 : 2;
+    if(actor==2 || target319_mismatch)return;
+    unsigned i=target319_motion_index++;
+    T_ASSERT(i<target319_motion_count);
+    if(i>=target319_motion_count){target319_mismatch=true;return;}
+    moveGroup_t *group=move_unit_group(unit);moveGroupMember_t *member=NULL;
+    if(group)FOR_LOOP(n,group->count)if(group->members[n].unit==unit)member=group->members+n;
+    T_NOT_NULL(member);if(!member){target319_mismatch=true;return;}
+    uint32_t actual[]={actor,wc3_float_bits(unit->movement.pose_clock.time),unit->movement.pose_clock.epoch,
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),
+        wc3_float_bits(unit->s.angle),wc3_float_bits(wc3_div(S_UnitMoveSpeed(unit),32)),
+        wc3_float_bits(member->arrival_range),wc3_float_bits(wc3_div(member->speed,32))};
+    FOR_LOOP(k,11) {
+        if(actual[k]!=target319_expected_motion[i][k]){fprintf(stderr,"target319 motion%u time%u word%u engine%08x retail%08x\n",i,level.time,k,actual[k],target319_expected_motion[i][k]);target319_mismatch=true;}
+        T_EQ(actual[k],target319_expected_motion[i][k]);
+    }
+}
+static void target319_mark(cstring_t marker) {
+    target319_find_units();
+    if(!strcmp(marker,"CAPTURED_SLOW319")) {
+        T_NOT_NULL(target319_units[0]);T_NOT_NULL(target319_caster);
+        if(!target319_units[0] || !target319_caster){target319_mismatch=true;return;}
+        abilityitem_t item=S_AbilityItem(MAKEFOURCC('A','s','l','o'));
+        spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=target319_units[0]};abilityCall_t call=MAKE(abilityCall_t,.item=&item,.target=&target);
+        T_ASSERT(S_AbilityMessage(target319_caster,A_EXECUTE,&call));return;
+    }
+    if(strncmp(marker,"T319 ",5)||strstr(marker,"label=start ")||strstr(marker,"label=begin-setup ")||target319_mismatch)return;
+    unsigned actor=atoi(strstr(marker," u=")+3),i=target319_public_index++;
+    T_ASSERT(actor<2);T_ASSERT(i<target319_public_count);
+    if(actor>=2 || i>=target319_public_count){target319_mismatch=true;return;}
+    edict_t *unit=target319_units[actor];T_NOT_NULL(unit);if(!unit){target319_mismatch=true;return;}
+    S_PublishMovement(unit);
+    uint32_t actual[]={atoi(strstr(marker,"tick=")+5),actor,wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,
+        wc3_float_bits(unit->s.origin.x),wc3_float_bits(unit->s.origin.y),wc3_float_bits(S_UnitMoveSpeed(unit)),unit->current_order_id};
+    FOR_LOOP(k,8) {
+        if(actual[k]!=target319_expected_public[i][k]){fprintf(stderr,"target319 public%u time%u word%u engine%08x retail%08x\n",i,level.time,k,actual[k],target319_expected_public[i][k]);target319_mismatch=true;}
+        T_EQ(actual[k],target319_expected_public[i][k]);
+    }
+}
+static void target319_run_scene(unsigned scene) {
+    target319_expected_motion=target319_motion;target319_expected_public=target319_public;
+    target319_motion_count=sizeof(target319_motion)/sizeof(*target319_motion);
+    target319_public_count=sizeof(target319_public)/sizeof(*target319_public);
+    if(scene==1) {
+        target319_expected_motion=target319_smart_motion;target319_expected_public=target319_smart_public;
+        target319_motion_count=sizeof(target319_smart_motion)/sizeof(*target319_smart_motion);
+        target319_public_count=sizeof(target319_smart_public)/sizeof(*target319_smart_public);
+    }
+    if(scene==2) {
+        target319_expected_motion=target319_structure_motion;target319_expected_public=target319_structure_public;
+        target319_motion_count=sizeof(target319_structure_motion)/sizeof(*target319_structure_motion);
+        target319_public_count=sizeof(target319_structure_public)/sizeof(*target319_structure_public);
+    }
+    void (*old_write)(pfWriteType_t,void const *)=gi.Write;
+    void (*old_unicast)(edict_t *)=gi.unicast;
+    gi.Write=movement_noop_write;gi.unicast=movement_noop_unicast;
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    char const *slk="ID;PWXL;N;EBB;Y2;X8\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"BuffID1\"\nC;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K0.6\nC;X5;K0.25\nC;X6;K\"Bslo\"\nC;X7;K60\nC;X8;K10\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk);
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    float radius=31,caster_radius=16;int32_t min=1,max=389;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&min},
+        {.modID=MAKEFOURCC('u','m','a','s'),.type=mod_int,.data=&max}};
+    unitModification_t caster_mod={.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&caster_radius};
+    float building_radius=176;int32_t building_speed=0,building=1;
+    unitModification_t building_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&building_radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_int,.data=&building_speed},
+        {.modID=MAKEFOURCC('u','b','d','g'),.type=mod_int,.data=&building},
+        {.modID=MAKEFOURCC('u','p','a','t'),.type=mod_string,.data="PathTextures\\16x16Simple.tga"}};
+    unitData_t types[]={
+        {.originalUnitID=MAKEFOURCC('h','t','o','w'),.newUnitID=MAKEFOURCC('h','t','o','w'),.numbeOfModifications=4,.modifications=building_mods},
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','T','A','A'),.numbeOfModifications=3,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','s','o','r'),.numbeOfModifications=1,.modifications=&caster_mod}};
+    mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;info.num_userCreatedUnits=3;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+    G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    target319_units[0]=target319_units[1]=target319_caster=NULL;
+    target319_motion_index=target319_public_index=0;target319_mismatch=false;
+    test_preload_marker=target319_mark;move_test_motion_commit=target319_record;
+    T_ASSERT(run_test_jass(scene==2 ? target319_structure_script : scene ? target319_smart_script : target319_script));G_FinishMovePathingInitialization();
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    unsigned times[]={3400,3500,6600},saved_motion[3]={0},saved_public[3]={0};PATHSTR files[3];
+    FOR_LOOP(i,3)snprintf(files[i],sizeof(files[i]),"%starget319-%u.bin",Test_TempPath(""),i);
+    FOR_LOOP(pass,4) {
+        if(target319_mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));target319_find_units();target319_motion_index=saved_motion[pass-1];target319_public_index=saved_public[pass-1];}
+        while(level.time<11200 && !target319_mismatch) {
+            level.time+=5;globals.RunFrame();
+            if(!pass)FOR_LOOP(i,3)if(level.time==times[i]){saved_motion[i]=target319_motion_index;saved_public[i]=target319_public_index;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(target319_motion_index,target319_motion_count);T_EQ(target319_public_index,target319_public_count);T_ASSERT(!target319_mismatch);
+    }
+    FOR_LOOP(i,3){remove(files[i]);}
+    test_preload_marker=NULL;move_test_motion_commit=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);setup_test_world();
+    gi.Write=old_write;gi.unicast=old_unicast;
+}
+TEST(wc3_movement, target319_follow_isolation_matches_retail_and_cold_saves) {target319_run_scene(0);}
+TEST(wc3_movement, target319_smart_isolation_matches_retail_and_cold_saves) {target319_run_scene(1);}
+TEST(wc3_movement, target319_structure_isolation_matches_retail_and_cold_saves) {target319_run_scene(2);}
+#endif

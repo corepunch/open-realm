@@ -19704,3 +19704,48 @@ assertions per mode). Nineteen evidence rejection tests and37 corpus tests pass.
 The corpus contains554 entries,273 executable contracts. This is implementation
 chunk5 after checkpoint312; the authorized focused cadence does not imply a new
 full-repository run.
+
+## Target isolation and runtime building footprints (Payoff319)
+
+Three public JASS scenes extend Payoff318's isolation replay to Follow and Smart
+against a moving Footman, and Follow against a runtime-created Town Hall. Slow
+is applied while the target request is active, removed later, then the target
+receives another Move and the follower receives Stop. Each scene has two
+read-only Frida observations and an unhooked public control. Together they pin
+775 physical commits, 552 public states and 20,226 native events. Captured Slow
+completion is an input to the engine replay; cast scheduling is not certified.
+
+The mobile cases already matched. The building exposed two independent engine
+errors before Slow took effect:
+
+- `unit_construct_assets` overwrote authored `ucol` with the path texture's
+  diagonal half-width. Stock `htow` has radius176; its 12-cell ground footprint
+  has half-width192. Retail `6742f0`/`6945a0` publishes physical5.5 fine units,
+  so source31 plus target176 gives Follow range6.46875, not6.96875. Buildings
+  now retain authored collision while their texture controls static regions.
+- Runtime `unit_create` did not publish the footprint. The target request
+  captured region zero, producing22 fine points ending45.5/29.5. Retail captures
+  a nonnull widget region and18 points ending41.5/28.5. Publishing the building
+  footprint at its final pose/facing before public return fixes the first
+  heading and the entire subsequent trajectory.
+
+Slow member republication needs no further change: `169550` preserves target
+identity, range and cached region. The building case retains that region through
+isolation and cold saves before/after Slow and after the target's Move request.
+The engine fixture supplies authored radius176 and generated16x16 path texture
+geometry through ordinary metadata/archive loading, then drives real JASS
+`CreateUnit` and target orders. It does not inject a region into the test.
+
+`verify_wc3_pathing_target319.py` validates repeat/control equality, source pins,
+385 original instruction guards, literal headers, target ownership, physical
+radii, isolation transitions and complete event accounting. Strict Classic/TFT
+replay covers9 tests/104000 assertions per edition; the affected building, unit,
+collision, save and movement suites cover577 tests/189889 assertions per edition.
+Nineteen evidence rejection tests cover missing controls, altered radii/regions,
+clocks, motion and trace faults. Ghidra's five annotated functions were saved and
+read back identically; `MapPathfinding.java` carries the same findings.
+
+Archive: `research/NUM-03.2/payoff319/accepted`. This is focused validation under
+the established pathfinding cadence, not a full-suite checkpoint. NUM-03.2 and
+GROUP-04.6 remain open: exceptional target compositions, AI/shared parameters,
+other effects, and general building placement/orientation are not certified.

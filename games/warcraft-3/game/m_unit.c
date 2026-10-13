@@ -1567,6 +1567,9 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
      * leave the first group-request heading one word apart from retail. */
     unit->s.angle = wc3_mul(facing,wc3_float(0x3c8efa35));
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_FACING, unit, NULL);
+    /* Runtime creation must publish the building footprint before callers can
+     * issue target orders or create another unit beside it. */
+    if (G_UnitIsStructure(unit)) CM_BakeStaticObstacles();
     G_ActivateUnitFood(unit);
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_FOOD, unit, NULL);
     G_BotUnitReady(unit);

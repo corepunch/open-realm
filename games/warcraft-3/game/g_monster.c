@@ -90,18 +90,6 @@ uint32_t FindEnumValue(cstring_t value, cstring_t values[]) {
     return 0;
 }
 
-static float get_unit_collision(pathTex_t const *pathtex) {
-    int size = 0;
-    for (int x = 0; x < pathtex->width; x++) {
-        if (pathtex->map[(pathtex->width + 1) * x].b)
-            size++;
-    }
-    /* size footprint cells wide -> radius = size * (32/2) = size*16.  The old
-     * extra *1.3 inflated every building's collision circle 30% with no WC3
-     * basis (buildings already block via their baked footprint). */
-    return size * 16;
-}
-
 bool player_pay(player_t *ps, uint32_t project) {
     UnitBalance_t const *b;
     if (!ps) return false;
@@ -683,9 +671,8 @@ static void unit_construct_visuals(unitConstruction_t *construction) {
     G_ResetUnitAnimationPropertiesPrepared(self, &construction->type->bindings.animation);
     self->s.scale = ui->modelScale;
     self->s.radius = ui->selectionScale * SEL_SCALE / 2;
-    /* Unit-vs-unit separation uses the authentic collisionSize ('ucol') from
-     * the unit data, matching WC3. Buildings have no meaningful collisionSize
-     * and instead block via their pathing footprint (set from pathtex below). */
+    /* Authored collisionSize ('ucol') supplies the physical radius for units
+     * and buildings. Footprint pixels own their separate static regions. */
     self->collision = traits->collision;
     /* Keep the mutable/public value visible at its original stage.6945a0
      * publishes a separate physical profile; Move owns its minimum radius. */
@@ -812,12 +799,9 @@ static void unit_construct_assets(unitConstruction_t *construction) {
 
     unit_register_projectiles_prepared(self, &unit_construct_live_type(construction)->bindings.projectiles);
 
-    if ((self->pathtex = M_LoadPathTex(construction->path_texture))) {
-        /* Buildings: collide by footprint (their collisionSize is ~0). */
-        if (self->runtime.flags & UNIT_BALANCE_BUILDING) {
-            self->collision = get_unit_collision(self->pathtex);
-        }
-    }
+    /* The footprint owns blocked terrain cells; the authored collision radius
+     * remains the unit's physical radius, including for buildings. */
+    self->pathtex = M_LoadPathTex(construction->path_texture);
     /* The client building-placement preview needs the gameplay collision radius,
      * not the selection-circle radius in s.radius, to paint live-unit blockers. */
     self->s.collision = self->collision;
