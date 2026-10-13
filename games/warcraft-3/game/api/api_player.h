@@ -511,7 +511,8 @@ uint32_t RemovePlayer(jass_t *j) {
         return 0;
     }
 
-    G_RemovePlayerWithResult(PLAYER_NUM(whichPlayer), *gameResult);
+    if (G_RemovePlayerWithResult(PLAYER_NUM(whichPlayer), *gameResult) && *gameResult == 0)
+        G_CampaignProgressRecordVictory(PLAYER_NUM(whichPlayer));
     return 0;
 }
 uint32_t CachePlayerHeroData(jass_t *j) {

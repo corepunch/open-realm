@@ -574,6 +574,41 @@ TEST(wc3_bot, campaign_settings_persist_for_authoritative_consumers) {
     T_ASSERT(!(ai->flags & BOT_HEROES_BUY_ITEMS));
 }
 
+/* A dedicated AI VM reads the authoritative map difficulty, not the
+ * campaign-menu cvar or the separate aidifficulty/melee integer scale. This
+ * small fixture exercises the count selection used by retail common.ai; it
+ * is not a replacement for running the full retail Human02 script. */
+TEST(wc3_bot, campaign_difficulty_drives_ai_settings_defenders_and_wave_quantities) {
+    uint32_t old = level.setup.difficulty;
+    uint32_t const defender = MAKEFOURCC('o', 'g', 'r', 'u');
+    int32_t const replacements[] = { 0, 1, 3, 3 };
+    uint32_t const defenders[] = { 1, 1, 2, 2 };
+    int32_t const attack_counts[] = { 2, 3, 5, 5 };
+    player_t *player = &game.clients[2].ps;
+
+    FOR_LOOP(difficulty, 4) {
+        bot_t *bot;
+        reset_entities();
+        G_BotStop(2);
+        FOR_LOOP(i, 2) {
+            edict_t *unit = make_bot_harvest_unit(defender, 64.0f * (float)i, 0, 2, NULL);
+            unit->svflags |= SVF_MONSTER;
+        }
+        level.setup.difficulty = difficulty;
+        T_ASSERT(G_BotStart(player, "test_campaign_difficulty.ai", BOT_CAMPAIGN));
+        G_BotRunFrame();
+        bot = level.bots + 2;
+        T_NOT_NULL(bot->vm);
+        if (bot->vm) T_ASSERT(!jass_rterror_pending(bot->vm));
+        T_EQ(bot->replacement_count, replacements[difficulty]);
+        T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), defenders[difficulty]);
+        T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, attack_counts[difficulty]);
+        T_ASSERT(!!(bot->flags & BOT_PEONS_REPAIR) == (difficulty == 2));
+        G_BotStop(2);
+    }
+    level.setup.difficulty = old;
+}
+
 TEST(wc3_bot, melee_difficulty_uses_common_ai_integer_scale) {
     bot_t *ai;
 

@@ -58,6 +58,9 @@ struct game_import {
     void (*UnlinkEntity)(edict_t *ent);
     uint32_t (*BoxEdicts)(box2_t const *area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *));
     void (*MenuAction)(cstring_t action, cstring_t arg);
+    /* Resolve the same map identity used by queued map/level actions. The
+     * game may use it to bind transient state to one resolved destination. */
+    bool (*ResolveMap)(cstring_t arg, string_t out, uint32_t out_size);
     /* Queue a client-side movie to interpose the next deferred session action. */
     void (*QueueMovie)(cstring_t path);
     /* JASS PlayModelCinematic: path only, client owns MDX playback/lifecycle. */

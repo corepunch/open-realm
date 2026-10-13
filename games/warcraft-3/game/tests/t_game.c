@@ -1443,6 +1443,62 @@ TEST(wc3_game, ingame_menu_stays_locked_after_cancelling_result_load) {
     UI_ResetHud();
 }
 
+TEST(wc3_game, defeat_reduce_difficulty_preserves_default_for_restart) {
+    __typeof__(gi.MenuAction) old_action = gi.MenuAction;
+    __typeof__(gi.ResolveMap) old_resolver = gi.ResolveMap;
+    edict_t *player = menu_test_setup();
+    uint32_t current = 99, original_default = 99;
+
+    gi.MenuAction = menu_test_action;
+    gi.ResolveMap = NULL; /* Headless map path already resolved. */
+    G_TakeDifficultyTransition("", &current, &original_default);
+    strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
+    player->client->ps.stats[PLAYERSTATE_GAME_RESULT] = 1;
+    level.setup.difficulty = 2;
+    level.setup.default_difficulty = 2;
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_STREQ(menu_action_capture, "level Maps\\Campaign\\Human02.w3m");
+    T_EQ(level.setup.difficulty, 1u);
+    T_EQ(level.setup.default_difficulty, 2u);
+    T_ASSERT(G_HasPendingDifficultyTransition());
+
+    /* A duplicate late client command must not reduce a second time. */
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_EQ(level.setup.difficulty, 1u);
+    T_ASSERT(G_TakeDifficultyTransition(level.map_path, &current, &original_default));
+    T_EQ(current, 1u);
+    T_EQ(original_default, 2u);
+
+    /* The same defeat on Normal reduces to Easy without changing default. */
+    menu_action_capture[0] = '\0';
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_EQ(level.setup.difficulty, 0u);
+    T_EQ(level.setup.default_difficulty, 2u);
+    T_ASSERT(G_TakeDifficultyTransition(level.map_path, &current, &original_default));
+    T_EQ(current, 0u);
+    T_EQ(original_default, 2u);
+
+    menu_action_capture[0] = '\0';
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_STREQ(menu_action_capture, ""); /* No Reduce action on Easy. */
+    T_EQ(level.setup.difficulty, 0u);
+    level.setup.difficulty = 3;
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_EQ(level.setup.difficulty, 3u); /* Stock BJ does not reduce Insane. */
+    T_STREQ(menu_action_capture, "");
+
+    /* A non-defeated player cannot invoke the command from the console. */
+    player->client->ps.stats[PLAYERSTATE_GAME_RESULT] = 0;
+    level.setup.difficulty = 2;
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_EQ(level.setup.difficulty, 2u);
+    T_STREQ(menu_action_capture, "");
+
+    gi.MenuAction = old_action;
+    gi.ResolveMap = old_resolver;
+    UI_ResetHud();
+}
+
 TEST(wc3_game, ingame_quick_load_cancel_keeps_return_to_game) {
     __typeof__(gi.Write) old_write = gi.Write;
     __typeof__(gi.unicast) old_unicast = gi.unicast;

@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "games/warcraft-3/common/difficulty.h"
 #include "jass/jass.h"
 
 #define MAX_SPAWN_ITERATIONS 10
@@ -844,12 +845,11 @@ TEST(wc3_doodad, special_height_samples_remain_inside_heightmap) {
 }
 #endif
 
-void G_SpawnEntities(void) {
+void G_SpawnEntities(cstring_t map_path) {
     mapInfo_t const *mapinfo = CM_GetMapInfo();
     doodad_t const *entities = CM_GetDoodads();
     uint32_t local_player = G_LocalMapPlayerNumber(mapinfo);
-    int32_t difficulty = 1;
-    cstring_t map_path = gi.CvarString("map", "");
+    uint32_t difficulty, original_default;
 
     /* Map replacement must release script roots before level pointers are cleared. */
     G_BotShutdown();
@@ -876,16 +876,15 @@ void G_SpawnEntities(void) {
     if (mapinfo) FOR_LOOP(i, MAX_PLAYERS) level.setup.players += mapinfo->players[i].used;
     level.setup.game_type = 4;
     level.setup.speed = 2;
-    if ((!strncasecmp(map_path, "Maps\\Campaign\\", 14) ||
-         !strncasecmp(map_path, "Maps/Campaign/", 14) ||
-         !strncasecmp(map_path, "Maps\\FrozenThrone\\Campaign\\", 26) ||
-         !strncasecmp(map_path, "Maps/FrozenThrone/Campaign/", 26)) && gi.CvarString) {
-        difficulty = atoi(gi.CvarString("wc3_campaign_difficulty", "1"));
+    if (!G_TakeDifficultyTransition(map_path, &difficulty, &original_default)) {
+        difficulty = WC3_InitialGameDifficulty(map_path,
+            WC3_IsCampaignMap(map_path) && gi.CvarString
+                ? gi.CvarString(WC3_CAMPAIGN_DIFFICULTY_CVAR, WC3_CAMPAIGN_DIFFICULTY_DEFAULT)
+                : WC3_CAMPAIGN_DIFFICULTY_DEFAULT);
+        original_default = difficulty;
     }
-    if (difficulty < 0) difficulty = 0;
-    if (difficulty > 3) difficulty = 3;
-    level.setup.difficulty = (uint32_t)difficulty;
-    level.setup.default_difficulty = (uint32_t)difficulty;
+    level.setup.difficulty = difficulty;
+    level.setup.default_difficulty = original_default;
     level.setup.resource_density = level.setup.creature_density = 2;
     if (mapinfo) {
         strlcpy(level.setup.name, G_LevelString(mapinfo->mapName ? mapinfo->mapName : ""), sizeof(level.setup.name));

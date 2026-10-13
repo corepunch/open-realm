@@ -121,7 +121,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 91 tracks per-player hero usage/experience and explicit score row settings. */
 /* Version 92 adds per-unit cost-weighted score totals to GAMECLIENT. */
 /* Version 93 adds per-hero scripted XP score attribution to EDICT. */
-static uint32_t const save_version = 93;
+/* Version 94 serializes current and default game difficulty independently. */
+static uint32_t const save_version = 94;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -520,6 +521,8 @@ static fieldRing_t const game_event_ring = {
 };
 
 static field_t const level_fields[] = {
+    F(level_locals, setup.difficulty, F_INT),
+    F(level_locals, setup.default_difficulty, F_INT),
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
     F(level_locals, stock.item_slots, F_INT),
@@ -2499,6 +2502,36 @@ bool ReadGame(cstring_t filename) {
 
 #ifdef BZ_TESTS
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+
+/* The mission may be temporarily reduced while the campaign/default remains
+ * Hard. A restored save must not consult the current frontend preference or
+ * collapse these two independently script-writable JASS values. */
+TEST(wc3_save, current_and_default_difficulty_round_trip_independently) {
+    cstring_t filename = Test_TempPath("wc3-difficulty-pair-save.bin");
+
+    reset_entities();
+    setup_test_world();
+    level.setup.difficulty = 1; /* Normal after a reduced-difficulty restart */
+    level.setup.default_difficulty = 2; /* Original Hard campaign selection */
+    T_ASSERT(WriteGame(filename));
+
+    level.setup.difficulty = 0;
+    level.setup.default_difficulty = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.setup.difficulty, 1u);
+    T_EQ(level.setup.default_difficulty, 2u);
+
+    /* Neither getter is inferred from the other, including the Insane handle. */
+    level.setup.difficulty = 3;
+    level.setup.default_difficulty = 0;
+    T_ASSERT(WriteGame(filename));
+    level.setup.difficulty = 1;
+    level.setup.default_difficulty = 1;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.setup.difficulty, 3u);
+    T_EQ(level.setup.default_difficulty, 0u);
+    remove(filename);
+}
 
 TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {
     int const index = SaveCFunctionIndex((void *)S_SpellTargetApproachThink);

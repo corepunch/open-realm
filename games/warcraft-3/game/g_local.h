@@ -2558,10 +2558,15 @@ bool G_ScriptSavePending(void);
 void G_FlushScriptSave(void);
 void G_ResetScriptSave(void);
 void G_RequestRestartGame(bool do_score_screen);
+/* A one-shot map replacement carries difficulty only for a scripted level
+ * transition or restart. Fresh menu launches use their profile preference. */
+bool G_HasPendingDifficultyTransition(void);
+bool G_TakeDifficultyTransition(cstring_t map, uint32_t *current, uint32_t *original_default);
 void G_RequestLoadGameMenu(void);
 void G_RequestLoadGameNamed(cstring_t name);
 void G_RequestCampaignSelect(void);
 void G_CampaignProgressResetRuntime(void);
+bool G_CampaignProgressRecordVictory(uint32_t player_num);
 bool G_CampaignProgressSetTutorialCleared(bool cleared);
 bool G_CampaignProgressSetCampaignAvailable(int32_t campaign, bool available);
 bool G_CampaignProgressSetMissionAvailable(int32_t campaign, int32_t mission, bool available);
@@ -2785,7 +2790,7 @@ void SP_CallSpawn(edict_t *);
 void G_BindEntityData(edict_t *);
 void G_BindEntityRuntime(edict_t *);
 void G_FillMapPlacedUnitMana(edict_t *);
-void G_SpawnEntities(void);
+void G_SpawnEntities(cstring_t map_path);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif

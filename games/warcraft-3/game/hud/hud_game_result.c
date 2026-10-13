@@ -38,6 +38,51 @@ static void GameResultPrepareWindow(void) {
 /* The stock victory fallback leaves Quit below the nominal dialog rectangle.
  * Keep the window itself unchanged and place Quit directly below Continue,
  * matching the compact vertical button stack used by the other game menus. */
+static bool GameResultCreateReduceButton(void) {
+    frameDef_t *dialog = hud.result.GameResultDialog;
+    frameDef_t *template = hud.result.GameResultRestartButton;
+    frameDef_t *button;
+
+    if (!dialog || !template) return false;
+    button = UI_FindChildFrame(dialog, "GameResultReduceDifficultyButton");
+    if (!button) button = UI_CloneFrameTree(template, dialog);
+    if (!button) return false;
+    snprintf(button->Name, sizeof(button->Name), "GameResultReduceDifficultyButton");
+    hud.game_result_reduce_button = button;
+    UI_SetEnabled(button, true);
+    hud.game_result_reduce_text = UI_FindChildFrame(button, "GameResultRestartButtonText");
+    if (!hud.game_result_reduce_text) return false;
+    snprintf(hud.game_result_reduce_text->Name, sizeof(hud.game_result_reduce_text->Name),
+             "GameResultReduceDifficultyButtonText");
+    UI_SetOnClick(button, UI_WINDOW_CLOSE_COMMAND_PREFIX "gameresult_reduce_difficulty");
+    UI_SetHidden(button, true);
+    return true;
+}
+
+/* An additional defeat action uses the stock Restart button's FDF styling;
+ * the game data doesn't expose a separate Reduce Difficulty control in the
+ * fallback frame. The authored ScriptDialog remains authoritative when present. */
+static void GameResultPositionDefeatButtons(bool can_reduce) {
+    frameDef_t *dialog = hud.result.GameResultDialog;
+    frameDef_t *quit = hud.result.GameResultQuitButton;
+    frameDef_t *restart = hud.result.GameResultRestartButton;
+    frameDef_t *reduce = hud.game_result_reduce_button;
+
+    if (!dialog || !quit || !restart) return;
+    UI_SetSize(dialog, dialog->Width, hud.game_result_original_height +
+        (can_reduce && reduce ? MAX(reduce->Height, 0.031f) + 0.008f : 0.0f));
+    if (can_reduce && reduce) {
+        memset(&reduce->Points, 0, sizeof(reduce->Points));
+        reduce->AnyPointsSet = true;
+        UI_SetPoint(reduce, FRAMEPOINT_TOP, restart, FRAMEPOINT_BOTTOM, 0.0f, -0.008f);
+    }
+    memset(&quit->Points, 0, sizeof(quit->Points));
+    quit->AnyPointsSet = true;
+    UI_SetPoint(quit, FRAMEPOINT_TOP, can_reduce && reduce ? reduce : restart,
+                FRAMEPOINT_BOTTOM, 0.0f, -0.008f);
+    UI_CenterFrame(dialog);
+}
+
 static void GameResultPositionVictoryQuit(void) {
     frameDef_t *quit = hud.result.GameResultQuitButton;
     frameDef_t *continue_button = hud.result.GameResultContinueButton;
@@ -56,7 +101,10 @@ void UI_LoadHudGameResult(void) {
     if (hud.result.GameResultDialog) return;
     global_strings = UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf");
     dialog_loaded = GameResultDialog_Load(&hud.result);
-    if (dialog_loaded) GameResultPrepareWindow();
+    if (dialog_loaded) {
+        GameResultPrepareWindow();
+        GameResultCreateReduceButton();
+    }
     G_GameResultDebug("hud load global_strings=%u dialog_loaded=%u root=%p text=%p continue=%p restart=%p quit=%p",
         (unsigned)global_strings, (unsigned)dialog_loaded,
         (void *)hud.result.GameResultDialog, (void *)hud.result.GameResultText,
@@ -72,7 +120,7 @@ static cstring_t GameResultString(cstring_t key, cstring_t fallback) {
 /* This fallback exposes only result actions the current engine can execute.
  * Full Warcraft result policy belongs to Blizzard.j + ScriptDialog. */
 void UI_ShowGameResult(edict_t *ent, uint32_t result) {
-    bool victory, single_player;
+    bool victory, single_player, can_reduce;
 
     G_GameResultDebug("hud show enter ent=%p number=%ld client=%p result=%u",
         (void *)ent, ent ? (long)ent->s.number : -1L,
@@ -83,6 +131,8 @@ void UI_ShowGameResult(edict_t *ent, uint32_t result) {
     }
     victory = result == 0;
     single_player = G_IsSinglePlayer();
+    can_reduce = !victory && single_player &&
+        (level.setup.difficulty == 1 || level.setup.difficulty == 2);
 
     if (!hud.result.GameResultDialog) {
         G_GameResultDebug("hud show abort reason=missing_GameResultDialog_FDF");
@@ -110,13 +160,26 @@ void UI_ShowGameResult(edict_t *ent, uint32_t result) {
     UI_SetOnClick(hud.result.GameResultRestartButton,
         UI_WINDOW_CLOSE_COMMAND_PREFIX "gameresult_restart");
 
+    if (hud.game_result_reduce_button && hud.game_result_reduce_text) {
+        UI_SetText(hud.game_result_reduce_text, "%s", GameResultString(
+            "GAMEOVER_REDUCE_DIFFICULTY", "Reduce Difficulty"));
+        UI_SetHidden(hud.game_result_reduce_button, !can_reduce);
+    }
+
     UI_SetHidden(hud.result.GameResultQuitButton, false);
     UI_SetText(hud.result.GameResultQuitButtonText, "%s", GameResultString(
         single_player ? "GAMEOVER_QUIT_MISSION" : "GAMEOVER_QUIT_GAME",
         single_player ? "Quit Mission" : "Quit Game"));
     UI_SetOnClick(hud.result.GameResultQuitButton,
         UI_WINDOW_CLOSE_COMMAND_PREFIX "gameresult_quit");
-    if (victory) GameResultPositionVictoryQuit();
+    if (victory) {
+        UI_SetSize(hud.result.GameResultDialog, hud.result.GameResultDialog->Width,
+                   hud.game_result_original_height);
+        GameResultPositionVictoryQuit();
+        UI_CenterFrame(hud.result.GameResultDialog);
+    } else {
+        GameResultPositionDefeatButtons(can_reduce);
+    }
 
     G_GameResultDebug("hud show write window=%08x ent=%u connected=%u victory=%u single_player=%u uiflags=0x%08x",
         (unsigned)BZ_WC3_WINDOW_RESULT, (unsigned)ent->s.number,
@@ -193,3 +256,45 @@ void UI_HideGameResult(edict_t *ent) {
      * cannot keep a stale pre-window result layout around. */
     UI_ClearLayer(ent, LAYER_GAME_RESULT);
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+
+/* The native fallback must reuse the authored FDF template, not create an
+ * unrelated unstyled button or require another project-owned layout. */
+TEST(wc3_game_result, reduce_button_clones_restart_style_and_extends_defeat_rows) {
+    frameDef_t *dialog, *restart, *restart_text, *quit;
+    float base_height;
+
+    UI_ResetHud();
+    dialog = UI_Spawn(FT_DIALOG, NULL);
+    restart = UI_Spawn(FT_GLUETEXTBUTTON, dialog);
+    restart_text = UI_Spawn(FT_TEXT, restart);
+    quit = UI_Spawn(FT_GLUETEXTBUTTON, dialog);
+    T_NOT_NULL(dialog);
+    T_NOT_NULL(restart);
+    T_NOT_NULL(restart_text);
+    T_NOT_NULL(quit);
+    if (!dialog || !restart || !restart_text || !quit) return;
+    snprintf(restart_text->Name, sizeof(restart_text->Name), "GameResultRestartButtonText");
+    UI_SetSize(dialog, 0.3f, 0.2f);
+    UI_SetSize(restart, 0.15f, 0.03f);
+    hud.result.GameResultDialog = dialog;
+    hud.result.GameResultRestartButton = restart;
+    hud.result.GameResultQuitButton = quit;
+    T_ASSERT(GameResultCreateReduceButton());
+    T_NOT_NULL(hud.game_result_reduce_button);
+    T_NOT_NULL(hud.game_result_reduce_text);
+    T_ASSERT(hud.game_result_reduce_button != restart);
+    T_STREQ(hud.game_result_reduce_button->OnClick,
+             UI_WINDOW_CLOSE_COMMAND_PREFIX "gameresult_reduce_difficulty");
+    T_ASSERT(hud.game_result_reduce_button->hidden);
+
+    base_height = hud.game_result_original_height;
+    GameResultPositionDefeatButtons(true);
+    T_ASSERT(dialog->Height > base_height);
+    GameResultPositionDefeatButtons(false);
+    T_FEQ(dialog->Height, base_height, 0.0001f);
+    UI_ResetHud();
+}
+#endif

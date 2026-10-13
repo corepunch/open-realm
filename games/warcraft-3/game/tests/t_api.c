@@ -7445,6 +7445,204 @@ TEST(wc3_api, campaign_progress_round_trip_preserves_explicit_false) {
     remove(campaign_progress_test_path);
 }
 
+TEST(wc3_api, campaign_progress_completion_keeps_highest_difficulty) {
+    wc3CampaignProgress_t progress, loaded;
+    wc3CampaignProgressKey_t key = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_ROC, .campaign = 1, .mission = 1);
+    wc3CampaignProgressKey_t other = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_TFT, .campaign = 1, .mission = 1);
+    uint32_t best = UINT32_MAX;
+
+    wc3_campaign_progress_init(&progress);
+    T_ASSERT(!wc3_campaign_progress_best_difficulty(&progress, key, &best));
+    T_ASSERT(wc3_campaign_progress_set_mission(&progress, key, false));
+    T_ASSERT(wc3_campaign_progress_complete_mission(&progress, key, 0));
+    T_ASSERT(wc3_campaign_progress_complete_mission(&progress, key, 2));
+    T_ASSERT(wc3_campaign_progress_complete_mission(&progress, key, 1));
+    T_ASSERT(!wc3_campaign_progress_complete_mission(&progress, key, 4));
+    T_ASSERT(wc3_campaign_progress_best_difficulty(&progress, key, &best));
+    T_EQ(best, 2u);
+    T_ASSERT(!wc3_campaign_progress_mission_available(&progress, key));
+    T_ASSERT(!wc3_campaign_progress_best_difficulty(&progress, other, &best));
+
+    T_ASSERT(wc3_campaign_progress_save(campaign_progress_test_path, &progress));
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &loaded));
+    T_ASSERT(wc3_campaign_progress_best_difficulty(&loaded, key, &best));
+    T_EQ(best, 2u);
+    T_ASSERT(!wc3_campaign_progress_mission_available(&loaded, key));
+    remove(campaign_progress_test_path);
+}
+
+static void campaign_progress_test_write_u32(FILE *file, uint32_t number) {
+    uint8_t const bytes[4] = {
+        (uint8_t)number, (uint8_t)(number >> 8),
+        (uint8_t)(number >> 16), (uint8_t)(number >> 24)
+    };
+    fwrite(bytes, 1, sizeof(bytes), file);
+}
+
+TEST(wc3_api, campaign_progress_migrates_v1_without_inventing_completion) {
+    wc3CampaignProgress_t old, loaded, migrated;
+    wc3CampaignProgressKey_t key = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_ROC, .campaign = 1, .mission = 2);
+    FILE *file;
+    uint8_t header[8];
+    uint32_t best;
+
+    wc3_campaign_progress_init(&old);
+    T_ASSERT(wc3_campaign_progress_set_campaign(&old, key, true));
+    T_ASSERT(wc3_campaign_progress_set_mission(&old, key, true));
+    file = fopen(campaign_progress_test_path, "wb");
+    T_NOT_NULL(file);
+    if (!file) return;
+    campaign_progress_test_write_u32(file, MAKEFOURCC('O','R','C','P'));
+    campaign_progress_test_write_u32(file, 1);
+    campaign_progress_test_write_u32(file, WC3_CAMPAIGN_PROGRESS_EDITIONS);
+    campaign_progress_test_write_u32(file, WC3_CAMPAIGN_PROGRESS_CAMPAIGNS);
+    campaign_progress_test_write_u32(file, WC3_CAMPAIGN_PROGRESS_MISSIONS);
+    fwrite(old.tutorial_known, 1, sizeof(old.tutorial_known), file);
+    fwrite(old.tutorial_cleared, 1, sizeof(old.tutorial_cleared), file);
+    fwrite(old.campaign_known, 1, sizeof(old.campaign_known), file);
+    fwrite(old.campaign_available, 1, sizeof(old.campaign_available), file);
+    fwrite(old.mission_known, 1, sizeof(old.mission_known), file);
+    fwrite(old.mission_available, 1, sizeof(old.mission_available), file);
+    T_EQ(fclose(file), 0);
+
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &loaded));
+    T_ASSERT(wc3_campaign_progress_campaign_available(&loaded, key));
+    T_ASSERT(wc3_campaign_progress_mission_available(&loaded, key));
+    T_ASSERT(!wc3_campaign_progress_best_difficulty(&loaded, key, &best));
+    T_ASSERT(wc3_campaign_progress_save(campaign_progress_test_path, &loaded));
+    file = fopen(campaign_progress_test_path, "rb");
+    T_NOT_NULL(file);
+    if (!file) return;
+    T_EQ(fread(header, 1, sizeof(header), file), sizeof(header));
+    T_EQ(header[4], 2);
+    T_EQ(fclose(file), 0);
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &migrated));
+    T_ASSERT(wc3_campaign_progress_mission_available(&migrated, key));
+    T_ASSERT(!wc3_campaign_progress_best_difficulty(&migrated, key, &best));
+    remove(campaign_progress_test_path);
+}
+
+TEST(wc3_api, campaign_progress_rejects_invalid_completion_payload) {
+    wc3CampaignProgress_t progress, loaded;
+    wc3CampaignProgressKey_t key = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_ROC, .campaign = 1, .mission = 1);
+    FILE *file;
+    wc3_campaign_progress_init(&progress);
+    T_ASSERT(wc3_campaign_progress_complete_mission(&progress, key, 2));
+    T_ASSERT(wc3_campaign_progress_save(campaign_progress_test_path, &progress));
+    file = fopen(campaign_progress_test_path, "r+b");
+    T_NOT_NULL(file);
+    if (!file) return;
+    T_EQ(fseek(file, -1, SEEK_END), 0);
+    T_NE(fputc(255, file), EOF);
+    T_EQ(fclose(file), 0);
+    T_ASSERT(!wc3_campaign_progress_load(campaign_progress_test_path, &loaded));
+    T_ASSERT(!loaded.mission_completed[key.edition][key.campaign][key.mission]);
+    remove(campaign_progress_test_path);
+}
+
+TEST(wc3_api, campaign_progress_map_resolution_follows_campaign_strings) {
+    static cstring_t const legacy =
+        "[Human]\nMission0=\"Intro\"\nFile0=\"Human01\"\n"
+        "Mission1=\"Blackrock\"\nFile1=\"Human02\"\n"
+        "[Label]\nFile1=\"Human02\"\n";
+    static cstring_t const modern =
+        "[Human]\nMission1=\"Chapter Two\",\"A Dark Covenant\","
+        "\"Maps\\FrozenThrone\\Campaign\\HumanX02.w3x\"\n"
+        "EndCinematic=\"Ending\",\"Movie\",\"HumanXEnd\"\n";
+    wc3CampaignProgressKey_t key;
+
+    T_ASSERT(wc3_campaign_progress_resolve_map(WC3_CAMPAIGN_EDITION_ROC,
+        "maps/campaign/HUMAN02.W3M", legacy, strlen(legacy), &key));
+    T_EQ(key.edition, WC3_CAMPAIGN_EDITION_ROC);
+    T_EQ(key.campaign, 1u);
+    T_EQ(key.mission, 1u);
+    T_ASSERT(wc3_campaign_progress_resolve_map(WC3_CAMPAIGN_EDITION_TFT,
+        "Maps/FrozenThrone/Campaign/HumanX02.w3x", modern, strlen(modern), &key));
+    T_EQ(key.edition, WC3_CAMPAIGN_EDITION_TFT);
+    T_EQ(key.campaign, 1u);
+    T_EQ(key.mission, 1u);
+    T_ASSERT(!wc3_campaign_progress_resolve_map(WC3_CAMPAIGN_EDITION_TFT,
+        "Movies\\HumanXEnd.mpq", modern, strlen(modern), &key));
+    T_ASSERT(!wc3_campaign_progress_resolve_map(WC3_CAMPAIGN_EDITION_TFT,
+        "Maps/FrozenThrone/Campaign/HumanX02.w3x", legacy, strlen(legacy), &key));
+}
+
+static handle_t campaign_progress_test_read_campaign_strings(cstring_t name, uint32_t *size) {
+    static cstring_t const data =
+        "[Human]\nMission0=\"First\"\nFile0=\"Human01\"\n"
+        "Mission1=\"Second\"\nFile1=\"Human02\"\n";
+    void *copy;
+    if (strcmp(name, "UI\\CampaignStrings.txt")) return NULL;
+    *size = (uint32_t)strlen(data);
+    copy = malloc(*size);
+    if (copy) memcpy(copy, data, *size);
+    return copy;
+}
+
+TEST(wc3_api, campaign_progress_accepted_scripted_victory_records_playable_map) {
+    __typeof__(gi.UserPath) old_user_path = gi.UserPath;
+    __typeof__(gi.CvarString) old_cvar = gi.CvarString;
+    __typeof__(gi.ReadFile) old_read_file = gi.ReadFile;
+    __typeof__(gi.MemFree) old_mem_free = gi.MemFree;
+    gameClient_t *old_clients = game.clients;
+    uint32_t old_max_clients = game.max_clients;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
+    PATHSTR old_map_path;
+    uint32_t old_difficulty = level.setup.difficulty;
+    gameClient_t human = { 0 };
+    mapInfo_t map = { 0 };
+    wc3CampaignProgress_t loaded;
+    wc3CampaignProgressKey_t key = MAKE(wc3CampaignProgressKey_t,
+        .edition = WC3_CAMPAIGN_EDITION_ROC, .campaign = 1, .mission = 1);
+    uint32_t best = UINT32_MAX;
+
+    strlcpy(old_map_path, level.map_path, sizeof(old_map_path));
+    remove(campaign_progress_test_path);
+    G_CampaignProgressResetRuntime();
+    gi.UserPath = campaign_progress_test_user_path;
+    gi.CvarString = campaign_progress_roc_cvar;
+    gi.ReadFile = campaign_progress_test_read_campaign_strings;
+    gi.MemFree = free;
+    game.clients = &human;
+    game.max_clients = 1;
+    human.ps.number = 0;
+    human.connected = true;
+    human.jass.removed = true;
+    human.ps.stats[PLAYERSTATE_GAME_RESULT] = 0;
+    map.players[0].used = true;
+    map.players[0].playerType = kPlayerTypeHuman;
+    level.mapinfo = &map;
+    level.setup.difficulty = 2;
+    strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
+
+    T_ASSERT(G_CampaignProgressRecordVictory(0));
+    T_ASSERT(wc3_campaign_progress_load(campaign_progress_test_path, &loaded));
+    T_ASSERT(wc3_campaign_progress_best_difficulty(&loaded, key, &best));
+    T_EQ(best, 2u);
+    T_ASSERT(!wc3_campaign_progress_mission_available(&loaded, key));
+    human.jass.removed = false;
+    T_ASSERT(!G_CampaignProgressRecordVictory(0));
+    strlcpy(level.map_path, "Maps\\Campaign\\Unknown01.w3m", sizeof(level.map_path));
+    human.jass.removed = true;
+    T_ASSERT(!G_CampaignProgressRecordVictory(0));
+
+    G_CampaignProgressResetRuntime();
+    gi.UserPath = old_user_path;
+    gi.CvarString = old_cvar;
+    gi.ReadFile = old_read_file;
+    gi.MemFree = old_mem_free;
+    game.clients = old_clients;
+    game.max_clients = old_max_clients;
+    level.mapinfo = old_mapinfo;
+    level.setup.difficulty = old_difficulty;
+    strlcpy(level.map_path, old_map_path, sizeof(level.map_path));
+    remove(campaign_progress_test_path);
+}
+
 TEST(wc3_api, campaign_progress_campaign_keys_match_blizzard_offsets) {
     T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_ROC, "Tutorial"), 0);
     T_EQ((int)wc3_campaign_progress_campaign_index(WC3_CAMPAIGN_EDITION_ROC, "Human"), 1);

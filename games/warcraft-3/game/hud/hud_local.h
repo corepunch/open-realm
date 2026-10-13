@@ -108,6 +108,9 @@ typedef struct {
         frameDef_t *cells[5];
     } score_rows[WC3_SCORE_VISIBLE_ROWS];
     frameDef_t *score_elapsed;
+    frameDef_t *game_result_reduce_button;
+    frameDef_t *game_result_reduce_text;
+    float game_result_original_height;
     CinematicPanel_t cinematic;
     TimerDialog_t timer_dialog;
     LeaderBoard_t leaderboard;

@@ -2113,6 +2113,29 @@ CLIENTCOMMAND(GameResultRestart) {
     G_RequestRestartGame(true);
 }
 
+/* The stock Blizzard.j reduction is Normal -> Easy or Hard -> Normal.
+ * It changes current difficulty only; Patch 2's restart transition captures
+ * the original default independently before the map is replaced. */
+CLIENTCOMMAND(GameResultReduceDifficulty) {
+    (void)argc; (void)argv;
+    if (!clent || !clent->client || !G_IsSinglePlayer() ||
+        clent->client->ps.stats[PLAYERSTATE_GAME_RESULT] != 1 ||
+        G_HasPendingDifficultyTransition()) return;
+    switch (level.setup.difficulty) {
+    case 2:
+        level.setup.difficulty = 1;
+        break;
+    case 1:
+        level.setup.difficulty = 0;
+        break;
+    default:
+        return; /* Easy cannot be reduced; Insane is unchanged by stock BJ. */
+    }
+    /* The authored BJ unpauses before calling RestartGame. */
+    G_SetScriptPaused(false);
+    G_RequestRestartGame(true);
+}
+
 CLIENTCOMMAND(GameResultLoad) {
     (void)clent; (void)argc; (void)argv;
     G_GameResultDebug("command gameresult_load");
@@ -3108,6 +3131,7 @@ clientCommand_t clientCommands[] = {
     { "music_selected", CMD_MusicSelected },
     { "music_snapshot", CMD_MusicSnapshot },
     { "gameresult_restart", CMD_GameResultRestart },
+    { "gameresult_reduce_difficulty", CMD_GameResultReduceDifficulty },
     { "gameresult_load", CMD_GameResultLoad },
     { "gameresult_quit", CMD_GameResultQuit },
     { "scorescreen_continue", CMD_ScoreScreenContinue },

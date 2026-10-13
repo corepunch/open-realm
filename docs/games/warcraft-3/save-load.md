@@ -27,6 +27,14 @@ The versioned layout retains the authoritative `level.timeofday` record and game
 
 Save compatibility is deliberately unsupported. Load only the current format version and serialized layout, and reject older or otherwise mismatched saves with a diagnostic. Bump the format version when the serialized layout, callback identity, or meaning changes, including changes that leave `sizeof(edict_t)` unchanged. Do not retain legacy layouts, migration defaults, compatibility aliases, or optional extension records.
 
+Version 90 serializes current and default Warcraft III game difficulty as
+independent `level.setup` fields. This preserves a temporarily reduced current
+difficulty across save/load, without reapplying the archived campaign preference
+or overwriting the original default. Version 89 saves are rejected by the
+existing exact-version check. `wc3_save.current_and_default_difficulty_round_trip_independently`
+exercises Normal / Hard and Insane / Easy snapshots. The transient per-map
+restart/ChangeLevel override is session-only and is never persisted.
+
 Version 89 retains the selected entity and its `spawn_time` for ability-owned
 entity cursors that execute as point spells. A pending Kaboom approach saves
 its `S_SpellTargetApproachThink` callback, `goalentity`, owner and channel
@@ -154,6 +162,16 @@ Weather effects use the same stable-slot rule. `level.weather_effects[MAX_WEATHE
 
 Event handler registrations store type, subject entity index, trigger index, timer index, region, range, game-state ID, `limitop`, and limit value. The extra condition fields preserve `TriggerRegisterGameStateEvent` time-of-day registrations across save/load. The unread portion of the bounded gameplay event ring preserves event type, subject/source entity indexes, scalar value, optional point target, and the target registration ordinal. Consumed queue entries are not saved. Loads reject queue overflow and unresolved entity or registration IDs.
 
+
+## Difficulty and zone transition boundary
+
+The campaign preference is an archived client cvar; a running mission owns
+independent `level.setup.difficulty` / `level.setup.default_difficulty` values.
+The one-shot state used by a scripted RestartGame or ChangeLevel is **not** part
+of a game-save snapshot. `SaveGame` followed by `ChangeLevel` stages a transition
+only after a successful `WriteGame`, whereas `LoadGame` must restore its own
+serialized values. Difficulty level-field serialization and the associated save
+format version change remain follow-up work; see [Game difficulty](game-difficulty.md).
 
 ## JASS Snapshot
 

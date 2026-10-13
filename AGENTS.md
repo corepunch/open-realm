@@ -57,12 +57,13 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 leaderboards, counted-objective HUDs, per-player assignment, save/load identity | [docs/games/warcraft-3/leaderboards.md](docs/games/warcraft-3/leaderboards.md) |
 | WC3 Team Resources HUD, multiboard sharing and advanced shared-control permission boundary | [docs/games/warcraft-3/team-resources.md](docs/games/warcraft-3/team-resources.md) |
 | WC3 multiboard/texttag JASS registries, single visible board, suppression, HUD limitations | [docs/games/warcraft-3/multiboard-and-texttag.md](docs/games/warcraft-3/multiboard-and-texttag.md) |
-| WC3 campaign map bulk runtime audit, per-map reports, commands | [docs/games/warcraft-3/map-audit.md](docs/games/warcraft-3/map-audit.md) |
+| WC3 campaign map bulk runtime and static difficulty-source audit, per-map reports, commands | [docs/games/warcraft-3/map-audit.md](docs/games/warcraft-3/map-audit.md) |
 | WC3 DotA custom-map playability, protected-MPQ load, hashtable demand | [docs/games/warcraft-3/dota-map-playability.md](docs/games/warcraft-3/dota-map-playability.md) |
 | WC3 JASS group handle lifecycle, DestroyGroup slot reuse, save/load identity | [docs/games/warcraft-3/jass-groups.md](docs/games/warcraft-3/jass-groups.md) |
 | WC3 campaign game cache, persisted Hero progression, `StoreUnit`/`RestoreUnit` | [docs/games/warcraft-3/campaign-game-cache.md](docs/games/warcraft-3/campaign-game-cache.md) |
 | WC3 Human09 cinematic lifecycle, selection/region diagnostics, and campaign failure evidence | [docs/games/warcraft-3/human09-cinematic-lifecycle.md](docs/games/warcraft-3/human09-cinematic-lifecycle.md) |
-| WC3 campaign/mission unlock persistence, retail `.w3p` distinction, selector visibility | [docs/games/warcraft-3/campaign-progress.md](docs/games/warcraft-3/campaign-progress.md) |
+| WC3 campaign unlocks, completed-difficulty tracking, ORCP migration, selector visibility | [docs/games/warcraft-3/campaign-progress.md](docs/games/warcraft-3/campaign-progress.md) |
+| WC3 difficulty preference, fresh-map initialization and JASS difficulty state | [docs/games/warcraft-3/game-difficulty.md](docs/games/warcraft-3/game-difficulty.md) |
 | WC3 sparse edict state: direct pointer access, allocation, release and persistence | [docs/games/warcraft-3/pooled-entity-state.md](docs/games/warcraft-3/pooled-entity-state.md) |
 | WC3 game save/load format, Hero walk diagnostic, `F_CFUNCTION` C callbacks, and `field_t` synchronization | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
 | WC3 HUD texture/font indices vs names across `SV_Map` / save-load | [docs/games/warcraft-3/hud-media.md](docs/games/warcraft-3/hud-media.md) |

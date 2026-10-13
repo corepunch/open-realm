@@ -262,6 +262,73 @@ void G_FlushScoreTransition(void) {
 }
 
 
+/* SV_Map keeps game.dll alive across ordinary map replacements, while
+ * G_SpawnEntities clears the old level. Capture only the two difficulty
+ * scalars; never retain pointers into a destroyed level or JASS VM. */
+typedef struct {
+    bool pending;
+    char target[MAX_PATHLEN];
+    uint32_t current;
+    uint32_t original_default;
+} wc3DifficultyTransition_t;
+static wc3DifficultyTransition_t difficulty_transition;
+
+static void G_ResetDifficultyTransition(void) {
+    memset(&difficulty_transition, 0, sizeof(difficulty_transition));
+}
+
+/* The shared resolver is the same one MenuAction("level") uses. An
+ * unresolved or overlong destination cannot be staged for a later map. */
+static bool G_StageDifficultyTransition(cstring_t map) {
+    char resolved[MAX_PATHLEN];
+    uint32_t current = level.setup.difficulty;
+    uint32_t original_default = level.setup.default_difficulty;
+
+    G_ResetDifficultyTransition();
+    if (!map || !*map || strlen(map) >= sizeof(resolved) ||
+        current > 3 || original_default > 3) return false;
+    if (gi.ResolveMap) {
+        if (!gi.ResolveMap(map, resolved, sizeof(resolved))) return false;
+    } else {
+        /* Headless game-module tests can supply an already resolved path. */
+        strlcpy(resolved, map, sizeof(resolved));
+    }
+    if (!resolved[0] || strlen(resolved) >= sizeof(difficulty_transition.target)) return false;
+    strlcpy(difficulty_transition.target, resolved, sizeof(difficulty_transition.target));
+    difficulty_transition.current = current;
+    difficulty_transition.original_default = original_default;
+    difficulty_transition.pending = true;
+    return true;
+}
+
+static bool G_SameMapPath(cstring_t a, cstring_t b) {
+    if (!a || !b) return false;
+    while (*a && *b) {
+        unsigned char ac = (unsigned char)*a++, bc = (unsigned char)*b++;
+        if (ac == '\\') ac = '/';
+        if (bc == '\\') bc = '/';
+        if (tolower(ac) != tolower(bc)) return false;
+    }
+    return !*a && !*b;
+}
+
+bool G_HasPendingDifficultyTransition(void) {
+    return difficulty_transition.pending;
+}
+
+bool G_TakeDifficultyTransition(cstring_t map, uint32_t *current, uint32_t *original_default) {
+    wc3DifficultyTransition_t const staged = difficulty_transition;
+    /* Consume even a mismatched destination. A cancelled/replaced level
+     * action must never leak its override into some later map. */
+    G_ResetDifficultyTransition();
+    if (!staged.pending || !current || !original_default ||
+        !G_SameMapPath(staged.target, map) || staged.current > 3 || staged.original_default > 3)
+        return false;
+    *current = staged.current;
+    *original_default = staged.original_default;
+    return true;
+}
+
 void G_ResetScriptSave(void) {
     memset(&script_save_request, 0, sizeof(script_save_request));
     script_standalone_load[0] = '\0';
@@ -344,6 +411,7 @@ bool G_RequestScriptLoadGame(cstring_t name) {
         if (script_save_request.pending || script_standalone_load[0]) script_save_rejected = true;
         return false;
     }
+    G_ResetDifficultyTransition();
     if (script_save_request.pending) {
         script_save_request.load_game = true;
         strlcpy(script_save_request.load_name, name, sizeof(script_save_request.load_name));
@@ -360,6 +428,7 @@ void G_FlushScriptSave(void) {
     if (script_save_rejected) {
         fprintf(stderr, "WC3 SaveGame: rejecting script transition after invalid save request\n");
         G_ResetScriptSave();
+        G_ResetDifficultyTransition();
         return;
     }
     if (!script_save_request.pending) {
@@ -381,14 +450,19 @@ void G_FlushScriptSave(void) {
         saved_ui_count = G_EndCinematicForZoneTransition(saved_ui, MAX_CLIENTS);
     if (!WriteGame(request.path)) {
         G_RestoreTransitionUIState(saved_ui, saved_ui_count);
+        G_ResetDifficultyTransition();
         fprintf(stderr, "WC3 SaveGame: failed to save %s; transition cancelled\n", request.name);
         return;
     }
     if (request.change_level) {
         G_GameResultDebug("scripted save complete; request ChangeLevel map=%s score_screen=%u",
                           request.map, (unsigned)request.score_screen);
-        if (request.score_screen) G_QueueScoreTransition("level", request.map);
-        else gi.MenuAction("level", request.map);
+        /* SaveAndChangeLevel commits the source snapshot before the destination
+         * transition is published. Stage difficulty before the deferred score flow. */
+        if (G_StageDifficultyTransition(request.map)) {
+            if (request.score_screen) G_QueueScoreTransition("level", request.map);
+            else gi.MenuAction("level", request.map);
+        }
     } else if (request.load_game) {
         /* Retain the current script scope, unlike a manual user load. */
         gi.MenuAction("scriptload", request.load_name);
@@ -647,7 +721,7 @@ static bool G_LoadMap(cstring_t mapFilename) {
      * paths do not parse FDF on first use. */
     UI_LoadHud();
     gi.LoadingFrame();
-    G_SpawnEntities();
+    G_SpawnEntities(mapFilename);
     gi.LoadingFrame();
     strlcpy(level.map_path, mapFilename, sizeof(level.map_path));
     G_StartScripts();
@@ -870,6 +944,8 @@ static void G_InitGame(void) {
 
     G_ResetScriptSave();
     G_ResetScoreTransition();
+    G_ResetDifficultyTransition();
+    G_CampaignProgressResetRuntime();
     fprintf(stderr, "Game initialization.\n");
     fprintf(stderr, "Game is starting up.\n");
     fprintf(stderr, "Game is openwarcraft3 built on %s.\n", __DATE__);
@@ -905,6 +981,7 @@ static void G_InitGame(void) {
 static void G_ShutdownGame(void) {
     G_ResetScriptSave();
     G_ResetScoreTransition();
+    G_ResetDifficultyTransition();
     if (g_edicts == NULL) {
         return;
     }
@@ -1414,6 +1491,7 @@ void G_GameResultDebug(cstring_t format, ...) {
 static bool G_IsCampaignMapPath(cstring_t path);
 
 void G_RequestEndGame(bool do_score_screen) {
+    G_ResetDifficultyTransition();
     cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
     bool campaign_select = level.campaign_select_on_end ||
         (G_IsSinglePlayer() && G_IsCampaignMapPath(map));
@@ -1438,6 +1516,7 @@ static bool G_IsCampaignMapPath(cstring_t path) {
 }
 
 void G_RequestQuitGame(void) {
+    G_ResetDifficultyTransition();
     /* Quit returns campaign missions to the selector while other sessions use the main menu. */
     cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
     bool single = G_IsSinglePlayer();
@@ -1458,7 +1537,7 @@ void G_RequestQuitGame(void) {
 
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {
     G_GameResultDebug("request ChangeLevel map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
-    if (!map || !*map) return;
+    if (!map || !*map || strlen(map) >= MAX_PATHLEN) return;
     if (script_save_rejected || script_standalone_load[0] || script_save_request.load_game) {
         fprintf(stderr, "WC3 ChangeLevel: conflicting scripted save/load request\n");
         return;
@@ -1475,14 +1554,18 @@ void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {
         strlcpy(script_save_request.map, map, sizeof(script_save_request.map));
         return;
     }
-    if (do_score_screen) G_QueueScoreTransition("level", map);
-    else gi.MenuAction("level", map);
+    if (G_StageDifficultyTransition(map)) {
+        if (do_score_screen) G_QueueScoreTransition("level", map);
+        else gi.MenuAction("level", map);
+    }
 }
 
 void G_RequestRestartGame(bool do_score_screen) {
-    cstring_t map = gi.CvarString("map", "");
+    cstring_t map = level.map_path[0] ? level.map_path :
+        (gi.CvarString ? gi.CvarString("map", "") : "");
     G_GameResultDebug("request RestartGame map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
-    if (map && *map) {
+    if (script_save_rejected || script_standalone_load[0] || script_save_request.pending) return;
+    if (map && *map && G_StageDifficultyTransition(map)) {
         if (do_score_screen) G_QueueScoreTransition("level", map);
         else gi.MenuAction("level", map);
     }
@@ -1504,11 +1587,13 @@ void G_RequestLoadGameMenu(void) {
 
 void G_RequestLoadGameNamed(cstring_t name) {
     if (!name || !*name) return;
+    G_ResetDifficultyTransition();
     G_GameResultDebug("request LoadGame name=%s", name);
     gi.MenuAction("load", name);
 }
 
 void G_RequestCampaignSelect(void) {
+    G_ResetDifficultyTransition();
     /* Warcraft's ForceCampaignSelectScreen is called by SetCampaignAvailableBJ
      * while campaign ending cinematics are still running. It selects the
      * frontend destination for the eventual EndGame; it must not tear down the
@@ -2167,6 +2252,17 @@ static bool G_TestScriptSaveExists(cstring_t name) {
     return name && !strcmp(name, "Blizzard/Zones/OrcX01_02.w3z");
 }
 static bool G_TestScriptSaveMissing(cstring_t name) { (void)name; return false; }
+/* The client resolves a JASS basename into its exact map identity before
+ * dispatching SV_Map. Exercise that same engine-provided resolver contract. */
+static bool G_TestDifficultyResolveMap(cstring_t input, string_t out, uint32_t size) {
+    cstring_t resolved = input;
+    if (!input || !*input || !strcmp(input, "missing.w3x")) return false;
+    if (!strcmp(input, "OrcX01_02.w3x"))
+        resolved = "Maps\\FrozenThrone\\Campaign\\OrcX01_02.w3x";
+    if (strlen(resolved) >= size) return false;
+    strlcpy(out, resolved, size);
+    return true;
+}
 static int script_save_test_menu_actions;
 static char script_save_test_last_action[16];
 static char script_save_test_last_argument[MAX_PATHLEN];
@@ -2175,6 +2271,134 @@ static void G_TestScriptMenuAction(cstring_t action, cstring_t argument) {
     strlcpy(script_save_test_last_action, action, sizeof(script_save_test_last_action));
     script_save_test_menu_actions++;
 }
+TEST(wc3_difficulty_transition, restart_preserves_current_and_default_independently) {
+    bool (*old_resolve_map)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t current = 99, original_default = 99;
+    reset_entities();
+    setup_test_world();
+    G_ResetDifficultyTransition();
+    G_ResetScriptSave();
+    gi.ResolveMap = G_TestDifficultyResolveMap;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
+    level.setup.difficulty = 1;
+    level.setup.default_difficulty = 2;
+    G_RequestRestartGame(false);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_STREQ(script_save_test_last_action, "level");
+    T_STREQ(script_save_test_last_argument, "Maps\\Campaign\\Human02.w3m");
+    T_ASSERT(G_TakeDifficultyTransition("maps/campaign/HUMAN02.w3m", &current, &original_default));
+    T_EQ(current, 1u);
+    T_EQ(original_default, 2u);
+    T_ASSERT(!G_TakeDifficultyTransition("Maps/Campaign/Human02.w3m", &current, &original_default));
+    T_EQ(current, 1u);
+    T_EQ(original_default, 2u);
+    G_ResetDifficultyTransition();
+    gi.ResolveMap = old_resolve_map;
+    gi.MenuAction = old_menu_action;
+}
+
+TEST(wc3_difficulty_transition, scripted_change_level_uses_resolved_target) {
+    bool (*old_resolve_map)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t current = 99, original_default = 99;
+    reset_entities();
+    setup_test_world();
+    G_ResetDifficultyTransition();
+    G_ResetScriptSave();
+    gi.ResolveMap = G_TestDifficultyResolveMap;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    level.setup.difficulty = 0;
+    level.setup.default_difficulty = 3;
+    G_RequestChangeLevel("OrcX01_02.w3x", false);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_STREQ(script_save_test_last_action, "level");
+    T_ASSERT(G_TakeDifficultyTransition("Maps/FrozenThrone/Campaign/OrcX01_02.w3x",
+                                        &current, &original_default));
+    T_EQ(current, 0u);
+    T_EQ(original_default, 3u);
+    G_ResetDifficultyTransition();
+    gi.ResolveMap = old_resolve_map;
+    gi.MenuAction = old_menu_action;
+}
+
+TEST(wc3_difficulty_transition, mismatched_destination_consumes_override) {
+    bool (*old_resolve_map)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t current = 99, original_default = 99;
+    reset_entities();
+    setup_test_world();
+    G_ResetDifficultyTransition();
+    G_ResetScriptSave();
+    gi.ResolveMap = G_TestDifficultyResolveMap;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    level.setup.difficulty = 2;
+    level.setup.default_difficulty = 1;
+    G_RequestChangeLevel("OrcX01_02.w3x", false);
+    T_ASSERT(!G_TakeDifficultyTransition("Maps/Campaign/Human03.w3m", &current, &original_default));
+    T_ASSERT(!G_TakeDifficultyTransition("Maps/FrozenThrone/Campaign/OrcX01_02.w3x",
+                                         &current, &original_default));
+    T_EQ(current, 99u);
+    T_EQ(original_default, 99u);
+    G_ResetDifficultyTransition();
+    gi.ResolveMap = old_resolve_map;
+    gi.MenuAction = old_menu_action;
+}
+
+TEST(wc3_difficulty_transition, script_load_cancels_outgoing_override) {
+    bool (*old_resolve_map)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
+    bool (*old_exists)(cstring_t) = gi.ScriptSaveExists;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t current = 99, original_default = 99;
+    reset_entities();
+    setup_test_world();
+    G_ResetDifficultyTransition();
+    G_ResetScriptSave();
+    gi.ResolveMap = G_TestDifficultyResolveMap;
+    gi.ScriptSaveExists = G_TestScriptSaveExists;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    level.setup.difficulty = 0;
+    level.setup.default_difficulty = 2;
+    G_RequestChangeLevel("OrcX01_02.w3x", false);
+    T_ASSERT(G_RequestScriptLoadGame("Blizzard/Zones/OrcX01_02.w3z"));
+    T_ASSERT(!G_TakeDifficultyTransition("Maps/FrozenThrone/Campaign/OrcX01_02.w3x",
+                                         &current, &original_default));
+    G_ResetScriptSave();
+    G_ResetDifficultyTransition();
+    gi.ResolveMap = old_resolve_map;
+    gi.ScriptSaveExists = old_exists;
+    gi.MenuAction = old_menu_action;
+}
+
+TEST(wc3_difficulty_transition, invalid_map_cannot_queue_or_leave_override) {
+    bool (*old_resolve_map)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t current = 99, original_default = 99;
+    reset_entities();
+    setup_test_world();
+    G_ResetDifficultyTransition();
+    G_ResetScriptSave();
+    gi.ResolveMap = G_TestDifficultyResolveMap;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    level.setup.difficulty = 2;
+    level.setup.default_difficulty = 1;
+    G_RequestChangeLevel("OrcX01_02.w3x", false);
+    T_EQ(script_save_test_menu_actions, 1);
+    G_RequestChangeLevel("missing.w3x", false);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_ASSERT(!G_TakeDifficultyTransition("Maps/FrozenThrone/Campaign/OrcX01_02.w3x",
+                                         &current, &original_default));
+    G_ResetDifficultyTransition();
+    gi.ResolveMap = old_resolve_map;
+    gi.MenuAction = old_menu_action;
+}
+
 TEST(wc3_script_save, invalid_save_blocks_following_change_level) {
     bool (*old_save_path)(cstring_t, string_t, uint32_t) = gi.ScriptSavePath;
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
@@ -2210,13 +2434,18 @@ TEST(wc3_script_save, duplicate_save_aborts_pending_transition) {
 }
 TEST(wc3_script_save, successful_save_commits_before_next_level) {
     bool (*old_save_path)(cstring_t, string_t, uint32_t) = gi.ScriptSavePath;
+    bool (*old_resolve_map)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t current = 99, original_default = 99;
     cstring_t const filename = Test_TempPath("script-save-transition-success.sav");
     reset_entities();
     setup_test_world();
     G_ResetScriptSave();
     gi.ScriptSavePath = G_TestScriptSavePathOk;
+    gi.ResolveMap = G_TestDifficultyResolveMap;
     gi.MenuAction = G_TestScriptMenuAction;
+    level.setup.difficulty = 1;
+    level.setup.default_difficulty = 2;
     script_save_test_menu_actions = 0;
     script_save_test_last_action[0] = '\0';
     T_ASSERT(G_RequestScriptSaveGame("Blizzard/Zones/OrcX01.w3z"));
@@ -2226,18 +2455,27 @@ TEST(wc3_script_save, successful_save_commits_before_next_level) {
     T_EQ(script_save_test_menu_actions, 1);
     T_STREQ(script_save_test_last_action, "level");
     T_ASSERT(!G_ScriptSavePending());
+    T_ASSERT(G_TakeDifficultyTransition("maps/frozenthrone/campaign/orcx01_02.w3x",
+                                        &current, &original_default));
+    T_EQ(current, 1u);
+    T_EQ(original_default, 2u);
     FILE *saved = fopen(filename, "rb");
     T_NOT_NULL(saved);
     if (saved) fclose(saved);
     remove(filename);
     gi.ScriptSavePath = old_save_path;
+    gi.ResolveMap = old_resolve_map;
     gi.MenuAction = old_menu_action;
 }
 TEST(wc3_script_save, failed_write_never_starts_next_level) {
     bool (*old_save_path)(cstring_t, string_t, uint32_t) = gi.ScriptSavePath;
+    bool (*old_resolve_map)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t current = 99, original_default = 99;
     G_ResetScriptSave();
+    G_ResetDifficultyTransition();
     gi.ScriptSavePath = G_TestScriptSavePath;
+    gi.ResolveMap = G_TestDifficultyResolveMap;
     gi.MenuAction = G_TestScriptMenuAction;
     script_save_test_menu_actions = 0;
     T_ASSERT(G_RequestScriptSaveGame("Blizzard/Zones/OrcX01.w3z"));
@@ -2246,7 +2484,10 @@ TEST(wc3_script_save, failed_write_never_starts_next_level) {
     G_FlushScriptSave();
     T_EQ(script_save_test_menu_actions, 0);
     T_ASSERT(!G_ScriptSavePending());
+    T_ASSERT(!G_TakeDifficultyTransition("Maps/FrozenThrone/Campaign/OrcX01_02.w3x",
+                                         &current, &original_default));
     gi.ScriptSavePath = old_save_path;
+    gi.ResolveMap = old_resolve_map;
     gi.MenuAction = old_menu_action;
 }
 
