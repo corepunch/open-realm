@@ -86,10 +86,90 @@ TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
     T_EQ(value, 60);
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TOTAL, &value));
-    T_EQ(value, 880);
+    T_EQ(value, 380);
     client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = UINT32_MAX;
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TOTAL, &value));
     T_EQ(value, INT32_MAX);
+}
+
+TEST(wc3_score, explicit_score_screen_exclusion_and_normal_player_defaults) {
+    gameClient_t *client = &game.clients[0];
+    mapPlayer_t *player;
+    setup_test_world();
+    player = &((mapInfo_t *)level.mapinfo)->players[0];
+    memset(&client->jass, 0, sizeof(client->jass));
+    client->ps.number = 0;
+    client->mapplayer = player;
+    player->used = true;
+    player->playerType = kPlayerTypeHuman;
+    T_ASSERT(G_ScorePlayerEligible(client));
+    client->jass.on_score_screen_set = true;
+    client->jass.on_score_screen = false;
+    T_ASSERT(!G_ScorePlayerEligible(client));
+    client->jass.on_score_screen = true;
+    T_ASSERT(G_ScorePlayerEligible(client));
+    client->jass.on_score_screen_set = false;
+    player->playerType = kPlayerTypeNeutral;
+    T_ASSERT(!G_ScorePlayerEligible(client));
+    player->playerType = kPlayerTypeComputer;
+    T_ASSERT(G_ScorePlayerEligible(client));
+}
+
+TEST(wc3_score, jass_false_score_screen_override_is_explicit) {
+    gameClient_t *client = &game.clients[0];
+    setup_test_world();
+    client->ps.number = 0;
+    memset(&client->jass, 0, sizeof(client->jass));
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetPlayerOnScoreScreen(Player(0), false)\n"
+        "endfunction\n"));
+    T_ASSERT(client->jass.on_score_screen_set);
+    T_ASSERT(!client->jass.on_score_screen);
+}
+
+TEST(wc3_score, score_counts_completed_units_but_not_buildings) {
+    edict_t *unit;
+    edict_t *building;
+    gameClient_t *client = &game.clients[0];
+    setup_test_world();
+    memset(&client->score, 0, sizeof(client->score));
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 0.0f);
+    unit->s.player = building->s.player = client->ps.number;
+    G_PlayerScoreUnitTrained(unit);
+    G_PlayerScoreUnitTrained(building);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 1);
+}
+
+TEST(wc3_score, direct_runtime_creation_counts_produced_unit_once) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *unit;
+    setup_test_world();
+    memset(&client->score, 0, sizeof(client->score));
+    unit = unit_create(client->ps.number, BZ_WC3_UNIT_PEASANT,
+                       &(vec2_t){ 128.0f, 128.0f }, 0.0f);
+    T_NOT_NULL(unit);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 1);
+}
+
+TEST(wc3_score, hero_experience_appears_in_hero_score) {
+    edict_t *hero;
+    gameClient_t *client = &game.clients[0];
+    int32_t hero_total = 0;
+    setup_test_world();
+    memset(&client->score, 0, sizeof(client->score));
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    hero->s.player = client->ps.number;
+    G_PlayerScoreUnitTrained(hero);
+    hero->hero.level = 1;
+    G_HeroSetXP(hero, 500);
+    G_HeroSetXP(hero, 600);
+    G_HeroSetXP(hero, 200); /* lowering an XP value must not add score */
+    T_EQ(client->score.heroes_used, 1);
+    T_EQ(client->score.experience_gained, 600);
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_HERO_TOTAL, &hero_total));
+    T_EQ(hero_total, 6000); /* Provisional retail reference: 10 points/XP. */
 }
 
 TEST(wc3_score, guessed_aggregate_scores_are_queryable_from_jass) {
@@ -113,21 +193,28 @@ TEST(wc3_score, retail_score_table_uses_separate_columns_and_does_not_fabricate_
     player.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] = 240;
     player.values[WC3_PLAYER_SCORE_TECH_PERCENT] = 60;
     T_EQ(WC3_ScoreColumns(0), 4);
-    T_EQ(WC3_ScoreColumns(1), 2);
+    T_EQ(WC3_ScoreColumns(1), 5);
     T_EQ(WC3_ScoreColumns(2), 5);
     T_EQ(WC3_ScoreColumns(3), 5);
     T_ASSERT(WC3_ScoreCellValue(&player, 0, 0, &value, &percent));
     T_EQ(value, 70);
     T_ASSERT(WC3_ScoreCellValue(&player, 2, 1, &value, &percent));
     T_EQ(value, 3);
-    T_ASSERT(!WC3_ScoreCellValue(&player, 2, 0, &value, &percent)); /* Heroes Used is not tracked. */
-    T_ASSERT(!WC3_ScoreCellValue(&player, 2, 4, &value, &percent)); /* XP is not tracked. */
+    player.heroes_used = 3;
+    player.experience_gained = 500;
+    T_ASSERT(WC3_ScoreCellValue(&player, 2, 0, &value, &percent));
+    T_EQ(value, 3);
+    T_ASSERT(WC3_ScoreCellValue(&player, 2, 4, &value, &percent));
+    T_EQ(value, 500);
     T_ASSERT(WC3_ScoreCellValue(&player, 3, 0, &value, &percent));
     T_EQ(value, 240);
     T_ASSERT(WC3_ScoreCellValue(&player, 3, 3, &value, &percent));
     T_EQ(value, 60);
-    T_ASSERT(percent);
-    T_ASSERT(!WC3_ScoreCellValue(&player, 3, 2, &value, &percent)); /* Traded is not tracked. */
+    T_ASSERT(!percent); /* Retail integer, no '%' suffix. */
+    T_ASSERT(WC3_ScoreCellValue(&player, 3, 2, &value, &percent));
+    T_EQ(value, 0);
+    T_ASSERT(WC3_ScoreCellValue(&player, 1, 4, &value, &percent));
+    T_EQ(value, 0); /* Largest Army is tracked peak food used. */
 }
 
 TEST(wc3_score, score_table_scroll_clamps_to_visible_player_range) {

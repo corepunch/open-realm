@@ -8,7 +8,7 @@ never bundles Blizzard FDF or score artwork.
 ## Source and confidence
 
 The raw score counters are simulation-authored as described in the preceding
-foundation patch. Five **unverified guesses** now return values through
+foundation patch. Four **unverified guesses** now return values through
 `GetPlayerScore` and are also shown on the result screen. They are deliberately
 separated from the accounting hooks in `g_score.c` and tagged `GUESS`:
 
@@ -16,14 +16,15 @@ separated from the accounting hooks in `g_score.c` and tagged `GUESS`:
 |---|---|
 | Tech percent | 100 × researched technology IDs / observed technology IDs, or 0 with none |
 | Units total | 10× trained + 10× enemy units killed + 20× structures built + 20× structures razed |
-| Heroes total | 100× hero kills + 10× items gained |
+| Heroes total | 100× hero kills + 10× items gained + 10× experience gained |
 | Resources total | floor(gross gold / 10) + floor(gross lumber / 5) |
-| Overall total | Units + Heroes + Resources + 10× Tech percent |
+| Overall total | **Confirmed:** Units + Heroes + Resources (no Tech bonus) |
 
 All totals saturate at `INT32_MAX`. **These weights and denominators are guesses,
 not reverse-engineered Warcraft calculations**. In particular, the technology
-denominator lacks unresearched-but-available tech; hero score lacks XP/hero
-usage; and resources do not have authoritative transfer/tax accounting. Compare
+denominator lacks unresearched-but-available tech; hero XP is now tracked but
+its 10× score weight is inferred from one retail case; and resources do not
+have authoritative transfer/tax accounting. Compare
 against original retail scores with controlled games before claiming parity.
 
 ## Snapshot and screen lifecycle
@@ -50,9 +51,9 @@ sends `close_window_command scorescreen_continue`. The command is accepted
 only from a recipient who was actually shown the window, and it consumes the
 deferred destination *before* submitting the menu or map change.
 
-Only included score-screen players appear. The flag `SetPlayerOnScoreScreen`
-is honoured when set on any player; otherwise it falls back to used/connected
-slots, to avoid empty screens where the map never initialized the flag.
+Only included score-screen players appear. Each explicit `SetPlayerOnScoreScreen`
+override is honoured independently; non-overridden players use map-controller
+eligibility instead of including every used/connected slot.
 Removed/eliminated players remain visible when eligible.
 
 If the FDF root is absent, the UI cannot be sent, or there are no connected
@@ -99,19 +100,20 @@ height/spacing, text size, tint and icon placement remain **PRESENTATION
 GUESSES** pending retail runtime verification. The player ordering is the
 frozen score snapshot order; retail's exact order/grouping rules are unknown.
 
-The pages now follow the keys from `GlobalStrings.fdf`:
+The initial Patch 2 pages followed the keys from `GlobalStrings.fdf`; see the corrective section below for expanded columns:
 
 | Page | Displayed columns |
 |---|---|
 | Overview | Unit Score, Heroes Score, Resource Score, Total Score |
-| Units | Units Produced, Units Killed |
+| Units | Units Produced, Units Killed, Buildings Produced, Buildings Razed, Largest Army |
 | Heroes | Heroes Used, Heroes Killed, Items Obtained, Mercenaries Hired, Experience Gained |
 | Resources | Gold Mined, Lumber Harvested, Resources Traded, Tech Percentage, Gold Lost to Upkeep |
 
-Raw counters from the frozen snapshot populate known columns. For untracked
-`Heroes Used`, `Experience Gained`, and `Resources Traded`, show `-`, **not**
-a fabricated zero. Technology percentage and overview aggregate scores retain
-the explicitly marked `GUESS` formulas in `g_score.c`. Highlighting the
+Raw counters from the frozen snapshot populate known columns. The initial
+patch showed `-` for untracked Heroes Used, Experience Gained and Resources
+Traded; these now have tracking/provisional projections as described below.
+Technology percentage and component aggregate weights retain explicit `GUESS`
+comments in `g_score.c`; the overall sum is supported by the retail reference. Highlighting the
 highest positive score per column is an additional **presentation guess**
 inferred from the screenshot, not verified retail sorting logic.
 
@@ -222,3 +224,51 @@ transition returns to campaign selection instead of stranding the session.
 Validation: exercise both the scripted Defeat -> Quit Campaign dialog and
 ESC -> End Game -> Quit Mission on retail MPQ data. The `LayerStyle` parsing
 regression is supplied but local compilation/runtime testing was not performed.
+
+### Retail score-data corrections (13 October 2026)
+
+The UndeadX07c reference captures at ~9 seconds show two participants
+(Naphos and Faceless Ones), 7 and 50 Units Produced, 3 Heroes Used and
+500 Experience Gained for Naphos, and **Total Score = Unit + Hero + Resource**.
+The reference is *evidence for this map*, not a proof of general retail weights.
+The prior fallback enumerated script-only map factions and returned 550/250
+aggregate points from an unrelated Tech Percentage bonus.
+
+The score snapshot now honors each explicit `SetPlayerOnScoreScreen(false)`
+independently; when unset, only W3I human/computer participants appear by
+default (plus connected synthetic players without W3I data). It keeps defeated
+participants, and uses the local `name` profile cvar for single-player humans
+unless subsequent JASS `SetPlayerName` overrides it. Nonstandard scripted
+controller changes and retail eligibility tie-breaking remain to be verified.
+
+`Units Produced` now includes preplaced W3I units, successful immediate
+`CreateUnit` units, and completed training; it deliberately does **not** count
+queued trainees at reservation, or transformations as new units. The preplaced
+and runtime paths do not double-count script-restored map units because the
+existing `unit_createorfind` resolution reuses entities. Buildings Produced
+still measures finished construction only. Largest Army provisionally uses
+peak food used, already tracked by the authoritative food subsystem. All
+W3I participants now get an initial preplaced-food pass, not only clients that
+connect, so AI armies contribute to their own largest-army peaks.
+
+Heroes Used now counts units entering play that are classified as heroes;
+Experience Gained is the sum of positive hero XP changes through the common
+`G_HeroSetXP` path, including JASS grants and combat XP. The Heroes page renders
+both values; the Heroes Score formula now includes **GUESS** 10× XP after the
+single retail sample (500 XP => 5000 Hero Score). The pre-existing kill and
+item weights are **GUESS** too. The temporary Unit Score is still weighted by
+raw event counts rather than Warcraft unit-cost values; do not expect it to
+match the retail 12465/2325 yet.
+
+The Units page now exposes all five retail fields: produced, killed, buildings
+produced, buildings razed and largest army. Resources Traded shows the retail
+`gold/lumber` presentation, currently using the authored give counters as a
+**GUESS** because bidirectional trade semantics have not been recovered. The
+Tech Percentage denominator is **still unverified**; the UI displays its value
+without `%`, matching the sample reference's typography. Victory/defeat art
+selection and the 3-D MDX background are intentionally left to the separate
+presentation work.
+
+Save version **91** captures the new hero totals and explicit inclusion marker,
+rejecting prior save versions according to the project's save policy. This
+patch does not change the 25 JASS PLAYER_SCORE_* numeric identifiers.

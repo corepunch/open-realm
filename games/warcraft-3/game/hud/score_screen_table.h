@@ -7,7 +7,7 @@
 #include "../g_local.h"
 
 static inline uint32_t WC3_ScoreColumns(uint32_t tab) {
-    return tab == 0 ? 4 : tab == 1 ? 2 : 5;
+    return tab == 0 ? 4 : 5;
 }
 
 static inline uint32_t WC3_ScoreMaxScroll(uint32_t count) {
@@ -32,7 +32,8 @@ static inline bool WC3_ScoreCellValue(wc3ScorePlayerSnapshot_t const *p,
         { WC3_PLAYER_SCORE_UNIT_TOTAL, WC3_PLAYER_SCORE_HERO_TOTAL,
           WC3_PLAYER_SCORE_RESOURCE_TOTAL, WC3_PLAYER_SCORE_TOTAL, -1 },
         { WC3_PLAYER_SCORE_UNITS_TRAINED, WC3_PLAYER_SCORE_UNITS_KILLED,
-          -1, -1, -1 },
+          WC3_PLAYER_SCORE_STRUCT_BUILT, WC3_PLAYER_SCORE_STRUCT_RAZED,
+          WC3_PLAYER_SCORE_FOOD_MAXUSED },
         { -1, WC3_PLAYER_SCORE_HEROES_KILLED, WC3_PLAYER_SCORE_ITEMS_GAINED,
           WC3_PLAYER_SCORE_MERCS_HIRED, -1 },
         { WC3_PLAYER_SCORE_GOLD_MINED_TOTAL, WC3_PLAYER_SCORE_LUMBER_TOTAL,
@@ -40,10 +41,31 @@ static inline bool WC3_ScoreCellValue(wc3ScorePlayerSnapshot_t const *p,
     };
     int32_t index;
     if (!p || !out || tab >= 4 || col >= WC3_ScoreColumns(tab)) return false;
+    if (tab == 3 && col == 2) {
+        /* GUESS: a traded resources cell shows gold / lumber transferred
+         * out. The retail text shape is confirmed, not its direction. */
+        *out = (int32_t)MIN((uint64_t)p->values[WC3_PLAYER_SCORE_GOLD_GIVEN] +
+                            (uint64_t)p->values[WC3_PLAYER_SCORE_LUMBER_GIVEN],
+                            (uint64_t)INT32_MAX);
+        if (percent) *percent = false;
+        return true;
+    }
+    if (tab == 2 && col == 0) {
+        *out = (int32_t)MIN(p->heroes_used, (uint32_t)INT32_MAX);
+        if (percent) *percent = false;
+        return true;
+    }
+    if (tab == 2 && col == 4) {
+        *out = (int32_t)MIN(p->experience_gained, (uint32_t)INT32_MAX);
+        if (percent) *percent = false;
+        return true;
+    }
     index = indexes[tab][col];
     if (index < 0) return false;
     *out = p->values[index];
-    if (percent) *percent = tab == 3 && col == 3;
+    /* Classic score screen prints the integer for Tech Percentage without
+     * a literal percent suffix (the header supplies the unit). */
+    if (percent) *percent = false;
     return true;
 }
 

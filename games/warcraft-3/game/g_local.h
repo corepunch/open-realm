@@ -588,6 +588,9 @@ typedef struct {
     /* Raw engine-owned score counters.  Aggregate score formulas stay separate
      * until their retail weighting is established. */
     uint32_t values[WC3_PLAYER_SCORE_COUNT];
+    /* Retail pages expose hero usage and earned XP separately from common.j's
+     * fixed PLAYER_SCORE_* ids. Persist alongside the raw counters. */
+    uint32_t heroes_used, experience_gained;
 } wc3PlayerScoreState_t;
 
 /* Transient, immutable outgoing-match presentation. Never serialized in
@@ -596,6 +599,7 @@ typedef struct {
     uint32_t number, race, team, color;
     char name[64];
     int32_t values[WC3_PLAYER_SCORE_COUNT];
+    uint32_t heroes_used, experience_gained;
 } wc3ScorePlayerSnapshot_t;
 
 typedef struct {
@@ -615,6 +619,8 @@ struct client_s {
         uint8_t tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
         float handicap, handicap_xp;
         bool race_selectable, on_score_screen;
+        /* An explicit false differs from the default (unspecified) setting. */
+        bool on_score_screen_set;
         bool removed;
         uint8_t pending_game_result; /* 0 = none, PLAYER_GAME_RESULT_* + 1 while fallback UI is deferred */
         uint32_t pending_game_result_event; /* level.events.read must reach this write ordinal before fallback UI */
@@ -3020,6 +3026,8 @@ void G_RecomputePlayerUpkeep(gameClient_t *client);
 void G_PlayerScoreObserveFood(gameClient_t *client);
 void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state);
 void G_PlayerScoreUnitTrained(edict_t *unit);
+void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount);
+bool G_ScorePlayerEligible(gameClient_t const *client);
 void G_PlayerScoreStructureBuilt(edict_t *building);
 void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker);
 void G_PlayerScoreItemGained(edict_t *unit);

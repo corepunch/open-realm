@@ -45,12 +45,48 @@ void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state) {
     }
 }
 
+/* Score units only when they enter play. Callers own the lifecycle:
+ * preplaced map units, immediate JASS CreateUnit, or finished training.
+ * Never call at generic SP_SpawnUnit time: transformations reuse it and
+ * queued trainees are created long before they can enter the world. */
 void G_PlayerScoreUnitTrained(edict_t *unit) {
     gameClient_t *client;
 
-    if (!unit) return;
+    if (!unit || G_UnitIsStructure(unit)) return;
     client = G_ScoreClient(unit->s.player);
     G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_UNITS_TRAINED, 1);
+    if (G_UnitIsHero(unit) && client && client->score.heroes_used < INT32_MAX)
+        client->score.heroes_used++;
+}
+
+void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount) {
+    gameClient_t *client;
+    if (!hero || !amount || !G_UnitIsHero(hero)) return;
+    client = G_ScoreClient(hero->s.player);
+    if (!client) return;
+    client->score.experience_gained = (uint32_t)MIN(
+        (uint64_t)client->score.experience_gained + amount, (uint64_t)INT32_MAX);
+}
+
+/* Honor explicit SetPlayerOnScoreScreen(false) without requiring another
+ * player to explicitly opt in. Retail campaigns use negative overrides.
+ * Without an override, standard human/computer participants are eligible;
+ * neutral and script/rescue slots are not. Defeated players remain eligible. */
+bool G_ScorePlayerEligible(gameClient_t const *client) {
+    mapPlayer_t const *mapplayer;
+    if (!client || client->ps.number >= MAX_PLAYERS) return false;
+    if (client->jass.on_score_screen_set)
+        return client->jass.on_score_screen;
+    mapplayer = client->mapplayer;
+    /* Save/load drops runtime mapplayer pointers, but the map's slot roster
+     * remains available. Never lose AI participants after loading a save. */
+    if (!mapplayer && level.mapinfo)
+        mapplayer = &level.mapinfo->players[client->ps.number];
+    if (mapplayer && mapplayer->used)
+        return mapplayer->playerType == kPlayerTypeHuman ||
+               mapplayer->playerType == kPlayerTypeComputer;
+    /* Synthetic/hand-constructed sessions may not have W3I slot metadata. */
+    return client->connected;
 }
 
 void G_PlayerScoreStructureBuilt(edict_t *building) {
@@ -113,7 +149,7 @@ void G_PlayerScoreResourceIncome(player_t *player, uint32_t resource_state,
     }
 }
 
-/* RETAIL-PARITY GUESS: all five aggregate formulas below are provisional.
+/* RETAIL-PARITY GUESS: the four remaining weights and denominators are provisional.
  * Do not mistake the weights or denominator for recovered Warcraft III data.
  * They are explicit, bounded and deterministic so maps can query a useful
  * first approximation; compare each value with stock WC3 before finalizing. */
@@ -139,14 +175,17 @@ bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *
     uint32_t const *s;
     if (!client || !value || score >= WC3_PLAYER_SCORE_COUNT) return false;
     s = client->score.values;
-    /* GUESS: raw activity points, intentionally excluding gained units/items
-     * from hero score until hero-XP/usage telemetry exists. */
+    /* GUESS: activity-based Unit Score weights, until Warcraft's exact
+     * unit-cost and kill contribution rules are recovered. */
     units = (uint64_t)s[WC3_PLAYER_SCORE_UNITS_TRAINED] * 10u +
             (uint64_t)s[WC3_PLAYER_SCORE_UNITS_KILLED] * 10u +
             (uint64_t)s[WC3_PLAYER_SCORE_STRUCT_BUILT] * 20u +
             (uint64_t)s[WC3_PLAYER_SCORE_STRUCT_RAZED] * 20u;
+    /* GUESS: the retail reference's 500 XP -> 5000 Hero Score supports a
+     * 10x experience contribution. Other Hero weights remain unverified. */
     heroes = (uint64_t)s[WC3_PLAYER_SCORE_HEROES_KILLED] * 100u +
-             (uint64_t)s[WC3_PLAYER_SCORE_ITEMS_GAINED] * 10u;
+             (uint64_t)s[WC3_PLAYER_SCORE_ITEMS_GAINED] * 10u +
+             (uint64_t)client->score.experience_gained * 10u;
     /* GUESS: 10 gold or 5 lumber gathered = 1 score point, ignoring
      * transfers until their authoritative transaction callbacks exist. */
     resources = s[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] / 10u +
@@ -161,9 +200,10 @@ bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *
     case WC3_PLAYER_SCORE_RESOURCE_TOTAL:
         *value = G_ScoreClamp(resources); break;
     case WC3_PLAYER_SCORE_TOTAL:
-        /* GUESS: technology counts as 10 points per percentage point. */
-        *value = G_ScoreClamp(units + heroes + resources +
-                              (uint64_t)G_ScoreGuessTechPercent(client) * 10u);
+        /* Retail Overview's Total Score equals its three displayed scores.
+         * Unlike the earlier GUESS, Tech Percentage is informational only. */
+        *value = G_ScoreClamp((uint64_t)G_ScoreClamp(units) +
+                              G_ScoreClamp(heroes) + G_ScoreClamp(resources));
         break;
     default:
         *value = (int32_t)s[score]; break;

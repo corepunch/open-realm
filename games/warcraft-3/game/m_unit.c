@@ -1430,6 +1430,7 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     }
     unit->s.angle = facing * M_PI / 180;
     G_ActivateUnitFood(unit);
+    G_PlayerScoreUnitTrained(unit); /* immediately entered play, not queued */
     G_BotUnitReady(unit);
     return unit;
 }
@@ -2439,6 +2440,7 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
     if (xp <= ent->hero.xp) {
         return;
     }
+    G_PlayerScoreExperienceGained(ent, xp - ent->hero.xp);
     ent->hero.xp = xp;
     newLevel = G_HeroLevelForXP(xp);
     if (newLevel > oldLevel) {

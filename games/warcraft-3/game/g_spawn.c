@@ -758,6 +758,14 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     clent->client->jass.race_selectable = true;
     clent->client->jass.handicap = 100.0f;
     clent->client->jass.handicap_xp = 1.0f;
+    /* Single-player retail displays the profile name for the local human
+     * slot, rather than the W3I placeholder (often "Player 1"). JASS
+     * SetPlayerName runs later and can intentionally override this value. */
+    if (player && player->playerType == kPlayerTypeHuman &&
+        G_IsSinglePlayer() && gi.CvarString) {
+        cstring_t profile_name = gi.CvarString("name", "");
+        if (profile_name && *profile_name) name = profile_name;
+    }
     strlcpy(clent->client->jass.name, name ? name : "", sizeof(clent->client->jass.name));
     ps->name = clent->client->jass.name;
 }
@@ -936,6 +944,8 @@ void G_SpawnEntities(void) {
         }
         SP_CallSpawn(ent);
         G_FillMapPlacedUnitMana(ent);
+        if (ent->s.flags & EF_UNIT)
+            G_PlayerScoreUnitTrained(ent); /* preplaced map units count */
         if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (uint32_t)-1)
             ent->resources = doodad->goldAmount;
         if (ent->svflags & SVF_MONSTER) G_ApplyMapUnitTeamColor(ent, doodad);
@@ -947,6 +957,14 @@ void G_SpawnEntities(void) {
     }
     S_MineOverlayBindPreplaced();
     SP_worldspawn(NULL);
+    /* Every W3I participant has its own preplaced army, including computer
+     * factions without network connections. Seed authoritative food peaks
+     * before map JASS starts; the later ClientBegin pass is delta-idempotent. */
+    FOR_LOOP(i, MAX_PLAYERS) {
+        gameClient_t *client = game.clients + i;
+        if (client->mapplayer && client->mapplayer->used)
+            G_AccumulatePlayerFood(client);
+    }
     
     jass_dofile(level.vm, "Scripts\\common.j");
     gi.LoadingFrame();

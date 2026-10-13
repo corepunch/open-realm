@@ -86,7 +86,6 @@ static void G_ResetScoreTransition(void) {
 }
 
 static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
-    bool any_enabled = false;
     if (!snapshot) return;
     memset(snapshot, 0, sizeof(*snapshot));
     /* World simulation ticks, not time spent on the paused score modal.
@@ -96,24 +95,23 @@ static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
     /* Only the first MAX_PLAYERS client slots are initialized with WC3
      * player handles. The remaining reserved client slots have zeroed IDs
      * and must never masquerade as a second copy of Player(0). */
-    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_PLAYERS)) {
-        if (game.clients[i].jass.on_score_screen) any_enabled = true;
-    }
+    /* Each map player may explicitly disable its own row. Never infer that
+     * false means disabled unless SetPlayerOnScoreScreen was actually called. */
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_PLAYERS)) {
         gameClient_t const *client = game.clients + i;
         wc3ScorePlayerSnapshot_t *entry;
         uint32_t number = client->ps.number;
         if (snapshot->count >= MAX_PLAYERS || number >= MAX_PLAYERS ||
-            (any_enabled && !client->jass.on_score_screen)) continue;
-        /* Include eliminated players: RemovePlayer is routinely called before
-         * EndGame, and elimination must not erase a score-screen column. */
-        if (!any_enabled && !client->connected &&
-            (!level.mapinfo || !level.mapinfo->players[number].used)) continue;
+            !G_ScorePlayerEligible(client)) continue;
+        /* RemovePlayer may precede EndGame; elimination does not clear a
+         * player's authored score-screen eligibility. */
         entry = &snapshot->players[snapshot->count++];
         entry->number = number;
         entry->race = client->ps.race;
         entry->team = client->ps.team;
         entry->color = client->ps.color;
+        entry->heroes_used = client->score.heroes_used;
+        entry->experience_gained = client->score.experience_gained;
         strlcpy(entry->name,
                 client->jass.name[0] ? client->jass.name :
                 (client->ps.name && *client->ps.name ? client->ps.name : "Player"),

@@ -94,7 +94,11 @@ uint32_t SetPlayerName(jass_t *j) {
 }
 uint32_t SetPlayerOnScoreScreen(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
-    if (player) PLAYER_CLIENT(player)->jass.on_score_screen = jass_checkboolean(j, 2);
+    if (player) {
+        gameClient_t *client = PLAYER_CLIENT(player);
+        client->jass.on_score_screen = jass_checkboolean(j, 2);
+        client->jass.on_score_screen_set = true;
+    }
     return 0;
 }
 uint32_t GetPlayerTeam(jass_t *j) {

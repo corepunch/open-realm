@@ -166,11 +166,11 @@ static void ScoreScreenSetHeaders(ScoreScreen_t *score, uint32_t tab,
                                    wc3ScoreView_t const *view) {
     static cstring_t const keys[][5] = {
         { "OVERVIEW_COLUMN0", "OVERVIEW_COLUMN1", "OVERVIEW_COLUMN2", "OVERVIEW_COLUMN3", NULL },
-        { "UNIT_COLUMN0", "UNIT_COLUMN1", NULL, NULL, NULL },
+        { "UNIT_COLUMN0", "UNIT_COLUMN1", "UNIT_COLUMN2", "UNIT_COLUMN3", "UNIT_COLUMN4" },
         { "HEROES_COLUMN0", "HEROES_COLUMN1", "HEROES_COLUMN2", "HEROES_COLUMN3", "HEROES_COLUMN4" },
         { "RESOURCES_COLUMN0", "RESOURCES_COLUMN1", "RESOURCES_COLUMN2", "RESOURCES_COLUMN3", "RESOURCES_COLUMN4" },
     };
-    bool const wide = tab >= 2;
+    bool const wide = tab >= 1;
     UI_SetHidden(score->ScoreScreen4ColumnFrame, wide);
     UI_SetHidden(score->ScoreScreen5ColumnFrame, !wide);
     FOR_LOOP(i, wide ? 5u : 4u) {
@@ -217,7 +217,7 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab,
     cstring_t label;
 
     UI_SetText(score->ScoreScreenBackground, "#!%s",
-               tab >= 2 ? "Scorescreen-5Button" : "Scorescreen-4Button");
+               tab >= 1 ? "Scorescreen-5Button" : "Scorescreen-4Button");
     snprintf(anim, sizeof(anim), "#!Tab%u", (unsigned)tab + 1);
     UI_SetText(score->ScoreScreenPageTab, "%s", anim);
     {
@@ -284,6 +284,10 @@ static void ScoreScreenFillRow(uint32_t slot, uint32_t tab,
         UI_SetPoint(cell, FRAMEPOINT_TOP, root, FRAMEPOINT_TOPLEFT,
                     0.400f + (count == 5 ? cols5[c] : cols4[c]) - SCORE_ROW_X, -0.003f);
         if (!has_value) strlcpy(text, "-", sizeof(text));
+        else if (tab == 3 && c == 2) /* Provisional gold/lumber trade direction. */
+            snprintf(text, sizeof(text), "%d/%d",
+                     player->values[WC3_PLAYER_SCORE_GOLD_GIVEN],
+                     player->values[WC3_PLAYER_SCORE_LUMBER_GIVEN]);
         else if (percent) snprintf(text, sizeof(text), "%d%%", value);
         else snprintf(text, sizeof(text), "%d", value);
         UI_SetText(cell, "%s", text);
