@@ -1,0 +1,54 @@
+/* Launcher-only OPFS installer. The engine FS adapter is a later patch. */
+(function () {
+  'use strict';
+  const fileInput = document.getElementById('game-files');
+  const install = document.getElementById('install-data');
+  const cancel = document.getElementById('cancel-install');
+  const remove = document.getElementById('remove-data');
+  const status = document.getElementById('data-status');
+  const progress = document.getElementById('install-progress');
+  if (!navigator.storage?.getDirectory || !window.Worker) {
+    status.textContent = 'OPFS and Web Workers are required to install files in this browser.';
+    install.disabled = true;
+    return;
+  }
+  const worker = new Worker('install-worker.js');
+  let busy = false;
+  function setBusy(value) {
+    busy = value;
+    install.disabled = value;
+    cancel.disabled = !value;
+    remove.disabled = value;
+  }
+  worker.onmessage = ({data}) => {
+    if (data.type === 'progress') {
+      progress.value = data.total ? data.copied / data.total : 0;
+      status.textContent = 'Copying ' + data.file + ': ' + Math.round(100*progress.value) + '%';
+    } else if (data.type === 'done') {
+      setBusy(false);
+      status.textContent = 'Stored ' + data.manifest.files.length + ' files locally (' + data.manifest.bytes + ' bytes). Game engine integration is pending.';
+      fileInput.value = '';
+    } else if (data.type === 'list') {
+      const m = data.manifest;
+      status.textContent = m ? ('Local files: '+m.files.map(f=>f.name).join(', ')) : 'No game data installed.';
+      setBusy(false);
+    } else if (data.type === 'error') {
+      setBusy(false);
+      status.textContent = 'Import error: ' + data.message;
+    }
+  };
+  worker.onerror = () => { setBusy(false); status.textContent = 'Game-data worker failed.'; };
+  install.addEventListener('click',()=>{
+    if(busy) return;
+    const files=Array.from(fileInput.files || []);
+    if(!files.length){status.textContent='Choose game archive files first.';return;}
+    setBusy(true); progress.value=0;
+    worker.postMessage({type:'import',files});
+  });
+  cancel.addEventListener('click',()=>worker.postMessage({type:'cancel'}));
+  remove.addEventListener('click',()=>{
+    if(!confirm('Delete all imported Warcraft III files from this browser?')) return;
+    setBusy(true); worker.postMessage({type:'remove'});
+  });
+  worker.postMessage({type:'list'});
+})();

@@ -20,7 +20,7 @@ extern void *objc_getClass(char const *name);
 extern void *sel_registerName(char const *str);
 extern void *objc_msgSend(void *, void *, ...);
 #endif
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
 #include <SDL2/SDL_opengl.h>
 #endif
 

@@ -13,6 +13,8 @@
 #else
 #include <OpenGLES/ES3/gl.h>
 #endif
+#elif defined(__EMSCRIPTEN__)
+#include <GLES3/gl3.h>
 #elif __linux__ && defined(BZ_GL_ES3)
 #include <GLES3/gl3.h>
 #elif __linux__ || defined(__OpenBSD__)

@@ -533,3 +533,10 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 - If a needed label doesn't exist, create it first with `gh label create`.
 - Keep issue titles at most 80 characters.
 - Keep issues scoped to one game/title when possible.
+
+## Browser platform
+
+The opt-in Emscripten/WebGL 2 foundation target and its current limitations are
+recorded in [Browser platform](docs/platform/browser.md). The smoke test is not
+a Warcraft III runtime. Keep browser adapters outside the universal client and
+game simulation modules.
