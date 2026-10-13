@@ -370,3 +370,10 @@ against `score_unit_credited`, `jass_remove_requested`, and `free_begin`
 records. Do not infer retail behaviour from the OpenRealm logs alone;
 retail experiments must establish whether particular removed units keep score
 credit and when Largest Army tracking begins.
+
+### ShowUnit visibility transitions
+
+With `wc3_game_result_debug 1`, `ShowUnit` emits `score lifecycle`
+`showunit_hide_before/after` and `showunit_show_before/after` records, including
+the hidden bit, unit/owner identity, current food, score food peak, and unit
+score. `showunit_unchanged` and `showunit_rejected_inactive` identify ignored calls.
