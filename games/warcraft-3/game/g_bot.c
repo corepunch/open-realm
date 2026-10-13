@@ -1080,27 +1080,35 @@ static bool G_BotReevaluateCaptain(bot_t *bot,botCaptain_t *captain) {
 
 /* The one-second Captain event is independent of private script execution.
  * There is no frame-polled health/power timer in the recovered home policy. */
+#ifdef BZ_TESTS
+void (*test_captain_periodic_clock)(botCaptain_t *);
+#endif
+void G_FireCaptainTimer(botCaptain_t *captain) {
+    wc3Clock_t now=level.pathing_clock;
+    if(!level.scheduled_frame)level.pathing_clock=captain->update_due;
+#ifdef BZ_TESTS
+    if(test_captain_periodic_clock)test_captain_periodic_clock(captain);
+#endif
+    wc3_clock_advance(&captain->update_due,1,0);
+    if (!S_CaptainNearHome(captain)) FOR_EACH_ARRAY(edict_t *, member,captain->units) {
+        edict_t *unit=*member;
+        if (G_BotUnitAlive(unit) && !G_UnitHasActiveOrder(unit) && !unit_affectingcombat(unit))
+            S_ReissueCaptainUnit(unit,captain->home_actor);
+    }
+    /*9d09c0 sets1000 before its separately retained target-strength branch. */
+    captain->policy_flags|=BOT_CAPTAIN_STRENGTH_READY;
+    level.pathing_clock=now;
+    S_TrackMoveTimers(captain->home_actor);
+}
 void G_RunCaptainTimers(void) {
     wc3Clock_t boundary=level.pathing_clock;
     wc3_clock_advance(&boundary,wc3_float(0x3ba3d70a),0);
     FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
-        bot_t *bot=level.bots+p;botCaptain_t *captain=bot->captains+c;
+        botCaptain_t *captain=level.bots[p].captains+c;
         if (!captain->home_actor || !captain->home_actor->inuse || !captain->update_due.span) continue;
         while (boundary.epoch==captain->update_due.epoch ? boundary.time>=captain->update_due.time :
-            (int32_t)(boundary.epoch-captain->update_due.epoch)>0) {
-            wc3Clock_t now=level.pathing_clock;
-            level.pathing_clock=captain->update_due;
-            wc3_clock_advance(&captain->update_due,1,0);
-            if (!S_CaptainNearHome(captain)) FOR_EACH_ARRAY(edict_t *, member,captain->units) {
-                edict_t *unit=*member;
-                if (G_BotUnitAlive(unit) && !G_UnitHasActiveOrder(unit) && !unit_affectingcombat(unit))
-                    S_ReissueCaptainUnit(unit,captain->home_actor);
-            }
-            /* Native9d09c0 starts by setting1000. Its target-strength branch
-             * requires the separately retained combat target identities. */
-            captain->policy_flags|=BOT_CAPTAIN_STRENGTH_READY;
-            level.pathing_clock=now;
-        }
+            (int32_t)(boundary.epoch-captain->update_due.epoch)>0)
+            G_FireCaptainTimer(captain);
     }
 }
 
@@ -1237,7 +1245,7 @@ typedef struct {
     uint32_t position_valid;
     wc3Clock_t created,update_due;
     float request_range;
-    uint32_t actor,count,home_set,full,state,policy_flags;
+    uint32_t actor,count,home_set,full,state,policy_flags,point_order;
     int32_t strength_count;
 } botCaptainSave_t;
 
@@ -1252,7 +1260,7 @@ bool G_WriteCaptainState(FILE *file) {
         FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
             botCaptain_t const *captain=bot->captains+c;
             botCaptainSave_t record={.home=captain->home,.goal=captain->goal,.position=captain->position,
-                .position_valid=captain->position_valid,.created=captain->created,
+                .position_valid=captain->position_valid,.created=captain->created,.point_order=captain->point_order,
                 .update_due=captain->update_due,.request_range=captain->request_range,.policy_flags=captain->policy_flags,.strength_count=captain->strength_count,
                 .actor=captain->home_actor ? (uint32_t)(captain->home_actor-g_edicts)+1 : 0,
                 .count=ARRAY_COUNT(captain->units),.home_set=captain->home_set,.full=captain->full,.state=captain->state};
@@ -1290,6 +1298,7 @@ bool G_ReadCaptainState(FILE *file) {
                 !isfinite(record.created.time) || !isfinite(record.created.span) || record.created.span<0 ||
                 !isfinite(record.update_due.time) || !isfinite(record.update_due.span) || record.update_due.span<0 ||
                 !isfinite(record.request_range) || record.request_range<0 ||
+                (record.point_order && record.point_order!=851986u && record.point_order!=851988u) ||
                 (record.policy_flags&~(BOT_CAPTAIN_RETREAT_FLAG|BOT_CAPTAIN_STRENGTH_READY))) return false;
             edict_t *actor=record.actor ? g_edicts+record.actor-1 : NULL;
             if (actor && (!actor->inuse || !actor->movement.captain_actor_owned ||
@@ -1299,7 +1308,7 @@ bool G_ReadCaptainState(FILE *file) {
              * denote restored edicts here. Do not retire those new actors. */
             gi.MemFree(captain->units_storage ? captain->units_storage : captain->units);
             *captain=(botCaptain_t){.home=record.home,.goal=record.goal,.position=record.position,
-                .position_valid=record.position_valid,.created=record.created,
+                .position_valid=record.position_valid,.created=record.created,.point_order=record.point_order,
                 .update_due=record.update_due,.request_range=record.request_range,.policy_flags=record.policy_flags,.strength_count=record.strength_count,
                 .home_actor=actor,.home_set=record.home_set,.full=record.full,.state=record.state};
             if (record.count) {
@@ -2426,12 +2435,16 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
         G_BotStop(playernum);
         return false;
     }
-    if (!jass_startcoroutinebynameforplayer(bot->vm, "main", player)) {
+    jasscoroutine_t *entry=jass_startcoroutinebynameforplayer(bot->vm, "main", player);
+    if (!entry) {
         fprintf(stderr, "WC3 AI: player %u script %s has no main\n", playernum, path);
         G_BotStop(playernum);
         return false;
     }
     level.ai_vm_initialized |= 1u << playernum;
+    /*9cbc00 ->9c8d10 ->9bc130 ->9bba60 enters main before StartCampaignAI
+     * returns. Publish the creation gate first, including reentrant starts. */
+    jass_resume(bot->vm,entry);
     G_BOT_TRACE(playernum, NULL, "script_main_started", "entry=main");
     fprintf(stderr, "WC3 AI: player %u started %s\n", playernum, path);
     return true;

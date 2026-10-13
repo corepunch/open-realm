@@ -19461,3 +19461,80 @@ native sequence/count accounting, repeated actor timelines, unhooked controls,
 source hashes and the generated literal C fixture. Raw maps/captures, failing
 and passing reports, and Ghidra readback are archived under
 `research/NUM-03.2/payoff314` in the external analysis tree.
+
+
+## Exceptional Captain shared caps and callback clocks (Payoff315)
+
+NUM-03.2 remains open. Four public scenes use three radius31 Footmen with
+speed limits173/389. A separate W3U source supplies positive quiet NaN7fc00001,
+signaling NaN7fa00001, negative quiet NaNffc00001, or zero through
+`GetUnitDefaultFlyHeight`. The map calls `SetUnitMoveSpeed`, `StartCampaignAI`,
+`CaptainAttack`, `CaptainGoHome`, finite270 restoration, and public Stop.
+
+Two read-only Frida repeats and an unhooked control per scene retain all368
+public markers. Three additional complete scene2 captures establish startup,
+commands, and callback clock domains. The frozen15 captures contain94809 native
+events and5520 public markers. The engine compares3448 physical commits,1080
+public getter/order rows,905 ordered shared publications, and16 periodic-clock
+rows, then repeats the complete streams with a cold save at4100ms. Only inert
+Sleep remains in the private AI continuation after that save; arbitrary private
+AI coroutine persistence is not claimed. The full regression passes96640
+assertions without changing expected retail words.
+
+The shared fine cap is41070000 for either positive NaN with finite270 peers,
+fd400001 for negative NaN, and40ad0000 for zero clamped to173. Restoration270
+is published at owner1226. World-unit shared accumulators may therefore retain
+NaNs even when their native fine representation is finite. Save189 accepts both
+NaN signs and signaling payloads in those accumulators, while rejecting infinity,
+negative finite speed, and nonfinite geometry. Old save versions are rejected;
+network messages are unchanged.
+
+The recovered ownership and dispatch contracts are:
+
+- The initial AI thread runs synchronously inside `StartCampaignAI`, after the
+  initialization gate is published. Its immediate public order is already Move.
+- Both Captain initializers retain commandd0014. Near-home `CaptainGoHome`
+  preserves it; an actual home request setsd0012. Shared admission and periodic
+  reissue preserve that command, including through saves.
+- Periodic Captain callbacks use the event-timer clock. Initialization observes
+  primary400cccb0/event400cccc7; the first update at owner1130 observes
+  primary404ccc48/event404cccc7. Scalar JASS dispatch must lend its popped
+  deadline to nested C and synchronous AI producers without changing primary time.
+- Range-enter callbacks follow the event drain at exact primary404cccb0.
+  Running them before all JASS callbacks changes public getters and commands.
+- Native169990/16c8a0 prepend shared owners, and15aa80 visits that list with
+  next-pointer prefetch. At owner1310 the new sentinel-cap shared owner precedes
+  the older270-cap owner. Reusable pool-slot order is not publication order.
+
+Engine periodic registrations use a derived deadline queue with saved serials;
+range listeners retain their separate primary phase. A cold epoch-boundary test
+also exposed a span0 drain loop when an invalid borrowed clock was marked valid
+before its outgoing value was published. The outgoing clock is now published
+before span draining. Recreated actors retire old registrations; zero, future,
+and duplicate saved Captain serials reject. Shared owner links use slot indices,
+are rebuilt newest-first from saved IDs, and are not serialized.
+
+Failing-first reports cover shared NaN save rejection, deferred AI startup,
+command propagation, public callback ordering, shared publication order, exact
+periodic clocks, invalid registration serials, and the initial command. Ghidra
+annotations and1984 instruction guards are saved with matching readback;
+`MapPathfinding.java` carries the recovered contracts. The ordinary production
+build and test build pass. Focused validation also covers122 bot tests,219 save
+tests,23 prior Captain journeys, public timer mutation/epoch motion, shared-pool
+reuse, range listeners, deferred releases, and subscriber retirement. This is
+chunk3 after checkpoint312, not a new full-suite cadence checkpoint.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_shared315.py \
+  --binary /path/to/supported/game.dll --report /tmp/shared315-fresh.json
+python3 tests/test_wc3_pathfinding_shared315.py
+```
+
+The strict verifier requires all repeated/control captures, complete event
+sequence accounting, literal producer/getter/clock/command words, ordered shared
+state, source pins, and byte-identical generated C fixtures. Twenty-five rejection
+checks cover damaged evidence. Raw maps, supplemental/exploratory traces,
+failing/passing reports, source snapshots, and Ghidra exports are archived under
+`research/NUM-03.2/payoff315` in the external analysis tree. Other NaN payloads,
+effect stacks, broader shared producers, Captain combat/range policy, and the
+retail visibility faults from Payoff313 remain outside this checkpoint.

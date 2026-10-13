@@ -983,7 +983,6 @@ TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
     wrong_owner->s.player = 1;
     attack->health.value = defense->health.value = removed->health.value = wrong_type->health.value = 100;
     wrong_owner->health.value = 100; dead->health.value = 0; removed->inuse = false;
-    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_ignored_units.ai", BOT_CAMPAIGN));
     bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 3;
     bot->captains[BOT_CAPTAIN_ATTACK].units[0] = attack;
@@ -998,6 +997,8 @@ TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
     T_EQ(G_BotIgnoredUnits(&game.clients[2].ps, MAKEFOURCC('h','f','o','o')), 2);
     T_EQ(G_BotIgnoredUnits(&game.clients[2].ps, MAKEFOURCC('h','r','i','f')), 1);
     T_EQ(G_BotIgnoredUnits(NULL, MAKEFOURCC('h','f','o','o')), 0);
+    /* main checks this roster during StartCampaignAI itself. */
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_ignored_units.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
@@ -1364,10 +1365,10 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
     mapinfo->players[1].startingPosition = MAKE(vec2_t, 256, 128);
-    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_suicide_player.ai", BOT_CAMPAIGN));
     G_BotCreateCaptains(&game.clients[2].ps);
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 1, MAKEFOURCC('h','f','o','o')));
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_suicide_player.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
@@ -1675,7 +1676,6 @@ TEST(wc3_bot, return_guard_posts_moves_idle_units_but_preserves_combat) {
 }
 
 TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {
-    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_bot_commands.ai", BOT_CAMPAIGN));
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
         "call CommandAI(Player(2),10,20)\ncall CommandAI(Player(2),30,40)\n"
         "call CommandAI(Player(1),50,60)\nendfunction"));
@@ -1684,6 +1684,7 @@ TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {
     T_EQ(G_BotLastCommand(&game.clients[1].ps), 50);
     T_EQ(G_BotLastData(&game.clients[1].ps), 60);
 
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_bot_commands.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(level.bots[2].vm);
     T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
@@ -2343,6 +2344,74 @@ TEST(wc3_bot, captain291_default_start_and_reset_move_both_actors) {
         }
     }
     client->ps.start_location=old_start;map->players[2].startingPosition=old_position;
+    G_BotShutdown();reset_entities();setup_test_world();
+}
+
+/* Separate clock domains must also retain Captain event ownership over a
+ * span boundary, cold restore, and actor-slot replacement. */
+TEST(wc3_bot, shared315_captain_timer_wrap_restore_and_retirement) {
+    G_BotShutdown();reset_entities();setup_test_world();G_FowShutdown();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.pathing_clock=(wc3Clock_t){.time=299.5f,.span=300};level.timer_clock_valid=false;
+    player_t *player=&game.clients[0].ps;G_BotCreateCaptains(player);
+    botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    T_NOT_NULL(captain->home_actor);if(!captain->home_actor)goto done;
+    uint32_t sequence=captain->home_actor->movement.captain_home.sequence;
+    T_ASSERT(sequence!=0);T_FEQ(captain->update_due.time,0.5f,0);T_EQ(captain->update_due.epoch,1u);
+    cstring_t file=Test_TempPath("shared315-captain-span.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    T_EQ(captain->home_actor->movement.captain_home.sequence,sequence);
+    level.pathing_clock.time=wc3_float(0x4395ffff);level.scheduled_frame=true;G_RunTimers();
+    T_ASSERT(!(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY));
+    wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    T_EQ(level.pathing_clock.epoch,1u);
+    level.pathing_clock.time=0.49f;G_RunTimers();
+    T_ASSERT(!(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY));
+    level.pathing_clock.time=0.5f;G_RunTimers();
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY);
+    T_FEQ(captain->update_due.time,1.5f,0);T_EQ(captain->update_due.epoch,1u);
+    T_EQ(captain->home_actor->movement.captain_home.sequence,sequence);
+    /* Recreated actors must cancel old registrations even if slots repeat. */
+    level.scheduled_frame=false;level.pathing_clock.time=0.75f;level.timer_clock_valid=false;
+    G_BotCreateCaptains(player);captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    T_NE(captain->home_actor->movement.captain_home.sequence,sequence);
+    level.scheduled_frame=true;level.pathing_clock.time=1.5f;G_RunTimers();
+    T_ASSERT(!(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY));
+    level.pathing_clock.time=1.75f;G_RunTimers();
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY);
+done:
+    level.scheduled_frame=false;G_BotShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, shared315_captain_timer_rejects_invalid_saved_registration) {
+    G_BotShutdown();reset_entities();setup_test_world();
+    level.pathing_clock=(wc3Clock_t){.time=5,.span=300};level.timer_clock_valid=false;
+    G_BotCreateCaptains(&game.clients[0].ps);
+    botCaptain_t *captains=level.bots[0].captains;
+    edict_t *actor=captains[BOT_CAPTAIN_ATTACK].home_actor,*peer=captains[BOT_CAPTAIN_DEFENSE].home_actor;
+    T_NOT_NULL(actor);T_NOT_NULL(peer);
+    if(actor && peer) {
+        uint32_t saved=actor->movement.captain_home.sequence;
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+        actor->movement.captain_home.sequence=0;T_ASSERT(!S_ValidateCaptainHomeActors(false));
+        actor->movement.captain_home.sequence=level.timer_sequence+1;T_ASSERT(!S_ValidateCaptainHomeActors(false));
+        actor->movement.captain_home.sequence=peer->movement.captain_home.sequence;T_ASSERT(!S_ValidateCaptainHomeActors(false));
+        actor->movement.captain_home.sequence=saved;T_ASSERT(S_ValidateCaptainHomeActors(false));
+    }
+    G_BotShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, shared315_initial_captain_command_and_near_home_return) {
+    G_BotShutdown();reset_entities();setup_test_world();
+    level.pathing_clock=(wc3Clock_t){.time=5,.span=300};level.timer_clock_valid=false;
+    player_t *player=&game.clients[0].ps;G_BotCreateCaptains(player);
+    FOR_LOOP(i,BOT_CAPTAIN_COUNT)T_EQ(level.bots[0].captains[i].point_order,851988u);
+    G_BotCaptainGoHome(player);
+    T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].point_order,851988u);
+    cstring_t file=Test_TempPath("shared315-initial-command.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    FOR_LOOP(i,BOT_CAPTAIN_COUNT)T_EQ(level.bots[0].captains[i].point_order,851988u);
     G_BotShutdown();reset_entities();setup_test_world();
 }
 

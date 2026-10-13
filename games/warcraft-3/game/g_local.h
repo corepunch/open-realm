@@ -90,6 +90,7 @@ typedef struct {
     uint32_t references;
     bool inuse;
     float speed, next_speed, radius;
+    uint32_t newer, older; /* Derived slot+1 links; rebuilt from saved IDs. */
 } moveShared_t;
 
 /* Move owns retained physical groups independently of JASS collection handles. */
@@ -2317,6 +2318,7 @@ struct edict_s {
             uint32_t member_index; /* Retained recruitment order, independent of edict allocation order. */
             vec2_t home;
             wc3Clock_t due; /* Creation-phase range deadline persists across the shared leg and private reissue. */
+            uint32_t sequence; /* Primary-clock registration, also used by a virtual actor's update request. */
         } captain_home;
         uint32_t captain_actor_members; /* Actual logical roster count controls range and all-entered admission. */
         uint32_t captain_actor_type; /* Move-owned virtual category2 actor: captain selector1/2, otherwise0. */
@@ -2695,6 +2697,7 @@ typedef struct {
     edict_t *home_actor; /* Move owns its occupancy and retained follower lifetime. */
     vec2_t home, goal;
     float request_range; /* Retained request; range-enter refresh may use200 without replacing it. */
+    uint32_t point_order; /* Captain70: private d0012 versus shared AI point d0014. */
     bool home_set, full;
     wc3Clock_t created; /* Native range subscriptions begin when the virtual captain is created. */
     int32_t strength_count; /* Nativec0 roster deltas, not a health sum. */
@@ -3124,6 +3127,7 @@ bool G_BotCaptainRetreating(player_t *);
 void G_BotCaptainAttack(player_t *, vec2_t const *);
 void G_BotCaptainGoalEvent(edict_t *);
 void G_RunCaptainTimers(void);
+void G_FireCaptainTimer(botCaptain_t *);
 void G_BotUpdateGroupFlee(player_t *);
 void G_BotRefreshPeonsRepair(player_t *);
 void G_BotUpdateIndividualFlee(player_t *);
@@ -3587,6 +3591,7 @@ void S_StopUnitMovementWithRecovery(edict_t *);
 void S_ToggleUnitMoveExclusion(edict_t const *,bool);
 void S_PublishMovement(edict_t *);
 void S_RunMoveTimers(void);
+void S_RunCaptainRangeTimers(void);
 void S_SetUnitPaused(edict_t *, bool);
 void S_SetUnitPauseFlag(edict_t *, bool);
 bool S_UnitExecutionPaused(edict_t const *);

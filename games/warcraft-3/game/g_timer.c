@@ -479,13 +479,21 @@ static void TimerDrain(float limit,bool before_owner) {
             abilityCall_t call={.primary_timer=&ability};
             ability.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);level.timer_clock=saved;
         } else if(spatial)S_RunMoveSpatialMaintenance();
-        else {TimerHeapRemove(timer);TimerFireScalar(timer);}
+        else {
+            /* Native timer callbacks temporarily expose the popped deadline
+             * to nested C producers and synchronous private script startup. */
+            wc3Clock_t saved=level.timer_clock;level.timer_clock=timer->scalar_deadline;
+            TimerHeapRemove(timer);TimerFireScalar(timer);level.timer_clock=saved;
+        }
     }
 }
 /* Both ordinary advances and outgoing-owner teardown drain the old span
  * before rebasing every surviving/new request, then drain the remainder. */
 static void RunRequestsTo(wc3Clock_t target,wc3Clock_t const *before) {
     wc3Clock_t now=G_TimerQueryClock(NULL);
+    /* If no borrowed timer clock survived restoration, the primary clock is
+     * the outgoing span. Publish it before draining that span's requests. */
+    level.timer_clock=now;
     level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;
     if(now.epoch!=target.epoch) {
         TimerDrain(now.span,false);

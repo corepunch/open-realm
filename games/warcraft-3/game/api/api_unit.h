@@ -35,6 +35,13 @@ uint32_t GetUnit##NAME(jass_t *j) {  \
 
 #define UNITINFO_ACCESS(FIELD) UNIT_ACCESS(FIELD, unitinfo.FIELD)
 
+#ifdef BZ_TESTS
+void (*test_unit_position_query)(edict_t *, unsigned, float);
+#define UNIT_POSITION_QUERY(unit, axis, value) do { if(test_unit_position_query)test_unit_position_query(unit,axis,value); } while(0)
+#else
+#define UNIT_POSITION_QUERY(unit, axis, value) ((void)0)
+#endif
+
 #define UNIT_POSITION_ACCESS(NAME, FIELD, AXIS) \
 uint32_t SetUnit##NAME(jass_t *j) { \
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit"); \
@@ -47,7 +54,9 @@ uint32_t SetUnit##NAME(jass_t *j) { \
 } \
 uint32_t GetUnit##NAME(jass_t *j) { \
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit"); \
-    return jass_pushnumber(j, whichUnit ? whichUnit->FIELD : 0); \
+    float value = whichUnit ? whichUnit->FIELD : 0; \
+    UNIT_POSITION_QUERY(whichUnit,AXIS,value); \
+    return jass_pushnumber(j, value); \
 }
 
 UNIT_POSITION_ACCESS(X, s.origin.x, 0);

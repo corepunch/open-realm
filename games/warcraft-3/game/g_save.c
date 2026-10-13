@@ -89,7 +89,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
  * neutral creep guard state and Wisp tree egress into the Format181 layout.
  * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
 /* Format184 retains inactive fine identities with exact empty coverage. */
-static uint32_t const save_version = 188;
+static uint32_t const save_version = 189;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -916,6 +916,8 @@ static field_t const move_shared_fields[] = {
     TF(moveShared_t, speed, F_FLOAT),
     TF(moveShared_t, next_speed, F_FLOAT),
     TF(moveShared_t, radius, F_FLOAT),
+    TF(moveShared_t, newer, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveShared_t, older, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -1279,6 +1281,7 @@ field_t edict_fields[] = {
     F(edict_s, movement.captain_home.due.time, F_FLOAT),
     F(edict_s, movement.captain_home.due.epoch, F_INT),
     F(edict_s, movement.captain_home.due.span, F_FLOAT),
+    F(edict_s, movement.captain_home.sequence, F_INT),
     F(edict_s, movement.type_rebind_pending, F_INT),
     F(edict_s, movement.pause_order_id, F_INT),
     F(edict_s, movement.pause_resume_pending, F_INT),
@@ -2663,7 +2666,7 @@ static bool ReadMoveShared(FILE *f) {
         moveShared_t *shared=level.move_shared+i;
         if (!ReadMappedFields(f,move_shared_fields,(uint8_t *)shared) ||
             *(uint8_t const *)&shared->inuse!=1 || !shared->id || shared->id>level.next_move_shared_id ||
-            !isfinite(shared->speed) || shared->speed<0 || !isfinite(shared->next_speed) || shared->next_speed<0 ||
+            isinf(shared->speed) || shared->speed<0 || isinf(shared->next_speed) || shared->next_speed<0 ||
             !isfinite(shared->radius) || shared->radius<0) goto failed;
     }
     if(!S_RebuildMoveShared())goto failed;
@@ -4337,7 +4340,7 @@ TEST(wc3_save, rejects_invalid_shared_move_payloads) {
         if(i==1)raw.id=0;
         if(i==2)raw.id=8;
         if(i==3)raw.inuse=false;
-        if(i==4)raw.speed=NAN;
+        if(i==4)raw.speed=INFINITY;
         if(i==5)raw.speed=-1;
         if(i==6)raw.next_speed=INFINITY;
         if(i==7)raw.next_speed=-1;
@@ -4367,6 +4370,25 @@ TEST(wc3_save, rejects_invalid_shared_move_payloads) {
         T_ASSERT(S_ValidateMoveShared()); T_EQ(level.move_shared[0].id,7);
         T_EQ(level.move_shared[0].speed,FLT_MAX); T_EQ(level.move_shared[0].next_speed,150);
         T_EQ(level.move_shared[0].radius,31); fclose(file);
+    }
+    /* Public exceptional-speed producers can publish either NaN sign. Keep
+     * exact payloads in both accumulators; radius remains finite geometry. */
+    uint32_t payloads[]={0x7fc00001u,0x7fa00001u,0xffc00001u};
+    FOR_LOOP(i,3) {
+        S_ClearMoveGroups();FILE *nan_file=tmpfile();T_NOT_NULL(nan_file);if(!nan_file)continue;
+        uint32_t count=1;moveShared_t raw={.id=7,.inuse=true,.speed=wc3_float(payloads[i]),
+            .next_speed=wc3_float(payloads[i]),.radius=31};
+        T_ASSERT(SaveBytes(nan_file,&count,sizeof(count)));
+        T_ASSERT(WriteMappedFields(nan_file,move_shared_fields,(uint8_t *)&raw));
+        rewind(nan_file);T_ASSERT(ReadMoveShared(nan_file));T_ASSERT(S_ValidateMoveShared());
+        if(level.move_shared) {
+            T_EQ(wc3_float_bits(level.move_shared[0].speed),payloads[i]);
+            T_EQ(wc3_float_bits(level.move_shared[0].next_speed),payloads[i]);
+            rewind(nan_file);T_ASSERT(WriteMoveShared(nan_file));S_ClearMoveGroups();
+            rewind(nan_file);T_ASSERT(ReadMoveShared(nan_file));
+            if(level.move_shared)T_EQ(wc3_float_bits(level.move_shared[0].speed),payloads[i]);
+        }
+        fclose(nan_file);
     }
     S_ClearMoveGroups(); level.next_move_shared_id=old_id;
     reset_entities(); setup_test_world();

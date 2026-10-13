@@ -62,9 +62,11 @@ static void (*move_test_target_lost)(edict_t *unit);
 
 /* Timer ownership changes at admission/cancellation, never by scanning scenery
  * every five milliseconds. Three passes below retain the original phase order. */
+static void move_captain_track_timer(edict_t *);
 void S_TrackMoveTimers(edict_t const *ent) {
     uintptr_t index=((uintptr_t)ent-(uintptr_t)g_edicts)/sizeof(*ent);
     if(!g_edicts || index>=MAX_ENTITIES)return;
+    move_captain_track_timer(g_edicts+index);
     entity_set_put(&move_timer_members,index,ent->inuse && (ent->movement.captain_home.actor ||
         ent->movement.captain_home.roster_actor || ent->movement.pause_resume_pending || ent->movement.type_rebind_pending));
 }
@@ -542,7 +544,12 @@ uint64_t S_TestMoveSharedLookupSteps(bool reset) {
 static uint32_t *move_shared_index;
 static uint32_t move_shared_index_capacity,move_shared_index_used,move_shared_first_free;
 static moveShared_t const *move_shared_index_data;
-static uint32_t move_shared_index_count;
+static uint32_t move_shared_index_count,move_shared_head;
+static int move_compare_shared_slots(void const *left,void const *right) {
+    uint64_t a=level.move_shared[*(uint32_t const *)left].id;
+    uint64_t b=level.move_shared[*(uint32_t const *)right].id;
+    return a>b ? -1 : a<b;
+}
 
 static uint32_t move_shared_hash(uint64_t id) {
     /* SplitMix64 finalizer: disperse both words of monotonic saved identities. */
@@ -581,6 +588,19 @@ bool S_RebuildMoveShared(void) {
         if(level.move_shared[i].inuse) {if(!move_shared_insert(i))return false;}
         else move_shared_first_free=MIN(move_shared_first_free,i);
     }
+    uint32_t *order=count ? malloc(count*sizeof(*order)) : NULL,used=0;
+    if(count && !order)return false;
+    FOR_LOOP(i,count) {
+        level.move_shared[i].newer=level.move_shared[i].older=0;
+        if(level.move_shared[i].inuse)order[used++]=i;
+    }
+    if(used)qsort(order,used,sizeof(*order),move_compare_shared_slots);
+    FOR_LOOP(i,used) {
+        level.move_shared[order[i]].newer=i ? order[i-1]+1 : 0;
+        level.move_shared[order[i]].older=i+1<used ? order[i+1]+1 : 0;
+    }
+    move_shared_head=used ? order[0]+1 : 0;
+    free(order);
     move_shared_index_data=level.move_shared;move_shared_index_count=count;
     return true;
 }
@@ -642,6 +662,9 @@ static uint64_t move_alloc_shared(void) {
         if(!S_RebuildMoveShared())gi.error("Move: cannot grow shared parameter index");
     } else {
         if(!move_shared_insert(slot))gi.error("Move: duplicate shared parameter identity");
+        shared->older=move_shared_head;
+        if(move_shared_head)level.move_shared[move_shared_head-1].newer=slot+1;
+        move_shared_head=slot+1;
         move_shared_index_data=level.move_shared;move_shared_index_count=ARRAY_COUNT(level.move_shared);
     }
     move_shared_first_free=slot+1;
@@ -655,7 +678,7 @@ bool S_ValidateMoveShared(void) {
         if (*(uint8_t const *)&shared->inuse>1) return false;
         if (!shared->inuse) continue;
         if (!shared->id || shared->id>level.next_move_shared_id ||
-            !isfinite(shared->speed) || shared->speed<0 || !isfinite(shared->next_speed) || shared->next_speed<0 ||
+            isinf(shared->speed) || shared->speed<0 || isinf(shared->next_speed) || shared->next_speed<0 ||
             !isfinite(shared->radius) || shared->radius<0) return false;
     }
     uint32_t count=ARRAY_COUNT(level.move_shared);
@@ -679,10 +702,17 @@ bool S_ValidateMoveShared(void) {
 static void move_update_shared(void) {
     move_prepare_group_order();
     if(!move_prepare_shared_index())gi.error("Move: invalid shared parameter index");
-    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
-        moveShared_t *shared=level.move_shared+i;
-        if (!shared->inuse) continue;
-        if (!shared->references) {move_shared_erase(i);memset(shared,0,sizeof(*shared));continue;}
+    /* Native owner+38c is an intrusive newest-first list, independent of
+     * free-pool slot reuse. Prefetch the successor before a retiring visit. */
+    for(uint32_t link=move_shared_head;link;) {
+        uint32_t i=link-1;moveShared_t *shared=level.move_shared+i;
+        link=shared->older;
+        if (!shared->references) {
+            if(shared->newer)level.move_shared[shared->newer-1].older=shared->older;
+            else move_shared_head=shared->older;
+            if(shared->older)level.move_shared[shared->older-1].newer=shared->newer;
+            move_shared_erase(i);memset(shared,0,sizeof(*shared));continue;
+        }
         shared->speed=shared->next_speed; shared->next_speed=FLT_MAX; shared->radius=0;
         MOVE_OWNER_PHASE(MOVE_PHASE_PUBLISH,shared->id);
     }
@@ -737,7 +767,7 @@ void S_ClearMoveGroups(void) {
     free(level.move_shared); level.move_shared=NULL;
     ARRAY_COUNT(level.move_shared)=level.move_shared_capacity=0;
     free(move_shared_index);move_shared_index=NULL;move_shared_index_capacity=move_shared_index_used=0;
-    move_shared_index_data=NULL;move_shared_index_count=move_shared_first_free=0;
+    move_shared_index_data=NULL;move_shared_index_count=move_shared_first_free=move_shared_head=0;
 }
 
 static void move_complete_receiver(moveGroup_t *group, edict_t *unit, bool arrived) {
@@ -1344,6 +1374,80 @@ static botCaptain_t *move_actor_captain(edict_t const *actor) {
     return captain->home_actor==actor ? captain : NULL;
 }
 
+/* Captain periodic updates share the event-timer drain with JASS. Range
+ * listeners dispatch separately on the primary clock. This derived heap keeps
+ * normalized saved deadlines and adapts them to the drain's outgoing span. */
+typedef struct {
+    edict_t *unit;
+    wc3Clock_t due;
+    uint32_t sequence,spawn;
+} moveCaptainTimer_t;
+static moveCaptainTimer_t move_captain_timers[MAX_ENTITIES];
+static uint32_t move_captain_timer_positions[MAX_ENTITIES],move_captain_timer_count;
+static bool move_captain_timer_less(moveCaptainTimer_t const *a,moveCaptainTimer_t const *b) {
+    if(a->due.epoch!=b->due.epoch)return (int32_t)(a->due.epoch-b->due.epoch)<0;
+    return a->due.time==b->due.time ? a->sequence<b->sequence : a->due.time<b->due.time;
+}
+static void move_captain_timer_put(uint32_t index,moveCaptainTimer_t entry) {
+    move_captain_timers[index]=entry;
+    move_captain_timer_positions[entry.unit-g_edicts]=index+1;
+}
+static void move_captain_timer_remove(edict_t *unit) {
+    uint32_t position=move_captain_timer_positions[unit-g_edicts];
+    if(!position)return;
+    move_captain_timer_positions[unit-g_edicts]=0;position--;
+    moveCaptainTimer_t last=move_captain_timers[--move_captain_timer_count];
+    if(position==move_captain_timer_count)return;
+    while(position && move_captain_timer_less(&last,&move_captain_timers[(position-1)/2])) {
+        move_captain_timer_put(position,move_captain_timers[(position-1)/2]);position=(position-1)/2;
+    }
+    while(position*2+1<move_captain_timer_count) {
+        uint32_t child=position*2+1;
+        if(child+1<move_captain_timer_count && move_captain_timer_less(&move_captain_timers[child+1],&move_captain_timers[child]))child++;
+        if(!move_captain_timer_less(&move_captain_timers[child],&last))break;
+        move_captain_timer_put(position,move_captain_timers[child]);position=child;
+    }
+    move_captain_timer_put(position,last);
+}
+static void move_captain_track_timer(edict_t *unit) {
+    move_captain_timer_remove(unit);
+    botCaptain_t *captain=unit->inuse ? move_actor_captain(unit) : NULL;
+    wc3Clock_t const *due=captain ? &captain->update_due : NULL;
+    if(!due || !due->span) {unit->movement.captain_home.sequence=0;return;}
+    if(!unit->movement.captain_home.sequence)unit->movement.captain_home.sequence=++level.timer_sequence;
+    moveCaptainTimer_t entry={unit,*due,unit->movement.captain_home.sequence,unit->spawn_time};
+    uint32_t position=move_captain_timer_count++;
+    while(position && move_captain_timer_less(&entry,&move_captain_timers[(position-1)/2])) {
+        move_captain_timer_put(position,move_captain_timers[(position-1)/2]);position=(position-1)/2;
+    }
+    move_captain_timer_put(position,entry);
+}
+static void move_captain_reset_timers(void) {
+    move_captain_timer_count=0;memset(move_captain_timer_positions,0,sizeof(move_captain_timer_positions));
+}
+static bool move_captain_next_timer(abilityTimerRequest_t *request) {
+    if(!move_captain_timer_count)return false;
+    moveCaptainTimer_t const *entry=move_captain_timers;
+    wc3Clock_t now=G_TimerQueryClock(NULL);
+    request->deadline=entry->due;request->sequence=entry->sequence;
+    int32_t epochs=(int32_t)(entry->due.epoch-now.epoch);
+    if(epochs>0)request->deadline.time=wc3_add(entry->due.time,wc3_mul(wc3_float(wc3_from_int(epochs)),now.span));
+    else if(epochs<0)request->deadline.time=wc3_sub(entry->due.time,wc3_mul(wc3_float(wc3_from_int(-epochs)),entry->due.span));
+    request->deadline.epoch=now.epoch;
+    return true;
+}
+static void move_captain_fire_timer(void) {
+    if(!move_captain_timer_count)return;
+    moveCaptainTimer_t entry=move_captain_timers[0];edict_t *unit=entry.unit;
+    move_captain_timer_remove(unit);
+    if(!unit->inuse || unit->spawn_time!=entry.spawn || unit->movement.captain_home.sequence!=entry.sequence)return;
+    /* The event clock is supplied by TimerDrain. Native periodic callbacks
+     * observe the unchanged primary clock, unlike primary range callbacks. */
+    botCaptain_t *captain=move_actor_captain(unit);
+    if(captain)G_FireCaptainTimer(captain);
+    move_captain_track_timer(unit);
+}
+
 /* Registered inner membership is retained across physical order replacement.
  * Ordinary callbacks use the edge-maintained count, not an entity/roster scan. */
 static uint32_t move_captain_entered(edict_t const *actor) {
@@ -1402,6 +1506,7 @@ void S_DetachCaptainUnit(edict_t *self) {
 void S_ReleaseCaptainHomeActor(edict_t *actor) {
     if (!actor) return;
     actor->movement.captain_actor_owned=false;
+    S_TrackMoveTimers(actor);
     FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor) {
         ent->movement.captain_home.roster_actor=NULL;
         S_TrackMoveTimers(ent);
@@ -1422,11 +1527,12 @@ void S_SetCaptainHomeActor(botCaptain_t *captain, uint32_t player, uint32_t type
     edict_t *actor=captain->home_actor;
     if (!actor) {
         actor=captain->home_actor=G_Spawn();
-        captain->update_due=level.pathing_clock;
+        captain->update_due=G_TimerQueryClock(NULL);
         wc3_clock_advance(&captain->update_due,1,0);
         captain->state=type==BOT_CAPTAIN_ATTACK+1 ? BOT_CAPTAIN_ACTIVE : BOT_CAPTAIN_FORMING;
         captain->goal=captain->home;
         captain->request_range=200;
+        captain->point_order=851988u; /* Native initializer9d2f90 retains d0014. */
     }
     actor->svflags=SVF_NOCLIENT;
     actor->stand=unit_stand;
@@ -1440,6 +1546,7 @@ void S_SetCaptainHomeActor(botCaptain_t *captain, uint32_t player, uint32_t type
         fprintf(stderr,"WC3 captain placement: no admitted home player=%u type=%u at (%.9g,%.9g)\n",player,type,captain->home.x,captain->home.y);
     gi.LinkEntity(actor);
     G_PublishMoveSpatialObject(actor);
+    S_TrackMoveTimers(actor);
 }
 
 static int move_captain_reference_compare(void const *a,void const *b) {
@@ -1451,6 +1558,7 @@ static int move_captain_reference_compare(void const *a,void const *b) {
  * Rebuild only runtime captain links and reject stale physical references. */
 bool S_ValidateCaptainHomeActors(bool rebind) {
     uint64_t references[MAX_ENTITIES];uint32_t reference_count=0;
+    uint64_t registrations[MAX_PLAYERS*BOT_CAPTAIN_COUNT];uint32_t registration_count=0;
     edict_t *owners[MAX_PLAYERS][BOT_CAPTAIN_COUNT]={{0}};
     uint32_t counts[MAX_PLAYERS][BOT_CAPTAIN_COUNT]={{0}};
     FILTER_EDICTS(actor,actor->inuse && actor->movement.captain_actor_type) {
@@ -1458,10 +1566,15 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
         if (type>BOT_CAPTAIN_COUNT || actor->s.player>=MAX_PLAYERS || S_MoveCollisionRadius(actor)!=0 ||
             actor->movement.captain_actor_members>globals.num_edicts) return false;
         if (!actor->movement.captain_actor_owned) continue;
+        uint32_t serial=actor->movement.captain_home.sequence;
+        if(!serial || serial>level.timer_sequence)return false;
         edict_t **slot=&owners[actor->s.player][type-1];
         if (*slot) return false;
         *slot=actor;
+        registrations[registration_count++]=serial;
     }
+    qsort(registrations,registration_count,sizeof(*registrations),move_captain_reference_compare);
+    for(uint32_t i=1;i<registration_count;i++)if(registrations[i]==registrations[i-1])return false;
     FILTER_EDICTS(ent,ent->inuse) {
         if (ent->movement.captain_actor_owned && !ent->movement.captain_actor_type) return false;
         if (*(uint8_t *)&ent->movement.captain_actor_siege>1 ||
@@ -1563,6 +1676,8 @@ static edict_t **move_captain_collect_roster(edict_t *actor) {
 
 /* Native9d27c0 retains roster order through bounded physical batches. */
 static void move_captain_shared_point(edict_t *actor,edict_t **roster,uint32_t members,vec2_t const *home,bool logical) {
+    botCaptain_t const *captain=move_actor_captain(actor);
+    uint32_t const order_id=captain && captain->point_order ? captain->point_order : G_OrderId("move");
     /* Retail queued AI point orders preserve an already active identical
      * request. A completed physical task remains eligible for new admission. */
     bool unchanged=members>0;vec2_t goal=move_point_fine(home);
@@ -1584,10 +1699,10 @@ static void move_captain_shared_point(edict_t *actor,edict_t **roster,uint32_t m
         S_TrackMoveTimers(ent);
     }
     uint64_t shared_id=members>1 ? move_alloc_shared() : 0;
-    if (members==1) S_IssueMoveOrder(roster[0],Waypoint_add(home),G_OrderId("move"));
+    if (members==1) S_IssueMoveOrder(roster[0],Waypoint_add(home),order_id);
     else for(uint32_t first=0;first<members;first+=BZ_WC3_GROUP_ORDER_UNITS) {
         groupPointOrder_t request={.count=MIN(members-first,BZ_WC3_GROUP_ORDER_UNITS),
-            .order="move",.order_id=G_OrderId("move"),.issuer_player=actor->s.player,
+            .order="move",.order_id=order_id,.issuer_player=actor->s.player,
             .point=home};
         FOR_LOOP(i,request.count) {
             request.units[i].unit=roster[first+i];
@@ -1766,13 +1881,21 @@ static void move_captain_home_update(edict_t *self) {
     level.pathing_clock=now;
 }
 
-/* Dispatch after a due path owner, before ordinary timer/event actions. Pose
- * sampling is observational and must not replace tasks ahead of that owner. */
-void S_RunMoveTimers(void) {
-    G_RunCaptainTimers();
+/* Captain range listeners belong to the primary clock. Retail dispatches
+ * their callbacks after the event-timer drain, at their exact primary deadline. */
+void S_RunCaptainRangeTimers(void) {
     for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
         edict_t *ent=g_edicts+i;
-        if(ent->inuse && (ent->movement.captain_home.actor || ent->movement.captain_home.roster_actor))move_captain_home_update(ent);
+        if(ent->inuse && (ent->movement.captain_home.actor || ent->movement.captain_home.roster_actor))
+            move_captain_home_update(ent);
+    }
+}
+
+/* Pose sampling must not replace tasks ahead of a due path owner. */
+void S_RunMoveTimers(void) {
+    if(!level.scheduled_frame) {
+        G_RunCaptainTimers();
+        S_RunCaptainRangeTimers();
     }
     for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
         edict_t *ent=g_edicts+i;
@@ -5019,6 +5142,7 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
      * each recruit. The task retains an AI approach range plus mover radius,
      * independently of its later shared formation destination. */
     move_start_follow_group(self,captain->home_actor,true);
+    S_TrackMoveTimers(self);
     return true;
 }
 
@@ -5124,7 +5248,7 @@ static struct {
     edict_t *unit;
     vec2_t point;
     movePointRequest_t *request;
-    uint32_t queued_context;
+    uint32_t queued_context,order_id;
 } move_group_admission;
 
 /* Native Shift preserves the common point and publishes the latest submitted
@@ -5352,7 +5476,9 @@ static bool move_queued_cohort_candidate(void *data,edict_t *other) {
 bool S_IssuePointMoveOrder(edict_t *self, cstring_t order, vec2_t const *point,
                           uint32_t issuer, float speed) {
     vec2_t const requested=*point;
-    uint32_t const spawn=self->spawn_time,order_id=G_OrderId(order);
+    uint32_t const spawn=self->spawn_time;
+    uint32_t const order_id=move_group_admission.unit==self && move_group_admission.order_id ?
+        move_group_admission.order_id : G_OrderId(order);
     S_StopUnitMovementWithRecovery(self);
     self->current_order_id=order_id;
     uint32_t const revision=G_UnitMoveRevision(self);
@@ -5619,7 +5745,7 @@ static bool move_request_admit(movePointRequest_t *prepared,groupPointOrder_t co
     }
     unit->movement.previous_request_id=prepared->id;
     typeof(move_group_admission) previous=move_group_admission;
-    move_group_admission=(typeof(move_group_admission)){unit,*request->point,prepared,0};
+    move_group_admission=(typeof(move_group_admission)){unit,*request->point,prepared,0,request->order_id};
     bool accepted=unit_issueorder(unit,request->order,request->point);
     move_group_admission=previous;
     if(accepted && unit->current_order_id==request->order_id &&
@@ -5840,17 +5966,19 @@ static void move_captain_actor_point(edict_t *actor,vec2_t const *home,float ran
 /* Internal reissue preserves the member's range-listener state. It is not
  * temporary enrollment and must not reset entered/outer flags or deadlines. */
 void S_ReissueCaptainUnit(edict_t *unit,edict_t *actor) {
+    botCaptain_t const *captain=move_actor_captain(actor);
+    uint32_t const order_id=captain && captain->point_order ? captain->point_order : G_OrderId("move");
     /*9d16c0 skips a retained Captain target;9d87d0 also retains an identical
      * Move head. Moving that actor does not restart its followers or refresh
      * their captured approach ranges. Stop/point replacement has no such owner. */
     moveGroup_t const *group=move_unit_group(unit);
     if (group && group->target==actor && group->target_spawn==actor->spawn_time &&
-        unit->current_order_id==G_OrderId("move") && unit->currentmove==&move_move_walk)
+        (unit->current_order_id==851986u || unit->current_order_id==851988u) && unit->currentmove==&move_move_walk)
         return;
     typeof(unit->movement.captain_home) retained=unit->movement.captain_home;
     unit->movement.captain_home.actor=unit->movement.captain_home.roster_actor=NULL;
     S_TrackMoveTimers(unit);
-    S_IssueMoveOrder(unit,Waypoint_add(&retained.home),G_OrderId("move"));
+    S_IssueMoveOrder(unit,Waypoint_add(&retained.home),order_id);
     unit->movement.captain_home=retained;
     unit->movement.captain_home.actor=actor;
     unit->movement.captain_home.active=true;
@@ -5863,6 +5991,10 @@ void S_ReissueCaptainUnit(edict_t *unit,edict_t *actor) {
 void S_CaptainPointMove(botCaptain_t *captain,vec2_t const *point,float range) {
     edict_t *actor=captain->home_actor;
     if (!actor) return;
+    /*9d44d0 retains the AI Move variant for a point away from authored home. */
+    float dx=wc3_float(wc3_float_bits(wc3_sub(point->x,captain->home.x))&0x7fffffffu);
+    float dy=wc3_float(wc3_float_bits(wc3_sub(point->y,captain->home.y))&0x7fffffffu);
+    if(!(dx<wc3_float(0x3a83126f) && dy<wc3_float(0x3a83126f)))captain->point_order=851988u;
     uint32_t members=actor->movement.captain_actor_members;
     edict_t **roster=move_captain_collect_roster(actor);
     captain->goal=*point;captain->request_range=range;
@@ -5902,6 +6034,7 @@ void S_CaptainGoHome(botCaptain_t *captain) {
         order_stop(actor);
         S_PlaceUnitPosition(actor,&captain->home);
     }
+    captain->point_order=851986u;
     S_CaptainPointMove(captain,&captain->home,500);
 }
 
@@ -6773,11 +6906,13 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_TIMERS_RESET:
         if(ent)return 0;
         move_follow_reset();
+        move_captain_reset_timers();
         move_repulse_clear_links();
         move_timer_members=move_visual_members=(entitySet_t){0};return true;
     case A_TIMERS_REBUILD:
         if(ent)return 0;
         move_follow_rebuild();
+        move_captain_reset_timers();
         move_timer_members=(entitySet_t){0};
         move_visual_members=(entitySet_t){0};
         FOR_LOOP(i,globals.num_edicts) {
@@ -6785,6 +6920,11 @@ BZ_ABILITY_PROC(CAbilityMove) {
             entity_set_put(&move_visual_members,i,g_edicts[i].inuse && g_edicts[i].movement.visual_active);
         }
         return true;
+    case A_PRIMARY_TIMER_NEXT:
+        return !ent && call && call->primary_timer && move_captain_next_timer(call->primary_timer);
+    case A_PRIMARY_TIMER_FIRE:
+        if(ent)return false;
+        move_captain_fire_timer();return true;
     case A_PRIMARY_TIMER:
         S_RunMoveTimers(); return true;
     case A_UNIT_TYPE_CHANGED:

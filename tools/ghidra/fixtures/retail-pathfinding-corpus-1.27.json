@@ -54367,6 +54367,77 @@
         "Actor action/commit repeats are exact; raw unrelated transient mover events are retained but excluded from actor comparison.",
         "Engine replay supplies observed primary clocks/counters; no claim of full timer cadence, other NaN payloads, effect stacks, shared generations or visibility crash parity. NUM-03.2 remains open."
       ]
+    },
+    {
+      "id": "oracle-shared315",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_shared315.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "shared315.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 1984
+        },
+        "captures": {
+          "equal": 15
+        },
+        "native_events": {
+          "equal": 94809
+        },
+        "public_markers": {
+          "equal": 5520
+        },
+        "fresh_motion_rows": {
+          "equal": 3448
+        },
+        "fresh_public_rows": {
+          "equal": 1080
+        },
+        "fresh_shared_rows": {
+          "equal": 905
+        },
+        "periodic_rows": {
+          "equal": 16
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 251,
+              "assertions": 3200781
+            },
+            "tft": {
+              "tests": 251,
+              "assertions": 3200781
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "NUM-03.2: four public exceptional shared-Captain speed producers; complete3448 physical/1080 public/905 shared rows plus16 periodic-clock rows, repeated after cold save. Synchronous AI startup, retained initial/shared commands, distinct primary/event clocks, newest-first shared publication, epoch/lifetime/Save189 checks.",
+      "exclusions": [
+        "Four public shared-Captain scenarios: positive quiet NaN, signaling NaN, negative quiet NaN, and authored-minimum zero, all restored to finite270. Other public speed families remain covered by prior corpora.",
+        "Fresh motion/public/shared complete streams repeat; engine cold saves resume after CaptainGoHome while the private AI continuation only sleeps. This does not certify arbitrary private AI coroutine persistence.",
+        "Exact shared/world cap representation and geometry rejection are covered; remaining NUM-03.2 behavior outside these producers is not closed.",
+        "Supplemental read-only traces establish synchronous startup, two clock domains, initialized command, and ordered shared publication. Broader Captain combat policy and all range-listener membership cases are not certified."
+      ]
     }
   ],
   "fixtures": [
@@ -55265,7 +55336,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "dd3b1060f856a148fd6985ecc36a1b5c8e536d1beb55753e12147f7bb47c4f30"
+      "sha256": "4d1f08d9c7ef919152d20be9c057c724ba151d557d6dded36513cacb200a909b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56121,7 +56192,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "53f0dc6abdfaa02ae77f97113c3bd905105e7aefe99e7bda86bc4bae21564fcc"
+      "sha256": "315cd5388767b6ccfb5d3616c80322109859c4a7c7031f851b425c23223ff95b"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -56557,7 +56628,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "38a9716c5ed82454886bae442d6c8b4edf48efe97eb24ab7175c54baee10abbc"
+      "sha256": "87302f91056c6abc582aee5ceb00a08a52b0246d94706e1ee4341373ce6f19cf"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -56565,7 +56636,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "f3c3f1f596110cadfa18caed7fae24ed4b1f05a2e47f5dcf016e12f979e26700"
+      "sha256": "7afded9799ac6314478a39ff785ed30706d4f51ebc143c7736ba6ec890f2010f"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -56813,7 +56884,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "849e82092acd542a3f2ab38128bf98b3fe433b53140b7409df74872a0237fe07"
+      "sha256": "1fd03973e6f06c5639256d42cf46d52f6a6ba6139c60d4b2a72238ec19030283"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -57057,7 +57128,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "33707ded60c8c27e2be2744f79d6790291d095df4ba8955515de8469c7e6e0c6"
+      "sha256": "63baf55d26516ade7573d0b7c7d1b8fd0af96fdb19cb560b8ea43da3260fac79"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57069,15 +57140,15 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "1370aaadfa5166a04e898c767273ee258602b12714d16a393165b87061041b12"
+      "sha256": "efcc5309d5b250c3b315082122358d12e9769ae4d7d60c54733360eadb04e2db"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "d2e89c20ce139c1e1e5124aab4b404a83e35273715044487bbea01e276b53675"
+      "sha256": "20a4e315e3cb1b328d1c928278e759c7f88d22e88b915a55996e9227f9ea1d87"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
-      "sha256": "ad3007575a7f8990946416d28cd8d13a8cebf638f363fb56bfa30d492a34d74c"
+      "sha256": "5900b2a000d7793ef70c78a60ed7c80265a3945762de6a205aa68760b8ca84e3"
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
@@ -57129,7 +57200,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_main.c",
-      "sha256": "3fc947a54c1ef8afeb0d6ba489266a636004df7fb6b71aa340a499e4040c79d9"
+      "sha256": "f2b6a959158a722109a9a967d10b5d9c848888a2e411c82142ca4d75dd2fc6ed"
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
@@ -57193,7 +57264,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_bot.c",
-      "sha256": "e09d0e09003319ecc64b55f9180e3cedaa12bcde09903ce94bac53029c444e5f"
+      "sha256": "9e0a35e487a2c9106ec4d58d19f688c2b4bc230c247c2702fbba95924e02e0cd"
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
@@ -57205,7 +57276,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
-      "sha256": "33fa69b439d4f976d8be48d44fe1e19f8162b34b43f6007913bc10fbe363f15b"
+      "sha256": "ae2c9ce09d42ac03e4dff1d2ade8f844531dbf6a1e752927e42ab58a477efa55"
     },
     {
       "path": "tools/frida/research/attack_help153_probe.j",
@@ -58365,7 +58436,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "6100c8143329f15c123890d236546257bf4e7dd1670df828e04ddd01839ec436"
+      "sha256": "7367ea6ee137464a7ecfee1f476880b53be7da2b64c6723964358dcbcbeffb40"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -63094,6 +63165,74 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_speed314.py",
       "sha256": "f81d79112bbe4bd7b897bfd2cbe5b60c17c8f25e3f112a150d119eb349e2f895"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_shared315.h",
+      "sha256": "9f70655211cf0444fc1a9887b21912cfba73d9dd4930e0c654571bdf4ec51475"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Scripts/shared315.ai",
+      "sha256": "13b9dd08d1d5d9b3d9609d4b9a10610817b7939fcf71fd672db2542dd449d3fe"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Scripts/shared315.j",
+      "sha256": "1960e2a97573bcaf61e105ca90ceed735670a87fd774850103b5e8895d28a4ab"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_shared315.py",
+      "sha256": "c6f99dcfb024096d5098fa71d8c4da664d437c5f9c1759927cb07fa934fdc0f5"
+    },
+    {
+      "path": "tools/frida/research/shared315_capture.py",
+      "sha256": "2d726fda976631c236cd8ec85f7978b7eff60dfef4aebc0695612de98abde288"
+    },
+    {
+      "path": "tools/frida/research/shared315_init_observer.js",
+      "sha256": "81bb6bc014b5b2bbb1f98bedaf4d95c662d0613f60e0e9088a2933dc33c789b3"
+    },
+    {
+      "path": "tools/frida/research/shared315_make_map.py",
+      "sha256": "3819d4358d2752a40ac5734d740475ee356010fbe243d5b21d500c2d6921104e"
+    },
+    {
+      "path": "tools/frida/research/shared315_observer.js",
+      "sha256": "68bdf85603b243b1d279a24daae346418ce8ef91134bf69d3a7649a62aa6442c"
+    },
+    {
+      "path": "tools/frida/research/shared315_order_observer.js",
+      "sha256": "02674ae23aeb23b83b445961ebcebeba4c2cdf4018c4cabbf370c17f86b7804d"
+    },
+    {
+      "path": "tools/frida/research/shared315_probe.ai",
+      "sha256": "13b9dd08d1d5d9b3d9609d4b9a10610817b7939fcf71fd672db2542dd449d3fe"
+    },
+    {
+      "path": "tools/frida/research/shared315_probe.j",
+      "sha256": "5e3fc179cc87b708bb254b8c2fe44ff8df8614c9d80d3da6753629ee860a377a"
+    },
+    {
+      "path": "tools/frida/research/shared315_start_observer.js",
+      "sha256": "6ed17b8ccf3560ae0a4fe3d79661edd00ad1907f32459b3602bb3acae8a26e13"
+    },
+    {
+      "path": "tools/frida/research/shared315_timer_observer.js",
+      "sha256": "2964b556297c935aa58060b4543d42287f010037c6727f2892d9efaa2d029d0b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-shared315-1.27.json",
+      "sha256": "4f07e0906e84df8e72f0e39a567ab6becf8c3cfd056a60f153e087956fbe0190"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-shared315-1.27.json.gz",
+      "sha256": "35768f66af39a43b84cf5d6d1785f892509bbe47a407bf5a883ecd5f7a07b3b0"
+    },
+    {
+      "path": "tools/ghidra/research/Shared315Evidence.java",
+      "sha256": "e5b804940f03c7f7d3ff6072d1c0a2df36b62c316716218fe03a502051bf568c"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_shared315.py",
+      "sha256": "c208a28c701a69dc8de58c7a011db6975b0517b36fa239cb4c2b84d1a3679683"
     }
   ]
 }

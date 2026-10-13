@@ -18087,16 +18087,22 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
     T_ASSERT(!G_ActorHasAbilityCode(units[6],MAKEFOURCC('A','a','t','k')));
     T_ASSERT(unit_findstatus(units[1],MAKEFOURCC('B','T','L','F')));
     T_ASSERT(!G_UnitIsHero(units[2])); /* Rawcode, rather than initialized Hero stats. */
-    botCaptain_t captain={.home={-1024,1024},.home_set=true,.units=units,.units_count=8,.created={0,0,300}};
-    S_SetCaptainHomeActor(&captain,0,BOT_CAPTAIN_ATTACK+1);
+    /* Register the fixture with the real saved Captain owner. A stack-only
+     * Captain cannot own a persistent event-timer registration. */
+    botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    *captain=(botCaptain_t){.home={-1024,1024},.home_set=true,.units_count=8,.created={0,0,300}};
+    captain->units_storage=gi.MemAlloc(8*sizeof(*units));
+    captain->units=captain->units_storage;captain->units_capacity=8;
+    memcpy(captain->units,units,sizeof(units));
+    S_SetCaptainHomeActor(captain,0,BOT_CAPTAIN_ATTACK+1);
     FOR_LOOP(i,8) {
-        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],captain));
         moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
         T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),words[i]);
     }
     T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
-    captain.home_actor=units[0]->movement.captain_home.roster_actor;
-    T_NOT_NULL(captain.home_actor);
+    captain->home_actor=units[0]->movement.captain_home.roster_actor;
+    T_NOT_NULL(captain->home_actor);
     /* The fixture source is not a saved map script. Use the same owner API
      * that backs UnitAddAbility after restoring its logical removed state. */
     T_ASSERT(G_ActorAddSkill(units[6],MAKEFOURCC('A','a','t','k')));
@@ -18107,15 +18113,19 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
         T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),words[i]);
     }
     /* Existing ranges retain both changes; fresh admissions acquire new values. */
-    T_ASSERT(S_IssueCaptainHomeMove(units[1],&captain));
+    T_ASSERT(S_IssueCaptainHomeMove(units[1],captain));
     T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),words[0]);
-    T_ASSERT(S_IssueCaptainHomeMove(units[6],&captain));
+    T_ASSERT(S_IssueCaptainHomeMove(units[6],captain));
     T_EQ(wc3_float_bits(move_find_group(units[6]->movement.group_id)->members[0].arrival_range),words[0]);
     T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
     T_EQ(wc3_float_bits(move_find_group(units[6]->movement.group_id)->members[0].arrival_range),words[0]);
     /* The concrete Mirror Image producer supplies the illusion bit. Execute
      * its effect directly because this fixture does not author its cast data. */
     edict_t *roster[10]={0};memcpy(roster,units,sizeof(units));
+    gi.MemFree(captain->units_storage);
+    captain->units_storage=gi.MemAlloc(10*sizeof(*roster));
+    captain->units=captain->units_storage;captain->units_capacity=10;
+    memcpy(captain->units,units,sizeof(units));
     unsigned sources[]={0,2};
     abilityitem_t mirror=S_AbilityItem(MAKEFOURCC('A','O','m','i'));
     abilityCall_t call={.item=&mirror};
@@ -18125,12 +18135,12 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
         FILTER_EDICTS(unit,unit->inuse && (unit->aiflags&AI_ILLUSION) && unit->owner==units[sources[i]])image=unit;
         T_NOT_NULL(image);if(!image)continue;
         roster[8+i]=image;
-        captain.units=roster;captain.units_count=9+i;
+        captain->units[8+i]=image;captain->units_count=9+i;
         /* Prove the temporary early return skips a genuine siege roster. */
         unitAttack_t *siege=S_AttackProfileWrite(units[0],0);
         siege->type=ATK_SIEGE;siege->range=700;
-        T_ASSERT(S_IssueCaptainHomeMove(image,&captain));
-        T_ASSERT(captain.home_actor->movement.captain_actor_siege);
+        T_ASSERT(S_IssueCaptainHomeMove(image,captain));
+        T_ASSERT(captain->home_actor->movement.captain_actor_siege);
         T_EQ(wc3_float_bits(move_find_group(image->movement.group_id)->members[0].arrival_range),words[i ? 7 : 1]);
     }
     T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
@@ -18140,8 +18150,8 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
      * independently of the still-retained immutable siege weapon profile. */
     T_ASSERT(G_ActorRemoveSkill(units[0],MAKEFOURCC('A','a','t','k')));
     T_ASSERT(!S_UnitHasLongRangeSiegeAttack(units[0]));
-    T_ASSERT(S_IssueCaptainHomeMove(roster[8],&captain));
-    T_ASSERT(!captain.home_actor->movement.captain_actor_siege);
+    T_ASSERT(S_IssueCaptainHomeMove(roster[8],captain));
+    T_ASSERT(!captain->home_actor->movement.captain_actor_siege);
     remove(Test_TempPath("wc3-captain-producers.bin"));
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0);level.started=false;reset_entities();setup_test_world();
@@ -26263,5 +26273,172 @@ TEST(wc3_movement, speed314_exceptional_public_speed_keeps_motion_and_restoratio
         G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
     }
     setup_test_world();
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_shared315.h"
+static uint32_t const (*shared315_expected_motion)[8],(*shared315_expected_public)[7],(*shared315_expected_shared)[5];
+static unsigned shared315_motion_count,shared315_public_count,shared315_shared_count;
+static unsigned shared315_motion_size,shared315_public_size,shared315_shared_size;
+static unsigned shared315_public_differences;
+extern void (*test_unit_position_query)(edict_t *,unsigned,float);
+static uint32_t shared315_query[3][2];
+static void shared315_coordinate(edict_t *unit,unsigned axis,float value);
+
+static unsigned shared315_index(edict_t *unit) {
+    unsigned index=0;
+    FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','T','A','A')) {
+        if(e==unit)return index;
+        index++;
+    }
+    return 99;
+}
+static void shared315_coordinate(edict_t *unit,unsigned axis,float value) {
+    if(!unit || unit->class_id!=MAKEFOURCC('h','T','A','A'))return;
+    unsigned index=shared315_index(unit);T_ASSERT(index<3 && axis<2);
+    if(index<3 && axis<2)shared315_query[index][axis]=wc3_float_bits(value);
+}
+static void shared315_motion(edict_t *unit) {
+    if(unit->class_id!=MAKEFOURCC('h','T','A','A') || !move_unit_group(unit))return;
+    uint32_t actual[]={shared315_index(unit),wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_mul(unit->movement.velocity.x,1.0f/32)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1.0f/32)),wc3_float_bits(unit->s.angle)};
+    T_ASSERT(shared315_motion_count<shared315_motion_size);
+    if(shared315_motion_count<shared315_motion_size)FOR_LOOP(i,8)T_EQ(actual[i],shared315_expected_motion[shared315_motion_count][i]);
+    shared315_motion_count++;
+}
+static void shared315_public(cstring_t message) {
+    unsigned tick,scene,index;
+    if(sscanf(message,"S315 tick=%u scene=%u label=unit u=%u",&tick,&scene,&index)!=3 || tick==110)return;
+    FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','T','A','A'))if(shared315_index(e)==index) {
+        uint32_t actual[]={tick,index,wc3_float_bits(level.pathing_clock.time),shared315_query[index][0],
+            shared315_query[index][1],wc3_float_bits(S_UnitMoveSpeed(e)),e->current_order_id};
+        T_ASSERT(shared315_public_count<shared315_public_size);
+        if(shared315_public_count<shared315_public_size)FOR_LOOP(i,7) {
+            uint32_t expected=shared315_expected_public[shared315_public_count][i];
+            T_EQ(actual[i],expected);
+            if(actual[i]!=expected) {
+                shared315_public_differences++;
+                fprintf(stderr,"shared315 public divergence scene%u tick%u unit%u field%u expected%08x actual%08x\n",scene,tick,index,i,expected,actual[i]);
+            }
+        }
+        if(tick==22)T_EQ(e->current_order_id,851986u);
+        shared315_public_count++;
+    }
+}
+static void shared315_phase(unsigned phase,uint64_t id) {
+    if(phase!=MOVE_PHASE_PUBLISH)return;
+    moveShared_t const *shared=S_FindMoveShared(id);T_NOT_NULL(shared);
+    if(!shared || !shared->references)return;
+    uint32_t actual[]={level.pathing_counter,shared->references,
+        shared->speed==FLT_MAX ? 0x7f7fffffu : wc3_float_bits(wc3_mul(shared->speed,1.0f/32)),
+        shared->next_speed==FLT_MAX ? 0x7f7fffffu : wc3_float_bits(wc3_mul(shared->next_speed,1.0f/32)),
+        wc3_float_bits(wc3_mul(shared->radius,1.0f/32))};
+    T_ASSERT(shared315_shared_count<shared315_shared_size);
+    if(shared315_shared_count<shared315_shared_size)FOR_LOOP(i,5) {
+        uint32_t expected=shared315_expected_shared[shared315_shared_count][i];
+        T_EQ(actual[i],expected);
+        if(actual[i]!=expected)fprintf(stderr,"shared315 shared divergence row%u counter%u field%u expected%08x actual%08x\n",shared315_shared_count,level.pathing_counter,i,expected,actual[i]);
+    }
+    shared315_shared_count++;
+}
+extern void (*test_captain_periodic_clock)(botCaptain_t *);
+static uint32_t shared315_periodic_count;
+static void shared315_periodic(botCaptain_t *captain) {
+    uint32_t actual[]={captain==level.bots[0].captains+BOT_CAPTAIN_ATTACK ? 0u : 1u,
+        level.pathing_counter,wc3_float_bits(level.pathing_clock.time),wc3_float_bits(G_TimerQueryClock(NULL).time)};
+    T_ASSERT(shared315_periodic_count<16);
+    if(shared315_periodic_count<16)FOR_LOOP(i,4) {
+        T_EQ(actual[i],shared315_periodic_clocks[shared315_periodic_count][i]);
+        if(actual[i]!=shared315_periodic_clocks[shared315_periodic_count][i])fprintf(stderr,"shared315 periodic divergence row%u field%u expected%08x actual%08x\n",shared315_periodic_count,i,shared315_periodic_clocks[shared315_periodic_count][i],actual[i]);
+    }
+    shared315_periodic_count++;
+}
+static void shared315_run(unsigned scene,bool cold_save) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotShutdown();reset_entities();setup_test_world();
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+    mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+    info.players[0].startingPosition=(vec2_t){272,304};game.clients[0].ps.start_location=0;
+    float radius=31,height=0,source=wc3_float(scene==0 ? 0x7fc00001u : scene==1 ? 0x7fa00001u : scene==2 ? 0xffc00001u : 0u),weapon_range=90,acquire=500;int32_t min=173,max=389,enabled=1;
+    unitModification_t actor_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="foot"},
+        {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height},
+        {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&min},
+        {.modID=MAKEFOURCC('u','m','a','s'),.type=mod_int,.data=&max},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','1','w'),.type=mod_string,.data="normal"},
+        {.modID=MAKEFOURCC('u','a','1','g'),.type=mod_string,.data="ground"},
+        {.modID=MAKEFOURCC('u','a','1','t'),.type=mod_string,.data="normal"},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    unitModification_t source_mods[]={
+        {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&source},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius}};
+    unitData_t types[]={
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','T','A','A'),.numbeOfModifications=sizeof(actor_mods)/sizeof(*actor_mods),.modifications=actor_mods},
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','S','A','A'+scene),.numbeOfModifications=2,.modifications=source_mods}};
+    info.num_userCreatedUnits=2;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+    uint32_t size=0;char *script=gi.ReadFile("Scripts\\shared315.j",&size);T_NOT_NULL(script);
+    if(!script)goto cleanup;
+    char *scene_text=strstr(script,"integer udg_S315Scene=2"),*source_text=strstr(script,"'hSAC'");
+    T_NOT_NULL(scene_text);T_NOT_NULL(source_text);
+    if(!scene_text || !source_text){gi.MemFree(script);goto cleanup;}
+    scene_text[strlen("integer udg_S315Scene=")]='0'+scene;
+    /* Engine rawcode literals select the same W3U row; retail's big-endian rawcode arithmetic differs. */
+    source_text[4]='A'+scene;
+    T_ASSERT(run_test_jass(script));gi.MemFree(script);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    shared315_motion_count=shared315_public_count=shared315_shared_count=shared315_public_differences=0;move_test_owner_phase=shared315_phase;
+    move_test_motion_commit=shared315_motion;test_preload_marker=shared315_public;test_unit_position_query=shared315_coordinate;
+    shared315_periodic_count=0;test_captain_periodic_clock=scene==2 ? shared315_periodic : NULL;
+    bool saved=false;
+    while(level.time<11000) {
+        level.time+=5;globals.RunFrame();
+        /* CaptainGoHome has already run; only inert Sleep remains in the private AI VM.
+         * Its continuation is not serialized and must not be treated as tested here. */
+        if(cold_save && level.time>=4100 && !saved) {
+            T_ASSERT(S_ValidateMoveShared());
+            cstring_t file=Test_TempPath("wc3-shared315.bin");
+            T_ASSERT(WriteGame(file));
+            /* Snapshot reconstruction replays VM frames with native effects
+             * suppressed; those calls are not live public observations. */
+            test_preload_marker=NULL;test_unit_position_query=NULL;test_captain_periodic_clock=NULL;
+            T_ASSERT(ReadGame(file));
+            test_preload_marker=shared315_public;test_unit_position_query=shared315_coordinate;
+            test_captain_periodic_clock=scene==2 ? shared315_periodic : NULL;
+            remove(file);saved=true;
+        }
+    }
+    if(scene==2)T_EQ(shared315_periodic_count,16u);
+    test_captain_periodic_clock=NULL;
+    move_test_owner_phase=NULL;
+    move_test_motion_commit=NULL;test_preload_marker=NULL;test_unit_position_query=NULL;
+    T_EQ(shared315_motion_count,shared315_motion_size);
+    T_EQ(shared315_shared_count,shared315_shared_size);
+    T_EQ(shared315_public_count,shared315_public_size);
+    if(cold_save)T_ASSERT(saved);
+    fprintf(stderr,"shared315 scene%u cold%d motion%u shared%u public%u divergent-fields%u\n",scene,cold_save,
+        shared315_motion_count,shared315_shared_count,shared315_public_count,shared315_public_differences);
+cleanup:
+    G_FowShutdown();G_BotShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;setup_test_world();
+}
+TEST(wc3_movement, shared315_public_captain_exceptional_cap_survives_cold_save) {
+#define SHARED315_CASE(n) do { \
+    shared315_expected_motion=shared315_motion_##n;shared315_motion_size=sizeof(shared315_motion_##n)/sizeof(*shared315_motion_##n); \
+    shared315_expected_public=shared315_public_##n;shared315_public_size=sizeof(shared315_public_##n)/sizeof(*shared315_public_##n); \
+    shared315_expected_shared=shared315_shared_##n;shared315_shared_size=sizeof(shared315_shared_##n)/sizeof(*shared315_shared_##n); \
+    shared315_run(n,false);shared315_run(n,true); \
+}while(0)
+    SHARED315_CASE(0);SHARED315_CASE(1);SHARED315_CASE(2);SHARED315_CASE(7);
+#undef SHARED315_CASE
 }
 #endif
