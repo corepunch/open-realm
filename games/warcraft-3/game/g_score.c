@@ -32,6 +32,9 @@ void G_PlayerScoreObserveFood(gameClient_t *client) {
     used = client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
     client->score.values[WC3_PLAYER_SCORE_FOOD_MAXPROD] =
         MAX(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXPROD], produced);
+    if (used > client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED])
+        G_GameResultDebug("score food new peak player=%u old=%u new=%u cap=%u",
+            client->ps.number, client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], used, produced);
     client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] =
         MAX(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], used);
 }
@@ -49,14 +52,35 @@ void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state) {
  * preplaced map units, immediate JASS CreateUnit, or finished training.
  * Never call at generic SP_SpawnUnit time: transformations reuse it and
  * queued trainees are created long before they can enter the world. */
+static uint32_t G_ScoreUnitValue(edict_t const *unit) {
+    if (!unit || !unit->data.UnitBalance) return 0;
+    return (uint32_t)MAX(0, unit->data.UnitBalance->goldCost) +
+           (uint32_t)MAX(0, unit->data.UnitBalance->lumberCost);
+}
+
+static void G_ScoreAddValue(uint32_t *target, uint32_t amount) {
+    if (!target) return;
+    *target = (uint32_t)MIN((uint64_t)*target + amount, (uint64_t)INT32_MAX);
+}
+
 void G_PlayerScoreUnitTrained(edict_t *unit) {
     gameClient_t *client;
 
     if (!unit || G_UnitIsStructure(unit)) return;
     client = G_ScoreClient(unit->s.player);
     G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_UNITS_TRAINED, 1);
-    if (G_UnitIsHero(unit) && client && client->score.heroes_used < INT32_MAX)
+    if (client) G_ScoreAddValue(&client->score.unit_value_produced, G_ScoreUnitValue(unit));
+    G_GameResultDebug("score unit created owner=%u rawcode=%08x hero=%u cost=%u food=%d produced=%u value=%u",
+        unit->s.player, unit->class_id, (unsigned)G_UnitIsHero(unit), G_ScoreUnitValue(unit),
+        unit->data.UnitBalance ? unit->data.UnitBalance->foodUsed : 0,
+        client ? client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] : 0,
+        client ? client->score.unit_value_produced : 0);
+    if (G_UnitIsHero(unit) && client && client->score.heroes_used < INT32_MAX) {
         client->score.heroes_used++;
+        G_GameResultDebug("score hero seen owner=%u rawcode=%08x entity=%u heroes_used=%u xp=%u level=%u",
+            unit->s.player, unit->class_id, unit->s.number, client->score.heroes_used,
+            unit->hero.xp, unit->hero.level);
+    }
 }
 
 void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount) {
@@ -64,6 +88,9 @@ void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount) {
     if (!hero || !amount || !G_UnitIsHero(hero)) return;
     client = G_ScoreClient(hero->s.player);
     if (!client) return;
+    G_GameResultDebug("score hero xp owner=%u rawcode=%08x entity=%u credited=%u before=%u level=%u",
+        hero->s.player, hero->class_id, hero->s.number, amount,
+        client->score.experience_gained, hero->hero.level);
     client->score.experience_gained = (uint32_t)MIN(
         (uint64_t)client->score.experience_gained + amount, (uint64_t)INT32_MAX);
 }
@@ -95,6 +122,7 @@ void G_PlayerScoreStructureBuilt(edict_t *building) {
     if (!building) return;
     client = G_ScoreClient(building->s.player);
     G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_STRUCT_BUILT, 1);
+    if (client) G_ScoreAddValue(&client->score.structure_value_built, G_ScoreUnitValue(building));
 }
 
 void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker) {
@@ -106,10 +134,12 @@ void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker) {
 
     if (G_UnitIsStructure(victim)) {
         G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_STRUCT_RAZED, 1);
+        G_ScoreAddValue(&client->score.structure_value_razed, G_ScoreUnitValue(victim));
     } else if (G_UnitIsHero(victim)) {
         G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_HEROES_KILLED, 1);
     } else {
         G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_UNITS_KILLED, 1);
+        G_ScoreAddValue(&client->score.unit_value_killed, G_ScoreUnitValue(victim));
     }
 }
 
@@ -167,6 +197,9 @@ static int32_t G_ScoreGuessTechPercent(gameClient_t const *client) {
     }
     /* GUESS: known/observed technology rows are the denominator, not the
      * retail race/map technology tree. An empty set scores zero. */
+    G_GameResultDebug("score tech player=%u observed=%u researched=%u provisional_pct=%u",
+        client->ps.number, observed, researched,
+        observed ? (unsigned)((100ull * researched) / observed) : 0);
     return observed ? (int32_t)((100ull * researched) / observed) : 0;
 }
 
@@ -175,12 +208,11 @@ bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *
     uint32_t const *s;
     if (!client || !value || score >= WC3_PLAYER_SCORE_COUNT) return false;
     s = client->score.values;
-    /* GUESS: activity-based Unit Score weights, until Warcraft's exact
-     * unit-cost and kill contribution rules are recovered. */
-    units = (uint64_t)s[WC3_PLAYER_SCORE_UNITS_TRAINED] * 10u +
-            (uint64_t)s[WC3_PLAYER_SCORE_UNITS_KILLED] * 10u +
-            (uint64_t)s[WC3_PLAYER_SCORE_STRUCT_BUILT] * 20u +
-            (uint64_t)s[WC3_PLAYER_SCORE_STRUCT_RAZED] * 20u;
+    /* Cost-based approximation. Retail's treatment of hero/building weights,
+     * kills, and special map units remains unverified. */
+    units = (uint64_t)client->score.unit_value_produced +
+            client->score.unit_value_killed + client->score.structure_value_built +
+            client->score.structure_value_razed;
     /* GUESS: the retail reference's 500 XP -> 5000 Hero Score supports a
      * 10x experience contribution. Other Hero weights remain unverified. */
     heroes = (uint64_t)s[WC3_PLAYER_SCORE_HEROES_KILLED] * 100u +

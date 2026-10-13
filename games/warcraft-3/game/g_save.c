@@ -119,7 +119,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 89 retains entity identity for ability-owned point-spell approaches. */
 /* Version 90 persists authoritative Warcraft player-score counters in GAMECLIENT. */
 /* Version 91 tracks per-player hero usage/experience and explicit score row settings. */
-static uint32_t const save_version = 91;
+/* Version 92 adds per-unit cost-weighted score totals to GAMECLIENT. */
+static uint32_t const save_version = 92;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -2517,6 +2518,7 @@ TEST(wc3_save, player_score_state_round_trips) {
     client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] = 73;
     client->score.heroes_used = 3;
     client->score.experience_gained = 500;
+    client->score.unit_value_produced = 2325;
     client->jass.on_score_screen_set = true;
     client->jass.on_score_screen = false;
     T_ASSERT(WriteGame(filename));
@@ -2530,6 +2532,7 @@ TEST(wc3_save, player_score_state_round_trips) {
     T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 73);
     T_EQ(client->score.heroes_used, 3);
     T_EQ(client->score.experience_gained, 500);
+    T_EQ(client->score.unit_value_produced, 2325);
     T_ASSERT(client->jass.on_score_screen_set);
     T_ASSERT(!client->jass.on_score_screen);
     remove(filename);

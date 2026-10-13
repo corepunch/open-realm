@@ -111,6 +111,8 @@ void G_SetUnitFoodUsed(edict_t *unit, int32_t amount) {
     assert(unit->food);
     value = MAX(0, amount);
     delta = value - unit->food->used;
+    if (delta) G_GameResultDebug("score food unit owner=%u rawcode=%08x entity=%u old=%d new=%d delta=%d",
+        unit->s.player, unit->class_id, unit->s.number, unit->food->used, value, delta);
     unit->food->used = value;
     client = G_FoodClient(unit->s.player);
     G_AdjustFoodStat(client, PLAYERSTATE_RESOURCE_FOOD_USED, delta);

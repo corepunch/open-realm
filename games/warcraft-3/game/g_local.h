@@ -591,6 +591,8 @@ typedef struct {
     /* Retail pages expose hero usage and earned XP separately from common.j's
      * fixed PLAYER_SCORE_* ids. Persist alongside the raw counters. */
     uint32_t heroes_used, experience_gained;
+    /* Cost-weighted event totals; counts above remain separate for retail tabs. */
+    uint32_t unit_value_produced, unit_value_killed, structure_value_built, structure_value_razed;
 } wc3PlayerScoreState_t;
 
 /* Transient, immutable outgoing-match presentation. Never serialized in

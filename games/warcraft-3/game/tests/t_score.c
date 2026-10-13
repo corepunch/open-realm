@@ -80,16 +80,36 @@ TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TECH_PERCENT, &value));
     T_EQ(value, 50);
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_UNIT_TOTAL, &value));
-    T_EQ(value, 90);
+    T_EQ(value, 0); /* Counts alone no longer fabricate unit value. */
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_HERO_TOTAL, &value));
     T_EQ(value, 230);
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
     T_EQ(value, 60);
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TOTAL, &value));
-    T_EQ(value, 380);
+    T_EQ(value, 290);
     client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = UINT32_MAX;
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TOTAL, &value));
-    T_EQ(value, INT32_MAX);
+    T_EQ(value, 290); /* Counter saturation is independent of weighted totals. */
+}
+
+TEST(wc3_score, unit_value_uses_authored_cost_not_unit_count) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *unit;
+    int32_t total = -1;
+    uint32_t cost;
+    setup_test_world();
+    memset(&client->score, 0, sizeof(client->score));
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    T_NOT_NULL(unit);
+    T_NOT_NULL(unit->data.UnitBalance);
+    unit->s.player = client->ps.number;
+    cost = (uint32_t)MAX(0, unit->data.UnitBalance->goldCost) +
+           (uint32_t)MAX(0, unit->data.UnitBalance->lumberCost);
+    G_PlayerScoreUnitTrained(unit);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 1);
+    T_EQ(client->score.unit_value_produced, cost);
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_UNIT_TOTAL, &total));
+    T_EQ(total, cost);
 }
 
 TEST(wc3_score, explicit_score_screen_exclusion_and_normal_player_defaults) {
@@ -192,7 +212,7 @@ TEST(wc3_score, guessed_aggregate_scores_are_queryable_from_jass) {
     game.clients[0].score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 2;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
-        "  call BJassAssert(GetPlayerScore(Player(0), PLAYER_SCORE_UNIT_TOTAL) == 20, \"guessed unit total\")\n"
+        "  call BJassAssert(GetPlayerScore(Player(0), PLAYER_SCORE_UNIT_TOTAL) == 0, \"counts alone have no weight\")\n"
         "endfunction\n"));
 }
 

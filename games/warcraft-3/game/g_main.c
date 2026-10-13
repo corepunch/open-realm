@@ -97,6 +97,15 @@ static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
      * and must never masquerade as a second copy of Player(0). */
     /* Each map player may explicitly disable its own row. Never infer that
      * false means disabled unless SetPlayerOnScoreScreen was actually called. */
+    /* A bounded end-of-match audit catches heroes restored or transferred
+     * through paths that bypass the production hook. Only with result debug. */
+    if (G_GameResultDebugEnabled()) {
+        FILTER_EDICTS(ent, ent->inuse && G_UnitIsHero(ent)) {
+            G_GameResultDebug("score hero audit owner=%u rawcode=%08x entity=%u level=%u xp=%u dead=%u",
+                ent->s.player, ent->class_id, ent->s.number, ent->hero.level, ent->hero.xp,
+                (unsigned)((ent->svflags & SVF_DEADMONSTER) != 0));
+        }
+    }
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_PLAYERS)) {
         gameClient_t const *client = game.clients + i;
         wc3ScorePlayerSnapshot_t *entry;

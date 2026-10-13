@@ -282,3 +282,15 @@ This is a deliberate interpretation of **Experience Gained** as awarded XP
 rather than a hero's cumulative XP threshold; verify against retail maps.
 It does not yet resolve the retail Unit Score formula, Tech Percentage,
 Largest Army (preplaced AI food accounting), or Heroes Used discrepancy.
+
+### Cost-weighted scoring and diagnostics (follow-on)
+
+Produced/killed units and built/razed structures now accumulate their authored
+`UnitBalance` gold-plus-lumber costs independently of the raw counts. This is
+**provisional** for retail: exact contribution rules for heroes, kills and
+zero-cost/custom campaign units require controlled comparison. The new persisted
+value totals require save version 92. When `wc3_game_result_debug 1` is set,
+unit creation, food deltas/peaks, hero creation and XP changes, and provisional
+tech numerators/denominators are logged. These events can be verbose on maps
+with large armies. No mission-specific correction is applied to Largest Army,
+Heroes Used, XP or Tech Percentage without verified causality.
