@@ -52,7 +52,8 @@ def main():
         "shared": sources("shared") + [ROOT / "vendor/blast/blast.c"],
         "jass": sources(wc3 + "/jass"),
         "renderer": sources("renderer", wc3 + "/renderer"),
-        "game": sources(wc3 + "/game", wc3 + "/common", exclude=("world_w3.c",)),
+        "game": sources(wc3 + "/game", wc3 + "/common", exclude=("world_w3.c", "g_save.c")) +
+                [ROOT / "port/web/src/web_save_unsupported.c"],
         "menu": sources(wc3 + "/menu", wc3 + "/common", exclude=("world_w3.c",)),
         "engine": sources("client", "server", "common", "sound",
                           exclude=("stb_vorbis.c", "sv_routing.c")) +
@@ -72,14 +73,16 @@ def main():
              "-I" + wc3 + "/common", "-I" + wc3 + "/game",
              "-I" + wc3 + "/game/api", "-I" + wc3 + "/game/skills",
              "-DWC3", "-DUSE_FOGOFWAR", '-DBZ_GAME="warcraft-3"',
-             "-DBZ_CLIENT_WORLD", "-DBZ_GL_ES3", "-DBZ_MSAA_SAMPLES=0",
-             "-sUSE_SDL=2", "-sUSE_ZLIB=1", "-sWASMFS=1", "-pthread"]
+             "-DBZ_GL_ES3", "-DBZ_MSAA_SAMPLES=0",
+             "-sUSE_SDL=2", "-sUSE_ZLIB=1", "-pthread"]
     objects = []
     for name, files in module_sources.items():
         unit = out / (name + "_unity.c")
         unity(unit, sorted(set(files)))
         obj = out / (name + ".o")
         extra = ["-DSTB_FDF_IMPLEMENTATION", "-DSTB_FDF_GLOBALS"] if name in ("game", "menu", "engine") else []
+        if name == "engine":
+            extra.append("-DBZ_CLIENT_WORLD")
         if not args.check:
             run([emcc, *flags, *extra, "-c", unit, "-o", obj])
         objects.append(obj)

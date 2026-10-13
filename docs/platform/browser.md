@@ -109,3 +109,18 @@ unity inputs without invoking Emscripten. Then run `make web-warcraft3-engine`
 with an activated SDK and capture the **first** compiler or linker failure.
 The preflight checks file existence and include layout only; it cannot prove
 that the browser code links, renders or boots. Do not redistribute game data.
+
+### Browser build compatibility (wasm32)
+
+The experimental engine build excludes `g_save.c` and links browser-only
+`web_save_unsupported.c` functions returning failure. WC3 save/load is therefore
+**unsupported** in this build: `g_save.c` encodes 64 bits of relocation data into
+a pointer-sized slot, and wasm32 pointer slots are only 32 bits wide. The native
+save format and its assertions remain unchanged. A browser save implementation
+must use explicitly sized on-disk relocation records and regression coverage
+before enabling this feature.
+
+Browser builds also exclude `BZ_CLIENT_WORLD` from the combined game/engine
+compilation flags; server/game routing owns the WC3 pathing implementation,
+while client-world helpers must not be compiled into the game unity module.
+`-sWASMFS=1` is a final-link setting, not a compile-only setting.

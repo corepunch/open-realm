@@ -46,6 +46,9 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 	if (len >= 2 && !memcmp(buffer, "\xFE\xFF", 2)) { memmove(buffer, buffer + 2, len - 1); return UTF16BE_BOM_FOUND; }
 	return NO_BOM;
 }
+/* Import struct member names must be parsed before the world-local aliases. */
+#include "client/client.h"
+#include "client/menu.h"
 #define FS_ReadFile G_WorldReadFile
 #define FS_FreeFile G_WorldMemFree
 #define FS_SetPriorityArchive G_WorldSetPriorityArchive
