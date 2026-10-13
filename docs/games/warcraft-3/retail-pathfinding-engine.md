@@ -19538,3 +19538,64 @@ failing/passing reports, source snapshots, and Ghidra exports are archived under
 `research/NUM-03.2/payoff315` in the external analysis tree. Other NaN payloads,
 effect stacks, broader shared producers, Captain combat/range policy, and the
 retail visibility faults from Payoff313 remain outside this checkpoint.
+
+
+## Retained overlapping speed contributions (Payoff316)
+
+NUM-03.2's effect-stack investigation exposed an ordinary finite prerequisite:
+Slow and Bloodlust do not multiply independent speed factors. Native
+`5fb7c0` adds the applying owner's signed delta to retained Move `+78`, snaps
+values within the runtime near-one threshold back to one, and publishes once.
+The common buff `52d490` captures its contribution at `+d0` and guards application
+with `+20.400000`; `5324c0` clears that flag and flips the retained delta's sign
+for removal. It does not reconstruct the value from current ability data.
+
+Three completed public scenes have two read-only Frida repeats and an unhooked
+control each: Slow then Bloodlust, the reverse initial order, and authored
+Slow37%/Bloodlust17%. All 102 normalized public markers agree in each scene;
+10716 native events retain the actual factor transitions and getter words.
+Stock 60%/25% gives factor `3f266666` and public speed `432f7fff` (about 175.5), where
+multiplying the effects incorrectly gives 135. The custom scene first returns
+432a1999 under Slow, then4357ffff during overlap. Removing Bloodlust returns
+432a1998, one bit below the initial Slow-only speed: recomputing even an additive
+sum loses the captured arithmetic history. Removing Slow normalizes back to 270.
+
+The game now retains the multiplier on the Move owner and the applied delta on
+each Slow/Bloodlust status. Status refresh does not add it twice; replacement
+and removal run the old owner's inverse. Save format 190 retains those fields and
+rejects previous layouts. The focused regression executes the actual applying
+procedures, compares literal public words, cold-loads both live contributions,
+refreshes them, and removes each through the shared status lifecycle. The
+original failing regression was 7/8 assertions; no expected retail word was
+changed to make it pass. A duplicate publication introduced during integration
+was caught by the earlier modifier88 trajectory at commit 115 and removed;
+that existing 590-commit/4356-saved-suffix regression is exact again.
+
+The finite accepted evidence is separate from the expanded exceptional-input
+runs. Negative qNaN speed, subsequent buff removal, and later caster position
+queries lead to enormous unit coordinates and an access violation at retail
+`Vision_ReadCellPlayerMasks` (`1ddac1`). Both observed runs terminate there; the
+unhooked control also exits without completion. These are fault evidence,
+not completed successful controls or proof of equivalent engine termination.
+Early custom-map attempts also retain stock values: W3A DataA/DataB modifiers
+must carry dataPointer 1/2, not zero. The successful custom map records the
+actual -.37/+.17 words at the applying owner.
+
+Reproduce the completed finite numeric lane with:
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_modifiers316.py \
+  --binary /path/to/supported/game.dll --report /tmp/modifiers316-fresh.json
+python3 tests/test_wc3_pathfinding_modifiers316.py
+```
+
+The verifier requires all nine complete captures, unhooked controls, exact event
+accounting, source/map hashes, literal factor/getter streams, the C fixture,
+and 172 original instruction guards before running Classic/TFT engine checks.
+Twenty-one evidence rejection tests cover damaged inputs. This is an incremental
+numeric ownership fix, not a completed full-motion comparison for the new
+scenes. Only the two reached buff families use the newly retained factor;
+other modifiers and the below-one group-republication branch
+`5fcd50 -> 058bc0 -> 16e7c0 -> 1694f0 -> 169550` remain open in the existing
+NUM-03.2/MOVE-01.1/GROUP-04.6 scope. No new TODO split or full-suite checkpoint
+is claimed; this is chunk 4 after checkpoint 312.

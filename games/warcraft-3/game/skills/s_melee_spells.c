@@ -42,8 +42,7 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
         status->source = caster;
         status->source_spawn_time = caster->spawn_time;
     }
-    if (spell->ability->proc == CAbilityBloodlust)
-        S_UnitAbilityEvent(st.entity, A_MOVE_PARAMETERS_CHANGED);
+    /* The status owner publishes its captured contribution during insertion. */
     if (status && status->code == MAKEFOURCC('B','b','l','o'))
         status->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
     else if (status && status->code == MAKEFOURCC('B','f','a','e'))
@@ -105,8 +104,14 @@ BZ_ABILITY_PROC(CAbilityBloodlust) {
     case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, true, false, 900.0f);
     case A_STATUS_POLICY:
         return UNIT_BUFF_KNOWN | UNIT_BUFF_POSITIVE | UNIT_BUFF_MAGIC | UNIT_BUFF_AUTO_DISPEL;
-    case A_STATUS_REMOVED:
-        S_UnitAbilityEvent(ent, A_MOVE_PARAMETERS_CHANGED); return true;
+    case A_STATUS_REFRESH:
+        if(call && call->status.slot)S_ApplyMoveSpeedContribution(ent,call->status.slot,
+            S_SpellData(call->status.ability,call->status.slot->level,2));
+        return true;
+    case A_STATUS_REPLACE: case A_STATUS_REMOVE:
+        if(call)S_RemoveMoveSpeedContribution(ent,call->status.slot);
+        return true;
+    case A_STATUS_REMOVED: return true;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }

@@ -4347,6 +4347,29 @@ void move_start_displacement(edict_t *self, vec2_t const *target) {
     unit_setanimation(self, "walk");
 }
 
+/* Native5fb7c0 retains signed changes rather than recomputing a product of
+ * active effects. Inverse operations use the value captured by their owner. */
+static void move_adjust_speed_factor(edict_t *unit,float delta) {
+    if(delta==0)return;
+    float factor=unit->movement.speed_factor_initialized ? unit->movement.speed_factor : 1;
+    factor=wc3_add(factor,delta);
+    float distance=wc3_float(wc3_float_bits(wc3_sub(factor,1))&0x7fffffffu);
+    if(distance<wc3_float(0x3a83126f))factor=1;
+    unit->movement.speed_factor=factor;unit->movement.speed_factor_initialized=1;
+    S_UnitAbilityEvent(unit,A_MOVE_PARAMETERS_CHANGED);
+}
+void S_ApplyMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status,float delta) {
+    if(!unit || !status || status->move_speed_applied ||
+       !G_UnitAbilityLevel(unit,MAKEFOURCC('A','m','o','v')))return;
+    status->move_speed_delta=delta;status->move_speed_applied=1;
+    move_adjust_speed_factor(unit,delta);
+}
+void S_RemoveMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status) {
+    if(!unit || !status || !status->move_speed_applied)return;
+    status->move_speed_applied=0;
+    move_adjust_speed_factor(unit,wc3_float(wc3_float_bits(status->move_speed_delta)^0x80000000u));
+}
+
 /* Effective current move speed of a unit (runtime override, else data table). */
 static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     if (M_UnitMoveDisabled(ent)) return 0;
@@ -4360,7 +4383,7 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     uint32_t level = G_QueryUnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
     speed = wc3_mul(speed, 1.0f + S_UnholyMoveBonus(ent));
-    speed = wc3_mul(speed, wc3_add(1, S_BloodlustMoveBonus(ent)));
+    speed = wc3_mul(speed, ent->movement.speed_factor_initialized ? ent->movement.speed_factor : 1);
     speed = wc3_mul(speed, S_HumanMoveFactor(ent));
     speed = wc3_mul(speed, 1.0f - S_CrippleMoveReduction(ent));
     speed = unit_apply_earthquake_speed(ent, speed);

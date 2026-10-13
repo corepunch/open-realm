@@ -51,8 +51,7 @@ static heroabilitystatus_t *human_status_execute(edict_t *caster, spellTarget_t 
         status->source = caster;
         status->source_spawn_time = caster->spawn_time;
     }
-    if (spell->ability->proc == CAbilitySlow)
-        S_UnitAbilityEvent(st.entity, A_MOVE_PARAMETERS_CHANGED);
+    /* The status owner publishes its captured contribution during insertion. */
     /* First verified transfer family: Inner Fire.  Other buffs remain legacy
      * dispellable but are not transferable until their cleanup is audited. */
     if (status && status->code == MAKEFOURCC('B','i','n','f')) {
@@ -777,8 +776,14 @@ BZ_ABILITY_PROC(CAbilitySlow) {
     case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, false, false, 900.0f);
     case A_STATUS_POLICY:
         return UNIT_BUFF_KNOWN | UNIT_BUFF_NEGATIVE | UNIT_BUFF_MAGIC | UNIT_BUFF_AUTO_DISPEL;
-    case A_STATUS_REMOVED:
-        S_UnitAbilityEvent(ent, A_MOVE_PARAMETERS_CHANGED); return true;
+    case A_STATUS_REFRESH:
+        if(call && call->status.slot)S_ApplyMoveSpeedContribution(ent,call->status.slot,
+            wc3_float(wc3_float_bits(S_SpellData(call->status.ability,call->status.slot->level,1))^0x80000000u));
+        return true;
+    case A_STATUS_REPLACE: case A_STATUS_REMOVE:
+        if(call)S_RemoveMoveSpeedContribution(ent,call->status.slot);
+        return true;
+    case A_STATUS_REMOVED: return true;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
@@ -834,11 +839,6 @@ bool S_HumanCanAttack(edict_t const *unit) {
 float S_HumanMoveFactor(edict_t const *unit) {
     uint32_t level;
     float factor = 1.0f;
-    if ((level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) {
-        heroabilitystatus_t const *status = unit_findstatus((edict_t *)unit, MAKEFOURCC('B','s','l','o'));
-        uint32_t code = status->data ? status->data : MAKEFOURCC('A','s','l','o');
-        factor = wc3_mul(factor, wc3_sub(1, S_SpellData(code, level, 1)));
-    }
     FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *status=unit->abilstatus+i;
         if (status->level && (!status->timestamp || status->timestamp>G_Time()) &&

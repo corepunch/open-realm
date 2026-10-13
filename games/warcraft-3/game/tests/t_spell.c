@@ -3070,6 +3070,8 @@ TEST(wc3_spell, human_support_spells_use_authored_status_and_heal_values) {
 	edict_t *ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
 	edict_t *enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
 	caster->s.player = ally->s.player = 0; enemy->s.player = 1;
+	/* The minimal Grunt fixture omits speed; the retail Grunt owns Move. */
+	enemy->unitinfo.MoveSpeed = 270;
 	ally->health.value = 60; ally->health.max_value = 100; ally->armor_value = 2;
 	ally->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
 	test_execute_code(caster, "Ahea", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
@@ -3077,7 +3079,7 @@ TEST(wc3_spell, human_support_spells_use_authored_status_and_heal_values) {
 	test_execute_code(caster, "Ainf", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
 	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','i','n','f'))); T_FEQ(G_UnitArmorValue(ally), 7.0f, 0.001f);
 	test_execute_code(caster, "Aslo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
-	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','s','l','o'))); T_FEQ(S_HumanMoveFactor(enemy), 0.4f, 0.001f);
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','s','l','o'))); T_EQ(enemy->movement.speed_factor_initialized, 1); T_FEQ(enemy->movement.speed_factor, 0.4f, 0.001f);
 
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

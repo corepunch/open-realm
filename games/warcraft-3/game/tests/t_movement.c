@@ -26442,3 +26442,48 @@ TEST(wc3_movement, shared315_public_captain_exceptional_cap_survives_cold_save) 
 #undef SHARED315_CASE
 }
 #endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_modifiers316.h"
+TEST(wc3_movement, modifiers316_overlap_uses_retained_additive_factor) {
+    FOR_LOOP(scene,3) {
+    bool reverse=scene==1,custom=scene==2;
+    reset_entities();setup_test_world();
+    char slk[1024];snprintf(slk,sizeof(slk),"ID;PWXL;N;EBB;Y3;X8\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"BuffID1\"\nC;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K%s\nC;X5;K0.25\nC;X6;K\"Bslo\"\nC;X7;K60\nC;X8;K10\n"
+        "C;Y3;X1;K\"ACbl\"\nC;X2;K\"Ablo\"\nC;X3;K1\nC;X4;K0.4\nC;X5;K%s\nC;X6;K\"Bblo\"\nC;X7;K40\nC;X8;K40\nE\n",custom?"0.37":"0.6",custom?"0.17":"0.25");
+    slkTestData_t *rows=parse_slk_string(slk);
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),768,512);
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('h','s','o','r'),512,512);
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=1;game.constants.maxUnitSpeed=389;
+    unit->unitinfo.MoveSpeed=270;unit->unitinfo.move_flags|=BZ_UNIT_SPEED_SET;
+    uint32_t codes[]={MAKEFOURCC('A','s','l','o'),MAKEFOURCC('A','C','b','l')};
+    if(reverse){uint32_t swap=codes[0];codes[0]=codes[1];codes[1]=swap;}
+    uint32_t const *expected=modifiers316_speed[scene];
+    FOR_LOOP(i,2) {
+        abilityitem_t item=S_AbilityItem(codes[i]);
+        spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=unit};
+        abilityCall_t call=MAKE(abilityCall_t,.item=&item,.target=&target);
+        T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&call));
+        T_EQ(wc3_float_bits(S_UnitMoveSpeed(unit)),expected[i]);
+    }
+    unsigned index=unit-g_edicts;
+    cstring_t save=Test_TempPath("wc3-modifiers316-overlap.bin");
+    T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);unit=g_edicts+index;
+    T_EQ(wc3_float_bits(unit->movement.speed_factor),modifiers316_factor[scene]);
+    T_EQ(wc3_float_bits(S_UnitMoveSpeed(unit)),expected[1]);
+    unit_refreshstatusflags(unit);
+    T_EQ(wc3_float_bits(S_UnitMoveSpeed(unit)),expected[1]);
+    heroabilitystatus_t *haste=unit_findstatus(unit,MAKEFOURCC('B','b','l','o'));
+    T_NOT_NULL(haste);if(haste)unit_removestatus(unit,haste,STATUS_REMOVE_SCRIPT);
+    T_EQ(wc3_float_bits(S_UnitMoveSpeed(unit)),expected[2]);
+    heroabilitystatus_t *slow=unit_findstatus(unit,MAKEFOURCC('B','s','l','o'));
+    T_NOT_NULL(slow);if(slow)unit_removestatus(unit,slow,STATUS_REMOVE_SCRIPT);
+    T_EQ(wc3_float_bits(S_UnitMoveSpeed(unit)),expected[3]);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    }
+}
+#endif

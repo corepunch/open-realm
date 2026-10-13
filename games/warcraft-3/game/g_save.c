@@ -89,7 +89,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
  * neutral creep guard state and Wisp tree egress into the Format181 layout.
  * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
 /* Format184 retains inactive fine identities with exact empty coverage. */
-static uint32_t const save_version = 189;
+static uint32_t const save_version = 190;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1122,6 +1122,8 @@ static field_t const channel_fields[] = {
 static field_t const status_fields[] = {
     TF(heroabilitystatus_t, instance_id, F_INT),
     TF(heroabilitystatus_t, stack_policy, F_INT),
+    TF(heroabilitystatus_t, move_speed_delta, F_FLOAT),
+    TF(heroabilitystatus_t, move_speed_applied, F_INT),
     TF(heroabilitystatus_t, source, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -1282,6 +1284,8 @@ field_t edict_fields[] = {
     F(edict_s, movement.captain_home.due.epoch, F_INT),
     F(edict_s, movement.captain_home.due.span, F_FLOAT),
     F(edict_s, movement.captain_home.sequence, F_INT),
+    F(edict_s, movement.speed_factor, F_FLOAT),
+    F(edict_s, movement.speed_factor_initialized, F_INT),
     F(edict_s, movement.type_rebind_pending, F_INT),
     F(edict_s, movement.pause_order_id, F_INT),
     F(edict_s, movement.pause_resume_pending, F_INT),

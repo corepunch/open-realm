@@ -1754,6 +1754,8 @@ typedef struct heroabilitystatus_s {
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
     uint32_t prevention_mask; /* captured Attacks Prevented mask; zero after its inverse */
+    float move_speed_delta; /* applying owner captures the exact signed contribution */
+    uint32_t move_speed_applied;
 } heroabilitystatus_t;
 
 /* Status application is authoritative for identity and source metadata.  The
@@ -2294,6 +2296,8 @@ struct edict_s {
         uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
         uint32_t previous_request_id; /* Latest submitted shared Move request; independent of FIFO activation. */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
+        float speed_factor; /* retained Move multiplier, updated by applying owners */
+        uint32_t speed_factor_initialized;
         float flat_speed_bonus; /* AIms maximum last published by a speed setter/order, independent of live inventory. */
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         vec2_t velocity;    /* committed Move velocity in world units/second; software scalar cancellation retains its bits */
@@ -3577,6 +3581,8 @@ uint32_t G_UnitMoveRevision(edict_t const *);
 void M_MoveFrame(edict_t *);
 float M_DistanceToGoal(edict_t *);
 float unit_movedistance(edict_t *);
+void S_ApplyMoveSpeedContribution(edict_t *, heroabilitystatus_t *, float);
+void S_RemoveMoveSpeedContribution(edict_t *, heroabilitystatus_t *);
 float S_UnitMoveSpeed(edict_t *);
 float S_UnitDefaultMoveSpeed(edict_t const *);
 void S_SetUnitMoveSpeed(edict_t *, float);

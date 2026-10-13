@@ -1,0 +1,2108 @@
+{
+  "version": 1,
+  "task": "NUM-03.2",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "instruction_count": 172,
+  "instructions": {
+    "6f5fb7c0": "55",
+    "6f5fb7c1": "8bec",
+    "6f5fb7c3": "8b4508",
+    "6f5fb7c6": "83ec0c",
+    "6f5fb7c9": "f30f1000",
+    "6f5fb7cd": "0f2e0544c7d36f",
+    "6f5fb7d4": "57",
+    "6f5fb7d5": "8bf9",
+    "6f5fb7d7": "9f",
+    "6f5fb7d8": "f6c444",
+    "6f5fb7db": "0f8b3f010000",
+    "6f5fb7e1": "a148c7d36f",
+    "6f5fb7e6": "8b4f78",
+    "6f5fb7e9": "8945fc",
+    "6f5fb7ec": "f30f1045fc",
+    "6f5fb7f1": "53",
+    "6f5fb7f2": "894df8",
+    "6f5fb7f5": "0f2f45f8",
+    "6f5fb7f9": "56",
+    "6f5fb7fa": "7634",
+    "6f5fb7fc": "8945f8",
+    "6f5fb7ff": "8d55fc",
+    "6f5fb802": "8d45f8",
+    "6f5fb805": "894dfc",
+    "6f5fb808": "50",
+    "6f5fb809": "8d4df4",
+    "6f5fb80c": "e87f42a7ff",
+    "6f5fb811": "f30f1005a053cd6f",
+    "6f5fb819": "8b00",
+    "6f5fb81b": "25ffffff7f",
+    "6f5fb820": "8945f8",
+    "6f5fb823": "0f2f45f8",
+    "6f5fb827": "7707",
+    "6f5fb829": "b801000000",
+    "6f5fb82e": "eb02",
+    "6f5fb830": "33c0",
+    "6f5fb832": "8b7774",
+    "6f5fb835": "8d5778",
+    "6f5fb838": "6a01",
+    "6f5fb83a": "ff7508",
+    "6f5fb83d": "0fb6c0",
+    "6f5fb840": "8d4d08",
+    "6f5fb843": "8945fc",
+    "6f5fb846": "e86543a7ff",
+    "6f5fb84b": "50",
+    "6f5fb84c": "8d4f74",
+    "6f5fb84f": "ff16",
+    "6f5fb851": "8b4778",
+    "6f5fb854": "8d5508",
+    "6f5fb857": "6848c7d36f",
+    "6f5fb85c": "8d4df4",
+    "6f5fb85f": "894508",
+    "6f5fb862": "e82942a7ff",
+    "6f5fb867": "f30f1005a053cd6f",
+    "6f5fb86f": "8d4d08",
+    "6f5fb872": "6a01",
+    "6f5fb874": "8b00",
+    "6f5fb876": "25ffffff7f",
+    "6f5fb87b": "8945f8",
+    "6f5fb87e": "b848c7d36f",
+    "6f5fb883": "0f2f45f8",
+    "6f5fb887": "0f46c1",
+    "6f5fb88a": "8d4df8",
+    "6f5fb88d": "51",
+    "6f5fb88e": "8d4f74",
+    "6f5fb891": "8b00",
+    "6f5fb893": "8945f8",
+    "6f5fb896": "8b4774",
+    "6f5fb899": "ff10",
+    "6f5fb89b": "a148c7d36f",
+    "6f5fb8a0": "8b4f78",
+    "6f5fb8a3": "894508",
+    "6f5fb8a6": "f30f104508",
+    "6f5fb8ab": "894df8",
+    "6f5fb8ae": "0f2f45f8",
+    "6f5fb8b2": "5e",
+    "6f5fb8b3": "5b",
+    "6f5fb8b4": "7634",
+    "6f5fb8b6": "894508",
+    "6f5fb8b9": "8d55f8",
+    "6f5fb8bc": "8d4508",
+    "6f5fb8bf": "894df8",
+    "6f5fb8c2": "50",
+    "6f5fb8c3": "8d4df4",
+    "6f5fb8c6": "e8c541a7ff",
+    "6f5fb8cb": "f30f1005a053cd6f",
+    "6f5fb8d3": "8b00",
+    "6f5fb8d5": "25ffffff7f",
+    "6f5fb8da": "894508",
+    "6f5fb8dd": "0f2f4508",
+    "6f5fb8e1": "7707",
+    "6f5fb8e3": "b801000000",
+    "6f5fb8e8": "eb02",
+    "6f5fb8ea": "33c0",
+    "6f5fb8ec": "837dfc00",
+    "6f5fb8f0": "0fb6c0",
+    "6f5fb8f3": "7419",
+    "6f5fb8f5": "85c0",
+    "6f5fb8f7": "7520",
+    "6f5fb8f9": "8bcf",
+    "6f5fb8fb": "e8e0070000",
+    "6f5fb900": "8bcf",
+    "6f5fb902": "e8c94c0000",
+    "6f5fb907": "5f",
+    "6f5fb908": "8be5",
+    "6f5fb90a": "5d",
+    "6f5fb90b": "c20400",
+    "6f5fb90e": "85c0",
+    "6f5fb910": "7407",
+    "6f5fb912": "8bcf",
+    "6f5fb914": "e837140000",
+    "6f5fb919": "8bcf",
+    "6f5fb91b": "e8b04c0000",
+    "6f5fb920": "5f",
+    "6f5fb921": "8be5",
+    "6f5fb923": "5d",
+    "6f5fb924": "c20400",
+    "6f52d490": "55",
+    "6f52d491": "8bec",
+    "6f52d493": "51",
+    "6f52d494": "56",
+    "6f52d495": "8bf1",
+    "6f52d497": "8d8edc000000",
+    "6f52d49d": "e81e32b3ff",
+    "6f52d4a2": "f7462000004000",
+    "6f52d4a9": "7531",
+    "6f52d4ab": "8b4630",
+    "6f52d4ae": "85c0",
+    "6f52d4b0": "7507",
+    "6f52d4b2": "8bce",
+    "6f52d4b4": "e80788b2ff",
+    "6f52d4b9": "8b88ec010000",
+    "6f52d4bf": "85c9",
+    "6f52d4c1": "7419",
+    "6f52d4c3": "814e2000004000",
+    "6f52d4ca": "8b86d0000000",
+    "6f52d4d0": "8945fc",
+    "6f52d4d3": "8d45fc",
+    "6f52d4d6": "50",
+    "6f52d4d7": "e8e4e20c00",
+    "6f52d4dc": "5e",
+    "6f52d4dd": "8be5",
+    "6f52d4df": "5d",
+    "6f52d4e0": "c3",
+    "6f5324c0": "55",
+    "6f5324c1": "8bec",
+    "6f5324c3": "51",
+    "6f5324c4": "56",
+    "6f5324c5": "8bf1",
+    "6f5324c7": "8d8edc000000",
+    "6f5324cd": "e8eee1b2ff",
+    "6f5324d2": "f7462000004000",
+    "6f5324d9": "7436",
+    "6f5324db": "8b4630",
+    "6f5324de": "85c0",
+    "6f5324e0": "7507",
+    "6f5324e2": "8bce",
+    "6f5324e4": "e8d737b2ff",
+    "6f5324e9": "8b88ec010000",
+    "6f5324ef": "85c9",
+    "6f5324f1": "741e",
+    "6f5324f3": "816620ffffbfff",
+    "6f5324fa": "8b86d0000000",
+    "6f532500": "3500000080",
+    "6f532505": "8945fc",
+    "6f532508": "8d45fc",
+    "6f53250b": "50",
+    "6f53250c": "e8af920c00",
+    "6f532511": "5e",
+    "6f532512": "8be5",
+    "6f532514": "5d",
+    "6f532515": "c3"
+  },
+  "pins": {
+    "tools/frida/research/modifiers316_capture.py": "a272559b397d6ba85b82aa818d3b56ba681768ba2626775e9c7f3c5f920a12f0",
+    "tools/frida/research/modifiers316_make_map.py": "cd67a2d771133e1aca4a6212257e90855004fc2aee3cd99d526afe6d2ac18b3b",
+    "tools/frida/research/modifiers316_observer.js": "395b52464af4060643db3e55ca1c2a4bb1a72cde950ef7adc43341586745eec6",
+    "tools/frida/research/modifiers316_probe.j": "1f0eaf70ac57b5b56b18d7e202e38e07236d218021503c1eda39cdbb9bfd42c9",
+    "tools/frida/research/modifiers316_reverse_make_map.py": "5df9a32cfd99c7edb62f61835e8b142fe32d1d5fc08bd38155a966e2bee6cd35",
+    "tools/frida/research/modifiers316_custom_make_map.py": "c86650ac004e8e60a5c223ab918eb052ea6c8e6ca49fd3905988408da389b432",
+    "tools/ghidra/research/Modifiers316Evidence.java": "d2f5fcb675efe261a2b680abdbdaffcfdaa652600477ba05e923056168c98109",
+    "games/warcraft-3/game/tests/fixtures/retail_modifiers316.h": "00d54bd43082563f6195fc85fcee1cef24e277a9665e5b79fdecd0293959e171"
+  },
+  "engine_tests": [
+    "wc3_movement.modifiers316*",
+    "wc3_movement.temporary_modifiers_match_original_velocity_and_saved_restoration",
+    "wc3_spell.*",
+    "wc3_save.*",
+    "wc3_movement.shared315*"
+  ],
+  "cases": {
+    "finite": {
+      "markers": [
+        "M316 tick=20 scene=4 label=begin-setup order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=20 scene=4 label=created order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=21 scene=4 label=set-speed order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=22 scene=4 label=slow-request order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=23 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=24 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=25 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=26 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=27 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=28 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=29 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=30 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=31 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=32 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=33 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=34 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=35 scene=4 label=haste-request order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=36 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=37 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=38 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=39 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=108.0000 slow=1 haste=0",
+        "M316 tick=40 scene=4 label=move order=851986 x=768.0000 y=512.0000 speed=175.5000 slow=1 haste=1",
+        "M316 tick=41 scene=4 label=sample order=851986 x=779.6810 y=519.7874 speed=175.5000 slow=1 haste=1",
+        "M316 tick=42 scene=4 label=sample order=851986 x=794.2822 y=529.5217 speed=175.5000 slow=1 haste=1",
+        "M316 tick=43 scene=4 label=sample order=851986 x=808.8834 y=539.2559 speed=175.5000 slow=1 haste=1",
+        "M316 tick=44 scene=4 label=sample order=851986 x=823.4846 y=548.9903 speed=175.5000 slow=1 haste=1",
+        "M316 tick=45 scene=4 label=sample order=851986 x=838.0856 y=558.7247 speed=175.5000 slow=1 haste=1",
+        "M316 tick=46 scene=4 label=sample order=851986 x=852.6868 y=568.4590 speed=175.5000 slow=1 haste=1",
+        "M316 tick=47 scene=4 label=sample order=851986 x=867.2881 y=578.1933 speed=175.5000 slow=1 haste=1",
+        "M316 tick=48 scene=4 label=sample order=851986 x=881.8893 y=587.9275 speed=175.5000 slow=1 haste=1",
+        "M316 tick=49 scene=4 label=sample order=851986 x=896.4903 y=597.6620 speed=175.5000 slow=1 haste=1",
+        "M316 tick=50 scene=4 label=remove-haste order=851986 x=911.0915 y=607.3963 speed=108.0000 slow=1 haste=0",
+        "M316 tick=51 scene=4 label=sample order=851986 x=920.0768 y=613.3866 speed=108.0000 slow=1 haste=0",
+        "M316 tick=52 scene=4 label=sample order=851986 x=929.0621 y=619.3769 speed=108.0000 slow=1 haste=0",
+        "M316 tick=53 scene=4 label=sample order=851986 x=938.0475 y=625.3672 speed=108.0000 slow=1 haste=0",
+        "M316 tick=54 scene=4 label=sample order=851986 x=947.0328 y=631.3575 speed=108.0000 slow=1 haste=0",
+        "M316 tick=55 scene=4 label=sample order=851986 x=956.0182 y=637.3478 speed=108.0000 slow=1 haste=0",
+        "M316 tick=56 scene=4 label=sample order=851986 x=965.0035 y=643.3381 speed=108.0000 slow=1 haste=0",
+        "M316 tick=57 scene=4 label=sample order=851986 x=973.9889 y=649.3284 speed=108.0000 slow=1 haste=0",
+        "M316 tick=58 scene=4 label=sample order=851986 x=982.9742 y=655.3186 speed=108.0000 slow=1 haste=0",
+        "M316 tick=59 scene=4 label=sample order=851986 x=991.9596 y=661.3090 speed=108.0000 slow=1 haste=0",
+        "M316 tick=60 scene=4 label=remove-slow order=851986 x=1000.9449 y=667.2993 speed=270.0000 slow=0 haste=0",
+        "M316 tick=61 scene=4 label=sample order=851986 x=1019.3647 y=679.5793 speed=270.0000 slow=0 haste=0",
+        "M316 tick=62 scene=4 label=sample order=851986 x=1041.8278 y=694.5552 speed=270.0000 slow=0 haste=0",
+        "M316 tick=63 scene=4 label=sample order=851986 x=1064.2909 y=709.5308 speed=270.0000 slow=0 haste=0",
+        "M316 tick=64 scene=4 label=sample order=851986 x=1086.7543 y=724.5062 speed=270.0000 slow=0 haste=0",
+        "M316 tick=65 scene=4 label=restore-stop order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=66 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=67 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=68 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=69 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=70 scene=4 label=haste-second order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=71 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=72 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=73 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=74 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=75 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=76 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=77 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=78 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=79 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=80 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=81 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=82 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=83 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=84 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=85 scene=4 label=slow-second order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=86 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=87 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=88 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=89 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=90 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=91 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=92 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=93 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=94 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=95 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=96 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=97 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=98 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=99 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=100 scene=4 label=remove-slow-second order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=101 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=102 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=103 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=104 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=105 scene=4 label=remove-haste-second order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=106 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=107 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=108 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=109 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=110 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=111 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=112 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=113 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=114 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=115 scene=4 label=end-cleanup order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=116 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=117 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=118 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=119 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=120 scene=4 label=complete order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0"
+      ],
+      "projection": {
+        "factors": [
+          [
+            3206125978,
+            1065353216,
+            1053609164
+          ],
+          [
+            1048576000,
+            1053609164,
+            1059481190
+          ],
+          [
+            3196059648,
+            1059481190,
+            1053609164
+          ],
+          [
+            1058642330,
+            1053609164,
+            1065353216
+          ],
+          [
+            3206125978,
+            1065353216,
+            1053609164
+          ],
+          [
+            1058642330,
+            1053609164,
+            1065353216
+          ]
+        ],
+        "public": [
+          [
+            20,
+            "created",
+            1132920832
+          ],
+          [
+            21,
+            "set-speed",
+            1132920832
+          ],
+          [
+            22,
+            "slow-request",
+            1132920832
+          ],
+          [
+            23,
+            "sample",
+            1132920832
+          ],
+          [
+            24,
+            "sample",
+            1132920832
+          ],
+          [
+            25,
+            "sample",
+            1132920832
+          ],
+          [
+            26,
+            "sample",
+            1132920832
+          ],
+          [
+            27,
+            "sample",
+            1132920832
+          ],
+          [
+            28,
+            "sample",
+            1121452031
+          ],
+          [
+            29,
+            "sample",
+            1121452031
+          ],
+          [
+            30,
+            "sample",
+            1121452031
+          ],
+          [
+            31,
+            "sample",
+            1121452031
+          ],
+          [
+            32,
+            "sample",
+            1121452031
+          ],
+          [
+            33,
+            "sample",
+            1121452031
+          ],
+          [
+            34,
+            "sample",
+            1121452031
+          ],
+          [
+            35,
+            "haste-request",
+            1121452031
+          ],
+          [
+            36,
+            "sample",
+            1121452031
+          ],
+          [
+            37,
+            "sample",
+            1121452031
+          ],
+          [
+            38,
+            "sample",
+            1121452031
+          ],
+          [
+            39,
+            "sample",
+            1121452031
+          ],
+          [
+            40,
+            "move",
+            1127186431
+          ],
+          [
+            41,
+            "sample",
+            1127186431
+          ],
+          [
+            42,
+            "sample",
+            1127186431
+          ],
+          [
+            43,
+            "sample",
+            1127186431
+          ],
+          [
+            44,
+            "sample",
+            1127186431
+          ],
+          [
+            45,
+            "sample",
+            1127186431
+          ],
+          [
+            46,
+            "sample",
+            1127186431
+          ],
+          [
+            47,
+            "sample",
+            1127186431
+          ],
+          [
+            48,
+            "sample",
+            1127186431
+          ],
+          [
+            49,
+            "sample",
+            1127186431
+          ],
+          [
+            50,
+            "remove-haste",
+            1121452031
+          ],
+          [
+            51,
+            "sample",
+            1121452031
+          ],
+          [
+            52,
+            "sample",
+            1121452031
+          ],
+          [
+            53,
+            "sample",
+            1121452031
+          ],
+          [
+            54,
+            "sample",
+            1121452031
+          ],
+          [
+            55,
+            "sample",
+            1121452031
+          ],
+          [
+            56,
+            "sample",
+            1121452031
+          ],
+          [
+            57,
+            "sample",
+            1121452031
+          ],
+          [
+            58,
+            "sample",
+            1121452031
+          ],
+          [
+            59,
+            "sample",
+            1121452031
+          ],
+          [
+            60,
+            "remove-slow",
+            1132920832
+          ],
+          [
+            61,
+            "sample",
+            1132920832
+          ],
+          [
+            62,
+            "sample",
+            1132920832
+          ],
+          [
+            63,
+            "sample",
+            1132920832
+          ],
+          [
+            64,
+            "sample",
+            1132920832
+          ],
+          [
+            65,
+            "restore-stop",
+            1132920832
+          ],
+          [
+            66,
+            "sample",
+            1132920832
+          ],
+          [
+            67,
+            "sample",
+            1132920832
+          ],
+          [
+            68,
+            "sample",
+            1132920832
+          ],
+          [
+            69,
+            "sample",
+            1132920832
+          ],
+          [
+            70,
+            "haste-second",
+            1132920832
+          ],
+          [
+            71,
+            "sample",
+            1132920832
+          ],
+          [
+            72,
+            "sample",
+            1132920832
+          ],
+          [
+            73,
+            "sample",
+            1132920832
+          ],
+          [
+            74,
+            "sample",
+            1132920832
+          ],
+          [
+            75,
+            "sample",
+            1132920832
+          ],
+          [
+            76,
+            "sample",
+            1132920832
+          ],
+          [
+            77,
+            "sample",
+            1132920832
+          ],
+          [
+            78,
+            "sample",
+            1132920832
+          ],
+          [
+            79,
+            "sample",
+            1132920832
+          ],
+          [
+            80,
+            "sample",
+            1132920832
+          ],
+          [
+            81,
+            "sample",
+            1132920832
+          ],
+          [
+            82,
+            "sample",
+            1132920832
+          ],
+          [
+            83,
+            "sample",
+            1132920832
+          ],
+          [
+            84,
+            "sample",
+            1132920832
+          ],
+          [
+            85,
+            "slow-second",
+            1132920832
+          ],
+          [
+            86,
+            "sample",
+            1132920832
+          ],
+          [
+            87,
+            "sample",
+            1132920832
+          ],
+          [
+            88,
+            "sample",
+            1132920832
+          ],
+          [
+            89,
+            "sample",
+            1132920832
+          ],
+          [
+            90,
+            "sample",
+            1121452031
+          ],
+          [
+            91,
+            "sample",
+            1121452031
+          ],
+          [
+            92,
+            "sample",
+            1121452031
+          ],
+          [
+            93,
+            "sample",
+            1121452031
+          ],
+          [
+            94,
+            "sample",
+            1121452031
+          ],
+          [
+            95,
+            "sample",
+            1121452031
+          ],
+          [
+            96,
+            "sample",
+            1121452031
+          ],
+          [
+            97,
+            "sample",
+            1121452031
+          ],
+          [
+            98,
+            "sample",
+            1121452031
+          ],
+          [
+            99,
+            "sample",
+            1121452031
+          ],
+          [
+            100,
+            "remove-slow-second",
+            1132920832
+          ],
+          [
+            101,
+            "sample",
+            1132920832
+          ],
+          [
+            102,
+            "sample",
+            1132920832
+          ],
+          [
+            103,
+            "sample",
+            1132920832
+          ],
+          [
+            104,
+            "sample",
+            1132920832
+          ],
+          [
+            105,
+            "remove-haste-second",
+            1132920832
+          ],
+          [
+            106,
+            "sample",
+            1132920832
+          ],
+          [
+            107,
+            "sample",
+            1132920832
+          ],
+          [
+            108,
+            "sample",
+            1132920832
+          ],
+          [
+            109,
+            "sample",
+            1132920832
+          ],
+          [
+            110,
+            "sample",
+            1132920832
+          ],
+          [
+            111,
+            "sample",
+            1132920832
+          ],
+          [
+            112,
+            "sample",
+            1132920832
+          ],
+          [
+            113,
+            "sample",
+            1132920832
+          ],
+          [
+            114,
+            "sample",
+            1132920832
+          ],
+          [
+            115,
+            "end-cleanup",
+            0
+          ]
+        ]
+      },
+      "capture_sources": {
+        "modifiers316_capture.py": "a272559b397d6ba85b82aa818d3b56ba681768ba2626775e9c7f3c5f920a12f0",
+        "modifiers316_observer.js": "395b52464af4060643db3e55ca1c2a4bb1a72cde950ef7adc43341586745eec6",
+        "modifiers316_make_map.py": "cd67a2d771133e1aca4a6212257e90855004fc2aee3cd99d526afe6d2ac18b3b",
+        "modifiers316_probe.j": "1f0eaf70ac57b5b56b18d7e202e38e07236d218021503c1eda39cdbb9bfd42c9",
+        "smart277_ui_input.c": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233",
+        "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+        "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+        "owned-ui-input.exe": "b299165bff36f2a6f6cf23449259e1dff129e6e33a1dfdcedf930fe1e0da3741",
+        "owned-ui-input.exe.so": "1ed1c2f7a104a85bf2728dbb8b62af9e14ee4149ad10f7f475b50fb710bc39c1",
+        "map": "8bb2bc72f1de8940d3775f820cb0d990a3e93a4e658034bc187fb0d526f52d6d"
+      }
+    },
+    "reverse": {
+      "markers": [
+        "M316 tick=20 scene=4 label=begin-setup order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=20 scene=4 label=created order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=21 scene=4 label=set-speed order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=22 scene=4 label=haste-first order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=23 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=24 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=25 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=26 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=27 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=28 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=29 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=30 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=31 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=32 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=33 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=34 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=35 scene=4 label=slow-next order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=36 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=37 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=38 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=39 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=337.5000 slow=0 haste=1",
+        "M316 tick=40 scene=4 label=move order=851986 x=768.0000 y=512.0000 speed=175.5000 slow=1 haste=1",
+        "M316 tick=41 scene=4 label=sample order=851986 x=779.6810 y=519.7874 speed=175.5000 slow=1 haste=1",
+        "M316 tick=42 scene=4 label=sample order=851986 x=794.2822 y=529.5217 speed=175.5000 slow=1 haste=1",
+        "M316 tick=43 scene=4 label=sample order=851986 x=808.8834 y=539.2559 speed=175.5000 slow=1 haste=1",
+        "M316 tick=44 scene=4 label=sample order=851986 x=823.4846 y=548.9903 speed=175.5000 slow=1 haste=1",
+        "M316 tick=45 scene=4 label=sample order=851986 x=838.0856 y=558.7247 speed=175.5000 slow=1 haste=1",
+        "M316 tick=46 scene=4 label=sample order=851986 x=852.6868 y=568.4590 speed=175.5000 slow=1 haste=1",
+        "M316 tick=47 scene=4 label=sample order=851986 x=867.2881 y=578.1933 speed=175.5000 slow=1 haste=1",
+        "M316 tick=48 scene=4 label=sample order=851986 x=881.8893 y=587.9275 speed=175.5000 slow=1 haste=1",
+        "M316 tick=49 scene=4 label=sample order=851986 x=896.4903 y=597.6620 speed=175.5000 slow=1 haste=1",
+        "M316 tick=50 scene=4 label=remove-haste order=851986 x=911.0915 y=607.3963 speed=108.0000 slow=1 haste=0",
+        "M316 tick=51 scene=4 label=sample order=851986 x=920.0768 y=613.3866 speed=108.0000 slow=1 haste=0",
+        "M316 tick=52 scene=4 label=sample order=851986 x=929.0621 y=619.3769 speed=108.0000 slow=1 haste=0",
+        "M316 tick=53 scene=4 label=sample order=851986 x=938.0475 y=625.3672 speed=108.0000 slow=1 haste=0",
+        "M316 tick=54 scene=4 label=sample order=851986 x=947.0328 y=631.3575 speed=108.0000 slow=1 haste=0",
+        "M316 tick=55 scene=4 label=sample order=851986 x=956.0182 y=637.3478 speed=108.0000 slow=1 haste=0",
+        "M316 tick=56 scene=4 label=sample order=851986 x=965.0035 y=643.3381 speed=108.0000 slow=1 haste=0",
+        "M316 tick=57 scene=4 label=sample order=851986 x=973.9889 y=649.3284 speed=108.0000 slow=1 haste=0",
+        "M316 tick=58 scene=4 label=sample order=851986 x=982.9742 y=655.3186 speed=108.0000 slow=1 haste=0",
+        "M316 tick=59 scene=4 label=sample order=851986 x=991.9596 y=661.3090 speed=108.0000 slow=1 haste=0",
+        "M316 tick=60 scene=4 label=remove-slow order=851986 x=1000.9449 y=667.2993 speed=270.0000 slow=0 haste=0",
+        "M316 tick=61 scene=4 label=sample order=851986 x=1019.3647 y=679.5793 speed=270.0000 slow=0 haste=0",
+        "M316 tick=62 scene=4 label=sample order=851986 x=1041.8278 y=694.5552 speed=270.0000 slow=0 haste=0",
+        "M316 tick=63 scene=4 label=sample order=851986 x=1064.2909 y=709.5308 speed=270.0000 slow=0 haste=0",
+        "M316 tick=64 scene=4 label=sample order=851986 x=1086.7543 y=724.5062 speed=270.0000 slow=0 haste=0",
+        "M316 tick=65 scene=4 label=restore-stop order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=66 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=67 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=68 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=69 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=70 scene=4 label=haste-second order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=71 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=72 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=73 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=74 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=75 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=76 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=77 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=78 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=79 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=80 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=81 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=82 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=83 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=84 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=85 scene=4 label=slow-second order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=86 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=87 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=88 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=89 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=90 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=91 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=92 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=93 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=94 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=95 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=96 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=97 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=98 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=99 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=108.0000 slow=1 haste=0",
+        "M316 tick=100 scene=4 label=remove-slow-second order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=101 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=102 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=103 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=104 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=105 scene=4 label=remove-haste-second order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=106 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=107 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=108 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=109 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=110 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=111 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=112 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=113 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=114 scene=4 label=sample order=0 x=1109.2173 y=739.4818 speed=270.0000 slow=0 haste=0",
+        "M316 tick=115 scene=4 label=end-cleanup order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=116 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=117 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=118 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=119 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=120 scene=4 label=complete order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0"
+      ],
+      "projection": {
+        "factors": [
+          [
+            1048576000,
+            1065353216,
+            1067450368
+          ],
+          [
+            3206125978,
+            1067450368,
+            1059481190
+          ],
+          [
+            3196059648,
+            1059481190,
+            1053609164
+          ],
+          [
+            1058642330,
+            1053609164,
+            1065353216
+          ],
+          [
+            3206125978,
+            1065353216,
+            1053609164
+          ],
+          [
+            1058642330,
+            1053609164,
+            1065353216
+          ]
+        ],
+        "public": [
+          [
+            20,
+            "created",
+            1132920832
+          ],
+          [
+            21,
+            "set-speed",
+            1132920832
+          ],
+          [
+            22,
+            "haste-first",
+            1132920832
+          ],
+          [
+            23,
+            "sample",
+            1132920832
+          ],
+          [
+            24,
+            "sample",
+            1132920832
+          ],
+          [
+            25,
+            "sample",
+            1132920832
+          ],
+          [
+            26,
+            "sample",
+            1132920832
+          ],
+          [
+            27,
+            "sample",
+            1132920832
+          ],
+          [
+            28,
+            "sample",
+            1135132672
+          ],
+          [
+            29,
+            "sample",
+            1135132672
+          ],
+          [
+            30,
+            "sample",
+            1135132672
+          ],
+          [
+            31,
+            "sample",
+            1135132672
+          ],
+          [
+            32,
+            "sample",
+            1135132672
+          ],
+          [
+            33,
+            "sample",
+            1135132672
+          ],
+          [
+            34,
+            "sample",
+            1135132672
+          ],
+          [
+            35,
+            "slow-next",
+            1135132672
+          ],
+          [
+            36,
+            "sample",
+            1135132672
+          ],
+          [
+            37,
+            "sample",
+            1135132672
+          ],
+          [
+            38,
+            "sample",
+            1135132672
+          ],
+          [
+            39,
+            "sample",
+            1135132672
+          ],
+          [
+            40,
+            "move",
+            1127186431
+          ],
+          [
+            41,
+            "sample",
+            1127186431
+          ],
+          [
+            42,
+            "sample",
+            1127186431
+          ],
+          [
+            43,
+            "sample",
+            1127186431
+          ],
+          [
+            44,
+            "sample",
+            1127186431
+          ],
+          [
+            45,
+            "sample",
+            1127186431
+          ],
+          [
+            46,
+            "sample",
+            1127186431
+          ],
+          [
+            47,
+            "sample",
+            1127186431
+          ],
+          [
+            48,
+            "sample",
+            1127186431
+          ],
+          [
+            49,
+            "sample",
+            1127186431
+          ],
+          [
+            50,
+            "remove-haste",
+            1121452031
+          ],
+          [
+            51,
+            "sample",
+            1121452031
+          ],
+          [
+            52,
+            "sample",
+            1121452031
+          ],
+          [
+            53,
+            "sample",
+            1121452031
+          ],
+          [
+            54,
+            "sample",
+            1121452031
+          ],
+          [
+            55,
+            "sample",
+            1121452031
+          ],
+          [
+            56,
+            "sample",
+            1121452031
+          ],
+          [
+            57,
+            "sample",
+            1121452031
+          ],
+          [
+            58,
+            "sample",
+            1121452031
+          ],
+          [
+            59,
+            "sample",
+            1121452031
+          ],
+          [
+            60,
+            "remove-slow",
+            1132920832
+          ],
+          [
+            61,
+            "sample",
+            1132920832
+          ],
+          [
+            62,
+            "sample",
+            1132920832
+          ],
+          [
+            63,
+            "sample",
+            1132920832
+          ],
+          [
+            64,
+            "sample",
+            1132920832
+          ],
+          [
+            65,
+            "restore-stop",
+            1132920832
+          ],
+          [
+            66,
+            "sample",
+            1132920832
+          ],
+          [
+            67,
+            "sample",
+            1132920832
+          ],
+          [
+            68,
+            "sample",
+            1132920832
+          ],
+          [
+            69,
+            "sample",
+            1132920832
+          ],
+          [
+            70,
+            "haste-second",
+            1132920832
+          ],
+          [
+            71,
+            "sample",
+            1132920832
+          ],
+          [
+            72,
+            "sample",
+            1132920832
+          ],
+          [
+            73,
+            "sample",
+            1132920832
+          ],
+          [
+            74,
+            "sample",
+            1132920832
+          ],
+          [
+            75,
+            "sample",
+            1132920832
+          ],
+          [
+            76,
+            "sample",
+            1132920832
+          ],
+          [
+            77,
+            "sample",
+            1132920832
+          ],
+          [
+            78,
+            "sample",
+            1132920832
+          ],
+          [
+            79,
+            "sample",
+            1132920832
+          ],
+          [
+            80,
+            "sample",
+            1132920832
+          ],
+          [
+            81,
+            "sample",
+            1132920832
+          ],
+          [
+            82,
+            "sample",
+            1132920832
+          ],
+          [
+            83,
+            "sample",
+            1132920832
+          ],
+          [
+            84,
+            "sample",
+            1132920832
+          ],
+          [
+            85,
+            "slow-second",
+            1132920832
+          ],
+          [
+            86,
+            "sample",
+            1132920832
+          ],
+          [
+            87,
+            "sample",
+            1132920832
+          ],
+          [
+            88,
+            "sample",
+            1132920832
+          ],
+          [
+            89,
+            "sample",
+            1132920832
+          ],
+          [
+            90,
+            "sample",
+            1121452031
+          ],
+          [
+            91,
+            "sample",
+            1121452031
+          ],
+          [
+            92,
+            "sample",
+            1121452031
+          ],
+          [
+            93,
+            "sample",
+            1121452031
+          ],
+          [
+            94,
+            "sample",
+            1121452031
+          ],
+          [
+            95,
+            "sample",
+            1121452031
+          ],
+          [
+            96,
+            "sample",
+            1121452031
+          ],
+          [
+            97,
+            "sample",
+            1121452031
+          ],
+          [
+            98,
+            "sample",
+            1121452031
+          ],
+          [
+            99,
+            "sample",
+            1121452031
+          ],
+          [
+            100,
+            "remove-slow-second",
+            1132920832
+          ],
+          [
+            101,
+            "sample",
+            1132920832
+          ],
+          [
+            102,
+            "sample",
+            1132920832
+          ],
+          [
+            103,
+            "sample",
+            1132920832
+          ],
+          [
+            104,
+            "sample",
+            1132920832
+          ],
+          [
+            105,
+            "remove-haste-second",
+            1132920832
+          ],
+          [
+            106,
+            "sample",
+            1132920832
+          ],
+          [
+            107,
+            "sample",
+            1132920832
+          ],
+          [
+            108,
+            "sample",
+            1132920832
+          ],
+          [
+            109,
+            "sample",
+            1132920832
+          ],
+          [
+            110,
+            "sample",
+            1132920832
+          ],
+          [
+            111,
+            "sample",
+            1132920832
+          ],
+          [
+            112,
+            "sample",
+            1132920832
+          ],
+          [
+            113,
+            "sample",
+            1132920832
+          ],
+          [
+            114,
+            "sample",
+            1132920832
+          ],
+          [
+            115,
+            "end-cleanup",
+            0
+          ]
+        ]
+      },
+      "capture_sources": {
+        "modifiers316_capture.py": "a272559b397d6ba85b82aa818d3b56ba681768ba2626775e9c7f3c5f920a12f0",
+        "modifiers316_observer.js": "395b52464af4060643db3e55ca1c2a4bb1a72cde950ef7adc43341586745eec6",
+        "modifiers316_make_map.py": "cd67a2d771133e1aca4a6212257e90855004fc2aee3cd99d526afe6d2ac18b3b",
+        "modifiers316_probe.j": "1f0eaf70ac57b5b56b18d7e202e38e07236d218021503c1eda39cdbb9bfd42c9",
+        "smart277_ui_input.c": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233",
+        "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+        "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+        "owned-ui-input.exe": "b299165bff36f2a6f6cf23449259e1dff129e6e33a1dfdcedf930fe1e0da3741",
+        "owned-ui-input.exe.so": "1ed1c2f7a104a85bf2728dbb8b62af9e14ee4149ad10f7f475b50fb710bc39c1",
+        "map": "5eff17f1b48e42ba998f064ff86837f83d2058f96bf7e7b042445e2b8e06a6b7"
+      }
+    },
+    "custom": {
+      "markers": [
+        "M316 tick=20 scene=4 label=begin-setup order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=20 scene=4 label=created order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=21 scene=4 label=set-speed order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=22 scene=4 label=slow-request order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=23 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=24 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=25 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=26 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=27 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=270.0000 slow=0 haste=0",
+        "M316 tick=28 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=29 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=30 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=31 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=32 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=33 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=34 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=35 scene=4 label=haste-request order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=36 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=37 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=38 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=39 scene=4 label=sample order=0 x=768.0000 y=512.0000 speed=170.1000 slow=1 haste=0",
+        "M316 tick=40 scene=4 label=move order=851986 x=768.0000 y=512.0000 speed=216.0000 slow=1 haste=1",
+        "M316 tick=41 scene=4 label=sample order=851986 x=782.3766 y=521.5845 speed=216.0000 slow=1 haste=1",
+        "M316 tick=42 scene=4 label=sample order=851986 x=800.3474 y=533.5652 speed=216.0000 slow=1 haste=1",
+        "M316 tick=43 scene=4 label=sample order=851986 x=818.3181 y=545.5459 speed=216.0000 slow=1 haste=1",
+        "M316 tick=44 scene=4 label=sample order=851986 x=836.2888 y=557.5267 speed=216.0000 slow=1 haste=1",
+        "M316 tick=45 scene=4 label=sample order=851986 x=854.2595 y=569.5075 speed=216.0000 slow=1 haste=1",
+        "M316 tick=46 scene=4 label=sample order=851986 x=872.2303 y=581.4881 speed=216.0000 slow=1 haste=1",
+        "M316 tick=47 scene=4 label=sample order=851986 x=890.2010 y=593.4688 speed=216.0000 slow=1 haste=1",
+        "M316 tick=48 scene=4 label=sample order=851986 x=908.1717 y=605.4496 speed=216.0000 slow=1 haste=1",
+        "M316 tick=49 scene=4 label=sample order=851986 x=926.1424 y=617.4304 speed=216.0000 slow=1 haste=1",
+        "M316 tick=50 scene=4 label=remove-haste order=851986 x=944.1132 y=629.4111 speed=170.1000 slow=1 haste=0",
+        "M316 tick=51 scene=4 label=sample order=851986 x=958.2651 y=638.8458 speed=170.1000 slow=1 haste=0",
+        "M316 tick=52 scene=4 label=sample order=851986 x=972.4170 y=648.2804 speed=170.1000 slow=1 haste=0",
+        "M316 tick=53 scene=4 label=sample order=851986 x=986.5689 y=657.7152 speed=170.1000 slow=1 haste=0",
+        "M316 tick=54 scene=4 label=sample order=851986 x=1000.7209 y=667.1498 speed=170.1000 slow=1 haste=0",
+        "M316 tick=55 scene=4 label=sample order=851986 x=1014.8727 y=676.5846 speed=170.1000 slow=1 haste=0",
+        "M316 tick=56 scene=4 label=sample order=851986 x=1029.0247 y=686.0193 speed=170.1000 slow=1 haste=0",
+        "M316 tick=57 scene=4 label=sample order=851986 x=1043.1764 y=695.4540 speed=170.1000 slow=1 haste=0",
+        "M316 tick=58 scene=4 label=sample order=851986 x=1057.3282 y=704.8887 speed=170.1000 slow=1 haste=0",
+        "M316 tick=59 scene=4 label=sample order=851986 x=1071.4800 y=714.3234 speed=170.1000 slow=1 haste=0",
+        "M316 tick=60 scene=4 label=remove-slow order=851986 x=1085.6318 y=723.7582 speed=270.0000 slow=0 haste=0",
+        "M316 tick=61 scene=4 label=sample order=851986 x=1105.6014 y=737.0715 speed=270.0000 slow=0 haste=0",
+        "M316 tick=62 scene=4 label=sample order=851986 x=1128.0646 y=752.0471 speed=270.0000 slow=0 haste=0",
+        "M316 tick=63 scene=4 label=sample order=851986 x=1150.5278 y=767.0226 speed=270.0000 slow=0 haste=0",
+        "M316 tick=64 scene=4 label=sample order=851986 x=1172.9908 y=781.9982 speed=270.0000 slow=0 haste=0",
+        "M316 tick=65 scene=4 label=restore-stop order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=66 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=67 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=68 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=69 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=70 scene=4 label=haste-second order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=71 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=72 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=73 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=74 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=75 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=76 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=77 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=78 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=79 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=80 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=81 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=82 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=83 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=84 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=85 scene=4 label=slow-second order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=86 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=87 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=88 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=89 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=90 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=91 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=92 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=93 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=94 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=95 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=96 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=97 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=98 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=99 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=170.1000 slow=1 haste=0",
+        "M316 tick=100 scene=4 label=remove-slow-second order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=101 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=102 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=103 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=104 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=105 scene=4 label=remove-haste-second order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=106 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=107 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=108 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=109 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=110 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=111 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=112 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=113 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=114 scene=4 label=sample order=0 x=1195.4540 y=796.9738 speed=270.0000 slow=0 haste=0",
+        "M316 tick=115 scene=4 label=end-cleanup order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=116 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=117 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=118 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=119 scene=4 label=sample order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0",
+        "M316 tick=120 scene=4 label=complete order=0 x=0.0000 y=0.0000 speed=0.0000 slow=0 haste=0"
+      ],
+      "projection": {
+        "factors": [
+          [
+            3200086180,
+            1065353216,
+            1059145646
+          ],
+          [
+            1043207291,
+            1059145646,
+            1061997772
+          ],
+          [
+            3190690939,
+            1061997772,
+            1059145645
+          ],
+          [
+            1052602532,
+            1059145645,
+            1065353216
+          ],
+          [
+            3200086180,
+            1065353216,
+            1059145646
+          ],
+          [
+            1052602532,
+            1059145646,
+            1065353216
+          ]
+        ],
+        "public": [
+          [
+            20,
+            "created",
+            1132920832
+          ],
+          [
+            21,
+            "set-speed",
+            1132920832
+          ],
+          [
+            22,
+            "slow-request",
+            1132920832
+          ],
+          [
+            23,
+            "sample",
+            1132920832
+          ],
+          [
+            24,
+            "sample",
+            1132920832
+          ],
+          [
+            25,
+            "sample",
+            1132920832
+          ],
+          [
+            26,
+            "sample",
+            1132920832
+          ],
+          [
+            27,
+            "sample",
+            1132920832
+          ],
+          [
+            28,
+            "sample",
+            1126832537
+          ],
+          [
+            29,
+            "sample",
+            1126832537
+          ],
+          [
+            30,
+            "sample",
+            1126832537
+          ],
+          [
+            31,
+            "sample",
+            1126832537
+          ],
+          [
+            32,
+            "sample",
+            1126832537
+          ],
+          [
+            33,
+            "sample",
+            1126832537
+          ],
+          [
+            34,
+            "sample",
+            1126832537
+          ],
+          [
+            35,
+            "haste-request",
+            1126832537
+          ],
+          [
+            36,
+            "sample",
+            1126832537
+          ],
+          [
+            37,
+            "sample",
+            1126832537
+          ],
+          [
+            38,
+            "sample",
+            1126832537
+          ],
+          [
+            39,
+            "sample",
+            1126832537
+          ],
+          [
+            40,
+            "move",
+            1129840639
+          ],
+          [
+            41,
+            "sample",
+            1129840639
+          ],
+          [
+            42,
+            "sample",
+            1129840639
+          ],
+          [
+            43,
+            "sample",
+            1129840639
+          ],
+          [
+            44,
+            "sample",
+            1129840639
+          ],
+          [
+            45,
+            "sample",
+            1129840639
+          ],
+          [
+            46,
+            "sample",
+            1129840639
+          ],
+          [
+            47,
+            "sample",
+            1129840639
+          ],
+          [
+            48,
+            "sample",
+            1129840639
+          ],
+          [
+            49,
+            "sample",
+            1129840639
+          ],
+          [
+            50,
+            "remove-haste",
+            1126832536
+          ],
+          [
+            51,
+            "sample",
+            1126832536
+          ],
+          [
+            52,
+            "sample",
+            1126832536
+          ],
+          [
+            53,
+            "sample",
+            1126832536
+          ],
+          [
+            54,
+            "sample",
+            1126832536
+          ],
+          [
+            55,
+            "sample",
+            1126832536
+          ],
+          [
+            56,
+            "sample",
+            1126832536
+          ],
+          [
+            57,
+            "sample",
+            1126832536
+          ],
+          [
+            58,
+            "sample",
+            1126832536
+          ],
+          [
+            59,
+            "sample",
+            1126832536
+          ],
+          [
+            60,
+            "remove-slow",
+            1132920832
+          ],
+          [
+            61,
+            "sample",
+            1132920832
+          ],
+          [
+            62,
+            "sample",
+            1132920832
+          ],
+          [
+            63,
+            "sample",
+            1132920832
+          ],
+          [
+            64,
+            "sample",
+            1132920832
+          ],
+          [
+            65,
+            "restore-stop",
+            1132920832
+          ],
+          [
+            66,
+            "sample",
+            1132920832
+          ],
+          [
+            67,
+            "sample",
+            1132920832
+          ],
+          [
+            68,
+            "sample",
+            1132920832
+          ],
+          [
+            69,
+            "sample",
+            1132920832
+          ],
+          [
+            70,
+            "haste-second",
+            1132920832
+          ],
+          [
+            71,
+            "sample",
+            1132920832
+          ],
+          [
+            72,
+            "sample",
+            1132920832
+          ],
+          [
+            73,
+            "sample",
+            1132920832
+          ],
+          [
+            74,
+            "sample",
+            1132920832
+          ],
+          [
+            75,
+            "sample",
+            1132920832
+          ],
+          [
+            76,
+            "sample",
+            1132920832
+          ],
+          [
+            77,
+            "sample",
+            1132920832
+          ],
+          [
+            78,
+            "sample",
+            1132920832
+          ],
+          [
+            79,
+            "sample",
+            1132920832
+          ],
+          [
+            80,
+            "sample",
+            1132920832
+          ],
+          [
+            81,
+            "sample",
+            1132920832
+          ],
+          [
+            82,
+            "sample",
+            1132920832
+          ],
+          [
+            83,
+            "sample",
+            1132920832
+          ],
+          [
+            84,
+            "sample",
+            1132920832
+          ],
+          [
+            85,
+            "slow-second",
+            1132920832
+          ],
+          [
+            86,
+            "sample",
+            1132920832
+          ],
+          [
+            87,
+            "sample",
+            1132920832
+          ],
+          [
+            88,
+            "sample",
+            1132920832
+          ],
+          [
+            89,
+            "sample",
+            1132920832
+          ],
+          [
+            90,
+            "sample",
+            1126832537
+          ],
+          [
+            91,
+            "sample",
+            1126832537
+          ],
+          [
+            92,
+            "sample",
+            1126832537
+          ],
+          [
+            93,
+            "sample",
+            1126832537
+          ],
+          [
+            94,
+            "sample",
+            1126832537
+          ],
+          [
+            95,
+            "sample",
+            1126832537
+          ],
+          [
+            96,
+            "sample",
+            1126832537
+          ],
+          [
+            97,
+            "sample",
+            1126832537
+          ],
+          [
+            98,
+            "sample",
+            1126832537
+          ],
+          [
+            99,
+            "sample",
+            1126832537
+          ],
+          [
+            100,
+            "remove-slow-second",
+            1132920832
+          ],
+          [
+            101,
+            "sample",
+            1132920832
+          ],
+          [
+            102,
+            "sample",
+            1132920832
+          ],
+          [
+            103,
+            "sample",
+            1132920832
+          ],
+          [
+            104,
+            "sample",
+            1132920832
+          ],
+          [
+            105,
+            "remove-haste-second",
+            1132920832
+          ],
+          [
+            106,
+            "sample",
+            1132920832
+          ],
+          [
+            107,
+            "sample",
+            1132920832
+          ],
+          [
+            108,
+            "sample",
+            1132920832
+          ],
+          [
+            109,
+            "sample",
+            1132920832
+          ],
+          [
+            110,
+            "sample",
+            1132920832
+          ],
+          [
+            111,
+            "sample",
+            1132920832
+          ],
+          [
+            112,
+            "sample",
+            1132920832
+          ],
+          [
+            113,
+            "sample",
+            1132920832
+          ],
+          [
+            114,
+            "sample",
+            1132920832
+          ],
+          [
+            115,
+            "end-cleanup",
+            0
+          ]
+        ]
+      },
+      "capture_sources": {
+        "modifiers316_capture.py": "a272559b397d6ba85b82aa818d3b56ba681768ba2626775e9c7f3c5f920a12f0",
+        "modifiers316_observer.js": "395b52464af4060643db3e55ca1c2a4bb1a72cde950ef7adc43341586745eec6",
+        "modifiers316_make_map.py": "cd67a2d771133e1aca4a6212257e90855004fc2aee3cd99d526afe6d2ac18b3b",
+        "modifiers316_probe.j": "1f0eaf70ac57b5b56b18d7e202e38e07236d218021503c1eda39cdbb9bfd42c9",
+        "smart277_ui_input.c": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233",
+        "point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+        "wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19",
+        "owned-ui-input.exe": "b299165bff36f2a6f6cf23449259e1dff129e6e33a1dfdcedf930fe1e0da3741",
+        "owned-ui-input.exe.so": "1ed1c2f7a104a85bf2728dbb8b62af9e14ee4149ad10f7f475b50fb710bc39c1",
+        "map": "6aea6f8417c27dcea66341526dc4c465a286b3ac58fba518b6d68efe0a9afea3"
+      }
+    }
+  },
+  "limits": [
+    "Scalar/public effect ownership and cold restoration are compared; the new scenes full numerical motion is not yet replayed in the engine.",
+    "Prior modifier88 full motion and cold suffixes remain exact.",
+    "Only Slow/Bloodlust applying owners use the newly retained factor; other effect families remain open.",
+    "Native below-one group-republication path is mapped but remains outside these numeric tests.",
+    "Exceptional all-scene runs fault in retail visibility and are archived separately, not accepted as completed controls."
+  ]
+}
