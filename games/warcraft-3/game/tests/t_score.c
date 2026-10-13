@@ -57,14 +57,49 @@ TEST(wc3_score, gathered_player_state_updates_score_source) {
         "endfunction\n"));
 }
 
-TEST(wc3_score, unverified_aggregate_scores_are_not_manufactured) {
+TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
+    gameClient_t *client = &game.clients[0];
     int32_t value = -1;
 
-    T_ASSERT(!G_GetPlayerScoreValue(&game.clients[0], WC3_PLAYER_SCORE_TECH_PERCENT, &value));
-    T_ASSERT(!G_GetPlayerScoreValue(&game.clients[0], WC3_PLAYER_SCORE_UNIT_TOTAL, &value));
-    T_ASSERT(!G_GetPlayerScoreValue(&game.clients[0], WC3_PLAYER_SCORE_HERO_TOTAL, &value));
-    T_ASSERT(!G_GetPlayerScoreValue(&game.clients[0], WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
-    T_ASSERT(!G_GetPlayerScoreValue(&game.clients[0], WC3_PLAYER_SCORE_TOTAL, &value));
+    setup_test_world();
+    memset(&client->score, 0, sizeof(client->score));
+    memset(client->tech, 0, sizeof(client->tech));
+    client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 3;
+    client->score.values[WC3_PLAYER_SCORE_UNITS_KILLED] = 2;
+    client->score.values[WC3_PLAYER_SCORE_STRUCT_BUILT] = 1;
+    client->score.values[WC3_PLAYER_SCORE_STRUCT_RAZED] = 1;
+    client->score.values[WC3_PLAYER_SCORE_HEROES_KILLED] = 2;
+    client->score.values[WC3_PLAYER_SCORE_ITEMS_GAINED] = 3;
+    client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] = 300;
+    client->score.values[WC3_PLAYER_SCORE_LUMBER_TOTAL] = 150;
+    client->tech[0].id = MAKEFOURCC('R','h','m','e');
+    client->tech[0].researched = 1;
+    client->tech[1].id = MAKEFOURCC('R','h','a','c');
+
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TECH_PERCENT, &value));
+    T_EQ(value, 50);
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_UNIT_TOTAL, &value));
+    T_EQ(value, 90);
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_HERO_TOTAL, &value));
+    T_EQ(value, 230);
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
+    T_EQ(value, 60);
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TOTAL, &value));
+    T_EQ(value, 880);
+    client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = UINT32_MAX;
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TOTAL, &value));
+    T_EQ(value, INT32_MAX);
 }
+
+TEST(wc3_score, guessed_aggregate_scores_are_queryable_from_jass) {
+    setup_test_world();
+    memset(&game.clients[0].score, 0, sizeof(game.clients[0].score));
+    game.clients[0].score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 2;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(GetPlayerScore(Player(0), PLAYER_SCORE_UNIT_TOTAL) == 20, \"guessed unit total\")\n"
+        "endfunction\n"));
+}
+
 
 #endif

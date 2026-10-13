@@ -100,6 +100,10 @@ typedef struct {
     FRAMEDEF save_list;
     AllianceDialog_t allies;
     GameResultDialog_t result;
+    /* ScoreScreen.fdf root + runtime data/interaction presenters. The FDF
+     * remains the sole source of retail art and authored root dimensions. */
+    frameDef_t *score_root, *score_label, *score_rows[MAX_PLAYERS + 1];
+    frameDef_t *score_tabs[4], *score_continue;
     CinematicPanel_t cinematic;
     TimerDialog_t timer_dialog;
     LeaderBoard_t leaderboard;
@@ -164,6 +168,8 @@ void UI_LoadHudLog(void);
 void UI_LoadHudMenu(void);
 void UI_LoadHudAllies(void);
 void UI_LoadHudGameResult(void);
+void UI_LoadHudScoreScreen(void);
+bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot, uint32_t tab);
 void UI_LoadHudCinematic(void);
 void UI_LoadHudMessage(void);
 void UI_LoadHudTimerDialogs(void);

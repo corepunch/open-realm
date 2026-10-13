@@ -586,6 +586,19 @@ typedef struct {
     uint32_t values[WC3_PLAYER_SCORE_COUNT];
 } wc3PlayerScoreState_t;
 
+/* Transient, immutable outgoing-match presentation. Never serialized in
+ * gameClient_t or level: a zone save must not resurrect an old score modal. */
+typedef struct {
+    uint32_t number, race, team;
+    char name[64];
+    int32_t values[WC3_PLAYER_SCORE_COUNT];
+} wc3ScorePlayerSnapshot_t;
+
+typedef struct {
+    uint32_t count;
+    wc3ScorePlayerSnapshot_t players[MAX_PLAYERS];
+} wc3ScoreSnapshot_t;
+
 struct client_s {
     player_t ps;
     bool connected; /* ClientBegin completed for this reserved player edict. */
@@ -2510,6 +2523,12 @@ bool G_GameResultDebugEnabled(void);
 void G_GameResultDebug(cstring_t format, ...);
 bool G_IsSinglePlayer(void);
 void G_RequestEndGame(bool do_score_screen);
+void G_FlushScoreTransition(void);
+void G_ScoreTransitionContinue(edict_t *player);
+void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab);
+#ifdef BZ_TESTS
+bool G_ScoreTransitionPending(void);
+#endif
 void G_RequestQuitGame(void);
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen);
 /* JASS saves are captured after the active VM callback returns, never inline
@@ -3302,6 +3321,7 @@ void UI_WriteLayout(edict_t *, frameDef_t const *, uint32_t);
 void UI_WriteStart(uint32_t);
 void UI_ClearLayer(edict_t *, uint32_t);
 void UI_ShowGameResult(edict_t *, uint32_t);
+bool UI_ShowScoreScreen(edict_t *, wc3ScoreSnapshot_t const *, uint32_t);
 void UI_FlushPendingGameResults(void);
 void UI_HideGameResult(edict_t *);
 /* JASS interactive choice dialogs: the registry and click authority live in the game. */

@@ -1,80 +1,82 @@
 # Warcraft III Score Screen
 
-OpenRealm's score-screen work is split deliberately between authoritative Warcraft III simulation state and later UI/session presentation. The generic client must not calculate Warcraft scores or own result policy; the Warcraft III game module records score inputs and will author the eventual screen through the normal `svc_window` path.
+This file describes the implementation after the score-controller follow-on patch.
+The installed Warcraft assets are required for visual presentation; the project
+never bundles Blizzard FDF or score artwork.
 
-## Current foundation
+## Source and confidence
 
-`common.j` exposes 25 `playerscore` ids through `GetPlayerScore`. OpenRealm now keeps a 32-bit per-player score state using that exact numeric order and records the high-confidence raw categories at their authoritative gameplay completion points:
+The raw score counters are simulation-authored as described in the preceding
+foundation patch. Five **unverified guesses** now return values through
+`GetPlayerScore` and are also shown on the result screen. They are deliberately
+separated from the accounting hooks in `g_score.c` and tagged `GUESS`:
 
-- completed trained units;
-- credited unit kills, hero kills, and structures razed;
-- completed structures;
-- maximum food produced and maximum food used;
-- successfully acquired items;
-- successfully hired neutral-shop units;
-- gross gold/lumber gathered;
-- gold credited after upkeep and gold lost to upkeep;
-- lumber lost to upkeep when a map changes the lumber upkeep rate.
+| Player score | Temporary algorithm (NOT confirmed retail) |
+|---|---|
+| Tech percent | 100 × researched technology IDs / observed technology IDs, or 0 with none |
+| Units total | 10× trained + 10× enemy units killed + 20× structures built + 20× structures razed |
+| Heroes total | 100× hero kills + 10× items gained |
+| Resources total | floor(gross gold / 10) + floor(gross lumber / 5) |
+| Overall total | Units + Heroes + Resources + 10× Tech percent |
 
-Resource income also updates Warcraft's cumulative `PLAYER_STATE_GOLD_GATHERED` and `PLAYER_STATE_LUMBER_GATHERED` states. Conversely, an explicit `SetPlayerState` write to either gathered state updates the matching raw score source, so map-authored state and score queries do not diverge.
+All totals saturate at `INT32_MAX`. **These weights and denominators are guesses,
+not reverse-engineered Warcraft calculations**. In particular, the technology
+denominator lacks unresearched-but-available tech; hero score lacks XP/hero
+usage; and resources do not have authoritative transfer/tax accounting. Compare
+against original retail scores with controlled games before claiming parity.
 
-The accounting hooks live in the owning simulation paths rather than trigger callbacks. Training counts only after the trained entity is exposed as complete; construction counts in `G_CompleteConstruction`; kill credit is recorded in the central unit-death path; resource totals are recorded where upkeep is applied; item acquisition records only a successful inventory transfer; and mercenary hiring records only a successful neutral-unit sale. Cancelled or failed actions therefore do not need compensating decrements.
+## Snapshot and screen lifecycle
 
-## `GetPlayerScore`
+The first `EndGame(true)`, `ChangeLevel(map, true)` or `RestartGame(true)`
+queues a transient deferred destination and captures a complete immutable player
+score snapshot. The first request wins; duplicate exits cannot overwrite it.
+A pending `SaveGame`/`ChangeLevel` pair **commits the zone save first** and
+queues the outgoing score screen only if that save succeeded. Failed saves do
+not load or show the score modal. Values and names survive unloading because
+the frozen snapshot is not tied to live edicts; the snapshot and selected tabs
+are NOT written to zone saves.
 
-`GetPlayerScore` is registered and returns the raw values whose semantics are represented directly by current engine state. The following ids remain intentionally unsupported rather than being populated with guessed retail formulas:
+At the end of the frame, the Warcraft game module loads the retail
+`UI\FrameDef\Glue\ScoreScreen.fdf` and binds its `ScoreScreenFrame` root.
+It authors a `svc_window` with a unique score ID, modal input and the standard
+client-owned pause semantics. Four page buttons switch between Overview, Units,
+Heroes and Resources, re-emitting the SAME unique window; a Continue click
+sends `close_window_command scorescreen_continue`. The command is accepted
+only from a recipient who was actually shown the window, and it consumes the
+deferred destination *before* submitting the menu or map change.
 
-- `PLAYER_SCORE_TECH_PERCENT`;
-- `PLAYER_SCORE_UNIT_TOTAL`;
-- `PLAYER_SCORE_HERO_TOTAL`;
-- `PLAYER_SCORE_RESOURCE_TOTAL`;
-- `PLAYER_SCORE_TOTAL`.
+Only included score-screen players appear. The flag `SetPlayerOnScoreScreen`
+is honoured when set on any player; otherwise it falls back to used/connected
+slots, to avoid empty screens where the map never initialized the flag.
+Removed/eliminated players remain visible when eligible.
 
-Requests for one of those values produce a JASS runtime error. This is deliberate: the aggregate weighting and exact retail technology denominator have not yet been established from authoritative data or controlled retail measurements. A plausible formula would be worse than an explicit missing capability because custom maps can query these values directly.
+If the FDF root is absent, the UI cannot be sent, or there are no connected
+recipients, the engine immediately follows the previously resolved destination.
+A broken/absent MPQ must not strand the outgoing session.
 
-The currently-zero raw transfer/tax categories (`*_GIVEN`, `*_RECEIVED`, `*_LOST_TAX`) remain valid storage slots, but they will stay zero until the corresponding authoritative Warcraft resource-transfer/tax transaction path exists. Score code must be added at that transaction boundary rather than inferred from resource-balance deltas.
+### FDF binding parity limitation
 
-## Save/load
+The current repository contains no licensed `ScoreScreen.fdf` bytes to inspect,
+so only the known `ScoreScreenFrame` root is bound. Other dynamic labels and
+buttons currently borrow existing in-game result FDF text/button styling, and
+their anchored positions are marked **PRESENTATION GUESSES** in
+`hud_score_screen.c`. **This is a functional preliminary score overlay, not yet
+pixel-accurate retail tab/column binding.** Once retail FDF bytes are supplied,
+use `fdfbindgen` to bind its actual named tab, column and button controls and
+remove the provisional row/tab positioning; do not create a project FDF copy.
 
-The score counters are simulation state and therefore live inline in `gameClient_t`. A fresh map resets them in `G_InitMapPlayer`; restoring a save reloads its recorded totals after map initialization. Save format version 90 persists them with the client record. OpenRealm uses exact-version save compatibility, so version 89 and earlier are rejected rather than migrated.
+## Manual validation needed
 
-Transient future score-screen presentation state must not be serialized merely because the counters are. In particular, the open score window, selected tab, frozen presentation snapshot, and pending client modal ownership are presentation/session state unless a later retail-parity investigation proves otherwise.
+- Launch a finished single-player mission with `EndGame(true)` and inspect
+  actual retail layout/font sizes and Continue routing.
+- SaveAndChangeLevelBJ: confirm that the script save commits *before* the score
+  modal opens and Continue loads the intended next map once.
+- `ChangeLevel(..., false)` still moves directly, never opening the modal.
+- Multiplayer: every connected participant sees frozen columns; a Continue
+  from any displayed recipient releases the shared server destination.
+- Compare guessed aggregate values against retail under controlled matches.
+- Ensure a missing `ScoreScreen.fdf` proceeds to the destination.
 
-## Score-screen inclusion
-
-`SetPlayerOnScoreScreen` remains separate from the counters. Its `on_score_screen` flag controls whether a player is eligible to appear when the future screen snapshot is built; it does not mean connected, playing, winner, loser, or observer. Before the UI starts filtering on this flag, the default/Blizzard.j initialization path must be verified so an ordinary game cannot accidentally produce an empty screen.
-
-## Retail presentation target
-
-Warcraft's authored glue frame is `UI\FrameDef\Glue\ScoreScreen.fdf`, with `ScoreScreenFrame` as the main control and score-screen tab/column/button templates supplied by the same data. In accordance with the UI authoring rules, OpenRealm should parse that retail FDF through the existing FDF pipeline instead of committing a replacement project FDF or hardcoding substitute geometry.
-
-The visible score screen has four conceptual pages:
-
-- Overview;
-- Units;
-- Heroes;
-- Resources.
-
-The public `playerscore` native set is not sufficient by itself to reconstruct every visible row (for example the retail Heroes page includes values such as heroes used and experience gained). Those extra presentation statistics should be added to a frozen game-side snapshot only after their exact semantics and source events are established; they should not be invented as new JASS score ids.
-
-## Remaining lifecycle work
-
-The actual score-screen controller is still missing. `EndGame(doScoreScreen)`, `ChangeLevel(map, doScoreScreen)`, and `RestartGame(doScoreScreen)` continue to use the existing safe deferred session boundary and currently consume but do not display the score screen. Do not interpose a half-built screen that can strand those transitions.
-
-The next presentation patch should:
-
-1. identify/bind the real retail score-screen FDF controls;
-2. freeze an outgoing-match score snapshot before any map/frontend transition destroys the game state;
-3. extend the existing deferred transition representation with the already-requested destination plus `show_scores`;
-4. author the screen from the Warcraft III game module through an ordinary modal, unique `svc_window`;
-5. let the existing modal ownership pause the simulation rather than adding a score-specific pause path;
-6. use the established `close_window_command <server command>` pattern for the Continue/OK action;
-7. execute the already-resolved deferred destination exactly once after the score window closes.
-
-No Warcraft-specific score-screen parser, renderer, command, or controller belongs in the generic client.
-
-## Regression coverage
-
-The in-engine tests cover the accounting at existing production boundaries: food maxima and upkeep resource income, trained-unit completion, construction completion without double counting, item acquisition, neutral-unit hiring, death-category credit, JASS `GetPlayerScore`, `SetPlayerState` gathered-state synchronization, persistence, and rejection of earlier save versions, including version 89.
-
-Visual parity remains a manual/future integration concern because the test archive intentionally does not contain Blizzard retail assets. When score-screen FDF binding is implemented, deterministic tests should provide only the minimal fixture resources at the same archive paths used by retail data and assert the emitted generic window/frame contract rather than relying on a developer's local Warcraft installation.
+Compilation, gameplay, rendering and the above observations remain for the
+local build/test run. `AGENTS.md`, `CONTRIBUTING.md` and `docs/ui-authoring.md`
+remain authoritative.

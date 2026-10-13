@@ -113,19 +113,60 @@ void G_PlayerScoreResourceIncome(player_t *player, uint32_t resource_state,
     }
 }
 
-bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *value) {
-    if (!client || !value || score >= WC3_PLAYER_SCORE_COUNT) return false;
+/* RETAIL-PARITY GUESS: all five aggregate formulas below are provisional.
+ * Do not mistake the weights or denominator for recovered Warcraft III data.
+ * They are explicit, bounded and deterministic so maps can query a useful
+ * first approximation; compare each value with stock WC3 before finalizing. */
+static int32_t G_ScoreClamp(uint64_t value) {
+    return (int32_t)MIN(value, (uint64_t)INT32_MAX);
+}
 
-    /* These five values need retail data/formulas that OpenRealm does not yet
-     * own. Do not manufacture aggregate scores from the raw counters. */
-    if (score == WC3_PLAYER_SCORE_TECH_PERCENT ||
-        score == WC3_PLAYER_SCORE_UNIT_TOTAL ||
-        score == WC3_PLAYER_SCORE_HERO_TOTAL ||
-        score == WC3_PLAYER_SCORE_RESOURCE_TOTAL ||
-        score == WC3_PLAYER_SCORE_TOTAL) {
-        return false;
+static int32_t G_ScoreGuessTechPercent(gameClient_t const *client) {
+    uint32_t observed = 0, researched = 0;
+    FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
+        playerTechState_t const *tech = &client->tech[i];
+        if (!tech->id) continue;
+        observed++;
+        if (tech->researched > 0) researched++;
     }
+    /* GUESS: known/observed technology rows are the denominator, not the
+     * retail race/map technology tree. An empty set scores zero. */
+    return observed ? (int32_t)((100ull * researched) / observed) : 0;
+}
 
-    *value = (int32_t)client->score.values[score];
+bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *value) {
+    uint64_t units, heroes, resources;
+    uint32_t const *s;
+    if (!client || !value || score >= WC3_PLAYER_SCORE_COUNT) return false;
+    s = client->score.values;
+    /* GUESS: raw activity points, intentionally excluding gained units/items
+     * from hero score until hero-XP/usage telemetry exists. */
+    units = (uint64_t)s[WC3_PLAYER_SCORE_UNITS_TRAINED] * 10u +
+            (uint64_t)s[WC3_PLAYER_SCORE_UNITS_KILLED] * 10u +
+            (uint64_t)s[WC3_PLAYER_SCORE_STRUCT_BUILT] * 20u +
+            (uint64_t)s[WC3_PLAYER_SCORE_STRUCT_RAZED] * 20u;
+    heroes = (uint64_t)s[WC3_PLAYER_SCORE_HEROES_KILLED] * 100u +
+             (uint64_t)s[WC3_PLAYER_SCORE_ITEMS_GAINED] * 10u;
+    /* GUESS: 10 gold or 5 lumber gathered = 1 score point, ignoring
+     * transfers until their authoritative transaction callbacks exist. */
+    resources = s[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] / 10u +
+                s[WC3_PLAYER_SCORE_LUMBER_TOTAL] / 5u;
+    switch (score) {
+    case WC3_PLAYER_SCORE_TECH_PERCENT:
+        *value = G_ScoreGuessTechPercent(client); break;
+    case WC3_PLAYER_SCORE_UNIT_TOTAL:
+        *value = G_ScoreClamp(units); break;
+    case WC3_PLAYER_SCORE_HERO_TOTAL:
+        *value = G_ScoreClamp(heroes); break;
+    case WC3_PLAYER_SCORE_RESOURCE_TOTAL:
+        *value = G_ScoreClamp(resources); break;
+    case WC3_PLAYER_SCORE_TOTAL:
+        /* GUESS: technology counts as 10 points per percentage point. */
+        *value = G_ScoreClamp(units + heroes + resources +
+                              (uint64_t)G_ScoreGuessTechPercent(client) * 10u);
+        break;
+    default:
+        *value = (int32_t)s[score]; break;
+    }
     return true;
 }

@@ -2119,6 +2119,20 @@ CLIENTCOMMAND(GameResultLoad) {
     G_RequestLoadGameMenu();
 }
 
+CLIENTCOMMAND(ScoreScreenContinue) {
+    (void)argc; (void)argv;
+    G_ScoreTransitionContinue(clent);
+}
+
+CLIENTCOMMAND(ScoreScreenTab) {
+    char *end;
+    unsigned long tab;
+    if (!clent || argc != 2 || !argv[1] || !argv[1][0]) return;
+    tab = strtoul(argv[1], &end, 10);
+    if (*end || tab >= 4) return;
+    G_ScoreTransitionSelectTab(clent, (uint32_t)tab);
+}
+
 CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
     G_GameResultDebug("command gameresult_quit single_player=%u", (unsigned)G_IsSinglePlayer());
@@ -3068,6 +3082,8 @@ clientCommand_t clientCommands[] = {
     { "gameresult_restart", CMD_GameResultRestart },
     { "gameresult_load", CMD_GameResultLoad },
     { "gameresult_quit", CMD_GameResultQuit },
+    { "scorescreen_continue", CMD_ScoreScreenContinue },
+    { "scorescreen_tab", CMD_ScoreScreenTab },
     { "jassdialog", CMD_JassDialogChoice },
     { "debugspawn", CMD_DebugSpawn },
     { "enemiesclear", CMD_EnemiesClear },

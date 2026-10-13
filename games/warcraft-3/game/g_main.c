@@ -66,6 +66,129 @@ static wc3ScriptSaveRequest_t script_save_request;
 static char script_standalone_load[MAX_PATHLEN];
 static bool script_save_rejected;
 
+/* One deferred destination owns the entire result-screen flow. This state is
+ * transient, never saved. The snapshot is captured BEFORE ending the outgoing
+ * game; the destination executes only after the modal Continue command. */
+typedef struct {
+    bool pending, shown;
+    char action[16], argument[MAX_PATHLEN];
+    bool awaiting[MAX_CLIENTS];
+    uint8_t tab[MAX_CLIENTS];
+    wc3ScoreSnapshot_t frozen;
+} wc3ScoreTransition_t;
+static wc3ScoreTransition_t score_transition;
+
+static void G_ResetScoreTransition(void) {
+    memset(&score_transition, 0, sizeof(score_transition));
+}
+
+static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
+    bool any_enabled = false;
+    if (!snapshot) return;
+    memset(snapshot, 0, sizeof(*snapshot));
+    /* Only the first MAX_PLAYERS client slots are initialized with WC3
+     * player handles. The remaining reserved client slots have zeroed IDs
+     * and must never masquerade as a second copy of Player(0). */
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_PLAYERS)) {
+        if (game.clients[i].jass.on_score_screen) any_enabled = true;
+    }
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_PLAYERS)) {
+        gameClient_t const *client = game.clients + i;
+        wc3ScorePlayerSnapshot_t *entry;
+        uint32_t number = client->ps.number;
+        if (snapshot->count >= MAX_PLAYERS || number >= MAX_PLAYERS ||
+            (any_enabled && !client->jass.on_score_screen)) continue;
+        /* Include eliminated players: RemovePlayer is routinely called before
+         * EndGame, and elimination must not erase a score-screen column. */
+        if (!any_enabled && !client->connected &&
+            (!level.mapinfo || !level.mapinfo->players[number].used)) continue;
+        entry = &snapshot->players[snapshot->count++];
+        entry->number = number;
+        entry->race = client->ps.race;
+        entry->team = client->ps.team;
+        strlcpy(entry->name,
+                client->jass.name[0] ? client->jass.name :
+                (client->ps.name && *client->ps.name ? client->ps.name : "Player"),
+                sizeof(entry->name));
+        FOR_LOOP(s, WC3_PLAYER_SCORE_COUNT) {
+            int32_t value = 0;
+            if (G_GetPlayerScoreValue(client, s, &value)) entry->values[s] = value;
+        }
+    }
+}
+
+static void G_QueueScoreTransition(cstring_t action, cstring_t argument) {
+    if (score_transition.pending) return; /* prevent nested JASS transitions */
+    G_ResetScoreTransition();
+    score_transition.pending = true;
+    strlcpy(score_transition.action, action, sizeof(score_transition.action));
+    strlcpy(score_transition.argument, argument ? argument : "", sizeof(score_transition.argument));
+    G_CaptureScoreSnapshot(&score_transition.frozen);
+}
+
+static void G_CompleteScoreTransition(void) {
+    char action[sizeof(score_transition.action)], argument[sizeof(score_transition.argument)];
+    if (!score_transition.pending) return;
+    strlcpy(action, score_transition.action, sizeof(action));
+    strlcpy(argument, score_transition.argument, sizeof(argument));
+    G_ResetScoreTransition(); /* exactly once, even if MenuAction reenters */
+    gi.MenuAction(action, argument);
+}
+
+void G_ScoreTransitionContinue(edict_t *player) {
+    uint32_t slot;
+    if (!score_transition.pending || !score_transition.shown || !player || !player->client) return;
+    slot = (uint32_t)(player->client - game.clients);
+    if (slot >= MAX_CLIENTS || !score_transition.awaiting[slot]) return;
+    G_CompleteScoreTransition();
+}
+
+void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab) {
+    uint32_t slot;
+    if (!score_transition.pending || !score_transition.shown || !player ||
+        !player->client || tab >= 4) return;
+    slot = (uint32_t)(player->client - game.clients);
+    if (slot >= MAX_CLIENTS || !score_transition.awaiting[slot]) return;
+    score_transition.tab[slot] = (uint8_t)tab;
+    UI_ShowScoreScreen(player, &score_transition.frozen, tab);
+}
+
+#ifdef BZ_TESTS
+bool G_ScoreTransitionPending(void) { return score_transition.pending; }
+#endif
+
+void G_FlushScoreTransition(void) {
+    bool presented = false;
+    if (!score_transition.pending) return;
+    if (score_transition.shown) {
+        /* If every recipient disconnects, no Continue can arrive. The
+         * disconnect path releases the client's modal pause ownership. */
+        FOR_LOOP(i, game.max_clients)
+            if (score_transition.awaiting[i] && game.clients[i].connected) return;
+        G_CompleteScoreTransition();
+        return;
+    }
+    /* Called after all JASS callbacks and scripted SaveGame completion.
+     * Nobody may mutate the frozen score values while a tab is opened. */
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t *client = game.clients + i;
+        edict_t *ent;
+        if (!client->connected) continue;
+        ent = G_GetPlayerEntityByNumber(client->ps.number);
+        if (!ent) continue;
+        if (UI_ShowScoreScreen(ent, &score_transition.frozen, 0)) {
+            score_transition.awaiting[i] = true;
+            presented = true;
+        }
+    }
+    if (presented) score_transition.shown = true;
+    else {
+        /* No retail FDF, no recipient, or no root: never strand the level. */
+        G_CompleteScoreTransition();
+    }
+}
+
+
 void G_ResetScriptSave(void) {
     memset(&script_save_request, 0, sizeof(script_save_request));
     script_standalone_load[0] = '\0';
@@ -191,7 +314,8 @@ void G_FlushScriptSave(void) {
     if (request.change_level) {
         G_GameResultDebug("scripted save complete; request ChangeLevel map=%s score_screen=%u",
                           request.map, (unsigned)request.score_screen);
-        gi.MenuAction("level", request.map);
+        if (request.score_screen) G_QueueScoreTransition("level", request.map);
+        else gi.MenuAction("level", request.map);
     } else if (request.load_game) {
         /* Retain the current script scope, unlike a manual user load. */
         gi.MenuAction("scriptload", request.load_name);
@@ -427,6 +551,7 @@ static bool G_LoadMap(cstring_t mapFilename) {
      * animation metadata cache uses those indices too, so retaining it across
      * levels can make a new index resolve to the previous map's filename. */
     G_FreeModels();
+    G_ResetScoreTransition();
     G_ResetDeferredFrees();
     gi.ApplyLobbySettings((mapInfo_t *)CM_GetMapInfo());
     gi.ClearWorld();
@@ -671,6 +796,7 @@ static void G_InitGame(void) {
     }
 
     G_ResetScriptSave();
+    G_ResetScoreTransition();
     fprintf(stderr, "Game initialization.\n");
     fprintf(stderr, "Game is starting up.\n");
     fprintf(stderr, "Game is openwarcraft3 built on %s.\n", __DATE__);
@@ -705,6 +831,7 @@ static void G_InitGame(void) {
 
 static void G_ShutdownGame(void) {
     G_ResetScriptSave();
+    G_ResetScoreTransition();
     if (g_edicts == NULL) {
         return;
     }
@@ -1214,8 +1341,6 @@ void G_GameResultDebug(cstring_t format, ...) {
 static bool G_IsCampaignMapPath(cstring_t path);
 
 void G_RequestEndGame(bool do_score_screen) {
-    /* Score-screen transport is not implemented yet. Keep the argument at the
-     * game/session boundary so EndGame(true) does not get baked into HUD code. */
     cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
     bool campaign_select = level.campaign_select_on_end ||
         (G_IsSinglePlayer() && G_IsCampaignMapPath(map));
@@ -1223,10 +1348,12 @@ void G_RequestEndGame(bool do_score_screen) {
         (unsigned)do_score_screen, (unsigned)campaign_select, map ? map : "(null)");
     if (campaign_select) {
         level.campaign_select_on_end = false;
-        gi.MenuAction("menu", "menu_single_player_campaign");
+        if (do_score_screen) G_QueueScoreTransition("menu", "menu_single_player_campaign");
+        else gi.MenuAction("menu", "menu_single_player_campaign");
         return;
     }
-    gi.MenuAction("menu", "menu_main");
+    if (do_score_screen) G_QueueScoreTransition("menu", "menu_main");
+    else gi.MenuAction("menu", "menu_main");
 }
 
 static bool G_IsCampaignMapPath(cstring_t path) {
@@ -1268,13 +1395,17 @@ void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {
         strlcpy(script_save_request.map, map, sizeof(script_save_request.map));
         return;
     }
-    gi.MenuAction("level", map);
+    if (do_score_screen) G_QueueScoreTransition("level", map);
+    else gi.MenuAction("level", map);
 }
 
 void G_RequestRestartGame(bool do_score_screen) {
     cstring_t map = gi.CvarString("map", "");
     G_GameResultDebug("request RestartGame map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
-    if (map && *map) gi.MenuAction("level", map);
+    if (map && *map) {
+        if (do_score_screen) G_QueueScoreTransition("level", map);
+        else gi.MenuAction("level", map);
+    }
 }
 
 void G_RequestLoadGameMenu(void) {
@@ -1374,6 +1505,7 @@ static void G_RunFrame(void) {
     /* The VM callback stack is quiescent here. A restored snapshot must not
      * contain any transient outgoing session request. */
     G_FlushScriptSave();
+    G_FlushScoreTransition();
 }
 
 static cstring_t G_GetThemeValue(cstring_t filename) {

@@ -856,6 +856,7 @@ void UI_LoadHud(void) {
     UI_LoadHudMenu();
     UI_LoadHudAllies();
     UI_LoadHudGameResult();
+    UI_LoadHudScoreScreen();
     UI_LoadHudCinematic();
     UI_LoadHudMessage();
     UI_LoadHudTimerDialogs();

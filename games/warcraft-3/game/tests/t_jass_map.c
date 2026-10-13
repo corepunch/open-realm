@@ -1570,6 +1570,32 @@ TEST(wc3_jass_map, paused_victory_drains_result_event_and_releases_fallback) {
 }
 
 
+TEST(wc3_jass_map, score_transition_defers_map_change_and_falls_back_without_viewers) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t const clients = game.max_clients;
+
+    G_ResetScriptSave();
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+    gi.MenuAction = capture_victory_menu_action;
+    /* No connected recipient: the score FDF cannot be displayed. The exact
+     * outgoing destination must still execute, and only once. */
+    game.max_clients = 0;
+    G_RequestChangeLevel("Maps\\Campaign\\Human03.w3m", true);
+    T_ASSERT(G_ScoreTransitionPending());
+    T_STREQ(victory_menu_action, "");
+    G_FlushScoreTransition();
+    T_ASSERT(!G_ScoreTransitionPending());
+    T_STREQ(victory_menu_action, "level");
+    T_STREQ(victory_menu_arg, "Maps\\Campaign\\Human03.w3m");
+    victory_menu_action[0] = '\0';
+    G_FlushScoreTransition();
+    T_STREQ(victory_menu_action, "");
+
+    game.max_clients = clients;
+    gi.MenuAction = old_menu_action;
+}
+
 TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
