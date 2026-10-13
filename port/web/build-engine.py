@@ -52,9 +52,11 @@ def main():
         "shared": sources("shared") + [ROOT / "vendor/blast/blast.c"],
         "jass": sources(wc3 + "/jass"),
         "renderer": sources("renderer", wc3 + "/renderer"),
-        "game": sources(wc3 + "/game", wc3 + "/common", exclude=("world_w3.c", "g_save.c")) +
+        "game": sources(wc3 + "/game", exclude=("g_save.c",)) +
                 [ROOT / "port/web/src/web_save_unsupported.c"],
-        "menu": sources(wc3 + "/menu", wc3 + "/common", exclude=("world_w3.c",)),
+        "menu": sources(wc3 + "/menu"),
+        # Compiled once: data/serialization helpers used by both game and menu.
+        "wc3_common": sources(wc3 + "/common", exclude=("world_w3.c",)),
         "engine": sources("client", "server", "common", "sound",
                           exclude=("stb_vorbis.c", "sv_routing.c")) +
                   [ROOT / wc3 / "common/world_w3.c", ROOT / "port/web/src/web_opfs.c"],
@@ -83,6 +85,11 @@ def main():
         extra = ["-DSTB_FDF_IMPLEMENTATION", "-DSTB_FDF_GLOBALS"] if name in ("game", "menu", "engine") else []
         if name == "engine":
             extra.append("-DBZ_CLIENT_WORLD")
+        if name in ("game", "menu"):
+            # Each native module owns a distinct FDF registry/parser and host
+            # callbacks. Preserve that separation in the single WASM link.
+            extra.extend(["-include", "port/web/src/web_fdf_namespace.h",
+                          "-DBZ_WEB_FDF_" + name.upper()])
         if not args.check:
             run([emcc, *flags, *extra, "-c", unit, "-o", obj])
         objects.append(obj)

@@ -124,3 +124,16 @@ Browser builds also exclude `BZ_CLIENT_WORLD` from the combined game/engine
 compilation flags; server/game routing owns the WC3 pathing implementation,
 while client-world helpers must not be compiled into the game unity module.
 `-sWASMFS=1` is a final-link setting, not a compile-only setting.
+
+### Static WASM module symbol ownership
+
+The native `libgame` and `libmenu` each compile their own
+`stb_fdf.h` implementation, `frames` registry and host callbacks. These
+must remain distinct in the browser's single linked executable. The
+browser-only `web_fdf_namespace.h` provides module-scoped link names when
+compiling game and menu; `GetGameAPI` and `M_GetAPI` are not renamed.
+
+`games/warcraft-3/common/campaign_progress.c` is pure shared functionality:
+it is now compiled exactly once as `wc3_common.o`, rather than being
+repeated in both game and menu objects. `world_w3.c` remains owned by
+the engine object. These decisions do not change native shared libraries.
