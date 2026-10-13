@@ -634,10 +634,15 @@ static void R_UpdateSwapInterval(void) {
     requested = MAX(0, MIN(1, requested));
     if (requested == r_swapinterval) return;
     r_swapinterval = requested;
+#ifdef __EMSCRIPTEN__
+    /* Browser frame scheduling begins after renderer initialization. */
+    return;
+#else
     if (SDL_GL_SetSwapInterval(requested) != 0)
         fprintf(stderr, "OpenGL: r_vsync %d unavailable: %s\n", requested, SDL_GetError());
     else
         fprintf(stderr, "OpenGL: vsync=%d\n", SDL_GL_GetSwapInterval());
+#endif
 }
 
 void R_InitRenderer(uint32_t width, uint32_t height) {

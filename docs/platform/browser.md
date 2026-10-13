@@ -154,3 +154,18 @@ helpers for the game/menu unity objects. It is deliberately not applied to
 the universal engine or native builds. Sharing one complete FDF parser between
 game and menu would incorrectly bind its state and host callbacks to one
 module.
+
+### Renderer on the browser engine worker
+
+The browser build uses `PROXY_TO_PTHREAD` for the OPFS backend. WebGL 2
+contexts created through SDL on that pthread need
+`OFFSCREENCANVAS_SUPPORT` and canvas transfer (`#canvas`). The link also
+enables `OFFSCREEN_FRAMEBUFFER` for Emscripten's fallback support. Without
+the worker WebGL configuration, `glGetIntegerv` can call `getParameter` on
+an undefined JavaScript context.
+
+Emscripten owns frame timing. The renderer skips `SDL_GL_SetSwapInterval`
+on the browser target because video initializes before the main loop exists.
+Native swap-interval behavior remains unchanged. The launcher requires
+OffscreenCanvas and cross-origin isolation. Verify runtime rendering in a
+compatible browser; enabling these flags alone does not prove it works.

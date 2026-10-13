@@ -122,6 +122,8 @@ def main():
     run([emcc, *objects, "-O2", "-sUSE_SDL=2", "-sUSE_ZLIB=1",
          "-sMIN_WEBGL_VERSION=2", "-sMAX_WEBGL_VERSION=2", "-sFULL_ES3=1",
          "-sWASMFS=1", "-pthread", "-sPROXY_TO_PTHREAD=1", "-sPTHREAD_POOL_SIZE=2",
+         "-sOFFSCREENCANVAS_SUPPORT=1", "-sOFFSCREENCANVASES_TO_PTHREAD=#canvas",
+         "-sOFFSCREEN_FRAMEBUFFER=1",
          "-sINITIAL_MEMORY=134217728", "-sALLOW_MEMORY_GROWTH=1",
          "-sFILESYSTEM=1", "-sENVIRONMENT=web",
          "-sASSERTIONS=1", "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency", "-lm", "--shell-file", shell,
