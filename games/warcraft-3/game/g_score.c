@@ -39,6 +39,37 @@ void G_PlayerScoreObserveFood(gameClient_t *client) {
         MAX(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], used);
 }
 
+/* Reset the *historical* army peak after the first playable simulation
+ * pass, when scripted startup removals have settled. This must never alter
+ * food reservations or the live player stats used by actual gameplay. */
+void G_PlayerScoreSetGameplayFoodBaseline(void) {
+    FOR_LOOP(i, MAX_PLAYERS) {
+        gameClient_t *client = G_ScoreClient(i);
+        uint32_t live_food = 0, survivors = 0;
+        uint64_t live_cost = 0;
+        if (!client || !client->mapplayer || !client->mapplayer->used) continue;
+        FILTER_EDICTS(ent, ent->inuse && ent->s.player == i &&
+                      ent->data.UnitBalance && (ent->s.flags & EF_UNIT) &&
+                      !(ent->svflags & SVF_DEADMONSTER)) {
+            uint32_t food = ent->food ? (uint32_t)MAX(ent->food->used, 0) : 0;
+            ++survivors;
+            live_food += food;
+            live_cost += (uint32_t)MAX(ent->data.UnitBalance->goldCost, 0) +
+                         (uint32_t)MAX(ent->data.UnitBalance->lumberCost, 0);
+            G_GameResultDebug("score baseline survivor player=%u rawcode=%08x entity=%u food=%u cost=%u",
+                i, ent->class_id, ent->s.number, food,
+                (uint32_t)MAX(ent->data.UnitBalance->goldCost, 0) +
+                (uint32_t)MAX(ent->data.UnitBalance->lumberCost, 0));
+        }
+        uint32_t previous_peak = client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED];
+        uint32_t used = client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+        client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] = used;
+        G_GameResultDebug("score food gameplay baseline player=%u previous_peak=%u current_food=%u surviving_food=%u surviving_units=%u surviving_cost=%llu produced_value=%u",
+            i, previous_peak, used, live_food, survivors,
+            (unsigned long long)live_cost, client->score.unit_value_produced);
+    }
+}
+
 void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state) {
     if (!client) return;
     if (state == PLAYERSTATE_GOLD_GATHERED) {

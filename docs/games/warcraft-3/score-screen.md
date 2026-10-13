@@ -308,3 +308,15 @@ UndeadX07c retail 500 versus the temporary neutral hero's 4700 without map
 name/hero ID special cases; other campaign hero restoration rules need checks.
 The new entity field requires save version 93. Unit cost values and technology
 percentage remain provisional pending further retail evidence.
+
+### Post-main Largest Army baseline and unit audit
+
+The initial score-only Largest Army peak is captured after the first playable
+simulation pass, following JASS initialization and deferred unit removals.
+`ClientBegin` may run on a nonzero frame and is not a reliable startup
+checkpoint. With `wc3_game_result_debug 1`, the `score baseline survivor`
+entries enumerate live unit rawcodes/food/cost and the `score food gameplay
+baseline` summary compares the previous peak, authoritative current food,
+surviving unit-food total and accrued unit score. This deliberately does not
+change `Units Produced` or unit score: the retail inclusion rule for scripted
+preplaced armies remains unverified. All subsequent food peaks still update.

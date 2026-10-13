@@ -1577,6 +1577,12 @@ static void G_RunFrame(void) {
     G_SolveCollisions();
     G_RunDeferredFrees();
     G_RunConsumedItemFrees();
+    /* The map config/main and first simulation pass may remove temporary
+     * preplaced armies. Capture the first playable food level here, not
+     * during ClientBegin (which need not occur at frame zero). This changes
+     * only the *score peak*, never authoritative gameplay food usage. */
+    if (level.framenum == 1)
+        G_PlayerScoreSetGameplayFoodBaseline();
     G_FowUpdate();
     G_UpdateClientSelections();
     G_FowSendDeltas();
@@ -1885,19 +1891,6 @@ static void G_ClientBegin(edict_t *edict) {
     UI_JassDialogRestore(edict);
 
     G_AccumulatePlayerFood(client);
-    /* Map loading may provision armies subsequently removed by config/main.
-     * Largest Army begins at the first playable frame, without disturbing
-     * the authoritative food totals or any future gameplay peak. */
-    if (level.framenum == 0) {
-        FOR_LOOP(i, MAX_PLAYERS) {
-            gameClient_t *participant = game.clients + i;
-            if (!participant->mapplayer || !participant->mapplayer->used) continue;
-            participant->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] =
-                participant->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
-            G_GameResultDebug("score food gameplay baseline player=%u food=%u",
-                participant->ps.number, participant->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED]);
-        }
-    }
     /* Invalidate cache so the initial resource bar write always fires. */
     client->resourcebar.gold = -1;
     G_RefreshResourceBar(edict);

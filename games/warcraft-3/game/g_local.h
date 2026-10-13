@@ -3028,6 +3028,7 @@ void G_SetUnitColorOverride(edict_t *unit, uint32_t color);
 void G_ClearUnitColorOverride(edict_t *unit);
 void G_RecomputePlayerUpkeep(gameClient_t *client);
 void G_PlayerScoreObserveFood(gameClient_t *client);
+void G_PlayerScoreSetGameplayFoodBaseline(void);
 void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state);
 void G_PlayerScoreUnitTrained(edict_t *unit);
 void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount);
