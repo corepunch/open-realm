@@ -178,3 +178,14 @@ allowing the worker to submit WebGL operations through Emscripten's proxy.
 COOP/COEP isolation is still necessary for pthreads. This resolves the
 canvas-ownership conflict in configuration; WebGL rendering remains to be
 validated on the target Emscripten SDK and browser.
+
+### Direct WebGL context for browser renderer
+
+The browser renderer uses Emscripten's HTML5 WebGL API directly instead of
+creating and swapping a context through SDL/EGL on the proxied game pthread.
+SDL still owns the window and input. WebGL 2 uses
+`EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS` and explicit swap control; the
+`-sOFFSCREEN_FRAMEBUFFER=1` link setting supplies the presentation buffer.
+Native rendering remains unchanged. This is an experimental interoperability
+fix requiring runtime verification of GL initialization, frame presentation,
+resize and input handling.

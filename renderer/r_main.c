@@ -5,6 +5,9 @@
 #include "stb/stb_image_write.h"
 
 #include <SDL2/SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#endif
 #include <sys/stat.h>
 #ifdef _WIN32
 #include <direct.h>
@@ -29,6 +32,11 @@ struct render_globals tr;
 
 SDL_Window *window;
 SDL_GLContext context;
+#ifdef __EMSCRIPTEN__
+/* Browser GL lives in the main-thread canvas; calls are proxied from the
+ * engine pthread rather than routed through SDL/EGL context ownership. */
+static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE web_gl_context;
+#endif
 
 static bool renderer_shutdown = false;
 static bool drawable_dirty;
@@ -711,6 +719,34 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
     fprintf(stderr, "Refresher initialization.\n");
     Uint32 win_vis = R_VideoHidden() ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN;
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | win_vis | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
+#ifdef __EMSCRIPTEN__
+    /* The OPFS backend requires PROXY_TO_PTHREAD. SDL's EGL creation and
+     * worker GL calls use incompatible proxy paths on this SDK. Let SDL own
+     * only the window and input; explicitly create a proxied WebGL 2 context. */
+    web_gl_context = 0;
+    if (window) {
+        EmscriptenWebGLContextAttributes attributes;
+        emscripten_webgl_init_context_attributes(&attributes);
+        attributes.majorVersion = 2;
+        attributes.minorVersion = 0;
+        attributes.depth = EM_TRUE;
+        attributes.stencil = EM_FALSE;
+        attributes.antialias = requested_msaa > 0;
+        attributes.explicitSwapControl = EM_TRUE;
+        attributes.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS;
+        web_gl_context = emscripten_webgl_create_context("#canvas", &attributes);
+    }
+    if (web_gl_context > 0 &&
+        emscripten_webgl_make_context_current(web_gl_context) == EMSCRIPTEN_RESULT_SUCCESS) {
+        gl_current = true;
+        r_swapinterval = 0;
+        GLint drawable_binding = 0;
+        R_Call(glGetIntegerv, GL_FRAMEBUFFER_BINDING, &drawable_binding);
+        r_default_framebuffer = (GLuint)drawable_binding;
+    } else {
+        fprintf(stderr, "OpenRealm browser: WebGL 2 context creation failed (%d)\n", (int)web_gl_context);
+    }
+#else
     context = window ? SDL_GL_CreateContext(window) : NULL;
     if (!context && requested_msaa) {
         fprintf(stderr, "OpenGL: %dx MSAA context unavailable (%s); retrying without MSAA\n", requested_msaa, SDL_GetError());
@@ -731,6 +767,7 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
     } else {
         fprintf(stderr, "ref_gl::R_Init() - could not make GL context current: %s\n", SDL_GetError());
     }
+#endif /* __EMSCRIPTEN__ */
 
     R_ApplyVideoMode(width, height);
     R_RefreshDrawableSize("initial");
@@ -844,7 +881,15 @@ void R_ShutdownRenderer(void) {
     R_ShutdownTextureCache();
     R_ShutdownDrawBufferInstanced();
     
+#ifdef __EMSCRIPTEN__
+    if (web_gl_context > 0) {
+        emscripten_webgl_make_context_current(0);
+        emscripten_webgl_destroy_context(web_gl_context);
+        web_gl_context = 0;
+    }
+#else
     SDL_GL_DeleteContext(context);
+#endif
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
@@ -1039,8 +1084,13 @@ void R_EndFrame(void) {
 #endif
     R_FinishFrameStats();
     R_UpdateSwapInterval();
+#ifdef __EMSCRIPTEN__
+    /* Explicit-swap-control publishes the proxied offscreen framebuffer. */
+    if (web_gl_context > 0) emscripten_webgl_commit_frame();
+#else
     SDL_GL_SwapWindow(window);
     SDL_Delay(1);
+#endif
 }
 
 size2_t R_GetWindowSize(void) {
