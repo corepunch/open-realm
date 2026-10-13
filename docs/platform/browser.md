@@ -24,6 +24,15 @@ No Warcraft game files are used or distributed.
 
 ## Next integration stages
 
+### On-screen browser controls
+
+The browser launcher overlays **Esc** (send an Escape key press to the game,
+including during cinematics) and **fullscreen** (toggle fullscreen for the
+canvas and controls together) at the upper-right corner of the game view.
+These are browser DOM controls, not game UI frames, and remain available after
+the canvas transfers to the rendering pthread. Fullscreen requires a user
+gesture and may be unavailable under restrictive embedding policies.
+
 1. Inventory module entry points and shared-library dependencies in the
    `shared`, `client`, `server`, `renderer`, `games/warcraft-3` and `jass`
    modules. Introduce explicit static registration instead of native dynamic

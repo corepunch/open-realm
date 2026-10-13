@@ -10,6 +10,18 @@ main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
 button, input { margin: .3rem; }
 progress { width: 100%; }
 canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+#game-container { position: relative; }
+#game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2;
+  display: flex; gap: .5rem; }
+#game-controls button { margin: 0; min-width: 2.8rem; min-height: 2.8rem;
+  padding: .45rem .7rem; border: 1px solid #9baec7; border-radius: .4rem;
+  background: rgba(11, 18, 32, .85); color: #fff; font: 600 14px system-ui, sans-serif;
+  cursor: pointer; touch-action: manipulation; }
+#game-controls button:hover, #game-controls button:focus-visible { background: #304969; }
+#game-container:fullscreen { width: 100%; height: 100%; background: #000; }
+#game-container:fullscreen canvas { width: 100%; height: 100%; aspect-ratio: auto; }
+#game-container:fullscreen #game-controls { top: max(.65rem, env(safe-area-inset-top));
+  right: max(.65rem, env(safe-area-inset-right)); }
 #status { margin: 1rem 0; }
 </style>
 </head>
@@ -27,7 +39,13 @@ canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
 <progress id="install-progress" max="1" value="0"></progress>
 <p id="data-status" role="status">Checking local storage…</p>
 </section>
-<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+<div id="game-container">
+  <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+  <div id="game-controls" aria-label="Game controls">
+    <button id="game-escape" type="button" aria-label="Send Escape to game" title="Escape / skip cinematic">Esc</button>
+    <button id="game-fullscreen" type="button" aria-label="Enter fullscreen" title="Toggle fullscreen">⛶</button>
+  </div>
+</div>
 <p>Experimental OpenRealm browser runtime. Imported archives are read directly from OPFS through WasmFS. Engine compatibility is experimental.</p>
 </main>
 <script>
@@ -42,6 +60,43 @@ var Module = {
 };
 window.addEventListener('error', function (event) {
   document.getElementById('status').textContent = 'Error: ' + event.message;
+});
+var gameCanvas = document.getElementById('canvas');
+var gameContainer = document.getElementById('game-container');
+var gameFullscreen = document.getElementById('game-fullscreen');
+function sendGameEscape() {
+  gameCanvas.focus();
+  for (var i = 0; i < 2; ++i) {
+    var event = new KeyboardEvent(i ? 'keyup' : 'keydown', {
+      key: 'Escape', code: 'Escape', keyCode: 27, which: 27,
+      bubbles: true, cancelable: true
+    });
+    if (event.keyCode !== 27) {
+      Object.defineProperty(event, 'keyCode', { get: function () { return 27; } });
+      Object.defineProperty(event, 'which', { get: function () { return 27; } });
+    }
+    gameCanvas.dispatchEvent(event);
+  }
+}
+document.getElementById('game-escape').addEventListener('click', function (event) {
+  event.stopPropagation();
+  sendGameEscape();
+});
+gameFullscreen.addEventListener('click', function (event) {
+  event.stopPropagation();
+  if (document.fullscreenElement === gameContainer) {
+    document.exitFullscreen().catch(function () {});
+  } else if (gameContainer.requestFullscreen) {
+    gameContainer.requestFullscreen().catch(function (error) {
+      document.getElementById('status').textContent = 'Fullscreen unavailable: ' + error.message;
+    });
+  }
+});
+document.addEventListener('fullscreenchange', function () {
+  var active = document.fullscreenElement === gameContainer;
+  gameFullscreen.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
+  gameFullscreen.title = active ? 'Exit fullscreen' : 'Toggle fullscreen';
+  window.dispatchEvent(new Event('resize'));
 });
 /* AudioContext is created from the first user gesture for browser autoplay policy.
  * The engine worker supplies shared WASM pointers once S_Init has run. */
