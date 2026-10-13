@@ -26157,3 +26157,111 @@ TEST(wc3_movement, nonfinite313_public_axis_and_placement_scalar_words) {
     }
 }
 #endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_speed314.h"
+static edict_t *speed314_actor;
+static unsigned speed314_commits;
+static uint32_t speed314_actual[8];
+static void speed314_commit(edict_t *unit) {
+    if(unit!=speed314_actor)return;
+    moveGroup_t *group=move_unit_group(unit);
+    if(!group)return;
+    speed314_commits++;
+    uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),
+        wc3_float_bits(unit->s.angle),wc3_float_bits(wc3_div(S_UnitMoveSpeed(unit),32)),
+        wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(wc3_div(group->members[0].speed,32))};
+    memcpy(speed314_actual,actual,sizeof(actual));
+}
+TEST(wc3_movement, speed314_exceptional_public_speed_keeps_motion_and_restoration) {
+    static uint32_t const input[]={0x7fc00001,0x7fa00001,0xffc00001,0x7f800000,0xff800000,0x7f7fffff,0xff7fffff,0};
+    static char const *const modes[]={"foot","fly","amph","hover","float"};
+    static char const *const calls[]={"main","set_speed","move","restore","stop"};
+    FOR_LOOP(test,sizeof(speed314_cases)/sizeof(*speed314_cases)) FOR_LOOP(saved,2) {
+        unsigned mode=speed314_cases[test].mode,scene=speed314_cases[test].scene;
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,mode==4?0x08:0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+        FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=mode==4?7936:8192,.waterlevel=8550,.water=mode==4,.level=2};
+        mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+        float radius=31,height=mode==1?60:0,source=wc3_float(input[scene]);int32_t min=173,max=389;
+        unitModification_t actor_mods[]={
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=(void *)modes[mode]},
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height},
+            {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&min},
+            {.modID=MAKEFOURCC('u','m','a','s'),.type=mod_int,.data=&max}};
+        unitModification_t source_mods[]={
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&source},
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius}};
+        unitData_t types[]={
+            {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','T','A','A'),.numbeOfModifications=5,.modifications=actor_mods},
+            {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','S','A','A'),.numbeOfModifications=2,.modifications=source_mods}};
+        info.num_userCreatedUnits=2;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+        uint32_t const *first=speed314_cases[test].rows[0];
+        level.pathing_clock=(wc3Clock_t){wc3_float(first[2]),first[3],300};level.pathing_counter=first[1];
+        T_ASSERT(run_test_jass("globals\nunit s314=null\nreal v314=0\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal unit source=CreateUnit(Player(0),'hSAA',1800,1800,0)\n"
+            "set v314=GetUnitDefaultFlyHeight(source)\ncall RemoveUnit(source)\nset source=null\n"
+            "set s314=CreateUnit(Player(0),'hTAA',768,512,0)\ncall SetUnitAcquireRange(s314,0)\nendfunction\n"
+            "function set_speed takes nothing returns nothing\ncall SetUnitMoveSpeed(s314,v314)\nendfunction\n"
+            "function move takes nothing returns nothing\ncall IssuePointOrder(s314,\"move\",1280,768)\nendfunction\n"
+            "function restore takes nothing returns nothing\ncall SetUnitMoveSpeed(s314,270)\nendfunction\n"
+            "function stop takes nothing returns nothing\ncall IssueImmediateOrder(s314,\"stop\")\nendfunction\n"));
+        edict_t *unit=NULL;FILTER_EDICTS(e,e->inuse && e->class_id==types[0].newUnitID)unit=e;
+        T_NOT_NULL(unit);bool mismatch=false;unsigned commits=0;
+        if(unit)FOR_LOOP(i,speed314_cases[test].count) {
+            uint32_t const *row=speed314_cases[test].rows[i];unsigned kind=row[0];
+            level.pathing_clock=(wc3Clock_t){wc3_float(row[2]),row[3],300};level.pathing_counter=row[1];
+            if(kind==6) {
+                speed314_actor=unit;speed314_commits=0;move_test_motion_commit=speed314_commit;
+                level.pathing_counter--;level.scheduled_think=true;
+                S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+                move_test_motion_commit=NULL;speed314_actor=NULL;
+                commits++;
+                T_EQ(speed314_commits,1);
+                if(speed314_commits!=1){mismatch=true;break;}
+                FOR_LOOP(k,8) {
+                    if(speed314_actual[k]!=row[k+4]) {
+                        fprintf(stderr,"speed314 mode%u scene%u row%u commit%u engine%08x retail%08x\n",mode,scene,i,k,speed314_actual[k],row[k+4]);
+                        mismatch=true;
+                    }
+                    T_EQ(speed314_actual[k],row[k+4]);
+                }
+            } else {
+                if(kind>0 && kind<5){jass_callbyname(level.vm,calls[kind],false);T_ASSERT(!jass_rterror_pending(level.vm));}
+                S_PublishMovement(unit);
+                uint32_t actual[]={wc3_float_bits(unit->s.origin.x),wc3_float_bits(unit->s.origin.y),
+                    wc3_float_bits(S_UnitMoveSpeed(unit)),wc3_float_bits(S_UnitDefaultMoveSpeed(unit)),unit->current_order_id};
+                FOR_LOOP(k,5) {
+                    if(actual[k]!=row[k+4]) {
+                        fprintf(stderr,"speed314 mode%u scene%u row%u public%u engine%08x retail%08x\n",mode,scene,i,k,actual[k],row[k+4]);
+                        mismatch=true;
+                    }
+                    T_EQ(actual[k],row[k+4]);
+                }
+            }
+            if(saved && (kind==2 || kind==3 || (kind==6 && commits==5))) {
+                unsigned index=unit-g_edicts;cstring_t file=Test_TempPath("wc3-speed314.bin");
+                if(kind==2) {
+                    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+                    if(group) {
+                        float old_speed=group->members[0].speed;
+                        static uint32_t const invalid[]={0x7f800000,0xff800000,0xbf800000};
+                        FOR_LOOP(bad,3) {group->members[0].speed=wc3_float(invalid[bad]);T_ASSERT(!WriteGame(file));}
+                        group->members[0].speed=old_speed;
+                    }
+                }
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+index;
+            }
+            if(mismatch)break;
+        }
+        T_ASSERT(!mismatch);
+        G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+    }
+    setup_test_world();
+}
+#endif

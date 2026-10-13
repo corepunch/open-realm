@@ -89,7 +89,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
  * neutral creep guard state and Wisp tree egress into the Format181 layout.
  * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
 /* Format184 retains inactive fine identities with exact empty coverage. */
-static uint32_t const save_version = 187;
+static uint32_t const save_version = 188;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -2462,10 +2462,11 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
     } else if (group->target_spawn || group->target_refresh || (group->flags&0x1000)) return false;
     FOR_LOOP(i,group->count) {
         moveGroupMember_t const *member=group->members+i;
+        /* Public speed setters can retain NaN; geometry remains strictly finite. */
         if (!isfinite(member->offset.x) || !isfinite(member->offset.y) ||
             !isfinite(member->destination.x) || !isfinite(member->destination.y) ||
             !isfinite(member->world_destination.x) || !isfinite(member->world_destination.y) ||
-            !isfinite(member->speed) || member->speed<0 || !isfinite(member->heading) ||
+            isinf(member->speed) || member->speed<0 || !isfinite(member->heading) ||
             !isfinite(member->arrival_range) || member->arrival_range<0 ||
             *(uint8_t const *)&member->arrived>1 || *(uint8_t const *)&member->in_range>1 ||
             *(uint8_t const *)&member->forced_arrival>1 || *(uint8_t const *)&member->retired>1) return false;

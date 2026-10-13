@@ -2269,3 +2269,15 @@ executable AST differs solely in source-pin validation; numerical logic and
 original-instruction checks must remain identical. The completed native checkpoint
 and421 focused provenance/retail tests retain both the initial8 source-pin errors
 and their repairs in `research/MAP-04.2/payoff287`.
+
+
+Payoff314 adds `oracle-speed314`:15 complete public captures across five movement
+families,4005 literal actor states and2805 physical commits; raw signaling NaN
+preservation, fine speed comparisons, finite restoration and active Save188
+continuation. Two observed repeats and one unhooked control per family retain
+all unrelated native events without claiming their repeat equality. The corpus
+now has550 entries,269 executable oracles; all549 prior entry objects and
+existing frozen retail fixture pins remain unchanged; the mapper pin advances. Focused Classic/TFT validation passes250
+tests/267584 assertions per edition;13 evidence rejection checks pass. This is
+chunk2 after checkpoint312, not a new full-suite checkpoint. See
+[exceptional speed](retail-pathfinding-engine.md#exceptional-public-speed-and-finite-restoration-payoff314).

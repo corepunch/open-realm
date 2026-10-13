@@ -54312,6 +54312,61 @@
         "Terminal states compare committed fine pose only; retail visibility access violations are not reproduced in engine. NUM-03.2 remains open.",
         "No claim of general NaN payload, other movement families, subsequent moving orders or nonreturning lifecycle parity."
       ]
+    },
+    {
+      "id": "oracle-speed314",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_speed314.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "speed314.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 523
+        },
+        "captures": {
+          "equal": 15
+        },
+        "native_events": {
+          "equal": 76012
+        },
+        "public_markers": {
+          "equal": 3855
+        },
+        "states": {
+          "equal": 4005
+        },
+        "commits": {
+          "equal": 2805
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "NUM-03.2:40 public exceptional-speed cases across five movement families,4005 literal actor states/2805 commits; raw signaling payloads, fine cap/facing comparisons, finite restoration, Stop and Save188.",
+      "exclusions": [
+        "Five movement families, eight exceptional/finite-control raw words; isolated public point Move, finite restoration, Stop.",
+        "Actor action/commit repeats are exact; raw unrelated transient mover events are retained but excluded from actor comparison.",
+        "Engine replay supplies observed primary clocks/counters; no claim of full timer cadence, other NaN payloads, effect stacks, shared generations or visibility crash parity. NUM-03.2 remains open."
+      ]
     }
   ],
   "fixtures": [
@@ -55210,7 +55265,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "f89f73861317a97bcf30b2a23b2f437b0c1d5ed6b1d02b60e59429878333a8b1"
+      "sha256": "dd3b1060f856a148fd6985ecc36a1b5c8e536d1beb55753e12147f7bb47c4f30"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56066,7 +56121,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "265dd5471f28bc0f707238d2a302b57555e8751ae0f1d0f38d68e585d3a3c477"
+      "sha256": "53f0dc6abdfaa02ae77f97113c3bd905105e7aefe99e7bda86bc4bae21564fcc"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -56502,7 +56557,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "0121241bd17ef3690506b86b794f1bf170906c42b7db9de54c3292df12b62e83"
+      "sha256": "38a9716c5ed82454886bae442d6c8b4edf48efe97eb24ab7175c54baee10abbc"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -56758,7 +56813,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "208b1c055befc6452b2751e2847c516f41a350dbaf7505126f5d6bd0a1c5b73c"
+      "sha256": "849e82092acd542a3f2ab38128bf98b3fe433b53140b7409df74872a0237fe07"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -57002,7 +57057,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "ffa07632cf67d438df476badd53eb5fa5855a2ce801fad6321631c6725851aa5"
+      "sha256": "33707ded60c8c27e2be2744f79d6790291d095df4ba8955515de8469c7e6e0c6"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57010,15 +57065,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "edb6ee84a88737a59f22fbbc67f0109643e691131a5f820f07fb1360cf0c3de6"
+      "sha256": "cb7218ed84f58248321bde753a73e18e9b885203fd71bc01bbaaac4cbfe195ba"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "41a0a5d1408266a820c9662edc70fea403f7ef4ca94cd7eabec9e81b1cce9204"
+      "sha256": "1370aaadfa5166a04e898c767273ee258602b12714d16a393165b87061041b12"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "4fbad242f3adcd0ceef7ddbff42ab7d5578f77d6da593ed1d11a2f6f6a4e8d67"
+      "sha256": "d2e89c20ce139c1e1e5124aab4b404a83e35273715044487bbea01e276b53675"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -62018,7 +62073,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "f8d51482d94d0384fa8fdaa6bed6ceb6d4b3f104708ec03d3f4dfd2a06b3b45f"
+      "sha256": "872e6b876fbcf110d15803018ffd71e52e0fbac6e2454622e9bf060ea668b7a2"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -62999,6 +63054,46 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_nonfinite313.py",
       "sha256": "2001a69cfad4dcaa70ad89c04d9fa3cb8d42619c9d495604550afea3a30312bb"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_speed314.h",
+      "sha256": "4a0979ad01ea7c2e7036fa399983e4957619e05e421e537949a0c23ee69c29c7"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_speed314.py",
+      "sha256": "3e9d1d577c81e358d2cef72eeeabc18687035bee0c9d26b612b066b706dd9b6c"
+    },
+    {
+      "path": "tools/frida/research/speed314_capture.py",
+      "sha256": "92f4a7fa7750fc4ec480d4002e9d22a05c9a45f92b238723951a98b68508a9d0"
+    },
+    {
+      "path": "tools/frida/research/speed314_make_map.py",
+      "sha256": "7448e447ce7acadc9072e9397148448315d707a894fb4cb70aa6f8d0e4da0af4"
+    },
+    {
+      "path": "tools/frida/research/speed314_observer.js",
+      "sha256": "451fb06180da4b74cb9f5c161e258b947bf920970b042fba5e8ce90a40968184"
+    },
+    {
+      "path": "tools/frida/research/speed314_probe.j",
+      "sha256": "ffb9ef95a49e111889cbcd63cb380e3fe56ccb2ed36e73081c99b86c95368183"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-speed314-1.27.json",
+      "sha256": "8aeb3e5d063184b1a73a0d0c9e32f57ab9b2c14767da931c105decfa67193bde"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-speed314-1.27.json.gz",
+      "sha256": "7700ae30c6fcc28c542575f1bd9ce9bd468d219fbd648b721fada34eecc35337"
+    },
+    {
+      "path": "tools/ghidra/research/Speed314Evidence.java",
+      "sha256": "25ab4e621addb202a3e897c1b9ac965950e43eefb84ecde0da8f214bd601c036"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_speed314.py",
+      "sha256": "f81d79112bbe4bd7b897bfd2cbe5b60c17c8f25e3f112a150d119eb349e2f895"
     }
   ]
 }

@@ -2548,7 +2548,7 @@ static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
     self->movement.velocity = (vec2_t){v->vel[0], v->vel[1]};
     float grid_x = wc3_mul(v->vel[0], wc3_float(0x3d000000));
     float grid_y = wc3_mul(v->vel[1], wc3_float(0x3d000000));
-    self->s.angle = v->speed > 0 ? wc3_velocity_heading(grid_x, grid_y, self->s.angle) : wc3_facing_angle(v->heading);
+    self->s.angle = wc3_mul(v->speed,1.0f/32) > 0 ? wc3_velocity_heading(grid_x, grid_y, self->s.angle) : wc3_facing_angle(v->heading);
     unit_commit_pose(self, &step->pose);
     G_UnitRegionPositionChanged(self,&self->s.origin2);
     if (self->movement.route_resume_active && self->movement.route_resume_goal &&
@@ -4236,13 +4236,13 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     speed = wc3_add(speed, bonus);
     uint32_t level = G_QueryUnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
-    speed *= 1.0f + S_UnholyMoveBonus(ent);
+    speed = wc3_mul(speed, 1.0f + S_UnholyMoveBonus(ent));
     speed = wc3_mul(speed, wc3_add(1, S_BloodlustMoveBonus(ent)));
     speed = wc3_mul(speed, S_HumanMoveFactor(ent));
-    speed *= 1.0f - S_CrippleMoveReduction(ent);
+    speed = wc3_mul(speed, 1.0f - S_CrippleMoveReduction(ent));
     speed = unit_apply_earthquake_speed(ent, speed);
-    speed *= 1.0f - S_PurgeMoveReduction(ent);
-    speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
+    speed = wc3_mul(speed, 1.0f - S_PurgeMoveReduction(ent));
+    speed = wc3_mul(speed, 1.0f - S_SlowPoisonMoveReduction(ent));
     /* Retail Banish slows movement by 50%; other ethereal sources need not. */
     if (S_UnitHasStatus(ent, MAKEFOURCC('B','H','b','n'))) speed *= 0.5f;
     speed=S_ApplyEnduranceMoveSpeed(ent,speed);
@@ -6467,17 +6467,20 @@ static void move_run_group_updates(void) {
         FOR_LOOP(i,group->count) if ((move_deciding_excluded&(1u<<i)) && group->members[i].speed>0)
             group->members[i].flags|=0x100000;
         move_deciding_group=NULL; move_deciding_excluded=0;
-        float cap=FLT_MAX; bool share=!(group->flags&8);
+        float cap=FLT_MAX, fine_cap=FLT_MAX; bool share=!(group->flags&8);
         FOR_LOOP(i,group->count) {
             moveGroupMember_t const *member=group->members+i;
             if ((member->flags&0x210000) || member->unit->attack_speed_cap.active) share=false;
             float speed=unit_effective_speed(member->unit);
-            if (!(member->flags&0x200000) && speed<cap) cap=speed;
+            /*16b060 compares the published fine scalar, including exceptional public speeds. */
+            float fine_speed=wc3_mul(speed,1.0f/32);
+            if (!(member->flags&0x200000) && fine_speed<fine_cap) {cap=speed;fine_cap=fine_speed;}
         }
         moveShared_t *shared=move_group_shared(group);
         if (shared && share) {
-            shared->next_speed=MIN(shared->next_speed,cap);
-            if (shared->speed!=FLT_MAX) cap=shared->speed;
+            float next=shared->next_speed==FLT_MAX ? FLT_MAX : wc3_mul(shared->next_speed,1.0f/32);
+            if(fine_cap<next)shared->next_speed=cap;
+            if (shared->speed!=FLT_MAX) {cap=shared->speed;fine_cap=wc3_mul(cap,1.0f/32);}
         }
         MOVE_OWNER_PHASE(MOVE_PHASE_COMMIT,group->id);
         moveGroupMember_t *finished[BZ_WC3_GROUP_ORDER_UNITS]; uint32_t count=0;
@@ -6487,13 +6490,13 @@ static void move_run_group_updates(void) {
             cstring_t animation=member->speed>0 ? "walk" : "stand";
             if (!G_AnimationHasPrimary(unit->animation,animation)) unit_setanimation(unit,animation);
             moveStep_t step={.velocity={.vel={unit->movement.velocity.x,unit->movement.velocity.y},
-                .speed=share ? MIN(member->speed,cap) : member->speed,.heading=member->heading,.limit=unit_effective_speed(unit)}};
+                .speed=share && !(wc3_mul(member->speed,1.0f/32)<fine_cap) ? cap : member->speed,.heading=member->heading,.limit=unit_effective_speed(unit)}};
             unit_grid_pose(unit,&step.pose);
             float old[2]={unit->movement.velocity.x,unit->movement.velocity.y};
             wc3_grid_step(&step.pose,old,unit->movement.clock_valid ? wc3_elapsed(&level.pathing_clock,&unit->movement.pose_clock) : 0);
             if ((group->flags&0x800) && group->target && !group->unseen_counter) {
                 wc3GroupSpeed_t speed={.requested=wc3_mul(member->speed,1.0f/32),
-                    .cap=share ? wc3_mul(cap,1.0f/32) : FLT_MAX,
+                    .cap=share ? fine_cap : FLT_MAX,
                     .flags=group->flags,.target=true,
                     .source={step.pose.grid[0],step.pose.grid[1]},
                     .destination={sampled.x,sampled.y},.arrival_range=member->arrival_range,

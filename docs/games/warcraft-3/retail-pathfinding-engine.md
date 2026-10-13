@@ -19404,3 +19404,60 @@ python3 tests/test_wc3_pathfinding_nonfinite313.py
 ```
 
 Archive: `research/NUM-03.2/payoff313` under the external pathfinding reports.
+
+
+## Exceptional public speed and finite restoration (Payoff314)
+
+NUM-03.2 remains open. Actual W3U `umvh` cells supply
+`7fc00001`, `7fa00001`, `ffc00001`, `7f800000`, `ff800000`,
+`7f7fffff`, `ff7fffff` and zero through `GetUnitDefaultFlyHeight`.
+A separate source unit avoids contaminating actor altitude. The actor uses
+radius31 and authored minimum173/maximum389. Each scene calls the public
+speed setter, point Move, finite270 restoration, then Stop. All five movement
+families (foot/fly/amph/hover/float) run; float uses shallow walkable water.
+
+Two read-only Frida repeats and one unhooked control per family match all257
+public markers. The frozen15 captures retain76012 native events and3855 public
+markers. Exact scoped actor streams contain4005 states, including2805 physical
+commits. Unrelated transient mover events are retained in raw evidence but do
+not repeat identically and are excluded from actor comparison. JASS decimal
+printing and NaN comparisons are unsuitable raw-word oracles; native getters
+provide the literal words. The initial discovery capture is not acceptance evidence.
+
+`5fc900` uses software Add/Multiply before unordered-preserving profile clamps.
+Hardware multiplication by identity quieted the signaling NaN in the engine.
+`16b060`/`16b5c0` compare fine speeds, not world values: software conversion
+turns the NaN words into finite scalars. `16fe20` tests that fine request before
+choosing velocity-derived versus explicit facing. Negative NaN therefore commits
+the supplied heading while stationary; positive NaNs retain velocity-derived
+heading. NaN cases keep Move active and resume after finite restoration.
+Infinity/extreme inputs clamp to the authored bounds.
+
+The failing-first regression recorded50 failures across40 cases. Corrections use
+software multiplication for previously unconditional hardware speed factors,
+fine cap selection, and fine-speed facing tests. Geometry validation remains
+finite. Save188 admits retained NaN member speed while rejecting infinity and
+negative finite speed; saves immediately after Move, after five commits, and
+after finite restoration reproduce the remaining literal timeline. The test
+samples the real motion-commit callback before arrival unlinks the group.
+Network layout is unchanged; prior save versions are rejected.
+
+The engine replay supplies observed primary clock/counter values and exercises
+actual JASS, physical owners, publication and save/load. It does not establish
+full timer scheduling parity, arbitrary NaN payloads, effect stacks, exceptional
+shared generations or the visibility crashes recorded in Payoff313. Existing
+retail fixtures are unchanged. Seven Ghidra function annotations and523 original
+instruction guards are saved and read back; `MapPathfinding.java` carries the
+same findings.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_speed314.py \
+  --binary /path/to/supported/game.dll --report /tmp/speed314-fresh.json
+python3 tests/test_wc3_pathfinding_speed314.py
+```
+
+The verifier requires every family, original producer/setter words, complete
+native sequence/count accounting, repeated actor timelines, unhooked controls,
+source hashes and the generated literal C fixture. Raw maps/captures, failing
+and passing reports, and Ghidra readback are archived under
+`research/NUM-03.2/payoff314` in the external analysis tree.

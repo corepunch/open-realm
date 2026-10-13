@@ -1714,3 +1714,14 @@ retain explicitly supplied geometry. Cold load restores the publication flag
 before rebuilding fine/proximity indexes. The numeric312 regression saves80
 finite producer scenes and resumes exact retail scalar states. Earlier save
 versions are rejected; no migration or network-format change is introduced.
+
+
+### Exceptional public speed (Save188)
+
+Public `SetUnitMoveSpeed` may retain a NaN word in a physical Move member.
+Save188 permits that scalar while retaining rejection of infinite/negative
+finite speeds and nonfinite geometry. The binary layout is unchanged, but the
+accepted value contract changed; prior versions are rejected. Payoff314 tests
+cold continuation immediately after Move, during exceptional motion and after
+finite restoration across five movement families. See
+[exceptional speed](retail-pathfinding-engine.md#exceptional-public-speed-and-finite-restoration-payoff314).
