@@ -248,3 +248,17 @@ texture formats, and non-browser rendering behavior are unchanged.
 The change avoids needing to increase the default pthread stack solely for
 these temporary images. Recheck browser startup after shader loading; other
 large local buffers might still need their own targeted fixes.
+
+### Browser sound initialization (temporary limitation)
+
+The browser executable uses `PROXY_TO_PTHREAD`, placing engine startup on a
+worker. SDL 2's Emscripten audio device setup currently accesses JavaScript
+`audioContext` state that is unavailable in that worker and throws before
+client initialization completes. For now `S_Init` declines to initialize audio
+on Emscripten and preserves the normal uninitialized-sound guards. The native
+SDL audio path remains unchanged. Browser playback is intentionally silent.
+
+Restore browser sound with a dedicated browser audio adapter or a verified
+main-thread initialization and mixing bridge; do not call the standard SDL
+Emscripten audio device opener from the engine worker. Verify the next browser
+startup stage with both debug and release builds.

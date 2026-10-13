@@ -578,6 +578,13 @@ void S_TestMix(int16_t *out, uint32_t frames) { S_MixAudio(NULL, (Uint8 *)out, f
 
 bool S_Init(void) {
     memset(&s, 0, sizeof(s));
+#ifdef __EMSCRIPTEN__
+    /* SDL's Emscripten audio backend accesses main-thread JS audio state when
+     * OpenAudioDevice is called on the PROXY_TO_PTHREAD engine worker. Until
+     * browser audio has an explicit main-thread bridge, leave sound disabled.
+     * All playback entry points already reject !s.initialized. */
+    return false;
+#endif
     if (SDL_Init(SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "[sound] SDL_Init: %s\n", SDL_GetError());
         return false;
