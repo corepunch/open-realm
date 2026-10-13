@@ -28,6 +28,16 @@ typedef struct {
 The `type` field is the only routing key.  `ip` and `port` are only
 inspected when `type` is `NA_IP` or `NA_BROADCAST`.
 
+## Out-of-band packet buffer lifetime
+
+`Netchan_OutOfBand` builds a packet with a four-byte marker followed by the
+payload. Its temporary packet storage is sized to the exact payload and
+allocated on the heap, rather than reserving `MAX_MSGLEN` (256 KiB) on the
+caller's stack. The payload must fit within `MAX_MSGLEN - 4`; packets outside
+that limit or whose buffer cannot be allocated are not transmitted. This
+matters especially for the WebAssembly engine thread's limited stack during
+listen-server startup; the packet layout and routing remain unchanged.
+
 ## Loopback (listen-server / single-process)
 
 When the executable starts with `+map` it runs both the server and the local
