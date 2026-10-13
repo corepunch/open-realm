@@ -137,3 +137,16 @@ compiling game and menu; `GetGameAPI` and `M_GetAPI` are not renamed.
 it is now compiled exactly once as `wc3_common.o`, rather than being
 repeated in both game and menu objects. `world_w3.c` remains owned by
 the engine object. These decisions do not change native shared libraries.
+
+### WASM FDF parser symbol ownership
+
+The Warcraft III game and menu are separately linked native modules and
+independently instantiate `stb_fdf.h` with `STB_FDF_IMPLEMENTATION` and
+`STB_FDF_GLOBALS`. The parser uses module-specific `UI_*` callbacks and
+separate `frames` and `strings` registries. Both instances must remain
+independent in the static WASM binary. `port/web/src/web_fdf_namespace.h`
+renames the parser functions, enum tables and state together with the UI
+helpers for the game/menu unity objects. It is deliberately not applied to
+the universal engine or native builds. Sharing one complete FDF parser between
+game and menu would incorrectly bind its state and host callbacks to one
+module.

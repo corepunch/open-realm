@@ -13,6 +13,44 @@
 #else
 #define BZ_WEB_FDF_NAME(sym) WC3Menu_##sym
 #endif
+/* stb_fdf.h's implementation also exports lexer/parser helpers and enum
+ * tables. These depend on module-local callbacks and frame registries, so
+ * they must follow the same module namespace as UI_* and frames.
+ * A single shared parser implementation would bind menu parsing to game
+ * callbacks and corrupt module ownership. */
+#define strings BZ_WEB_FDF_NAME(strings)
+#define FDF_ParseEnumString BZ_WEB_FDF_NAME(FDF_ParseEnumString)
+#define FDF_ParseFrame BZ_WEB_FDF_NAME(FDF_ParseFrame)
+#define FDF_ParseScene BZ_WEB_FDF_NAME(FDF_ParseScene)
+#define FrameType BZ_WEB_FDF_NAME(FrameType)
+#define HighlightType BZ_WEB_FDF_NAME(HighlightType)
+#define AlphaMode BZ_WEB_FDF_NAME(AlphaMode)
+#define FontJustificationH BZ_WEB_FDF_NAME(FontJustificationH)
+#define FontJustificationV BZ_WEB_FDF_NAME(FontJustificationV)
+#define FramePointType BZ_WEB_FDF_NAME(FramePointType)
+#define FontFlags BZ_WEB_FDF_NAME(FontFlags)
+#define ControlStyle BZ_WEB_FDF_NAME(ControlStyle)
+#define CornerFlags BZ_WEB_FDF_NAME(CornerFlags)
+#define FDF_ParseFloat BZ_WEB_FDF_NAME(FDF_ParseFloat)
+#define FDF_ParseInteger BZ_WEB_FDF_NAME(FDF_ParseInteger)
+#define FDF_ParseVector2 BZ_WEB_FDF_NAME(FDF_ParseVector2)
+#define FDF_ParseVector3 BZ_WEB_FDF_NAME(FDF_ParseVector3)
+#define FDF_ParseVector4 BZ_WEB_FDF_NAME(FDF_ParseVector4)
+#define FDF_ParseColor BZ_WEB_FDF_NAME(FDF_ParseColor)
+#define FDF_ParseFramePtr BZ_WEB_FDF_NAME(FDF_ParseFramePtr)
+#define FDF_ParseName BZ_WEB_FDF_NAME(FDF_ParseName)
+#define FDF_ParseButtonText BZ_WEB_FDF_NAME(FDF_ParseButtonText)
+#define FDF_ParseText BZ_WEB_FDF_NAME(FDF_ParseText)
+#define FDF_ParseAlphaMode BZ_WEB_FDF_NAME(FDF_ParseAlphaMode)
+#define FDF_ParseFontJustificationH BZ_WEB_FDF_NAME(FDF_ParseFontJustificationH)
+#define FDF_ParseFontJustificationV BZ_WEB_FDF_NAME(FDF_ParseFontJustificationV)
+#define FDF_ParseHighlightType BZ_WEB_FDF_NAME(FDF_ParseHighlightType)
+#define FDF_ParseFontFlags BZ_WEB_FDF_NAME(FDF_ParseFontFlags)
+#define FDF_ParseFramePointType BZ_WEB_FDF_NAME(FDF_ParseFramePointType)
+#define FDF_ParseCornerFlags BZ_WEB_FDF_NAME(FDF_ParseCornerFlags)
+#define FDF_ParseControlStyle BZ_WEB_FDF_NAME(FDF_ParseControlStyle)
+#define FDF_ParseTextureFile BZ_WEB_FDF_NAME(FDF_ParseTextureFile)
+#define FDF_ParseModelPath BZ_WEB_FDF_NAME(FDF_ParseModelPath)
 #define Theme_Float BZ_WEB_FDF_NAME(Theme_Float)
 #define Theme_String BZ_WEB_FDF_NAME(Theme_String)
 #define UI_AddStringListItem BZ_WEB_FDF_NAME(UI_AddStringListItem)

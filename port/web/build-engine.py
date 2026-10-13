@@ -82,6 +82,10 @@ def main():
         unit = out / (name + "_unity.c")
         unity(unit, sorted(set(files)))
         obj = out / (name + ".o")
+        # The WC3 game and menu are separate native libraries with independent
+        # FDF parser state/callbacks. The static WASM link must preserve both
+        # instances under distinct symbol namespaces. Only the engine has its
+        # own unrelated FDF implementation.
         extra = ["-DSTB_FDF_IMPLEMENTATION", "-DSTB_FDF_GLOBALS"] if name in ("game", "menu", "engine") else []
         if name == "engine":
             extra.append("-DBZ_CLIENT_WORLD")
