@@ -20,6 +20,8 @@ static void ScoreScreenUseSprite(frameDef_t *frame) {
     UI_SetHidden(frame, false);
 }
 
+static cstring_t ScoreScreenRaceArt(gameClient_t *viewer);
+
 static color32_t ScoreScreenPlayerColor(uint32_t player_color) {
     /* Same stock player palette used by the in-game multiboard. The subdued
      * translucent banner tint is a PRESENTATION GUESS, not a retail formula. */
@@ -214,12 +216,23 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab,
     frameDef_t *selected = score->ScoreScreenTabTextSelected;
     cstring_t label;
 
-    UI_SetText(score->ScoreScreenBackground, "%s",
+    UI_SetText(score->ScoreScreenBackground, "#!%s",
                tab >= 2 ? "Scorescreen-5Button" : "Scorescreen-4Button");
-    snprintf(anim, sizeof(anim), "Tab%u", (unsigned)tab + 1);
+    snprintf(anim, sizeof(anim), "#!Tab%u", (unsigned)tab + 1);
     UI_SetText(score->ScoreScreenPageTab, "%s", anim);
-    score->ScoreScreenRaceArt->Portrait.model = UI_LoadModel(ScoreScreenRaceArt(viewer), false);
-    UI_SetText(score->ScoreScreenRaceArt, "Stand");
+    {
+        cstring_t art = ScoreScreenRaceArt(viewer);
+        uint32_t model = UI_LoadModel(art, false);
+        score->ScoreScreenRaceArt->Portrait.model = model;
+        G_GameResultDebug("score art select player=%u race=%u expansion=%u path=%s model_index=%u frame=%p size=(%.4f,%.4f)",
+            viewer ? (unsigned)viewer->ps.number : UINT32_MAX,
+            viewer ? (unsigned)viewer->ps.race : 0,
+            (unsigned)(atoi(gi.CvarString("fs_expansion", "0")) != 0),
+            art ? art : "(null)", (unsigned)model,
+            (void *)score->ScoreScreenRaceArt,
+            score->ScoreScreenRaceArt->Width, score->ScoreScreenRaceArt->Height);
+    }
+    UI_SetText(score->ScoreScreenRaceArt, "#!Stand");
     snprintf(anim, sizeof(anim), "TeamColor%02u Stand", (unsigned)(viewer->ps.color % 12));
     UI_SetText(score->ScoreScreenBarTop, "%s", anim);
 
@@ -296,6 +309,40 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
     start = MIN(scroll, max_scroll);
     WC3_ScoreOrderedPlayers(snapshot, tab, view, order);
     ScoreScreenSetPage(ent->client, tab, view);
+
+    /* Log every player's displayed values, including rows outside the current
+     * viewport. This records the frozen snapshot projection, not live entities. */
+    if (G_GameResultDebugEnabled()) {
+        static cstring_t const pages[] = { "overview", "units", "heroes", "resources" };
+        FOR_LOOP(i, snapshot->count) {
+            wc3ScorePlayerSnapshot_t const *player = &snapshot->players[i];
+            G_GameResultDebug("score values page=%s tab=%u snapshot_row=%u display_row=%u player=%u name=\"%s\" team=%u race=%u",
+                pages[tab], (unsigned)tab, (unsigned)i,
+                (unsigned)(start + i), (unsigned)player->number, player->name,
+                (unsigned)player->team, (unsigned)player->race);
+            FOR_LOOP(c, WC3_ScoreColumns(tab)) {
+                int32_t value = 0;
+                bool percent = false;
+                bool const known = WC3_ScoreCellValue(player, tab, c, &value, &percent);
+                G_GameResultDebug("score cell page=%s player=%u col=%u available=%u value=%s%d",
+                    pages[tab], (unsigned)player->number, (unsigned)c,
+                    (unsigned)known, percent ? "%" : "", known ? value : 0);
+            }
+            G_GameResultDebug("score raw player=%u trained=%d killed=%d built=%d razed=%d tech_pct=%d heroes_killed=%d items=%d mercs=%d gold_mined=%d lumber=%d gold_upkeep_lost=%d",
+                (unsigned)player->number,
+                player->values[WC3_PLAYER_SCORE_UNITS_TRAINED],
+                player->values[WC3_PLAYER_SCORE_UNITS_KILLED],
+                player->values[WC3_PLAYER_SCORE_STRUCT_BUILT],
+                player->values[WC3_PLAYER_SCORE_STRUCT_RAZED],
+                player->values[WC3_PLAYER_SCORE_TECH_PERCENT],
+                player->values[WC3_PLAYER_SCORE_HEROES_KILLED],
+                player->values[WC3_PLAYER_SCORE_ITEMS_GAINED],
+                player->values[WC3_PLAYER_SCORE_MERCS_HIRED],
+                player->values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL],
+                player->values[WC3_PLAYER_SCORE_LUMBER_TOTAL],
+                player->values[WC3_PLAYER_SCORE_GOLD_LOST_UPKEEP]);
+        }
+    }
 
     /* Snapshot peaks are recomputed for each tab and include hidden rows.
      * Scores are never recalculated from current/possibly removed entities. */
