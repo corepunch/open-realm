@@ -155,6 +155,18 @@ the universal engine or native builds. Sharing one complete FDF parser between
 game and menu would incorrectly bind its state and host callbacks to one
 module.
 
+### Text batching and the browser thread stack
+
+A symbolized main-menu frame crash reached `process_text` through
+`R_DrawText` and `R_GetTextSize` after the renderer and UI had initialized.
+The previous `textBatch_t` included 1,020 vertices as a local variable even
+while measuring text (when no drawing or batching occurs). Nested alignment
+measurement therefore placed unnecessarily large vertex arrays on the limited
+WebAssembly engine pthread stack. The renderer now allocates the batch through
+`ri.MemAlloc` only for drawing, flushes it, and frees it before returning.
+Measurement still uses the same positioning and glyph-advance logic without
+allocating a batch. Native rendering and text output should remain unchanged.
+
 ### Renderer on the browser engine worker
 
 The browser build uses `PROXY_TO_PTHREAD` for OPFS, but SDL creates its GL
