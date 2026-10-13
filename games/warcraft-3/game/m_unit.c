@@ -2444,6 +2444,7 @@ static void G_HeroSetXPInternal(edict_t *ent, uint32_t xp, bool count_score) {
         ent->s.player, ent->class_id, ent->s.number, ent->hero.xp, xp,
         ent->hero.level, (unsigned)count_score);
     if (count_score) G_PlayerScoreExperienceGained(ent, xp - ent->hero.xp);
+    else ent->score_level_xp = (uint32_t)MIN((uint64_t)ent->score_level_xp + xp - ent->hero.xp, (uint64_t)INT32_MAX);
     ent->hero.xp = xp;
     newLevel = G_HeroLevelForXP(xp);
     if (newLevel > oldLevel) {

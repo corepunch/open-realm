@@ -294,3 +294,17 @@ unit creation, food deltas/peaks, hero creation and XP changes, and provisional
 tech numerators/denominators are logged. These events can be verbose on maps
 with large armies. No mission-specific correction is applied to Largest Army,
 Heroes Used, XP or Tech Percentage without verified causality.
+
+### Score startup and scripted hero XP attribution (follow-on)
+
+The map-setup food peak is provisional until the first connected client begins
+play; on frame zero, each map participant's score-only Largest Army baseline
+is reset to its current authoritative food usage. This leaves gameplay food
+accounting unchanged, and subsequent food peaks still accumulate normally.
+Scripted `SetHeroLevel` XP is retained on the hero entity (including across
+ownership transfers) and is added to the outgoing score for its **current**
+owner. Ordinary earned XP remains event-attributed. This approximates the
+UndeadX07c retail 500 versus the temporary neutral hero's 4700 without map
+name/hero ID special cases; other campaign hero restoration rules need checks.
+The new entity field requires save version 93. Unit cost values and technology
+percentage remain provisional pending further retail evidence.

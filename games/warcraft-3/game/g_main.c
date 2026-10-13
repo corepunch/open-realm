@@ -101,9 +101,9 @@ static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
      * through paths that bypass the production hook. Only with result debug. */
     if (G_GameResultDebugEnabled()) {
         FILTER_EDICTS(ent, ent->inuse && G_UnitIsHero(ent)) {
-            G_GameResultDebug("score hero audit owner=%u rawcode=%08x entity=%u level=%u xp=%u dead=%u",
+            G_GameResultDebug("score hero audit owner=%u rawcode=%08x entity=%u level=%u xp=%u scripted_xp=%u dead=%u",
                 ent->s.player, ent->class_id, ent->s.number, ent->hero.level, ent->hero.xp,
-                (unsigned)((ent->svflags & SVF_DEADMONSTER) != 0));
+                ent->score_level_xp, (unsigned)((ent->svflags & SVF_DEADMONSTER) != 0));
         }
     }
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_PLAYERS)) {
@@ -120,7 +120,8 @@ static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
         entry->team = client->ps.team;
         entry->color = client->ps.color;
         entry->heroes_used = client->score.heroes_used;
-        entry->experience_gained = client->score.experience_gained;
+        entry->experience_gained = (uint32_t)MIN((uint64_t)client->score.experience_gained +
+            G_PlayerScoreScriptedXP(number), (uint64_t)INT32_MAX);
         strlcpy(entry->name,
                 client->jass.name[0] ? client->jass.name :
                 (client->ps.name && *client->ps.name ? client->ps.name : "Player"),
@@ -1884,6 +1885,19 @@ static void G_ClientBegin(edict_t *edict) {
     UI_JassDialogRestore(edict);
 
     G_AccumulatePlayerFood(client);
+    /* Map loading may provision armies subsequently removed by config/main.
+     * Largest Army begins at the first playable frame, without disturbing
+     * the authoritative food totals or any future gameplay peak. */
+    if (level.framenum == 0) {
+        FOR_LOOP(i, MAX_PLAYERS) {
+            gameClient_t *participant = game.clients + i;
+            if (!participant->mapplayer || !participant->mapplayer->used) continue;
+            participant->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] =
+                participant->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+            G_GameResultDebug("score food gameplay baseline player=%u food=%u",
+                participant->ps.number, participant->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED]);
+        }
+    }
     /* Invalidate cache so the initial resource bar write always fires. */
     client->resourcebar.gold = -1;
     G_RefreshResourceBar(edict);

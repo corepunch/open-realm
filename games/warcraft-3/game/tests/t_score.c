@@ -325,3 +325,20 @@ TEST(wc3_score, score_sort_unavailable_values_last_and_groups_teams) {
 }
 
 #endif
+
+TEST(wc3_score, scripted_level_xp_follows_current_hero_owner) {
+    edict_t *kept;
+    edict_t *transferred;
+    setup_test_world();
+    kept = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    transferred = alloc_test_unit(MAKEFOURCC('H','b','l','m'), 64.0f, 0.0f);
+    kept->s.player = transferred->s.player = 0;
+    kept->hero.level = transferred->hero.level = 1;
+    G_HeroSetXPForLevel(kept, G_HeroXPForLevel(3));
+    G_HeroSetXPForLevel(transferred, G_HeroXPForLevel(7));
+    T_EQ(G_PlayerScoreScriptedXP(0), G_HeroXPForLevel(3) + G_HeroXPForLevel(7));
+    transferred->s.player = 15;
+    T_EQ(G_PlayerScoreScriptedXP(0), G_HeroXPForLevel(3));
+    T_EQ(G_PlayerScoreScriptedXP(15), G_HeroXPForLevel(7));
+    T_EQ(game.clients[0].score.experience_gained, 0);
+}

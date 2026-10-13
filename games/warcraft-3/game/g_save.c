@@ -120,7 +120,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 90 persists authoritative Warcraft player-score counters in GAMECLIENT. */
 /* Version 91 tracks per-player hero usage/experience and explicit score row settings. */
 /* Version 92 adds per-unit cost-weighted score totals to GAMECLIENT. */
-static uint32_t const save_version = 92;
+/* Version 93 adds per-hero scripted XP score attribution to EDICT. */
+static uint32_t const save_version = 93;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -932,6 +933,7 @@ field_t edict_fields[] = {
     F(edict_s, attack1, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, attack2, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
+    F(edict_s, score_level_xp, F_INT),
     F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),

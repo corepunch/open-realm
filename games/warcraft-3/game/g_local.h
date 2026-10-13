@@ -1911,6 +1911,8 @@ struct edict_s {
     stock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
     doodadHero_t hero;
+    /* XP supplied by scripted level assignments, retained with the hero when ownership changes. */
+    uint32_t score_level_xp;
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
@@ -3029,6 +3031,7 @@ void G_PlayerScoreObserveFood(gameClient_t *client);
 void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state);
 void G_PlayerScoreUnitTrained(edict_t *unit);
 void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount);
+uint32_t G_PlayerScoreScriptedXP(uint32_t player);
 bool G_ScorePlayerEligible(gameClient_t const *client);
 void G_PlayerScoreStructureBuilt(edict_t *building);
 void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker);

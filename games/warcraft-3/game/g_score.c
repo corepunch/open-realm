@@ -95,6 +95,18 @@ void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount) {
         (uint64_t)client->score.experience_gained + amount, (uint64_t)INT32_MAX);
 }
 
+/* Scripted level awards follow the hero's *current* owner, not its
+ * temporary creation owner. Campaign setup frequently creates a hero for
+ * Player(0), levels it, then transfers it to neutral. Only the retained
+ * player's heroes contribute that scripted starting XP. */
+uint32_t G_PlayerScoreScriptedXP(uint32_t player) {
+    uint64_t total = 0;
+    FILTER_EDICTS(ent, ent->inuse && G_UnitIsHero(ent) && ent->s.player == player) {
+        total += ent->score_level_xp;
+    }
+    return (uint32_t)MIN(total, (uint64_t)INT32_MAX);
+}
+
 /* Honor explicit SetPlayerOnScoreScreen(false) without requiring another
  * player to explicitly opt in. Retail campaigns use negative overrides.
  * Without an override, standard human/computer participants are eligible;
@@ -217,7 +229,8 @@ bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *
      * 10x experience contribution. Other Hero weights remain unverified. */
     heroes = (uint64_t)s[WC3_PLAYER_SCORE_HEROES_KILLED] * 100u +
              (uint64_t)s[WC3_PLAYER_SCORE_ITEMS_GAINED] * 10u +
-             (uint64_t)client->score.experience_gained * 10u;
+             (uint64_t)(client->score.experience_gained +
+                 (uint64_t)G_PlayerScoreScriptedXP(client->ps.number)) * 10u;
     /* GUESS: 10 gold or 5 lumber gathered = 1 score point, ignoring
      * transfers until their authoritative transaction callbacks exist. */
     resources = s[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] / 10u +
