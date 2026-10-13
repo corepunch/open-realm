@@ -3312,7 +3312,7 @@ void UI_LoadHudLeaderboards(void);
 void UI_WriteLeaderboard(edict_t *ent);
 void UI_WriteLoadingLayout(edict_t *ent, mapInfo_t const *info);
 void UI_ParseFDF(cstring_t);
-void UI_ParseFDF_Buffer(cstring_t, string_t);
+bool UI_ParseFDF_Buffer(cstring_t, string_t);
 void UI_SetAllPoints(frameDef_t *);
 void UI_SetParent(frameDef_t *, frameDef_t const *);
 void UI_SetText(frameDef_t *, cstring_t, ...);

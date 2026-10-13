@@ -1438,7 +1438,14 @@ void G_RequestQuitGame(void) {
         : "menu_main";
 
     G_GameResultDebug("quit map=%s sp=%u target=%s", map ? map : "(null)", (unsigned)single, target);
-    gi.MenuAction("menu", target);
+    /* Retail campaign Quit Mission presents the outgoing scores before
+     * returning to campaign selection. Do not bypass the deferred controller;
+     * a missing/invalid FDF still falls through to the destination safely.
+     * Exit Program and non-campaign quit are deliberately separate paths. */
+    if (single && G_IsCampaignMapPath(map))
+        G_QueueScoreTransition("menu", target);
+    else
+        gi.MenuAction("menu", target);
 }
 
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {

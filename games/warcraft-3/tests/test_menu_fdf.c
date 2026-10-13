@@ -109,6 +109,35 @@ static int require_not_null(void const *ptr) {
     return ptr != NULL;
 }
 
+TEST(menu_fdf, retail_score_screen_layer_styles_are_parsed_without_skipping_children) {
+    char text[] =
+        "Frame \"FRAME\" \"ScoreScreenLayerStyleFixture\" { "
+        "Frame \"MODEL\" \"ScoreScreenFixtureModel\" { "
+        "LayerStyle \"NOSHADING\", "
+        "Frame \"FRAME\" \"ScoreScreenFixtureChild\" { "
+        "LayerStyle \"NOSHADING|IGNORETRACKEVENTS\", "
+        "}, }, "
+        "Frame \"FRAME\" \"ScoreScreenFixtureViewport\" { "
+        "LayerStyle \"SETSVIEWPORT\", "
+        "}, }";
+    frameDef_t *root, *model, *child, *viewport;
+    T_ASSERT(UI_ParseFDF_Buffer("score_layers.fdf", text));
+    root = UI_FindFrame("ScoreScreenLayerStyleFixture");
+    T_NOT_NULL(root);
+    if (!root) return;
+    model = UI_FindChildFrame(root, "ScoreScreenFixtureModel");
+    child = model ? UI_FindChildFrame(model, "ScoreScreenFixtureChild") : NULL;
+    viewport = UI_FindChildFrame(root, "ScoreScreenFixtureViewport");
+    T_NOT_NULL(model);
+    T_NOT_NULL(child);
+    T_NOT_NULL(viewport);
+    if (!model || !child || !viewport) return;
+    T_ASSERT(model->LayerStyle & FDF_LAYERSTYLE_NOSHADING);
+    T_ASSERT(child->LayerStyle & FDF_LAYERSTYLE_IGNORETRACKEVENTS);
+    T_ASSERT(child->ui_flags & UIFLAG_PASSTHROUGH);
+    T_ASSERT(viewport->LayerStyle & FDF_LAYERSTYLE_SETSVIEWPORT);
+}
+
 TEST(menu_fdf, minimap_content_rect_preserves_rectangular_map_aspect) {
     rect_t frame = { 10.0f, 20.0f, 100.0f, 100.0f };
     vec2_t wide = { 200.0f, 100.0f };

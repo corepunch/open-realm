@@ -173,7 +173,9 @@ void UI_LoadHudMenu(void);
 void UI_LoadHudAllies(void);
 void UI_LoadHudGameResult(void);
 void UI_LoadHudScoreScreen(void);
-bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot, uint32_t tab, uint32_t scroll);
+bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
+                       uint32_t tab, uint32_t scroll,
+                       struct wc3ScoreView_s const *view);
 void UI_LoadHudCinematic(void);
 void UI_LoadHudMessage(void);
 void UI_LoadHudTimerDialogs(void);

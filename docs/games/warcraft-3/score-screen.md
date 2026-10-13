@@ -203,3 +203,22 @@ still need confirmation against the extraction.
 Compilation, gameplay, rendering and the above observations remain for the
 local build/test run. `AGENTS.md`, `CONTRIBUTING.md` and `docs/ui-authoring.md`
 remain authoritative.
+
+### Retail FDF parser and campaign Quit Mission fix (2026-10-13)
+
+The stock `ScoreScreen.fdf` uses `LayerStyle "NOSHADING"` and related layer
+styles. The shared FDF parser now consumes and retains `NOSHADING`,
+`IGNORETRACKEVENTS` and `SETSVIEWPORT` flags; ignored tracking is propagated
+to frame hit-testing. Unlit rendering and viewport scissor enforcement remain
+separate renderer concerns (the style bits are retained, not silently dropped).
+Malformed FDFs no longer enter the successfully-loaded FDF cache.
+
+The campaign Quit Mission command now queues the same frozen score snapshot
+and score-screen transition as `EndGame(true)`, whereas Exit Program and
+non-campaign quit retain their existing routes. If the retail score FDF cannot
+be parsed or the player cannot be shown the modal, the existing fail-open
+transition returns to campaign selection instead of stranding the session.
+
+Validation: exercise both the scripted Defeat -> Quit Campaign dialog and
+ESC -> End Game -> Quit Mission on retail MPQ data. The `LayerStyle` parsing
+regression is supplied but local compilation/runtime testing was not performed.

@@ -1596,6 +1596,34 @@ TEST(wc3_jass_map, score_transition_defers_map_change_and_falls_back_without_vie
     gi.MenuAction = old_menu_action;
 }
 
+TEST(wc3_jass_map, campaign_quit_waits_for_score_screen_before_campaign_menu) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t const clients = game.max_clients;
+    PATHSTR old_map;
+
+    strlcpy(old_map, level.map_path, sizeof(old_map));
+    strlcpy(level.map_path, "Maps\\FrozenThrone\\Campaign\\UndeadX07c.w3x",
+            sizeof(level.map_path));
+    setup_test_world(); /* no human-controlled peers: single-player semantics */
+    G_ResetScriptSave();
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+    gi.MenuAction = capture_victory_menu_action;
+    game.max_clients = 0; /* cannot present a modal; verify deferred fallback */
+
+    G_RequestQuitGame();
+    T_ASSERT(G_ScoreTransitionPending());
+    T_STREQ(victory_menu_action, "");
+    G_FlushScoreTransition();
+    T_ASSERT(!G_ScoreTransitionPending());
+    T_STREQ(victory_menu_action, "menu");
+    T_STREQ(victory_menu_arg, "menu_single_player_campaign");
+
+    strlcpy(level.map_path, old_map, sizeof(level.map_path));
+    game.max_clients = clients;
+    gi.MenuAction = old_menu_action;
+}
+
 TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
