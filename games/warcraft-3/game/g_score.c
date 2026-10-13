@@ -232,41 +232,47 @@ static int32_t G_ScoreClamp(uint64_t value) {
     return (int32_t)MIN(value, (uint64_t)INT32_MAX);
 }
 
-/* Count authored research levels, not arbitrary JASS tech availability rows.
- * This remains an approximation: retail's full race denominator is not known.
- * Emit both variants so comparison runs can establish the missing rule. */
+/* Candidate retail scoring rule: researched levels across the full, authored,
+ * race-specific upgrade set (including untouched upgrades in the denominator).
+ * JASS technology availability restrictions never count as research. */
 static int32_t G_ScoreGuessTechPercent(gameClient_t const *client) {
     uint32_t observed = 0, researched = 0;
-    uint32_t upgrade_rows = 0, upgrade_levels = 0, achieved_levels = 0;
+    uint32_t eligible_rows = 0, eligible_levels = 0, achieved_levels = 0;
+    unitRace_t const race = (unitRace_t)client->ps.race;
+
+    /* Keep the old observed-entry diagnostic for comparison with earlier runs. */
     FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
         playerTechState_t const *tech = &client->tech[i];
-        UpgradeData_t const *upgrade;
-        uint32_t achieved, maximum;
         if (!tech->id) continue;
         observed++;
         if (tech->researched > 0) researched++;
-        upgrade = G_UpgradeData(tech->id);
-        if (!upgrade || upgrade->id != tech->id || upgrade->maxLevel <= 0) {
-            G_GameResultDebug("score tech row player=%u id=%08x researched=%d max_allowed=%d category=non_upgrade",
-                client->ps.number, tech->id, tech->researched, tech->max_allowed);
-            continue;
-        }
-        maximum = (uint32_t)upgrade->maxLevel;
-        achieved = (uint32_t)MAX(0, tech->researched);
-        achieved = MIN(achieved, maximum);
-        upgrade_rows++;
-        upgrade_levels += maximum;
-        achieved_levels += achieved;
-        G_GameResultDebug("score tech row player=%u id=%08x researched=%d max_allowed=%d authored_max=%u used=%u category=upgrade",
-            client->ps.number, tech->id, tech->researched, tech->max_allowed,
-            maximum, (unsigned)upgrade->used);
     }
-    G_GameResultDebug("score tech player=%u observed=%u researched=%u provisional_pct=%u upgrade_rows=%u achieved_levels=%u authored_levels=%u classified_pct=%u",
-        client->ps.number, observed, researched,
+
+    FOR_LOOP(i, g_UpgradeDataCount) {
+        UpgradeData_t const *upgrade = &g_UpgradeData[i];
+        uint32_t achieved = 0;
+        if (!upgrade->id || !upgrade->used || upgrade->maxLevel <= 0 ||
+            WC3_RaceFromString(upgrade->race) != race) continue;
+
+        FOR_LOOP(j, MAX_PLAYER_TECH_STATE) {
+            playerTechState_t const *tech = &client->tech[j];
+            if (tech->id != upgrade->id) continue;
+            achieved = (uint32_t)MAX(0, tech->researched);
+            break;
+        }
+        achieved = MIN(achieved, (uint32_t)upgrade->maxLevel);
+        eligible_rows++;
+        eligible_levels += (uint32_t)upgrade->maxLevel;
+        achieved_levels += achieved;
+        G_GameResultDebug("score tech eligible player=%u id=%08x race=%s researched=%u authored_max=%d",
+            client->ps.number, upgrade->id, upgrade->race, achieved, upgrade->maxLevel);
+    }
+    G_GameResultDebug("score tech player=%u race=%u observed=%u researched=%u previous_pct=%u eligible_rows=%u achieved_levels=%u authored_levels=%u race_pct=%u",
+        client->ps.number, (unsigned)race, observed, researched,
         observed ? (unsigned)((100ull * researched) / observed) : 0,
-        upgrade_rows, achieved_levels, upgrade_levels,
-        upgrade_levels ? (unsigned)((100ull * achieved_levels) / upgrade_levels) : 0);
-    return upgrade_levels ? (int32_t)((100ull * achieved_levels) / upgrade_levels) : 0;
+        eligible_rows, achieved_levels, eligible_levels,
+        eligible_levels ? (unsigned)((100ull * achieved_levels) / eligible_levels) : 0);
+    return eligible_levels ? (int32_t)((100ull * achieved_levels) / eligible_levels) : 0;
 }
 
 bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *value) {

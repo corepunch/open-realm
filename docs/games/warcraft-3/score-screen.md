@@ -333,3 +333,18 @@ The diagnostic retains the previous observed-entry percentage alongside the
 classified numerator and denominator. **The authored race-wide denominator is
 not yet recovered**; therefore the classified result remains provisional and
 should be compared against retail in multiple missions before declaring parity.
+
+### Race-wide technology percentage candidate
+
+Technology percentage now enumerates all authored `UpgradeData.slk` rows with
+`used=1`, positive `maxlevel`, and a race matching the player's race, rather
+than limiting the denominator to technology entries explicitly touched at
+runtime. Each eligible upgrade contributes its maximum level count; its
+completed researched levels (clamped to the maximum) contribute to the
+numerator. `SetPlayerTechMaxAllowed` does not count as completed research.
+The computation uses integer truncation and returns zero when no eligible
+levels exist. With `wc3_game_result_debug 1`, `score tech eligible` reports
+each included upgrade, and `score tech player` summarizes both the previous
+observed-entry metric and the race-wide result. This reproduces the observed
+UndeadX07c 32%/0% comparison but remains a candidate retail rule pending
+verification in other races, expansions and custom maps.
