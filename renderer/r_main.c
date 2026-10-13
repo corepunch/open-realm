@@ -188,7 +188,8 @@ static float R_SmoothStep(float edge0, float edge1, float x) {
 
 texture_t *R_MakeLoadingIndicatorTexture(void) {
     enum { TEXTURE_SIZE = 128 };
-    color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    /* Keep the procedural pixel buffer off the limited WASM pthread stack. */
+    color32_t *pixels = ri.MemAlloc(sizeof(*pixels) * TEXTURE_SIZE * TEXTURE_SIZE);
     texture_t *texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) {
@@ -212,13 +213,15 @@ texture_t *R_MakeLoadingIndicatorTexture(void) {
         }
     }
     R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
+    ri.MemFree(pixels);
     return texture;
 }
 
 /* WoW archives do not contain Warcraft III's selection-circle assets. */
 texture_t *R_MakeSelectionCircleTexture(void) {
     enum { TEXTURE_SIZE = 128 };
-    color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    /* Keep the procedural pixel buffer off the limited WASM pthread stack. */
+    color32_t *pixels = ri.MemAlloc(sizeof(*pixels) * TEXTURE_SIZE * TEXTURE_SIZE);
     texture_t *texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) FOR_LOOP(x, TEXTURE_SIZE) {
@@ -231,12 +234,14 @@ texture_t *R_MakeSelectionCircleTexture(void) {
         pixels[y * TEXTURE_SIZE + x] = MAKE(color32_t, 255, 255, 255, (uint8_t)(ring * 255.0f));
     }
     R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
+    ri.MemFree(pixels);
     return texture;
 }
 
 static texture_t *R_MakeBlobShadowTexture(void) {
     enum { TEXTURE_SIZE = 64 };
-    color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    /* Keep the procedural pixel buffer off the limited WASM pthread stack. */
+    color32_t *pixels = ri.MemAlloc(sizeof(*pixels) * TEXTURE_SIZE * TEXTURE_SIZE);
     texture_t *texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) {
@@ -251,6 +256,7 @@ static texture_t *R_MakeBlobShadowTexture(void) {
     }
 
     R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
+    ri.MemFree(pixels);
     return texture;
 }
 

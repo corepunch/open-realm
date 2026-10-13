@@ -233,3 +233,18 @@ cannot be looked up in a different debug binary.
 
 Keep pthread checks enabled. Do not mask WebAssembly traps by relaxing
 alignment, disabling mutex assertions or suppressing errors in proxy queues.
+
+### Procedural textures and the browser thread stack
+
+The symbolized startup trace identified a stack overflow in
+`R_MakeLoadingIndicatorTexture` immediately after shader initialization. Its
+128×128 RGBA scratch image previously occupied 64 KiB of the engine thread
+stack. The selection-circle generator had the same allocation shape, and the
+blob-shadow generator used another stack-allocated RGBA buffer. These buffers
+now use the renderer's existing `ri.MemAlloc`/`ri.MemFree` lifetime around
+`R_LoadTextureMipLevel`, matching normal texture upload ownership. The pixels,
+texture formats, and non-browser rendering behavior are unchanged.
+
+The change avoids needing to increase the default pthread stack solely for
+these temporary images. Recheck browser startup after shader loading; other
+large local buffers might still need their own targeted fixes.
