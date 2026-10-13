@@ -4349,13 +4349,32 @@ void move_start_displacement(edict_t *self, vec2_t const *target) {
 
 /* Native5fb7c0 retains signed changes rather than recomputing a product of
  * active effects. Inverse operations use the value captured by their owner. */
+static void move_republish_group_member(edict_t *unit);
+/*5fcd50 republishes only on the first applying owner, before incrementing.
+ *5fc0e0 releases without merging the resulting physical groups. */
+void S_AcquireMoveGroupIsolation(edict_t *unit) {
+    if(!unit->movement.group_isolation)move_republish_group_member(unit);
+    unit->movement.group_isolation++;
+}
+void S_ReleaseMoveGroupIsolation(edict_t *unit) {
+    assert(unit->movement.group_isolation);
+    unit->movement.group_isolation--;
+}
+static bool move_factor_below_one(float factor) {
+    float distance=wc3_float(wc3_float_bits(wc3_sub(factor,1))&0x7fffffffu);
+    return factor<1 && distance>=wc3_float(0x3a83126f);
+}
 static void move_adjust_speed_factor(edict_t *unit,float delta) {
     if(delta==0)return;
     float factor=unit->movement.speed_factor_initialized ? unit->movement.speed_factor : 1;
+    bool was_below=move_factor_below_one(factor);
     factor=wc3_add(factor,delta);
     float distance=wc3_float(wc3_float_bits(wc3_sub(factor,1))&0x7fffffffu);
     if(distance<wc3_float(0x3a83126f))factor=1;
     unit->movement.speed_factor=factor;unit->movement.speed_factor_initialized=1;
+    bool below=move_factor_below_one(factor);
+    if(!was_below && below)S_AcquireMoveGroupIsolation(unit);
+    else if(was_below && !below)S_ReleaseMoveGroupIsolation(unit);
     S_UnitAbilityEvent(unit,A_MOVE_PARAMETERS_CHANGED);
 }
 void S_ApplyMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status,float delta) {
@@ -5471,7 +5490,7 @@ static bool move_queued_cohort_candidate(void *data,edict_t *other) {
 #ifdef BZ_TESTS
     move_queued_peer_visits++;
 #endif
-    if(other==unit || other->s.player!=unit->s.player || !G_UnitIsWorldActive(other) ||
+    if(other==unit || other->movement.group_isolation || other->s.player!=unit->s.player || !G_UnitIsWorldActive(other) ||
         M_IsDead(other) || IS_HOLLOW(other) ||
         other->movement.previous_request_id!=unit->movement.previous_request_id ||
         S_UnitMovementProfile(other->data.UnitData)->bits!=S_UnitMovementProfile(unit->data.UnitData)->bits)return true;
@@ -5548,7 +5567,7 @@ static queuedOrderResult_t move_start_queued_group(edict_t *unit, unitOrder_t co
         move_group_admission.queued_context==queued->owner_context &&
         move_group_admission.point.x==queued->point.x && move_group_admission.point.y==queued->point.y ?
         move_group_admission.request : NULL;
-    if(prepared)return true;
+    if(prepared && !unit->movement.group_isolation)return true;
     movePointRequest_t request={.id=move_allocate_group_id(),
         .history=unit->movement.previous_request_id,.goal=move_point_fine(&queued->point)};
     move_request_attach(&request,unit);
@@ -5558,7 +5577,8 @@ static queuedOrderResult_t move_start_queued_group(edict_t *unit, unitOrder_t co
         wc3_grid_coordinate(source.world[1],bounds.min.y,32)};
     moveQueuedCohort_t query={unit,&request};
     /*013490 initializes the world radius used by selector8 in5fa950. */
-    S_VisitMoveCircle(center,wc3_div(MOVE_PREVIOUS_COHORT_RADIUS,32),move_queued_cohort_candidate,&query);
+    if(!unit->movement.group_isolation)
+        S_VisitMoveCircle(center,wc3_div(MOVE_PREVIOUS_COHORT_RADIUS,32),move_queued_cohort_candidate,&query);
     /*5faaf0 attaches old peers to a fresh request; their ready attempts wait
      * for this source.16bcf0 then partitions all ready rows again. Old group
      * membership does not bypass the current predicted-distance predicate. */
@@ -5744,6 +5764,30 @@ static int move_request_publish(movePointRequest_t *request) {
     move_request_exclusions(request,false);
     MOVE_REQUEST_SCOPE(request,3);
     return result;
+}
+
+/*169550 reissues the retained slot, without changing the public order or
+ * joining the remaining members. Empty slots survive until owner preparation. */
+static void move_republish_group_member(edict_t *unit) {
+    moveGroup_t *old=move_unit_group(unit);
+    if(!old)return;
+    moveGroupMember_t *member=NULL;
+    FOR_LOOP(i,old->count)if(old->members[i].unit==unit && old->members[i].spawn==unit->spawn_time){member=old->members+i;break;}
+    if(!member)return;
+    moveGroupMember_t saved=*member;
+    movePointRequest_t request={.id=move_allocate_group_id(),.history=old->request_id,
+        .goal={wc3_add(old->goal.x,member->offset.x),wc3_add(old->goal.y,member->offset.y)},
+        .flags=old->flags,.inherited=old,.inherited_sequence=old->sequence,
+        .shared_id=old->shared_id,.target=old->target,.target_spawn=old->target_spawn};
+    member->unit=NULL;member->spawn=0;
+    move_request_attach(&request,unit);move_request_ready(&request,unit);
+    moveGroup_t *group=move_unit_group(unit);
+    if(!group || group==old)gi.error("Move: failed to republish existing member");
+    group->target_region=old->target_region;group->target_region_owner=old->target_region_owner;group->target_region_slot=old->target_region_slot;
+    group->follow_continuation=old->follow_continuation;group->follow_range=old->follow_range;
+    group->turning=old->turning;group->turn_rate=old->turn_rate;
+    group->receiver=old->receiver;group->receiver_spawn=old->receiver_spawn;group->owner_ability=old->owner_ability;group->complete=old->complete;
+    group->members[0].arrival_range=saved.arrival_range;
 }
 
 static void move_request_ready(movePointRequest_t *request,edict_t *unit) {
@@ -6906,9 +6950,9 @@ BZ_ABILITY_PROC(CAbilityMove) {
          * nested point orders must still receive their physical singleton. */
         if (ent->currentmove==&move_move_walk && ent->goalentity &&
             (ent->goalentity->svflags&SVF_MOVE_WAYPOINT) && !move_unit_group(ent) &&
-            !(move_group_admission.unit==ent &&
+            (ent->movement.group_isolation || !(move_group_admission.unit==ent &&
               move_group_admission.point.x==ent->goalentity->s.origin2.x &&
-              move_group_admission.point.y==ent->goalentity->s.origin2.y))
+              move_group_admission.point.y==ent->goalentity->s.origin2.y)))
         {
             move_start_point_group(ent,&ent->goalentity->s.origin2,0);
         }

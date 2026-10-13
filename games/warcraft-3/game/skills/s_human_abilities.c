@@ -321,6 +321,15 @@ static bool polymorph_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
     return check == WC3_STATUS_APPLY_REUSE || check == WC3_STATUS_APPLY_FREE_SLOT;
 }
 
+/*6417c0 and64c090 publish authored turn parameters through unit setters,
+ * replacing prior scripted values both when entering and leaving the form. */
+static void polymorph_set_turn_profile(edict_t *unit,uint32_t type) {
+    UnitData_t const *data=G_UnitData(type);
+    unit->unitinfo.TurnSpeed=MAX(wc3_float(0x3a83126f),wc3_angle(data->turnRate));
+    unit->unitinfo.PropWindow=wc3_angle(wc3_mul(data->propWin,wc3_float(0x3c8efa35)));
+    unit->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+}
+
 /*64c090 removes the authored speed delta from the current Move base. A
  * setter during the buff must survive; the entry-time snapshot is not an
  * inverse. Removing the form also retains any subsequently issued Move. */
@@ -331,10 +340,13 @@ void S_PolymorphRemove(edict_t *unit) {
     if (!unit || !unit->polymorph) return;
     unit->s.model = unit->polymorph->original_model;
     unit->s.scale = unit->polymorph->original_scale;
+    polymorph_set_turn_profile(unit,unit->class_id);
     delta = wc3_sub(unit->data.UnitBalance->speed,
                     S_PolymorphMovementProfile(unit)->speed);
+    bool isolated=unit->polymorph->move_group_isolation_applied;
     G_FreePolymorph(unit);
     S_AdjustUnitMoveSpeed(unit, delta);
+    if(isolated)S_ReleaseMoveGroupIsolation(unit);
     unit->animation = NULL;
     if (!M_IsDead(unit)) {
         unit_setanimation(unit, unit->currentmove && unit->currentmove->animation ?
@@ -409,9 +421,17 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     st.entity->polymorph->form_type = form_type;
     st.entity->s.model = model;
     st.entity->s.scale = ui->modelScale > 0.0f ? ui->modelScale : 1.0f;
+    polymorph_set_turn_profile(st.entity,form_type);
     /*63a950 contributes form-minus-original, rather than replacing a public
      * override. Replacing an existing form first removes its contribution. */
     S_AdjustUnitMoveSpeed(st.entity, wc3_sub(balance->speed, previous_speed));
+    /* Negative Morph and below-one speed share Move+80 in retail. Each
+     * applying owner retains its inverse across refresh and save/load. */
+    if(!st.entity->polymorph->move_group_isolation_applied &&
+       G_UnitAbilityLevel(st.entity,MAKEFOURCC('A','m','o','v'))) {
+        S_AcquireMoveGroupIsolation(st.entity);
+        st.entity->polymorph->move_group_isolation_applied=1;
+    }
 
     /* Polymorph interrupts actions that require the original unit's attacks or
      * command abilities.  The transformed unit remains the same edict/JASS

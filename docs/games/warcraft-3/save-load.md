@@ -1725,3 +1725,12 @@ accepted value contract changed; prior versions are rejected. Payoff314 tests
 cold continuation immediately after Move, during exceptional motion and after
 finite restoration across five movement families. See
 [exceptional speed](retail-pathfinding-engine.md#exceptional-public-speed-and-finite-restoration-payoff314).
+
+### Counted movement group isolation (Save191)
+
+Move's group-isolation count and the negative Polymorph owner's applied flag
+are serialized independently. A saved overlap must retain both contributions;
+removing one effect must not enable shared-group admission while the other
+remains. Restored groups stay separate until a subsequent eligible order. The
+existing turn/window fields retain the form's authored parameters. Prior save
+versions are rejected. See [Payoff318](retail-pathfinding-engine.md#counted-group-isolation-and-morph-turn-parameters-payoff318).

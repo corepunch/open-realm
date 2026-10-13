@@ -35,7 +35,12 @@ TEST(wc3_movement, profile271_polymorph_keeps_authored_bounds_setters_and_move) 
             "C;Y2;X1;K\"Aply\"\nC;X2;K\"Aply\"\nC;X3;K1\nC;X4;K\"ground,enemy\"\n"
             "C;X5;K0\nC;X6;K0\nC;X7;K1000\nC;X8;K60\nC;X9;K10\nC;X10;K\"nP27\"\n%sE\n",
             data_a,data_b,
-            schema ? "C;X11;K\"BuffID1\"\n" : "",schema ? "C;X11;K\"Bply\"\n" : "");
+            "C;X11;K\"BuffID1\"\n",schema ? "C;X11;K\"Bply\"\n" : "");
+        size_t end=strlen(slk)-2;
+        snprintf(slk+end,sizeof(slk)-end,
+            "C;Y3;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K\"ground,enemy\"\n"
+            "C;X5;K0\nC;X6;K0\nC;X7;K1000\nC;X8;K60\nC;X9;K0.6\nC;X10;K0.25\n%sE\n",
+            "C;X11;K\"Bslo\"\n");
         slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
         T_EQ(S_SpellDataId(MAKEFOURCC('A','p','l','y'),1,2),MAKEFOURCC('n','P','2','7'));
         T_ASSERT(run_test_jass("globals\nunit actor271\nunit caster271\nendglobals\n"
@@ -60,6 +65,9 @@ TEST(wc3_movement, profile271_polymorph_keeps_authored_bounds_setters_and_move) 
         abilityitem_t ability=S_AbilityItem(MAKEFOURCC('A','p','l','y'));
         abilityCall_t call={.item=&ability,.target=&target};
         T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&call));T_ASSERT(S_UnitPolymorphed(unit));
+        T_EQ(unit->movement.group_isolation,1);
+        T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&call));
+        T_EQ(unit->movement.group_isolation,1);
         T_FEQ(unit->unitinfo.MoveSpeed,283,0);T_FEQ(S_UnitMoveSpeed(unit),233,0);
         T_FEQ(S_UnitDefaultMoveSpeed(unit),237,0);
         jass_callbyname(level.vm,"high271",false);T_FEQ(S_UnitMoveSpeed(unit),233,0);
@@ -74,6 +82,22 @@ TEST(wc3_movement, profile271_polymorph_keeps_authored_bounds_setters_and_move) 
             T_ASSERT(S_UnitPolymorphed(unit));T_FEQ(S_UnitMoveSpeed(unit),233,0);
             T_EQ(unit->current_order_id,G_OrderId("move"));
         }
+        abilityitem_t slow_item=S_AbilityItem(MAKEFOURCC('A','s','l','o'));
+        target.entity=unit;
+        abilityCall_t slow_call={.item=&slow_item,.target=&target};
+        caster=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o'))caster=ent;
+        T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&slow_call));
+        T_EQ(unit->movement.group_isolation,2);
+        if(saved) {
+            cstring_t path=Test_TempPath("wc3-slow318-overlap.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+number;
+            T_EQ(unit->movement.group_isolation,2);
+        }
+        if(!expired) {
+            heroabilitystatus_t *slow=unit_findstatus(unit,MAKEFOURCC('B','s','l','o'));
+            T_NOT_NULL(slow);if(slow)unit_removestatus(unit,slow,STATUS_REMOVE_SCRIPT);
+            T_EQ(unit->movement.group_isolation,1);
+        }
         if (expired) {
             heroabilitystatus_t *status=unit_findstatus(unit,MAKEFOURCC('B','p','l','y'));
             T_NOT_NULL(status);
@@ -83,6 +107,12 @@ TEST(wc3_movement, profile271_polymorph_keeps_authored_bounds_setters_and_move) 
             T_ASSERT(S_UnitPolymorphed(unit));
             jass_callbyname(level.vm,"remove271",false);
         }
+        if(expired) {
+            T_EQ(unit->movement.group_isolation,1);
+            heroabilitystatus_t *slow=unit_findstatus(unit,MAKEFOURCC('B','s','l','o'));
+            T_NOT_NULL(slow);if(slow)unit_removestatus(unit,slow,STATUS_REMOVE_SCRIPT);
+        }
+        T_EQ(unit->movement.group_isolation,0);
         T_ASSERT(!S_UnitPolymorphed(unit));T_FEQ(unit->unitinfo.MoveSpeed,317,0);
         T_FEQ(S_UnitMoveSpeed(unit),317,0);T_FEQ(S_UnitDefaultMoveSpeed(unit),237,0);
         T_EQ(unit->current_order_id,G_OrderId("move"));T_NOT_NULL(unit->goalentity);

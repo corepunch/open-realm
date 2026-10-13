@@ -1967,6 +1967,7 @@ typedef struct {
     uint32_t original_model;   /* presentation state restored when the buff ends */
     float original_scale;
     float original_move_speed;
+    uint32_t move_group_isolation_applied;
 } polymorph_t;
 
 typedef struct {
@@ -2298,6 +2299,7 @@ struct edict_s {
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float speed_factor; /* retained Move multiplier, updated by applying owners */
         uint32_t speed_factor_initialized;
+        uint32_t group_isolation; /* Move counted owners excluding shared task admission */
         float flat_speed_bonus; /* AIms maximum last published by a speed setter/order, independent of live inventory. */
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         vec2_t velocity;    /* committed Move velocity in world units/second; software scalar cancellation retains its bits */
@@ -3581,6 +3583,8 @@ uint32_t G_UnitMoveRevision(edict_t const *);
 void M_MoveFrame(edict_t *);
 float M_DistanceToGoal(edict_t *);
 float unit_movedistance(edict_t *);
+void S_AcquireMoveGroupIsolation(edict_t *);
+void S_ReleaseMoveGroupIsolation(edict_t *);
 void S_ApplyMoveSpeedContribution(edict_t *, heroabilitystatus_t *, float);
 void S_RemoveMoveSpeedContribution(edict_t *, heroabilitystatus_t *);
 float S_UnitMoveSpeed(edict_t *);

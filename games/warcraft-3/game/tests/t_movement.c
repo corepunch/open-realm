@@ -26592,3 +26592,181 @@ TEST(wc3_movement, modifiers317_exceptional_factor_motion) {
     setup_test_world();
 }
 #endif
+
+#ifdef BZ_TESTS
+TEST(wc3_movement, slow318_slowed_member_leaves_shared_group) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    bool custom=false;
+    char slk[1024];snprintf(slk,sizeof(slk),"ID;PWXL;N;EBB;Y3;X8\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"BuffID1\"\nC;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K%s\nC;X5;K0.25\nC;X6;K\"Bslo\"\nC;X7;K60\nC;X8;K10\n"
+        "C;Y3;X1;K\"ACbl\"\nC;X2;K\"Ablo\"\nC;X3;K1\nC;X4;K0.4\nC;X5;K%s\nC;X6;K\"Bblo\"\nC;X7;K40\nC;X8;K40\nE\n",custom?"0.37":"0.6",custom?"0.17":"0.25");
+    slkTestData_t *rows=parse_slk_string(slk);
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),768,512);
+    edict_t *peer=alloc_test_unit(MAKEFOURCC('h','f','o','o'),768,640);
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('h','s','o','r'),640,576);
+    unit->stand=peer->stand=unit_stand;
+    unit->collision=peer->collision=31;unit->unitinfo.MoveSpeed=peer->unitinfo.MoveSpeed=270;
+    vec2_t goal={1536,1024};
+    groupPointOrder_t request={.count=2,.units={{unit,unit->spawn_time},{peer,peer->spawn_time}},.point=&goal,.order="move",.order_id=G_OrderId("move"),.issuer_player=0};
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    moveGroup_t *before=move_unit_group(unit);T_NOT_NULL(before);T_ASSERT(before==move_unit_group(peer));
+    abilityitem_t item=S_AbilityItem(MAKEFOURCC('A','s','l','o'));
+    spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=unit};abilityCall_t call=MAKE(abilityCall_t,.item=&item,.target=&target);
+    T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&call));
+    T_ASSERT(move_unit_group(unit)!=before);T_ASSERT(move_unit_group(peer)==before);
+    moveGroup_t *split=move_unit_group(unit);T_NOT_NULL(split);if(split)T_EQ(split->count,1);
+    heroabilitystatus_t *slow=unit_findstatus(unit,MAKEFOURCC('B','s','l','o'));T_NOT_NULL(slow);
+    if(slow)unit_removestatus(unit,slow,STATUS_REMOVE_SCRIPT);
+    T_ASSERT(move_unit_group(unit)==split);T_ASSERT(move_unit_group(peer)==before);
+    T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&call));
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    T_ASSERT(move_unit_group(unit)!=move_unit_group(peer));
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_ASSERT(unit_issueimmediateorder(peer,"stop"));
+    T_ASSERT(!G_UnitHasActiveOrder(unit));T_ASSERT(!G_UnitHasActiveOrder(peer));
+    request.queued=true;
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    T_NOT_NULL(move_unit_group(unit));T_NOT_NULL(move_unit_group(peer));
+    T_ASSERT(move_unit_group(unit)!=move_unit_group(peer));
+    request.queued=false;
+    slow=unit_findstatus(unit,MAKEFOURCC('B','s','l','o'));if(slow)unit_removestatus(unit,slow,STATUS_REMOVE_SCRIPT);
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    T_ASSERT(move_unit_group(unit)==move_unit_group(peer));
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_slow318.h"
+#include "fixtures/retail_slow318_preslow.h"
+#include "fixtures/retail_slow318_morph.h"
+#include "fixtures/slow318_morph_script.h"
+#include "fixtures/slow318_preslow_script.h"
+static uint32_t const (*slow318_expected_motion)[11],(*slow318_expected_public)[8];
+static unsigned slow318_motion_count,slow318_public_count;
+#include "fixtures/slow318_script.h"
+static edict_t *slow318_units[2],*slow318_caster;
+static unsigned slow318_motion_index,slow318_public_index;
+static bool slow318_mismatch;
+static void slow318_find_units(void) {
+    unsigned n=0;
+    FILTER_EDICTS(e,e->inuse) {
+        if(e->class_id==MAKEFOURCC('h','T','A','A') && n<2)slow318_units[n++]=e;
+        if(e->class_id==MAKEFOURCC('h','s','o','r'))slow318_caster=e;
+    }
+}
+static void slow318_record(edict_t *unit) {
+    unsigned actor=unit==slow318_units[0] ? 0 : unit==slow318_units[1] ? 1 : 2;
+    if(actor==2 || slow318_mismatch)return;
+    unsigned i=slow318_motion_index++;
+    T_ASSERT(i<slow318_motion_count);
+    if(i>=slow318_motion_count){slow318_mismatch=true;return;}
+    moveGroup_t *group=move_unit_group(unit);moveGroupMember_t *member=NULL;
+    if(group)FOR_LOOP(n,group->count)if(group->members[n].unit==unit)member=group->members+n;
+    T_NOT_NULL(member);if(!member){slow318_mismatch=true;return;}
+    uint32_t actual[]={actor,wc3_float_bits(unit->movement.pose_clock.time),unit->movement.pose_clock.epoch,
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),
+        wc3_float_bits(unit->s.angle),wc3_float_bits(wc3_div(S_UnitMoveSpeed(unit),32)),
+        wc3_float_bits(member->arrival_range),wc3_float_bits(wc3_div(member->speed,32))};
+    FOR_LOOP(k,11) {
+        if(actual[k]!=slow318_expected_motion[i][k]){fprintf(stderr,"slow318 motion%u time%u word%u engine%08x retail%08x\n",i,level.time,k,actual[k],slow318_expected_motion[i][k]);slow318_mismatch=true;}
+        T_EQ(actual[k],slow318_expected_motion[i][k]);
+    }
+}
+static void slow318_mark(cstring_t marker) {
+    slow318_find_units();
+    if(!strcmp(marker,"CAPTURED_SLOW318") || !strcmp(marker,"CAPTURED_MORPH318")) {
+        T_NOT_NULL(slow318_units[0]);T_NOT_NULL(slow318_caster);
+        if(!slow318_units[0] || !slow318_caster){slow318_mismatch=true;return;}
+        abilityitem_t item=S_AbilityItem(!strcmp(marker,"CAPTURED_MORPH318") ? MAKEFOURCC('A','p','l','y') : MAKEFOURCC('A','s','l','o'));
+        spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=slow318_units[0]};abilityCall_t call=MAKE(abilityCall_t,.item=&item,.target=&target);
+        T_ASSERT(S_AbilityMessage(slow318_caster,A_EXECUTE,&call));return;
+    }
+    if(strncmp(marker,"M318 ",5)||strstr(marker,"label=start ")||strstr(marker,"label=begin-setup ")||slow318_mismatch)return;
+    unsigned actor=atoi(strstr(marker," u=")+3),i=slow318_public_index++;
+    T_ASSERT(actor<2);T_ASSERT(i<slow318_public_count);
+    if(actor>=2 || i>=slow318_public_count){slow318_mismatch=true;return;}
+    edict_t *unit=slow318_units[actor];T_NOT_NULL(unit);if(!unit){slow318_mismatch=true;return;}
+    S_PublishMovement(unit);
+    uint32_t actual[]={atoi(strstr(marker,"tick=")+5),actor,wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,
+        wc3_float_bits(unit->s.origin.x),wc3_float_bits(unit->s.origin.y),wc3_float_bits(S_UnitMoveSpeed(unit)),unit->current_order_id};
+    FOR_LOOP(k,8) {
+        if(actual[k]!=slow318_expected_public[i][k]){fprintf(stderr,"slow318 public%u time%u word%u engine%08x retail%08x\n",i,level.time,k,actual[k],slow318_expected_public[i][k]);slow318_mismatch=true;}
+        T_EQ(actual[k],slow318_expected_public[i][k]);
+    }
+}
+static void slow318_run_scene(unsigned scene) {
+    slow318_expected_motion=scene ? slow318_preslow_motion : slow318_motion;
+    slow318_expected_public=scene ? slow318_preslow_public : slow318_public;
+    slow318_motion_count=scene ? sizeof(slow318_preslow_motion)/sizeof(*slow318_preslow_motion) : sizeof(slow318_motion)/sizeof(*slow318_motion);
+    slow318_public_count=scene ? sizeof(slow318_preslow_public)/sizeof(*slow318_preslow_public) : sizeof(slow318_public)/sizeof(*slow318_public);
+    if(scene==2) {
+        slow318_expected_motion=slow318_morph_motion;slow318_expected_public=slow318_morph_public;
+        slow318_motion_count=sizeof(slow318_morph_motion)/sizeof(*slow318_morph_motion);
+        slow318_public_count=sizeof(slow318_morph_public)/sizeof(*slow318_morph_public);
+    }
+    void (*old_write)(pfWriteType_t,void const *)=gi.Write;
+    void (*old_unicast)(edict_t *)=gi.unicast;
+    gi.Write=movement_noop_write;gi.unicast=movement_noop_unicast;
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    bool custom=false;
+    char slk[1024];snprintf(slk,sizeof(slk),"ID;PWXL;N;EBB;Y3;X8\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"BuffID1\"\nC;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K%s\nC;X5;K0.25\nC;X6;K\"Bslo\"\nC;X7;K60\nC;X8;K10\n"
+        "C;Y3;X1;K\"ACbl\"\nC;X2;K\"Ablo\"\nC;X3;K1\nC;X4;K0.4\nC;X5;K%s\nC;X6;K\"Bblo\"\nC;X7;K40\nC;X8;K40\nE\n",custom?"0.37":"0.6",custom?"0.17":"0.25");
+    size_t end=strlen(slk)-2;
+    snprintf(slk+end,sizeof(slk)-end,"C;Y4;X1;K\"Aply\"\nC;X2;K\"Aply\"\nC;X3;K1\nC;X4;K10\nC;X5;K\"nS31\"\nC;X6;K\"Bply\"\nC;X7;K60\nC;X8;K60\nE\n");
+    slkTestData_t *rows=parse_slk_string(slk);
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    float radius=31,caster_radius=16;int32_t min=1,max=389;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&min},
+        {.modID=MAKEFOURCC('u','m','a','s'),.type=mod_int,.data=&max}};
+    unitModification_t caster_mod={.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&caster_radius};
+    int32_t form_speed=100;
+    float form_turn=.5f;
+    unitModification_t form_mod[]={
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_int,.data=&form_speed},
+        {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_unreal,.data=&form_turn},
+        {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&form_speed}};
+    unitData_t types[]={
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('n','S','3','1'),.numbeOfModifications=3,.modifications=form_mod},
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','T','A','A'),.numbeOfModifications=3,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','s','o','r'),.numbeOfModifications=1,.modifications=&caster_mod}};
+    mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;info.num_userCreatedUnits=3;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+    G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    slow318_units[0]=slow318_units[1]=slow318_caster=NULL;
+    slow318_motion_index=slow318_public_index=0;slow318_mismatch=false;
+    test_preload_marker=slow318_mark;move_test_motion_commit=slow318_record;
+    T_ASSERT(run_test_jass(scene==2 ? slow318_morph_script : scene ? slow318_preslow_script : slow318_script));G_FinishMovePathingInitialization();
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    unsigned times[]={scene==2 ? 2100 : scene ? 2600 : 3400,scene==2 ? 4600 : scene ? 2750 : 3500,5600},saved_motion[3]={0},saved_public[3]={0};PATHSTR files[3];
+    FOR_LOOP(i,3)snprintf(files[i],sizeof(files[i]),"%sslow318-%u.bin",Test_TempPath(""),i);
+    FOR_LOOP(pass,4) {
+        if(slow318_mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));slow318_find_units();slow318_motion_index=saved_motion[pass-1];slow318_public_index=saved_public[pass-1];}
+        while(level.time<11200 && !slow318_mismatch) {
+            level.time+=5;globals.RunFrame();
+            if(!pass)FOR_LOOP(i,3)if(level.time==times[i]){saved_motion[i]=slow318_motion_index;saved_public[i]=slow318_public_index;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(slow318_motion_index,slow318_motion_count);T_EQ(slow318_public_index,slow318_public_count);T_ASSERT(!slow318_mismatch);
+    }
+    FOR_LOOP(i,3){remove(files[i]);}
+    test_preload_marker=NULL;move_test_motion_commit=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);setup_test_world();
+    gi.Write=old_write;gi.unicast=old_unicast;
+}
+TEST(wc3_movement, slow318_public_split_matches_motion_and_cold_continuations) {slow318_run_scene(0);}
+TEST(wc3_movement, slow318_preslow_admission_matches_motion_and_cold_continuations) {slow318_run_scene(1);}
+TEST(wc3_movement, slow318_morph_overlap_matches_motion_and_cold_continuations) {slow318_run_scene(2);}
+#endif

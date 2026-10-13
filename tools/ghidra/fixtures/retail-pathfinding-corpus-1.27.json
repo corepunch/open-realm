@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "267 executable original/evidence contracts;548 total entries; provenance and limitations remain per-entry.",
+  "scope": "273 executable original/evidence contracts;554 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -54562,6 +54562,72 @@
         "Other exceptional values, effect families and below-one group republication remain open.",
         "No new engine correction; extends coverage of Payoff316."
       ]
+    },
+    {
+      "id": "oracle-slow318",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_slow318.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "slow318.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 1785
+        },
+        "captures": {
+          "equal": 13
+        },
+        "native_events": {
+          "equal": 34632
+        },
+        "public_markers": {
+          "equal": 2418
+        },
+        "motion_rows": {
+          "equal": 834
+        },
+        "public_rows": {
+          "equal": 552
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 8,
+              "assertions": 57262
+            },
+            "tft": {
+              "tests": 8,
+              "assertions": 57262
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "Counted Slow/negative-Morph isolation, point and queued admission, retained member goals, authored morph turn profiles, public two-unit motion and cold saves.",
+      "exclusions": [
+        "Captured spell-completion boundaries are inputs; cast timing is not certified.",
+        "Flat two-unit point orders, mid-order Slow, pre-order Slow, and pre-order Polymorph plus Slow.",
+        "No general target/AI/shared-parameter republication parity claim.",
+        "Slow and negative Polymorph own the counter; broader buff families remain open.",
+        "Synthetic form uses retail speed100/min100/default maximum, turn0.5/window60 with fixture model art."
+      ]
     }
   ],
   "fixtures": [
@@ -55460,7 +55526,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "3b8c147d4dda002e6e5780872617f5705dd87b7a9876ad276860f597850008e9"
+      "sha256": "b127b6ce88ed910fb4ad733647a5b088c3ee888419e560b2aa0415f2945072f8"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56316,7 +56382,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "a792cb06fa97846cdef26142e50ff04a1ad66a89a391ca83bfd00c93aaf2be98"
+      "sha256": "34f86bb231e239837342cc83bd53e0e5aa1d498417e39efa148e69a4f76b5557"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -56752,7 +56818,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "9155c2cec280f44eebb19ffe8225c09b11509a2de110f2567179f1a203382000"
+      "sha256": "bdad131240ad096977ce47130297a387711462da6643c17bcbdf19fb74c2b5ba"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -56760,7 +56826,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "8ab4e0df736c517b3a495826ec0b8128ca5be524a3f4144746ddc71dd99f671b"
+      "sha256": "e8ff29d5639818d4a5edae66a16ca2633308210abc7792636f68e5e7b8d57ea3"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -57008,7 +57074,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "a8f7c9999b2f57c2751d6008e795d218a89e0a44bd616c24e55be6e07cc3e912"
+      "sha256": "00f7d6d5bcab4eea43eda861316bb7c87ce2436290782415e6d272516bf24730"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -57252,7 +57318,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "c4b4d7ed99022884484361f8e35474cfea9fb1d57a2b262defdb090403330446"
+      "sha256": "e7a2b7dbe21d2d12f6ced071c54985a04b7f133b085495b296d285dcbddb7530"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57260,15 +57326,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "cb7218ed84f58248321bde753a73e18e9b885203fd71bc01bbaaac4cbfe195ba"
+      "sha256": "848fe47d99263cac5812d6188226178091f31a19c9c59789566d68d176c81a71"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "592797af2c9f9eb3ef19924cd9ae02c55c438c11259aa5193ea4ed94c06fe99b"
+      "sha256": "fa0793f4003d28200670cda8021b41fb2fc7dd9dbe3ac3a3b9396b7e8b49835b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "21cd9ea8b8b15be62e9ec23dceeecfa3599dabe2e37ecc335e193dd1d0a9b8b9"
+      "sha256": "0d354e26c698484e213ee603988eea890e7d8c6639c3d130c028d1a6f9dfc6df"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -58472,7 +58538,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_human_abilities.c",
-      "sha256": "a3fd64238b95ff3dbef2ba34f59c2338d6073426da9d97cd1cd05ef4a33241f6"
+      "sha256": "89deb144475ec0014e84e955fa7cbd4296f0bec24f81ad464e935cf6616e3153"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
@@ -61588,7 +61654,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement_profile.c",
-      "sha256": "1eef943fdb8b914fcc61beb5ff939e4f27171157475d76ab87e634e026ae145c"
+      "sha256": "5b148582042429e1f62ed4667ef29b77c2ff3297ec4ffbb26e4839595cb4b12b"
     },
     {
       "path": "tools/frida/research/pose272_probe.j",
@@ -63449,6 +63515,90 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_modifiers317.py",
       "sha256": "a4a05c67ec05f29dbbc77bbefe48bdecb59db86cbc4cc1113818eff505bda3b3"
+    },
+    {
+      "path": "tools/frida/research/slow318_profile_observer.js",
+      "sha256": "83c5da0c764d233cc3ac5db67540b6bb896bd2d79ab528e7dded15a492221993"
+    },
+    {
+      "path": "tools/frida/research/slow318_turn_observer.js",
+      "sha256": "55f0ce6899263ae77e67888adc47c05726ec8e2f277045616101242d95647ec5"
+    },
+    {
+      "path": "tools/frida/research/slow318_preslow_make_map.py",
+      "sha256": "57b9633a058379b99f1621ff9e25e766d217a7d54abb7eebfa5b1a73ff644549"
+    },
+    {
+      "path": "tools/frida/research/slow318_preslow_probe.j",
+      "sha256": "c59d5d5175982ac13044490d9cb1c58f4758dde6a1d8ee092fd0cc38d875fc8c"
+    },
+    {
+      "path": "tools/frida/research/slow318_morph_make_map.py",
+      "sha256": "bf69a21b46eb732fb1e99bd584cae1fd4deb1f3cac0c9fc004dc5ad86a1d98cb"
+    },
+    {
+      "path": "tools/frida/research/slow318_morph_probe.j",
+      "sha256": "0b52d907859ef8f3d21b70e7d5e399414bbadbfa0e4992b6e155f8770bff01b5"
+    },
+    {
+      "path": "tools/frida/research/slow318_probe.j",
+      "sha256": "4e93051bb0bf57453ccaa31252876d3f7c5c0f4550cc46fb1bdf5d02cf2464b0"
+    },
+    {
+      "path": "tools/frida/research/slow318_observer.js",
+      "sha256": "c2940d95c22c6ed71dc8da7178d64852b5db28a043fab929882562422459c2f7"
+    },
+    {
+      "path": "tools/frida/research/slow318_capture.py",
+      "sha256": "3b2f7b3272d9467723de3e9ebe83bb23c3fdf937d98e60d7cf20cdb072b9d986"
+    },
+    {
+      "path": "tools/frida/research/slow318_make_map.py",
+      "sha256": "c5e29dd61b2cfbe389aba870885f43f2936f7d599b8a2dd57339508f2a0a0714"
+    },
+    {
+      "path": "tools/ghidra/research/Slow318Evidence.java",
+      "sha256": "0dde5c5e20112a29b035c9ab106945c703d6bbb2c905ad6266ad8d4161ea994c"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/slow318_morph_script.h",
+      "sha256": "d45b3e57c4da2fbc18d57d95d05828f602ea36d0fbfc2c526f5bdd4cc633bce6"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_slow318_morph.h",
+      "sha256": "0a2626f7b77f0c64dcaa92ceaffd98848cc0a8c3079231c86947fc6afb5bfc1e"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/slow318_preslow_script.h",
+      "sha256": "836842c606770b98921810cdcf7941f46a81f35d7bbe3a419c2c939ec3a905e9"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_slow318_preslow.h",
+      "sha256": "1b0ccd6bb6fe1e241c52c06b92843521e52fee007f258239e7c63b0e2e0ba73a"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/slow318_script.h",
+      "sha256": "67d5ae731bd4ad018ce81fe957e7fe21d4289b2df119e26e4625393fb3c309a4"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_slow318.h",
+      "sha256": "ff2a5e27712f82c05bfa90c7760cd4f700ef5076172e25eff98062cdee38d44e"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_slow318.py",
+      "sha256": "3acb0e68bd715d02e4adbb55d0b4a01623e24049dcc0ebc7bb2116010ff52ad8"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_slow318.py",
+      "sha256": "47617d1c909d4b30e9a8db9fe5b7e9322a4567c6689dd4c6b221bda9af0adcf1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-slow318-1.27.json",
+      "sha256": "75523325f7f0b9de6474a400c2504344af6f4996f44bb27fc43ba6151da5d8c0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-slow318-1.27.json.gz",
+      "sha256": "c50a9533348e98aabbbbf992170454cff1dd3d6c40e92ee76411804a580bc5e6"
     }
   ]
 }

@@ -19649,3 +19649,58 @@ chunks after full-suite checkpoint312.
 Cast scheduling before the captured completion inputs, the later second-cast
 phase, other exceptional payloads/effect families, and below-one group
 republication remain open. The original TODOs are retained without new splits.
+
+## Counted group isolation and morph turn parameters (Payoff318)
+
+A significantly below-one retained Move factor acquires the same group-isolation
+counter used by negative Morph. `5fcd50` republishes the current physical member
+only when Move+80 is zero, then increments it. `5fc0e0` only decrements; removing
+Slow does not merge the unit back into its previous group. The point/target task
+handlers also test this counter before admitting a prepared/shared request.
+
+`169550` detaches the old member and creates a canonical request whose goal is
+the old group goal plus that member's retained offset. It carries the target,
+wrapper, cached target region, shared parameters and flags. The old slot remains
+invalid until ordinary pruning. The engine now follows this publication path
+and excludes already-isolated point tasks at admission, including queued tasks.
+It does not alter the cohort-distance predicate to simulate isolation.
+
+Negative Polymorph owns one contribution independently of Slow. Application,
+refresh, either removal order, and cold saves retain that ownership. Save191
+stores both the Move count and the morph's applied flag. Native morph application
+and removal also publish the form/original authored turn rate and movement
+window. The engine previously retained the original turn rate; the first morphed
+movement commit exposed the mismatch. Retail Sheep (`nshe`) uses speed100,
+minimum100, no explicit maximum, turn0.5 and window60 degrees. Slow therefore
+increments the count while the minimum keeps its effective speed100.
+
+Three public two-unit scenes cover Slow during a shared Move, Slow before the
+order, and Polymorph before the order followed by Slow. Each has two read-only
+captures and an unhooked control. Two additional pairs trace turn/window profile
+publication and Sheep's speed bounds. The thirteen captures contain 2418 public
+markers and 34632 native events; the three frozen motion projections contain
+834 commits and 552 public samples. Repeats and controls agree. Engine tests run
+the real frame scheduler and public group orders/removal, supplying the captured
+spell-completion times as inputs. Three save/load continuations per scene include
+pre-application, active effects, and restored movement.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_slow318.py \
+  --binary /path/to/supported/game.dll --report /tmp/slow318-fresh.json
+python3 tests/test_wc3_pathfinding_slow318.py
+```
+
+The initial engine regressions failed for mid-order splitting, pre-order
+admission, morph counter ownership and the first morphed turn. The fixture uses
+retail movement values with fixture-only model art. Captured completion times do
+not certify spell-cast scheduling. General target/AI/shared-parameter
+republication, other effect families, and exceptional group compositions remain
+open under the existing TODOs; no new TODO leaves are introduced.
+
+Payoff318 validation: production/test builds, strict Classic/TFT replay (8 tests,
+57262 assertions per mode), affected spell/save/order lifecycle checks (807 tests,
+163255 assertions per mode), and prior selected-group checks (13 tests,46747
+assertions per mode). Nineteen evidence rejection tests and37 corpus tests pass.
+The corpus contains554 entries,273 executable contracts. This is implementation
+chunk5 after checkpoint312; the authorized focused cadence does not imply a new
+full-repository run.
