@@ -30,6 +30,7 @@
 #include "common/ui_constants.h"
 #include "games/warcraft-3/common/minimap.h"
 #include "jass/jass.h"
+#include "hud/score_screen_table.h"
 #include <stdarg.h>
 
 struct game_export globals;
@@ -75,6 +76,7 @@ typedef struct {
     bool awaiting[MAX_CLIENTS];
     uint8_t tab[MAX_CLIENTS];
     uint8_t scroll[MAX_CLIENTS]; /* starting row; capped by MAX_PLAYERS */
+    wc3ScoreView_t view[MAX_CLIENTS]; /* transient, per-viewer controls */
     wc3ScoreSnapshot_t frozen;
 } wc3ScoreTransition_t;
 static wc3ScoreTransition_t score_transition;
@@ -156,7 +158,49 @@ void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab) {
     slot = (uint32_t)(player->client - game.clients);
     if (slot >= MAX_CLIENTS || !score_transition.awaiting[slot]) return;
     score_transition.tab[slot] = (uint8_t)tab;
-    UI_ShowScoreScreen(player, &score_transition.frozen, tab, score_transition.scroll[slot]);
+    score_transition.view[slot].column = WC3_SCORE_NO_SORT;
+    /* Retain the viewport position when changing tabs. */
+    UI_ShowScoreScreen(player, &score_transition.frozen, tab, score_transition.scroll[slot],
+                       &score_transition.view[slot]);
+}
+
+/* All score controls validate the same recipient ownership as Continue.
+ * An untrusted client cannot change another player's view or navigation. */
+static wc3ScoreView_t *G_ScoreViewer(edict_t *player, uint32_t *slot) {
+    uint32_t index;
+    if (!score_transition.pending || !score_transition.shown ||
+        !player || !player->client) return NULL;
+    index = (uint32_t)(player->client - game.clients);
+    if (index >= MAX_CLIENTS || !score_transition.awaiting[index]) return NULL;
+    if (slot) *slot = index;
+    return &score_transition.view[index];
+}
+
+void G_ScoreTransitionSort(edict_t *player, uint32_t column) {
+    uint32_t slot;
+    wc3ScoreView_t *view = G_ScoreViewer(player, &slot);
+    if (!view || column >= WC3_ScoreColumns(score_transition.tab[slot])) return;
+    WC3_ScoreSortColumn(view, score_transition.tab[slot], column);
+    score_transition.scroll[slot] = 0;
+    UI_ShowScoreScreen(player, &score_transition.frozen, score_transition.tab[slot], 0, view);
+}
+
+void G_ScoreTransitionToggleTeams(edict_t *player) {
+    uint32_t slot;
+    wc3ScoreView_t *view = G_ScoreViewer(player, &slot);
+    if (!view) return;
+    view->teams = !view->teams;
+    score_transition.scroll[slot] = 0;
+    UI_ShowScoreScreen(player, &score_transition.frozen, score_transition.tab[slot], 0, view);
+}
+
+void G_ScoreTransitionToggleAllyColors(edict_t *player) {
+    uint32_t slot;
+    wc3ScoreView_t *view = G_ScoreViewer(player, &slot);
+    if (!view) return;
+    view->ally_colors = !view->ally_colors;
+    UI_ShowScoreScreen(player, &score_transition.frozen, score_transition.tab[slot],
+                       score_transition.scroll[slot], view);
 }
 
 void G_ScoreTransitionScroll(edict_t *player, float position) {
@@ -170,7 +214,7 @@ void G_ScoreTransitionScroll(edict_t *player, float position) {
     score_transition.scroll[slot] = (uint8_t)(position >= 1.0f ? max_start :
         MIN((uint32_t)lroundf(position * (float)max_start), max_start));
     UI_ShowScoreScreen(player, &score_transition.frozen, score_transition.tab[slot],
-                       score_transition.scroll[slot]);
+                       score_transition.scroll[slot], &score_transition.view[slot]);
 }
 
 #ifdef BZ_TESTS
@@ -196,7 +240,8 @@ void G_FlushScoreTransition(void) {
         if (!client->connected) continue;
         ent = G_GetPlayerEntityByNumber(client->ps.number);
         if (!ent) continue;
-        if (UI_ShowScoreScreen(ent, &score_transition.frozen, 0, 0)) {
+        score_transition.view[i].column = WC3_SCORE_NO_SORT;
+        if (UI_ShowScoreScreen(ent, &score_transition.frozen, 0, 0, &score_transition.view[i])) {
             score_transition.awaiting[i] = true;
             presented = true;
         }

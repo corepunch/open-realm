@@ -123,6 +123,22 @@ void UI_LoadHudScoreScreen(void) {
     FOR_LOOP(i, WC3_SCORE_TABS)
         UI_SetOnClick(score->ScoreScreenTabButton[i], "scorescreen_tab %u", (unsigned)i);
     UI_SetOnClick(score->ScoreScreenScrollBar, "scorescreen_scroll");
+    /* These GLUECHECKBOXes are authored in ScoreScreen.fdf. Client clicks
+     * submit only an intent; the server keeps each spectator's view state. */
+    FOR_LOOP(c, 4) UI_SetOnClick(score->ScoreScreen4ColumnButton[c],
+                                "scorescreen_sort %u", (unsigned)c);
+    FOR_LOOP(c, 5) UI_SetOnClick(score->ScoreScreen5ColumnButton[c],
+                                "scorescreen_sort %u", (unsigned)c);
+    if (score->ScoreScreenTeamsButton)
+        UI_SetOnClick(score->ScoreScreenTeamsButton, "scorescreen_teams");
+    if (score->ScoreScreenTeamColorButton)
+        UI_SetOnClick(score->ScoreScreenTeamColorButton, "scorescreen_allycolors");
+    /* Replay recording/saving is not implemented: do not expose a button
+     * with a false-success or inert action. Restore it with a real backend. */
+    if (score->ScoreScreenSaveReplayButton)
+        UI_SetHidden(score->ScoreScreenSaveReplayButton, true);
+    if (score->ScoreScreenReplaySavedButton)
+        UI_SetHidden(score->ScoreScreenReplaySavedButton, true);
 
     FOR_LOOP(i, WC3_SCORE_VISIBLE_ROWS) {
         if (!ScoreScreenMakeRow(i)) {
@@ -144,7 +160,8 @@ void UI_LoadHudScoreScreen(void) {
     }
 }
 
-static void ScoreScreenSetHeaders(ScoreScreen_t *score, uint32_t tab) {
+static void ScoreScreenSetHeaders(ScoreScreen_t *score, uint32_t tab,
+                                   wc3ScoreView_t const *view) {
     static cstring_t const keys[][5] = {
         { "OVERVIEW_COLUMN0", "OVERVIEW_COLUMN1", "OVERVIEW_COLUMN2", "OVERVIEW_COLUMN3", NULL },
         { "UNIT_COLUMN0", "UNIT_COLUMN1", NULL, NULL, NULL },
@@ -158,6 +175,13 @@ static void ScoreScreenSetHeaders(ScoreScreen_t *score, uint32_t tab) {
         frameDef_t *header = wide ? score->ScoreScreen5ColumnHeader[i] : score->ScoreScreen4ColumnHeader[i];
         cstring_t key = keys[tab][i];
         UI_SetText(header, "%s", key ? UI_GetString(key) : "");
+        UI_SetHidden(wide ? score->ScoreScreen5ColumnButton[i]
+                          : score->ScoreScreen4ColumnButton[i], !key);
+        {
+            frameDef_t *button = wide ? score->ScoreScreen5ColumnButton[i]
+                                      : score->ScoreScreen4ColumnButton[i];
+            button->CheckBox.Checked = view && view->column == i;
+        }
     }
 }
 
@@ -183,7 +207,8 @@ static cstring_t ScoreScreenRaceArt(gameClient_t *viewer) {
     return fallback;
 }
 
-static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab) {
+static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab,
+                               wc3ScoreView_t const *view) {
     ScoreScreen_t *score = &hud.score;
     char anim[32];
     frameDef_t *selected = score->ScoreScreenTabTextSelected;
@@ -198,7 +223,11 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab) {
     snprintf(anim, sizeof(anim), "TeamColor%02u Stand", (unsigned)(viewer->ps.color % 12));
     UI_SetText(score->ScoreScreenBarTop, "%s", anim);
 
-    ScoreScreenSetHeaders(score, tab);
+    ScoreScreenSetHeaders(score, tab, view);
+    if (score->ScoreScreenTeamsButton)
+        score->ScoreScreenTeamsButton->CheckBox.Checked = view && view->teams;
+    if (score->ScoreScreenTeamColorButton)
+        score->ScoreScreenTeamColorButton->CheckBox.Checked = view && view->ally_colors;
     FOR_LOOP(i, WC3_SCORE_TABS) UI_SetHidden(score->ScoreScreenTabText[i], i == tab);
     label = UI_GetString(((cstring_t[]){
         "SCORESCREEN_TAB0", "SCORESCREEN_TAB1", "SCORESCREEN_TAB2", "SCORESCREEN_TAB3"
@@ -214,7 +243,7 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab) {
 
 static void ScoreScreenFillRow(uint32_t slot, uint32_t tab,
                                wc3ScorePlayerSnapshot_t const *player,
-                               int32_t const peaks[5]) {
+                               int32_t const peaks[5], uint32_t tint_color) {
     static float const cols4[4] = { -0.172f, -0.0273f, 0.1182f, 0.2647f };
     static float const cols5[5] = { -0.1865f, -0.0703f, 0.0462f, 0.1627f, 0.280f };
     frameDef_t *root = hud.score_rows[slot].root;
@@ -224,7 +253,7 @@ static void ScoreScreenFillRow(uint32_t slot, uint32_t tab,
     char text[32];
 
     UI_SetHidden(root, false);
-    hud.score_rows[slot].backdrop->Color = ScoreScreenPlayerColor(player->color);
+    hud.score_rows[slot].backdrop->Color = ScoreScreenPlayerColor(tint_color);
     UI_SetHidden(hud.score_rows[slot].border, false);
     UI_SetHidden(hud.score_rows[slot].icon, !icon);
     if (icon) UI_SetTexture(hud.score_rows[slot].icon, icon, false);
@@ -253,9 +282,11 @@ static void ScoreScreenFillRow(uint32_t slot, uint32_t tab,
 }
 
 bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
-                        uint32_t tab, uint32_t scroll) {
+                        uint32_t tab, uint32_t scroll,
+                        wc3ScoreView_t const *view) {
     uint32_t max_scroll, start;
     int32_t peaks[5] = { 0 };
+    uint8_t order[MAX_PLAYERS];
     ScoreScreen_t *score = &hud.score;
     frameDef_t *elapsed;
     uint32_t seconds;
@@ -263,7 +294,8 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
         snapshot->count > MAX_PLAYERS || !score->ScoreScreenFrame) return false;
     max_scroll = WC3_ScoreMaxScroll(snapshot->count);
     start = MIN(scroll, max_scroll);
-    ScoreScreenSetPage(ent->client, tab);
+    WC3_ScoreOrderedPlayers(snapshot, tab, view, order);
+    ScoreScreenSetPage(ent->client, tab, view);
 
     /* Snapshot peaks are recomputed for each tab and include hidden rows.
      * Scores are never recalculated from current/possibly removed entities. */
@@ -276,7 +308,12 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
         bool visible = start + i < snapshot->count;
         if (!hud.score_rows[i].root) return false;
         UI_SetHidden(hud.score_rows[i].root, !visible);
-        if (visible) ScoreScreenFillRow(i, tab, &snapshot->players[start + i], peaks);
+        if (visible) {
+            wc3ScorePlayerSnapshot_t const *player = &snapshot->players[order[start + i]];
+            uint32_t const tint = view && view->ally_colors
+                ? WC3_ScoreTeamColor(snapshot, player) : player->color;
+            ScoreScreenFillRow(i, tab, player, peaks, tint);
+        }
     }
     /* The stock scrollbar is self-owned; the generic client reports its
      * normalized position via its authored OnClick on wheel/thumb input. */

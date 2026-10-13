@@ -98,6 +98,17 @@ static void UI_CopyFrameBase(uiFrame_t *dest, frameDef_t const *src) {
     dest->text = src->Text;
     dest->tooltip = tooltip_text;
     dest->onclick = src->OnClick;
+    /* FDF ControlShortcutKey is the native glue-button keyboard shortcut.
+     * Expose it to the existing modal window hotkey dispatcher (e.g. score
+     * screen OK = O). Other FDF-authored shortcuts benefit automatically. */
+    /* Avoid interpreting unexpanded localization keys like KEY_SAVE_E as
+     * the K shortcut. Expand when the skin has a single-character value. */
+    {
+        cstring_t shortcut = src->Control.ShortcutKey;
+        cstring_t resolved = shortcut && shortcut[0] && shortcut[1]
+            ? UI_GetString(shortcut) : shortcut;
+        dest->hotkey = resolved && resolved[0] && !resolved[1] ? resolved[0] : 0;
+    }
 }
 
 static uiBackdrop_t MakeBackdrop(frameDef_t const *frame) {

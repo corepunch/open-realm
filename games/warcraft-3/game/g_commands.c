@@ -2133,6 +2133,25 @@ CLIENTCOMMAND(ScoreScreenTab) {
     G_ScoreTransitionSelectTab(clent, (uint32_t)tab);
 }
 
+CLIENTCOMMAND(ScoreScreenSort) {
+    char *end;
+    unsigned long column;
+    if (!clent || argc != 2 || !argv[1] || !argv[1][0] || argv[1][0] == '-') return;
+    column = strtoul(argv[1], &end, 10);
+    if (*end || column >= 5) return;
+    G_ScoreTransitionSort(clent, (uint32_t)column);
+}
+
+CLIENTCOMMAND(ScoreScreenTeams) {
+    (void)argc; (void)argv;
+    G_ScoreTransitionToggleTeams(clent);
+}
+
+CLIENTCOMMAND(ScoreScreenAllyColors) {
+    (void)argc; (void)argv;
+    G_ScoreTransitionToggleAllyColors(clent);
+}
+
 CLIENTCOMMAND(ScoreScreenScroll) {
     char *end;
     float pos;
@@ -3094,6 +3113,9 @@ clientCommand_t clientCommands[] = {
     { "scorescreen_continue", CMD_ScoreScreenContinue },
     { "scorescreen_tab", CMD_ScoreScreenTab },
     { "scorescreen_scroll", CMD_ScoreScreenScroll },
+    { "scorescreen_sort", CMD_ScoreScreenSort },
+    { "scorescreen_teams", CMD_ScoreScreenTeams },
+    { "scorescreen_allycolors", CMD_ScoreScreenAllyColors },
     { "jassdialog", CMD_JassDialogChoice },
     { "debugspawn", CMD_DebugSpawn },
     { "enemiesclear", CMD_EnemiesClear },

@@ -2532,6 +2532,9 @@ void G_FlushScoreTransition(void);
 void G_ScoreTransitionContinue(edict_t *player);
 void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab);
 void G_ScoreTransitionScroll(edict_t *player, float position);
+void G_ScoreTransitionSort(edict_t *player, uint32_t column);
+void G_ScoreTransitionToggleTeams(edict_t *player);
+void G_ScoreTransitionToggleAllyColors(edict_t *player);
 #ifdef BZ_TESTS
 bool G_ScoreTransitionPending(void);
 #endif
@@ -3327,7 +3330,9 @@ void UI_WriteLayout(edict_t *, frameDef_t const *, uint32_t);
 void UI_WriteStart(uint32_t);
 void UI_ClearLayer(edict_t *, uint32_t);
 void UI_ShowGameResult(edict_t *, uint32_t);
-bool UI_ShowScoreScreen(edict_t *, wc3ScoreSnapshot_t const *, uint32_t, uint32_t);
+struct wc3ScoreView_s;
+bool UI_ShowScoreScreen(edict_t *, wc3ScoreSnapshot_t const *, uint32_t, uint32_t,
+                        struct wc3ScoreView_s const *);
 void UI_FlushPendingGameResults(void);
 void UI_HideGameResult(edict_t *);
 /* JASS interactive choice dialogs: the registry and click authority live in the game. */

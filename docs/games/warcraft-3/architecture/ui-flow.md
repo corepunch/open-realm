@@ -426,10 +426,13 @@ after the enclosing `SV_Frame` has returned. Keep `CustomVictoryOkBJ` itself syn
 executes, but keep the actual world replacement deferred.
 
 `EndGame(doScoreScreen)` returns single-player campaign maps to the campaign selector and other sessions to the main
-menu, consuming an explicit `ForceCampaignSelectScreen` request as well. It cannot yet honor `doScoreScreen`; there
-is no score-screen controller. The engine-owned score accounting and partial `GetPlayerScore` implementation are
-independent of presentation (see [../score-screen.md](../score-screen.md)). Do not interpose a score window until the
-outgoing destination can be retained safely while the window owns the old game state.
+menu, consuming an explicit `ForceCampaignSelectScreen` request as well. When score presentation is requested, the
+Warcraft module now freezes player statistics and defers that same destination behind the retail `ScoreScreen.fdf`
+modal. The client presentation window replaces world/HUD rendering, and the original OK button completes the saved
+destination once; no JASS stack frame is kept alive across the transition. The controller includes provisional,
+explicitly labelled assumptions for score aggregates, dynamic row geometry, sorting and team/ally-colour behavior;
+see [../score-screen.md](../score-screen.md). When score FDF or recipients are unavailable, the deferred destination
+still proceeds so an outgoing match cannot deadlock.
 `ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
 `DisplayLoadDialog` opens the in-game save/load panel (or the front-end load screen when that panel is unavailable).
 Every Esc-menu page derives its lock from the player's result state, not from the command that opened it: once a

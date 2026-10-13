@@ -141,4 +141,66 @@ TEST(wc3_score, score_table_scroll_clamps_to_visible_player_range) {
     T_EQ(WC3_ScoreScrollStart(2, 1.0f), 0);
 }
 
+TEST(wc3_score, score_sort_is_stable_and_uses_frozen_values) {
+    wc3ScoreSnapshot_t snapshot = { 0 };
+    wc3ScoreView_t view = { .column = WC3_SCORE_NO_SORT };
+    uint8_t order[MAX_PLAYERS] = { 0 };
+    snapshot.count = 4;
+    snapshot.players[0].values[WC3_PLAYER_SCORE_UNIT_TOTAL] = 30;
+    snapshot.players[1].values[WC3_PLAYER_SCORE_UNIT_TOTAL] = 10;
+    snapshot.players[2].values[WC3_PLAYER_SCORE_UNIT_TOTAL] = 30;
+    snapshot.players[3].values[WC3_PLAYER_SCORE_UNIT_TOTAL] = 20;
+    WC3_ScoreOrderedPlayers(&snapshot, 0, &view, order);
+    T_EQ(order[0], 0); T_EQ(order[1], 1);
+    WC3_ScoreSortColumn(&view, 0, 0);
+    T_ASSERT(view.descending);
+    WC3_ScoreOrderedPlayers(&snapshot, 0, &view, order);
+    T_EQ(order[0], 0); T_EQ(order[1], 2); T_EQ(order[2], 3); T_EQ(order[3], 1);
+    /* Selecting the active column again reverses the ordering, ties stable. */
+    WC3_ScoreSortColumn(&view, 0, 0);
+    T_ASSERT(!view.descending);
+    WC3_ScoreOrderedPlayers(&snapshot, 0, &view, order);
+    T_EQ(order[0], 1); T_EQ(order[1], 3); T_EQ(order[2], 0); T_EQ(order[3], 2);
+    /* Reordering is a view: it must never rearrange the frozen source. */
+    T_EQ(snapshot.players[0].values[WC3_PLAYER_SCORE_UNIT_TOTAL], 30);
+    T_EQ(snapshot.players[1].values[WC3_PLAYER_SCORE_UNIT_TOTAL], 10);
+}
+
+TEST(wc3_score, score_sort_unavailable_values_last_and_groups_teams) {
+    wc3ScoreSnapshot_t snapshot = { 0 };
+    wc3ScoreView_t view = { .column = WC3_SCORE_NO_SORT };
+    uint8_t order[MAX_PLAYERS] = { 0 };
+    snapshot.count = 4;
+    snapshot.players[0].number = 3;
+    snapshot.players[0].team = 2;
+    snapshot.players[0].color = 8;
+    snapshot.players[0].values[WC3_PLAYER_SCORE_HEROES_KILLED] = 20;
+    snapshot.players[1].number = 1;
+    snapshot.players[1].team = 1;
+    snapshot.players[1].color = 4;
+    snapshot.players[1].values[WC3_PLAYER_SCORE_HEROES_KILLED] = 5;
+    snapshot.players[2].number = 0;
+    snapshot.players[2].team = 2;
+    snapshot.players[2].color = 2;
+    snapshot.players[2].values[WC3_PLAYER_SCORE_HEROES_KILLED] = 10;
+    snapshot.players[3].number = 2;
+    snapshot.players[3].team = 1;
+    snapshot.players[3].color = 6;
+    WC3_ScoreSortColumn(&view, 2, 1); /* Heroes Killed, not missing Heroes Used. */
+    WC3_ScoreOrderedPlayers(&snapshot, 2, &view, order);
+    T_EQ(order[0], 0); T_EQ(order[1], 2); T_EQ(order[2], 1); T_EQ(order[3], 3);
+    view.teams = true; /* GUESS: team id groups before score order. */
+    WC3_ScoreOrderedPlayers(&snapshot, 2, &view, order);
+    T_EQ(order[0], 1); T_EQ(order[1], 3); T_EQ(order[2], 0); T_EQ(order[3], 2);
+    T_EQ(WC3_ScoreTeamColor(&snapshot, &snapshot.players[0]), 2);
+    T_EQ(WC3_ScoreTeamColor(&snapshot, &snapshot.players[1]), 4);
+    /* Missing retail counter cannot reorder rows, even if clicked. */
+    view.teams = false;
+    WC3_ScoreSortColumn(&view, 2, 0);
+    WC3_ScoreOrderedPlayers(&snapshot, 2, &view, order);
+    T_EQ(order[0], 0); T_EQ(order[1], 1); T_EQ(order[2], 2); T_EQ(order[3], 3);
+    WC3_ScoreSortColumn(&view, 1, 4); /* Invalid Units column is ignored. */
+    T_EQ(view.column, 0);
+}
+
 #endif

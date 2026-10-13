@@ -135,6 +135,43 @@ Missing mandatory FDF frames prevent score-window presentation so deferred
 navigation can proceed; optional cosmetic/model data is not replaced with
 OpenRealm art. No local compilation or runtime validation was performed.
 
+### Score interactions: Patch 3
+
+The original four- and five-column **FDF checkbox buttons** now dispatch
+`scorescreen_sort <column>` intents. Sorting is **per recipient** over a temporary
+index array into the immutable match snapshot; it never mutates source scores.
+Clicking a column first sorts descending, clicking it again ascending. Missing
+statistics always follow real scores and ties retain prior snapshot order.
+Changing tabs returns to the snapshot order (sort selection clears) but retains
+the viewer's scroll offset. Header checked states display the active column;
+blank Units headers are hidden rather than clickable.
+
+The retail `ScoreScreenTeamsButton` checkbox groups players by numeric team ID
+when enabled. **GUESS:** sorting within each team uses the selected column,
+while the initial order uses the outgoing snapshot. This is provisional: exact
+retail grouping, team totals and tie rules require retail runtime evidence.
+The optional ally-colour FDF control uses the candidate name
+`ScoreScreenTeamColorButton`; the agent's report did not give its exact name,
+so if absent no replacement visual control is invented. When present it toggles
+the player-strip colour to the lowest-numbered teammate's player colour.
+**GUESS:** this is only a substitute for retail's local ally-colour rules, not
+an assertion of parity. Race icons remain the player's actual race.
+
+The generic FDF serialization bridge now preserves `ControlShortcutKey` as a
+window button hotkey. The retail score-screen OK button has shortcut **O**,
+which follows the same recipient-validated `scorescreen_continue` transition
+as mouse click. Escape remains blocked; no second transition is sent when a
+stale viewer command arrives after completing the score screen. The optional
+Save Replay / Replay Saved controls are hidden until the project has a real
+replay-save backend, avoiding inert or misleading UI controls. All new user
+commands validate the waiting score-viewer slot and selected page before
+altering the view.
+
+All rules above that are explicitly marked GUESS remain open for controlled
+retail screenshot/run comparison. The original FDF source and full asset set
+were not provided with the research report, so optional control identifiers
+still need confirmation against the extraction.
+
 ## Manual validation needed
 
 - Launch a finished single-player mission with `EndGame(true)` and inspect
@@ -153,6 +190,11 @@ OpenRealm art. No local compilation or runtime validation was performed.
 - Compare guessed aggregate values against retail under controlled matches.
 - With more than ten eligible players, wheel and drag the scrollbar; verify
   the server displays precisely the expected page without stale hidden rows.
+- Click each page's populated column headers twice and verify descending then
+  ascending score order, stable ties, missing values last, and per-player views.
+- Toggle Teams and the ally-colour control (if the FDF binds it), and compare
+  the provisional grouping/palette against controlled retail teams.
+- Press O on the score screen; it should trigger the same OK action once.
 - Verify Heroes Used, Experience and Traded show a dash until tracked, and
   that resource column values follow the retail headings rather than arbitrary
   fallback score totals.

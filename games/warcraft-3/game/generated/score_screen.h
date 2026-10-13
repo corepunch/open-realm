@@ -22,6 +22,13 @@ typedef struct {
     frameDef_t *ScoreScreenTabTextSelected;
     frameDef_t *ScoreScreenOKButton;
     frameDef_t *ScoreScreenScrollBar;
+    /* Retail column controls are siblings/parents of their header text. */
+    frameDef_t *ScoreScreen4ColumnButton[4];
+    frameDef_t *ScoreScreen5ColumnButton[5];
+    frameDef_t *ScoreScreenTeamsButton; /* confirmed name in retail inventory */
+    frameDef_t *ScoreScreenTeamColorButton; /* optional: exact FDF spelling pending source */
+    frameDef_t *ScoreScreenSaveReplayButton;
+    frameDef_t *ScoreScreenReplaySavedButton;
     frameDef_t *ScoreScreenElapsedValue; /* optional binding: extracted FDF not provided */
 } ScoreScreen_t;
 
@@ -41,6 +48,12 @@ static inline bool ScoreScreen_Bind(ScoreScreen_t *out, frameDef_t *root) {
     BZ_FDF_BIND_CHILD(out, ScoreScreenTabTextSelected, root, "ScoreScreenTabTextSelected");
     BZ_FDF_BIND_CHILD(out, ScoreScreenOKButton, root, "ScoreScreenOKButton");
     BZ_FDF_BIND_CHILD(out, ScoreScreenScrollBar, root, "ScoreScreenScrollBar");
+    out->ScoreScreenTeamsButton = UI_FindChildFrame(root, "ScoreScreenTeamsButton");
+    /* The game-data agent confirmed a team-colour button, but supplied no
+     * exact identifier. Keep this binding optional until raw FDF is provided. */
+    out->ScoreScreenTeamColorButton = UI_FindChildFrame(root, "ScoreScreenTeamColorButton");
+    out->ScoreScreenSaveReplayButton = UI_FindChildFrame(root, "ScoreScreenSaveReplayButton");
+    out->ScoreScreenReplaySavedButton = UI_FindChildFrame(root, "ScoreScreenReplaySavedButton");
     out->ScoreScreenElapsedValue = UI_FindChildFrame(root, "ScoreScreenElapsedTimeValue");
     if (!out->ScoreScreenElapsedValue)
         out->ScoreScreenElapsedValue = UI_FindChildFrame(root, "ScoreScreenElapsedTimeText");
@@ -54,12 +67,20 @@ static inline bool ScoreScreen_Bind(ScoreScreen_t *out, frameDef_t *root) {
         if (!out->ScoreScreenTabText[i]) { BZ_FDF_REPORT_MISSING(name); ok = false; }
         snprintf(name, sizeof(name), "ScoreScreen4ColumnHeader%u", (unsigned)i);
         out->ScoreScreen4ColumnHeader[i] = UI_FindChildFrame(root, name);
+        snprintf(name, sizeof(name), "ScoreScreen4ColumnButton%u", (unsigned)i);
+        out->ScoreScreen4ColumnButton[i] = UI_FindChildFrame(root, name);
+        if (!out->ScoreScreen4ColumnButton[i]) { BZ_FDF_REPORT_MISSING(name); ok = false; }
+        snprintf(name, sizeof(name), "ScoreScreen4ColumnHeader%u", (unsigned)i);
         if (!out->ScoreScreen4ColumnHeader[i]) { BZ_FDF_REPORT_MISSING(name); ok = false; }
     }
     for (uint32_t i = 0; i < 5; i++) {
         char name[48];
         snprintf(name, sizeof(name), "ScoreScreen5ColumnHeader%u", (unsigned)i);
         out->ScoreScreen5ColumnHeader[i] = UI_FindChildFrame(root, name);
+        snprintf(name, sizeof(name), "ScoreScreen5ColumnButton%u", (unsigned)i);
+        out->ScoreScreen5ColumnButton[i] = UI_FindChildFrame(root, name);
+        if (!out->ScoreScreen5ColumnButton[i]) { BZ_FDF_REPORT_MISSING(name); ok = false; }
+        snprintf(name, sizeof(name), "ScoreScreen5ColumnHeader%u", (unsigned)i);
         if (!out->ScoreScreen5ColumnHeader[i]) { BZ_FDF_REPORT_MISSING(name); ok = false; }
     }
     return ok;
