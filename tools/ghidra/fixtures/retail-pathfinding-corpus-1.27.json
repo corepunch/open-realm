@@ -54693,6 +54693,77 @@
         "No additional group republication changes beyond318; original target identity, range and cached region are exercised.",
         "Same generated footprint geometry replaces retail artwork in the engine fixture; stock collision176 is supplied by map metadata."
       ]
+    },
+    {
+      "id": "oracle-captain320",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_captain320.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "captain320.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 931
+        },
+        "captures": {
+          "equal": 7
+        },
+        "native_events": {
+          "equal": 49356
+        },
+        "public_markers": {
+          "equal": 2576
+        },
+        "motion_rows": {
+          "equal": 861
+        },
+        "public_rows": {
+          "equal": 270
+        },
+        "shared_rows": {
+          "equal": 215
+        },
+        "actor_rows": {
+          "equal": 293
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 12,
+              "assertions": 132398
+            },
+            "tft": {
+              "tests": 12,
+              "assertions": 132398
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "Public Captain Slow notification, receiver diplomacy, retained hidden-actor request clocks and runtime turn rate, exact movement and cold save.",
+      "exclusions": [
+        "Native Slow completion4.04994488 is supplied at engine4.05 through the real target preparation and concrete effect; cast scheduling is not certified.",
+        "Private AI continuation has only inert Sleep remaining before cold save; arbitrary AI coroutine persistence is outside this replay.",
+        "Flat three-member Captain scene; other effects, exceptional payloads and broader shared producers remain open.",
+        "Projectile notification opt-outs follow recovered v38c policy; projectile impact behavior is not changed or certified by this scene."
+      ]
     }
   ],
   "fixtures": [
@@ -55591,7 +55662,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "18a90c6c0638cfba8a4a3d0b6b4be8cf147d79360b26b025b2554dffb37e6faa"
+      "sha256": "d4f04bfef8fce143482ba4036a74977a0097f7009f7e8da8de6b091831067453"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56443,11 +56514,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "93e4c4e3e29e70dae0bee83705f1b963643b98f0e488810a31b11cc86bf27260"
+      "sha256": "8dbc948a49909a3f88ab807f8126586986788cc65dfdaeff88ba1804d8f5236c"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "34f86bb231e239837342cc83bd53e0e5aa1d498417e39efa148e69a4f76b5557"
+      "sha256": "ef56d0173859f61f4d21f3099432d740c6bfb4afe2440cd690de0b4981dc6761"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -57139,7 +57210,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "83680e4b7eb07ab630ea05b05c576aca3ab9783d2f5154116fdc720e48a990c9"
+      "sha256": "534a8cfdc9f72c3c77a8d137f1ecab0d59268fd69dd849e5a98bb716611ab8ed"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -57383,7 +57454,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "d229d51a4bd66d0396c85399a20341e1badb9163316e761704c696dfb980a99a"
+      "sha256": "015a72924cefac2894a2f4cd631fb8538ec4a7d04946436c948cc11392c44f5f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57395,11 +57466,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "221c5499e758ec16fb236cfe6f46a994ce20b4d65b23050d7b2d8dbabc81f08e"
+      "sha256": "f5d63741fcf524933013c0bae1d5c2b08f2c6752884af7744a769927ca467d94"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "f910dbf42e03e9bdf5b7646b1488a089a40360ef6fe65b45182632aed516692f"
+      "sha256": "599888f9bf6d5934cce70a99cc48e68abf175f7c4b34812fc8a65f9a3558462e"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -58607,7 +58678,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "745cba6911dd249975dee2dd37ef6291feae66e42ce14cd4ae11f7f45755ee53"
+      "sha256": "be77eba77460f31702d58e052f80486598fa745abb8baaeeaa851faf8744cffa"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -62399,7 +62470,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "872e6b876fbcf110d15803018ffd71e52e0fbac6e2454622e9bf060ea668b7a2"
+      "sha256": "d443e453314eaea2a122fb4e20d6c97b0476cdf868e7848a63b972c5ae230bdb"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -63744,6 +63815,66 @@
     {
       "path": "tools/ghidra/fixtures/retail-target319-1.27.json.gz",
       "sha256": "498b223e238cadc1ea5d226aacebcae03ca7cc3596a8f46b0da306e358c49af9"
+    },
+    {
+      "path": "tools/frida/research/captain320_capture.py",
+      "sha256": "a13c406c1a671927a1dc0259aa62223a9953ba0c4f99ca451f76c97993c98b17"
+    },
+    {
+      "path": "tools/frida/research/captain320_make_map.py",
+      "sha256": "3d8a5f64c060aa2652749bad535313ddfd22f62fb1ab97fc7e507ef0bc2fea9a"
+    },
+    {
+      "path": "tools/frida/research/captain320_probe.j",
+      "sha256": "cf3efa363df3bd0c3b1f2e7cb6c915dc529c31eb493eebdce92a1ebcecf2a2b5"
+    },
+    {
+      "path": "tools/frida/research/captain320_probe.ai",
+      "sha256": "13b9dd08d1d5d9b3d9609d4b9a10610817b7939fcf71fd672db2542dd449d3fe"
+    },
+    {
+      "path": "tools/frida/research/captain320_observer.js",
+      "sha256": "70f62626f2619c03e3725e19217e3d375712688325c6b19e50bd02268ddda673"
+    },
+    {
+      "path": "tools/frida/research/captain320_alert_observer.js",
+      "sha256": "760c43a8681f7c12a3b8d8415b2c6848c4e8301472ee7a917aa05b727e3c87a6"
+    },
+    {
+      "path": "tools/frida/research/captain320_turn_observer.js",
+      "sha256": "68855a463d00f4b44147cd1710e100141981fbad8ca7981b4361fc0a679837b3"
+    },
+    {
+      "path": "tools/ghidra/research/Captain320Evidence.java",
+      "sha256": "ce3bf4d0cabff27e0b53fdbd513f5e5d28d3cbea9802afb0bce08eed1b3c69c0"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_captain320.h",
+      "sha256": "c0aa4fd9414c8a69767faa4ee465a9917886a89dd0107ab0453ab2e6114592a7"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Scripts/captain320.j",
+      "sha256": "0ccb4c608d4b0b39dded8e05e02d3f7fc51eb8f39b8ed044d6f53cd37d87c100"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Scripts/captain320.ai",
+      "sha256": "13b9dd08d1d5d9b3d9609d4b9a10610817b7939fcf71fd672db2542dd449d3fe"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_captain320.py",
+      "sha256": "0c7c8c652150205551d2be4ca6056c3c4331436590317ae941940f5b280d12d7"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain320.py",
+      "sha256": "92ec2ef95d7b711e3621fe3558a41b3a9cf95066f5c5cf96be1c583e1ab984aa"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain320-1.27.json",
+      "sha256": "618a2d078cf9faf40b091e2e0e77d0a6cb63a1fc81d245e4810225e9982582a1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain320-1.27.json.gz",
+      "sha256": "14f7a25c9cdc8c52c0fe6ac88c4b338e6a0ef368a0d2b7d6ffa0af322643b111"
     }
   ]
 }

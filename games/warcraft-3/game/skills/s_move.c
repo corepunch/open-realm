@@ -2441,6 +2441,10 @@ static void move_invalidate_path(edict_t *self) {
     moveFineRoute_t *route=&self->movement.fine_route;
     route->count=route->adaptive_count=route->group_count=0;
     route->index=route->adaptive_index=route->group_index=UINT32_MAX;
+    /*171340/168b80 publishes the invalid destination as well as discarding
+     * points. Retaining the old goal bypassed the request throttle when a
+     * Captain replaced an identical point task while its fine clock was live. */
+    route->adaptive_goal=(vec2_t){wc3_float(0xc7fa0000),wc3_float(0xc7fa0000)};
     route->partial=false;route->adaptive_short=0;
     /*168b80 resets retry/delay before the stopped order unwinds its task
      * chain. Inactive units must not retain the failed search counters. */
@@ -6025,8 +6029,16 @@ void S_BeginUnitFacingRequest(edict_t *unit,moveFacingRequest_t const *request) 
 }
 
 static void move_captain_actor_point(edict_t *actor,vec2_t const *home,float range) {
+    /* The Captain owns its bridge for its entire lifetime. Point replacement
+     * stops/invalidates it, but has no fresh Move-ability activation166060 to
+     * reset admission timestamps. Retain the fine/coarse throttle across the
+     * ordinary order setup; otherwise an identical request advances too soon. */
+    uint32_t fine=actor->movement.fine_request_time;
+    uint32_t coarse=actor->movement.fine_route.adaptive_admission.time;
     move_leave(actor);
     S_IssueMoveOrder(actor,Waypoint_add(home),G_OrderId("move"));
+    actor->movement.fine_request_time=fine;
+    actor->movement.fine_route.adaptive_admission.time=coarse;
     move_start_point_group(actor,home,range);
 }
 
@@ -6075,7 +6087,9 @@ void S_CaptainPointMove(botCaptain_t *captain,vec2_t const *point,float range) {
         ent->movement.captain_home.home=*point;
     }
     actor->unitinfo.MoveSpeed=move_captain_point_speed(captain);
-    actor->unitinfo.TurnSpeed=wc3_float(0x3ecccccd);
+    /* Retail decimal0.4 reproduces the observed runtime default3eccccce.
+     * The hidden actor's first turn and seven later headings differ by one bit. */
+    actor->unitinfo.TurnSpeed=wc3_decimal("0.4");
     actor->unitinfo.PropWindow=wc3_float(0x3dcccccd);
     actor->unitinfo.move_flags|=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
     move_captain_actor_point(actor,point,range);

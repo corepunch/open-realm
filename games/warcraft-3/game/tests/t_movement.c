@@ -26903,3 +26903,216 @@ TEST(wc3_movement, target319_follow_isolation_matches_retail_and_cold_saves) {ta
 TEST(wc3_movement, target319_smart_isolation_matches_retail_and_cold_saves) {target319_run_scene(1);}
 TEST(wc3_movement, target319_structure_isolation_matches_retail_and_cold_saves) {target319_run_scene(2);}
 #endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_captain320.h"
+static uint32_t const (*captain320_expected_motion)[8],(*captain320_expected_public)[7],(*captain320_expected_shared)[5];
+static unsigned captain320_motion_count,captain320_public_count,captain320_shared_count;
+static unsigned captain320_motion_size,captain320_public_size,captain320_shared_size;
+static unsigned captain320_public_differences;
+static bool captain320_mismatch;
+extern void (*test_unit_position_query)(edict_t *,unsigned,float);
+static uint32_t captain320_query[3][2];
+static void captain320_coordinate(edict_t *unit,unsigned axis,float value);
+
+static unsigned captain320_index(edict_t *unit) {
+    unsigned index=0;
+    FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','T','A','A')) {
+        if(e==unit)return index;
+        index++;
+    }
+    return 99;
+}
+static void captain320_coordinate(edict_t *unit,unsigned axis,float value) {
+    if(!unit || unit->class_id!=MAKEFOURCC('h','T','A','A'))return;
+    unsigned index=captain320_index(unit);T_ASSERT(index<3 && axis<2);
+    if(index<3 && axis<2)captain320_query[index][axis]=wc3_float_bits(value);
+}
+static unsigned captain320_actor_count;
+static void captain320_motion(edict_t *unit) {
+    if(unit->movement.captain_actor_owned && !captain320_mismatch) {
+        uint32_t actual[]={level.pathing_counter,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+            wc3_float_bits(wc3_mul(unit->movement.velocity.x,1.0f/32)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1.0f/32)),
+            wc3_float_bits(unit->s.angle),wc3_float_bits(level.pathing_clock.time)};
+        T_ASSERT(captain320_actor_count<sizeof(captain320_actor_rows)/sizeof(*captain320_actor_rows));
+        if(captain320_actor_count<sizeof(captain320_actor_rows)/sizeof(*captain320_actor_rows))FOR_LOOP(i,7) {
+            uint32_t expected=captain320_actor_rows[captain320_actor_count][i];T_EQ(actual[i],expected);
+            if(actual[i]!=expected) {
+                captain320_mismatch=true;
+                fprintf(stderr,"captain320 actor%u counter%u field%u expected%08x actual%08x\n",captain320_actor_count,level.pathing_counter,i,expected,actual[i]);
+            }
+        }
+        captain320_actor_count++;
+    }
+    if(captain320_mismatch)return;
+    if(unit->class_id!=MAKEFOURCC('h','T','A','A') || !move_unit_group(unit))return;
+    uint32_t actual[]={captain320_index(unit),wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_mul(unit->movement.velocity.x,1.0f/32)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1.0f/32)),wc3_float_bits(unit->s.angle)};
+    T_ASSERT(captain320_motion_count<captain320_motion_size);
+    if(captain320_motion_count<captain320_motion_size)FOR_LOOP(i,8) {
+        uint32_t expected=captain320_expected_motion[captain320_motion_count][i];T_EQ(actual[i],expected);
+        if(actual[i]!=expected){captain320_mismatch=true;fprintf(stderr,"captain320 motion%u time%u field%u expected%08x actual%08x\n",captain320_motion_count,level.time,i,expected,actual[i]);}
+    }
+    captain320_motion_count++;
+}
+static void captain320_public(cstring_t message) {
+    if(!strcmp(message,"CAPTURED_SLOW320")) {
+        edict_t *caster=NULL,*target=NULL;
+        FILTER_EDICTS(e,e->inuse) {
+            if(e->class_id==MAKEFOURCC('h','s','o','r'))caster=e;
+            if(e->class_id==MAKEFOURCC('h','T','A','A') && !target)target=e;
+        }
+        T_NOT_NULL(caster);T_NOT_NULL(target);if(!caster || !target)return;
+        abilityitem_t item=S_AbilityItem(MAKEFOURCC('A','s','l','o'));
+        spellTarget_t spell_target={.type=SPELL_TARGET_UNIT,.entity=target};abilityCall_t call=MAKE(abilityCall_t,.item=&item,.target=&spell_target);
+        T_ASSERT(!S_PrepareUnitSpellEffect(caster,item.code,target));
+        T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&call));return;
+    }
+    if(captain320_mismatch)return;
+    unsigned tick,scene,index;
+    if(sscanf(message,"C320 tick=%u scene=%u label=unit u=%u",&tick,&scene,&index)!=3 || tick==110)return;
+    FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','T','A','A'))if(captain320_index(e)==index) {
+        uint32_t actual[]={tick,index,wc3_float_bits(level.pathing_clock.time),captain320_query[index][0],
+            captain320_query[index][1],wc3_float_bits(S_UnitMoveSpeed(e)),e->current_order_id};
+        T_ASSERT(captain320_public_count<captain320_public_size);
+        if(captain320_public_count<captain320_public_size)FOR_LOOP(i,7) {
+            uint32_t expected=captain320_expected_public[captain320_public_count][i];
+            T_EQ(actual[i],expected);
+            if(actual[i]!=expected) {
+                captain320_mismatch=true;captain320_public_differences++;
+                fprintf(stderr,"captain320 public divergence scene%u tick%u unit%u field%u expected%08x actual%08x\n",scene,tick,index,i,expected,actual[i]);
+            }
+        }
+        if(tick==22)T_EQ(e->current_order_id,851986u);
+        captain320_public_count++;
+    }
+}
+static void captain320_phase(unsigned phase,uint64_t id) {
+    if(captain320_mismatch)return;
+    if(phase!=MOVE_PHASE_PUBLISH)return;
+    moveShared_t const *shared=S_FindMoveShared(id);T_NOT_NULL(shared);
+    if(!shared || !shared->references)return;
+    uint32_t actual[]={level.pathing_counter,shared->references,
+        shared->speed==FLT_MAX ? 0x7f7fffffu : wc3_float_bits(wc3_mul(shared->speed,1.0f/32)),
+        shared->next_speed==FLT_MAX ? 0x7f7fffffu : wc3_float_bits(wc3_mul(shared->next_speed,1.0f/32)),
+        wc3_float_bits(wc3_mul(shared->radius,1.0f/32))};
+    T_ASSERT(captain320_shared_count<captain320_shared_size);
+    if(captain320_shared_count<captain320_shared_size)FOR_LOOP(i,5) {
+        uint32_t expected=captain320_expected_shared[captain320_shared_count][i];
+        T_EQ(actual[i],expected);
+        if(actual[i]!=expected)captain320_mismatch=true;
+        if(actual[i]!=expected)fprintf(stderr,"captain320 shared divergence row%u counter%u field%u expected%08x actual%08x\n",captain320_shared_count,level.pathing_counter,i,expected,actual[i]);
+    }
+    captain320_shared_count++;
+}
+static void captain320_run(bool cold_save) {
+    unsigned scene=0;
+    captain320_expected_motion=captain320_motion_rows;captain320_motion_size=sizeof(captain320_motion_rows)/sizeof(*captain320_motion_rows);
+    captain320_expected_public=captain320_public_rows;captain320_public_size=sizeof(captain320_public_rows)/sizeof(*captain320_public_rows);
+    captain320_expected_shared=captain320_shared_rows;captain320_shared_size=sizeof(captain320_shared_rows)/sizeof(*captain320_shared_rows);
+    captain320_mismatch=false;captain320_actor_count=0;
+    char const *slk="ID;PWXL;N;EBB;Y2;X8\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"BuffID1\"\nC;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K0.6\nC;X5;K0.25\nC;X6;K\"Bslo\"\nC;X7;K60\nC;X8;K10\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old_rows=G_SetSLKRows("AbilityData",rows);
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotShutdown();reset_entities();setup_test_world();
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+    mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+    info.players[0].startingPosition=(vec2_t){272,304};game.clients[0].ps.start_location=0;
+    float radius=31,height=0,weapon_range=90,acquire=500;int32_t min=173,max=389,enabled=1;
+    unitModification_t actor_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="foot"},
+        {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height},
+        {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&min},
+        {.modID=MAKEFOURCC('u','m','a','s'),.type=mod_int,.data=&max},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','1','w'),.type=mod_string,.data="normal"},
+        {.modID=MAKEFOURCC('u','a','1','g'),.type=mod_string,.data="ground"},
+        {.modID=MAKEFOURCC('u','a','1','t'),.type=mod_string,.data="normal"},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    float caster_radius=16;
+    unitModification_t caster_mod={.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&caster_radius};
+    unitData_t types[]={
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','T','A','A'),.numbeOfModifications=sizeof(actor_mods)/sizeof(*actor_mods),.modifications=actor_mods},
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','s','o','r'),.numbeOfModifications=1,.modifications=&caster_mod}};
+    info.num_userCreatedUnits=2;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+    uint32_t size=0;char *script=gi.ReadFile("Scripts\\captain320.j",&size);T_NOT_NULL(script);
+    if(!script)goto cleanup;
+    T_ASSERT(run_test_jass(script));gi.MemFree(script);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    captain320_motion_count=captain320_public_count=captain320_shared_count=captain320_public_differences=0;move_test_owner_phase=captain320_phase;
+    move_test_motion_commit=captain320_motion;test_preload_marker=captain320_public;test_unit_position_query=captain320_coordinate;
+    bool saved=false;
+    while(level.time<11000 && !captain320_mismatch) {
+        level.time+=5;globals.RunFrame();
+        /* CaptainGoHome has already run; only inert Sleep remains in the private AI VM.
+         * Its continuation is not serialized and must not be treated as tested here. */
+        if(cold_save && level.time>=4100 && !saved) {
+            T_ASSERT(S_ValidateMoveShared());
+            cstring_t file=Test_TempPath("wc3-captain320.bin");
+            T_ASSERT(WriteGame(file));
+            /* Snapshot reconstruction replays VM frames with native effects
+             * suppressed; those calls are not live public observations. */
+            test_preload_marker=NULL;test_unit_position_query=NULL;
+            T_ASSERT(ReadGame(file));
+            test_preload_marker=captain320_public;test_unit_position_query=captain320_coordinate;
+            remove(file);saved=true;
+        }
+    }
+    move_test_owner_phase=NULL;
+    move_test_motion_commit=NULL;test_preload_marker=NULL;test_unit_position_query=NULL;
+    T_EQ(captain320_actor_count,sizeof(captain320_actor_rows)/sizeof(*captain320_actor_rows));
+    T_EQ(captain320_motion_count,captain320_motion_size);
+    T_EQ(captain320_shared_count,captain320_shared_size);
+    T_EQ(captain320_public_count,captain320_public_size);
+    if(cold_save)T_ASSERT(saved);
+    fprintf(stderr,"captain320 scene%u cold%d motion%u shared%u public%u divergent-fields%u\n",scene,cold_save,
+        captain320_motion_count,captain320_shared_count,captain320_public_count,captain320_public_differences);
+cleanup:
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    G_FowShutdown();G_BotShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;setup_test_world();
+}
+TEST(wc3_movement, captain320_slow_shared_motion_matches_retail) {captain320_run(false);}
+TEST(wc3_movement, captain320_slow_shared_motion_survives_cold_save) {captain320_run(true);}
+/* Spell receiver diplomacy is directional and independent of buff polarity. */
+TEST(wc3_movement, captain320_spell_notification_uses_receiver_diplomacy) {
+    FOR_LOOP(kind,2) FOR_LOOP(mask,8) {
+        reset_entities();setup_test_world();
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+        edict_t *caster=alloc_test_unit(MAKEFOURCC('h','s','o','r'),128,0);
+        G_SetUnitPlayer(caster,1);
+        S_AttackProfileWrite(target,0)->type=ATK_NORMAL;
+        player_t *receiver=&game.clients[0].ps,*source=&game.clients[1].ps;
+        G_SetPlayerAlliance(receiver,source,ALLIANCE_PASSIVE,mask&1);
+        G_SetPlayerAlliance(receiver,source,ALLIANCE_SHARED_SPELLS,mask&2);
+        G_SetPlayerAlliance(source,receiver,ALLIANCE_PASSIVE,mask&4);
+        G_SetPlayerAlliance(source,receiver,ALLIANCE_SHARED_SPELLS,mask&4);
+        uint32_t code=kind ? MAKEFOURCC('A','i','n','f') : MAKEFOURCC('A','s','l','o');
+        T_ASSERT(!S_PrepareUnitSpellEffect(caster,code,target));
+        T_EQ(target->attack_speed_cap.active,(mask&3)!=3);
+        T_ASSERT(!caster->attack_speed_cap.active);
+    }
+    reset_entities();setup_test_world();
+}
+/* Projectile classes that opt out retain their impact-owned notification. */
+TEST(wc3_movement, captain320_projectile_does_not_notify_at_launch) {
+    reset_entities();setup_test_world();
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('H','p','a','l'),128,0);
+    G_SetUnitPlayer(caster,1);S_AttackProfileWrite(target,0)->type=ATK_NORMAL;
+    T_ASSERT(!S_PrepareUnitSpellEffect(caster,MAKEFOURCC('A','H','t','b'),target));
+    T_ASSERT(!target->attack_speed_cap.active);
+    T_ASSERT(!S_PrepareUnitSpellEffect(caster,MAKEFOURCC('A','s','l','o'),target));
+    T_ASSERT(target->attack_speed_cap.active);
+    reset_entities();setup_test_world();
+}
+#endif

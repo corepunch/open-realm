@@ -629,6 +629,7 @@ bool S_TargsAllowsOwner(cstring_t targets, edict_t const *source, edict_t const 
 bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target);
 bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target);
 bool S_SpellShieldImpactDeferred(uint32_t code);
+bool S_PrepareUnitSpellEffect(edict_t *caster, uint32_t code, edict_t *target);
 bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target);
 bool S_SpellTargetHasToken(cstring_t targets, cstring_t full, cstring_t short_name);
 bool S_SpellAllowsCorpseTarget(uint32_t code, edict_t *caster, edict_t *target);

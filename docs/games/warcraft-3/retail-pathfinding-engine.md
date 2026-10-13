@@ -19749,3 +19749,70 @@ Archive: `research/NUM-03.2/payoff319/accepted`. This is focused validation unde
 the established pathfinding cadence, not a full-suite checkpoint. NUM-03.2 and
 GROUP-04.6 remain open: exceptional target compositions, AI/shared parameters,
 other effects, and general building placement/orientation are not certified.
+
+
+## Captain Slow notification and retained actor requests (Payoff320)
+
+The three-member public Captain scene creates radius31 Footmen with authored
+speed limits173/389, starts the real AI script, casts Slow at tick35, removes
+negative buffs at60, and stops at90. Target player0 grants passive alliance to
+caster player1; reverse passive alliance is false. This keeps Captain combat
+from replacing the movement while permitting the caster's hostile Slow.
+Completion4.04994488 is supplied to the engine fixture; cast timing is not
+certified. The real game preparation hook and concrete Slow effect run there.
+
+Six complete read-only captures (two tracing notification and two tracing actor
+turn parameters) match861 physical commits,270 getter/order samples,215 shared
+publications and293 hidden Captain commits. The observer-free control retains
+the same368 public markers. All seven captures are frozen in the corpus.
+
+`Spell_DispatchConcreteEffect` at40a2b0 calls428120 before spell-shield
+interception and the concrete unit effect. Policy v38c defaults to1 at3fa740
+for Slow, Inner Fire and Polymorph; it is not a negative-buff test. The receiver
+checks its own directional diplomacy towards the caster: only PASSIVE and
+SHARED_SPELLS together suppress the zero-amount notification packet with flags10.
+Player mask38 is type0; mask78 is type4 (GetPlayerAlliance2016a0 uses16-byte
+stride). Projectile classes have zero-return overrides. The Slow call chain
+is40a2b0 ->428120 -> target v120 ->4935e0 ->49bc40. Attack activates its
+three-second speed-cap exemption before considering retaliation.
+
+Baseline engine first diverges at shared publication counter1161, row30:
+173 instead of270. Its first189 movement commits and66 public samples match.
+The game-local `S_PrepareUnitSpellEffect` now sends the missing notification
+before the existing shield check in ordered, immediate and approach casts.
+The shared minimum code itself needs no special case. Directional diplomacy
+and projectile-opt-out tests fail before this change and pass afterward.
+
+After notification was fixed, commit282/counter1192 exposed another mismatch:
+retail yields the slowed singleton for20 ticks, then stops it; the engine kept
+moving. The earlier cause was the hidden Captain actor. Replacing its point
+request incorrectly reset the fine/coarse admission clocks, allowing movement
+four ticks early and avoiding the native blocker encounter. The Captain owns its
+bridge for its lifetime and has no fresh Move-ability activation166060 on this
+replacement. Preserve both admission timestamps across ordinary order setup.
+Stop171340 also resets the destination through168b80: invalidation now publishes
+the existing invalid-goal sentinel instead of retaining the old goal. Changing
+only the sentinel did not fix the trajectory; retained clocks were necessary.
+
+Comparing all293 Captain commits then exposed seven one-bit heading differences.
+Two parameter captures show runtime mover b8=3eccccce and bc=3dcccccd. Activation
+16ea70 copies the runtime default; the engine now uses its retail decimal0.4
+conversion for turn rate. The host0.4 literal produces3ecccccd. The runtime scalar
+initialization itself has not been traced further.
+
+Four focused regressions cover complete motion, cold-save continuation, all eight
+directional alliance combinations for Slow/Inner Fire, and projectile launch
+opt-out. They pass28690 assertions. Strict Classic/TFT verification passes12
+tests/132398 assertions each. Affected spell, attack, AI, save and movement
+suites pass919 tests/2951818 assertions per edition; the production build and37
+corpus checks pass. Captured spell completion is an input; arbitrary
+cast scheduling and private AI coroutine persistence are not certified. The AI
+script has only inert Sleep remaining before the4.1-second cold save.
+
+`verify_wc3_pathing_captain320.py` checks seven complete captures, frozen literal
+words, source pins,931 instruction guards and complete event accounting. Twenty
+evidence rejection tests pass. Ghidra's ten annotated functions were saved and
+read back identically; `MapPathfinding.java` retains those findings. Save191 and
+network state are unchanged. Archive: `research/NUM-03.2/payoff320/accepted`.
+NUM-03.2/GROUP-04.6 remain open for exceptional compositions, other effects and
+broader shared producers; no TODO was split or closed.

@@ -473,6 +473,38 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
     return true;
 }
 
+/* Native Spell v38c defaults to true. These concrete owners return false,
+ * suppressing this common pre-effect notification (including projectile casts). */
+static bool spell_notifies_unit_target(ability_t const *ability) {
+    if (!ability) return false;
+    abilityProc_t proc=ability->proc;
+    return proc!=CAbilityAcidBomb && proc!=CAbilityCarrionSwarm &&
+        proc!=CAbilityBreathOfFire && proc!=CAbilityBreathOfFireCampaign &&
+        proc!=CAbilityChainLightning && proc!=CAbilityHealingWave &&
+        proc!=CAbilityHealingWaveCampaign && proc!=CAbilityTransmute &&
+        proc!=CAbilityShadowStrike && proc!=CAbilityThunderBolt &&
+        proc!=CAbilityFireBolt && proc!=CAbilityAbsorb && proc!=CAbilityEnsnare &&
+        proc!=CAbilityDrunkenHaze && proc!=CAbilityDrunkenHazeCampaign &&
+        proc!=CAbilityDeathCoil && proc!=CAbilityFlamingArrows &&
+        proc!=CAbilityBlackArrow && proc!=CAbilityColdArrows && proc!=CAbilityPoisonArrows;
+}
+
+/* Native428120 notifies before shield interception and concrete effects. Missing
+ * this zero-damage event incorrectly lets a slowed Captain member lower the
+ * shared speed. The receiver's passive AND shared-spells grants suppress it;
+ * buff polarity and the caster's reverse diplomacy do not decide this event. */
+bool S_PrepareUnitSpellEffect(edict_t *caster, uint32_t code, edict_t *target) {
+    if (caster && target && caster->s.player<MAX_PLAYERS && target->s.player<MAX_PLAYERS &&
+        spell_notifies_unit_target(S_SpellAbilityForCode(code))) {
+        player_t const *receiver=&game.clients[target->s.player].ps;
+        player_t const *source=&game.clients[caster->s.player].ps;
+        if (!G_GetPlayerAlliance(receiver,source,ALLIANCE_PASSIVE) ||
+            !G_GetPlayerAlliance(receiver,source,ALLIANCE_SHARED_SPELLS))
+            S_UnitCombatAlert(target,caster,0x10);
+    }
+    return !S_SpellShieldImpactDeferred(code) && S_TryBlockSpellShield(caster,code,target);
+}
+
 bool S_SpellShieldImpactDeferred(uint32_t code) {
     ability_t const *ability = S_SpellAbilityForCode(code);
     return ability && (ability->proc == CAbilityThunderBolt || ability->proc == CAbilityFireBolt ||
@@ -900,8 +932,7 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
     if(!spell_dispatch_effect(params->caster,params->code,st))return false;
     if(active_approach)unit_stand_no_queue(params->caster);
     spell_commit(params->caster, params->code, params->level, active_approach);
-    bool const blocked = !S_SpellShieldImpactDeferred(params->code) &&
-        S_TryBlockSpellShield(params->caster, params->code, params->target);
+    bool const blocked = S_PrepareUnitSpellEffect(params->caster, params->code, params->target);
     if (!blocked && (params->spell->flags & AB_CHANNEL))
         spell_begin_channel(params->caster, params->code);
     bool const executed = blocked || S_AbilityMessage(params->caster, A_EXECUTE, &call);
@@ -1096,8 +1127,7 @@ static bool SpellCastExecute(spellCast_t *cast) {
     abilityCall_t call={.item=&item,.target=&cast->target,.ordered_cast=true,
         .source_item=cast->source_item,.source_item_spawn_time=cast->item_spawn};
     cast->executing=true;
-    bool blocked=cast->target.type==SPELL_TARGET_UNIT && !S_SpellShieldImpactDeferred(cast->code) &&
-        S_TryBlockSpellShield(cast->caster,cast->code,cast->target.entity);
+    bool blocked=cast->target.type==SPELL_TARGET_UNIT && S_PrepareUnitSpellEffect(cast->caster,cast->code,cast->target.entity);
     bool executed=blocked || S_AbilityMessage(cast->caster,A_EXECUTE,&call);
     cast->executing=false;
     if(executed && cast->source_item)G_CompleteItemUse(cast->caster,cast->source_item);
@@ -1673,7 +1703,7 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
 
     if(!spell_dispatch_effect(caster,code,target))return false;
     spell_commit(caster, code, level, NULL);
-    if (!S_SpellShieldImpactDeferred(code) && S_TryBlockSpellShield(caster, code, unit)) return true;
+    if (S_PrepareUnitSpellEffect(caster, code, unit)) return true;
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;

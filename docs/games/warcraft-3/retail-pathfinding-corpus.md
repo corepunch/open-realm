@@ -2281,3 +2281,12 @@ existing frozen retail fixture pins remain unchanged; the mapper pin advances. F
 tests/267584 assertions per edition;13 evidence rejection checks pass. This is
 chunk2 after checkpoint312, not a new full-suite checkpoint. See
 [exceptional speed](retail-pathfinding-engine.md#exceptional-public-speed-and-finite-restoration-payoff314).
+
+Payoff320 adds `oracle-captain320`: seven complete captures,861 member commits,
+293 hidden Captain commits,270 public samples and215 shared publications.
+Notification diplomacy, request-clock lifetime and runtime turn defaults now
+match retail through cold save. The corpus has556 entries and275 executable
+oracles. Existing entry objects and frozen capture pins remain unchanged; the
+mapper pin advances. Strict Classic/TFT:12 tests/132398 assertions each. This is
+focused validation, not a full-suite checkpoint. See
+[Captain evidence](retail-pathfinding-engine.md#captain-slow-notification-and-retained-actor-requests-payoff320).
