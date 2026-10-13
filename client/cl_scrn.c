@@ -198,9 +198,17 @@ void SCR_DrawScreenField(uint32_t msec) {
         else if (CL_MenuActive()) menu.Refresh(cl.time);
         break;
     case ca_active:
-        V_RenderView();
-        if (Cvar_Integer("r_hud", 1)) {
-            SCR_DrawLayout();
+        if (CL_WindowPresentationActive()) {
+            /* Presentation replaces the world view instead of drawing over
+             * the last terrain frame. Keep mandatory navigation visible even
+             * when the user has disabled the normal HUD with r_hud 0. */
+            size2_t const size = re.GetWindowSize();
+            rect_t const screen = { 0, 0, size.width, size.height };
+            re.DrawFill(&screen, MAKE(color32_t, 0, 0, 0, 255));
+            CL_WindowDraw();
+        } else {
+            V_RenderView();
+            if (Cvar_Integer("r_hud", 1)) SCR_DrawLayout();
         }
         break;
     }

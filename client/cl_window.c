@@ -974,6 +974,14 @@ void CL_WindowClear(void) {
 
 bool CL_WindowModalActive(void) { return CL_WindowModal() != NULL; }
 
+/* A presentation window owns the entire gameplay surface until it is closed.
+ * No WC3-specific window IDs or rendering policy belong in the generic client. */
+bool CL_WindowPresentationActive(void) {
+    for (clientWindow_t const *window = cl_windows.last; window; window = window->prev)
+        if (window->flags & UI_WINDOW_PRESENTATION) return true;
+    return false;
+}
+
 /* SDL text input is owned by a focused transient edit box while gameplay
  * remains key_game. Player snapshots repeatedly reaffirm gameplay input, so
  * expose that ownership rather than letting CL_SetGameplayInput disable text
@@ -983,7 +991,11 @@ bool CL_WindowTextInputActive(void) {
 }
 
 void CL_WindowDraw(void) {
+    /* A presentation can coexist with an old result dialog still in the
+     * window stack; paint only the presentation, never the stale dialog. */
+    bool const exclusive = CL_WindowPresentationActive();
     FOR_EACH_LIST(clientWindow_t, window, cl_windows.first) {
+        if (exclusive && !(window->flags & UI_WINDOW_PRESENTATION)) continue;
         rect_t root = CL_WindowRoot(window);
         CL_WindowPrepareState(window, &root);
         if (!window->debug_draw_logged && CL_WindowDebugEnabled()) {
@@ -1350,3 +1362,23 @@ bool CL_WindowEditSelection(uint32_t text_frame, uint32_t *start, uint32_t *sele
     }
     return false;
 }
+#ifdef BZ_TESTS
+#include "shared/test.h"
+
+TEST(client_windows, presentation_flag_hides_gameplay_only_while_window_exists) {
+    clientWindow_t *old_first = cl_windows.first, *old_last = cl_windows.last;
+    clientWindow_t dialog = { .flags = UI_WINDOW_MODAL };
+    clientWindow_t scores = { .flags = UI_WINDOW_MODAL | UI_WINDOW_PRESENTATION,
+                              .prev = &dialog };
+    dialog.next = &scores;
+    cl_windows.first = &dialog;
+    cl_windows.last = &dialog;
+    T_ASSERT(!CL_WindowPresentationActive());
+    cl_windows.last = &scores;
+    T_ASSERT(CL_WindowPresentationActive());
+    cl_windows.last = &dialog;
+    T_ASSERT(!CL_WindowPresentationActive());
+    cl_windows.first = old_first;
+    cl_windows.last = old_last;
+}
+#endif

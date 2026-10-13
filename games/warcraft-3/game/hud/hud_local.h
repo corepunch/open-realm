@@ -28,6 +28,7 @@ _Static_assert(WC3_LAYER_MULTIBOARD != WC3_LAYER_COMMAND_ERROR &&
 #include "../generated/chat_dialog.h"
 #include "../generated/alliance_dialog.h"
 #include "../generated/game_result_dialog.h"
+#include "../generated/score_screen.h"
 #include "../generated/cinematic_panel.h"
 #include "../generated/loading_screen.h"
 #include "../generated/timer_dialog.h"
@@ -100,10 +101,10 @@ typedef struct {
     FRAMEDEF save_list;
     AllianceDialog_t allies;
     GameResultDialog_t result;
-    /* ScoreScreen.fdf root + runtime data/interaction presenters. The FDF
-     * remains the sole source of retail art and authored root dimensions. */
-    frameDef_t *score_root, *score_label, *score_rows[MAX_PLAYERS + 1];
-    frameDef_t *score_tabs[4], *score_continue;
+    /* Retail authored presentation; player rows remain provisional until the
+     * follow-on dynamic-table patch. */
+    ScoreScreen_t score;
+    frameDef_t *score_rows[MAX_PLAYERS + 1];
     CinematicPanel_t cinematic;
     TimerDialog_t timer_dialog;
     LeaderBoard_t leaderboard;

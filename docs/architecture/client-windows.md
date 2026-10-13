@@ -36,6 +36,14 @@ WoW incoming messages use `FT_MESSAGE_QUEUE` on `LAYER_MESSAGE`. The server emit
 when selected, one additional record carrying the server-owned popup text. `cl_scrn.c` draws both the unread icon pool and the
 popup; clicks send `message_open <id>` or `message_close` back to the server, which updates the authoritative layer.
 
+`UI_WINDOW_PRESENTATION` is a separate, opt-in full-surface ownership flag.
+While such a window exists, the active-game draw path paints a black background
+and only the presentation window(s), skipping the world scene, persistent HUD
+layers and other transient windows. The window remains modal for input and
+uses normal pause/close arbitration; closing it automatically restores the
+ordinary view without persisting or mutating player UI flags. Warcraft III's
+retail score screen is its first caller; the client does not know score IDs.
+
 `UI_WINDOW_MODAL`, `UI_WINDOW_NO_PAUSE`, `UI_WINDOW_NO_ESCAPE`, and `UI_WINDOW_UNIQUE` are independent. Modal means the topmost
 modal window consumes input outside its bounds. `NO_PAUSE` means that modal does not acquire the client-owned simulation pause.
 `NO_ESCAPE` consumes Escape without dismissing the window, for mandatory result/decision flows that must close through an

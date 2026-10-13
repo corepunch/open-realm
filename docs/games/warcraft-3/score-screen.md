@@ -1,6 +1,7 @@
 # Warcraft III Score Screen
 
-This file describes the implementation after the score-controller follow-on patch.
+This file describes the score foundation, controller, campaign-quit follow-on,
+and retail-presentation Patch 1. Score table row reconstruction is Patch 2.
 The installed Warcraft assets are required for visual presentation; the project
 never bundles Blizzard FDF or score artwork.
 
@@ -39,7 +40,11 @@ are NOT written to zone saves.
 At the end of the frame, the Warcraft game module loads the retail
 `UI\FrameDef\Glue\ScoreScreen.fdf` and binds its `ScoreScreenFrame` root.
 It authors a `svc_window` with a unique score ID, modal input and the standard
-client-owned pause semantics. Four page buttons switch between Overview, Units,
+client-owned pause semantics. The same window also carries generic
+`UI_WINDOW_PRESENTATION`, which makes the client draw only the presentation
+window over a cleared screen instead of the 3-D world, HUD or other windows.
+This is an opt-in generic client capability, not a WC3-specific client screen.
+It remains active across tab refreshes and ends when the score window closes. Four page buttons switch between Overview, Units,
 Heroes and Resources, re-emitting the SAME unique window; a Continue click
 sends `close_window_command scorescreen_continue`. The command is accepted
 only from a recipient who was actually shown the window, and it consumes the
@@ -54,21 +59,56 @@ If the FDF root is absent, the UI cannot be sent, or there are no connected
 recipients, the engine immediately follows the previously resolved destination.
 A broken/absent MPQ must not strand the outgoing session.
 
-### FDF binding parity limitation
+### Retail FDF and artwork: presentation Patch 1
 
-The current repository contains no licensed `ScoreScreen.fdf` bytes to inspect,
-so only the known `ScoreScreenFrame` root is bound. Other dynamic labels and
-buttons currently borrow existing in-game result FDF text/button styling, and
-their anchored positions are marked **PRESENTATION GUESSES** in
-`hud_score_screen.c`. **This is a functional preliminary score overlay, not yet
-pixel-accurate retail tab/column binding.** Once retail FDF bytes are supplied,
-use `fdfbindgen` to bind its actual named tab, column and button controls and
-remove the provisional row/tab positioning; do not create a project FDF copy.
+The RoC and TFT `UI\FrameDef\Glue\ScoreScreen.fdf` files are reportedly
+byte-identical (based on the game-data research report of 2026-10-13). The
+repo continues to use **mounted retail assets**, and does not bundle Blizzard
+FDF, model or image files. The manually generated-style binding contract in
+`generated/score_screen.h` covers the FDF root/main panel, background, page
+tabs, top bar, race artwork, four- and five-column header banks, tab controls,
+selected-tab text and OK button. The exact FDF sources were **not uploaded**;
+regenerate/check this binding with `fdfbindgen` using the extracted FDF when it
+becomes available.
+
+The four authored `MODEL` layers are presented through the generic 2-D
+`FT_SPRITE` path rather than a portrait camera:
+
+| FDF frame | Retail asset and selection |
+|---|---|
+| `ScoreScreenBackground` | Authored ScoreScreen-Background MDX; `Scorescreen-4Button` or `Scorescreen-5Button` by page |
+| `ScoreScreenPageTab` | Authored ScoreScreen-Tabs MDX; sequence `Tab1`...`Tab4` |
+| `ScoreScreenBarTop` | Authored ScoreScreen-TopBar MDX; `TeamColorNN Stand` |
+| `ScoreScreenRaceArt` | Skin-resolved race/edition victory model or shared ScoreScreen-Defeat MDX |
+
+The real FDF defines tab/header/button positions and fonts. The score screen
+retains its FDF `SetAllPoints` root instead of being re-centered as a gameplay
+window. The original tab controls dispatch the existing `scorescreen_tab`
+command and the original OK control dispatches `scorescreen_continue`. The
+header text uses `GlobalStrings.fdf` keys rather than hard-coded headings.
+
+**Still provisional (Patch 2):** player rows are simple runtime text presenters
+using the stock `ScoreScreenColumnHeaderTemplate` font and marked guessed row
+coordinates. The score screen now excludes the gameplay HUD, but it is not a
+retail-complete table; per-player banners, individual cells, icons, scroll
+behavior and elapsed time must be implemented separately. Exact retail model
+sequencing/layout is not runtime-verified. On quit without a recorded
+`RemovePlayer` outcome, the selected victory/race illustration is explicitly
+marked `GUESS` in the controller pending retail observation.
+
+Missing mandatory FDF frames prevent score-window presentation so deferred
+navigation can proceed; optional cosmetic/model data is not replaced with
+OpenRealm art. No local compilation or runtime validation was performed.
 
 ## Manual validation needed
 
 - Launch a finished single-player mission with `EndGame(true)` and inspect
-  actual retail layout/font sizes and Continue routing.
+  model selection, real FDF tabs/headers, font sizes and OK routing.
+- Compare a defeat screenshot at 4:3 against the provided retail screenshot:
+  check parchment and defeat artwork, absent world/console, column bank,
+  tab animation, OK button and black sidebars on widescreen.
+- Verify no renderer or presentation flicker when switching tabs, closing the
+  exclusive score window, or opening with `r_hud 0`.
 - SaveAndChangeLevelBJ: confirm that the script save commits *before* the score
   modal opens and Continue loads the intended next map once.
 - `ChangeLevel(..., false)` still moves directly, never opening the modal.
