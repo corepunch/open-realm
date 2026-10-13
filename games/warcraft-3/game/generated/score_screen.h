@@ -46,7 +46,7 @@ static inline bool ScoreScreen_Bind(ScoreScreen_t *out, frameDef_t *root) {
     BZ_FDF_BIND_CHILD(out, ScoreScreen4ColumnFrame, root, "ScoreScreen4ColumnFrame");
     BZ_FDF_BIND_CHILD(out, ScoreScreen5ColumnFrame, root, "ScoreScreen5ColumnFrame");
     BZ_FDF_BIND_CHILD(out, ScoreScreenTabTextSelected, root, "ScoreScreenTabTextSelected");
-    BZ_FDF_BIND_CHILD(out, ScoreScreenOKButton, root, "ScoreScreenOKButton");
+    BZ_FDF_BIND_CHILD(out, ScoreScreenOKButton, root, "ScoreScreenOkButton");
     BZ_FDF_BIND_CHILD(out, ScoreScreenScrollBar, root, "ScoreScreenScrollBar");
     out->ScoreScreenTeamsButton = UI_FindChildFrame(root, "ScoreScreenTeamsButton");
     /* The game-data agent confirmed a team-colour button, but supplied no

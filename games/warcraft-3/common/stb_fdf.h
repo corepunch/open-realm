@@ -573,7 +573,8 @@ static inline cstring_t parse_token(wordExtractor_t *p) {
     } else {
         size_t n = 0;
         while (*p->buffer && !isspace((unsigned char)*p->buffer) &&
-               !strchr(p->delimiters, *p->buffer) && n < PARSER_MAX_SEGMENT - 1)
+               *p->buffer != '"' && !strchr(p->delimiters, *p->buffer) &&
+               n < PARSER_MAX_SEGMENT - 1)
             word[n++] = *(p->buffer++);
         word[n] = '\0';
         return word;
