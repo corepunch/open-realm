@@ -26487,3 +26487,108 @@ TEST(wc3_movement, modifiers316_overlap_uses_retained_additive_factor) {
     }
 }
 #endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_modifiers317_qnan.h"
+#include "fixtures/retail_modifiers317_finite.h"
+TEST(wc3_movement, modifiers317_exceptional_factor_motion) {
+    static char const *const modes[]={"foot","fly","amph","hover","float"};
+    static char const *const calls[]={"main","set_speed","move","restore","stop"};
+    FOR_LOOP(scene,2) FOR_LOOP(saved,2) {
+        unsigned mode=0;
+        uint32_t const (*states)[12]=scene ? modifiers317_finite_rows:modifiers317_qnan_rows;
+        unsigned num_states=scene ? sizeof(modifiers317_finite_rows)/sizeof(*modifiers317_finite_rows):sizeof(modifiers317_qnan_rows)/sizeof(*modifiers317_qnan_rows);
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        bool custom=false;
+    char slk[1024];snprintf(slk,sizeof(slk),"ID;PWXL;N;EBB;Y3;X8\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"BuffID1\"\nC;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K%s\nC;X5;K0.25\nC;X6;K\"Bslo\"\nC;X7;K60\nC;X8;K10\n"
+        "C;Y3;X1;K\"ACbl\"\nC;X2;K\"Ablo\"\nC;X3;K1\nC;X4;K0.4\nC;X5;K%s\nC;X6;K\"Bblo\"\nC;X7;K40\nC;X8;K40\nE\n",custom?"0.37":"0.6",custom?"0.17":"0.25");
+    slkTestData_t *rows=parse_slk_string(slk);
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+        uint8_t cells[64*64];memset(cells,mode==4?0x08:0x40,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+        FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=mode==4?7936:8192,.waterlevel=8550,.water=mode==4,.level=2};
+        mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+        float radius=31,height=mode==1?60:0,source=270;int32_t min=1,max=389;
+        unitModification_t actor_mods[]={
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=(void *)modes[mode]},
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height},
+            {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&min},
+            {.modID=MAKEFOURCC('u','m','a','s'),.type=mod_int,.data=&max}};
+        unitModification_t source_mods[]={
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&source},
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius}};
+        unitData_t types[]={
+            {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','T','A','A'),.numbeOfModifications=5,.modifications=actor_mods},
+            {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','S','A','A'),.numbeOfModifications=2,.modifications=source_mods}};
+        info.num_userCreatedUnits=2;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+        uint32_t const *first=states[0];
+        level.pathing_clock=(wc3Clock_t){wc3_float(first[2]),first[3],300};level.pathing_counter=first[1];
+        T_ASSERT(run_test_jass("globals\nunit s314=null\nreal v314=0\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal unit source=CreateUnit(Player(0),'hSAA',1800,1800,0)\n"
+            "set v314=GetUnitDefaultFlyHeight(source)\ncall RemoveUnit(source)\nset source=null\n"
+            "set s314=CreateUnit(Player(0),'hTAA',768,512,0)\ncall SetUnitAcquireRange(s314,0)\nendfunction\n"
+            "function set_speed takes nothing returns nothing\ncall SetUnitMoveSpeed(s314,v314)\nendfunction\n"
+            "function move takes nothing returns nothing\ncall IssuePointOrder(s314,\"move\",1536,1024)\nendfunction\n"
+            "function restore takes nothing returns nothing\ncall SetUnitMoveSpeed(s314,270)\nendfunction\n"
+            "function stop takes nothing returns nothing\ncall IssueImmediateOrder(s314,\"stop\")\nendfunction\n"));
+        edict_t *unit=NULL;FILTER_EDICTS(e,e->inuse && e->class_id==types[0].newUnitID)unit=e;
+        T_NOT_NULL(unit);bool mismatch=false;unsigned commits=0;
+        edict_t *caster=alloc_test_unit(MAKEFOURCC('h','s','o','r'),512,384);
+        float slow=scene ? .6f:wc3_float(0x7fc00001);
+        unitModification_t amod={.modID=MAKEFOURCC('S','l','o','1'),.type=mod_unreal,.level=1,.dataPointer=1,.data=&slow};
+        unitData_t ability={.originalUnitID=MAKEFOURCC('A','s','l','o'),.numbeOfModifications=1,.modifications=&amod};
+        info.num_originalAbilities=1;info.originalAbilities=&ability;G_SetMapAbilityOverrides(&info);
+        if(unit)FOR_LOOP(i,num_states) {
+            uint32_t const *row=states[i];unsigned kind=row[0];
+            level.pathing_clock=(wc3Clock_t){wc3_float(row[2]),row[3],300};level.pathing_counter=row[1];
+            if(kind==7) {
+                uint32_t code=row[5] ? MAKEFOURCC('A','C','b','l'):MAKEFOURCC('A','s','l','o');
+                uint32_t buff=row[5] ? MAKEFOURCC('B','b','l','o'):MAKEFOURCC('B','s','l','o');
+                if(row[6]){heroabilitystatus_t *status=unit_findstatus(unit,buff);T_NOT_NULL(status);if(status)unit_removestatus(unit,status,STATUS_REMOVE_SCRIPT);}
+                else {abilityitem_t item=S_AbilityItem(code);spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=unit};abilityCall_t call=MAKE(abilityCall_t,.item=&item,.target=&target);T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&call));}
+                T_EQ(wc3_float_bits(unit->movement.speed_factor),row[7]);
+            } else if(kind==6) {
+                speed314_actor=unit;speed314_commits=0;move_test_motion_commit=speed314_commit;
+                level.pathing_counter--;level.scheduled_think=true;
+                S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+                move_test_motion_commit=NULL;speed314_actor=NULL;
+                commits++;
+                T_EQ(speed314_commits,1);
+                if(speed314_commits!=1){mismatch=true;break;}
+                FOR_LOOP(k,8) {
+                    if(speed314_actual[k]!=row[k+4]) {
+                        fprintf(stderr,"modifiers317 mode%u scene%u row%u commit%u engine%08x retail%08x\n",mode,scene,i,k,speed314_actual[k],row[k+4]);
+                        mismatch=true;
+                    }
+                    T_EQ(speed314_actual[k],row[k+4]);
+                }
+            } else {
+                if(kind>0 && kind<5){if(kind==3)jass_callbyname(level.vm,"stop",false);jass_callbyname(level.vm,calls[kind],false);T_ASSERT(!jass_rterror_pending(level.vm));}
+                S_PublishMovement(unit);
+                uint32_t actual[]={wc3_float_bits(unit->s.origin.x),wc3_float_bits(unit->s.origin.y),
+                    wc3_float_bits(S_UnitMoveSpeed(unit)),unit->current_order_id};
+                FOR_LOOP(k,4) {
+                    unsigned col=k<3 ? k+4 : 8;
+                    if(actual[k]!=row[col]) {
+                        fprintf(stderr,"modifiers317 mode%u scene%u row%u public%u engine%08x retail%08x\n",mode,scene,i,k,actual[k],row[col]);
+                        mismatch=true;
+                    }
+                    T_EQ(actual[k],row[col]);
+                }
+            }
+            if(saved && (kind==2 || kind==3 || (kind==6 && commits==5))) {
+                unsigned index=unit-g_edicts;cstring_t file=Test_TempPath("wc3-modifiers317.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+index;caster=NULL;FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','s','o','r'))caster=e;
+            }
+            if(mismatch)break;
+        }
+        T_ASSERT(!mismatch);
+        G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);level.mapinfo=old;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    }
+    setup_test_world();
+}
+#endif

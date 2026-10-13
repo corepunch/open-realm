@@ -54498,6 +54498,70 @@
         "Native below-one group-republication path is mapped but remains outside these numeric tests.",
         "Exceptional all-scene runs fault in retail visibility and are archived separately, not accepted as completed controls."
       ]
+    },
+    {
+      "id": "oracle-modifiers317",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_modifiers317.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "modifiers317.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 172
+        },
+        "captures": {
+          "equal": 6
+        },
+        "native_events": {
+          "equal": 7894
+        },
+        "public_markers": {
+          "equal": 612
+        },
+        "motion_rows": {
+          "equal": 166
+        },
+        "states": {
+          "equal": 266
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 3,
+              "assertions": 67353
+            },
+            "tft": {
+              "tests": 3,
+              "assertions": 67353
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "Finite and authored-qNaN Slow/Bloodlust actor motion through Stop: captured completion inputs, physical owner updates, public getters and cold saves.",
+      "exclusions": [
+        "Cast scheduling and later second-cast phase are not compared.",
+        "Other exceptional values, effect families and below-one group republication remain open.",
+        "No new engine correction; extends coverage of Payoff316."
+      ]
     }
   ],
   "fixtures": [
@@ -55396,7 +55460,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "9ccba637eb166835b1c2d311a39425884030f8f2a9bf5c147ae74894ae3025dd"
+      "sha256": "3b8c147d4dda002e6e5780872617f5705dd87b7a9876ad276860f597850008e9"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56944,7 +57008,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "06b2cf7a9e13d29f5ebcc74a0e37fb05d98947c02193db57578a1f198bb82c7c"
+      "sha256": "a8f7c9999b2f57c2751d6008e795d218a89e0a44bd616c24e55be6e07cc3e912"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -57188,7 +57252,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "51ee36293781b41504580ca99b7eca637e4843b711f354bebce10c2920b145fc"
+      "sha256": "c4b4d7ed99022884484361f8e35474cfea9fb1d57a2b262defdb090403330446"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57200,11 +57264,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "bd0708aa45438e7b360927cff1f1c962303298f0626421deeed18b333ded908e"
+      "sha256": "592797af2c9f9eb3ef19924cd9ae02c55c438c11259aa5193ea4ed94c06fe99b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "aa2dafced6164ac3320fda122310315d92813fe7f91cb69e47c9dc90e4648858"
+      "sha256": "21cd9ea8b8b15be62e9ec23dceeecfa3599dabe2e37ecc335e193dd1d0a9b8b9"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -63345,6 +63409,46 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_modifiers316.py",
       "sha256": "08dc08725fabd2f664826640105fc66acf8d410cdfdb139e733aa96105e7cfa3"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_modifiers317_finite.h",
+      "sha256": "fc819bee93c99a63ae5c513f9d41ff2f986754ea7b297fa406936afbe281dea1"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_modifiers317_qnan.h",
+      "sha256": "385488f166a6108e787224e25983f358eefe61fb3c2d854941af48b3af8925c0"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_modifiers317.py",
+      "sha256": "cfa14294fc6a6b29742b2682d8514d3a31eab7f945afb3e1a3f2439976d4ab90"
+    },
+    {
+      "path": "tools/frida/research/modifiers317_capture.py",
+      "sha256": "a36f080567a917b76a9f27169603343316643c2f7b9fc7b4127d7a48ef9adfac"
+    },
+    {
+      "path": "tools/frida/research/modifiers317_make_map.py",
+      "sha256": "9795f326e5e210623308e57476660b6e6c760d530c8e6337e8981b48b53579f4"
+    },
+    {
+      "path": "tools/frida/research/modifiers317_observer.js",
+      "sha256": "eff454797282dcb36613104f03f42c3eb31f70acfe1cbf7869219dbfd8014a01"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-modifiers317-1.27.json",
+      "sha256": "b5efc652e687abf5870409d507cf3d562f55ed95a1678a21f3d29a4623494180"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-modifiers317-1.27.json.gz",
+      "sha256": "03beaa10dad6e29caa2fe8fe22c97314526e2da76092d1be48a801d5483fb299"
+    },
+    {
+      "path": "tools/ghidra/research/Modifiers317Evidence.java",
+      "sha256": "ad155ca461c04c9af3cd8d3f7d35d831d2fe999ca5ee91f5472bed3af0a83383"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_modifiers317.py",
+      "sha256": "a4a05c67ec05f29dbbc77bbefe48bdecb59db86cbc4cc1113818eff505bda3b3"
     }
   ]
 }

@@ -19599,3 +19599,53 @@ other modifiers and the below-one group-republication branch
 `5fcd50 -> 058bc0 -> 16e7c0 -> 1694f0 -> 169550` remain open in the existing
 NUM-03.2/MOVE-01.1/GROUP-04.6 scope. No new TODO split or full-suite checkpoint
 is claimed; this is chunk 4 after checkpoint 312.
+
+## Retained-factor motion and NaN cancellation (Payoff317)
+
+The finite Slow/Bloodlust overlap from Payoff316 now has a physical-motion
+comparison through Stop. A second public map authors Slow DataA as raw
+`7fc00001` in W3A. Its applying owner passes `ffc00001`; Bloodlust preserves
+that retained word. Removing Slow later adds the opposite signed word and
+retail's software arithmetic returns zero. This is not an IEEE NaN addition.
+The authored minimum keeps the actor's public speed at one in this scene.
+
+Do not infer unordered normalization from the decompiler's ordered comparison:
+`5fb883` compares the near-one threshold with absolute distance, and `5fb887`
+uses `CMOVBE`. The unordered flags select the retained factor. The initial
+hypothesis that this branch normalizes NaN to one was disproved by instruction
+bytes and the public capture; no engine correction was warranted.
+
+Each scene has two complete read-only Frida captures and an unhooked control.
+All 102 normalized markers agree per capture. The accepted native streams
+contain 7894 events. Projecting the actor from creation through Stop gives
+83 physical commits and 50 public/input rows per scene. Repeated projections
+match exactly after subtracting the initial global counter offset; primary
+clock words, counter deltas, poses, velocities, requested caps, ranges, headings,
+public getters and order IDs remain literal comparisons.
+
+The engine test supplies captured spell-completion boundaries to the real
+applying/removal procedures, then runs physical owner updates at the captured
+clock boundaries. It does not synthesize factors or expected motion. W3A
+original-table data supplies the NaN payload. Fresh and cold-save runs cover
+both scenes, including saves after Move, the fifth commit and Stop/restoration.
+The existing Payoff316 implementation passes all 3792 assertions. No new engine
+behavior was changed, and the earlier incomplete test fixture (missing base
+AbilityData) is not counted as a failing engine regression.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_modifiers317.py \
+  --binary /path/to/supported/game.dll --report /tmp/modifiers317-fresh.json
+python3 tests/test_wc3_pathfinding_modifiers317.py
+```
+
+The verifier checks six complete captures, source and map hashes, full event
+accounting, factor streams, generated literal headers, 172 native instruction
+guards and fresh Classic/TFT engine reports. Seventeen rejection tests exercise
+damaged evidence. Ghidra annotations and saved readback record the unordered
+instruction semantics and observed cancellation. This is additional coverage
+for the existing implementation, so the implementation cadence remains four
+chunks after full-suite checkpoint312.
+
+Cast scheduling before the captured completion inputs, the later second-cast
+phase, other exceptional payloads/effect families, and below-one group
+republication remain open. The original TODOs are retained without new splits.
