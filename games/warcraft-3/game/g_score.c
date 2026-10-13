@@ -113,7 +113,7 @@ void G_PlayerScoreTraceLifecycle(edict_t const *unit, cstring_t event) {
         client ? client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] : 0,
         client ? client->score.unit_value_produced : 0,
         (unsigned)G_UnitIsHero(unit), (unsigned)G_UnitIsStructure(unit),
-        (unsigned)(unit->training != NULL),
+        (unsigned)unit->training,
         (unsigned)((unit->svflags & SVF_DEADMONSTER) != 0),
         (unsigned)((unit->s.renderfx & RF_HIDDEN) != 0),
         (unsigned)G_IsDeferredFree(unit));

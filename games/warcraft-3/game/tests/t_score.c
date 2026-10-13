@@ -324,8 +324,6 @@ TEST(wc3_score, score_sort_unavailable_values_last_and_groups_teams) {
     T_EQ(view.column, 0);
 }
 
-#endif
-
 TEST(wc3_score, scripted_level_xp_follows_current_hero_owner) {
     edict_t *kept;
     edict_t *transferred;
@@ -342,3 +340,5 @@ TEST(wc3_score, scripted_level_xp_follows_current_hero_owner) {
     T_EQ(G_PlayerScoreScriptedXP(15), G_HeroXPForLevel(7));
     T_EQ(game.clients[0].score.experience_gained, 0);
 }
+
+#endif
