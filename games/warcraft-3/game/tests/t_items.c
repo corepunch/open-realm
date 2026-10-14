@@ -1082,6 +1082,76 @@ TEST(wc3_items, mana_rune_restores_authored_aoe_without_inventory_slot) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, restoration_rune_restores_both_resources_from_authored_data) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"Area1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y2;X1;K\"AIra\"\nC;Y2;X2;K\"AIra\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"73\"\nC;Y2;X5;K\"41\"\nC;Y2;X6;K\"90\"\n"
+        "C;Y2;X7;K\"friend,self,hero,nonhero,ground,air,organic\"\nE\n";
+    static ItemData_t rune_data = { .abilList = "AIra", .powerup = true,
+                                    .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *nearby, *distant, *enemy, *mechanical, *rune;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    picker = make_item_test_inventory_unit(0, 0);
+    nearby = make_item_test_inventory_unit(50, 0);
+    distant = make_item_test_inventory_unit(110, 0);
+    enemy = make_item_test_inventory_unit(25, 0);
+    mechanical = make_item_test_inventory_unit(35, 0);
+    picker->s.player = nearby->s.player = distant->s.player = mechanical->s.player = 0;
+    enemy->s.player = 1;
+    picker->svflags |= SVF_MONSTER;
+    nearby->svflags |= SVF_MONSTER;
+    distant->svflags |= SVF_MONSTER;
+    enemy->svflags |= SVF_MONSTER;
+    mechanical->svflags |= SVF_MONSTER;
+    picker->targtype = nearby->targtype = distant->targtype = enemy->targtype = TARG_GROUND;
+    mechanical->targtype = TARG_MECHANICAL;
+    picker->health.value = nearby->health.value = distant->health.value =
+        enemy->health.value = mechanical->health.value = 20.0f;
+    picker->mana.max_value = nearby->mana.max_value = distant->mana.max_value =
+        enemy->mana.max_value = mechanical->mana.max_value = 100.0f;
+    picker->mana.value = 5.0f;
+    nearby->mana.value = 80.0f;
+    distant->mana.value = enemy->mana.value = mechanical->mana.value = 5.0f;
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(picker, held, slot));
+    }
+    rune = make_item_test_world_item(MAKEFOURCC('r','r','e','s'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_EQ(FindAbilityForCommand("AIra")->proc, CAbilityItemRestoreAoe);
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_FEQ(picker->health.value, 93.0f, 0.01f);
+    T_FEQ(picker->mana.value, 46.0f, 0.01f);
+    T_FEQ(nearby->health.value, 93.0f, 0.01f);
+    T_FEQ(nearby->mana.value, 100.0f, 0.01f);
+    T_FEQ(distant->health.value, 20.0f, 0.01f);
+    T_FEQ(distant->mana.value, 5.0f, 0.01f);
+    T_FEQ(enemy->health.value, 20.0f, 0.01f);
+    T_FEQ(enemy->mana.value, 5.0f, 0.01f);
+    T_FEQ(mechanical->health.value, 20.0f, 0.01f);
+    T_FEQ(mechanical->mana.value, 5.0f, 0.01f);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
+    T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
+
+    picker->health.value = nearby->health.value = 100.0f;
+    picker->mana.value = nearby->mana.value = 100.0f;
+    rune = make_item_test_world_item(MAKEFOURCC('r','r','e','s'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_ASSERT(rune->item->pending_use_removal);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X6\n"

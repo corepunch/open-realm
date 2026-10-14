@@ -551,6 +551,43 @@ BZ_ABILITY_PROC(CAbilityItemManaAoe) {
     return true;
 }
 
+/* Area Heal/Mana Regain (AIra, Rune of Restoration): DataA heals and
+ * DataB restores mana. Both resources are independently capped per target;
+ * use one authored target search so a target missing either resource qualifies.
+ * A well-formed powerup is consumed even when no resource is missing. */
+BZ_ABILITY_PROC(CAbilityItemRestoreAoe) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    uint32_t code;
+    float health, mana;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row || !(row->area >= 0.0f)) return false;
+    health = S_SpellData(code, 1, 1); /* DataA / Hit Points Gained */
+    mana = S_SpellData(code, 1, 2);   /* DataB / Mana Points Gained */
+    if (!(health >= 0.0f) || !(mana >= 0.0f)) return false;
+
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 S_SpellIsFriend(caster, target) &&
+                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
+        bool changed = false;
+        if (health > 0.0f && target->health.value < target->health.max_value) {
+            S_SpellHeal(target, health);
+            changed = true;
+        }
+        if (mana > 0.0f && target->mana.value < target->mana.max_value) {
+            target->mana.value = MIN(target->mana.max_value, target->mana.value + mana);
+            changed = true;
+        }
+        if (changed) G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    }
+    return true;
+}
+
 /* Rune of Shielding (ANse): a one-use, untimed BNss protection per eligible
  * ally. Stock zero Dur is intentional: only an incoming block or dispel
  * removes it. Re-pickup does not stack charges or create an expiry timer. */
