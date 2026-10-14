@@ -20,7 +20,9 @@ miscellaneous, command, and ability text files remain `stbIniCache_t` values que
 OpenRealm has two independent inputs when selecting Warcraft object data:
 
 1. `fs_expansion` selects the installed game edition. `0` is Reign of Chaos and hides the configured `War3x*` archive family; `1` is The Frozen Throne and exposes it.
-2. `war3map.w3i::gameDataSet` selects the map data overlay inside that edition. `1` selects `Custom_V0`/`Custom_V1`; other explicit values select `Melee_V0`/`Melee_V1`. When the W3I field is absent or zero, the `melee_map` flag selects Melee and other maps select Custom, matching Warsmash's map-loader rule.
+2. `war3map.w3i::gameDataSet` selects the map data overlay inside that edition. `1` selects `Custom_V0`/`Custom_V1`; other explicit values (including `2`) select `Melee_V0`/`Melee_V1`. When the W3I field is absent, zero, or `0xFFFFFFFF` (unset sentinel), the `melee_map` flag selects Melee and other maps select Custom. Explicit selections continue to override the map flag.
+
+TFT campaign maps can store `gameDataSet = 0xFFFFFFFF` without the `melee_map` flag. Those maps must resolve `Custom_V1` sheets before root fallback. For example, `UndeadX07c.w3x` uses `Custom_V1\Units\UnitBalance.slk` for the Faceless Ones units; falling back from a nonexistent `Melee_V1` sheet to root `UnitBalance.slk` inflates their cost-based Unit Score from the retail 12,465 to 15,030. Fix the W3I selector, not the score formula or a particular map's costs.
 
 The resulting lookup is therefore:
 
@@ -49,7 +51,7 @@ Archive precedence and the existing RoC/TFT `War3x*` visibility rule therefore r
 
 W3I format version is a separate compatibility input. `G_IsReignOfChaosMap()` recognizes parsed formats `1..24` as RoC maps; zero is treated as unknown for synthetic/test metadata. This helper is for runtime semantic differences, such as the stock RoC hero-inventory fallback, and must not be confused with `fs_expansion` or `gameDataSet`.
 
-Tests in `games/warcraft-3/game/tests/t_slk.c` cover W3I data-set fallback, `Custom_V0`/`Melee_V1` prefix formation, RoC-map detection, prefixed fixture selection, root fallback, and map-archive CampaignUnitFunc / war3mapMisc / w3a / w3b overrides. Fixture files live under `games/warcraft-3/tests/resources-src/{Custom_V0,Melee_V1,MapOverlay}/`. `make test-assets` packs those overlay members as `Maps/MapOverlay.w3x` inside `tests.mpq`, so `FS_ListMaps` reports five fixture maps (`commands.fixture_maps_are_listed_from_mpq`).
+Tests in `games/warcraft-3/game/tests/t_slk.c` cover W3I data-set fallback (including zero and `0xFFFFFFFF` on melee and non-melee maps), `Custom_V0`/`Melee_V1` prefix formation, RoC-map detection, prefixed fixture selection, root fallback, and map-archive CampaignUnitFunc / war3mapMisc / w3a / w3b overrides. Fixture files live under `games/warcraft-3/tests/resources-src/{Custom_V0,Melee_V1,MapOverlay}/`. `make test-assets` packs those overlay members as `Maps/MapOverlay.w3x` inside `tests.mpq`, so `FS_ListMaps` reports five fixture maps (`commands.fixture_maps_are_listed_from_mpq`).
 
 The current overlay is deliberately scoped to sheet/INI object data. Warsmash applies its subdirectory data source more broadly, but extending model/texture/FDF asset resolution would cross the renderer/client asset-scope boundary and is separate work; it is not required to keep TFT-only techtree rows out of RoC command cards.
 
