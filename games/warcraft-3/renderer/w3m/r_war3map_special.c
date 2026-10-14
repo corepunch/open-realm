@@ -1,11 +1,147 @@
 #include "r_war3map.h"
 #include "common/stb_slk.h"
+#include "games/warcraft-3/renderer/mdx/r_mdx.h"
+#include "renderer/r_game.h"
 
-/* Visual-only generated-cliff suppression for special terrain doodads.
- * Keep enough of the surrounding cliff at footprint edges to meet the model;
- * ground geometry and gameplay pathing are separate from this mask. */
+/* Special terrain models replace the generated cliff across their full footprint.
+ * Ground geometry and gameplay pathing are separate from this visual mask. */
 static uint8_t *w3_special_cutouts;
 static uint32_t w3_cutout_width, w3_cutout_height;
+
+typedef struct w3SpecialMesh_s {
+    uint32_t x, y, width, height;
+    mdxModel_t const *source;
+    mdxModel_t *model;
+    mat4_t transform;
+    struct w3SpecialMesh_s *next;
+} w3SpecialMesh_t;
+static w3SpecialMesh_t *w3_special_meshes;
+typedef struct {
+    war3map_t const *map;
+    w3SpecialMesh_t const *mesh;
+    mdxModel_t const *source;
+    mat4_t const *transform;
+} w3SpecialFit_t;
+
+/* Only geometry belongs to the placement. Materials, UV channels, indices and
+ * animation data remain owned by the registered model. */
+static void R_W3FreeSpecialModel(w3SpecialMesh_t *mesh) {
+    if (!mesh->model) return;
+    MDX_ReleaseBuffers(mesh->model);
+    MDLX_ReleaseSprites(mesh->model);
+    MDLX_ForgetRibbonModel(mesh->model);
+    SAFE_DELETE(mesh->model->ribbon_states, MDLX_ReleaseRibbonStates);
+    mdxGeoset_t *geo = mesh->model->geosets;
+    while (geo) {
+        mdxGeoset_t *next = geo->next;
+        ri.MemFree(geo->vertices); ri.MemFree(geo->normals); ri.MemFree(geo);
+        geo = next;
+    }
+    ri.MemFree(mesh->model);
+    mesh->model = NULL; mesh->source = NULL;
+}
+
+/* Terrain rebuilds discard fitted storage so the next draw resamples the changed W3E. */
+void R_W3InvalidateSpecialModels(void) {
+    FOR_EACH_LIST(w3SpecialMesh_t, mesh, w3_special_meshes) R_W3FreeSpecialModel(mesh);
+}
+
+/* Apply retail cliff fitting without changing shared geometry or stacked native Z offsets. */
+static mdxModel_t *R_W3FitSpecialModel(w3SpecialFit_t const *fit) {
+    war3map_t const *map = fit->map;
+    w3SpecialMesh_t const *mesh = fit->mesh;
+    mdxModel_t const *source = fit->source;
+    mat4_t const *transform = fit->transform;
+    mdxModel_t *model = ri.MemAlloc(sizeof(*model));
+    mdxGeoset_t **tail;
+    mat4_t inverse;
+    int level = 15;
+    if (!model) goto no_model;
+    *model = *source;
+    model->geosets = NULL;
+    model->sprites = NULL; model->ribbon_states = NULL; model->ribbon_tick = 0;
+    memset(model->buffers, 0, sizeof(model->buffers));
+    tail = &model->geosets;
+    Matrix4_inverse(transform, &inverse);
+    /* Retail uses the lowest cliff layer across the whole footprint, then
+     * adds only raw W3E height to each vertex. Adding interpolated cliff layers
+     * would raise the lower vertices of stacked walls onto their roof. */
+    for (uint32_t y = mesh->y; y <= mesh->y + MIN(mesh->height, map->height - 1 - mesh->y); y++)
+        for (uint32_t x = mesh->x; x <= mesh->x + MIN(mesh->width, map->width - 1 - mesh->x); x++)
+            level = MIN(level, GetWar3MapVertex(map, x, y)->level);
+    FOR_EACH_LIST(mdxGeoset_t const, original, source->geosets) {
+        mdxGeoset_t *geo = ri.MemAlloc(sizeof(*geo));
+        if (!geo) goto failed;
+        *geo = *original;
+        geo->next = NULL; geo->vaos = NULL; ARRAY_COUNT(geo->vaos) = 0;
+        geo->matrixPalette = NULL; geo->num_matrixPalette = 0;
+        geo->vertices = ri.MemAlloc(geo->num_vertices * sizeof(*geo->vertices));
+        geo->normals = ri.MemAlloc(geo->num_vertices * sizeof(*geo->normals));
+        *tail = geo; tail = &geo->next;
+        if (!geo->vertices || !geo->normals) goto failed;
+        FOR_LOOP(i, geo->num_vertices) {
+            vec3_t pos = Matrix4_multiply_vector3(transform, &original->vertices[i]);
+            float gx = (pos.x - map->center.x) / TILE_SIZE;
+            float gy = (pos.y - map->center.y) / TILE_SIZE;
+            gx = MAX(0, MIN(gx, map->width - 1));
+            gy = MAX(0, MIN(gy, map->height - 1));
+            uint32_t x = MIN((uint32_t)floorf(gx), map->width - 2);
+            uint32_t y = MIN((uint32_t)floorf(gy), map->height - 2);
+            float u = gx - x, v = gy - y;
+            float south = LerpNumber(R_GetVertexPosition(map, x, y, false).z, R_GetVertexPosition(map, x+1, y, false).z, u);
+            float north = LerpNumber(R_GetVertexPosition(map, x, y+1, false).z, R_GetVertexPosition(map, x+1, y+1, false).z, u);
+            /* The entity's rigid center elevation is a transport anchor, not
+             * the mesh's terrain baseline. Preserve scale and native Z. */
+            pos.z += level * TILE_SIZE - HEIGHT_COR + LerpNumber(south, north, v) - transform->v[14];
+            geo->vertices[i] = original->vertices[i];
+            geo->vertices[i].z = Matrix4_multiply_vector3(&inverse, &pos).z;
+            /* Frustum culling must include the new fitted Z range. XY is unchanged. */
+            model->bounds.box.min.z = MIN(model->bounds.box.min.z, geo->vertices[i].z);
+            model->bounds.box.max.z = MAX(model->bounds.box.max.z, geo->vertices[i].z);
+            geo->normals[i] = original->normals[i];
+            if (fabsf(gx - roundf(gx)) < .001f && fabsf(gy - roundf(gy)) < .001f) {
+                vec3_t normal = R_GetVertexNormal(map, (uint32_t)roundf(gx), (uint32_t)roundf(gy));
+                vec3_t const zero = Matrix4_multiply_vector3(&inverse, &MAKE(vec3_t,0,0,0));
+                normal = Matrix4_multiply_vector3(&inverse, &normal);
+                geo->normals[i] = Vector3_sub(&normal, &zero);
+                Vector3_normalize(&geo->normals[i]);
+            }
+        }
+    }
+    vec3_t center = Box3_Center(&model->bounds.box);
+    model->bounds.radius = MAX(model->bounds.radius, Vector3_distance(&center, &model->bounds.box.max));
+    MDX_BuildBuffers(model);
+    return model;
+failed:;
+    w3SpecialMesh_t partial = {.model=model};
+    R_W3FreeSpecialModel(&partial);
+no_model:
+    fprintf(stderr, "WC3 renderer: unable to allocate fitted terrain doodad at cell (%u,%u)\n", mesh->x, mesh->y);
+    return NULL;
+}
+
+/* Match the map-authored footprint center; leave ordinary cliff-textured MDX instances untouched. */
+mdxModel_t const *R_W3SpecialModel(renderEntity_t const *entity, mat4_t const *transform) {
+    mdxModel_t const *source = entity && entity->model ? entity->model->mdx : NULL;
+    war3map_t const *map = tr.world;
+    bool cliff = false;
+    if (!w3_special_meshes || !map || !map->vertices || map->width < 2 || map->height < 2 ||
+        !source || !transform || entity->scale <= 0) return source;
+    FOR_LOOP(i, source->num_textures) cliff |= source->textures[i].replaceableID == 11;
+    if (!cliff) return source;
+    FOR_EACH_LIST(w3SpecialMesh_t, mesh, w3_special_meshes) {
+        float x = map->center.x + (mesh->x + mesh->width * .5f) * TILE_SIZE;
+        float y = map->center.y + (mesh->y + mesh->height * .5f) * TILE_SIZE;
+        if (fabsf(entity->origin.x - x) > .01f || fabsf(entity->origin.y - y) > .01f) continue;
+        if (mesh->source != source || memcmp(&mesh->transform, transform, sizeof(*transform))) {
+            R_W3FreeSpecialModel(mesh);
+            mesh->model = R_W3FitSpecialModel(&MAKE(w3SpecialFit_t, .map=map, .mesh=mesh, .source=source, .transform=transform));
+            mesh->source = source; mesh->transform = *transform;
+        }
+        return mesh->model ? mesh->model : source;
+    }
+    return source;
+}
 
 bool R_W3SpecialCellCovered(war3map_t const *map, uint32_t x, uint32_t y) {
     return map && map == tr.world && w3_special_cutouts &&
@@ -14,6 +150,11 @@ bool R_W3SpecialCellCovered(war3map_t const *map, uint32_t x, uint32_t y) {
 }
 
 void R_W3ClearSpecialCutouts(void) {
+    R_W3InvalidateSpecialModels();
+    while (w3_special_meshes) {
+        w3SpecialMesh_t *next = w3_special_meshes->next;
+        ri.MemFree(w3_special_meshes); w3_special_meshes = next;
+    }
     SAFE_DELETE(w3_special_cutouts, ri.MemFree);
     w3_cutout_width = w3_cutout_height = 0;
 }
@@ -34,29 +175,11 @@ static bool R_W3BeginSpecialCutouts(war3map_t const *map) {
 static void R_W3MarkSpecialCutout(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
     if (!w3_special_cutouts || !width || !height ||
         x >= w3_cutout_width || y >= w3_cutout_height) return;
-    /* Clip even malformed or edge-overlapping footprints; never wrap indexes.
-     * The authored pathing rectangle is broader than the mouth which replaces
-     * generated cliff faces. Cutting its full rectangle left unnaturally straight
-     * holes above and beside the special cliff model (Rexxar Goblin Cave).
-     *
-     * Retain the north/rear row and the two side columns behind the entrance,
-     * but keep the south/front row clear for the mouth and its barrier. This
-     * preserves the surrounding cliff where it can hide the cave model's flat
-     * upper/side boundaries without bringing back the complete cliff wall.
-     * Small footprints cannot be inset safely: preserve the original mask. */
+    /* Clip malformed or edge-overlapping footprints without wrapping indexes. */
     uint32_t right = x + MIN(width, w3_cutout_width - x);
     uint32_t bottom = y + MIN(height, w3_cutout_height - y);
-    bool const refine = right - x >= 3 && bottom - y >= 2;
-    for (uint32_t cy = y; cy < bottom; cy++) {
-        if (refine && cy == bottom - 1) continue; /* keep rear rim */
-        uint32_t from = x, to = right;
-        if (refine && cy != y) { /* keep side joins above the mouth */
-            from++;
-            to--;
-        }
-        if (to > from)
-            memset(w3_special_cutouts + (size_t)cy * w3_cutout_width + from, 1, to - from);
-    }
+    for (uint32_t cy = y; cy < bottom; cy++)
+        memset(w3_special_cutouts + (size_t)cy * w3_cutout_width + x, 1, right - x);
 }
 
 /* A renderer-local view of only the doodad property needed for cutouts. */
@@ -248,7 +371,15 @@ static void R_W3ReadSpecialPlacements(handle_t archive, war3map_t const *map,
         if (!texture || texture == tr.texture[TEX_PLACEHOLDER] ||
             !texture->width || !texture->height ||
             texture->width % 4 || texture->height % 4) continue;
-        R_W3MarkSpecialCutout(x, y, texture->width / 4, texture->height / 4);
+        if (x >= w3_cutout_width || y >= w3_cutout_height) continue;
+        w3SpecialMesh_t *mesh = ri.MemAlloc(sizeof(*mesh));
+        if (!mesh) {
+            fprintf(stderr, "WC3 renderer: unable to allocate terrain doodad footprint at cell (%u,%u)\n", x, y);
+            continue;
+        }
+        *mesh = (w3SpecialMesh_t){.x=x, .y=y, .width=texture->width / 4, .height=texture->height / 4};
+        ADD_TO_LIST(mesh, w3_special_meshes);
+        R_W3MarkSpecialCutout(x, y, mesh->width, mesh->height);
     }
 done:
     ri.MemFree(bytes);
@@ -368,7 +499,7 @@ TEST(wc3_terrain, special_doodad_path_follows_map_custom_inheritance) {
 
 static handle_t R_W3TestCutoutAlloc(long size) { return malloc(size); }
 
-TEST(wc3_terrain, special_cliff_cutout_preserves_side_and_rear_rim) {
+TEST(wc3_terrain, special_cliff_cutout_replaces_full_footprint) {
     /* Filtered runs cannot rely on earlier model tests installing imports. */
     refImport_t saved_imports = ri;
     ri.MemAlloc = R_W3TestCutoutAlloc;
@@ -381,14 +512,14 @@ TEST(wc3_terrain, special_cliff_cutout_preserves_side_and_rear_rim) {
     /* Mouth/front edge stays unobstructed, including its two corners. */
     T_ASSERT(R_W3SpecialCellCovered(&map, 2, 3));
     T_ASSERT(R_W3SpecialCellCovered(&map, 6, 3));
-    /* Cliff faces beside the inner rows are retained for natural joins. */
-    T_ASSERT(!R_W3SpecialCellCovered(&map, 2, 4));
+    /* The fitted special mesh owns every cell, including the side and rear joins. */
+    T_ASSERT(R_W3SpecialCellCovered(&map, 2, 4));
     T_ASSERT(R_W3SpecialCellCovered(&map, 3, 4));
     T_ASSERT(R_W3SpecialCellCovered(&map, 5, 5));
-    T_ASSERT(!R_W3SpecialCellCovered(&map, 6, 5));
-    /* Restore the whole rear row over the model's upper rectangle. */
-    T_ASSERT(!R_W3SpecialCellCovered(&map, 3, 6));
-    T_ASSERT(!R_W3SpecialCellCovered(&map, 5, 6));
+    T_ASSERT(R_W3SpecialCellCovered(&map, 6, 5));
+    /* The full rear row must not retain a second cliff wall. */
+    T_ASSERT(R_W3SpecialCellCovered(&map, 3, 6));
+    T_ASSERT(R_W3SpecialCellCovered(&map, 5, 6));
     T_ASSERT(!R_W3SpecialCellCovered(&map, 1, 3));
     /* Edge clipping and tiny footprints retain the old safe behaviour. */
     R_W3MarkSpecialCutout(10, 10, UINT32_MAX, UINT32_MAX);
@@ -401,5 +532,84 @@ TEST(wc3_terrain, special_cliff_cutout_preserves_side_and_rear_rim) {
     T_ASSERT(!R_W3SpecialCellCovered(&map, 3, 4));
     tr.world = saved_world;
     ri = saved_imports;
+}
+
+TEST(wc3_terrain, orcx01_cave_vertices_follow_raw_height_and_keep_stacked_walls) {
+    refImport_t saved_imports = ri;
+    war3map_t const *saved_world = tr.world;
+    w3SpecialMesh_t *saved_meshes = w3_special_meshes;
+    ri.MemAlloc = R_W3TestCutoutAlloc; ri.MemFree = free;
+    /* OrcX01 YCr2 (12,160): W3E heights and cliff layers at all 16 footprint corners. */
+    float const heights[16] = {463.75f,478.25f,458.25f,460.25f,
+        570.5f,522.25f,490.25f,483.75f,583,536.5f,506.75f,534.75f,
+        556.75f,538.5f,526.5f,528.75f};
+    uint8_t const layers[16] = {0,0,0,0,2,0,0,0,2,0,0,2,2,2,2,2};
+    war3mapVertex_t vertices[16];
+    FOR_LOOP(i,16) vertices[i] = (war3mapVertex_t){
+        .accurate_height = 8192 + heights[i] * 4, .level = layers[i] };
+    war3map_t map = {.width=4, .height=4, .center={-4608,12288}, .vertices=vertices};
+    vec3_t positions[] = {{-192,192,256}, {-192,192,0}, {192,-192,0}, {0,0,90}};
+    vec3_t normals[] = {{0,0,1}, {1,0,0}, {0,0,1}, {1,0,0}};
+    vec2_t uvs[8] = {{.998047f,.001953f}, {0,0}, {1,1}, {.2f,.3f},
+        {.615494f,.979932f}, {0,1}, {1,0}, {.7f,.8f}};
+    short triangles[] = {0,1,2};
+    mdxGeoset_t geoset = {.vertices=positions, .num_vertices=4, .normals=normals,
+        .texcoord=uvs, .num_texcoord=4, .num_texcoordChannels=2,
+        .triangles=triangles, .num_triangles=3};
+    mdxTexture_t texture = {.replaceableID=11};
+    mdxRibbonInstance_t ribbon = {0};
+    mdxModel_t mdx = {.geosets=&geoset, .textures=&texture, .num_textures=1, .ribbon_states=&ribbon,
+        .bounds={.box={.min={-192,-192,0}, .max={192,192,256}}, .radius=300}};
+    model_t model = {.modeltype=ID_MDLX, .mdx=&mdx};
+    renderEntity_t entity = {.model=&model, .origin={-4416,12480,257.5f},
+        .angle=DEG2RAD(270), .scale=1};
+    quaternion_t rotation = Quaternion_fromOrientation(&MAKE(orientation_t, .yaw=entity.angle));
+    mat4_t transform;
+    Matrix4_from_rotation_translation_scale_origin(&transform, &rotation, &entity.origin, &MAKE(vec3_t,1,1,1), &MAKE(vec3_t,0,0,0));
+    w3SpecialMesh_t placement = {.width=3,.height=3};
+    tr.world = &map; w3_special_meshes = &placement;
+    mdxModel_t const *fitted = R_W3SpecialModel(&entity, &transform);
+    T_NE(fitted, &mdx);
+    T_FEQ(fitted->geosets->vertices[0].z + entity.origin.z, 528.75f, .001f);
+    T_FEQ(fitted->geosets->vertices[1].z + entity.origin.z, 272.75f, .001f);
+    T_FEQ(fitted->geosets->vertices[2].z + entity.origin.z, 207.75f, .001f);
+    T_FEQ(fitted->geosets->vertices[3].z + entity.origin.z, 347.9375f, .001f);
+    T_FEQ(positions[0].z, 256, .001f); /* Registry model remains reusable by other placements. */
+    T_NULL(fitted->ribbon_states);
+    T_EQ(mdx.ribbon_states, &ribbon);
+    T_ASSERT(fitted->bounds.box.min.z <= fitted->geosets->vertices[2].z);
+    T_ASSERT(fitted->bounds.box.max.z >= fitted->geosets->vertices[0].z);
+    T_EQ(fitted->geosets->texcoord, uvs);
+    T_EQ(fitted->geosets->num_texcoordChannels, 2);
+    T_EQ(R_W3SpecialModel(&entity, &transform), fitted);
+    T_EQ(fitted->geosets->triangles, triangles);
+    T_EQ(ARRAY_COUNT(fitted->geosets->vaos), 2);
+    T_NULL(geoset.vaos);
+    T_NULL(geoset.matrixPalette);
+    vec3_t roof = Matrix4_multiply_vector3(&transform, &fitted->geosets->vertices[0]);
+    T_FEQ(roof.x, -4224, .001f); T_FEQ(roof.y, 12672, .001f);
+    entity.origin.x += TILE_SIZE;
+    T_EQ(R_W3SpecialModel(&entity, &transform), &mdx); /* Ordinary MDX instances do not get fitted. */
+    entity.origin.x -= TILE_SIZE;
+    /* A later terrain deformation rebuilds from the immutable authored mesh. */
+    FOR_LOOP(i,16) vertices[i].accurate_height += 320;
+    R_W3InvalidateSpecialModels();
+    T_NULL(placement.model);
+    fitted = R_W3SpecialModel(&entity, &transform);
+    T_FEQ(fitted->geosets->vertices[0].z + entity.origin.z, 608.75f, .001f);
+    /* Rebinding the transport anchor must not translate the fitted world roof. */
+    entity.origin.z += 40; transform.v[14] += 40;
+    fitted = R_W3SpecialModel(&entity, &transform);
+    T_FEQ(fitted->geosets->vertices[0].z + entity.origin.z, 608.75f, .001f);
+    /* The outer entity culler must use fitted bounds too, before the draw. */
+    entity.angle = 0;
+    box3_t bounds;
+    T_ASSERT(R_GetEntityBounds(&entity, &bounds));
+    T_FEQ(bounds.max.z, 339.25f, .001f);
+    T_FEQ(bounds.min.z, -13.25f, .001f);
+    R_W3FreeSpecialModel(&placement);
+    T_NULL(placement.model);
+    T_FEQ(positions[0].z, 256, .001f);
+    w3_special_meshes = saved_meshes; tr.world = saved_world; ri = saved_imports;
 }
 #endif

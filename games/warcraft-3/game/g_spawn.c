@@ -756,10 +756,9 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
 }
 
 /* Special war3map.doo XY is the lower-left terrain cell of the pathing
- * footprint. The model has no authored world Z, but OpenRealm draws it as an
- * ordinary MDX instance (without W3E heightmap deformation). Place its origin
- * at the underlying terrain elevation rather than forcing the world Z to 0.
- * This is map data, not a hard-coded OrcX01/cliff-level adjustment. */
+ * footprint. Keep its transport/collision anchor at the center's terrain Z.
+ * The WC3 renderer separately fits each mesh vertex to raw W3E height and the
+ * lowest footprint cliff layer; it does not use this rigid anchor as its base. */
 static vec3_t G_CenterSpecialDoodad(vec3_t min_corner, pathTex_t const *footprint,
                                     box2_t bounds, float (*terrain_height)(float, float)) {
     if (footprint) {

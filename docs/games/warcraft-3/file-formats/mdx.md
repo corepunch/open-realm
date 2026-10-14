@@ -95,13 +95,14 @@ Each key is `{ DWORD frame; <value>; [<inTan>; <outTan>] }` where the tangent pa
 
 ## Geoset (Geometry)
 
-A geoset is one draw call: a set of vertices sharing the same material. Its sub-chunks are:
+A geoset is a set of vertices sharing one material, which may have multiple texture layers. Its sub-chunks are:
 
 | Sub-chunk | Description |
 |-----------|-------------|
 | `VRTX` | Vertex positions — `float[3]` each |
 | `NRMS` | Vertex normals — `float[3]` each |
-| `UVBS` | UV sets — `float[2]` each |
+| `UVAS` | Number of UV channels; followed by one `UVBS` per channel |
+| `UVBS` | Vertex count followed by `float[2]` per vertex, for one UV channel |
 | `PTYP` | Primitive types (always `4` = triangles) |
 | `PCNT` | Primitive counts |
 | `PVTX` | Vertex index list (triangle list) |
@@ -109,7 +110,10 @@ A geoset is one draw call: a set of vertices sharing the same material. Its sub-
 | `MTGC` | Vertex count per bone group |
 | `MATS` | Bone indices for each bone group |
 
-The renderer builds a static VBO from `VRTX`/`NRMS`/`UVBS` and a matrix palette from the `MATS`/`GNDX`/`MTGC` tables for GPU skinning.
+The renderer builds a static VBO from `VRTX`/`NRMS`/UV0 and a matrix palette from the `MATS`/`GNDX`/`MTGC`
+tables for GPU skinning. Extra UV channels share a compact secondary buffer; each material layer's `coordId`
+selects the matching geoset VAO. Reading the last UVBS over UV0 corrupts multi-layer cave materials.
+See [cave material UV channels](../terrain-tiles-and-water.md#cave-material-uv-channels-630).
 
 ## Geoset Flags
 

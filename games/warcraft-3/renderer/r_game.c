@@ -2041,7 +2041,7 @@ void R_RenderModel(renderEntity_t const *entity) {
     }
     MDLX_TickDetachedRibbons(); /* fade trails whose entity stopped drawing before this model draws */
     R_GetEntityMatrix(entity, &transform);
-    MDX_RenderModel(entity, entity->model->mdx, &transform);
+    MDX_RenderModel(entity, R_W3SpecialModel(entity, &transform), &transform);
     R_W3RenderAttachmentModels(entity, &transform);
 
     if ((entity->effect_flags & EFX_MODEL) && (entity->effect_flags & EFX_ATTACH_SLOTS) &&
@@ -2106,12 +2106,14 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *dist
     return true;
 }
 
-/* Share MDX authored bounds with the outer renderer culler so tall doodads are
- * not rejected by their smaller gameplay selection radius. */
+/* Share the drawn MDX bounds with the outer culler, including terrain-fitted
+ * doodads whose roof extends beyond the registered model's authored Z range. */
 bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
     if (!entity || !bounds || !entity->model || entity->model->modeltype != ID_MDLX || !entity->model->mdx)
         return false;
-    *bounds = entity->model->mdx->bounds.box;
+    mat4_t transform;
+    R_GetEntityMatrix(entity, &transform);
+    *bounds = R_W3SpecialModel(entity, &transform)->bounds.box;
     return true;
 }
 

@@ -89,7 +89,22 @@ vertices[i].texcoord.x = LerpNumber(vertices[i].texcoord.x,
 `R_MakeTile` refuses to emit geometry for a tile if:
 
 - `IsTileCliff(tile) && GetTileRamps(tile) < 4` — at least one vertex has a different `level` from the others, and fewer than all four vertices are ramp vertices. Cliff-face geometry is handled by the cliff layer instead.
-- `GetTileRamps(tile) == 2` with exactly one `ramp && cliffVariation` corner — exactly two ramp flags are set, but only one vertex is in the *mid-ramp* position (see the ramp section below). This avoids a triangle of ground leaking through the middle of a ramp.
+- A flat cell with two ramp flags and one computed mid-ramp corner is skipped only when an adjacent transition's
+  low-side footprint actually covers it. A mid-ramp corner alone is insufficient: it can touch unrelated flat ground.
+  `R_TileHasGround(map,x,y)` is shared by ground, splats, Blight corner preservation and cliff joins.
+
+### NightElfX04 isolated holes (#615)
+
+The inspected TFT W3E has size 161x97, centre `(-6144,-5632)`, and cliff palette `CZdi,CZlb`.
+After the renderer computes mid-ramp markers, 46 flat cells match the old two-ramp/one-mid-corner rejection.
+Two have no covering transition: `(60,34)` at world `(1536,-1280)` and `(55,42)` at `(896,-256)`.
+The nearby `BALH` at `(61,34)` extends east to `(62,34)`; the `LHBA` at `(54,42)` extends west to `(53,42)`.
+Neither covers the rejected cell. Those two omissions produced the report's isolated black patches.
+
+Do not diagnose this from raw W3E `cliffVariation` values: `FileReadWar3Map` replaces them on ramp vertices with
+computed midpoint markers before baking. `renderer_terrain.nightelfx04_uncovered_ramp_corner_keeps_ground_and_splats`
+uses the sampled heights, levels and computed flags around both cells, drives `R_MakeTile` and the splat eligibility
+path, and checks both uncovered ground and a genuine low-neighbour transition. No retail archives are needed.
 
 ### Water Depth Tinting
 

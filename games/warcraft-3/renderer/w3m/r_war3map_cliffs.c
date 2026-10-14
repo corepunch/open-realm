@@ -17,7 +17,6 @@ static uint32_t cliff_vertex_sample_capacity, cliff_vertex_generation;
 static bool cliff_warn_sample_alloc, cliff_warn_model_cache_alloc;
 static bool cliff_warn_texture_cache_alloc, cliff_warn_layer_alloc, cliff_warn_pending_alloc;
 
-vec3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y);
 
 typedef struct {
     uint32_t cliff;
@@ -246,8 +245,7 @@ static bool R_CliffGroundJoin(war3map_t const *map, vec3_t *pos) {
         float u = gx - x, v = gy - y;
         if (u < -0.0001f || u > 1.0001f || v < -0.0001f || v > 1.0001f) continue;
         if (fabsf(u) > 0.0001f && fabsf(u-1) > 0.0001f && fabsf(v) > 0.0001f && fabsf(v-1) > 0.0001f) continue;
-        war3mapVertex_t tile[4]; GetTileVertices(x, y, map, tile);
-        if (!R_TileHasGround(tile)) continue;
+        if (!R_TileHasGround(map, x, y)) continue;
         float low = LerpNumber(R_GetVertexPosition(map, x, y, true).z, R_GetVertexPosition(map, x+1, y, true).z, u);
         float high = LerpNumber(R_GetVertexPosition(map, x, y+1, true).z, R_GetVertexPosition(map, x+1, y+1, true).z, u);
         float z = LerpNumber(low, high, v);

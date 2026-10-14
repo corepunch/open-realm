@@ -500,6 +500,7 @@ static void R_W3EmitChangedTerrain(void) {
         }
     }
     if (rebuilt) {
+        R_W3InvalidateSpecialModels();
         R_FinishCliffs();
         R_InvalidateBlightLayer();
     }

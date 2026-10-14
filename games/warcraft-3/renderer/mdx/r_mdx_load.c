@@ -207,12 +207,31 @@ void ReadGeosetMatrices(sizeBuf_t *buffer, mdxGeoset_t *geoset) {
 }
 
 void ReadGeoset(sizeBuf_t *buffer, mdxGeoset_t *geoset) {
-    uint32_t header;
+    uint32_t header, uvset = 0;
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
             case ID_VRTX: SFileReadArray2(buffer, geoset, vertices, sizeof(vec3_t)); break;
             case ID_NRMS: SFileReadArray2(buffer, geoset, normals, sizeof(vec3_t)); break;
-            case ID_UVBS: SFileReadArray2(buffer, geoset, texcoord, sizeof(vec2_t)); break;
+            case ID_UVBS: {
+                uint32_t count = MSG_ReadLong(buffer), sets = MAX(1, geoset->num_texcoordChannels);
+                size_t bytes = (size_t)count * sizeof(vec2_t), remain = buffer->cursize - buffer->readcount;
+                if (uvset >= sets || count != geoset->num_vertices || bytes > remain ||
+                    sets - uvset > 1 + remain / (2 * sizeof(uint32_t)) || (!uvset && bytes && sets > remain / bytes)) {
+                    fprintf(stderr, "MDX: invalid UVBS channel %u (%u vertices, %u channels)\n", uvset, count, sets);
+                    geoset->num_texcoordChannels = -1;
+                    buffer->readcount = buffer->cursize;
+                    return;
+                }
+                /* Cave models have UV0 for the cliff and UV1 for their alpha-key overlay. The old reader
+                 * replaced UV0 with each UVBS, leaking its allocation and streaking the cliff layer. */
+                if (!uvset) {
+                    geoset->num_texcoord = count;
+                    geoset->texcoord = bytes ? ri.MemAlloc(bytes * sets) : NULL;
+                }
+                if (bytes) MSG_Read(buffer, geoset->texcoord + (size_t)uvset * count, bytes);
+                uvset++;
+                break;
+            }
             case ID_PTYP: SFileReadArray2(buffer, geoset, primitiveTypes, sizeof(int)); break;
             case ID_PCNT: SFileReadArray2(buffer, geoset, primitiveCounts, sizeof(int)); break;
             case ID_PVTX: SFileReadArray2(buffer, geoset, triangles, sizeof(short)); break;
@@ -224,7 +243,11 @@ void ReadGeoset(sizeBuf_t *buffer, mdxGeoset_t *geoset) {
                 PrintTag(header);
                 break;
         }
-    };
+    }
+    if (geoset->num_vertices && uvset != MAX(1, geoset->num_texcoordChannels)) {
+        fprintf(stderr, "MDX: geoset has %u UVBS channels, expected %d\n", uvset, geoset->num_texcoordChannels);
+        geoset->num_texcoordChannels = -1;
+    }
 }
 
 void ReadKeyTrack(sizeBuf_t *buffer, MODELKEYTRACKDATATYPE dataType, mdxKeyTrack_t **output) {
@@ -598,6 +621,8 @@ blockReadCode_t MDLX_ReadEVTS(sizeBuf_t *sb, mdxModel_t *model) {
 
 blockReadCode_t MDLX_ReadGEOS(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Geoset, geosets);
+    FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets)
+        if (geo->num_texcoordChannels < 0) return BLOCKREAD_ERROR;
     return BLOCKREAD_OK;
 }
 
@@ -786,6 +811,7 @@ mdxModel_t *R_LoadModelMDLX(void *data, uint32_t size) {
     sizeBuf_t buffer = { .data = data, .cursize = size, .readcount = 4 };
     if (MSG_ReadBlock(&buffer, R_MDLX, model) != BLOCKREAD_OK) {
         MDLX_Release(model);
+        ri.MemFree(model);
         return NULL;
     }
     FOR_EACH_LIST(mdxBone_t, bone, model->bones) MDLX_AddNode(model, &bone->node);
@@ -839,14 +865,15 @@ void MDLX_ReleaseModelNode(mdxNode_t *node) {
 }
 
 void MDLX_ReleaseModelGeoset(mdxGeoset_t *geoset) {
-    R_Call(glDeleteVertexArrays, 1, &geoset->vertexArrayBuffer);
+    if (geoset->vaos) R_Call(glDeleteVertexArrays, ARRAY_COUNT(geoset->vaos), geoset->vaos);
+    SAFE_DELETE(geoset->vaos, ri.MemFree);
+    SAFE_DELETE(geoset->matrixPalette, ri.MemFree);
 
     SAFE_DELETE(geoset->next, MDLX_ReleaseModelGeoset);
     SAFE_DELETE(geoset->vertices, ri.MemFree);
     SAFE_DELETE(geoset->normals, ri.MemFree);
     SAFE_DELETE(geoset->texcoord, ri.MemFree);
     SAFE_DELETE(geoset->matrices, ri.MemFree);
-    SAFE_DELETE(geoset->matrixPalette, ri.MemFree);
     SAFE_DELETE(geoset->primitiveTypes, ri.MemFree);
     SAFE_DELETE(geoset->primitiveCounts, ri.MemFree);
     SAFE_DELETE(geoset->triangles, ri.MemFree);
@@ -951,15 +978,28 @@ void MDLX_ReleaseRibbonStates(mdxRibbonInstance_t *state) {
     SAFE_DELETE(state, ri.MemFree);
 }
 
+/* GPU geometry and palettes can belong to a terrain-fitted copy whose authored arrays are borrowed. */
+void MDX_ReleaseBuffers(mdxModel_t *model) {
+    FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets) {
+        if (geo->vaos) R_Call(glDeleteVertexArrays, ARRAY_COUNT(geo->vaos), geo->vaos);
+        SAFE_DELETE(geo->vaos, ri.MemFree);
+        ARRAY_COUNT(geo->vaos) = 0;
+        SAFE_DELETE(geo->matrixPalette, ri.MemFree);
+        geo->num_matrixPalette = 0;
+    }
+    if (model->buffers[0] || model->buffers[1] || model->buffers[BZ_MDX_UV_BUFFER])
+        R_Call(glDeleteBuffers, BZ_MDX_BUFFER_COUNT, model->buffers);
+    memset(model->buffers, 0, sizeof(model->buffers));
+}
+
 void MDLX_Release(mdxModel_t *model) {
     MDLX_ReleaseSprites(model);
     MDLX_ForgetRibbonModel(model); /* drop registry entry and entity-less orphans before their model dies */
     SAFE_DELETE(model->ribbon_states, MDLX_ReleaseRibbonStates);
     SAFE_DELETE(model->ribbons, MDLX_ReleaseModelRibbon);
     SAFE_DELETE(model->emitters1, MDLX_ReleaseModelParticleEmitter1);
+    MDX_ReleaseBuffers(model);
     SAFE_DELETE(model->geosets, MDLX_ReleaseModelGeoset);
-    if (model->buffers[0] || model->buffers[1])
-        R_Call(glDeleteBuffers, BZ_MDX_BUFFER_COUNT, model->buffers);
     SAFE_DELETE(model->materials, MDLX_ReleaseModelMaterial);
     SAFE_DELETE(model->textureAnims, MDLX_ReleaseModelTextureAnim);
     SAFE_DELETE(model->bones, MDLX_ReleaseModelBone);
