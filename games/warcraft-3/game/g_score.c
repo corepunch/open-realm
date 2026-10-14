@@ -63,7 +63,13 @@ static void G_ScoreAddValue(uint32_t *target, uint32_t amount) {
 void G_PlayerScoreUnitTrained(edict_t *unit) {
     gameClient_t *client;
 
-    if (!unit || G_UnitIsStructure(unit)) return;
+    if (!unit) return;
+    /* Directly created and map-preplaced structures enter play complete.
+     * Worker construction is credited separately on completion, never here. */
+    if (G_UnitIsStructure(unit)) {
+        G_PlayerScoreStructureBuilt(unit);
+        return;
+    }
     client = G_ScoreClient(unit->s.player);
     G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_UNITS_TRAINED, 1);
     if (client) G_ScoreAddValue(&client->score.unit_value_produced, G_ScoreUnitValue(unit));
