@@ -93,11 +93,12 @@ retained arena; it does not duplicate strings.
 - Key-up still reaches gameplay `+command` releases so opening or focusing a window cannot leave an input held.
 - `close_window_command <command>` forwards the suffix to the server and then closes the owning window; use it for transactional
   Accept/Cancel buttons that must commit or discard server-owned draft state before dismissal.
-- `blackout_window_command <command>` is valid only for a server-authored modal `UI_WINDOW_PRESENTATION` window. It forwards
-  the suffix once, immediately suppresses the local window contents and interactions, but retains the modal/presentation
-  window so the generic presentation renderer continues clearing to black. A late same-ID window refresh cannot re-show
-  the old artwork. Navigation and eventual window removal remain server/session-owned; ordinary game windows cannot use
-  this action to mask the game world.
+- `blackout_window_command <command>` is valid only for a server-authored modal `UI_WINDOW_PRESENTATION` window. It
+  immediately blocks local interaction, fades a black overlay over the window using client time, and forwards the suffix
+  once the fade reaches full black. It retains the modal/presentation window throughout, so the renderer never reveals
+  the outgoing world. A late same-ID window refresh preserves the fade and cannot re-show artwork after it completes.
+  Navigation and eventual window removal remain server/session-owned; ordinary game windows cannot use this action to
+  mask the game world.
 - Scrollable TextArea state is client-owned. Because a retained `svc_window` packet is reparsed for each draw/hit test,
   `client/cl_window.c` stores scroll fractions by frame number and reapplies them after each parse. Mouse wheel input, scrollbar
   arrows/track, and thumb dragging update that retained value rather than mutating only the temporary parsed frame.

@@ -1,6 +1,7 @@
 #include "client.h"
 #include "menu_text_input.h"
 #include <ctype.h>
+#include <SDL2/SDL.h>
 
 #define MAX_WINDOW_SCROLL_VALUES 32 // entries; bounds retained scroll state; used per transient window
 #define MAX_WINDOW_EDIT_VALUES 8 // entries; bounds retained edit state; used per transient window
@@ -37,6 +38,9 @@ typedef struct clientWindow_s {
     vec2_t offset;
     bool debug_draw_logged;
     bool blackout; /* local presentation dismissal pending the server-authorized transition */
+    uint32_t blackout_start_ms;
+    bool blackout_command_sent;
+    char blackout_command[CMDARG_LEN * 4];
     clientWindowValue_t scroll_values[MAX_WINDOW_SCROLL_VALUES];
     uint32_t num_scroll_values;
     clientWindowEdit_t edit_values[MAX_WINDOW_EDIT_VALUES];
@@ -890,7 +894,9 @@ static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *fram
         if (!CL_WindowFormatCommand(window, source,
                 &MAKE(windowTextOut_t, .data = command, .size = sizeof(command)))) return;
         window->blackout = true;
-        Cmd_ForwardToServer(command);
+        window->blackout_start_ms = SDL_GetTicks();
+        window->blackout_command_sent = false;
+        strlcpy(window->blackout_command, command, sizeof(window->blackout_command));
     } else if (!strcmp(frame->onclick, UI_WINDOW_DISCONNECT_ACTION)) {
         /* A gameplay leave is a full world-to-front-end boundary.  Defer it
          * until input dispatch returns so the client can disconnect, stop the
@@ -926,8 +932,16 @@ static bool CL_WindowRetainsBlackout(clientWindow_t const *window, uiWindowDef_t
 void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
     clientWindow_t *window = CL_WindowById(def->id);
     bool retain_blackout;
+    uint32_t old_blackout_start_ms = 0;
+    bool old_blackout_command_sent = false;
+    char old_blackout_command[CMDARG_LEN * 4] = { 0 };
     if (!window && (def->flags & UI_WINDOW_UNIQUE)) window = CL_WindowByClass(def->class_id);
     retain_blackout = CL_WindowRetainsBlackout(window, def);
+    if (retain_blackout) {
+        old_blackout_start_ms = window->blackout_start_ms;
+        old_blackout_command_sent = window->blackout_command_sent;
+        strlcpy(old_blackout_command, window->blackout_command, sizeof(old_blackout_command));
+    }
     if (!window) {
         window = MemAlloc(sizeof(*window));
         memset(window, 0, sizeof(*window));
@@ -954,6 +968,9 @@ void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
     window->id = def->id; window->class_id = def->class_id; window->flags = def->flags; window->layout = layout;
     window->debug_draw_logged = false;
     window->blackout = retain_blackout;
+    window->blackout_start_ms = old_blackout_start_ms;
+    window->blackout_command_sent = old_blackout_command_sent;
+    strlcpy(window->blackout_command, old_blackout_command, sizeof(window->blackout_command));
     window->num_edit_values = 0;
     window->num_list_values = 0;
     CL_WindowFocus(window);
@@ -1028,8 +1045,16 @@ bool CL_WindowTextInputActive(void) {
     return cl_windows.edit_window != NULL && cl_windows.edit_frame != 0;
 }
 
+/* Fade is driven by client presentation time, not the paused game clock. */
+#define PRESENTATION_BLACKOUT_FADE_MS 400u
+
+static uint8_t CL_WindowBlackoutAlpha(uint32_t elapsed_ms) {
+    if (elapsed_ms >= PRESENTATION_BLACKOUT_FADE_MS) return 255;
+    return (uint8_t)((elapsed_ms * 255u) / PRESENTATION_BLACKOUT_FADE_MS);
+}
+
 static bool CL_WindowShouldDraw(clientWindow_t const *window, bool exclusive) {
-    return window && !window->blackout &&
+    return window &&
            (!exclusive || (window->flags & UI_WINDOW_PRESENTATION));
 }
 
@@ -1048,7 +1073,18 @@ void CL_WindowDraw(void) {
                     root.x, root.y, root.w, root.h);
             window->debug_draw_logged = true;
         }
-        SCR_LayoutDrawOverlay(window->layout);
+        if (!window->blackout || !window->blackout_command_sent)
+            SCR_LayoutDrawOverlay(window->layout);
+        if (window->blackout) {
+            uint8_t const alpha = CL_WindowBlackoutAlpha(SDL_GetTicks() - window->blackout_start_ms);
+            size2_t const size = re.GetWindowSize();
+            rect_t const screen = { 0, 0, size.width, size.height };
+            re.DrawFill(&screen, MAKE(color32_t, 0, 0, 0, alpha));
+            if (alpha == 255 && !window->blackout_command_sent) {
+                window->blackout_command_sent = true;
+                Cmd_ForwardToServer(window->blackout_command);
+            }
+        }
     }
 }
 
@@ -1439,11 +1475,20 @@ TEST(client_windows, blackout_keeps_presentation_cover_but_does_not_draw_old_lay
     T_ASSERT(CL_WindowShouldDraw(&scores, true));
     scores.blackout = true;
     T_ASSERT(CL_WindowPresentationActive()); /* SCR clears the display to black. */
-    T_ASSERT(!CL_WindowShouldDraw(&scores, true));
+    T_ASSERT(CL_WindowShouldDraw(&scores, true)); /* draw fade/black instead of old world */
     T_ASSERT(!CL_WindowShouldDraw(&normal, true));
     T_ASSERT(CL_WindowShouldDraw(&normal, false)); /* unrelated windows unchanged */
     cl_windows.first = old_first;
     cl_windows.last = old_last;
+}
+
+TEST(client_windows, blackout_fade_uses_wall_time_and_reaches_full_black) {
+    T_EQ(CL_WindowBlackoutAlpha(0), 0);
+    T_EQ(CL_WindowBlackoutAlpha(100), 63);
+    T_EQ(CL_WindowBlackoutAlpha(200), 127);
+    T_EQ(CL_WindowBlackoutAlpha(399), 254);
+    T_EQ(CL_WindowBlackoutAlpha(400), 255);
+    T_EQ(CL_WindowBlackoutAlpha(800), 255);
 }
 
 TEST(client_windows, blackout_survives_late_refresh_but_not_new_window) {

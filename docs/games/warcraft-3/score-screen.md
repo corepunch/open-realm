@@ -53,13 +53,13 @@ It remains active across tab refreshes and ends when the destination transition
 cleans up the old map. Four page buttons switch between Overview, Units,
 Heroes and Resources, re-emitting the SAME unique window; Continue uses
 `blackout_window_command scorescreen_continue`. The generic client immediately
-hides the score window's contents while retaining its modal
-`UI_WINDOW_PRESENTATION` surface, which paints black instead of the outgoing
-world. The command still goes to the Warcraft module and is accepted only from
-an authorized score recipient. Continue consumes the destination once; normal
-loading/menu cleanup subsequently removes the blacked-out window. No new
-loading plaque or menu can appear before Continue, and late tab refreshes
-cannot restore artwork after the local blackout.
+blocks further local interaction and fades a black overlay over the score
+window for 400 ms of client time. It forwards the command only after reaching
+full black, while retaining its modal `UI_WINDOW_PRESENTATION` surface so the
+outgoing world stays hidden. The command is accepted only from an authorized
+score recipient. Continue consumes the destination once; normal loading/menu
+cleanup subsequently removes the blacked-out window. Late tab refreshes
+preserve the fade and cannot restore artwork after it completes.
 
 Only included score-screen players appear. Each explicit `SetPlayerOnScoreScreen`
 override is honoured independently; non-overridden players use map-controller
@@ -652,10 +652,10 @@ scope replacement; they test lookup, not real GPU artwork.
    and the **O** Continue shortcut still respond during terminal pause.
 3. Confirm **no loading plaque or campaign selector before Continue**.
    Observe the correct campaign difficulty and destination after Continue.
-   On OK (or its O shortcut), verify that the score artwork immediately turns
-   black with no old gameplay frame, and that the black interval ends when the
-   next loading screen or campaign selector is ready. Double click/press O to
-   verify the pending transition is not submitted again.
+   On OK (or its O shortcut), verify that the score artwork fades to black over
+   400 ms without exposing an old gameplay frame, and that the black interval
+   ends when the next loading screen or campaign selector is ready. Double
+   click/press O to verify the pending transition is not submitted again.
    Check `ChangeLevel(..., false)` and `EndGame(false)` bypass scores.
 4. Repeat from a paused victory/defeat choice and with a queued cinematic;
    ensure the result is not stranded after the script returns. Cancel or

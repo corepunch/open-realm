@@ -429,9 +429,10 @@ executes, but keep the actual world replacement deferred.
 menu, consuming an explicit `ForceCampaignSelectScreen` request as well. When score presentation is requested, the
 Warcraft module now freezes player statistics and defers that same destination behind the retail `ScoreScreen.fdf`
 modal. The client presentation window replaces world/HUD rendering, and the original OK button uses the
-shared `blackout_window_command` action to submit `scorescreen_continue` and immediately hide the score artwork
-while retaining the presentation surface. The client paints black (not the old world) until the next client frame
-begins the queued map/menu transition. No JASS stack frame is kept alive across the transition. The controller includes provisional,
+shared `blackout_window_command` action to fade the score artwork to black over 400 ms of client time. It forwards
+`scorescreen_continue` only after reaching full black, while retaining the presentation surface so the old world
+stays hidden until the next client frame begins the queued map/menu transition. No JASS stack frame is kept alive
+across the transition. The controller includes provisional,
 explicitly labelled assumptions for score aggregates, dynamic row geometry, sorting and team/ally-colour behavior;
 see [../score-screen.md](../score-screen.md). When score FDF or recipients are unavailable, the deferred destination
 still proceeds so an outgoing match cannot deadlock.

@@ -23,7 +23,7 @@ static void ScoreScreenUseSprite(frameDef_t *frame) {
 static cstring_t ScoreScreenRaceArt(gameClient_t *viewer);
 
 /* Keep the outgoing world hidden after Continue: the generic client
- * immediately blacks out this presentation while forwarding the command.
+ * fades this presentation to black over 400 ms before forwarding Continue.
  * The server still validates the recipient and owns the one-shot destination;
  * the next loading screen or menu clears the blackout with the old window. */
 static void ScoreScreenBindContinue(frameDef_t *button) {
