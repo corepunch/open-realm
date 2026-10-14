@@ -1,8 +1,16 @@
 #include "g_local.h"
 #include <stdint.h>
 #ifdef _WIN32
-#include <windows.h>
 #include <io.h>
+/* windows.h minus winuser.h: this file needs only the kernel32 file APIs, while
+ * winuser.h declares a real SetRect that conflicts with the engine's own, and
+ * defines GetClassName as a macro that would rename it for every later file in
+ * this unity translation unit. windef.h supplies the base types winbase.h needs
+ * and still brings minwindef.h's legacy empty macros. */
+#include <windef.h>
+#include <winbase.h>
+#undef far
+#undef near
 #else
 #include <unistd.h>
 #endif
