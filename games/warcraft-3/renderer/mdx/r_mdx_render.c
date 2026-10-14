@@ -124,8 +124,10 @@ static uint32_t R_UISequenceFrame(mdxSequence_t const *seq, cstring_t anim, uint
     seq_len = seq->interval[1] - seq->interval[0];
     if (seq_len == 0) seq_len = 1;
     if (!R_UIAnimationRatio(anim, &ratio)) {
-        /* Retail non-looping sequences retain the inclusive authored endpoint. */
-        if (seq->flags & 1) return seq->interval[0] + MIN(anim_time, seq->interval[1] - seq->interval[0]);
+        /* MDX sequence end is exclusive (R_FindSequenceAtTime). Freezing
+         * a one-shot UI sprite at end makes all animation tracks lose their
+         * sequence context, including geoset visibility. Hold at end - 1. */
+        if (seq->flags & 1) return seq->interval[0] + MIN(anim_time, seq_len - 1);
         return seq->interval[0] + (anim_time % seq_len);
     }
 
@@ -324,8 +326,6 @@ void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint) {
     viewdef.num_entities = 1;
     viewdef.entities = &entity;
     viewdef.rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_UI_SPRITE;
-    if (sprite->blended_geosets_right_to_left)
-        viewdef.rdflags |= RDF_UI_SPRITE_RTL_BLEND;
     viewdef.viewport = (struct rect) {0,0,1,1};
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;

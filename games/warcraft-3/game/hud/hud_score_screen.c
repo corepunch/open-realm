@@ -147,11 +147,9 @@ void UI_LoadHudScoreScreen(void) {
     UI_SetHidden(score->ScoreScreenMainPanel, false);
     ScoreScreenUseSprite(score->ScoreScreenBackground);
     ScoreScreenUseSprite(score->ScoreScreenPageTab);
-    /* ScoreScreen-Tabs is one MDX. Only its equal-priority translucent
-     * geosets are drawn right-to-left; regular sprites retain retail material
-     * precedence. Draw the model late, then its captions in the same direction.
-     * The flags carry draw ranks without modifying text/stat bindings. */
-    score->ScoreScreenPageTab->ui_flags |= UIFLAG_SPRITE_OVERLAY | UIFLAG_SPRITE_RTL_BLEND;
+    /* Render the selected-tab MDX after the background and its labels above
+     * the sprite; the MDX visibility tracks choose the single active geoset. */
+    score->ScoreScreenPageTab->ui_flags |= UIFLAG_SPRITE_OVERLAY;
     FOR_LOOP(i, WC3_SCORE_TABS) {
         frameDef_t *caption = score->ScoreScreenTabText[i];
         caption->ui_flags = (caption->ui_flags & ~UIFLAG_TEXT_RANK_MASK) |

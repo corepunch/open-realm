@@ -1060,7 +1060,6 @@ void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen) {
                 screen->x, screen->y, screen->w, screen->h, -1);
     }
     re.DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = screen->x, .y = screen->y,
-        .blended_geosets_right_to_left = (frame->flagsvalue & UIFLAG_SPRITE_RTL_BLEND) != 0,
         .id = frame, .scope = layout_current_window ? layout_current : (void *)(uintptr_t)(layout_current_layer + 1)));
 }
 

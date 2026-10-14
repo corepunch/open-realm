@@ -419,8 +419,8 @@ The Heroes Used portrait levels are placed immediately to the right of their
 portraits instead of over the bottom-right corner. The FDF tab strip's stock
 MDX is a **single composite sprite**; it is drawn in the generic late-sprite
 pass, after content. Its tab caption text is drawn in a generic late-text pass
-with authored `stat` ranks 3 to 0 (Resources, Heroes, Units, Overview), so captions
-remain on top of the model. This changes caption order, **not** the internal
+with dedicated flag ranks 3 to 0 (Resources, Heroes, Units, Overview), so
+captions remain on top of the model. This changes caption order, **not** the internal
 mesh/material order of the stock composite MDX. Verify parchment overlap
 visually against retail before treating that part as fixed.
 
@@ -433,13 +433,29 @@ caption paint rank is now transported in distinct high bits of `ui_flags`,
 leaving `Stat` and the actual localized text untouched. The existing hero
 portrait/level side-by-side layout stays unchanged.
 
-The four parchment tabs live inside one authored `ScoreScreen-Tabs` MDX, not
-four separate UI sprites. Merely moving that composite later cannot reorder
-its internal geometry. The tab sprite now opts into **right-to-left ordering
-of equal-material-priority blended geosets**; stock material priority remains
-authoritative, and all other MDX sprites keep the default order. Captions paint
-after that sprite in Resources/ Heroes/ Units/ Overview order. This assumes the
-retail model separates the overlapping tab art into geosets. Without the
-original model's geoset inventory in this workspace, the geometry improvement
-is provisional and must be confirmed in a 4:3 screenshot. Do not globally
-reverse MDX blend ordering to address this game-specific layout.
+The late text flags retain the four tab captions in Resources/Heroes/Units/
+Overview draw order without changing `Stat` bindings. See the endpoint fix
+below for the actual cause of the overlapping tab artwork.
+
+### Score tab one-shot animation endpoint (14 October 2026)
+
+Inspection of the retail `ScoreScreen-Tabs.mdx` and its `scorescreen-tabs.blp`
+found **five overlapping alpha-key geosets**, one for each `Tab1`–`Tab5`
+sequence. Each GEOA track has static alpha 1 and keys with alpha 0 at the start
+of every *other* sequence. Thus only the selected tab is meant to be visible;
+these are not independent tabs that should be sorted by horizontal position.
+
+The UI sprite path previously clamped a non-looping sequence to its authored
+`interval[1]` (for example, 333 for `Tab1`), while
+`R_FindSequenceAtTime()` uses an exclusive end. After that hold elapsed, the
+frame was outside every sequence: GEOA lookup returned without applying the
+inactive tabs' zero-alpha keys, so all five static-alpha-1 geosets were drawn.
+Their overlapping quads produce the hard vertical seams seen in screenshots.
+
+One-shot UI sprite sampling now freezes at `interval[1] - 1`, just like the
+already end-exclusive `@ratio` path, preserving the current sequence for
+geoset and material animation evaluation. The unused opt-in right-to-left
+blended-geoset sorting feature was removed. This is a generic sprite animation
+fix rather than a score-screen-specific override. Confirm `Tab1`–`Tab4` after
+at least 1 second of display and while switching tabs; no build or runtime
+verification was performed while preparing the patch.

@@ -123,8 +123,6 @@ typedef struct mdxGeosetDrawOrder_s {
     mdxMaterial_t const *material;
     int priority;
     uint32_t order;
-    float center_x;
-    bool right_to_left;
 } mdxGeosetDrawOrder_t;
 
 static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
@@ -142,10 +140,6 @@ static int MDLX_CompareGeosetDrawOrder(void const *a, void const *b) {
     if (lhs->priority != rhs->priority) {
         return lhs->priority < rhs->priority ? -1 : 1;
     }
-    /* Preserve material priority. Only explicitly requested UI sprites sort
-     * otherwise equal-priority blended geosets from right to left. */
-    if (lhs->right_to_left && rhs->right_to_left && lhs->center_x != rhs->center_x)
-        return lhs->center_x > rhs->center_x ? -1 : 1;
     if (lhs->order != rhs->order) {
         return lhs->order < rhs->order ? -1 : 1;
     }
@@ -652,9 +646,6 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
             .material = material,
             .priority = material ? material->priority : 0,
             .order = drawCount,
-            .center_x = (geoset->default_bounds.box.min.x +
-                         geoset->default_bounds.box.max.x) * 0.5f,
-            .right_to_left = (tr.viewDef.rdflags & RDF_UI_SPRITE_RTL_BLEND) != 0,
         };
         drawCount++;
     }
