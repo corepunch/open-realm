@@ -323,6 +323,7 @@ TEST(wc3_score, score_counts_completed_units_but_not_buildings) {
     G_PlayerScoreUnitTrained(unit);
     G_PlayerScoreUnitTrained(building);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 1);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_STRUCT_BUILT], 1);
 }
 
 TEST(wc3_score, direct_runtime_creation_counts_produced_unit_once) {
@@ -334,6 +335,18 @@ TEST(wc3_score, direct_runtime_creation_counts_produced_unit_once) {
                        &(vec2_t){ 128.0f, 128.0f }, 0.0f);
     T_NOT_NULL(unit);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 1);
+}
+
+TEST(wc3_score, direct_runtime_creation_counts_produced_building_once) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *building;
+    setup_test_world();
+    memset(&client->score, 0, sizeof(client->score));
+    building = unit_create(client->ps.number, MAKEFOURCC('h','b','a','r'),
+                           &(vec2_t){ 128.0f, 128.0f }, 0.0f);
+    T_NOT_NULL(building);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_STRUCT_BUILT], 1);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 0);
 }
 
 TEST(wc3_score, hero_experience_appears_in_hero_score) {

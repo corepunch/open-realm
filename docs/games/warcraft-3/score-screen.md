@@ -707,6 +707,19 @@ actual map-loading-screen timing and direct engine-level pause releases still
 require the targeted local integration run. Avoid calling these verified
 until that run succeeds.
 
+### Buildings Produced from preplaced and scripted units (14 October 2026)
+
+Retail Prologue02 reports **7 Buildings Produced** for both Alliance Forces
+and Player. OpenRealm previously credited only completed worker construction.
+The ordinary enter-play score path now credits an already-finished structure
+as Buildings Produced (and its authored cost as structure value), rather than
+ignoring it or classifying it as a trained unit. Map preplacements call this
+path after spawning; JASS `CreateUnit` already calls it. Worker-constructed
+buildings continue to earn exactly one building credit on construction finish,
+not at the beginning of construction. This corrects the missing accounting
+path without map-specific score constants. The retail 7/7 result remains a
+runtime acceptance check, not a value hard-coded into the implementation.
+
 ### Resource Score retail parity (14 October 2026)
 
 Controlled retail TFT 1.29.2 experiments verified **Resource Score = cumulative
