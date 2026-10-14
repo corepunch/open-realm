@@ -72,11 +72,11 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
     /* Sprite coordinates are set by ScoreScreenSetRowBar to match each
      * model's native 0.032-height mesh (rather than scaling a BLP). */
     ScoreScreenPlace(backdrop, root, 0, -0.032f, 0, 0);
-    /* The existing silver banner border is a stock score-screen asset. Its
-     * exact retail runtime placement is NOT defined by ScoreScreen.fdf. */
-    /* Lengthen the team-name banner toward the first score column while
-     * retaining the stock silver bevel/art (not a flat tinted rectangle). */
-    ScoreScreenPlace(border, root, 0, 0, 0.180f, SCORE_ROW_H);
+    /* The stock silver ribbon BLP has transparent margins. Its old 0.180 x
+     * 0.031 frame left the visible bevel noticeably shorter and thinner than
+     * the surrounding MDX score bar; enlarge the texture frame rather than
+     * replacing the bevel with a flat rectangle. */
+    ScoreScreenPlace(border, root, 0, 0.004f, 0.205f, 0.039f);
     UI_SetTexture(border, "UI\\Glues\\ScoreScreen\\scorescreen-silverbannerborder.blp", false);
     ScoreScreenPlace(icon, root, 0.005f, -0.003f, SCORE_ROW_ICON, SCORE_ROW_ICON);
     ScoreScreenPlace(name, root, 0.034f, -0.003f, 0.111f, SCORE_ROW_H-0.005f);
@@ -168,15 +168,15 @@ void UI_LoadHudScoreScreen(void) {
         frameDef_t *button = score->ScoreScreenTeamColorButton;
         frameDef_t *normal = ScoreScreenSpawn(button, FT_TEXTURE);
         frameDef_t *pushed = ScoreScreenSpawn(button, FT_TEXTURE);
-        /* Normal/PushedTexture and ControlBackdrop refer to named FDF
-         * child frames, not paths. Keep these image-only parts hidden from
-         * layout painting; the generic button renderer draws them as states.
-         * The stock border around the button stays in its FDF parent. */
+        /* The generic scorescreen-button BLPs are chrome, not the ally icon.
+         * Stock war3skins supplies dedicated minimap-ally images. Button
+         * states refer to hidden named FT_TEXTURE frames. Theme image keys
+         * remain deferred until each viewer's skin is resolved for the UI. */
         if (normal && pushed) {
             strlcpy(normal->Name, "ScoreScreenAllyColorNormalArt", sizeof(normal->Name));
             strlcpy(pushed->Name, "ScoreScreenAllyColorPushedArt", sizeof(pushed->Name));
-            UI_SetTexture(normal, "UI\\Glues\\ScoreScreen\\scorescreen-button.blp", false);
-            UI_SetTexture(pushed, "UI\\Glues\\ScoreScreen\\scorescreen-button-down.blp", false);
+            UI_SetTexture(normal, "MiniMapAllyButtonInactiveEnabled", true);
+            UI_SetTexture(pushed, "MiniMapAllyButtonInactivePushed", true);
             UI_SetHidden(normal, true);
             UI_SetHidden(pushed, true);
             strlcpy(button->Control.Backdrop.Normal, normal->Name,
@@ -187,6 +187,13 @@ void UI_LoadHudScoreScreen(void) {
                     sizeof(button->Button.NormalTexture));
             strlcpy(button->Button.PushedTexture, pushed->Name,
                     sizeof(button->Button.PushedTexture));
+        }
+        /* The FDF button already has a clickable frame. Its parent BACKDROP
+         * used a separate gold scorescreen-buttonbackground edge which
+         * produced the unwanted square/vertical bars around the icon. */
+        if (button->Parent && button->Parent->Type == FT_BACKDROP) {
+            button->Parent->Backdrop.EdgeFile = 0;
+            button->Parent->Backdrop.Background = 0;
         }
         UI_SetOnClick(button, "scorescreen_allycolors");
     }
@@ -292,8 +299,19 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab,
     ScoreScreenSetHeaders(score, tab, view);
     if (score->ScoreScreenTeamsButton)
         score->ScoreScreenTeamsButton->CheckBox.Checked = view && view->teams;
-    if (score->ScoreScreenTeamColorButton)
-        score->ScoreScreenTeamColorButton->CheckBox.Checked = view && view->ally_colors;
+    if (score->ScoreScreenTeamColorButton) {
+        frameDef_t *button = score->ScoreScreenTeamColorButton;
+        frameDef_t *normal = UI_FindFrameNear(button, "ScoreScreenAllyColorNormalArt");
+        frameDef_t *pushed = UI_FindFrameNear(button, "ScoreScreenAllyColorPushedArt");
+        bool const allied = view && view->ally_colors;
+        /* This is a GLUEBUTTON, not a checkbox: Checked is not serialized
+         * as its normal-state artwork. Switch the two named texture frames
+         * when the viewer's ally-colour mode changes. */
+        if (normal) UI_SetTexture(normal, allied ? "MiniMapAllyButtonActiveEnabled"
+                                                  : "MiniMapAllyButtonInactiveEnabled", true);
+        if (pushed) UI_SetTexture(pushed, allied ? "MiniMapAllyButtonActivePushed"
+                                                  : "MiniMapAllyButtonInactivePushed", true);
+    }
     FOR_LOOP(i, WC3_SCORE_TABS) UI_SetHidden(score->ScoreScreenTabText[i], i == tab);
     label = UI_GetString(((cstring_t[]){
         "SCORESCREEN_TAB0", "SCORESCREEN_TAB1", "SCORESCREEN_TAB2", "SCORESCREEN_TAB3"

@@ -588,6 +588,28 @@ lowest-numbered-teammate mapping, which did not distinguish solo teams.
 No local build or runtime tests were performed. Verify the stock button states
 visually, then toggle the control in a game containing allied and enemy rows.
 
+### Score-row silver bevel and ally-colour icon follow-up (14 October 2026)
+
+The silver team-name ribbon is stock `ScoreScreenBannerLoss` artwork and its
+BLP includes transparent margins. The row frame is expanded from 0.180 x
+0.031 to 0.205 x 0.039 FDF units, centred vertically across the score-bar
+height. These sizes are screenshot-derived and need a retail visual check; the
+source image, text and bar animations are unchanged.
+
+The original score button textures are border/chrome, **not** the handshake
+artwork. Use skin-defined `MiniMapAllyButtonInactiveEnabled/Pushed` and
+`MiniMapAllyButtonActiveEnabled/Pushed`, already present in stock
+`War3Skins.txt`, for the two toggle states. The existing FDF button remains
+clickable and preserves its server-owned `scorescreen_allycolors` command.
+Remove its decorative parent BACKDROP's gold edge and background (without
+hiding the interactive button), avoiding double borders. Since the control
+is a GLUEBUTTON rather than a checkbox, the selected art is explicitly
+updated in `ScoreScreenSetPage` from the viewer's ally-colour state.
+
+No compile/game run has been done. Verify skin artwork availability for each
+race, the on/off icon appearance, button click target, and ribbon coverage
+of the Heroes Used column in an in-game screenshot.
+
 ### Post-game lifecycle Patch 4 — integration checks and acceptance (14 October 2026)
 
 The post-game sequence is **finish JASS/frame work → finalize the frozen
