@@ -1473,11 +1473,18 @@ bool G_IsSinglePlayer(void) {
     return humans <= 1;
 }
 
+/* All WC3_RESULT score/lifecycle diagnostics share this build-time gate.
+ * The cvar remains a separate run-time switch in instrumented builds. */
 bool G_GameResultDebugEnabled(void) {
+#ifdef WC3_DEBUG_SCORE
     return atoi(gi.CvarString("wc3_game_result_debug", "0")) != 0;
+#else
+    return false;
+#endif
 }
 
 void G_GameResultDebug(cstring_t format, ...) {
+#ifdef WC3_DEBUG_SCORE
     va_list args;
 
     if (!G_GameResultDebugEnabled()) return;
@@ -1486,6 +1493,9 @@ void G_GameResultDebug(cstring_t format, ...) {
     vfprintf(stderr, format, args);
     va_end(args);
     fputc('\n', stderr);
+#else
+    (void)format;
+#endif
 }
 
 static bool G_IsCampaignMapPath(cstring_t path);
