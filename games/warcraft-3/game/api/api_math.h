@@ -106,12 +106,7 @@ uint32_t RemoveRegion(jass_t *j) {
         event_t *event = &level.events.handlers[i];
         if (!event->inuse || event->region != handle) continue;
         event->region = NULL;
-        for (uint32_t n = level.events.read; n < level.events.write; n++)
-            if (level.events.queue[n % MAX_EVENT_QUEUE].responseTo == event)
-                level.events.queue[n % MAX_EVENT_QUEUE].responseTo = NULL;
-        event->inuse = false;
-        if (event->handle_generation == EVENT_HANDLE_GENERATION_MAX) event->generation_exhausted = true;
-        else event->handle_generation++;
+        G_RetireEvent(event);
     }
     return 0;
 }

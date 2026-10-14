@@ -9525,4 +9525,44 @@ TEST(wc3_api, game_save_event_registration_survives_snapshot) {
     remove(filename);
 }
 
+TEST(wc3_api, destroy_trigger_retires_registered_and_queued_events) {
+    uint32_t active_events = 0;
+    uint32_t queued_response_events = 0;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger watched = null\n"
+        "  unit subject = null\n"
+        "  integer hits = 0\n"
+        "endglobals\n"
+        "function on_life takes nothing returns nothing\n"
+        "  set hits = hits + 1\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(hits == 0, \"destroyed trigger fired\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set watched = CreateTrigger()\n"
+        "  set subject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call TriggerAddAction(watched, function on_life)\n"
+        "  call TriggerRegisterUnitStateEvent(watched, subject, ConvertUnitState(0), ConvertLimitOp(1), 0.0)\n"
+        "  call SetWidgetLife(subject, 100.0)\n"
+        "  call SetWidgetLife(subject, 0.0)\n"
+        "  call DestroyTrigger(watched)\n"
+        "endfunction\n"));
+
+    FOR_EACH_EVENT(event) active_events++;
+    T_EQ(active_events, 0);
+    T_ASSERT(level.events.write > level.events.read);
+    for (uint32_t n = level.events.read; n < level.events.write; n++)
+        if (level.events.queue[n % MAX_EVENT_QUEUE].responseTo) queued_response_events++;
+    T_EQ(queued_response_events, 0);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 #endif /* BZ_TESTS */

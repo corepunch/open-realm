@@ -25,6 +25,11 @@ not load assets; `Preload`, `Preloader`, and preload-file generation remain
 unimplemented. `wc3_api.preload_refresh_boundaries_are_registered` guards the
 map-script call contract.
 
+`DestroyTrigger` retires every live event registration owned by the trigger,
+clears queued `responseTo` references, and disables the trigger without freeing
+its map-lifetime object underneath an executing callback. This is stronger
+than `DisableTrigger`, which preserves registrations for later re-enabling.
+
 The AI-only `UnitInvis(unit)` native reports intrinsic active invisibility through `S_UnitHasInvisibilityState()`; it
 does not incorporate owner/shared vision or detector coverage. Stock `common.ai` calls it separately from
 `IsUnitDetected(target, ai_player)`. The latter and `IsUnitInvisible(unit, player)` remain placeholders in

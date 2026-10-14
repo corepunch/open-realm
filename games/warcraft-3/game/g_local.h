@@ -3592,6 +3592,7 @@ bool G_IsDeferredFree(edict_t const *);
 void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
 event_t *G_MakeEvent(EVENTTYPE);
+void G_RetireEvent(event_t *);
 void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);
 bool G_EventSubjectIsCurrent(event_t *);
