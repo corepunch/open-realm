@@ -593,6 +593,11 @@ void G_BindEntityRuntime(edict_t *edict) {
     }
 }
 
+void G_FillMapPlacedUnitMana(edict_t *ent) {
+    if (!ent || !(ent->s.flags & EF_UNIT) || ent->mana.max_value <= 0.0f) return;
+    ent->mana.value = ent->mana.max_value;
+}
+
 void SP_CallSpawn(edict_t *edict) {
     if (!edict->class_id)
         return;
@@ -928,6 +933,7 @@ void G_SpawnEntities(void) {
             ent->s.scale = row->defScale > 0.0f ? row->defScale : 1.0f;
         }
         SP_CallSpawn(ent);
+        G_FillMapPlacedUnitMana(ent);
         if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (uint32_t)-1)
             ent->resources = doodad->goldAmount;
         if (ent->svflags & SVF_MONSTER) G_ApplyMapUnitTeamColor(ent, doodad);

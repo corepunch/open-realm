@@ -1472,6 +1472,12 @@ void G_PublishEventResponse(edict_t *edict, EVENTTYPE type, event_t *response_to
 
 void G_PublishSummonEvents(edict_t *summoner, edict_t *summoned) {
     if (!summoner || !summoned) return;
+    if (WC3_MISHA_DEBUG_ENABLED() && summoner->class_id == MAKEFOURCC('O','r','e','x'))
+        fprintf(stderr, "WC3_MISHA publish-summon caster=%u id=%.4s summoned=%u id=%.4s owner=%u ability=%.4s\n",
+                (unsigned)summoner->s.number, (cstring_t)&summoner->class_id,
+                (unsigned)summoned->s.number, (cstring_t)&summoned->class_id,
+                (unsigned)summoned->s.player,
+                summoned->summon_ability ? (cstring_t)&summoned->summon_ability : "----");
     G_PublishEventWithSource(summoner, EVENT_PLAYER_UNIT_SUMMON, summoned);
     G_PublishEventWithSource(summoner, EVENT_UNIT_SUMMON, summoned);
 }

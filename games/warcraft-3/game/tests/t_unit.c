@@ -663,6 +663,23 @@ TEST(wc3_unit, paused_death_animation_advances_after_kill) {
     T_EQ((int)ent->s.frame, 150);
 }
 
+TEST(wc3_unit, feral_spirit_death_uses_magic_burst_instead_of_blood) {
+    reset_test_entities();
+    edict_t *wolf = make_unit(64.0f, 96.0f);
+    wolf->aiflags |= AI_SUMMON_EXPLODES_ON_DEATH;
+    wolf->summon_ability = MAKEFOURCC('A','O','s','f');
+    wolf->sound.death = 23;
+
+    unit_die(wolf, NULL);
+    T_ASSERT(wolf->svflags & SVF_DEADMONSTER);
+    T_ASSERT(wolf->s.renderfx & RF_HIDDEN);
+    T_ASSERT(wolf->aiflags & AI_CORPSE_UNRAISABLE);
+    T_ASSERT(wolf->aiflags & AI_CORPSE_NO_DECAY);
+    T_EQ(wolf->sound.world_pending, 0);
+    T_EQ(wolf->sound.world_pending_event, 0);
+    T_FEQ(wolf->wait, FRAMETIME / 1000.0f, 0.0001f);
+}
+
 TEST(wc3_unit, die_emits_registered_death_sound) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);

@@ -211,6 +211,7 @@ enum {
     AI_CORPSE_IN_CARGO = 1 << 10, /* corpse lifecycle; stored in a Meat Wagon cargo slot */
     AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
     AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
+    AI_SUMMON_EXPLODES_ON_DEATH = 1 << 13, /* spirit/beast summon magical death effect, no corpse */
 };
 
 typedef enum {
@@ -1064,6 +1065,9 @@ typedef struct {
 #else
 #define WC3_TUTORIAL_DEBUG_ENABLED() false
 #endif
+
+/* Focused diagnostics for the Orc campaign's Rexxar/Misha summon path. */
+#define WC3_MISHA_DEBUG_ENABLED() (gi.CvarString && atoi(gi.CvarString("wc3_misha_debug", "0")) != 0)
 
 /* Focused diagnostics for UndeadX07c's periodic flame damage and texttags. */
 
@@ -2704,6 +2708,7 @@ edict_t *G_Spawn(void);
 void SP_CallSpawn(edict_t *);
 void G_BindEntityData(edict_t *);
 void G_BindEntityRuntime(edict_t *);
+void G_FillMapPlacedUnitMana(edict_t *);
 void G_SpawnEntities(void);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
@@ -3495,6 +3500,7 @@ void G_ClearUnitOrderQueue(edict_t *);
 uint32_t G_UnitQueuedOrderCount(edict_t const *);
 void unit_birth(edict_t *);
 void unit_die(edict_t *, edict_t *);
+void G_SpawnSummonMagicalEffect(edict_t *);
 void unit_begin_decay(edict_t *);
 void G_RestartCorpseBoneDecayAfterCargo(edict_t *);
 edict_t *unit_create(uint32_t, uint32_t, vec2_t const *, float);
@@ -3741,6 +3747,7 @@ void G_DrainPausedResultEvents(void);
 void SP_SpawnItem(edict_t *);
 bool G_IsItem(edict_t const *item);
 uint32_t G_InventoryCapacity(edict_t const *unit);
+void G_RefreshInventoryAfterTechChange(gameClient_t const *owner, uint32_t techid);
 bool G_InventoryCanUseItems(edict_t const *unit);
 bool G_InventoryCanGetItems(edict_t const *unit);
 bool G_InventoryCanDropItems(edict_t const *unit);
@@ -3751,6 +3758,8 @@ bool G_ItemAbilityScriptedReattach(edict_t *unit, edict_t const *item);
 bool G_DetachItemAtScripted(edict_t *unit, uint32_t slot);
 bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot);
 void G_DropInventoryOnDeath(edict_t *unit);
+/* Forced RemoveUnit retires carried items without the death-drop rules. */
+void G_ReleaseInventoryOnUnitRemoval(edict_t *unit);
 bool G_UnitHasInventory(edict_t *unit);
 uint32_t G_ItemCharges(edict_t const *item);
 void G_SetItemCharges(edict_t *item, uint32_t charges);
@@ -3763,11 +3772,13 @@ bool G_CanPickupItem(edict_t *unit, edict_t *item);
 bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot);
 bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool publish_event);
 bool G_PickupItem(edict_t *unit, edict_t *item);
+bool G_TransferCarriedItem(edict_t *recipient, edict_t *item);
 bool G_OrderPickupItem(edict_t *unit, edict_t *item);
 bool G_DropItemAt(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItem(edict_t *unit, uint32_t slot);
 bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position);
+bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient);
 void G_RemoveItem(edict_t *item);
 void G_UseItem(edict_t *unit, uint32_t slot);
 uint32_t G_ItemTypeFromClass(cstring_t cls);

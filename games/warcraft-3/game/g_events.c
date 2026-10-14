@@ -157,6 +157,7 @@ bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
 
 static void G_ExecuteEvent(gameEvent_t *evt) {
     edict_t *subject = evt->edict;
+    bool misha_summon_event = false;
     bool result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     uint32_t matching_handlers = 0, invoked_handlers = 0;
     /* KillUnit followed by RemoveUnit still owes death notifications while the corpse exists. */
@@ -170,6 +171,17 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
         evt->source_spawn_time = 0;
         evt->source_spawn_tracked = false;
     }
+    misha_summon_event = WC3_MISHA_DEBUG_ENABLED() &&
+        (evt->type == EVENT_PLAYER_UNIT_SUMMON || evt->type == EVENT_UNIT_SUMMON) &&
+        evt->source && evt->source->class_id == MAKEFOURCC('O','r','e','x');
+
+    if (misha_summon_event)
+        fprintf(stderr, "WC3_MISHA dispatch-summon event=%u caster=%u summoned=%u id=%.4s owner=%u ability=%.4s\n",
+                (unsigned)evt->type, (unsigned)evt->source->s.number,
+                subject ? (unsigned)subject->s.number : 0u,
+                subject ? (cstring_t)&subject->class_id : "----",
+                subject ? (unsigned)subject->s.player : 0u,
+                subject && subject->summon_ability ? (cstring_t)&subject->summon_ability : "----");
 
     if (result_event) {
         G_GameResultDebug("execute event type=%s subject_ent=%ld owner=%u",
@@ -247,6 +259,13 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
                         e->subject == G_GetPlayerEntityByNumber(subject->s.player);
                     int32_t quest_trigger_ordinal = e->trigger
                         ? (int32_t)(e->trigger - level.triggers) : -1L;
+                    if (misha_summon_event) {
+                        fprintf(stderr, "WC3_MISHA summon-handler event=%u trigger=%ld handler_subject=%ld direct=%u owner_match=%u enabled=%u\n",
+                                (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                e->subject ? (long)e->subject->s.number : -1L,
+                                (unsigned)direct, (unsigned)owner_match,
+                                (unsigned)(e->trigger && !e->trigger->disabled));
+                    }
                     bool quest_peon_stage = gi.CvarString &&
                         WC3_TUTORIAL_DEBUG_ENABLED() &&
                         quest_trigger_ordinal >= 95 && quest_trigger_ordinal <= 106;
@@ -304,6 +323,11 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
                     }
                     if (direct || owner_match) {
                         bool queued = jass_calltriggerevent(level.vm, e->trigger, evt);
+                        if (misha_summon_event)
+                            fprintf(stderr, "WC3_MISHA summon-handler-result event=%u trigger=%ld queued=%u enabled=%u\n",
+                                    (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                    (unsigned)queued,
+                                    (unsigned)(e->trigger && !e->trigger->disabled));
                         if (quest_build_event) {
                             fprintf(stderr,
                                     "WC3_QUEST_BUILD dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",

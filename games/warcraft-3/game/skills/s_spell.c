@@ -1209,13 +1209,45 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_NONE };
 
-    if (!caster || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
+    if (!caster || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) {
+        if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=missing_caster_ability_or_polymorph caster=%u level=%u polymorphed=%u\n",
+                    caster ? (unsigned)caster->s.number : 0u,
+                    caster ? G_UnitAbilityLevel(caster, code) : 0u,
+                    caster ? (unsigned)S_UnitPolymorphed(caster) : 0u);
+        return false;
+    }
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    if (!spell || spell->target_type != SPELL_TARGET_NONE || !S_AbilityHasCommand(spell)) return false;
+    if (!spell || spell->target_type != SPELL_TARGET_NONE || !S_AbilityHasCommand(spell)) {
+        if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=ability_shape spell=%p target_type=%u command=%u\n",
+                    (void *)spell, spell ? (unsigned)spell->target_type : 0u,
+                    (unsigned)(spell && S_AbilityHasCommand(spell)));
+        return false;
+    }
     level = S_SpellLevel(caster, code);
-    if (!spell_validate(NULL, caster, code, level, NULL, 0)) return false;
-    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
+    if (!spell_validate(NULL, caster, code, level, NULL, 0)) {
+        if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=spell_validate caster=%u alive=%u stunned=%u silenced=%u cooldown=%u mana_ok=%u mana=%.1f/%.1f cost=%.1f\n",
+                    (unsigned)caster->s.number, (unsigned)S_SpellIsAliveTarget(caster),
+                    (unsigned)caster->stunned, (unsigned)S_UnitIsSilenced(caster),
+                    (unsigned)S_SpellCooldownReady(caster, code),
+                    (unsigned)S_SpellCanPay(caster, code, level), caster->mana.value,
+                    caster->mana.max_value, S_SpellNumber(code, ABILITY_NUMBER_COST, level));
+        return false;
+    }
+    if (!spell_message(caster, A_VALIDATE, &item, &target)) {
+        if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=ability_validate caster=%u\n",
+                    (unsigned)caster->s.number);
+        return false;
+    }
+
+    if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+        fprintf(stderr, "WC3_MISHA cast-accepted ability=Arsg caster=%u level=%u mana_before=%.1f cost=%.1f cooldown_ready=%u\n",
+                (unsigned)caster->s.number, level, caster->mana.value,
+                S_SpellNumber(code, ABILITY_NUMBER_COST, level), (unsigned)S_SpellCooldownReady(caster, code));
 
     spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);

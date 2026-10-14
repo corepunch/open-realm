@@ -85,7 +85,11 @@ static uint32_t hashtable_handle_id(handle_t h) {
             (generation << (EVENT_TOKEN_SLOT_BITS - 2)) | slot;
     if (G_SaveJassHandle("event", h, &id)) return HASHTABLE_HANDLE_ID_BASE + 0x5000u + id;
     p = (uintptr_t)h;
+#if UINTPTR_MAX > UINT32_MAX
     return HASHTABLE_HANDLE_ID_BASE + 0x1000u + (uint32_t)((p >> 3) ^ (p >> 32));
+#else
+    return HASHTABLE_HANDLE_ID_BASE + 0x1000u + (uint32_t)(p >> 3);
+#endif
 }
 
 static hashtableEntry_t *hashtable_find(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type) {

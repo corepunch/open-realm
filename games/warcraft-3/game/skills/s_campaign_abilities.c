@@ -435,7 +435,26 @@ BZ_SIMPLE_SPELL_PROC(AbilityParasiteCampaign) { campaign_status_execute(caster, 
 BZ_SIMPLE_SPELL_PROC(AbilityCycloneCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySummoningRitual) { S_SummonAbilityUnits(caster, spell->code, &st); }
 BZ_SIMPLE_SPELL_PROC(AbilitySummonQuilbeastCampaign) { S_SummonAbilityUnits(caster, spell->code, &st); }
-BZ_SIMPLE_SPELL_PROC(AbilitySummonMisha) { S_SummonAbilityUnits(caster, spell->code, &st); }
+BZ_SIMPLE_SPELL_PROC(AbilitySummonMisha) {
+    uint32_t retired = 0;
+    /* Rexxar's campaign Misha is the one-unit counterpart to Feral Spirit:
+     * recasting replaces only the living Misha summoned by this caster. */
+    if (!caster) return;
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster &&
+                  unit->summon_ability == spell->code && !M_IsDead(unit)) {
+        if (WC3_MISHA_DEBUG_ENABLED() && spell->code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA retire-existing caster=%u summon=%u id=%.4s health=%.1f/%.1f\n",
+                    (unsigned)caster->s.number, (unsigned)unit->s.number,
+                    (cstring_t)&unit->class_id, unit->health.value, unit->health.max_value);
+        if (unit->die) unit->die(unit, caster);
+        else unit_die(unit, caster);
+        retired++;
+    }
+    if (WC3_MISHA_DEBUG_ENABLED() && spell->code == MAKEFOURCC('A','r','s','g'))
+        fprintf(stderr, "WC3_MISHA execute caster=%u ability=Arsg mana=%.1f retired=%u\n",
+                (unsigned)caster->s.number, caster->mana.value, retired);
+    S_SummonAbilityUnits(caster, spell->code, &st);
+}
 BZ_SIMPLE_SPELL_PROC(AbilityStampedeCampaign) { S_SummonAbilityUnits(caster, spell->code, &st); }
 BZ_SIMPLE_SPELL_PROC(AbilityBattleRoar) {
     uint32_t level = S_SpellLevel(caster, spell->code); cstring_t buff = S_SpellBuffId(spell->code, level);

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenRealm — Browser foundation</title>
+<style>
+body { background: #0b1220; color: #e6ecf4; font: 16px system-ui, sans-serif; margin: 0; }
+main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+button, input { margin: .3rem; }
+progress { width: 100%; }
+canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+#status { margin: 1rem 0; }
+</style>
+</head>
+<body>
+<main>
+<h1>OpenRealm browser foundation</h1>
+<p id="status" role="status">Loading WebAssembly…</p>
+<section aria-labelledby="data-heading">
+<h2 id="data-heading">Local Warcraft III data (experimental)</h2>
+<p>Select MPQ, W3M or W3X files. They are copied into browser-local OPFS; they are not uploaded.</p>
+<input id="game-files" type="file" accept=".mpq,.w3m,.w3x" multiple aria-label="Game data files">
+<button id="install-data" type="button">Import files</button>
+<button id="cancel-install" type="button" disabled>Cancel</button>
+<button id="remove-data" type="button">Remove local data</button>
+<progress id="install-progress" max="1" value="0"></progress>
+<p id="data-status" role="status">Checking local storage…</p>
+</section>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+<p>This is a WebGL 2 platform probe, not yet the game.</p>
+</main>
+<script>
+var Module = {
+  canvas: document.getElementById('canvas'),
+  setStatus: function (message) {
+    document.getElementById('status').textContent = message || 'WebGL 2 probe running';
+  },
+  onAbort: function (reason) {
+    document.getElementById('status').textContent = 'WebAssembly aborted: ' + reason;
+  }
+};
+window.addEventListener('error', function (event) {
+  document.getElementById('status').textContent = 'Error: ' + event.message;
+});
+</script>
+<script src="installer.js"></script>
+{{{ SCRIPT }}}
+</body>
+</html>

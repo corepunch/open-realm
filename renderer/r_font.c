@@ -318,7 +318,14 @@ static vec2_t process_text(drawText_t const *arg, bool draw) {
     float max_cursor_x = pos.x;
     float min_cursor_y = pos.y;
     float max_cursor_y = pos.y;
-    textBatch_t batch = { 0 };
+    /* Only drawing needs a glyph batch. Avoid reserving the large vertex
+     * array on the small Emscripten engine-thread stack, including during
+     * nested text measurements for alignment. */
+    textBatch_t *batch = NULL;
+    if (draw) {
+        batch = ri.MemAlloc(sizeof(*batch));
+        memset(batch, 0, sizeof(*batch));
+    }
     for (cstring_t p = arg->text; *p;) {
         if (*p == '\n') {
             cursor.x = pos.x;
@@ -347,7 +354,7 @@ static vec2_t process_text(drawText_t const *arg, bool draw) {
             switch (*(uint32_t*)(p+1)) {
                 case MAKEFOURCC('I', 'c', 'o', 'n'):
                     if (draw && arg->icons && icon < MAX_IMAGES && arg->icons[icon]) {
-                        flush_text_batch(&batch, arg);
+                        flush_text_batch(batch, arg);
                         R_DrawImageEx(&MAKE(drawImage_t,
                                             .texture = arg->icons[icon],
                                             .shader = SHADER_UI,
@@ -393,14 +400,15 @@ static vec2_t process_text(drawText_t const *arg, bool draw) {
             float const h = set->image->height;
             rect_t const uv_rect = get_uvrect(g, h, w);
             rect_t const screen = get_screenrect(&cursor, g);
-            add_text_glyph(&batch, arg, set->image, &screen, &uv_rect, color);
+            add_text_glyph(batch, arg, set->image, &screen, &uv_rect, color);
         }
         cursor.x += INV_SCALE_X(g->xadvance);
         max_cursor_x = MAX(max_cursor_x, cursor.x);
         max_cursor_y = MAX(max_cursor_y, cursor.y);
     }
-    if (draw) {
-        flush_text_batch(&batch, arg);
+    if (batch) {
+        flush_text_batch(batch, arg);
+        ri.MemFree(batch);
     }
     return MAKE(vec2_t,
                 max_cursor_x - pos.x,

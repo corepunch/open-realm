@@ -18,6 +18,7 @@
 #define menu_text_input_h
 
 #include "client/menu.h"
+#include "client/keys.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -32,6 +33,7 @@ typedef struct {
     uint32_t size;       /* allocated size of buffer in bytes */
     uint32_t max_chars;  /* max characters (0 = no limit beyond buffer) */
     uint32_t cursor;     /* current cursor position (bytes into text) */
+    uint32_t anchor;     /* selection origin; equal to cursor when unselected */
 } menuTextInput_t;
 
 /* ---- Key event result ---- */
@@ -46,81 +48,84 @@ enum {
 
 /* ---- Editing primitives ---- */
 
-/* Insert text at cursor position. Returns true if text was modified. */
+/* Selection is the half-open byte range between anchor and cursor. */
+static inline bool M_TextInput_HasSelection(menuTextInput_t const *ti) {
+    return ti && ti->anchor != ti->cursor;
+}
+
+static inline bool M_TextInput_RemoveSelection(menuTextInput_t *ti) {
+    size_t start, end, len;
+    if (!ti || !ti->text || !M_TextInput_HasSelection(ti)) return false;
+    len = strlen(ti->text);
+    start = MIN(MIN(ti->anchor, ti->cursor), len);
+    end = MIN(MAX(ti->anchor, ti->cursor), len);
+    memmove(ti->text + start, ti->text + end, len - end + 1);
+    ti->cursor = ti->anchor = (uint32_t)start;
+    return true;
+}
+
+/* Insert replaces the selection, even when the original buffer is full. */
 static inline bool M_TextInput_Insert(menuTextInput_t *ti, cstring_t text) {
-    char buf[512];
-    cstring_t old;
-    size_t old_len, add_len, cursor;
-    uint32_t max;
-
-    if (!ti || !ti->text || !text || !*text)
-        return false;
-    old = ti->text;
-    old_len = strlen(old);
-    add_len = strlen(text);
-    cursor = MIN((size_t)ti->cursor, old_len);
-    max = ti->max_chars ? ti->max_chars : (ti->size ? ti->size - 1 : 255);
-    if (old_len >= max)
-        return false;
-    if (old_len + add_len > max)
-        add_len = max - old_len;
-    if (add_len == 0)
-        return false;
-    if (old_len + add_len + 1 > sizeof(buf))
-        add_len = sizeof(buf) - old_len - 1;
-    if (add_len == 0)
-        return false;
-    memcpy(buf, old, cursor);
-    memcpy(buf + cursor, text, add_len);
-    memcpy(buf + cursor + add_len, old + cursor, old_len - cursor + 1);
-    memcpy(ti->text, buf, old_len + add_len + 1);
-    ti->cursor = (uint32_t)(cursor + add_len);
+    size_t len, add, cursor, max;
+    if (!ti || !ti->text || !ti->size || !text || !*text) return false;
+    M_TextInput_RemoveSelection(ti);
+    len = strlen(ti->text);
+    cursor = MIN(ti->cursor, len);
+    max = ti->max_chars ? MIN(ti->max_chars, ti->size - 1) : ti->size - 1;
+    if (len >= max) return false;
+    add = MIN(strlen(text), max - len);
+    if (!add) return false;
+    memmove(ti->text + cursor + add, ti->text + cursor, len - cursor + 1);
+    memcpy(ti->text + cursor, text, add);
+    ti->cursor = ti->anchor = (uint32_t)(cursor + add);
     return true;
 }
 
-/* Backspace: remove character before cursor. Returns true if modified. */
-static bool M_TextInput_Backspace(menuTextInput_t *ti) {
-    char *t;
+static inline bool M_TextInput_Backspace(menuTextInput_t *ti) {
     size_t len, cursor;
-
-    if (!ti || !ti->text)
-        return false;
-    t = ti->text;
-    len = strlen(t);
-    cursor = MIN((size_t)ti->cursor, len);
-    if (cursor == 0)
-        return false;
-    memmove(t + cursor - 1, t + cursor, len - cursor + 1);
-    ti->cursor = (uint32_t)(cursor - 1);
+    if (!ti || !ti->text) return false;
+    if (M_TextInput_RemoveSelection(ti)) return true;
+    len = strlen(ti->text);
+    cursor = MIN(ti->cursor, len);
+    if (!cursor) return false;
+    memmove(ti->text + cursor - 1, ti->text + cursor, len - cursor + 1);
+    ti->cursor = ti->anchor = (uint32_t)(cursor - 1);
     return true;
 }
 
-/* Delete: remove character at cursor. Returns true if modified. */
-static bool M_TextInput_Delete(menuTextInput_t *ti) {
-    char *t;
+static inline bool M_TextInput_Delete(menuTextInput_t *ti) {
     size_t len, cursor;
-
-    if (!ti || !ti->text)
-        return false;
-    t = ti->text;
-    len = strlen(t);
-    cursor = MIN((size_t)ti->cursor, len);
-    if (cursor >= len)
-        return false;
-    memmove(t + cursor, t + cursor + 1, len - cursor);
+    if (!ti || !ti->text) return false;
+    if (M_TextInput_RemoveSelection(ti)) return true;
+    len = strlen(ti->text);
+    cursor = MIN(ti->cursor, len);
+    if (cursor >= len) return false;
+    memmove(ti->text + cursor, ti->text + cursor + 1, len - cursor);
     return true;
 }
 
-/* Move cursor. dir: -1=left, +1=right, 0=home, 1=end. */
-static void M_TextInput_MoveCursor(menuTextInput_t *ti, int dir) {
-    if (!ti || !ti->text)
-        return;
-    switch (dir) {
-        case -1: if (ti->cursor > 0) ti->cursor--; break;
-        case  1: { size_t len = strlen(ti->text); if (ti->cursor < len) ti->cursor++; break; }
-        case  0: ti->cursor = 0; break;
-        case  2: ti->cursor = (uint32_t)strlen(ti->text); break;
+/* An unmodified arrow collapses an existing selection towards that side. */
+static inline void M_TextInput_MoveCursorSelected(menuTextInput_t *ti, int dir, bool extend) {
+    size_t len;
+    if (!ti || !ti->text) return;
+    len = strlen(ti->text);
+    ti->cursor = (uint32_t)MIN(ti->cursor, len);
+    ti->anchor = (uint32_t)MIN(ti->anchor, len);
+    if (!extend && M_TextInput_HasSelection(ti) && (dir == -1 || dir == 1)) {
+        ti->cursor = dir < 0 ? MIN(ti->anchor, ti->cursor) : MAX(ti->anchor, ti->cursor);
+    } else {
+        switch (dir) {
+            case -1: if (ti->cursor) --ti->cursor; break;
+            case 1: if (ti->cursor < len) ++ti->cursor; break;
+            case 0: ti->cursor = 0; break;
+            case 2: ti->cursor = (uint32_t)len; break;
+        }
     }
+    if (!extend) ti->anchor = ti->cursor;
+}
+
+static inline void M_TextInput_MoveCursor(menuTextInput_t *ti, int dir) {
+    M_TextInput_MoveCursorSelected(ti, dir, false);
 }
 
 /* Filter text input: copy only printable characters (>= 0x20) to out.
@@ -143,26 +148,31 @@ static inline uint32_t M_TextInput_Filter(cstring_t in, string_t out, uint32_t o
 
 /* Handle a key event. Returns MENU_TEXTINPUT_* result.
  * Games call this from their KeyEvent handler for the focused editbox. */
-static inline int M_TextInput_Key(menuTextInput_t *ti, int key) {
+static inline int M_TextInput_KeyModified(menuTextInput_t *ti, int key, bool shift, bool ctrl) {
     if (!ti || !ti->text)
         return MENU_TEXTINPUT_NONE;
 
+    if (ctrl && (key == 'a' || key == 'A')) {
+        ti->anchor = 0;
+        ti->cursor = (uint32_t)strlen(ti->text);
+        return MENU_TEXTINPUT_CONSUMED;
+    }
     switch (key) {
         case SDLK_BACKSPACE:
             return M_TextInput_Backspace(ti) ? MENU_TEXTINPUT_CONSUMED : MENU_TEXTINPUT_NONE;
         case SDLK_DELETE:
             return M_TextInput_Delete(ti) ? MENU_TEXTINPUT_CONSUMED : MENU_TEXTINPUT_NONE;
-        case SDLK_LEFT:
-            M_TextInput_MoveCursor(ti, -1);
+        case K_LEFTARROW:
+            M_TextInput_MoveCursorSelected(ti, -1, shift);
             return MENU_TEXTINPUT_CONSUMED;
-        case SDLK_RIGHT:
-            M_TextInput_MoveCursor(ti, 1);
+        case K_RIGHTARROW:
+            M_TextInput_MoveCursorSelected(ti, 1, shift);
             return MENU_TEXTINPUT_CONSUMED;
-        case SDLK_HOME:
-            M_TextInput_MoveCursor(ti, 0);
+        case K_HOME:
+            M_TextInput_MoveCursorSelected(ti, 0, shift);
             return MENU_TEXTINPUT_CONSUMED;
-        case SDLK_END:
-            M_TextInput_MoveCursor(ti, 2);
+        case K_END:
+            M_TextInput_MoveCursorSelected(ti, 2, shift);
             return MENU_TEXTINPUT_CONSUMED;
         case SDLK_RETURN:
         case SDLK_KP_ENTER:
@@ -174,6 +184,10 @@ static inline int M_TextInput_Key(menuTextInput_t *ti, int key) {
         default:
             return MENU_TEXTINPUT_NONE;
     }
+}
+
+static inline int M_TextInput_Key(menuTextInput_t *ti, int key) {
+    return M_TextInput_KeyModified(ti, key, false, false);
 }
 
 /* ---- Cursor rendering ---- */

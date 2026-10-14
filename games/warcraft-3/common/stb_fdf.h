@@ -1323,19 +1323,22 @@ static void UI_FixCopiedFrameTextPointer(frameDef_t *frame, frameDef_t const *so
 #define FDF_MAKE_PARSER(TYPE) \
 void FDF_Parse##TYPE(cstring_t token, frameDef_t *frame, void *out)
 
-#define FDF_MAKE_PARSERCALL(TYPE) \
-void TYPE(wordExtractor_t *parser, frameDef_t *frame)
+#define FDF_MAKE_PARSER_NAMED(NAME) \
+void NAME(cstring_t token, frameDef_t *frame, void *out)
 
-#define FDF_MAKE_ENUMPARSER(TYPE) \
-FDF_MAKE_PARSER(TYPE) { \
+#define FDF_MAKE_PARSERCALL(TYPE) \
+static void TYPE(wordExtractor_t *parser, frameDef_t *frame)
+
+#define FDF_MAKE_ENUMPARSER(TYPE, PARSER) \
+FDF_MAKE_PARSER_NAMED(PARSER) { \
     UINAME fmt; \
     if (*token == '"') sscanf(token, UINAME_FMT, fmt); \
     else strcpy(fmt, token); \
     *((uint32_t *)out) = FDF_ParseEnumString(fmt, TYPE); \
 }
 
-#define FDF_MAKE_FLAGSPARSER(TYPE) \
-FDF_MAKE_PARSER(TYPE) { \
+#define FDF_MAKE_FLAGSPARSER(TYPE, PARSER) \
+FDF_MAKE_PARSER_NAMED(PARSER) { \
     PATHSTR b; \
     sscanf(token, PATHSTR_FMT, b); \
     for (string_t s = b; *s; s++) *s = *s == '|' ? ',' : *s; \
@@ -1454,14 +1457,14 @@ static void UI_AddStringListItem(cstring_t name, cstring_t token) {
     ADD_TO_LIST(item, strings);
 }
 
-FDF_MAKE_ENUMPARSER(AlphaMode);
-FDF_MAKE_ENUMPARSER(FontJustificationH);
-FDF_MAKE_ENUMPARSER(FontJustificationV);
-FDF_MAKE_ENUMPARSER(HighlightType);
-FDF_MAKE_ENUMPARSER(FontFlags);
-FDF_MAKE_ENUMPARSER(FramePointType);
-FDF_MAKE_FLAGSPARSER(CornerFlags);
-FDF_MAKE_FLAGSPARSER(ControlStyle);
+FDF_MAKE_ENUMPARSER(AlphaMode, FDF_ParseAlphaMode);
+FDF_MAKE_ENUMPARSER(FontJustificationH, FDF_ParseFontJustificationH);
+FDF_MAKE_ENUMPARSER(FontJustificationV, FDF_ParseFontJustificationV);
+FDF_MAKE_ENUMPARSER(HighlightType, FDF_ParseHighlightType);
+FDF_MAKE_ENUMPARSER(FontFlags, FDF_ParseFontFlags);
+FDF_MAKE_ENUMPARSER(FramePointType, FDF_ParseFramePointType);
+FDF_MAKE_FLAGSPARSER(CornerFlags, FDF_ParseCornerFlags);
+FDF_MAKE_FLAGSPARSER(ControlStyle, FDF_ParseControlStyle);
 
 FDF_MAKE_PARSER(TextureFile) {
     PATHSTR path = { 0 };
@@ -1734,7 +1737,7 @@ static fdf_parseItem_t items[] = {
     FDF_F_END
 };
 
-void parse_item(wordExtractor_t *parser, frameDef_t *frame, fdf_parseItem_t *item) {
+static void parse_item(wordExtractor_t *parser, frameDef_t *frame, fdf_parseItem_t *item) {
     for (fdf_parseArg_t *arg = item->args; arg->name; arg++) {
         cstring_t token = parse_segment2(parser);
         arg->func(token, frame, (uint8_t *)frame + arg->fofs);
@@ -1747,7 +1750,7 @@ void parse_item(wordExtractor_t *parser, frameDef_t *frame, fdf_parseItem_t *ite
     }
 }
 
-void parse_func(wordExtractor_t *parser, frameDef_t *frame) {
+static void parse_func(wordExtractor_t *parser, frameDef_t *frame) {
     cstring_t token = NULL;
     while ((token = parse_token(parser)) && *token && (*token != '}')) {
         if (frame->Type == FT_STRINGLIST) {
@@ -1781,7 +1784,7 @@ void parse_func(wordExtractor_t *parser, frameDef_t *frame) {
     }
 }
 
-frameDef_t *FindFrameTemplate(cstring_t str) {
+static frameDef_t *FindFrameTemplate(cstring_t str) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         frameDef_t *tmp = frames+i;
         if (!strcmp(tmp->Name, str))

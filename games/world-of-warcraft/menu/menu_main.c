@@ -312,7 +312,8 @@ static void UIWow_LuaMouseMove(int x, int y) {
  * Input routing
  * ---------------------------------------------------------------------- */
 
-static void UIWow_KeyEvent(int key, bool down, uint32_t time) {
+static void UIWow_KeyEvent(int key, uint32_t mods, bool down, uint32_t time) {
+    (void)mods;
     if (UIWow_XMLKeyEvent(key, down, time)) {
         return;
     }
@@ -338,7 +339,8 @@ static void UIWow_TextInput(cstring_t text) {
     UIWow_LuaPCall(1);
 }
 
-static bool UIWow_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
+static bool UIWow_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param, uint32_t mods) {
+    (void)mods;
     vec2_t mouse_pos;
     if (UIWow_XMLMouseEvent(event, x, y, param)) {
         return true;

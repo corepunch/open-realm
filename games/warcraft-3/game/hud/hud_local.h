@@ -88,6 +88,7 @@ typedef struct {
     infoPanelIconCache_t icon_cache[2][8][2];
     QuestDialog_t quest;
     frameDef_t *quest_row, *quest_item;
+    float quest_main_list_width, quest_optional_list_width;
     frameDef_t *required_rows[MAX_UI_CLASSES], *optional_rows[MAX_UI_CLASSES], *quest_item_rows[MAX_UI_CLASSES];
     uint32_t required_row_count, optional_row_count, quest_item_row_count;
     LogDialog_t log;

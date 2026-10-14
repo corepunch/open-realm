@@ -6,6 +6,48 @@ retained across pickup and drop; normal transitions do not destroy and recreate
 it. `MAX_INVENTORY` remains the six-slot storage/UI ceiling, while gameplay
 capacity comes from the unit's inventory ability.
 
+## Inventory ownership on forced unit removal
+
+`RemoveUnit` defers edict destruction until the current simulation tick has
+finished. Immediately before `G_PoolsReleaseEdict`, the WC3 game module retires
+all items still carried by the unit via `G_ReleaseInventoryOnUnitRemoval`.
+The cleanup also finds script-detached items whose inventory slot was cleared
+but whose carrier pointer still names the unit. These items do **not** become
+world drops; the `inv2` drop-on-death rule is separate. Items already given to
+other carriers survive. Pending consumed-item event handles remain alive, but
+cannot finalize against a carrier that has been removed or recycled.
+
+See [campaign game cache](campaign-game-cache.md#rexxar-stash-temporary-carrier-removal-patch-b)
+for Rexxar's hidden `Obla` stash-export sequence and the regression coverage.
+
+See [Rexxar's Stash](rexxar-stash.md) for a map-authored non-Hero storage building, Backpack activation, and live inventory refresh after researched tech changes.
+
+## Powerup collection and inventory permissions (Rexxar hardening)
+
+An inventory ability can have **zero item slots** (`inv1=0`) while still
+allowing a hero or unit to collect powerups. Zero slots reject ordinary carried
+items, but an item with a supported automatic powerup ability may be consumed
+without entering an inventory slot when **Can Use Items** (`inv3`) is enabled.
+Ability-less quest powerups (such as Shimmerweed) follow the same slot-free
+pickup response when item use is enabled. This does not create inventory slots
+for the recipient.
+
+When `inv3=0`, an inventory-capable carrier such as a Backpack courier or
+Rexxar's stash **does not automatically consume** the powerup. It can hold the
+item in a free slot instead; if every slot is occupied, the pickup order is
+rejected and the item remains in the world. Direct scripted insertion still
+uses the existing native inventory API. This keeps the distinction between
+`inv3` (automatic use), `inv4` (player pickup permission), and `inv5`
+(player-issued drop/handoff permission). A pickup order reevaluates `inv4`
+on arrival, so removing that permission mid-walk cancels the order without
+collecting the item. Deferred unit removal also prevents new pickup.
+
+Regression fixtures cover zero-slot powerups, carrying rune and ability-less
+powerup items without use permission, full inventory rejection, a revoked
+`inv4` while walking, and a pending item-give order across `WriteGame` /
+`ReadGame`. Original OrcX01 `Aion` ability fields remain unverified:
+these are generic rules, not hardcoded values for `h003`.
+
 ## State Contract
 
 Item lifecycle state lives on the game edict alongside the existing unit
@@ -518,3 +560,43 @@ for transport, renderer ownership and regression commands.
 
 The Signal cursor is a separate overlay: `cmd signal` preserves the held item,
 and Esc/right click or an accepted signal point restores its icon and command.
+
+## Unit-to-Unit Item Handoff
+
+An item dragged from inventory onto an allied inventory-capable unit uses the
+same server-side target order as the `UnitDropItemTarget(unit, item, widget)`
+JASS native. It applies to non-hero inventory containers (including stationary
+buildings), not only Heroes. An unsupported target leaves the client in target
+mode; neutral shop pawn handling remains on the existing shop path.
+
+`G_OrderGiveItemTarget` validates an active, living allied recipient, the
+source's `inv5` permission, the item's droppable state and any item-ability
+prohibition. The source walks toward the target; an immobile inventory source
+such as a stash building can give directly when the recipient is already in
+range. Completion revalidates both unit and item state and uses
+`Misc.GiveItemRange` plus unit collision radii. The recipient does not move.
+A full recipient's inventory causes a normal
+world drop at its position. The item is not transferred when the order is
+issued, and an invalidated target/item cancels without changing inventory.
+
+`G_TransferCarriedItem` performs a direct, atomic transfer of an already-carried
+item entity: first verify both owner/slot and a free target slot, then remove
+source item stats, change the carrier and slot exactly once, apply eligible
+recipient stats, refresh both HUD inventories, and publish recipient pickup
+events. Player-ordered handoffs additionally enqueue a giver drop event before
+the recipient pickup events; scripted transfers do not synthesize a giver drop.
+No new item entity or temporary world item is created. The recipient's
+`inv4` flag is not applied to an incoming handoff: that flag gates the
+recipient's own pickup orders, whereas its inventory capacity governs whether
+it can receive items. The player order checks the *giver's* `inv5` and item
+droppability. By contrast, scripted `UnitAddItem` may transfer an already-carried
+item through the same primitive without imposing player-order drop restrictions.
+It still honours special scripted item reattachment before general transfer.
+`UnitDropItemTarget` queues the normal handoff rather than teleporting the item.
+
+These behaviours are exercised by `wc3_items.carried_item_transfer*`,
+`wc3_items.targeted_give*`,
+`wc3_api.unit_add_item_transfers_carried_handle_without_ground_drop`, and
+`wc3_api.unit_drop_item_target_queues_a_targeted_give`. Campaign `StoreUnit`
+serialization and removal of a temporary carrier are separate lifecycle work;
+this handoff patch does not change game-cache format.

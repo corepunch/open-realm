@@ -51,6 +51,8 @@ static frameDef_t const *active_slider = NULL;
 static frameDef_t const *active_popup = NULL;
 static frameDef_t const *active_modal = NULL;
 static frameDef_t *active_edit = NULL;
+static frameDef_t *drag_edit = NULL;
+static uint32_t mouse_mods;
 static menuTextInput_t active_ti;
 static int active_popup_hover_item = -1;
 
@@ -496,8 +498,9 @@ static void UI_ButtonEventHandler(frameDef_t *frame, menuMouseEvent_t event, flo
     if (event == MENU_MOUSE_DOWN) {
         frame->ui_flags |= UIFLAG_PRESSED;
     } else if (event == MENU_MOUSE_UP) {
+        bool was_pressed = (frame->ui_flags & UIFLAG_PRESSED) != 0;
         frame->ui_flags &= ~UIFLAG_PRESSED;
-        if (frame->OnClick[0]) {
+        if (was_pressed && frame->OnClick[0]) {
             UI_PlayGlueClick();
             UI_QueueCommand(frame->OnClick);
         }
@@ -512,7 +515,9 @@ static void UI_CheckBoxEventHandler(frameDef_t *frame, menuMouseEvent_t event, f
     if (event == MENU_MOUSE_DOWN) {
         frame->ui_flags |= UIFLAG_PRESSED;
     } else if (event == MENU_MOUSE_UP) {
+        bool was_pressed = (frame->ui_flags & UIFLAG_PRESSED) != 0;
         frame->ui_flags &= ~UIFLAG_PRESSED;
+        if (!was_pressed) return;
         frame->ui_flags ^= UIFLAG_CHECKED;
         ((frameDef_t *)frame)->CheckBox.Checked = (frame->ui_flags & UIFLAG_CHECKED) != 0;
         UI_PlayGlueClick();
@@ -534,10 +539,21 @@ static void UI_SliderEventHandler(frameDef_t *frame, menuMouseEvent_t event, flo
     }
 }
 
+/* The press starts on the edit frame; subsequent motion/release may leave it. */
+void UI_EditDragEvent(menuMouseEvent_t event, float x, int32_t param, uint32_t mods) {
+    mouse_mods = mods;
+    if (event == MENU_MOUSE_MOVE && drag_edit) UI_EditPointer(drag_edit, x, true);
+    if (event == MENU_MOUSE_UP && param == 1) {
+        if (drag_edit) UI_EditPointer(drag_edit, x, true);
+        drag_edit = NULL;
+    }
+}
+
 static void UI_EditBoxEventHandler(frameDef_t *frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
-    (void)fdf_x; (void)fdf_y;
+    (void)fdf_y;
     if (event == MENU_MOUSE_DOWN && param == 1) {
-        UI_EditboxFocusOnHit(frame);
+        drag_edit = frame;
+        UI_EditPointer(frame, fdf_x, (mouse_mods & KEY_MOD_SHIFT) != 0);
     }
 }
 

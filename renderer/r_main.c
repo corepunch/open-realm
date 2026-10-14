@@ -5,6 +5,9 @@
 #include "stb/stb_image_write.h"
 
 #include <SDL2/SDL.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/html5.h>
+#endif
 #include <sys/stat.h>
 #ifdef _WIN32
 #include <direct.h>
@@ -20,7 +23,7 @@ extern void *objc_getClass(char const *name);
 extern void *sel_registerName(char const *str);
 extern void *objc_msgSend(void *, void *, ...);
 #endif
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
 #include <SDL2/SDL_opengl.h>
 #endif
 
@@ -29,6 +32,11 @@ struct render_globals tr;
 
 SDL_Window *window;
 SDL_GLContext context;
+#ifdef __EMSCRIPTEN__
+/* Browser GL lives in the main-thread canvas; calls are proxied from the
+ * engine pthread rather than routed through SDL/EGL context ownership. */
+static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE web_gl_context;
+#endif
 
 static bool renderer_shutdown = false;
 static bool drawable_dirty;
@@ -180,7 +188,8 @@ static float R_SmoothStep(float edge0, float edge1, float x) {
 
 texture_t *R_MakeLoadingIndicatorTexture(void) {
     enum { TEXTURE_SIZE = 128 };
-    color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    /* Keep the procedural pixel buffer off the limited WASM pthread stack. */
+    color32_t *pixels = ri.MemAlloc(sizeof(*pixels) * TEXTURE_SIZE * TEXTURE_SIZE);
     texture_t *texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) {
@@ -204,13 +213,15 @@ texture_t *R_MakeLoadingIndicatorTexture(void) {
         }
     }
     R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
+    ri.MemFree(pixels);
     return texture;
 }
 
 /* WoW archives do not contain Warcraft III's selection-circle assets. */
 texture_t *R_MakeSelectionCircleTexture(void) {
     enum { TEXTURE_SIZE = 128 };
-    color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    /* Keep the procedural pixel buffer off the limited WASM pthread stack. */
+    color32_t *pixels = ri.MemAlloc(sizeof(*pixels) * TEXTURE_SIZE * TEXTURE_SIZE);
     texture_t *texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) FOR_LOOP(x, TEXTURE_SIZE) {
@@ -223,12 +234,14 @@ texture_t *R_MakeSelectionCircleTexture(void) {
         pixels[y * TEXTURE_SIZE + x] = MAKE(color32_t, 255, 255, 255, (uint8_t)(ring * 255.0f));
     }
     R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
+    ri.MemFree(pixels);
     return texture;
 }
 
 static texture_t *R_MakeBlobShadowTexture(void) {
     enum { TEXTURE_SIZE = 64 };
-    color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    /* Keep the procedural pixel buffer off the limited WASM pthread stack. */
+    color32_t *pixels = ri.MemAlloc(sizeof(*pixels) * TEXTURE_SIZE * TEXTURE_SIZE);
     texture_t *texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) {
@@ -243,6 +256,7 @@ static texture_t *R_MakeBlobShadowTexture(void) {
     }
 
     R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
+    ri.MemFree(pixels);
     return texture;
 }
 
@@ -634,10 +648,15 @@ static void R_UpdateSwapInterval(void) {
     requested = MAX(0, MIN(1, requested));
     if (requested == r_swapinterval) return;
     r_swapinterval = requested;
+#ifdef __EMSCRIPTEN__
+    /* Browser frame scheduling begins after renderer initialization. */
+    return;
+#else
     if (SDL_GL_SetSwapInterval(requested) != 0)
         fprintf(stderr, "OpenGL: r_vsync %d unavailable: %s\n", requested, SDL_GetError());
     else
         fprintf(stderr, "OpenGL: vsync=%d\n", SDL_GL_GetSwapInterval());
+#endif
 }
 
 void R_InitRenderer(uint32_t width, uint32_t height) {
@@ -706,6 +725,34 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
     fprintf(stderr, "Refresher initialization.\n");
     Uint32 win_vis = R_VideoHidden() ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN;
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | win_vis | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
+#ifdef __EMSCRIPTEN__
+    /* WasmFS OPFS uses a worker. SDL owns window/input but not GL creation:
+     * use the canvas transferred to this worker, with no synchronous GL proxy
+     * to the browser thread (which can recursively lock during GL setup). */
+    web_gl_context = 0;
+    if (window) {
+        EmscriptenWebGLContextAttributes attributes;
+        emscripten_webgl_init_context_attributes(&attributes);
+        attributes.majorVersion = 2;
+        attributes.minorVersion = 0;
+        attributes.depth = EM_TRUE;
+        attributes.stencil = EM_FALSE;
+        attributes.antialias = requested_msaa > 0;
+        attributes.explicitSwapControl = EM_TRUE;
+        attributes.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_DISALLOW;
+        web_gl_context = emscripten_webgl_create_context("#canvas", &attributes);
+    }
+    if (web_gl_context > 0 &&
+        emscripten_webgl_make_context_current(web_gl_context) == EMSCRIPTEN_RESULT_SUCCESS) {
+        gl_current = true;
+        r_swapinterval = 0;
+        GLint drawable_binding = 0;
+        R_Call(glGetIntegerv, GL_FRAMEBUFFER_BINDING, &drawable_binding);
+        r_default_framebuffer = (GLuint)drawable_binding;
+    } else {
+        fprintf(stderr, "OpenRealm browser: WebGL 2 context creation failed (%d)\n", (int)web_gl_context);
+    }
+#else
     context = window ? SDL_GL_CreateContext(window) : NULL;
     if (!context && requested_msaa) {
         fprintf(stderr, "OpenGL: %dx MSAA context unavailable (%s); retrying without MSAA\n", requested_msaa, SDL_GetError());
@@ -726,6 +773,7 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
     } else {
         fprintf(stderr, "ref_gl::R_Init() - could not make GL context current: %s\n", SDL_GetError());
     }
+#endif /* __EMSCRIPTEN__ */
 
     R_ApplyVideoMode(width, height);
     R_RefreshDrawableSize("initial");
@@ -839,7 +887,15 @@ void R_ShutdownRenderer(void) {
     R_ShutdownTextureCache();
     R_ShutdownDrawBufferInstanced();
     
+#ifdef __EMSCRIPTEN__
+    if (web_gl_context > 0) {
+        emscripten_webgl_make_context_current(0);
+        emscripten_webgl_destroy_context(web_gl_context);
+        web_gl_context = 0;
+    }
+#else
     SDL_GL_DeleteContext(context);
+#endif
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
@@ -1034,8 +1090,13 @@ void R_EndFrame(void) {
 #endif
     R_FinishFrameStats();
     R_UpdateSwapInterval();
+#ifdef __EMSCRIPTEN__
+    /* Present the worker-owned OffscreenCanvas context's completed frame. */
+    if (web_gl_context > 0) emscripten_webgl_commit_frame();
+#else
     SDL_GL_SwapWindow(window);
     SDL_Delay(1);
+#endif
 }
 
 size2_t R_GetWindowSize(void) {

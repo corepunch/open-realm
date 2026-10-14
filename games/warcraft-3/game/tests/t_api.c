@@ -4710,7 +4710,7 @@ TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
 
 }
 
-TEST(wc3_api, repeated_wait_for_sound_only_waits_until_voice_end_once) {
+TEST(wc3_api, repeated_wait_for_sound_tracks_remaining_voice_offsets) {
     gameClient_t *gc = &game.clients[0];
     gsound_t lifetime = { 0 };
     void (*old_sound)(edict_t *, int, int, float, float, float) = gi.Sound;
@@ -4748,20 +4748,26 @@ TEST(wc3_api, repeated_wait_for_sound_only_waits_until_voice_end_once) {
         "endglobals\n"
         "function IntroSequenceAction takes nothing returns nothing\n"
         "  call StartSound(introVoice)\n"
-        "  call TriggerSleepAction(3.5)\n"
-        "  call TriggerWaitForSound(introVoice, 0.0)\n"
+        "  call TriggerWaitForSound(introVoice, 10.0)\n"
         "  set introStage = 1\n"
-        "  call TriggerWaitForSound(introVoice, 2.0)\n"
+        "  call TriggerWaitForSound(introVoice, 5.0)\n"
         "  set introStage = 2\n"
+        "  call TriggerWaitForSound(introVoice, 0.0)\n"
+        "  set introStage = 3\n"
+        "  call TriggerWaitForSound(introVoice, 2.0)\n"
+        "  set introStage = 4\n"
         "endfunction\n"
         "function AssertIntroStageZero takes nothing returns nothing\n"
         "  call BJassAssert(introStage == 0, \"dialogue advanced before the voice duration elapsed\")\n"
         "endfunction\n"
         "function AssertIntroStageOne takes nothing returns nothing\n"
-        "  call BJassAssert(introStage == 1, \"positive offset did not preserve the remaining wait\")\n"
+        "  call BJassAssert(introStage == 1, \"first voice offset checkpoint fired at the wrong time\")\n"
+        "endfunction\n"
+        "function AssertIntroStageTwo takes nothing returns nothing\n"
+        "  call BJassAssert(introStage == 2, \"second voice offset checkpoint fired at the wrong time\")\n"
         "endfunction\n"
         "function AssertIntroStageDone takes nothing returns nothing\n"
-        "  call BJassAssert(introStage == 2, \"repeated wait delayed dialogue after voice ended\")\n"
+        "  call BJassAssert(introStage == 4, \"repeated waits extended past the voice end\")\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  set introVoice = CreateSound(\"intro.wav\", false, false, false, 0, 0, \"\")\n"
@@ -4773,24 +4779,29 @@ TEST(wc3_api, repeated_wait_for_sound_only_waits_until_voice_end_once) {
     T_EQ(ui_sound_calls, 1);
     T_EQ(level.time, 0u);
 
-    level.time = 3500;
+    level.time = 4999;
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "AssertIntroStageZero", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 5000;
+    jass_runevents(level.vm);
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageOne", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 9999;
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageOne", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 10000;
+    jass_runevents(level.vm);
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageTwo", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     level.time = 14999;
     jass_runevents(level.vm);
-    jass_callbyname(level.vm, "AssertIntroStageZero", false);
+    jass_callbyname(level.vm, "AssertIntroStageTwo", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     level.time = 15000;
-    jass_runevents(level.vm);
-    jass_runevents(level.vm);
-    jass_callbyname(level.vm, "AssertIntroStageOne", false);
-    T_ASSERT(!jass_rterror_pending(level.vm));
-    level.time = 16999;
-    jass_runevents(level.vm);
-    jass_callbyname(level.vm, "AssertIntroStageOne", false);
-    T_ASSERT(!jass_rterror_pending(level.vm));
-    level.time = 17000;
     jass_runevents(level.vm);
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "AssertIntroStageDone", false);
@@ -7602,6 +7613,209 @@ TEST(wc3_api, gamecache_restore_does_not_publish_pickup_events) {
     T_ASSERT(!jass_rterror_pending(level.vm));
     jass_callbyname(level.vm, "verifyPickup", true);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, unit_add_item_transfers_carried_handle_without_ground_drop) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit a = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local unit b = CreateUnit(Player(0), 'Hpal', 64.0, 0.0, 0.0)\n"
+        "  local item i = CreateItem('ratf', 32.0, 0.0)\n"
+        "  call BJassAssert(UnitAddItem(a, i), \"initial insertion failed\")\n"
+        "  call SetItemCharges(i, 3)\n"
+        "  call BJassAssert(UnitAddItem(b, i), \"carried item transfer failed\")\n"
+        "  call BJassAssert(not UnitHasItem(a, i), \"source still owns item\")\n"
+        "  call BJassAssert(UnitItemInSlot(b, 0) == i, \"item handle was recreated\")\n"
+        "  call BJassAssert(GetItemCharges(i) == 3, \"transfer lost charges\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, unit_drop_item_target_queues_a_targeted_give) {
+    edict_t *giver = NULL, *receiver = NULL, *item = NULL;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit a = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local unit b = CreateUnit(Player(0), 'Hpal', 64.0, 0.0, 0.0)\n"
+        "  local item i = CreateItem('ratf', 32.0, 0.0)\n"
+        "  call BJassAssert(UnitAddItem(a, i), \"initial insertion failed\")\n"
+        "  call BJassAssert(UnitDropItemTarget(a, i, b), \"target order rejected\")\n"
+        "  call BJassAssert(UnitHasItem(a, i), \"item moved before order tick\")\n"
+        "endfunction\n"));
+    FOR_LOOP(n, globals.num_edicts) {
+        edict_t *ent = g_edicts + n;
+        if (!ent->inuse) continue;
+        if (ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 0) {
+            if (!giver) giver = ent;
+            else receiver = ent;
+        } else if (ent->class_id == MAKEFOURCC('r','a','t','f')) item = ent;
+    }
+    T_NOT_NULL(giver); T_NOT_NULL(receiver); T_NOT_NULL(item);
+    T_ASSERT(giver->inventory[0] == item);
+    T_ASSERT(giver->currentmove && giver->currentmove->think);
+    giver->currentmove->think(giver);
+    T_NULL(giver->inventory[0]);
+    T_ASSERT(receiver->inventory[0] == item);
+}
+
+/* OrcX01 moves the stash's six items onto a hidden temporary hero, then
+ * StoreUnit(Campaigns.w3v, OrcX02, Stash), SaveGameCache and RemoveUnit.
+ * Hpal supplies a stock six-slot Hero fixture; the campaign's actual carrier
+ * is Obla, which is not provided by the small headless fixture archive. */
+TEST(wc3_api, rexxar_stash_cache_survives_hidden_carrier_removal) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    cstring_t (*old_scope)(void) = gi.ScriptScopeIdentity;
+    edict_t *carrier = NULL;
+    edict_t *held[MAX_INVENTORY] = {0};
+
+    setup_test_world();
+    gi.CvarString = gamecache_memory_cvar;
+    /* The real engine owns this opaque identity. The headless fixture must
+     * supply a stable one so memory-mode SaveGameCache can commit. */
+    gi.ScriptScopeIdentity = test_gamecache_scope_identity;
+    strlcpy(test_gamecache_scope, "cccccccccccccccccccccccccccccccc", sizeof(test_gamecache_scope));
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " gamecache stashCache = null\n"
+        " unit stashCarrier = null\n"
+        "endglobals\n"
+        "function verifyStash takes nothing returns nothing\n"
+        " local unit restored = RestoreUnit(stashCache, \"OrcX02\", \"Stash\", Player(0), 256.0, 0.0, 0.0)\n"
+        " local integer slot = 0\n"
+        " call BJassAssert(restored != null, \"carrier snapshot not restored\")\n"
+        " call BJassAssert(UnitInventorySize(restored) == 6, \"restored capacity incorrect\")\n"
+        " loop\n"
+        "  exitwhen slot >= 6\n"
+        "  call BJassAssert(UnitItemInSlot(restored, slot) != null, \"missing cached stash item\")\n"
+        "  call BJassAssert(GetItemTypeId(UnitItemInSlot(restored, slot)) == 'ratf', \"wrong item rawcode\")\n"
+        "  call BJassAssert(GetItemCharges(UnitItemInSlot(restored, slot)) == slot + 2, \"cached charges changed\")\n"
+        "  set slot = slot + 1\n"
+        " endloop\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        " local unit stash = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        " local item itemToMove = null\n"
+        " local integer slot = 0\n"
+        " set stashCarrier = CreateUnit(Player(0), 'Hpal', 128.0, 0.0, 0.0)\n"
+        " call ShowUnit(stashCarrier, false)\n"
+        " set stashCache = InitGameCache(\"Campaigns.w3v\")\n"
+        " call FlushGameCache(stashCache)\n"
+        " loop\n"
+        "  exitwhen slot >= 6\n"
+        "  set itemToMove = CreateItem('ratf', 16.0, 0.0)\n"
+        "  call SetItemCharges(itemToMove, slot + 2)\n"
+        "  call BJassAssert(UnitAddItem(stash, itemToMove), \"stash insertion failed\")\n"
+        "  set slot = slot + 1\n"
+        " endloop\n"
+        " set slot = 0\n"
+        " loop\n"
+        "  exitwhen slot >= 6\n"
+        "  call BJassAssert(UnitAddItem(stashCarrier, UnitItemInSlot(stash, slot)), \"stash transfer failed\")\n"
+        "  set slot = slot + 1\n"
+        " endloop\n"
+        " call BJassAssert(StoreUnit(stashCache, \"OrcX02\", \"Stash\", stashCarrier), \"StoreUnit failed\")\n"
+        " call RemoveUnit(stashCarrier)\n"
+        " call BJassAssert(SaveGameCache(stashCache), \"SaveGameCache failed\")\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (!ent->inuse || ent->class_id != MAKEFOURCC('H','p','a','l') ||
+            fabsf(ent->s.origin2.x - 128.0f) >= 0.01f) continue;
+        carrier = ent;
+        FOR_LOOP(slot, MAX_INVENTORY) held[slot] = ent->inventory[slot];
+        break;
+    }
+    T_NOT_NULL(carrier);
+    if (carrier) {
+        T_ASSERT(G_IsDeferredFree(carrier));
+        FOR_LOOP(slot, MAX_INVENTORY) T_NOT_NULL(held[slot]);
+        G_RunDeferredFrees();
+        T_ASSERT(!carrier->inuse);
+        FOR_LOOP(slot, MAX_INVENTORY) {
+            T_NOT_NULL(held[slot]);
+            if (held[slot]) T_ASSERT(!held[slot]->inuse);
+        }
+        jass_callbyname(level.vm, "verifyStash", true);
+        jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    gi.CvarString = old_cvar;
+    gi.ScriptScopeIdentity = old_scope;
+}
+
+/* Sparse stash inventories must preserve empty slot positions as well as
+ * item IDs and charges when the temporary carrier is retired. */
+TEST(wc3_api, rexxar_stash_cache_sparse_slots_survive_carrier_removal) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    cstring_t (*old_scope)(void) = gi.ScriptScopeIdentity;
+    edict_t *carrier = NULL;
+
+    setup_test_world();
+    gi.CvarString = gamecache_memory_cvar;
+    gi.ScriptScopeIdentity = test_gamecache_scope_identity;
+    strlcpy(test_gamecache_scope, "dddddddddddddddddddddddddddddddd", sizeof(test_gamecache_scope));
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " gamecache stashCache = null\n"
+        " unit stashCarrier = null\n"
+        "endglobals\n"
+        "function verifySparseStash takes nothing returns nothing\n"
+        " local unit restored = RestoreUnit(stashCache, \"OrcX02\", \"Stash\", Player(0), 256.0, 0.0, 0.0)\n"
+        " local item first\n"
+        " local item last\n"
+        " local integer n = 1\n"
+        " call BJassAssert(restored != null, \"sparse carrier snapshot missing\")\n"
+        " call BJassAssert(UnitInventorySize(restored) == 6, \"inventory capacity lost\")\n"
+        " set first = UnitItemInSlot(restored, 0)\n"
+        " set last = UnitItemInSlot(restored, 5)\n"
+        " call BJassAssert(first != null and last != null, \"edge slots missing\")\n"
+        " call BJassAssert(GetItemTypeId(first) == 'ratf', \"first item changed\")\n"
+        " call BJassAssert(GetItemTypeId(last) == 'spro', \"last item changed\")\n"
+        " call BJassAssert(GetItemCharges(first) == 3, \"first charges changed\")\n"
+        " call BJassAssert(GetItemCharges(last) == 7, \"last charges changed\")\n"
+        " loop\n"
+        "  exitwhen n >= 5\n"
+        "  call BJassAssert(UnitItemInSlot(restored, n) == null, \"empty slot filled\")\n"
+        "  set n = n + 1\n"
+        " endloop\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        " local item first\n"
+        " local item last\n"
+        " set stashCarrier = CreateUnit(Player(0), 'Hpal', 128.0, 0.0, 0.0)\n"
+        " call ShowUnit(stashCarrier, false)\n"
+        " set stashCache = InitGameCache(\"Campaigns.w3v\")\n"
+        " call FlushGameCache(stashCache)\n"
+        " call BJassAssert(UnitAddItemToSlotById(stashCarrier, 'ratf', 0), \"first insert failed\")\n"
+        " call BJassAssert(UnitAddItemToSlotById(stashCarrier, 'spro', 5), \"last insert failed\")\n"
+        " set first = UnitItemInSlot(stashCarrier, 0)\n"
+        " set last = UnitItemInSlot(stashCarrier, 5)\n"
+        " call SetItemCharges(first, 3)\n"
+        " call SetItemCharges(last, 7)\n"
+        " call BJassAssert(StoreUnit(stashCache, \"OrcX02\", \"Stash\", stashCarrier), \"StoreUnit failed\")\n"
+        " call RemoveUnit(stashCarrier)\n"
+        " call BJassAssert(SaveGameCache(stashCache), \"SaveGameCache failed\")\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('H','p','a','l') &&
+            fabsf(ent->s.origin2.x - 128.0f) < 0.01f) {
+            carrier = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(carrier);
+    if (carrier) {
+        T_ASSERT(G_IsDeferredFree(carrier));
+        G_RunDeferredFrees();
+        T_ASSERT(!carrier->inuse);
+        jass_callbyname(level.vm, "verifySparseStash", true);
+        jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    gi.CvarString = old_cvar;
+    gi.ScriptScopeIdentity = old_scope;
 }
 
 TEST(wc3_api, gamecache_restore_preserves_hero_progression) {

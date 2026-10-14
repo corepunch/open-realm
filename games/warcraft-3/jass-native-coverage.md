@@ -591,3 +591,15 @@ during the return callback. See
 `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` are registered and use engine-owned restricted filesystem callbacks. These only operate within the current script-save session namespace and accept `Blizzard\Zones` / `Blizzard\<slot>` directories, plus flat scripted slots. Copying is bounded and atomic on POSIX; the parent directory cannot be renamed or removed. Manual save slots are not accessible. `SaveGame` defers its write to the end-of-frame VM-safe boundary and `ChangeLevel` waits for successful persistence. `LoadGame` defers to the session loader, which validates the saved map before loading it and restores the snapshot afterward. See `docs/games/warcraft-3/save-load.md`.
 
 - Rexxar multi-map `LoadGame` defers to the session loader, preserving the private scripted save scope and allowing different-map `.w3z` restores; paired `SaveGame`/`LoadGame` only dispatch after a successful VM-safe source snapshot. Internal zone restores dispatch `EVENT_GAME_LOADED` with `MAP_RELOADED` set so the map can import travelling Heroes without running the named-user-load handler.
+
+## Item handoff natives
+
+`UnitDropItemTarget(unit, item, widget)` now accepts an allied inventory-capable
+unit recipient and queues the regular give-item order. It is not a synchronous
+inventory mutation: the source approaches within `Misc.GiveItemRange` and the
+item changes carrier at order completion. Existing point drops and neutral shop
+pawn UI remain separate. `UnitAddItem(unit, item)` now also moves an item already
+carried by another unit directly between authoritative inventory slots, without
+requiring a world drop or changing the item handle. Scripted Soul Gem slot
+reattachment remains the first branch. See
+[Inventory And World Items](../../docs/games/warcraft-3/inventory-and-items.md#unit-to-unit-item-handoff).

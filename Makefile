@@ -300,3 +300,6 @@ list-devices:
 	xcrun devicectl list devices
 
 .PHONY: default build shared tools font $(TOOL_NAMES) diag clean install-share $(WC3_PHONY) $(WOW_PHONY) $(SC2_PHONY)
+
+# Browser foundation is isolated from native module linking and platform flags.
+include port/web/build.mk

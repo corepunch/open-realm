@@ -37,6 +37,7 @@
 #include "../client/client.h"
 #include "../client/cl_input_local.h"
 #include "../client/ui_layout.h"
+#include "../client/menu_text_input.h"
 
 static cstring_t minimap_map;
 static void capture_minimap(rect_t const *screen, cstring_t map) { (void)screen; minimap_map = map; }
@@ -596,7 +597,7 @@ TEST(net, no_refresh_preserves_client_loop_without_screen_submission) {
 }
 
 static uint32_t test_menu_draws, test_menu_keys;
-static void capture_menu_key(int key, bool down, uint32_t time) { (void)key; (void)down; (void)time; test_menu_keys++; }
+static void capture_menu_key(int key, uint32_t mods, bool down, uint32_t time) { (void)key; (void)mods; (void)down; (void)time; test_menu_keys++; }
 static void capture_menu_refresh(uint32_t time) { (void)time; test_menu_draws++; }
 
 TEST(net, active_game_never_draws_main_menu) {
@@ -1258,6 +1259,57 @@ TEST(client_layout, listbox_draws_only_whole_rows_inside_viewport) {
     }
 }
 
+TEST(client_layout, frame_rows_scroll_exposes_only_complete_visible_rows) {
+    uint8_t buf[2048];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiListBox_t list = { .itemHeight = 0.1f, .selectedIndex = -1 };
+    uiFrame_t empty = {0};
+    uiFrame_t container = {
+        .number = 1, .parent = 0, .flags = { .type = FT_LISTBOX },
+        .size = { .width = 0.3f, .height = 0.3f }, .value = 1.0f,
+    };
+    uiFrame_t rows[5] = {0};
+    rect_t root = { 0.0f, 0.0f, 1.0f, 1.0f };
+
+    strlcpy(list.fetchCommand, "FRAME_ROWS", sizeof(list.fetchCommand));
+    FOR_LOOP(i, 4) {
+        rows[i].number = i + 2;
+        rows[i].parent = container.number;
+        rows[i].flags.type = FT_FRAME;
+        rows[i].size.height = 0.1f;
+    }
+    rows[4].number = 6;
+    rows[4].parent = container.number;
+    rows[4].flags.type = FT_SCROLLBAR;
+
+    test_client_stubs_init();
+    MSG_WriteByte(&sb, LAYER_QUESTDIALOG);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &container, true);
+    MSG_WriteByte(&sb, sizeof(list));
+    MSG_Write(&sb, &list, sizeof(list));
+    FOR_LOOP(i, 5) {
+        MSG_WriteDeltaUIFrame(&sb, &empty, &rows[i], true);
+        MSG_WriteByte(&sb, 0);
+    }
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseLayout(&sb);
+    SCR_Clear(cl.layout[LAYER_QUESTDIALOG]);
+    SCR_SetLayoutRoot(&root);
+
+    T_ASSERT(!SCR_LayoutFrameRowsVisible(SCR_Frame(2)));
+    T_ASSERT(SCR_LayoutFrameRowsVisible(SCR_Frame(3)));
+    T_ASSERT(SCR_LayoutFrameRowsVisible(SCR_Frame(4)));
+    T_ASSERT(SCR_LayoutFrameRowsVisible(SCR_Frame(5)));
+    T_ASSERT(SCR_LayoutFrameRowsVisible(SCR_Frame(6))); /* scrollbar is not a row */
+
+    SCR_Frame(1)->value = 0.0f;
+    T_ASSERT(SCR_LayoutFrameRowsVisible(SCR_Frame(2)));
+    T_ASSERT(SCR_LayoutFrameRowsVisible(SCR_Frame(4)));
+    T_ASSERT(!SCR_LayoutFrameRowsVisible(SCR_Frame(5)));
+}
+
 TEST(net, ui_window_frame_delta_preserves_text_offsets) {
     uint8_t buf[128];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -1503,7 +1555,7 @@ TEST(net, window_cvar_escape_cancels_open_transaction) {
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
     T_STREQ(Cvar_String("s_volume", ""), "0.250");
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_ASSERT(!CL_WindowModalActive());
     T_STREQ(Cvar_String("s_volume", ""), "0.650");
 
@@ -1512,7 +1564,7 @@ TEST(net, window_cvar_escape_cancels_open_transaction) {
                      "Sound", UI_WINDOW_CVAR_CHECKBOX_PREFIX "s_sound");
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_STREQ(Cvar_String("s_sound", ""), "1");
     CL_WindowClear();
 }
@@ -1533,7 +1585,7 @@ TEST(net, window_cvar_escape_on_unrelated_window_keeps_transaction) {
     CL_WindowClose(54);
 
     test_send_window(55, 155, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f, "Help", "help");
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_STREQ(Cvar_String("s_sound", ""), "1");
 
     test_send_window(56, 156, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
@@ -1736,11 +1788,11 @@ TEST(net, nonmodal_edit_yields_arrow_keys_to_gameplay) {
 
     T_ASSERT(!CL_WindowModalActive());
     T_ASSERT(CL_WindowTextInputActive());
-    T_ASSERT(!CL_WindowKeyEvent(K_LEFTARROW));
-    T_ASSERT(!CL_WindowKeyEvent(K_RIGHTARROW));
-    T_ASSERT(!CL_WindowKeyEvent(K_UPARROW));
-    T_ASSERT(!CL_WindowKeyEvent(K_DOWNARROW));
-    T_ASSERT(CL_WindowKeyEvent(8));
+    T_ASSERT(!CL_WindowKeyEvent(K_LEFTARROW, 0));
+    T_ASSERT(!CL_WindowKeyEvent(K_RIGHTARROW, 0));
+    T_ASSERT(!CL_WindowKeyEvent(K_UPARROW, 0));
+    T_ASSERT(!CL_WindowKeyEvent(K_DOWNARROW, 0));
+    T_ASSERT(CL_WindowKeyEvent(8, 0));
 
     CL_WindowClear();
 }
@@ -1751,11 +1803,86 @@ TEST(net, modal_edit_keeps_arrow_keys_for_local_input) {
 
     T_ASSERT(CL_WindowModalActive());
     T_ASSERT(CL_WindowTextInputActive());
-    T_ASSERT(CL_WindowKeyEvent(K_LEFTARROW));
-    T_ASSERT(CL_WindowKeyEvent(K_RIGHTARROW));
-    T_ASSERT(CL_WindowKeyEvent(K_UPARROW));
-    T_ASSERT(CL_WindowKeyEvent(K_DOWNARROW));
+    T_ASSERT(CL_WindowKeyEvent(K_LEFTARROW, 0));
+    T_ASSERT(CL_WindowKeyEvent(K_RIGHTARROW, 0));
+    T_ASSERT(CL_WindowKeyEvent(K_UPARROW, 0));
+    T_ASSERT(CL_WindowKeyEvent(K_DOWNARROW, 0));
 
+    CL_WindowClear();
+}
+
+TEST(net, text_input_replaces_selection_and_collapses_arrow) {
+    char text[32] = "2026-10-13 10-45";
+    menuTextInput_t ti = { .text = text, .size = sizeof(text), .max_chars = 31,
+                           .cursor = (uint32_t)strlen(text), .anchor = 0 };
+    T_ASSERT(M_TextInput_HasSelection(&ti));
+    T_ASSERT(M_TextInput_Insert(&ti, "New Save"));
+    T_STREQ(text, "New Save");
+    T_EQ(ti.cursor, 8);
+    T_EQ(ti.anchor, 8);
+    M_TextInput_KeyModified(&ti, K_LEFTARROW, true, false);
+    T_EQ(ti.anchor, 8);
+    T_EQ(ti.cursor, 7);
+    M_TextInput_KeyModified(&ti, K_RIGHTARROW, false, false);
+    T_EQ(ti.cursor, 8);
+    T_EQ(ti.anchor, 8);
+    M_TextInput_KeyModified(&ti, 'a', false, true);
+    T_EQ(ti.anchor, 0);
+    T_EQ(ti.cursor, 8);
+    T_ASSERT(M_TextInput_Backspace(&ti));
+    T_STREQ(text, "");
+    T_EQ(ti.anchor, 0);
+}
+
+TEST(net, text_input_backspace_repeats_and_delete_selection) {
+    char text[16] = "abcdef";
+    menuTextInput_t ti = { .text = text, .size = sizeof(text), .cursor = 6, .anchor = 6 };
+    T_ASSERT(M_TextInput_Backspace(&ti));
+    T_ASSERT(M_TextInput_Backspace(&ti));
+    T_STREQ(text, "abcd");
+    T_EQ(ti.cursor, 4);
+    M_TextInput_KeyModified(&ti, K_LEFTARROW, true, false);
+    M_TextInput_KeyModified(&ti, K_LEFTARROW, true, false);
+    T_EQ(ti.anchor, 4);
+    T_EQ(ti.cursor, 2);
+    T_ASSERT(M_TextInput_Delete(&ti));
+    T_STREQ(text, "ab");
+    T_EQ(ti.anchor, 2);
+}
+
+TEST(net, transient_save_edit_initial_selection_typing_and_repeat) {
+    uint32_t start = 99, end = 99;
+    test_client_stubs_init(); CL_WindowClear();
+    test_send_edit_window(60, 160, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE);
+    T_ASSERT(CL_WindowEditSelection(2, &start, &end));
+    T_EQ(start, 0);
+    T_EQ(end, 9);
+    T_ASSERT(CL_WindowTextInput("Slot"));
+    T_STREQ(CL_WindowEditTextValue(2), "Slot");
+    T_ASSERT(!CL_WindowEditSelection(2, &start, &end));
+    T_ASSERT(CL_WindowKeyEvent(K_LEFTARROW, KEY_MOD_SHIFT));
+    T_ASSERT(CL_WindowEditSelection(2, &start, &end));
+    T_EQ(start, 3);
+    T_EQ(end, 4);
+    T_ASSERT(CL_WindowKeyEvent(K_RIGHTARROW, 0));
+    T_ASSERT(!CL_WindowEditSelection(2, &start, &end));
+    T_ASSERT(CL_WindowEditRepeat(8, 0));
+    T_ASSERT(CL_WindowEditRepeat(8, 0));
+    T_STREQ(CL_WindowEditTextValue(2), "Sl");
+    T_ASSERT(!CL_WindowEditRepeat('Z', 0));
+    T_ASSERT(CL_WindowKeyEvent('a', KEY_MOD_CTRL));
+    T_ASSERT(CL_WindowTextInput("Test"));
+    T_STREQ(CL_WindowEditTextValue(2), "Test");
+    CL_WindowClear();
+}
+
+TEST(net, transient_window_release_without_press_does_not_click) {
+    test_client_stubs_init(); CL_WindowClear();
+    test_send_window(61, 161, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE,
+                     0.05f, "Clickable", "button TestSave");
+    test_forwarded_command[0] = '\0';
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
+    T_STREQ(test_forwarded_command, "");
     CL_WindowClear();
 }
 
@@ -1766,7 +1893,7 @@ TEST(net, window_click_raises_and_moves_keyboard_focus) {
     test_send_window(2, 92, UI_WINDOW_UNIQUE, 0.45f, "Second", "second");
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
     test_forwarded_command[0] = '\0';
-    T_ASSERT(CL_WindowKeyEvent('Z'));
+    T_ASSERT(CL_WindowKeyEvent('Z', 0));
     /* Window control substitution now forwards through the typed command boundary instead of writing netchan bytes. */
     T_STREQ(test_forwarded_command, "first");
     test_textarea_draws = 0; CL_WindowDraw();
@@ -1827,7 +1954,7 @@ TEST(net, window_close_notify_releases_server_modal_owner) {
 TEST(net, window_escape_closes_and_releases_server_modal_owner) {
     test_client_stubs_init(); CL_WindowClear();
     test_send_window(5, 95, UI_WINDOW_MODAL, 0.05f, "Close", UI_WINDOW_CLOSE_NOTIFY_ACTION);
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_ASSERT(!CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "pause 0");
     CL_WindowClear();
@@ -1838,7 +1965,7 @@ TEST(net, window_no_escape_consumes_escape_without_dismissal) {
     test_send_window(13, 103, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE | UI_WINDOW_NO_ESCAPE,
                      0.05f, "Choose", UI_WINDOW_CLOSE_ACTION);
     T_ASSERT(CL_WindowModalActive());
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_ASSERT(CL_WindowModalActive());
     CL_WindowClear();
 }
@@ -1850,10 +1977,10 @@ TEST(net, stacked_modal_windows_unpause_only_after_last_close) {
     test_forwarded_command[0] = '\0';
     test_send_window(7, 97, UI_WINDOW_MODAL, 0.05f, "Second", UI_WINDOW_CLOSE_NOTIFY_ACTION);
     T_STREQ(test_forwarded_command, "");
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_ASSERT(CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "");
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_ASSERT(!CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "pause 0");
     CL_WindowClear();
@@ -1875,7 +2002,7 @@ TEST(net, no_pause_modal_blocks_input_without_requesting_pause) {
                      "Allies", UI_WINDOW_CLOSE_ACTION);
     T_ASSERT(CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "");
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_ASSERT(!CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "");
     CL_WindowClear();
@@ -1889,10 +2016,10 @@ TEST(net, no_pause_modal_does_not_release_underlying_pause_owner) {
     test_send_window(12, 102, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
                      "Allies", UI_WINDOW_CLOSE_ACTION);
     T_STREQ(test_forwarded_command, "");
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_ASSERT(CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "");
-    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE, 0));
     T_ASSERT(!CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "pause 0");
     CL_WindowClear();
@@ -4120,6 +4247,31 @@ TEST(client_screen, multiselect_left_click_is_consumed_and_sends_focus) {
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command_buf);
     T_STREQ(command_buf, "focus 77");
+}
+
+TEST(client_screen, command_button_release_requires_matching_press) {
+    uint8_t layout_buf[512], message_buf[256];
+    sizeBuf_t sb = make_msg_buf(layout_buf, sizeof(layout_buf));
+    uiFrame_t empty = {0}, frame = {0};
+    test_client_stubs_init();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+    SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
+    frame.number = 1;
+    frame.flags.type = FT_COMMANDBUTTON;
+    frame.size.width = 0.20f; frame.size.height = 0.20f;
+    frame.points.x[FPP_MIN].used = frame.points.y[FPP_MIN].used = 1;
+    frame.points.x[FPP_MIN].targetPos = frame.points.y[FPP_MIN].targetPos = FPP_MIN;
+    frame.onclick = "button Arep";
+    MSG_WriteByte(&sb, LAYER_COMMANDBAR);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0);
+    sb.readcount = 0; CL_ParseLayout(&sb);
+    SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_UP, 10, 10, 1, false });
+    T_EQ(cls.netchan.message.cursize, 0);
+    SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_DOWN, 10, 10, 1, false });
+    SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_UP, 500, 500, 1, false });
+    T_EQ(cls.netchan.message.cursize, 0);
 }
 
 TEST(client_screen, command_button_right_click_sends_secondary_command) {

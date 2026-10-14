@@ -591,6 +591,12 @@ uint32_t UnitDropItemPoint(jass_t *j) {
     if (slot < 0) return jass_pushboolean(j, 0);
     return jass_pushboolean(j, G_DropItemAtScripted(whichUnit, (uint32_t)slot, &MAKE(vec2_t, x, y)));
 }
+uint32_t UnitDropItemTarget(jass_t *j) {
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    edict_t *whichItem = jass_checkhandle(j, 2, "item");
+    edict_t *target = jass_checkhandle(j, 3, "widget");
+    return jass_pushboolean(j, G_OrderGiveItemTarget(whichUnit, whichItem, target));
+}
 uint32_t UnitDamageTarget(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     edict_t *target = jass_checkhandle(j, 2, "widget");
@@ -739,6 +745,8 @@ uint32_t UnitAddItem(jass_t *j) {
     edict_t *whichItem = jass_checkhandle(j, 2, "item");
     if (!whichUnit || !whichItem) return jass_pushboolean(j, false);
     if (G_ItemAbilityScriptedReattach(whichUnit, whichItem)) return jass_pushboolean(j, true);
+    if (G_IsItem(whichItem) && !whichItem->item->in_world)
+        return jass_pushboolean(j, G_TransferCarriedItem(whichUnit, whichItem));
     return jass_pushboolean(j, G_PickupItem(whichUnit, whichItem));
 }
 uint32_t UnitAddItemById(jass_t *j) {

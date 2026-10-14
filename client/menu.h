@@ -116,9 +116,9 @@ typedef struct {
     void (*Refresh)(uint32_t time);
     
     /* Input event handling */
-    void (*KeyEvent)(int key, bool down, uint32_t time);
+    void (*KeyEvent)(int key, uint32_t mods, bool down, uint32_t time);
     void (*TextInput)(cstring_t text);
-    bool (*MouseEvent)(menuMouseEvent_t event, int x, int y, int32_t param);
+    bool (*MouseEvent)(menuMouseEvent_t event, int x, int y, int32_t param, uint32_t mods);
     
     void (*UpdateLobbySetup)(lobbyState_t const *state);
 } menuExport_t;

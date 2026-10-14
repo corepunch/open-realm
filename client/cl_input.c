@@ -554,6 +554,8 @@ static keyCode_t CL_SDLKeyToKeyCode(int sym) {
         { SDLK_RIGHT, K_RIGHTARROW },
         { SDLK_PAGEUP, K_PAGEUP },
         { SDLK_PAGEDOWN, K_PAGEDOWN },
+        { SDLK_HOME, K_HOME },
+        { SDLK_END, K_END },
     };
     if (sym >= SDLK_F1 && sym <= SDLK_F12)
         return (keyCode_t)(K_F1 + (sym - SDLK_F1));
@@ -738,8 +740,15 @@ void CL_Input(void) {
                 }
                 /* SDL key-repeat is not a deliberate second press; skip it for
                  * gameplay so held number binds cannot double-tap a control group. */
-                if (cls.key_dest == key_game && event.key.repeat)
+                if (cls.key_dest == key_game && event.key.repeat) {
+                    /* Only the focused transient editor receives repeated key-downs.
+                     * SDL_TEXTINPUT already repeats printable characters; gameplay
+                     * binds and control-group double-taps must not repeat. */
+                    if (CL_WindowTextInputActive())
+                        CL_WindowEditRepeat(CL_SDLKeyToKeyCode(event.key.keysym.sym),
+                                            CL_BindMods(event.key.keysym.mod));
                     break;
+                }
                 if (cls.key_dest == key_game && CL_MinimapKeyEvent(event.key.keysym.sym, event.key.repeat != 0)) {
                     break;
                 }
@@ -758,11 +767,13 @@ void CL_Input(void) {
                 mouse.origin.y = event.button.y;
                 mouse.button = event.button.button;
                 if (CL_MenuActive() && cls.key_dest == key_menu) {
-                    menu.MouseEvent(MENU_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
+                    menu.MouseEvent(MENU_MOUSE_DOWN, event.button.x, event.button.y, event.button.button,
+                                    CL_BindMods(SDL_GetModState()));
                     break;
                 }
                 if (cls.state != ca_active) break;
-                if (CL_WindowMouseEvent(MENU_MOUSE_DOWN, event.button.x, event.button.y, event.button.button)) break;
+                if (CL_WindowMouseEventWithMods(MENU_MOUSE_DOWN, event.button.x, event.button.y,
+                                                event.button.button, CL_BindMods(SDL_GetModState()))) break;
                 if (SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_DOWN, event.button.x, event.button.y, event.button.button, (CL_BindMods(SDL_GetModState()) & KEY_MOD_SHIFT) != 0 })) break;
                 if (event.button.button == SDL_BUTTON_LEFT) {
                     mouse.event = UI_LEFT_MOUSE_DOWN;
@@ -775,11 +786,13 @@ void CL_Input(void) {
                 mouse.origin.y = event.button.y;
                 mouse.button = 0;
                 if (CL_MenuActive() && cls.key_dest == key_menu) {
-                    menu.MouseEvent(MENU_MOUSE_UP, event.button.x, event.button.y, event.button.button);
+                    menu.MouseEvent(MENU_MOUSE_UP, event.button.x, event.button.y, event.button.button,
+                                    CL_BindMods(SDL_GetModState()));
                     break;
                 }
                 if (cls.state != ca_active) break;
-                if (CL_WindowMouseEvent(MENU_MOUSE_UP, event.button.x, event.button.y, event.button.button)) break;
+                if (CL_WindowMouseEventWithMods(MENU_MOUSE_UP, event.button.x, event.button.y,
+                                                event.button.button, CL_BindMods(SDL_GetModState()))) break;
                 if (SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_UP, event.button.x, event.button.y, event.button.button, (CL_BindMods(SDL_GetModState()) & KEY_MOD_SHIFT) != 0 })) break;
                 if (event.button.button == SDL_BUTTON_LEFT) {
                     mouse.event = UI_LEFT_MOUSE_UP;
@@ -791,11 +804,13 @@ void CL_Input(void) {
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = event.motion.y;
                 if (CL_MenuActive() && cls.key_dest == key_menu) {
-                    menu.MouseEvent(MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
+                    menu.MouseEvent(MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0,
+                                    CL_BindMods(SDL_GetModState()));
                     break;
                 }
                 if (cls.state != ca_active) break;
-                if (CL_WindowMouseEvent(MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0)) break;
+                if (CL_WindowMouseEventWithMods(MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0,
+                                                CL_BindMods(SDL_GetModState()))) break;
                 SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0, false });
                 CL_MouseMotion(&event.motion);
                 hover_motion = event.motion; hover_update_pending = true;
@@ -806,11 +821,13 @@ void CL_Input(void) {
                     keyCode_t wheelkey;
                     SDL_GetMouseState(&x, &y);
                     if (CL_MenuActive() && cls.key_dest == key_menu) {
-                        menu.MouseEvent(MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y));
+                        menu.MouseEvent(MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y),
+                                        CL_BindMods(SDL_GetModState()));
                         break;
                     }
                     if (cls.state != ca_active) break;
-                    if (CL_WindowMouseEvent(MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y))) break;
+                    if (CL_WindowMouseEventWithMods(MENU_MOUSE_SCROLL, x, y,
+                            MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y), CL_BindMods(SDL_GetModState()))) break;
                     SCR_LayoutMouseEvent(&(layoutMouseEvent_t){ MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y), false });
                     /* Discrete wheel ticks are bindable keys (MWHEELUP / MWHEELDOWN). */
                     if (cls.key_dest == key_console || event.wheel.y == 0)
@@ -1726,11 +1743,11 @@ TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {
 
 /* Keep the SDL queue, key binding, layout hit test and command buffer in the regression path. */
 static uint32_t test_menu_mouse, test_menu_text, test_menu_keys;
-static bool CL_TestMenuMouse(menuMouseEvent_t event, int x, int y, int32_t param) {
-    (void)event; (void)x; (void)y; (void)param; test_menu_mouse++; return false;
+static bool CL_TestMenuMouse(menuMouseEvent_t event, int x, int y, int32_t param, uint32_t mods) {
+    (void)event; (void)x; (void)y; (void)param; (void)mods; test_menu_mouse++; return false;
 }
 static void CL_TestMenuText(cstring_t text) { (void)text; test_menu_text++; }
-static void CL_TestMenuKey(int key, bool down, uint32_t time) { (void)key; (void)down; (void)time; test_menu_keys++; }
+static void CL_TestMenuKey(int key, uint32_t mods, bool down, uint32_t time) { (void)key; (void)mods; (void)down; (void)time; test_menu_keys++; }
 TEST(client_input, menu_sdl_input_is_exclusive_with_world_presentation) {
     struct client_state *old = MemAlloc(sizeof(cl));
     struct client_static old_cls = cls;

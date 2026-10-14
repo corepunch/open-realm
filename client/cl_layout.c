@@ -8,11 +8,81 @@
 static uiFrame_t frames[MAX_LAYOUT_OBJECTS];
 static uint32_t num_frames = 0;
 static uint32_t layout_runtime_layer = MAX_LAYOUT_LAYERS;
-
-struct {
+static struct {
     rect_t rect;
     bool calculated;
 } runtimes[MAX_LAYOUT_OBJECTS];
+
+#define UI_LISTBOX_FRAME_ROWS "FRAME_ROWS"
+
+static bool SCR_IsFrameRowsList(uiFrame_t const *frame) {
+    uiListBox_t const *list;
+    return frame && frame->flags.type == FT_LISTBOX && frame->buffer.data &&
+           frame->buffer.size >= sizeof(uiListBox_t) &&
+           (list = frame->buffer.data) && !strcmp(list->fetchCommand, UI_LISTBOX_FRAME_ROWS);
+}
+
+static bool SCR_FrameRowsScroll(uiFrame_t const *frame, uiFrame_t const **row_out,
+                                uint32_t *offset_out, bool *listed_out) {
+    uiFrame_t const *owner = NULL, *row = frame;
+    uiListBox_t const *list;
+    rect_t const *view;
+    uint32_t count = 0, index = UINT32_MAX, depth = 0;
+    int visible, max_scroll, offset;
+    float item_height;
+
+    if (listed_out) *listed_out = false;
+    if (!frame || frame->flags.type == FT_SCROLLBAR) return true;
+    /* Frame zero is the synthetic layout root and parents itself. Stop there;
+     * the depth bound also protects malformed parent cycles. */
+    while (row && row->number != 0 && row->parent < num_frames && depth++ < num_frames) {
+        uiFrame_t const *parent = frames + row->parent;
+        if (SCR_IsFrameRowsList(parent)) { owner = parent; break; }
+        if (parent->flags.type == FT_LISTBOX) return true;
+        row = parent;
+    }
+    if (!owner || !row || row->parent != owner->number || row->flags.type == FT_SCROLLBAR) return true;
+    if (listed_out) *listed_out = true;
+    list = owner->buffer.data;
+    item_height = list->itemHeight;
+    if (item_height <= 0.0f) return true;
+    FOR_LOOP(i, num_frames) {
+        uiFrame_t const *sibling = frames + i;
+        if (sibling->parent == owner->number && sibling->flags.type != FT_SCROLLBAR) {
+            if (sibling == row) index = count;
+            count++;
+        }
+    }
+    if (index == UINT32_MAX) return false;
+    view = SCR_LayoutRect(owner);
+    visible = MAX((int)floorf(view->h / item_height + 0.0001f), 1);
+    max_scroll = MAX((int)count - visible, 0);
+    offset = (int)lroundf(MIN(MAX(owner->value, 0.0f), 1.0f) * max_scroll);
+    if (row_out) *row_out = row;
+    if (offset_out) *offset_out = (uint32_t)offset;
+    return (int)index >= offset && (int)index < offset + visible;
+}
+
+bool SCR_LayoutFrameRowsVisible(uiFrame_t const *frame) {
+    bool listed;
+    bool visible = SCR_FrameRowsScroll(frame, NULL, NULL, &listed);
+    return !listed || visible;
+}
+
+static void SCR_ApplyFrameRowsScroll(uiFrame_t const *frame, rect_t *rect) {
+    uiFrame_t const *row = NULL;
+    uint32_t offset = 0;
+    bool listed;
+    bool visible = SCR_FrameRowsScroll(frame, &row, &offset, &listed);
+    if (listed && !visible) {
+        rect->w = rect->h = 0.0f;
+        return;
+    }
+    if (listed && frame == row) {
+        uiListBox_t const *list = frames[row->parent].buffer.data;
+        rect->y -= (float)offset * list->itemHeight;
+    }
+}
 
 /* Server-authored layers anchor to the canvas HUD root: the whole scene under stretch/expand policies, the
  * centered authored 4:3 area under UI_CANVAS_EXPAND_CENTER.  World-hover replaces this root with a projected
@@ -440,6 +510,7 @@ rect_t const *SCR_LayoutRect(uiFrame_t const *frame) {
         runtimes[frame->number].rect.x = 0.0f;
         runtimes[frame->number].rect.w = SCR_UICanvasWidth();
     }
+    SCR_ApplyFrameRowsScroll(frame, &runtimes[frame->number].rect);
     return &runtimes[frame->number].rect;
 }
 

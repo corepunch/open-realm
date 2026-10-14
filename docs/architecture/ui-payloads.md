@@ -298,3 +298,21 @@ Do **not** globally defer every decorated FDF texture. That experiment fixed the
 retain their background pass. `uiFrame_t.flagsvalue` uses `NFT_LONG` as of protocol 6 so this and future high bits survive
 both normal layout and window payloads. The sender owns model selection and attachment; the shared client does not
 inspect game command strings to decide whether to draw effects. See [WC3 button particles](../games/warcraft-3/ui-button-particles.md).
+
+## Gameplay HUD hit testing
+
+`SCR_LayoutHitTest` blocks world interaction for visible `FT_TEXTURE` rectangles,
+frames with a click command or tooltip, and individually hittable `FT_MULTISELECT`
+entries. Console skin tiles intentionally block selection and orders even without
+commands or tooltips; removing the texture case lets clicks leak through the HUD.
+Noninteractive frame containers and `FT_BACKDROP` frames do not block by themselves.
+Hidden layout layers and `LAYER_WORLD_HOVER` are excluded; modal game-result and
+quest-dialog layers block globally. `SCR_LayoutMouseEvent` separately dispatches
+clickable controls.
+
+`make test-core` covers the console edges across aspect ratios and canvas policies
+in `client_canvas.console_edges_capture_input_under_both_policies`, and hiding,
+restoring, and clearing the layer in
+`client_canvas.console_texture_input_follows_layer_visibility`. Browser selection
+also requires the bundled input bindings; see
+[Browser configuration](../platform/browser.md#bundled-warcraft-iii-defaults).

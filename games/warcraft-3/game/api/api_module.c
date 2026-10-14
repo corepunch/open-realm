@@ -1237,6 +1237,7 @@ jassModule_t jass_funcs[] = {
     { "IsItemPowerup", IsItemPowerup },
     { "SetItemPawnable", SetItemPawnable },
     { "UnitDropItemPoint", UnitDropItemPoint },
+    { "UnitDropItemTarget", UnitDropItemTarget },
     { "StringCase", StringCase },
     { "StringLength", StringLength },
     { "AddLightning", AddLightning },

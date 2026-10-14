@@ -564,7 +564,11 @@ uint32_t TriggerWaitForSound(jass_t *j) {
     float offset = jass_checknumber(j, 2);
     jassContext_t const *ctx = jass_getcontext(j);
     uint32_t duration = G_JassSoundRemainingDuration(s);
-    uint32_t wait_msec = G_SkipCutscene() ? 1 : duration + (uint32_t)(offset * 1000.0f);
+    double wait_msec_f = (double)duration - (double)offset * 1000.0;
+    bool const skip_cutscene = G_SkipCutscene();
+    uint32_t wait_msec = skip_cutscene ? 1 : 0;
+    if (!skip_cutscene && wait_msec_f > 0.0)
+        wait_msec = wait_msec_f >= UINT32_MAX ? UINT32_MAX : (uint32_t)wait_msec_f;
     if (QuestPeonStageDebugEnabled() && ctx && TutorialFlowDebugTrigger(ctx->trigger)) {
         char chain[256];
         jass_formatcallchain(j, chain, sizeof(chain));

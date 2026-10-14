@@ -94,6 +94,7 @@ static void spell_panel_test_write(pfWriteType_t type, void const *data) {
 static void spell_panel_test_unicast(edict_t *ent) { (void)ent; }
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+void AbilitySummonMisha_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *slk_text);
@@ -2113,6 +2114,66 @@ TEST(wc3_spell, simple_ability_summons_record_owner_ability_and_timed_life) {
         count++;
     }
     T_EQ(count, 2);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* OrcX01 issues the inherited "spiritwolf" order after removing the
+ * preplaced Misha. Arsg must resolve to its authored Misha data, then retire
+ * that Misha when the ability is cast again. */
+TEST(wc3_spell, rexxar_spiritwolf_order_uses_learned_summon_misha_alias) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"UnitID1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"Arsg\"\nC;Y2;X2;K\"AOsf\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K\"ngzc\"\nC;Y2;X6;K1\n"
+        "C;Y3;X1;K\"AOsf\"\nC;Y3;X2;K\"AOsf\"\nC;Y3;X3;K1\n"
+        "C;Y3;X4;K2\nC;Y3;X5;K\"nwlg\"\nC;Y3;X6;K1\nE\n";
+    UnitAbilities_t abilities = { .abilList = "", .heroAbilList = "Arsg" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *rexxar;
+    uint32_t misha_count = 0, wolf_count = 0;
+    edict_t *first_misha = NULL;
+
+    reset_entities();
+    setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    rexxar = make_hero(MAKEFOURCC('O','r','e','x'), 500.0f, 200.0f, 0.0f, 0.0f);
+    rexxar->data.UnitAbilities = &abilities;
+    rexxar->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','r','s','g'), .level = 1);
+    rexxar->s.player = 0;
+
+    T_EQ(G_AbilityCode(MAKEFOURCC('A','r','s','g')), MAKEFOURCC('A','O','s','f'));
+    T_EQ(G_UnitAbilityLevel(rexxar, MAKEFOURCC('A','O','s','f')), 1);
+    T_ASSERT(S_SpellAbilityForCode(MAKEFOURCC('A','r','s','g')) != NULL);
+    T_EQ(S_SpellUnitId(MAKEFOURCC('A','r','s','g'), 1), MAKEFOURCC('n','g','z','c'));
+    T_EQ(S_SpellData(MAKEFOURCC('A','r','s','g'), 1, 1), 1.0f);
+    T_ASSERT(G_UnitAbilityResearchAvailable(rexxar, MAKEFOURCC('A','r','s','g')));
+    T_ASSERT(G_IsUnitAbilityAvailable(rexxar, MAKEFOURCC('A','r','s','g')));
+    T_ASSERT(unit_issueimmediateorder(rexxar, "spiritwolf"));
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == rexxar) {
+        if (unit->class_id == MAKEFOURCC('n','g','z','c')) {
+            T_EQ(unit->summon_ability, MAKEFOURCC('A','r','s','g'));
+            first_misha = unit;
+            misha_count++;
+        }
+        if (unit->class_id == MAKEFOURCC('n','w','l','g')) wolf_count++;
+    }
+    T_EQ(misha_count, 1);
+    T_EQ(wolf_count, 0);
+
+    S_SpellResetCooldowns(rexxar);
+    T_NOT_NULL(first_misha);
+    AbilitySummonMisha_Execute(rexxar, (spellTarget_t){ .type = SPELL_TARGET_NONE },
+        &(abilityitem_t){ .code = MAKEFOURCC('A','r','s','g'),
+                          .ability = S_SpellAbilityForCode(MAKEFOURCC('A','r','s','g')) });
+    T_ASSERT(first_misha && M_IsDead(first_misha));
+    T_ASSERT(first_misha && first_misha->inuse);
+    T_EQ(first_misha ? first_misha->class_id : 0, MAKEFOURCC('n','g','z','c'));
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == rexxar && !M_IsDead(unit))
+        T_ASSERT(unit->class_id != MAKEFOURCC('n','w','l','g'));
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

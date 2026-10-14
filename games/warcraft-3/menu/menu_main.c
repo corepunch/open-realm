@@ -126,6 +126,10 @@ static const menucommand_t menu_commands[] = {
  * ConsoleTexture05/06 fields even though both extension tiles are installed.
  * When one symbolic key is absent, derive it from the resolved sibling path so
  * the active race/custom skin remains authoritative. */
+/* A press cannot survive a transition to a different screen. */
+static frameDef_t const *menu_pressed_frame;
+static bool menu_popup_pressed;
+
 /* Resolve resources before changing presentation; failure leaves the old screen intact. */
 static bool UI_LoadScreen(uiScreen_t *screen) {
     if (!screen || screen == ui_current_screen || screen == ui_state.transition_screen || !screen->load || screen->load()) return true;
@@ -156,6 +160,8 @@ static void UI_InstallScreen(uiScreen_t *screen) {
     fprintf(stderr, "UI_SetScreen: %s -> %s\n", ui_current_screen ? ui_current_screen->name : "(null)", screen ? screen->name : "(null)");
     if (ui_current_screen && ui_current_screen->shutdown) ui_current_screen->shutdown();
     ui_current_screen = screen;
+    menu_pressed_frame = NULL;
+    menu_popup_pressed = false;
     UI_UpdateMenuMusic(screen);
 }
 
@@ -328,6 +334,7 @@ static void UI_ClearScreen(void) {
     UI_InstallScreen(NULL);
 }
 
+/* A mouse release can activate only the same front-end control pressed earlier. */
 /* Refresh frame state flags before dispatch so draw never asks for mouse position. */
 static void UI_UpdateMouseFrameFlags(frameDef_t const *hit, bool clear_pressed) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
@@ -448,14 +455,14 @@ void M_TextInput(cstring_t text) {
     UI_EditTextInput(text);
 }
 
-void M_KeyEvent(int key, bool down, uint32_t time) {
+void M_KeyEvent(int key, uint32_t mods, bool down, uint32_t time) {
     (void)time;
 
     if (!ui_state.active || M_IsTransitioning()) {
         return;
     }
 
-    if (down && M_EditKey(key)) {
+    if (down && M_EditKey(key, mods)) {
         return;
     }
     
@@ -482,7 +489,7 @@ static vec2_t UI_PixelToFdf(int px, int py) {
 }
 
 /* All UI mouse work starts here so draw code only consumes event-updated state. */
-bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
+bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param, uint32_t mods) {
     bool const down = event == MENU_MOUSE_DOWN;
     bool const up = event == MENU_MOUSE_UP;
     bool const left = param == 1;
@@ -494,23 +501,36 @@ bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
      * directly without installing a screen controller. */
     if (!ui_state.active || M_IsTransitioning() ||
         (ui_state.initialized && !UI_GetCurrentScreen())) {
+        menu_pressed_frame = NULL;
+        menu_popup_pressed = false;
         return false;
     }
 
     vec2_t fdf = UI_PixelToFdf(x, y);
     ui_state.mouse_fdf = fdf;
     frameDef_t const *hit = UI_HitTest(fdf.x, fdf.y);
-    UI_UpdateMouseFrameFlags(hit, up && left);
+    /* The render module owns edit dragging even after the pointer leaves its frame. */
+    UI_EditDragEvent(event, fdf.x, param, mods);
+    if (down && left) {
+        menu_pressed_frame = hit;
+        menu_popup_pressed = UI_HasActivePopup() && UI_PopupPointInside(fdf.x, fdf.y);
+    }
+    if (up && left) {
+        if (hit != menu_pressed_frame) hit = NULL;
+        menu_pressed_frame = NULL;
+    }
+    UI_UpdateMouseFrameFlags(hit, down && left);
 
     if (wheel_y && UI_GetCurrentScreen() && UI_GetCurrentScreen()->scroll &&
-        UI_GetCurrentScreen()->scroll(fdf.x, fdf.y, wheel_y)) {
-        return true;
-    }
+        UI_GetCurrentScreen()->scroll(fdf.x, fdf.y, wheel_y)) return true;
 
     /* Dispatch to per-type event handler */
     if (hit && hit->event_handler) {
         hit->event_handler((frameDef_t *)hit, event, fdf.x, fdf.y, param);
     }
+
+    /* Clear pressed presentation after the release has been dispatched. */
+    if (up && left) UI_UpdateMouseFrameFlags(hit, true);
 
     /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */
     if (down && left) {
@@ -541,8 +561,10 @@ bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     if (UI_HasActivePopup() && wheel_y < 0) {
         UI_PopupMenuScroll(false);
     }
-    if (UI_HasActivePopup() && up && left) {
-        UI_PopupSelectItem(fdf.x, fdf.y);
+    if (up && left) {
+        if (menu_popup_pressed && UI_HasActivePopup() && UI_PopupPointInside(fdf.x, fdf.y))
+            UI_PopupSelectItem(fdf.x, fdf.y);
+        menu_popup_pressed = false;
     }
 
     UI_PopupMenuHover(fdf.x, fdf.y);

@@ -179,6 +179,40 @@ static uint32_t G_InventoryRequiredUpgrade(uint32_t ability_id) {
     }
 }
 
+/* Changing a player's Backpack research changes the *effective* inventory
+ * capacity and permissions of owned carriers. Command-card invalidation alone
+ * does not rebuild LAYER_INVENTORY for an already selected carrier. Refresh
+ * its focused presentation for every viewer, including shared-control allies.
+ * This remains generic: object data chooses the inventory ability and the
+ * player-tech table chooses whether that ability is unlocked. */
+void G_RefreshInventoryAfterTechChange(gameClient_t const *owner, uint32_t techid) {
+    if (!owner || !techid || !globals.edicts) return;
+    if (techid != MAKEFOURCC('R','h','p','m') &&
+        techid != MAKEFOURCC('R','o','p','m') &&
+        techid != MAKEFOURCC('R','e','p','m') &&
+        techid != MAKEFOURCC('R','u','p','m')) return;
+
+    FOR_LOOP(i, game.max_clients) {
+        edict_t *player = globals.edicts + i;
+        edict_t *focused;
+        cstring_t abilities;
+        bool affected = false;
+        if (!player->client || !player->client->connected) continue;
+        focused = G_GetMainSelectedUnit(player->client);
+        if (!focused || focused->s.player != owner->ps.number ||
+            !focused->data.UnitAbilities) continue;
+        abilities = focused->data.UnitAbilities->abilList;
+        if (!abilities) continue;
+        PARSE_LIST(abilities, abil, parse_segment) {
+            if (strlen(abil) == 4 && G_InventoryRequiredUpgrade(FS_SLKKey(abil)) == techid) {
+                affected = true;
+                break;
+            }
+        }
+        if (affected) G_RefreshInventoryLayer(player);
+    }
+}
+
 static bool G_InventoryAbilityAvailable(edict_t const *unit, cstring_t ability) {
     uint32_t ability_id;
     uint32_t required_upgrade;
@@ -412,7 +446,9 @@ void G_RunConsumedItemFrees(void) {
             level.pending_consumed_item_cleanup = true;
             continue;
         }
-        if (item->item->pending_use_carrier && item->item->pending_use_carrier->inuse) {
+        if (item->item->pending_use_carrier && item->item->pending_use_carrier->inuse &&
+            item->item->pending_use_carrier->spawn_time == item->item->pending_use_carrier_spawn_time &&
+            !G_IsDeferredFree(item->item->pending_use_carrier)) {
             abilityCall_t call = MAKE(abilityCall_t, .source_item = item,
                                       .source_item_spawn_time = item->spawn_time);
             S_UnitAbilityMessage(item->item->pending_use_carrier, A_ITEM_FINALIZE, &call);
@@ -428,8 +464,18 @@ int32_t G_FindFreeInventorySlot(edict_t const *unit) {
     return -1;
 }
 
+/* A zero-slot inventory may still use a rune or ability-less quest powerup.
+ * Ordinary items still require an available inventory slot. */
+static bool G_IsAbilitylessPowerup(edict_t const *item);
+static bool G_CanConsumePickupPowerup(edict_t *unit, edict_t *item) {
+    return G_InventoryCanUseItems(unit) &&
+           (S_ItemPowerup(unit, item).ability || G_IsAbilitylessPowerup(item));
+}
+
 bool G_CanPickupItem(edict_t *unit, edict_t *item) {
-    if (!G_UnitHasInventory(unit) || M_IsDead(unit) || !G_IsItem(item)) {
+    if (!G_UnitIsWorldActive(unit) || G_IsDeferredFree(unit) || M_IsDead(unit) ||
+        !G_IsItem(item) || G_IsDeferredFree(item) ||
+        (!G_UnitHasInventory(unit) && !G_CanConsumePickupPowerup(unit, item))) {
         return false;
     }
     return item->item->in_world && !item->item->carrier && item->item->inventory_slot == -1 &&
@@ -459,6 +505,52 @@ bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool p
 
 bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
     return G_AddItemToSlotInternal(unit, item, slot, true);
+}
+
+/* Transfer a carried item without manufacturing a world item. Native callers
+ * may move an item regardless of player-issued drop permissions; order callers
+ * validate those permissions before beginning an approach. The source and
+ * recipient inventories change together only after every check succeeds. */
+static bool G_TransferCarriedItemInternal(edict_t *recipient, edict_t *item, bool publish_drop) {
+    edict_t *source;
+    int32_t source_slot, target_slot;
+
+    if (!G_IsItem(item) || item->item->in_world || item->item->pending_use_removal ||
+        !recipient || !recipient->inuse || recipient->targtype == TARG_ITEM ||
+        recipient->destructable || recipient->client || M_IsDead(recipient) ||
+        !G_UnitHasInventory(recipient))
+        return false;
+    source = item->item->carrier;
+    source_slot = item->item->inventory_slot;
+    if (!source || !source->inuse || source_slot < 0 || source_slot >= MAX_INVENTORY ||
+        source->inventory[source_slot] != item) return false;
+    if (source == recipient) return true;
+    /* Ability-bound items (notably the filled Soul Gem) are never transferable
+     * to a different carrier, even through a scripted UnitAddItem. Plain
+     * ItemData.droppable=false remains bypassable by scripted natives. */
+    if (G_ItemAbilitiesPreventDrop(source, item)) return false;
+    target_slot = G_FindFreeInventorySlot(recipient);
+    if (target_slot < 0) return false;
+
+    G_ApplyItemStats(source, item, false);
+    source->inventory[source_slot] = NULL;
+    recipient->inventory[target_slot] = item;
+    item->item->carrier = recipient;
+    item->item->inventory_slot = target_slot;
+    G_ApplyItemStats(recipient, item, true);
+    G_RefreshInventoryUI(source);
+    G_RefreshInventoryUI(recipient);
+    if (publish_drop) {
+        G_PublishEventWithSource(source, EVENT_PLAYER_UNIT_DROP_ITEM, item);
+        G_PublishEventWithSource(source, EVENT_UNIT_DROP_ITEM, item);
+    }
+    G_PublishEventWithSource(recipient, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
+    G_PublishEventWithSource(recipient, EVENT_UNIT_PICKUP_ITEM, item);
+    return true;
+}
+
+bool G_TransferCarriedItem(edict_t *recipient, edict_t *item) {
+    return G_TransferCarriedItemInternal(recipient, item, false);
 }
 
 /* Ability-less powerups such as campaign Shimmerweed are quest pickups,
@@ -497,7 +589,8 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
         G_CompletePowerupUse(unit, item);
         return true;
     }
-    if (G_IsAbilitylessPowerup(item) && G_CanPickupItem(unit, item)) {
+    if (G_CanConsumePickupPowerup(unit, item) &&
+        G_IsAbilitylessPowerup(item) && G_CanPickupItem(unit, item)) {
         G_QueueOwnerSoundAlias(unit, "ItemGet");
         G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
         G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
@@ -529,11 +622,13 @@ static void G_PickupItemThink(edict_t *unit) {
     float distance;
     float move_distance;
 
-    if (!G_CanPickupItem(unit, item)) {
+    /* Tech or an ability override may revoke player pickup permission while
+     * the carrier is walking. Recheck at execution, not just at order issue. */
+    if (!G_InventoryCanGetItems(unit) || !G_CanPickupItem(unit, item)) {
         G_StopPickupOrder(unit);
         return;
     }
-    if (G_FindFreeInventorySlot(unit) < 0 && !S_ItemPowerup(unit, item).ability && !G_IsAbilitylessPowerup(item)) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !G_CanConsumePickupPowerup(unit, item)) {
         G_ShowInventoryFull(unit);
         G_StopPickupOrder(unit);
         return;
@@ -542,7 +637,7 @@ static void G_PickupItemThink(edict_t *unit) {
     distance = M_DistanceToGoal(unit);
     if (distance <= ITEM_PICKUP_RANGE) {
         if (!G_PickupItem(unit, item) && G_FindFreeInventorySlot(unit) < 0 &&
-            !S_ItemPowerup(unit, item).ability && !G_IsAbilitylessPowerup(item)) {
+            !G_CanConsumePickupPowerup(unit, item)) {
             G_ShowInventoryFull(unit);
         }
         G_StopPickupOrder(unit);
@@ -565,7 +660,7 @@ bool G_OrderPickupItem(edict_t *unit, edict_t *item) {
         (unit->aiflags & AI_IMMOBILE)) {
         return false;
     }
-    if (G_FindFreeInventorySlot(unit) < 0 && !S_ItemPowerup(unit, item).ability && !G_IsAbilitylessPowerup(item)) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !G_CanConsumePickupPowerup(unit, item)) {
         G_ShowInventoryFull(unit);
         return false;
     }
@@ -719,6 +814,90 @@ static umove_t item_move_drop = {
     .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .proc = CAbilityInventory
 };
 
+/* Use the authored GiveItemRange for unit-target handoff (separate from
+ * DropItemRange). The two collision radii are included in unit reach. */
+static float G_GiveItemReach(edict_t const *source, edict_t const *recipient) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", "GiveItemRange");
+    float range = value ? atof(value) : ITEM_DROP_RANGE;
+    return MAX(0.0f, range) + MAX(0.0f, source->collision) + MAX(0.0f, recipient->collision);
+}
+
+static bool G_CanGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
+    int32_t slot;
+    if (!source || !G_UnitIsWorldActive(source) || M_IsDead(source) ||
+        !G_UnitIsWorldActive(recipient) || M_IsDead(recipient) ||
+        recipient == source || (recipient->s.renderfx & RF_HIDDEN) ||
+        G_IsDeferredFree(recipient) || recipient->targtype == TARG_ITEM ||
+        recipient->destructable || recipient->client || !G_UnitHasInventory(recipient) ||
+        !G_PlayerTreatsPlayerAsAlly(source->s.player, recipient->s.player) ||
+        !G_InventoryCanDropItems(source) || !G_IsItem(item) || item->item->in_world ||
+        item->item->carrier != source || !G_ItemDroppable(item) ||
+        G_ItemAbilitiesPreventDrop(source, item)) return false;
+    slot = item->item->inventory_slot;
+    return slot >= 0 && slot < MAX_INVENTORY && source->inventory[slot] == item;
+}
+
+static void G_GiveItemThink(edict_t *source) {
+    edict_t *item = source ? source->item_drop : NULL;
+    edict_t *recipient = source ? source->goalentity : NULL;
+    float distance, move_distance;
+
+    if (!G_CanGiveItemTarget(source, item, recipient)) {
+        G_StopDropItemOrder(source);
+        return;
+    }
+    distance = M_DistanceToGoal(source);
+    if (distance <= G_GiveItemReach(source, recipient)) {
+        if (!G_TransferCarriedItemInternal(recipient, item, true)) {
+            /* Warcraft drops an unaccepted item at the recipient's feet. A
+             * full inventory is not grounds for deleting the carried item. */
+            vec2_t const position = recipient->s.origin2;
+            if (G_DropItemAt(source, (uint32_t)item->item->inventory_slot, &position)) {
+                G_PublishEventWithSource(source, EVENT_PLAYER_UNIT_DROP_ITEM, item);
+                G_PublishEventWithSource(source, EVENT_UNIT_DROP_ITEM, item);
+            }
+        } else {
+            G_QueueOwnerSoundAlias(source, "ItemDrop");
+        }
+        G_StopDropItemOrder(source);
+        return;
+    }
+    move_distance = unit_movedistance(source);
+    if (move_is_blocked(source, distance, move_distance)) {
+        G_StopDropItemOrder(source);
+        return;
+    }
+    unit_changeangle(source);
+    unit_moveindirection(source);
+}
+
+static umove_t item_move_give = {
+    .animation = "walk", .think = G_GiveItemThink, .endfunc = NULL, .proc = CAbilityInventory
+};
+
+bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient) {
+    if (!G_CanGiveItemTarget(source, item, recipient))
+        return false;
+    source->goalentity = recipient;
+    if (source->aiflags & AI_IMMOBILE) {
+        /* Buildings such as Rexxar's Stash cannot approach a Hero. Permit a
+         * direct handoff when the recipient is already within GiveItemRange. */
+        if (M_DistanceToGoal(source) > G_GiveItemReach(source, recipient)) {
+            source->goalentity = NULL;
+            return false;
+        }
+        source->item_drop = item;
+        G_GiveItemThink(source);
+        return true;
+    }
+    move_reset_progress(source);
+    unit_setmove(source, &item_move_give);
+    /* unit_setmove clears a pending item_drop when replacing an old order. */
+    source->item_drop = item;
+    unit_setanimation(source, "stand");
+    return true;
+}
+
 bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position) {
     if (!unit || !item || !position || !G_InventoryCanDropItems(unit) ||
         !G_ItemDroppable(item) || G_ItemAbilitiesPreventDrop(unit, item) || (unit->aiflags & AI_IMMOBILE) ||
@@ -766,6 +945,44 @@ void G_RemoveItem(edict_t *item) {
     item->item->inventory_slot = -1;
     item->item->in_world = false;
     G_FreeEdict(item);
+}
+
+/* RemoveUnit is not a death drop: inventory objects carried by the retired
+ * unit are disposed of, not spawned into the world or orphaned. Run after
+ * A_UNIT_REMOVE so ability-owned releases (e.g. Soul Trap) happen first.
+ *
+ * A script may temporarily detach an item from its slot while keeping the
+ * carrier pointer (A_ITEM_SCRIPT_REMOVE). Also, consumed items can retain a
+ * pending-use carrier pointer while an event action reads their JASS handle.
+ * Scan only inventory-capable owners; ordinary unit and effect removal must
+ * not turn into an O(num_edicts) operation on every frame. */
+void G_ReleaseInventoryOnUnitRemoval(edict_t *unit) {
+    bool inventory_owner;
+
+    if (!unit || !unit->inuse || unit->targtype == TARG_ITEM) return;
+    inventory_owner = G_InventoryCapacity(unit) > 0;
+    FOR_LOOP(slot, MAX_INVENTORY) {
+        edict_t *item = unit->inventory[slot];
+        if (!item) continue;
+        inventory_owner = true;
+        if (G_IsItem(item) && item->item->carrier == unit)
+            G_RemoveItem(item);
+        else
+            unit->inventory[slot] = NULL;
+    }
+    if (!inventory_owner) return;
+    /* Detached items have carrier==unit but are not present in any slot.
+     * Pending-use items keep their own handle until queued events complete;
+     * clear only the obsolete carrier link in that case. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *item = globals.edicts + i;
+        if (!item->inuse || item->targtype != TARG_ITEM || !item->item) continue;
+        if (item->item->carrier == unit) G_RemoveItem(item);
+        else if (item->item->pending_use_carrier == unit) {
+            item->item->pending_use_carrier = NULL;
+            item->item->pending_use_carrier_spawn_time = 0;
+        }
+    }
 }
 
 /* Use an item in inventory by slot index. Calls the item's ability cmd handler. */

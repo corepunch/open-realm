@@ -41,6 +41,9 @@ void SCR_WindowSetCameraNamespace(uintptr_t window_namespace);
 bool SCR_WindowLayoutIsCurrent(handle_t layout);
 void SCR_LayoutDrawOverlay(handle_t layout);
 bool SCR_LayoutHitTest(int x, int y);
+bool SCR_LayoutFrameRowsVisible(uiFrame_t const *frame);
+/* X in UI canvas units; returns nearest editable text byte offset. */
+uint32_t SCR_LayoutEditCaretAt(uiFrame_t const *edit_frame, cstring_t value, float x);
 bool SCR_LayoutModalActive(void);
 void SCR_LayoutClampSelectionRect(rect_t *rect);
 void SCR_DrawLayout(void);

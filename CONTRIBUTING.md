@@ -166,3 +166,7 @@ installing Flatpak tooling with APT on the runner.
 
 - Never add `DYLIB_LOOKUP := -Wl,-undefined,dynamic_lookup` or otherwise rely on `-Wl,-undefined,dynamic_lookup` in this repository.
 - If a target has unresolved symbols, fix the dependency graph or shared implementation instead of weakening the linker contract.
+
+## Browser platform foundation
+
+The opt-in `make web-warcraft3-foundation` target builds only the Emscripten/SDL2/WebGL 2 smoke test. See [Browser platform](docs/platform/browser.md). Do not treat this as a Warcraft III runtime or substitute it for the native test suite.

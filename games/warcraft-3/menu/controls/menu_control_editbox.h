@@ -79,10 +79,12 @@ static uint32_t UI_EditMaxChars(frameDef_t const *frame) {
 static void UI_FocusEdit(frameDef_t *frame) {
     if (!frame) {
         active_edit = NULL;
+        drag_edit = NULL;
         active_ti.text = NULL;
         active_ti.size = 0;
         active_ti.max_chars = 0;
         active_ti.cursor = 0;
+        active_ti.anchor = 0;
         return;
     }
     if (active_edit != frame) {
@@ -92,17 +94,20 @@ static void UI_FocusEdit(frameDef_t *frame) {
         active_ti.size = text_frame ? sizeof(text_frame->TextStorage) : 0;
         active_ti.max_chars = UI_EditMaxChars(frame);
         active_ti.cursor = (uint32_t)strlen(UI_EditText(frame));
+        active_ti.anchor = active_ti.cursor;
     }
 }
 
-bool M_EditKey(int key) {
+bool M_EditKey(int key, uint32_t mods) {
     int result;
 
     if (!active_edit) {
         return false;
     }
 
-    result = M_TextInput_Key(&active_ti, key);
+    result = M_TextInput_KeyModified(&active_ti, key,
+                                    (mods & KEY_MOD_SHIFT) != 0,
+                                    (mods & KEY_MOD_CTRL) != 0);
     switch (result) {
         case MENU_TEXTINPUT_CONSUMED:
             return true;
@@ -128,6 +133,49 @@ void UI_EditTextInput(cstring_t text) {
     }
 }
 
+/* Resolve the nearest character boundary in the current edit text. */
+static uint32_t UI_EditCursorAt(frameDef_t const *frame, float x) {
+    refExport_t *renderer = mi.GetRenderer();
+    frameDef_t *text_frame = UI_EditTextFrame(frame);
+    rect_t const *rect = UI_LayoutRect(frame);
+    cstring_t text = UI_EditText(frame);
+    font_t const *font;
+    char prefix[512];
+    drawText_t measure;
+    size_t n, len;
+    float const origin = rect ? rect->x + MAX(0.0f, frame->Edit.BorderSize) +
+                                frame->Edit.TextOffset.x : 0.0f;
+    float const target = MAX(0.0f, x - origin);
+    float previous = 0.0f;
+    if (!renderer || !text_frame)
+        return (uint32_t)strlen(text);
+    font = renderer->LoadFont(UI_FontFile(text_frame->Font.Name),
+                              UI_FontPixelSize(text_frame->Font.Size));
+    if (!font) return (uint32_t)strlen(text);
+    len = MIN(strlen(text), sizeof(prefix) - 1);
+    measure = MAKE(drawText_t, .font = font, .lineHeight = 1.33f,
+                        .halign = FONT_JUSTIFYLEFT);
+    for (n = 1; n <= len; ++n) {
+        float width;
+        memcpy(prefix, text, n);
+        prefix[n] = '\0';
+        measure.text = prefix;
+        width = renderer->GetTextSize(&measure).x;
+        if (target < (previous + width) * 0.5f) return (uint32_t)(n - 1);
+        previous = width;
+    }
+    return (uint32_t)len;
+}
+
+static void UI_EditPointer(frameDef_t *frame, float x, bool extend) {
+    uint32_t cursor;
+    if (!frame) return;
+    UI_FocusEdit(frame);
+    cursor = UI_EditCursorAt(frame, x);
+    active_ti.cursor = cursor;
+    if (!extend) active_ti.anchor = cursor;
+}
+
 static void UI_DrawEditBox(frameDef_t const *frame, rect_t const *rect) {
     refExport_t *renderer = mi.GetRenderer();
     frameDef_t *text_frame = UI_EditTextFrame(frame);
@@ -148,6 +196,38 @@ static void UI_DrawEditBox(frameDef_t const *frame, rect_t const *rect) {
     text_rect.x += frame->Edit.TextOffset.x;
     text_rect.y += frame->Edit.TextOffset.y;
 
+    /* Paint selected text before glyphs and the caret; the default is grey. */
+    if (active_edit == frame && M_TextInput_HasSelection(&active_ti)) {
+        cstring_t text = UI_EditText(frame);
+        size_t len = strlen(text);
+        size_t start = MIN(MIN(active_ti.anchor, active_ti.cursor), len);
+        size_t end = MIN(MAX(active_ti.anchor, active_ti.cursor), len);
+        char prefix[512], selected[512];
+        font_t const *font = renderer->LoadFont(UI_FontFile(text_frame->Font.Name),
+                                                UI_FontPixelSize(text_frame->Font.Size));
+        if (font && end < sizeof(prefix)) {
+            drawText_t measure = MAKE(drawText_t, .font = font, .lineHeight = 1.33f,
+                                      .rect = text_rect, .textWidth = text_rect.w,
+                                      .halign = FONT_JUSTIFYLEFT,
+                                      .valign = text_frame->Font.Justification.Vertical);
+            vec2_t before_size, selection_size;
+            rect_t highlight = text_rect;
+            color32_t color = frame->Edit.HighlightColor.a
+                ? frame->Edit.HighlightColor : MAKE(color32_t, 120, 120, 120, 255);
+            memcpy(prefix, text, start); prefix[start] = 0;
+            memcpy(selected, text + start, end - start); selected[end - start] = 0;
+            measure.text = prefix;
+            before_size = renderer->GetTextSize(&measure);
+            measure.text = selected;
+            selection_size = renderer->GetTextSize(&measure);
+            highlight.x += before_size.x;
+            highlight.w = MIN(selection_size.x, MAX(0.0f, text_rect.w - before_size.x));
+            if (highlight.w > 0) renderer->DrawImageEx(&MAKE(drawImage_t,
+                .texture = NULL, .shader = SHADER_UI, .alphamode = BLEND_MODE_BLEND,
+                .screen = highlight, .uv = MAKE(rect_t, 0, 0, 1, 1),
+                .color = color, .flags = DRAW_CLIP, .clip = text_rect));
+        }
+    }
     UI_DrawText(text_frame, &text_rect);
 
     if (active_edit == frame && renderer && renderer->DrawText && renderer->GetTextSize) {

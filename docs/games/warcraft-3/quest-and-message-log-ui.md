@@ -63,6 +63,16 @@ Required and optional quests are rendered into separate authored containers.
 optional quest. `UI_ShowQuest` populates the authored tree and sends one complete
 window snapshot; the server does not retain client-window open or selection state.
 
+Each quest section shows at most three complete quest rows. Its scrollbar sits
+just outside the right edge of the buttons, independently from the other
+section, and uses the standard chat scrollbar art. The client treats these as
+row-backed list boxes, advances by whole row heights, and moves each row's
+button/icon/highlight subtree together; off-page rows are removed from drawing
+and hit testing. Completed quests are listed after incomplete quests, keeping
+the authored order within each group. The `FRAME_ROWS`
+listbox fetch-command marker identifies this generic client-side row-list
+contract, while quest membership and row contents remain server-authored.
+
 Quest rows and objective rows are cloned lazily and then reused. This is
 important because FDF frames live in a fixed `MAX_UI_CLASSES` pool; cloning a
 new row tree on every quest click/refresh permanently consumes frame slots.

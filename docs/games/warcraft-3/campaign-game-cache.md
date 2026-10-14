@@ -95,6 +95,57 @@ The snapshot deliberately does not claim to serialize transient simulation
 objects such as buffs, cooldown timers, current orders, production/revival state,
 projectile state, or trigger-local references. Those require separate saved-game/state contracts.
 
+For the stash's map-authored unit configuration, Backpack activation and still-unverified six-slot ability source, see [Rexxar's Stash](rexxar-stash.md).
+
+## Rexxar Stash: temporary carrier removal (Patch B)
+
+The extracted OrcX01 script uses a hidden temporary `Obla` to carry the six
+items from `h003` (Rexxar's Stash). It stores that unit under campaign
+`Campaigns.w3v`, mission `OrcX02`, entry `Stash`, and removes the temporary
+unit. `SaveGameCache()` commits the stored unit at the script's save boundary,
+even if it occurs after `RemoveUnit()` has been requested. This is authored
+campaign JASS: the engine must
+not hardcode those keys or create an alternative storage container.
+
+`G_GameCacheStoreUnit()` copies each item type and charges by slot into a
+**value snapshot**. Neither `SaveGameCache()` nor `RestoreUnit()` requires the
+source unit to remain alive after `StoreUnit()` returns. `RemoveUnit()` uses
+`G_DeferFreeEdict()` to hide the unit immediately, then runs `G_FreeEdict()`
+at the end-of-frame removal boundary. The latter now calls
+`G_ReleaseInventoryOnUnitRemoval()` **after** the unit's `A_UNIT_REMOVE`
+ability callbacks and before releasing its pooled state. Carried item entities
+are removed, not left pointing at a recycled edict and not dropped into the
+world; `RemoveUnit` is not equivalent to a unit dying with inventory `inv2`.
+Previously transferred items owned by another unit are unaffected.
+
+Script-detached items that still refer to the old carrier are retired too.
+Consumed-item handles retained for pending JASS event responses remain alive
+until those responses finish, but lose obsolete `pending_use_carrier` links;
+finalization also checks the carrier's entity generation. No item or cache
+serialization fields are added by this change.
+
+**Headless verification:** `wc3_items.remove_unit_cleans_six_carried_items_without_world_drops`,
+`wc3_items.remove_unit_preserves_items_already_transferred_elsewhere`,
+`wc3_items.remove_unit_cleans_script_detached_item`, and
+`wc3_api.rexxar_stash_cache_survives_hidden_carrier_removal`. The last test
+uses a fixture `Hpal` hero with six inventory slots instead of the campaign's
+`Obla`, which is not in the small test fixture. It exercises inventory handoff,
+`StoreUnit`, `SaveGameCache`, deferred removal, and restoration through JASS.
+It does **not** verify OrcX02 map-trigger ordering or the complete cross-map
+script-save workspace, which still require campaign integration testing.
+
+### Sparse inventory restoration regression (Patch D)
+
+In addition to the Patch B full six-slot `Obla`-style carrier fixture,
+`wc3_api.rexxar_stash_cache_sparse_slots_survive_carrier_removal` stores two
+charged items at opposite ends of the inventory (`0`, `5`) and leaves slots
+`1`–`4` empty. The test verifies type, charges and *unchanged slot indexes*
+after `StoreUnit`, carrier removal, `SaveGameCache`, and `RestoreUnit`. The
+cache is in memory mode to keep headless tests independent of external
+campaign files. It does not exercise the engine-owned disk checkpoint scope,
+manual-save binding or OrcX02's original map script: those remain campaign
+integration verification requirements.
+
 ## Storage Modes and Persistence Format
 
 The default `disk` mode loads the last committed sidecar in the active
@@ -261,3 +312,13 @@ cache blocks via reflinks on Linux, or compress them in their private storage
 when CoW is unavailable. Loading a named save expands/copies those files into
 a separate writable playthrough branch before map initialization. Older
 uncompressed checkpoints remain readable. See [save/load](save-load.md#campaign-owned-live-workspaces-and-compact-snapshots).
+
+### Rexxar stash handoff prerequisite
+
+OrcX01 moves stash inventory items into a temporary hidden `Obla` carrier and
+stores that carrier under the `Campaigns.w3v` / `OrcX02` / `Stash` key. The
+generic `UnitAddItem` carried-item transfer now supports moving existing item
+handles directly from the stash inventory to the carrier without a world drop.
+The campaign-cache contents, commit boundary, temporary carrier removal and
+OrcX02 restore semantics are independent of that handoff and are not modified
+by the inventory-transfer patch.

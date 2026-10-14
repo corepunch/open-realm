@@ -1979,10 +1979,10 @@ static bool G_ItemDragSelectEntity(edict_t *clent, edict_t *target) {
         Get_Portrait_f(clent);
         return true;
     }
-    /* Warsmash uses an entity-target drop for allied item handoff. OpenRealm
-     * does not yet have that transfer behavior, but keep the drag target mode
-     * authoritative instead of letting a unit click fall through to selection. */
-    return false;
+    /* Targeted item giving uses the same order as UnitDropItemTarget. An
+     * inventory-capable allied building is a valid destination too. */
+    return client && G_UnitCanControl(client, carrier) &&
+           G_OrderGiveItemTarget(carrier, item, target);
 }
 
 /* Complete an inventory point drop using the exact item captured by the drag command. */
