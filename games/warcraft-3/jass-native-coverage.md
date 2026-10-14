@@ -611,3 +611,8 @@ reattachment remains the first branch. See
 [Inventory And World Items](../../docs/games/warcraft-3/inventory-and-items.md#unit-to-unit-item-handoff).
 
 Item pools: `CreateItemPool`, `DestroyItemPool`, `ItemPoolAddItemType`, `ItemPoolRemoveItemType` and `PlaceRandomItem` implement bounded weighted item creation (see `docs/games/warcraft-3/inventory-and-items.md`).
+
+Item owner/death-drop natives: `GetItemPlayer` and `SetItemPlayer` use item
+entity player ownership independently of inventory carriers. `SetItemDropOnDeath`
+overrides the carrier inventory's default death-drop policy per item. The
+`SetItemPlayer` `changeColor` flag currently has no additional visual effect.

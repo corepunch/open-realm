@@ -733,11 +733,15 @@ bool G_DropItem(edict_t *unit, uint32_t slot) {
 
 void G_DropInventoryOnDeath(edict_t *unit) {
     uint32_t capacity;
+    bool default_drop;
 
-    if (!unit || !G_InventoryDropsItemsOnDeath(unit)) return;
+    if (!unit) return;
+    default_drop = G_InventoryDropsItemsOnDeath(unit);
     capacity = G_InventoryCapacity(unit);
     FOR_LOOP(slot, capacity) {
-        if (unit->inventory[slot] && !G_ItemAbilitiesPreventDrop(unit, unit->inventory[slot]))
+        edict_t *item = unit->inventory[slot];
+        if (!G_IsItem(item) || G_ItemAbilitiesPreventDrop(unit, item)) continue;
+        if (item->item->drop_on_death_set ? item->item->drop_on_death : default_drop)
             G_DropItemAtInternal(unit, slot, &unit->s.origin2, false);
     }
 }
