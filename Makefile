@@ -60,7 +60,7 @@ ifeq ($(WC3_DEBUG_TUTORIAL_FLOW),1)
 endif
 # Include Warcraft III result/score investigation logging only when requested.
 ifeq ($(WC3_DEBUG_SCORE),1)
-	CFLAGS += -DWC3_DEBUG_SCORE
+	CFLAGS += -DBZ_WC3_DEBUG_SCORE
 endif
 # ---------------------------------------------------------------------------
 # Platform detection

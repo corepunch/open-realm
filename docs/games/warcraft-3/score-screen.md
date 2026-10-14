@@ -413,3 +413,12 @@ experiment. The separate unit-cost score discrepancy (12,465 versus OpenRealm
 discrepancy was a comparison error: retail's `3` is Arthas's level label, while
 OpenRealm's `2` was a scalar hero creation count; the retail portrait-list
 presentation is not yet implemented.
+
+### Score diagnostic cleanup (2026-10-14)
+
+Removed investigation-only unit lifecycle tracing and first-frame survivor
+audits. Largest Army remains the highest observed food usage, including
+scripted setup peaks, without a post-startup reset or scan. Optional bounded
+score summaries are compiled via `WC3_DEBUG_SCORE=1` (internal
+`BZ_WC3_DEBUG_SCORE`) and gated by `wc3_game_result_debug 1`; gameplay and score
+accounting remain independent.

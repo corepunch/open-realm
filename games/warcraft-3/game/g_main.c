@@ -97,16 +97,6 @@ static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
      * and must never masquerade as a second copy of Player(0). */
     /* Each map player may explicitly disable its own row. Never infer that
      * false means disabled unless SetPlayerOnScoreScreen was actually called. */
-#ifdef WC3_DEBUG_SCORE
-    /* A bounded end-of-match audit catches heroes restored or transferred
-     * through paths that bypass the production hook. */
-    if (G_GameResultDebugEnabled()) {
-        FILTER_EDICTS(ent, ent->inuse && G_UnitIsHero(ent)) {
-            WC3_SCORE_LOG("score hero audit owner=%u rawcode=%08x entity=%u level=%u xp=%u scripted_xp=%u dead=%u",
-                ent->s.player, ent->class_id, ent->s.number, ent->hero.level, ent->hero.xp,
-                ent->score_level_xp, (unsigned)((ent->svflags & SVF_DEADMONSTER) != 0));
-        }
-    }
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_PLAYERS)) {
         gameClient_t const *client = game.clients + i;
         wc3ScorePlayerSnapshot_t *entry;
@@ -1478,7 +1468,7 @@ bool G_IsSinglePlayer(void) {
 /* All WC3_RESULT score/lifecycle diagnostics share this build-time gate.
  * The cvar remains a separate run-time switch in instrumented builds. */
 bool G_GameResultDebugEnabled(void) {
-#ifdef WC3_DEBUG_SCORE
+#ifdef BZ_WC3_DEBUG_SCORE
     return gi.CvarString && atoi(gi.CvarString("wc3_game_result_debug", "0")) != 0;
 #else
     return false;
@@ -1486,7 +1476,7 @@ bool G_GameResultDebugEnabled(void) {
 }
 
 void G_GameResultDebug(cstring_t format, ...) {
-#ifdef WC3_DEBUG_SCORE
+#ifdef BZ_WC3_DEBUG_SCORE
     va_list args;
 
     if (!G_GameResultDebugEnabled()) return;
@@ -1674,12 +1664,6 @@ static void G_RunFrame(void) {
     G_SolveCollisions();
     G_RunDeferredFrees();
     G_RunConsumedItemFrees();
-    /* The map config/main and first simulation pass may remove temporary
-     * preplaced armies. Capture the first playable food level here, not
-     * during ClientBegin (which need not occur at frame zero). This changes
-     * only the *score peak*, never authoritative gameplay food usage. */
-    if (level.framenum == 1)
-        G_PlayerScoreSetGameplayFoodBaseline();
     G_FowUpdate();
     G_UpdateClientSelections();
     G_FowSendDeltas();

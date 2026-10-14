@@ -94,14 +94,10 @@ TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
 
 static unsigned score_debug_log_argument_evaluations;
 
-static unsigned score_debug_log_test_argument(void) {
-    return ++score_debug_log_argument_evaluations;
-}
-
 TEST(wc3_score, disabled_score_log_skips_argument_evaluation) {
     score_debug_log_argument_evaluations = 0;
-    WC3_SCORE_LOG("test argument evaluation=%u", score_debug_log_test_argument());
-#ifdef WC3_DEBUG_SCORE
+    WC3_SCORE_LOG("test argument evaluation=%u", ++score_debug_log_argument_evaluations);
+#ifdef BZ_WC3_DEBUG_SCORE
     T_EQ(score_debug_log_argument_evaluations, 1);
 #else
     T_EQ(score_debug_log_argument_evaluations, 0);
@@ -128,7 +124,7 @@ TEST(wc3_score, diagnostic_build_gate_matches_configuration) {
     gi.CvarString = score_debug_test_cvar_disabled;
     disabled_with_cvar = !G_GameResultDebugEnabled();
     gi.CvarString = score_debug_test_cvar_enabled;
-#ifdef WC3_DEBUG_SCORE
+#ifdef BZ_WC3_DEBUG_SCORE
     enabled_with_cvar = G_GameResultDebugEnabled();
 #else
     enabled_with_cvar = !G_GameResultDebugEnabled();
@@ -141,24 +137,18 @@ TEST(wc3_score, diagnostic_build_gate_matches_configuration) {
     T_ASSERT(disabled_without_cvar);
 }
 
-/* Retail Normal map initialization creates an army before RemoveUnit trims it.
- * The historical peak must survive the first gameplay audit. */
-TEST(wc3_score, gameplay_food_audit_preserves_initialization_peak) {
+/* The retail peak survives scripted food reductions without an audit pass. */
+TEST(wc3_score, gameplay_food_peak_survives_initialization_removals) {
     gameClient_t *client;
-    mapPlayer_t *player;
-
     setup_test_world();
     client = &game.clients[1];
-    player = &((mapInfo_t *)level.mapinfo)->players[1];
-    player->used = true;
-    client->mapplayer = player;
-    client->ps.number = 1;
-    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 127;
-    client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] = 171;
-
-    G_PlayerScoreSetGameplayFoodBaseline();
-    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 127);
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 171;
+    G_PlayerScoreObserveFood(client);
     T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 171);
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 127;
+    G_PlayerScoreObserveFood(client);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 171);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 127);
 }
 
 TEST(wc3_score, unit_value_uses_authored_cost_not_unit_count) {

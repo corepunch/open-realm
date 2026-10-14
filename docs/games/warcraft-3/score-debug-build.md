@@ -2,9 +2,7 @@
 
 The game module's `WC3_SCORE_LOG(...)` macro uses `G_GameResultDebug` to emit
 `WC3_RESULT` records for result/score-screen transitions, score calculations,
-hero events, unit creation, removal/death/transfer, `ShowUnit` visibility, and
-food accounting (where those
-trace sites are present). To keep these investigation traces off in normal
+bounded score and result-stage summaries. To keep these investigation traces off in normal
 builds, compile with `WC3_DEBUG_SCORE=1` and explicitly enable the existing
 runtime cvar when running:
 
@@ -16,8 +14,8 @@ make build -j4 FFMPEG=1 WC3_DEBUG_SCORE=1
 The build switch is disabled by default. Every score/result trace call uses
 `WC3_SCORE_LOG(...)`, which expands to `((void)0)` in normal builds; its format
 and arguments are not evaluated. Instrumented builds route those calls through
-the helper, which checks the runtime cvar before printing. The build flag also
-omits the diagnostic hero survivor walk and legacy tech comparison scan.
+the helper, which checks the runtime cvar before printing. Investigative per-unit, world-dump, and legacy tech-comparison traces have
+been removed; gameplay score tracking is always enabled.
 `wc3_game_result_debug 1` cannot activate these records when the module was
 built without `WC3_DEBUG_SCORE`; when built with the flag, the cvar still
 defaults to off. Both switches are

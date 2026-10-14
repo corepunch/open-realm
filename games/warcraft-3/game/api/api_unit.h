@@ -160,10 +160,8 @@ uint32_t ShowUnit(jass_t *j) {
         return 0;
     }
     if (show && !G_UnitIsWorldActive(whichUnit)) {
-        G_PlayerScoreTraceLifecycle(whichUnit, "showunit_rejected_inactive");
         return 0;
     }
-    G_PlayerScoreTraceLifecycle(whichUnit, show ? "showunit_show_before" : "showunit_hide_before");
     was_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
     if (show) {
         whichUnit->s.renderfx &= ~RF_HIDDEN;
@@ -171,9 +169,6 @@ uint32_t ShowUnit(jass_t *j) {
         whichUnit->s.renderfx |= RF_HIDDEN;
     }
     is_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
-    G_PlayerScoreTraceLifecycle(whichUnit,
-        was_hidden == is_hidden ? "showunit_unchanged" :
-        (is_hidden ? "showunit_hide_after" : "showunit_show_after"));
     if (was_hidden != is_hidden) {
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         /* Visibility is part of both Hero-shortcut and idle-worker eligibility.

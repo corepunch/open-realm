@@ -944,7 +944,6 @@ void G_SpawnEntities(cstring_t map_path) {
         SP_CallSpawn(ent);
         G_FillMapPlacedUnitMana(ent);
         if (ent->s.flags & EF_UNIT) {
-            G_PlayerScoreTraceLifecycle(ent, "map_unit_enter");
             G_PlayerScoreUnitTrained(ent); /* preplaced map units count */
         }
         if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (uint32_t)-1)

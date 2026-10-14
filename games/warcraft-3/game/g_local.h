@@ -21,7 +21,7 @@
 
 /* Investigative score/result traces only. Arguments are not evaluated unless
  * WC3_DEBUG_SCORE=1 enables this instrumentation for the game module. */
-#ifdef WC3_DEBUG_SCORE
+#ifdef BZ_WC3_DEBUG_SCORE
 #define WC3_SCORE_LOG(...) G_GameResultDebug(__VA_ARGS__)
 #else
 #define WC3_SCORE_LOG(...) ((void)0)
@@ -3041,10 +3041,8 @@ void G_SetUnitColorOverride(edict_t *unit, uint32_t color);
 void G_ClearUnitColorOverride(edict_t *unit);
 void G_RecomputePlayerUpkeep(gameClient_t *client);
 void G_PlayerScoreObserveFood(gameClient_t *client);
-void G_PlayerScoreSetGameplayFoodBaseline(void);
 void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state);
 void G_PlayerScoreUnitTrained(edict_t *unit);
-void G_PlayerScoreTraceLifecycle(edict_t const *unit, cstring_t event);
 void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount);
 uint32_t G_PlayerScoreScriptedXP(uint32_t player);
 bool G_ScorePlayerEligible(gameClient_t const *client);
