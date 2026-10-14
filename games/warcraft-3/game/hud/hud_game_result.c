@@ -103,6 +103,7 @@ void UI_LoadHudGameResult(void) {
         GameResultPrepareWindow();
         GameResultCreateReduceButton();
     }
+    (void)global_strings; /* Used only by the optional score diagnostics below. */
     BZ_WC3_SCORE_LOG("hud load global_strings=%u dialog_loaded=%u root=%p text=%p continue=%p restart=%p quit=%p",
         (unsigned)global_strings, (unsigned)dialog_loaded,
         (void *)hud.result.GameResultDialog, (void *)hud.result.GameResultText,
