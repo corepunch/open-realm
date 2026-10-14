@@ -639,6 +639,18 @@ It consumes the rune even when no magical effects are nearby and uses the
 authored TargetArt through the existing effect pipeline. Retail visual/audio
 timing still needs in-game comparison.
 
+### Speed and Shielding buff presentation
+
+Rune of Speed (`APsa`) and other timed item-speed variants now opt their
+authored buff status into the shared persistent `TargetArt` lifecycle. Rune of
+Shielding (`ANse`) similarly opts its one-charge `BNss` status into that
+lifecycle without adding an expiry timer. The buff rawcode resolves the model,
+not the ability's one-shot `TargetArt`. Refresh/reapplication is deduplicated;
+expiry, dispel, or consumption of the shield charge retires the owned effect.
+The existing ability `TargetArt` remains a separate one-shot activation effect.
+This does not by itself establish retail parity for authored sounds or model
+animation sequences.
+
 ## JASS item enumeration
 
 `EnumItemsInRect` enumerates in-world items within the given rectangle. Its optional
