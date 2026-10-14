@@ -1031,7 +1031,8 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;
 
     target = *point;
-    CM_ClosestPathablePointForRadiusFlags(point, self->collision, M_UnitStaticPathingFlags(self), &target);
+    if (!self->no_pathing)
+        CM_ClosestPathablePointForRadiusFlags(point, self->collision, M_UnitStaticPathingFlags(self), &target);
     waypoint = Waypoint_add(&target);
     if (!waypoint) return false;
     if (!strcmp(order, "patrol")) {
