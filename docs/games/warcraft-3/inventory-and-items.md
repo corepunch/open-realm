@@ -614,6 +614,21 @@ death, an overridden item follows this flag; otherwise the inventory ability's
 attached for normal hero-death/revival behaviour. This is separate from
 `SetItemDroppable`, which controls ordinary player-initiated drops.
 
+### Permanent-stat tome powerups
+
+The ability registry permits automatic consumption of `AIsm`, `AIam`, `AIim`,
+`AIxm`, `AImi`, `AIem` and `AIlm` **only** for ItemData rows explicitly marked
+`powerup` and `usable`. These share the ordinary carried-item ability procedure,
+but pickup dispatch uses the actual collector rather than a client selection.
+Values come from the concrete ability rawcode's Data fields, including custom
+map overrides. Pickup and use events precede deferred removal, as for other
+ability-bearing runes. Non-powerup items carrying these abilities retain their
+normal inventory/use behavior; unsupported nonempty powerup abilities are not
+silently consumed.
+
+Hero-only attribute and XP/level effects require a hero recipient. Further
+retail comparison is needed for consumption on failed hero-only effects.
+
 ## JASS item enumeration
 
 `EnumItemsInRect` enumerates in-world items within the given rectangle. Its optional
