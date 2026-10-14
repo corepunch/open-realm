@@ -103,6 +103,33 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
         cell->Font.Justification.Horizontal = FONT_JUSTIFYCENTER;
         cell->Font.Justification.Vertical = FONT_JUSTIFYMIDDLE;
     }
+    /* Retail's Heroes Used column holds a portrait plus level for each
+     * currently owned hero, not a number. The stock FDF defines the column
+     * but does not supply these per-player runtime frames. */
+    FOR_LOOP(h, WC3_SCORE_HERO_PORTRAITS) {
+        frameDef_t *portrait = ScoreScreenSpawn(root, FT_TEXTURE);
+        frameDef_t *level = ScoreScreenSpawn(root, FT_TEXT);
+        if (!portrait || !level) return false;
+        hud.score_rows[slot].hero_icons[h] = portrait;
+        hud.score_rows[slot].hero_levels[h] = level;
+        ScoreScreenPlace(portrait, root, 0.158f + h * 0.019f, -0.003f, 0.018f, 0.021f);
+        ScoreScreenPlace(level, root, 0.158f + h * 0.019f, -0.018f, 0.018f, 0.012f);
+        level->Font = score->ScoreScreen4ColumnHeader[0]->Font;
+        level->Font.Size = 0.009f; /* runtime hero badge: visual matching pending */
+        level->Font.Color = MAKE(color32_t, 255, 215, 48, 255);
+        level->Font.Justification.Horizontal = FONT_JUSTIFYRIGHT;
+        level->Font.Justification.Vertical = FONT_JUSTIFYBOTTOM;
+        UI_SetHidden(portrait, true);
+        UI_SetHidden(level, true);
+    }
+    hud.score_rows[slot].hero_overflow = ScoreScreenSpawn(root, FT_TEXT);
+    if (!hud.score_rows[slot].hero_overflow) return false;
+    ScoreScreenPlace(hud.score_rows[slot].hero_overflow, root, 0.233f, -0.003f, 0.020f, 0.024f);
+    hud.score_rows[slot].hero_overflow->Font = score->ScoreScreen4ColumnHeader[0]->Font;
+    hud.score_rows[slot].hero_overflow->Font.Size = 0.008f;
+    hud.score_rows[slot].hero_overflow->Font.Justification.Horizontal = FONT_JUSTIFYCENTER;
+    hud.score_rows[slot].hero_overflow->Font.Justification.Vertical = FONT_JUSTIFYMIDDLE;
+    UI_SetHidden(hud.score_rows[slot].hero_overflow, true);
     return true;
 }
 
@@ -271,13 +298,34 @@ static void ScoreScreenFillRow(uint32_t slot, uint32_t tab,
     UI_SetHidden(hud.score_rows[slot].icon, !icon);
     if (icon) UI_SetTexture(hud.score_rows[slot].icon, icon, false);
     UI_SetText(hud.score_rows[slot].name, "%s", player->name);
+    /* Every tab reuses these row frames. Hide stale portraits when switching
+     * away from Heroes or changing the sorted/scrolled player in this slot. */
+    FOR_LOOP(h, WC3_SCORE_HERO_PORTRAITS) {
+        bool const visible = tab == 2 && h < player->hero_count &&
+            player->heroes[h].art[0];
+        frameDef_t *portrait = hud.score_rows[slot].hero_icons[h];
+        frameDef_t *badge = hud.score_rows[slot].hero_levels[h];
+        UI_SetHidden(portrait, !visible);
+        UI_SetHidden(badge, !visible);
+        if (visible) {
+            UI_SetTexture(portrait, player->heroes[h].art, false);
+            UI_SetText(badge, "%u", (unsigned)player->heroes[h].level);
+        }
+    }
+    UI_SetHidden(hud.score_rows[slot].hero_overflow,
+                 tab != 2 || player->hero_count <= WC3_SCORE_HERO_PORTRAITS);
+    if (tab == 2 && player->hero_count > WC3_SCORE_HERO_PORTRAITS)
+        UI_SetText(hud.score_rows[slot].hero_overflow, "+%u",
+                   (unsigned)(player->hero_count - WC3_SCORE_HERO_PORTRAITS));
     FOR_LOOP(c, 5) {
         frameDef_t *cell = hud.score_rows[slot].cells[c];
         int32_t value = 0;
         bool percent = false;
         bool const has_value = c < count && WC3_ScoreCellValue(player, tab, c, &value, &percent);
-        UI_SetHidden(cell, c >= count);
-        if (c >= count) continue;
+        /* Keep the first Heroes column available to sorting/audits but do
+         * not print its numeric count over the hero portraits. */
+        UI_SetHidden(cell, c >= count || (tab == 2 && c == 0));
+        if (c >= count || (tab == 2 && c == 0)) continue;
         UI_SetSize(cell, width, SCORE_ROW_H - 0.006f);
         /* Column offsets are the *retail FDF header centers*, in a canvas
          * of width 0.8. The row start subtracts its independent left inset. */

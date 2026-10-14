@@ -106,6 +106,9 @@ typedef struct {
     struct {
         frameDef_t *root, *backdrop, *border, *icon, *name;
         frameDef_t *cells[5];
+        frameDef_t *hero_icons[WC3_SCORE_HERO_PORTRAITS];
+        frameDef_t *hero_levels[WC3_SCORE_HERO_PORTRAITS];
+        frameDef_t *hero_overflow;
     } score_rows[WC3_SCORE_VISIBLE_ROWS];
     frameDef_t *score_elapsed;
     frameDef_t *game_result_reduce_button;

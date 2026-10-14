@@ -212,9 +212,9 @@ still need confirmation against the extraction.
 - Toggle Teams and the ally-colour control (if the FDF binds it), and compare
   the provisional grouping/palette against controlled retail teams.
 - Press O on the score screen; it should trigger the same OK action once.
-- Verify Heroes Used, Experience and Traded show a dash until tracked, and
-  that resource column values follow the retail headings rather than arbitrary
-  fallback score totals.
+- Compare each Heroes Used portrait/level pair with retail after transfers,
+  hiding, death, revival and removal. Verify the frozen snapshot survives tab
+  changes and that resources follow retail headings rather than guessed totals.
 - Ensure a missing `ScoreScreen.fdf` proceeds to the destination.
 
 Compilation, gameplay, rendering and the above observations remain for the
@@ -243,8 +243,9 @@ regression is supplied but local compilation/runtime testing was not performed.
 ### Retail score-data corrections (13 October 2026)
 
 The UndeadX07c reference captures at ~9 seconds show two participants
-(Naphos and Faceless Ones), 7 and 50 Units Produced, 3 Heroes Used and
-500 Experience Gained for Naphos, and **Total Score = Unit + Hero + Resource**.
+(Naphos and Faceless Ones), 7 and 50 Units Produced, one level-3 Arthas
+portrait in Heroes Used, and 500 Experience Gained for Naphos. The `3` in that
+portrait is a hero **level**, not a count. **Total Score = Unit + Hero + Resource**.
 The reference is *evidence for this map*, not a proof of general retail weights.
 The prior fallback enumerated script-only map factions and returned 550/250
 aggregate points from an unrelated Tech Percentage bonus.
@@ -266,16 +267,15 @@ peak food used, already tracked by the authoritative food subsystem. All
 W3I participants now get an initial preplaced-food pass, not only clients that
 connect, so AI armies contribute to their own largest-army peaks.
 
-The current scalar Heroes Used counter counts units entering play that are
-classified as heroes; it is diagnostic only and does not match retail's
-portrait-and-level presentation. Experience Gained is the sum of positive hero
-XP changes through the common
+The current Heroes Used presentation snapshots current player-owned hero
+instances and displays their portraits with level labels. Experience Gained is
+the sum of positive hero XP changes through the common
 `G_HeroSetXP` path, including JASS grants and combat XP. The Heroes page renders
-both values; the Heroes Score formula now includes **GUESS** 10× XP after the
-single retail sample (500 XP => 5000 Hero Score). The pre-existing kill and
-item weights are **GUESS** too. The temporary Unit Score is still weighted by
-raw event counts rather than Warcraft unit-cost values; do not expect it to
-match the retail 12465/2325 yet.
+the hero roster and XP value; the Heroes Score formula now includes **GUESS**
+10× XP after the single retail sample (500 XP => 5000 Hero Score). The
+pre-existing kill and item weights are **GUESS** too. The temporary Unit Score
+is still weighted by raw event counts rather than Warcraft unit-cost values;
+do not expect it to match the retail 12465/2325 yet.
 
 The Units page now exposes all five retail fields: produced, killed, buildings
 produced, buildings razed and largest army. Resources Traded shows the retail
@@ -411,8 +411,7 @@ Retail Hard screenshot reporting 71 has not been reproduced by this Normal
 experiment. The separate unit-cost score discrepancy (12,465 versus OpenRealm
 15,030) remains unresolved and is not adjusted. The apparent Heroes Used
 discrepancy was a comparison error: retail's `3` is Arthas's level label, while
-OpenRealm's `2` was a scalar hero creation count; the retail portrait-list
-presentation is not yet implemented.
+OpenRealm's `2` was a scalar hero creation count.
 
 ### Score diagnostic cleanup (2026-10-14)
 
@@ -422,3 +421,28 @@ scripted setup peaks, without a post-startup reset or scan. Optional bounded
 score summaries are compiled via `WC3_DEBUG_SCORE=1` (internal
 `BZ_WC3_DEBUG_SCORE`) and gated by `wc3_game_result_debug 1`; gameplay and score
 accounting remain independent.
+
+### Retail Heroes Used portraits and current ownership (14 October 2026)
+
+Controlled TFT 1.29.2 experiments show that the Heroes Used column presents
+individual hero portraits with their **levels**, not a historical numeric
+creation count. In a fresh UndeadX07c run, the `3` belongs to level-3 Arthas;
+Anubarak, transferred to Neutral Passive, is not listed under Player 0.
+
+The outgoing score snapshot now scans currently owned hero edicts. Each distinct
+instance is represented separately, including duplicate rawcodes. Hidden, dead
+and revived heroes remain included; finished `RemoveUnit` and pending deferred
+removals are excluded. The snapshot copies entity identity, level and authored
+portrait texture before map unload. A unit's owner at snapshot time determines
+which player's Heroes page lists it. Hero Score, gained XP and JASS score IDs
+are unaffected. The previous persisted `heroes_used` creation counter has been
+removed, requiring save version 95.
+
+The generated score row uses the authored unit command-button art, with a
+small level label. **Presentation approximation:** native score-row placement
+and level badge styling are not available in the supplied FDF. Four portraits
+fit in the existing five-column row; larger hero rosters show a `+N` overflow
+indicator while retaining the full count for sorting. This is a bounded UI
+policy, not a recovered retail overflow rule. Retest the portrait sizes at
+4:3 and wide resolutions. Preplaced/cross-mission cached hero edge cases
+are still pending separate retail verification.

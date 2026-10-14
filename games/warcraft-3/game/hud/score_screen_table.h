@@ -51,7 +51,9 @@ static inline bool WC3_ScoreCellValue(wc3ScorePlayerSnapshot_t const *p,
         return true;
     }
     if (tab == 2 && col == 0) {
-        *out = (int32_t)MIN(p->heroes_used, (uint32_t)INT32_MAX);
+        /* Numeric projection is only for sorting/audits; retail's cell
+         * contains individual portraits and their levels, not this number. */
+        *out = (int32_t)MIN(p->hero_count, (uint32_t)INT32_MAX);
         if (percent) *percent = false;
         return true;
     }

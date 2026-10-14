@@ -245,7 +245,6 @@ TEST(wc3_score, hero_experience_appears_in_hero_score) {
     G_HeroSetXP(hero, 500);
     G_HeroSetXP(hero, 600);
     G_HeroSetXP(hero, 200); /* lowering an XP value must not add score */
-    T_EQ(client->score.heroes_used, 1);
     T_EQ(client->score.experience_gained, 600);
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_HERO_TOTAL, &hero_total));
     T_EQ(hero_total, 6000); /* Provisional retail reference: 10 points/XP. */
@@ -293,7 +292,7 @@ TEST(wc3_score, retail_score_table_uses_separate_columns_and_does_not_fabricate_
     T_EQ(value, 70);
     T_ASSERT(WC3_ScoreCellValue(&player, 2, 1, &value, &percent));
     T_EQ(value, 3);
-    player.heroes_used = 3;
+    player.hero_count = 3;
     player.experience_gained = 500;
     T_ASSERT(WC3_ScoreCellValue(&player, 2, 0, &value, &percent));
     T_EQ(value, 3);
@@ -381,6 +380,100 @@ TEST(wc3_score, score_sort_unavailable_values_last_and_groups_teams) {
     T_EQ(order[0], 0); T_EQ(order[1], 1); T_EQ(order[2], 2); T_EQ(order[3], 3);
     WC3_ScoreSortColumn(&view, 1, 4); /* Invalid Units column is ignored. */
     T_EQ(view.column, 0);
+}
+
+/* Retail 1.29.2 Heroes Used renders portraits at their current levels.
+ * Ownership changes affect which player gets the portrait; death and
+ * ShowUnit(false) do not; removed heroes are not part of the roster. */
+TEST(wc3_score, hero_portrait_roster_tracks_current_ownership_and_levels) {
+    edict_t *arthas, *anubarak, *duplicate;
+    wc3ScorePlayerSnapshot_t first = { .number = 0 };
+    wc3ScorePlayerSnapshot_t other = { .number = 1 };
+    setup_test_world();
+    arthas = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    anubarak = alloc_test_unit(MAKEFOURCC('H','b','l','m'), 64.0f, 0.0f);
+    duplicate = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 128.0f, 0.0f);
+    T_NOT_NULL(arthas); T_NOT_NULL(anubarak); T_NOT_NULL(duplicate);
+    arthas->s.player = anubarak->s.player = duplicate->s.player = 0;
+    arthas->hero.level = 3;
+    anubarak->hero.level = 7;
+    duplicate->hero.level = 2;
+    G_PlayerScoreSnapshotHeroes(&first);
+    T_EQ(first.hero_count, 3);
+    T_EQ(first.heroes[0].entity, arthas->s.number);
+    T_EQ(first.heroes[0].level, 3);
+    T_EQ(first.heroes[1].level, 7);
+    T_EQ(first.heroes[2].entity, duplicate->s.number); /* same type, different hero */
+    T_EQ(first.heroes[2].level, 2);
+
+    anubarak->s.player = 1;
+    arthas->s.renderfx |= RF_HIDDEN;
+    arthas->svflags |= SVF_DEADMONSTER;
+    G_PlayerScoreSnapshotHeroes(&first);
+    G_PlayerScoreSnapshotHeroes(&other);
+    T_EQ(first.hero_count, 2);
+    T_EQ(first.heroes[0].entity, arthas->s.number);
+    T_EQ(first.heroes[0].level, 3);
+    T_EQ(other.hero_count, 1);
+    T_EQ(other.heroes[0].entity, anubarak->s.number);
+    T_EQ(other.heroes[0].level, 7);
+    arthas->svflags &= ~SVF_DEADMONSTER; /* Revive: identity remains stable. */
+    G_PlayerScoreSnapshotHeroes(&first);
+    T_EQ(first.hero_count, 2);
+    T_EQ(first.heroes[0].entity, arthas->s.number);
+    T_EQ(first.heroes[0].level, 3);
+
+    G_DeferFreeEdict(duplicate); /* JASS RemoveUnit retires after the tick. */
+    T_ASSERT(G_IsDeferredFree(duplicate));
+    G_PlayerScoreSnapshotHeroes(&first);
+    T_EQ(first.hero_count, 1);
+    G_ResetDeferredFrees();
+    duplicate->inuse = false; /* Removal completed. */
+    G_PlayerScoreSnapshotHeroes(&first);
+    T_EQ(first.hero_count, 1);
+    T_EQ(first.heroes[0].entity, arthas->s.number);
+}
+
+TEST(wc3_score, hero_portrait_snapshot_is_immutable_and_not_creation_count) {
+    edict_t *hero;
+    wc3ScorePlayerSnapshot_t player = { .number = 0 };
+    int32_t sort_value = 0;
+    setup_test_world();
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    T_NOT_NULL(hero);
+    hero->s.player = 0;
+    hero->hero.level = 3;
+    G_PlayerScoreUnitTrained(hero);
+    G_PlayerScoreUnitTrained(hero); /* even a duplicate event must not change the roster */
+    G_PlayerScoreSnapshotHeroes(&player);
+    T_EQ(player.hero_count, 1);
+    T_ASSERT(WC3_ScoreCellValue(&player, 2, 0, &sort_value, NULL));
+    T_EQ(sort_value, 1);
+    hero->hero.level = 4;
+    hero->s.player = 1;
+    T_EQ(player.heroes[0].level, 3);
+    T_EQ(player.hero_count, 1);
+    G_PlayerScoreSnapshotHeroes(&player);
+    T_EQ(player.hero_count, 0);
+}
+
+TEST(wc3_score, hero_portrait_roster_keeps_full_count_when_art_slots_fill) {
+    wc3ScorePlayerSnapshot_t player = { .number = 0 };
+    int32_t count = 0;
+    setup_test_world();
+    FOR_LOOP(i, WC3_SCORE_HERO_PORTRAITS + 1u) {
+        edict_t *hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'),
+                                       (float)i * 64.0f, 0.0f);
+        T_NOT_NULL(hero);
+        hero->s.player = 0;
+        hero->hero.level = i + 1;
+    }
+    G_PlayerScoreSnapshotHeroes(&player);
+    T_EQ(player.hero_count, WC3_SCORE_HERO_PORTRAITS + 1u);
+    T_ASSERT(WC3_ScoreCellValue(&player, 2, 0, &count, NULL));
+    T_EQ(count, (int32_t)WC3_SCORE_HERO_PORTRAITS + 1);
+    T_EQ(player.heroes[WC3_SCORE_HERO_PORTRAITS - 1].level,
+         WC3_SCORE_HERO_PORTRAITS);
 }
 
 TEST(wc3_score, scripted_level_xp_follows_current_hero_owner) {

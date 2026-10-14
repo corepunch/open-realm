@@ -110,7 +110,7 @@ static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
         entry->race = client->ps.race;
         entry->team = client->ps.team;
         entry->color = client->ps.color;
-        entry->heroes_used = client->score.heroes_used;
+        G_PlayerScoreSnapshotHeroes(entry);
         entry->experience_gained = (uint32_t)MIN((uint64_t)client->score.experience_gained +
             G_PlayerScoreScriptedXP(number), (uint64_t)INT32_MAX);
         strlcpy(entry->name,

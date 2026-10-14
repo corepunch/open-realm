@@ -591,14 +591,17 @@ typedef enum {
 /* Conservative viewport size until runtime row metrics can be verified against retail.
  * FDF only authors the fixed header and scrollbar, not dynamic row geometry. */
 #define WC3_SCORE_VISIBLE_ROWS 10u
+/* Native Heroes-page column fits four individual portrait/level pairs.
+ * Hero count still tracks all currently owned instances if a map exceeds this. */
+#define WC3_SCORE_HERO_PORTRAITS 4u
 
 typedef struct {
     /* Raw engine-owned score counters.  Aggregate score formulas stay separate
      * until their retail weighting is established. */
     uint32_t values[WC3_PLAYER_SCORE_COUNT];
-    /* Retail pages expose hero usage and earned XP separately from common.j's
-     * fixed PLAYER_SCORE_* ids. Persist alongside the raw counters. */
-    uint32_t heroes_used, experience_gained;
+    /* Earned XP has no common.j PLAYER_SCORE_* id; persist independently.
+     * Heroes Used is a current-entity presentation, not a persisted counter. */
+    uint32_t experience_gained;
     /* Cost-weighted event totals; counts above remain separate for retail tabs. */
     uint32_t unit_value_produced, unit_value_killed, structure_value_built, structure_value_razed;
 } wc3PlayerScoreState_t;
@@ -606,10 +609,16 @@ typedef struct {
 /* Transient, immutable outgoing-match presentation. Never serialized in
  * gameClient_t or level: a zone save must not resurrect an old score modal. */
 typedef struct {
+    uint32_t entity, rawcode, level;
+    char art[MAX_PATHLEN]; /* copy authored portrait art before unloading the map */
+} wc3ScoreHeroSnapshot_t;
+
+typedef struct {
     uint32_t number, race, team, color;
     char name[64];
     int32_t values[WC3_PLAYER_SCORE_COUNT];
-    uint32_t heroes_used, experience_gained;
+    uint32_t hero_count, experience_gained;
+    wc3ScoreHeroSnapshot_t heroes[WC3_SCORE_HERO_PORTRAITS];
 } wc3ScorePlayerSnapshot_t;
 
 typedef struct {
@@ -3043,6 +3052,7 @@ void G_RecomputePlayerUpkeep(gameClient_t *client);
 void G_PlayerScoreObserveFood(gameClient_t *client);
 void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state);
 void G_PlayerScoreUnitTrained(edict_t *unit);
+void G_PlayerScoreSnapshotHeroes(wc3ScorePlayerSnapshot_t *player);
 void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount);
 uint32_t G_PlayerScoreScriptedXP(uint32_t player);
 bool G_ScorePlayerEligible(gameClient_t const *client);

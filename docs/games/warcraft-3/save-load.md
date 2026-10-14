@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 90, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 95, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -875,3 +875,12 @@ creation may temporarily require extra space, and compression is a fallback,
 not guaranteed. On filesystems without reflink support, restores materialize
 new live files in full. A separate aggregate quota, explicit storage audit
 command, and crash-recovery garbage collector remain future improvements.
+
+### Hero score-screen snapshot and version 95
+
+The Heroes Used column is built from currently owned hero entities when the
+score screen freezes the outgoing match. It is not a persisted running counter.
+Version 95 removes `heroes_used` from the serialized `gameClient_t::score`
+layout; the serializer rejects version 94 and earlier without migration. The
+score-screen hero portraits/levels are transient and are not saved. Earned XP
+and the existing unit/resource score state still round-trip normally.

@@ -67,8 +67,29 @@ void G_PlayerScoreUnitTrained(edict_t *unit) {
     client = G_ScoreClient(unit->s.player);
     G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_UNITS_TRAINED, 1);
     if (client) G_ScoreAddValue(&client->score.unit_value_produced, G_ScoreUnitValue(unit));
-    if (G_UnitIsHero(unit) && client && client->score.heroes_used < INT32_MAX) {
-        client->score.heroes_used++;
+    /* Heroes Used is captured from current entities in the outgoing snapshot. */
+}
+
+/* Capture retail Heroes Used as current hero portraits, not historical
+ * creation events. A transfer moves the hero to its new owner; hiding and
+ * death retain it, while RemoveUnit (including deferred free) excludes it.
+ * Capture identities and art before the outgoing level is unloaded. */
+void G_PlayerScoreSnapshotHeroes(wc3ScorePlayerSnapshot_t *player) {
+    if (!player) return;
+    player->hero_count = 0;
+    memset(player->heroes, 0, sizeof(player->heroes));
+    FILTER_EDICTS(hero, hero->inuse && hero->s.player == player->number &&
+                  G_UnitIsHero(hero) && !hero->training && !G_IsDeferredFree(hero)) {
+        uint32_t const index = player->hero_count++;
+        wc3ScoreHeroSnapshot_t *entry;
+        cstring_t art;
+        if (index >= WC3_SCORE_HERO_PORTRAITS) continue;
+        entry = &player->heroes[index];
+        entry->entity = hero->s.number;
+        entry->rawcode = hero->class_id;
+        entry->level = MAX(1u, hero->hero.level);
+        art = hero->data.UnitProfile ? hero->data.UnitProfile->art : NULL;
+        if (art) strlcpy(entry->art, art, sizeof(entry->art));
     }
 }
 
