@@ -67,8 +67,8 @@ scaled native vertex Z + lowest footprint cliff layer * 128 - 256
     + bilinear raw W3E height at the vertex's world XY
 ```
 
-Raw heights exclude interpolated cliff layers but include renderer terrain deformation. Preserve
-quarter-unit W3E precision (`DECODE_HEIGHT` divides by `4.0f`). Using the center's single terrain Z
+Raw heights exclude interpolated cliff layers but include renderer terrain deformation, sampled through `R_GetVertexPosition`
+so the fitted mesh uses the same height decode as the ground mesh. Using the center's single terrain Z
 leaves the cave roof flat and disconnected; adding each vertex's interpolated cliff layer collapses
 stacked lower wall vertices onto the roof. Keeping side/rear generated cliffs was an unsuccessful
 workaround for this missing fitting step and must not return.
@@ -93,8 +93,8 @@ Retail confirmation from the September 2002 demo `Game.dll` (SHA-256
 | `0x6f11e200`, `0x6f11e3e0` | Adds bilinear raw terrain height (`0x6f11ada0`, flags 4) per vertex; updates normals at terrain grid corners. |
 
 The reported OrcX01 `YCr2` is at W3E cell `(12,160)`, footprint `3×3`, center `(-4416,12480)`.
-Its previous integer-decoded center Z was `257.5` (full-precision sampling gives `257.9375`); the rear native vertex `(-192,192,256)` must end at world
-`(-4224,12672,528.75)`. The colocated native Z=0 wall vertex remains 256 units lower.
+Its center terrain Z is `257.5`; the rear native vertex `(-192,192,256)` must end at world
+`(-4224,12672,528)`. The colocated native Z=0 wall vertex remains 256 units lower.
 `wc3_terrain.orcx01_cave_vertices_follow_raw_height_and_keep_stacked_walls` embeds the 16 actual
 W3E heights/layers and checks these joins, another interior height, shared-model isolation, both UV
 channels, cache reuse, terrain invalidation, transport-anchor rebinding and the outer entity culler's fitted bounds. The full-footprint

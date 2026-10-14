@@ -570,10 +570,10 @@ TEST(wc3_terrain, orcx01_cave_vertices_follow_raw_height_and_keep_stacked_walls)
     tr.world = &map; w3_special_meshes = &placement;
     mdxModel_t const *fitted = R_W3SpecialModel(&entity, &transform);
     T_NE(fitted, &mdx);
-    T_FEQ(fitted->geosets->vertices[0].z + entity.origin.z, 528.75f, .001f);
-    T_FEQ(fitted->geosets->vertices[1].z + entity.origin.z, 272.75f, .001f);
-    T_FEQ(fitted->geosets->vertices[2].z + entity.origin.z, 207.75f, .001f);
-    T_FEQ(fitted->geosets->vertices[3].z + entity.origin.z, 347.9375f, .001f);
+    T_FEQ(fitted->geosets->vertices[0].z + entity.origin.z, 528, .001f);
+    T_FEQ(fitted->geosets->vertices[1].z + entity.origin.z, 272, .001f);
+    T_FEQ(fitted->geosets->vertices[2].z + entity.origin.z, 207, .001f);
+    T_FEQ(fitted->geosets->vertices[3].z + entity.origin.z, 347.5f, .001f);
     T_FEQ(positions[0].z, 256, .001f); /* Registry model remains reusable by other placements. */
     T_NULL(fitted->ribbon_states);
     T_EQ(mdx.ribbon_states, &ribbon);
@@ -596,17 +596,17 @@ TEST(wc3_terrain, orcx01_cave_vertices_follow_raw_height_and_keep_stacked_walls)
     R_W3InvalidateSpecialModels();
     T_NULL(placement.model);
     fitted = R_W3SpecialModel(&entity, &transform);
-    T_FEQ(fitted->geosets->vertices[0].z + entity.origin.z, 608.75f, .001f);
+    T_FEQ(fitted->geosets->vertices[0].z + entity.origin.z, 608, .001f);
     /* Rebinding the transport anchor must not translate the fitted world roof. */
     entity.origin.z += 40; transform.v[14] += 40;
     fitted = R_W3SpecialModel(&entity, &transform);
-    T_FEQ(fitted->geosets->vertices[0].z + entity.origin.z, 608.75f, .001f);
+    T_FEQ(fitted->geosets->vertices[0].z + entity.origin.z, 608, .001f);
     /* The outer entity culler must use fitted bounds too, before the draw. */
     entity.angle = 0;
     box3_t bounds;
     T_ASSERT(R_GetEntityBounds(&entity, &bounds));
-    T_FEQ(bounds.max.z, 339.25f, .001f);
-    T_FEQ(bounds.min.z, -13.25f, .001f);
+    T_FEQ(bounds.max.z, 338.5f, .001f);
+    T_FEQ(bounds.min.z, -13.5f, .001f);
     R_W3FreeSpecialModel(&placement);
     T_NULL(placement.model);
     T_FEQ(positions[0].z, 256, .001f);
