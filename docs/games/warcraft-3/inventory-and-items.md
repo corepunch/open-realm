@@ -651,6 +651,14 @@ The existing ability `TargetArt` remains a separate one-shot activation effect.
 This does not by itself establish retail parity for authored sounds or model
 animation sequences.
 
+### Rune of Spirit Link (`rspl` / `Aspp`)
+
+`Aspp` executes automatically on pickup and shares the normal `Aspl`/`Bspl`
+damage-redistribution implementation. The collector is the center and priority
+target; the rune's authored `DataB`, `Area`, `Dur`/`HeroDur`, `BuffID` and
+target flags govern selection and status lifetime. The rune is consumed even
+with no eligible recipients.
+
 ## JASS item enumeration
 
 `EnumItemsInRect` enumerates in-world items within the given rectangle. Its optional

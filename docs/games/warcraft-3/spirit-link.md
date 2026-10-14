@@ -9,7 +9,7 @@ wrong.
 | Rawcode | Archive | Class | Notes |
 | --- | --- | --- | --- |
 | `Aspl` | TFT | `CAbilitySpiritLink` | Spirit Walker unit ability |
-| `Aspp` | TFT | `code=Aspl` | Rune of Spirit Link; unregistered (item/rune) |
+| `Aspp` | TFT | `code=Aspl` | Rune of Spirit Link; automatic power-up |
 
 | Field | Stock | Meaning |
 | --- | ---: | --- |
@@ -62,4 +62,4 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.spirit_link*'
 
 Focused tests cover procedure lookup, authored DataA/DataB (non-stock), area
 cap, damage split to linked allies, unlinked immunity, expiry, and recast
-refresh. `Aspp` remains unregistered.
+refresh. `Aspp` uses the same Spirit Link status and damage redistribution, but activates immediately around the collecting unit, using its own authored area, count, duration, target flags and buff. It consumes even if no eligible unit can receive a buff.

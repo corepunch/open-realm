@@ -499,6 +499,7 @@ static ability_t abilitylist[] = {
     { "Acpf", CAbilityBanish, AB_SPELL },  /* Corporeal Form */
     { "Aetf", CAbilityBanish, AB_SPELL },  /* Ethereal Form */
     { "Aspl", CAbilitySpiritLink, AB_SPELL, SPELL_TARGET_UNIT },  /* Spirit Link */
+    { "Aspp", CAbilityItemSpiritLink, AB_ITEM | AB_POWERUP }, /* Rune of Spirit Link (code=Aspl) */
     { "Aliq", CAbilityLiquidFire, AB_PASSIVE },  /* Liquid Fire */
     { "Auco", CAbilityUnstableConcoction, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Unstable Concoction */
     { "Acha", CAbilityChaos, AB_PASSIVE },  /* Chaos */
