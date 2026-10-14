@@ -4620,6 +4620,72 @@ static void check_recovery183_scope(void *data,unsigned stage,edict_t const *uni
     if(stage==2)T_EQ(memcmp(&record->box,&trace->before,sizeof(record->box))!=0,trace->moved);
 }
 
+#include "fixtures/retail_map342_probe.h"
+static struct {edict_t *unit;unsigned scene,markers,stages,depth;uint32_t outer;} map342;
+static void map342_scope(void *data,unsigned stage,edict_t const *unit) {
+    (void)data;T_EQ(unit,map342.unit);map342.stages++;
+    if(stage==0)map342.depth++;
+    wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
+    T_NOT_NULL(record);
+    if(record)T_EQ(record->flags,map342.outer+3*map342.depth-
+        ((stage==0 || stage==3)?1:0));
+    if(stage==3)map342.depth--;
+}
+static void map342_marker(cstring_t text) {
+    unsigned tick,scene,order;char label[32];float x,y;
+    if(sscanf(text,"M342 tick=%u scene=%u label=%31s order=%u x=%f y=%f",
+        &tick,&scene,label,&order,&x,&y)!=6)return;
+    static cstring_t const labels[]={"before","filter-enter","filter-exit","after","action"};
+    T_ASSERT(map342.markers<5);if(map342.markers>=5)return;
+    unsigned at=map342.markers++;
+    T_STREQ(label,labels[at]);T_EQ(scene,map342.scene);T_EQ(tick,at==4 ? 2 : 1);
+    uint32_t expected_order=at==2 && scene==2 ? G_OrderId("move") :
+        at==2 && scene==3 ? MOVE_ORDER_SUSPENDED : 0;
+    if(order!=expected_order)fprintf(stderr,"map342 scene=%u marker=%s order=%u expected=%u\n",scene,label,order,expected_order);
+    T_EQ(order,expected_order);
+    T_EQ(x,at==0 ? 656 : scene==6 && at>=2 ? 1000 : 624);
+    T_EQ(y,at==0 ? 656 : scene==6 && at>=2 ? 1000 : 592);
+    wc3RecordObject_t const *record=G_GetMoveSpatialObject(map342.unit-g_edicts);
+    T_NOT_NULL(record);
+    if(record)T_EQ(record->flags,map342.outer+(at==1 || at==2 ? 3 : 0));
+    static unsigned const nested[]={0,2,2,3,3,2,2,0};
+    unsigned const expected_stages=at==0 ? 0 : at==1 ? 2 : at==2 ? 2+4*nested[scene] :
+        4*(1+nested[scene]+(scene!=3 && scene!=4));
+    T_EQ(map342.stages,expected_stages);
+}
+TEST(wc3_movement, map342_recovery_region_filters_run_inside_held_scope) {
+    FOR_LOOP(saved,2)FOR_LOOP(scene,8) {
+        reset_entities();setup_test_world();g_edicts[0].client=game.clients;game.clients[0].ps.number=0;
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        char script[sizeof(map342_probe)+512];
+        snprintf(script,sizeof(script),"%s\n"
+            "function ModuloInteger takes integer a, integer b returns integer\nreturn a-(a/b)*b\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "set udg_M342Scene=%u\ncall M342Tick()\nendfunction\n",map342_probe,scene);
+        T_ASSERT(run_test_jass(script));
+        edict_t *unit=NULL;FILTER_EDICTS(e,e->inuse && e->class_id==MAKEFOURCC('h','f','o','o'))unit=e;
+        T_NOT_NULL(unit);if(!unit)continue;
+        unit->collision=31;G_PublishMoveSpatialObject(unit);
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-map342-region.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        }
+        map342=(typeof(map342)){.unit=unit,.scene=scene,.outer=saved?3:0};
+        wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+        T_NOT_NULL(record);if(!record)continue;record->flags=map342.outer;
+        test_preload_marker=map342_marker;S_TestMoveRecoveryTrace(map342_scope,NULL);
+        jass_callbyname(level.vm,"M342Tick",false);
+        S_TestMoveRecoveryTrace(NULL,NULL);
+        T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(map342.markers,4);
+        G_DrainRegionEvents();test_preload_marker=NULL;
+        T_EQ(map342.markers,5);
+        T_EQ(record->flags,map342.outer);record->flags=0;
+        G_TestFinishDeferredFrees();
+    }
+    reset_entities();setup_test_world();
+}
+
 /* Exercise170080 directly: public Stop additionally owns05ca50's outer hold.
  * Recovery holds a captured identity through admission AND publication. The
  * clear, admitted and exhausted exits preserve an existing outer exclusion. */

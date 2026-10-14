@@ -226,3 +226,24 @@ accepted repeats/control, maps, builds and reports are archived under
 ### Alternative lifetime341: seventh implementation commit after332
 
 Production/test builds pass. `verify_wc3_pathing_group341.py` runs349 tests /34409 assertions in each Classic/TFT mode, including the296-assertion lifecycle regression and save format/layout rejection. The retail check requires two1065-event repeats, an82-marker uninstrumented control and737 original instruction guards. Evidence/corpus/ownership suites pass8/37/12 tests. This is focused validation; full-suite cadence is7/12 since full332.
+
+### Exclusion coverage342: upstream checkpoint and fresh scope audit
+
+Upstream merge `3a19ff3ee` passed `make test`: 9,087 native tests and 2,194
+pathfinding tooling tests, plus WC3/WoW/SC2 debug and release builds. That full
+suite tested the merge commit before restoring the pending342 engine changes.
+After restoration, production/test builds and 531 focused tests per edition
+passed. The subsequent342 closure audit reran all17 required native entries
+against that restored engine and joined1,358 distinct Classic/TFT tests each,
+including all32 required restoration tests across12 scopes (11 reachable).
+The extra scope matrix contributes8 tests/1,428,238 assertions per edition.
+
+The new held-filter regression first failed48 assertions after its fixture was
+corrected; the accepted-action continuation separately failed12 assertions.
+The final fresh/restored eight-scene matrix passes1,600 assertions per edition.
+Report discovery also has a failing-first test for single-report and sharded
+JUnit output. The final coverage result pins native reports, verifier sources,
+current engine fingerprints and executed JUnit files. Save194 and network layout
+are unchanged by342. Archive: `research/MAP-04.2/payoff342/` under the retail
+report root. The closure uses focused validation after the full upstream
+checkpoint; it does not claim a second full suite on the pending342 changes.

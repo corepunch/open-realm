@@ -8,6 +8,14 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
+**298 done /336 tasks;38 remaining.** MAP-04.2 closes with342: all12 exclusion sites are accounted for, with native
+exit evidence and Classic/TFT restoration checks for every reachable scope.
+The audit uncovered and fixed held recovery-region callbacks, cancellation-time
+Stop retirement and accepted-action delivery after removal. Two retail repeats,
+an uninstrumented control, exact nested counters and save continuations verify
+the fix. No new TODOs. See
+[exclusion exit coverage](retail-pathfinding-exclusions.md#exit-and-reentrancy-coverage-audit342).
+
 ROUTE-04.2 closes with337: successful arrival now retires pending scheduler
 work while preserving the retained route. Complete native calls, repeated public
 observations, failing-first regressions and cold saves verify the fix; existing
@@ -1450,7 +1458,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 ### MAP-04 — Temporary exclusions
 
 - [x] **MAP-04.1** Nest self/target exclusions over overlapping objects and terrain; preserve fine reverse counter restoration and coarse same-order rebuild. Payoff146: all45 supplied original scenarios match six counter/18x18-window stages, five complete1360-byte hierarchy stages and final fine/coarse route words. Native alias/outer/null cases fail2,511 engine assertions before balanced captured-record counters and null-self query integration. Existing public pending-edit/flight coverage staysPayoff130. [Evidence and explicit producer limits](retail-pathfinding-exclusions.md#complete-fine-and-coarse-scope-matrix-payoff146).
-- [ ] **MAP-04.2** Enumerate early/failure/reentrant exits from exclusion scopes; add one restoration assertion per reachable exit and one edit-during-request case.
+- [x] **MAP-04.2** Enumerate early/failure/reentrant exits from exclusion scopes; add one restoration assertion per reachable exit and one edit-during-request case. Verified by the twelve-scope inventory, seventeen fresh native entries and thirty-two Classic/TFT restoration contracts, including held region-filter mutations and pending terrain edits. [Closure evidence](retail-pathfinding-exclusions.md#exit-and-reentrancy-coverage-audit342).
 
 ### MAP-05 — Map/spatial capacity
 

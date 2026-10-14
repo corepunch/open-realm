@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "280 executable original/evidence contracts;561 total entries; provenance and limitations remain per-entry.",
+  "scope": "285 executable original/evidence contracts;566 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -55192,6 +55192,55 @@
         "Ten public scenes cover rejected-alternative storage, current death/removal, alternative owner change/removal, Stop/Move/Pause and owner changes after promotion. Engine saves and stale-slot checks do not certify retail save UI.",
         "Remaining availability guards, optional priority overrides, AI propagation and target-speed/Captain domains remain GROUP-03.2."
       ]
+    },
+    {
+      "id": "oracle-map342",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_map342.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "map342.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "native_events": {
+          "equal": 1424
+        },
+        "public_markers": {
+          "equal": 150
+        },
+        "instructions": {
+          "equal": 308
+        },
+        "scenes": {
+          "equal": 8
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "MAP-04.2 held recovery region-filter reentrancy, captured counters and accepted action lifetime.",
+      "exclusions": [
+        "Eight public filter mutations cover Stop, Move, Pause, death, removal, SetUnitPosition and terrain edits. Engine save continuations do not certify retail save UI. Full exclusion exit inventory is joined separately by audit_wc3_pathing_scope_coverage.py."
+      ]
     }
   ],
   "fixtures": [
@@ -56090,7 +56139,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "ba4d8998681b673f3ca869f0bb8e02113393b4084b28eab8911532252d4d129d"
+      "sha256": "1e9ad10aca965595cf740bd796152b405aa1e451dfb352db5ca1b92f0b4507d4"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56946,7 +56995,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "14310c802724e46b6de2f4f1a5d48b48a76011ed12622f95d601e8cd884a5a59"
+      "sha256": "b01e1c3910526eccde01f4f81b2b8a4820bd1d83c00230c17eb80d37f72ebca8"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -57638,7 +57687,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "969bcb10121124917b2c6a3666769a0edda87b1bf2a5e89ffd920e32647d78e3"
+      "sha256": "d4729103fad490070b6ca4be6c4e6b2f2be714fe7c54fe01ab158627d95cfd8f"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -57882,7 +57931,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "f972d4bbae23294963e4a06a2f1b986310a0af828a5f65c47f3225ce1125116c"
+      "sha256": "b7f56a8483d5e40540161ac3995f0f13fa3951325d65e2271f519c7880687711"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57894,11 +57943,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "0796f2e044c7bf39969bd21d571ead5dbb82ff52245f400dcc4bfff55c50405b"
+      "sha256": "daf57cbf9cd58fd01b5ce2273fb8f18083d5e05fb30b9c918395647b252e242b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "0967d9187e6901db63b2f5e897c1b45112f4978f2a37ae13100a76a103dafc1e"
+      "sha256": "5d26e40f0bc06d31af5a11ffca5953a2b835ee2a5bdbf3a3735b1f0835e3dd84"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -59030,7 +59079,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_events.c",
-      "sha256": "be4f5b2e3c44fa5141de563965ccb40a3a0066b6f248fb0d305e30044dc61d1a"
+      "sha256": "9103f637603235c6a21ad09c0584968a92dad21178554ba288e7ec9d61003ab8"
     },
     {
       "path": "games/warcraft-3/game/api/api_trigger.h",
@@ -59110,7 +59159,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
-      "sha256": "b7fd72bd7f6748f261654cc774e6652dcc638b0fb60e04f45fd06456f4276df5"
+      "sha256": "4a76aef01809ea54f49398edb8f7078d709acad5f07f7cf78c4f604731841aa6"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_reentry.c",
@@ -60762,7 +60811,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-exclusions.md",
-      "sha256": "eea74b01ac15aae62839b93589b139fd3e18d4eef944c29dc093ba43c25d2bd5"
+      "sha256": "58205f56ea57216f8726ae47b799f1b87c7ae26cfe5984403599db54fe5f6780"
     },
     {
       "path": "games/warcraft-3/game/tests/fixtures/retail_region_bounds230.h",
@@ -64727,6 +64776,66 @@
     {
       "path": "tests/test_wc3_pathfinding_group341.py",
       "sha256": "3ed65f17f0af6c66a767859707b91b0dad43a9f6422ca31cdc30bba962da4968"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_map342_probe.h",
+      "sha256": "b5f9b4df12c869edd30fed16ff5c7bc68da4936fcd38918326bcd9c679cc49bc"
+    },
+    {
+      "path": "tools/ghidra/audit_wc3_pathing_scope_coverage.py",
+      "sha256": "f5eaae937f7da2d8e882d351bec08bdcc33ad3555aa6d994e96c17e35238b70d"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_map342.py",
+      "sha256": "fdaf9a9c536f4e42f4d4e61a3d7426024f26f75d5db778b3c0b65fee8987afbd"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_map342.py",
+      "sha256": "cf7317a6f4afad2664c9de5cbed5ac1372018a33c60567606381ef008fa4612e"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_scope_coverage.py",
+      "sha256": "5e5f159027034c7d61ed843860afd97b484c16a323ab41cb49cc332b338fcc32"
+    },
+    {
+      "path": "tools/ghidra/research/Map342Evidence.java",
+      "sha256": "da16579daff94b1e58222c02faa9998518f68882ff14bf62d782dad78411c742"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
+      "sha256": "ee5e87bcfc3e405e7075f201540896b3853685f665c95f5a196473b60f590aa8"
+    },
+    {
+      "path": "tools/frida/research/map342_make_map.py",
+      "sha256": "b8e16abea90a09fdcd462de517db069bfb48d67300f9695f43284830b5c90e3f"
+    },
+    {
+      "path": "tools/frida/research/map342_observer.js",
+      "sha256": "1b0da4118dfb32e973c4dbf12986631ef4c38f9daf93a6b4fec165963115adee"
+    },
+    {
+      "path": "tools/frida/research/map342_probe.j",
+      "sha256": "2e1c703b4c9adbdca13d5427911208712539d7e3cec9e625e459a6b375875f8f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-map342-1.27.json",
+      "sha256": "68507e64d0be1912be6370a7a5ebf4038b47296cbac332739b4442003eab6b19"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-map342-coverage-1.27.json",
+      "sha256": "38feac3d36c177c2036c6241d467c17046601a309899858f767061771072b126"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-map342-inputs-1.27.json.gz",
+      "sha256": "b550dde5bde873bf0ea01ddf1a6205e05a7bd5574d0dfaa8cc945b6c41697862"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-exclusion-owners.md",
+      "sha256": "640da7588df2733631d0f9ddf2b73f4a9e3388a8efc45e528d12ba5641c0b5d6"
+    },
+    {
+      "path": "docs/test-performance.md",
+      "sha256": "af1edabcc70c2d7a2f9d018c19edec2302ad319cd301013e3b0abe406bd707ff"
     }
   ]
 }

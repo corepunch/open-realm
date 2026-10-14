@@ -760,3 +760,108 @@ post-resume trajectory remain diagnostic. Other forced-position domains stay
 BASE-01.4; wider scope and notification owners stay MAP-04.2. No task is closed.
 Old frozen retail expectations are unchanged. See [implementation, original
 wrapper limits and regression evidence](retail-pathfinding-engine.md#forced-placement-issues-stop-before-writing-position-payoff285).
+
+## Exit and reentrancy coverage (audit342)
+
+MAP-04.2 joins the existing scope implementations and regressions into one exit
+inventory. It covers twelve original sites: eleven reachable scopes and the
+unreferenced `0599c0` routine. The machine-readable obligations are in
+[`retail-map342-coverage-1.27.json`](../../../tools/ghidra/fixtures/retail-map342-coverage-1.27.json).
+The audit requires the named native reports and actual Classic/TFT JUnit cases;
+an omitted scope, release, exit, oracle or edition fails verification.
+
+| Original scope | Reachable outcomes and restoration evidence |
+|---|---|
+| `166e90` fine request | Exact/partial routes release target then self; interval and admission denial occur before acquisition. Aliases and existing outer counters retain their original values. |
+| `166c30` coarse request | Exact/partial returns follow same-order rectangle rebuilds; denial performs no exclusion. The complete hierarchy matrix includes pending terrain edits. |
+| `167bf0` visible waypoint | Clear/blocked results, absent self and outer holds; both retained and freshly built route consumers assert restoration. |
+| `166140` next-step blockers | All four collectors and ordered blocker resolution execute inside the captured self hold. Public Move checks the same lifetime. |
+| `16ec00` portal placement | Accepted and exhausted six-ring searches retain self through the adaptive callback, then release it. |
+| `16ee80` separation endpoint | Clear/blocked endpoints across four footprints, with absent self and nested holds. |
+| `170080` embedded recovery | Clear, admitted, exhausted and query-disabled results; the hold spans the actual position publication. |
+| `16bcf0` group publication | Not-ready/conflict and successful publication release member and target scopes. Tests include aliases, stale generations, pending drop, replacement and cold saves. Original cached/retired-region cases retain their bounded producer distinction. |
+| `05ca50` bridge Stop | Separate unit, bridge and embedded holds cover ordinary/structure Stop, nested Stop/Move/Pause/death/removal/placement and callback terrain edits. Final removal has its later first-disable recovery. |
+| `04df50` point query | Six hundred original scope cases verify counter, endpoint-mode and query-stamp restoration. |
+| `059590` rectangle-list distance | Successful and unreachable returns follow both restore loops, including alias/source/target orientations and pending edits. An unresolved native handle faults; it is not a recoverable return. |
+| `0599c0` mixed query | No incoming reference in the original static inventory or the fresh Ghidra check; no reachable public exit is asserted. |
+
+The static walk reports conservative null-guard paths through coarse, point and
+rectangle-list exits. The existing original-code executions resolve them: a
+skipped acquisition skips the matching release; held inputs remain unchanged.
+There is no demonstrated early return with a live acquired counter. Allocation
+failure is process-fatal in the original allocator contract (MAP-05.3), rather
+than a returning error that needs a different restoration path.
+
+The request closures contain no map writer or unresolved call. A public map edit
+cannot interrupt a synchronous request. The required edit case is therefore an
+edit between phases: restoration rebuilds the rounded covered cells from current
+fine terrain and leaves unrelated pending cells unpublished. Eighteen original
+cases and two complete public edit captures establish that behavior. Engine
+regressions compare all hierarchy words. Stop callbacks additionally exercise
+terrain edits between old-task cancellation and new-task cleanup.
+
+Recovery also exposes a different, genuinely held callback boundary:
+`170080 -> 05c820 -> 15f7b0 -> mover virtual54 -> 16fa00`. The virtual slot
+at `6fa912f0` names `16fa00`. Region filters execute synchronously with the unit,
+bridge and captured-record holds all active (counter3); actions run after unwind.
+The Map342 public probe covers unchanged, Stop, Move, Pause, death, removal,
+SetUnitPosition and terrain-edit filters. Two read-only712-event captures and an
+observer-free control agree on all50 public markers. This includes terrain edits
+inside recovery, beyond the request-phase edit coverage above.
+
+The failing engine regression exposed missing region publication, a stale Stop
+head after cancellation-time pause/death/removal, and loss of an accepted region
+action when its filter removed the unit. Recovery now publishes a stable admitted
+point before releasing its captured record. Stop revalidates death before new
+admission and retires its own head when Move is disabled; removal begun during
+old-task cancellation still completes cleanup. Region events retain their
+captured incarnation through deferred removal, with registration and incarnation
+checks intact. The test runs the actual public probe before and after save/load,
+checks exact nested recovery counts and counter depth, and drains the queued
+action after every filter mutation. Existing issued-order callbacks remain a
+separate, later boundary.
+
+Earlier `Stop284` captures exposed missing Move/Pause/death/removal recovery
+owners. Implementations299,300,301,303 and304 supplied those owners with
+failing-first regressions. Their tests now assert the original recovery counts
+and fine-record lifetimes at every public boundary, including deferred removal.
+The coverage audit preserves all earlier expected fixture bytes; it adds no
+counter loop, synthetic recovery or new gameplay policy.
+
+This inventory concerns exclusion restoration. It does not claim that all
+semantics reachable from a notification callback have been implemented. Remaining
+cached-region/canonical producers stay with GROUP-04.6; spell/construction resume
+with ORDER-01.13/01.16; nonflat placement domains with FOOT-04.2; wider availability
+and proximity producers with SEP-01.2. Unknown public stale-handle reachability
+stays with BASE-03.1. The exclusion-owner inventory records these distinctions
+individually instead of turning unresolved behavior into a generic acceptance
+claim. Historical statements superseded by the listed implementations retain
+E2E-05.2 review ownership and their original wording.
+
+To reproduce, run the corpus IDs listed in the coverage JSON into a fresh
+directory, then:
+
+```sh
+python3 tools/ghidra/audit_wc3_pathing_scope_coverage.py \
+  --results /tmp/map342-corpus \
+  --extra-engine-results /tmp/map342-extra --run-extra-engine \
+  --report /tmp/map342-coverage.json
+python3 -m unittest discover -s tests -p test_wc3_pathfinding_scope_coverage.py
+```
+
+The extra engine directory and final report must not exist. The audit pins the
+native report hashes, current engine binaries, verifier sources and JUnit files.
+It retains the distinction between bounded original-code checks, public retail
+repeat/control evidence and engine save continuations. Ghidra's twelve scope and two callback
+annotations are saved by `Map342Evidence.java` and mirrored in
+`MapPathfinding.java`.
+
+The post-merge coverage run passed all 12 sites (11 reachable), all 32 required
+restoration tests, and all 17 native evidence entries. Its JUnit join contains
+1,358 distinct tests per Classic/TFT edition. Both single-report verifiers
+(`capscope273-classic.xml`) and numbered shards are included; the initial audit
+incorrectly overlooked the former. A failing-first report-discovery regression
+now protects both layouts without weakening the required-test inventory.
+The immutable captures, failing engine regressions, Ghidra readback, fresh
+reports and coverage result are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MAP-04.2/payoff342/`.

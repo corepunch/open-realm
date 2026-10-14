@@ -20104,3 +20104,34 @@ The ten-scene public map proves current-target death/removal preserve fallback, 
 Two complete1065-event captures and an uninstrumented82-marker control agree. The projection normalizes scan-result unit pointers with the same per-scene identity map used for actor/candidate, preserving equality relationships, canonical target handles and scalar words.737 original instructions are guarded. The initial lifecycle regression failed102/238 assertions; the promoted-owner regression then failed8/294. The final public-order, death/removal, pause, owner-transfer, invalid fallback, same-slot reuse and cold-save matrix passes296/296.349 affected tests with34409 assertions pass in each Classic/TFT mode, including prior-format/layout rejection. Production and test builds pass;8 evidence rejection tests,37 corpus tests and12 ownership tests pass.
 
 Reproduce with `verify_wc3_pathing_group341.py` or corpus `--only oracle-group341`. Evidence is archived at the report root under `research/GROUP-03.2/payoff341/`. This completes the tested alternative lifecycle contribution, not GROUP-03.2: remaining acquisition guards/priority overrides, AI propagation and target-speed/Captain domains retain that existing TODO.
+
+## Held recovery region callbacks and exclusion exit coverage (payoff342)
+
+MAP-04.2's exit audit found an unimplemented callback boundary. Recovery's
+`05c820 -> 15f7b0 -> virtual54 -> 16fa00` publishes region filters before
+`170080` releases its captured fine record. Two read-only public captures each
+contain712 native events; all50 markers match the uninstrumented control.
+Filters run with all three holds active and can issue Stop, Move, Pause, death,
+removal, SetUnitPosition or terrain edits. Actions drain after unwind, including
+an accepted action whose filter called RemoveUnit.
+
+The regression initially missed all filter callbacks (48 failed assertions).
+Publishing the admitted point exposed stale outer Stop heads after pause/death/
+removal and discarded region actions after removal (12 failed assertions once
+action delivery was checked). Recovery now publishes a stable admitted point
+while held. Stop separates cancellation-time reentry from later issued-order
+callbacks, rejects dead-unit admission, and retires its own head when Move is
+disabled. Region dispatch keeps accepted notifications through deferred removal
+while retaining incarnation and registration checks. The final public-probe
+regression passes1600 assertions, including saved continuations, exact nested
+recovery counts, and restoration from outer depths0/3.
+
+The wider audit also caught339's duplicate empty-status discovery in effective
+speed. Roots/Ensnare checks now share the existing query scope, preserving the
+empty fast path and closing that regression without changing status semantics.
+
+`retail-map342-coverage-1.27.json` joins all12 static sites (11 reachable;0599c0
+has no incoming references) to native exit evidence and executed engine checks.
+It preserves the old oracle limitations and expected bytes. Surrounding behavior
+work retains its existing specific owners; the reconciliation does not create
+new TODOs. See [the complete scope table](retail-pathfinding-exclusions.md#exit-and-reentrancy-coverage-audit342).

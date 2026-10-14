@@ -83,12 +83,23 @@ bool S_IssueStopOrder(edict_t *ent) {
     G_ClearUnitOrderQueue(ent);
     S_SpellCancelChannel(ent);
     stop_cancel_movement(ent);
+    /* Recovery publishes region filters before the new Stop is admitted.
+     * Death rejects that admission; deferred removal still owns the old
+     * physical task until its cleanup completes. */
+    if (!ent->inuse || ent->spawn_time != spawn_time || M_IsDead(ent)) return true;
+    bool const removing = G_IsDeferredFree(ent);
     uint32_t const revision = G_UnitMoveRevision(ent);
     ent->current_order_id = order_id;
     S_UnitAbilityOrderAccepted(ent, "stop");
     G_PublishIssuedImmediateOrder(ent, order_id, ent->s.player, "stop");
-    if (!ent->inuse || ent->spawn_time != spawn_time || G_IsDeferredFree(ent) ||
-        M_IsDead(ent) || S_UnitExecutionPaused(ent)) return true;
+    if (!ent->inuse || ent->spawn_time != spawn_time ||
+        (G_IsDeferredFree(ent) && !removing) || M_IsDead(ent)) return true;
+    if (S_UnitExecutionPaused(ent)) {
+        /* A disabled Move subscriber cannot construct Stop's physical task.
+         * Retire only our own head, preserving a callback's replacement. */
+        if (ent->current_order_id == order_id) ent->current_order_id = 0;
+        return true;
+    }
     if (G_UnitHasActiveOrder(ent) && G_UnitMoveRevision(ent) != revision) return true;
     /* A completed nested Stop leaves no active task, so the outer cleanup
      * resumes even though its public user head has already retired to zero. */

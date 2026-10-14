@@ -76,3 +76,13 @@ superseded-review assignments; four “whole retail pathfinder” exclusions rem
 explicit E2E evidence boundaries. The new337 oracle adds two boundaries for
 controlled-state versus public production and engine-save versus retail-save
 coverage. See [arrival composition](retail-pathfinding-routes.md#arrival-cancellation-and-route-mode-composition-payoff337).
+
+MAP-04.2 coverage342 reconciles its34 original statements individually against
+the complete exit/restoration table. Seventeen retain superseded-review ownership,
+four retain explicit evidence boundaries, and thirteen remain behavior work with
+existing GROUP-04.6, ORDER-01.13/01.16, FOOT-04.2 and SEP-01.2 owners. Each reason
+is recorded in `retail-map342-coverage-1.27.json` and the ownership inventory.
+No original exclusion text or expected retail fixture is changed. The remaining
+behavior assignments concern surrounding producers and lifecycle semantics;
+the scope-restoration obligations are covered by the joined native and engine
+checks. See [the scope table](retail-pathfinding-exclusions.md#exit-and-reentrancy-coverage-audit342).

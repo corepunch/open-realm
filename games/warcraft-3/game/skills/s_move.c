@@ -2559,6 +2559,11 @@ void S_RecoverStoppedUnitPosition(edict_t *self) {
     if (G_FindUnitMoveRecoveryPosition(self,&fine,&admitted)) {
         float point[2]={admitted.x,admitted.y};
         wc3_grid_place_fine(&pose,point); unit_commit_pose(self,&pose);
+        /*05c820 ->15f7b0 ->virtual54 dispatches region filters before the
+         * captured170080 hold is released. Keep the admitted point stable
+         * across a filter that issues another placement or removes the unit. */
+        vec2_t committed=self->s.origin2;
+        G_UnitRegionPositionChanged(self,&committed);
     }
     move_trace_recovery(2,self);
     if(record)record->flags--;

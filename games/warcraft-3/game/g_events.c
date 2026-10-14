@@ -192,10 +192,13 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
     bool misha_summon_event = false;
     bool result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     uint32_t matching_handlers = 0, invoked_handlers = 0;
-    /* KillUnit followed by RemoveUnit still owes death notifications while the corpse exists. */
+    /* Death and accepted region transitions still owe their notifications
+     * while the captured incarnation exists, including RemoveUnit in a filter. */
+    bool const retained_subject = G_IsDeathEvent(evt->type) ||
+        evt->type == EVENT_GAME_ENTER_REGION || evt->type == EVENT_GAME_LEAVE_REGION;
     if (evt->edict_spawn_tracked &&
         (!subject || !subject->inuse || subject->spawn_time != evt->edict_spawn_time ||
-         (!G_IsDeathEvent(evt->type) && G_IsDeferredFree(subject))))
+         (!retained_subject && G_IsDeferredFree(subject))))
         return;
     if (evt->source_spawn_tracked &&
         (!evt->source || !evt->source->inuse || evt->source->spawn_time != evt->source_spawn_time || G_IsDeferredFree(evt->source))) {
@@ -428,7 +431,7 @@ void G_UnitRegionPositionChanged(edict_t *ent, vec2_t const *point) {
                 spawn_time = ent->spawn_time;
                 if (region && G_RegionContains(region, point) &&
                     !G_RegionContains(region, &old_position) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
-                    ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
+                    ent->inuse && ent->spawn_time == spawn_time &&
                     G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
                     G_PublishEventResponse(ent, EVENT_GAME_ENTER_REGION, evt);
@@ -442,7 +445,7 @@ void G_UnitRegionPositionChanged(edict_t *ent, vec2_t const *point) {
                 if (!(ent->svflags & SVF_MONSTER)) break; /* Region leave events carry units, not items, destructables, or map entities. */
                 if (region && !G_RegionContains(region, point) &&
                     G_RegionContains(region, &old_position) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
-                    ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
+                    ent->inuse && ent->spawn_time == spawn_time &&
                     G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
                     G_PublishEventResponse(ent, EVENT_GAME_LEAVE_REGION, evt);

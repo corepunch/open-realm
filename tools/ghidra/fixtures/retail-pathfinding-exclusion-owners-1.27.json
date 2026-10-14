@@ -286,7 +286,8 @@
     "oracle-group338",
     "oracle-group339",
     "oracle-group340",
-    "oracle-group341"
+    "oracle-group341",
+    "oracle-map342"
   ],
   "entries": [
     {
@@ -2146,9 +2147,9 @@
         {
           "index": 1,
           "text": "Stop recovery and portal inventory retains unresolved virtual calls; no new live reentrancy proof.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: Portal188 and recovery247/257/258 plus public284/299-304 cover the previously unresolved restoration outcomes."
         },
         {
           "index": 2,
@@ -2583,16 +2584,16 @@
         {
           "index": 0,
           "text": "Prediction, footprint verdict, placement verdict and position publication are controlled boundaries.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "MAP-04.2 coverage342: Controlled native boundaries remain explicit. Recovery183 and public247/257/284/299-304 separately verify engine publication and nested restoration; no broader native geometry is inferred."
         },
         {
           "index": 1,
           "text": "No arbitrary notification reentrancy or full outer bridge scope claim. Public Stop and MAP04 captures remain separate contracts.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 183 holds through publication;247/257/258 establish outer owners and284/299-304 cover public nested mutations."
         }
       ]
     },
@@ -2602,9 +2603,9 @@
         {
           "index": 0,
           "text": "16ecc0 placement boundary controlled; no geometry/callback or thrown exception claim.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "MAP-04.2 coverage342: Portal188 verifies admitted/exhausted held-record exits and production placement callbacks. The old controlled16ecc0 boundary and absence of a thrown-exception claim remain evidence limits."
         }
       ]
     },
@@ -2742,16 +2743,16 @@
         {
           "index": 1,
           "text": "This adds original-code scope observations, not a new live retail capture. Existing MAP-04.2 and composed-blocker archives remain independently verified.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "MAP-04.2 coverage342: The old original-code versus live distinction is unchanged. Coverage342 executes its restoration assertions and retains existing capture provenance."
         },
         {
           "index": 2,
           "text": "Broader exclusion exits and unresolved recovery notifications remain MAP-04.2.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 342 joins every scope exit;284/299-304 cover public recovery mutations without changing202 expected outputs."
         }
       ]
     },
@@ -2996,9 +2997,9 @@
         {
           "index": 2,
           "text": "Original public Stop does not interleave a bounded synchronous search. No forced mid-search callback or asynchronous retail cancellation behavior is claimed.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: Fresh static request closures contain no callback or writer; synchronous Stop cannot interrupt a held request. Public between-phase edits and nested Stop are covered284/342."
         },
         {
           "index": 3,
@@ -3203,9 +3204,9 @@
         {
           "index": 3,
           "text": "Worker teardown is exercised on inline and threaded borrowed frontiers; save during an executing retail fine search and multiplayer/replay are not certified.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "MAP-04.2 coverage342: Worker teardown coverage is unchanged. Synchronous original searches have no public mid-search save callback; retail save UI and multiplayer/replay remain outside this capture contract."
         },
         {
           "index": 4,
@@ -3648,9 +3649,9 @@
         {
           "index": 3,
           "text": "Native pause resumes through a temporary eligible refresh before construction work starts again. All original events are retained.",
-          "task": "MAP-04.2",
+          "task": "ORDER-01.16",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Construction pause/resume ownership remains the construction lifecycle task. Coverage342 accounts for exclusion restoration, not every resumed work phase."
         },
         {
           "index": 4,
@@ -3794,9 +3795,9 @@
         {
           "index": 0,
           "text": "Advances MAP-04.2; group publication and excluded-point scopes remain open.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 231 supplies point-query restoration;248/249/273 supply group publication and342 verifies all exit obligations."
         },
         {
           "index": 1,
@@ -3808,9 +3809,9 @@
         {
           "index": 2,
           "text": "Single-core synchronous scope; no map edits or reentrancy occur inside the original query closure.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 231 supplies point-query restoration;248/249/273 supply group publication and342 verifies all exit obligations."
         },
         {
           "index": 3,
@@ -3827,9 +3828,9 @@
         {
           "index": 0,
           "text": "Advances MAP-04.2; group-publication and outer recovery scopes remain open.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 247/257/258 supply outer recovery scopes and273 supplies group publication;342 joins the checks."
         },
         {
           "index": 1,
@@ -3848,9 +3849,9 @@
         {
           "index": 3,
           "text": "No claim of persistent fine target/completion-field parity outside the covered call, new throughput target acceptance, worker behavior or unrelated routing parity.",
-          "task": "MAP-04.2",
+          "task": "GROUP-04.6",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Persistent canonical target/completion and worker/group composition remain GROUP-04.6; point-query counters and mode restoration are verified231/342. No throughput claim is added."
         },
         {
           "index": 4,
@@ -4001,9 +4002,9 @@
         {
           "index": 3,
           "text": "Fine request exclusions, unresolved/busy canonical identities, delayed readiness and persistent canonical request callback lifetime remain GROUP-04.6/MAP-04.2.",
-          "task": "MAP-04.2",
+          "task": "GROUP-04.6",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Fine restoration is verified146/342; unresolved/busy canonical producers and persistent request callback state retain GROUP-04.6."
         },
         {
           "index": 4,
@@ -4453,16 +4454,16 @@
         {
           "index": 2,
           "text": "No public notification reentrancy or nonflat support geometry is claimed.",
-          "task": "MAP-04.2",
+          "task": "FOOT-04.2",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Public notification restoration is verified284/299-304. Nonflat and rejected-support placement domains remain FOOT-04.2, independently of scope balance."
         },
         {
           "index": 3,
           "text": "This integrates05ca50 bridge ownership only. Independent unit651590 exclusion, duplicate public Stop calls and notification reentrancy remain MAP-04.2.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 257/258 implement unit ownership and284/299-304 implement callback Stop/Move/Pause/death/removal owners."
         },
         {
           "index": 4,
@@ -4514,9 +4515,9 @@
         {
           "index": 3,
           "text": "No arbitrary notification reentrancy, save inside an admission callback or complete retail-fidelity claim. Existing full movement trajectories and normal cold-save continuations remain literal acceptance fixtures.",
-          "task": "MAP-04.2",
+          "task": "GROUP-04.6",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Canonical admission callback/save and broader group composition remain GROUP-04.6; normal pending/drop exclusion exits are verified248/273/342."
         }
       ]
     },
@@ -4547,9 +4548,9 @@
         {
           "index": 3,
           "text": "Advances GROUP-04.6/MAP-04.2 queued reconstruction. Full captain/target-region scopes, arbitrary notification reentrancy and busy issued-event chronology remain open. Existing retail movement/partition fixtures are unchanged. No performance target or complete retail-fidelity claim.",
-          "task": "MAP-04.2",
+          "task": "GROUP-04.6",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Captain scope restoration is verified273/342; cached-region producers, busy issued-event chronology and broader persistent canonical ownership remain GROUP-04.6."
         }
       ]
     },
@@ -4762,9 +4763,9 @@
         {
           "index": 0,
           "text": "Integrates ordinary nonstructure unit exclusions around bridge Stop recovery. Existing bridge and pose expectations remain unchanged; duplicate public cleanup and notification reentrancy remain open MAP-04.2.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 284/299-304 integrate duplicate and reentrant public recovery ownership;342 executes their unchanged expectations."
         },
         {
           "index": 1,
@@ -4816,16 +4817,16 @@
         {
           "index": 3,
           "text": "Current-form engine checks use the existing Root ability fixture; no public duplicate callbacks or notification reentrancy are synthesized.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 284/299-304 provide the missing public callback compositions;342 accounts for all scope exits. Historical capture labels and performance limits remain unchanged."
         },
         {
           "index": 4,
           "text": "No performance target or broader MAP-04.2 closure is claimed. Shared capture metadata retains the TARGET-03.2 runner label; map and sources pin this MAP-04.2 experiment.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 284/299-304 provide the missing public callback compositions;342 accounts for all scope exits. Historical capture labels and performance limits remain unchanged."
         }
       ]
     },
@@ -5339,9 +5340,9 @@
         {
           "index": 0,
           "text": "Canonical Captain admission/publication and target fallback.24 unchanged original fixture cases;16 engine cases cover no target,distinct,member alias,invalid generation at outer depths0/3,ready/drop. Cached/retired region cases are original-code evidence only; current engine Captain producer has no cached-region input.",
-          "task": "MAP-04.2",
+          "task": "GROUP-04.6",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: All original cached/retired-region scope results remain intact. Supplying those cached-region inputs from broader canonical engine producers remains GROUP-04.6;342 does not claim that producer implementation."
         },
         {
           "index": 1,
@@ -5353,9 +5354,9 @@
         {
           "index": 2,
           "text": "No arbitrary notification reentrancy, no full MAP-04.2 or GROUP-04.6 closure, no new performance claim. Existing movement and save fixtures are unchanged.",
-          "task": "MAP-04.2",
+          "task": "GROUP-04.6",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Scope exits and public Stop callback mutations are covered342; broader canonical admission and callback compositions remain GROUP-04.6. No performance claim."
         }
       ]
     },
@@ -5620,9 +5621,9 @@
         {
           "index": 1,
           "text": "Suspended live target responses, reentrant save and metadata mutation are not certified.",
-          "task": "MAP-04.2",
+          "task": "ORDER-01.13",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Spell suspension, target response, reentrant save and metadata mutation remain ability lifecycle work. Exclusion restoration does not discharge those semantics."
         },
         {
           "index": 2,
@@ -5646,16 +5647,16 @@
         {
           "index": 0,
           "text": "Complete nested Move/Pause/death/removal/position-setter recovery counts are retained diagnostics, not an integrated parity claim.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 299/300/301/303/304 implement the previously diagnostic Move/Pause/death/removal counts;285 covers placement.342 requires their executed assertions."
         },
         {
           "index": 1,
           "text": "Cached-region producers and wider recovery notification/stale-handle compositions remain MAP-04.2.",
-          "task": "MAP-04.2",
+          "task": "GROUP-04.6",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Cached-region producers remain GROUP-04.6; public stale-handle reachability also belongs to BASE-03.1. Known recovery mutations restore correctly in299-304/342; unknown producer behavior is not declared complete."
         },
         {
           "index": 2,
@@ -5679,9 +5680,9 @@
         {
           "index": 0,
           "text": "Complete internal cancellation counts for nested Move, pause-during-notification, death/removal and full scene34 resume motion remain diagnostic.",
-          "task": "MAP-04.2",
+          "task": "ORDER-01.13",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: 299-304 integrate the nested cancellation/restoration owners; the complete resumed ability/Move trajectory and broader suspension compositions remain ORDER-01.13."
         },
         {
           "index": 1,
@@ -5719,9 +5720,9 @@
         {
           "index": 1,
           "text": "Pause-entry/modal-off/resumed-Move callbacks and complete post-resume trajectories are retained diagnostic evidence, still MAP-04.2/ORDER-01.13.",
-          "task": "MAP-04.2",
+          "task": "ORDER-01.13",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: 300/301/304 verify cleanup scope restoration. Modal/resumed-owner chronology and complete post-resume ability trajectories retain ORDER-01.13."
         },
         {
           "index": 2,
@@ -5910,9 +5911,9 @@
         {
           "index": 0,
           "text": "No new capture; uses unchanged Stop284 original repeats/control. MAP-04.2 remains open for other lifecycle owners.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 300/301/303/304 implement the remaining suspension/death/removal recovery owners;342 verifies the full exit table."
         }
       ]
     },
@@ -5922,9 +5923,9 @@
         {
           "index": 0,
           "text": "Original observer-free Stop284 control is reused. Death/removal fine lifetime and broader MAP-04.2 exits remain unfinished.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 301/303/304 implement fine death/removal lifetime and final disable;342 executes these and the full scope table."
         }
       ]
     },
@@ -5934,9 +5935,9 @@
         {
           "index": 0,
           "text": "Proximity identity lifetime, wider inactive producers, full availability counters and the remaining MAP-04.2 exit inventory remain open.",
-          "task": "MAP-04.2",
+          "task": "SEP-01.2",
           "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "rationale": "MAP-04.2 coverage342: Fine exclusion identity and death/removal restoration are verified301/303/304/342. Wider availability, inactive and proximity producer lifetimes retain SEP-01.2."
         }
       ]
     },
@@ -5958,16 +5959,16 @@
         {
           "index": 0,
           "text": "This engine chunk fixes direct death ownership only; broad MAP-04.2 remains open.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 304 integrates deferred first-disable recovery after RemoveUnit returns;342 verifies the joined exit inventory."
         },
         {
           "index": 1,
           "text": "New capture extends beyond RemoveUnit return and observes a deferred first-disable recovery. Earlier return-window fixtures are unchanged; full removal chronology needs separate integration.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 304 integrates deferred first-disable recovery after RemoveUnit returns;342 verifies the joined exit inventory."
         },
         {
           "index": 2,
@@ -5991,9 +5992,9 @@
         {
           "index": 0,
           "text": "This chunk integrates scheduled first-disable during final removal; complete MAP-04.2 exit inventory remains open.",
-          "task": "MAP-04.2",
-          "disposition": "behavior",
-          "rationale": "Complete exclusion/recovery early, failure, callback/reentrant and lifecycle exits with restoration evidence."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "MAP-04.2 coverage342: 342 joins all twelve static sites with native exit reports and Classic/TFT restoration assertions."
         },
         {
           "index": 1,
@@ -6602,6 +6603,18 @@
           "task": "GROUP-03.2",
           "disposition": "behavior",
           "rationale": "Alternative lifetime evidence is bounded; remaining acquisition and AI/motion lifetimes retain their existing owner."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-map342",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Eight public filter mutations cover Stop, Move, Pause, death, removal, SetUnitPosition and terrain edits. Engine save continuations do not certify retail save UI. Full exclusion exit inventory is joined separately by audit_wc3_pathing_scope_coverage.py.",
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Native repeats/control establish held-filter chronology; engine save continuations and the complete scope audit have separately stated evidence boundaries."
         }
       ]
     }
