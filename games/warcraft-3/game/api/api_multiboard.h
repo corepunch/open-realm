@@ -227,6 +227,22 @@ uint32_t SetTextTagColor(jass_t *j) {
     return 0;
 }
 
+uint32_t SetTextTagPos(jass_t *j) {
+    texttag_t *tag = jass_checkhandle(j, 1, "texttag");
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float height_offset = jass_checknumber(j, 4);
+    if (tag && tag->inuse) {
+        tag->unit = NULL;
+        tag->x = x;
+        tag->y = y;
+        tag->height_offset = height_offset;
+        tag->has_position = true;
+        G_TextTagPresentation(tag, false);
+    }
+    return 0;
+}
+
 uint32_t SetTextTagPosUnit(jass_t *j) {
     texttag_t *tag = jass_checkhandle(j, 1, "texttag");
     edict_t *unit = jass_checkhandle(j, 2, "unit");
