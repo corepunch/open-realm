@@ -2556,6 +2556,7 @@ void G_GameResultDebug(cstring_t format, ...);
 bool G_IsSinglePlayer(void);
 void G_RequestEndGame(bool do_score_screen);
 void G_FlushScoreTransition(void);
+void G_FlushPausedScoreTransition(void);
 void G_ScoreTransitionContinue(edict_t *player);
 void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab);
 void G_ScoreTransitionScroll(edict_t *player, float position);

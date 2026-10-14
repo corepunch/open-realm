@@ -459,3 +459,26 @@ blended-geoset sorting feature was removed. This is a generic sprite animation
 fix rather than a score-screen-specific override. Confirm `Tab1`–`Tab4` after
 at least 1 second of display and while switching tabs; no build or runtime
 verification was performed while preparing the patch.
+
+### Post-game lifecycle Patch 1 — finalization boundary (14 October 2026)
+
+`G_QueueScoreTransition` now records only the first destination. The immutable
+result snapshot is captured once in `G_FlushScoreTransition`, after the frame
+has drained deferred removals and completed pending scripted saves. In
+particular, late-frame unit removal and score changes are not hidden by an
+early `EndGame(true)` or `ChangeLevel(..., true)` call. No next-map loading is
+submitted before Continue (or the existing missing-UI fallback).
+
+For result-dialog commands processed while script/modal pause is active,
+`G_ClientCommand` calls the game-owned paused finalization helper *after* its
+synchronous handler has returned. That helper drains terminal result events,
+deferred unit/item removals and dependent scripted saves before capturing and
+presenting results. Unpaused commands still use the normal `G_RunFrame` tail.
+This patch does **not** stop the simulation permanently; match-complete pause
+ownership and gameplay command rejection belong to Patch 2. The outgoing
+map/game module and its score artwork remain loaded until the existing
+Continue transition.
+
+Regression coverage should exercise a score change after queueing and before
+finalization, deferred hero removal, a paused result command with no subsequent
+server simulation frame, and unchanged unpaused menu deferral.

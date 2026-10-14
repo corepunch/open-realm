@@ -3173,8 +3173,14 @@ clientCommand_t clientCommands[] = {
 };
 
 void G_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    /* Victory/defeat buttons can execute synchronous Blizzard.j after the
+     * server has already paused, with no further G_RunFrame to flush scores.
+     * Remember the entry state: the authored callback may unpause itself. */
+    bool const was_paused = level.script_paused || level.modal_paused;
     if (G_SignalCommand(ent, argc, argv)) {
         UI_UpdateCursorPresentation(ent->client);
+        if (was_paused || level.script_paused || level.modal_paused)
+            G_FlushPausedScoreTransition();
         return;
     }
     for (clientCommand_t const *cmd = clientCommands; cmd->name; cmd++) {
@@ -3185,6 +3191,8 @@ void G_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
              * player again before publishing derived presentation. */
             gameClient_t *client = game.clients && player < MAX_PLAYERS ? G_GetPlayerClientByNumber(player) : NULL;
             if (client) UI_UpdateCursorPresentation(client);
+            if (was_paused || level.script_paused || level.modal_paused)
+                G_FlushPausedScoreTransition();
             return;
         }
     }

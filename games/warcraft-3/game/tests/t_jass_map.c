@@ -1599,6 +1599,52 @@ TEST(wc3_jass_map, score_transition_defers_map_change_and_falls_back_without_vie
     gi.ResolveMap = old_resolver;
 }
 
+/* A victory/defeat dialog may dispatch its action while the server is
+ * paused, so the next G_RunFrame never happens. The command boundary must
+ * finalize without a further simulation tick and must still fall through to
+ * the campaign menu if no score-screen viewer can be shown. */
+TEST(wc3_jass_map, paused_result_command_finalizes_without_another_frame) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
+    uint32_t const old_max_clients = game.max_clients;
+    bool const old_script_paused = level.script_paused;
+    bool const old_modal_paused = level.modal_paused;
+    char old_map[MAX_PATHLEN];
+    cstring_t command[] = { "gameresult_quit" };
+
+    reset_entities();
+    setup_test_world();
+    G_ResetScriptSave();
+    strlcpy(old_map, level.map_path, sizeof(old_map));
+    strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
+    level.mapinfo = NULL;
+    level.script_paused = true;
+    level.modal_paused = false;
+    game.max_clients = 0; /* test the existing missing-recipient fallback */
+    gi.MenuAction = capture_victory_menu_action;
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+
+    uint32_t const outgoing_frame = level.framenum;
+    G_ClientCommand(&g_edicts[0], 1, command);
+    T_EQ(level.framenum, outgoing_frame); /* no G_RunFrame was required */
+    T_ASSERT(!G_ScoreTransitionPending());
+    T_STREQ(victory_menu_action, "menu");
+    T_STREQ(victory_menu_arg, "menu_single_player_campaign");
+
+    /* No second destination is sent by a subsequent empty score flush. */
+    victory_menu_action[0] = '\0';
+    G_FlushScoreTransition();
+    T_STREQ(victory_menu_action, "");
+
+    gi.MenuAction = old_menu_action;
+    level.mapinfo = old_mapinfo;
+    level.script_paused = old_script_paused;
+    level.modal_paused = old_modal_paused;
+    game.max_clients = old_max_clients;
+    strlcpy(level.map_path, old_map, sizeof(level.map_path));
+}
+
 TEST(wc3_jass_map, campaign_quit_waits_for_score_screen_before_campaign_menu) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
     uint32_t const clients = game.max_clients;

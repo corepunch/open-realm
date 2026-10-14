@@ -445,6 +445,14 @@ Because `CustomVictoryDialogBJ` has already paused single-player simulation, thi
 queuing `CustomVictoryOkBJ` as a coroutine would leave its `PauseGame(false)` and `ChangeLevel(...)` calls stranded
 behind the very pause they are supposed to release. Multiplayer victory Continue still only dismisses the fallback.
 
+A score-producing exit request records its destination immediately but defers
+capturing the immutable player/hero scores until the frame-end finalization
+boundary, after deferred frees and dependent scripted saves. When a paused
+result-dialog button invokes its handler outside the simulation scheduler, the
+game module completes equivalent work after synchronous command/JASS return.
+The terminal simulation freeze is a separate follow-up; see
+[Score Screen](../score-screen.md).
+
 For result-lifecycle diagnosis, build with `WC3_DEBUG_SCORE=1` and then set
 `wc3_game_result_debug 1` to enable bounded game-module `WC3_RESULT` breadcrumbs
 for result transitions, deferred navigation, paused-result event draining,

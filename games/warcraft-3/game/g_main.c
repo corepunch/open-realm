@@ -67,11 +67,11 @@ static wc3ScriptSaveRequest_t script_save_request;
 static char script_standalone_load[MAX_PATHLEN];
 static bool script_save_rejected;
 
-/* One deferred destination owns the entire result-screen flow. This state is
- * transient, never saved. The snapshot is captured BEFORE ending the outgoing
- * game; the destination executes only after the modal Continue command. */
+/* One deferred destination owns the outgoing score flow. Its first request
+ * wins; only the finalization boundary captures the finished match data.
+ * This state is transient and is never part of a game save. */
 typedef struct {
-    bool pending, shown;
+    bool pending, shown, snapshot_frozen;
     char action[16], argument[MAX_PATHLEN];
     bool awaiting[MAX_CLIENTS];
     uint8_t tab[MAX_CLIENTS];
@@ -130,7 +130,14 @@ static void G_QueueScoreTransition(cstring_t action, cstring_t argument) {
     score_transition.pending = true;
     strlcpy(score_transition.action, action, sizeof(score_transition.action));
     strlcpy(score_transition.argument, argument ? argument : "", sizeof(score_transition.argument));
+    /* Not yet frozen: JASS, queued removals and scripted saves can still
+     * update the final score before the safe frame/command boundary. */
+}
+
+static void G_FreezePendingScoreSnapshot(void) {
+    if (!score_transition.pending || score_transition.snapshot_frozen) return;
     G_CaptureScoreSnapshot(&score_transition.frozen);
+    score_transition.snapshot_frozen = true;
 }
 
 static void G_CompleteScoreTransition(void) {
@@ -231,8 +238,10 @@ void G_FlushScoreTransition(void) {
         G_CompleteScoreTransition();
         return;
     }
-    /* Called after all JASS callbacks and scripted SaveGame completion.
-     * Nobody may mutate the frozen score values while a tab is opened. */
+    /* Called only after the originating frame or paused client command has
+     * finished its JASS callbacks, removals and scripted save. Never snapshot
+     * at the original EndGame/ChangeLevel request site. */
+    G_FreezePendingScoreSnapshot();
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
         edict_t *ent;
@@ -458,6 +467,25 @@ void G_FlushScriptSave(void) {
         /* Retain the current script scope, unlike a manual user load. */
         gi.MenuAction("scriptload", request.load_name);
     }
+}
+
+/* An authored result button may run a synchronous JASS continuation while
+ * SV_Frame is paused. The ordinary G_RunFrame tail will then never execute.
+ * This is called only after G_ClientCommand has returned from its handler:
+ * no handler/JASS C stack may be active when deferred handles or saves drain.
+ * Do not run this for ordinary unpaused commands: those keep frame-end order. */
+void G_FlushPausedScoreTransition(void) {
+    /* Once shown, tab/sort/Continue commands do not re-finalize the world. */
+    if (score_transition.shown ||
+        (!score_transition.pending &&
+         !(script_save_request.pending && script_save_request.change_level &&
+           script_save_request.score_screen))) return;
+
+    G_DrainPausedResultEvents();
+    G_RunDeferredFrees();
+    G_RunConsumedItemFrees();
+    G_FlushScriptSave();
+    G_FlushScoreTransition();
 }
 
 static cstring_t wc3_campaign_paths[] = {
@@ -2231,6 +2259,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
 #include "shared/test.h"
 void reset_entities(void);
 void setup_test_world(void);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 /* The filesystem import is an engine capability: these tests isolate request
  * ordering without creating a real campaign scope. */
 static bool G_TestScriptSavePath(cstring_t name, string_t out, uint32_t size) {
@@ -2266,6 +2295,61 @@ static void G_TestScriptMenuAction(cstring_t action, cstring_t argument) {
     strlcpy(script_save_test_last_action, action, sizeof(script_save_test_last_action));
     script_save_test_menu_actions++;
 }
+/* A request is only a destination ticket. Scores/hero roster freeze at the
+ * finalization boundary, and must never refresh after that first capture. */
+TEST(wc3_score_finalization, captures_at_boundary_not_at_request) {
+    gameClient_t *client;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    client = &game.clients[0];
+    client->ps.number = 0;
+    client->jass.on_score_screen_set = true;
+    client->jass.on_score_screen = true;
+    client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 3;
+
+    G_QueueScoreTransition("menu", "menu_main");
+    T_ASSERT(score_transition.pending);
+    T_ASSERT(!score_transition.snapshot_frozen);
+    T_EQ(score_transition.frozen.count, 0u);
+    client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 7;
+    G_QueueScoreTransition("menu", "another_menu"); /* first request wins */
+    G_FreezePendingScoreSnapshot();
+    T_ASSERT(score_transition.snapshot_frozen);
+    T_EQ(score_transition.frozen.count, 1u);
+    T_EQ(score_transition.frozen.players[0].values[WC3_PLAYER_SCORE_UNITS_TRAINED], 7);
+    T_STREQ(score_transition.argument, "menu_main");
+
+    client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 12;
+    G_FreezePendingScoreSnapshot();
+    T_EQ(score_transition.frozen.players[0].values[WC3_PLAYER_SCORE_UNITS_TRAINED], 7);
+    G_ResetScoreTransition();
+}
+
+/* A late RemoveUnit may retire the hero after ChangeLevel was requested but
+ * before the frame-end snapshot. This tests the actual deferred-free queue. */
+TEST(wc3_score_finalization, deferred_hero_removal_precedes_snapshot) {
+    edict_t *hero;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    game.clients[0].ps.number = 0;
+    game.clients[0].jass.on_score_screen_set = true;
+    game.clients[0].jass.on_score_screen = true;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    T_NOT_NULL(hero);
+    if (!hero) return;
+    hero->s.player = 0;
+    hero->hero.level = 3;
+    G_QueueScoreTransition("menu", "menu_main");
+    G_DeferFreeEdict(hero);
+    G_RunDeferredFrees();
+    G_FreezePendingScoreSnapshot();
+    T_EQ(score_transition.frozen.count, 1u);
+    T_EQ(score_transition.frozen.players[0].hero_count, 0u);
+    G_ResetScoreTransition();
+}
+
 TEST(wc3_difficulty_transition, restart_preserves_current_and_default_independently) {
     bool (*old_resolve_map)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
