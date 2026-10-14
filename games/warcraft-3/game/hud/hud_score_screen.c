@@ -82,7 +82,9 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
     hud.score_rows[slot].icon = icon;
     hud.score_rows[slot].name = name;
     ScoreScreenPlace(backdrop, root, 0, 0, SCORE_ROW_W, SCORE_ROW_H);
-    UI_SetTexture(backdrop, "UI\\Widgets\\EscMenu\\Human\\blank-background.blp", false);
+    /* The colour belongs behind this row, not to the gold header sprite.
+     * A blank-background BLP can be transparent and discard the tint. */
+    backdrop->ui_flags |= UIFLAG_TEXTURE_COLOR_FILL;
     /* The existing silver banner border is a stock score-screen asset. Its
      * exact retail runtime placement is NOT defined by ScoreScreen.fdf. */
     ScoreScreenPlace(border, root, 0, 0, 0.153f, SCORE_ROW_H);

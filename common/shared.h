@@ -1059,6 +1059,7 @@ typedef enum {
 #define UIFLAG_TEXT_RANK_SHIFT 22
 #define UIFLAG_TEXT_RANK_MASK (3u << UIFLAG_TEXT_RANK_SHIFT)
 #define UIFLAG_TEXTURE_OVERLAY (1 << 19) // flag bit; draws a texture after the containing layout artwork
+#define UIFLAG_TEXTURE_COLOR_FILL (1u << 25) // FT_TEXTURE: solid tinted rectangle; no image required
 #define UIFLAG_MINIMAP_PREVIEW (1 << 15) // flag bit; frame text names a static map preview; excludes fog, camera and input
 #define UIFLAG_ALERT_RED_PULSE (1 << 14) // flag bit; command-button art pulses red until frame.value absolute milliseconds; used for transient alerts
 /* Generic disabled-control state carried in the high bits of uiFrame_t.flagsvalue.
@@ -1070,7 +1071,7 @@ typedef enum {
     (UIFLAG_RADIAL_SHADE op UIFLAG_SIZE_TO_CONTENT op UIFLAG_ALTERNATE_ACTIVE op \
      UIFLAG_SPRITE_STAT_SEQUENCE op UIFLAG_EXTEND_WIDESCREEN_X op UIFLAG_ALERT_RED_PULSE op \
      UIFLAG_MINIMAP_PREVIEW op UIFLAG_SPRITE_OVERLAY op UIFLAG_ABILITY_ENGAGED op \
-     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFLAG_TEXT_OVERLAY op \
+     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFLAG_TEXTURE_COLOR_FILL op UIFLAG_TEXT_OVERLAY op \
      UIFLAG_TEXT_RANK_MASK op UIFRAME_DISABLED)
 _Static_assert(UIFLAG_SHARED_BITS(+) == UIFLAG_SHARED_BITS(|), "UIFLAG_* bits overlap");
 _Static_assert((UIFLAG_SHARED_BITS(|) & ((1 << 9) - 1)) == 0, "UIFLAG_* bits collide with FDF state bits 0..8");
