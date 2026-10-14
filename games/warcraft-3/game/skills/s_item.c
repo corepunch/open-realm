@@ -624,6 +624,40 @@ BZ_ABILITY_PROC(CAbilityItemRevealEntireMap) {
     return true;
 }
 
+/* Glyph of Fortification / Ultravision (AIgf / AIgu): the glyph ability
+ * grants an authored upgrade to its owner. Unit effects are recalculated by
+ * the ordinary researched-tech transition, including future unit spawns. */
+BZ_ABILITY_PROC(CAbilityItemGlyphUpgrade) {
+    edict_t *caster;
+    gameClient_t *owner;
+    abilityLevel_t const *row;
+    UpgradeData_t const *upgrade;
+    uint32_t code, upgrade_id;
+    int32_t levels, current, maximum;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!owner || !row) return false;
+
+    /* Iglu is the upgrade rawcode (UnitID); Igl1 is the number of levels.
+     * Some custom data exporters place Iglu in DataB instead. */
+    upgrade_id = row->unitID ? row->unitID : row->data[1].id;
+    levels = (int32_t)row->data[0].number;
+    upgrade = upgrade_id ? G_UpgradeData(upgrade_id) : NULL;
+    if (!upgrade || upgrade->id != upgrade_id || levels <= 0) return false;
+    current = G_GetPlayerTechResearchedLevel(owner, upgrade_id);
+    maximum = G_GetPlayerTechMaxAllowed(owner, upgrade_id);
+    if (maximum >= 0 && current >= maximum) return true;
+    if (maximum >= 0) levels = MIN(levels, maximum - current);
+    G_AddPlayerTechResearched(owner, upgrade_id, levels);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
+    return true;
+}
+
 /* Rune of Dispel Magic (AIdi): one-shot area dispel centred on the picker.
  * Use the same status removal and summon damage semantics as Priest Dispel,
  * including undispellable lifecycle effects. Successful power-up activation

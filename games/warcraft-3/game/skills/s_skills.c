@@ -559,7 +559,9 @@ static ability_t abilitylist[] = {
     { "Acri", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple */
 
     /* No AbilityStrings source file */
-    // TODO: AIgl a_unknown  /* FortificationGlyph — CAbility [ITEM] other */
+    { "AIgf", CAbilityItemGlyphUpgrade, AB_ITEM | AB_POWERUP }, /* Glyph of Fortification */
+    { "AIgu", CAbilityItemGlyphUpgrade, AB_ITEM | AB_POWERUP }, /* Glyph of Ultravision */
+    { "AIgl", CAbilityItemGlyphUpgrade, AB_ITEM | AB_POWERUP }, /* Legacy Glyph alias */
     // TODO: AIrg a_unknown  /* Potion of Life Regen — CAbility [ITEM] other */
     { "ANsu", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge (Myrmidon) */
     { "AOwd", CAbilitySerpentWard, AB_SPELL, SPELL_TARGET_POINT },  /* Shadow Hunter - Serpent Ward */

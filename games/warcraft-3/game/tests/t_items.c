@@ -4542,4 +4542,51 @@ TEST(wc3_items, jass_item_player_and_drop_on_death_flags) {
     }
 }
 
+TEST(wc3_items, glyph_powerups_grant_authored_upgrade_levels) {
+    const char ability_slk[] =
+        "ID;PWXL;N;EBB;Y3;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"AIgf\"\nC;Y2;X2;K\"AIgf\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K\"Rgf1\"\n"
+        "C;Y3;X1;K\"AIgu\"\nC;Y3;X2;K\"AIgu\"\nC;Y3;X3;K1\n"
+        "C;Y3;X4;K1\nC;Y3;X5;K\"Rgu1\"\nE\n";
+    const char upgrade_slk[] =
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"upgradeid\"\nC;Y1;X2;K\"class\"\nC;Y1;X3;K\"maxlevel\"\n"
+        "C;Y2;X1;K\"Rgf1\"\nC;Y2;X2;K\"armor\"\nC;Y2;X3;K3\n"
+        "C;Y3;X1;K\"Rgu1\"\nC;Y3;X2;K\"vision\"\nC;Y3;X3;K2\nE\n";
+    static ItemData_t fortification = { .abilList = "AIgf", .powerup = true, .usable = true, .perishable = true };
+    static ItemData_t ultravision = { .abilList = "AIgu", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk);
+    slkTestData_t *upgrade_rows = parse_slk_string(upgrade_slk);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", ability_rows);
+    slkTestData_t *old_upgrades = G_SetSLKRows("UpgradeData", upgrade_rows);
+    edict_t *picker, *item;
+    gameClient_t *client = &game.clients[0];
+
+    setup_test_world();
+    memset(client->tech, 0, sizeof(client->tech));
+    picker = make_item_test_inventory_unit(0, 0);
+    picker->s.player = 0;
+    picker->svflags |= SVF_MONSTER;
+    picker->targtype = TARG_GROUND;
+    item = make_item_test_world_item(MAKEFOURCC('g','f','o','r'), 32, 0);
+    item->data.ItemData = &fortification;
+    T_ASSERT(G_PickupItem(picker, item));
+    T_EQ(G_GetPlayerTechResearchedLevel(client, MAKEFOURCC('R','g','f','1')), 2);
+    T_ASSERT(item->item->pending_use_removal);
+
+    item = make_item_test_world_item(MAKEFOURCC('g','u','v','i'), 32, 0);
+    item->data.ItemData = &ultravision;
+    T_ASSERT(G_PickupItem(picker, item));
+    T_EQ(G_GetPlayerTechResearchedLevel(client, MAKEFOURCC('R','g','u','1')), 1);
+    T_ASSERT(item->item->pending_use_removal);
+
+    G_SetSLKRows("UpgradeData", old_upgrades);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(upgrade_rows);
+    free_slk_rows(ability_rows);
+}
+
 #endif /* BZ_TESTS */
