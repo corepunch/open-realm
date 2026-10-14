@@ -55110,6 +55110,47 @@
         "Web-family handling also relies on original class hierarchy/virtual evidence; the public active bind here is creep Ensnare ACen.",
         "Engine cold saves do not certify retail save-UI; remaining acquisition guards, alternate identity lifetimes, AI propagation and public target-speed/Captain domains remain GROUP-03.2."
       ]
+    },
+    {
+      "id": "oracle-group340",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_group340.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "group340.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "native_events": {
+          "equal": 1065
+        },
+        "public_markers": {
+          "equal": 146
+        },
+        "instructions": {
+          "equal": 812
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "GROUP-03.2 airborne minimum-range availability guard before shared-speed-cap exemption; fresh/cold-save owner transfers and minimum-removal inverse.",
+      "exclusions": [
+        "Public24-scene matrix covers zero/120/600 authored minimum range, near/far ground/air candidates and present/removed Amov; minimum-range notification guard is distinct from explicit-task and periodic-scan policies.",
+        "Engine cold-save and minimum-range removal inverses do not certify retail save-UI. Remaining acquisition guards, optional priority overrides, rejected-alternative identity, AI propagation and target-speed/Captain domains remain GROUP-03.2."
+      ]
     }
   ],
   "fixtures": [
@@ -56008,7 +56049,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "f5cd13659a72677b62b2fcdae0ee415c3f8015282c8a8ab66acb5a0fc5441a74"
+      "sha256": "b982e5d4788361d978d41511fdfdf9f7b6b2b9eef6a468eea20730519dd77793"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -57800,7 +57841,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "68b29555392d35b73187c281ff8e478a202b8cc4fe3a708ff3f62bed880a9b79"
+      "sha256": "cd214b1fa90ea26edcd6280353997cc7082df02cdbdfd00a98df0af91a0d3171"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57812,11 +57853,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "d9f892a043d41d687b7cb11a9c7d062d875d79d399f0d4ae66ab532bd75449c2"
+      "sha256": "5c2eb78d9f971ff4eec010b701d80fbe59655bd00c3a20735f073c3a731b2d38"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "c80927a8398f1cf201631929b0ff7e87e9d851028fcdd2f1b20407ea7e5bb101"
+      "sha256": "ca97ca3bb0ee12c2722c8780cd2dd82120d31c64829a25b65a976de4c21f4420"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -57824,7 +57865,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "68986b4ce0a18e8a1b6cce5a1e46c2749b9085cc44fc141dbc2eae2abe785a59"
+      "sha256": "da7483180271692716d822b22a3abe97b6d9762cc71bd0bd48af98d3b3c5e83a"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -58900,7 +58941,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
-      "sha256": "86a5f4964091e8b69d55f75f463c0669fdca0289d9c971c8f06c4b7b677bb395"
+      "sha256": "5fec138f2793fc5f73108eeb615c27ae24cd7ca9dc776e9c94bf4075badf102d"
     },
     {
       "path": "games/warcraft-3/game/tests/t_patrol_orders.c",
@@ -64581,6 +64622,38 @@
     {
       "path": "tests/test_wc3_pathfinding_group339.py",
       "sha256": "e19f44f33b50de71b2dbb597359dc289555ebc5f3edea2448eff620f6942b685"
+    },
+    {
+      "path": "tools/frida/research/group340_make_map.py",
+      "sha256": "bc85cfa1f3d8ea4f5a5e2ebe1321a8ea11262cb4dd3adc478aef5aaf2d2a1bc4"
+    },
+    {
+      "path": "tools/frida/research/group340_probe.j",
+      "sha256": "6914a55e7adff2bb292b6ced6fd1785bd8db0ca5dde34c2b976587f0c731b712"
+    },
+    {
+      "path": "tools/frida/research/group340_observer.js",
+      "sha256": "573130252b9675af215acb103d5b57cb00906d51d466bf291d2e32f5d0167d40"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_group340.py",
+      "sha256": "66f10d2afcafaab7c754079c4154c83a9e065a36164fdc92d3b651909d429516"
+    },
+    {
+      "path": "tools/ghidra/research/Group340Evidence.java",
+      "sha256": "465c7592babb7f88603b8de096ca691e9ec3b72749f12edaa59e5f9ffb8eb0d7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group340-1.27.json",
+      "sha256": "cc9392329d5797b8b5f3b506ab74894a23e3d0d3f639585a82f47b281bc85526"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group340-inputs-1.27.json.gz",
+      "sha256": "ad0835b982b6c2f98a0c3f0f6e7ad134a294ad724a7cfc89427d0687b9522156"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_group340.py",
+      "sha256": "e3c34a71285eec6cc58a5bdf4a40993b7acec5143886c83569620cd9b9cc68b0"
     }
   ]
 }

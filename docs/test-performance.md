@@ -206,3 +206,19 @@ Cadence is5/12 since full checkpoint332; no full-suite claim for this chunk.
 Five annotations are saved in Ghidra. Reports, diagnostic attempts, maps, failing
 and passing logs are archived under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff339/`.
+
+### Availability minimum range340: sixth implementation commit after332
+
+The24-scene public minimum-range matrix has two complete matching1065-event
+captures and146 public markers equal to the uninstrumented control. The engine
+regression first failed32/640 assertions; all640 now pass across fresh/cold saves,
+movement-disabled forms and removal of the minimum-range restriction. Focused
+Classic/TFT checks each pass344 tests /33638 assertions. Original verification
+checks812 instructions; eight evidence tests,37 corpus tests and12 ownership
+tests pass, as does the fresh strict oracle-group340 entry. Production and test
+builds pass. The563 older corpus entries remain unchanged.
+
+Cadence is6/12 after full checkpoint332. GROUP-03.2 remains open, with no new
+TODO split. Five function annotations are saved; failed observer attempts,
+accepted repeats/control, maps, builds and reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff340/`.

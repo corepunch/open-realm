@@ -284,7 +284,8 @@
     "oracle-route335",
     "oracle-route337",
     "oracle-group338",
-    "oracle-group339"
+    "oracle-group339",
+    "oracle-group340"
   ],
   "entries": [
     {
@@ -6562,6 +6563,25 @@
           "task": "GROUP-03.2",
           "disposition": "behavior",
           "rationale": "Retain the distinction between complete Sleep/ACen public captures, static Web inheritance, engine saves and remaining acquisition/AI/motion lifetimes."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-group340",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Public24-scene matrix covers zero/120/600 authored minimum range, near/far ground/air candidates and present/removed Amov; minimum-range notification guard is distinct from explicit-task and periodic-scan policies.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Retain the distinct availability, explicit-task and scan minimum policies; other acquisition and AI/motion lifetime gaps remain here."
+        },
+        {
+          "index": 1,
+          "text": "Engine cold-save and minimum-range removal inverses do not certify retail save-UI. Remaining acquisition guards, optional priority overrides, rejected-alternative identity, AI propagation and target-speed/Captain domains remain GROUP-03.2.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Retain the distinct availability, explicit-task and scan minimum policies; other acquisition and AI/motion lifetime gaps remain here."
         }
       ]
     }

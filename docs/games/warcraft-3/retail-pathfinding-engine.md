@@ -20040,3 +20040,57 @@ the source; captured positions remain authoritative. Web's extension has static
 class evidence and engine lifecycle tests, not a new public Web capture.
 Remaining optional overrides, acquisition guards, rejected-alternative identity,
 AI propagation and public target-speed/Captain compositions keep GROUP-03.2 open.
+
+## Availability has an airborne minimum-range guard (payoff340)
+
+`49e130` applies minimum attack range to an actively flying **candidate**.
+`23a740` reads candidate `Unit+5c.20000000` and requires signed forced-ground
+count `+200 < 1`. This is deliberately different from explicit task validation
+(`4968e0`) and periodic scan filtering (`493cb0`), which apply their dead zone
+to ground or forced-ground targets. Sharing one minimum-range policy among
+these callers loses a retail distinction.
+
+The availability guard requires authored nonzero minimum (`Attack+24c`, flag
+`+20.8000`) and `493380`: minimum strictly below selected effective range with
+software-subtracted difference at least `Math_PublicNearZeroThreshold`
+(`3a83126f`). It then uses the predicted configured-range query with both
+collision radii. A target inside this range is rejected before `49bc40` grants
+the shared-speed-cap exemption. Minimum zero or at/above selected range bypasses
+this guard. The existing movement-ineligible range floor is applied first.
+The engine now keeps scan-specific minimum checks outside the common admission
+helper and performs this notification check at its native position.
+
+The public 24-scene matrix crosses minima 0/120/600 against weapon range500,
+ground/flying targets at distances128/288, and present/removed `Amov`. Only the
+two near-air/min120 cases reject availability. Both complete read-only captures
+contain1,065 identical normalized events;146 public markers match the unhooked
+control. The same map records explicit validation's distinct near-ground
+`0x53` result. That explicit-order observation is diagnostic; this change fixes
+the availability path, not all explicit task/scan behavior.
+
+The actual owner-transfer regression crosses fresh/cold-save execution and
+both absent-Move/engine movement-disabled representations. Removing minimum
+range restores previously rejected acquisition. It first failed32 of640
+assertions; all now pass. Classic and TFT affected suites each pass344 tests
+and33,638 assertions. The verifier checks812 original instructions:
+
+```sh
+python tools/ghidra/verify_wc3_pathing_group340.py \
+  --binary /path/to/game.dll --report /tmp/group340-fresh.json
+python tools/frida/research/group340_make_map.py \
+  --base /path/to/Group338Hard.w3m --output /tmp/Group340b.w3m
+```
+
+The accepted map SHA256 is
+`ed5272c30b5b382b7e698145312eacf6738ca4cfc337dfc98ebe7658c01e835a`.
+Its capture runner is `group338_capture.py`, with `--observer
+group340_observer.js --marker-prefix 'G340 ' --preload group340.txt` in the
+owned B/C environments. Earlier diagnostic runs are explicitly rejected:
+zero damage removed the intended attack owner; a hook at496930 was inside a
+function; the corrected4968e0 hook also needed to accept null target calls.
+Only complete error-free repeats and the control are frozen.
+
+Five annotations are saved in Ghidra and `MapPathfinding.java`. The archive is
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff340/`.
+GROUP-03.2 remains open for other admission guards, optional ranking overrides,
+retained alternative targets, AI propagation and target-speed/Captain lifetimes.

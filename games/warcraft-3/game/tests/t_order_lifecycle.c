@@ -1913,6 +1913,53 @@ TEST(wc3_order_lifecycle, queue263_direct_append_resolves_optional_user_order_id
 
 /* Native49e277/49e2b7: missing Move does not admit targets merely inside
  * acquisition range. A zero-speed Move ability still owns eligibility. */
+/* Public24-scene native matrix: availability tests minimum range only for
+ * airborne candidates. The explicit task validator has a separate policy. */
+TEST(wc3_order_lifecycle, group340_available_minimum_range_precedes_exemption) {
+    FOR_LOOP(saved,2)FOR_LOOP(disabled,2)FOR_LOOP(scene,24) {
+        reset_entities();setup_test_world();level.show_map_cheat=true;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        level.timer_clock_valid=false;level.pathing_clock=(wc3Clock_t){8,0,300};
+        edict_t *unit=review_order_unit(512,0),*target=review_order_unit(scene>=12 ? 800 : 640,0);
+        bool flying=(scene/3)%2,immobile=(scene/6)%2;
+        unit->s.model=target->s.model=1;unit->collision=target->collision=31;
+        unit->runtime.acquisition_range=1100;unit->invulnerable=true;
+        UnitWeapons_t const *authored=unit->data.UnitWeapons;
+        UnitWeapons_t weapons=*authored;
+        weapons.minimumAttackRange=scene%3==0 ? 120 : scene%3==1 ? 0 : 600;
+        weapons.attacksEnabled=1;unit->data.UnitWeapons=&weapons;
+        S_AttackProfileWrite(unit,0)->range=500;
+        S_AttackProfileWrite(unit,0)->targetsAllowed=WC3_TARGET_FLAG_GROUND|WC3_TARGET_FLAG_AIR;
+        if(flying){target->aiflags|=AI_FLYING;target->targtype=TARG_AIR;}
+        if(immobile) {
+            T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','m','o','v')));
+            if(disabled)unit->aiflags|=AI_IMMOBILE;
+        }
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(target);
+        if(saved) {
+            uint32_t u=unit->s.number,t=target->s.number;
+            cstring_t file=Test_TempPath("wc3-group340-minimum.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit=g_edicts+u;target=g_edicts+t;
+            unit->data.UnitWeapons=&weapons;target->data.UnitWeapons=authored;
+        }
+        uint32_t head=unit->current_order_id;
+        T_ASSERT(!unit->attack_speed_cap.active);T_NULL(unit->attack_target);
+        G_SetUnitPlayer(target,1);
+        bool accepted=scene!=3 && scene!=9;
+        T_EQ(unit->attack_speed_cap.active,accepted);
+        T_EQ(unit->attack_target,accepted ? target : NULL);
+        T_EQ(unit->current_order_id,head);
+        if(!accepted) {
+            weapons.minimumAttackRange=0;
+            G_SetUnitPlayer(target,0);G_SetUnitPlayer(target,1);
+            T_ASSERT(unit->attack_speed_cap.active);T_EQ(unit->attack_target,target);
+        }
+        unit->data.UnitWeapons=authored;
+    }
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_order_lifecycle, guard270_available_target_requires_reachable_weapon_range) {
     FOR_LOOP(mode,11) {
         reset_entities();setup_test_world();level.show_map_cheat=true;

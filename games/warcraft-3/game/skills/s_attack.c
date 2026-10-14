@@ -1213,7 +1213,7 @@ static bool attack_target_prevents_acquisition(edict_t const *target) {
  * something they can see but can never approach.  Mobile units still acquire
  * throughout uacq and chase normally; Hold Position keeps its separate
  * disable-chase lifecycle. */
-bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
+static bool attack_can_acquire_target(edict_t const *attacker, edict_t const *target) {
     if (S_UnitIsEntanglingRooted(attacker) || !S_AttackCanTarget(attacker, target)) return false;
     bool town=(attacker->aiflags&AI_TOWN_OWNED)!=0;
     if(attack_target_prevents_acquisition(target) && !town)return false;
@@ -1221,10 +1221,14 @@ bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
      * Its target-side exception must agree in both scans and notifications. */
     if(S_UnitAbilityEvent((edict_t *)target,A_NO_ACQUIRE) &&
        !(town && G_UnitIsSleeping(target)))return false;
-    if ((attacker->aiflags & AI_IMMOBILE) &&
-        (attack_target_out_of_range_for(attacker, target) || attack_target_too_close_for(attacker, target)))
+    if ((attacker->aiflags & AI_IMMOBILE) && attack_target_out_of_range_for(attacker, target))
         return false;
     return true;
+}
+
+bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
+    return attack_can_acquire_target(attacker,target) &&
+        (!(attacker->aiflags & AI_IMMOBILE) || !attack_target_too_close_for(attacker,target));
 }
 
 /* Refresh the compatibility remaining field from the authoritative deadline;
@@ -2051,7 +2055,7 @@ static void attack_target_available(edict_t *target) {
         if(S_UnitIsCycloned(unit) || !S_HumanCanAttack(unit) || !S_CargoAttacksEnabled(unit) ||
             G_PlayerTreatsPlayerAsAlly(unit->s.player,target->s.player) ||
             G_UnitIsInvulnerable(target) || S_UnitAbilityEvent(unit,A_NO_ACQUIRE) ||
-            !S_AttackCanAutoAcquire(unit,target) ||
+            !attack_can_acquire_target(unit,target) ||
             !G_FowPlayerCanTrackUnit(unit->s.player,target))continue;
         float range=G_AcquisitionRange(unit);
         /*498e50 clamps a movement-ineligible owner's acquisition radius to
@@ -2072,6 +2076,14 @@ static void attack_target_available(edict_t *target) {
             float selected=MIN(attack_profile(unit,target)->range,G_AcquisitionRange(unit));
             if(!S_UnitTargetInMoveRange(unit,target,MAX(ATTACK_MINIMUM_CHASE_RANGE,selected)))continue;
         }
+        /*49e2c4 tests the candidate's active flight, unlike explicit task
+         * validation and scan dead zones. Reject before granting exemption. */
+        float minimum=attack_minimum_range(unit);
+        float selected=MIN(attack_profile(unit,target)->range,G_AcquisitionRange(unit));
+        if(!can_approach)selected=MAX(ATTACK_MINIMUM_CHASE_RANGE,selected);
+        if(G_UnitTargetType(target)==TARG_AIR && minimum>0 && minimum<selected &&
+            fabsf(wc3_sub(minimum,selected))>=wc3_float(0x3a83126f) &&
+            S_UnitTargetInMoveRange(unit,target,minimum))continue;
         attack_cap_begin(unit);
         /* Exemption also survives ranking rejection, as in49e130. */
         if(attack_should_replace_available_target(unit,target))order_attack(unit,target);
