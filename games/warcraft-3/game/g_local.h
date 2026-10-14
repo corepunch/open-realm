@@ -2557,6 +2557,7 @@ bool G_IsSinglePlayer(void);
 void G_RequestEndGame(bool do_score_screen);
 void G_FlushScoreTransition(void);
 void G_FlushPausedScoreTransition(void);
+bool G_ScoreTransitionTerminal(void);
 void G_ScoreTransitionContinue(edict_t *player);
 void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab);
 void G_ScoreTransitionScroll(edict_t *player, float position);
@@ -2565,6 +2566,7 @@ void G_ScoreTransitionToggleTeams(edict_t *player);
 void G_ScoreTransitionToggleAllyColors(edict_t *player);
 #ifdef BZ_TESTS
 bool G_ScoreTransitionPending(void);
+void G_TestResetScoreTransition(void);
 #endif
 void G_RequestQuitGame(void);
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen);

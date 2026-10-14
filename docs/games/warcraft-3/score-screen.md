@@ -482,3 +482,32 @@ Continue transition.
 Regression coverage should exercise a score change after queueing and before
 finalization, deferred hero removal, a paused result command with no subsequent
 server simulation frame, and unchanged unpaused menu deferral.
+
+### Post-game lifecycle Patch 2 — terminal single-player pause (14 October 2026)
+
+After `G_FlushScoreTransition` successfully writes a score window to exactly
+one connected viewer in a single-human map, the WC3 module marks the outgoing
+match **terminal** and recomputes the existing authoritative server pause. This
+is a distinct, irreversible pause reason until map load/shutdown, so a late
+`PauseGame(false)` or client modal close cannot restart gameplay. The server
+continues processing client network messages while paused; the WC3 command
+entry point only accepts score-screen Continue, tab, sort, scroll, teams and
+ally-colour intents, while `ClientInput` ignores gameplay camera input.
+`G_RunFrame` also refuses to advance a terminal match if another pause owner
+unexpectedly releases the server scheduler. The terminal guard survives the
+one-shot Continue action until the destination starts loading.
+
+Only a successfully presented single-viewer score screen enters this state.
+Missing FDF/no-recipient fallback keeps its existing immediate destination,
+and matches with multiple connected clients retain their prior behavior.
+This patch does not change score construction, the network wire format, save
+format, or engine rendering. Explicit external engine-level `SV_SetPaused(false)`
+can still advance the server clock by at most a scheduling tick before the
+WC3 frame guard takes effect; preventing that would require a separate generic
+pause-ownership contract and is not implemented here.
+
+Headless regression coverage verifies pause ownership after script/modal
+release, unchanged gameplay frame/time, blocked client input and gameplay
+commands, continued score interaction, multi-client compatibility, and the
+Continue-to-new-map guard lifetime. Local compile/runtime verification remains
+outstanding.

@@ -43,6 +43,7 @@ static bool entity_is_pathing_ignored(edict_t const *ent);
 extern jassModule_t jass_funcs[];
 
 static void G_StartScripts(void);
+static void G_RefreshPauseState(void);
 static void G_CheckTimeOfDayEvents(float before, float after);
 static void InitConstants(void);
 static void G_ApplyMapGameDataSet(mapInfo_t const *mapinfo);
@@ -72,6 +73,7 @@ static bool script_save_rejected;
  * This state is transient and is never part of a game save. */
 typedef struct {
     bool pending, shown, snapshot_frozen;
+    bool terminal; /* completed single-player match; outlives the OK ticket */
     char action[16], argument[MAX_PATHLEN];
     bool awaiting[MAX_CLIENTS];
     uint8_t tab[MAX_CLIENTS];
@@ -142,12 +144,19 @@ static void G_FreezePendingScoreSnapshot(void) {
 
 static void G_CompleteScoreTransition(void) {
     char action[sizeof(score_transition.action)], argument[sizeof(score_transition.argument)];
+    bool terminal;
     if (!score_transition.pending) return;
     strlcpy(action, score_transition.action, sizeof(action));
     strlcpy(argument, score_transition.argument, sizeof(argument));
+    /* MenuAction queues the destination; keep the outgoing simulation stopped
+     * until SV_Map starts a new world or game shutdown completes. */
+    terminal = score_transition.terminal;
     G_ResetScoreTransition(); /* exactly once, even if MenuAction reenters */
+    score_transition.terminal = terminal;
     gi.MenuAction(action, argument);
 }
+
+bool G_ScoreTransitionTerminal(void) { return score_transition.terminal; }
 
 void G_ScoreTransitionContinue(edict_t *player) {
     uint32_t slot;
@@ -223,8 +232,23 @@ void G_ScoreTransitionScroll(edict_t *player, float position) {
                        score_transition.scroll[slot], &score_transition.view[slot]);
 }
 
+/* A single local viewer may finish the outgoing match without keeping its
+ * simulation alive. Preserve the game module, map media and server transport
+ * until Continue so the existing score FDF and commands still work. Two or
+ * more connected clients keep the previous multiplayer behavior unchanged. */
+static void G_EnterScorePresentation(void) {
+    uint32_t connected = 0;
+    if (!score_transition.shown || !G_IsSinglePlayer()) return;
+    FOR_LOOP(i, game.max_clients) connected += game.clients[i].connected ? 1u : 0u;
+    if (connected != 1) return;
+    score_transition.terminal = true;
+    G_RefreshPauseState();
+}
+
 #ifdef BZ_TESTS
 bool G_ScoreTransitionPending(void) { return score_transition.pending; }
+/* Test harness resets transient state between independent test cases. */
+void G_TestResetScoreTransition(void) { G_ResetScoreTransition(); }
 #endif
 
 void G_FlushScoreTransition(void) {
@@ -254,8 +278,10 @@ void G_FlushScoreTransition(void) {
             presented = true;
         }
     }
-    if (presented) score_transition.shown = true;
-    else {
+    if (presented) {
+        score_transition.shown = true;
+        G_EnterScorePresentation();
+    } else {
         /* No retail FDF, no recipient, or no root: never strand the level. */
         G_CompleteScoreTransition();
     }
@@ -1284,7 +1310,9 @@ static void G_CameraTraceFrame(void) { }
 
 /* The player controller has no model; its focus and orbit still belong to the game. */
 static void G_ClientInput(edict_t *ent, inputCmd_t const *cmd) {
-    gameClient_t *client = ent->client;
+    gameClient_t *client;
+    if (score_transition.terminal || !ent || !ent->client || !cmd) return;
+    client = ent->client;
     if (client->no_control) return;
     if (cmd->action == BZ_INPUT_MOVE && (!cmd->move.buttons || !cmd->move.msec)) return;
     if (cmd->action == BZ_INPUT_VIEW) {
@@ -1639,8 +1667,16 @@ static void G_RunFrame(void) {
     int path_work_budget = WC3_PATH_WORK_BUDGET;
     cstring_t path_work_value;
 
-    if (!level.started)
+    /* A completed match can never resume gameplay, even if an external
+     * pause owner releases the server scheduler before the deferred menu
+     * action is consumed. Networking and score commands run separately. */
+    if (score_transition.terminal) {
+        /* If an unrelated engine owner clears pause, reassert our terminal
+         * reason before the scheduler can advance another gameplay frame. */
+        G_RefreshPauseState();
         return;
+    }
+    if (!level.started) return;
 
     level.framenum++;
     level.time = gi.GetTime();
@@ -1886,7 +1922,9 @@ cstring_t G_UnitName(uint32_t id) {
     return G_LevelString(name);
 }
 
-static void G_RefreshPauseState(void) { gi.SetPaused(level.script_paused || level.modal_paused); }
+static void G_RefreshPauseState(void) {
+    gi.SetPaused(level.script_paused || level.modal_paused || score_transition.terminal);
+}
 
 /* Quest presentation is local, so only a single connected client may promote
  * that modal state into an authoritative simulation pause. */
@@ -2295,6 +2333,151 @@ static void G_TestScriptMenuAction(cstring_t action, cstring_t argument) {
     strlcpy(script_save_test_last_action, action, sizeof(script_save_test_last_action));
     script_save_test_menu_actions++;
 }
+static bool postgame_test_paused;
+static void G_TestPostgamePause(bool paused) { postgame_test_paused = paused; }
+/* Entering the completed single-player score screen claims a permanent
+ * pause reason. Ending script/modal pause must not resume its simulation. */
+TEST(wc3_score_postgame, terminal_score_presentation_blocks_resume_and_simulation) {
+    void (*old_set_paused)(bool) = gi.SetPaused;
+    edict_t *player;
+    inputCmd_t input = { .action = BZ_INPUT_VIEW, .view = { .angles = { 10, 20, 30 }, .distance = 900 } };
+    uint32_t before_frame;
+    uint32_t before_time;
+
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    player = &g_edicts[0];
+    game.clients[0].connected = true;
+    level.started = true;
+    level.framenum = 17;
+    level.time = 1700;
+    level.script_paused = true;
+    level.modal_paused = true;
+    score_transition.pending = true;
+    score_transition.shown = true;
+    gi.SetPaused = G_TestPostgamePause;
+    postgame_test_paused = false;
+    G_EnterScorePresentation();
+    T_ASSERT(score_transition.terminal);
+    T_ASSERT(postgame_test_paused);
+
+    G_SetScriptPaused(false);
+    G_SetClientModal(player, WC3_MODAL_CLIENT, false);
+    T_ASSERT(postgame_test_paused);
+    before_frame = level.framenum;
+    before_time = level.time;
+    postgame_test_paused = false; /* Simulate an external pause release. */
+    G_RunFrame();
+    T_ASSERT(postgame_test_paused); /* Terminal owner reasserted pause. */
+    T_EQ(level.framenum, before_frame);
+    T_EQ(level.time, before_time);
+
+    player->client->camera.state.viewangles = (vec3_t){ 0, 0, 0 };
+    G_ClientInput(player, &input);
+    T_FEQ(player->client->camera.state.viewangles.x, 0.0f, 0.001f);
+    gi.SetPaused = old_set_paused;
+    G_ResetScoreTransition();
+    level.started = false;
+    level.script_paused = false;
+    level.modal_paused = false;
+}
+
+/* Existing multi-recipient matches must keep their current score behavior. */
+TEST(wc3_score_postgame, multiplayer_score_does_not_claim_terminal_pause) {
+    void (*old_set_paused)(bool) = gi.SetPaused;
+    mapInfo_t *mapinfo;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    game.clients[0].connected = true;
+    game.clients[1].connected = true;
+    score_transition.pending = true;
+    score_transition.shown = true;
+    gi.SetPaused = G_TestPostgamePause;
+    postgame_test_paused = false;
+    G_EnterScorePresentation();
+    T_ASSERT(!score_transition.terminal);
+    T_ASSERT(!postgame_test_paused);
+
+    /* Even one remaining network recipient is not a local SP match if the
+     * authored map still has multiple human participants. */
+    game.clients[1].connected = false;
+    mapinfo = (mapInfo_t *)level.mapinfo;
+    mapinfo->players[0].used = mapinfo->players[1].used = true;
+    mapinfo->players[0].playerType = kPlayerTypeHuman;
+    mapinfo->players[1].playerType = kPlayerTypeHuman;
+    G_EnterScorePresentation();
+    T_ASSERT(!score_transition.terminal);
+    T_ASSERT(!postgame_test_paused);
+
+    gi.SetPaused = old_set_paused;
+    G_ResetScoreTransition();
+}
+
+/* The real command dispatcher must reject gameplay mutations and minimap
+ * overlays after completion, while still routing every score-view control. */
+TEST(wc3_score_postgame, commands_remain_score_only_after_terminal_presentation) {
+    edict_t *player;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    player = &g_edicts[0];
+    game.clients[0].connected = true;
+    score_transition.pending = true;
+    score_transition.shown = true;
+    score_transition.awaiting[0] = true;
+    level.setup.difficulty = 2;
+    player->client->ps.stats[PLAYERSTATE_GAME_RESULT] = 1;
+
+    /* Normal input remains usable until score presentation is terminal. */
+    G_ClientCommand(player, 1, (cstring_t[]){ "signal" });
+    T_ASSERT(player->client->cursor_signal);
+    player->client->cursor_signal = false;
+
+    G_EnterScorePresentation();
+    T_ASSERT(score_transition.terminal);
+    G_ClientCommand(player, 1, (cstring_t[]){ "signal" });
+    T_ASSERT(!player->client->cursor_signal);
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_EQ(level.setup.difficulty, 2u);
+    G_ClientCommand(player, 2, (cstring_t[]){ "pause", "0" });
+    T_ASSERT(!player->client->modal_flags);
+
+    G_ClientCommand(player, 1, (cstring_t[]){ "scorescreen_teams" });
+    T_ASSERT(score_transition.view[0].teams);
+    G_ClientCommand(player, 1, (cstring_t[]){ "scorescreen_allycolors" });
+    T_ASSERT(score_transition.view[0].ally_colors);
+    G_ResetScoreTransition();
+    T_ASSERT(!G_ScoreTransitionTerminal());
+}
+
+/* Even after Continue consumes the destination ticket, the outgoing world
+ * remains stopped until the map/session loader resets transient state. */
+TEST(wc3_score_postgame, continue_preserves_terminal_guard_until_next_map) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    game.clients[0].connected = true;
+    score_transition.pending = true;
+    score_transition.shown = true;
+    score_transition.awaiting[0] = true;
+    strlcpy(score_transition.action, "menu", sizeof(score_transition.action));
+    strlcpy(score_transition.argument, "menu_main", sizeof(score_transition.argument));
+    G_EnterScorePresentation();
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    G_ScoreTransitionContinue(&g_edicts[0]);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_ASSERT(score_transition.terminal);
+    T_ASSERT(!score_transition.pending);
+    G_ScoreTransitionContinue(&g_edicts[0]);
+    T_EQ(script_save_test_menu_actions, 1);
+    gi.MenuAction = old_menu_action;
+    G_ResetScoreTransition();
+}
+
 /* A request is only a destination ticket. Scores/hero roster freeze at the
  * finalization boundary, and must never refresh after that first capture. */
 TEST(wc3_score_finalization, captures_at_boundary_not_at_request) {

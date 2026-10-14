@@ -1588,6 +1588,7 @@ TEST(wc3_jass_map, score_transition_defers_map_change_and_falls_back_without_vie
     T_STREQ(victory_menu_action, "");
     G_FlushScoreTransition();
     T_ASSERT(!G_ScoreTransitionPending());
+    T_ASSERT(!G_ScoreTransitionTerminal()); /* no displayed window, no terminal pause */
     T_STREQ(victory_menu_action, "level");
     T_STREQ(victory_menu_arg, "Maps\\Campaign\\Human03.w3m");
     victory_menu_action[0] = '\0';

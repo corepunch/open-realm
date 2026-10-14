@@ -3173,6 +3173,17 @@ clientCommand_t clientCommands[] = {
 };
 
 void G_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    /* Completed single-player gameplay has no valid simulation commands.
+     * Leave score-window interactions on the normal validated game-owned
+     * dispatcher; never pass the command through the minimap signal overlay. */
+    if (G_ScoreTransitionTerminal() &&
+        (!argc || !argv || !argv[0] ||
+         (strcmp(argv[0], "scorescreen_continue") &&
+          strcmp(argv[0], "scorescreen_tab") &&
+          strcmp(argv[0], "scorescreen_sort") &&
+          strcmp(argv[0], "scorescreen_scroll") &&
+          strcmp(argv[0], "scorescreen_teams") &&
+          strcmp(argv[0], "scorescreen_allycolors")))) return;
     /* Victory/defeat buttons can execute synchronous Blizzard.j after the
      * server has already paused, with no further G_RunFrame to flush scores.
      * Remember the entry state: the authored callback may unpause itself. */

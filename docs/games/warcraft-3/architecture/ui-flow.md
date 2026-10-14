@@ -450,7 +450,10 @@ capturing the immutable player/hero scores until the frame-end finalization
 boundary, after deferred frees and dependent scripted saves. When a paused
 result-dialog button invokes its handler outside the simulation scheduler, the
 game module completes equivalent work after synchronous command/JASS return.
-The terminal simulation freeze is a separate follow-up; see
+Once a single local viewer receives the score presentation, the game module
+holds an irreversible terminal pause reason until the next map; normal score
+commands still run through the paused server transport, while gameplay input
+is rejected. Multi-viewer matches retain the existing lifecycle. See
 [Score Screen](../score-screen.md).
 
 For result-lifecycle diagnosis, build with `WC3_DEBUG_SCORE=1` and then set
