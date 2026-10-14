@@ -59,6 +59,44 @@ TEST(wc3_score, gathered_player_state_updates_score_source) {
         "endfunction\n"));
 }
 
+TEST(wc3_score, retail_resource_score_uses_full_gathered_totals) {
+    gameClient_t *client = &game.clients[0];
+    int32_t value = -1;
+
+    setup_test_world();
+    memset(&client->score, 0, sizeof(client->score));
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
+    T_EQ(value, 0);
+
+    /* The retail 1.29.2 experiments verify both individual contributions
+     * and non-round mixed totals, including 1 gold + 1 lumber. */
+    client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] = 1;
+    client->score.values[WC3_PLAYER_SCORE_LUMBER_TOTAL] = 1;
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
+    T_EQ(value, 2);
+    client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] = 37;
+    client->score.values[WC3_PLAYER_SCORE_LUMBER_TOTAL] = 63;
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
+    T_EQ(value, 100);
+
+    /* Current balances (including W3I starts and spending) are not part
+     * of the lifetime gathered Resource Score. */
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 90;
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
+    T_EQ(value, 100);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 300;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
+    T_EQ(value, 100);
+
+    /* Clamp the combined 64-bit sum rather than overflowing 32 bits. */
+    client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] = UINT32_MAX;
+    client->score.values[WC3_PLAYER_SCORE_LUMBER_TOTAL] = UINT32_MAX;
+    T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
+    T_EQ(value, INT32_MAX);
+}
+
 TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
     gameClient_t *client = &game.clients[0];
     int32_t value = -1;
@@ -87,12 +125,12 @@ TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_HERO_TOTAL, &value));
     T_EQ(value, 230);
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_RESOURCE_TOTAL, &value));
-    T_EQ(value, 60);
+    T_EQ(value, 450);
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TOTAL, &value));
-    T_EQ(value, 290);
+    T_EQ(value, 680);
     client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = UINT32_MAX;
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TOTAL, &value));
-    T_EQ(value, 290); /* Counter saturation is independent of weighted totals. */
+    T_EQ(value, 680); /* Counter saturation is independent of weighted totals. */
 }
 
 static unsigned score_debug_log_argument_evaluations;

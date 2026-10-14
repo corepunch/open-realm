@@ -21,7 +21,7 @@ separated from the accounting hooks in `g_score.c` and tagged `GUESS`:
 | Tech percent | 100 × researched technology IDs / observed technology IDs, or 0 with none |
 | Units total | 10× trained + 10× enemy units killed + 20× structures built + 20× structures razed |
 | Heroes total | 100× hero kills + 10× items gained + 10× experience gained |
-| Resources total | floor(gross gold / 10) + floor(gross lumber / 5) |
+| Resources total | **Retail-verified (TFT 1.29.2):** Gold Mined Total + Lumber Harvested Total, one point per gathered resource |
 | Overall total | **Confirmed:** Units + Heroes + Resources (no Tech bonus) |
 
 All totals saturate at `INT32_MAX`. **These weights and denominators are guesses,
@@ -706,3 +706,20 @@ Therefore pixel parity, imported-image rendering, cinematic interposition,
 actual map-loading-screen timing and direct engine-level pause releases still
 require the targeted local integration run. Avoid calling these verified
 until that run succeeds.
+
+### Resource Score retail parity (14 October 2026)
+
+Controlled retail TFT 1.29.2 experiments verified **Resource Score = cumulative
+Gold Mined Total + cumulative Lumber Harvested Total** with no divisors or
+rounding: gold-only 0–1,000, lumber-only 1–200, and mixed `(1,1)`, `(5,7)`,
+`(37,63)` all matched. W3I starting balances did not count, whereas a positive
+`SetPlayerStateBJ` resource grant updated the gathered counters through
+`AdjustPlayerStateBJ` and therefore scored. Raw writes to gathered counters
+changed Resource Score; raw current-balance writes and subsequent spending did
+not. Physical harvesting of 80 gold or 30 lumber also scored one-to-one.
+
+The Prologue02 script grants 90 lumber through `SetPlayerStateBJ`, explaining
+its retail **90 Resource Score** without actual harvesting. The implementation
+uses a 64-bit intermediate sum and clamps to `INT32_MAX` at the public score
+boundary. Multiplayer trading, independent upkeep effects, and some custom
+resource-grant paths remain unverified and are not included speculatively.

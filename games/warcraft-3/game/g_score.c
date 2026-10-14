@@ -252,10 +252,11 @@ bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *
              (uint64_t)s[WC3_PLAYER_SCORE_ITEMS_GAINED] * 10u +
              (uint64_t)(client->score.experience_gained +
                  (uint64_t)G_PlayerScoreScriptedXP(client->ps.number)) * 10u;
-    /* GUESS: 10 gold or 5 lumber gathered = 1 score point, ignoring
-     * transfers until their authoritative transaction callbacks exist. */
-    resources = s[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] / 10u +
-                s[WC3_PLAYER_SCORE_LUMBER_TOTAL] / 5u;
+    /* Retail TFT 1.29.2: each unit of cumulatively gathered gold or lumber
+     * contributes one Resource Score point. Starting balances and spending
+     * do not change these counters; transfers/upkeep remain unverified. */
+    resources = (uint64_t)s[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] +
+                s[WC3_PLAYER_SCORE_LUMBER_TOTAL];
     switch (score) {
     case WC3_PLAYER_SCORE_TECH_PERCENT:
         *value = G_ScoreGuessTechPercent(client); break;
