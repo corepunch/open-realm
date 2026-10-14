@@ -2368,6 +2368,14 @@ static void G_TestScriptMenuAction(cstring_t action, cstring_t argument) {
     strlcpy(script_save_test_last_action, action, sizeof(script_save_test_last_action));
     script_save_test_menu_actions++;
 }
+/* Capture the state at the real deferred navigation boundary, rather than
+ * assuming that a request has already finalized its entity removals. */
+static edict_t *postgame_test_removal;
+static bool postgame_test_removed_at_menu;
+static void G_TestPostgameFrameMenuAction(cstring_t action, cstring_t argument) {
+    postgame_test_removed_at_menu = postgame_test_removal && !postgame_test_removal->inuse;
+    G_TestScriptMenuAction(action, argument);
+}
 static bool postgame_test_paused;
 static void G_TestPostgamePause(bool paused) { postgame_test_paused = paused; }
 /* Entering the completed single-player score screen claims a permanent
@@ -2702,6 +2710,138 @@ TEST(wc3_score_postgame, completed_ticket_rejects_new_exit_until_map_reset) {
     gi.MenuAction = old_menu_action;
     G_ResetScoreTransition();
     G_ResetDifficultyTransition();
+}
+
+/* An unpaused ChangeLevel request must not start the next map before the
+ * outgoing G_RunFrame tail has drained the deferred-removal queue. The test
+ * takes the real scheduler entry and the existing no-viewer fallback, without
+ * requiring any installed Warcraft assets. */
+TEST(wc3_score_postgame, frame_tail_removes_entities_before_navigation) {
+    void (*old_menu)(cstring_t, cstring_t) = gi.MenuAction;
+    edict_t *hero;
+    uint32_t before;
+
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    G_ResetDeferredFrees();
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    T_NOT_NULL(hero);
+    if (!hero) return;
+    hero->s.player = 0;
+    hero->hero.level = 3;
+    postgame_test_removal = hero;
+    postgame_test_removed_at_menu = false;
+    gi.MenuAction = G_TestPostgameFrameMenuAction;
+    script_save_test_menu_actions = 0;
+    /* No connected viewer: test the fail-open route after the actual frame. */
+    FOR_LOOP(i, game.max_clients) game.clients[i].connected = false;
+    level.started = level.scriptsStarted = true;
+    G_QueueScoreTransition("menu", "menu_single_player_campaign");
+    G_DeferFreeEdict(hero);
+    before = level.framenum;
+    T_ASSERT(score_transition.pending);
+    T_EQ(script_save_test_menu_actions, 0);
+    T_ASSERT(hero->inuse);
+    globals.RunFrame();
+    T_EQ(level.framenum, before + 1u);
+    T_ASSERT(postgame_test_removed_at_menu);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_STREQ(script_save_test_last_argument, "menu_single_player_campaign");
+    T_ASSERT(!score_transition.pending);
+    T_ASSERT(!score_transition.terminal); /* Missing UI never claims pause. */
+    globals.RunFrame();
+    T_EQ(script_save_test_menu_actions, 1); /* No repeated fallback. */
+
+    gi.MenuAction = old_menu;
+    postgame_test_removal = NULL;
+    G_ResetScoreTransition();
+    level.started = false;
+}
+
+/* Score page input must still reach the game-owned dispatcher when terminal
+ * pause is active. It must not refresh frozen results or permit a second map
+ * action while the completed outgoing world remains loaded. */
+TEST(wc3_score_postgame, terminal_page_controls_use_frozen_data_and_one_shot_ok) {
+    void (*old_menu)(cstring_t, cstring_t) = gi.MenuAction;
+    void (*old_pause)(bool) = gi.SetPaused;
+    gameClient_t *client;
+    uint32_t before;
+
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    client = &game.clients[0];
+    client->connected = true;
+    gi.MenuAction = G_TestScriptMenuAction;
+    gi.SetPaused = G_TestPostgamePause;
+    script_save_test_menu_actions = 0;
+    G_QueueScoreTransition("menu", "menu_single_player_campaign");
+    score_transition.shown = true;
+    score_transition.awaiting[0] = true;
+    score_transition.frozen.count = WC3_SCORE_VISIBLE_ROWS + 3u;
+    score_transition.frozen.players[0].values[WC3_PLAYER_SCORE_UNIT_TOTAL] = 77;
+    score_transition.snapshot_frozen = true;
+    G_EnterScorePresentation();
+    T_ASSERT(score_transition.terminal);
+    level.started = level.scriptsStarted = true;
+    before = level.framenum;
+
+    G_ClientCommand(&g_edicts[0], 2, (cstring_t[]){ "scorescreen_tab", "1" });
+    T_EQ(score_transition.tab[0], 1u);
+    G_ClientCommand(&g_edicts[0], 2, (cstring_t[]){ "scorescreen_sort", "0" });
+    T_EQ(score_transition.view[0].column, 0u);
+    G_ClientCommand(&g_edicts[0], 2, (cstring_t[]){ "scorescreen_scroll", "1" });
+    T_EQ(score_transition.scroll[0], 3u);
+    G_ClientCommand(&g_edicts[1], 2, (cstring_t[]){ "scorescreen_tab", "3" });
+    T_EQ(score_transition.tab[0], 1u); /* Unauthorised viewer has no effect. */
+    G_ClientCommand(&g_edicts[0], 1, (cstring_t[]){ "signal" });
+    T_ASSERT(!client->cursor_signal);
+    globals.RunFrame(); /* Even an unexpected unpaused callback is inert. */
+    T_EQ(level.framenum, before);
+    T_EQ(score_transition.frozen.players[0].values[WC3_PLAYER_SCORE_UNIT_TOTAL], 77);
+    T_EQ(script_save_test_menu_actions, 0);
+    G_ClientCommand(&g_edicts[0], 1, (cstring_t[]){ "scorescreen_continue" });
+    G_ClientCommand(&g_edicts[0], 1, (cstring_t[]){ "scorescreen_continue" });
+    T_EQ(script_save_test_menu_actions, 1);
+    T_STREQ(script_save_test_last_argument, "menu_single_player_campaign");
+    T_ASSERT(score_transition.terminal);
+    T_ASSERT(!score_transition.pending);
+
+    gi.MenuAction = old_menu;
+    gi.SetPaused = old_pause;
+    G_ResetScoreTransition();
+    level.started = false;
+}
+
+/* A skip-scores transition intentionally bypasses the score presentation.
+ * Its navigation is immediate and it must not claim terminal pause or leave
+ * an old score ticket that would double-dispatch a later load. */
+TEST(wc3_score_postgame, skip_scores_preserves_direct_change_level_route) {
+    void (*old_menu)(cstring_t, cstring_t) = gi.MenuAction;
+    bool (*old_resolve)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
+
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    G_ResetDifficultyTransition();
+    gi.MenuAction = G_TestScriptMenuAction;
+    gi.ResolveMap = G_TestDifficultyResolveMap;
+    script_save_test_menu_actions = 0;
+    level.setup.difficulty = 1;
+    level.setup.default_difficulty = 2;
+    G_RequestChangeLevel("OrcX01_02.w3x", false);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_STREQ(script_save_test_last_action, "level");
+    T_STREQ(script_save_test_last_argument, "OrcX01_02.w3x");
+    T_ASSERT(!score_transition.pending);
+    T_ASSERT(!score_transition.terminal);
+    T_ASSERT(G_HasPendingDifficultyTransition());
+
+    gi.MenuAction = old_menu;
+    gi.ResolveMap = old_resolve;
+    G_ResetDifficultyTransition();
+    G_ResetScoreTransition();
 }
 
 /* A request is only a destination ticket. Scores/hero roster freeze at the

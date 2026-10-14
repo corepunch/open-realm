@@ -1473,6 +1473,10 @@ TEST(wc3_game, defeat_reduce_difficulty_preserves_default_for_restart) {
     T_EQ(current, 1u);
     T_EQ(original_default, 2u);
 
+    /* The last menu action would normally replace the map. Model that new
+     * session boundary before exercising the next defeat: Patch 3 correctly
+     * rejects every later exit in the already-completed outgoing world. */
+    G_TestResetScoreTransition();
     /* The same defeat on Normal reduces to Easy without changing default. */
     menu_action_capture[0] = '\0';
     G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });

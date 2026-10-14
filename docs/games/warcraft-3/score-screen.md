@@ -587,3 +587,61 @@ lowest-numbered-teammate mapping, which did not distinguish solo teams.
 
 No local build or runtime tests were performed. Verify the stock button states
 visually, then toggle the control in a game containing allied and enemy rows.
+
+### Post-game lifecycle Patch 4 — integration checks and acceptance (14 October 2026)
+
+The post-game sequence is **finish JASS/frame work → finalize the frozen
+score snapshot → enter terminal single-player pause when the score window is
+presentable → accept score-only commands → consume Continue once → begin the
+existing menu/map destination**. The outgoing game module, archive scope and
+renderer registrations remain resident until Continue (or no-viewer/failure
+fallback); a complete `SV_Shutdown` **before** scores is not implemented.
+No client-specific Warcraft routing, new `svc_*` protocol, or save version is
+introduced by this lifecycle.
+
+The headless `wc3_score_postgame` tests now include a genuine
+`globals.RunFrame()` transition with a queued deferred hero removal, exercising
+frame-end ordering before the one-shot no-viewer menu action. A second
+integration case uses actual `G_ClientCommand` entry points to switch tabs,
+sort and scroll while terminal, reject unapproved commands, verify that
+`globals.RunFrame()` remains inert, and consume Continue only once. The
+`ChangeLevel(..., false)` inverse verifies immediate navigation without a
+terminal pause. Earlier tests cover paused result commands, scripted saves,
+disconnections, the first-exit/difficulty contract, and multiplayer
+non-interference. Renderer `renderer_model.score_screen_background_*` tests
+cover map-first MDX and all five BLP candidate paths, stock fallback, and
+scope replacement; they test lookup, not real GPU artwork.
+
+**Local build/test checklist (not executed while authoring):**
+
+1. Run the Warcraft III headless engine target (`make test-wc3-engine`) and
+   full project tests (`make test`). Run the post-game `wc3_score_postgame.*`
+   selection with the existing `+test` mechanism if isolating a failure.
+2. Verify `EndGame(true)`, campaign Quit Mission, and
+   `SaveAndChangeLevelBJ` at 4:3 using an installed retail asset set; wait on
+   the score screen while observing that units, AI, timers, script work and
+   gameplay time do not advance. Confirm tabs, sort, scroll, team options
+   and the **O** Continue shortcut still respond during terminal pause.
+3. Confirm **no loading plaque or campaign selector before Continue**.
+   Observe the correct campaign difficulty and destination after Continue.
+   Check `ChangeLevel(..., false)` and `EndGame(false)` bypass scores.
+4. Repeat from a paused victory/defeat choice and with a queued cinematic;
+   ensure the result is not stranded after the script returns. Cancel or
+   disconnect the final viewer; ensure exactly one deferred destination.
+5. For custom artwork, import the five stock-path parchment BLPs and,
+   separately, the stock-path background MDX into a disposable `.w3x`.
+   Inspect all four score tabs **after several seconds**; then Continue to
+   an unmodified map and confirm that its stock score artwork returns.
+   Inspect both model and texture resolution and watch for stale or missing
+   textures after map cleanup.
+6. Confirm multiplayer behavior is unchanged: no terminal single-player
+   pause is introduced for multiple connected viewers, and disconnect/OK
+   still uses the existing shared-transition policy.
+
+**Outstanding evidence:** The headless tests do not exercise the full
+`SV_Frame` network scheduler or the GL sprite path, and there is no bundled
+retail `ScoreScreen.fdf` or proprietary score artwork in the test assets.
+Therefore pixel parity, imported-image rendering, cinematic interposition,
+actual map-loading-screen timing and direct engine-level pause releases still
+require the targeted local integration run. Avoid calling these verified
+until that run succeeds.

@@ -470,10 +470,14 @@ reports client UI-layer receipt/storage; `wc3_dialog_debug 1` separately traces
 script-authored JASS choice dialogs. These controls keep Warcraft-specific
 knowledge out of shared client code.
 
-Single-player result pausing is also intentionally still missing. Result UI should reuse the existing WC3 pause/modal
-ownership path rather than suppressing `SV_Frame` or creating a second clock-freeze mechanism. `PauseGame` and
-single-client modal pausing already flow through the generic server scheduler, which freezes simulation time while
-continuing network reads and client traffic.
+The earlier generic victory/defeat fallback is still governed by its authored
+script/modal pause policy; its remaining pause limitations are separate from
+the post-game score screen. Once a local score window has been emitted, the
+WC3 module owns a terminal pause reason and `G_RunFrame` rejects unexpected
+post-completion simulation callbacks. `SV_Frame` continues receiving network
+commands while paused, so tabs, scroll, sorting and Continue remain responsive.
+The map and game module are intentionally retained until the deferred
+destination begins: "match ended" does **not** mean `SV_Shutdown` has run.
 
 ### Remaining frontend lifecycle gaps
 
