@@ -609,3 +609,5 @@ carried by another unit directly between authoritative inventory slots, without
 requiring a world drop or changing the item handle. Scripted Soul Gem slot
 reattachment remains the first branch. See
 [Inventory And World Items](../../docs/games/warcraft-3/inventory-and-items.md#unit-to-unit-item-handoff).
+
+Item pools: `CreateItemPool`, `DestroyItemPool`, `ItemPoolAddItemType`, `ItemPoolRemoveItemType` and `PlaceRandomItem` implement bounded weighted item creation (see `docs/games/warcraft-3/inventory-and-items.md`).
