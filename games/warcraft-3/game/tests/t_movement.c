@@ -3892,6 +3892,34 @@ TEST(wc3_movement, unit_position_changes_after_move_frame) {
     T_ASSERT(unit->s.origin2.x > x0);
 }
 
+/* SetUnitPathing(false) point orders retain their exact destination through
+ * blocked terrain and steer directly to it instead of following a static
+ * route field that ends outside the scripted trigger. */
+TEST(wc3_movement, no_pathing_move_preserves_blocked_destination) {
+    enum { CELLS = 16 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    edict_t *unit = make_moving_unit(80.0f, 240.0f);
+    vec2_t dest = {432.0f, 240.0f};
+
+    for (int y = 0; y < CELLS; y++)
+        pathmap[y * CELLS + 7] = 2;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    unit->collision = 16.0f;
+    unit->unitinfo.MoveSpeed = 80.0f;
+    unit->no_pathing = true;
+
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    T_FEQ(unit->goalentity->s.origin2.x, dest.x, 0.01f);
+    T_FEQ(unit->goalentity->s.origin2.y, dest.y, 0.01f);
+
+    for (int frame = 0; frame < 200 && unit->currentmove->think; frame++)
+        unit->currentmove->think(unit);
+
+    T_STREQ(unit->currentmove->animation, "stand");
+    T_FEQ(Vector2_distance(&unit->s.origin2, &dest), 0.0f, 0.01f);
+}
+
 /* Route generation must expand obstacles by the mover radius, matching the
  * move-time collision test.  The point route hugs this wall too closely; a
  * Peasant-sized route has room to detour above it and reach the destination. */
