@@ -1272,6 +1272,7 @@ TEST(wc3_items, shielding_rune_arms_eligible_allies_with_full_inventory) {
     T_EQ(G_UnitStatusLevel(enemy, shield), 0);
     T_EQ(G_UnitStatusLevel(outside, shield), 0);
     T_EQ(unit_findstatus(ally, shield)->duration_ms, 0);
+    T_ASSERT(unit_findstatus(ally, shield)->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
     T_ASSERT(rune->item->pending_use_removal);
     T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
 
@@ -1280,6 +1281,9 @@ TEST(wc3_items, shielding_rune_arms_eligible_allies_with_full_inventory) {
     rune->data.ItemData = &data;
     T_ASSERT(G_PickupItem(picker, rune));
     T_EQ(G_UnitStatusLevel(ally, shield), 1);
+    T_ASSERT(unit_findstatus(ally, shield)->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
+    unit_removestatus(ally, unit_findstatus(ally, shield), STATUS_REMOVE_DISPEL);
+    T_EQ(G_UnitStatusLevel(ally, shield), 0);
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
@@ -1357,6 +1361,7 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     if (status) {
         T_EQ(status->duration_ms, 9500);
         T_EQ(status->data, MAKEFOURCC('A','I','s','p'));
+        T_ASSERT(status->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
         T_ASSERT(S_ItemSpeedActive(unit));
         T_FEQ(unit_movedistance(unit), 10.0f * 431.0f / (float)FRAMETIME, 0.01f);
         level.time = status->timestamp;

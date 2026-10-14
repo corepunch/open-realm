@@ -341,7 +341,12 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     target->s.renderfx |= RF_HIDDEN;
     {
         heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, 1, duration);
-        if (status) status->data = code;
+        if (status) {
+            status->data = code;
+            /* The timed buff owns its persistent TargetArt; expiry, dispel and
+             * refresh use the common status-effect lifecycle. */
+            unit_status_enabletargetart(target, status, "origin");
+        }
         if (status) return true;
     }
     if (!S_UnitHasTemporaryInvisibility(target, NULL)) {
@@ -636,8 +641,10 @@ BZ_ABILITY_PROC(CAbilitySpellShieldAoe) {
                  S_SpellAllowsAreaTarget(code, caster, target) &&
                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
         if (G_UnitStatusLevel(target, FS_SLKKey(buff))) continue;
-        /* TargetArt is one-shot presentation; BNss owns persistent game state. */
-        S_SpellApplyTimedTargetStatus(target, code, 1, buff, 0.0f);
+        /* The shield charge is untimed. Its buff (BNss) owns persistent art,
+         * which the shared status lifecycle removes when a spell consumes it. */
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, 1, buff, 0.0f);
+        if (status) unit_status_enabletargetart(target, status, "origin");
     }
     return true; /* Powerups consume even if all eligible allies already have shields. */
 }
