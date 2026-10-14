@@ -265,6 +265,8 @@ void CL_Connect(cstring_t host, unsigned short port);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(cstring_t mapName);
+bool CL_ControlGroupsSave(cstring_t name);
+void CL_ControlGroupsLoad(cstring_t name);
 void CL_LoadingFrame(void);
 
 void SV_Init(void);

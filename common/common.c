@@ -490,7 +490,16 @@ bool FS_DeleteSave(cstring_t rel) {
     }
     FS_SavePath(rel, path, sizeof(path));
     if (!path[0]) return false;
-    if (remove(path) == 0) { FS_UnbindScriptSaveScope(rel); return true; }
+    if (remove(path) == 0) {
+        PATHSTR groups;
+        /* A manual save owns its local-control companion. */
+        if (strlen(path) + sizeof(".groups") <= sizeof(groups)) {
+            snprintf(groups, sizeof(groups), "%s.groups", path);
+            remove(groups);
+        }
+        FS_UnbindScriptSaveScope(rel);
+        return true;
+    }
     fprintf(stderr, "FS_DeleteSave: cannot remove %s: %s\n", path, strerror(errno));
     return false;
 }
@@ -1813,7 +1822,8 @@ static void Com_LoadGame_f(void) {
      * ClearWorld, ReadLevel, then reconnect. SV_LoadGame maps so JASS main()
      * rebuilds registries, then ReadGame immediately — before PrepRefresh/begin.
      * SV_Map already sent loopback client_connect (the reconnect). */
-    SV_LoadGame(Cmd_Argv(1), map);
+    if (SV_LoadGame(Cmd_Argv(1), map) && !Cvar_Integer("dedicated", 0))
+        CL_ControlGroupsLoad(Cmd_Argv(1));
 }
 
 /* Run the in-engine test registry and exit with the failure count.  Tests are

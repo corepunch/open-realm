@@ -908,3 +908,18 @@ then call `CM_BakeStaticObstacles()` **once** before resuming simulation.
 This also updates footprints for other moved/removed structures. Animation is
 not the authoritative input for pathfinding; the saved destructable lifecycle
 and pathing fields are.
+
+## Local numbered control groups
+
+Manual Warcraft III saves persist the ten local selection groups (0–9) in a
+versioned companion file named `<slot>.sav.groups` in the normal user-save
+directory. This data is owned by the universal client, not by JASS or the
+game-module simulation. Both the `save` command and in-game Save menu write
+the companion after the main game save succeeds. The `load` command and
+in-game Load menu restore it only after a successful game-state load, following
+the normal map-transition reset. Missing or incompatible companion files leave
+groups empty (so older saves remain loadable); saved IDs are bounded on read
+and checked against live selectable entities when recalled. Double-tap focus
+state never survives a load. Scripted zone loads do not restore manual groups.
+Deleting a manual save also deletes its companion file. The companion must
+travel alongside the `.sav` file when copying saves to another installation.

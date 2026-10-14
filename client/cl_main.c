@@ -890,7 +890,7 @@ execute:
         FS_RestoreScriptSaveScope(pending.arg);
         CL_SetGameplayBindings();
         CL_BeginLoadingMap(map);
-        SV_LoadGame(pending.arg, map);
+        if (SV_LoadGame(pending.arg, map)) CL_ControlGroupsLoad(pending.arg);
         break;
     }
     case CL_MENU_ACTION_SCRIPT_LOAD: {
