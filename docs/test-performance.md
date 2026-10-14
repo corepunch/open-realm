@@ -189,3 +189,20 @@ This is implementation commit4/12 after checkpoint332. Full-suite cadence is
 unchanged. Eight updated function annotations are saved in Ghidra. Raw captures,
 source maps, diagnostic attempts, JUnit and fresh reports are archived under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff338/verified/`.
+
+### Acquisition control effects339: fifth implementation commit after332
+
+Three failing-first regressions (58 failures /328 assertions) now pass, covering
+Sleep admission, natural-sleep scans and five Ensnare/Web binding IDs with
+removal/ability/save inverses. The affected suites pass343 tests /32998 assertions
+in each of Classic and TFT. Two complete1372-event retail captures agree with
+98 public markers from an uninstrumented control. The verifier checks427 original
+instructions and fresh class hierarchy extraction. Eight evidence tests,37 corpus
+tests and12 ownership tests pass; production and test builds pass. A fresh strict
+oracle-group339 report verifies the registered evidence. Existing562 corpus
+entries remain unchanged. GROUP-03.2 remains open without another task split.
+
+Cadence is5/12 since full checkpoint332; no full-suite claim for this chunk.
+Five annotations are saved in Ghidra. Reports, diagnostic attempts, maps, failing
+and passing logs are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff339/`.

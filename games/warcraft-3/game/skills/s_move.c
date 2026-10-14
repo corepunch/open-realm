@@ -4437,9 +4437,9 @@ void S_RemoveMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status) {
 /* Effective current move speed of a unit (runtime override, else data table). */
 static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     if (M_UnitMoveDisabled(ent)) return 0;
-    /* BEer holds Move7c in retail:5fc890 publishes zero even though its
-     * virtual18c override preserves mobile acquisition priority. */
-    if (S_UnitIsEntanglingRooted(ent)) return 0;
+    /* Roots and Ensnare/Web hold Move7c in retail:5fc890 publishes zero
+     * while virtual18c preserves mobile acquisition priority. */
+    if (S_UnitIsEntanglingRooted(ent) || S_UnitIsEnsnared(ent)) return 0;
     if (ent->movement.captain_actor_type) return ent->unitinfo.MoveSpeed;
     if (S_ItemSpeedActive(ent)) return game.constants.maxUnitSpeed;
     unitStatusQuery_t statuses;

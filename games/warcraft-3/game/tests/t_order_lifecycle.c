@@ -469,6 +469,104 @@ TEST(wc3_order_lifecycle, group338_roots_keeps_mobile_priority_until_removed) {
     reset_entities();setup_test_world();
 }
 
+TEST(wc3_order_lifecycle, group339_sleep_admission_uses_acquiring_town_policy) {
+    FOR_LOOP(saved,2)FOR_LOOP(town,2) {
+        reset_entities();setup_test_world();level.show_map_cheat=true;
+        edict_t *unit=review_order_unit(0,0),*old=review_order_unit(588,1);
+        edict_t *target=review_order_unit(300,0);
+        unit->s.model=old->s.model=target->s.model=1;
+        unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+        unit->collision=old->collision=target->collision=31;
+        target->health.value=old->health.value=420;
+        if(town){level.ai_owned_players|=1;G_BotUnitReady(unit);}
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(old);G_PublishMoveSpatialObject(target);
+        T_ASSERT(G_IssueUnitPointOrder(unit,"attack",&(vec2_t){1800,0},false,0,0));
+        order_attack(unit,old);
+        status_application_t sleep={.buff="BUsl",.level=1,.duration=30,.source=old};
+        T_NOT_NULL(unit_applystatus(target,&sleep));
+        if(saved) {
+            UnitWeapons_t const *weapons=unit->data.UnitWeapons;
+            cstring_t file=Test_TempPath("wc3-group339-sleep.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit->data.UnitWeapons=old->data.UnitWeapons=target->data.UnitWeapons=weapons;
+        }
+        T_ASSERT(!unit->attack_speed_cap.active);
+        uint32_t head=unit->current_order_id;edict_t *waypoint=unit->movement.attackmove_waypoint;
+        G_SetUnitPlayer(target,1);
+        T_ASSERT(unit_hasstatusstate(target,WC3_STATUS_STATE_SLEEPING));
+        T_ASSERT(S_AttackCanTarget(unit,target));
+        T_EQ(S_AttackCanAutoAcquire(unit,target),town);
+        T_EQ(unit->attack_speed_cap.active,town);
+        T_EQ(unit->attack_target,old);
+        T_EQ(unit->current_order_id,head);T_EQ(unit->movement.attackmove_waypoint,waypoint);
+        unit_removestatus(target,unit_findstatus(target,MAKEFOURCC('B','U','s','l')),STATUS_REMOVE_SCRIPT);
+        T_ASSERT(S_AttackCanAutoAcquire(unit,target));
+        G_SetUnitPlayer(target,0);G_SetUnitPlayer(target,1);
+        T_EQ(unit->attack_target,target);T_ASSERT(unit->attack_speed_cap.active);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, group339_town_can_scan_naturally_sleeping_creep) {
+    FOR_LOOP(saved,2)FOR_LOOP(town,2) {
+        reset_entities();setup_test_world();level.show_map_cheat=true;
+        edict_t *unit=review_order_unit(0,0),*target=review_order_unit(300,PLAYER_NEUTRAL_AGGRESSIVE);
+        unit->s.model=target->s.model=1;unit->invulnerable=true;
+        if(town){level.ai_owned_players|=1;G_BotUnitReady(unit);}
+        G_UnitSetCanSleep(target,true);
+        G_SetTimeOfDay(game.constants.duskTimeGameHours);G_UpdateTimeOfDay();
+        ai_stand(target);T_ASSERT(G_UnitIsSleeping(target));
+        gi.LinkEntity(unit);gi.LinkEntity(target);
+        if(saved) {
+            UnitWeapons_t const *weapons=unit->data.UnitWeapons;
+            cstring_t file=Test_TempPath("wc3-group339-natural-sleep.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit->data.UnitWeapons=target->data.UnitWeapons=weapons;
+        }
+        T_ASSERT(G_UnitIsSleeping(target));
+        T_EQ(S_AttackCanAutoAcquire(unit,target),town);
+        T_EQ(G_FindNearestEnemy(unit,1100),town ? target : NULL);
+        G_UnitWakeUp(target);T_ASSERT(!G_UnitIsSleeping(target));
+        T_ASSERT(S_AttackCanAutoAcquire(unit,target));
+        T_EQ(G_FindNearestEnemy(unit,1100),target);
+    }
+    reset_entities();setup_test_world();G_SetTimeOfDay(12);G_UpdateTimeOfDay();
+}
+
+TEST(wc3_order_lifecycle, group339_ensnare_priority_preserves_mobile_class) {
+    cstring_t const buffs[]={"Bens","Bena","Beng","Bwea","Bweb"};
+    FOR_LOOP(saved,2)FOR_LOOP(town,2)FOR_LOOP(kind,sizeof(buffs)/sizeof(*buffs)) {
+        reset_entities();setup_test_world();level.show_map_cheat=true;level.setup.difficulty=2;
+        edict_t *unit=review_order_unit(0,0),*target=review_order_unit(300,1);
+        unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+        unit->collision=target->collision=31;
+        unit->unitinfo.MoveSpeed=target->unitinfo.MoveSpeed=270;
+        unit->defense_type=target->defense_type=2;
+        target->health.value=420;S_AttackProfileWrite(unit,0)->range=90;
+        if(town){level.ai_owned_players|=1;G_BotUnitReady(unit);}
+        uint64_t before=G_TestAttackTargetPriority(unit,target);
+        status_application_t bind={.buff=buffs[kind],.level=1,.duration=12,.source=unit};
+        T_NOT_NULL(unit_applystatus(target,&bind));
+        if(saved) {
+            UnitWeapons_t const *weapons=unit->data.UnitWeapons;
+            cstring_t file=Test_TempPath("wc3-group339-ensnare.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit->data.UnitWeapons=target->data.UnitWeapons=weapons;
+        }
+        T_ASSERT(!S_UnitCanTranslate(target));T_FEQ(S_UnitMoveSpeed(target),0,0);
+        uint64_t key=G_TestAttackTargetPriority(unit,target);
+        T_EQ((uint32_t)key,town ? 0x62000000u : 0x60000000u);
+        T_EQ((uint32_t)(key>>32),town ? 0xfbe00000u : 0x0be00000u);
+        T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','m','o','v')));
+        T_EQ((uint32_t)G_TestAttackTargetPriority(unit,target)&0x20000000u,0);
+        T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','m','o','v')));
+        unit_removestatus(target,unit_findstatus(target,MAKEFOURCC(buffs[kind][0],buffs[kind][1],buffs[kind][2],buffs[kind][3])),STATUS_REMOVE_SCRIPT);
+        T_ASSERT(S_UnitCanTranslate(target));T_FEQ(S_UnitMoveSpeed(target),270,0);
+        T_EQ(G_TestAttackTargetPriority(unit,target),before);
+    }
+    reset_entities();setup_test_world();
+}
+
 #include "fixtures/retail_group338_town.h"
 TEST(wc3_order_lifecycle, group338_town_matches_original_candidate_priority_words) {
     typeof(game.constants) constants=game.constants;

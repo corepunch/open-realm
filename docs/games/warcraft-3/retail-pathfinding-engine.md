@@ -19986,3 +19986,57 @@ Eight recovered function annotations are saved in Ghidra and reproduced by
 include Town policy, optional overrides, target perimeter, rejected-alternative
 identity, prevention/minimum-range/neutral guards and public target-speed/captain
 compositions. Do not count this partial integration as a closed TODO.
+
+## Sleep admission and Ensnare acquisition priority (payoff339)
+
+`4959f0` rejects a candidate with acquisition-prevention count `Unit+ec` for
+ordinary acquiring players, while Town-owned attackers bypass that guard.
+This differs from a source's voluntary hold-fire policy. Sleep after its initial
+invulnerable interval reaches ranking for Town owners and is rejected before
+speed-cap exemption for ordinary owners. Engine availability notifications and
+`G_FindNearestEnemy` now use the same target admission; natural creep sleep is
+also covered, including wake and cold-save continuation. Explicit attacks retain
+their separate target policy. Other existing `A_NO_ACQUIRE` policies are retained.
+
+Active creep Ensnare (`ACen`) prevents translation and publishes current speed
+zero, but its `virtual18c` preserves mobile acquisition priority while `Amov`
+exists. The `Bens` lookup in Town ranking includes derived classes, so it also
+recognizes `Bena`, `Beng`, `Bwea` and `Bweb`. Original RTTI confirms `CBuffWeb`
+derives from `CBuffEnsnareGround`, and `CBuffWebAir` derives from
+`CBuffEnsnareAir`; both derive from `CBuffEnsnare` and share `5ea560`.
+Binding removal restores the authored speed and prior ranking. No save fields
+or client behavior changed.
+
+The frozen 14-scene map has two identical 1,372-event native streams and 98
+public markers equal to an uninstrumented control. Late Sleep scenes 5/12
+separate Town/ordinary admission without transferring the target's ownership.
+Early active Ensnare has native in-range keys `fbe04000:66000000` (Town) and
+`0be00000:64000000` (ordinary). The out-of-range engine regression removes the
+established `04000000` range contribution and Town `4000` contribution; it does
+not claim its entire out-of-range word was captured by this map. Five binding
+IDs, missing/restored `Amov`, removal, fresh and saved state are checked.
+
+Three regressions first failed 58 of 328 assertions; all now pass. The affected
+Classic and TFT suites each pass 343 tests / 32,998 assertions. The verifier
+checks complete repeat/control streams, 427 original instructions and freshly
+extracted class hierarchies:
+
+```sh
+python tools/ghidra/verify_wc3_pathing_group339.py \
+  --binary /path/to/game.dll --report /tmp/group339-fresh.json
+```
+
+`group339_make_map.py --base Group338Hard.w3m --probe
+ tools/frida/research/group339_available_probe.j --output Group339c.w3m`
+rebuilds the accepted map (SHA256
+`7127c29706755ec0f371cdd39adf71dca0408d923db5037d6b877f75c8f618d3`).
+Raw captures and earlier diagnostic maps are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff339/`.
+Five function annotations are saved in Ghidra and recorded in `MapPathfinding.java`.
+
+Accepted spell orders alone did not certify active Stun/Purge overrides in this
+scene. `SetUnitMoveSpeed(0)` resets the native default rather than immobilizing
+the source; captured positions remain authoritative. Web's extension has static
+class evidence and engine lifecycle tests, not a new public Web capture.
+Remaining optional overrides, acquisition guards, rejected-alternative identity,
+AI propagation and public target-speed/Captain compositions keep GROUP-03.2 open.

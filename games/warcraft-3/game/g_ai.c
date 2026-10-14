@@ -140,8 +140,6 @@ static bool filter_sight(edict_t const *ent) {
      * explicit orders still perform their own target validation. */
     if (G_UnitIsInvulnerable(ent))
         return false;
-    if (S_UnitAbilityEvent((edict_t *)ent, A_NO_ACQUIRE))
-        return false;
     /* Retail creep idle-acquisition exceptions apply only to autonomous
      * Neutral Hostile guarding. Retaliation and explicit scripted orders use
      * the ordinary attack-target checks instead. A grounded (Ensnared) flyer
@@ -158,7 +156,8 @@ static bool filter_sight(edict_t const *ent) {
     if (unit_has_attack(ai_current_entity)) {
         if (!S_AttackCanAutoAcquire(ai_current_entity, ent))
             return false;
-    } else if (ent->runtime.flags & UNIT_BALANCE_BUILDING) {
+    } else if ((ent->runtime.flags & UNIT_BALANCE_BUILDING) ||
+               S_UnitAbilityEvent((edict_t *)ent,A_NO_ACQUIRE)) {
         /* Preserve the old non-combat sight behavior: callers without an
          * ordinary weapon do not gain building candidates merely because
          * armed units may now attack structures. */

@@ -283,7 +283,8 @@
     "oracle-controls324",
     "oracle-route335",
     "oracle-route337",
-    "oracle-group338"
+    "oracle-group338",
+    "oracle-group339"
   ],
   "entries": [
     {
@@ -6535,6 +6536,32 @@
           "task": "GROUP-03.2",
           "disposition": "behavior",
           "rationale": "Complete remaining acquisition producers and ability lifetimes under GROUP-03.2; isolated scalar inputs and incomplete spell states do not certify public lifecycle coverage."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-group339",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "The complete14 public scenes certify Sleep admission and active Ensnare priority; accepted spell orders alone do not certify every intended stun, purge or other active override state.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Retain the distinction between complete Sleep/ACen public captures, static Web inheritance, engine saves and remaining acquisition/AI/motion lifetimes."
+        },
+        {
+          "index": 1,
+          "text": "Web-family handling also relies on original class hierarchy/virtual evidence; the public active bind here is creep Ensnare ACen.",
+          "task": "GROUP-03.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Retain the distinction between complete Sleep/ACen public captures, static Web inheritance, engine saves and remaining acquisition/AI/motion lifetimes."
+        },
+        {
+          "index": 2,
+          "text": "Engine cold saves do not certify retail save-UI; remaining acquisition guards, alternate identity lifetimes, AI propagation and public target-speed/Captain domains remain GROUP-03.2.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Retain the distinction between complete Sleep/ACen public captures, static Web inheritance, engine saves and remaining acquisition/AI/motion lifetimes."
         }
       ]
     }

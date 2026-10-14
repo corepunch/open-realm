@@ -1202,12 +1202,25 @@ static bool attack_target_out_of_base_range(edict_t *ent) {
     return !ent || attack_target_out_of_range_for_mode(ent, ent->goalentity, false);
 }
 
+/* Unit+ec contributors in4959f0/49d680. This is target acquisition prevention,
+ * separate from a unit voluntarily holding fire or losing movement. */
+static bool attack_target_prevents_acquisition(edict_t const *target) {
+    return G_UnitIsSleeping(target) || unit_hasstatusstate(target,WC3_STATUS_STATE_SLEEPING) ||
+        S_UnitMechanicalCritter(target) || S_UnitHasStatus(target,MAKEFOURCC('B','p','o','s'));
+}
+
 /* Movement-disabled attackers (ordinary towers/buildings) must not auto-acquire
  * something they can see but can never approach.  Mobile units still acquire
  * throughout uacq and chase normally; Hold Position keeps its separate
  * disable-chase lifecycle. */
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
     if (S_UnitIsEntanglingRooted(attacker) || !S_AttackCanTarget(attacker, target)) return false;
+    bool town=(attacker->aiflags&AI_TOWN_OWNED)!=0;
+    if(attack_target_prevents_acquisition(target) && !town)return false;
+    /* Natural sleep also owns A_NO_ACQUIRE for the sleeper's own idle policy.
+     * Its target-side exception must agree in both scans and notifications. */
+    if(S_UnitAbilityEvent((edict_t *)target,A_NO_ACQUIRE) &&
+       !(town && G_UnitIsSleeping(target)))return false;
     if ((attacker->aiflags & AI_IMMOBILE) &&
         (attack_target_out_of_range_for(attacker, target) || attack_target_too_close_for(attacker, target)))
         return false;
@@ -1889,10 +1902,11 @@ static uint64_t attack_town_priority(edict_t const *unit,edict_t const *target,
         else if(difficulty>1 && victim->defense_type==3 && attack_profile(target,victim)->type==ATK_SIEGE)
             high|=0x00100000u;
     }
-    if(!G_UnitIsSleeping(target) && !unit_hasstatusstate(target,WC3_STATUS_STATE_SLEEPING) &&
-       !S_UnitMechanicalCritter(target) && !S_UnitHasStatus(target,MAKEFOURCC('B','p','o','s')) &&
+    if(!attack_target_prevents_acquisition(target) &&
        !S_UnitHasStatus(target,MAKEFOURCC('B','E','e','r')))high|=0x80000000u;
-    if(!S_UnitHasStatus(target,MAKEFOURCC('B','e','n','s')))high|=0x00001000u;
+    /* Native lookup requests Bens with derived-class matching, including
+     * Bena/Beng and the Web family. */
+    if(!S_UnitIsEnsnared(target))high|=0x00001000u;
     if(G_ActorHasAbilityCode(unit,MAKEFOURCC('A','p','o','i')) &&
        !S_UnitHasStatus(target,MAKEFOURCC('B','p','o','i')))high|=0x00002000u;
     if(difficulty && attack_priority_worker(target) && S_UnitHasSpellTask(target))high|=0x00080000u;
@@ -1963,10 +1977,10 @@ static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target
     unitAttack_t const *weapon=attack_profile(unit,target);
     float range=MAX(ATTACK_MINIMUM_CHASE_RANGE,MIN(weapon->range,unit->runtime.acquisition_range));
     wc3AttackPriority_t facts={
-        /*48e260/CBuffEntanglingRoots virtual18c preserves mobile priority
-         * while its Move prevention still prohibits actual translation. */
+        /*48e260: Roots and Ensnare/Web virtual18c preserve mobile priority
+         * while Move prevention still prohibits actual translation. */
         .mobile=G_ActorHasAbilityCode(target,MAKEFOURCC('A','m','o','v')) &&
-            (S_UnitCanTranslate(target) || S_UnitIsEntanglingRooted(target)),
+            (S_UnitCanTranslate(target) || S_UnitIsEntanglingRooted(target) || S_UnitIsEnsnared(target)),
         .both_flying=(unit->aiflags&AI_FLYING) && (target->aiflags&AI_FLYING),
         .fortified=target->defense_type==3, /* Native Unit+e4 defType fort. */
         .armed=armed,.relation=relation,
@@ -2037,7 +2051,7 @@ static void attack_target_available(edict_t *target) {
         if(S_UnitIsCycloned(unit) || !S_HumanCanAttack(unit) || !S_CargoAttacksEnabled(unit) ||
             G_PlayerTreatsPlayerAsAlly(unit->s.player,target->s.player) ||
             G_UnitIsInvulnerable(target) || S_UnitAbilityEvent(unit,A_NO_ACQUIRE) ||
-            S_UnitAbilityEvent(target,A_NO_ACQUIRE) || !S_AttackCanAutoAcquire(unit,target) ||
+            !S_AttackCanAutoAcquire(unit,target) ||
             !G_FowPlayerCanTrackUnit(unit->s.player,target))continue;
         float range=G_AcquisitionRange(unit);
         /*498e50 clamps a movement-ineligible owner's acquisition radius to

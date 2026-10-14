@@ -55068,6 +55068,48 @@
         "The repeated public artillery scenes cover zero through five friendly units; arbitrary crowds, diplomacy and other notification guards remain GROUP-03.2.",
         "The seven control-effect scenes certify the observed Roots mobility override; unsuccessful or expired other spell states do not certify their override lifecycles."
       ]
+    },
+    {
+      "id": "oracle-group339",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_group339.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "group339.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "native_events": {
+          "equal": 1372
+        },
+        "public_markers": {
+          "equal": 98
+        },
+        "instructions": {
+          "equal": 427
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "GROUP-03.2 Sleep target admission by acquiring Town policy; Ensnare/Web mobile priority, current speed and derived Bens ranking; actual availability/scan and cold-save regressions.",
+      "exclusions": [
+        "The complete14 public scenes certify Sleep admission and active Ensnare priority; accepted spell orders alone do not certify every intended stun, purge or other active override state.",
+        "Web-family handling also relies on original class hierarchy/virtual evidence; the public active bind here is creep Ensnare ACen.",
+        "Engine cold saves do not certify retail save-UI; remaining acquisition guards, alternate identity lifetimes, AI propagation and public target-speed/Captain domains remain GROUP-03.2."
+      ]
     }
   ],
   "fixtures": [
@@ -55966,7 +56008,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "94c4fd8f5536d0071d66e8aa94cf55a39810741100073b9b0cba6a0dcad61f07"
+      "sha256": "f5cd13659a72677b62b2fcdae0ee415c3f8015282c8a8ab66acb5a0fc5441a74"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56822,7 +56864,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "58d286ff7bd4f13830c6b7bd85486c2f4234f4d079a3b35515f6e4078ea263df"
+      "sha256": "7a9cc2a9dc4359df19ae8370fcdd0906c79185aab8199a33c6a503ba7a286a21"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -57758,7 +57800,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "620a9d40028e5292f370245c33ab8c4b0647d7f1000e7c59c89d64bf2a6bfb35"
+      "sha256": "68b29555392d35b73187c281ff8e478a202b8cc4fe3a708ff3f62bed880a9b79"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57770,11 +57812,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "7050a68d1384e7ab780436ecef8642de33cbf6a2980e3caec082b1ef7369fdd9"
+      "sha256": "d9f892a043d41d687b7cb11a9c7d062d875d79d399f0d4ae66ab532bd75449c2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "841e5399f12336e2c33d48f0e72715ba2febea9a757fb10b63a0b0a2951d1cae"
+      "sha256": "c80927a8398f1cf201631929b0ff7e87e9d851028fcdd2f1b20407ea7e5bb101"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -57782,7 +57824,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "84df60fe1537d1a9dff81224f6750888b0ebc3e55802ecfe57ee8a7f721432f7"
+      "sha256": "68986b4ce0a18e8a1b6cce5a1e46c2749b9085cc44fc141dbc2eae2abe785a59"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -58858,7 +58900,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
-      "sha256": "21b4724257661caa3fa5a926818f93a35aa7b04d91b76906f9c4cfaf5f581979"
+      "sha256": "86a5f4964091e8b69d55f75f463c0669fdca0289d9c971c8f06c4b7b677bb395"
     },
     {
       "path": "games/warcraft-3/game/tests/t_patrol_orders.c",
@@ -64503,6 +64545,42 @@
     {
       "path": "tests/test_wc3_pathfinding_group338.py",
       "sha256": "66387fca29f51cf605ff7acaea805ef40fe0fb11aecfa3322b4ead6c12475b4e"
+    },
+    {
+      "path": "tools/frida/research/group339_make_map.py",
+      "sha256": "fde80792362163ea50c8440d077e6c0dc676eb6e9446b40cf9ad9f2b4e723d24"
+    },
+    {
+      "path": "tools/frida/research/group339_available_probe.j",
+      "sha256": "aeba183f22683f2e3a0a15bb8fac95b0878cd76841b289ce71bbb920d2218d14"
+    },
+    {
+      "path": "tools/frida/research/group339_observer.js",
+      "sha256": "5701fd7d87e6647ac2955de1fbba4e3c4decf2da877f1ea133be15959958bab7"
+    },
+    {
+      "path": "tools/ghidra/research/group339_classes.py",
+      "sha256": "cf845c8d7f6b60e9cd41d68014e86ada76ab09bf541305ef2acbb2cac9c259f1"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_group339.py",
+      "sha256": "9901a7fb3a8aac681c0aac6ee5eaa40ad69e304d29cc2f26abe4d41e6d02e0fa"
+    },
+    {
+      "path": "tools/ghidra/research/Group339Evidence.java",
+      "sha256": "afd322b84bef1b23b0f776e8fcd1f379e60f950478560addb357f783b7a82daf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group339-1.27.json",
+      "sha256": "cd281e05eb0d33382dd658580dee551d73e3b72798a843345d3b4653b241267c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group339-inputs-1.27.json.gz",
+      "sha256": "90f2d9d8c132778051b896d9617f2b44044b42caaf70fd59dd7d15ac87da2d15"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_group339.py",
+      "sha256": "e19f44f33b50de71b2dbb597359dc289555ebc5f3edea2448eff620f6942b685"
     }
   ]
 }
