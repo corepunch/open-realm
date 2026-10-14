@@ -239,7 +239,7 @@ void G_TextTagPresentation(texttag_t *tag, bool remove) {
     } else {
         origin.x = tag->x;
         origin.y = tag->y;
-        origin.z = tag->height_offset;
+        origin.z = CM_GetHeightAtPoint(tag->x, tag->y) + tag->height_offset;
     }
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
         uint32_t player = game.clients[i].ps.number;

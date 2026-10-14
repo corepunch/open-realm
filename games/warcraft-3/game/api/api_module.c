@@ -942,6 +942,7 @@ jassModule_t jass_funcs[] = {
     { "DestroyTextTag", DestroyTextTag },
     { "SetTextTagText", SetTextTagText },
     { "SetTextTagColor", SetTextTagColor },
+    { "SetTextTagPos", SetTextTagPos },
     { "SetTextTagPosUnit", SetTextTagPosUnit },
     { "SetTextTagVelocity", SetTextTagVelocity },
     { "SetTextTagVisibility", SetTextTagVisibility },
