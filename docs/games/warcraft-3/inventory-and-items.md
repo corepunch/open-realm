@@ -722,3 +722,18 @@ and `wc3_api.item_duplicate_pickup_counts_new_item_and_existing_copy`.
 The second test verifies the post-acquisition inventory view seen by item
 pickup triggers. Additional campaign/save-load compatibility is covered by
 existing item inventory tests; no global engine-owned counter is introduced.
+
+### Rune of Rebirth (`rreb` / `AIrb`)
+
+`AIrb` is a validated automatic power-up. `SetItemDropID` on the dropped item
+identifies the original monster unit **type**, not a live entity handle. On
+pickup, the game spawns that type for the collecting player's ownership at
+the rune's position, using ordinary unit food accounting and authored
+ability TargetArt. If the item has no valid unit drop ID or spawning fails,
+the rune is not consumed. The effect never converts the nearest unrelated
+creep. Generic pickup sound and item events follow the normal power-up path.
+
+The retail description identifies the original monster as the recipient;
+this implementation restores its type, not its prior instance-specific health,
+experience, buffs or inventory. Detailed retail fidelity for these fields
+requires additional map-level verification.

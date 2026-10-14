@@ -585,7 +585,8 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
         /* Resurrection is a validated use: with no legal corpse, WC3 reports
          * failure and leaves the powerup in the world. Other supported runes
          * keep their consume-on-touch behavior even when no target qualifies. */
-        if (!used && powerup.ability->proc == CAbilityItemResurrection) return false;
+        if (!used && (powerup.ability->proc == CAbilityItemResurrection ||
+                      powerup.ability->proc == CAbilityItemRebirth)) return false;
         G_QueueOwnerSoundAlias(unit, "ItemGet");
         G_CompletePowerupUse(unit, item);
         return true;
