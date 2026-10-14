@@ -337,6 +337,7 @@ uint32_t S_TinyStructureUnitId(edict_t const *caster, uint32_t code, uint32_t le
 BZ_ABILITY_PROC(CAbilityTinyStructure);
 BZ_ABILITY_PROC(CAbilityLandMine);
 BZ_ABILITY_PROC(CAbilityEvilEye);
+BZ_ABILITY_PROC(CAbilityItemWatcherWard);
 BZ_ABILITY_PROC(CAbilityAuraRegenLife);
 BZ_ABILITY_PROC(CAbilityMoonGlaive);
 BZ_ABILITY_PROC(CAbilitySlowPoison);

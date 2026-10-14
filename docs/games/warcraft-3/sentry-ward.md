@@ -4,14 +4,14 @@
 
 `Aeye` is ROC/TFT `CAbilityEvilEye` (parent `AAsm`). `AIsw` is an item alias whose
 `code` is `Aeye`, so it shares the procedure and reads its own row through
-`abilityitem_t.code`. `APwt` (Rune of the Watcher) is the same `code=` but remains
-unregistered here.
+`abilityitem_t.code`. `APwt` (Rune of the Watcher) uses the same `code=Aeye` family but is an
+automatically consumed power-up with a **permanent** Watcher Ward summon.
 
 | Rawcode | Archive | Notes |
 | --- | --- | --- |
 | `Aeye` | ROC and TFT | Witch Doctor Sentry Ward |
 | `AIsw` | ROC and TFT | item Sentry Ward (`code=Aeye`) |
-| `APwt` | TFT | Rune of the Watcher — unregistered |
+| `APwt` | TFT | Rune of the Watcher — registered power-up; permanent ward |
 
 Point cast summons an invisible timed detection ward. True sight comes from the
 ward unit's `Adt1` (`CAbilityDetector`, `code=Adet`) detect range (`Rng`), not
@@ -62,3 +62,20 @@ build/bin/ability_audit -data 'data/Warcraft III' -raw Adt1
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_spell.sentry_ward*'
 ```
+
+## Rune of the Watcher
+
+`APwt` uses `AB_ITEM | AB_POWERUP`. On acquisition it summons the ability's
+`UnitID` at the collector's position, belonging to the collector's player. The
+ordinary `Aeye`/`AIsw` `Dur` and `HeroDur` timed-life rule does **not** apply:
+Blizzard's Rune of the Watcher explicitly creates a ward without a timer.
+The summoned ward retains `summon_ability=APwt`, `RF_HIDDEN`, and the `Adt1`
+detection radius in `wait`. This reuses the normal player-specific detection
+logic; its model, invulnerability and ordinary sight come from the spawned
+unit's authored UnitData. Activation effect uses the ability's EffectArt where
+present; item collection reuses the common pickup sound and event lifecycle.
+
+The existing invisible-ward owner-fog-vision gap remains independent of this
+rune and needs a separate test/fix. Confirm stock APwt UnitID and ability effect
+art with `ability_audit` against an installed TFT archive before claiming exact
+retail presentation parity.

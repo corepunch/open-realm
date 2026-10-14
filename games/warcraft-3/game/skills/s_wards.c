@@ -468,3 +468,20 @@ BZ_SIMPLE_SPELL_PROC(AbilityEvilEye) {
 	if (ward->wait <= 0.0f)
 		fprintf(stderr, "WC3 Sentry Ward: Adt1 Rng missing for detect on %.4s\n", (cstring_t)&spell->code);
 }
+
+/* Rune of the Watcher is a power-up form of the Sentry Ward ability.  Unlike
+ * Aeye/AIsw, the created Watcher Ward has no timed life.  Use the rune's own
+ * UnitID (rather than the ordinary Sentry Ward's) and retain its ability alias
+ * for player-relative true sight and save/load. */
+BZ_ABILITY_PROC(CAbilityItemWatcherWard) {
+    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t unit_id = code ? S_SpellUnitId(code, 1) : 0;
+    edict_t *ward;
+    if (msg != A_ITEM_USE || !ent || !unit_id) return false;
+    ward = S_SummonAbilityAt(ent, code, unit_id, &ent->s.origin2, 0.0f);
+    if (!ward) return false;
+    ward->s.renderfx |= RF_HIDDEN;
+    ward->wait = S_SpellRange(ID_ADT1, 1);
+    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_EFFECT, 0, &ent->s.origin2, true);
+    return true;
+}
