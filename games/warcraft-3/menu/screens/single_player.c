@@ -865,8 +865,10 @@ static void SinglePlayer_PopulateMissionList(singlePlayerCampaign_t const *campa
                 wc3_campaign_progress_best_difficulty(&campaign_progress, key, &best)) {
                 cstring_t name = mission->name[0] ? mission->name : mission->map_path;
                 cstring_t difficulty = SinglePlayer_DifficultyName(best);
+                /* Reserve room for " (", the difficulty, and ")" so the
+                 * completion marker stays visible for long mission names. */
                 snprintf(mission_completion_names[mission_list.count - 1],
-                         sizeof(mission_completion_names[0]), "%s (%s)", name, difficulty);
+                         sizeof(mission_completion_names[0]), "%.220s (%.30s)", name, difficulty);
             }
         }
     }
