@@ -55,7 +55,7 @@ The game-setup lobby transports team and color independently. Maps with Fixed Pl
 
 OpenRealm currently exposes Warcraft player-color handles through the extended color range, but the active multiplayer/player and MDX texture contracts are still `MAX_PLAYERS == 16` / `MAX_TEAMS == 16`. Extending rendered/lobby colors past the classic 16 is separate work because it changes those shared limits and resource assumptions.
 
-Map `config()` now runs before the map's normal script start/UI initialization, so its gameplay-time player colors are available before `main`. It is still not a distinct **pre-lobby** configuration phase, so exact authored-map-before-lobby slot/color precedence remains separate lifecycle work described in [UI Flow](../../architecture/ui-flow.md).
+Map `config()` now runs before the map's normal script start/UI initialization, so its gameplay-time player colors are available before `main`. It is still not a distinct **pre-lobby** configuration phase, so exact authored-map-before-lobby slot/color precedence remains separate lifecycle work described in [UI Flow](architecture/ui-flow.md).
 
 Point-only JASS/special effects do not have an owning unit/player color to inherit. OpenRealm intentionally leaves them without an explicit team-color payload rather than guessing a player slot.
 
