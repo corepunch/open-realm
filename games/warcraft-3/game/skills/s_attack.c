@@ -1355,10 +1355,71 @@ static void attack_chase_leave(edict_t *unit) {
     S_EndUnitTargetChase(unit,CAbilityAttack);
 }
 
+/*603110 uses an unranked center-only widget query, not acquisition range.
+ *602ad0 compares predicted WORLD distances and preserves the first exact tie. */
+typedef struct {
+    edict_t const *source,*excluded;
+    edict_t *selected;
+    box2_t bounds;
+    vec2_t origin;
+    float best;
+} attackFailureQuery_t;
+
+static bool attack_failure_candidate(void *data,edict_t *candidate) {
+    attackFailureQuery_t *query=data;
+    if(candidate==query->excluded || candidate==query->source ||
+       !(candidate->svflags&SVF_MONSTER) || M_IsDead(candidate) ||
+       ((candidate->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(candidate)) ||
+       G_PlayerTreatsPlayerAsAlly(query->source->s.player,candidate->s.player) ||
+       attack_target_prevents_acquisition(candidate))return true;
+    float fine[2];S_PredictUnitFinePointAt(candidate,&level.pathing_clock,fine);
+    float dx=wc3_sub(wc3_world_coordinate(fine[0],query->bounds.min.x,32),query->origin.x);
+    float dy=wc3_sub(wc3_world_coordinate(fine[1],query->bounds.min.y,32),query->origin.y);
+    float squared=wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy));
+    if(squared<query->best){query->best=squared;query->selected=candidate;}
+    return true;
+}
+
+static bool attack_failure_alternative(edict_t *unit) {
+    if(!(unit->aiflags&AI_TOWN_OWNED) || !unit->attack_target)return false;
+    float fine[2];S_PredictUnitFinePointAt(unit,&level.pathing_clock,fine);
+    box2_t bounds=CM_GetWorldBounds();
+    attackFailureQuery_t query={.source=unit,.excluded=unit->attack_target,.bounds=bounds,.best=FLT_MAX,
+        .origin={wc3_world_coordinate(fine[0],bounds.min.x,32),wc3_world_coordinate(fine[1],bounds.min.y,32)}};
+    S_VisitMoveCircle(fine,500.0f/32,attack_failure_candidate,&query);
+    edict_t *target=query.selected;
+    if(!target)return false;
+    uint32_t spawn=unit->spawn_time,target_spawn=target->spawn_time;
+    order_stop_cleanup(unit);
+    if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit))return true;
+    if(!target->inuse || target->spawn_time!=target_spawn || G_IsDeferredFree(target))return false;
+    bool accepted;
+    if(G_UnitIsInvulnerable(target) || !S_AttackCanTarget(unit,target))
+        accepted=S_IssueFollowOrder(unit,target,G_OrderId("attack"));
+    else accepted=S_OrderAttack(unit,target);
+    if(!accepted)return false;
+    /* Internal target admission does not run the JASS wrapper's invulnerable
+     * target-to-point conversion. Retail still emits the target order event. */
+    unit->current_order_id=G_OrderId("attack");
+    S_UnitAbilityOrderAccepted(unit,"attack");
+    G_PublishIssuedTargetOrder(unit,"attack",target,unit->s.player);
+    return true;
+}
+
 /* d0196/499310 requires full visibility at physical arrival. TargetLost uses
  * detection-only validation; ordinary hidden group visits do not end Attack. */
 void S_AttackTargetChaseComplete(edict_t *receiver,edict_t *unit,bool arrived) {
-    if(!arrived || receiver!=unit || !unit->currentmove || unit->currentmove->proc!=CAbilityAttack)return;
+    if(receiver!=unit || !unit->currentmove || unit->currentmove->proc!=CAbilityAttack)return;
+    if(!arrived) {
+        if(attack_failure_alternative(unit))return;
+        /*603110/5fb190 retire the failed Attack approach before Town idle
+         * dispatch. A failed physical owner must not restart the same chase. */
+        uint32_t spawn=unit->spawn_time;
+        attack_finish_after_combat(unit,unit->goalentity,"chase_unreachable");
+        if(unit->inuse && unit->spawn_time==spawn && !G_IsDeferredFree(unit) &&
+           (unit->aiflags&AI_TOWN_OWNED))G_BotDispatchAIStop(unit);
+        return;
+    }
     if(attack_stop_if_target_invalid(unit))return;
     if(!G_FowPlayerCanTrackUnit(unit->s.player,unit->goalentity)) {
         attack_finish_after_combat(unit,unit->goalentity,"hidden_arrival");return;

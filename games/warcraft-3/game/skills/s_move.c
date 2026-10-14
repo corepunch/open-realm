@@ -770,17 +770,22 @@ void S_ClearMoveGroups(void) {
     move_shared_index_data=NULL;move_shared_index_count=move_shared_first_free=move_shared_head=0;
 }
 
-static void move_complete_receiver(moveGroup_t *group, edict_t *unit, bool arrived) {
+static void move_cancel_receiver(moveGroup_t *group, edict_t *unit, bool ability_chase) {
     edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
     void (*complete)(edict_t *,edict_t *,bool)=group->complete;
     group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;group->owner_ability=0;
-    if(receiver && receiver->inuse && receiver->spawn_time==spawn && !G_IsDeferredFree(receiver) && complete)
-        complete(receiver,unit,arrived);
+    /* Cancelling an ability-owned chase releases its physical work; it is
+     * not the terminal can't-path dispatch from the completion scan. The
+     * owner may be transferring to target-loss recovery or a newer order. */
+    if(!ability_chase && receiver && receiver->inuse && receiver->spawn_time==spawn &&
+       !G_IsDeferredFree(receiver) && complete)
+        complete(receiver,unit,false);
 }
 
 static void move_detach_group(edict_t *unit) {
     moveGroup_t *group=move_unit_group(unit);
     if (!group) return;
+    bool ability_chase=group->owner_ability && group->target;
     FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time) {
         /*16d4e0 invalidates before callbacks;16d1c0 swaps invalid rows in
          * reverse order at the next preparation. Swapping during a forward
@@ -805,7 +810,7 @@ static void move_detach_group(edict_t *unit) {
         /* Native171340 detaches now, but16c150 retires the empty owner at its
          * next visit. Its coarse FIFO entry and allocations remain until then,
          * for ordinary groups as well as groups with shared parameters. */
-        move_complete_receiver(group,unit,false);
+        move_cancel_receiver(group,unit,ability_chase);
         return;
     }
 }
@@ -4761,11 +4766,18 @@ static bool follow_can_auto_attack(edict_t const *self) {
     return !level.mapinfo || level.mapinfo->players[self->s.player].playerType != kPlayerTypeNeutral;
 }
 
+/*5fd270 requires an attached Move ability for the persistent target branch.
+ * Ability removal leaves a unit-shaped target, but admits only d0174 range0. */
+static bool move_target_can_follow(edict_t const *target) {
+    return !G_UnitIsStructure(target) &&
+        G_ActorHasAbilityCode(target,MAKEFOURCC('A','m','o','v'));
+}
+
 float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
     if (!follower || !target) return 0.0f;
     /*5fd270: current static/rooted structures select d0174(range0), not
      * StructureFollowRange.05a5c0 adds both mover radii before divide32. */
-    float range=G_UnitIsStructure(target) ? 0 : game.constants.followRange;
+    float range=move_target_can_follow(target) ? game.constants.followRange : 0;
     return wc3_mul(MAX(wc3_float(0x3efae148),
         wc3_div(wc3_add(wc3_add(range,S_MoveCollisionRadius(follower)),S_MoveCollisionRadius(target)),32)),32);
 }
@@ -4856,7 +4868,7 @@ bool S_IssueFollowOrder(edict_t *self, edict_t *target, uint32_t order_id) {
     S_StopUnitMovementWithRecovery(self);
     /*5fd270: distant target Move enters d0173 directly; Smart retains its
      * d0174 approach. A nearby Move still owns the half-edge approach. */
-    bool persistent=order_id==G_OrderId("move") && !G_UnitIsStructure(target) && !target->movement.captain_actor_type &&
+    bool persistent=order_id==G_OrderId("move") && move_target_can_follow(target) && !target->movement.captain_actor_type &&
         !move_follow_in_range(self,target);
     move_follow_order(self,target,persistent);
     if (!self || self->goalentity != target || !move_is_following(self))
@@ -5426,7 +5438,7 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
         return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(world,MAX(1,S_MoveCollisionRadius(unit))),32));
     }
     float range=wc3_div(G_FollowStopRange(unit,target),32);
-    if (persistent || G_UnitIsStructure(target)) return range;
+    if (persistent || !move_target_can_follow(target)) return range;
     wc3GridPose_t source,point;
     unit_predicted_pose(unit,&source); unit_predicted_pose(target,&point);
     float x=wc3_sub(point.grid[0],source.grid[0]),y=wc3_sub(point.grid[1],source.grid[1]);
@@ -5472,7 +5484,7 @@ static void move_start_follow_group(edict_t *unit, edict_t *target, bool persist
         move_follow_approach_range(unit,target,persistent),false);
     /* Capture the already-built successor task. A later morph must neither
      * invent a Follow after a one-shot approach nor erase a pending Follow. */
-    group->follow_continuation=!persistent && !G_UnitIsStructure(target);
+    group->follow_continuation=!persistent && (target->movement.captain_actor_type || move_target_can_follow(target));
     if(group->follow_continuation && !target->movement.captain_actor_type)
         group->follow_range=game.constants.followRange;
 }
@@ -6623,7 +6635,7 @@ static void move_group_prepare_members(moveGroup_t *group) {
              !unit->goalentity))) {
             if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
                 unit->movement.group_id=0;
-            if (unit) move_complete_receiver(group,unit,false);
+            if (unit) move_cancel_receiver(group,unit,group->owner_ability && group->target);
             group->members[i]=group->members[--group->count]; continue;
         }
         if (!group->turning && !group->owner_ability && !S_UnitCanTranslate(unit)) {

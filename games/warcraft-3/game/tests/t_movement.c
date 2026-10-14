@@ -7744,7 +7744,9 @@ TEST(wc3_movement, group_smart_attack_keeps_unreachable_member_on_its_side_of_wa
     T_ASSERT(!blocked_jumped);
     T_ASSERT(!reachable_jumped);
     T_ASSERT(!target_jumped);
-    T_ASSERT(blocked->goalentity == target);
+    /* ORDER345: failed human Attack retires at the reachable shore. */
+    T_NULL(blocked->goalentity);
+    T_EQ(blocked->current_order_id,0);
     T_ASSERT(reachable->goalentity == target);
     T_FEQ(target->s.origin2.x, target_origin.x, 0.01f);
     T_FEQ(target->s.origin2.y, target_origin.y, 0.01f);
@@ -22747,6 +22749,98 @@ static void target222_arm(edict_t *unit,edict_t *target,float range) {
     unitAttack_t *attack=S_AttackProfileWrite(unit,0);
     *attack=(unitAttack_t){.type=ATK_NORMAL,.weapon=WPN_NORMAL,.range=range,
         .cooldown=1,.damageBase=1,.targetsAllowed=WC3_TARGET_FLAG_GROUND};
+}
+
+/* ORDER345 retail enclosed-target controls: blocked Attack retires for human
+ * control and invokes the computer Town guard continuation. */
+TEST(wc3_movement, order345_blocked_attack_retires_or_returns_to_guard) {
+    FOR_LOOP(computer,2) {
+        G_BotStop(0);
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,100);
+        int controller=game.clients[0].jass.controller;
+        typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+        if(computer) {
+            game.clients[0].jass.controller=1;
+            ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+            game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+            T_ASSERT(unit->aiflags&AI_TOWN_OWNED);
+        }
+        T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+        T_ASSERT(S_BeginUnitTargetChase(unit,target,100,CAbilityAttack,S_AttackTargetChaseComplete));
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            S_SetUnitAxisPosition(unit,0,752);S_SetUnitAxisPosition(unit,1,1053);
+            group->ticking=true;
+            moveGroupMember_t *member=group->members;
+            member->flags|=0x20000;member->arrived=true;
+            moveGroupMember_t *finished[]={member};
+            move_group_complete_members(group,finished,1);
+            if(computer) {
+                T_EQ(unit->current_order_id,G_OrderId("attack"));
+                T_NOT_NULL(unit->goalentity);
+                if(unit->goalentity) {
+                    T_NE(unit->goalentity,target);
+                    T_FEQ(unit->goalentity->s.origin2.x,256,0);
+                    T_FEQ(unit->goalentity->s.origin2.y,256,0);
+                }
+            } else {
+                T_EQ(unit->current_order_id,0);
+                T_NULL(unit->goalentity);
+            }
+            group->ticking=false;
+        }
+        G_BotStop(0);G_FowShutdown();reset_entities();setup_test_world();
+        game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+    }
+}
+
+TEST(wc3_movement, order345_failed_attack_selects_alternative_without_acquisition_range) {
+    FOR_LOOP(invulnerable,2) {
+    G_BotStop(0);
+    edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,100);
+    int controller=game.clients[0].jass.controller;
+    typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+    edict_t *alternative=alloc_test_unit(MAKEFOURCC('h','R','T','E'),700,1000);
+    alternative->s.player=1;alternative->s.model=1;alternative->svflags=SVF_MONSTER;
+    alternative->targtype=TARG_GROUND;alternative->collision=31;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType=kPlayerTypeHuman;
+    alternative->invulnerable=invulnerable!=0;
+    T_ASSERT(G_ActorRemoveSkill(alternative,MAKEFOURCC('A','m','o','v')));
+    T_ASSERT(!G_ActorHasAbilityCode(alternative,MAKEFOURCC('A','m','o','v')));
+    G_PublishMoveSpatialObject(alternative);
+    unit->runtime.acquisition_range=0;
+    T_ASSERT(unit_issuetargetorder(unit,"attack",target));
+    T_ASSERT(S_BeginUnitTargetChase(unit,target,100,CAbilityAttack,S_AttackTargetChaseComplete));
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+    if(group) {
+        S_SetUnitAxisPosition(unit,0,752);S_SetUnitAxisPosition(unit,1,1053);
+        G_FowUpdate();group->ticking=true;
+        T_EQ(S_MoveTargetStatus(unit,alternative),MOVE_TARGET_VALID);
+        T_NOT_NULL(S_GetMoveProximity(alternative-g_edicts));
+        moveGroupMember_t *member=group->members;member->flags|=0x20000;member->arrived=true;
+        moveGroupMember_t *finished[]={member};move_group_complete_members(group,finished,1);
+        T_EQ(unit->current_order_id,G_OrderId("attack"));
+        T_EQ(unit->goalentity,alternative);
+        T_NOT_NULL(unit->currentmove);
+        if(unit->currentmove)T_EQ(unit->currentmove->proc,invulnerable ? CAbilityMove : CAbilityAttack);
+        if(invulnerable) {
+            T_NULL(unit->attack_target);
+            T_EQ(unit->movement.follow_target,alternative);
+            moveGroup_t *forwarded=move_unit_group(unit);T_NOT_NULL(forwarded);
+            if(forwarded) {
+                T_ASSERT(!forwarded->follow_continuation);
+                T_FEQ(forwarded->members[0].arrival_range,
+                    wc3_div(wc3_add(S_MoveCollisionRadius(unit),S_MoveCollisionRadius(alternative)),32),0);
+            }
+        }
+        group->ticking=false;
+    }
+    G_BotStop(0);G_FowShutdown();reset_entities();setup_test_world();
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+    }
 }
 
 TEST(wc3_movement, policy245_facing_predicate_matches_complete_original) {

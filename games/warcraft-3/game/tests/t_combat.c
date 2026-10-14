@@ -1061,7 +1061,7 @@ TEST(wc3_combat, unreachable_attack_keeps_target_geometry) {
         float const angle = target->s.angle;
         T_ASSERT(unit_issuetargetorder(attacker, "attack", target));
 
-        bool fallback = false, hit = false;
+        bool fallback = false, hit = false, retired = false;
         FOR_LOOP(frame, 200) {
             level.time += 100;
             if (attacker->currentmove && attacker->currentmove->think)
@@ -1079,9 +1079,18 @@ TEST(wc3_combat, unreachable_attack_keeps_target_geometry) {
             T_EQ(memcmp(&target->bounds, &bounds, sizeof(bounds)), 0);
             T_EQ(target->s.angle, angle);
             if (!range_case) T_EQ(target->health.value, 500);
-            T_ASSERT(attacker->goalentity == target);
+            /* ORDER345: a failed physical chase retires the human Attack.
+             * Keep geometry immutable through retirement as well as approach. */
+            if(attacker->goalentity)T_EQ(attacker->goalentity,target);
+            else {
+                T_EQ(attacker->current_order_id,0);
+                retired=true;
+            }
         }
         T_ASSERT(fallback);
+        /* This fixture reaches terminal failure for the short-range unit
+         * chase; its destructable approach keeps retrying during this window. */
+        T_EQ(retired,kind && !range_case);
         T_EQ(hit, range_case != 0);
         T_ASSERT(target->health.value > 0);
         T_ASSERT(attacker->s.origin.x > 80);

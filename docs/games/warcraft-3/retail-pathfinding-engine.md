@@ -20287,3 +20287,74 @@ only a non-AI control. A later repeat failed before spawn because isolated C's
 Frida server was unavailable; it is excluded. Completed evidence is archived
 under `research/ORDER-01.2/order344/`. Preload byte hashes retain CRLF; normalize
 neither bytes nor marker numbers when checking the archived capture.
+
+## Targeted Attack failure dispatch (ORDER345)
+
+The pre-fix `S_AttackTargetChaseComplete` returned immediately on
+`arrived=false`, leaving Attack active after its physical owner retired.
+Production group-completion regressions reproduce human retirement, computer
+Town guard return, nearest alternative selection with acquisition range zero,
+and internal invulnerable-target forwarding. The corrected pre-fix run fails
+10 of 43 assertions (`/tmp/order345/admission-red.xml`); the implementation
+then passes 45/45 (`/tmp/order345/admission-green.xml`). The fixture uses the
+production ability-removal API and asserts spatial membership and visibility.
+The existing unreachable-combat and water-separated group tests assumed the
+failed Attack survived indefinitely. Their retirement expectations now follow
+the retail evidence; geometry, no-teleport, damage and reachable-peer checks
+remain. The full movement run also exposed a real cancellation collision:
+`move_detach_group` notified an ability-owned chase with `arrived=false`, the
+same value used by terminal blocked completion. Target223 invisibility and
+save/queue regressions failed because that cancellation retired the public
+Attack before its point recovery. Cancellation now clears the physical
+receiver without invoking the ability-owned completion callback. The actual
+completion scan still dispatches blocked failure after releasing its owner.
+Spell receivers and ability-owned point recovery retain their existing
+cancellation notification, including pause/Stop and queued successor handling. No new saved
+fields or wire layout are needed (Save196 unchanged). Strict Classic/TFT each
+pass 528 tests and 101339 assertions. The complete movement suite passes 653 tests and
+8101188 assertions in each edition using seven shards. Eleven evidence
+rejection checks and 37 corpus checks pass. Production/test builds pass.
+The initial unsharded run timed out at 300 seconds; the earlier sharded run
+exposed cancellation regressions and was stopped after all Classic shards
+completed. Neither is counted as passing. This does not close ORDER-01.2.
+
+`603110` first resolves current Attack identity6c/70. Its selector query uses
+radius500, source-owner passive-alliance exclusion (token11), and excludes the
+retained unit (token0f, four-instruction predicate68bf50). Callback602ad0 checks
+Unit+ec<1 then chooses strict minimum squared predicted-world distance; it
+does not itself run ordinary acquisition ranking or weapon validation. Saved
+Ghidra name: `Move_SelectNearestFailureAlternative`. A nonnull result triggers
+Stop replacement, target Attack admission and private AI append before returning.
+
+The final Order345c map explicitly clears both passive alliances. Two observed
+runs (`observe3`/`observe4`) match 1263 native records each; their 759 public
+markers also match an observer-free control. The four scenes are human,
+computer without alternative, computer with vulnerable alternative, and
+computer with invulnerable alternative. They enter cannot-path 10/4/1/21 times.
+Both alternative scenes use units whose Amov/Aatk were removed. All 22 selector
+callbacks accept the candidate with squared-distance word1168985313. The
+historical observer field named `invulnerable` reads Unit+ec (acquisition
+prevention); actual script invulnerability is widget20 bit8. Preserve the raw
+captures and interpret the two fields separately.
+
+After vulnerable selection, Attack6c/70 binds the alternative. After invulnerable
+selection, the public target Attack notification still occurs, but Attack6c/70
+is invalid at60328c. Decompiled49a980 validates the target and forwards the
+original event to Move when Attack rejects it. Decompiled5fd270 selects a
+single d0174 range0 task for a target without Amov. It does not create persistent
+Follow. Internal admission bypasses the public native207160 conversion to a
+point order. Ghidra comments for602ad0/49a980/5fd270 were saved and read back.
+
+The first probe paused alternatives; the second removed their abilities but
+omitted explicit diplomacy. Neither reached the alternative callback.
+`SetTeams(2)` alone does not establish the runtime hostility mask. These early
+captures are investigation artifacts, not accepted branch evidence. Scene1
+also labels null target equality as `event_851983_alternative`; only scenes2/3
+have actual alternative units, so the verifier scopes the 22 notifications to
+them. Existing transport-success and arrival-gate TODO scope remains unchanged.
+
+Accepted evidence and validation are archived in
+`research/ORDER-01.2/order345/`: `admission-red.xml` is the final pre-fix
+baseline; `strict-chase-cancellation.json` and `movement-cancellation.json`
+are the accepted post-fix reports. Earlier fixture experiments and failed
+integration reports are retained with their original failures.
