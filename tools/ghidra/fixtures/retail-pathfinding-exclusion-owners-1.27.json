@@ -282,7 +282,8 @@
     "oracle-cast321",
     "oracle-controls324",
     "oracle-route335",
-    "oracle-route337"
+    "oracle-route337",
+    "oracle-group338"
   ],
   "entries": [
     {
@@ -6501,6 +6502,39 @@
           "task": "E2E-05.2",
           "disposition": "evidence-boundary",
           "rationale": "Retain the boundary between controlled queue/force states, repeated ordinary public arrivals, independently frozen natural completion trajectories and engine cold saves."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-group338",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Town AI candidate words cover38 stock types at hard map difficulty, with normal/hard no-VM replacement and cold-save engine tests; full ability/prevention lifetimes and easy-AI configuration remain outside this evidence.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Complete remaining acquisition producers and ability lifetimes under GROUP-03.2; isolated scalar inputs and incomplete spell states do not certify public lifecycle coverage."
+        },
+        {
+          "index": 1,
+          "text": "Health and melee-multiplier boundary outputs execute isolated original blocks with supplied scalars; they do not establish public producers for every state.",
+          "task": "GROUP-03.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Complete remaining acquisition producers and ability lifetimes under GROUP-03.2; isolated scalar inputs and incomplete spell states do not certify public lifecycle coverage."
+        },
+        {
+          "index": 2,
+          "text": "The repeated public artillery scenes cover zero through five friendly units; arbitrary crowds, diplomacy and other notification guards remain GROUP-03.2.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Complete remaining acquisition producers and ability lifetimes under GROUP-03.2; isolated scalar inputs and incomplete spell states do not certify public lifecycle coverage."
+        },
+        {
+          "index": 3,
+          "text": "The seven control-effect scenes certify the observed Roots mobility override; unsuccessful or expired other spell states do not certify their override lifecycles.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Complete remaining acquisition producers and ability lifetimes under GROUP-03.2; isolated scalar inputs and incomplete spell states do not certify public lifecycle coverage."
         }
       ]
     }

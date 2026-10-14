@@ -168,3 +168,24 @@ and the rejected UINT32_MAX save-fixture counters are retained as diagnostics.
 This is implementation commit3/12 after checkpoint332. It does not reset the
 full-suite cadence. Logs, JUnit, raw native repeats and the patch are archived
 under `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ROUTE-04.2/payoff337/`.
+
+### Acquisition ranking338: fourth implementation commit after332
+
+GROUP-03.2 advances without a new split or closure. The integration fixes
+attacker-owned neutral levels, directional victim spell grants, artillery
+collateral/veto, normal-player Town ranking and Roots priority/current speed.
+The final verifier passes306 tests /32600 assertions in each of Classic and
+TFT, including actual owner-change delivery, status removal, spell approach
+ownership and cold saves. Original evidence comprises3198 normal events,
+3916 hard-Town events with38 candidate words, and476 control-effect events;
+each pair matches its uninstrumented public control. Original scalar blocks
+check9 health and36 multiplier boundary cases. Failing-first health and Roots
+runs are retained, including the separate speed-zero failure after the mobility
+fix. Production and test builds pass;14 evidence rejection/validation tests,37 corpus
+tests and12 exclusion-ownership tests pass. The fresh strict corpus entry and
+staged corpus/ownership inventory pass; all561 older entries are unchanged.
+
+This is implementation commit4/12 after checkpoint332. Full-suite cadence is
+unchanged. Eight updated function annotations are saved in Ghidra. Raw captures,
+source maps, diagnostic attempts, JUnit and fresh reports are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff338/verified/`.

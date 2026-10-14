@@ -1000,6 +1000,19 @@ typedef struct spellCastEvent_s {struct spellCastEvent_s *previous;spellCast_t *
 static spellCastEvent_t *spell_cast_events;
 static umove_t ordered_spell_move={.animation="spell",.proc=CAbilitySpellCast};
 
+/* Native action3 is installed by the spell task constructors. A pending
+ * public command alone is not an executing spell; inspect its live owner. */
+bool S_UnitHasSpellTask(edict_t const *unit) {
+    if(!unit || !unit->inuse || unit->paused || unit->stunned || S_UnitIsCycloned(unit))return false;
+    if(unit->currentmove==&ordered_spell_move && spell_cast_active[unit-g_edicts])return true;
+    edict_t *receiver=S_UnitTargetApproachReceiver(unit);
+    if(receiver && S_SpellChannelOwner(receiver)==unit) {
+        ability_t const *spell=S_SpellAbilityForCode(receiver->class_id);
+        if(spell && (spell->flags&AB_SPELL))return true;
+    }
+    return S_SpellIsChanneling((edict_t *)unit);
+}
+
 static bool spell_command_profile(edict_t *caster,uint32_t code,spellCommandProfile_t *profile) {
     abilityitem_t item=S_AbilityItem(code);
     abilityCall_t call={.item=&item,.spell_command=profile};

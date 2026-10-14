@@ -19896,3 +19896,93 @@ then clears it; this is not a structure/immobility bit. Ability flags02000000,
 preparatory items, broader instant/channel policies, queued casts and complete
 interruption/reuse compositions still require their owning evidence. No new
 TODO is split off and the count remains43.
+
+## Acquisition collateral and remaining Town AI ranking (payoff338)
+
+GROUP-03.2 remains open. The current integration fixes ordinary acquisition errors in `s_attack.c`: neutral
+level policy queries the attacker (49d8e2), artillery collateral uses495880/4959a0
+instead of refusing every replacement, and defending priority uses the victim
+to observer Shared Spells grant. The eight-case diplomacy regression failed
+four assertions before the fix (`/tmp/group338/diplomacy-failing-first.log`).
+The collateral query uses the candidate's predicted world center, committed
+neighbor centers, the selected weapon's smallest splash radius, and each
+neighbor's collision radius. Help Response counts friends before inverse
+Passive counts non-invulnerable enemies. The signed10-by13 table atce5d08
+replaces only the three baseline priority bits; negative entries veto even
+when there is no retained target. Zero is a valid baseline, not a veto.
+
+`verify_wc3_pathing_group338.py` verifies the frozen two observed repeats and
+uninstrumented control,338 public markers and3198 complete native events,
+plus1003 instruction guards. Native Mortar scenes cover0..5 friendly neighbors:
+base7,2,0 followed by three vetoes. Engine tests exercise owner-change delivery,
+unchanged public Attack Move ownership and waypoint, and twelve cold saves.
+Neutral tests vary source and candidate levels independently. Initial failing
+runs are `/tmp/group338/failing-first.log` and `artillery-failing-first2.log`;
+accepted sources/captures are currently in `/tmp/group338/`, pending archival.
+
+The extended hard-difficulty repeats match3916 events and their control's338
+public markers. They observe life, mana and move-speed scalar queries and ability
+lookups, and freeze the complete priority words for38 stock candidate types.
+The engine matrix matches those words. Setting difficulty in map `config` is overwritten during load;
+the accepted hard map calls SetGameDifficulty in PathProbeInit. Preserve its
+actual map hash and patch source when integrating it; do not relabel the normal
+capture metadata. Town AI replacement now runs the recovered ranking path;
+normal/hard, ordinary/Town, Footman/House and cold-save cases exercise actual
+owner-change delivery without a script VM. These cases do not establish all
+ability attachment or prevention lifetimes.
+
+The original registered scalar initializers establish health cutoffs100,200,300.
+The earlier400 interpretation was wrong:9 ULP-adjacent health cases reproduced
+two engine failures before correcting the third cutoff. Another36 original-block
+cases check both mobility branches around the six melee damage-multiplier
+boundaries. These execute original instructions with supplied inputs, separately
+from the live public captures; they do not establish every public state producer.
+Native rawcode words are big-endian character values, whereas engine MAKEFOURCC
+uses little-endian bytes. The matrix converts at its input boundary and preserves
+the frozen original priority words unchanged.
+
+The seven public control-effect scenes in `group338_states_probe.j` add476
+identical native events and30 markers matching an uninstrumented control.
+The Roots scene observes Move query0, virtual18c override1, Attack prevention1,
+BEer present and current Move speed0. The resulting priority is
+`7ba01000:62000000`: disabling translation does not remove mobile priority.
+The engine regression reproduced the missing mobility bit for ordinary and
+Town owners before the fix. After that correction, two Town cases still failed
+because the engine current-speed query retained270 instead of zero. Move now
+owns the BEer speed-zero result; removal restores270. The regression exercises
+both corrections and cold saves.
+The other attempted spell scenes are retained as complete evidence; they do
+not establish every intended active buff or its virtual override. The map
+builder reproduces the captured SHA256
+`db81b711e8991bd37c4870d712e256a833af22b0fc395e5285e8945b85b8038b`.
+
+Remaining implementation facts recovered from49d680:
+
+- Campaign/melee policy66eb70 reads AI-record28 bit40. SetCampaignMode propagates
+  this to existing units; admission copies the Town policy. SetTargetHeroes
+  similarly propagates record28 bit20. Easy AI9c7e80 is Town2d0 bit8000;
+  SetSmartArtillery modifies Captain6c bit800 and is a different policy.
+  The49dfa8 call to69bbf0 queries the source unit's TargetHeroes policy.
+- Unit+ec is an acquisition-prevention counter. Sleep, possession and mechanical
+  critter producers increment it; ordinary Stun does not. Unit+194 is an action
+  category updated through697ed0. Exhaustive direct calls to6927a0 show that
+  literal action3 belongs to40a500/40a7a0 spell task constructors, not harvesting.
+  The constructor prepends, so action3 executes before approach/cast and action0
+  after completion. Attack4943f0 can retain and restore a prior action value.
+- Hard building rawcode tests literally use `hvit` and `ovin`, not the stock
+  shop spellings `hvlt` and `ovln`. Do not silently correct those literals.
+- Victim defense ranking tests the victim's Shared Spells grant to the observer,
+  independently of passive diplomacy and reverse Shared Spells permission.
+- Original RTTI traversal finds724 CAbility-descendant primary tables.
+  `tools/ghidra/research/group338_tables.py` checks the supported DLL hash and
+  follows hierarchy pointers, avoiding name-prefix omissions. Virtual188 is
+  false except Stun/Freeze/SleepStun/FreezingBreath and MagicLeashTarget.
+  Virtual18c admits Ensnare/Web/EntanglingRoots; Purge and CargoHoldDeath inspect
+  scalar130; LavaMonster checks a pointed flag. Static inventory alone does
+  not certify those abilities' acquisition lifecycle.
+
+Eight recovered function annotations are saved in Ghidra and reproduced by
+`Group338Evidence.java` and `MapPathfinding.java`. Remaining closure obligations
+include Town policy, optional overrides, target perimeter, rejected-alternative
+identity, prevention/minimum-range/neutral guards and public target-speed/captain
+compositions. Do not count this partial integration as a closed TODO.

@@ -341,6 +341,251 @@ TEST(wc3_order_lifecycle, ranking264_available_target_competes_with_retained_com
     reset_entities();setup_test_world();
 }
 
+/* Original49d8e2 queries the attacking owner's level, not the candidate's.
+ * Cross the level7 boundary independently on each side, for Hero and ordinary
+ * units, and keep player-controlled owners outside the neutral rule. */
+TEST(wc3_order_lifecycle, group338_neutral_priority_uses_attacker_level) {
+    FOR_LOOP(human,2)FOR_LOOP(hero,2)FOR_LOOP(source_high,2)FOR_LOOP(target_high,2) {
+        reset_entities();setup_test_world();
+        edict_t *unit=review_order_unit(0,human ? 0 : PLAYER_NEUTRAL_AGGRESSIVE);
+        edict_t *target=review_order_unit(300,1);
+        UnitBalance_t source_balance=*unit->data.UnitBalance,target_balance=*target->data.UnitBalance;
+        source_balance.level=source_high ? 7 : 6;
+        source_balance.strength=hero ? 20 : 0;
+        source_balance.agility=source_balance.intelligence=0;
+        target_balance.level=target_high ? 7 : 1;
+        target_balance.strength=target_balance.agility=target_balance.intelligence=0;
+        unit->data.UnitBalance=&source_balance;target->data.UnitBalance=&target_balance;
+        unit->hero.level=source_balance.level;
+        uint64_t key=G_TestAttackTargetPriority(unit,target);
+        T_ASSERT(key!=0);
+        T_EQ((uint32_t)(key>>32)&0x00200000u,human || source_high ? 0x00200000u : 0u);
+        unit->data.UnitBalance=G_UnitBalance(unit->class_id);
+        target->data.UnitBalance=G_UnitBalance(target->class_id);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* 49d8b2 asks whether the victim grants Shared Spells to the observer.
+ * Passive alliance and the reverse spell grant must not substitute for it. */
+TEST(wc3_order_lifecycle, group338_defending_priority_uses_victim_spell_grant) {
+    FOR_LOOP(passive,2)FOR_LOOP(forward,2)FOR_LOOP(reverse,2) {
+        reset_entities();setup_test_world();
+        edict_t *unit=review_order_unit(0,0),*candidate=review_order_unit(300,1);
+        edict_t *victim=review_order_unit(400,2);
+        G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[2].ps,ALLIANCE_PASSIVE,passive);
+        G_SetPlayerAlliance(&game.clients[2].ps,&game.clients[0].ps,ALLIANCE_SHARED_SPELLS,forward);
+        G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[2].ps,ALLIANCE_SHARED_SPELLS,reverse);
+        order_attack(candidate,victim);
+        T_EQ(candidate->attack_target,victim);
+        uint64_t key=G_TestAttackTargetPriority(unit,candidate);
+        T_ASSERT(key!=0);
+        T_EQ((uint32_t)key&0x00400000u,forward ? 0x00400000u : 0u);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Repeated Group338 scene0/3, at normal and hard map difficulty: Town AI
+ * compares the same candidates even before any AI script starts. */
+TEST(wc3_order_lifecycle, group338_town_priority_replaces_without_script_vm) {
+    FOR_LOOP(saved,2)FOR_LOOP(hard,2)FOR_LOOP(town,2)FOR_LOOP(house,2) {
+        reset_entities();setup_test_world();level.show_map_cheat=true;
+        level.setup.difficulty=hard ? 2 : 1;
+        edict_t *unit=review_order_unit(0,0),*old=review_order_unit(588,1);
+        edict_t *candidate=review_order_unit(128,0);
+        unit->s.model=old->s.model=candidate->s.model=1;
+        unit->collision=old->collision=candidate->collision=31;
+        unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+        S_AttackProfileWrite(unit,0)->range=90;
+        unit->defense_type=old->defense_type=candidate->defense_type=2;
+        candidate->health.value=old->health.value=420;
+        if(town){level.ai_owned_players|=1;G_BotUnitReady(unit);}
+        T_EQ(!!(unit->aiflags&AI_TOWN_OWNED),town);
+        T_NULL(level.bots[0].vm);
+        if(house) {
+            T_ASSERT(G_ActorRemoveSkill(candidate,MAKEFOURCC('A','m','o','v')));
+            T_ASSERT(G_ActorRemoveSkill(candidate,MAKEFOURCC('A','a','t','k')));
+            candidate->class_id=MAKEFOURCC('h','h','o','u');candidate->defense_type=3;
+        }
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(old);G_PublishMoveSpatialObject(candidate);
+        T_ASSERT(G_IssueUnitPointOrder(unit,"attack",&(vec2_t){1800,0},false,0,0));
+        order_attack(unit,old);
+        UnitWeapons_t const *weapons=unit->data.UnitWeapons;
+        if(saved) {
+            uint32_t u=unit->s.number,o=old->s.number,c=candidate->s.number;
+            cstring_t path=Test_TempPath("wc3-group338-town.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            unit=g_edicts+u;old=g_edicts+o;candidate=g_edicts+c;
+            unit->data.UnitWeapons=old->data.UnitWeapons=candidate->data.UnitWeapons=weapons;
+        }
+        uint64_t key=G_TestAttackTargetPriority(unit,candidate);
+        uint32_t high=house ? 0x0ba00000u : 0x0be00000u;
+        uint32_t low=house ? 0x04000000u : 0x64000000u;
+        if(town){high|=hard ? 0xf0005000u : 0xa0005000u;if(house)low|=hard ? 0x02010000u : 0x02000000u;}
+        T_EQ((uint32_t)(key>>32),high);T_EQ((uint32_t)key,low);
+        uint32_t head=unit->current_order_id;edict_t *waypoint=unit->movement.attackmove_waypoint;
+        G_SetUnitPlayer(candidate,1);
+        T_EQ(unit->attack_target,house ? old : candidate);
+        T_EQ(unit->current_order_id,head);T_EQ(unit->movement.attackmove_waypoint,waypoint);
+        T_ASSERT(unit->attack_speed_cap.active);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Original public Roots cast: Move query false, virtual18c true, Attack
+ * prevention one, BEer present and current Move speed zero. The priority
+ * remains mobile while translation and attacks are disabled. */
+TEST(wc3_order_lifecycle, group338_roots_keeps_mobile_priority_until_removed) {
+    FOR_LOOP(saved,2)FOR_LOOP(town,2) {
+        reset_entities();setup_test_world();level.show_map_cheat=true;
+        level.setup.difficulty=2;
+        edict_t *unit=review_order_unit(0,0),*target=review_order_unit(300,1);
+        unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+        unit->collision=target->collision=31;
+        unit->unitinfo.MoveSpeed=target->unitinfo.MoveSpeed=270;
+        unit->defense_type=target->defense_type=2;
+        target->health.value=420;S_AttackProfileWrite(unit,0)->range=90;
+        if(town){level.ai_owned_players|=1;G_BotUnitReady(unit);}
+        uint64_t before=G_TestAttackTargetPriority(unit,target);
+        status_application_t roots={.buff="BEer",.level=1,.duration=8,
+            .state_mask=WC3_STATUS_STATE_ROOTED,.source=unit};
+        T_NOT_NULL(unit_applystatus(target,&roots));
+        if(saved) {
+            UnitWeapons_t const *source_weapons=unit->data.UnitWeapons,*target_weapons=target->data.UnitWeapons;
+            cstring_t file=Test_TempPath("wc3-group338-roots.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit->data.UnitWeapons=source_weapons;target->data.UnitWeapons=target_weapons;
+        }
+        T_ASSERT(!S_UnitCanTranslate(target));
+        T_FEQ(S_UnitMoveSpeed(target),0,0);
+        uint64_t key=G_TestAttackTargetPriority(unit,target);
+        T_EQ((uint32_t)key,town ? 0x62000000u : 0x60000000u);
+        T_EQ((uint32_t)(key>>32),town ? 0x7ba01000u : 0x0ba00000u);
+        unit_removestatus(target,unit_findstatus(target,MAKEFOURCC('B','E','e','r')),STATUS_REMOVE_SCRIPT);
+        T_ASSERT(S_UnitCanTranslate(target));
+        T_FEQ(S_UnitMoveSpeed(target),270,0);
+        T_EQ(G_TestAttackTargetPriority(unit,target),before);
+    }
+    reset_entities();setup_test_world();
+}
+
+#include "fixtures/retail_group338_town.h"
+TEST(wc3_order_lifecycle, group338_town_matches_original_candidate_priority_words) {
+    typeof(game.constants) constants=game.constants;
+    FOR_LOOP(i,sizeof(group338_town_rows)/sizeof(*group338_town_rows)) {
+        typeof(*group338_town_rows) *row=group338_town_rows+i;
+        reset_entities();setup_test_world();level.setup.difficulty=2;
+        edict_t *unit=review_order_unit(0,0),*target=review_order_unit(row->in_range ? 64 : 600,1);
+        unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+        unit->collision=target->collision=16;S_AttackProfileWrite(unit,0)->range=90;
+        unit->unitinfo.MoveSpeed=wc3_float(row->source_speed);
+        target->unitinfo.MoveSpeed=wc3_float(row->target_speed);
+        UnitBalance_t balance=*target->data.UnitBalance;
+        balance.type=row->worker ? "peon" : "";target->data.UnitBalance=&balance;
+        target->class_id=MAKEFOURCC(row->rawcode>>24,row->rawcode>>16,
+                                  row->rawcode>>8,row->rawcode);
+        target->defense_type=row->defense;
+        target->health.value=wc3_float(row->life);target->mana.value=wc3_float(row->mana);
+        if(row->summoned)target->aiflags|=AI_SUMMONED;
+        if(row->illusion)target->aiflags|=AI_ILLUSION;
+        if(!row->mobile)T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','m','o','v')));
+        if(!row->armed)T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','a','t','k')));
+        game.constants.combatConstantsLoaded=true;
+        game.constants.damageBonus[ATK_NORMAL][row->defense]=wc3_float(row->multiplier);
+        level.ai_owned_players|=1;G_BotUnitReady(unit);level.bots[0].mode=BOT_CAMPAIGN;
+        /* Town admission may acquire this nearby enemy immediately. The
+         * captured first rank evaluates an alternative to a different victim. */
+        edict_t *old=review_order_unit(1800,1);order_attack(unit,old);
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(target);
+        uint64_t key=G_TestAttackTargetPriority(unit,target);
+        if((uint32_t)key!=row->low || (uint32_t)(key>>32)!=row->high)
+            fprintf(stderr,"Town338 row %u: %08x:%08x expected %08x:%08x\n",i,
+                (uint32_t)(key>>32),(uint32_t)key,row->high,row->low);
+        T_EQ((uint32_t)key,row->low);T_EQ((uint32_t)(key>>32),row->high);
+        target->data.UnitBalance=G_UnitBalance(target->class_id);
+    }
+    game.constants=constants;
+    reset_entities();setup_test_world();
+}
+
+#include "fixtures/retail_group338_thresholds.h"
+TEST(wc3_order_lifecycle, group338_town_original_scalar_boundaries) {
+    typeof(game.constants) constants=game.constants;
+    FOR_LOOP(i,sizeof(group338_health)/sizeof(*group338_health)) {
+        reset_entities();setup_test_world();level.setup.difficulty=1;
+        edict_t *unit=review_order_unit(0,0),*target=review_order_unit(1000,1);
+        unit->invulnerable=true;target->health.value=wc3_float(group338_health[i].word);
+        level.ai_owned_players|=1;G_BotUnitReady(unit);level.bots[0].mode=BOT_CAMPAIGN;
+        uint64_t key=G_TestAttackTargetPriority(unit,target);
+        T_EQ((uint32_t)(key>>32)&0x206u,group338_health[i].high);
+    }
+    FOR_LOOP(i,sizeof(group338_multipliers)/sizeof(*group338_multipliers)) {
+        typeof(*group338_multipliers) *row=group338_multipliers+i;
+        reset_entities();setup_test_world();level.setup.difficulty=0;
+        edict_t *unit=review_order_unit(0,0),*target=review_order_unit(1000,1);
+        unit->invulnerable=true;target->defense_type=2;
+        if(!row->mobile)T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','m','o','v')));
+        game.constants.combatConstantsLoaded=true;
+        game.constants.damageBonus[ATK_NORMAL][2]=wc3_float(row->word);
+        level.ai_owned_players|=1;G_BotUnitReady(unit);level.bots[0].mode=BOT_MELEE;
+        uint64_t key=G_TestAttackTargetPriority(unit,target);
+        T_EQ((uint32_t)(key>>32)&0x60d09u,row->high);
+        T_EQ((uint32_t)key&0x80000000u,row->low);
+    }
+    game.constants=constants;
+    reset_entities();setup_test_world();
+}
+
+/* Native Group338 scenes78..83: nearby friendlies lower the artillery
+ * base from7 to2 to0, then veto acquisition. A missing retained target does
+ * not bypass that veto. Exercise the owner-change notification itself. */
+TEST(wc3_order_lifecycle, group338_artillery_counts_friendly_splash_before_replacement) {
+    FOR_LOOP(saved,2)FOR_LOOP(retained,2)FOR_LOOP(friends,6) {
+        reset_entities();setup_test_world();level.show_map_cheat=true;
+        edict_t *unit=review_order_unit(0,0),*candidate=review_order_unit(488,0);
+        edict_t *old=retained ? review_order_unit(1600,1) : NULL;
+        unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+        unit->s.model=candidate->s.model=1;if(old)old->s.model=1;
+        UnitWeapons_t const *authored=unit->data.UnitWeapons;
+        UnitWeapons_t weapons=*authored;
+        weapons.attack1.areaTargets=WC3_TARGET_FLAG_GROUND;
+        unit->data.UnitWeapons=&weapons;
+        unitAttack_t *weapon=S_AttackProfileWrite(unit,0);
+        weapon->weapon=WPN_ARTILLERY;weapon->range=1200;weapon->areaSmall=250;
+        candidate->collision=unit->collision=31;
+        candidate->defense_type=2;
+        FOR_LOOP(i,friends) {
+            edict_t *friend=review_order_unit_at(488+i*8,48,0);
+            friend->collision=31;friend->s.model=1;G_PublishMoveSpatialObject(friend);
+        }
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(candidate);
+        T_ASSERT(G_IssueUnitPointOrder(unit,"attack",&(vec2_t){1800,0},false,0,0));
+        if(old){old->collision=31;G_PublishMoveSpatialObject(old);order_attack(unit,old);}
+        if(saved) {
+            uint32_t u=unit->s.number,c=candidate->s.number,o=old ? old->s.number : 0;
+            cstring_t path=Test_TempPath("wc3-group338-artillery.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            unit=g_edicts+u;candidate=g_edicts+c;old=retained ? g_edicts+o : NULL;
+            /* Rebind this authored test row after the cold load; runtime
+             * weapon radius/range are restored by the save itself. */
+            unit->data.UnitWeapons=&weapons;candidate->data.UnitWeapons=authored;
+            if(old)old->data.UnitWeapons=authored;
+        }
+        uint32_t head=unit->current_order_id;edict_t *waypoint=unit->movement.attackmove_waypoint;
+        G_SetUnitPlayer(candidate,1);
+        uint64_t key=G_TestAttackTargetPriority(unit,candidate);
+        uint32_t base[]={0x03800000,0x01000000,0};
+        if(friends>=3)T_EQ(key,0);
+        else T_EQ((uint32_t)(key>>32),base[friends]|0x08600000u);
+        bool replace=friends<3 && (!retained || friends==0);
+        T_EQ(unit->attack_target,replace ? candidate : old);
+        T_EQ(unit->current_order_id,head);T_EQ(unit->movement.attackmove_waypoint,waypoint);
+        T_ASSERT(unit->attack_speed_cap.active);
+        unit->data.UnitWeapons=authored;
+    }
+    reset_entities();setup_test_world();
+}
+
 #include "fixtures/retail_ranking264_distance.h"
 TEST(wc3_order_lifecycle, ranking264_ties_predict_observer_world_and_keep_target_committed) {
     reset_entities();setup_test_world();
@@ -1583,7 +1828,8 @@ TEST(wc3_order_lifecycle, guard270_available_target_requires_reachable_weapon_ra
             T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','m','o','v')));
         if(mode==3)unit->unitinfo.MoveSpeed=0; /* Not an absent/disabled Move. */
         if(mode==4)S_AttackProfileWrite(unit,0)->range=300; /* Authored override. */
-        UnitWeapons_t weapons=*unit->data.UnitWeapons;
+        UnitWeapons_t const *authored=unit->data.UnitWeapons;
+        UnitWeapons_t weapons=*authored;
         if(mode==5 || mode>=8) {
             weapons.attacksEnabled=mode==9 ? 1 : 3;unit->data.UnitWeapons=&weapons;
             S_AttackProfileWrite(unit,1)->type=ATK_NORMAL;

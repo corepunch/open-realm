@@ -289,7 +289,9 @@ TEST(wc3_spell, approach185_captures_target_range_and_completes_once) {
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
         target->svflags|=SVF_MONSTER; target->targtype=TARG_GROUND;
         target->health.value=100; target->health.max_value=1000;
+        T_ASSERT(!S_UnitHasSpellTask(caster));
         T_ASSERT(G_IssueUnitTargetOrder(caster,"holybolt",target,false,0));
+        T_ASSERT(S_UnitHasSpellTask(caster));
         edict_t *pending=g_edicts+globals.num_edicts-1;
         T_ASSERT(pending->inuse); T_NULL(pending->think);
         moveGroup_t *group=spell185_group(caster);
@@ -299,8 +301,14 @@ TEST(wc3_spell, approach185_captures_target_range_and_completes_once) {
             T_EQ(group->flags&0x1801u,0x1000u);
             T_FEQ(group->members[0].arrival_range,5.09375f,0);
         }
-        if(kind==1) T_ASSERT(unit_issueimmediateorder(caster,"stop"));
-        if(kind==2) {vec2_t point={288,800};T_ASSERT(G_IssueUnitPointOrder(caster,"move",&point,false,0,0));}
+        if(kind==1) {
+            T_ASSERT(unit_issueimmediateorder(caster,"stop"));
+            T_ASSERT(!S_UnitHasSpellTask(caster));
+        }
+        if(kind==2) {
+            vec2_t point={288,800};T_ASSERT(G_IssueUnitPointOrder(caster,"move",&point,false,0,0));
+            T_ASSERT(!S_UnitHasSpellTask(caster));
+        }
         if(kind==3) G_FreeEdict(target);
         if(kind==4) {
             uint32_t ci=caster-g_edicts,ti=target-g_edicts,pi=pending-g_edicts;
@@ -308,6 +316,7 @@ TEST(wc3_spell, approach185_captures_target_range_and_completes_once) {
             T_ASSERT(WriteGame(Test_TempPath("wc3-spell185-approach.bin")));
             T_ASSERT(ReadGame(Test_TempPath("wc3-spell185-approach.bin")));
             caster=g_edicts+ci;target=g_edicts+ti;pending=g_edicts+pi;
+            T_ASSERT(S_UnitHasSpellTask(caster));
             group=spell185_group(caster);T_NOT_NULL(group);
             if(group) {
                 T_ASSERT(group->receiver==pending);T_NULL(pending->think);

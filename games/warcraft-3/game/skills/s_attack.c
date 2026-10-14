@@ -1775,6 +1775,169 @@ static bool attack_priority_worker(edict_t const *unit) {
     return false;
 }
 
+/*495880/4959a0: evaluate collateral around the candidate's predicted world
+ * center. The widget query reads committed candidate centers and adds each
+ * candidate's collision radius. Its friendly mask is Help Response, while
+ * enemy membership is the inverse of passive alliance. */
+typedef struct {
+    edict_t const *owner;
+    box2_t bounds;
+    vec2_t center;
+    float radius;
+    uint32_t mask,friends,enemies;
+} attackSplashPriorityQuery_t;
+
+static void attack_splash_priority_candidate(void *data,edict_t const *candidate) {
+    attackSplashPriorityQuery_t *query=data;
+    if(!candidate->inuse || G_IsDeferredFree(candidate) || candidate->s.player>=MAX_PLAYERS ||
+       !(query->mask&G_TargetFlagForType(G_UnitTargetType(candidate))))return;
+    vec2_t point=attack_help_fine_position(candidate,query->bounds);
+    float dx=wc3_sub(point.x,query->center.x),dy=wc3_sub(point.y,query->center.y);
+    float reach=wc3_add(query->radius,wc3_div(MAX(1,candidate->collision),32));
+    if(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))>wc3_mul(reach,reach))return;
+    player_t const *owner=&game.clients[query->owner->s.player].ps;
+    player_t const *other=&game.clients[candidate->s.player].ps;
+    if(G_GetPlayerAlliance(owner,other,ALLIANCE_HELP_RESPONSE))query->friends++;
+    else if(!G_GetPlayerAlliance(owner,other,ALLIANCE_PASSIVE) && !G_UnitIsInvulnerable(candidate))query->enemies++;
+}
+
+static bool attack_splash_priority(edict_t const *unit,edict_t const *target,
+                                  unitAttack_t const *weapon,uint32_t *base) {
+    if(weapon->weapon!=WPN_ARTILLERY && weapon->weapon!=WPN_MLINE)return true;
+    if(!unit->data.UnitWeapons)return true;
+    uint32_t mask=weapon==S_AttackProfileRead(unit,1) ? unit->data.UnitWeapons->attack2.areaTargets :
+        unit->data.UnitWeapons->attack1.areaTargets;
+    uint32_t affinity=mask&0x1f000u;
+    if(affinity && !(affinity&0x6000u))return true;
+    attackSplashPriorityQuery_t query={.owner=unit,.bounds=CM_GetWorldBounds(),
+        .mask=mask&0x7feu,.radius=wc3_div(weapon->areaSmall,32)};
+    if(!query.mask)query.mask=WC3_TARGET_FLAG_GROUND|WC3_TARGET_FLAG_AIR|WC3_TARGET_FLAG_STRUCTURE;
+    float point[2];S_PredictUnitFinePointAt(target,&level.pathing_clock,point);
+    /*058900 world publication followed by05ce60's world-to-fine projection. */
+    query.center=(vec2_t){
+        wc3_grid_coordinate(wc3_world_coordinate(point[0],query.bounds.min.x,32),query.bounds.min.x,32),
+        wc3_grid_coordinate(wc3_world_coordinate(point[1],query.bounds.min.y,32),query.bounds.min.y,32)};
+    S_QueryMoveProximityContext(NULL,(float[]){query.center.x,query.center.y},query.radius,
+        attack_splash_priority_candidate,&query);
+    /* Signed bytes at originalce5d08, rows friends0..9, columns enemies1..13. */
+    static int8_t const collateral[10][13]={
+        {7,7,7,7,7,7,7,7,7,7,7,7,7},
+        {2,4,5,6,6,6,6,6,6,6,6,6,6},
+        {0,1,3,4,5,5,5,5,6,6,6,6,6},
+        {-1,0,1,2,3,3,4,4,5,5,5,5,5},
+        {-1,-1,0,0,1,2,2,3,3,3,4,4,5},
+        {-1,-1,-1,0,0,0,1,1,2,2,2,3,3},
+        {-1,-1,-1,-1,-1,0,0,0,0,1,1,2,2},
+        {-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0},
+        {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0},
+        {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}};
+    int rank=collateral[MIN(query.friends,9)][MAX(1,MIN(query.enemies,13))-1];
+    if(rank<0)return false;
+    *base=(uint32_t)rank<<23;
+    return true;
+}
+
+/*49da60: Town policy is independent of a running script VM. Player AI
+ * difficulty is currently normal in GetAIDifficulty; map difficulty below is
+ * the separate SetGameDifficulty state. */
+static uint64_t attack_town_priority(edict_t const *unit,edict_t const *target,
+    edict_t const *victim,unitAttack_t const *weapon,wc3AttackPriority_t const *facts,
+    float range,uint64_t key) {
+    bot_t const *bot=&level.bots[unit->s.player];
+    bool melee=bot->mode==BOT_MELEE;
+    uint32_t difficulty=level.setup.difficulty;
+    if(difficulty==1 && !facts->low_level_neutral && melee)difficulty=2;
+    uint32_t low=(uint32_t)key,high=(uint32_t)(key>>32);
+    if(facts->counterattack)high|=0x00008000u;
+    if(difficulty>1) {
+        switch(target->class_id) {
+        case MAKEFOURCC('o','a','l','t'):case MAKEFOURCC('h','a','l','t'):
+        case MAKEFOURCC('e','a','t','e'):case MAKEFOURCC('u','a','o','d'):
+            if(target->build && target->build->revival && target->build->revival->reviving)
+                low|=0x00100000u;
+            else low|=facts->in_range && facts->retained ? 0x00080000u : 0x00002000u;
+            break;
+        case MAKEFOURCC('h','c','a','s'):case MAKEFOURCC('h','k','e','e'):case MAKEFOURCC('h','t','o','w'):
+        case MAKEFOURCC('o','g','r','e'):case MAKEFOURCC('o','f','r','t'):case MAKEFOURCC('o','s','t','r'):
+        case MAKEFOURCC('e','t','o','l'):case MAKEFOURCC('e','t','o','a'):case MAKEFOURCC('e','t','o','e'):
+        case MAKEFOURCC('u','n','p','l'):case MAKEFOURCC('u','n','p','1'):case MAKEFOURCC('u','n','p','2'):
+            low|=0x00004000u;break;
+        case MAKEFOURCC('h','l','u','m'):case MAKEFOURCC('e','d','o','b'):case MAKEFOURCC('o','f','o','r'):
+        case MAKEFOURCC('u','g','r','v'):case MAKEFOURCC('h','w','t','w'):
+            low|=0x00001000u;break;
+        case MAKEFOURCC('e','g','o','l'):case MAKEFOURCC('u','g','o','l'):
+            low|=0x00008000u;break;
+        case MAKEFOURCC('h','h','o','u'):case MAKEFOURCC('o','t','r','b'):case MAKEFOURCC('u','z','i','g'):
+        case MAKEFOURCC('u','z','g','1'):case MAKEFOURCC('u','z','g','2'):
+            low|=0x00010000u;break;
+        /* Preserve the executable's literal hvit/ovin spellings. */
+        case MAKEFOURCC('h','v','i','t'):case MAKEFOURCC('e','d','e','n'):
+        case MAKEFOURCC('o','v','i','n'):case MAKEFOURCC('u','t','o','m'):
+            low|=0x00040000u;break;
+        case MAKEFOURCC('e','m','o','w'):
+            low|=target->mana.value>50 ? 0x00020000u : 0x00010000u;break;
+        case MAKEFOURCC('o','h','w','d'):case MAKEFOURCC('o','t','o','t'):
+            high|=0x44000000u;break;
+        default:
+            if(G_ActorHasAbilityCode(target,MAKEFOURCC('A','T','r','n')))low|=0x00000800u;
+            break;
+        }
+    }
+    if(victim && victim->s.player<MAX_PLAYERS &&
+       G_GetPlayerAlliance(&game.clients[victim->s.player].ps,&game.clients[unit->s.player].ps,ALLIANCE_SHARED_SPELLS)) {
+        if(G_UnitIsHero(victim) && !(victim->aiflags&AI_ILLUSION))high|=0x00010000u;
+        else if(difficulty>1 && victim->defense_type==3 && attack_profile(target,victim)->type==ATK_SIEGE)
+            high|=0x00100000u;
+    }
+    if(!G_UnitIsSleeping(target) && !unit_hasstatusstate(target,WC3_STATUS_STATE_SLEEPING) &&
+       !S_UnitMechanicalCritter(target) && !S_UnitHasStatus(target,MAKEFOURCC('B','p','o','s')) &&
+       !S_UnitHasStatus(target,MAKEFOURCC('B','E','e','r')))high|=0x80000000u;
+    if(!S_UnitHasStatus(target,MAKEFOURCC('B','e','n','s')))high|=0x00001000u;
+    if(G_ActorHasAbilityCode(unit,MAKEFOURCC('A','p','o','i')) &&
+       !S_UnitHasStatus(target,MAKEFOURCC('B','p','o','i')))high|=0x00002000u;
+    if(difficulty && attack_priority_worker(target) && S_UnitHasSpellTask(target))high|=0x00080000u;
+    if(!facts->low_level_neutral) {
+        uint32_t damage=weapon->type<8 ? weapon->type : 0,armor=target->defense_type<8 ? target->defense_type : 7;
+        float multiplier=game.constants.combatConstantsLoaded ? game.constants.damageBonus[damage][armor] : g_default_damage_table[damage][armor];
+        if(difficulty>1) {
+            if(multiplier>=wc3_float(0x3f333333))high|=0x40000000u;
+            if(!(target->aiflags&AI_SUMMONED) || (target->aiflags&AI_ILLUSION))high|=0x10000000u;
+        }
+        if(melee) {
+            if(multiplier>=2)high|=facts->mobile ? 0x00000800u : 0x00040000u;
+            else if(multiplier>=1.5f)high|=facts->mobile ? 0x00000400u : 0x00020000u;
+            else if(multiplier>=1)high|=0x00000100u;
+            else if(multiplier>wc3_float(0x3f19999a))high|=0x00000008u;
+            else if(multiplier>wc3_float(0x3ecccccd))high|=0x00000001u;
+            else if(multiplier>wc3_float(0x3e4ccccd))low|=0x80000000u;
+        }
+        if(difficulty) {
+            if(facts->in_range || S_UnitTargetInCommittedMoveRange(unit,target,wc3_add(range,150))) {
+                if((G_UnitIsHero(target) && !(target->aiflags&AI_ILLUSION) && (bot->flags&BOT_TARGET_HEROES)) ||
+                   (G_UnitIsStructure(target) && target->construction && !G_BuildingUpgradeActive(target) &&
+                    G_ActorHasAbilityCode(target,MAKEFOURCC('A','a','t','k'))))high|=0x44000000u;
+                else if(facts->in_range)high|=0x00004000u;
+            }
+            if(!attack_priority_worker(target)) {
+                if(target->health.value<100)high|=0x00000200u;
+                else if(target->health.value<200)high|=0x00000004u;
+                else if(target->health.value<300)high|=0x00000002u;
+            }
+        }
+    }
+    if(target->s.player<PLAYER_NEUTRAL_AGGRESSIVE)high|=0x20000000u;
+    else high|=(G_UnitIsHero(target) ? target->hero.level : MAX(0,G_CorpseUnitLevel(target)))<<4;
+    if(!facts->mobile) {
+        uint32_t type=target->class_id;
+        low|=type==MAKEFOURCC('o','s','p','1') || type==MAKEFOURCC('o','s','p','2') || type==MAKEFOURCC('o','s','p','3') ? 0x20000000u : 0x02000000u;
+    } else {
+        if(!facts->low_level_neutral && (unit->aiflags&AI_FLYING))low|=0x10000000u;
+        if(G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) &&
+           S_UnitMoveSpeed((edict_t *)unit)>S_UnitMoveSpeed((edict_t *)target))low|=0x02000000u;
+    }
+    return ((uint64_t)high<<32)|low;
+}
+
 static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target) {
     if(!target || !target->inuse || G_IsDeferredFree(target) || G_UnitIsInvulnerable(target) ||
        !S_AttackCanTarget(unit,target))return 0;
@@ -1788,14 +1951,22 @@ static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target
     wc3AttackTargetRelation_t relation=WC3_ATTACK_TARGET_IDLE;
     if(victim==unit)relation=WC3_ATTACK_TARGET_SELF;
     else if(victim) {
-        if(G_PlayerTreatsPlayerAsAlly(unit->s.player,victim->s.player))relation=WC3_ATTACK_TARGET_ALLY;
+        /*49d8b2 asks for the victim's spell grant to the observer. Passive
+         * alliance and the reverse grant do not confer defending priority. */
+        if(victim->s.player<MAX_PLAYERS && unit->s.player<MAX_PLAYERS &&
+           G_GetPlayerAlliance(&game.clients[victim->s.player].ps,
+               &game.clients[unit->s.player].ps,ALLIANCE_SHARED_SPELLS))relation=WC3_ATTACK_TARGET_ALLY;
         else relation=S_SpellIsEnemy((edict_t *)unit,(edict_t *)victim) ? WC3_ATTACK_TARGET_ENEMY : WC3_ATTACK_TARGET_NEUTRAL;
     }
-    uint32_t level=G_UnitIsHero(target) ? target->hero.level : MAX(0,G_CorpseUnitLevel(target));
+    /*49d8e2/685150: the neutral policy belongs to the attacker. */
+    uint32_t level=G_UnitIsHero(unit) ? unit->hero.level : MAX(0,G_CorpseUnitLevel(unit));
     unitAttack_t const *weapon=attack_profile(unit,target);
     float range=MAX(ATTACK_MINIMUM_CHASE_RANGE,MIN(weapon->range,unit->runtime.acquisition_range));
     wc3AttackPriority_t facts={
-        .mobile=G_ActorHasAbilityCode(target,MAKEFOURCC('A','m','o','v')) && S_UnitCanTranslate(target),
+        /*48e260/CBuffEntanglingRoots virtual18c preserves mobile priority
+         * while its Move prevention still prohibits actual translation. */
+        .mobile=G_ActorHasAbilityCode(target,MAKEFOURCC('A','m','o','v')) &&
+            (S_UnitCanTranslate(target) || S_UnitIsEntanglingRooted(target)),
         .both_flying=(unit->aiflags&AI_FLYING) && (target->aiflags&AI_FLYING),
         .fortified=target->defense_type==3, /* Native Unit+e4 defType fort. */
         .armed=armed,.relation=relation,
@@ -1804,7 +1975,15 @@ static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target
         .in_range=S_UnitTargetInCommittedMoveRange(unit,target,range),
         .retained=target==unit->attack_target
     };
-    return wc3_attack_priority(&facts);
+    uint32_t base=0x03800000u;
+    if(!attack_splash_priority(unit,target,weapon,&base))return 0;
+    uint64_t key=wc3_attack_priority(&facts);
+    /* Artillery replaces the three base bits; relation/threat bits are
+     * independent even when the collateral table selects zero. */
+    key=(key&~(UINT64_C(0x03800000)<<32))|((uint64_t)base<<32);
+    if((unit->aiflags&AI_TOWN_OWNED) && unit->s.player<MAX_PLAYERS)
+        key=attack_town_priority(unit,target,victim,weapon,&facts,range,key);
+    return key;
 }
 
 #ifdef BZ_TESTS
@@ -1817,16 +1996,7 @@ uint64_t G_TestAttackTargetPriority(edict_t const *unit,edict_t const *target) {
  * world query and two committed target queries belong to Move's scalar API. */
 static bool attack_should_replace_available_target(edict_t const *unit,edict_t const *target) {
     edict_t const *old=unit->attack_target;
-    if(!old)return true;
     if(old==target)return false;
-    /* TownAI and artillery-area priorities are separate native branches.
-     * Keep their previous retained-target policy until their owners are ported. */
-    if(unit->aiflags&AI_TOWN_OWNED)return false;
-    FOR_LOOP(slot,2) {
-        weaponType_t delivery=S_AttackProfileRead(unit,slot)->weapon;
-        if(S_UnitAttackSlotEnabled(unit,slot) &&
-           (delivery==WPN_ARTILLERY || delivery==WPN_MLINE))return false;
-    }
     uint64_t incoming=attack_target_priority(unit,target);
     if(!incoming)return false;
     uint64_t retained=attack_target_priority(unit,old);
