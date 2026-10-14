@@ -2332,6 +2332,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
 #include "shared/test.h"
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t src);
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 /* The filesystem import is an engine capability: these tests isolate request
  * ordering without creating a real campaign scope. */
@@ -2473,10 +2474,10 @@ TEST(wc3_score_postgame, commands_remain_score_only_after_terminal_presentation)
     level.setup.difficulty = 2;
     player->client->ps.stats[PLAYERSTATE_GAME_RESULT] = 1;
 
-    /* Normal input remains usable until score presentation is terminal. */
-    G_ClientCommand(player, 1, (cstring_t[]){ "signal" });
-    T_ASSERT(player->client->cursor_signal);
-    player->client->cursor_signal = false;
+    /* Gameplay result controls remain usable until presentation is terminal. */
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_EQ(level.setup.difficulty, 1u);
+    level.setup.difficulty = 2; /* Keep the later terminal guard check independent. */
 
     G_EnterScorePresentation();
     T_ASSERT(score_transition.terminal);
@@ -2732,6 +2733,7 @@ TEST(wc3_score_postgame, frame_tail_removes_entities_before_navigation) {
     hero->hero.level = 3;
     postgame_test_removal = hero;
     postgame_test_removed_at_menu = false;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     gi.MenuAction = G_TestPostgameFrameMenuAction;
     script_save_test_menu_actions = 0;
     /* No connected viewer: test the fail-open route after the actual frame. */

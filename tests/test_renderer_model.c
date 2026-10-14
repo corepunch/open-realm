@@ -315,7 +315,8 @@ void R_TestSetTextureLoadResult(texture_t *texture) { texture_load_result = text
 model_t *R_LoadModel(cstring_t filename) {
     load_count++;
     snprintf(last_model_load, sizeof(last_model_load), "%s", filename ? filename : "");
-    if (fail_load || (fail_scoped_load && strstr(last_model_load, ".w3m\\"))) return NULL;
+    if (fail_load || (fail_scoped_load &&
+        (strstr(last_model_load, ".w3m\\") || strstr(last_model_load, ".w3x\\")))) return NULL;
     if (use_production_model_loader && strstr(last_model_load, "TestUI\\Models\\quad_sprite.mdx"))
         return R_TestProductionLoadModel(filename);
     model_t *model = test_alloc(sizeof(model_t));
