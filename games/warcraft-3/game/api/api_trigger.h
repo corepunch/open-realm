@@ -62,7 +62,17 @@ uint32_t CreateTrigger(jass_t *j) {
     return jass_pushlighthandle(j, trigger, "trigger");
 }
 uint32_t DestroyTrigger(jass_t *j) {
-    //trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
+    trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
+    if (!whichTrigger) return 0;
+
+    /* Trigger handles live for the map lifetime, so destruction retires every
+     * registration and disables automatic dispatch without freeing the trigger
+     * object underneath a currently executing condition or action. */
+    whichTrigger->disabled = true;
+    FOR_LOOP(i, MAX_EVENTS) {
+        event_t *event = &level.events.handlers[i];
+        if (event->inuse && event->trigger == whichTrigger) G_RetireEvent(event);
+    }
     return 0;
 }
 uint32_t ResetTrigger(jass_t *j) {

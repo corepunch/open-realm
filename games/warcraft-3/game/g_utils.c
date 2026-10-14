@@ -154,6 +154,22 @@ event_t *G_MakeEvent(EVENTTYPE type) {
     return NULL;
 }
 
+void G_RetireEvent(event_t *event) {
+    if (!event || !event->inuse) return;
+
+    for (uint32_t n = level.events.read; n < level.events.write; n++) {
+        gameEvent_t *queued = &level.events.queue[n % MAX_EVENT_QUEUE];
+        if (queued->responseTo == event) queued->responseTo = NULL;
+    }
+    if (event->variable) {
+        gi.MemFree((void *)event->variable);
+        event->variable = NULL;
+    }
+    event->inuse = false;
+    if (event->handle_generation == EVENT_HANDLE_GENERATION_MAX) event->generation_exhausted = true;
+    else event->handle_generation++;
+}
+
 void G_SetEventSubject(event_t *evt, edict_t *subject) {
     evt->subject = subject;
     evt->subject_spawn_time = subject ? subject->spawn_time : 0;
