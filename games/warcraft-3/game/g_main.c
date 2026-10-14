@@ -74,6 +74,7 @@ static bool script_save_rejected;
 typedef struct {
     bool pending, shown, snapshot_frozen;
     bool terminal; /* completed single-player match; outlives the OK ticket */
+    bool destination_submitted; /* fail-open and Continue remain one-shot */
     char action[16], argument[MAX_PATHLEN];
     bool awaiting[MAX_CLIENTS];
     uint8_t tab[MAX_CLIENTS];
@@ -82,6 +83,15 @@ typedef struct {
     wc3ScoreSnapshot_t frozen;
 } wc3ScoreTransition_t;
 static wc3ScoreTransition_t score_transition;
+
+/* The first accepted score exit owns both its destination and any staged
+ * difficulty override. Neither a second JASS exit nor a late result-button
+ * command may replace it, including after Continue has consumed the ticket
+ * while the old world is waiting to be unloaded. */
+static bool G_ScoreTransitionOwnsExit(void) {
+    return score_transition.pending || score_transition.destination_submitted ||
+           score_transition.terminal;
+}
 
 static void G_ResetScoreTransition(void) {
     memset(&score_transition, 0, sizeof(score_transition));
@@ -127,7 +137,7 @@ static void G_CaptureScoreSnapshot(wc3ScoreSnapshot_t *snapshot) {
 }
 
 static void G_QueueScoreTransition(cstring_t action, cstring_t argument) {
-    if (score_transition.pending) return; /* prevent nested JASS transitions */
+    if (G_ScoreTransitionOwnsExit()) return; /* first exit owns destination */
     G_ResetScoreTransition();
     score_transition.pending = true;
     strlcpy(score_transition.action, action, sizeof(score_transition.action));
@@ -153,6 +163,7 @@ static void G_CompleteScoreTransition(void) {
     terminal = score_transition.terminal;
     G_ResetScoreTransition(); /* exactly once, even if MenuAction reenters */
     score_transition.terminal = terminal;
+    score_transition.destination_submitted = true;
     gi.MenuAction(action, argument);
 }
 
@@ -310,6 +321,7 @@ static bool G_StageDifficultyTransition(cstring_t map) {
     uint32_t current = level.setup.difficulty;
     uint32_t original_default = level.setup.default_difficulty;
 
+    if (G_ScoreTransitionOwnsExit()) return false;
     G_ResetDifficultyTransition();
     if (!map || !*map || strlen(map) >= sizeof(resolved) ||
         current > 3 || original_default > 3) return false;
@@ -411,6 +423,9 @@ bool G_ScriptSavePending(void) { return script_save_request.pending; }
 
 bool G_RequestScriptSaveGame(cstring_t name) {
     PATHSTR path;
+    /* The accepted score exit must not be superseded or poisoned by a later
+     * scripted save request in the same callback. */
+    if (G_ScoreTransitionOwnsExit()) return false;
     if (script_save_rejected || script_save_request.pending || script_standalone_load[0] || !gi.ScriptSavePath ||
         !gi.ScriptSavePath(name, path, sizeof(path))) {
         /* A failed SaveGame must never allow the BJ wrapper's following
@@ -431,6 +446,7 @@ bool G_RequestScriptSaveGame(cstring_t name) {
  * call ReadGame from an active JASS stack. A SaveAndLoadGameBJ pair remains one
  * pending transaction, so a failed source save cannot load the destination. */
 bool G_RequestScriptLoadGame(cstring_t name) {
+    if (G_ScoreTransitionOwnsExit()) return false;
     if (script_save_rejected || script_standalone_load[0] || script_save_request.change_level ||
         script_save_request.load_game || !name || !*name || !gi.ScriptSaveExists ||
         !gi.ScriptSaveExists(name) || strlen(name) >= MAX_PATHLEN) {
@@ -1548,6 +1564,7 @@ void G_GameResultDebug(cstring_t format, ...) {
 static bool G_IsCampaignMapPath(cstring_t path);
 
 void G_RequestEndGame(bool do_score_screen) {
+    if (G_ScoreTransitionOwnsExit()) return;
     G_ResetDifficultyTransition();
     cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
     bool campaign_select = level.campaign_select_on_end ||
@@ -1573,6 +1590,7 @@ static bool G_IsCampaignMapPath(cstring_t path) {
 }
 
 void G_RequestQuitGame(void) {
+    if (G_ScoreTransitionOwnsExit()) return;
     G_ResetDifficultyTransition();
     /* Quit returns campaign missions to the selector while other sessions use the main menu. */
     cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
@@ -1593,6 +1611,7 @@ void G_RequestQuitGame(void) {
 }
 
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {
+    if (G_ScoreTransitionOwnsExit()) return;
     BZ_WC3_SCORE_LOG("request ChangeLevel map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
     if (!map || !*map || strlen(map) >= MAX_PATHLEN) return;
     if (script_save_rejected || script_standalone_load[0] || script_save_request.load_game) {
@@ -1618,7 +1637,9 @@ void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {
 }
 
 void G_RequestRestartGame(bool do_score_screen) {
-    cstring_t map = level.map_path[0] ? level.map_path :
+    cstring_t map;
+    if (G_ScoreTransitionOwnsExit()) return;
+    map = level.map_path[0] ? level.map_path :
         (gi.CvarString ? gi.CvarString("map", "") : "");
     BZ_WC3_SCORE_LOG("request RestartGame map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
     if (script_save_rejected || script_standalone_load[0] || script_save_request.pending) return;
@@ -1630,6 +1651,7 @@ void G_RequestRestartGame(bool do_score_screen) {
 
 void G_RequestLoadGameMenu(void) {
     bool shown = false;
+    if (G_ScoreTransitionOwnsExit()) return;
     BZ_WC3_SCORE_LOG("request LoadGameMenu");
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
@@ -1643,13 +1665,14 @@ void G_RequestLoadGameMenu(void) {
 }
 
 void G_RequestLoadGameNamed(cstring_t name) {
-    if (!name || !*name) return;
+    if (G_ScoreTransitionOwnsExit() || !name || !*name) return;
     G_ResetDifficultyTransition();
     BZ_WC3_SCORE_LOG("request LoadGame name=%s", name);
     gi.MenuAction("load", name);
 }
 
 void G_RequestCampaignSelect(void) {
+    if (G_ScoreTransitionOwnsExit()) return;
     G_ResetDifficultyTransition();
     /* Warcraft's ForceCampaignSelectScreen is called by SetCampaignAvailableBJ
      * while campaign ending cinematics are still running. It selects the
@@ -1996,7 +2019,19 @@ void G_InitClientUIState(gameClient_t *client) {
 /* The server dropped a spawned client. Its player slot, units and alliances stay authoritative; only the
  * connection-scoped state goes, so an abandoned dialog cannot hold pause and no HUD is serialized to nobody. */
 static void G_ClientDisconnect(edict_t *edict) {
+    /* SV_Frame still dispatches network disconnects while a score-owned pause
+     * stops G_RunFrame. Detect the final viewer here, not by polling the
+     * simulation tail (which will never run again). */
+    bool const was_paused = level.script_paused || level.modal_paused;
     G_SetClientConnected(edict, false);
+    if (score_transition.shown) {
+        G_FlushScoreTransition();
+    } else if (was_paused) {
+        /* A paused result command may have queued its destination, but no
+         * gameplay frame remains to finalize it. This helper checks that a
+         * score transition was actually requested before draining anything. */
+        G_FlushPausedScoreTransition();
+    }
 }
 
 /* Called when a client finishes the connection handshake and is ready to play.
@@ -2476,6 +2511,197 @@ TEST(wc3_score_postgame, continue_preserves_terminal_guard_until_next_map) {
     T_EQ(script_save_test_menu_actions, 1);
     gi.MenuAction = old_menu_action;
     G_ResetScoreTransition();
+}
+
+/* Paused servers continue to receive disconnect callbacks but cannot reach
+ * G_RunFrame's old all-viewers-gone poll. Complete directly on the final
+ * network disconnect and preserve the terminal pause until map replacement. */
+TEST(wc3_score_postgame, last_viewer_disconnect_completes_destination_once) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    void (*old_set_paused)(bool) = gi.SetPaused;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    game.clients[0].connected = true;
+    G_QueueScoreTransition("menu", "menu_single_player_campaign");
+    score_transition.shown = true;
+    score_transition.awaiting[0] = true;
+    gi.MenuAction = G_TestScriptMenuAction;
+    gi.SetPaused = G_TestPostgamePause;
+    script_save_test_menu_actions = 0;
+    G_EnterScorePresentation();
+    T_ASSERT(score_transition.terminal);
+
+    G_ClientDisconnect(&g_edicts[0]);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_STREQ(script_save_test_last_action, "menu");
+    T_STREQ(script_save_test_last_argument, "menu_single_player_campaign");
+    T_ASSERT(!score_transition.pending);
+    T_ASSERT(score_transition.terminal);
+    T_ASSERT(!game.clients[0].connected);
+    G_ClientDisconnect(&g_edicts[0]); /* duplicate network callback is harmless */
+    T_EQ(script_save_test_menu_actions, 1);
+
+    gi.MenuAction = old_menu_action;
+    gi.SetPaused = old_set_paused;
+    G_ResetScoreTransition();
+}
+
+TEST(wc3_score_postgame, paused_disconnect_finalizes_unshown_score_without_frame) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t frame;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    game.clients[0].connected = true;
+    level.script_paused = true;
+    level.framenum = 19;
+    frame = level.framenum;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    G_QueueScoreTransition("menu", "menu_single_player_campaign");
+    T_ASSERT(!score_transition.snapshot_frozen);
+    G_ClientDisconnect(&g_edicts[0]);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_ASSERT(!score_transition.pending);
+    T_EQ(level.framenum, frame); /* no simulation frame was available */
+
+    gi.MenuAction = old_menu_action;
+    G_ResetScoreTransition();
+    level.script_paused = false;
+}
+
+TEST(wc3_score_postgame, multiplayer_disconnect_waits_for_last_viewer) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    game.clients[0].connected = game.clients[1].connected = true;
+    G_QueueScoreTransition("menu", "menu_main");
+    score_transition.shown = true;
+    score_transition.awaiting[0] = score_transition.awaiting[1] = true;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+
+    G_ClientDisconnect(&g_edicts[0]);
+    T_ASSERT(score_transition.pending);
+    T_EQ(script_save_test_menu_actions, 0);
+    G_ClientDisconnect(&g_edicts[1]);
+    T_ASSERT(!score_transition.pending);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_ASSERT(!score_transition.terminal); /* no new multiplayer pause policy */
+
+    gi.MenuAction = old_menu_action;
+    G_ResetScoreTransition();
+}
+
+TEST(wc3_score_postgame, no_recipient_falls_through_without_terminal_pause) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    FOR_LOOP(i, game.max_clients) game.clients[i].connected = false;
+    G_QueueScoreTransition("menu", "menu_single_player_campaign");
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+
+    G_FlushScoreTransition();
+    T_EQ(script_save_test_menu_actions, 1);
+    T_STREQ(script_save_test_last_argument, "menu_single_player_campaign");
+    T_ASSERT(!score_transition.pending);
+    T_ASSERT(!score_transition.terminal);
+    T_ASSERT(score_transition.destination_submitted);
+    G_FlushScoreTransition();
+    G_RequestEndGame(true);
+    G_RequestChangeLevel("Maps/Campaign/Human03.w3m", false);
+    T_EQ(script_save_test_menu_actions, 1);
+
+    gi.MenuAction = old_menu_action;
+    G_ResetScoreTransition();
+}
+
+/* The accepted ChangeLevel ticket owns the staged campaign difficulty pair;
+ * later EndGame/Quit/Restart/ChangeLevel requests (even no-score variants)
+ * cannot reset it or start a loading screen before Continue. */
+TEST(wc3_score_postgame, first_exit_retains_destination_and_difficulty) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    bool (*old_resolve_map)(cstring_t, string_t, uint32_t) = gi.ResolveMap;
+    uint32_t current = 99, original_default = 99;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    G_ResetDifficultyTransition();
+    G_ResetScriptSave();
+    gi.MenuAction = G_TestScriptMenuAction;
+    gi.ResolveMap = G_TestDifficultyResolveMap;
+    script_save_test_menu_actions = 0;
+    level.setup.difficulty = 1;
+    level.setup.default_difficulty = 2;
+    game.clients[0].connected = true;
+
+    G_RequestChangeLevel("OrcX01_02.w3x", true);
+    T_ASSERT(score_transition.pending);
+    T_ASSERT(G_HasPendingDifficultyTransition());
+    T_STREQ(score_transition.argument, "OrcX01_02.w3x");
+    G_RequestEndGame(true);
+    G_RequestQuitGame();
+    G_RequestRestartGame(false);
+    G_RequestChangeLevel("Maps/Campaign/Human03.w3m", false);
+    G_RequestLoadGameNamed("some-save");
+    T_ASSERT(!G_RequestScriptSaveGame("late-zone-save"));
+    T_ASSERT(!G_RequestScriptLoadGame("late-zone-load"));
+    T_ASSERT(!script_save_rejected);
+    G_RequestCampaignSelect();
+    G_RequestLoadGameMenu();
+    T_EQ(script_save_test_menu_actions, 0);
+    T_STREQ(score_transition.action, "level");
+    T_STREQ(score_transition.argument, "OrcX01_02.w3x");
+    T_ASSERT(G_HasPendingDifficultyTransition());
+    score_transition.shown = true;
+    score_transition.awaiting[0] = true;
+    G_ScoreTransitionContinue(&g_edicts[0]);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_STREQ(script_save_test_last_action, "level");
+    T_STREQ(script_save_test_last_argument, "OrcX01_02.w3x");
+    T_ASSERT(G_TakeDifficultyTransition("Maps/FrozenThrone/Campaign/OrcX01_02.w3x",
+                                        &current, &original_default));
+    T_EQ(current, 1u);
+    T_EQ(original_default, 2u);
+    G_ScoreTransitionContinue(&g_edicts[0]);
+    T_EQ(script_save_test_menu_actions, 1);
+
+    gi.MenuAction = old_menu_action;
+    gi.ResolveMap = old_resolve_map;
+    G_ResetScoreTransition();
+    G_ResetDifficultyTransition();
+}
+
+TEST(wc3_score_postgame, completed_ticket_rejects_new_exit_until_map_reset) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    reset_entities();
+    setup_test_world();
+    G_ResetScoreTransition();
+    G_ResetDifficultyTransition();
+    game.clients[0].connected = true;
+    gi.MenuAction = G_TestScriptMenuAction;
+    script_save_test_menu_actions = 0;
+    G_QueueScoreTransition("menu", "menu_single_player_campaign");
+    score_transition.shown = true;
+    score_transition.awaiting[0] = true;
+    G_EnterScorePresentation();
+    G_ScoreTransitionContinue(&g_edicts[0]);
+    T_EQ(script_save_test_menu_actions, 1);
+    T_ASSERT(score_transition.terminal);
+    G_RequestEndGame(true);
+    G_RequestChangeLevel("Maps/Campaign/Human03.w3m", false);
+    G_RequestQuitGame();
+    T_EQ(script_save_test_menu_actions, 1);
+    T_ASSERT(!score_transition.pending);
+    T_ASSERT(score_transition.terminal);
+
+    gi.MenuAction = old_menu_action;
+    G_ResetScoreTransition();
+    G_ResetDifficultyTransition();
 }
 
 /* A request is only a destination ticket. Scores/hero roster freeze at the

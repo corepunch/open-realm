@@ -537,3 +537,34 @@ release, unchanged gameplay frame/time, blocked client input and gameplay
 commands, continued score interaction, multi-client compatibility, and the
 Continue-to-new-map guard lifetime. Local compile/runtime verification remains
 outstanding.
+
+### Post-game lifecycle Patch 3 — exit and disconnect safety (14 October 2026)
+
+The first accepted score-screen exit owns the destination and, for a level
+transition, its resolved map and current/default difficulty pair. A subsequent
+EndGame, Quit Mission, RestartGame, ChangeLevel, scripted save/load, LoadGame,
+or campaign-select intent cannot overwrite that ticket, reset its staged
+campaign difficulty, or initiate another loading/menu action while it is
+pending. Once the terminal single-player score screen has consumed Continue,
+the same guard remains in effect until map replacement clears the transient
+state. A separate transient `destination_submitted` latch also protects the
+missing-FDF/no-recipient fallback: the first action stays one-shot without
+claiming a terminal pause when no score window was shown. No save-format or
+network message changes are introduced.
+
+The score window remains server-authored and continues using its existing
+recipient checks. While the simulation is paused, `G_ClientDisconnect`
+checks the presented score transition immediately after releasing the client
+modal. The first disconnect in a multi-viewer score leaves the destination
+pending; when the last authorized viewer leaves, the stored destination is
+consumed once without waiting for another `G_RunFrame`. A paused disconnect
+before score presentation also uses the existing paused finalization path,
+including deferred removals and script-save ordering. With no recipients or
+no valid FDF, the existing fail-open path executes the destination without
+claiming terminal pause ownership.
+
+Regression tests cover the final viewer leaving during terminal presentation,
+multiple score viewers disconnecting in turn, missing recipients, repeated
+Continue, and competing exit intents attempting to replace the first staged
+campaign difficulty. Runtime artwork/FDF failures still require a separate
+retail-archive validation run. Patch 4 owns integration/visual verification.

@@ -453,8 +453,11 @@ game module completes equivalent work after synchronous command/JASS return.
 Once a single local viewer receives the score presentation, the game module
 holds an irreversible terminal pause reason until the next map; normal score
 commands still run through the paused server transport, while gameplay input
-is rejected. Multi-viewer matches retain the existing lifecycle. See
-[Score Screen](../score-screen.md).
+is rejected. Multi-viewer matches retain the existing lifecycle. The first
+accepted score exit also owns its destination and staged campaign difficulty;
+late requests cannot trigger loading early, and the disconnect callback
+completes the transition when the final score viewer leaves a paused session.
+See [Score Screen](../score-screen.md).
 
 For result-lifecycle diagnosis, build with `WC3_DEBUG_SCORE=1` and then set
 `wc3_game_result_debug 1` to enable bounded game-module `WC3_RESULT` breadcrumbs
