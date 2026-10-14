@@ -1449,6 +1449,21 @@ TEST(wc3_items, custom_speed_powerup_rawcode_gets_movement_cap) {
     free_slk_rows(rows);
 }
 
+/* Tome registry flags do not turn ordinary carryable items into touch powerups.
+ * Verify the real selection gate without relying on retail MPQ fixtures. */
+TEST(wc3_items, tome_powerup_registry_respects_itemdata_flag) {
+    static ItemData_t tome = { .abilList = "AIsm", .powerup = true, .usable = true };
+    edict_t *unit, *item;
+    setup_test_world();
+    unit = make_item_test_inventory_unit(0, 0);
+    item = make_item_test_world_item(MAKEFOURCC('t','s','t','r'), 32, 0);
+    item->data.ItemData = &tome;
+    T_NOT_NULL(S_ItemPowerup(unit, item).ability);
+    tome.powerup = false;
+    T_NULL(S_ItemPowerup(unit, item).ability);
+    tome.powerup = true;
+}
+
 TEST(wc3_items, shimmerweed_powerup_without_ability_bypasses_inventory) {
     static ItemData_t shimmerweed = { .abilList = "_", .powerup = true,
         .usable = false, .perishable = false, .uses = 0 };

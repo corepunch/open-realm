@@ -380,9 +380,18 @@ BZ_ITEM_PROC(AbilityItemManaRestore) {
     return true;
 }
 
-BZ_ITEM_PROC(AbilityMaxLifeMod) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_LIFE_GAIN);
+/* World powerups target the collecting unit; ordinary carried item use keeps
+ * the existing selected-unit client contract. Never read a client from a
+ * server-side collector. */
+static edict_t *item_stat_recipient(edict_t *ent) {
+    if (!ent) return NULL;
+    return ent->client ? G_GetMainSelectedUnit(ent->client) : ent;
+}
+
+BZ_ABILITY_PROC(CAbilityMaxLifeMod) {
+    if (msg != A_ITEM_USE) return false;
+    edict_t *target = item_stat_recipient(ent);
+    uint32_t code = call && call->item ? call->item->code : ID_ITEM_LIFE_GAIN;
     float amount = S_SpellData(code, 1, 1);
 
     if (!target || amount <= 0) {
@@ -396,9 +405,10 @@ BZ_ITEM_PROC(AbilityMaxLifeMod) {
 
 /* WarSmash: CAbilityItemPermanentStatGain.checkBeforeQueue
  * Permanently adds to hero base stats, consumes the item. */
-BZ_ITEM_PROC(AbilityStrengthMod) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, 0);
+BZ_ABILITY_PROC(CAbilityStrengthMod) {
+    if (msg != A_ITEM_USE) return false;
+    edict_t *target = item_stat_recipient(ent);
+    uint32_t code = call && call->item ? call->item->code : 0;
     float str = S_SpellData(code, 1, 3);
     float agi = S_SpellData(code, 1, 1);
     float intel = S_SpellData(code, 1, 2);
@@ -415,9 +425,10 @@ BZ_ITEM_PROC(AbilityStrengthMod) {
 }
 
 /* WarSmash: CAbilityItemExperienceGain — grants XP. */
-BZ_ITEM_PROC(AbilityExperienceMod) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_XP_GAIN);
+BZ_ABILITY_PROC(CAbilityExperienceMod) {
+    if (msg != A_ITEM_USE) return false;
+    edict_t *target = item_stat_recipient(ent);
+    uint32_t code = call && call->item ? call->item->code : ID_ITEM_XP_GAIN;
     uint32_t amount = (uint32_t)S_SpellData(code, 1, 1);
 
     if (!target || !G_UnitIsHero(target) || amount == 0) {
@@ -429,9 +440,10 @@ BZ_ITEM_PROC(AbilityExperienceMod) {
 }
 
 /* WarSmash: CAbilityItemLevelGain — grants hero level. */
-BZ_ITEM_PROC(AbilityLevelMod) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_LEVEL_GAIN);
+BZ_ABILITY_PROC(CAbilityLevelMod) {
+    if (msg != A_ITEM_USE) return false;
+    edict_t *target = item_stat_recipient(ent);
+    uint32_t code = call && call->item ? call->item->code : ID_ITEM_LEVEL_GAIN;
     uint32_t levels = (uint32_t)S_SpellData(code, 1, 1);
 
     if (!target || !G_UnitIsHero(target) || levels == 0) {

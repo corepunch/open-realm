@@ -154,8 +154,8 @@ static ability_t abilitylist[] = {
     { "Amic", CAbilityMilitiaConvert, AB_COMMAND | AB_SEPARATE_OFF },  /* Call To Arms */
 
     /* ItemAbilityStrings.txt */
-    { "AIsm", CAbilityStrengthMod, AB_ITEM },  /* Item Strength Gain */
-    { "AIam", CAbilityStrengthMod, AB_ITEM },  /* Item Agility Gain */
+    { "AIsm", CAbilityStrengthMod, AB_ITEM | AB_POWERUP },  /* Item Strength Gain */
+    { "AIam", CAbilityStrengthMod, AB_ITEM | AB_POWERUP },  /* Item Agility Gain */
     { "AIat", CAbilityAttackBonus, 0 },  /* Item Damage Bonus */
     { "AIt6", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +6 */
     { "AIt9", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +9 */
@@ -170,17 +170,17 @@ static ability_t abilitylist[] = {
     { "AItn", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +10 */
     { "AItx", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +20 */
     { "AIde", CAbilityDefenseBonus, 0 },  /* Item Armor Bonus */
-    { "AIem", CAbilityExperienceMod, AB_ITEM },  /* Item Experience Gain */
-    { "AIlm", CAbilityLevelMod, AB_ITEM },  /* Item Level Gain */
-    { "AIim", CAbilityStrengthMod, AB_ITEM },  /* Item Intelligence Gain */
-    { "AIxm", CAbilityStrengthMod, AB_ITEM },  /* Item Int/Agi/Str gain */
+    { "AIem", CAbilityExperienceMod, AB_ITEM | AB_POWERUP },  /* Item Experience Gain */
+    { "AIlm", CAbilityLevelMod, AB_ITEM | AB_POWERUP },  /* Item Level Gain */
+    { "AIim", CAbilityStrengthMod, AB_ITEM | AB_POWERUP },  /* Item Intelligence Gain */
+    { "AIxm", CAbilityStrengthMod, AB_ITEM | AB_POWERUP },  /* Item Int/Agi/Str gain */
     { "AIhe", CAbilityItemHeal, AB_ITEM },  /* Item Healing */
     { "AIvi", CAbilityItemInvis, AB_ITEM },  /* Item Temporary Invisibility */
     { "AIma", CAbilityItemManaRestore, AB_ITEM },  /* Item Mana Regain */
     { "AIda", CAbilityItemDefenseAoe, AB_ITEM },  /* Item Temporary Area Armor Bonus */
     { "AIco", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Command */
     { "AIfs", CAbilityFigurineSkeleton, AB_ITEM },  /* Item Skeleton Summon */
-    { "AImi", CAbilityMaxLifeMod, AB_ITEM },  /* Item Permanent Life Gain */
+    { "AImi", CAbilityMaxLifeMod, AB_ITEM | AB_POWERUP },  /* Item Permanent Life Gain */
     { "AIab", CAbilityAttributeBonus, 0 },  /* Item Hero Stat Bonus */
     { "AIml", CAbilityMaxLifeBonus, 0 },  /* Item Life Bonus */
     { "AImm", CAbilityMaxManaBonus, 0 },  /* Item Mana Bonus */
