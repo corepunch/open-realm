@@ -2527,6 +2527,30 @@ TEST(wc3_api, fog_state_shared_vision_reaches_allied_viewer_only) {
     T_EQ(level.fow.players[2].visible[index], 0);
 }
 
+TEST(wc3_api, glyph_omniscience_visibility_expires_but_exploration_remains) {
+    uint32_t index;
+    uint32_t start;
+    setup_test_world();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    G_FowConnectPlayer(1);
+    index = test_fow_cell(0.0f, 0.0f);
+    start = level.time;
+
+    G_FowRevealEntireMapTimed(0, 1.25f); /* nonstandard authored Dur */
+    T_EQ(level.fow.players[0].visible[index], 1);
+    T_EQ(level.fow.players[0].explored[index], 1);
+    T_EQ(level.fow.players[1].visible[index], 0);
+
+    G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index], 1);
+    level.time = start + 1251;
+    G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index], 0);
+    T_EQ(level.fow.players[0].explored[index], 1);
+    level.time = start;
+}
+
 TEST(wc3_api, fog_modifier_same_turn_start_stop_still_explores) {
     fogModifier_t mod = {
         .player = 0,

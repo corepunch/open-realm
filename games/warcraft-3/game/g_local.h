@@ -2775,6 +2775,7 @@ void S_PermanentInvisibilityInitialize(edict_t *unit);
 void S_PermanentInvisibilityReveal(edict_t *unit);
 void G_FowSetStateRect(fogWrite_t const *fog, box2_t const *box);
 void G_FowSetStateRadius(fogWrite_t const *fog, vec2_t const *center, float radius);
+void G_FowRevealEntireMapTimed(uint32_t player, float duration);
 void G_FogModifierStart(fogModifier_t *mod);
 void G_FogModifierStop(fogModifier_t *mod);
 uint32_t G_FowWorldToCellX(float x);

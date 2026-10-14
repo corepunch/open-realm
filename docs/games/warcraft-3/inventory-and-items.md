@@ -659,6 +659,17 @@ target; the rune's authored `DataB`, `Area`, `Dur`/`HeroDur`, `BuffID` and
 target flags govern selection and status lifetime. The rune is consumed even
 with no eligible recipients.
 
+### Glyph of Omniscience (`gomn` / `AIrv`)
+
+The `AIrv` power-up reveals the full map temporarily to the collecting player,
+without disabling fog for all players. The visibility overlay is reapplied
+following ordinary unit sight until its ability `Dur` expires (stock five
+seconds); explored terrain remains explored afterwards. Repeated glyphs extend
+the ongoing reveal rather than shortening it. Generic world-item pickup events,
+consumption, and the authored target effect are reused. Current timed reveal
+state is maintained in the fog runtime and is not yet serialized for save/load;
+this remains a specific save-while-active compatibility gap.
+
 ## JASS item enumeration
 
 `EnumItemsInRect` enumerates in-world items within the given rectangle. Its optional
