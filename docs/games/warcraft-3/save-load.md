@@ -890,3 +890,15 @@ and the existing unit/resource score state still round-trip normally.
 Version 96 persists per-item `SetItemDropOnDeath` overrides in the raw edict
 record. Version 95 and earlier saves are rejected; save compatibility and
 migration are not supported.
+
+### Restored static pathing (opened gates)
+
+`SV_Map` builds static obstacles from the map's initial entities, before the
+saved snapshot is restored. A gate opened or destroyed during gameplay can
+therefore appear open after loading while the old, closed gate's cells remain
+in the pathfinding grid. `ReadGame` must finish rebinding all saved entities,
+restore destructable alive/death footprints using `G_RestoreDestructableData`,
+then call `CM_BakeStaticObstacles()` **once** before resuming simulation.
+This also updates footprints for other moved/removed structures. Animation is
+not the authoritative input for pathfinding; the saved destructable lifecycle
+and pathing fields are.
