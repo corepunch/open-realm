@@ -460,8 +460,12 @@ TEST(wc3_score, score_sort_unavailable_values_last_and_groups_teams) {
     view.teams = true; /* GUESS: team id groups before score order. */
     WC3_ScoreOrderedPlayers(&snapshot, 2, &view, order);
     T_EQ(order[0], 1); T_EQ(order[1], 3); T_EQ(order[2], 0); T_EQ(order[3], 2);
-    T_EQ(WC3_ScoreTeamColor(&snapshot, &snapshot.players[0]), 2);
-    T_EQ(WC3_ScoreTeamColor(&snapshot, &snapshot.players[1]), 4);
+    /* Ally colours are relative to the viewer, even for one-player teams. */
+    T_EQ(WC3_ScoreAllyColor(&snapshot.players[0], 3, 2), 1); /* self = blue */
+    T_EQ(WC3_ScoreAllyColor(&snapshot.players[2], 3, 2), 2); /* teammate = teal */
+    T_EQ(WC3_ScoreAllyColor(&snapshot.players[1], 3, 2), 0); /* enemy = red */
+    T_EQ(WC3_ScoreAllyColor(&snapshot.players[1], 1, 1), 1);
+    T_EQ(WC3_ScoreAllyColor(&snapshot.players[0], 1, 1), 0);
     /* Missing retail counter cannot reorder rows, even if clicked. */
     view.teams = false;
     WC3_ScoreSortColumn(&view, 2, 0);

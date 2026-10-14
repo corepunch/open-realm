@@ -125,21 +125,16 @@ static inline void WC3_ScoreOrderedPlayers(wc3ScoreSnapshot_t const *snapshot,
     }
 }
 
-static inline uint32_t WC3_ScoreTeamColor(wc3ScoreSnapshot_t const *snapshot,
-                                          wc3ScorePlayerSnapshot_t const *player) {
-    if (!player || !snapshot) return 0;
-    /* GUESS: ally-colour mode uses the lowest numbered teammate's team colour.
-     * This is an approximation, not retail's local alliance-colour palette. */
-    uint32_t color = player->color;
-    uint32_t number = UINT32_MAX;
-    FOR_LOOP(i, MIN(snapshot->count, (uint32_t)MAX_PLAYERS)) {
-        wc3ScorePlayerSnapshot_t const *p = &snapshot->players[i];
-        if (p->team == player->team && p->number < number) {
-            number = p->number;
-            color = p->color;
-        }
-    }
-    return color;
+/* The score-screen ally-colour toggle is viewer-relative, not a team palette
+ * derived from the lowest-numbered teammate's original colour. In classic
+ * allied-colour mode: local player blue (1), other allies teal (2), opponents
+ * red (0). The snapshot's immutable owner/team identity is authoritative. */
+static inline uint32_t WC3_ScoreAllyColor(wc3ScorePlayerSnapshot_t const *player,
+                                          uint32_t viewer_number, uint32_t viewer_team) {
+    if (!player) return 0;
+    if (player->number == viewer_number) return 1;
+    if (player->team == viewer_team) return 2;
+    return 0;
 }
 
 #endif

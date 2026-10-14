@@ -74,7 +74,9 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
     ScoreScreenPlace(backdrop, root, 0, -0.032f, 0, 0);
     /* The existing silver banner border is a stock score-screen asset. Its
      * exact retail runtime placement is NOT defined by ScoreScreen.fdf. */
-    ScoreScreenPlace(border, root, 0, 0, 0.153f, SCORE_ROW_H);
+    /* Lengthen the team-name banner toward the first score column while
+     * retaining the stock silver bevel/art (not a flat tinted rectangle). */
+    ScoreScreenPlace(border, root, 0, 0, 0.180f, SCORE_ROW_H);
     UI_SetTexture(border, "UI\\Glues\\ScoreScreen\\scorescreen-silverbannerborder.blp", false);
     ScoreScreenPlace(icon, root, 0.005f, -0.003f, SCORE_ROW_ICON, SCORE_ROW_ICON);
     ScoreScreenPlace(name, root, 0.034f, -0.003f, 0.111f, SCORE_ROW_H-0.005f);
@@ -103,8 +105,8 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
         hud.score_rows[slot].hero_levels[h] = level;
         /* Keep each portrait and its level side-by-side, inside the first
          * column.  Advance by the combined pair width, not portrait width. */
-        ScoreScreenPlace(portrait, root, 0.158f + h * 0.025f, -0.003f, 0.018f, 0.021f);
-        ScoreScreenPlace(level, root, 0.177f + h * 0.025f, -0.003f, 0.006f, 0.021f);
+        ScoreScreenPlace(portrait, root, 0.158f + h * 0.025f, -0.007f, 0.018f, 0.021f);
+        ScoreScreenPlace(level, root, 0.177f + h * 0.025f, -0.007f, 0.006f, 0.021f);
         level->Font = score->ScoreScreen4ColumnHeader[0]->Font;
         level->Font.Size = 0.009f; /* runtime hero badge: visual matching pending */
         level->Font.Color = MAKE(color32_t, 255, 215, 48, 255);
@@ -162,8 +164,32 @@ void UI_LoadHudScoreScreen(void) {
                                 "scorescreen_sort %u", (unsigned)c);
     if (score->ScoreScreenTeamsButton)
         UI_SetOnClick(score->ScoreScreenTeamsButton, "scorescreen_teams");
-    if (score->ScoreScreenTeamColorButton)
-        UI_SetOnClick(score->ScoreScreenTeamColorButton, "scorescreen_allycolors");
+    if (score->ScoreScreenTeamColorButton) {
+        frameDef_t *button = score->ScoreScreenTeamColorButton;
+        frameDef_t *normal = ScoreScreenSpawn(button, FT_TEXTURE);
+        frameDef_t *pushed = ScoreScreenSpawn(button, FT_TEXTURE);
+        /* Normal/PushedTexture and ControlBackdrop refer to named FDF
+         * child frames, not paths. Keep these image-only parts hidden from
+         * layout painting; the generic button renderer draws them as states.
+         * The stock border around the button stays in its FDF parent. */
+        if (normal && pushed) {
+            strlcpy(normal->Name, "ScoreScreenAllyColorNormalArt", sizeof(normal->Name));
+            strlcpy(pushed->Name, "ScoreScreenAllyColorPushedArt", sizeof(pushed->Name));
+            UI_SetTexture(normal, "UI\\Glues\\ScoreScreen\\scorescreen-button.blp", false);
+            UI_SetTexture(pushed, "UI\\Glues\\ScoreScreen\\scorescreen-button-down.blp", false);
+            UI_SetHidden(normal, true);
+            UI_SetHidden(pushed, true);
+            strlcpy(button->Control.Backdrop.Normal, normal->Name,
+                    sizeof(button->Control.Backdrop.Normal));
+            strlcpy(button->Control.Backdrop.Pushed, pushed->Name,
+                    sizeof(button->Control.Backdrop.Pushed));
+            strlcpy(button->Button.NormalTexture, normal->Name,
+                    sizeof(button->Button.NormalTexture));
+            strlcpy(button->Button.PushedTexture, pushed->Name,
+                    sizeof(button->Button.PushedTexture));
+        }
+        UI_SetOnClick(button, "scorescreen_allycolors");
+    }
     /* Replay recording/saving is not implemented: do not expose a button
      * with a false-success or inert action. Restore it with a real backend. */
     if (score->ScoreScreenSaveReplayButton)
@@ -409,7 +435,9 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
         if (visible) {
             wc3ScorePlayerSnapshot_t const *player = &snapshot->players[order[start + i]];
             uint32_t const tint = view && view->ally_colors
-                ? WC3_ScoreTeamColor(snapshot, player) : player->color;
+                ? WC3_ScoreAllyColor(player, ent->client->ps.number,
+                                     ent->client->ps.team)
+                : player->color;
             ScoreScreenFillRow(i, tab, player, peaks, tint,
                                MIN(snapshot->count - start, WC3_SCORE_VISIBLE_ROWS));
         }

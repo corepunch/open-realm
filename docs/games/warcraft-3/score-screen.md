@@ -568,3 +568,22 @@ multiple score viewers disconnecting in turn, missing recipients, repeated
 Continue, and competing exit intents attempting to replace the first staged
 campaign difficulty. Runtime artwork/FDF failures still require a separate
 retail-archive validation run. Patch 4 owns integration/visual verification.
+
+### Score-row banner and ally-colour control (14 October 2026)
+
+The silver player-name bevel now extends from 0.153 to 0.180 FDF units. The
+Heroes Used portrait and level text move down 0.004 units to align the badge
+baseline. These are presentation adjustments and still need screenshot
+comparison.
+
+The ally-colour button now references the stock
+`scorescreen-button.blp` and `scorescreen-button-down.blp` state images through
+hidden texture child frames; the button selectors contain frame names rather
+than image paths. Its server-owned `scorescreen_allycolors` command is
+unchanged. With ally colours enabled, rows are coloured relative to the viewer:
+blue for self, teal for same-team allies, and red for other teams. Disabled
+mode preserves each player's original colour. This replaces the previous
+lowest-numbered-teammate mapping, which did not distinguish solo teams.
+
+No local build or runtime tests were performed. Verify the stock button states
+visually, then toggle the control in a game containing allied and enemy rows.
