@@ -6328,8 +6328,9 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     if (member->arrived) {
         member->flags|=0x10000; member->forced_arrival=false;
         member->speed=0; member->heading=old_angle;
-        /* Held16fd90 retires pending work even on its early arrival branch. */
-        if (member->flags&0x200000) move_unlink_requests(unit);
+        /*16fbd0 retires pending work on every successful arrival, including
+         * forced arrival; cached routes and retry/delay remain owned here. */
+        move_unlink_requests(unit);
         return;
     }
     if (arrival.in_range || (member->flags&0x200000)) {

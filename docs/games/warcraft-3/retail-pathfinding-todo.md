@@ -8,6 +8,13 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
+ROUTE-04.2 closes with337: successful arrival now retires pending scheduler
+work while preserving the retained route. Complete native calls, repeated public
+observations, failing-first regressions and cold saves verify the fix; existing
+perimeter, forced-arrival, portal and queued-order evidence completes the table.
+No new TODOs: **297 done /336 tasks;39 remaining.** See
+[arrival composition](retail-pathfinding-routes.md#arrival-cancellation-and-route-mode-composition-payoff337).
+
 ROUTE-04.1 closes with335/336: complete route-mode/index-producer tables,
 4122 exact native group commits and4081 retained cache snapshots, repeated
 public controls, cold saves, and failing-first fixes for type-rebind group
@@ -1670,7 +1677,7 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 ### ROUTE-04 — Route mode combinations
 
 - [x] **ROUTE-04.1** Create a truth table for cached/exhausted/disabled routes and alternate index initialization; cover every reachable combination through public advance. **Closed335/336:** the unchanged576-case complete-entry gate oracle composes with repeated public ground/flight-rebind lifetimes over all four footprint classes. Exact4122 motion commits and4081 fine/adaptive cache snapshots plus four cold-save checkpoints per scene match the engine. Failing-first regressions fix rebind point-group ownership and flying no-fly-terrain collection after query restoration. The index-producer table distinguishes real initializers from supplied unreachable cache states. Queue/forced-arrival/perimeter composition remains the existing04.2 leaf. See [route-mode contract and evidence](retail-pathfinding-routes.md#route-mode-truth-table-and-public-lifetimes).
-- [ ] **ROUTE-04.2** Exercise queued paths, forced arrival and target-perimeter exit against that table; assert destination, event and retained route state.
+- [x] **ROUTE-04.2** Exercise queued paths, forced arrival and target-perimeter exit against that table; assert destination, event and retained route state. **Closed337:** failing-first arrival regression fixes stale fine/coarse queue membership while preserving caches, destination, retry and delay.1536 complete original queued-arrival calls, two exact18600-event public repeats,72 engine queue/cache/save cases, and unchanged natural perimeter/forced/portal and queued-order event regressions compose the04.1 table. All24 historical route-composition exclusions are reconciled without altering their original scope; broad whole-pathfinder claims remain final E2E evidence boundaries. See [arrival composition](retail-pathfinding-routes.md#arrival-cancellation-and-route-mode-composition-payoff337).
 
 ### ROUTE-05 — Yielding lifecycle
 

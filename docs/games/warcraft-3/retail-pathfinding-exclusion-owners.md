@@ -1,8 +1,8 @@
 # Current oracle exclusion ownership
 
-BASE-03.3 is complete for the current corpus: **279 oracle contracts**, of which
-232 contain **720 exclusion statements**, each assigned to exactly one of
-25 remaining tasks. The other 47 oracles have empty exclusion lists. There are
+BASE-03.3 is complete for the current corpus: **280 oracle contracts**, of which
+233 contain **722 exclusion statements**, each assigned to exactly one of
+24 remaining tasks. The other 47 oracles have empty exclusion lists. There are
 zero unassigned statements and no new TODOs. This closes the assignment audit;
 it does not resolve those statements or certify broader engine parity.
 
@@ -20,16 +20,16 @@ bypass review.
 
 ## What the assignments mean
 
-- **385 behavior statements** go to the relevant movement, route, target, group,
+- **361 behavior statements** go to the relevant movement, route, target, group,
   numeric, order, exclusion-scope, separation or composed-scenario task.
 - **102 reachability statements** go to the public entry/branch or valid-input
   inventory. Seeded handles, allocator capacity, virtual endpoints and forced
   flags remain supplied inputs until their producers are established.
-- **177 evidence boundaries** go to repeated-scenario review or the frozen
+- **183 evidence boundaries** go to repeated-scenario review or the frozen
   replacement contract. These retain observer limitations, precision, engine
   versus retail storage distinctions and explicit out-of-scope claims. They do
   not imply that private native addresses or renderer timing must be copied.
-- **56 historical/superseded statements** go to E2E-05.2 for an evidenced
+- **76 historical/superseded statements** go to E2E-05.2 for an evidenced
   disposition. For example, old exclusions still name BASE-06.4, MAP-01.2/3,
   NUM-01.15, ORDER-04.2 and TARGET-03.2 after those tasks closed. Later evidence
   may discharge a gap, but it does not retroactively expand an earlier oracle.
@@ -69,3 +69,10 @@ moves its three original limitations to E2E-05.2's superseded-evidence review.
 Their original text is unchanged; the disposition names the new public cache,
 engine motion and cold-save proof. This records completed route-mode work,
 not a transfer of unfinished behavior to a generic acceptance gate.
+
+ROUTE-04.2 closure337 reconciles its24 original exclusions against the later
+arrival, target and public portal lifetimes. Twenty retain their exact text as
+superseded-review assignments; four “whole retail pathfinder” exclusions remain
+explicit E2E evidence boundaries. The new337 oracle adds two boundaries for
+controlled-state versus public production and engine-save versus retail-save
+coverage. See [arrival composition](retail-pathfinding-routes.md#arrival-cancellation-and-route-mode-composition-payoff337).

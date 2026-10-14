@@ -1742,3 +1742,69 @@ formation/refill/denial cases. Seven new evidence-verifier tests pass; the
 strict corpus inventory and fresh route335 entry validate the frozen sources.
 All559 earlier corpus contracts remain unchanged. This is focused validation
 under the authorized iteration cadence, not a new full-repository checkpoint.
+
+## Arrival cancellation and route-mode composition (Payoff337)
+
+ROUTE-04.2 composes the route-mode table with scheduler queues, ordinary and
+forced arrival, target-perimeter completion, and retained portal routes.
+`Mover_StepRoute` (`16fbd0`) tests arrival before destination replacement or
+`Path_Advance`. Every successful arrival clears physical force, stops motion
+and calls `Path_UnlinkCurrentSchedulerRequest` (return `16fc47`). This applies
+to ordinary members as well as held members. The engine previously unlinked
+only held members; ordinary and forced arrivals could leave stale fine or
+coarse queue entries. The failing-first regression records36 failures. The
+fix removes that condition without resetting the owned route.
+
+| State/transition | Destination and retained state | Completion/event boundary |
+| --- | --- | --- |
+| Cached or exhausted route, pending admission, already arrived | Unlink current request; retain fine/adaptive points and indices, destination, retry, delay and charged work | Stop motion and clear force; no advance/search or failed-path output |
+| In range but still turning | Retain destination/cache; unlink pending request | Heading tolerance still gates arrival |
+| Final partial endpoint, target perimeter hit | Status3 precedes retry initialization/reset and preserves the route | Ready destination forces range; no failed-path member bit; completion follows the heading gate |
+| Final partial endpoint, exhausted retry | Status4 retains route/destination and retry1 | Ready destination forces range and sets failed-path member bit; same heading gate |
+| Destination changed but not ready | Continue the cached destination and preserve terminal status | Neither3 nor4 forces arrival until readiness |
+| Denied/blocked portal crossing | Retain crossing index and cached exit through delay; retry before fine refill | No warp callback on rejected placement; successful placement alone publishes the warp |
+| Queued user order | Preserve queued request until current task completes | Issued-order event occurs at activation before new task construction; nested replacement keeps its own task |
+
+`research/route337_arrival.py` executes the complete original caller
+and its real arrival/unlink callees over1536 controlled states:16 player rows,
+four scheduler buckets, ordinary/forced arrival, empty/one/five fine points,
+disabled flag and delay0/4. Each tested request starts between two neighbours.
+Every case removes only that request, repairs both links and retains the other
+path words, allocated fine/coarse point contents and charged work. No search, direction or speed-update call executes.
+These are controlled cache/queue inputs, not a claim that all combinations were
+produced together by public orders.
+
+Two new read-only Frida observations of the unchanged Route335b public map
+repeat18600 native events exactly. All25 arrivals call unlink once from16fc47,
+retain the sampled route fields, clear force and publish stopped motion. All
+1329 public markers match the earlier observer-free control of the identical
+map. These public arrivals have no forced flag; natural forced/perimeter and
+portal production remain tied to the unchanged evidence below, rather than
+being inferred from this new capture. The engine regression separately covers
+three arrival modes, all four admission policies, three cache sizes and cold
+save/load:72 cases/2412 assertions. An initial save-fixture attempt used
+UINT32_MAX charged work; save validation correctly rejected it. Final fixtures
+use bounded overshoot1101 and801/301/901, and all saves succeed.
+
+The complete movement suite also exercises the existing composition evidence:
+
+- [Payoff310 target footprints](retail-pathfinding-engine.md#target-footprint-arrival-before-retry-payoff310):96 public goal/target scenes, nine natural status3 completions,15141 exact commits, public order retirement and cold saves; readiness is also checked by `premature_destination_change_keeps_retry_status_without_forced_arrival`.
+- [Blocked portal exits](retail-pathfinding-engine.md#blocked-gate-exits-preserve-stopped-retry-state) and [paired/chained portals](retail-pathfinding-engine.md#group-gate-continuation-and-consecutive-portal-admission): retained denied crossings, failed placement without warp events, forced completion after a disabled sole edge, all chain activation combinations, exact motion and saved continuations. The earlier pool, overlap, destruction/reuse and selector fixtures remain unchanged.
+- `queued250_issued_event_waits_for_head_activation_and_survives_save` and `queued250_nested_same_point_move_owns_its_task_stop_leaves_no_user_head`: public queued-order event/task boundaries and synchronous replacement; scheduler queues are independently covered above.
+
+Older oracle exclusions are preserved verbatim. Later public gate/map and
+route evidence discharges their route-composition portions; broad phrases such
+as “whole retail pathfinder” remain evidence boundaries for E2E-05.2's final
+cross-evidence review. This closure does not claim arbitrary worlds, water/
+bridge goal coverage, or a new retail save-UI test. Those broader obligations
+retain their existing FOOT/E2E owners. No new TODO is introduced. Ghidra notes
+at16fbd0/168800 and MapPathfinding.java record the corrected arrival ownership.
+
+Validation337: Classic and TFT each pass all648 movement tests /8099511
+assertions. The unchanged goal310 verifier also passes its713 instruction guards,
+repeated public corpus and194 engine tests /829108 assertions per edition.
+Production/test builds pass without warnings; five new evidence tests,37 corpus
+tests and12 exclusion-owner tests pass. The fresh strict route337 entry verifies
+all1536 original calls and the public repeats. All560 earlier corpus entries
+remain unchanged. This is implementation commit3/12 after332, not a new full
+repository checkpoint. Archive: `research/ROUTE-04.2/payoff337/`.

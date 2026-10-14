@@ -281,7 +281,8 @@
     "oracle-controls322",
     "oracle-cast321",
     "oracle-controls324",
-    "oracle-route335"
+    "oracle-route335",
+    "oracle-route337"
   ],
   "entries": [
     {
@@ -1296,9 +1297,9 @@
         {
           "index": 0,
           "text": "Map/request producers and special/warp edges",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 1,
@@ -1322,9 +1323,9 @@
         {
           "index": 0,
           "text": "Map/request producers and special/warp edges",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 1,
@@ -1433,9 +1434,9 @@
         {
           "index": 0,
           "text": "Portal execution",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 1,
@@ -1480,9 +1481,9 @@
         {
           "index": 3,
           "text": "Portal execution",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         }
       ]
     },
@@ -1525,9 +1526,9 @@
         {
           "index": 3,
           "text": "Portal execution",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         }
       ]
     },
@@ -1601,9 +1602,9 @@
         {
           "index": 0,
           "text": "Negative endpoints, portals, irregular global hierarchy padding and map producers remain open.",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         }
       ]
     },
@@ -1797,23 +1798,23 @@
         {
           "index": 0,
           "text": "portal source overlap",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 1,
           "text": "retained route revalidation",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 2,
           "text": "physical portal trajectories",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         }
       ]
     },
@@ -1823,23 +1824,23 @@
         {
           "index": 0,
           "text": "portal source overlap",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 1,
           "text": "retained route revalidation",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 2,
           "text": "physical portal trajectories",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         }
       ]
     },
@@ -1849,16 +1850,16 @@
         {
           "index": 0,
           "text": "portal search",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 1,
           "text": "physical gate traversal",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         }
       ]
     },
@@ -1868,16 +1869,16 @@
         {
           "index": 0,
           "text": "portal search",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 1,
           "text": "physical gate traversal",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         }
       ]
     },
@@ -1887,16 +1888,16 @@
         {
           "index": 0,
           "text": "whole retail pathfinder",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "A supplied kernel never certifies the whole pathfinder. ROUTE-04.2 now composes its route branches with public trajectories and queue/arrival tests; E2E-05.2 owns the broader final cross-evidence assertion."
         },
         {
           "index": 1,
           "text": "paired public units",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 2,
@@ -1913,16 +1914,16 @@
         {
           "index": 0,
           "text": "whole retail pathfinder",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "A supplied kernel never certifies the whole pathfinder. ROUTE-04.2 now composes its route branches with public trajectories and queue/arrival tests; E2E-05.2 owns the broader final cross-evidence assertion."
         },
         {
           "index": 1,
           "text": "paired public units",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 2,
@@ -1946,9 +1947,9 @@
         {
           "index": 1,
           "text": "whole retail pathfinder",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "A supplied kernel never certifies the whole pathfinder. ROUTE-04.2 now composes its route branches with public trajectories and queue/arrival tests; E2E-05.2 owns the broader final cross-evidence assertion."
         }
       ]
     },
@@ -1958,9 +1959,9 @@
         {
           "index": 0,
           "text": "whole retail pathfinder",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "A supplied kernel never certifies the whole pathfinder. ROUTE-04.2 now composes its route branches with public trajectories and queue/arrival tests; E2E-05.2 owns the broader final cross-evidence assertion."
         },
         {
           "index": 1,
@@ -1991,9 +1992,9 @@
         {
           "index": 1,
           "text": "Terminal/perimeter/queued/warp combinations remain ROUTE-04.2.",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Compose retained route state with queued, forced-arrival, portal and target-perimeter outcomes."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         }
       ]
     },
@@ -6464,9 +6465,9 @@
         {
           "index": 0,
           "text": "Queued paths, forced-arrival and target-perimeter composition remain ROUTE-04.2.",
-          "task": "ROUTE-04.2",
-          "disposition": "behavior",
-          "rationale": "Exercise queue, forced-arrival and target-perimeter composition against the route-mode table."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.2 is discharged by337 queued-arrival/cache/save parity,310 natural target-perimeter completion,53/80 forced endpoints,95-100 retained/rejected/paired/chained portal trajectories (including source overlap and revalidation), constructed-map padding coverage and250 queued-order events. Preserve this earlier oracle exclusion verbatim; E2E-05.2 reviews the later evidence and its boundaries."
         },
         {
           "index": 1,
@@ -6481,6 +6482,25 @@
           "task": "E2E-05.2",
           "disposition": "evidence-boundary",
           "rationale": "Preserve the explicit boundary between supplied-state native calls, observed public lifetimes, engine cold continuations and broader final fidelity claims."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-route337",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "The1536 native queue/force/cache combinations are controlled inputs; the repeated public map observes ordinary arrivals, not natural production of every combined state.",
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Retain the boundary between controlled queue/force states, repeated ordinary public arrivals, independently frozen natural completion trajectories and engine cold saves."
+        },
+        {
+          "index": 1,
+          "text": "Public natural perimeter/forced/portal and queued-order completion rely on the unchanged goal310, blocked-goal, gate and order-event evidence; engine cold saves do not certify retail save-UI or arbitrary world/ability combinations.",
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Retain the boundary between controlled queue/force states, repeated ordinary public arrivals, independently frozen natural completion trajectories and engine cold saves."
         }
       ]
     }

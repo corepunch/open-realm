@@ -149,3 +149,22 @@ This is implementation commit2/12 after the332 full checkpoint; it does not
 reset that cadence or claim another full repository suite. Logs, JUnit, native
 accepted/rejected captures and the patch are archived under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ROUTE-04.1/`.
+
+### Arrival composition337: third implementation commit after332
+
+ROUTE-04.2 closes with unconditional scheduler cancellation on successful
+physical arrival. The initial regression failed36 checks; final72 queue/cache
+cases, half with cold saves, pass2412 assertions. Both Classic and TFT pass
+all648 movement tests /8099511 assertions. The unchanged goal310
+verifier separately passes194 tests /829108 assertions per edition plus its
+713 native instruction guards,96 public scenes and nine perimeter completions.
+Two read-only retail repeats match18600 events and1329 public markers, including
+25 cache-preserving arrival unlinks; the original caller matrix passes1536 cases.
+Five new Python evidence tests,37 corpus tests and12 ownership tests pass, along
+with warning-free production/test builds and the fresh strict corpus entry.
+All560 prior corpus entries are unchanged. Initial invalid make target names
+and the rejected UINT32_MAX save-fixture counters are retained as diagnostics.
+
+This is implementation commit3/12 after checkpoint332. It does not reset the
+full-suite cadence. Logs, JUnit, raw native repeats and the patch are archived
+under `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ROUTE-04.2/payoff337/`.

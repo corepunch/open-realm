@@ -19624,6 +19624,66 @@ TEST(wc3_movement, formation_refresh_displacement_clears_arrival_before_regroup)
     T_EQ(unit->movement.wait_delay,1);
 }
 
+TEST(wc3_movement, route337_arrival_unlinks_pending_work_and_retains_cached_route) {
+    uint32_t counter=level.pathing_counter;
+    bool responsive=level.move_fine_responsive;
+    FOR_LOOP(kind,3) FOR_LOOP(policy,4) FOR_LOOP(cache,3) FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();
+        S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+        level.move_fine_responsive=false;
+        uint8_t cells[64*64]={0};
+        CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        edict_t *unit;moveGroup_t *group;
+        premature_change_member(&unit,&group,(vec2_t){kind==1 ? 8 : 0,0},20);
+        T_NOT_NULL(group);if(!group)continue;
+        moveGroupMember_t *member=group->members;
+        member->forced_arrival=kind==1;
+        if(kind==2)member->flags|=0x200000;
+        moveFineRoute_t *route=&unit->movement.fine_route;
+        G_ReserveMoveRouteBuffer(&route->points,&route->capacity,5);
+        unsigned count=cache==2 ? 5 : cache;
+        FOR_LOOP(i,5)route->points[i]=(vec2_t){12+i,17-i};
+        route->count=count;route->index=count ? (count==1 ? 0 : count-2) : UINT32_MAX;
+        unit->movement.wait_delay=4;unit->movement.retry_count=3;
+        moveFineBudget_t *fine=level.move_fine_budgets+unit->s.player;
+        moveCoarseBudget_t *coarse=&level.move_coarse_budgets[unit->s.player][policy==3 ? 2 : policy];
+        uint32_t coarse_work=(uint32_t[]){801,301,901,901}[policy];
+        fine->work=1101;coarse->work=coarse_work;
+        if(policy!=3) {
+            T_ASSERT(!S_AdmitMoveCoarseRequest(unit,&route->adaptive_admission,policy));
+            T_ASSERT(route->adaptive_admission.queued);
+        } else {
+            T_ASSERT(!S_AdmitUnitMoveFineRequest(unit));
+            T_ASSERT(unit->movement.fine_queued);
+        }
+        if(saved) {
+            cstring_t file=Test_TempPath("wc3-route337-queued.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);
+            if(!group)continue;
+            member=group->members;route=&unit->movement.fine_route;
+        }
+        vec2_t destination=member->destination,goal=route->adaptive_goal;
+        uint32_t order=unit->current_order_id;
+        move_group_decide(group,member);
+        T_ASSERT(member->arrived);T_ASSERT(!member->forced_arrival);
+        T_EQ(member->speed,0);T_EQ(member->heading,0);
+        T_ASSERT(!unit->movement.fine_queued);T_ASSERT(!route->adaptive_admission.queued);
+        T_EQ(fine->count,0);T_EQ(coarse->count,0);T_NULL(fine->head);T_NULL(coarse->head);
+        T_EQ(fine->work,1101);T_EQ(coarse->work,coarse_work);
+        T_EQ(route->count,count);T_EQ(route->index,count ? (count==1 ? 0 : count-2) : UINT32_MAX);
+        FOR_LOOP(i,count){T_EQ(route->points[i].x,12+i);T_EQ(route->points[i].y,17-i);}
+        T_EQ(route->adaptive_count,2);T_EQ(route->adaptive_index,0);
+        T_EQ(route->adaptive_goal.x,goal.x);T_EQ(route->adaptive_goal.y,goal.y);
+        T_EQ(member->destination.x,destination.x);T_EQ(member->destination.y,destination.y);
+        T_EQ(unit->movement.wait_delay,4);T_EQ(unit->movement.retry_count,3);
+        T_EQ(unit->current_order_id,order);T_EQ(unit->movement.group_id,group->id);
+    }
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+    level.pathing_counter=counter;level.move_fine_responsive=responsive;
+}
+
 TEST(wc3_movement, formation_refresh_held_arrival_retires_both_pending_queues) {
     edict_t *unit=make_moving_unit(128,128);
     uint8_t cells[64*64]={0};
