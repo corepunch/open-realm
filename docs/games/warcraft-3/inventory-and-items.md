@@ -670,6 +670,18 @@ consumption, and the authored target effect are reused. Current timed reveal
 state is maintained in the fog runtime and is not yet serialized for save/load;
 this remains a specific save-while-active compatibility gap.
 
+### Fortification and Ultravision glyphs
+
+`AIgf` and `AIgu` (with legacy `AIgl` as a compatibility alias) use the
+existing automatic power-up pickup path. `Iglu` identifies an upgrade and
+`Igl1` specifies how many research levels to grant; the handler does not
+hard-code `Rgfo`/`Rguv`. The normal player tech-change pathway updates units
+that use the upgrade, including existing and newly spawned units. Upgrade
+maximums are respected, and an already-maxed glyph is still collected. An
+unknown upgrade or missing ability data does not silently grant another tech.
+The authored TargetArt is emitted on successful use. Retail audiovisual parity
+and whether custom maps use other `Iglu` export encodings remain unverified.
+
 ## JASS item enumeration
 
 `EnumItemsInRect` enumerates in-world items within the given rectangle. Its optional

@@ -202,6 +202,7 @@ BZ_ABILITY_PROC(CAbilityItemManaAoe);
 BZ_ABILITY_PROC(CAbilityItemDispelAoe);
 BZ_ABILITY_PROC(CAbilityItemRestoreAoe);
 BZ_ABILITY_PROC(CAbilityItemRevealEntireMap);
+BZ_ABILITY_PROC(CAbilityItemGlyphUpgrade);
 BZ_ABILITY_PROC(CAbilityItemResurrection);
 BZ_ABILITY_PROC(CAbilityItemGold);
 BZ_ABILITY_PROC(CAbilityItemLumber);
