@@ -601,6 +601,13 @@ These behaviours are exercised by `wc3_items.carried_item_transfer*`,
 serialization and removal of a temporary carrier are separate lifecycle work;
 this handoff patch does not change game-cache format.
 
+## JASS item enumeration
+
+`EnumItemsInRect` enumerates in-world items within the given rectangle. Its optional
+boolexpr filter is evaluated per candidate with `GetFilterItem`; accepted items
+are delivered to the action with `GetEnumItem`. Nested calls restore their
+caller's item context. Inventory-held items are excluded from world enumeration.
+
 ## JASS item pools
 
 `CreateItemPool`, `DestroyItemPool`, `ItemPoolAddItemType`,

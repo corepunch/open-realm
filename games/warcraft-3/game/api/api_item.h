@@ -127,26 +127,37 @@ uint32_t GetManipulatedItem(jass_t *j) {
 uint32_t GetOrderTargetItem(jass_t *j) {
     return jass_pushnullhandle(j, "item");
 }
+uint32_t GetFilterItem(jass_t *j) {
+    extern edict_t *currentenumitem;
+    return jass_pushlighthandle(j, currentenumitem, "item");
+}
 uint32_t GetEnumItem(jass_t *j) {
     extern edict_t *currentenumitem;
     return jass_pushlighthandle(j, currentenumitem, "item");
 }
 uint32_t EnumItemsInRect(jass_t *j) {
-    /* Visit every in-world item inside the rect, exposing each as the enum item
-     * (GetEnumItem) while the action runs. Mirrors EnumDestructablesInRect;
-     * the boolexpr filter (arg 2) is ignored for now. */
+    /* The filter and action both observe the candidate item. Preserve the
+     * caller's context across recursive enumerations, including null rects. */
     extern edict_t *currentenumitem;
+    edict_t *previous = currentenumitem;
     box2_t *r = jass_checkhandle(j, 1, "rect");
+    jassFunc_t const *filter = jass_checkhandle(j, 2, "boolexpr");
     jassFunc_t const *actionFunc = jass_checkcode(j, 3);
     if (!r) return 0;
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &globals.edicts[i];
-        if (G_IsItem(ent) && ent->item->in_world && Box2_containsPoint(r, &ent->s.origin2)) {
+        if (!G_IsItem(ent) || !ent->item->in_world ||
+            !Box2_containsPoint(r, &ent->s.origin2)) continue;
+        currentenumitem = ent;
+        if (jass_evaluateboolexpr(j, filter, ent) && actionFunc) {
+            /* A filter may recursively enumerate other items. */
             currentenumitem = ent;
-            if (actionFunc) { jass_pushfunction(j, actionFunc); jass_call(j, 0); }
+            jass_pushfunction(j, actionFunc);
+            jass_call(j, 0);
         }
+        currentenumitem = previous;
     }
-    currentenumitem = NULL;
+    currentenumitem = previous;
     return 0;
 }
 uint32_t GetItemName(jass_t *j) {
