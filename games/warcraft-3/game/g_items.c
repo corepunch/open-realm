@@ -596,8 +596,10 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
         G_QueueOwnerSoundAlias(unit, "ItemGet");
         G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
         G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
-        /* Defer destruction so queued JASS pickup callbacks can still read
-         * GetManipulatedItem/GetItemTypeId from their original handle. */
+        /* A quest powerup is consumed just once even without an ability.
+         * Retain its live handle for pickup-trigger callbacks, but do not
+         * fabricate a use-item event for an ability-less pickup. */
+        item->item->charges = 0;
         G_RetainConsumedItemForUseEvent(item);
         return true;
     }
