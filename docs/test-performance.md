@@ -131,3 +131,21 @@ LD_LIBRARY_PATH=/tmp/wc3-sdl2-build:$LD_LIBRARY_PATH make test
 ```
 
 This does not replace system libraries or change production input handling.
+
+### Route modes335/336: second implementation commit after332
+
+ROUTE-04.1 closes with two game-local fixes: the post-type-change Move timer
+recreates its physical point group, and the flying next-step collector respects
+no-fly terrain after query restoration. Both failures are preserved before the
+fixes; the accepted native inputs are unchanged. Two repeated/control public
+matrices cover4122 commits and4081 cache states, with four cold continuations
+per matrix. Classic/TFT each pass888 tests /8471883 assertions across full
+movement647, unit/morph142, pathfinding97 and blocker-scope2. Production/test
+builds pass without warnings. The576-case original cache oracle and strict
+fresh route335 corpus report pass. Seven new evidence tests,37 corpus tests
+and12 ownership tests pass. All559 older corpus entries remain unchanged.
+
+This is implementation commit2/12 after the332 full checkpoint; it does not
+reset that cadence or claim another full repository suite. Logs, JUnit, native
+accepted/rejected captures and the patch are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ROUTE-04.1/`.

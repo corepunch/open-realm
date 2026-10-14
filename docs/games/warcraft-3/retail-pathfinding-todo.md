@@ -8,6 +8,14 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
+ROUTE-04.1 closes with335/336: complete route-mode/index-producer tables,
+4122 exact native group commits and4081 retained cache snapshots, repeated
+public controls, cold saves, and failing-first fixes for type-rebind group
+ownership and flying no-fly-terrain collection. Classic/TFT each pass888
+focused tests /8471883 assertions, including the full647-test movement suite.
+No new TODOs: **296 done /336 tasks;40 remaining.** See
+[route-mode closure](retail-pathfinding-routes.md#route-mode-truth-table-and-public-lifetimes).
+
 Architecture follow-up (runtime308–310): ordered constructor stages, stable
 versioned type definitions, shared immutable attack defaults with owned overrides,
 prepared initialization plans and bounded ordered fog checkpoints are implemented.
@@ -1382,7 +1390,7 @@ BASE-02.1's remaining full authored producer/lane/support-surface inventory.
 
 - [ ] **BASE-03.1** Export a reachable function/branch inventory from the entry points identified in BASE-01; link each known branch to its evidence or task ID.
 - [ ] **BASE-03.2** Publish a field read/write inventory for map, path, mover, group and order state, including virtual callbacks and globals.
-- [x] **BASE-03.3** Assign every current oracle exclusion to one remaining task. All717 original statements across278 oracle contracts have exactly one of26 remaining owners; zero unassigned, no new tasks. Exact-text/coverage/open-owner validation and 12 rejection tests pass. Historical closed-task references retain a separate evidence-disposition owner; no behavior-gap closure is implied. See [exclusion ownership audit](retail-pathfinding-exclusion-owners.md).
+- [x] **BASE-03.3** Assign every current oracle exclusion to one remaining task. At closure, all717 original statements across278 oracle contracts have exactly one of26 remaining owners; zero unassigned, no new tasks. Exact-text/coverage/open-owner validation and 12 rejection tests pass. Historical closed-task references retain a separate evidence-disposition owner; no behavior-gap closure is implied. See [exclusion ownership audit](retail-pathfinding-exclusion-owners.md).
 
 ### BASE-04 — Shared scenario format
 
@@ -1661,7 +1669,7 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 
 ### ROUTE-04 — Route mode combinations
 
-- [ ] **ROUTE-04.1** Create a truth table for cached/exhausted/disabled routes and alternate index initialization; cover every reachable combination through public advance. **Payoff113:** complete original165ae0 verifies576 cached/exhausted/disabled/wait combinations; fix the engine's incorrect rejection of cached count1. Two complete public four-class fine-result repeats preserve292 requests each, including single-point creation. **Payoff114:** the four public same-cell routes remain cached through seven commits each; full engine replay and five saved suffixes match all28 native commits. Also remove fresh count1 rejection based on fine_target pointer provenance. Every other public cache/alternate-index combination remains open; see [public single-point lifetime](retail-pathfinding-engine.md#public-single-point-lifetimes-preserve-cached-motion).
+- [x] **ROUTE-04.1** Create a truth table for cached/exhausted/disabled routes and alternate index initialization; cover every reachable combination through public advance. **Closed335/336:** the unchanged576-case complete-entry gate oracle composes with repeated public ground/flight-rebind lifetimes over all four footprint classes. Exact4122 motion commits and4081 fine/adaptive cache snapshots plus four cold-save checkpoints per scene match the engine. Failing-first regressions fix rebind point-group ownership and flying no-fly-terrain collection after query restoration. The index-producer table distinguishes real initializers from supplied unreachable cache states. Queue/forced-arrival/perimeter composition remains the existing04.2 leaf. See [route-mode contract and evidence](retail-pathfinding-routes.md#route-mode-truth-table-and-public-lifetimes).
 - [ ] **ROUTE-04.2** Exercise queued paths, forced arrival and target-perimeter exit against that table; assert destination, event and retained route state.
 
 ### ROUTE-05 — Yielding lifecycle

@@ -1964,8 +1964,15 @@ void S_RunMoveTimers(void) {
         if (!ready)continue;
         ent->movement.type_rebind_pending=false;
         S_TrackMoveTimers(ent);
-        if (ent->currentmove==&move_move_walk && ent->goalentity)
+        if (ent->currentmove==&move_move_walk && ent->goalentity) {
+            vec2_t point=ent->goalentity->s.origin2;
             S_IssueMoveOrder(ent,ent->goalentity,ent->current_order_id);
+            /* 5ffb60 constructs a replacement point task after the type
+             * rebind. Its physical owner must consume the newly published
+             * adaptive policy, just as a fresh public point order does. */
+            if(ent->currentmove==&move_move_walk && ent->goalentity)
+                move_start_point_group(ent,&point,0);
+        }
     }
 
 }

@@ -1607,3 +1607,138 @@ Sources: `refresh274_probe.j`, `refresh274_observer.js`,
 fixture. The original binary is hash-checked and instruction-guarded. Saved
 Ghidra notes and xrefs are mirrored into `MapPathfinding.java`. Research archive:
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-04.1/payoff274/`.
+
+## Route mode truth table and public lifetimes
+
+The route-mode contract is a sequence of gates, not a Cartesian product of
+independent searches. `165ae0 Path_Advance` checks the disabled bit and delay
+before touching either route. It then advances the adaptive route; only a zero
+result reaches the fine route. Index validity is **unsigned index < count**.
+The same predicate covers an empty buffer, the reset sentinel `ffffffff`, and
+an exhausted index without treating a one-point cache as empty.
+
+| First applicable condition | Native action/result | Evidence |
+| --- | --- | --- |
+| Path flag100000 | Return100000; preserve delay, output and both caches | Complete original entry,576-case cached-route oracle |
+| Nonzero delay94 | Decrement once and return1; preserve output/cache | Same oracle, delay1/4 with disabled precedence |
+| Invalid adaptive index;200000 clear | Replace adaptive buffer with exact selected destination, count1/index0 |335/336 public advancement; existing disabled234 route oracle |
+| Invalid adaptive index;200000 set | Request adaptive route; denied admission returns2 | Complete refill oracle;335 public fresh/refill lifetimes |
+| Retained adaptive point | Keep cache regardless of200000; test intermediate-point progress |576-case oracle plus335/336 retained public advances |
+| Coarse progress cannot consume/refill | Return2 and retain at least20 delay | Existing full refill/progress contract;165f10/167070 |
+| Invalid fine index | Request fine route; denied request returns2 |336 includes384 denied requests, without discarding the held coarse destination |
+| Valid fine index | Use retained point; distance/progress and blocker resolution decide continuation |335/336 exact cache and motion streams, including query restoration |
+
+This table describes the route gates. Target-perimeter status3, queued orders,
+forced arrival and their event/retained-destination composition remain
+**ROUTE-04.2**. It does not make those behaviors part of this closure.
+
+### Index producers and reachable cache classes
+
+`168870 Path_InitRouteIndex` has two direct callers:166d84 passes mode1 after
+adaptive construction;166fe5 passes mode0 after a fine search observed an
+obstruction. The fine caller instead writes index0 when the obstruction latch
+is clear. `148100 PathFine_BuildRoute` always publishes a point: a same-cell
+goal, a reconstructed chain, or the exact source when search cannot leave it.
+A failed search result is not a zero-length route. The existing outside-source
+contract is unchanged.
+
+| Producer/state | Fine index | Adaptive index |
+| --- | --- | --- |
+| Reset/erased buffer |ffffffff|ffffffff|
+| Unobstructed fine result, any positive count |0|Unchanged|
+| Obstructed fine count1 |0|Unchanged|
+| Obstructed fine count>=2 |count-2|Unchanged|
+| Admitted adaptive route |Unchanged|count-1|
+| Disabled-adaptive fallback |Unchanged|0, count1|
+| Consume intermediate coarse point |ffffffff until fine refill|Consumed/reloaded coarse index|
+| Retained fine visibility skip |Same or lower valid index|Unchanged|
+
+Thus public fine initialization does not produce count>1/index=count-1, nor
+count0/index=fffffffe. The complete-entry oracle deliberately also checks such
+supplied raw states; they are robustness cases, not invented public producers.
+The public witnesses cover count1, count2, longer obstructed/unobstructed
+buffers, index0/interior/reset, retained and refilled adaptive chains, both
+adaptive-enable policies, and all four footprint classes. Combined with the
+outer disabled/delay priority matrix, these establish the reachable route-mode
+classes without enumerating every possible route length or coordinate.
+
+Do not conflate three policies:
+
+- `Path88 &100000` disables advancement. Creation/Stop write it, and route
+  activation/reset clears it. No advance in335/336 carries it. The complete
+  original-entry oracle tests its precedence; the captures are not a claim
+  that every indirect caller is unreachable.
+- `Path88 &200000` enables adaptive search. A newly created flyer still has it;
+  the public Chaos type rebind clears it. Existing cached coarse points remain
+  usable with the bit clear.
+- `SetUnitPathing(false)` clears the fine query mask. It neither disables the
+  path nor erases the retained route. Restoring the mask makes the next-step
+  collector test that same cache against terrain again.
+
+### Two engine failures and fixes
+
+`Route335b.w3m` runs16 public lifetimes: four footprint classes each for
+same-cell, unobstructed, wall-detour and pause/query-toggle/Stop/replacement
+scenes. Its two native repeats match12656 native events and1329 public
+markers each; an observer-free control matches all markers. OpenRealm matches
+all2630 group motion commits and2605 post-advance fine/adaptive count/index
+snapshots. Four saved continuations cover cached movement, pause, Stop and
+replacement.
+
+`Route336c.w3m` repeats the lifecycle matrix with a public Gryphon-to-Hippogryph
+Chaos alias and an authored no-fly wall. Two repeats match9294 native events
+and1361 public markers each, including1465 adaptive-disabled advances. The
+observer-free control matches every marker. The complete engine regression
+compares1492 commits and1476 cache snapshots, plus four saved continuations.
+It exposed two failures before their fixes:
+
+1. The type-rebind timer resumed Move through the individual fallback instead
+   of constructing a replacement physical point group. The first old-owner
+   commit matched, then the engine omitted retail's subsequent group commits.
+   `S_RunMoveTimers` now rebuilds the point group after reissuing the retained
+   order, using the newly published type and adaptive policy.
+2. The next-step collector skipped every flying mover. After public pathing
+   restoration inside the no-fly wall, retail reset the26-point fine cache to
+   count0/indexffffffff and retried; the engine retained count26/index0.
+   `move_step_blockers` now lets the authored query mask filter terrain and
+   objects for flying movers too.
+
+Both changes are in `game.dll`. No client/network fields or save layout change.
+The flight replay's initial9 failures and subsequent4 cache failures are
+retained with the final passing results. The first two flight maps used the
+wrong serialized type for integer `umvs`, producing speed0/rejected Move; they
+are retained as rejected fixtures and contribute no movement coverage. The
+accepted map writes the integer field correctly. The test fixture supplies
+Blizzard's `ModuloInteger` helper; it otherwise retains the public probe script.
+
+The reused `separation323_capture.py` harness retains its historical task label
+in capture metadata; the loaded map SHA, map-builder task and R335/R336 marker
+prefixes identify these scenarios. That label is not rewritten after capture. A later whitespace-only builder
+cleanup reproduced the accepted336 map byte-for-byte; the original builder
+and metadata remain frozen alongside the rebuild metadata.
+
+The observer only reads state. Repeat normalization maps raw path pointers by
+first occurrence while preserving alias identity; it does not normalize
+callsite RVAs, object slot/generation pairs, clocks, route indices or float
+words. Every complete public marker must also agree with the control.
+`verify_wc3_pathing_route335.py` verifies the frozen inputs, exact source/map
+pins, completion, call balance, index initializers, and both engine headers.
+Its corruption tests reject changed indices, incomplete runs, hooked controls
+and normalization that loses pointer aliases or callsite identity.
+
+Evidence: `tools/ghidra/fixtures/retail-route335-1.27.json`, its compressed input
+bundle, both `tests/fixtures/retail_route335.h`/`retail_route336.h`, and the
+existing unchanged576-case `retail-cached-fine-route-1.27.json`. Raw accepted
+and rejected maps, captures, controls, static listings and validation logs are
+archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ROUTE-04.1/`.
+
+Validation335/336: Classic and TFT each pass647 movement tests
+(8097099 assertions),142 unit/morph tests (15847),97 pathfinding tests
+(358319), and2 blocker-scope tests (618):888 tests /8471883 assertions per
+edition. Production/test builds are warning-free. The unchanged native refill
+oracle also passes its576 cache cases,108 complete advances and existing
+formation/refill/denial cases. Seven new evidence-verifier tests pass; the
+strict corpus inventory and fresh route335 entry validate the frozen sources.
+All559 earlier corpus contracts remain unchanged. This is focused validation
+under the authorized iteration cadence, not a new full-repository checkpoint.

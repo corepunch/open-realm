@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "274 executable original/evidence contracts;555 total entries; provenance and limitations remain per-entry.",
+  "scope": "279 executable original/evidence contracts;560 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -54932,6 +54932,55 @@
         "Five modes cover isolated point Move, eight exceptional/zero speed inputs, finite restoration and Stop. This is not all terrain or NUM-03.2 closure.",
         "Engine comparisons retain their original supplied RNG/clock and saved-spatial-order limits; original fixtures and source expectations are unchanged."
       ]
+    },
+    {
+      "id": "oracle-route335",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_route335.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "route335.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "scenes": {
+          "equal": {
+            "335": {
+              "native_events": 12656,
+              "markers": 1329,
+              "motion": 2630,
+              "cache": 2605
+            },
+            "336": {
+              "native_events": 9294,
+              "markers": 1361,
+              "motion": 1492,
+              "cache": 1476
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "ROUTE-04.1 public cache/index producers and retained lifetimes: four footprint classes, adaptive-enabled ground and public Chaos flight rebind, clear/wall paths, pause/query restoration/Stop/replacement; exact engine motion/cache fixtures and cold continuations.",
+      "exclusions": [
+        "Queued paths, forced-arrival and target-perimeter composition remain ROUTE-04.2.",
+        "The separate complete disabled/delay oracle uses supplied path state; these public captures do not certify unreachability of every indirect disabled-path caller.",
+        "Exact group motion and retained count/index snapshots; cold continuations are replayed in the engine, without a retail save-UI or arbitrary world/ability coverage claim."
+      ]
     }
   ],
   "fixtures": [
@@ -55830,7 +55879,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "6ecb72ee5cf01f89dcc48bf2c9350710d18f7f240c3c777e856e1f42d7101de0"
+      "sha256": "77eceff28593680fd821893e6404c570f336b8a9fb7d018b91549757aee8cb0c"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -56686,7 +56735,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "7a13e369cbddbdb75224251d66483e9bf6858c71dcdb5109c50f7db3ad78085c"
+      "sha256": "251c87c8d511b72848334ae73a4d1d2372f5aada7927f240db7dda667ac5686f"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -57118,7 +57167,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "d9be84170b72c9b835c5036817c2ec5a17309ffd0c74611d17fa8ab3ee72acd4"
+      "sha256": "83f871377f05002314af3fbee62b2e0289fb2279547531d02188403c2e3cbce7"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -57378,7 +57427,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "fe64eef43e386e080b9515fe6d70d16bb3c0bc62890d805bb84d7b13c16e488a"
+      "sha256": "fe0e3d8f3fbd15f933b60d794a5eb4c9fe6efe8301335249c1c166030da7b5c5"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -57622,7 +57671,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "11b283f28f3ab7ac2e4fe8b753be34a5d9ef4762f0d8dbeec2bfa17269bd7d6b"
+      "sha256": "4b5d6e4397a38a7d90e165fbe758b9cd92ebbebb34643dc3eae782f239cd9d9b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57638,7 +57687,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "09bd5b6f2de5eeb469d7dc2d43daad30b4a5ee1823dbb393e33b7445f4e7d1d5"
+      "sha256": "f3e8698273fc055c7a6063511020b7601102b1ff0a7a1a2829502e7956af5027"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -64219,6 +64268,54 @@
     {
       "path": "tools/frida/research/morph334_probe.j",
       "sha256": "5d9c8047b1f4c6a3fbcbb5a4b85a5188a58a40154d436a48d59b465046dd12ed"
+    },
+    {
+      "path": "tools/frida/research/route335_probe.j",
+      "sha256": "85098d4248fcb59d8879483dd11719d339ea26b6b09a7977346ee10f73e27316"
+    },
+    {
+      "path": "tools/frida/research/route335_observer.js",
+      "sha256": "e6da7418a12f02c2f47af35cc095a113176049a39441cc81b157b05d26b3cd2d"
+    },
+    {
+      "path": "tools/frida/research/route335_make_map.py",
+      "sha256": "31669b1a1a5c0ea252b034d0e7713e4faf1e149178b4e9ee816ba163b1fc0393"
+    },
+    {
+      "path": "tools/frida/research/route336_probe.j",
+      "sha256": "26db4028052c8d734415d65c8ac331b6b7b1560f9a72138e9f39156e0ce45379"
+    },
+    {
+      "path": "tools/frida/research/route336_observer.js",
+      "sha256": "e6da7418a12f02c2f47af35cc095a113176049a39441cc81b157b05d26b3cd2d"
+    },
+    {
+      "path": "tools/frida/research/route336_make_map.py",
+      "sha256": "ce708ae6c881ffd5cd5681b29938d2bbac3d430595cbb84241ebe10b9e0c29e8"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_route335.h",
+      "sha256": "854a819c25c7e74fdb5c63e8089a15f4c94cc62347441cdd019d6021189b5d91"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_route336.h",
+      "sha256": "bf5c94d2d479b613a768ef7a62148a08d39bf8a0d9153c9a224dbf2bb49b336b"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_route335.py",
+      "sha256": "6117a04fb5d0b47d18a05cccf52da746f10f467151b49923b97ed08995f8f144"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route335-1.27.json",
+      "sha256": "0ea228474c474c9f890c36217cde464c3bbe2e74679c201ee9996a24fb001ee3"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route335-inputs-1.27.json.gz",
+      "sha256": "d8fe2594b8d01aa8ddead6ef0d6be28755f718451c67d0e0e5f825bee3f0ffed"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_route335.py",
+      "sha256": "c166849932380171ec9f7d58f8deed8e511546dcd10182fccf4d6a602e258e8e"
     }
   ]
 }

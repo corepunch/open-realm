@@ -280,7 +280,8 @@
     "oracle-captain320",
     "oracle-controls322",
     "oracle-cast321",
-    "oracle-controls324"
+    "oracle-controls324",
+    "oracle-route335"
   ],
   "entries": [
     {
@@ -1420,9 +1421,9 @@
         {
           "index": 3,
           "text": "Retained multi-tick coarse progress",
-          "task": "ROUTE-04.1",
-          "disposition": "behavior",
-          "rationale": "Complete the reachable retained-route/cache/index and multi-tick progression combinations."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.1 is discharged by the route-mode/index-producer table and oracle-route335 public ground/flight cache lifetimes with exact engine motion and cold saves. Preserve this original oracle limitation verbatim; E2E-05.2 owns the final cross-evidence disposition, not an unfinished route-mode behavior."
         }
       ]
     },
@@ -1439,9 +1440,9 @@
         {
           "index": 1,
           "text": "Retained multi-tick coarse progress",
-          "task": "ROUTE-04.1",
-          "disposition": "behavior",
-          "rationale": "Complete the reachable retained-route/cache/index and multi-tick progression combinations."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.1 is discharged by the route-mode/index-producer table and oracle-route335 public ground/flight cache lifetimes with exact engine motion and cold saves. Preserve this original oracle limitation verbatim; E2E-05.2 owns the final cross-evidence disposition, not an unfinished route-mode behavior."
         },
         {
           "index": 2,
@@ -1983,9 +1984,9 @@
         {
           "index": 0,
           "text": "Controlled far-source one-point cache state; actual public producer lifetime remains ROUTE-04.1.",
-          "task": "ROUTE-04.1",
-          "disposition": "behavior",
-          "rationale": "Complete the reachable retained-route/cache/index and multi-tick progression combinations."
+          "task": "E2E-05.2",
+          "disposition": "superseded-review",
+          "rationale": "ROUTE-04.1 is discharged by the route-mode/index-producer table and oracle-route335 public ground/flight cache lifetimes with exact engine motion and cold saves. Preserve this original oracle limitation verbatim; E2E-05.2 owns the final cross-evidence disposition, not an unfinished route-mode behavior."
         },
         {
           "index": 1,
@@ -6454,6 +6455,32 @@
           "task": "E2E-03.2",
           "disposition": "behavior",
           "rationale": "Extend fixed-seed cross-feature, crowd, saved/restarted or mixed-domain scenarios beyond the existing isolated/windowed evidence."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-route335",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Queued paths, forced-arrival and target-perimeter composition remain ROUTE-04.2.",
+          "task": "ROUTE-04.2",
+          "disposition": "behavior",
+          "rationale": "Exercise queue, forced-arrival and target-perimeter composition against the route-mode table."
+        },
+        {
+          "index": 1,
+          "text": "The separate complete disabled/delay oracle uses supplied path state; these public captures do not certify unreachability of every indirect disabled-path caller.",
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Preserve the explicit boundary between supplied-state native calls, observed public lifetimes, engine cold continuations and broader final fidelity claims."
+        },
+        {
+          "index": 2,
+          "text": "Exact group motion and retained count/index snapshots; cold continuations are replayed in the engine, without a retail save-UI or arbitrary world/ability coverage claim.",
+          "task": "E2E-05.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Preserve the explicit boundary between supplied-state native calls, observed public lifetimes, engine cold continuations and broader final fidelity claims."
         }
       ]
     }

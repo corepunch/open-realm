@@ -27413,3 +27413,207 @@ TEST(wc3_movement, cast321_facing_cast_and_effect_survive_reload) {
     for(unsigned mode=2;mode<=4;mode++)captain320_run(true,mode);
 }
 #endif
+
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_route335.h"
+static unsigned route335_cursor;
+static int route335_scene;
+static bool route335_mismatch,route335_pending;
+static void route335_mark(cstring_t marker) {
+    if(strncmp(marker,"R335 ",5))return;
+    char const *scene=strstr(marker," scene=");
+    if(scene)route335_scene=atoi(scene+7);
+}
+static void route335_group(moveGroup_t const *group,moveGroupMember_t const *member,moveGroupCommitTrace_t const *trace) {
+    (void)group;(void)trace;route335_pending=true;
+    if(route335_mismatch || route335_cursor>=sizeof(route335_cache)/sizeof(*route335_cache))return;
+    uint32_t const *expected=route335_cache[route335_cursor];
+    if(!expected[0])return;
+    moveFineRoute_t const *r=&member->unit->movement.fine_route;
+    uint32_t actual[]={r->count,r->index,r->adaptive_count,r->adaptive_index};
+    FOR_LOOP(k,4) {
+        if(actual[k]!=expected[k+1]) {
+            fprintf(stderr,"route335 cache%u scene%d time%u word%u engine%u retail%u\n",route335_cursor,route335_scene,level.time,k,actual[k],expected[k+1]);
+            route335_mismatch=true;
+        }
+        T_EQ(actual[k],expected[k+1]);
+    }
+}
+static void route335_commit(edict_t *unit) {
+    if(!route335_pending || route335_mismatch)return;
+    route335_pending=false;
+    unsigned row=route335_cursor++;
+    T_ASSERT(row<(sizeof(route335_motion)/sizeof(*route335_motion)));
+    if(row>=(sizeof(route335_motion)/sizeof(*route335_motion))){route335_mismatch=true;return;}
+    uint32_t actual[]={route335_scene,wc3_float_bits(unit->movement.pose_clock.time),unit->movement.pose_clock.epoch,
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,8) {
+        if(actual[k]!=route335_motion[row][k]) {
+            fprintf(stderr,"route335 row%u scene%d time%u word%u engine%08x retail%08x\n",row,route335_scene,level.time,k,actual[k],route335_motion[row][k]);
+            route335_mismatch=true;
+        }
+        T_EQ(actual[k],route335_motion[row][k]);
+    }
+}
+TEST(wc3_movement, public_route_cache_indices_and_lifecycle_match_retail335) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius[]={8,24,40,56},speed=270;
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[4][2];unitData_t custom[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radius+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        custom[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),
+            .newUnitID=MAKEFOURCC('h','F','9','1'+i),.numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,48)cells[y*64+24]=cells[y*64+25]=CM_PATHING_UNWALKABLE;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bool compiled=run_test_jass(route335_script);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_route335;
+    G_FinishMovePathingInitialization();
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+
+    route335_cursor=0;route335_scene=-1;route335_mismatch=route335_pending=false;
+    test_preload_marker=route335_mark;move_test_group_commit=route335_group;move_test_motion_commit=route335_commit;
+    unsigned const times[]={38000,93500,97020,97600};
+    unsigned saved[4]={0};int scenes[4]={0};PATHSTR files[4];
+    FOR_LOOP(i,4)snprintf(files[i],sizeof(files[i]),"%s-%u.bin",Test_TempPath("route335"),times[i]);
+    FOR_LOOP(pass,5) {
+        if(route335_mismatch)break;
+        if(pass) {
+            T_ASSERT(ReadGame(files[pass-1]));route335_cursor=saved[pass-1];
+            route335_scene=scenes[pass-1];route335_pending=false;
+        }
+        while(level.time<125000 && !route335_mismatch && !jass_rterror_pending(level.vm)) {
+            level.time+=5;globals.RunFrame();
+            if(!pass && !route335_mismatch)FOR_LOOP(i,4)if(level.time==times[i]) {
+                saved[i]=route335_cursor;scenes[i]=route335_scene;T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        if(jass_rterror_pending(level.vm))fprintf(stderr,"route335 JASS: %s\n",jass_rterror_message(level.vm));
+        T_EQ(route335_cursor,(sizeof(route335_motion)/sizeof(*route335_motion)));T_EQ(route335_scene,16);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    FOR_LOOP(i,4)remove(files[i]);
+    test_preload_marker=NULL;move_test_group_commit=NULL;move_test_motion_commit=NULL;
+cleanup_route335:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "fixtures/retail_route336.h"
+static unsigned route336_cursor;
+static int route336_scene;
+static bool route336_mismatch,route336_pending;
+static void route336_mark(cstring_t marker) {
+    if(strncmp(marker,"R336 ",5))return;
+    char const *scene=strstr(marker," scene=");
+    if(scene)route336_scene=atoi(scene+7);
+}
+static void route336_group(moveGroup_t const *group,moveGroupMember_t const *member,moveGroupCommitTrace_t const *trace) {
+    (void)group;(void)trace;route336_pending=true;
+    if(route336_mismatch || route336_cursor>=sizeof(route336_cache)/sizeof(*route336_cache))return;
+    uint32_t const *expected=route336_cache[route336_cursor];
+    if(!expected[0])return;
+    moveFineRoute_t const *r=&member->unit->movement.fine_route;
+    uint32_t actual[]={r->count,r->index,r->adaptive_count,r->adaptive_index};
+    FOR_LOOP(k,4) {
+        if(actual[k]!=expected[k+1]) {
+            fprintf(stderr,"route336 cache%u scene%d time%u word%u engine%u retail%u\n",route336_cursor,route336_scene,level.time,k,actual[k],expected[k+1]);
+            route336_mismatch=true;
+        }
+        T_EQ(actual[k],expected[k+1]);
+    }
+}
+static void route336_commit(edict_t *unit) {
+    if(!route336_pending || route336_mismatch)return;
+    route336_pending=false;
+    unsigned row=route336_cursor++;
+    T_ASSERT(row<(sizeof(route336_motion)/sizeof(*route336_motion)));
+    if(row>=(sizeof(route336_motion)/sizeof(*route336_motion))){route336_mismatch=true;return;}
+    uint32_t actual[]={route336_scene,wc3_float_bits(unit->movement.pose_clock.time),unit->movement.pose_clock.epoch,
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,8) {
+        if(actual[k]!=route336_motion[row][k]) {
+            fprintf(stderr,"route336 row%u scene%d time%u word%u engine%08x retail%08x\n",row,route336_scene,level.time,k,actual[k],route336_motion[row][k]);
+            route336_mismatch=true;
+        }
+        T_EQ(actual[k],route336_motion[row][k]);
+    }
+}
+TEST(wc3_movement, public_route_cache_indices_and_lifecycle_match_retail336) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius[]={8,24,40,56};
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int speed_integer=270;
+    unitModification_t mods[8][2];unitData_t custom[8];
+    FOR_LOOP(i,8) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radius+i%4};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_int,.data=&speed_integer};
+        custom[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','g','r','y'),
+            .newUnitID=MAKEFOURCC('h',i<4 ? 'F' : 'A','9','1'+i%4),.numbeOfModifications=2,.modifications=mods[i]};
+    }
+    unitModification_t ability_mods[4][2];unitData_t abilities[4];
+    char target_ids[4][5]={"hA91","hA92","hA93","hA94"};
+    FOR_LOOP(i,4) {
+        ability_mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=target_ids[i]};
+        ability_mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
+        abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=MAKEFOURCC('A','F','9','1'+i),.numbeOfModifications=2,.modifications=ability_mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=8,.userCreatedUnits=custom,.num_userCreatedAbilities=4,.userCreatedAbilities=abilities};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X4;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\nC;X1;Y2;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hgry\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);G_SetMapAbilityOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,48)cells[y*64+24]=cells[y*64+25]=CM_PATHING_UNWALKABLE;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bool compiled=run_test_jass(route336_script);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_route336;
+    G_FinishMovePathingInitialization();
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+
+    route336_cursor=0;route336_scene=-1;route336_mismatch=route336_pending=false;
+    test_preload_marker=route336_mark;move_test_group_commit=route336_group;move_test_motion_commit=route336_commit;
+    unsigned const times[]={38000,93500,97020,97600};
+    unsigned saved[4]={0};int scenes[4]={0};PATHSTR files[4];
+    FOR_LOOP(i,4)snprintf(files[i],sizeof(files[i]),"%s-%u.bin",Test_TempPath("route336"),times[i]);
+    FOR_LOOP(pass,5) {
+        if(route336_mismatch)break;
+        if(pass) {
+            T_ASSERT(ReadGame(files[pass-1]));route336_cursor=saved[pass-1];
+            route336_scene=scenes[pass-1];route336_pending=false;
+        }
+        while(level.time<125000 && !route336_mismatch && !jass_rterror_pending(level.vm)) {
+            level.time+=5;globals.RunFrame();
+            if(!pass && !route336_mismatch)FOR_LOOP(i,4)if(level.time==times[i]) {
+                saved[i]=route336_cursor;scenes[i]=route336_scene;T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        if(jass_rterror_pending(level.vm))fprintf(stderr,"route336 JASS: %s\n",jass_rterror_message(level.vm));
+        T_EQ(route336_cursor,(sizeof(route336_motion)/sizeof(*route336_motion)));T_EQ(route336_scene,16);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    FOR_LOOP(i,4)remove(files[i]);
+    test_preload_marker=NULL;move_test_group_commit=NULL;move_test_motion_commit=NULL;
+cleanup_route336:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetMapAbilityOverrides(NULL);G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+#endif

@@ -1690,10 +1690,13 @@ static bool move_collect_blocker_cell(void const *data,wc3FinePoint_t pos) {
 static uint32_t move_step_blockers(movePathQuery_t const *input,float const fine_goal[2],
                                    edict_t **out,wc3YieldDecision_t *decision) {
     if (!input || !input->units || !out || !input->geometry.target ||
-        !pathmap.width || !pathmap.height || (input->mover && (input->mover->aiflags&AI_FLYING))) {
+        !pathmap.width || !pathmap.height) {
         if(decision)*decision=S_ResolveMoveBlockers((edict_t *)input->mover,NULL,0);
         return 0;
     }
+    /* Flying movers still test their authored query against no-fly terrain.
+     * The query mask owns collision filtering; movement type cannot bypass
+     * the collector when a cached route crosses newly restored pathing. */
     move_spatial_sync();
     vec2_t source=move_query_source(input), goal=fine_goal ? (vec2_t){fine_goal[0],fine_goal[1]} :
         move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
