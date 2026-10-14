@@ -285,7 +285,8 @@
     "oracle-route337",
     "oracle-group338",
     "oracle-group339",
-    "oracle-group340"
+    "oracle-group340",
+    "oracle-group341"
   ],
   "entries": [
     {
@@ -6582,6 +6583,25 @@
           "task": "GROUP-03.2",
           "disposition": "behavior",
           "rationale": "Retain the distinct availability, explicit-task and scan minimum policies; other acquisition and AI/motion lifetime gaps remain here."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-group341",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Ten public scenes cover rejected-alternative storage, current death/removal, alternative owner change/removal, Stop/Move/Pause and owner changes after promotion. Engine saves and stale-slot checks do not certify retail save UI.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Alternative lifetime evidence is bounded; remaining acquisition and AI/motion lifetimes retain their existing owner."
+        },
+        {
+          "index": 1,
+          "text": "Remaining availability guards, optional priority overrides, AI propagation and target-speed/Captain domains remain GROUP-03.2.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "Alternative lifetime evidence is bounded; remaining acquisition and AI/motion lifetimes retain their existing owner."
         }
       ]
     }

@@ -222,3 +222,7 @@ Cadence is6/12 after full checkpoint332. GROUP-03.2 remains open, with no new
 TODO split. Five function annotations are saved; failed observer attempts,
 accepted repeats/control, maps, builds and reports are archived under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff340/`.
+
+### Alternative lifetime341: seventh implementation commit after332
+
+Production/test builds pass. `verify_wc3_pathing_group341.py` runs349 tests /34409 assertions in each Classic/TFT mode, including the296-assertion lifecycle regression and save format/layout rejection. The retail check requires two1065-event repeats, an82-marker uninstrumented control and737 original instruction guards. Evidence/corpus/ownership suites pass8/37/12 tests. This is focused validation; full-suite cadence is7/12 since full332.

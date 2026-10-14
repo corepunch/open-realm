@@ -20094,3 +20094,13 @@ Five annotations are saved in Ghidra and `MapPathfinding.java`. The archive is
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff340/`.
 GROUP-03.2 remains open for other admission guards, optional ranking overrides,
 retained alternative targets, AI propagation and target-speed/Captain lifetimes.
+
+## Rejected alternatives survive target loss (payoff341)
+
+Native49e3a0 remembers a rejected nonzero-priority candidate in Attack78/7c. Ordinary acquisition runs first;493d20 can then retry this weak identity outside acquisition range, within the native2000 committed range. It still requires mobility, enemy eligibility and the scan filter. Promoting the alternative does not consume it.
+
+The ten-scene public map proves current-target death/removal preserve fallback, Stop/Move/Pause clear it, and removing the candidate leaves an unresolved weak identity. Candidate ownership changes leave an alternative-only reference intact; once promoted, the current-target subscription delivers49b160 and clears the alternative. Its passive-alliance recovery uses target-to-source direction. Engine storage pairs an edict pointer with its incarnation; no alternative-only subscription or scene-wide scan is added. Save format193 persists the pair.
+
+Two complete1065-event captures and an uninstrumented82-marker control agree. The projection normalizes scan-result unit pointers with the same per-scene identity map used for actor/candidate, preserving equality relationships, canonical target handles and scalar words.737 original instructions are guarded. The initial lifecycle regression failed102/238 assertions; the promoted-owner regression then failed8/294. The final public-order, death/removal, pause, owner-transfer, invalid fallback, same-slot reuse and cold-save matrix passes296/296.349 affected tests with34409 assertions pass in each Classic/TFT mode, including prior-format/layout rejection. Production and test builds pass;8 evidence rejection tests,37 corpus tests and12 ownership tests pass.
+
+Reproduce with `verify_wc3_pathing_group341.py` or corpus `--only oracle-group341`. Evidence is archived at the report root under `research/GROUP-03.2/payoff341/`. This completes the tested alternative lifecycle contribution, not GROUP-03.2: remaining acquisition guards/priority overrides, AI propagation and target-speed/Captain domains retain that existing TODO.

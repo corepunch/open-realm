@@ -1913,6 +1913,79 @@ TEST(wc3_order_lifecycle, queue263_direct_append_resolves_optional_user_order_id
 
 /* Native49e277/49e2b7: missing Move does not admit targets merely inside
  * acquisition range. A zero-speed Move ability still owns eligibility. */
+/* Rejected alternatives survive current-target loss and bypass the ordinary
+ * scan radius, but remain weak identities and obey cleanup/eligibility. */
+TEST(wc3_order_lifecycle, group341_rejected_alternative_lifetime_and_saved_fallback) {
+    FOR_LOOP(saved,2)FOR_LOOP(mode,14) {
+        reset_entities();setup_test_world();level.show_map_cheat=true;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *unit=review_order_unit(512,0),*old=review_order_unit(576,1),*target=review_order_unit(640,0);
+        unit->spawn_time=11;old->spawn_time=12;target->spawn_time=13;
+        unit->s.model=old->s.model=target->s.model=1;
+        unit->collision=old->collision=target->collision=31;
+        unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+        S_AttackProfileWrite(unit,0)->range=90;
+        old->health.value=target->health.value=420;
+        old->defense_type=target->defense_type=unit->defense_type=2;
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(old);G_PublishMoveSpatialObject(target);
+        T_ASSERT(G_IssueUnitPointOrder(unit,"attack",&(vec2_t){1800,0},false,0,0));
+        order_attack(unit,old);T_EQ(unit->attack_target,old);
+        G_SetUnitPlayer(target,1);
+        T_EQ(unit->attack_target,old);T_EQ(unit->attack_alternative,target);
+        T_EQ(unit->attack_alternative_spawn_time,target->spawn_time);
+        if(saved) {
+            UnitWeapons_t const *weapons=unit->data.UnitWeapons;
+            cstring_t file=Test_TempPath("wc3-group341-alternative.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit->data.UnitWeapons=old->data.UnitWeapons=target->data.UnitWeapons=weapons;
+            T_EQ(unit->attack_alternative,target);
+            T_EQ(unit->attack_alternative_spawn_time,target->spawn_time);
+        }
+        unit->runtime.acquisition_range=1;
+        if(mode==1)unit_die(old,NULL);
+        if(mode==2 || mode>=12)G_DeferFreeEdict(old);
+        if(mode==3)G_SetUnitPlayer(target,0);
+        if(mode==4)T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        if(mode==5)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1800,0},false,0,0));
+        if(mode==6 || mode==8)G_FreeEdict(target);
+        if(mode==7)S_SetUnitPaused(unit,true);
+        if(mode==8) {
+            uint32_t incarnation=13;
+            level.time+=1001;
+            edict_t *replacement=review_order_unit(640,1);
+            replacement->spawn_time=level.time;
+            T_EQ(replacement,target);T_NE(replacement->spawn_time,incarnation);
+        }
+        if(mode==9)T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','m','o','v')));
+        if(mode==10) {target->s.origin2.x=3000;gi.LinkEntity(target);G_PublishMoveSpatialObject(target);}
+        if(mode==11)target->invulnerable=true;
+        bool cleared=mode==4 || mode==5 || mode==7;
+        T_EQ(unit->attack_alternative,cleared ? NULL : target);
+        if(mode==1 || mode==2 || mode>=12) {
+            T_NULL(unit->attack_target);
+            T_EQ(G_FindNearestEnemy(unit,1),target);
+            for(int i=0;i<16 && !unit->attack_target;i++) {
+                level.time+=FRAMETIME;
+                if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+            }
+            T_EQ(unit->attack_target,target);
+            T_EQ(unit->attack_alternative,target);
+            if(mode>=12) {
+                G_SetUnitPlayer(target,mode==12 ? 0 : 2);
+                T_NULL(unit->attack_alternative);
+                T_EQ(unit->attack_alternative_spawn_time,0);
+                if(mode==12)T_NULL(unit->attack_target);
+            }
+        } else {
+            /* Exercise fallback eligibility after retiring the current target;
+             * a live current target would mask every guard below. */
+            if(mode==3 || mode==6 || mode>=8)G_DeferFreeEdict(old);
+            T_NULL(G_FindNearestEnemy(unit,1));
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
 /* Public24-scene native matrix: availability tests minimum range only for
  * airborne candidates. The explicit task validator has a separate policy. */
 TEST(wc3_order_lifecycle, group340_available_minimum_range_precedes_exemption) {

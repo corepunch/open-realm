@@ -2412,6 +2412,8 @@ struct edict_s {
     edict_t *attack_target; /* Attack owns its target independently of Move/FIFO parents. */
     uint64_t attack_target_sequence;
     uint32_t attack_target_spawn_time; /* active CAbilityAttack target incarnation */
+    edict_t *attack_alternative; /* Weak rejected candidate; resolves only at its saved incarnation. */
+    uint32_t attack_alternative_spawn_time;
     uint32_t attack_acquisition_suppressed; /* Explicit target owner clears retail Attack20.4000. */
     edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
     edict_t *spell_item; /* originating item for a pending walk-into-range spell */
@@ -4614,6 +4616,7 @@ bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target);
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot);
 bool S_UnitHasLongRangeSiegeAttack(edict_t const *attacker);
 bool S_UnitAttackApproachRange(edict_t const *attacker,float *maximum);
+edict_t *S_AttackAlternativeTarget(edict_t *);
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
 void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);

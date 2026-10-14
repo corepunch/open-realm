@@ -83,6 +83,11 @@ static void attack_target_link(uint16_t id,uint16_t target) {
     list->tail=id;list->count++;
 }
 
+static void attack_set_alternative(edict_t *unit,edict_t *target) {
+    unit->attack_alternative=target;
+    unit->attack_alternative_spawn_time=target ? target->spawn_time : 0;
+}
+
 static void attack_set_target(edict_t *unit,edict_t *target) {
     uint16_t id=attack_target_identity(unit),other=attack_target_identity(target);
     if(id)attack_target_unlink(id);
@@ -103,6 +108,8 @@ bool S_ValidateAttackTargets(void) {
     FOR_LOOP(i,globals.num_edicts) {
         edict_t const *unit=g_edicts+i,*target=unit->attack_target;
         if(!unit->inuse)continue;
+        if(unit->attack_alternative && !attack_target_identity(unit->attack_alternative))return false;
+        if(!unit->attack_alternative && unit->attack_alternative_spawn_time)return false;
         if(!target) {if(unit->attack_target_sequence)return false;continue;}
         if(!attack_target_identity(target) || !target->inuse || G_IsDeferredFree(target) ||
            unit->goalentity!=target || !unit->currentmove || unit->currentmove->proc!=CAbilityAttack ||
@@ -130,11 +137,11 @@ static void attack_targets_rebuild(void) {
     }
 }
 
-static void attack_target_lost(edict_t *unit,edict_t *target);
+static void attack_target_lost(edict_t *unit,edict_t *target,bool owner_changed);
 
 /* Freeze this notification's registration frontier before callbacks. Removal,
  * reuse or reissue must not deliver a new registration in the outer pass. */
-static void attack_deliver_target_lost(edict_t *target) {
+static void attack_deliver_target_event(edict_t *target,bool owner_changed) {
     uint16_t id=attack_target_identity(target);
     if(!id || !attack_target_lists[id-1].count)return;
     uint32_t count=attack_target_lists[id-1].count,pos=0;
@@ -154,7 +161,15 @@ static void attack_deliver_target_lost(edict_t *target) {
         if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
            unit->attack_target_sequence!=delivery[i].sequence || unit->attack_target!=target)continue;
 #endif
-        attack_target_lost(unit,target);
+        if(owner_changed) {
+            /*49b160: only current-target subscribers receive this event. A
+             * rejected alternative alone never subscribes to owner changes. */
+            if(unit->attack_alternative==target &&
+               unit->attack_alternative_spawn_time==target->spawn_time)
+                attack_set_alternative(unit,NULL);
+            if(!G_PlayerTreatsPlayerAsAlly(target->s.player,unit->s.player))continue;
+        }
+        attack_target_lost(unit,target,owner_changed);
     }
 }
 
@@ -1363,7 +1378,7 @@ void S_AttackRecoveryComplete(edict_t *receiver,edict_t *unit,bool arrived) {
         attack_finish_after_combat(unit,unit->goalentity,arrived ? "recovery_arrival" : "recovery_unreachable");
 }
 
-static void attack_target_lost(edict_t *unit,edict_t *target) {
+static void attack_target_lost(edict_t *unit,edict_t *target,bool owner_changed) {
     if(!unit->currentmove || unit->currentmove->proc!=CAbilityAttack || unit->goalentity!=target)return;
     /*49b51a..55a: Blink alone tests committed centers with both radii.
      *49d353..35a excludes the transient target from point capture even when
@@ -1373,7 +1388,7 @@ static void attack_target_lost(edict_t *unit,edict_t *target) {
         attack_finish_after_combat(unit,target,"blink_out_of_range");return;
     }
     /*49b420 validates detection, not fog. A valid target keeps the same owner. */
-    if(!G_IsDeferredFree(target) && S_AttackCanTarget(unit,target) &&
+    if(!owner_changed && !G_IsDeferredFree(target) && S_AttackCanTarget(unit,target) &&
        unit->attack_target_spawn_time==target->spawn_time)return;
     if(!target->target_loss_transient && S_UnitTargetChaseActive(unit,CAbilityAttack) && target->inuse &&
        unit->attack_target_spawn_time==target->spawn_time) {
@@ -2012,14 +2027,35 @@ uint64_t G_TestAttackTargetPriority(edict_t const *unit,edict_t const *target) {
 
 /*49e3a0: an equal priority needs strictly less squared distance. A source
  * world query and two committed target queries belong to Move's scalar API. */
-static bool attack_should_replace_available_target(edict_t const *unit,edict_t const *target) {
+static bool attack_should_replace_available_target(edict_t *unit,edict_t *target) {
     edict_t const *old=unit->attack_target;
     if(old==target)return false;
     uint64_t incoming=attack_target_priority(unit,target);
     if(!incoming)return false;
     uint64_t retained=attack_target_priority(unit,old);
-    if(incoming!=retained)return incoming>retained;
-    return S_UnitCommittedTargetDistanceSquared(unit,target)<S_UnitCommittedTargetDistanceSquared(unit,old);
+    bool replace=incoming!=retained ? incoming>retained :
+        S_UnitCommittedTargetDistanceSquared(unit,target)<S_UnitCommittedTargetDistanceSquared(unit,old);
+    if(!replace)attack_set_alternative(unit,target);
+    return replace;
+}
+
+/*493d20 revisits one weak alternative only after the ordinary scan found no
+ * target. Its 2000-unit committed range is independent of acquisition radius. */
+edict_t *S_AttackAlternativeTarget(edict_t *unit) {
+    edict_t *target=unit ? unit->attack_alternative : NULL;
+    if(!target || unit->attack_target || unit->paused || !target->inuse || G_IsDeferredFree(target) ||
+        target->spawn_time!=unit->attack_alternative_spawn_time || !attack_cap_present(unit) ||
+        !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) || !S_UnitCanTranslate(unit) ||
+        !attack_can_acquire_target(unit,target) || G_UnitIsInvulnerable(target) ||
+        G_PlayerTreatsPlayerAsAlly(unit->s.player,target->s.player) ||
+        !G_FowPlayerCanTrackUnit(unit->s.player,target) ||
+        !S_UnitTargetInCommittedMoveRange(unit,target,2000.0f))return NULL;
+    float maximum=0,minimum=attack_minimum_range(unit);
+    S_UnitAttackApproachRange(unit,&maximum);
+    if(G_UnitTargetType(target)!=TARG_AIR && minimum>0 && minimum<maximum &&
+        fabsf(wc3_sub(minimum,maximum))>=wc3_float(0x3a83126f) &&
+        S_UnitTargetInCommittedMoveRange(unit,target,minimum))return NULL;
+    return attack_target_priority(unit,target) ? target : NULL;
 }
 
 /* Original6510b0 broadcasts d01a5 through the widget index. Ordinary pose
@@ -2138,7 +2174,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         FOR_LOOP(slot,2)if(S_AttackProfileRead(ent,slot)->type!=ATK_NONE)return true;
         return false;
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED,A_UNIT_STAND,A_UNIT_OWNER_CHANGING,A_TARGET_AVAILABLE);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_UNIT_RETIRE,A_DEATH,A_MOVE_LEAVE,A_TARGET_LOST,A_ORDER_ACCEPTED,A_UNIT_STAND,A_UNIT_OWNER_CHANGING,A_TARGET_AVAILABLE,A_UNIT_SUSPEND,A_TARGET_OWNER_CHANGED);
     case A_TARGET_AVAILABLE:
         if(!ent && call)attack_target_available(call->lost_target);
         return false;
@@ -2167,11 +2203,18 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         if(ent)ent->attack_acquisition_suppressed=false;
         attack_guard_stand(ent);return false;
     case A_UNIT_OWNER_CHANGING:
-        if(ent){attack_guard_cancel(ent);ent->attack_guard.initialized=false;}return false;
+        if(ent){attack_set_alternative(ent,NULL);attack_guard_cancel(ent);ent->attack_guard.initialized=false;}return false;
+    case A_UNIT_SUSPEND:
+        if(ent)attack_set_alternative(ent,NULL);
+        return false;
     case A_ORDER_ACCEPTED:
         /* Public identity belongs to the accepted user head. Acquisition and
          * retaliation call order_attack directly and retain the existing head. */
         if (!ent || !call || !call->order || !ent->currentmove) return false;
+        if(!strcmp(call->order,"stop") || !strcmp(call->order,"move") ||
+           !strcmp(call->order,"patrol") || !strcmp(call->order,"holdposition") ||
+           !strcmp(call->order,"attack") || !strcmp(call->order,"attackonce") ||
+           !strcmp(call->order,"attackground"))attack_set_alternative(ent,NULL);
         if (((!strcmp(call->order,"attack") || !strcmp(call->order,"attackonce")) &&
              ent->currentmove->proc==CAbilityAttack) ||
             (!strcmp(call->order,"attackground") && ent->currentmove->proc==CAbilityAttackGround)) {
@@ -2235,27 +2278,32 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         attack_cap_begin(ent);return false;
     case A_DISABLE:
         if(ent) {
+            attack_set_alternative(ent,NULL);
             attack_cap_cancel(ent);
             if(ent->abilstatus)memset(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention,0,
                 sizeof(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention));
         }
         return false;
+    case A_TARGET_OWNER_CHANGED:
     case A_TARGET_LOST:
-        if(call && call->lost_target)attack_deliver_target_lost(call->lost_target);
+        if(call && call->lost_target)attack_deliver_target_event(call->lost_target,msg==A_TARGET_OWNER_CHANGED);
         return false;
     case A_MOVE_LEAVE:
         if(ent && call && call->next_move_proc!=CAbilityAttack) {
             ent->attack_acquisition_suppressed=false;
+            /* Internal target loss releases current before returning to its
+             * parent; an external replacement retires the still-live owner. */
+            if(ent->attack_target || ent->paused)attack_set_alternative(ent,NULL);
             S_EndUnitTargetChase(ent,CAbilityAttack);attack_set_target(ent,NULL);
         }
         return false;
     case A_DEATH:
     case A_UNIT_RETIRE:
-        if(ent){attack_set_target(ent,NULL);attack_guard_cancel(ent);}
+        if(ent){attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_guard_cancel(ent);}
         return false;
     case A_UNIT_REMOVING:
     case A_UNIT_REMOVE:
-        if(ent){attack_set_target(ent,NULL);attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);attack_guard_cancel(ent);}
+        if(ent){attack_set_alternative(ent,NULL);attack_set_target(ent,NULL);attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);attack_guard_cancel(ent);}
         return false;
     case A_TARGET_REMOVED: {
         if (!call) return false;

@@ -337,7 +337,7 @@ edict_t *G_FindNearestEnemy(edict_t *self, float radius) {
         { self->s.origin2.x - radius, self->s.origin2.y - radius },
         { self->s.origin2.x + radius, self->s.origin2.y + radius },
     };
-    if (!ai_enemy_presence(self, &sightbox)) return NULL;
+    if (!ai_enemy_presence(self, &sightbox)) return S_AttackAlternativeTarget(self);
 #ifdef BZ_TESTS
     ai_broadphase_queries++;
 #endif
@@ -358,7 +358,7 @@ edict_t *G_FindNearestEnemy(edict_t *self, float radius) {
             best = ent;
         }
     }
-    return best;
+    return best ? best : S_AttackAlternativeTarget(self);
 }
 
 void ai_stand(edict_t *self) {
