@@ -539,18 +539,18 @@ native `FT_LISTBOX` state child constrained by its anchors. The panel is hosted 
 the geometry source of truth. The transient client owns list selection, scrolling, and edit state while the
 modal is open; gameplay code only fills data, visibility, enable state, and click handlers.
 
-New saves are prefilled with a filesystem/command-safe local timestamp (`YYYY-MM-DD_HH-MM-SS`). The value remains an ordinary
+New saves are prefilled with the active map file basename (without extension) and a filesystem/command-safe local timestamp (`NightElf04_YYYY-MM-DD_HH-MM-SS`). If the map path is unavailable, the timestamp alone is used. The value remains an ordinary
 editable transient edit box, so the player can replace or amend it before saving.
 
 Each time Save Game opens, the authored `SaveGameFileEditBox`
-the edit box is initialized from local wall-clock time as `YYYY-MM-DD_HH-MM-SS`; the value is only a default and remains editable before
+the edit box is initialized from the current map basename and local wall-clock time as `MapName_YYYY-MM-DD_HH-MM-SS`; the value is only a default and remains editable before
 submission. The timestamp avoids characters rejected by the save-path validator.
 
 `FS_ListSaves()` enumerates `.sav` basenames under the directory derived by `FS_SavePath()` and returns a double-NUL list ordered by
 filesystem modification time, newest first. Equal modification times fall back to a case-insensitive basename sort for deterministic
 ordering. This keeps recently written or overwritten saves at the top even when the player replaces the timestamp with a custom name.
 The list is exposed to game modules through `gi.ListSaves`. The WC3 menu only publishes entries for which `G_GetSaveMap()` can read a map identity.
-The basename `quick` is rendered as `Quick Save`, preserving the F6/console quick slot alongside named files.
+Spaces within manually entered save names are preserved in save enumeration and quoted load commands; tests cover directory enumeration and quoted command parsing. The basename `quick` is rendered as `Quick Save`, preserving the F6/console quick slot alongside named files.
 
 Menu-entered names are trimmed, optional `.sav` is removed, length is capped to `CMDARG_LEN - 1`, and path/control characters are
 rejected. `Quick Save` normalizes back to `quick`. Saving an existing basename currently overwrites it immediately. Delete removes the
