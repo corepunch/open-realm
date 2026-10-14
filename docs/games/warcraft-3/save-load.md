@@ -179,7 +179,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 155, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 192, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -1734,3 +1734,24 @@ removing one effect must not enable shared-group admission while the other
 remains. Restored groups stay separate until a subsequent eligible order. The
 existing turn/window fields retain the form's authored parameters. Prior save
 versions are rejected. See [Payoff318](retail-pathfinding-engine.md#counted-group-isolation-and-morph-turn-parameters-payoff318).
+
+### Counted ability work and morph requests (Save192)
+
+The new sparse `morph` pool stores independent transition/expiration primary
+requests, their deadline domains and sequence numbers, source/target types,
+Burrow category overrides and held-animation ownership. Avatar's transition
+request is also serialized. The saved timer owners rebuild their runtime heaps
+after load; animation callbacks do not replace the pending primary request.
+
+Ability disable records retain exclusive ownership and inventory contributions
+separately from pause and retirement. Unit-level exclusive availability,
+invulnerability and spell-immunity depths remain independent of script flags.
+Cargo retains each passenger's separation contribution. Existing spell state
+carries item-teleport source identity and delayed failed-target completion.
+
+Version 191 and other older layouts are rejected; no network format changes.
+Cold saves cover active transitions, pause, removal, independent ascent and
+counted overlap. The 219-test save suite and the affected unit, movement and
+spell suites pass in both editions. See the
+[separation integration checkpoint](retail-pathfinding-separation.md#integration-checkpoint334)
+and [Stone/Destroyer forms](stone-form.md).

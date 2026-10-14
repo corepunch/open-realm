@@ -22,8 +22,9 @@ void ai_birth2(edict_t *self) {
 //static mmove_t unit_move_decay2 = { "Decay Bone", NULL, unit_die };
 //static mmove_t unit_move_decay1 = { "Decay Flesh", NULL, unit_decay2 };
 static umove_t unit_move_birth = { "birth", ai_birth, unit_stand };
-static umove_t unit_move_stand = { "stand", ai_stand, unit_stand };
-static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand };
+static void unit_stand_animation_end(edict_t *self);
+static umove_t unit_move_stand = { "stand", ai_stand, unit_stand_animation_end };
+static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand_animation_end };
 static void unit_decay_flesh_think(edict_t *self);
 static void unit_begin_bone_decay(edict_t *self);
 static float unit_decay_flesh_duration(edict_t const *self);
@@ -197,6 +198,13 @@ static void unit_prepare_stand(edict_t *self) {
     self->movement.blocked_frames = 0;
 }
 
+/* An idle clip looping is not a task-completion event. In particular, sending
+ * A_UNIT_STAND again would restart the Attack guard timer on every loop and
+ * prevent a returning creep from ever leaving a short Stand animation. */
+static void unit_stand_animation_end(edict_t *self) {
+    unit_setmove(self, unit_affectingcombat(self) ? &unit_move_stand_ready : &unit_move_stand);
+}
+
 /* Let a persistent ability claim the stand transition before the generic idle move is installed. */
 static void unit_install_stand_move(edict_t *self) {
     if (S_UnitAbilityEvent(self, A_UNIT_STAND)) return;
@@ -215,6 +223,7 @@ void unit_stand(edict_t *self) {
      * then let a pending Shift order become authoritative before installing the
      * idle/default stand behavior. */
     unit_prepare_stand(self);
+    if (S_UnitAbilityEvent(self,A_UNIT_TASK_COMPLETE)) return;
     if (G_UnitStartNextQueuedOrder(self)) {
         return;
     }
@@ -427,7 +436,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     if (!self || (self->svflags & SVF_DEADMONSTER)) return;
     selected_mask = self->selected;
 
-    S_AvatarExpire(self);
+    CAbilityAvatar(self,A_DEATH,NULL); /* Death must not start a reverse transition. */
     /* A dead polymorphed unit must not later restore as a living unit when its
      * timed buff expires.  Keep the death presentation chosen at the time of
      * death, but retire the reversible morph contract immediately. */
@@ -649,6 +658,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "forceofnature", 852176, MAKEFOURCC('A','E','f','n') },
     { "manaburn", 852179, MAKEFOURCC('A','E','m','b') },
     { "metamorphosis", 852180, MAKEFOURCC('A','E','m','e') },
+    { "chemicalrage", 852663, MAKEFOURCC('A','N','c','r') },
     { "starfall", 852183, MAKEFOURCC('A','E','s','f') },
     { "tranquility", 852184, MAKEFOURCC('A','E','t','q') },
     { "animatedead", 852217, MAKEFOURCC('A','U','a','n') },
@@ -691,14 +701,20 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "summonquillbeast", 852595, MAKEFOURCC('A','N','s','q') },
     { "summonwareagle", 852596, MAKEFOURCC('A','N','s','w') },
     { "tornado", 852597, MAKEFOURCC('A','N','t','o') },
+    { "channel", 852600, MAKEFOURCC('A','N','c','l') },
+#include "g_order_names.inc"
 };
 
+uint32_t G_RegisteredOrderId(cstring_t order) {
+    if(!order)return 0;
+    FOR_LOOP(i,sizeof(unit_order_defs)/sizeof(*unit_order_defs))
+        if(!strcmp(order,unit_order_defs[i].name))return unit_order_defs[i].id;
+    return 0;
+}
+
 uint32_t G_OrderId(cstring_t order) {
-    uint32_t id = 0;
-    if (!order) return 0;
-    FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
-        if (!strcmp(order, unit_order_defs[i].name)) return unit_order_defs[i].id;
-    }
+    uint32_t id=G_RegisteredOrderId(order);
+    if(id || !order)return id;
     /* Preserve the old custom-order fallback for maps that intentionally used
      * a four-character order string. */
     memcpy(&id, order, MIN(sizeof(id), strlen(order)));
@@ -726,6 +742,9 @@ uint32_t G_AbilityOrderId(ability_t const *ability) {
 
 static uint32_t unit_spell_code_for_order(edict_t const *unit, cstring_t order) {
     if (!unit || !order) return 0;
+    spellOrderQuery_t query={.order_id=G_OrderId(order)};
+    abilityCall_t call={.spell_order=&query};
+    if(S_UnitAbilityMessage((edict_t *)unit,A_FIND_SPELL_ORDER,&call))return query.code;
     ability_t const *ordered = FindAbilityByOrder(order);
     if (ordered && (ordered->flags & AB_SPELL) && ordered->classname) {
         uint32_t code = 0;
@@ -1066,7 +1085,7 @@ bool G_RetainSuspendedUnitOrder(edict_t *self, cstring_t order,
         unitOrderTargetType_t shape, vec2_t const *point, edict_t *target,
         bool queue, uint32_t issuer, float speed) {
     uint32_t const order_id=G_OrderId(order);
-    if(S_UnitExecutionPaused(self) && !G_IsDeferredFree(self) && !self->construction_held) {
+    if(S_UnitOrderExecutionHeld(self) && !G_IsDeferredFree(self) && !self->construction_held) {
         if(!queue) {
             G_ClearUnitOrderQueue(self);
             self->movement.pause_order_id=0;
@@ -1095,7 +1114,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
     /* Validation is disabled after the suspension constructor, not during
      * its synchronous issued-order notification. */
-    if(S_UnitOrdersPaused(self))return false;
+    if(S_UnitOrderDisabled(self,order))return false;
     /* Rally owns native admission separately from its direct metadata setters. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         return S_IssueRallyTargetOrder(self,target,queue);
@@ -1146,6 +1165,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
              * stable target snapshot. Leave that unsupported rather than
              * silently enqueueing them as movement orders. */
             if (queue) return false;
+            if(S_InterceptSpellOrder(self,spell_code))return true;
             G_ClearUnitOrderQueue(self);
             accepted = S_IssueUnitTargetSpell(self, spell_code, target);
             if (accepted) {
@@ -1156,12 +1176,16 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             return accepted;
         }
     }
-    if (queue && strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
+    bool held=S_UnitOrderExecutionHeld(self);
+    if ((queue || held) && strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
         strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
         /* Only orders with an owning ability may enter the FIFO. Generic
          * queued replay can then dispatch their concrete target order. */
         if (!FindAbilityByOrder(order)) return false;
     }
+
+    if(held)
+        return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_ENTITY,&point,target,queue,issuer_player,0);
 
     if (queue && G_UnitHasActiveOrder(self)) {
         bool const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY, &point, target,
@@ -1209,6 +1233,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         if (spell_code) {
             bool accepted;
             if (queue) return false;
+            if(S_InterceptSpellOrder(self,spell_code))return true;
             G_ClearUnitOrderQueue(self);
             accepted = S_IssuePointTargetSpell(self, spell_code, point);
             if (accepted) {
@@ -1233,7 +1258,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") && strcmp(order, "patrol") &&
         strcmp(order, "attackground") && !owned) return false;
 
-    if(S_UnitExecutionPaused(self))
+    if(S_UnitOrderExecutionHeld(self))
         return G_RetainSuspendedUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,queue,issuer_player,group_speed);
 
     if (queue && G_UnitHasActiveOrder(self)) {
@@ -1522,6 +1547,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
+            if(S_InterceptSpellOrder(self,spell_code))return true;
             bool const accepted = S_CastNoTargetSpell(self, spell_code);
             if (accepted) {
                 G_CreepGuardExplicitOrder(self);
@@ -3338,4 +3364,10 @@ void SP_monster_unit(edict_t *self) {
     unit_setmove(self, &unit_move_stand);
     S_GoldMineInitUnit(self);
     monster_start(self);
+}
+
+/* Temporary owners compose with script/innate flags and status-based immunity. */
+bool G_UnitIsInvulnerable(edict_t const *unit) {
+    return unit && (unit->invulnerable || unit->invulnerability_depth>0 ||
+        unit_hasstatusstate(unit,WC3_STATUS_STATE_INVULNERABLE));
 }

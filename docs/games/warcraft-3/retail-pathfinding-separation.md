@@ -773,3 +773,709 @@ inverses. Two complete native repeats and an unhooked control freeze72 policy,
 pause/hidden and depth phases; Classic/TFT engine save/owner/order regressions
 pass. Remaining counted producers keep SEP-01.2 open. See
 [inside construction](retail-pathfinding-engine.md#inside-construction-owns-absence-and-work-separately-payoff227).
+# Remaining counted producers: closure audit323
+
+SEP-01.2 remains open. Work in `/tmp/wc3-separation323` adds public retail
+probes and initially failing engine regressions. The working Avatar implementation
+and checks are described below; no TODO closure is claimed by this audit. Raw captures and source snapshots are in `/tmp/separation323`.
+The accepted binary is still `d51e5680…d8236`.
+
+The direct `688d90` acquire inventory has ten sites. Construction, pause and
+removal already have integrated owners. The remaining sites reduce to the
+following concrete lifecycles, all witnessed by `Separation323f.w3m`:
+
+| Owner | Acquire return | Release return | Public producer |
+| --- | --- | --- | --- |
+| Avatar transition | `4eed28` | `4cde66` | Alias of AHav, entry and buff expiry |
+| Morph transition | `569e78` | `551ffc` | Stock Bear and Raven, forward and reverse |
+| Channel optional disable | `4eec17` | `4cc7cd` | ANcl DataE/`Ncl5` enabled; disabled variant is a control |
+| Item teleport | `4361eb` | `40bf69` | Hero uses Town Portal on an allied Town Hall |
+| Entangle cargo | `562066` | `56110f` | Wisp harvests an entangled mine; mine death returns it |
+| Internal AI scope | `9bd6ea` | three static exits in `9bd6e0` | Campaign AI, configured Captain home and UnitApplyTimedLife |
+
+The AI scene requires `MAP_CONTROL_COMPUTER`; the neutral-controller variants
+complete but do not start the intended private AI producer. A direct public
+order851974 is rejected, and ordinary player Move/Attack completion does not
+establish this AI scope. The first valid configured scene records15 scope
+pairs. The observer reports Frida's tail-transfer return address for the release;
+the original three exit sites are independently enumerated in Ghidra.
+
+The first teleport attempt used a Footman and was rejected. The valid producer
+uses Hpal, stock stwp and UnitUseItemTarget. `unloadall` on an entangled mine did
+not return the Wisp; killing the mine does. Keep these rejected/incomplete
+attempts separate from the successful producer evidence.
+
+Avatar's transition request is one second, independently of its two-second
+authored buff duration. Native `0608d0` receives its delay pointer in stack
+argument0 and event in argument1; ECX is the event-control object. Treating EDX
+as the event silently misses every request. Bear's captured delay is1.45;
+Raven forward0.6 and reverse1.6. Raw scalar clocks and delay words are retained.
+
+The separate Avatar lifecycle probe establishes why a simple boolean hold is
+insufficient: an early buff inverse acquires again and replaces the pending
+transition request. Only the replacement request releases, leaving depth1.
+Pause independently adds a count; the transition timer still fires while paused.
+Stop does not cancel it. Removal during the hold retires the unit with the
+ability contribution still counted. These observations require independent
+timer ownership, exact replacement semantics, and persistence regressions.
+
+Removing the Avatar ability during its transition terminated the exploratory
+observed process. The reordered probe flushed356 markers and observed an
+access violation at RVA161043 (read address74), reached through4ed8b3. It lacks
+the completion marker. The corrected Avatar323c observer-free control also exits after the identical356
+public markers, ending at tick357/scene7, with no completion marker. This confirms
+the terminal producer outside instrumentation; only the observed process supplies
+the fault address. It is not a passing full-map capture. The first control wrote
+a start preload before loading completed and stalled; that run is excluded.
+
+`wc3_avatar.separation323_public_cast_owns_suppression` failed four of
+eight assertions in both Classic and TFT before the implementation below: actual public casting never acquires the count and separation
+remains enabled after both casting and refresh. Setup/admission/buff assertions
+passed. The working implementation below covers the counted owner, timer,
+replacement, inverse and persistence. The other families and strict replay
+remain required for closure.
+
+Ghidra saves and readback name `Avatar_Begin/EndSeparationTransition`,
+`Morph_Begin/EndSeparationTransition`, and `Unit_DispatchAIStopScope`.
+`MapPathfinding.java` carries the same notes. Shared morph RTTI identifies the
+broader family but is not dynamic proof for every subclass.
+
+
+Audit323 repeat/control result: Separation323f observe8/observe9/control3 match675 public markers. The observed runs match1143 rows after dropping only event sequence and allocation identity pairs; all clock words, flags, counters, configuration arguments and timer delays remain compared. These are evidence checks, not an accepted engine corpus entry. The working engine changes below are tested separately; the full engine replay has not been certified.
+
+Morph timing in the same capture: Bear retains its source rawcode through acquisition and changes at completion in both directions. Raven forward is already edtm at acquisition; reverse retains edtm until completion changes to edot. Current engine immediate reverse rebind must be reconciled with this evidence, not hidden by a counter-only fix.
+
+## Working Avatar implementation in audit323
+
+The Avatar pool now retains an independent primary-clock transition request after
+BHav bonuses expire. Every begin acquires a count; replacing an existing request
+cancels only that request. Its eventual callback releases once, refreshes separation,
+and publishes target availability. This preserves the captured early-inverse depth1.
+Death removes the bonuses without starting an inverse transition; the entry timer
+still completes. Unit retirement cancels the request without balancing its old hold.
+Stop and Pause do not cancel the ability request; Pause owns its separate count.
+
+Save192 persists the request deadline, epoch, span, sequence and active bit. The
+indexed Avatar queue rebuilds from the sparse pool and merges with the existing
+primary scheduler. The root checkout remains Save191 until this working change is
+integrated. No client or network contract changed.
+
+Before implementation, public cast fails4/8 assertions and early-inverse/save fails
+5/10. After implementation, Classic and TFT each pass12 Avatar tests/114 assertions,
+including pause, Stop, death, retirement, epoch rebasing and freed-slot reuse. The
+five affected suites (Avatar, repulsion policy, ability lifecycle, spell, save) pass
+813 tests/84707 assertions per edition. Production and test binaries build. This is
+not a full repository sweep or a completed native-row engine replay.
+
+Separation323g authors integer urpo2/urpp17/urpg17/urpr17 on all participating unit
+forms. This closes an evidence gap in the stock-unit probe, whose ground-unit
+repulsion is usually disabled. Enabled observe1/observe3 and control1 match675
+public markers; both observed streams match1143 normalized native rows, including
+actual enabled/disabled configuration calls for all eight unit types. Observe2 was
+terminated at its wall-time limit at tick703 and is excluded. Source maps, captures,
+failed attempts and reports remain in the audit323 working archive.
+
+Remaining after the Avatar and cargo work: implement Morph, Channel, ItemTeleport
+and the AI scope, complete
+interruption/overlap/save coverage, certify exact engine replay against the frozen
+native rows, and add the strict corpus verifier and rejection tests. No new TODO
+has been split off.
+
+
+## Working Entangle Cargo implementation in audit323
+
+Native `562030` acquires only for internal task `d0182`; `5610e0` releases a
+positive count before popping/dispatching that task and the general cargo exit.
+Separation323g observe1/observe3 witness the public Wisp Harvest acquisition at
+tick551 and mine KillUnit inverse at tick579, with depth0→1→0 and enabled
+configuration restored. The following immediate AI scope is a separate owner.
+Ghidra and MapPathfinding name these `EntangleCargo_AcquirePassenger` and
+`EntangleCargo_ReleasePassenger`.
+
+The working engine retains a separation owner per passenger in `cargo_t`,
+acquired only by Aenc and moved with that passenger during slot compaction.
+Unload/removal uses the retained owner, including after a holder type change or
+save/load, rather than looking up the current holder's abilities. The raw pool
+record carries these booleans under the already-working Save192 contract.
+The engine cargo pause flag ends before the release/configuration callback;
+placement and visibility restoration follow. Ordinary cargo does not acquire
+this Entangle Cargo contribution.
+
+The public Harvest/save/mine-death regression failed10 of32 assertions before
+the fix and passes32/32 in Classic and TFT. It also verifies separation remains
+disabled across refresh and the survivor accepts Move after the inverse.
+The removal and ordinary-cargo regression also passes: together these are two
+tests and48 assertions in each edition. Broader validation is recorded below. This is
+working implementation evidence, not a SEP-01.2 closure certificate.
+
+Morph timing-field mapping is now verified in the native AbilityData loader:
+6a74b0 loads rank scalar+8 from `Dur` (key6fce6170→6fb7b250) and scalar+28
+from `DataC` (key6fce6188→6fb7b278), rank stride68. Getters414ff0/414c10 return
+those fields. Morph569e20 computes softfloat `(Dur + ability9c) + extra`, where
+extra is DataC only with flag40000. Stock Raven's0.6 forward and1.6 reverse
+therefore use authored timing. Animation duration must not substitute for this
+request. Bear's observed delay is1.45 in both directions.
+
+
+Audit323 aggregate validation: the full `make test` run exposed two older
+Captain save fixtures that created logical owners on the stack without a bot
+registry entry. The fixtures now use registered Captains and owned rosters;
+production save validation remains unchanged. Their focused regressions pass
+64 and103 assertions in each edition, and both complete affected eight-way
+shards pass472 tests/3,319,763 assertions each. Together with the other fourteen
+completed shards and standalone reports, the cumulative JUnit result is8,840
+tests/37,541,817 assertions, zero failures. The Python component passed2,089
+tests but initially rejected stale source pins before its corpus class ran.
+Refreshing only the nine changed mapper/engine/test source pins lets that
+class pass all37 tests, for2,126 Python tests in total. Frozen retail numeric
+fixtures and all corpus entry contracts remain unchanged. The original umbrella
+exit remains nonzero in the log; passing reruns are recorded separately rather
+than relabeling it as a clean first pass.
+
+### Channel counted admission and follow-through (audit325)
+
+Channel's `DataE` owns two contributions after the public CHANNEL callback and
+before cast windup. `6f4eebb0` subtracts its own disable/order contribution,
+adds a unit-wide contribution to attached abilities, then increments its own
+order contribution and Unit198. Its own execution stays enabled while new
+orders are disabled. `6f4cc780` reverses retained ownership, releases Unit198,
+and ends channel work. The inverse uses the retained bit, not current DataE.
+`6f4eec40` begins work at EFFECT and uses `DataA` for follow-through. DataD is
+its repeating presentation interval, not the cast duration.
+
+The game module uses the ordered spell scheduler for windup/follow-through.
+Concrete ability availability records retain and save exclusive ownership;
+scripted pause has its own counted contribution. `A_CAST_BEGIN`/`A_CAST_END`
+connect the concrete Channel owner to that scheduler. Availability callbacks
+cancel only the matching active cast, preserving a sibling's outer callback
+continuation. A per-unit suppression code cannot represent this nesting.
+
+DataE0 permits Stop/Move/recast interruption. DataE1 rejects new Move/recast
+orders, but Stop is accepted and retained while the cast's deadline continues.
+A short pause/unpause also preserves the cast. If pause lasts past completion,
+Channel releases its hold, then physical pause acquires its own hold. This is
+shared positive-Unit198 order retention, not a special Channel order exception.
+Target Move now uses the same counted availability validator as point Move;
+it previously bypassed this gate.
+
+`6f437310` (Channel v22c) intercepts its own public order before channel work
+while ability20 bit1000 is set. A same-order request from CHANNEL is accepted
+without a second CHANNEL callback or acquisition. A different Channel alias
+begins a nested cast; the outer continuation's disable walk cancels that nested
+owner before acquiring the outer separation hold. Stop from CHANNEL cancels
+the active cast, but the original begin stack still acquires afterward; its
+inactive finish does not release that hold. Preserve this native retained count.
+
+`6f4da0d0` fixes the order from DataF1 even at higher ranks, defaulting to
+channel852600 for absent/unregistered names. DataB is rank-based and selects
+none/unit/point/unit-or-point. SLK/W3A strings retain their text in addition to
+numeric/FourCC views. `6f487cb0` registers337 literal name/ID pairs: all86
+existing engine overlaps matched, and `g_order_names.inc` supplies the251
+missing names without inventing command owners. Tests use literal
+thunderclap852096/channel852600/berserk852100, including a W3A Ncl6 override.
+
+Read-only repeats and observer-free controls are archived under
+`research/SEP-01.2/channel325-working`. Repeats remove only the sequence field
+and retain clock words, identities and states; controller/module records are
+outside the comparison.
+
+| Probe | Exact repeated native/marker rows | Exact control markers |
+| --- | ---: | ---: |
+| DataE0/1 lifecycle: completion, Stop/Move, pause, death/removal, recast | 1596 | 922 |
+| Pause retained past completion | 1607 | 922 |
+| CHANNEL/CAST/EFFECT/FINISH callbacks: Stop/same-order | 664 | 378 |
+| Same callbacks with a different Channel alias | 673 | 378 |
+
+The first no-hook attempt stalled at the initial preload marker and is excluded.
+The capture controller now waits for a positive probe tick before treating a
+preload file as evidence that loading continued. Failed attempts, maps, exact
+source versions, hashes and native order extraction are retained.
+
+Failing-first regressions exposed missing windup ownership (6 failures), order
+admission (3), retained Stop/pause (8), alias target/order profiles (12), two
+nested-callback assertion aborts, and target-Move admission (7). The final four
+Channel tests pass200 assertions in each of Classic and TFT, covering cold
+save/load, authored strings, callbacks, count inverses and death/removal.
+The full run passed all2126 Python tests. Its24 C JUnit reports contain8224
+tests and37,517,700 assertions, with one failing test in each edition: the older
+Attack306 fixture directly invoked private Attack think immediately after
+unpause, bypassing the production scheduler's physical-pause guard. That call
+discarded the pending inverse; the new counted Stop gate exposed the retained
+hold. The fixture now checks production `monster_think` stays gated, advances
+the release timer, then verifies chase restart and Stop cleanup. The corrected Attack306 case passes300 assertions in each edition; Channel
+passes200 and the34 pause tests pass7345, also in each edition. Current-source pins include the
+new order-name include and Channel source/test; frozen retail numeric fixtures
+are unchanged.
+
+SEP-01.2 remains open for Morph, Item Teleport, AI and final combined parity
+replay. These implementation checks are not a closure certificate.
+
+
+### Morph interruption evidence (audit326, implementation pending)
+
+`Morph326.w3m` covers Bear/Raven, forward and preplaced-alternate reverse, with
+natural completion, Stop, pause past completion and death before completion.
+Two read-only runs agree in1213 native/marker rows after removing only sequence;
+the no-hook control agrees in all658 public markers. Evidence and exact source
+snapshots are archived under `research/SEP-01.2/morph326-working`.
+
+Stop is accepted while the morph order and timer remain current. Public pause
+is visible immediately, but physical pause acquires its hold after the morph
+inverse and type rebind. Death before the deadline retains the morph count and
+source type; removal adds and releases its own separate contribution. A
+preplaced alternate form's construction takes the immediate/dead-flag branch
+without acquiring this timed hold.
+
+Stock War3x AbilityData has Abrf Dur1=1.45, DataC1=0; Arav/Amrf Dur1=0.6,
+DataC1=1. These explain the captured1.45/0.6/1.6 requests. Do not add unit cast
+point: native ability9c is a separate duration extension. `407740`/`40bba0`
+only increment/decrement ability44 and refresh on first/last transitions;
+they are not Channel's all-owner exclusive availability walk. The working
+Bear/Raven implementation below covers the timed owner; other Morph subclasses
+are not claimed by these captures.
+
+The working engine now has a sparse, saved Morph primary-timer owner for
+Bear/Raven transitions. The regression uses non-stock Dur=.375 and landing
+DataC=.625 with both RoC and TFT field names, both directions, retained
+Stop/Move, pending pause, death and cold save/load. Its first lifecycle run
+failed16 of912 assertions, all from Move replacing the active transition;
+point admission now uses the shared counted-execution hold. All912 lifecycle
+assertions then passed. These working results do not close SEP-01.2.
+
+Morph326remove adds16 natural/ability-removal/removal+Move/unit-removal scenes.
+Two complete observed streams match1171 rows, dropping only seq; the no-hook
+control matches658 public markers. `540e30` cancels the requests, invokes
+`551f70` for the active transition, then reverses immediately through the80000
+branch to restore the base type. This balances the active hold and admits a
+subsequent Move immediately. Unit retirement follows the separate retained-count
+path. The public removal regression failed34/1072 assertions before the fix.
+The new removal branch stores the original base type with the saved transition
+and performs the inverse through the concrete owner. Ghidra and the mapper retain
+this distinction. Evidence lives in `morph326-working/removal`.
+
+After the ability-removal fix, the full wc3_unit suite passes137 tests/13906
+assertions in each edition. Existing Raven fixtures now use an actual flight
+endpoint and advance the primary timer before checking completion or reversing;
+an active same-form recast is rejected. The two ascent tests check that Move
+waits for the morph timer and that ascent survives the subsequent Move. A bare
+animation-end callback cannot complete the ability timer. Death's existing
+unit_die path clears AI_HOLD_FRAME before installing its death move. The saved
+Morph owner includes its base type so ability removal can restore it after cold
+load. Broader affected-suite verification and other counted producers remain.
+
+The target-order extension first failed18/1229 assertions: target Move replaced
+the transition, and removing an inactive base-form ability canceled Move. Target
+admission now retains its validated entity/point packet under the same counted
+hold as point orders. Inactive removal no longer calls stand; the active inverse
+already owns completion. The target fixture must flag its target SVF_MONSTER so
+queued dispatch treats it as a unit, as CreateUnit does. Final wc3_unit checks pass
+138 tests/14071 assertions per edition. The earlier affected suites also passed;
+the full movement sweep passes643 tests/7942439 assertions per edition for
+the target-admission change.
+
+## ItemTeleport working audit327
+
+The exact1.27 RTTI tables are AIte6fad1418 and AItp6fad1868, not the addresses in
+the separate TFT class inventory. Slots384/388 select435f10/40be30. Begin exempts
+self and Inventory Unit1f0 before the all-owner disable walk and acquires198;
+inverse releases198 and reverses the availability contributions. Common44 and
+protection have additional paired ownership and must not be omitted.
+
+Teleport327c exercises natural completion, early/late Stop, Move, pause, death,
+item removal, target removal, caster removal and reissue. Two complete captures match1470 native/marker rows exactly after dropping
+only seq, and1014 observer-free public markers. Stop is accepted but retained, Move rejected, and a pending pause
+constructs its physical owner after inverse. Death/item removal invoke inverse
+synchronously; target removal does so on the next update. Removing the target
+after caster retirement triggers original437544 read314 in both observed
+and observer-free runs. Preserve the two incomplete exploratory runs separately;
+the corrected probe leaves that retired caster's destination alive. No engine
+ItemTeleport implementation is claimed yet.
+
+Morph326target confirms entity-target Move independently of point Move: two
+complete repeated streams match1353 exact rows after seq removal only, and the
+no-hook control matches654 markers. The active morph head remains until its
+timer inverse; the retained target Move activates afterward. This backs the
+shared target-admission fix above. Evidence is in `morph326-working/target`;
+Ghidra569e20 and the mapper retain the result.
+
+Effective data resolves the apparent timing discrepancy: War3Patch.mpq's
+`Units\\AbilityData.slk` overrides AItp Cast1 to5 (Area1100, DataA90, DataB1).
+Base war3.mpq has Cast0/Area900 and War3x.mpq Cast3/Area1100; neither is the
+live effective row. The patch row and Ghidra decompilations are archived with
+the complete capture. Native begin/end clocks are0.5999994278/5.599832535 on
+the primary scalar clock. The entry-point/owner timing still needs a public
+engine regression and implementation; no hardcoded five-second fallback.
+
+Engine audit327 checkpoint (not a TODO closure): the actual UI path `G_UseItem`
+then `G_ClientCommand select` first failed9/14 assertions with AItp absent.
+The first ordered-spell implementation passes14/14: authored non-stock Cast=.375,
+item-slot order852008, acquire198, retained Stop, rejected Move, inverse,
+charge consumption and caster relocation. It retains the initiating item identity
+in cast-owner messages and uses that identity for item-removal cancellation.
+The availability record saves its exempt Inventory rawcode alongside the
+exclusive-owner bit. Channel's different trailing own-order increment is unchanged.
+Lifecycle/save regressions are being added. Protection/common44, destination and
+passenger fidelity, target-loss scheduling and final regression validation remain
+unfinished; this checkpoint must not be cited as full ItemTeleport parity.
+
+Further static evidence: AItp slot438 resolves3f6590. Passenger selection records
+Hero status, level, wrapped integer squared3D distance and owner equality before
+sorting; it is not justified to copy Mass Teleport's plain edict-order truncation.
+Destination validation3ff000 wraps3fef60: rejects movement categories10 and deep-water20,
+requires the caster's Move owner, and uses shared-spell permission before the
+248/40 and5c/02000000 checks.40d4a0 chooses the closest valid destination by squared
+2D distance.40ae70 passes placement through439490/3f9c10 before relocating;
+exact placement remains separate from the counted-owner checkpoint.
+
+Target-loss timing is now narrower than “next update”: AItp event dispatcher
+424370 routes d01a4 to4374f0. Invalid/dead/invisible/relocating targets unsubscribe,
+then406bf0 schedules d01bd using Chaos_CommitDelay (cd53a4). The complete scene7
+capture retains the removal marker at primary bits1116680862 and inverse at
+1116682172, two primary quanta later. Use a scheduled failed completion, not
+monster_think polling and not the original successful-cast deadline. The engine
+lifecycle fixture also needs its player client pointers restored after
+reset_entities; its first crash was a NULL player at UI selection, before any
+lifecycle action, not evidence of a production removal crash.
+
+The revised public lifecycle test passes122/124 assertions before target-loss
+implementation; only the target hold/inverse remains. Replacing the coarse
+update assertion with the frozen two-quantum deadline produces123/126, including
+an explicit deadline failure. The implementation adds a failed-finish phase to
+the existing saved spell continuation, with a concrete profile opt-in. It does
+not apply the policy to Channel or other spell families. Verification is pending.
+
+Verified engine327 checkpoint: three public ItemTeleport tests pass145/145
+assertions in both classic and TFT. The corrected target case uses
+G_DeferFreeEdict (the semantic RemoveUnit boundary), not G_FreeEdict (storage
+reclamation). Its failing baseline plus the protection regression reports
+140/145 before the target-loss handler/protection fix. The inverse restores both
+availability and198 at the frozen two-quantum deadline. Death/item removal,
+pending pause, cold save during a pending pause, duplicate-item removal and
+same-item reissue pass through real dispatch. Damage/spell protection uses
+separate signed counters; scripted invulnerability remains a separate boolean,
+and is preserved if set during the cast. Shared damage, targeting, aura and HUD
+consumers query effective invulnerability. Spell immunity includes the counted
+contribution. Protection counters and the Inventory exemption are in Save192;
+no network layout changed. Negative-buff removal and common44 presentation,
+full destination/payload policy and broader target-loss producers remain open.
+Full item suites and final matrix have not yet been reported green.
+
+ItemTeleport payload corrections from the actual call arguments:408bb3 invokes
+047710 as `Misc/TownPortalCluster`, default0, then tests authored DataB. It is a
+configuration lookup, not an edition gate. Movement category10 is FLOAT,
+category20 is AMPH; neither should be labeled FLY. The capped list comparator
+3fb3c0 prefers owner equality, Heroes, higher level, shorter wrapped squared3D
+distance, then descending native identity. The engine payload now collects
+eligible own units before relocating the caster and uses the committed caster
+position for the nonclustered translation. Engine tie-breaking and placement
+are existing engine mechanisms; exact native placement and wider candidate
+filters have not been certified by this checkpoint.
+
+The fourth engine test adds capped passenger selection and save/load after
+semantic target removal followed by actual storage reclamation. After correcting
+fixture event draining (pending earlier actions cannot retain freed source
+identities into a save), all four pass213/213 in both editions. Native48b890's
+buff cleanup is positive AND negative magic (physical0, magic1, timed-life0,
+aura0, auto-dispel0, positive1, negative1), not just negative buffs. A follow-up
+regression first fails215/217. The policy-driven cleanup removes Slow; Inner Fire
+still lacks its applying-owner classification and is being corrected.
+
+Audit327 affected-suite checkpoint: the five public ItemTeleport regressions pass
+229/229 assertions in both Classic and TFT. Full affected suites per edition:
+items92/1215, spell512/15660, combat197/4693, Channel4/200, save219/67902
+(tests/assertions). Reports are archived under
+`research/SEP-01.2/teleport327-working/engine-checkpoint`. These checks cover
+invalid Town Hall destinations, both magical buff polarities, independent protection
+ownership, passengers, interruption and cold-save completion. They do not certify
+all native placement/candidate policies or close SEP-01.2.
+
+Audit328 AI scope correction: the enabled323 captures contain fifteen scope pairs,
+including immediate creation of computer-owned units before StartCampaignAI, not
+only the timed-life scene. At scene7 the same unit also receives two successive
+pairs at tick634 and two at648. The internal d0006 dispatcher owns this scope;
+Town enrollment alone is not its producer. `9cd390` routes a retained Captain
+member to `9d8a90` and otherwise dispatches resource/Town work. Preserve the
+creation and subsequent task-completion boundaries when integrating this owner.
+
+Audit328 read-only backtrace repeats finish with720 identical marker/scope/stack
+rows after dropping only sequence; all675 public markers equal the existing
+observer-free `payoff323-working/evidence/enabled-control1-preload.txt`. Archive:
+`research/SEP-01.2/ai328-working`. Creation runs through `9b9230 -> 693450`
+before enabling ability AI mode. Tick579 Wisp return reaches append through
+`5ae888`; tick634 timed-life application reaches Town reenrollment and then a
+second append through `6106a2`. Tick648 physical completion first dispatches
+a queued AI task through `5fa931`, then admits another via `60330e -> 6802f0`.
+These distinct pairs must not collapse into one whole-function enrollment hold.
+The new public computer/human creation regression fails1/8 assertions before
+the engine dispatcher; final count zero alone previously hid the missing pair.
+
+Audit328 engine checkpoint: `G_BotDispatchAIStop` owns the counted scope after
+Town registration and during temporary-Captain dispatch. Temporary reassignment
+retires the previous order before acquiring198; same-Captain duplicate applications
+return before dispatch. The creation regression failed1/8; disabled-policy
+detachment failed1/25. Both now pass, including enabled separation configuration
+during creation. Full policy11/604 and bot122/1991 tests/assertions pass in each
+edition. The full repository suite is pending. No new saved field or wire change
+is involved. Broader Town-role re-enrollment, cargo return and physical-completion
+AI producers remain required; the dispatcher does not certify them merely because
+its acquire/release helper is shared.
+
+Morph-family data audit330: the accepted patch separates normal `Dur` (transition)
+from `HeroDur` (form lifetime). AEme authors1.5/60; ANcr .35/15; ANrg1.5/0.
+Aave authors Cast1/Dur1.1/DataC1; Astn Cast.7/Dur.5/DataC.5; Abur Dur1.45;
+Acpf/Aetf Dur.7; Aphx Cast.7/Dur.5/HeroDur10/DataC.5. All these rows author
+base rawcode in DataA and alternate rawcode in UnitID. `569e20` still adds
+ability9c and conditional landing DataC; shared RTTI does not establish subclass
+entry timing or prove those producers integrated. Existing generic Metamorphosis
+uses HeroDur for expiry but currently skips the transition; Stone Form also
+rebinds immediately. These remain open in the counted-owner audit.
+
+Cargo return audit329: complete computer repeats agree on1,229 read-only rows,
+including fifteen AI scopes; human repeats agree on964 rows with no AI scopes.
+Both match675 public markers from their observer-free controls. The human map
+changes only Player0's controller in frozen Separation323g; the checked builder
+reproduces its exact archive hash. Evidence: `research/SEP-01.2/cargo329-working`.
+The observed Wisp-return virtual31c is `5803c0`; virtual320 for dead passengers
+is empty. The live handler replaces orders, then computer-controlled units append
+AI only when `9d04a0` does not recenter their retained attack Captain. That separate
+branch requires the active world lifecycle, matching Town/Captain membership and
+at least500 committed world units of separation. It remains a static finding,
+not covered by these basic cargo captures. Engine cargo-return integration is pending.
+
+Audit329 distant-Captain witness: `Cargo329assault` recruits the Wisp through
+`AddAssault` before its public Harvest order. Mine destruction reaches `9d04a0`
+at tick579 and returns1, suppressing the ordinary AI append after cargo's inverse.
+Two complete repeats match1,222 rows with only sequence-number normalization;
+all678 public markers match the observer-free control. Archive:
+`cargo329-working/assault`. The earlier timed-life experiment rejected Harvest
+and is excluded. Its leftover `temporary-captain` marker is merely a label in
+the successful map; the Wisp has no timed-life application there. These captures
+prove the return branch, not every member-update policy inside `9d16c0`.
+
+Full-suite guard regression: model registration exposed idle Stand animation
+loops calling the task-completion entry point repeatedly. A neutral creep's
+five-second guard-return timer was consequently restarted by every one-second
+Stand loop. The rooted-return fixture now loads `anim_pulse.mdx` explicitly;
+it fails the actual arrival assertions before the fix. Stand and Stand Ready
+now loop through a presentation callback, preserving combat-dependent animation
+selection without emitting task completion or `A_UNIT_STAND`. Both editions
+pass the order-lifecycle73/16074, unit138/14071, combat197/4693 and bot122/1991
+suites; the previously failing full shards each pass947/3999492. Full repository
+validation after this correction remains required.
+
+Audit329 placement detail: two additional read-only captures match1,230 rows
+and the same678 observer-free markers. The return queries Captain `(512,1024)`
+and passenger `(1552,816)`; `653510` requests the latter but admits `(1584,784)`.
+The engine regression must check placement admission, not exact passenger overlap.
+Initial engine changes restore live-passenger Stop cleanup and the private AI
+scope, or retain/relocate the logical attack Captain and update ordinary shared
+member orders. Broader retreat/follow-target/centroid member policies remain
+outside the basic captured branch; this is not complete `9d16c0` parity.
+
+Audit330 Morph-family coverage: `morph330_make_map.py` derives Morph330c from
+frozen Separation323g (map SHA256
+`f61c2b0c627c240c38dca2b1042f47de98ae81e5897100fdcfe6298eaa56a7ee`).
+Two complete captures agree on all826 native/marker rows through scene5
+(tick538), and on1,115 relevant state/event rows across the full survey; all730
+public markers match the observer-free control. Scenes0–6 cover Metamorphosis,
+Chemical Rage, Robo-Goblin, Avenger, Stone Form, Burrow and Corporeal Form.
+Raw native equality differs first at tick551 in the additional `d01c4` producer
+at caller `6d81b8`. Saved Ghidra `Effect_ScheduleDeathRequest` (`6d8100`)
+identifies virtual8c/`EffectDeathTime` and a separate event-clock flag: this is
+a presentation-effect owner, not Morph. The verifier excludes that identified
+producer, preserves raw captures, and removes only seq from compared rows. Scene7's Aetf/removed-Acpf composition changes the
+starting endpoint and is not a standalone Ethereal Form contract. Evidence is
+in `SEP-01.2/morph330-working`; do not describe this as an all-family pass.
+
+Metamorphosis and Chemical Rage use normal Dur for both counted transitions;
+overridden HeroDur2.5 starts only after the forward type completion. Saved
+Ghidra `Morph_CompleteForwardAndScheduleLifetime` (`552120`) schedules `d01db`
+after subclass completion and Hero refresh. The engine now retains distinct
+primary transition and expiration requests in `morph_t`, serialized by
+`morph_fields` and rebuilt into the indexed morph heap. Form lifetime contributes
+no suppression. Expiration calls the concrete form owner to start the reverse;
+MDX completion cannot release the transition. The initial Metamorphosis
+regression failed38/134 assertions before implementation, then passed152/152
+in each edition, including both SLK schemas, Stop and saved form lifetime.
+Chemical Rage's missing public-order mapping failed50/286 in the expanded
+regression. The mapping now belongs to `m_unit.c`; both game targets explicitly
+depend on the remaining canonical `g_order_names.inc`. Final combined tests
+pass304/304 in each edition, full unit suites139/14375 and save suites219/67902.
+Other Morph families and broader interruption compositions still require
+engine integration/verification. The earlier cargo/idle-Stand implementation
+passed full movement suites645/7942478 in both editions before this Morph
+change; its build-source hashes and reports are archived separately.
+
+Probe pitfalls: a computer player autonomously reverses Stone Form and Burrow;
+use a human controller for isolated orders. Avenger Form requires resources in
+addition to its `avengerform` order and research. Do not flush the preload file
+at the pre-loading `start` marker: the observer-free runner mistakes that file
+for a running map and stops sending the loading-screen continue key. Morph330c
+flushes only subsequent markers. The earlier A/B maps are exploratory.
+
+Audit331 extends the common transition owner to Burrow and Robo-Goblin.
+`Morph331.w3m` (SHA256
+`e114a751a88a254e32436f57f3ec883691a1d9420526888977869cc0c970ba7b`)
+exercises each direction with natural completion, Stop and scripted pause.
+Two complete captures match858 native/marker rows; the category-instrumented
+repeats match903 rows. Both match500 observer-free public markers. Only seq is
+removed from compared events; module bases/controller metadata are excluded.
+The archive is `SEP-01.2/morph331-working`.
+
+Both forms retain their source type through normal Dur, with one counted
+suppression contribution. Stop is retained until completion. Pause waits for
+the morph inverse, then acquires its own physical suspension contribution;
+unpause releases that contribution. The funded Robo-Goblin forward order is
+accepted: the earlier underfunded exploratory map's false return is not a
+successful-order quirk.
+
+`CAbilityGroundMorph` owns endpoint/alias resolution, directional orders,
+transition animations and the common timer. Robo-Goblin retains its
+`CAbilityMetamorphosis` registration and delegates to the shared implementation,
+so existing AI conversion discovery still recognizes it. Burrow no longer
+incorrectly registers as natural creep sleep; `ACsp` retains that innate owner.
+
+Burrow changes fine occupancy, not its query. Saved Ghidra
+`AbilityBurrow_PublishCollisionFlag` (`4eddf0`, CAbilityBurrow vtable+f4) passes
+Unit20 bit26 and literal keepBuild0 to `4ba8d0`. Forward completion rebinds ucrm,
+then category ca becomes c8. Unburrow restores ca while still ucrm, before the
+delayed ucry rebind. `morph_t.category_clear/category_set` retain the game-owned
+publication and feed the existing fine-world category adapter; completed base
+rebind/removal restore the authored profile. These fields are serialized with
+both morph timers. Failing-first regression:192/520 assertions failed on the
+old engine. Final regression passes574/574 in each edition, including saved completed
+Burrow category and retained Robo-Goblin AI discovery. Affected suites pass in
+both editions: unit140/14949, bot122/1991, save219/67902, object categories8/321,
+fine spatial19/6476, combat197/4693 and effects3/32. Full repository/DEBUG
+validation and the remaining Morph producers are still required.
+
+
+### Audit332: Stone Form and Avenger Form
+
+`morph332_probe.j` builds from the frozen Separation323g archive through
+`morph330_make_map.py --probe`. Two complete read-only captures match783
+state/event/marker rows exactly after dropping only sequence numbers; all495
+public markers match the no-hook control. No timer/clock exclusions apply.
+Map SHA256 `9ee6af091bf10b498955d1a13e867116c223a984ffa16231aa4b75ead88ae83e`;
+evidence is `research/SEP-01.2/morph332-working`, including `verify332.py`.
+
+Stone landing keeps ugar through acquisition and releases after1.0s before the
+ugrm rebind. Unstone takes off/rebinds ugar before acquiring, with a.5s request.
+Avenger rebinds ubsp before acquiring and schedules1.1s. Each direction has
+natural, Stop and scripted-pause witnesses. Pending pause's physical contribution
+begins after the morph inverse. Ghidra's shared begin/end/landing/takeoff notes
+are saved; `MapPathfinding.java` records this witness.
+
+`CAbilityStoneForm` and the delegated `CAbilityAvengerForm` use the shared
+primary transition; `S_PrepareMorphFlight` shares profile publication with
+Raven/Bear. `CAbilityMorphTransition` now owns sparse ascent updates independently
+of the destination ability list. AI still sees Avenger's Metamorphosis identity.
+The new custom-data/schema/order/pause/save regression failed134/394 before the
+fix. Complete unit suite141/15379 passes in each edition, including existing
+Raven ascent and Stone subgroup/direction tests. Flight-height trajectories,
+blocked landing placement and other Morph-family producers are not certified
+by these traces. See [Stone Form](stone-form.md) for the engine contract.
+
+
+### Audit333: Corporeal/Ethereal producer evidence (integration pending)
+
+The retained morph aliases use opposite authored endpoints: Acpf ospm→ospw,
+Aetf ospw→ospm. Both directions schedule normal Dur.7 through569e20; the type
+rebind is deferred until after the separation inverse. Natural, Stop and pause
+scenes repeat894 relevant state/event/marker rows, with500 no-hook public markers.
+The raw captures retain twelve presentation-effect timer requests from6d81b8;
+their frame-clock timing differs between repeats and is excluded from the morph
+comparison under the already identified6d8100 `Effect_ScheduleDeathRequest`.
+No primary morph clock or Unit158/198 value is normalized.
+
+`morph333_probe.j` makes the added ability permanent and the builder's optional
+`--empty-ability-units ospm ospw` removes built-in partner abilities from both
+endpoints. This is a public authored-data/UnitMakeAbilityPermanent witness, not
+an unmodified stock-unit claim. Without permanence, the rebind removes the
+added ability and immediately restores its base form; with the built-in partner
+present, its own removal/inverse also interferes. Earlier333/333b exploratory
+captures retain those outcomes and must not stand in for isolated form evidence.
+Final map SHA256 `ed3594fb40bdcdf876e6091a5191fe85757d061278148a51bb0c0fa291500283`;
+archive `research/SEP-01.2/morph333-working`, checked by `verify333.py`.
+
+Unit158 is the ethereal contribution, separate from separation Unit198.
+`CAbilityEthereal` vtable6fb536a8 calls48b7f0 from init80=5e7290 and48ec80
+from detach a4=5c5910. Ghidra now names those `Unit_AcquireEthereal` and
+`Unit_ReleaseEthereal`. Corporeal vtable6fb53e54+40c=5d3b00 releases ethereal
+on forward completion; inverse414=5d3ac0 acquires it. Ethereal vtable6fb53a04
++40c=5d3b30 acquires it; inverse414=5d3ae0 releases it. The first positive/zero
+edges own availability, target-lost/available and appearance updates. New mapper
+rows preserve these findings. Engine333 regression/implementation is pending;
+its state tests must cover the ethereal gameplay gate as well as type and timer.
+
+
+### Audit334: permanent morph removal
+
+`Morph_InitializeAuthoredFlags` (55d380) converts DataB with the original
+software integer helper. Bit8 sets ability02000000, which makes540e30 cancel
+requests without running the transition inverse or restoring the base type.
+This flag is separate from `UnitMakeAbilityPermanent`, which retains an ability
+across type rebinds. The other raw mappings are2→400000,4→800000,1→200000,
+10→4000000; these mappings alone do not certify every option's downstream effect.
+
+`morph334_probe.j` witnesses early/late removal and early death for Stone/Avenger.
+Two complete repeats match408 state/event/marker rows exactly after dropping
+only sequence; all248 public markers equal the no-hook control. Map SHA256
+`1c7e3fb9945c7e2f2d746f1c6f33daff9033ce7c0a15f31ca4767c8574e5b823`, archive
+`research/SEP-01.2/morph334-working`. The initial map used reserved JASS keyword
+`code` as a local name and never reached its start marker; only corrected334b
+is evidence. Stock Avenger (DataB31) early removal keeps ubsp and its counted
+suppression contribution, with no later inverse. Normal completion removes Aave
+itself, so a later public removal rejects. Stone early/late removal restoresugar;
+early death retains the current type and suppression contribution for both.
+
+The common morph owner now reads the authored permanent flag. Early removal
+cancels its request while preserving the counted contribution and the current
+type. Completed permanent forms retire their ability when no form-lifetime
+request remains. Independent height movement survives that removal; removing
+an inactive ability does not replace an unrelated order. The new custom-endpoint,
+both-schema, flag-on/off, removal/death/cold-save regression initially failed
+28 of416 assertions. The expanded regression passes468/468, including inactive
+removal preserving Move and permanent ability retirement preserving independent
+ascent. Unit142/15847, spell512/15662, ability lifecycle60/449 and save219/67902
+pass in both editions. The updated routing/AI/build DEBUG configuration also
+passes unit142/15847, spell512/15662 and ability lifecycle60/449 in both editions.
+
+Baseline validation through332: all eight WC3 full-suite shards pass
+(3,793 tests/18,753,219 assertions per edition). The repository run returned
+exit2 because CorpusTests read a map-builder source during its hash update;
+all other2,089 Python tests ran, with that one setup error. After pins stabilized,
+the37 corpus tests pass. Routing/AI/build DEBUG configurations pass both editions:
+unit141/15379, bot122/1991, movement645/7942478, order-lifecycle73/16074.
+Logs and all JUnit reports are in `morph332-working/full-validation`. This
+baseline predates334, whose separate build lives under `build/morph334`.
+
+### Integration checkpoint334
+
+The root checkout integrates the verified 323–334 engine changes with Save192:
+counted ability availability/separation, Channel follow-through, item-owned Town
+Portal work, AI Stop/cargo handoff, and timed ground/flight morph transitions.
+The network format is unchanged; logic and saved ownership remain in the game
+module. Earlier saves are rejected by the existing strict version gate.
+
+Root Classic and TFT each pass 1,892 affected tests/8,062,536 assertions across
+unit, spell, ability lifecycle, save, bot, Channel, repulsion policy, items,
+Avatar, order lifecycle and the complete 645-test movement suite. The Captain
+enrollment and timed-life tests belong to `wc3_bot` and `wc3_movement`; a
+rejected zero-test filename-shaped filter is retained in the logs, not counted.
+Routing/AI/build DEBUG passes 714 unit/spell/lifecycle tests per edition; the
+unused debug-only path-texture printer was removed and the warning-free build
+passes the 142-test unit suite again. SC2 and WoW production builds also pass.
+
+The 37 corpus checks and 12 exclusion-assignment checks pass. All 559 pre-existing
+corpus entry contracts remain unchanged; 2,321 indexed fixture hashes match.
+The assignment checker is named `audit_wc3_pathing_exclusion_owners.py` because
+the `verify_wc3_pathing_` prefix is reserved for executable native-oracle entries.
+Root logs and indexed source evidence are archived in `research/SEP-01.2/root334`.
+The earlier full 332 checkpoint and its original umbrella exit 2/setup-race
+correction remain described above; this is focused final 334 verification.
+
+SEP-01.2 stays open for the documented remaining producers and compositions.
+In particular,333 Corporeal/Ethereal findings are native evidence only, not an
+implemented engine family. BASE-03.3 is independently closed by the
+[exclusion assignment audit](retail-pathfinding-exclusion-owners.md).

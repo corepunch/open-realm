@@ -10,44 +10,47 @@ static bool stone_form_types(uint32_t code, uint32_t *base, uint32_t *stone) {
     return true;
 }
 
-static bool stone_form_order(edict_t *unit, cstring_t order, uint32_t code) {
-    uint32_t base, stone, target;
-    if (!unit || !order || !stone_form_types(code, &base, &stone)) return false;
-    if (!strcmp(order, "unstoneform")) {
-        if (unit->class_id != stone) return false;
-        target = base;
-    } else if (!strcmp(order, "stoneform")) {
-        if (unit->class_id != base) return false;
-        target = stone;
-    } else return false;
-    if (!G_TransformUnitType(unit, target)) return false;
-    /* Gargoyle Stone Form keeps the Gargoyle model and selects its authored
-     * Alternate animation set for the statue presentation.  The alternate
-     * unit type supplies gameplay stats; the model tag supplies the visible
-     * stone form, matching Warcraft's Required Animation Names behavior. */
-    G_AddUnitAnimationProperties(unit, "alternate", target == stone);
-    S_SetMoveGoal(unit, &unit->goalentity, NULL);
-    S_SetMoveGoal(unit, &unit->secondarygoal, NULL);
-    move_reset_progress(unit);
-    unit_stand(unit);
+static void stone_form_animation_end(edict_t *unit) {
+    if(!S_HoldMorphAnimation(unit))unit_stand(unit);
+}
+static umove_t stone_form_forward={"morph",NULL,stone_form_animation_end,CAbilityStoneForm};
+static umove_t stone_form_reverse={"morph alternate",NULL,stone_form_animation_end,CAbilityStoneForm};
+static umove_t avenger_form_forward={"morph",NULL,stone_form_animation_end,CAbilityMetamorphosis};
+
+static bool flight_form_begin(edict_t *unit,uint32_t code,uint32_t base,uint32_t target,
+                              bool reverse,umove_t *move,cstring_t order) {
+    abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(unit,code));
+    bool takeoff,landing;
+    order_stop_cleanup(unit);
+    if(!S_PrepareMorphFlight(unit,target,data,&takeoff,&landing))return false;
+    unit_setmove(unit,move);
+    unit->current_order_id=G_OrderId(order);
+    S_BeginMorphTransition(unit,code,base,target,reverse,!takeoff,
+        wc3_add(data->dur,landing ? data->data[2].number : 0));
     return true;
 }
 
 static bool stone_form_can_transform(edict_t const *unit, uint32_t code) {
     uint32_t base, stone;
-    return unit && stone_form_types(code, &base, &stone) &&
+    return unit && !(unit->morph && unit->morph->transition.active) && stone_form_types(code, &base, &stone) &&
            (unit->class_id == base || unit->class_id == stone);
 }
 
 static bool stone_form_execute(edict_t *unit, uint32_t code) {
     uint32_t base, stone;
     if (!unit || !stone_form_types(code, &base, &stone)) return false;
-    return stone_form_order(unit, unit->class_id == base ? "stoneform" : "unstoneform", code);
+    bool reverse=unit->class_id==stone;
+    return flight_form_begin(unit,code,base,reverse ? base : stone,reverse,
+        reverse ? &stone_form_reverse : &stone_form_forward,stone_form_orders[reverse ? 1 : 0]);
 }
 
 BZ_ABILITY_PROC(CAbilityStoneForm) {
     uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
+    case A_DISABLE:S_RemoveMorphAbility(ent,code);return true;
+    case A_MORPH_COMPLETE:
+        G_AddUnitAnimationProperties(ent,"alternate",!call->enabled);
+        S_BeginMorphRise(ent);unit_stand(ent);return true;
     case A_COMMAND: {
         gameClient_t *client;
         uint32_t subgroup_class;
@@ -55,9 +58,8 @@ BZ_ABILITY_PROC(CAbilityStoneForm) {
 
         if (!ent || !call || !call->client || !(client = call->client->client)) return false;
         subgroup_class = ent->class_id;
-        /* Stone Form is an immediate subgroup command in Warcraft. Capture the
-         * focused type before transforming the first Gargoyle because the same
-         * edict changes class_id during G_TransformUnitType(). */
+        /* Capture the focused subgroup before casting: takeoff rebinds the
+         * first member immediately while landing keeps its source type. */
         FOR_CONTROLLABLE_SELECTED_UNITS(client, unit) {
             if (unit->class_id != subgroup_class || !G_UnitAbilityLevel(unit, code)) continue;
             if (S_CastNoTargetSpell(unit, code)) executed = true;
@@ -86,5 +88,28 @@ BZ_ABILITY_PROC(CAbilityStoneForm) {
         return call && call->item && stone_form_execute(ent, code);
     default:
         return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
+/* Destroyer Form is a one-way conversion, retaining the AI conversion owner. */
+BZ_ABILITY_PROC(CAbilityAvengerForm) {
+    if(!call || !call->item)return false;
+    uint32_t code=call->item->code;
+    abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(ent,code));
+    switch(msg) {
+    case A_ORDER: {
+        if(!ent || !call->order || strcmp(call->order,"avengerform"))return false;
+        abilityAliasRef_t ref=S_ResolveAbilityAlias(ent,MAKEFOURCC('A','a','v','e'));
+        return ref.alias && S_CastNoTargetSpell(ent,ref.alias);
+    }
+    case A_VALIDATE:
+        return ent && data->unitID && ent->class_id!=data->unitID &&
+            !(ent->morph && ent->morph->transition.active);
+    case A_EXECUTE:
+        return flight_form_begin(ent,code,ent->class_id,data->unitID,false,
+            &avenger_form_forward,"avengerform");
+    case A_MORPH_COMPLETE:S_BeginMorphRise(ent);unit_stand(ent);return true;
+    case A_DISABLE:S_RemoveMorphAbility(ent,code);return true;
+    default:return CAbilitySimpleSpell(ent,msg,call);
     }
 }

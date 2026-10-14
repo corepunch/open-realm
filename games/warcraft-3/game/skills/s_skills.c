@@ -9,6 +9,10 @@ int G_AutocastDebugLevel(void) {
 }
 #endif
 
+static cstring_t const burrow_orders[] = { "burrow", "unburrow", NULL };
+static cstring_t const avenger_form_orders[] = { "avengerform", NULL };
+static cstring_t const robo_goblin_orders[] = { "robogoblin", "unrobogoblin", NULL };
+cstring_t const bear_orders[] = { "bearform", "unbearform", NULL };
 cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
 cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
@@ -32,6 +36,7 @@ static ability_t abilitylist[] = {
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND | AB_ENGINE_EVENTS | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, attack_orders },
     { "BTLF", CAbilityTimedLife, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
     { "spellcast", CAbilitySpellCast, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
+    { "morphtransition", CAbilityMorphTransition, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER | AB_UPDATE | AB_TYPE_UPDATE },
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND | AB_PRIMARY_TIMER | AB_ENGINE_EVENTS, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
     { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Hold command policy
@@ -42,8 +47,8 @@ static ability_t abilitylist[] = {
     { STR_CmdSelectSkill, CAbilitySelectSkill, AB_COMMAND },  // Select Skill — engine command
     { STR_CmdTrains, CAbilityTrain, 0 },  // Training — internal move identity
 
-    { "Amrf", CAbilityRavenForm, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE, SPELL_TARGET_NONE, raven_orders },  /* Medivh Crow Form */
-    { "Arav", CAbilityRavenForm, AB_COMMAND | AB_UPDATE | AB_TYPE_UPDATE, SPELL_TARGET_NONE, raven_orders },  /* Storm Crow Form */
+    { "Amrf", CAbilityRavenForm, AB_COMMAND, SPELL_TARGET_NONE, raven_orders },  /* Medivh Crow Form */
+    { "Arav", CAbilityRavenForm, AB_COMMAND, SPELL_TARGET_NONE, raven_orders },  /* Storm Crow Form */
 
     /* BEGIN GENERATED ABILITY STRINGS */
 
@@ -68,7 +73,7 @@ static ability_t abilitylist[] = {
     { "ANpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite */
     { "Acny", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
     { "Ahnl", CAbilitySummoningRitual, AB_SPELL },  /* Summoning Ritual */
-    { "ANcl", CAbilityChannel, AB_COMMAND },  /* Channel */
+    { "ANcl", CAbilityChannel, AB_SPELL | AB_CHANNEL | AB_TYPE_UPDATE, SPELL_TARGET_NONE },  /* Channel */
     { "Arsq", CAbilitySummonQuilbeastCampaign, AB_SPELL },  /* Summon Quilbeast */
     { "Arsg", CAbilitySummonMisha, AB_SPELL },  /* Summon Misha */
     { "Arsp", CAbilityStampedeCampaign, AB_SPELL, SPELL_TARGET_POINT },  /* Stampede */
@@ -141,7 +146,7 @@ static ability_t abilitylist[] = {
     { "Adef", CAbilityDefend, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, defend_orders },  /* Defend */
     { "Afla", CAbilityFlare, AB_SPELL, SPELL_TARGET_POINT },  /* Flare */
     { "Adts", CAbilityMagicSentry, AB_PASSIVE },  /* Magic Sentry */
-    { "Ainf", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Inner Fire */
+    { "Ainf", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Inner Fire */
     { "Adis", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Dispel Magic */
     { "Ahea", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal */
     { "Aslo", CAbilitySlow, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT, slow_orders },  /* Slow */
@@ -155,7 +160,7 @@ static ability_t abilitylist[] = {
     { "AHtb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Storm Bolt */
     { "AHtc", CAbilityThunderClap, AB_SPELL },  /* Thunder Clap */
     { "AHbh", CAbilityPassive, AB_PASSIVE },  /* Bash */
-    { "AHav", CAbilityAvatar, AB_SPELL },  /* Avatar */
+    { "AHav", CAbilityAvatar, AB_SPELL | AB_PRIMARY_TIMER | AB_ENGINE_EVENTS },  /* Avatar */
     { "AHhb", CAbilityHolyBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Holy Light */
     { "AHds", CAbilityDivineShield, AB_SPELL },  /* Divine Shield */
     { "AHad", CAbilityAuraDevotion, AB_PASSIVE },  /* Devotion Aura */
@@ -353,7 +358,7 @@ static ability_t abilitylist[] = {
     { "Asou", CAbilitySoulTrapped, AB_PASSIVE },  /* Item Soul Possession */
     // TODO: AIrc a_item_reincarnation  /* Item Reincarnation */
     // TODO: AIrt a_item_recall  /* Item Recall */
-    // TODO: AItp a_item_town_portal  /* Item Town Portal */
+    { "AItp", CAbilityItemTeleport, AB_SPELL, SPELL_TARGET_UNIT }, /* Item Town Portal */
     { "AIpm", CAbilityPlaceMine, AB_SPELL, SPELL_TARGET_POINT },  /* Item Place Goblin Land Mine */
     // TODO: AIaa a_damage_bonus_base  /* Item Permanent Damage Gain */
     // TODO: AIva a_attack_mod  /* Item Life Steal */
@@ -418,7 +423,7 @@ static ability_t abilitylist[] = {
     { "ANs3", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 3) */
     { "ANcs", CAbilityFlameStrike, AB_SPELL, SPELL_TARGET_POINT },  /* Cluster Rockets */
     { "ANeg", CAbilityEngineeringUpgrade, AB_PASSIVE },  /* Engineering Upgrade */
-    { "ANrg", CAbilityMetamorphosis, AB_SPELL },  /* Robo-Goblin */
+    { "ANrg", CAbilityMetamorphosis, AB_SPELL, SPELL_TARGET_NONE, robo_goblin_orders },  /* Robo-Goblin */
     { "ANde", CAbilityDemolish, AB_PASSIVE },  /* Demolish */
     { "ANfy", CAbilityFactory, AB_PASSIVE },  /* Factory */
     { "ANhs", CAbilityHealingSpray, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Healing Spray */
@@ -485,7 +490,7 @@ static ability_t abilitylist[] = {
     { "Ahid", CAbilityShadowMeldAkama, AB_PASSIVE | AB_UPDATE | AB_TYPE_UPDATE | AB_INNATE | AB_TYPE_INIT | AB_SPELL, SPELL_TARGET_NONE, hide_orders },  /* Shadow Meld (Akama) */
     { "Aesn", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentinel */
     { "Adtn", CAbilitySelfDestruct, AB_SPELL, SPELL_TARGET_NONE },  /* Detonate */
-    { "Abrf", CAbilityMetamorphosis, AB_SPELL },  /* Bear Form */
+    { "Abrf", CAbilityBearForm, AB_COMMAND, SPELL_TARGET_NONE, bear_orders },  /* Bear Form */
 
     { "Aadm", CAbilityAbolishMagic, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Abolish Magic */
     { "Amim", CAbilityPassive, AB_PASSIVE },  /* Spell Immunity */
@@ -535,12 +540,12 @@ static ability_t abilitylist[] = {
     { "Arpl", CAbilityReplenishLife, AB_SPELL | AB_AUTOCAST },  /* Essence of Blight */
     { "Arpm", CAbilityReplenishMana, AB_SPELL | AB_AUTOCAST },  /* Spirit Touch */
     { "Aexh", CAbilityExhumeCorpses, AB_PASSIVE | AB_UPDATE | AB_TYPE_UPDATE },  /* Exhume Corpses */
-    { "Aave", CAbilityMetamorphosis, AB_SPELL },  /* Destroyer Form */
+    { "Aave", CAbilityMetamorphosis, AB_SPELL, SPELL_TARGET_NONE, avenger_form_orders },  /* Destroyer Form */
     { "Afak", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Orb of Annihilation */
     { "Advm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Devour Magic */
     { "Aabr", CAbilityAuraRegenLife, AB_PASSIVE | AB_INNATE | AB_TYPE_INIT },  /* Aura of Blight */
     { "Aabs", CAbilityAbsorb, AB_PASSIVE },  /* Absorb Mana */
-    { "Abur", CAbilityCreepSleep, AB_PASSIVE | AB_INNATE | AB_TYPE_INIT },  /* Burrow */
+    { "Abur", CAbilityGroundMorph, AB_SPELL, SPELL_TARGET_NONE, burrow_orders },  /* Burrow */
     { "Amtc", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold */
     { "Atru", CAbilityTrueSight, AB_PASSIVE },  /* True Sight */
     { "Auns", CAbilityUnsummon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Unsummon Building */
@@ -621,7 +626,7 @@ static ability_t abilitylist[] = {
     { "AChv", CAbilityHealingWave, AB_SPELL, SPELL_TARGET_UNIT },  /* Healing Wave (Creep) */
     { "AChw", CAbilityHealingWard, AB_SPELL, SPELL_TARGET_POINT },  /* Healing Ward (creep) */
     { "AChx", CAbilityHex, AB_SPELL, SPELL_TARGET_UNIT },  /* Hex (Creep) */
-    { "ACif", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Inner Fire (Creep) */
+    { "ACif", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Inner Fire (Creep) */
     { "ACim", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Immolation (creep) */
     { "ACls", CAbilityLightningShield, AB_SPELL, SPELL_TARGET_UNIT },  /* Lightning Shield (creep) */
     { "ACm2", CAbilityMagicImmunity, AB_PASSIVE },  /* Magic Immunity (Archimonde) */
@@ -1484,7 +1489,7 @@ bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t co
     bool owner_event = msg == A_UNIT_OWNER_CHANGING || msg == A_UNIT_OWNER_CHANGED;
     if (owner_event)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
-    if (msg == A_CONSTRUCTION_FINISH || msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH ||
+    if (msg == A_CONSTRUCTION_FINISH || msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_UNIT_TASK_COMPLETE || msg == A_DEATH ||
         msg == A_UNIT_REMOVING || msg == A_UNIT_RETIRE || msg == A_UNIT_REMOVE)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
     if (msg == A_UNIT_SUSPEND) {
@@ -1844,9 +1849,10 @@ static void ability_disable_prepare(edict_t *ent) {
         if(ent->abilities.added[i])ability_disable_attach(ent,ent->abilities.added[i]);
 }
 
-void S_AcquireScriptedAbilityDisables(edict_t *ent) {
+static void ability_disables_acquire(edict_t *ent,bool scripted) {
     ability_disable_prepare(ent);
-    ent->ability_pause_depth=(int32_t)((uint32_t)ent->ability_pause_depth+1);
+    int32_t *depth=scripted ? &ent->ability_pause_depth : &ent->ability_exclusive_depth;
+    *depth=(int32_t)((uint32_t)*depth+1);
     uint32_t const spawn=ent->spawn_time;
     unitAbilityDisable_t *state=ent->ability_disables;
     if(state)state->references++;
@@ -1856,7 +1862,7 @@ void S_AcquireScriptedAbilityDisables(edict_t *ent) {
         unitAbilityDisable_t *next=state->next;
         if(next)next->references++;
         if(state->linked) {
-            state->pause_owned=ent->ability_pause_depth>0;
+            if(scripted)state->pause_owned=ent->ability_pause_depth>0;
             abilityitem_t item=S_AbilityItem(state->code);
             ability_disable_add(ent,state,&item,true,false);
         }
@@ -1869,17 +1875,91 @@ void S_AcquireScriptedAbilityDisables(edict_t *ent) {
     }
 }
 
-void S_ReleaseScriptedAbilityDisables(edict_t *ent) {
-    if(!ent->ability_pause_depth)return;
-    ent->ability_pause_depth=(int32_t)((uint32_t)ent->ability_pause_depth-1);
+static void ability_disables_release(edict_t *ent,bool scripted) {
+    int32_t *depth=scripted ? &ent->ability_pause_depth : &ent->ability_exclusive_depth;
+    if(!*depth)return;
+    *depth=(int32_t)((uint32_t)*depth-1);
     /* Original48c8c0 visits every owner, including ones the interrupted
      * outer add has not reached. Their temporary negative counts cancel when
      * that outer walk continues.40bb00 subtracts40 before3c. */
     for(unitAbilityDisable_t *state=ent->ability_disables;state;state=state->next) {
-        state->pause_owned=ent->ability_pause_depth>0;
+        if(scripted)state->pause_owned=ent->ability_pause_depth>0;
         state->order_depth=(int32_t)((uint32_t)state->order_depth-1);
         state->depth=(int32_t)((uint32_t)state->depth-1);
     }
+}
+
+void S_AcquireScriptedAbilityDisables(edict_t *ent) {ability_disables_acquire(ent,true);}
+void S_ReleaseScriptedAbilityDisables(edict_t *ent) {ability_disables_release(ent,true);}
+
+/* Exclusive casts leave their own execution enabled but disable its new orders.
+ * Preserve the retail pre-decrement/all-owner walk/trailing order-store sequence:
+ * callbacks can observe and modify the counted owners during that walk. */
+void S_AcquireExclusiveAbilityDisables(edict_t *ent,uint32_t code) {
+    ability_disable_prepare(ent);
+    unitAbilityDisable_t *owner=ability_disable_owner(ent,code);owner->references++;
+    owner->exclusive_owned=true;
+    owner->order_depth=(int32_t)((uint32_t)owner->order_depth-1);
+    owner->depth=(int32_t)((uint32_t)owner->depth-1);
+    ability_disables_acquire(ent,false);
+    owner->order_depth=(int32_t)((uint32_t)owner->order_depth+1);
+    ability_disable_release(owner);
+}
+
+bool S_ReleaseExclusiveAbilityDisables(edict_t *ent,uint32_t code) {
+    unitAbilityDisable_t *owner=ent->ability_disables;
+    while(owner && owner->code!=code)owner=owner->next;
+    if(!owner || !owner->exclusive_owned)return false;
+    owner->references++;owner->exclusive_owned=false;
+    owner->order_depth=(int32_t)((uint32_t)owner->order_depth-1);
+    ability_disables_release(ent,false);
+    abilityitem_t item=S_AbilityItem(code);
+    ability_disable_add(ent,owner,&item,true,false);
+    ability_disable_release(owner);return true;
+}
+
+/* ItemTeleport435f10 exempts both the item spell and its inventory owner.
+ * Unlike Channel, its own order counter stays enabled.40be30 releases198
+ * before walking availability, so the deferred pause observes that inverse. */
+void S_AcquireItemAbilityDisables(edict_t *ent,uint32_t code) {
+    ability_disable_prepare(ent);
+    uint32_t inventory=MAKEFOURCC('A','I','n','v');
+    for(unitAbilityDisable_t *s=ent->ability_disables;s;s=s->next)
+        if(S_AbilityItem(s->code).ability->proc==CAbilityInventory) {inventory=s->code;break;}
+    unitAbilityDisable_t *owner=ability_disable_owner(ent,code);
+    unitAbilityDisable_t *pack=ability_disable_owner(ent,inventory);
+    owner->references++;pack->references++;
+    owner->exclusive_owned=true;owner->exclusive_inventory=inventory;
+    ent->invulnerability_depth=(int32_t)((uint32_t)ent->invulnerability_depth+1);
+    ent->spell_immunity_depth=(int32_t)((uint32_t)ent->spell_immunity_depth+1);
+    S_UnitTargetLost(ent);
+    unit_removebuffs(ent,true,true,true,false,false,false,false);
+    G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
+    owner->depth=(int32_t)((uint32_t)owner->depth-1);
+    owner->order_depth=(int32_t)((uint32_t)owner->order_depth-1);
+    pack->depth=(int32_t)((uint32_t)pack->depth-1);
+    pack->order_depth=(int32_t)((uint32_t)pack->order_depth-1);
+    ability_disables_acquire(ent,false);
+    S_AcquireUnitSeparationSuppression(ent);
+    ability_disable_release(pack);ability_disable_release(owner);
+}
+bool S_ReleaseItemAbilityDisables(edict_t *ent,uint32_t code) {
+    unitAbilityDisable_t *owner=ent->ability_disables;
+    while(owner && owner->code!=code)owner=owner->next;
+    if(!owner || !owner->exclusive_owned || !owner->exclusive_inventory)return false;
+    owner->references++;owner->exclusive_owned=false;
+    uint32_t inventory=owner->exclusive_inventory;owner->exclusive_inventory=0;
+    ent->invulnerability_depth=(int32_t)((uint32_t)ent->invulnerability_depth-1);
+    ent->spell_immunity_depth=(int32_t)((uint32_t)ent->spell_immunity_depth-1);
+    S_UnitTargetAvailable(ent);
+    G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
+    S_ReleaseUnitSeparationSuppression(ent);
+    ability_disables_release(ent,false);
+    unitAbilityDisable_t *pack=ent->ability_disables;
+    while(pack && pack->code!=inventory)pack=pack->next;
+    if(pack) {abilityitem_t item=S_AbilityItem(inventory);ability_disable_add(ent,pack,&item,true,false);}
+    abilityitem_t item=S_AbilityItem(code);ability_disable_add(ent,owner,&item,true,false);
+    ability_disable_release(owner);return true;
 }
 
 /*695620 reverses death availability before constructing the revived Stop.
@@ -1893,7 +1973,7 @@ void S_RestoreRetiredAbilityDisables(edict_t *ent) {
 }
 
 bool S_UnitOrderDisabled(edict_t const *ent,cstring_t order) {
-    if(!S_UnitOrdersPaused(ent))return false;
+    if(!S_UnitOrdersPaused(ent) && ent->ability_exclusive_depth<=0)return false;
     ability_t const *owner=FindAbilityByOrder(order);
     for(unitAbilityDisable_t const *state=ent->ability_disables;state;state=state->next) {
         abilityitem_t item=S_AbilityItem(state->code);
@@ -1927,6 +2007,13 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
             state->retire_owned=true;
             ability_disable_add(ent,state,call->item,false,call->retirement.destroying);
         }
+    }
+    if(msg==A_FIND_SPELL_ORDER) {
+        if(!ability || !(ability->flags&AB_SPELL) || !call->item->code)return false;
+        spellCommandProfile_t profile;
+        abilityCall_t query={.item=call->item,.spell_command=&profile};
+        if(!ability->proc(ent,A_SPELL_COMMAND_PROFILE,&query) || profile.order_id!=call->spell_order->order_id)return false;
+        call->spell_order->code=call->item->code;return true;
     }
     bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_POINT_ORDER_ADMIT ||
                       msg == A_POINT_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
@@ -2038,12 +2125,14 @@ void S_EnableAbility(edict_t *ent, uint32_t code) {
         S_AbilityMessage(ent, A_ENABLE, &call);
         /*48b4c0 applies existing disable contributions to a newly attached
          * owner; it does not wait for the next pause transition. */
-        if(ent->ability_disables || ent->ability_pause_depth) {
+        if(ent->ability_disables || ent->ability_pause_depth || ent->ability_exclusive_depth) {
             unitAbilityDisable_t *state=ability_disable_owner(ent,code);
             if(ent->ability_pause_depth) {
                 state->pause_owned=true;
                 ability_disable_add(ent,state,&item,true,false);
             }
+            int32_t exclusive=ent->ability_exclusive_depth;
+            for(int32_t i=0;i<exclusive;i++)ability_disable_add(ent,state,&item,true,false);
         }
     }
 }

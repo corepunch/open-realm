@@ -138,7 +138,7 @@ static bool filter_sight(edict_t const *ent) {
         return false;
     /* Warsmash excludes invulnerable units from automatic attack acquisition;
      * explicit orders still perform their own target validation. */
-    if (ent->invulnerable || unit_hasstatusstate(ent, WC3_STATUS_STATE_INVULNERABLE))
+    if (G_UnitIsInvulnerable(ent))
         return false;
     if (S_UnitAbilityEvent((edict_t *)ent, A_NO_ACQUIRE))
         return false;

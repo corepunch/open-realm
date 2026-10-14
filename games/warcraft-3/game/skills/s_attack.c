@@ -778,8 +778,7 @@ static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint
 void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     bool instant_kill;
 
-    if (!target || target->invulnerable ||
-        unit_hasstatusstate(target, WC3_STATUS_STATE_INVULNERABLE) ||
+    if (!target || G_UnitIsInvulnerable(target) ||
         S_UnitIsCycloned(target) || M_IsDead(target)) {
         return;
     }
@@ -1777,7 +1776,7 @@ static bool attack_priority_worker(edict_t const *unit) {
 }
 
 static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target) {
-    if(!target || !target->inuse || G_IsDeferredFree(target) || target->invulnerable ||
+    if(!target || !target->inuse || G_IsDeferredFree(target) || G_UnitIsInvulnerable(target) ||
        !S_AttackCanTarget(unit,target))return 0;
     bool armed=G_ActorHasAbilityCode(target,MAKEFOURCC('A','a','t','k')) &&
         attack_mask_has_weapon(target,attack_order_mask(target)) && !target->paused &&
@@ -1800,7 +1799,7 @@ static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target
         .both_flying=(unit->aiflags&AI_FLYING) && (target->aiflags&AI_FLYING),
         .fortified=target->defense_type==3, /* Native Unit+e4 defType fort. */
         .armed=armed,.relation=relation,
-        .counterattack=armed && !attack_priority_worker(target) && !unit->invulnerable && S_AttackCanTarget(target,unit),
+        .counterattack=armed && !attack_priority_worker(target) && !G_UnitIsInvulnerable(unit) && S_AttackCanTarget(target,unit),
         .low_level_neutral=unit->s.player>=PLAYER_NEUTRAL_AGGRESSIVE && level<7,
         .in_range=S_UnitTargetInCommittedMoveRange(unit,target,range),
         .retained=target==unit->attack_target
@@ -1867,7 +1866,7 @@ static void attack_target_available(edict_t *target) {
             unit->currentmove->think!=ai_stand)continue;
         if(S_UnitIsCycloned(unit) || !S_HumanCanAttack(unit) || !S_CargoAttacksEnabled(unit) ||
             G_PlayerTreatsPlayerAsAlly(unit->s.player,target->s.player) ||
-            target->invulnerable || S_UnitAbilityEvent(unit,A_NO_ACQUIRE) ||
+            G_UnitIsInvulnerable(target) || S_UnitAbilityEvent(unit,A_NO_ACQUIRE) ||
             S_UnitAbilityEvent(target,A_NO_ACQUIRE) || !S_AttackCanAutoAcquire(unit,target) ||
             !G_FowPlayerCanTrackUnit(unit->s.player,target))continue;
         float range=G_AcquisitionRange(unit);
@@ -1957,7 +1956,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         if (!strcmp(call->issued_target_order.order,"attackonce")) return ABILITY_ORDER_UNHANDLED;
         /* Original207160 converts before admission. A queued order therefore
          * owns this position snapshot, never the rejected target's identity. */
-        if (target->invulnerable || !S_AttackCanTarget(ent,target)) {
+        if (G_UnitIsInvulnerable(target) || !S_AttackCanTarget(ent,target)) {
             if (!call->issued_target_order.point) return ABILITY_ORDER_REJECTED;
             *call->issued_target_order.point=target->s.origin2;
             return ABILITY_ORDER_POINT;

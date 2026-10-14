@@ -3643,4 +3643,329 @@ TEST(wc3_cursor, inventory_drag_publishes_icon_and_clears_after_cancel_or_remova
     gi.Write = write; gi.unicast = unicast;
 }
 
+/* Native327: ItemTeleport acquires at cast begin, holds Stop, rejects Move,
+ * and releases before the deferred pause task. Authored Cast owns the delay. */
+TEST(wc3_items, teleport327_public_item_target_owns_separation_until_completion) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K90\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    setup_test_world();
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,852008);
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_EQ(G_ItemCharges(item),4);
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    T_EQ(unit->current_order_id,852008);
+    T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
+    abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);T_ASSERT(pending);
+    if(pending) {
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    T_EQ(unit->movement.repulse.disable_depth,0);
+    T_EQ(unit->current_order_id,0);T_EQ(G_ItemCharges(item),3);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2)<256);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+TEST(wc3_items, teleport327_public_item_lifecycle_releases_only_its_owner) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K90\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    for(unsigned action=0;action<8;action++) {
+    G_RunEvents();reset_entities();setup_test_world();
+    FOR_LOOP(i,game.max_clients)g_edicts[i].client=game.clients+i;
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,852008);
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_EQ(G_ItemCharges(item),4);
+    T_EQ(unit->invulnerability_depth,1);T_EQ(unit->spell_immunity_depth,1);
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    T_EQ(unit->current_order_id,852008);
+    T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
+    if(action==0) {
+        G_RemoveItem(item);
+        T_EQ(unit->movement.repulse.disable_depth,0);
+        T_EQ(unit->ability_exclusive_depth,0);
+        T_EQ(unit->invulnerability_depth,0);T_EQ(unit->spell_immunity_depth,0);
+        T_EQ(unit->current_order_id,0);
+    } else if(action==1) {
+        unit_die(unit,NULL);
+        T_EQ(unit->movement.repulse.disable_depth,0);
+        T_EQ(unit->ability_exclusive_depth,0);
+        T_EQ(unit->invulnerability_depth,0);T_EQ(unit->spell_immunity_depth,0);
+    } else if(action==2 || action==7) {
+        G_DeferFreeEdict(target);
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        abilityTimerRequest_t loss;
+        T_ASSERT(S_NextAbilityPrimaryTimer(&loss));
+        wc3Clock_t expected=level.pathing_clock;
+        FOR_LOOP(i,2)wc3_clock_advance(&expected,wc3_float(0x3ba3d70a),0);
+        T_EQ(wc3_float_bits(loss.deadline.time),wc3_float_bits(expected.time));
+        if(loss.deadline.time==expected.time) {
+            if(action==7) {
+                wc3Clock_t release;uint32_t sequence;
+                T_ASSERT(G_NextUnitRelease(&release,&sequence));
+                G_RunEvents();level.pathing_clock=release;G_FireUnitRelease();
+                unsigned u=unit->s.number,i=item->s.number;
+                cstring_t path=Test_TempPath("teleport327-lost-target.bin");
+                T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+                unit=g_edicts+u;item=g_edicts+i;item->data.ItemData=&data;
+                T_ASSERT(S_NextAbilityPrimaryTimer(&loss));
+                T_EQ(wc3_float_bits(loss.deadline.time),wc3_float_bits(expected.time));
+            }
+            level.pathing_clock=loss.deadline;
+            abilityCall_t call={.primary_timer=&loss};loss.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+        }
+        T_EQ(unit->movement.repulse.disable_depth,0);
+        T_EQ(unit->ability_exclusive_depth,0);
+        T_EQ(unit->invulnerability_depth,0);T_EQ(unit->spell_immunity_depth,0);
+        T_EQ(G_ItemCharges(item),4);
+    } else if(action==3 || action==4) {
+        S_SetUnitPaused(unit,true);
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        T_EQ(unit->ability_pause_depth,0);
+        if(action==4) {
+            unsigned u=unit->s.number,t=target->s.number,i=item->s.number;
+            cstring_t path=Test_TempPath("teleport327-pause.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
+            unit=g_edicts+u;target=g_edicts+t;item=g_edicts+i;target->data.UnitBalance=&town;
+            item->data.ItemData=&data;
+            T_EQ(unit->movement.repulse.disable_depth,1);
+            T_EQ(unit->ability_exclusive_depth,1);
+        }
+    } else if(action==5) {
+        edict_t *sibling=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+        sibling->data.ItemData=&data;sibling->item->charges=4;
+        T_ASSERT(G_AddItemToSlot(unit,sibling,1));G_RemoveItem(sibling);
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        T_EQ(unit->ability_exclusive_depth,1);
+    } else {
+        G_UseItem(unit,0);
+        if(player->client->menu.on_entity_selected) {
+            char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+            cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+        }
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        T_EQ(unit->ability_exclusive_depth,1);
+    }
+    if(action<3 || action==7) {
+        reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);continue;
+    }
+    abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);T_ASSERT(pending);
+    if(pending) {
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    if(action==3 || action==4) {
+        T_ASSERT(unit->paused);T_EQ(unit->ability_pause_depth,1);
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        S_SetUnitPaused(unit,false);level.pathing_clock.time=1.5f;S_RunMoveTimers();
+        T_EQ(unit->ability_pause_depth,0);
+    }
+    T_EQ(unit->movement.repulse.disable_depth,0);
+    T_EQ(unit->ability_exclusive_depth,0);
+        T_EQ(unit->invulnerability_depth,0);T_EQ(unit->spell_immunity_depth,0);T_EQ(G_ItemCharges(item),3);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2)<256);
+    reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+}
+
+TEST(wc3_items, teleport327_cast_protection_preserves_scripted_invulnerability) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K90\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    setup_test_world();
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    status_application_t positive={.buff="Binf",.level=1,.duration=30,
+        .source_ability=MAKEFOURCC('A','i','n','f'),.data=MAKEFOURCC('A','i','n','f'),.source=unit,.rank=1};
+    status_application_t negative={.buff="Bslo",.level=1,.duration=30,
+        .source_ability=MAKEFOURCC('A','s','l','o'),.data=MAKEFOURCC('A','s','l','o'),.source=target,.rank=1};
+    T_NOT_NULL(unit_applystatus(unit,&positive));T_NOT_NULL(unit_applystatus(unit,&negative));
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,852008);
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_EQ(G_ItemCharges(item),4);
+    T_EQ(G_UnitStatusLevel(unit,MAKEFOURCC('B','i','n','f')),0);
+    T_EQ(G_UnitStatusLevel(unit,MAKEFOURCC('B','s','l','o')),0);
+    float health=unit->health.value;
+    T_Damage(unit,target,10);T_FEQ(unit->health.value,health,0.001f);
+    T_ASSERT(S_UnitSpellImmune(unit));
+    unit->invulnerable=true; /* A script contribution must survive the cast inverse. */
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    T_EQ(unit->current_order_id,852008);
+    T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
+    abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);T_ASSERT(pending);
+    if(pending) {
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    T_EQ(unit->movement.repulse.disable_depth,0);
+    T_EQ(unit->current_order_id,0);T_EQ(G_ItemCharges(item),3);
+    T_ASSERT(unit->invulnerable);T_ASSERT(!S_UnitSpellImmune(unit));
+    unit->invulnerable=false;
+    T_Damage(unit,target,10);T_ASSERT(unit->health.value<health);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2)<256);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+
+TEST(wc3_items, teleport327_passenger_limit_prefers_hero_and_excludes_enemy) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K2\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    setup_test_world();
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *footman=alloc_test_unit(MAKEFOURCC('h','f','o','o'),80,64);
+    edict_t *hero=alloc_test_unit(MAKEFOURCC('H','p','a','l'),160,64);
+    edict_t *enemy=alloc_test_unit(MAKEFOURCC('h','f','o','o'),96,64);
+    footman->s.player=hero->s.player=0;enemy->s.player=1;
+    footman->svflags|=SVF_MONSTER;hero->svflags|=SVF_MONSTER;enemy->svflags|=SVF_MONSTER;
+    hero->hero.level=1;
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,852008);
+    T_EQ(unit->movement.repulse.disable_depth,1);
+    T_EQ(G_ItemCharges(item),4);
+    T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+    T_EQ(unit->current_order_id,852008);
+    T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
+    abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);T_ASSERT(pending);
+    if(pending) {
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    T_EQ(unit->movement.repulse.disable_depth,0);
+    T_EQ(unit->current_order_id,0);T_EQ(G_ItemCharges(item),3);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target->s.origin2)<256);
+    T_ASSERT(Vector2_distance(&hero->s.origin2,&target->s.origin2)<256);
+    T_FEQ(footman->s.origin2.x,80,0.001f);T_FEQ(enemy->s.origin2.x,96,0.001f);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+
+TEST(wc3_items, teleport327_rejects_non_townhall_and_unfinished_destination) {
+    const char slk[] =
+        "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X4;K\"targs\"\nC;X5;K\"Rng1\"\nC;X6;K\"Cast1\"\nC;X7;K\"Area1\"\n"
+        "C;X8;K\"DataA1\"\nC;X9;K\"DataB1\"\nC;X10;K\"DataC1\"\n"
+        "C;X1;Y2;K\"AItp\"\nC;X2;K\"AItp\"\nC;X3;K1\nC;X4;K\"structure,vuln,invu\"\n"
+        "C;X5;K99999\nC;X6;K0.375\nC;X7;K1100\nC;X8;K90\nC;X9;K1\n"
+        "C;X1;Y3;K\"AInv\"\nC;X2;K\"AInv\"\nC;X3;K1\nC;X8;K6\nC;X10;K1\nE\n";
+    for(unsigned action=0;action<2;action++) {
+    G_RunEvents();reset_entities();setup_test_world();
+    FOR_LOOP(i,game.max_clients)g_edicts[i].client=game.clients+i;
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_item_test_inventory_unit(64,64);unit->s.player=0;unit->svflags|=SVF_MONSTER;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','t','o','w'),512,64);
+    target->s.player=0;target->svflags|=SVF_MONSTER;target->targtype=TARG_STRUCTURE;
+    UnitBalance_t town=*target->data.UnitBalance;town.type="TownHall,Mechanical";
+    target->data.UnitBalance=&town;
+    if(action==0)town.type="Mechanical";
+    else target->construction=G_AllocConstruction();
+    edict_t *item=make_item_test_world_item(MAKEFOURCC('s','t','w','p'),64,64);
+    ItemData_t data={.abilList="AItp",.uses=4,.perishable=false,.usable=true};
+    item->data.ItemData=&data;item->item->charges=4;item->spawn_time=1327;
+    T_ASSERT(G_AddItemToSlot(unit,item,0));
+    edict_t *player=G_GetPlayerEntityByNumber(0);G_SelectEntity(player->client,unit);
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    G_UseItem(unit,0);
+    T_NOT_NULL(player->client->menu.on_entity_selected);
+    if(player->client->menu.on_entity_selected) {
+        char number[16];snprintf(number,sizeof(number),"%u",target->s.number);
+        cstring_t select[]={"select",number};G_ClientCommand(player,2,select);
+    }
+    T_EQ(unit->current_order_id,0);T_EQ(unit->movement.repulse.disable_depth,0);
+    T_EQ(unit->ability_exclusive_depth,0);T_EQ(G_ItemCharges(item),4);
+    G_RunEvents();reset_entities();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+}
+
+
 #endif /* BZ_TESTS */

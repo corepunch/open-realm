@@ -1049,10 +1049,15 @@ wc3MovementProfile_t const *S_UnitMovementProfile(UnitData_t const *data) {
 }
 
 uint8_t S_UnitMoveCategory(edict_t const *ent) {
-    if(!ent || unit_is_flying(ent))return 0;
-    if(ent->movement.captain_actor_type)return 2;
-    wc3MovementProfile_t const *profile=S_UnitMovementProfile(ent->data.UnitData);
-    return profile->support==WC3_SUPPORT_FLIGHT ? wc3_movement_profiles[UNIT_MOVE_FOOT].category : profile->category;
+    if(!ent)return 0;
+    uint8_t category=0;
+    if(!unit_is_flying(ent)) {
+        wc3MovementProfile_t const *profile=S_UnitMovementProfile(ent->data.UnitData);
+        category=ent->movement.captain_actor_type ? 2 : profile->support==WC3_SUPPORT_FLIGHT ?
+            wc3_movement_profiles[UNIT_MOVE_FOOT].category : profile->category;
+    }
+    if(ent->morph)category=(category & ~ent->morph->category_clear) | ent->morph->category_set;
+    return category;
 }
 
 uint8_t S_UnitMoveCoarseMask(edict_t const *ent) {
@@ -1765,6 +1770,21 @@ static void move_captain_shared_target(edict_t *actor) {
     gi.MemFree(selected);
 }
 
+/* The ordinary Captain update keeps the retained inner-membership count:
+ * placement does not manufacture new range-enter events. Reuse the same
+ * shared target/point admission as the range listener. */
+void S_UpdateCaptainMemberOrders(botCaptain_t *captain) {
+    edict_t *actor=captain ? captain->home_actor : NULL;
+    if(!actor || !actor->inuse || !actor->movement.captain_actor_members)return;
+    uint32_t members=actor->movement.captain_actor_members;
+    if(captain->entered_members<members)move_captain_shared_target(actor);
+    else {
+        edict_t **roster=move_captain_collect_roster(actor);
+        move_captain_shared_point(actor,roster,members,&captain->goal,true);
+        gi.MemFree(roster);
+    }
+}
+
 /*9d4c20 point policy: scan the retained logical roster, not all entities.
  * The reduction uses total membership, but only eligible Move owners supply
  * the minimum and Adro classification. Combat target policies are separate. */
@@ -2342,7 +2362,14 @@ bool S_UnitOrdersPaused(edict_t const *self) {
 
 bool S_UnitExecutionPaused(edict_t const *self) {
     return self && (self->movement.pause_resume_pending || (self->paused &&
-        self->movement.pause_phase!=UNIT_PAUSE_ADMITTING && self->movement.pause_phase!=UNIT_PAUSE_BYPASSED));
+        self->movement.pause_phase!=UNIT_PAUSE_ADMITTING && self->movement.pause_phase!=UNIT_PAUSE_BYPASSED &&
+        self->movement.pause_phase!=UNIT_PAUSE_WAITING));
+}
+
+/*680320 retains admission at positive Unit198. An absent internal task can
+ * still dispatch immediately (691c70), as with an idle Avatar transition. */
+bool S_UnitOrderExecutionHeld(edict_t const *self) {
+    return S_UnitExecutionPaused(self) || (self && self->movement.repulse.disable_depth>0 && G_UnitHasActiveOrder(self));
 }
 
 /* Suspension retains its user packet while its physical task is canceled.
@@ -2359,6 +2386,13 @@ static void move_suspend_physical_task(edict_t *self) {
 
 void S_SetUnitPaused(edict_t *self, bool paused) {
     if (!self || self->paused==paused) return;
+    if(!paused && self->movement.pause_phase==UNIT_PAUSE_WAITING) {
+        self->paused=false;self->movement.pause_phase=UNIT_PAUSE_NONE;return;
+    }
+    if(paused && self->movement.pause_phase!=UNIT_PAUSE_SUSPENDED &&
+       self->movement.repulse.disable_depth>0 && G_UnitHasActiveOrder(self)) {
+        self->paused=true;self->movement.pause_phase=UNIT_PAUSE_WAITING;return;
+    }
     if (paused) {
         /*697770/688d30 cancel an already-built suspension's end request.
          * They do not admit another point head or retire its retained user. */
@@ -5195,8 +5229,8 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
 /* New temporary enrollment retires the old public task before the internal
  * AI callback reissues Move. It does not emit another issued-order event. */
 bool S_AdmitTemporaryCaptainUnit(edict_t *self,botCaptain_t const *captain,edict_t *defense) {
+    /* The AI dispatcher already retired the prior task before acquiring198. */
     edict_t *actor=captain->home_actor;
-    order_stop_cleanup(self);
     if (!actor) return false;
     wc3GridPose_t source;unit_predicted_pose(actor,&source);
     vec2_t from={source.world[0],source.world[1]},to=self->s.origin2;
@@ -6903,7 +6937,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
             A_PRIMARY_TIMER, A_ORDER_ACCEPTED, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
             A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED, A_TARGET_LOST,
             A_TARGET_OWNER_CHANGED,
-            A_CHANNEL_STATE_CHANGED, A_UNIT_WORK_STATE_CHANGED);
+            A_CHANNEL_STATE_CHANGED, A_UNIT_WORK_STATE_CHANGED, A_UNIT_TASK_COMPLETE);
         /* Amov is the attached counted owner. The engine event row shares
          * this procedure but must not contribute a second disable callback. */
         if(result && call->item && call->item->ability &&
@@ -6973,6 +7007,11 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return true;
     case A_OWNER_BEGIN: move_update_fine_budget(); MOVE_OWNER_PHASE(MOVE_PHASE_SCHEDULER,0); return true;
     case A_OWNER_UPDATE: move_run_group_updates(); move_visual_update(); move_repulse_owner_update(); return true;
+    case A_UNIT_TASK_COMPLETE:
+        if(ent->movement.pause_phase!=UNIT_PAUSE_WAITING || !ent->paused ||
+           ent->movement.repulse.disable_depth>0 || M_IsDead(ent) || G_IsDeferredFree(ent))return false;
+        ent->movement.pause_phase=UNIT_PAUSE_NONE;ent->paused=false;
+        S_SetUnitPaused(ent,true);return true;
     case A_CHANNEL_STATE_CHANGED:
     case A_UNIT_WORK_STATE_CHANGED:
         /* 48ef40/48bca0 refresh after publishing the channel-work flag. */

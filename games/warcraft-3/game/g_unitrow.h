@@ -277,6 +277,7 @@ typedef struct {
 typedef struct {
     float number;
     uint32_t id;
+    cstring_t text;
 } abilityDataValue_t;
 
 typedef struct {

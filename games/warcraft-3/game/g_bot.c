@@ -1215,6 +1215,36 @@ static void G_BotCaptainAdd(bot_t const *bot,botCaptain_t *captain, edict_t *uni
     if (G_BotCaptainStrengthMember(bot,unit)) captain->strength_count++;
 }
 
+/* Internal d0006 owns separation suppression while its d0194 task dispatches.
+ * Town membership persists independently of a running script. An idle Town unit
+ * without a Captain has no replacement movement here; a detached/non-Town unit
+ * falls back to Stop. Keep acquisition after enrollment, not around enrollment. */
+void G_BotDispatchAIStop(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit))return;
+    uint32_t spawn=unit->spawn_time;
+    S_AcquireUnitSeparationSuppression(unit);
+    if(!(unit->aiflags&AI_TOWN_OWNED) || unit->s.player>=MAX_PLAYERS) {
+        order_stop_cleanup(unit);
+    } else {
+        bot_t *bot=level.bots+unit->s.player;
+        botCaptain_t *captain=NULL;
+        FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+            FOR_EACH_ARRAY(edict_t *,member,bot->captains[c].units)
+                if(*member==unit) {captain=bot->captains+c;break;}
+            if(captain)break;
+        }
+        if(captain && captain->home_actor) {
+            if(unit->movement.captain_home.roster_actor!=captain->home_actor) {
+                if(!S_AdmitTemporaryCaptainUnit(unit,captain,bot->captains[BOT_CAPTAIN_DEFENSE].home_actor))
+                    fprintf(stderr,"WC3 AI: temporary Captain movement rejected unit=%u\n",unit->s.number);
+            } else if(!S_CaptainNearHome(captain))
+                S_ReissueCaptainUnit(unit,captain->home_actor);
+        }
+    }
+    if(unit->inuse && unit->spawn_time==spawn)
+        S_ReleaseUnitSeparationSuppression(unit);
+}
+
 /* Native9ccdb0 observes the Town policy before the new timed-life record is
  * visible. The same-Captain early return preserves both order and task. */
 void G_BotTemporaryUnitReady(edict_t *unit) {
@@ -1225,17 +1255,33 @@ void G_BotTemporaryUnitReady(edict_t *unit) {
     if (enabled) FOR_EACH_ARRAY(edict_t *, member,captain->units) if (*member==unit) return;
     G_BotWithdrawCaptainUnit(unit,false);
     S_DetachCaptainUnit(unit);
-    if (!enabled) {order_stop_cleanup(unit);return;}
-    G_BotCaptainAdd(bot,captain,unit);
-    if (captain->home_actor) {
-        if (!S_AdmitTemporaryCaptainUnit(unit,captain,bot->captains[BOT_CAPTAIN_DEFENSE].home_actor))
-            fprintf(stderr,"WC3 AI: temporary Captain movement rejected unit=%u\n",unit->s.number);
-    } else {
-        /* Default town-home construction remains GROUP-03.4. Do not invent
-         * a home from the unit's position or retain the unrelated old Move. */
-        order_stop_cleanup(unit);
+    if(enabled)G_BotCaptainAdd(bot,captain,unit);
+    /*6803f0 retires the old owner before693450 dispatches d0006. The
+     * counted scope belongs to dispatch, including the disabled-policy exit. */
+    order_stop_cleanup(unit);
+    G_BotDispatchAIStop(unit);
+    if(enabled && !captain->home_actor)
         fprintf(stderr,"WC3 AI: unresolved default temporary Captain home player=%u unit=%u\n",unit->s.player,unit->s.number);
-    }
+}
+
+/* Native9d04a0: cargo return can relocate the existing attack Captain instead
+ * of appending another AI command. Its threshold uses committed world XY. */
+bool G_BotRecenterCargoCaptain(edict_t *unit) {
+    if(!level.started || !unit || unit->s.player>=MAX_PLAYERS)return false;
+    bot_t *bot=level.bots+unit->s.player;
+    botCaptain_t *captain=bot->captains+BOT_CAPTAIN_ATTACK;
+    edict_t *actor=captain->home_actor;
+    if(!bot->town_initialized || !actor || !actor->inuse)return false;
+    bool member=false;
+    FOR_EACH_ARRAY(edict_t *,entry,captain->units)if(*entry==unit){member=true;break;}
+    if(!member)return false;
+    float dx=wc3_sub(actor->s.origin2.x,unit->s.origin2.x);
+    float dy=wc3_sub(actor->s.origin2.y,unit->s.origin2.y);
+    float squared=wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy));
+    if(!(squared>=250000))return false;
+    S_TeleportCaptainActor(captain,&unit->s.origin2);
+    S_UpdateCaptainMemberOrders(captain);
+    return true;
 }
 
 /* Saved logical state uses entity indexes, never roster backing or VM pointers.
@@ -2295,8 +2341,10 @@ void G_BotHeroLevelUp(edict_t *hero) {
 static void G_BotAdmitUnit(edict_t *unit) {
     if(!unit || !unit->inuse || !(unit->svflags & SVF_MONSTER) || M_IsDead(unit) ||
        unit->targtype==TARG_WARD || unit->s.player>=MAX_PLAYERS)return;
+    bool enrolled=unit->ai_town_player!=0;
     if(level.ai_owned_players&(1u<<unit->s.player))unit->aiflags|=AI_TOWN_OWNED;
     G_BotRegisterTownUnit(unit);
+    if(!enrolled && unit->ai_town_player)G_BotDispatchAIStop(unit);
 }
 
 /* Native1e9a40 creates Town AI for playing computer slots and always for

@@ -109,7 +109,8 @@ static void G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
     if (!abilities || !*abilities) return;
     PARSE_LIST(abilities, ability, parse_segment) {
         abilityitem_t entry = S_AbilityItem(FS_SLKKey(ability));
-        abilityCall_t call = MAKE(abilityCall_t, .item = &entry);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &entry,
+            .source_item=(edict_t *)item,.source_item_spawn_time=item->spawn_time);
         S_AbilityMessage(unit, apply ? A_ITEM_ADD : A_ITEM_REMOVE, &call);
     }
 }

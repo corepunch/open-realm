@@ -2369,12 +2369,392 @@ static void restore_raven_form_test_data(slkTestData_t *ability_rows, slkTestDat
     free_slk_rows(ability_rows);
 }
 
+/* Stock-shaped flight endpoint for the synthetic Medivh presentation model. */
+static mapInfo_t const *install_raven_flight_endpoint(void) {
+    static mapInfo_t info;
+    static unitModification_t mod={.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="fly"};
+    static unitData_t alternate={.originalUnitID=MAKEFOURCC('h','f','o','o'),.numbeOfModifications=1,.modifications=&mod};
+    mapInfo_t const *saved=level.mapinfo;info=*saved;
+    info.num_originalUnits=1;info.originalUnits=&alternate;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);return saved;
+}
+static void finish_test_morph(edict_t *unit) {
+    unsigned fired=0;
+    while(unit->morph && unit->morph->transition.active) {
+        abilityTimerRequest_t request;
+        bool found=S_NextAbilityPrimaryTimer(&request);
+        T_ASSERT(found);T_ASSERT(++fired<128);if(!found || fired>=128)break;
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+}
+
+/* Native326: authored Dur owns the transition, with DataC added on landing.
+ * Animation end and unit cast point do not substitute for this primary timer. */
+TEST(wc3_unit, morph326_public_orders_retain_form_and_count_until_authored_deadline) {
+    for(unsigned action=0;action<8;action++)for(unsigned schema=0;schema<2;schema++)for(unsigned raven=0;raven<2;raven++)for(unsigned reverse=0;reverse<2;reverse++) {
+        slkTestData_t *ability_rows,*old_ability,*ui_rows,*old_ui,*profile_rows,*old_profile;
+        reset_test_entities();setup_test_world();
+        install_raven_form_test_data(&ability_rows,&old_ability,&ui_rows,&old_ui,&profile_rows,&old_profile);
+        char data[1024];snprintf(data,sizeof(data),
+            "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"%s\"\n"
+            "C;X1;Y2;K\"%s\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\n"
+            "C;X5;K0.375\nC;X6;K0.625\nE\n",schema ? "Data11" : "DataA1",schema ? "Data13" : "DataC1",
+            raven ? "Amrf" : "Abrf",raven ? "Amrf" : "Abrf");
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        mapInfo_t const *saved_map=level.mapinfo;mapInfo_t info=*saved_map;
+        unitModification_t mod={.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="fly"};
+        unitData_t alternate={.originalUnitID=MAKEFOURCC('h','f','o','o'),.numbeOfModifications=1,.modifications=&mod};
+        if(raven){info.num_originalUnits=1;info.originalUnits=&alternate;level.mapinfo=&info;G_SetMapUnitOverrides(&info);}
+        uint32_t base=MAKEFOURCC('h','p','e','a'),alt=MAKEFOURCC('h','f','o','o');
+        uint32_t code=raven ? MAKEFOURCC('A','m','r','f') : MAKEFOURCC('A','b','r','f');
+        edict_t *unit=alloc_test_unit(reverse ? alt : base,64,64);
+        unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        T_ASSERT(G_ActorAddSkill(unit,code));
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        cstring_t order=raven ? (reverse ? "unravenform" : "ravenform") : (reverse ? "unbearform" : "bearform");
+        uint32_t order_id=raven ? (reverse ? 852156 : 852155) : (reverse ? 852139 : 852138);
+        T_ASSERT(unit_issueimmediateorder(unit,order));
+        T_EQ(unit->class_id,raven && !reverse ? alt : reverse ? alt : base);
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        T_EQ(unit->current_order_id,order_id);
+        if(action==1 || action==5) {
+            T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            T_EQ(unit->current_order_id,order_id);
+        } else if(action==2) {
+            T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){256,64}));
+            T_EQ(unit->current_order_id,order_id);
+        } else if(action==7) {
+            edict_t *follow=alloc_test_unit(base,256,64);
+            follow->svflags|=SVF_MONSTER;follow->s.player=unit->s.player;
+            T_ASSERT(unit_issuetargetorder(unit,"move",follow));
+            T_EQ(unit->current_order_id,order_id);
+        } else if(action==3) {
+            S_SetUnitPaused(unit,true);T_ASSERT(unit->paused);
+            T_ASSERT(!S_UnitExecutionPaused(unit));
+            T_EQ(unit->movement.repulse.disable_depth,1);
+        } else if(action==4)unit_die(unit,NULL);
+        else if(action==6) {
+            T_ASSERT(G_ActorRemoveSkill(unit,code));
+            T_EQ(unit->class_id,base);
+            T_EQ(unit->movement.repulse.disable_depth,0);
+            T_EQ(unit->current_order_id,0);
+            T_ASSERT(!unit->morph->transition.active);
+        }
+        if(action==5) {
+            uint32_t slot=unit-g_edicts;cstring_t file=Test_TempPath("wc3-morph326.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+slot;
+            T_EQ(unit->movement.repulse.disable_depth,1);T_EQ(unit->current_order_id,order_id);
+        }
+        float deadline=1.375f+(raven && reverse ? .625f : 0);
+        abilityTimerRequest_t request;
+        if(action!=4 && action!=6) {
+            T_ASSERT(S_NextAbilityPrimaryTimer(&request));
+            if(S_NextAbilityPrimaryTimer(&request))T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(deadline));
+        }
+        unsigned fired=0;
+        while(S_NextAbilityPrimaryTimer(&request) && request.deadline.time<=deadline) {
+            T_ASSERT(++fired<128);if(fired>=128)break;
+            level.pathing_clock=request.deadline;
+            abilityCall_t call={.primary_timer=&request};request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+        }
+        T_EQ(unit->class_id,action==6 ? base : action==4 ? (raven && !reverse ? alt : reverse ? alt : base) : reverse ? base : alt);
+        T_EQ(unit->movement.repulse.disable_depth,(action==3 || action==4) ? 1 : 0);
+        T_EQ(unit->current_order_id,(action==2 || action==7) ? 851986 : action==3 ? 851973 : 0);
+        if(action==3) {
+            T_ASSERT(unit->paused);S_SetUnitPaused(unit,false);
+            level.pathing_clock.time=deadline+.05f;S_RunMoveTimers();
+            T_EQ(unit->movement.repulse.disable_depth,0);
+        }
+        reset_entities();level.mapinfo=saved_map;G_SetMapUnitOverrides(saved_map);
+        restore_raven_form_test_data(ability_rows,old_ability,ui_rows,old_ui,profile_rows,old_profile);
+        free_slk_rows(timing);
+    }
+}
+
+/* Native330: normal Dur times both transitions; HeroDur starts at the forward
+ * completion. The form lifetime is not a movement-suppression contribution. */
+static void morph330_advance(float deadline) {
+    abilityTimerRequest_t request;
+    unsigned fired=0;
+    while(S_NextAbilityPrimaryTimer(&request) && request.deadline.time<=deadline) {
+        T_ASSERT(++fired<128);if(fired>=128)break;
+        level.pathing_clock=request.deadline;
+        abilityCall_t call={.primary_timer=&request};
+        request.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+    }
+    level.pathing_clock.time=deadline;
+}
+
+TEST(wc3_unit, morph330_timed_form_owns_both_transitions_and_saved_lifetime) {
+    for(unsigned family=0;family<2;family++)for(unsigned schema=0;schema<2;schema++)for(unsigned action=0;action<3;action++) {
+        slkTestData_t *ability_rows,*old_ability,*ui_rows,*old_ui,*profile_rows,*old_profile;
+        reset_test_entities();setup_test_world();
+        install_raven_form_test_data(&ability_rows,&old_ability,&ui_rows,&old_ui,&profile_rows,&old_profile);
+        cstring_t code_name=family ? "ANcr" : "AEme";
+        cstring_t order=family ? "chemicalrage" : "metamorphosis";
+        uint32_t code=family ? MAKEFOURCC('A','N','c','r') : MAKEFOURCC('A','E','m','e');
+        char data[1024];snprintf(data,sizeof(data),
+            "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"%s\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\n"
+            "C;X5;K0.375\nC;X6;K0.625\nE\n",schema ? "Data11" : "DataA1",code_name,code_name);
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        uint32_t base=MAKEFOURCC('h','p','e','a'),alt=MAKEFOURCC('h','f','o','o');
+        edict_t *unit=alloc_test_unit(base,64,64);
+        unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        T_ASSERT(G_ActorAddSkill(unit,code));
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(unit_issueimmediateorder(unit,order));
+        T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,1);
+        if(action==1) {
+            T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            T_EQ(unit->current_order_id,G_OrderId(order));
+        }
+        morph330_advance(1.374f);
+        T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,1);
+        morph330_advance(1.375f);
+        T_EQ(unit->class_id,alt);T_EQ(unit->movement.repulse.disable_depth,0);
+        if(action==2) {
+            uint32_t slot=unit-g_edicts;cstring_t file=Test_TempPath("wc3-morph330.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+slot;
+        }
+        morph330_advance(1.999f);
+        T_EQ(unit->class_id,alt);T_EQ(unit->movement.repulse.disable_depth,0);
+        morph330_advance(2.0f);
+        T_EQ(unit->class_id,alt);T_EQ(unit->movement.repulse.disable_depth,1);
+        morph330_advance(2.374f);
+        T_EQ(unit->class_id,alt);
+        morph330_advance(2.375f);
+        T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,0);
+        reset_entities();
+        restore_raven_form_test_data(ability_rows,old_ability,ui_rows,old_ui,profile_rows,old_profile);
+        free_slk_rows(timing);
+    }
+}
+
+/* Retail Morph330c: Burrow and Robo-Goblin retain the source type through
+ * both counted transitions. Both directions are accepted when the player has
+ * the required resources (the underfunded exploratory maps are not controls). */
+TEST(wc3_unit, morph331_reversible_ground_orders_preserve_transition_and_save) {
+    for(unsigned family=0;family<2;family++)for(unsigned schema=0;schema<2;schema++)for(unsigned action=0;action<4;action++) {
+        slkTestData_t *ability_rows,*old_ability,*ui_rows,*old_ui,*profile_rows,*old_profile;
+        reset_test_entities();setup_test_world();
+        install_raven_form_test_data(&ability_rows,&old_ability,&ui_rows,&old_ui,&profile_rows,&old_profile);
+        cstring_t parent=family ? "ANrg" : "Abur",alias=family ? "Ar33" : "Ab33";
+        cstring_t orders[2]={family ? "robogoblin" : "burrow",family ? "unrobogoblin" : "unburrow"};
+        uint32_t code=FS_SLKKey(alias),base=MAKEFOURCC('h','p','e','a'),alt=MAKEFOURCC('h','f','o','o');
+        char data[1024];snprintf(data,sizeof(data),
+            "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"%s\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\n"
+            "C;X5;K0.375\nC;X6;K0\nE\n",schema ? "Data11" : "DataA1",alias,parent);
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        edict_t *unit=alloc_test_unit(base,64,64);
+        unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        T_ASSERT(G_ActorAddSkill(unit,code));
+        if(family && action==0) {
+            edict_t *existing=alloc_test_unit(alt,512,512);existing->s.player=unit->s.player;
+            T_ASSERT(G_BotConvertUnits(&game.clients[unit->s.player].ps,1,base));
+            G_FreeEdict(existing);
+        }
+        for(unsigned reverse=0;reverse<2;reverse++) {
+            level.pathing_clock=(wc3Clock_t){.time=1+reverse,.span=300};
+            bool accepted=unit_issueimmediateorder(unit,orders[reverse]);
+            T_ASSERT(accepted);
+            uint32_t source=reverse ? alt : base,target=reverse ? base : alt;
+            T_EQ(unit->class_id,source);T_EQ(unit->movement.repulse.disable_depth,1);
+            T_EQ(unit->current_order_id,G_OrderId(orders[reverse]));
+            T_EQ(S_UnitMoveCategory(unit),0xca);
+            if(action==1) {
+                T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+                T_EQ(unit->current_order_id,G_OrderId(orders[reverse]));
+            } else if(action==3) {
+                S_SetUnitPaused(unit,true);T_ASSERT(!S_UnitExecutionPaused(unit));
+            } else if(action==2) {
+                uint32_t slot=unit-g_edicts;cstring_t file=Test_TempPath("wc3-morph331.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+slot;
+            }
+            morph330_advance(1.374f+reverse);
+            T_EQ(unit->class_id,source);T_EQ(unit->movement.repulse.disable_depth,1);
+            morph330_advance(1.375f+reverse);
+            T_EQ(unit->class_id,target);T_EQ(unit->movement.repulse.disable_depth,action==3 ? 1 : 0);
+            T_EQ(S_UnitMoveCategory(unit),family || reverse ? 0xca : 0xc8);
+            if(action==3) {
+                T_ASSERT(S_UnitExecutionPaused(unit));S_SetUnitPaused(unit,false);
+                morph330_advance(1.425f+reverse);S_RunMoveTimers();
+                T_EQ(unit->movement.repulse.disable_depth,0);
+            }
+            T_EQ(unit->current_order_id,0);
+            if(action==2 && !reverse) {
+                uint32_t slot=unit-g_edicts;cstring_t file=Test_TempPath("wc3-morph331-form.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+slot;
+                T_EQ(unit->class_id,alt);T_EQ(S_UnitMoveCategory(unit),family ? 0xca : 0xc8);
+                T_EQ(unit->movement.repulse.disable_depth,0);
+            }
+        }
+        reset_entities();
+        restore_raven_form_test_data(ability_rows,old_ability,ui_rows,old_ui,profile_rows,old_profile);
+        free_slk_rows(timing);
+    }
+}
+
+/* Morph330c: flight takeoff rebinds before suppression; landing keeps the
+ * flying type but publishes a ground mover until Dur+DataC has elapsed. */
+TEST(wc3_unit, morph332_flight_forms_preserve_type_timing_and_saved_transition) {
+    for(unsigned family=0;family<2;family++)for(unsigned schema=0;schema<2;schema++)for(unsigned action=0;action<4;action++) {
+        slkTestData_t *ability_rows,*old_ability,*ui_rows,*old_ui,*profile_rows,*old_profile;
+        reset_test_entities();setup_test_world();
+        install_raven_form_test_data(&ability_rows,&old_ability,&ui_rows,&old_ui,&profile_rows,&old_profile);
+        uint32_t base=MAKEFOURCC('h','p','e','a'),alt=MAKEFOURCC('h','f','o','o');
+        cstring_t parent=family ? "Aave" : "Astn",alias=family ? "Aa32" : "As32";
+        uint32_t code=FS_SLKKey(alias);
+        char data[1024];snprintf(data,sizeof(data),
+            "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"%s\"\nC;X7;K\"Cast1\"\n"
+            "C;X1;Y2;K\"%s\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\n"
+            "C;X5;K0.375\nC;X6;K0.625\nC;X7;K2.25\nE\n",
+            schema ? "Data11" : "DataA1",schema ? "Data13" : "DataC1",alias,parent);
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        mapInfo_t const *saved_map=level.mapinfo;mapInfo_t info=*saved_map;
+        unitModification_t mod={.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="fly"};
+        unitData_t flying={.originalUnitID=family ? alt : base,.numbeOfModifications=1,.modifications=&mod};
+        info.num_originalUnits=1;info.originalUnits=&flying;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        edict_t *unit=alloc_test_unit(base,64,64);
+        unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        if(!family)unit->aiflags|=AI_FLYING;
+        T_ASSERT(G_ActorAddSkill(unit,code));
+        for(unsigned reverse=0;reverse<(family ? 1 : 2);reverse++) {
+            float start=1+reverse*2,delay=family || reverse ? .375f : 1.0f;
+            uint32_t source=reverse ? alt : base,target=reverse ? base : alt;
+            cstring_t order=family ? "avengerform" : reverse ? "unstoneform" : "stoneform";
+            level.pathing_clock=(wc3Clock_t){.time=start,.span=300};
+            T_ASSERT(unit_issueimmediateorder(unit,order));
+            T_EQ(unit->class_id,family || reverse ? target : source);
+            T_EQ((unit->aiflags&AI_FLYING)!=0,(family || reverse)!=0);
+            T_EQ(unit->movement.repulse.disable_depth,1);T_EQ(unit->current_order_id,G_OrderId(order));
+            if(action==1) {
+                T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->current_order_id,G_OrderId(order));
+            } else if(action==2) {
+                S_SetUnitPaused(unit,true);T_ASSERT(!S_UnitExecutionPaused(unit));
+            } else if(action==3) {
+                uint32_t slot=unit-g_edicts;cstring_t file=Test_TempPath("wc3-morph332.bin");
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+slot;
+            }
+            morph330_advance(start+delay-.001f);
+            T_EQ(unit->class_id,family || reverse ? target : source);T_EQ(unit->movement.repulse.disable_depth,1);
+            morph330_advance(start+delay);
+            T_EQ(unit->class_id,target);T_EQ(unit->movement.repulse.disable_depth,action==2 ? 1 : 0);
+            if(action==2) {
+                T_ASSERT(S_UnitExecutionPaused(unit));S_SetUnitPaused(unit,false);
+                morph330_advance(start+delay+.05f);S_RunMoveTimers();T_EQ(unit->movement.repulse.disable_depth,0);
+            }
+            T_EQ(unit->current_order_id,0);
+        }
+        reset_entities();level.mapinfo=saved_map;G_SetMapUnitOverrides(saved_map);
+        restore_raven_form_test_data(ability_rows,old_ability,ui_rows,old_ui,profile_rows,old_profile);
+        free_slk_rows(timing);
+    }
+}
+
+/* Native334: DataB bit8 prevents removal from reversing the form. An early
+ * removal cancels its timer without releasing the counted contribution;
+ * ordinary completion removes the permanent morph ability itself. */
+TEST(wc3_unit, morph334_permanent_flag_controls_removal_and_completion) {
+    for(unsigned family=0;family<2;family++)for(unsigned schema=0;schema<2;schema++)
+    for(unsigned permanent=0;permanent<2;permanent++)for(unsigned action=0;action<3;action++) {
+        slkTestData_t *ability_rows,*old_ability,*ui_rows,*old_ui,*profile_rows,*old_profile;
+        reset_test_entities();setup_test_world();
+        install_raven_form_test_data(&ability_rows,&old_ability,&ui_rows,&old_ui,&profile_rows,&old_profile);
+        uint32_t base=MAKEFOURCC('h','p','e','a'),alt=MAKEFOURCC('h','f','o','o');
+        cstring_t parent=family ? "Aave" : "Astn",alias=family ? "Aa34" : "As34";
+        uint32_t code=FS_SLKKey(alias);
+        char data[1024];snprintf(data,sizeof(data),
+            "ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"%s\"\nC;X7;K\"%s\"\n"
+            "C;X1;Y2;K\"%s\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\n"
+            "C;X5;K0.375\nC;X6;K0.625\nC;X7;K%u\nE\n",
+            schema ? "Data11" : "DataA1",schema ? "Data13" : "DataC1",
+            schema ? "Data12" : "DataB1",alias,parent,permanent ? 8u : 0u);
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        mapInfo_t const *saved_map=level.mapinfo;mapInfo_t info=*saved_map;
+        float height=96;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="fly"},
+            {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_real,.data=&height}};
+        unitData_t flying={.originalUnitID=family ? alt : base,.numbeOfModifications=2,.modifications=mods};
+        info.num_originalUnits=1;info.originalUnits=&flying;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        edict_t *unit=alloc_test_unit(base,64,64);
+        unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        if(!family)unit->aiflags|=AI_FLYING;
+        T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(G_ActorSetSkillPermanent(unit,code,true));
+        if(action==0) {
+            vec2_t destination={512,64};
+            T_ASSERT(unit_issueorder(unit,"move",&destination));
+            T_ASSERT(G_ActorRemoveSkill(unit,code));
+            T_EQ(unit->current_order_id,G_OrderId("move"));
+            T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(G_ActorSetSkillPermanent(unit,code,true));
+        }
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        T_ASSERT(unit_issueimmediateorder(unit,family ? "avengerform" : "stoneform"));
+        T_EQ(unit->movement.repulse.disable_depth,1);
+        float delay=family ? .375f : 1.0f;
+        if(action==1) {
+            morph330_advance(1+delay);
+            T_EQ(unit->class_id,alt);T_EQ(unit->movement.repulse.disable_depth,0);
+            if(family) {
+                T_NOT_NULL(unit->raven);
+                T_EQ(unit->raven->rise_state,RAVEN_RISE_ACTIVE);
+                /* Removing the completed permanent ability must not strand
+                 * its independent height movement at ground level. */
+                level.time=(uint32_t)unit->raven->rise_start+625;
+                monster_think(unit);T_FEQ(unit->unitinfo.FlyHeight,96,.001f);
+            }
+            T_EQ(G_UnitAbilityLevel(unit,code)!=0,!permanent);
+            T_EQ(G_ActorRemoveSkill(unit,code),!permanent);
+        } else if(action==0) {
+            morph330_advance(1.1f);T_ASSERT(G_ActorRemoveSkill(unit,code));
+            T_EQ(unit->current_order_id,0);
+        } else {
+            unit_die(unit,NULL);T_ASSERT(M_IsDead(unit));
+        }
+        uint32_t expected_type=action==2 || (action==0 && permanent) ? (family ? alt : base) : permanent ? alt : base;
+        int expected_depth=action==2 || (action==0 && permanent) ? 1 : 0;
+        T_EQ(unit->class_id,expected_type);T_EQ(unit->movement.repulse.disable_depth,expected_depth);
+        if(action==0) {
+            uint32_t slot=unit-g_edicts;cstring_t file=Test_TempPath("wc3-morph334.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+slot;
+        }
+        morph330_advance(2+delay);
+        T_EQ(unit->class_id,expected_type);T_EQ(unit->movement.repulse.disable_depth,expected_depth);
+        reset_entities();level.mapinfo=saved_map;G_SetMapUnitOverrides(saved_map);
+        restore_raven_form_test_data(ability_rows,old_ability,ui_rows,old_ui,profile_rows,old_profile);
+        free_slk_rows(timing);
+    }
+}
+
+TEST(wc3_unit, morph326_remove_inactive_base_ability_preserves_move) {
+    slkTestData_t *ability_rows,*old_ability,*ui_rows,*old_ui,*profile_rows,*old_profile;
+    reset_test_entities();setup_test_world();
+    install_raven_form_test_data(&ability_rows,&old_ability,&ui_rows,&old_ui,&profile_rows,&old_profile);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),64,64);
+    T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('A','m','r','f')));
+    T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){256,64}));
+    umove_t const *move=unit->currentmove;edict_t *goal=unit->goalentity;
+    T_EQ(unit->current_order_id,851986);
+    T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','m','r','f')));
+    T_EQ(unit->current_order_id,851986);T_EQ(unit->currentmove,move);T_EQ(unit->goalentity,goal);
+    restore_raven_form_test_data(ability_rows,old_ability,ui_rows,old_ui,profile_rows,old_profile);
+}
+
 TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
     edict_t *ent;
 
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    mapInfo_t const *saved_map=install_raven_flight_endpoint();
     ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     G_InitializeUnitVertexColor(ent);
     T_ASSERT(ent->vertex_color_set);
@@ -2392,7 +2772,9 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     T_ASSERT(!ent->vertex_color_set);
     T_EQ(ent->vertex_color.r, 255); T_EQ(ent->vertex_color.g, 255);
     T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
+    finish_test_morph(ent);
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
+    finish_test_morph(ent);
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
     T_FEQ(ent->health.max_value, ent->data.UnitBalance->maxHealth + 123.0f, 0.001f);
     T_FEQ(ent->mana.max_value, ent->data.UnitBalance->maxMana + 77.0f, 0.001f);
@@ -2401,6 +2783,7 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     T_EQ(ent->vertex_color.r, 224); T_EQ(ent->vertex_color.g, 232);
     T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
 
+    level.mapinfo=saved_map;G_SetMapUnitOverrides(saved_map);
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
@@ -2567,11 +2950,13 @@ TEST(wc3_unit, stoneform_uses_authored_transform_endpoints_in_both_directions) {
     T_EQ(G_AbilityData(MAKEFOURCC('A','s','t','n'))->level[0].data[0].id, MAKEFOURCC('h','p','e','a'));
     T_EQ(G_AbilityData(MAKEFOURCC('A','s','t','n'))->level[0].unitID, MAKEFOURCC('h','f','o','o'));
     T_ASSERT(unit_issueimmediateorder(ent, "stoneform"));
+    finish_test_morph(ent);
     T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
     /* Stone Form must add its presentation tag even when the authored target
      * profile already contributes another alternate-family requirement. */
     T_ASSERT(strstr(G_UnitAnimationProperties(ent), ",alternate") != NULL);
     T_ASSERT(unit_issueimmediateorder(ent, "unstoneform"));
+    finish_test_morph(ent);
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
     T_STREQ(G_UnitAnimationProperties(ent), "");
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
@@ -2595,10 +2980,12 @@ TEST(wc3_unit, stoneform_immediate_direction_rejection_preserves_move_and_queue)
     T_EQ(unit->current_order_id, 851986);
     T_EQ(G_UnitQueuedOrderCount(unit), 1);
     T_ASSERT(unit_issueimmediateorder(unit, "stoneform"));
+    finish_test_morph(unit);
     T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
     T_ASSERT(!unit_issueimmediateorder(unit, "stoneform"));
     T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
     T_ASSERT(unit_issueimmediateorder(unit, "unstoneform"));
+    finish_test_morph(unit);
     T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
@@ -2634,6 +3021,7 @@ TEST(wc3_unit, stoneform_command_applies_to_focused_unit_type_subgroup) {
 
     G_ClientCommand(g_edicts, 2, command);
 
+    finish_test_morph(first);finish_test_morph(second);
     T_EQ(first->class_id, MAKEFOURCC('h','f','o','o'));
     T_EQ(second->class_id, MAKEFOURCC('h','f','o','o'));
     /* This selected unit began in the other type subgroup and must not receive
@@ -2648,14 +3036,18 @@ TEST(wc3_unit, unravenform_accepts_preplaced_alternate_form) {
 
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    mapInfo_t const *saved_map=install_raven_flight_endpoint();
     ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
     G_ResetUnitAnimationProperties(ent);
     T_STREQ(G_UnitAnimationProperties(ent), "alternateex");
 
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
+    T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
+    finish_test_morph(ent);
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
     T_STREQ(G_UnitAnimationProperties(ent), "");
 
+    level.mapinfo=saved_map;G_SetMapUnitOverrides(saved_map);
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
@@ -2665,6 +3057,7 @@ TEST(wc3_unit, unravenform_snaps_new_animation_frame_while_unit_is_paused) {
 
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    mapInfo_t const *saved_map=install_raven_flight_endpoint();
     ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
     SP_SpawnUnit(ent);
     unit_stand(ent);
@@ -2673,12 +3066,16 @@ TEST(wc3_unit, unravenform_snaps_new_animation_frame_while_unit_is_paused) {
     ent->s.frame = 0x7fffffffu;
 
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
-    T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
-    T_STREQ(G_UnitAnimationProperties(ent), "");
+    T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
+
     T_NOT_NULL(ent->animation);
     T_ASSERT(G_AnimationHasPrimary(ent->animation, "morph"));
-    T_EQ(ent->s.frame, ent->animation->interval[0]);
+    if(ent->animation)T_EQ(ent->s.frame, ent->animation->interval[0]);
+    finish_test_morph(ent);
+    T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
+    T_STREQ(G_UnitAnimationProperties(ent), "");
 
+    level.mapinfo=saved_map;G_SetMapUnitOverrides(saved_map);
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
@@ -2690,6 +3087,7 @@ TEST(wc3_unit, raven_ability_dispatch_and_toggle) {
     abilityCall_t call;
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    mapInfo_t const *saved_map=install_raven_flight_endpoint();
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     item = MAKE(abilityitem_t, .ability = ability);
     call = MAKE(abilityCall_t, .item = &item);
@@ -2705,12 +3103,16 @@ TEST(wc3_unit, raven_ability_dispatch_and_toggle) {
     T_ASSERT(S_AbilityMessage(ent, A_TOGGLE_ON, &call));
     T_ASSERT(ent->currentmove->proc == ability->proc);
     T_NULL(ent->currentmove->think); /* Morph cannot acquire enemies and replace itself with Attack. */
-    T_ASSERT(unit_issueimmediateorder(ent, "ravenform")); /* Already in this form. */
+    T_ASSERT(!unit_issueimmediateorder(ent, "ravenform")); /* Active owner rejects recast. */
+    finish_test_morph(ent);
+    T_ASSERT(unit_issueimmediateorder(ent, "ravenform")); /* Completed form is idempotent. */
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
+    finish_test_morph(ent);
     T_ASSERT(!S_AbilityMessage(ent, A_TOGGLE_ON, &call));
     T_EQ(ent->raven->rise_state, RAVEN_RISE_NONE);
     ent->class_id = MAKEFOURCC('o','g','r','u');
     T_ASSERT(!unit_issueimmediateorder(ent, "ravenform"));
+    level.mapinfo=saved_map;G_SetMapUnitOverrides(saved_map);
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
@@ -2720,6 +3122,7 @@ TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
     vec2_t point = {128, 64};
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    mapInfo_t const *saved_map=install_raven_flight_endpoint();
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
     if (!ent->raven) ent->raven = G_AllocRaven();
@@ -2727,9 +3130,11 @@ TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
     ent->raven->fly_height = 100;
     ent->raven->rise_duration = 2;
     T_ASSERT(G_AnimationHasPrimary(ent->animation, "morph"));
-    ent->s.frame = ent->animation->interval[1] - 1;
+    if(ent->animation)ent->s.frame = ent->animation->interval[1] - 1;
     level.time = 1000;
     monster_think(ent);
+    T_EQ(ent->raven->rise_state, RAVEN_RISE_AFTER_MORPH);
+    finish_test_morph(ent);
     T_EQ(ent->raven->rise_state, RAVEN_RISE_ACTIVE);
     T_FEQ(ent->unitinfo.FlyHeight, 0, 0.001f);
     T_ASSERT(unit_issueorder(ent, "move", &point));
@@ -2739,10 +3144,12 @@ TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
     T_FEQ(ent->unitinfo.FlyHeight, 50, 0.001f);
     T_FEQ(ent->s.origin2.x, 64, 0.001f); /* Pause stops walking, but preserves the PR's independent ascent. */
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
+    finish_test_morph(ent);
     level.time = 3000;
     monster_think(ent);
     T_EQ(ent->raven->rise_state, RAVEN_RISE_NONE);
     T_FEQ(ent->unitinfo.FlyHeight, 0, 0.001f);
+    level.mapinfo=saved_map;G_SetMapUnitOverrides(saved_map);
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
@@ -2752,6 +3159,7 @@ TEST(wc3_unit, raven_takeoff_survives_interrupted_morph) {
     vec2_t point = {128, 64};
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    mapInfo_t const *saved_map=install_raven_flight_endpoint();
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
     if (!ent->raven) ent->raven = G_AllocRaven();
@@ -2760,8 +3168,12 @@ TEST(wc3_unit, raven_takeoff_survives_interrupted_morph) {
     ent->raven->rise_duration = 2;
     T_EQ(ent->raven->rise_state, RAVEN_RISE_AFTER_MORPH);
     T_ASSERT(unit_issueorder(ent, "move", &point));
-    umove_t const *walk = ent->currentmove;
+    T_EQ(ent->current_order_id,852155);
+    T_EQ(ent->raven->rise_state,RAVEN_RISE_AFTER_MORPH);
     level.time = 1000;
+    finish_test_morph(ent);
+    T_EQ(ent->current_order_id,851986);
+    umove_t const *walk=ent->currentmove;
     S_RunAbilityUpdates(ent);
     T_EQ(ent->raven->rise_state, RAVEN_RISE_ACTIVE);
     T_ASSERT(ent->currentmove == walk);
@@ -2769,6 +3181,7 @@ TEST(wc3_unit, raven_takeoff_survives_interrupted_morph) {
     S_RunAbilityUpdates(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 50, 0.001f);
     T_ASSERT(ent->currentmove == walk);
+    level.mapinfo=saved_map;G_SetMapUnitOverrides(saved_map);
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 

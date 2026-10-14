@@ -1863,6 +1863,11 @@ TEST(wc3_order_lifecycle, rooted_returning_creep_ignores_enemy_then_walks_home) 
     creep_guard_setup_frame_world();
     edict_t *creep = scheduled_creep(-800, 100, 0);
     edict_t *enemy = review_order_unit_at(100, 300, 0);
+    /* Exercise real Stand loops: an unloaded model skips animation end
+     * callbacks and concealed a return timer restarted by every idle loop. */
+    creep->s.model = G_RegisterModel("TestUI\\Models\\anim_pulse.mdx");
+    unit_stand(creep);
+    T_ASSERT(creep->animation && creep->animation->interval[1] > creep->animation->interval[0]);
     int frame;
     G_CreepGuardAutoCombat(creep);
     T_ASSERT(G_CreepGuardIssueReturn(creep, &creep->movement.creep_guard_origin));

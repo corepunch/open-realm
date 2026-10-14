@@ -831,16 +831,52 @@ BZ_VALIDATED_SPELL_PROC(AbilityDeathPact, death_pact_validate, death_pact_execut
 /* Name=Metamorphosis
  * Ubertip="Transforms the Demon Hunter into a powerful demon."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityMetamorphosis) {
-    uint32_t level = S_SpellLevel(caster, spell->code), form = S_SpellUnitId(spell->code, level), original = caster->class_id;
-    float duration = S_SpellDuration(spell->code, level, true);
-    if (!form || !G_TransformUnitType(caster, form) || duration <= 0.0f) return;
-    edict_t *thinker = G_Spawn();
-    thinker->owner = caster; thinker->resources = original;
-    thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->owner_spawn_time = caster->spawn_time;
-    thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f); thinker->think = morph_end;
+/* Ground timed forms use the common primary transition owner. Forward and
+ * inverse animations are presentation; neither can release the counted lock. */
+static void metamorphosis_animation_end(edict_t *unit) {
+    if(!S_HoldMorphAnimation(unit))unit_stand(unit);
+}
+static umove_t metamorphosis_forward={"morph",NULL,metamorphosis_animation_end,CAbilityMetamorphosis};
+static umove_t metamorphosis_reverse={"morph alternate",NULL,metamorphosis_animation_end,CAbilityMetamorphosis};
+
+static bool metamorphosis_timed_ground(abilityitem_t const *item) {
+    return item && item->ability && (!strcmp(item->ability->classname,"AEme") ||
+                                     !strcmp(item->ability->classname,"ANcr"));
+}
+static bool metamorphosis_begin(edict_t *unit,uint32_t code,bool reverse) {
+    abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(unit,code));
+    uint32_t base=reverse && unit->morph ? unit->morph->base_type : unit->class_id;
+    uint32_t target=reverse ? base : data->unitID;
+    if(!target || target==unit->class_id)return false;
+    order_stop_cleanup(unit);
+    unit_setmove(unit,reverse ? &metamorphosis_reverse : &metamorphosis_forward);
+    unit->current_order_id=S_SpellOrderId(unit,code);
+    S_BeginMorphTransition(unit,code,base,target,reverse,true,data->dur);
+    return true;
+}
+BZ_ABILITY_PROC(CAbilityMetamorphosis) {
+    if(!call || !call->item)return false;
+    /* Preserve the conversion-owner identity used by AI while sharing the
+     * reversible ground transition and public-order dispatch. */
+    if(call->item->ability && !strcmp(call->item->ability->classname,"ANrg"))
+        return CAbilityGroundMorph(ent,msg,call);
+    uint32_t code=call->item->code;
+    if(!metamorphosis_timed_ground(call->item))return CAbilityAvengerForm(ent,msg,call);
+    switch(msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
+    case A_VALIDATE:
+        return ent && !(ent->morph && ent->morph->transition.active) &&
+            G_AbilityLevel(code,S_SpellLevel(ent,code))->unitID &&
+            G_AbilityLevel(code,S_SpellLevel(ent,code))->unitID!=ent->class_id;
+    case A_EXECUTE:return metamorphosis_begin(ent,code,false);
+    case A_MORPH_COMPLETE:
+        if(!call->enabled)S_ScheduleMorphExpiration(ent,S_SpellDuration(code,S_SpellLevel(ent,code),true));
+        unit_stand(ent);return true;
+    case A_MORPH_EXPIRE:return metamorphosis_begin(ent,code,true);
+    case A_DISABLE:S_RemoveMorphAbility(ent,code);return true;
+    default:return CAbilitySimpleSpell(ent,msg,call);
+    }
 }
 /* Name=Sleep
  * Ubertip="Puts a target enemy unit to sleep."

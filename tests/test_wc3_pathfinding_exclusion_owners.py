@@ -7,7 +7,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools/ghidra'))
-import verify_wc3_pathing_exclusion_owners as v
+import audit_wc3_pathing_exclusion_owners as v
 
 
 class ExclusionOwnerTests(unittest.TestCase):

@@ -406,4 +406,51 @@ TEST(wc3_repulsion_policy, authored_selector_keeps_integer_low_bits) {
     G_SetSLKRows("UnitBalance", old); free_slk_rows(rows);
     reset_entities(); setup_test_world();
 }
+/* Computer-owned CreateUnit appends the private AI command after Town admission.
+ * Count observations retain the transient disable/re-enable, not just final zero. */
+static unsigned ai328_count;
+static int32_t ai328_depths[8];
+static bool ai328_active[8];
+static void ai328_observe(edict_t const *unit) {
+    if(unit->class_id!=MAKEFOURCC('h','f','o','o'))return;
+    if(ai328_count<(sizeof(ai328_depths)/sizeof(*ai328_depths))) {
+        ai328_depths[ai328_count]=unit->movement.repulse.disable_depth;
+        ai328_active[ai328_count]=unit->movement.repulse.active;
+    }
+    ai328_count++;
+}
+
+TEST(wc3_repulsion_policy, ai328_public_creation_dispatches_counted_ai_scope) {
+    uint32_t controller=game.clients[0].jass.controller;
+    mapPlayer_t const *mapplayer=game.clients[0].mapplayer;
+    UnitBalance_t row=*G_UnitBalance(MAKEFOURCC('h','f','o','o'));
+    row.repulse=2;row.repulseParam=row.repulseGroup=row.repulsePrio=17;
+    slkTestData_t table={.rows=&row,.count=1};
+    slkTestData_t *prior=G_SetSLKRows("UnitBalance",&table);
+    FOR_LOOP(computer,2) {
+        G_BotStop(0);reset_entities();setup_test_world();
+        level.pathing_clock=(wc3Clock_t){.1f,0,300};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        game.clients[0].jass.controller=computer;
+        ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+        game.clients[0].mapplayer=&level.mapinfo->players[0];
+        G_BotInitPlayers();
+        ai328_count=0;move_test_repulse_count_observer=ai328_observe;
+        edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){640,1024},0);
+        move_test_repulse_count_observer=NULL;
+        T_NOT_NULL(unit);
+        T_EQ(ai328_count,computer ? 2 : 0);
+        if(computer && ai328_count==2) {
+            T_EQ(ai328_depths[0],1);T_EQ(ai328_depths[1],0);
+            T_ASSERT(!ai328_active[0]);T_ASSERT(ai328_active[1]);
+        }
+        if(unit) {
+            T_EQ(unit->movement.repulse.disable_depth,0);
+            T_EQ(unit->current_order_id,0);
+        }
+    }
+    G_BotStop(0);reset_entities();setup_test_world();
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+    G_SetSLKRows("UnitBalance",prior);
+}
 #endif

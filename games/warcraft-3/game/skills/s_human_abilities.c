@@ -83,7 +83,7 @@ bool S_UnitSpellImmune(edict_t const *unit) {
     };
     if (!unit) return false;
     FOR_LOOP(i, sizeof(passive) / sizeof(*passive)) if (G_UnitAbilityLevel(unit, passive[i])) return true;
-    return unit_hasstatusstate(unit, WC3_STATUS_STATE_MAGIC_IMMUNE) || S_PossessionSpellImmune(unit);
+    return unit->spell_immunity_depth>0 || unit_hasstatusstate(unit, WC3_STATUS_STATE_MAGIC_IMMUNE) || S_PossessionSpellImmune(unit);
 }
 
 /* Spell impacts recheck immunity because a missile may have launched before Avatar was cast.
@@ -97,21 +97,77 @@ bool S_SpellDamage(edict_t *target, edict_t *caster, int damage) {
     T_Damage(target, caster, damage); return true;
 }
 
+/* Avatar's d01c4 belongs to the ability, independently of its current BHav.
+ * Replacing the request does not release an earlier counted contribution. */
+static edict_t *avatar_heap[MAX_ENTITIES];
+static uint32_t avatar_positions[MAX_ENTITIES], avatar_count;
+static bool avatar_timer_less(edict_t const *a, edict_t const *b) {
+    abilityPrimaryTimer_t const *x=&a->avatar->transition,*y=&b->avatar->transition;
+    return x->deadline.time==y->deadline.time ? x->sequence<y->sequence : x->deadline.time<y->deadline.time;
+}
+static void avatar_timer_put(uint32_t position, edict_t *unit) {
+    avatar_heap[position]=unit;avatar_positions[unit-g_edicts]=position+1;
+}
+static void avatar_timer_remove(edict_t *unit) {
+    if(unit->avatar)unit->avatar->transition.active=false;
+    uint32_t position=avatar_positions[unit-g_edicts];
+    if(!position)return;
+    avatar_positions[unit-g_edicts]=0;position--;
+    edict_t *last=avatar_heap[--avatar_count];
+    if(position==avatar_count)return;
+    while(position && avatar_timer_less(last,avatar_heap[(position-1)/2])) {
+        avatar_timer_put(position,avatar_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    while(position*2+1<avatar_count) {
+        uint32_t child=position*2+1;
+        if(child+1<avatar_count && avatar_timer_less(avatar_heap[child+1],avatar_heap[child]))child++;
+        if(!avatar_timer_less(avatar_heap[child],last))break;
+        avatar_timer_put(position,avatar_heap[child]);position=child;
+    }
+    avatar_timer_put(position,last);
+}
+static void avatar_timer_insert(edict_t *unit) {
+    uint32_t position=avatar_count++;
+    while(position && avatar_timer_less(unit,avatar_heap[(position-1)/2])) {
+        avatar_timer_put(position,avatar_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    avatar_timer_put(position,unit);
+}
+static void avatar_transition_begin(edict_t *unit) {
+    assert(unit->avatar);
+    avatar_timer_remove(unit);
+    S_AcquireUnitSeparationSuppression(unit);
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    unit->avatar->transition=(abilityPrimaryTimer_t){.deadline=now,
+        .sequence=++level.timer_sequence,.active=true};
+    unit->avatar->transition.deadline.time=wc3_add(now.time,1);
+    avatar_timer_insert(unit);
+}
+static void avatar_transition_fire(void) {
+    edict_t *unit=avatar_heap[0];
+    avatar_timer_remove(unit);
+    S_ReleaseUnitSeparationSuppression(unit);
+    if(unit->avatar && !unit->avatar->level)G_FreeAvatar(unit);
+    S_UnitTargetAvailable(unit); /* Native4cde10 publishes after the release. */
+}
+
 /* Retail removes the stored deltas and clamps current health instead of subtracting it. */
-static void avatar_expire_internal(edict_t *unit, bool remove_buff) {
+static void avatar_expire_internal(edict_t *unit, bool remove_buff, bool transition) {
     if (!unit || !unit->avatar || !unit->avatar->level) return;
     G_ApplyTemporaryArmorBonus(unit, -unit->avatar->armor);
     G_ApplyTemporaryAttackDamageBonus(unit, -(float)unit->avatar->damage);
     unit->temporary_health_bonus -= unit->avatar->health;
     unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar->health);
     G_SetHealth(unit, MIN(unit->health.value, unit->health.max_value));
-    G_FreeAvatar(unit);
+    unit->avatar->level=0;
+    if(transition && S_SpellIsAliveTarget(unit) && !G_IsDeferredFree(unit))avatar_transition_begin(unit);
+    if(!unit->avatar->transition.active)G_FreeAvatar(unit);
     if (remove_buff) human_remove_status(unit, BZ_AVATAR_BUFF);
     G_AddUnitAnimationProperties(unit, "alternate", false); G_InvalidateUnitInfoPanel(unit);
 }
 
 void S_AvatarExpire(edict_t *unit) {
-    avatar_expire_internal(unit, true);
+    avatar_expire_internal(unit, true, true);
 }
 
 /* Reserve the Avatar buff slot before spell_commit spends mana; cooldowns have independent storage. */
@@ -130,11 +186,12 @@ static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t 
     uint32_t rank = S_SpellLevel(caster, spell->code);
     (void)target;
     if ((caster->avatar && caster->avatar->level)) return;
+    if (!caster->avatar) caster->avatar = G_AllocAvatar();
+    assert(caster->avatar);
+    avatar_transition_begin(caster); /* Native acquires before constructing BHav. */
     if (!S_SpellApplyTimedStatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false))) {
         fprintf(stderr, "WC3 Avatar: failed to allocate BHav status\n"); return;
     }
-    if (!caster->avatar) caster->avatar = G_AllocAvatar();
-    assert(caster->avatar);
     caster->avatar->level = rank; caster->avatar->armor = S_SpellData(spell->code, rank, 1);
     caster->avatar->health = S_SpellData(spell->code, rank, 2); caster->avatar->damage = (int32_t)S_SpellData(spell->code, rank, 3);
     G_ApplyTemporaryArmorBonus(caster, caster->avatar->armor);
@@ -744,6 +801,8 @@ BZ_ABILITY_PROC(CAbilityInnerFire) {
     case A_AUTOCAST_ON:return ent && ent->autocast_code==code;
     case A_AUTOCAST_SET:return true;
     case A_AUTOCAST_ACQUIRE:return S_AutocastAcquireUnit(ent,code,true,false,900.0f);
+    case A_STATUS_POLICY:
+        return UNIT_BUFF_KNOWN | UNIT_BUFF_POSITIVE | UNIT_BUFF_MAGIC | UNIT_BUFF_AUTO_DISPEL;
     default:return CAbilitySimpleSpell(ent,msg,call);
     }
 }
@@ -857,8 +916,43 @@ BZ_ABILITY_PROC(CAbilityAvatar) {
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_REMOVING,A_UNIT_REMOVE);
+    case A_UNIT_REMOVING:case A_UNIT_REMOVE:
+        if(ent)avatar_timer_remove(ent); /* Retirement does not balance the old hold. */
+        return true;
+    case A_TIMERS_RESET:
+        avatar_count=0;memset(avatar_positions,0,sizeof(avatar_positions));return true;
+    case A_TIMERS_REBUILD:
+        avatar_count=0;memset(avatar_positions,0,sizeof(avatar_positions));
+        FOR_LOOP(i,globals.num_edicts) {
+            edict_t *unit=g_edicts+i;
+            if(unit->inuse && unit->avatar && unit->avatar->transition.active)avatar_timer_insert(unit);
+        }
+        return true;
+    case A_PRIMARY_TIMER_NEXT:
+        if(!avatar_count || !call || !call->primary_timer)return false;
+        *call->primary_timer=(abilityTimerRequest_t){avatar_heap[0]->avatar->transition.deadline,
+            avatar_heap[0]->avatar->transition.sequence,CAbilityAvatar};return true;
+    case A_PRIMARY_TIMER_FIRE:
+        if(avatar_count)avatar_transition_fire();
+        return true;
+    case A_PRIMARY_TIMER_REBASE:
+        FOR_LOOP(i,avatar_count) {
+            abilityPrimaryTimer_t *request=&avatar_heap[i]->avatar->transition;
+            request->deadline.time=wc3_sub(request->deadline.time,call->clock_span);request->deadline.epoch++;
+        }
+        return true;
+    case A_PRIMARY_TIMER:
+        if(!level.scheduled_frame)while(avatar_count) {
+            wc3Clock_t now=G_TimerQueryClock(NULL);
+            if(avatar_heap[0]->avatar->transition.deadline.time>now.time)break;
+            avatar_transition_fire();
+        }
+        return true;
     case A_VALIDATE: return avatar_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: avatar_execute(ent, target, call ? call->item : NULL); return true;
+    case A_DEATH: avatar_expire_internal(ent,true,false); return true;
     case A_DISABLE: S_AvatarExpire(ent); return true;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }

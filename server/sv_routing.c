@@ -640,22 +640,6 @@ static bool entity_blocks_static_pathing(edict_t const *ent) {
     return !(ent->svflags & SVF_MONSTER) && ent->collision > 0.0f;
 }
 
-#ifdef WC3_DEBUG_ROUTING
-static void routing_debug_pathtex(edict_t const *ent, point2_t p, pathTexTransform_t const *transform) {
-    uint32_t blocked = 0;
-    pathTex_t const *pt;
-
-    if (!ent || !(pt = ent->pathtex)) return;
-    FOR_LOOP(y, pt->height) FOR_LOOP(x, pt->width) {
-        if (pt->map[x + y * pt->width].b) blocked++;
-    }
-    fprintf(stderr, "WC3_DEBUG_ROUTING pathtex ent=%d pos=%.1f,%.1f angle=%.3f cell=%d,%d "
-        "authored=%ux%u stamped=%dx%d turn=%d blocked=%u surface=%d\n", ent->s.number,
-        ent->s.origin2.x, ent->s.origin2.y, ent->s.angle, p.x, p.y, pt->width, pt->height,
-        transform->width, transform->height, transform->turn, blocked, entity_is_live_walkable_surface(ent));
-}
-#endif
-
 /* Rebuild current static obstacles from the mutable terrain baseline.  This
  * is normally called once after map spawning, and again only when a static
  * footprint changes (building creation or destructable death). */

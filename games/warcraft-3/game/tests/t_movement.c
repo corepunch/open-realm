@@ -12008,6 +12008,232 @@ TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
     free_slk_rows(rows);
 }
 
+/* Retail562030/5610e0: the Entangle Cargo task owns one counted hold,
+ * independently of the generic hidden/paused presentation used for cargo. */
+TEST(wc3_movement, separation323_entangle_cargo_public_harvest_and_saved_inverse) {
+    reset_entities(); setup_test_world();
+    slkTestData_t *rows;
+    slkTestData_t *old = install_racial_goldmine_test_data(&rows);
+    edict_t *mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    edict_t *wisps[2];
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->s.player = 0;
+    mine->health.value = mine->health.max_value = 1000;
+    UnitBalance_t balance = *G_UnitBalance(MAKEFOURCC('e','w','s','p'));
+    balance.repulse = 1;
+    FOR_LOOP(i, 2) {
+        edict_t *wisp = wisps[i] = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0, 0);
+        wisp->s.player = 0;
+        wisp->data.UnitAbilities = &wisp_harvest_abilities;
+        wisp->data.UnitBalance = &balance;
+        wisp->stand = unit_stand;
+        unit_stand(wisp);
+        CAbilityMove(wisp, A_UNIT_INIT, NULL);
+        T_ASSERT(wisp->movement.repulse.active);
+        T_ASSERT(unit_issuetargetorder(wisp, "harvest", mine));
+        T_EQ(S_CargoTransportForUnit(wisp), mine);
+        T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
+        T_EQ(wisp->movement.repulse.disable_depth, 1);
+        T_ASSERT(!wisp->movement.repulse.active);
+        CAbilityMove(wisp, A_UNIT_TYPE_CHANGED, NULL);
+        T_EQ(wisp->movement.repulse.disable_depth, 1);
+        T_ASSERT(!wisp->movement.repulse.active);
+    }
+    /* Removing the first passenger shifts the second task's saved ownership. */
+    T_ASSERT(S_CargoUnloadAt(mine, 0));
+    T_EQ(wisps[0]->movement.repulse.disable_depth, 0);
+    T_ASSERT(wisps[0]->movement.repulse.active);
+    T_EQ(wisps[1]->movement.repulse.disable_depth, 1);
+    unsigned mine_slot = mine->s.number, wisp_slot = wisps[1]->s.number;
+    cstring_t file = Test_TempPath("entangle323-cargo.bin");
+    T_ASSERT(WriteGame(file));
+    T_ASSERT(ReadGame(file)); remove(file);
+    mine = g_edicts + mine_slot;
+    edict_t *wisp = g_edicts + wisp_slot;
+    wisp->data.UnitBalance = &balance;
+    CAbilityMove(wisp, A_UNIT_TYPE_CHANGED, NULL);
+    T_EQ(S_CargoTransportForUnit(wisp), mine);
+    T_EQ(wisp->movement.repulse.disable_depth, 1);
+    T_ASSERT(!wisp->movement.repulse.active);
+    /* Mine type metadata is restored from its real row, so release must use
+     * retained ownership rather than re-deriving it from the current type. */
+    unit_die(mine, NULL);
+    T_NULL(S_CargoTransportForUnit(wisp));
+    T_EQ(wisp->movement.repulse.disable_depth, 0);
+    T_ASSERT(wisp->movement.repulse.active);
+    T_ASSERT(!(wisp->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!wisp->paused);
+    vec2_t point = {128, 0};
+    T_ASSERT(unit_issueorder(wisp, "move", &point));
+    cargo_drop_all(mine);
+    T_EQ(wisp->movement.repulse.disable_depth, 0);
+    reset_entities();
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Cargo's live return callback runs after its own separation inverse. Only
+ * computer-owned passengers append d0006 and take its temporary counted hold. */
+static edict_t const *cargo329_observed;
+static unsigned cargo329_count;
+static int32_t cargo329_depths[8];
+static void cargo329_observe(edict_t const *unit) {
+    if(unit!=cargo329_observed)return;
+    if(cargo329_count<8)cargo329_depths[cargo329_count]=unit->movement.repulse.disable_depth;
+    cargo329_count++;
+}
+TEST(wc3_movement, cargo329_live_return_dispatches_computer_ai_after_cargo_inverse) {
+    uint32_t controller=game.clients[0].jass.controller;
+    mapPlayer_t const *mapplayer=game.clients[0].mapplayer;
+    UnitBalance_t balance=*G_UnitBalance(MAKEFOURCC('h','f','o','o'));
+    balance.id=MAKEFOURCC('e','w','s','p');
+    balance.maxHealth=100;
+    slkTestData_t balance_table={.rows=&balance,.count=1};
+    slkTestData_t *old_balance=G_SetSLKRows("UnitBalance",&balance_table);
+    UnitUI_t ui=*G_UnitUI(MAKEFOURCC('h','f','o','o'));
+    ui.id=balance.id;
+    slkTestData_t ui_table={.rows=&ui,.count=1};
+    slkTestData_t *old_ui=G_SetSLKRows("UnitUI",&ui_table);
+    FOR_LOOP(computer,2) {
+        reset_entities();setup_test_world();
+        game.clients[0].jass.controller=computer;
+        ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+        game.clients[0].mapplayer=&level.mapinfo->players[0];
+        G_BotInitPlayers();
+        slkTestData_t *rows,*old=install_racial_goldmine_test_data(&rows);
+        edict_t *mine=alloc_test_unit(MAKEFOURCC('h','b','a','r'),0,0);
+        mine->data.UnitAbilities=&test_entangled_mine;
+        mine->s.player=0;mine->health.value=mine->health.max_value=1000;
+        edict_t *wisp=unit_create(0,MAKEFOURCC('e','w','s','p'),&(vec2_t){0,0},0);
+        T_NOT_NULL(wisp);
+        if(wisp) {
+            wisp->data.UnitAbilities=&wisp_harvest_abilities;
+            G_ResetUnitAbilityCodes();
+            T_EQ((wisp->aiflags&AI_TOWN_OWNED)!=0,computer!=0);
+            T_ASSERT(unit_issuetargetorder(wisp,"harvest",mine));
+            T_EQ(S_CargoTransportForUnit(wisp),mine);
+            T_EQ(wisp->movement.repulse.disable_depth,1);
+            cargo329_observed=wisp;cargo329_count=0;
+            move_test_repulse_count_observer=cargo329_observe;
+            unit_die(mine,NULL);
+            move_test_repulse_count_observer=NULL;cargo329_observed=NULL;
+            T_EQ(cargo329_count,computer ? 3 : 1);
+            if(cargo329_count==(computer ? 3u : 1u)) {
+                T_EQ(cargo329_depths[0],0);
+                if(computer) {T_EQ(cargo329_depths[1],1);T_EQ(cargo329_depths[2],0);}
+            }
+            T_NULL(S_CargoTransportForUnit(wisp));
+            T_EQ(wisp->movement.repulse.disable_depth,0);
+            T_ASSERT(!(wisp->s.renderfx&RF_HIDDEN));T_ASSERT(!wisp->paused);
+            T_EQ(wisp->current_order_id,0);
+        }
+        reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+    G_SetSLKRows("UnitBalance",old_balance);
+    G_SetSLKRows("UnitUI",old_ui);
+}
+
+TEST(wc3_movement, cargo329_distant_attack_captain_recenters_on_passenger_return) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    level.started=true;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];
+    G_BotInitPlayers();G_BotCreateCaptains(&game.clients[0].ps);
+    G_BotSetCaptainHome(&game.clients[0].ps,1,-800,0);
+    UnitBalance_t balance=*G_UnitBalance(MAKEFOURCC('h','f','o','o'));
+    balance.id=MAKEFOURCC('e','w','s','p');balance.maxHealth=100;
+    slkTestData_t table={.rows=&balance,.count=1};
+    slkTestData_t *old_balance=G_SetSLKRows("UnitBalance",&table);
+    UnitUI_t ui=*G_UnitUI(MAKEFOURCC('h','f','o','o'));ui.id=balance.id;
+    slkTestData_t ui_table={.rows=&ui,.count=1};
+    slkTestData_t *old_ui=G_SetSLKRows("UnitUI",&ui_table);
+    slkTestData_t *rows,*old=install_racial_goldmine_test_data(&rows);
+    edict_t *mine=alloc_test_unit(MAKEFOURCC('h','b','a','r'),0,0);
+    mine->data.UnitAbilities=&test_entangled_mine;
+    mine->s.player=0;mine->health.value=mine->health.max_value=1000;
+    edict_t *wisp=unit_create(0,MAKEFOURCC('e','w','s','p'),&(vec2_t){0,0},0);
+    T_NOT_NULL(wisp);
+    if(wisp) {
+        wisp->data.UnitAbilities=&wisp_harvest_abilities;G_ResetUnitAbilityCodes();
+        T_ASSERT(G_BotAddAssault(&game.clients[0].ps,1,wisp->class_id));
+        botCaptain_t *captain=&level.bots[0].captains[BOT_CAPTAIN_ATTACK];
+        edict_t *actor=captain->home_actor;
+        T_NOT_NULL(actor);
+        T_ASSERT(unit_issuetargetorder(wisp,"harvest",mine));
+        T_EQ(S_CargoTransportForUnit(wisp),mine);
+        cargo329_observed=wisp;cargo329_count=0;
+        move_test_repulse_count_observer=cargo329_observe;
+        unit_die(mine,NULL);
+        move_test_repulse_count_observer=NULL;cargo329_observed=NULL;
+        T_EQ(cargo329_count,1); /* Recenter replaces the ordinary AI append. */
+        T_EQ(cargo329_depths[0],0);
+        /* Retail653510 admits this position: the occupied passenger point
+         * is not an unconditional coordinate write. The live probe requests
+         * (1552,816) and admits (1584,784). This synthetic world's blockers
+         * differ; verify the return delegates to its placement contract. */
+        vec2_t admitted;
+        T_ASSERT(actor && G_FindUnitPlacementPosition(actor,&wisp->s.origin2,&admitted));
+        if(actor) {
+            T_EQ(wc3_float_bits(actor->s.origin2.x),wc3_float_bits(admitted.x));
+            T_EQ(wc3_float_bits(actor->s.origin2.y),wc3_float_bits(admitted.y));
+        }
+        T_EQ(ARRAY_COUNT(captain->units),1);
+        T_EQ(wisp->movement.captain_home.roster_actor,actor);
+        T_EQ(wisp->movement.repulse.disable_depth,0);
+    }
+    G_BotStop(0);reset_entities();level.started=false;
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_SetSLKRows("UnitBalance",old_balance);G_SetSLKRows("UnitUI",old_ui);
+}
+
+TEST(wc3_movement, separation323_entangle_cargo_release_and_ordinary_hold) {
+    reset_entities(); setup_test_world();
+    slkTestData_t *rows;
+    slkTestData_t *old = install_racial_goldmine_test_data(&rows);
+    edict_t *mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    edict_t *wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0, 0);
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->s.player = wisp->s.player = 0;
+    mine->health.value = mine->health.max_value = 1000;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->stand = unit_stand; unit_stand(wisp);
+    T_ASSERT(unit_issuetargetorder(wisp, "harvest", mine));
+    T_EQ(wisp->movement.repulse.disable_depth, 1);
+    T_ASSERT(!S_CargoTryLoad(mine, wisp));
+    T_EQ(wisp->movement.repulse.disable_depth, 1);
+    G_FreeEdict(wisp);
+    T_EQ(mine->cargo->count, 0);
+    T_ASSERT(!S_CargoUnloadAt(mine, 0));
+    wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0, 0);
+    wisp->s.player = 0; wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->stand = unit_stand; unit_stand(wisp);
+    T_EQ(wisp->movement.repulse.disable_depth, 0);
+    T_ASSERT(unit_issuetargetorder(wisp, "harvest", mine));
+    T_EQ(wisp->movement.repulse.disable_depth, 1);
+    G_FreeEdict(mine);
+    T_EQ(wisp->movement.repulse.disable_depth, 0);
+    T_NULL(S_CargoTransportForUnit(wisp));
+    T_ASSERT(!(wisp->s.renderfx & RF_HIDDEN));
+    /* Ordinary cargo never acquires the Entangle task's contribution. */
+    edict_t *transport = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    static UnitAbilities_t const ordinary = {.abilList = "Acar"};
+    transport->s.player = 0;
+    transport->data.UnitAbilities = &ordinary;
+    /* Reuse the authored capacity through a genuine Acar row. */
+    slkTestData_t *hold = parse_slk_string("ID;PWXL;N;E\nB;X3;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\n"
+        "C;X1;Y2;K\"Acar\"\nC;X2;K\"Acar\"\nC;X3;K3\nE\n");
+    G_SetSLKRows("AbilityData", hold);
+    wisp->s.origin2 = transport->s.origin2;
+    T_ASSERT(S_CargoTryLoad(transport, wisp));
+    T_EQ(wisp->movement.repulse.disable_depth, 0);
+    T_ASSERT(S_CargoUnloadAt(transport, 0));
+    T_EQ(wisp->movement.repulse.disable_depth, 0);
+    reset_entities();
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows); free_slk_rows(hold);
+}
+
 TEST(wc3_movement, harvest_order_boards_wisp_into_entangled_mine) {
     slkTestData_t *rows, *old_abilities;
     edict_t *parent, *mine, *wisp;
@@ -22533,6 +22759,17 @@ TEST(wc3_movement, attack306_profiles_share_physical_chase_and_lifecycle) {
                 FOR_LOOP(i,4) {target166_tick();}
                 T_EQ(unit->s.origin2.x,stopped.x);T_EQ(unit->s.origin2.y,stopped.y);
                 S_SetUnitPaused(unit,false);
+                /* Unpause releases availability immediately, but production
+                 * think remains gated until the two-quantum physical inverse.
+                 * Calling the private Attack think before that boundary skips
+                 * monster_think's guard and discards the pending release. */
+                T_ASSERT(S_UnitExecutionPaused(unit));
+                monster_think(unit);
+                T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+                T_EQ(unit->movement.group_id,0);
+                target166_tick();
+                T_ASSERT(!S_UnitExecutionPaused(unit));
+                T_EQ(unit->movement.repulse.disable_depth,0);
                 unit->currentmove->think(unit);
                 T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
                 T_ASSERT(unit_issueimmediateorder(unit,"stop"));

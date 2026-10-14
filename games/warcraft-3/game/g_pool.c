@@ -113,6 +113,7 @@ DEFINE_POOL(shadowmeld, ShadowMeld, shadowMeld_t, MAX_ENTITIES)
 DEFINE_POOL(militia, Militia, militia_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(raven, Raven, raven_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(morph, Morph, morph_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(blight_growth, BlightGrowth, blightGrowth_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(ensnare, Ensnare, ensnare_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL_CALLBACKS(ancient_root, AncientRoot, ancientRoot_t, LIFECYCLE_POOL_CAP,
@@ -149,6 +150,7 @@ void G_PoolsReportPeaks(void) {
     REPORT_POOL(militia);
     REPORT_POOL(polymorph);
     REPORT_POOL(raven);
+    REPORT_POOL(morph);
     REPORT_POOL(blight_growth);
     REPORT_POOL(ensnare);
     REPORT_POOL(ancient_root);
@@ -178,6 +180,7 @@ void G_PoolsReset(void) {
         FOR_LOOP(i, globals.max_edicts) {
             S_ClearTransientAbilityOrders(g_edicts+i);S_ClearAbilityDisables(g_edicts+i);
             g_edicts[i].ability_pause_depth=0;
+            g_edicts[i].ability_exclusive_depth=0;
             g_edicts[i].construction = NULL;
             g_edicts[i].research = NULL;
             g_edicts[i].rally = NULL;
@@ -193,6 +196,7 @@ void G_PoolsReset(void) {
             g_edicts[i].militia = NULL;
             g_edicts[i].polymorph = NULL;
             g_edicts[i].raven = NULL;
+            g_edicts[i].morph = NULL;
             g_edicts[i].blight_growth = NULL;
             g_edicts[i].ensnare = NULL;
             g_edicts[i].ancient_root = NULL;
@@ -226,6 +230,7 @@ void G_PoolsReset(void) {
     G_ResetMilitiaPool();
     G_ResetPolymorphPool();
     G_ResetRavenPool();
+    G_ResetMorphPool();
     G_ResetBlightGrowthPool();
     G_ResetEnsnarePool();
     G_ResetAncientRootPool();
@@ -263,6 +268,7 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeMilitia(ent);
     G_FreePolymorph(ent);
     G_FreeRaven(ent);
+    G_FreeMorph(ent);
     G_FreeBlightGrowth(ent);
     G_FreeEnsnare(ent);
     G_FreeAncientRoot(ent);
@@ -323,6 +329,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(militia, Militia, militia_t);
     CHECK_POOL(polymorph, Polymorph, polymorph_t);
     CHECK_POOL(raven, Raven, raven_t);
+    CHECK_POOL(morph, Morph, morph_t);
     CHECK_POOL(blight_growth, BlightGrowth, blightGrowth_t);
     CHECK_POOL(ensnare, Ensnare, ensnare_t);
     CHECK_POOL(ancient_root, AncientRoot, ancientRoot_t);
@@ -352,6 +359,7 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     T_NULL(unit->militia);
     T_NULL(unit->polymorph);
     T_NULL(unit->raven);
+    T_NULL(unit->morph);
     T_NULL(unit->blight_growth);
     T_NULL(unit->ensnare);
     T_NULL(unit->ancient_root);

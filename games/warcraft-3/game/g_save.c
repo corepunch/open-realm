@@ -89,7 +89,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
  * neutral creep guard state and Wisp tree egress into the Format181 layout.
  * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
 /* Format184 retains inactive fine identities with exact empty coverage. */
-static uint32_t const save_version = 191;
+static uint32_t const save_version = 192;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -783,6 +783,7 @@ static field_t const destructable_fields[] = {
 };
 
 static field_t const cargo_fields[] = {
+    /* Per-passenger separation ownership is plain saved pool state (Save192). */
     TF(cargo_t, units, F_EDICT, MAX_CARGO, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -799,6 +800,11 @@ static field_t const avatar_fields[] = {
     TF(avatar_t, armor, F_FLOAT),
     TF(avatar_t, health, F_FLOAT),
     TF(avatar_t, damage, F_INT),
+    TF(avatar_t, transition.deadline.time, F_FLOAT),
+    TF(avatar_t, transition.deadline.epoch, F_INT),
+    TF(avatar_t, transition.deadline.span, F_FLOAT),
+    TF(avatar_t, transition.sequence, F_INT),
+    TF(avatar_t, transition.active, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -810,6 +816,28 @@ static field_t const polymorph_fields[] = {
     TF(polymorph_t, original_scale, F_FLOAT),
     TF(polymorph_t, original_move_speed, F_FLOAT),
     TF(polymorph_t, move_group_isolation_applied, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const morph_fields[] = {
+    TF(morph_t, transition.deadline.time, F_FLOAT),
+    TF(morph_t, transition.deadline.epoch, F_INT),
+    TF(morph_t, transition.deadline.span, F_FLOAT),
+    TF(morph_t, transition.sequence, F_INT),
+    TF(morph_t, transition.active, F_INT),
+    TF(morph_t, expiration.deadline.time, F_FLOAT),
+    TF(morph_t, expiration.deadline.epoch, F_INT),
+    TF(morph_t, expiration.deadline.span, F_FLOAT),
+    TF(morph_t, expiration.sequence, F_INT),
+    TF(morph_t, expiration.active, F_INT),
+    TF(morph_t, code, F_INT),
+    TF(morph_t, base_type, F_INT),
+    TF(morph_t, target_type, F_INT),
+    TF(morph_t, category_clear, F_INT),
+    TF(morph_t, category_set, F_INT),
+    TF(morph_t, reverse, F_INT),
+    TF(morph_t, deferred_rebind, F_INT),
+    TF(morph_t, animation_held, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -1161,6 +1189,9 @@ field_t edict_fields[] = {
     F(edict_s, ability_orders, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ability_disables, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ability_pause_depth, F_INT),
+    F(edict_s, ability_exclusive_depth, F_INT),
+    F(edict_s, invulnerability_depth, F_INT),
+    F(edict_s, spell_immunity_depth, F_INT),
     F(edict_s, scheduled_think_frame, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, target_loss_transient, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, construction_held, F_INT),
@@ -1176,6 +1207,7 @@ field_t edict_fields[] = {
     F(edict_s, militia, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, polymorph, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, raven, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, morph, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, blight_growth, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ensnare, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, ancient_root, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2875,9 +2907,9 @@ typedef struct {
 } savedAbilityOrder_t;
 
 typedef struct {
-    uint32_t code;
+    uint32_t code,exclusive_inventory;
     int32_t depth,order_depth;
-    bool pause_owned,retire_owned;
+    bool pause_owned,retire_owned,exclusive_owned;
 } savedAbilityDisable_t;
 
 static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
@@ -2888,7 +2920,7 @@ static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
     }
     if(!SaveBytes(f,&count,sizeof(count)))return false;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
-        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned};
+        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory};
         if(!SaveBytes(f,&saved,sizeof(saved)))return false;
     }
     return true;
@@ -2905,7 +2937,7 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
             if(s->code==saved.code)goto failed;
         unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
         state->code=saved.code;state->depth=saved.depth;state->order_depth=saved.order_depth;
-        state->pause_owned=saved.pause_owned;state->retire_owned=saved.retire_owned;state->linked=true;state->references=1;*tail=state;tail=&state->next;
+        state->pause_owned=saved.pause_owned;state->retire_owned=saved.retire_owned;state->exclusive_owned=saved.exclusive_owned;state->exclusive_inventory=saved.exclusive_inventory;state->linked=true;state->references=1;*tail=state;tail=&state->next;
     }
     return true;
 failed:
@@ -3190,6 +3222,7 @@ POOL_ALLOC(ShadowMeld)
 POOL_ALLOC(Militia)
 POOL_ALLOC(Polymorph)
 POOL_ALLOC(Raven)
+POOL_ALLOC(Morph)
 POOL_ALLOC(BlightGrowth)
 POOL_ALLOC(Ensnare)
 POOL_ALLOC(AncientRoot)
@@ -3221,6 +3254,7 @@ static savePool_t const save_pools[] = {
     { "militia", offsetof(edict_t, militia), sizeof(militia_t), militia_fields, SaveAllocMilitia },
     { "polymorph", offsetof(edict_t, polymorph), sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph },
     { "raven", offsetof(edict_t, raven), sizeof(raven_t), raven_fields, SaveAllocRaven },
+    { "morph", offsetof(edict_t, morph), sizeof(morph_t), morph_fields, SaveAllocMorph },
     { "blight_growth", offsetof(edict_t, blight_growth), sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth },
     { "ensnare", offsetof(edict_t, ensnare), sizeof(ensnare_t), ensnare_fields, SaveAllocEnsnare },
     { "ancient_root", offsetof(edict_t, ancient_root), sizeof(ancientRoot_t), ancient_root_fields, SaveAllocAncientRoot },

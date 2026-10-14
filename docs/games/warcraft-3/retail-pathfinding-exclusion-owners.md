@@ -46,7 +46,7 @@ morph/channel/teleport/cargo/AI fixes.
 From the repository root:
 
 ```sh
-python3 tools/ghidra/verify_wc3_pathing_exclusion_owners.py --report /tmp/exclusion-owners.json
+python3 tools/ghidra/audit_wc3_pathing_exclusion_owners.py --report /tmp/exclusion-owners.json
 python3 -m unittest discover -s tests -p test_wc3_pathfinding_exclusion_owners.py
 ```
 

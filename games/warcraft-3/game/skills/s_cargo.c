@@ -195,6 +195,12 @@ static void cargo_add_unit(edict_t *transport, edict_t *unit) {
      * rather than ordinary hidden aa before Load returns. */
     S_UnitTargetLost(unit);
     S_SetUnitPauseFlag(unit,true);
+    /* Native562030 acquires for the Entangle Cargo task, not every hidden
+     * passenger. Retain the owner independently of later holder type changes. */
+    if (cargo_actor_ability_alias(transport, MAKEFOURCC('A','e','n','c'))) {
+        transport->cargo->separation_suppression[old_count] = true;
+        S_AcquireUnitSeparationSuppression(unit);
+    }
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
     cargo_update_entangled_animation(transport, old_count);
@@ -225,19 +231,35 @@ static edict_t *cargo_drop_unit(edict_t *transport, uint32_t index) {
     if (!transport || !transport->cargo || index >= transport->cargo->count) return NULL;
     old_count = transport->cargo->count;
     unit = transport->cargo->units[index];
-    for (uint32_t i = index; i < transport->cargo->count - 1; i++)
+    bool const separation = transport->cargo->separation_suppression[index];
+    for (uint32_t i = index; i < transport->cargo->count - 1; i++) {
         transport->cargo->units[i] = transport->cargo->units[i + 1];
+        transport->cargo->separation_suppression[i] = transport->cargo->separation_suppression[i + 1];
+    }
     transport->cargo->count--;
     transport->cargo->units[transport->cargo->count] = NULL;
+    transport->cargo->separation_suppression[transport->cargo->count] = false;
     if (!unit) return NULL;
 
+    /* The engine's cargo pause is an execution flag, not native PauseUnit.
+     * Retire it before native5610e0's release/configuration, which precedes
+     * the general placement and visibility inverse. */
+    S_SetUnitPauseFlag(unit,false);
+    if (separation && unit->movement.repulse.disable_depth > 0)
+        S_ReleaseUnitSeparationSuppression(unit);
     {
         bool const was_corpse = S_CorpseCargoIsStored(unit);
         cargo_place_unloaded_unit(transport, unit);
         G_SetEntityHidden(unit,false);
-        S_SetUnitPauseFlag(unit,false);
         unit->aiflags &= ~AI_CORPSE_IN_CARGO;
         if (was_corpse) G_RestartCorpseBoneDecayAfterCargo(unit);
+    }
+    /* Cargo virtual31c replaces the old order after placement/visibility.
+     * Dead passengers use virtual320, whose default handler is empty. */
+    if(!M_IsDead(unit)) {
+        order_stop_cleanup(unit);
+        if((unit->aiflags&AI_TOWN_OWNED) && !G_BotRecenterCargoCaptain(unit))
+            G_BotDispatchAIStop(unit);
     }
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);

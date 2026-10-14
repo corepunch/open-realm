@@ -13,6 +13,14 @@ static moveGroup_t *EnrollmentGroup(edict_t const *unit) {
     return NULL;
 }
 
+static unsigned enrollment328_count;
+static int32_t enrollment328_depths[4];
+static void enrollment328_observe(edict_t const *unit) {
+    if(unit->class_id!=MAKEFOURCC('h','f','o','o'))return;
+    if(enrollment328_count<4)enrollment328_depths[enrollment328_count]=unit->movement.repulse.disable_depth;
+    enrollment328_count++;
+}
+
 /* Retail first enrollment replaces a Move with another Move; only a duplicate
  * preserves the actual task. The first private range precedes buff publication. */
 TEST(wc3_bot, temporary_captain_enrollment_replaces_once_and_disabled_policy_detaches) {
@@ -56,13 +64,22 @@ TEST(wc3_bot, temporary_captain_enrollment_replaces_once_and_disabled_policy_det
     T_ASSERT(S_UnitHasTimedLife(unit));
     T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1600,256},false,0,0));
     uint32_t retained_group=unit->movement.group_id;edict_t *retained_goal=unit->goalentity;
+    enrollment328_count=0;move_test_repulse_count_observer=enrollment328_observe;
     S_ApplyTimedLife(unit,MAKEFOURCC('B','H','w','e'),30);
+    move_test_repulse_count_observer=NULL;
+    T_EQ(enrollment328_count,0); /* same-Captain return precedes d0006 */
     T_EQ(G_BotCaptainGroupSize(&game.clients[0].ps),1);
     T_EQ(unit->movement.group_id,retained_group);T_EQ(unit->goalentity,retained_goal);
     bot->flags&=~BOT_GROUP_TIMED_LIFE;
     /* Toggling policy alone leaves membership until the next application. */
     T_EQ(G_BotCaptainGroupSize(&game.clients[0].ps),1);
+    enrollment328_count=0;move_test_repulse_count_observer=enrollment328_observe;
     S_ApplyTimedLife(unit,MAKEFOURCC('B','T','L','F'),30);
+    move_test_repulse_count_observer=NULL;
+    T_EQ(enrollment328_count,2);
+    if(enrollment328_count==2) {
+        T_EQ(enrollment328_depths[0],1);T_EQ(enrollment328_depths[1],0);
+    }
     T_EQ(G_BotCaptainGroupSize(&game.clients[0].ps),0);
     T_EQ(unit->current_order_id,0);T_EQ(G_UnitQueuedOrderCount(unit),0);
     T_NULL(unit->movement.captain_home.roster_actor);T_NULL(unit->movement.captain_home.actor);

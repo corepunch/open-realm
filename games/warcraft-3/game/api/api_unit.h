@@ -629,7 +629,7 @@ uint32_t UnitDamageTarget(jass_t *j) {
     (void)jass_checkhandle(j, 7, "damagetype");
     (void)jass_checkhandle(j, 8, "weapontype");
     if (!whichUnit || !target || amount <= 0.0f) return jass_pushboolean(j, 0);
-    if (target->invulnerable || M_IsDead(target)) return jass_pushboolean(j, 0);
+    if (G_UnitIsInvulnerable(target) || M_IsDead(target)) return jass_pushboolean(j, 0);
     T_Damage(target, whichUnit, (int)amount);
     return jass_pushboolean(j, 1);
 }

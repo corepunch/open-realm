@@ -366,8 +366,8 @@ static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targe
     /* WC3 target lists may name both vulnerability classes; that means either
      * class is accepted, not that both conditions must hold. */
     if (wants_vulnerability &&
-        !((aura_target_has_token(targets, "vulnerable", "vuln") && !target->invulnerable) ||
-          (aura_target_has_token(targets, "invulnerable", "invu") && target->invulnerable))) return false;
+        !((aura_target_has_token(targets, "vulnerable", "vuln") && !G_UnitIsInvulnerable(target)) ||
+          (aura_target_has_token(targets, "invulnerable", "invu") && G_UnitIsInvulnerable(target)))) return false;
     if ((aura_target_has_token(targets, "air", NULL) || aura_target_has_token(targets, "ground", "grou")) &&
         !(aura_target_has_token(targets, "air", NULL) && G_UnitTargetType(target) == TARG_AIR) &&
         !(aura_target_has_token(targets, "ground", "grou") && G_UnitTargetType(target) == TARG_GROUND)) return false;

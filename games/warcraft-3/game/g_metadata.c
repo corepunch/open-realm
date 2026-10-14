@@ -447,6 +447,7 @@ static slkField_t const ability_meta_schema[] = {
 
 #define AB_F(NAME, FIELD, LEVEL, TYPE) { NAME, offsetof(AbilityData_t, level[LEVEL].FIELD), TYPE }
 #define AB_D(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, level[LEVEL].data[SLOT].number), STB_SLK_FLOAT }
+#define AB_TEXT(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, level[LEVEL].data[SLOT].text), STB_SLK_STR }
 #define AB_ID(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, level[LEVEL].data[SLOT].id), STB_SLK_FOURCC }
 #define AB_F_LEVELS(NAME, FIELD, TYPE) \
     AB_F(NAME "1", FIELD, 0, TYPE), AB_F(NAME "2", FIELD, 1, TYPE), \
@@ -454,6 +455,9 @@ static slkField_t const ability_meta_schema[] = {
 #define AB_D_LEVELS(NAME, SLOT) \
     AB_D(NAME "1", 0, SLOT), AB_D(NAME "2", 1, SLOT), \
     AB_D(NAME "3", 2, SLOT), AB_D(NAME "4", 3, SLOT)
+#define AB_TEXT_LEVELS(NAME, SLOT) \
+    AB_TEXT(NAME "1", 0, SLOT), AB_TEXT(NAME "2", 1, SLOT), \
+    AB_TEXT(NAME "3", 2, SLOT), AB_TEXT(NAME "4", 3, SLOT)
 #define AB_ID_LEVELS(NAME, SLOT) \
     AB_ID(NAME "1", 0, SLOT), AB_ID(NAME "2", 1, SLOT), \
     AB_ID(NAME "3", 2, SLOT), AB_ID(NAME "4", 3, SLOT)
@@ -504,6 +508,11 @@ static slkField_t const ability_schema[] = {
     AB_ID_LEVELS("DataA", 0), AB_ID_LEVELS("DataB", 1), AB_ID_LEVELS("DataC", 2),
     AB_ID_LEVELS("DataD", 3), AB_ID_LEVELS("DataE", 4), AB_ID_LEVELS("DataF", 5),
     AB_ID_LEVELS("DataG", 6), AB_ID_LEVELS("DataH", 7), AB_ID_LEVELS("DataI", 8),
+    /* Data fields can contain order names as well as numbers/object IDs. */
+    BZ_AB_ROW("Data1", 0, AB_TEXT), BZ_AB_ROW("Data2", 1, AB_TEXT), BZ_AB_ROW("Data3", 2, AB_TEXT),
+    AB_TEXT_LEVELS("DataA", 0), AB_TEXT_LEVELS("DataB", 1), AB_TEXT_LEVELS("DataC", 2),
+    AB_TEXT_LEVELS("DataD", 3), AB_TEXT_LEVELS("DataE", 4), AB_TEXT_LEVELS("DataF", 5),
+    AB_TEXT_LEVELS("DataG", 6), AB_TEXT_LEVELS("DataH", 7), AB_TEXT_LEVELS("DataI", 8),
     AB_F_LEVELS("UnitID", unitID, STB_SLK_FOURCC),
     AB_F_LEVELS("BuffID", buffID, STB_SLK_STR),
     AB_F_LEVELS("EfctID", efctID, STB_SLK_STR),
@@ -517,6 +526,8 @@ static slkField_t const ability_schema[] = {
     { "InBeta",       offsetof(AbilityData_t, InBeta),       STB_SLK_BOOL }, /* TFT */
     { NULL, 0, 0 }
 };
+#undef AB_TEXT
+#undef AB_TEXT_LEVELS
 #undef AB_ID
 #undef AB_D
 #undef AB_F
@@ -2052,6 +2063,9 @@ static void ApplyMapAbilityMod(mapAbilityOverride_t *override, unitModification_
             slot->data[mod->dataPointer - 1].id = *(uint32_t const *)mod->data;
         } else if (mod->type == mod_real || mod->type == mod_unreal) {
             slot->data[mod->dataPointer - 1].number = *(float const *)mod->data;
+        } else if(UnitModificationString(mod)) {
+            slot->data[mod->dataPointer - 1].text = (cstring_t)mod->data;
+            slot->data[mod->dataPointer - 1].id = FS_SLKKey(mod->data);
         }
     }
 }

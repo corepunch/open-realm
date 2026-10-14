@@ -823,9 +823,9 @@ typedef struct {
  * immediately after the suspended head, before existing successors. */
 typedef struct unitAbilityDisable_s {
     struct unitAbilityDisable_s *next;
-    uint32_t code, references;
+    uint32_t code, references, exclusive_inventory;
     int32_t depth, order_depth;
-    bool pause_owned, retire_owned, linked;
+    bool pause_owned, retire_owned, exclusive_owned, linked;
 } unitAbilityDisable_t;
 
 typedef struct unitAbilityOrder_s {
@@ -852,6 +852,7 @@ typedef enum {
     UNIT_PAUSE_ADMITTING,
     UNIT_PAUSE_SUSPENDED,
     UNIT_PAUSE_BYPASSED,
+    UNIT_PAUSE_WAITING, /* Public pause queued behind a counted execution hold. */
 } unitPausePhase_t;
 
 typedef enum {
@@ -1000,6 +1001,7 @@ typedef enum {
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
     A_AUTO_COMBAT_START, /* Generic AI acquired/retaliated against a target; persistent behaviors may mark a detour. */
     A_AUTO_COMBAT_END,   /* Generic combat ended; persistent behaviors may resume or restore their order. */
+    A_UNIT_TASK_COMPLETE, /* Completion before queued user orders: internal owners may take over. */
     A_UNIT_STAND,       /* Common stand installation; an owning ability may install its persistent stand behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
     A_MOVE_START,       /* Move accepted a new target; call->move_target identifies it. */
@@ -1056,6 +1058,12 @@ typedef enum {
     A_POINT_ORDER_PRIORITY, /* Authored owners reduce the unsigned point-order score. */
     A_TARGET_AVAILABLE, /* Nearby Attack subscribers reconsider a published target transition. */
     A_CAST_PROFILE,    /* Concrete spell supplies its verified ordered phase policy. */
+    A_SPELL_COMMAND_PROFILE, /* Owner-authored order ID and target shape for the actual rawcode. */
+    A_FIND_SPELL_ORDER, /* Resolve a dynamic public order among attached spell owners. */
+    A_CAST_BEGIN,      /* Ability-owned v384 work, after CHANNEL and before validation. */
+    A_CAST_END,        /* Ability-owned v388 inverse before ENDCAST. */
+    A_MORPH_COMPLETE,  /* Concrete form owner after its primary transition inverse. */
+    A_MORPH_EXPIRE,    /* Transformed-form lifetime ended; owner starts its inverse. */
     A_UNIT_SUSPEND,     /* Temporary execution suspension; distinct from ability detach. */
     A_TRANSIENT_ORDER,  /* Execute a retained owner packet without public native validation. */
     A_CONSTRUCTION_FINISH, /* Structure completion is published; ability-owned continuations run now. */
@@ -1126,7 +1134,12 @@ typedef enum {
 typedef struct {
     float channel_delay, cast_point, backswing;
     bool effect_at_finish;
+    bool intercept_before_work;
+    bool finish_on_target_loss;
 } spellCastProfile_t;
+
+typedef struct { uint32_t order_id; spellTargetType_t target_type; } spellCommandProfile_t;
+typedef struct { uint32_t order_id, code; } spellOrderQuery_t;
 
 struct ability_call_s {
     abilityitem_t const *item;
@@ -1135,6 +1148,8 @@ struct ability_call_s {
     uint32_t source_item_spawn_time;
     union {
         spellTarget_t const *target;
+        spellCommandProfile_t *spell_command;
+        spellOrderQuery_t *spell_order;
         spellCastProfile_t *cast_profile; /* A_CAST_PROFILE: borrowed output, no instance allocation. */
         edict_t *client;
         edict_t *projectile;
@@ -1971,6 +1986,13 @@ typedef struct {
 } polymorph_t;
 
 typedef struct {
+    abilityPrimaryTimer_t transition, expiration;
+    uint32_t code, base_type, target_type;
+    uint32_t category_clear, category_set; /* Concrete morph owner's fine occupancy publication. */
+    bool reverse, deferred_rebind, animation_held;
+} morph_t;
+
+typedef struct {
     float fly_height; /* authored Raven Form height applied after the forward morph clip */
     float rise_start;
     float rise_duration;
@@ -2087,6 +2109,7 @@ typedef struct {
 
 typedef struct {
     edict_t *units[MAX_CARGO];
+    bool separation_suppression[MAX_CARGO]; /* Entangle Cargo task ownership. */
     uint32_t count;
 } cargo_t;
 
@@ -2103,6 +2126,7 @@ typedef struct {
     uint32_t level;
     float armor, health;
     int32_t damage;
+    abilityPrimaryTimer_t transition; /* Native Avatar d01c4; outlives BHav. */
 } avatar_t;
 
 typedef struct {
@@ -2187,6 +2211,7 @@ struct edict_s {
     militia_t *militia;
     polymorph_t *polymorph;
     raven_t *raven;
+    morph_t *morph;
     blightGrowth_t *blight_growth;
     ensnare_t *ensnare;
     ancientRoot_t *ancient_root;
@@ -2229,7 +2254,8 @@ struct edict_s {
     uint32_t autocast_code; /* one selected autocast ability; zero means disabled */
     avatar_t *avatar;
     bool ignore_alarm; /* UnitIgnoreAlarm: suppress this unit's automatic attacked notifications */
-    bool invulnerable;  // unit cannot take damage when true
+    bool invulnerable;  // scripted/innate invulnerability contribution
+    int32_t invulnerability_depth, spell_immunity_depth; /* counted transient owners */
     bool paused;        /* Public pause flag; execution uses the suspension stage. */
     bool stunned;       // unit AI and movement suspended by timed status
     bool no_pathing;    // own query disabled; occupancy category remains active
@@ -2249,7 +2275,8 @@ struct edict_s {
     vec2_t old_origin;
     unitOrderQueue_t order_queue;
     unitAbilityDisable_t *ability_disables; /* Lazy ordered availability owners; ordinary units allocate none. */
-    int32_t ability_pause_depth; /* Unit1c4: contribution published before its ordered owner walk. */
+    int32_t ability_pause_depth; /* Script-owned portion of Unit1c4. */
+    int32_t ability_exclusive_depth; /* Cast-owned portion; each inverse releases only its own source. */
     unitAbilityOrder_t *ability_orders; /* Sparse forced commands beneath the suspended user head. */
     uint32_t current_order_id; /* Active user command, distinct from pending FIFO and issued-event history. */
     waygate_t *waygate;
@@ -3165,6 +3192,8 @@ void G_BotTemporaryUnitReady(edict_t *);
 bool G_WriteCaptainState(FILE *);
 bool G_ReadCaptainState(FILE *);
 void G_BotUnitOwnerChanged(edict_t *);
+void G_BotDispatchAIStop(edict_t *unit);
+bool G_BotRecenterCargoCaptain(edict_t *unit);
 void G_BotUnitReady(edict_t *);
 bool G_BotPushCommand(player_t *, int32_t, int32_t);
 uint32_t G_BotCommandsWaiting(player_t *);
@@ -3605,6 +3634,7 @@ void S_RunCaptainRangeTimers(void);
 void S_SetUnitPaused(edict_t *, bool);
 void S_SetUnitPauseFlag(edict_t *, bool);
 bool S_UnitExecutionPaused(edict_t const *);
+bool S_UnitOrderExecutionHeld(edict_t const *);
 bool S_UnitOrdersPaused(edict_t const *);
 void S_AcquireUnitSeparationSuppression(edict_t *);
 void S_ReleaseUnitSeparationSuppression(edict_t *);
@@ -3714,6 +3744,10 @@ void S_ClearAbilityDisables(edict_t *);
 void S_RestoreRetiredAbilityDisables(edict_t *);
 void S_ReleaseScriptedAbilityDisables(edict_t *);
 void S_AcquireScriptedAbilityDisables(edict_t *);
+void S_AcquireExclusiveAbilityDisables(edict_t *,uint32_t);
+void S_AcquireItemAbilityDisables(edict_t *,uint32_t);
+bool S_ReleaseItemAbilityDisables(edict_t *,uint32_t);
+bool S_ReleaseExclusiveAbilityDisables(edict_t *,uint32_t);
 bool S_UnitOrderDisabled(edict_t const *, cstring_t);
 void S_RefreshAbilityLevel(edict_t *, ability_t const *);
 bool S_UnitPolymorphed(edict_t const *unit);
@@ -3925,6 +3959,7 @@ uint32_t S_AncientAttackMask(edict_t const *);
 uint32_t S_AncientRetaliationAttackMask(edict_t const *);
 bool S_AncientIsMorphing(edict_t const *);
 bool G_UnitIsStructure(edict_t const *);
+bool G_UnitIsInvulnerable(edict_t const *);
 TARGTYPE G_UnitTargetType(edict_t const *);
 bool G_UnitHasBuildMenu(edict_t const *);
 void S_ReleaseEntangledMineForTree(edict_t *);
@@ -4462,7 +4497,10 @@ void G_PublishIssuedPointOrder(edict_t *, uint32_t, vec2_t const *, uint32_t, cs
 void G_PublishIssuedImmediateOrder(edict_t *, uint32_t, uint32_t, cstring_t);
 uint32_t G_GetIssuedOrderId(edict_t const *);
 bool G_GetIssuedOrderPoint(edict_t const *, vec2_t *);
+uint32_t G_RegisteredOrderId(cstring_t);
 uint32_t G_OrderId(cstring_t);
+uint32_t S_SpellOrderId(edict_t *,uint32_t);
+spellTargetType_t S_SpellTargetType(edict_t *,uint32_t);
 uint32_t G_AbilityOrderId(ability_t const *);
 cstring_t G_OrderId2String(uint32_t);
 bool G_UnitStartNextQueuedOrder(edict_t *);
@@ -4592,6 +4630,7 @@ uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *,uint32_t *);
 bool G_CaptainMoveReachable(edict_t const *, edict_t const *, edict_t const *, vec2_t const *, vec2_t const *);
 void S_SetCaptainHomeActor(botCaptain_t *, uint32_t, uint32_t);
 void S_TeleportCaptainActor(botCaptain_t *, vec2_t const *);
+void S_UpdateCaptainMemberOrders(botCaptain_t *);
 void S_CaptainGoHome(botCaptain_t *);
 void S_ReissueCaptainUnit(edict_t *, edict_t *);
 bool S_CaptainNearHome(botCaptain_t const *);
@@ -4931,6 +4970,8 @@ void G_FreeMilitia(edict_t *ent);
 militia_t *G_AllocMilitia(void);
 void G_FreePolymorph(edict_t *ent);
 polymorph_t *G_AllocPolymorph(void);
+void G_FreeMorph(edict_t *ent);
+morph_t *G_AllocMorph(void);
 void G_FreeRaven(edict_t *ent);
 raven_t *G_AllocRaven(void);
 void G_FreeBlightGrowth(edict_t *ent);
