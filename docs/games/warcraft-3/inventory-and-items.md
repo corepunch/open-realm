@@ -601,6 +601,19 @@ These behaviours are exercised by `wc3_items.carried_item_transfer*`,
 serialization and removal of a temporary carrier are separate lifecycle work;
 this handoff patch does not change game-cache format.
 
+## Item ownership and per-item death-drop policy
+
+`GetItemPlayer` returns the player associated with the item entity, regardless
+of which unit currently carries it. `SetItemPlayer` changes that item player
+without moving the item or changing its inventory carrier. The `changeColor`
+flag is accepted, but a separate mutable item visual colour is not yet supported.
+
+`SetItemDropOnDeath` records an explicit per-item override. On its carrier's
+death, an overridden item follows this flag; otherwise the inventory ability's
+`inv2` (DataB) default continues to govern drops. Items not dropped remain
+attached for normal hero-death/revival behaviour. This is separate from
+`SetItemDroppable`, which controls ordinary player-initiated drops.
+
 ## JASS item enumeration
 
 `EnumItemsInRect` enumerates in-world items within the given rectangle. Its optional

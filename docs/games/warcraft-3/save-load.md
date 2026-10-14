@@ -884,3 +884,9 @@ Version 95 removes `heroes_used` from the serialized `gameClient_t::score`
 layout; the serializer rejects version 94 and earlier without migration. The
 score-screen hero portraits/levels are transient and are not saved. Earned XP
 and the existing unit/resource score state still round-trip normally.
+
+### Item death-drop overrides and version 96
+
+Version 96 persists per-item `SetItemDropOnDeath` overrides in the raw edict
+record. Version 95 and earlier saves are rejected; save compatibility and
+migration are not supported.

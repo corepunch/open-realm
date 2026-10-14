@@ -26,8 +26,10 @@ uint32_t RemoveItem(jass_t *j) {
     return 0;
 }
 uint32_t GetItemPlayer(jass_t *j) {
-    //handle_t whichItem = jass_checkhandle(j, 1, "item");
-    return jass_pushnullhandle(j, "player");
+    edict_t *item = jass_checkhandle(j, 1, "item");
+    return item && G_IsItem(item) && item->s.player < MAX_PLAYERS
+        ? jass_pushlighthandle(j, G_GetPlayerByNumber(item->s.player), "player")
+        : jass_pushnullhandle(j, "player");
 }
 uint32_t GetItemTypeId(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
@@ -91,8 +93,12 @@ uint32_t SetItemPosition(jass_t *j) {
     return 0;
 }
 uint32_t SetItemDropOnDeath(jass_t *j) {
-    //handle_t whichItem = jass_checkhandle(j, 1, "item");
-    //bool flag = jass_checkboolean(j, 2);
+    edict_t *item = jass_checkhandle(j, 1, "item");
+    bool flag = jass_checkboolean(j, 2);
+    if (item && G_IsItem(item)) {
+        item->item->drop_on_death_set = true;
+        item->item->drop_on_death = flag;
+    }
     return 0;
 }
 uint32_t SetItemDroppable(jass_t *j) {
@@ -105,9 +111,15 @@ uint32_t SetItemDroppable(jass_t *j) {
     return 0;
 }
 uint32_t SetItemPlayer(jass_t *j) {
-    //handle_t whichItem = jass_checkhandle(j, 1, "item");
-    //player_t *whichPlayer = jass_checkhandle(j, 2, "player");
-    //bool changeColor = jass_checkboolean(j, 3);
+    edict_t *item = jass_checkhandle(j, 1, "item");
+    player_t *player = jass_checkhandle(j, 2, "player");
+    bool changeColor = jass_checkboolean(j, 3);
+    /* Ownership is independent of the item carrier. The changeColor flag
+     * controls presentation only; item visuals do not currently expose a
+     * separate, mutable player-colour override. */
+    (void)changeColor;
+    if (item && G_IsItem(item) && player && PLAYER_NUM(player) < MAX_PLAYERS)
+        item->s.player = PLAYER_NUM(player);
     return 0;
 }
 uint32_t SetItemInvulnerable(jass_t *j) {

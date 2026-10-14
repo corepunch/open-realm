@@ -124,7 +124,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 94 serializes current and default game difficulty independently. */
 /* Version 95 removes the historical Heroes Used counter: the retail page
  * snapshots current hero entities and is not part of the saved client state. */
-static uint32_t const save_version = 95;
+/* Version 96 persists per-item death-drop overrides. */
+static uint32_t const save_version = 96;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -671,7 +672,8 @@ static field_t const item_fields[] = {
     TF(item_t, pending_use_carrier_spawn_time, F_INT),
     TF(item_t, pending_use_slot, F_INT),
     TF(item_t, soul_target_spawn_time, F_INT),
-    /* drop_id, user_data / pawnable_* are plain values retained by the raw edict record. */
+    /* drop_id, user_data, item ownership, and death-drop overrides are
+     * plain values retained by the raw edict record. */
     { NULL, 0, 0, 0, 0, 0 }
 };
 

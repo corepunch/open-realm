@@ -1771,6 +1771,8 @@ typedef struct {
     bool pawnable;        /* effective pawnable when pawnable_set */
     bool droppable_set;   /* SetItemDroppable overrode ItemData.droppable */
     bool droppable;       /* effective droppable when droppable_set */
+    bool drop_on_death_set; /* per-item death-drop override */
+    bool drop_on_death;     /* effective death-drop flag when overridden */
     bool pending_use_removal; /* final perishable charge retained for use-event context */
     edict_t *pending_use_carrier;
     uint32_t pending_use_carrier_spawn_time;

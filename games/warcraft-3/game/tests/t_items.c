@@ -4498,4 +4498,28 @@ TEST(wc3_items, pickup_approach_rechecks_inv4_after_ability_change) {
     level.mapinfo = old_map;
 }
 
+TEST(wc3_items, jass_item_player_and_drop_on_death_flags) {
+    edict_t *item = NULL;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local item i = CreateItem('spro', 64.0, 64.0)\n"
+        "  call SetItemPlayer(i, Player(2), false)\n"
+        "  call BJassAssert(GetItemPlayer(i) == Player(2), \"item ownership did not change\")\n"
+        "  call SetItemDropOnDeath(i, true)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (G_IsItem(&globals.edicts[i]) && globals.edicts[i].class_id == MAKEFOURCC('s','p','r','o')) {
+            item = &globals.edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(item);
+    if (item) {
+        T_EQ(item->s.player, 2);
+        T_ASSERT(item->item->drop_on_death_set);
+        T_ASSERT(item->item->drop_on_death);
+    }
+}
+
 #endif /* BZ_TESTS */
