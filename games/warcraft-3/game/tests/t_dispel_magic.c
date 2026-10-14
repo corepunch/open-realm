@@ -2,6 +2,7 @@
 #include "test.h"
 #include "../skills/s_skills.h"
 
+#define BZ_AIDI MAKEFOURCC('A', 'I', 'd', 'i') // item area dispel
 #define BZ_ADIS MAKEFOURCC('A', 'd', 'i', 's') // rawcode; Priest Dispel Magic
 #define BZ_ADCH MAKEFOURCC('A', 'd', 'c', 'h') // rawcode; TFT Disenchant(old)
 #define BZ_ADVM MAKEFOURCC('A', 'd', 'v', 'm') // rawcode; Destroyer Devour Magic
@@ -19,7 +20,7 @@ void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataB/DataA/DataE so tests cannot pass on retail 200/50/75/180. */
 static cstring_t dispel_family_slk =
-	"ID;PWXL;N;EBB;Y4;X12\n"
+	"ID;PWXL;N;EBB;Y5;X12\n"
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Area1\"\nC;Y1;X9;K\"DataA1\"\n"
@@ -35,7 +36,10 @@ static cstring_t dispel_family_slk =
 	"C;Y4;X1;K\"Advm\"\nC;Y4;X2;K\"Advm\"\nC;Y4;X3;K\"1\"\n"
 	"C;Y4;X4;K\"air,ground,ward,invu,vuln,tree\"\nC;Y4;X5;K\"0\"\nC;Y4;X6;K\"0\"\n"
 	"C;Y4;X7;K\"600\"\nC;Y4;X8;K\"250\"\nC;Y4;X9;K\"17\"\n"
-	"C;Y4;X10;K\"23\"\nC;Y4;X11;K\"91\"\nC;Y4;X12;K\"0\"\nE\n";
+	"C;Y4;X10;K\"23\"\nC;Y4;X11;K\"91\"\nC;Y4;X12;K\"0\"\n"
+	"C;Y5;X1;K\"AIdi\"\nC;Y5;X2;K\"AIdi\"\nC;Y5;X3;K\"1\"\n"
+	"C;Y5;X4;K\"air,ground,ward,tree\"\nC;Y5;X8;K\"155\"\n"
+	"C;Y5;X9;K\"0\"\nC;Y5;X10;K\"137\"\nC;Y5;X11;K\"0\"\nE\n";
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -242,3 +246,19 @@ TEST(wc3_spell, devour_magic_empty_area_heals_nothing) {
 }
 
 #endif
+
+/* Rune activates from the actual collecting unit, without a selected client
+ * unit or a live inventory slot. DataB=137 and Area=155 are non-stock. */
+TEST(wc3_spell, rune_dispel_item_use_damage_and_range) {
+    dispelFix_t fix = dispel_setup(BZ_AIDI);
+    abilityitem_t item = S_AbilityItem(BZ_AIDI);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    T_EQ(item.ability->proc, CAbilityItemDispelAoe);
+    fix.summon->s.player = 1;
+    fix.summon->owner = fix.enemy;
+    T_ASSERT(S_AbilityMessage(fix.caster, A_ITEM_USE, &call));
+    T_FEQ(fix.summon->health.value, 363, 0.001f);
+    T_FEQ(fix.enemy->health.value, 500, 0.001f);
+    T_FEQ(fix.far->health.value, 500, 0.001f);
+    dispel_done(fix);
+}

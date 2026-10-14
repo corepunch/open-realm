@@ -600,6 +600,24 @@ BZ_ABILITY_PROC(CAbilityItemRestoreAoe) {
     return true;
 }
 
+/* Rune of Dispel Magic (AIdi): one-shot area dispel centred on the picker.
+ * Use the same status removal and summon damage semantics as Priest Dispel,
+ * including undispellable lifecycle effects. Successful power-up activation
+ * does not require there to be a dispellable buff in range. */
+BZ_ABILITY_PROC(CAbilityItemDispelAoe) {
+    edict_t *caster;
+    uint32_t code;
+    abilityLevel_t const *row;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row || !(row->area >= 0.0f)) return false;
+    S_DispelMagicArea(caster, code, 1, &caster->s.origin2);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
+    return true;
+}
+
 /* Rune of Shielding (ANse): a one-use, untimed BNss protection per eligible
  * ally. Stock zero Dur is intentional: only an incoming block or dispel
  * removes it. Re-pickup does not stack charges or create an expiry timer. */

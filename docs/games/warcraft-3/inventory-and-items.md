@@ -629,6 +629,16 @@ silently consumed.
 Hero-only attribute and XP/level effects require a hero recipient. Further
 retail comparison is needed for consumption on failed hero-only effects.
 
+### Rune of Dispel Magic (`AIdi`)
+
+The `AIdi` power-up invokes shared `S_DispelMagicArea` at the collecting
+unit's position. `AbilityData` owns Area and DataB (summoned damage). The
+procedure dispels removable statuses, preserves timed-life and other
+non-dispellable statuses, and damages hostile, dispellable summoned units.
+It consumes the rune even when no magical effects are nearby and uses the
+authored TargetArt through the existing effect pipeline. Retail visual/audio
+timing still needs in-game comparison.
+
 ## JASS item enumeration
 
 `EnumItemsInRect` enumerates in-world items within the given rectangle. Its optional

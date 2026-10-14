@@ -331,7 +331,7 @@ static ability_t abilitylist[] = {
     // TODO: AIta a_item_town_portal  /* Item Area Detection */
     // TODO: AIrm a_item_regen_mana  /* Item Mana Regeneration */
     // TODO: AIil a_item_illusion  /* Item Illusions */
-    // TODO: AIdi a_item_dispel_aoe  /* Item Dispel */
+    { "AIdi", CAbilityItemDispelAoe, AB_ITEM | AB_POWERUP },  /* Item Area Dispel / Rune of Dispel Magic */
     { "AIfb", CAbilityAttackBonus, 0 },  /* Item Attack Fire Bonus (orb) */
     { "AIlb", CAbilityAttackBonus, 0 },  /* Item Attack Lightning Bonus (orb) */
     { "AIob", CAbilityAttackBonus, 0 },  /* Item Attack Frost Bonus (orb) */
