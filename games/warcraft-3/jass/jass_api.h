@@ -92,6 +92,8 @@ float  jass_checknumber(jass_t *j, int index);
 bool   jass_checkboolean(jass_t *j, int index);
 cstring_t jass_checkstring(jass_t *j, int index);
 handle_t jass_checkhandle(jass_t *j, int index, cstring_t type);
+/* Mark a VM-owned, correctly typed handle unusable across all aliases. */
+void jass_invalidateownedhandle(jass_t *j, int index, cstring_t type);
 uint32_t  jass_pushnull(jass_t *j);
 uint32_t  jass_pushnullhandle(jass_t *j, cstring_t type);
 uint32_t  jass_pushinteger(jass_t *j, int32_t value);
