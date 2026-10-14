@@ -84,6 +84,7 @@ retained arena; it does not duplicate strings.
 - Mouse-down on non-command background starts a drag when `UI_WINDOW_MOVABLE` is set.
 - Drag capture continues through motion and mouse-up outside the window.
 - Keyboard hotkeys are searched only in the focused window, or the topmost modal window.
+- While an edit box has focus, printable key-downs are consumed before button hotkeys are considered. The corresponding SDL text-input event owns character insertion, so letters such as A/S/D can be entered in save filenames without activating dialog buttons. After the edit loses focus, normal button hotkeys resume.
 - Escape closes the active window unless it has `UI_WINDOW_NO_ESCAPE`; a no-Escape modal consumes the key and stays open.
 - Clicking outside all non-modal windows clears focus.
 - A modal window blocks world hit testing, control groups, bindings, minimap actions, and manual camera movement.

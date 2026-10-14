@@ -1332,6 +1332,10 @@ bool CL_WindowKeyEvent(int key, uint32_t mods) {
             }
             if (key == K_ENTER || key == K_TAB) { CL_WindowBlurEdit(); return true; }
             if (key == K_ESCAPE) { CL_WindowBlurEdit(); return true; }
+            /* Printable keys belong to the focused edit control, not to
+             * button hotkeys (for example Save/Load's A, S and D). SDL's
+             * subsequent TEXTINPUT event inserts the actual character. */
+            if (key >= 32 && key <= 126) return true;
         }
     }
     /* Quake II pops the active menu on Escape. Dismiss locally first, then
