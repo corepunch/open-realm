@@ -4589,4 +4589,36 @@ TEST(wc3_items, glyph_powerups_grant_authored_upgrade_levels) {
     free_slk_rows(ability_rows);
 }
 
+
+TEST(wc3_items, rune_rebirth_requires_original_monster_identity) {
+    const char ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"AIrb\"\nC;Y2;X2;K\"AIrb\"\nC;Y2;X3;K1\nE\n";
+    static ItemData_t rune_data = {
+        .abilList = "AIrb", .powerup = true, .usable = true, .perishable = true
+    };
+    slkTestData_t *rows = parse_slk_string(ability_slk);
+    slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
+    edict_t *collector, *rune;
+
+    setup_test_world();
+    collector = make_item_test_inventory_unit(0, 0);
+    collector->s.player = 0;
+    collector->targtype = TARG_GROUND;
+    rune = make_item_test_world_item(MAKEFOURCC('r','r','e','b'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_EQ(S_ItemPowerup(collector, rune).code, MAKEFOURCC('A','I','r','b'));
+    T_ASSERT(!G_PickupItem(collector, rune));
+    T_ASSERT(rune->item->in_world);
+    T_ASSERT(!rune->item->pending_use_removal);
+
+    /* A stale or invalid SetItemDropID must not create a random unit. */
+    rune->item->drop_id = MAKEFOURCC('Z','Z','Z','Z');
+    T_ASSERT(!G_PickupItem(collector, rune));
+    T_ASSERT(rune->item->in_world);
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+}
+
 #endif /* BZ_TESTS */

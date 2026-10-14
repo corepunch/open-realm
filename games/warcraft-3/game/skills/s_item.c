@@ -823,6 +823,28 @@ bool S_ItemSpeedActive(edict_t const *unit) {
     return false;
 }
 
+/* Rune of Rebirth does not charm an arbitrary nearby monster.  WC3's
+ * SetItemDropID records the monster type for the dropped rune; on pickup the
+ * collecting player receives that unit.  The slain monster is no longer a
+ * live entity to transfer, so use the normal unit spawn/food lifecycle.
+ * An unassociated rune must not fabricate a monster. */
+BZ_ABILITY_PROC(CAbilityItemRebirth) {
+    edict_t *picker, *rune, *reborn;
+    uint32_t unit_id;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    picker = item_use_caster(ent, call);
+    rune = call->source_item;
+    if (!picker || !rune || !G_IsItem(rune) || !rune->item->in_world ||
+        rune->spawn_time != call->source_item_spawn_time) return false;
+    unit_id = rune->item->drop_id;
+    if (!unit_id || !G_UnitData(unit_id)) return false;
+    reborn = SP_SpawnAtLocation(unit_id, picker->s.player, &rune->s.origin2);
+    if (!reborn) return false;
+    G_ActivateUnitFood(reborn);
+    G_SpawnAbilityEffectTarget(call->item->code, WC3_EFFECT_TARGET, 0, reborn, NULL, true);
+    return true;
+}
+
 /* Quake's itemlist decides what a touch picks up; here the AB_POWERUP row
  * flag decides which item abilities are consumed on pickup. */
 abilityitem_t S_ItemPowerup(edict_t const *unit, edict_t const *item) {

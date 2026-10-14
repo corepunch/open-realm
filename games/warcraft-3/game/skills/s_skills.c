@@ -391,7 +391,7 @@ static ability_t abilitylist[] = {
     // TODO: AItb a_button  /* Dust of Appearance */
     // TODO: AIsb CAbilityItemHeal  /* Orb of Slow */
     // TODO: ANbs a_spell  /* Orb of Darkness */
-    // TODO: AIrb a_item_heal_aoe  /* Rebirth */
+    { "AIrb", CAbilityItemRebirth, AB_ITEM | AB_POWERUP }, /* Rune of Rebirth */
     // TODO: AUds CAbilityMassTeleport  /* Dark Summoning */
     // TODO: AIdd CAbilityItemHeal  /* Defend */
     // TODO: AIsh a_item_town_portal  /* Summon Headhunter */
