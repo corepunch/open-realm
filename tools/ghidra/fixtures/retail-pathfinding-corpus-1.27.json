@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "285 executable original/evidence contracts;566 total entries; provenance and limitations remain per-entry.",
+  "scope": "286 executable original/evidence contracts;567 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -55241,6 +55241,40 @@
       "exclusions": [
         "Eight public filter mutations cover Stop, Move, Pause, death, removal, SetUnitPosition and terrain edits. Engine save continuations do not certify retail save UI. Full exclusion exit inventory is joined separately by audit_wc3_pathing_scope_coverage.py."
       ]
+    },
+    {
+      "id": "oracle-order343",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order343.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "order343.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "instructions": {
+          "equal": 476
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "ORDER-01.2 public corpse-task scale cancellation and UnitSuspendDecay lifecycle; nine Footman controls, repeated read-only capture and unhooked control.",
+      "exclusions": [
+        "Complete arrival/cant-path gates remain open. No structure runtime, general animation-frame, or retail save-UI parity claim."
+      ]
     }
   ],
   "fixtures": [
@@ -56139,7 +56173,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "1e9ad10aca965595cf740bd796152b405aa1e451dfb352db5ca1b92f0b4507d4"
+      "sha256": "e5bb80aa29f9f211b9f52f29a99dff18a2063a0dd01b6c37fdc3b0559789c10b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -57431,7 +57465,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "0b3426853549d1282a42ad3896a4f2581ca14b53a1aa3106996e396a9722b021"
+      "sha256": "9ce1cf8c15bddde7a157ee37e317c8f340472b612d81b532b2f166606d8cf47f"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -57439,7 +57473,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "7816ff49a1ad0df80aa272fd4ed197575448c194415101e3d0e03bf40869bfeb"
+      "sha256": "5d13b9d6b27801c3fc584c19929c13d78cb51a3bb0e62fbf4bbdffb8cc003a8a"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -57931,7 +57965,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "b7f56a8483d5e40540161ac3995f0f13fa3951325d65e2271f519c7880687711"
+      "sha256": "c08e1563e4bea404def281a276dc2f7ee90da03b6f165841d98d4ddf23221af5"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -57939,15 +57973,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "f43002e9f07391531bc995334c1ac5a210ceccfc99c468fdfeda6f37d39afc51"
+      "sha256": "cdd1aa6b77468c3c77cd25300dc69014e820094c81aa40fe3927f55118c7ced1"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "daf57cbf9cd58fd01b5ce2273fb8f18083d5e05fb30b9c918395647b252e242b"
+      "sha256": "1693ef880d156f5db0b5b6fc54cb8bc0f8233c34ae763561a1242e793d6a6fdb"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "5d26e40f0bc06d31af5a11ffca5953a2b835ee2a5bdbf3a3735b1f0835e3dd84"
+      "sha256": "ab22c57145e0f6f4bc45d7e43860b3adf6fa36ba7930484f0b05d5f5d2374ce9"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -58895,7 +58929,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "14202f168562c917f0fbc1a59224d768e68cfb3cc868a6888761683f33201abb"
+      "sha256": "5754c34afe6df98134f9c3fd3341e318d3d7fa0ac9ce2947f5093faa51113e30"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -59239,7 +59273,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "5dbca24b6d624f14c31baa888d971b1117e045ed209c5231b7e60c665d62cfd2"
+      "sha256": "7b47f41277b8047fd8806dc2001f59d4293887bcb5fe92b52fc0c679388a6ec0"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -59383,7 +59417,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit.c",
-      "sha256": "5c4fce084b9ed3f87048f4ae8f3c796350ef6b4ca8d390f57b585e14bd5b23b9"
+      "sha256": "378619837369cf851e73a6b31ca3ce2f94413d5d50d4e3f63925c17bf400fa84"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/common.j",
@@ -64835,7 +64869,43 @@
     },
     {
       "path": "docs/test-performance.md",
-      "sha256": "af1edabcc70c2d7a2f9d018c19edec2302ad319cd301013e3b0abe406bd707ff"
+      "sha256": "77d1384141b3ae627dce8e07ad0db14e81bbecd110c175295a175c240240fb49"
+    },
+    {
+      "path": "docs/games/warcraft-3/corpse-mechanics.md",
+      "sha256": "faa3a93d2283c448997d8666b0c4f1ea015cff982ae66615f3f4d0b6f004f2f7"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_order343.py",
+      "sha256": "8e49d5503dd6c7f778ec613a92124cb0f0e9f8358f0dbfbc73452f0321289aed"
+    },
+    {
+      "path": "tools/ghidra/research/Order343Evidence.java",
+      "sha256": "440cb1efb70875d8bf91a93bd669dcbb7400bde031a8fdd2012fa566ff8fa3a7"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_order343.py",
+      "sha256": "7cf225da14b28dd0b407b4f0a89e1bd61d9807f3c4c2ff9c401ced30984dd161"
+    },
+    {
+      "path": "tools/frida/research/order343_make_map.py",
+      "sha256": "f878889f2da9b45d5ef0cb40ec2080df2c3c180d6831a63f285534e9a4cae2ec"
+    },
+    {
+      "path": "tools/frida/research/order343_observer.js",
+      "sha256": "1cdf370816d4676ab4d3aa63656a8044f484cd5ec070c23e0a7370599997b741"
+    },
+    {
+      "path": "tools/frida/research/order343_probe.j",
+      "sha256": "bd62a4e090a28306679abfde8ebe54f043eaf94e2d0a1707f4b882dd046318de"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-order343-1.27.json",
+      "sha256": "df7ca2cb918f46bbe89b860506d361d16d2b6551d1116f9a6bc36f15b2641136"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-order343-inputs-1.27.json.gz",
+      "sha256": "4fb9f666593f876e45d388233f9cf89e2d76beb5a79697118bb5700119de49de"
     }
   ]
 }

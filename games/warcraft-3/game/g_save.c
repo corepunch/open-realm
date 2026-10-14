@@ -96,8 +96,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
  * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
 /* Format184 retains inactive fine identities with exact empty coverage. */
 /* Format193 retains Attack's weak rejected-alternative identity. */
-/* Format194 integrates upstream spell entity targets and summon death policy. */
-static uint32_t const save_version = 194;
+/* Format195 persists script-owned corpse decay suspension in aiflags. */
+static uint32_t const save_version = 195;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically

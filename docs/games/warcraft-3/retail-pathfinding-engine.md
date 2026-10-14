@@ -20135,3 +20135,54 @@ has no incoming references) to native exit evidence and executed engine checks.
 It preserves the old oracle limitations and expected bytes. Surrounding behavior
 work retains its existing specific owners; the reconciliation does not create
 new TODOs. See [the complete scope table](retail-pathfinding-exclusions.md#exit-and-reentrancy-coverage-audit342).
+
+## Script decay suspension cancels the scaled internal task (ORDER343)
+
+ORDER-01.2's `unit+280 bit40` is owned by nonzero animation-length/delay in
+`69c620`. Earlier Undead work capture296 always passed scale zero and did not
+cover it. Public Footman death enters flesh `69c000` at tick31, bone `69c110`
+at51 (authored two-second flesh), and completes bone91 (four-second bone).
+Task cancellation `67e130` calls `695480` before clearing40. Removal during
+flesh40/bone60 and script suspension exercise this inverse.
+
+`UnitSuspendDecay` (`219060`) requires dead flag100 and flesh/bone flags c00.
+It cancels active/internal tasks. Resume prepends removal d015a and bone d0159,
+then dispatches: even suspended flesh resumes as a **new full bone phase**.
+Living/death-animation calls are ignored; repeated suspension retains cancellation;
+false without a previous true also restarts bones. Nine public controls include
+removal while suspended. The final two read-only traces each contain842 identical
+records; all187 public lifetime markers match the observer-free control.
+The post-completion sample is outside PreloadGenEnd and compared separately.
+Controller metadata retains its historical MAP-04.2 task label; identify evidence
+by O343 prefix, observer and map hash, not that label.
+
+Final map SHA256 `cece0a1ed3fceb1fcd5d4af2ee3e9f00e6777b3bf588c76f7f92ea929acca3f2`.
+`retail-order343-1.27.json` and compressed inputs pin the raw captures, source
+hashes, native identities and476 original instructions. Reproduce:
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_order343.py \
+  --binary /path/to/retail/game.dll --report /tmp/order343-fresh.json
+```
+
+Engine `UnitSuspendDecay` was empty. The public-native regression first failed
+five assertions: decay continued while suspended and resume did not restart its
+full duration. The game now owns a persisted suspension bit (Save195), gates
+phase progression independently of corpse reservation/cargo, and resumes bones.
+Suspension releases phase-duration presentation scaling; general per-frame model
+animation parity is not claimed. Cold-save suspended/resumed continuation and
+prior-format/layout rejection are covered. Network layout is unchanged.
+Classic/TFT each pass146 tests /16,346 assertions, plus eight Python corruption
+checks and37 corpus checks. Production and test libraries build; full-suite
+checkpoint remains merge3a19ff3ee.
+Ghidra annotations are saved with `Order343Evidence.java` and mapped in
+`MapPathfinding.java`. Raw maps/logs and failing-first evidence are archived at
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-01.2/order343/`.
+
+**ORDER-01.2 remains open.** Remaining closure needs full arrival/failed-path
+branch inventory: retained-target validation exits, active task-event gates,
+and the AI-enabled can't-path recovery branches (`603110`, ability20 bit2).
+This chunk establishes the named unit28040 producer/inverse and fixes its public
+suspension native; it does not substitute for those dispatch witnesses. Earlier
+observe1 lacked the loading helper; observe2's intended flesh removal preceded
+flesh. They remain archived diagnostics, not final evidence.

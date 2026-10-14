@@ -65,11 +65,12 @@ static float unit_decay_wait(float seconds) {
 }
 
 static float unit_decay_flesh_duration(edict_t const *self) {
-    (void)self;
+    if (self->aiflags & AI_CORPSE_DECAY_SUSPENDED) return 0;
     return unit_decay_wait(game.constants.decayTime);
 }
 
 static float unit_decay_bone_duration(edict_t const *self) {
+    if (self->aiflags & AI_CORPSE_DECAY_SUSPENDED) return 0;
     if (G_UnitIsStructure(self))
         return unit_decay_wait(game.constants.structureDecayTime);
     return unit_decay_wait(game.constants.boneDecayTime);
@@ -104,6 +105,21 @@ static void unit_begin_bone_decay(edict_t *self) {
     self->wait = unit_decay_wait(game.constants.boneDecayTime);
 }
 
+void G_UnitSuspendDecay(edict_t *self, bool suspend) {
+    /* Retail 219060 accepts only dead flesh/bone tasks. Resume replaces the
+     * canceled task with a fresh bone task, including when called in flesh. */
+    if (!self || !self->inuse || !M_IsDead(self) ||
+        (self->currentmove != &unit_move_decay_flesh &&
+         self->currentmove != &unit_move_decay_bones)) return;
+    if (suspend) {
+        self->aiflags |= AI_CORPSE_DECAY_SUSPENDED;
+    } else {
+        self->aiflags &= ~AI_CORPSE_DECAY_SUSPENDED;
+        unit_set_decay_move(self, &unit_move_decay_bones);
+        self->wait = unit_decay_bone_duration(self);
+    }
+}
+
 /* Retail cargo preserves corpses indefinitely while stored, but dropping a
  * corpse restarts the bone-decay countdown rather than resuming the old
  * remainder.  Keep this phase-specific: the exact flesh-phase cargo behavior
@@ -117,7 +133,7 @@ void G_RestartCorpseBoneDecayAfterCargo(edict_t *corpse) {
 static void unit_decay_flesh_think(edict_t *self) {
     /* An active corpse consumer owns the remains.  Freeze ordinary decay until
      * that reservation is released or, for Cannibalize, the corpse is consumed. */
-    if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO)) return;
+    if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO | AI_CORPSE_DECAY_SUSPENDED)) return;
     unit_runwait(self, unit_begin_bone_decay);
 }
 
@@ -126,6 +142,7 @@ static void unit_decay_flesh_think(edict_t *self) {
  * flesh and bone constants; structures use StructureDecayTime; Heroes retain
  * their distinct dissipation/revival lifecycle. */
 void unit_begin_decay(edict_t *self) {
+    self->aiflags &= ~AI_CORPSE_DECAY_SUSPENDED;
     UnitData_t const *data = self && self->data.UnitData ? self->data.UnitData :
         (self ? G_UnitData(self->class_id) : NULL);
     bool const hero = G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION);
@@ -155,7 +172,7 @@ void unit_begin_decay(edict_t *self) {
 /* Ordinary corpses are removed. Heroes instead finish their dissipation timer,
  * become hidden/awaiting-revive, and keep the same authoritative edict. */
 void unit_decay_think(edict_t *self) {
-    if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO)) return;
+    if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO | AI_CORPSE_DECAY_SUSPENDED)) return;
     if (G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION)) {
         if (!(self->revival && self->revival->awaiting)) unit_runwait(self, hero_become_revivable);
         return;

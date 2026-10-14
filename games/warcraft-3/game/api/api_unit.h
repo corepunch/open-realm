@@ -1116,8 +1116,9 @@ uint32_t UnitShareVision(jass_t *j) {
     return 0;
 }
 uint32_t UnitSuspendDecay(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //bool suspend = jass_checkboolean(j, 2);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    bool suspend = jass_checkboolean(j, 2);
+    G_UnitSuspendDecay(whichUnit, suspend);
     return 0;
 }
 uint32_t UnitAddAbility(jass_t *j) {

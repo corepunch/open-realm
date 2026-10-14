@@ -247,3 +247,13 @@ current engine fingerprints and executed JUnit files. Save194 and network layout
 are unchanged by342. Archive: `research/MAP-04.2/payoff342/` under the retail
 report root. The closure uses focused validation after the full upstream
 checkpoint; it does not claim a second full suite on the pending342 changes.
+
+### ORDER343 decay cancellation validation
+
+Second implementation commit after upstream merge checkpoint3a19ff3ee (following342).
+Classic/TFT each pass146 tests /16,346 assertions: unit lifecycle, suspended and
+resumed saves, prior-version and layout rejection. Eight evidence corruption
+checks and37 corpus checks pass. Production and test libraries build; no full
+suite repeated. Two842-record original traces, unhooked187-marker control and476
+original instruction guards pass the strict verifier. Logs: `/tmp/order343/`;
+archive: `research/ORDER-01.2/order343/` under the1.27 report root.

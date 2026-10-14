@@ -1434,6 +1434,74 @@ TEST(wc3_unit, corpse_decay_uses_map_flesh_then_bone_constants) {
     T_ASSERT(!ent->inuse);
 }
 
+TEST(wc3_unit, suspend_decay_native_cancels_flesh_and_restarts_bones) {
+    static UnitData_t data = { .deathType = 3 };
+    float old_flesh = game.constants.decayTime;
+    float old_bone = game.constants.boneDecayTime;
+    reset_entities();
+    setup_test_world();
+    game.constants.decayTime = 2;
+    game.constants.boneDecayTime = 4;
+    T_ASSERT(run_test_jass("globals\nunit corpse=null\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set corpse=CreateUnit(Player(0),'hfoo',656,656,0)\nendfunction\n"
+        "function suspend takes nothing returns nothing\ncall UnitSuspendDecay(corpse,true)\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall UnitSuspendDecay(corpse,false)\nendfunction\n"));
+    edict_t *ent = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) ent = g_edicts+i;
+    }
+    T_NOT_NULL(ent);
+    if (ent) {
+        umove_t const *living_move = ent->currentmove;
+        jass_callbyname(level.vm, "suspend", false);
+        jass_callbyname(level.vm, "resume", false);
+        T_ASSERT(ent->currentmove == living_move);
+        T_ASSERT(!(ent->aiflags & AI_CORPSE_DECAY_SUSPENDED));
+        ent->data.UnitData = &data;
+        G_SetHealth(ent, 0);
+        unit_die(ent, NULL);
+        umove_t const *death_move = ent->currentmove;
+        jass_callbyname(level.vm, "suspend", false);
+        jass_callbyname(level.vm, "resume", false);
+        T_ASSERT(ent->currentmove == death_move);
+        T_ASSERT(!(ent->aiflags & AI_CORPSE_DECAY_SUSPENDED));
+        unit_begin_decay(ent);
+        ent->currentmove->think(ent);
+        float remaining = ent->wait;
+        jass_callbyname(level.vm, "suspend", false);
+        T_ASSERT(WriteGame(Test_TempPath("order343-decay.bin")));
+        T_ASSERT(ReadGame(Test_TempPath("order343-decay.bin")));
+        remove(Test_TempPath("order343-decay.bin"));
+        jass_callbyname(level.vm, "suspend", false);
+        FOR_LOOP(i, 30) if (ent->inuse && ent->currentmove->think) ent->currentmove->think(ent);
+        T_ASSERT(ent->inuse);
+        T_STREQ(G_UnitAnimationRequest(ent), "decay flesh");
+        T_FEQ(ent->wait, remaining, 0.0001f);
+        jass_callbyname(level.vm, "resume", false);
+        T_STREQ(G_UnitAnimationRequest(ent), "decay bone");
+        T_FEQ(ent->wait, 4, 0.0001f);
+        T_ASSERT(WriteGame(Test_TempPath("order343-resumed.bin")));
+        T_ASSERT(ReadGame(Test_TempPath("order343-resumed.bin")));
+        remove(Test_TempPath("order343-resumed.bin"));
+        ent->currentmove->think(ent);
+        jass_callbyname(level.vm, "resume", false);
+        T_FEQ(ent->wait, 4, 0.0001f);
+        ent->currentmove->think(ent);
+        jass_callbyname(level.vm, "suspend", false);
+        FOR_LOOP(i, 50) if (ent->inuse && ent->currentmove->think) ent->currentmove->think(ent);
+        T_ASSERT(ent->inuse);
+        jass_callbyname(level.vm, "resume", false);
+        T_FEQ(ent->wait, 4, 0.0001f);
+        FOR_LOOP(i, 41) if (ent->inuse && ent->currentmove->think) ent->currentmove->think(ent);
+        T_ASSERT(!ent->inuse);
+    }
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    game.constants.decayTime = old_flesh;
+    game.constants.boneDecayTime = old_bone;
+    reset_entities();
+}
+
 TEST(wc3_unit, decaying_structure_uses_structure_decay_constant) {
     static UnitBalance_t balance = { .isBuilding = true, .maxHealth = 100.0f };
     static UnitData_t data = { .death = 1.0f, .deathType = 2 };

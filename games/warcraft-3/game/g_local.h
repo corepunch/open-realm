@@ -336,6 +336,7 @@ enum {
     AI_TOWN_OWNED = 1 << 13, /* Retail unit5c.4; AI enrollment, independent of script VM. */
     AI_SUMMONED = 1 << 14, /* Retail unit248.4; independent of the creating ability. */
     AI_SUMMON_EXPLODES_ON_DEATH = 1 << 15, /* spirit/beast summon magical death effect, no corpse */
+    AI_CORPSE_DECAY_SUSPENDED = 1 << 16, /* script canceled decay; resume starts a new bone phase */
 };
 
 typedef enum {
@@ -3564,6 +3565,7 @@ void ai_stand(edict_t *);
 void ai_pain(edict_t *);
 void ai_idle(edict_t *);
 void unit_runwait(edict_t *, void (*callback)(edict_t * ));
+void G_UnitSuspendDecay(edict_t *self, bool suspend);
 void unit_stand(edict_t *);
 void unit_stand_no_queue(edict_t *);
 void unit_entercombat(edict_t *, edict_t *);
