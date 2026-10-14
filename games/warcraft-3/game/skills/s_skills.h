@@ -338,6 +338,7 @@ BZ_ABILITY_PROC(CAbilityTinyStructure);
 BZ_ABILITY_PROC(CAbilityLandMine);
 BZ_ABILITY_PROC(CAbilityEvilEye);
 BZ_ABILITY_PROC(CAbilityItemWatcherWard);
+BZ_ABILITY_PROC(CAbilityItemSpiritLink);
 BZ_ABILITY_PROC(CAbilityAuraRegenLife);
 BZ_ABILITY_PROC(CAbilityMoonGlaive);
 BZ_ABILITY_PROC(CAbilitySlowPoison);

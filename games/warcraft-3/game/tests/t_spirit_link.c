@@ -3,6 +3,7 @@
 #include "../skills/s_skills.h"
 
 #define BZ_ASPL MAKEFOURCC('A', 's', 'p', 'l') // rawcode; Spirit Link
+#define BZ_ASPP MAKEFOURCC('A', 's', 'p', 'p') // Rune of Spirit Link
 #define BZ_BSPL MAKEFOURCC('B', 's', 'p', 'l') // rawcode; Spirit Link buff
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -13,7 +14,7 @@ void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataA=0.25 / DataB=3 / Cost=40 so tests cannot pass on retail 0.5/4/75. */
 #define SPL_SLK \
-	"ID;PWXL;N;EBB;Y2;X14\n" \
+	"ID;PWXL;N;EBB;Y3;X14\n" \
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n" \
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n" \
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n" \
@@ -23,7 +24,12 @@ void free_slk_rows(slkTestData_t *rows);
 	"C;Y2;X4;K\"air,ground,friend,self,organic\"\n" \
 	"C;Y2;X5;K\"40\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"750\"\n" \
 	"C;Y2;X8;K\"20\"\nC;Y2;X9;K\"20\"\nC;Y2;X10;K\"300\"\n" \
-	"C;Y2;X11;K\"0.25\"\nC;Y2;X12;K\"3\"\nC;Y2;X13;K\"Bspl\"\nC;Y2;X14;K\"0\"\nE\n"
+	"C;Y2;X11;K\"0.25\"\nC;Y2;X12;K\"3\"\nC;Y2;X13;K\"Bspl\"\nC;Y2;X14;K\"0\"\n" \
+    "C;Y3;X1;K\"Aspp\"\nC;Y3;X2;K\"Aspl\"\nC;Y3;X3;K\"1\"\n" \
+    "C;Y3;X4;K\"air,ground,friend,self,organic\"\n" \
+    "C;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"0\"\n" \
+    "C;Y3;X8;K\"15\"\nC;Y3;X9;K\"15\"\nC;Y3;X10;K\"100\"\n" \
+    "C;Y3;X11;K\"0.4\"\nC;Y3;X12;K\"2\"\nC;Y3;X13;K\"Bspl\"\nC;Y3;X14;K\"0\"\nE\n"
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -281,3 +287,21 @@ TEST(wc3_spell, spirit_link_zero_and_single_target_counts) {
     spl_done(&fix);
 }
 #endif
+
+/* Authored non-stock rune data: DataB=2, Area=100, unlike the Spirit Walker
+ * spell's DataB=3 / Area=300. Pickup uses the actual collector without mana. */
+TEST(wc3_spell, spirit_link_rune_powerup_uses_authored_count_and_area) {
+    splFix_t fix;
+    abilityitem_t item;
+    abilityCall_t call;
+    spl_setup(&fix);
+    T_EQ(S_AbilityItem(BZ_ASPP).ability->proc, CAbilityItemSpiritLink);
+    item = S_AbilityItem(BZ_ASPP);
+    call = MAKE(abilityCall_t, .item = &item);
+    T_ASSERT(S_AbilityMessage(fix.a, A_ITEM_USE, &call));
+    T_EQ(G_UnitStatusLevel(fix.a, BZ_BSPL), 1);
+    T_EQ(G_UnitStatusLevel(fix.b, BZ_BSPL), 1);
+    T_EQ(G_UnitStatusLevel(fix.c, BZ_BSPL), 0);
+    T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BSPL), 0);
+    spl_done(&fix);
+}
