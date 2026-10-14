@@ -345,6 +345,15 @@ name/hero ID special cases; other campaign hero restoration rules need checks.
 The new entity field requires save version 93. Unit cost values and technology
 percentage remain provisional pending further retail evidence.
 
+Retail testing of HumanX03 exposed a stock XP-threshold bug in the formula
+extension: OpenRealm used 1000 XP for the scripted level-4 Kael, plus 500 for
+level-3 Vashj, producing 15000 Heroes Score. Retail reports 900 + 500 XP and
+14000 Heroes Score. `NeedHeroXP=200` with the stock A/B/C formula was being
+extended using the absolute table index, creating a 500-XP third requirement
+instead of 400. The stock progression now uses the measured `200,300,400,...`
+sequence. Regression coverage is in `wc3_combat.stock_misc_hero_xp_formula_matches_retail_thresholds`
+and `wc3_score.stock_level_four_and_three_scripted_xp_total_retail_value`.
+
 ### Largest Army startup, hero and technology investigations
 
 The first-playable-frame survivor enumeration was temporary instrumentation

@@ -330,6 +330,29 @@ TEST(wc3_score, scripted_level_assignments_do_not_count_as_earned_xp) {
     T_EQ(client->score.experience_gained, 500);
 }
 
+TEST(wc3_score, stock_level_four_and_three_scripted_xp_total_retail_value) {
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+    edict_t *kael, *vashj;
+    int32_t hero_total = 0;
+
+    setup_test_world();
+    memset(&game.clients[0].score, 0, sizeof(game.clients[0].score));
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\StockHeroXP.txt"));
+    game.config.misc.source = custom.source;
+    kael = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    vashj = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    kael->s.player = vashj->s.player = game.clients[0].ps.number;
+    kael->hero.level = vashj->hero.level = 1;
+    G_HeroSetXPForLevel(kael, G_HeroXPForLevel(4));
+    G_HeroSetXPForLevel(vashj, G_HeroXPForLevel(3));
+    T_EQ(G_PlayerScoreScriptedXP(game.clients[0].ps.number), 1400);
+    T_ASSERT(G_GetPlayerScoreValue(&game.clients[0], WC3_PLAYER_SCORE_HERO_TOTAL, &hero_total));
+    T_EQ(hero_total, 14000);
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
 TEST(wc3_score, guessed_aggregate_scores_are_queryable_from_jass) {
     setup_test_world();
     memset(&game.clients[0].score, 0, sizeof(game.clients[0].score));

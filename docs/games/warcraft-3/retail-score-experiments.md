@@ -311,6 +311,15 @@ screenshot together when repeating these cases.
 | Player 0 hero removed with `RemoveUnit` | No portrait remains | `simple/remove_hero_end-heroes.png`; trace `heroexp-simple-remove_hero_end.txt` |
 | Level-3 Paladin stored, removed, then restored in the same match | One portrait labeled `3` | `simple/cache_restore_end-heroes.png`; trace `heroexp-simple-cache_restore_end.txt` |
 | Fresh UndeadX07c run | Player 0 has one portrait labeled `3`; Anubarak is owned by Neutral Passive at the result sample | `fresh_campaign-result-heroes.png`; trace `scoretrace-normal.txt` |
+| Level-4 Paladin plus level-3 Mountain King | Two portraits labeled `4` and `3`; Experience Gained is 1400 | `two-level4-level3/heroes2.png`; trace `heroexp-simple-two-level4-level3.txt`; Overview shows Heroes Score 14000 in `two-level4-level3/after-quit-campaign2.png` |
+
+This paired run also verifies the retail XP thresholds used by HumanX03's
+default Kael/Vashj setup: `SetHeroLevel(4)` yields 900 XP, `SetHeroLevel(3)`
+yields 500 XP, and the Heroes page totals them to 1400. The OpenRealm log from
+the mismatching HumanX03 run recorded scripted XP transitions of 1000 and 500;
+the 100-point excess came from formula-extension indexing, not the 10× score
+weight. See [Hero XP and leveling](hero-abilities.md#experience-and-map-startup)
+for the corrected stock progression handling.
 
 The JASS traces are in
 `build/retail-heroes-used/wineprefix/drive_c/users/agent/Documents/Warcraft III/CustomMapData/`.

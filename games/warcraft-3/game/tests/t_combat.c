@@ -1427,6 +1427,26 @@ TEST(wc3_combat, hero_xp_for_level_uses_misc_table_and_formula) {
     T_EQ((int)xp5, 1200); /* + f(3) = 1*350 + 50*3 = 500 */
 }
 
+TEST(wc3_combat, stock_misc_hero_xp_formula_matches_retail_thresholds) {
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+    uint32_t xp2, xp3, xp4, xp10;
+
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\StockHeroXP.txt"));
+    game.config.misc.source = custom.source;
+    xp2 = G_HeroXPForLevel(2);
+    xp3 = G_HeroXPForLevel(3);
+    xp4 = G_HeroXPForLevel(4);
+    xp10 = G_HeroXPForLevel(10);
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+
+    T_EQ((int)xp2, 200);
+    T_EQ((int)xp3, 500);
+    T_EQ((int)xp4, 900);
+    T_EQ((int)xp10, 5400);
+}
+
 TEST(wc3_combat, hero_level_for_xp) {
     T_EQ((int)G_HeroLevelForXP(0),   1);
     T_EQ((int)G_HeroLevelForXP(199), 1);

@@ -2378,6 +2378,18 @@ static uint32_t G_HeroXPRequirement(uint32_t index) {
             100.0; /* BZ_HARDCODED_DATA_FALLBACK: stock NeedHeroXP formula B. */
         double const c = (cText && *cText) ? atof(cText) :
             0.0; /* BZ_HARDCODED_DATA_FALLBACK: stock NeedHeroXP formula C. */
+
+        /* Retail 1.29's stock MiscGame data authors only NeedHeroXP=200,
+         * while the measured level requirements are 200,300,400,... . The
+         * formula fields describe that stock linear progression; applying
+         * B*the absolute table index recursively instead produces
+         * 200,300,500,... and makes scripted level-4 heroes carry 1000 XP.
+         * Keep custom formula tables on the general recurrence below. */
+        if (count == 1 && current == 200 && a == 1.0 && b == 100.0 && c == 0.0) {
+            unsigned long long const stock = 200ull + 100ull * index;
+            return stock > (unsigned long long)UINT32_MAX ? UINT32_MAX : (uint32_t)stock;
+        }
+
         for (uint32_t i = count; i <= index; i++) {
             double next = a * (double)current + b * (double)i + c;
             if (next < 0.0) next = 0.0;

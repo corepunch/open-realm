@@ -276,7 +276,7 @@ Stats are precomputed at base attributes; deltas are applied live on attribute c
 
 ### XP and Leveling
 - Max level: `Misc/MaxHeroLevel` from `MiscGame.txt` (default 10).
-- XP to reach level L is accumulated from `Misc/NeedHeroXP`; when the table runs out, `NeedHeroXPFormulaA/B/C` extend the per-level requirements. Stock data yields L1=0, L2=200, L3=500, L4=900, L10=5400. If no Misc data is available, the fallback is the stock per-level sequence `200,300,400,...` rather than formula-extension of a synthetic single entry.
+- XP to reach level L is accumulated from `Misc/NeedHeroXP`; when the table runs out, `NeedHeroXPFormulaA/B/C` extend the per-level requirements. Stock TFT data has `NeedHeroXP=200` with A/B/C=`1/100/0`; retail measurements yield per-level requirements `200,300,400,...` and cumulative thresholds L1=0, L2=200, L3=500, L4=900, L10=5400. OpenRealm treats this stock one-entry configuration as the measured linear sequence; custom tables use the general formula recurrence. If no Misc data is available, the fallback is also `200,300,400,...`.
 - Attributes at level L: `base + trunc((L-1) * perLevelGain)` — **truncated** toward zero (bare float→int cast, no rounding), matching the WC3 binary.
 - XP is the source of truth; level only ever increases. `SetHeroLevel` works by granting enough XP to reach the target level.
 - Level-up fires both `EVENT_PLAYER_HERO_LEVEL` and `EVENT_UNIT_HERO_LEVEL` once per level gained. `GetLevelingUnit()` resolves to the Hero for either event family.
