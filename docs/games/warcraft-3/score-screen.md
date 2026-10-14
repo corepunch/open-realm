@@ -189,6 +189,25 @@ retail screenshot/run comparison. The original FDF source and full asset set
 were not provided with the research report, so optional control identifiers
 still need confirmation against the extraction.
 
+### Custom map score-screen artwork overrides
+
+The score screen uses the stock `ScoreScreen.fdf` model path, not a W3I
+background field. The renderer resolves a map-scoped MDX first and falls back
+to the installed game model when no imported replacement exists. The MDX's
+file-backed texture references use the same map-first lookup; common parchment
+texture overrides include `scorescreen-background-L1.blp`, `-L2.blp`, `-R1.blp`,
+`-R2.blp`, and `-sort4.blp` under
+`UI\Glues\ScoreScreen\ScoreScreen-Background\`.
+
+The renderer's candidate-order regression covers these five paths, alternative
+map scopes, stock fallback, and the corresponding background MDX lookup.
+It **does not** substitute for running a real custom `.w3x` with imported BLPs
+and checking the GL output: the test fixture does not ship that proprietary
+artwork. The manual comparison should end a match, inspect both four- and
+five-column pages, leave to a different map without imports, and confirm the
+original textures and model return. Keep the outgoing map scope active until
+Continue; do not unmount/reset it merely because the world is not rendered.
+
 ## Manual validation needed
 
 - Launch a finished single-player mission with `EndGame(true)` and inspect
