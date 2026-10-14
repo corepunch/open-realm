@@ -9595,4 +9595,44 @@ TEST(wc3_api, gameplay_natives_dispatch_and_select_race) {
     level.campaign_menu_race = 0;
 }
 
+/* Removing a location invalidates all variable aliases without changing
+ * the storage of unrelated value handles (such as zero-valued enum races). */
+TEST(wc3_api, remove_location_invalidates_aliases) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local location a = Location(128.0, 256.0)\n"
+        " local location b = a\n"
+        " call RemoveLocation(a)\n"
+        " call BJassAssert(GetLocationX(b) == 0.0, \"removed alias must not be readable\")\n"
+        " call MoveLocation(b, 9.0, 9.0)\n"
+        " call BJassAssert(GetLocationY(a) == 0.0, \"removed location stays invalid\")\n"
+        " call BJassAssert(RACE_HUMAN != null, \"value handles remain valid\")\n"
+        " call RemoveLocation(b)\n"
+        " call RemoveLocation(null)\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, removed_location_global_survives_save_as_null) {
+    cstring_t filename = Test_TempPath("wc3-removed-location.sav");
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " location removed = null\n"
+        " location alias = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set removed = Location(2.0, 3.0)\n"
+        " set alias = removed\n"
+        " call RemoveLocation(removed)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        " call BJassAssert(GetLocationX(alias) == 0.0, \"removed alias restored invalid\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verify", true);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
 #endif /* BZ_TESTS */

@@ -163,7 +163,7 @@ uint32_t Location(jass_t *j) {
     return 1;
 }
 uint32_t RemoveLocation(jass_t *j) {
-    //handle_t whichLocation = jass_checkhandle(j, 1, "location");
+    jass_invalidateownedhandle(j, 1, "location");
     return 0;
 }
 uint32_t MoveLocation(jass_t *j) {
