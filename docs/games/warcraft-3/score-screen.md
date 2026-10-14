@@ -631,6 +631,20 @@ chrome. Button state and server-owned ally-colour switching are unchanged.
 No compilation or in-game testing was performed; compare the resulting
 bevel coverage and button frame with the retail screenshot.
 
+### Score ribbon/button sizing refinement (14 October 2026)
+
+Comparing retail and OpenRealm screenshots at their respective UI scales,
+the preceding 0.205 x 0.051 ribbon texture frame covered too much of the
+coloured score row. Use 0.198 x 0.047 with the same stock silver BLP; this
+retains the ribbon bevel and avoids changing the team icon or score cells.
+
+The ally-colour button already has the correct skin-dependent handshake icon
+and server-backed click action. Resize both its existing FDF gold-border
+BACKDROP and the button hit frame to 0.0205 x 0.0185, avoiding a second frame
+texture or a mismatched hit area. These are screenshot-derived dimensions;
+visual parity should be rechecked at the same canvas/aspect policy. No compile
+or runtime validation was performed.
+
 ### Post-game lifecycle Patch 4 — integration checks and acceptance (14 October 2026)
 
 The post-game sequence is **finish JASS/frame work → finalize the frozen
