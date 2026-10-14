@@ -393,3 +393,14 @@ indicator while retaining the full count for sorting. This is a bounded UI
 policy, not a recovered retail overflow rule. Retest the portrait sizes at
 4:3 and wide resolutions. Preplaced/cross-mission cached hero edge cases
 are still pending separate retail verification.
+
+### Hero level and tab paint order (14 October 2026)
+
+The Heroes Used portrait levels are placed immediately to the right of their
+portraits instead of over the bottom-right corner. The FDF tab strip's stock
+MDX is a **single composite sprite**; it is drawn in the generic late-sprite
+pass, after content. Its tab caption text is drawn in a generic late-text pass
+with authored `stat` ranks 3 to 0 (Resources, Heroes, Units, Overview), so captions
+remain on top of the model. This changes caption order, **not** the internal
+mesh/material order of the stock composite MDX. Verify parchment overlap
+visually against retail before treating that part as fixed.

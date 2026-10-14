@@ -91,7 +91,8 @@ static void UI_CopyFrameBase(uiFrame_t *dest, frameDef_t const *src) {
     dest->tex.index2 = UI_LiveImage(src->Texture.Image2);
     dest->flags.type = src->Type;
     dest->flags.alphaMode = src->AlphaMode;
-    dest->flagsvalue |= src->ui_flags & (UIFLAG_EXTEND_WIDESCREEN_X | UIFLAG_MINIMAP_PREVIEW);
+    dest->flagsvalue |= src->ui_flags & (UIFLAG_EXTEND_WIDESCREEN_X | UIFLAG_MINIMAP_PREVIEW |
+                                             UIFLAG_SPRITE_OVERLAY | UIFLAG_TEXT_OVERLAY);
     if (src->disabled) dest->flagsvalue |= UIFRAME_DISABLED;
     dest->textLength = src->TextLength;
     dest->stat = src->Stat;

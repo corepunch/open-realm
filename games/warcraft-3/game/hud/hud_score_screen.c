@@ -112,19 +112,21 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
         if (!portrait || !level) return false;
         hud.score_rows[slot].hero_icons[h] = portrait;
         hud.score_rows[slot].hero_levels[h] = level;
-        ScoreScreenPlace(portrait, root, 0.158f + h * 0.019f, -0.003f, 0.018f, 0.021f);
-        ScoreScreenPlace(level, root, 0.158f + h * 0.019f, -0.018f, 0.018f, 0.012f);
+        /* Keep each portrait and its level side-by-side, inside the first
+         * column.  Advance by the combined pair width, not portrait width. */
+        ScoreScreenPlace(portrait, root, 0.158f + h * 0.025f, -0.003f, 0.018f, 0.021f);
+        ScoreScreenPlace(level, root, 0.177f + h * 0.025f, -0.003f, 0.006f, 0.021f);
         level->Font = score->ScoreScreen4ColumnHeader[0]->Font;
         level->Font.Size = 0.009f; /* runtime hero badge: visual matching pending */
         level->Font.Color = MAKE(color32_t, 255, 215, 48, 255);
-        level->Font.Justification.Horizontal = FONT_JUSTIFYRIGHT;
-        level->Font.Justification.Vertical = FONT_JUSTIFYBOTTOM;
+        level->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
+        level->Font.Justification.Vertical = FONT_JUSTIFYMIDDLE;
         UI_SetHidden(portrait, true);
         UI_SetHidden(level, true);
     }
     hud.score_rows[slot].hero_overflow = ScoreScreenSpawn(root, FT_TEXT);
     if (!hud.score_rows[slot].hero_overflow) return false;
-    ScoreScreenPlace(hud.score_rows[slot].hero_overflow, root, 0.233f, -0.003f, 0.020f, 0.024f);
+    ScoreScreenPlace(hud.score_rows[slot].hero_overflow, root, 0.258f, -0.003f, 0.020f, 0.024f);
     hud.score_rows[slot].hero_overflow->Font = score->ScoreScreen4ColumnHeader[0]->Font;
     hud.score_rows[slot].hero_overflow->Font.Size = 0.008f;
     hud.score_rows[slot].hero_overflow->Font.Justification.Horizontal = FONT_JUSTIFYCENTER;
@@ -145,6 +147,14 @@ void UI_LoadHudScoreScreen(void) {
     UI_SetHidden(score->ScoreScreenMainPanel, false);
     ScoreScreenUseSprite(score->ScoreScreenBackground);
     ScoreScreenUseSprite(score->ScoreScreenPageTab);
+    /* The authored tab MDX is one composite sprite. Paint it after content,
+     * then paint the tab captions after that sprite (right to left). */
+    score->ScoreScreenPageTab->ui_flags |= UIFLAG_SPRITE_OVERLAY;
+    FOR_LOOP(i, WC3_SCORE_TABS) {
+        score->ScoreScreenTabText[i]->ui_flags |= UIFLAG_TEXT_OVERLAY;
+        score->ScoreScreenTabText[i]->Stat = i;
+    }
+    score->ScoreScreenTabTextSelected->ui_flags |= UIFLAG_TEXT_OVERLAY;
     ScoreScreenUseSprite(score->ScoreScreenRaceArt);
     ScoreScreenUseSprite(score->ScoreScreenBarTop);
     UI_SetOnClick(score->ScoreScreenOKButton,
@@ -273,6 +283,7 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab,
         "SCORESCREEN_TAB0", "SCORESCREEN_TAB1", "SCORESCREEN_TAB2", "SCORESCREEN_TAB3"
     })[tab]);
     UI_SetText(selected, "%s", label);
+    selected->Stat = tab; /* late-text paint rank; matches active tab */
     memset(&selected->Points, 0, sizeof(selected->Points));
     selected->AnyPointsSet = true;
     UI_SetPoint(selected, FRAMEPOINT_TOP, score->ScoreScreenBackground,

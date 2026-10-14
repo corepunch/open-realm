@@ -1535,7 +1535,8 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type != FT_SPRITE && f->flags.type != FT_TEXTURE &&
-            f->flags.type != FT_SIMPLESTATUSBAR)
+            f->flags.type != FT_SIMPLESTATUSBAR &&
+            !(f->flags.type == FT_TEXT && (f->flagsvalue & UIFLAG_TEXT_OVERLAY)))
             SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
@@ -1551,6 +1552,16 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && (f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
+    }
+    /* An authored caption can sit above late-painted sprite artwork. Rank is
+     * generic UI data, not a game or window identifier. Descending rank makes
+     * rightmost overlapping captions draw first; ties keep frame order. */
+    for (int rank = 31; rank >= 0; --rank) {
+        FOR_LOOP(i, SCR_NumFrames()) {
+            uiFrame_t const *f = SCR_Frame(i);
+            if (f && f->flags.type == FT_TEXT && (f->flagsvalue & UIFLAG_TEXT_OVERLAY) &&
+                (int)f->stat == rank) SCR_LayoutDrawFrame(f);
+        }
     }
 }
 
