@@ -690,6 +690,7 @@ TEST(wc3_items, pickup_uses_first_empty_slot) {
     edict_t *second = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), 64, 0);
 
     T_ASSERT(G_AddItemToSlot(unit, first, 0));
+    unit->s.player = 0; /* score belongs to the owner at the time of acquisition */
     T_ASSERT(G_PickupItem(unit, second));
     T_ASSERT(unit->inventory[1] == second);
     T_EQ(second->item->inventory_slot, 1);

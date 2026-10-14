@@ -64,6 +64,7 @@ TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
     int32_t value = -1;
 
     setup_test_world();
+    client->ps.race = RACE_HUMAN;
     memset(&client->score, 0, sizeof(client->score));
     memset(client->tech, 0, sizeof(client->tech));
     client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 3;
@@ -77,6 +78,7 @@ TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
     client->tech[0].id = MAKEFOURCC('R','h','m','e');
     client->tech[0].researched = 1;
     client->tech[1].id = MAKEFOURCC('R','h','a','c');
+    client->tech[1].researched = 1;
 
     T_ASSERT(G_GetPlayerScoreValue(client, WC3_PLAYER_SCORE_TECH_PERCENT, &value));
     T_EQ(value, 50);
@@ -442,7 +444,7 @@ TEST(wc3_score, score_sort_unavailable_values_last_and_groups_teams) {
     WC3_ScoreSortColumn(&view, 2, 0);
     WC3_ScoreOrderedPlayers(&snapshot, 2, &view, order);
     T_EQ(order[0], 0); T_EQ(order[1], 1); T_EQ(order[2], 2); T_EQ(order[3], 3);
-    WC3_ScoreSortColumn(&view, 1, 4); /* Invalid Units column is ignored. */
+    WC3_ScoreSortColumn(&view, 1, 5); /* Units tab has five columns, indexed 0..4. */
     T_EQ(view.column, 0);
 }
 

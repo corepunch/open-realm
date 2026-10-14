@@ -1810,6 +1810,9 @@ static void parse_func(wordExtractor_t *parser, frameDef_t *frame) {
         parser->error = true;
         return;
     parse_next:;
+        /* Nested frame definitions in retail FDF commonly separate child
+         * classes with commas. Top-level parsing already accepts these. */
+        while (*parser->buffer == ',') ++parser->buffer;
     }
 }
 

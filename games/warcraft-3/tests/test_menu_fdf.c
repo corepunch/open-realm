@@ -3665,16 +3665,21 @@ static void test_single_player_campaign_profile(bool tft) {
     T_ASSERT(sp_row_blank("CampaignListBox", 4));
 
     Cmd_ExecuteString("menu_single_player_campaign_select 0");
+    {
+        char completed_name[256];
+        snprintf(completed_name, sizeof(completed_name), "%s (%s)",
+                 tft ? "A Dark Covenant" : "Blackrock & Roll", UI_GetString("HARD"));
 #ifdef BZ_FFMPEG
-    T_ASSERT(tft ? sp_row_shows("MissionListBox", 4, "Chapter Two", "A Dark Covenant (Hard)", false, 3)
-                 : sp_row_shows("MissionListBox", 4, "", "Blackrock & Roll (Hard)", false, 3));
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 4, "Chapter Two", completed_name, false, 3)
+                 : sp_row_shows("MissionListBox", 4, "", completed_name, false, 3));
 #else
     T_ASSERT(tft ? sp_row_shows("MissionListBox", 0, "Chapter One", "Misconceptions", false, 0)
                  : sp_row_shows("MissionListBox", 0, "", "The Defense of Strahnbrad", false, 0));
-    T_ASSERT(tft ? sp_row_shows("MissionListBox", 1, "Chapter Two", "A Dark Covenant (Hard)", false, 1)
-                 : sp_row_shows("MissionListBox", 1, "", "Blackrock & Roll (Hard)", false, 1));
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 1, "Chapter Two", completed_name, false, 1)
+                 : sp_row_shows("MissionListBox", 1, "", completed_name, false, 1));
     T_ASSERT(sp_row_blank("MissionListBox", 2));
 #endif
+    }
 
     captured_command[0] = '\0';
     captured_cvar_name[0] = '\0';

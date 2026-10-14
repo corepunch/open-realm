@@ -1404,7 +1404,6 @@ void G_InvalidateCommands(gameClient_t *client) {
             }
         }
     }
-#endif
 }
 
 /* Live per-unit button state (Stop's idle glow) changed; rebuild the cards of every viewer selecting it. */
