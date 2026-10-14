@@ -121,6 +121,17 @@ comments in `g_score.c`; the overall sum is supported by the retail reference. H
 highest positive score per column is an additional **presentation guess**
 inferred from the screenshot, not verified retail sorting logic.
 
+Retail's Heroes Used cell is a list of hero portraits with each hero's current
+level, not an aggregate count. Controlled retail maps show that it follows
+current ownership, displays duplicate instances separately, retains dead or
+hidden heroes, and omits removed heroes. See
+[Heroes Used presentation experiments](retail-score-experiments.md#heroes-used-presentation-experiments).
+OpenRealm's scalar hero-entry count is diagnostic data and must not be
+presented as the retail cell; implementation parity requires snapshotting
+current player-owned hero instances and rendering their portraits and levels.
+Static preplaced heroes and campaign-cache restoration seeded by prior mission
+progression remain unverified.
+
 The snapshot now captures player colour and gameplay elapsed time using
 `level.framenum * FRAMETIME`, capped at 32-bit milliseconds. This reflects
 simulation time, not pause time spent reading scores. The existing elapsed
@@ -255,8 +266,10 @@ peak food used, already tracked by the authoritative food subsystem. All
 W3I participants now get an initial preplaced-food pass, not only clients that
 connect, so AI armies contribute to their own largest-army peaks.
 
-Heroes Used now counts units entering play that are classified as heroes;
-Experience Gained is the sum of positive hero XP changes through the common
+The current scalar Heroes Used counter counts units entering play that are
+classified as heroes; it is diagnostic only and does not match retail's
+portrait-and-level presentation. Experience Gained is the sum of positive hero
+XP changes through the common
 `G_HeroSetXP` path, including JASS grants and combat XP. The Heroes page renders
 both values; the Heroes Score formula now includes **GUESS** 10× XP after the
 single retail sample (500 XP => 5000 Hero Score). The pre-existing kill and
@@ -284,8 +297,8 @@ without crediting the XP implicitly required by an authored level increase.
 Direct `SetHeroXP`, `AddHeroXP`, and combat grants still credit positive XP.
 This is a deliberate interpretation of **Experience Gained** as awarded XP
 rather than a hero's cumulative XP threshold; verify against retail maps.
-It does not yet resolve the retail Unit Score formula, Tech Percentage,
-Largest Army (preplaced AI food accounting), or Heroes Used discrepancy.
+It does not yet resolve the retail Unit Score formula, Tech Percentage, or
+Largest Army (preplaced AI food accounting).
 
 ### Cost-weighted scoring and diagnostics (follow-on)
 
@@ -327,10 +340,12 @@ preplaced armies remains unverified. All subsequent food peaks still update.
 
 ### Hero lifecycle and technology classification audit
 
-`wc3_game_result_debug 1` reports hero creation, ownership transfers and game-cache
-restoration with identity, level and XP. These are observational; transfers and
-restoration are not blindly counted as new Heroes Used because retail's
-uniqueness/credit policy has not been established. Tech Percentage now uses
+`wc3_game_result_debug 1` reports hero creation, ownership transfers and
+game-cache restoration with identity, level and XP. Retail experiments
+establish that the display follows current ownership and lists hero instances
+rather than historical ownership counts. The scalar creation counter is not a
+retail presentation value. Prior-mission cache restoration and static
+preplaced-hero behavior remain open. Tech Percentage now uses
 researched *levels* of authored `UpgradeData` rows seen in the player's tech
 state, instead of treating arbitrary tech-limit rows as researched upgrades.
 The diagnostic retains the previous observed-entry percentage alongside the
@@ -394,4 +409,7 @@ read-only; the food subsystem continues accumulating new peaks.
 
 Retail Hard screenshot reporting 71 has not been reproduced by this Normal
 experiment. The separate unit-cost score discrepancy (12,465 versus OpenRealm
-15,030) and Heroes Used discrepancy remain unresolved and are not adjusted.
+15,030) remains unresolved and is not adjusted. The apparent Heroes Used
+discrepancy was a comparison error: retail's `3` is Arthas's level label, while
+OpenRealm's `2` was a scalar hero creation count; the retail portrait-list
+presentation is not yet implemented.
