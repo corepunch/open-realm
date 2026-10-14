@@ -442,12 +442,6 @@ void SCR_LayoutDrawStatusbar(uiFrame_t const *frame, rect_t const *screen) {
 }
 
 void SCR_LayoutDrawTexture(uiFrame_t const *frame, rect_t const *screen) {
-    /* Colour-only textures are real UI rectangles, not dependent on a BLP
-     * with potentially transparent pixels. Preserve the authored alpha. */
-    if (frame->flagsvalue & UIFLAG_TEXTURE_COLOR_FILL) {
-        re.DrawFill(screen, frame->color);
-        return;
-    }
     float value = 0;
     bool const has = SCR_LayoutContextValue(frame->stat, &value);
     bool const ctx = SCR_LayoutEntityContextActive() &&

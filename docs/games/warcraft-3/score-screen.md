@@ -96,12 +96,16 @@ header text uses `GlobalStrings.fdf` keys rather than hard-coded headings.
 
 The retail FDF creates the background, header banks, tabs and scrollbar but **not**
 player score rows. Patch 2 constructs a bounded viewport of ten runtime rows.
-Every row owns a translucent player-colour strip, stock silver banner art,
+Every row owns a stock team-colour bar model (TopBar, CenterBar or BottomBar
+according to its position), silver banner art,
 original `scorescreen-player-{race}.blp` icon where supported, name, and up to
 five separately positioned numeric cells. Numeric-cell centers reuse the
 **exact FDF header offsets** for 4-/5-column pages, while row start,
 height/spacing, text size, tint and icon placement remain **PRESENTATION
-GUESSES** pending retail runtime verification. The player ordering is the
+GUESSES** pending retail runtime verification. The bar models select one of
+their twelve stock colour sequences by sequence index, because animation names
+do not follow the player-colour order. The original FDF's separate `ScoreScreenBarTop`
+is hidden because it was painting over the column headings. The player ordering is the
 frozen score snapshot order; retail's exact order/grouping rules are unknown.
 
 The initial Patch 2 pages followed the keys from `GlobalStrings.fdf`; see the corrective section below for expanded columns:
@@ -239,6 +243,19 @@ Continue; do not unmount/reset it merely because the world is not rendered.
 Compilation, gameplay, rendering and the above observations remain for the
 local build/test run. `AGENTS.md`, `CONTRIBUTING.md` and `docs/ui-authoring.md`
 remain authoritative.
+
+### Retail score-row bar models (14 October 2026)
+
+Runtime player rows now use the stock `ScoreScreen-TopBar`,
+`ScoreScreen-CenterBar` and `ScoreScreen-BottomBar` MDX models. The first
+visible row uses TopBar, the last uses BottomBar when there is more than one
+row, and rows between them use CenterBar. The selected animation is addressed
+by sequence ordinal (`#N@0`) so it follows the player palette despite the
+nonsequential `TeamColorNN Stand` sequence names. The FDF's separate
+`ScoreScreenBarTop` model is hidden, removing its previous overlap with the
+column headings. Exact runtime row placement, border overlap and appearance
+still need visual comparison with retail; no build or runtime verification
+was performed for this change.
 
 ### Retail FDF parser and campaign Quit Mission fix (2026-10-13)
 

@@ -1,6 +1,6 @@
 /* Retail Warcraft III score screen: FDF controls/models + runtime score rows.
- * Player-row templates do not exist in the extracted FDF inventory, so only
- * their geometry and tint are provisional. No Blizzard artwork is bundled. */
+ * Player-row templates do not exist in the extracted FDF inventory, so their
+ * geometry remains provisional. No Blizzard artwork is bundled. */
 #include "hud_local.h"
 #include "score_screen_table.h"
 
@@ -21,20 +21,6 @@ static void ScoreScreenUseSprite(frameDef_t *frame) {
 }
 
 static cstring_t ScoreScreenRaceArt(gameClient_t *viewer);
-
-static color32_t ScoreScreenPlayerColor(uint32_t player_color) {
-    /* Same stock player palette used by the in-game multiboard. The subdued
-     * translucent banner tint is a PRESENTATION GUESS, not a retail formula. */
-    static color32_t const colors[] = {
-        {255,3,3,155}, {0,66,255,155}, {28,230,185,155}, {84,0,129,155},
-        {255,252,1,155}, {254,138,14,155}, {32,192,0,155}, {229,91,176,155},
-        {149,150,151,155}, {126,191,241,155}, {16,98,70,155}, {78,42,4,155},
-        {155,0,0,155}, {0,0,195,155}, {0,234,255,155}, {190,0,254,155},
-        {235,205,135,155}, {248,164,139,155}, {191,255,128,155}, {220,185,235,155},
-        {40,40,40,155}, {235,240,255,155}, {0,120,30,155}, {164,111,51,155},
-    };
-    return colors[MIN(player_color, (sizeof(colors) / sizeof(colors[0])) - 1)];
-}
 
 static cstring_t ScoreScreenPlayerIcon(uint32_t race) {
     /* Stock archive files, not replacement art. Preserve nonstandard race
@@ -72,7 +58,9 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
     ScoreScreenPlace(root, score->ScoreScreenFrame, SCORE_ROW_X,
                      SCORE_ROW_Y - slot * SCORE_ROW_STEP, SCORE_ROW_W, SCORE_ROW_H);
 
-    backdrop = ScoreScreenSpawn(root, FT_TEXTURE);
+    /* Retail score bars are MDX meshes with grayscale art and animated
+     * team-colour geoset tracks. They render in native FDF space. */
+    backdrop = ScoreScreenSpawn(root, FT_SPRITE);
     border = ScoreScreenSpawn(root, FT_TEXTURE);
     icon = ScoreScreenSpawn(root, FT_TEXTURE);
     name = ScoreScreenSpawn(root, FT_TEXT);
@@ -81,10 +69,9 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
     hud.score_rows[slot].border = border;
     hud.score_rows[slot].icon = icon;
     hud.score_rows[slot].name = name;
-    ScoreScreenPlace(backdrop, root, 0, 0, SCORE_ROW_W, SCORE_ROW_H);
-    /* The colour belongs behind this row, not to the gold header sprite.
-     * A blank-background BLP can be transparent and discard the tint. */
-    backdrop->ui_flags |= UIFLAG_TEXTURE_COLOR_FILL;
+    /* Sprite coordinates are set by ScoreScreenSetRowBar to match each
+     * model's native 0.032-height mesh (rather than scaling a BLP). */
+    ScoreScreenPlace(backdrop, root, 0, -0.032f, 0, 0);
     /* The existing silver banner border is a stock score-screen asset. Its
      * exact retail runtime placement is NOT defined by ScoreScreen.fdf. */
     ScoreScreenPlace(border, root, 0, 0, 0.153f, SCORE_ROW_H);
@@ -159,7 +146,9 @@ void UI_LoadHudScoreScreen(void) {
     }
     score->ScoreScreenTabTextSelected->ui_flags |= UIFLAG_TEXT_OVERLAY;
     ScoreScreenUseSprite(score->ScoreScreenRaceArt);
-    ScoreScreenUseSprite(score->ScoreScreenBarTop);
+    /* This stock TopBar was incorrectly painted over the column headings.
+     * The player rows below each own a proper bar model instead. */
+    UI_SetHidden(score->ScoreScreenBarTop, true);
     UI_SetOnClick(score->ScoreScreenOKButton,
                   UI_WINDOW_CLOSE_COMMAND_PREFIX "scorescreen_continue");
     FOR_LOOP(i, WC3_SCORE_TABS)
@@ -273,8 +262,6 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab,
             score->ScoreScreenRaceArt->Width, score->ScoreScreenRaceArt->Height);
     }
     UI_SetText(score->ScoreScreenRaceArt, "#!Stand");
-    snprintf(anim, sizeof(anim), "TeamColor%02u Stand", (unsigned)(viewer->ps.color % 12));
-    UI_SetText(score->ScoreScreenBarTop, "%s", anim);
 
     ScoreScreenSetHeaders(score, tab, view);
     if (score->ScoreScreenTeamsButton)
@@ -296,9 +283,36 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab,
     UI_SetHidden(selected, false);
 }
 
+/* The stock score-bar family differs at the top and bottom edges. Each MDX
+ * geoset animates its colour across twelve TeamColorNN Stand sequences;
+ * applying vertex tint to an unrelated rectangle loses the original shading.
+ * Center/Top meshes extend +0.032 in Y, Bottom extends -0.032. */
+static void ScoreScreenSetRowBar(uint32_t slot, uint32_t visible_count,
+                                 uint32_t player_color) {
+    static cstring_t const paths[] = {
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-TopBar\\ScoreScreen-TopBar.mdx",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-CenterBar\\ScoreScreen-CenterBar.mdx",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-BottomBar\\ScoreScreen-BottomBar.mdx",
+    };
+    frameDef_t *bar = hud.score_rows[slot].backdrop;
+    frameDef_t *row = hud.score_rows[slot].root;
+    bool const last = slot > 0 && slot + 1 == visible_count;
+    uint32_t const kind = slot == 0 ? 0 : last ? 2 : 1;
+
+    bar->Portrait.model = UI_LoadModel(paths[kind], false);
+    /* The MDX animation names are shuffled (sequence 0 is named
+     * TeamColor02 Stand, sequence 1 TeamColor00 Stand, etc.), but their
+     * ORDER is exactly red, blue, teal, purple, ... like the WC3 palette.
+     * Select by ordinal at its authored colour key, not by a constructed
+     * TeamColorNN name. Stock artwork contains twelve colour sequences. */
+    UI_SetText(bar, "#%u@0", (unsigned)(player_color % 12));
+    ScoreScreenPlace(bar, row, 0, last ? 0.0f : -0.032f, 0, 0);
+}
+
 static void ScoreScreenFillRow(uint32_t slot, uint32_t tab,
                                wc3ScorePlayerSnapshot_t const *player,
-                               int32_t const peaks[5], uint32_t tint_color) {
+                               int32_t const peaks[5], uint32_t tint_color,
+                               uint32_t visible_count) {
     static float const cols4[4] = { -0.172f, -0.0273f, 0.1182f, 0.2647f };
     static float const cols5[5] = { -0.1865f, -0.0703f, 0.0462f, 0.1627f, 0.280f };
     frameDef_t *root = hud.score_rows[slot].root;
@@ -308,7 +322,7 @@ static void ScoreScreenFillRow(uint32_t slot, uint32_t tab,
     char text[32];
 
     UI_SetHidden(root, false);
-    hud.score_rows[slot].backdrop->Color = ScoreScreenPlayerColor(tint_color);
+    ScoreScreenSetRowBar(slot, visible_count, tint_color);
     UI_SetHidden(hud.score_rows[slot].border, false);
     UI_SetHidden(hud.score_rows[slot].icon, !icon);
     if (icon) UI_SetTexture(hud.score_rows[slot].icon, icon, false);
@@ -396,7 +410,8 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
             wc3ScorePlayerSnapshot_t const *player = &snapshot->players[order[start + i]];
             uint32_t const tint = view && view->ally_colors
                 ? WC3_ScoreTeamColor(snapshot, player) : player->color;
-            ScoreScreenFillRow(i, tab, player, peaks, tint);
+            ScoreScreenFillRow(i, tab, player, peaks, tint,
+                               MIN(snapshot->count - start, WC3_SCORE_VISIBLE_ROWS));
         }
     }
     /* The stock scrollbar is self-owned; the generic client reports its
