@@ -288,6 +288,7 @@ TEST(wc3_spell, spirit_link_zero_and_single_target_counts) {
 }
 #endif
 
+#ifdef BZ_TESTS
 /* Authored non-stock rune data: DataB=2, Area=100, unlike the Spirit Walker
  * spell's DataB=3 / Area=300. Pickup uses the actual collector without mana. */
 TEST(wc3_spell, spirit_link_rune_powerup_uses_authored_count_and_area) {
@@ -305,3 +306,4 @@ TEST(wc3_spell, spirit_link_rune_powerup_uses_authored_count_and_area) {
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BSPL), 0);
     spl_done(&fix);
 }
+#endif
