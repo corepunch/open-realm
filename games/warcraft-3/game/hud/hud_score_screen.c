@@ -83,7 +83,7 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
     /* Match the retail ribbon proportions inside the 0.031-high row. The
      * texture carries transparent margins, so its frame is larger than the
      * visible bevel. Keep the model bar, portrait and label unchanged. */
-    ScoreScreenPlace(border, root, 0, 0.008f, 0.198f, 0.047f);
+    ScoreScreenPlace(border, root, 0, 0.008f, 0.198f, 0.053f);
     UI_SetTexture(border, "UI\\Glues\\ScoreScreen\\scorescreen-silverbannerborder.blp", false);
     ScoreScreenPlace(icon, root, 0.005f, -0.003f, SCORE_ROW_ICON, SCORE_ROW_ICON);
     ScoreScreenPlace(name, root, 0.034f, -0.003f, 0.111f, SCORE_ROW_H-0.005f);
