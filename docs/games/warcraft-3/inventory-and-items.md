@@ -737,3 +737,20 @@ The retail description identifies the original monster as the recipient;
 this implementation restores its type, not its prior instance-specific health,
 experience, buffs or inventory. Detailed retail fidelity for these fields
 requires additional map-level verification.
+
+## Campaign powerups: gold, lumber, and secret-level pickups
+
+`AIgo` and `AIlu` change the collecting player's resources by authored
+`DataA`, bypassing upkeep taxation. Both accept negative values for custom
+items and clamp the resulting balance to the supported resource range; positive
+changes use the existing resource-gain notification. A zero change still
+consumes a supported powerup. Resource grants do not invent a grant when an
+ability list is missing.
+
+`sclp` (Secret Level Powerup) uses the same ability-less powerup
+pickup path as Shimmerweed: it can be collected with a full inventory,
+publishes pickup events with the original item handle retained until queued
+callbacks complete, and then disappears. An ability-less quest pickup does
+**not** fabricate item-use events or unlock a specific campaign chapter.
+Map scripts/campaign progression own the secret-level unlock; no global
+`sclp` special case is required in the item system.

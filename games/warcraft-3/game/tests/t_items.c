@@ -819,6 +819,39 @@ TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, gold_powerup_negative_data_drains_and_clamps_at_zero) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIgo\"\nC;Y2;X2;K\"AIgo\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"-237\"\nE\n";
+    static ItemData_t gold_data = { .abilList = "AIgo", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *item;
+    gameClient_t *owner;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    owner = G_GetPlayerClientByNumber(0);
+    T_NOT_NULL(owner);
+    if (owner) {
+        owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+        item = make_item_test_world_item(MAKEFOURCC('p','g','o','l'), 32, 0);
+        item->data.ItemData = &gold_data;
+        T_ASSERT(G_PickupItem(unit, item));
+        T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+        T_ASSERT(item->item->pending_use_removal);
+        T_EQ(item->item->charges, 0);
+    }
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, lumber_powerup_uses_authored_grant_without_inventory_slot) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X4\n"
@@ -1485,9 +1518,30 @@ TEST(wc3_items, shimmerweed_powerup_without_ability_bypasses_inventory) {
     T_ASSERT(G_OrderPickupItem(unit, item));
     T_ASSERT(G_PickupItem(unit, item));
     T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
     T_ASSERT(!item->item->in_world);
     T_NULL(item->item->carrier);
     T_EQ(item->item->inventory_slot, -1);
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) T_ASSERT(unit->inventory[slot] != item);
+}
+
+TEST(wc3_items, secret_level_powerup_uses_quest_pickup_path) {
+    static ItemData_t quest = { .abilList = "_", .powerup = true,
+        .usable = false, .perishable = false, .uses = 0 };
+    edict_t *unit, *item;
+
+    setup_test_world();
+    unit = make_item_test_inventory_unit(0, 0);
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(unit, held, slot));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('s','c','l','p'), 32, 0);
+    item->data.ItemData = &quest;
+    T_ASSERT(G_PickupItem(unit, item));
+    T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
+    T_NULL(item->item->carrier);
     FOR_LOOP(slot, G_InventoryCapacity(unit)) T_ASSERT(unit->inventory[slot] != item);
 }
 

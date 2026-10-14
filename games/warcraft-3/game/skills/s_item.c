@@ -756,7 +756,9 @@ BZ_ABILITY_PROC(CAbilityItemResurrection) {
     return true;
 }
 
-/* Chest of Gold / Gold Coins. DataA is the authored gold grant; a powerup
+/* Chest of Gold / Gold Coins. DataA can grant or drain gold (negative
+ * values in custom maps), clamped to the player resource range.
+ * DataA is the authored gold change; a powerup
  * executes on its actual picker rather than on a local client's selection.
  * Resource pickups grant their full amount and do not pass through the
  * worker-harvesting upkeep tax calculation. */
@@ -764,7 +766,7 @@ BZ_ABILITY_PROC(CAbilityItemGold) {
     edict_t *caster;
     gameClient_t *owner;
     float amount;
-    uint32_t balance, credited;
+    uint32_t balance, result;
 
     if (msg != A_ITEM_USE || !call || !call->item) return false;
     caster = item_use_caster(ent, call);
@@ -772,11 +774,11 @@ BZ_ABILITY_PROC(CAbilityItemGold) {
     owner = G_GetPlayerClientByNumber(caster->s.player);
     if (!owner) return false;
     amount = S_SpellData(call->item->code, 1, 1); /* DataA / Gold Given */
-    if (!(amount > 0.0f)) return false;
+    if (!isfinite(amount)) return false;
     balance = owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
-    credited = (uint32_t)MIN((double)amount, (double)(USHRT_MAX - balance));
-    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)(balance + credited);
-    if (credited) G_ResourceGainEvent(caster, owner->ps.number, PLAYERSTATE_RESOURCE_GOLD, (int32_t)credited);
+    result = (uint32_t)MAX(0.0, MIN((double)USHRT_MAX, (double)balance + (double)amount));
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)result;
+    if (result > balance) G_ResourceGainEvent(caster, owner->ps.number, PLAYERSTATE_RESOURCE_GOLD, (int32_t)(result - balance));
     return true;
 }
 
@@ -795,7 +797,7 @@ BZ_ABILITY_PROC(CAbilityItemLumber) {
     owner = G_GetPlayerClientByNumber(caster->s.player);
     if (!owner) return false;
     amount = S_SpellData(call->item->code, 1, 1); /* DataA / Lumber Given */
-    if (isnan(amount)) return false;
+    if (!isfinite(amount)) return false;
     balance = owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
     result = (uint32_t)MAX(0.0, MIN((double)USHRT_MAX, (double)balance + (double)amount));
     owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)result;
