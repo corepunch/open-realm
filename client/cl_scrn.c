@@ -1052,13 +1052,6 @@ void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen) {
         snprintf(phased_anim, sizeof(phased_anim), "%.*s@%.6f", (int)base_len, anim, phase);
         anim = phased_anim;
     }
-    if (layout_current_window &&
-        Cvar_Integer("wc3_game_result_debug", 0)) {
-        fprintf(stderr, "WC3_SCORE_ART draw frame=%u model_index=%u model=%s anim=\"%s\" rect=(%.4f,%.4f,%.4f,%.4f) sequences=%d\n",
-                (unsigned)frame->number, (unsigned)frame->tex.index,
-                model ? "loaded" : "missing", anim,
-                screen->x, screen->y, screen->w, screen->h, -1);
-    }
     re.DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = screen->x, .y = screen->y,
         .id = frame, .scope = layout_current_window ? layout_current : (void *)(uintptr_t)(layout_current_layer + 1)));
 }
