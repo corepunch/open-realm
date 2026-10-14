@@ -720,6 +720,7 @@ static ability_t abilitylist[] = {
     { "Sbsk", CAbilityPassive, AB_PASSIVE },  /* Berserker Upgrade */
     { "AIcy", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Cyclone */
     { "AIsw", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentry Ward (item; code=Aeye) */
+    { "APwt", CAbilityItemWatcherWard, AB_ITEM | AB_POWERUP },  /* Rune of the Watcher (code=Aeye) */
     { "AIxs", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-magic Shield */
     { "Amgr", CAbilityMoonGlaive, AB_PASSIVE | AB_INNATE },  /* Moon Glaive (Naisha) */
     { "Asds", CAbilitySelfDestruct, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Kaboom! */

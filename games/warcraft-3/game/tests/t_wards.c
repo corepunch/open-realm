@@ -4,6 +4,7 @@
 
 #define BZ_ASTA MAKEFOURCC('A', 's', 't', 'a') // Stasis Trap
 #define BZ_AEYE MAKEFOURCC('A', 'e', 'y', 'e') // Sentry Ward
+#define BZ_APWT MAKEFOURCC('A', 'P', 'w', 't') // Rune of the Watcher
 #define BZ_AISW MAKEFOURCC('A', 'I', 's', 'w') // item Sentry Ward alias
 #define BZ_AIPM MAKEFOURCC('A', 'I', 'p', 'm') // Item Place Goblin Land Mine
 #define BZ_AMIN MAKEFOURCC('A', 'm', 'i', 'n') // Mine - exploding
@@ -32,7 +33,7 @@ void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
 
 static char const wards_slk[] =
-	"ID;PWXL;N;EBB;Y11;X16\n"
+	"ID;PWXL;N;EBB;Y12;X16\n"
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
@@ -66,7 +67,9 @@ static char const wards_slk[] =
 	"C;Y10;X1;K\"Adda\"\nC;Y10;X2;K\"Adda\"\nC;Y10;X3;K\"1\"\n"
 	"C;Y10;X4;K\"ground,structure,tree,debris,enemy\"\nC;Y10;X8;K\"0.3\"\nC;Y10;X10;K\"100\"\nC;Y10;X11;K\"40\"\nC;Y10;X12;K\"250\"\nC;Y10;X13;K\"20\"\n"
 	"C;Y11;X1;K\"Amnx\"\nC;Y11;X2;K\"Adda\"\nC;Y11;X3;K\"1\"\n"
-	"C;Y11;X4;K\"ground,structure,tree,debris,enemy\"\nC;Y11;X8;K\"0.3\"\nC;Y11;X10;K\"100\"\nC;Y11;X11;K\"40\"\nC;Y11;X12;K\"250\"\nC;Y11;X13;K\"20\"\nE\n";
+	"C;Y11;X4;K\"ground,structure,tree,debris,enemy\"\nC;Y11;X8;K\"0.3\"\nC;Y11;X10;K\"100\"\nC;Y11;X11;K\"40\"\nC;Y11;X12;K\"250\"\nC;Y11;X13;K\"20\"\n"
+	"C;Y12;X1;K\"APwt\"\nC;Y12;X2;K\"Aeye\"\nC;Y12;X3;K\"1\"\n"
+	"C;Y12;X8;K\"13\"\nC;Y12;X14;K\"ogru\"\nE\n";
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -469,6 +472,8 @@ TEST(wc3_spell, mine_death_damage_uses_authored_tree_and_debris_targets) {
 TEST(wc3_spell, sentry_ward_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_AEYE).ability->proc, CAbilityEvilEye);
 	T_EQ(S_AbilityItem(BZ_AISW).ability->proc, CAbilityEvilEye);
+	T_EQ(S_AbilityItem(BZ_APWT).ability->proc, CAbilityItemWatcherWard);
+	T_ASSERT(S_AbilityItem(BZ_APWT).ability->flags & AB_POWERUP);
 	T_EQ(S_AbilityItem(BZ_AEYE).ability->target_type, SPELL_TARGET_POINT);
 	T_EQ(S_AbilityItem(BZ_APIV).ability->proc, CAbilityPermanentInvisibility);
 }
@@ -710,6 +715,29 @@ TEST(wc3_spell, true_sight_only_reveals_rf_hidden_states_known_to_be_invisibilit
 	T_ASSERT(S_UnitUsesInvisibilityRenderFlag(fix.enemy));
 	T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BINV), 1);
 	ward_done(&fix);
+}
+
+
+TEST(wc3_spell, watcher_rune_spawns_permanent_owned_detection_ward) {
+    wardFix_t fix;
+    edict_t *ward;
+    abilityitem_t item = S_AbilityItem(BZ_APWT);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    ward_setup(&fix);
+    fix.enemy->s.origin2 = (vec2_t){ 180, 0 };
+    fix.enemy->s.renderfx |= RF_HIDDEN;
+    T_ASSERT(S_AbilityMessage(fix.caster, A_ITEM_USE, &call));
+    ward = ward_find(BZ_OGRU);
+    T_NOT_NULL(ward);
+    T_EQ(ward->owner, fix.caster);
+    T_EQ(ward->s.player, fix.caster->s.player);
+    T_EQ(ward->summon_ability, BZ_APWT);
+    T_ASSERT(ward->s.renderfx & RF_HIDDEN);
+    T_EQ(G_UnitStatusLevel(ward, BZ_BTLF), 0);
+    T_FEQ(ward->wait, BZ_SIGHT, .001f);
+    T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 0));
+    T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
+    ward_done(&fix);
 }
 
 TEST(wc3_spell, sentry_ward_aisw_uses_alias_unitid) {
