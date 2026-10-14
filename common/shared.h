@@ -530,6 +530,7 @@ _Static_assert(LAYER_GAME_3 < MAX_LAYOUT_LAYERS, "every UILAYOUTLAYER needs a cl
 #define UI_WINDOW_CLOSE_ACTION "close_window" // client action; closes the owning window without a server command
 #define UI_WINDOW_CLOSE_NOTIFY_ACTION "close_window_notify" // client action; closes locally and notifies server of modal release
 #define UI_WINDOW_CLOSE_COMMAND_PREFIX "close_window_command " // client action prefix; forwards suffix then closes the owning window
+#define UI_WINDOW_BLACKOUT_COMMAND_PREFIX "blackout_window_command " // forwards suffix and blanks a presentation window while retaining its world-covering modal
 #define UI_WINDOW_DISCONNECT_ACTION "disconnect_game" // client action; leaves the current server/map and returns to the front-end
 #define UI_WINDOW_QUIT_ACTION "quit_application" // client action; exits the application after an explicit local click
 /* Server-authored controls name the client cvar they edit: "<prefix><cvar>". Checkbox rows store 0/1, slider

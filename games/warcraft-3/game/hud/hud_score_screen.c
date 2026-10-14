@@ -22,12 +22,12 @@ static void ScoreScreenUseSprite(frameDef_t *frame) {
 
 static cstring_t ScoreScreenRaceArt(gameClient_t *viewer);
 
-/* A score presentation is the outgoing session's last visible screen. The
- * generic close_window_command action would remove its UI_WINDOW_PRESENTATION
- * cover before deferred MenuAction starts, briefly revealing the old world.
- * Forward Continue without closing locally; destination teardown removes it. */
+/* Keep the outgoing world hidden after Continue: the generic client
+ * immediately blacks out this presentation while forwarding the command.
+ * The server still validates the recipient and owns the one-shot destination;
+ * the next loading screen or menu clears the blackout with the old window. */
 static void ScoreScreenBindContinue(frameDef_t *button) {
-    UI_SetOnClick(button, "scorescreen_continue");
+    UI_SetOnClick(button, UI_WINDOW_BLACKOUT_COMMAND_PREFIX "scorescreen_continue");
 }
 
 static cstring_t ScoreScreenPlayerIcon(uint32_t race) {
@@ -199,8 +199,11 @@ void UI_LoadHudScoreScreen(void) {
          * used a separate gold scorescreen-buttonbackground edge which
          * produced the unwanted square/vertical bars around the icon. */
         if (button->Parent && button->Parent->Type == FT_BACKDROP) {
-            button->Parent->Backdrop.EdgeFile = 0;
-            button->Parent->Backdrop.Background = 0;
+            frameDef_t *backdrop = UI_FindFrameNear(button, button->Parent->Name);
+            if (backdrop && backdrop->Type == FT_BACKDROP) {
+                backdrop->Backdrop.EdgeFile = 0;
+                backdrop->Backdrop.Background = 0;
+            }
         }
         UI_SetOnClick(button, "scorescreen_allycolors");
     }
@@ -493,10 +496,10 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
 #ifdef BZ_TESTS
 #include "shared/test.h"
 
-TEST(wc3_score_postgame, continue_button_does_not_preclose_presentation) {
+TEST(wc3_score_postgame, continue_button_blacks_out_presentation) {
     frameDef_t button = { 0 };
     ScoreScreenBindContinue(&button);
-    T_STREQ(button.OnClick, "scorescreen_continue");
+    T_STREQ(button.OnClick, UI_WINDOW_BLACKOUT_COMMAND_PREFIX "scorescreen_continue");
     T_ASSERT(strncmp(button.OnClick, UI_WINDOW_CLOSE_COMMAND_PREFIX,
                      sizeof(UI_WINDOW_CLOSE_COMMAND_PREFIX) - 1) != 0);
 }
