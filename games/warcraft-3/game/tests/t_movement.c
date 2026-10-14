@@ -20208,6 +20208,101 @@ TEST(wc3_movement, completion195_blocked_member_retries_before_terminal_scan) {
 
 /* Retail fallback recovery retires the old task then activates the pending
  * user head synchronously. The replaced group remains for its next owner visit. */
+TEST(wc3_movement, order344_ai_blocked_move_dispatches_return_to_assigned_guard) {
+    FOR_LOOP(saved,2) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    int controller=game.clients[0].jass.controller;
+    typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];
+    G_BotInitPlayers();
+    T_ASSERT(G_BotStart(&game.clients[0].ps,"test_idle.ai",BOT_CAMPAIGN));
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){272,304},90);
+    T_NOT_NULL(unit);
+    if(unit) {
+        T_ASSERT(unit->aiflags&AI_TOWN_OWNED);
+        vec2_t goal={1008,1040};
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,false,0,0));
+        cstring_t file=Test_TempPath("wc3-order344-blocked-save.bin");
+        uint32_t number=unit-g_edicts;
+        if(saved) {T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));unit=g_edicts+number;}
+        remove(file);
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            /* Supply the terminal blocked pose, then execute the production
+             * group completion dispatcher. Retail603110 ->6802f0 ->9c0b00
+             * publishes Attack-to-guard before the can't-path callback returns. */
+            S_SetUnitAxisPosition(unit,0,970);
+            S_SetUnitAxisPosition(unit,1,1031);
+            group->ticking=true;
+            moveGroupMember_t *member=group->members;
+            member->flags|=0x20000;member->arrived=true;
+            moveGroupMember_t *finished[]={member};
+            move_group_complete_members(group,finished,1);
+            T_EQ(unit->current_order_id,G_OrderId("attack"));
+            T_NOT_NULL(unit->goalentity);
+            if(unit->goalentity) {
+                T_FEQ(unit->goalentity->s.origin2.x,272,0);
+                T_FEQ(unit->goalentity->s.origin2.y,304,0);
+            }
+            group->ticking=false;
+        }
+    }
+    G_BotStop(0);reset_entities();setup_test_world();
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+}
+}
+
+TEST(wc3_movement, order344_ai_blocked_move_returns_to_explicit_guard) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    int controller=game.clients[0].jass.controller;
+    typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];
+    G_BotInitPlayers();
+    G_BotStopGathering(&game.clients[0].ps); /* Explicit post, without default enrollment. */
+    T_ASSERT(G_BotStart(&game.clients[0].ps,"test_idle.ai",BOT_CAMPAIGN));
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){272,304},90);
+    T_NOT_NULL(unit);
+    if(unit) {
+        T_ASSERT(unit->aiflags&AI_TOWN_OWNED);
+        T_EQ(ARRAY_COUNT(level.bots[0].guards),0);
+        G_BotAddGuardPost(&game.clients[0].ps,unit->class_id,320,352);
+        G_BotFillGuardPosts(&game.clients[0].ps);
+        T_ASSERT(level.bots[0].guards[0].unit==unit);
+        vec2_t goal={1008,1040};
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,false,0,0));
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            /* Supply the terminal blocked pose, then execute the production
+             * group completion dispatcher. Retail603110 ->6802f0 ->9c0b00
+             * publishes Attack-to-guard before the can't-path callback returns. */
+            S_SetUnitAxisPosition(unit,0,970);
+            S_SetUnitAxisPosition(unit,1,1031);
+            group->ticking=true;
+            moveGroupMember_t *member=group->members;
+            member->flags|=0x20000;member->arrived=true;
+            moveGroupMember_t *finished[]={member};
+            move_group_complete_members(group,finished,1);
+            T_EQ(unit->current_order_id,G_OrderId("attack"));
+            T_NOT_NULL(unit->goalentity);
+            if(unit->goalentity) {
+                T_FEQ(unit->goalentity->s.origin2.x,320,0);
+                T_FEQ(unit->goalentity->s.origin2.y,352,0);
+            }
+            group->ticking=false;
+        }
+    }
+    G_BotStop(0);reset_entities();setup_test_world();
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+}
+
 TEST(wc3_movement, recovery197_blocked_completion_dispatches_saved_successor) {
     FOR_LOOP(saved,2) {
         reset_entities();setup_test_world();

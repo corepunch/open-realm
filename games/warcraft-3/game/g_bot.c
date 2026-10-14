@@ -1,10 +1,10 @@
 #include "g_local.h"
 #include "jass/jass.h"
 #include "skills/s_skills.h"
+#include "wc3_pathing_coordinates.h"
 #include <stdarg.h>
 
 #define BOT_GROUP_FLEE_HOME_RADIUS 128.0f // world units; upstream compatibility tolerance for logical Captain queries without a physical actor
-#define BOT_GUARD_RETURN_RANGE 82.006f // world units; avoid resetting movement for guards already standing near their post
 #define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
 #define BOT_BUILD_SEARCH_RINGS 32 // 32-unit grid rings; searches 1024 world units around a town for legal placement
 #define BOT_INJURED_HEALTH_FRACTION 0.5f // retail AI Editor: units below 50% life are treated as injured
@@ -221,6 +221,11 @@ static void G_BotTraceClearWaits(uint32_t player) {
 
 static bool G_BotBuildSiteReachable(edict_t *, vec2_t const *);
 static bool G_BotIsHostile(player_t *, edict_t *);
+static void G_BotReturnAssignedGuard(edict_t *, vec2_t const *);
+static void G_BotUnassignGuard(edict_t *);
+static botGuardPost_t *G_BotAssignedGuard(edict_t const *);
+static void G_BotAssignGuard(bot_t *,uint32_t,edict_t *);
+static void G_BotAdmitUnit(edict_t *,bool);
 
 static void G_BotClearCaptains(bot_t *bot) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
@@ -1177,6 +1182,7 @@ static void G_BotWithdrawCaptainUnit(edict_t *unit,bool removed) {
 }
 
 void G_BotRemoveCaptainUnit(edict_t *unit) {
+    G_BotUnassignGuard(unit);
     G_BotWithdrawCaptainUnit(unit,true);
     G_BotWithdrawTownUnit(unit,true);
 }
@@ -1196,6 +1202,7 @@ void G_BotInitAssault(player_t *player) {
 }
 
 static void G_BotCaptainAdd(bot_t const *bot,botCaptain_t *captain, edict_t *unit) {
+    G_BotUnassignGuard(unit);
     uint32_t count = ARRAY_COUNT(captain->units);
     /* Native9cf680 prepends. Keep the contiguous encounter order, with free
      * capacity BEFORE the live range: ordinary insertion writes one pointer.
@@ -1217,7 +1224,7 @@ static void G_BotCaptainAdd(bot_t const *bot,botCaptain_t *captain, edict_t *uni
 
 /* Internal d0006 owns separation suppression while its d0194 task dispatches.
  * Town membership persists independently of a running script. An idle Town unit
- * without a Captain has no replacement movement here; a detached/non-Town unit
+ * without a Captain can return to its assigned guard post; a detached/non-Town unit
  * falls back to Stop. Keep acquisition after enrollment, not around enrollment. */
 void G_BotDispatchAIStop(edict_t *unit) {
     if(!unit || !unit->inuse || G_IsDeferredFree(unit) || M_IsDead(unit))return;
@@ -1239,6 +1246,13 @@ void G_BotDispatchAIStop(edict_t *unit) {
                     fprintf(stderr,"WC3 AI: temporary Captain movement rejected unit=%u\n",unit->s.number);
             } else if(!S_CaptainNearHome(captain))
                 S_ReissueCaptainUnit(unit,captain->home_actor);
+        } else if(!captain) {
+            botGuardPost_t *post=G_BotAssignedGuard(unit);
+            if(post) {
+                /* Copy before admission: order callbacks may mutate posts. */
+                vec2_t origin=post->origin;
+                G_BotReturnAssignedGuard(unit,&origin);
+            }
         }
     }
     if(unit->inuse && unit->spawn_time==spawn)
@@ -1249,6 +1263,14 @@ void G_BotDispatchAIStop(edict_t *unit) {
  * visible. The same-Captain early return preserves both order and task. */
 void G_BotTemporaryUnitReady(edict_t *unit) {
     if (!unit || !(unit->aiflags&AI_TOWN_OWNED) || unit->s.player>=MAX_PLAYERS) return;
+    /*9ccdb0 retires an existing guard before re-enrolling the temporary owner.
+     * BTLF is not published yet, so explicitly suppress default guard creation. */
+    if(G_BotAssignedGuard(unit)) {
+        uint32_t spawn=unit->spawn_time;
+        G_BotRemoveGuardPosition(unit);
+        if(!unit->inuse || unit->spawn_time!=spawn || G_IsDeferredFree(unit) || M_IsDead(unit))return;
+        G_BotAdmitUnit(unit,false);
+    }
     bot_t *bot=level.bots+unit->s.player;
     botCaptain_t *captain=bot->captains+BOT_CAPTAIN_ATTACK;
     bool enabled=(bot->flags&BOT_GROUP_TIMED_LIFE)!=0;
@@ -1295,6 +1317,63 @@ typedef struct {
     int32_t strength_count;
 } botCaptainSave_t;
 
+typedef struct {
+    uint32_t class_id,identity,unit,assignments;
+    vec2_t origin;
+    int32_t replacements_used;
+    uint32_t replacement_pending;
+} botGuardSave_t;
+
+static bool G_WriteGuardState(FILE *file) {
+    bool seen[MAX_ENTITIES]={0};
+    FOR_LOOP(p,MAX_PLAYERS) {
+        bot_t const *bot=level.bots+p;
+        uint32_t header[]={ARRAY_COUNT(bot->guards),bot->guard_sequence,(uint32_t)bot->replacement_count};
+        if(fwrite(header,sizeof(header),1,file)!=1)return false;
+        FOR_LOOP(i,header[0]) {
+            botGuardPost_t const *post=bot->guards+i;
+            uint32_t unit=0;
+            if(post->unit) {
+                if(post->unit<g_edicts || post->unit>=g_edicts+globals.num_edicts || !post->unit->inuse || post->unit->s.player!=p)return false;
+                unit=(uint32_t)(post->unit-g_edicts)+1;
+                if(seen[unit-1] || post->unit->ai_guard_handle!=((i+1)<<5|p))return false;
+                seen[unit-1]=true;
+            }
+            botGuardSave_t record={post->class_id,post->identity,unit,post->assignments,post->origin,post->replacements_used,post->replacement_pending};
+            if(fwrite(&record,sizeof(record),1,file)!=1)return false;
+        }
+    }
+    return true;
+}
+
+static bool G_ReadGuardState(FILE *file) {
+    FOR_LOOP(i,globals.num_edicts)g_edicts[i].ai_guard_handle=0;
+    FOR_LOOP(p,MAX_PLAYERS) {
+        bot_t *bot=level.bots+p;uint32_t header[3];
+        /* Corrupt-stream allocation bound; guards need not have a live unit. */
+        if(fread(header,sizeof(header),1,file)!=1 || header[0]>(1u<<20))return false;
+        gi.MemFree(bot->guards);bot->guards=NULL;bot->guards_capacity=header[0];
+        ARRAY_COUNT(bot->guards)=header[0];bot->guard_sequence=header[1];bot->replacement_count=(int32_t)header[2];
+        if(header[0])bot->guards=gi.MemAlloc(header[0]*sizeof(*bot->guards));
+        uint32_t previous=0;
+        FOR_LOOP(i,header[0]) {
+            botGuardSave_t record;
+            if(fread(&record,sizeof(record),1,file)!=1 || !record.class_id ||
+               record.identity<=previous || record.identity>header[1] ||
+               record.unit>globals.num_edicts || record.replacement_pending>1 ||
+               !isfinite(record.origin.x) || !isfinite(record.origin.y))return false;
+            previous=record.identity;
+            edict_t *unit=record.unit ? g_edicts+record.unit-1 : NULL;
+            if(unit && (!unit->inuse || unit->s.player!=p || unit->ai_guard_handle))return false;
+            bot->guards[i]=(botGuardPost_t){.class_id=record.class_id,.identity=record.identity,.assignments=record.assignments,
+                .origin=record.origin,.unit=unit,.replacements_used=record.replacements_used,
+                .replacement_pending=record.replacement_pending};
+            if(unit)unit->ai_guard_handle=((i+1)<<5)|p;
+        }
+    }
+    return true;
+}
+
 bool G_WriteCaptainState(FILE *file) {
     if(!G_BotValidateTownSpots(false) || !G_WriteTownSpots(file))return false;
     bool seen[MAX_ENTITIES]={0};
@@ -1323,7 +1402,7 @@ bool G_WriteCaptainState(FILE *file) {
             }
         }
     }
-    return true;
+    return G_WriteGuardState(file);
 }
 
 bool G_ReadCaptainState(FILE *file) {
@@ -1333,7 +1412,7 @@ bool G_ReadCaptainState(FILE *file) {
         bot_t *bot=level.bots+p;
         if(fread(bot->town_spots,sizeof(bot->town_spots),1,file)!=1)return false;
         uint32_t policy[3];
-        if (fread(policy,sizeof(policy),1,file)!=1 || policy[0]>>16 || policy[1]>1 || policy[2]>BOT_MELEE) return false;
+        if (fread(policy,sizeof(policy),1,file)!=1 || policy[0]>>19 || policy[1]>1 || policy[2]>BOT_MELEE) return false;
         bot->flags=policy[0];bot->town_initialized=policy[1];bot->mode=policy[2];
         FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
             botCaptainSave_t record;
@@ -1378,7 +1457,7 @@ bool G_ReadCaptainState(FILE *file) {
             }
         }
     }
-    return G_BotValidateTownSpots(true);
+    return G_ReadGuardState(file) && G_BotValidateTownSpots(true);
 }
 
 /* Captain requests reconcile totals by type, including retained assault recruits.
@@ -1541,62 +1620,92 @@ bool G_BotAddDefenders(player_t *player, int32_t qty, uint32_t class_id) {
     return G_BotCaptainFill(player, BOT_CAPTAIN_DEFENSE, qty, class_id);
 }
 
+/* A derived slot/player handle gives O(1) membership without a per-frame scan.
+ * Posts retain their slots until the list is cleared; no array pointers escape. */
+static botGuardPost_t *G_BotAssignedGuard(edict_t const *unit) {
+    if(!unit || !unit->ai_guard_handle)return NULL;
+    uint32_t handle=unit->ai_guard_handle,player=handle&31u,index=(handle>>5)-1;
+    if(player>=MAX_PLAYERS || index>=ARRAY_COUNT(level.bots[player].guards))return NULL;
+    botGuardPost_t *post=level.bots[player].guards+index;
+    return post->unit==unit ? post : NULL;
+}
+
+static void G_BotUnassignGuard(edict_t *unit) {
+    botGuardPost_t *post=G_BotAssignedGuard(unit);
+    if(post)post->unit=NULL;
+    if(unit)unit->ai_guard_handle=0;
+}
+
+static void G_BotAssignGuard(bot_t *bot,uint32_t index,edict_t *unit) {
+    G_BotUnassignGuard(unit);
+    botGuardPost_t *post=bot->guards+index;
+    if(post->unit)post->unit->ai_guard_handle=0;
+    post->unit=unit;post->replacement_pending=false;
+    if(unit)post->assignments++;
+    if(unit)unit->ai_guard_handle=((index+1)<<5)|(uint32_t)(bot-level.bots);
+}
+
 void G_BotAddGuardPost(player_t *player, uint32_t class_id, float x, float y) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    botGuardPost_t *guards;
-    uint32_t count;
     if (!bot || !class_id) return;
-    count = ARRAY_COUNT(bot->guards); guards = gi.MemAlloc((count + 1) * sizeof(*guards));
-    if (count) memcpy(guards, bot->guards, count * sizeof(*guards));
-    if (bot->guards) gi.MemFree(bot->guards);
-    bot->guards = guards; ARRAY_COUNT(bot->guards) = count + 1;
-    bot->guards[count] = MAKE(botGuardPost_t, .class_id = class_id, .origin = MAKE(vec2_t, x, y),
-                                   .replacements_used = 0);
+    uint32_t count=ARRAY_COUNT(bot->guards);
+    if(count>=0x07ffffffu || bot->guard_sequence==UINT32_MAX)
+        gi.error("AI guard identity space exhausted");
+    if(count==bot->guards_capacity) {
+        uint32_t capacity=bot->guards_capacity ? bot->guards_capacity*2 : 16;
+        botGuardPost_t *guards=gi.MemAlloc(capacity*sizeof(*guards));
+        if(count)memcpy(guards,bot->guards,count*sizeof(*guards));
+        gi.MemFree(bot->guards);bot->guards=guards;bot->guards_capacity=capacity;
+    }
+    bot->guards[count]=(botGuardPost_t){.class_id=class_id,.origin={x,y},
+        .identity=++bot->guard_sequence};
+    ARRAY_COUNT(bot->guards)=count+1;
 }
 
-/* JASS AI guard-post operations affect bot posts, not creep pursuit.
- * Only assigned posts are eligible; arbitrary units and players without an
- * active bot are safe no-ops. */
+/*9c9b30 withdraws Town ownership and stops before invalidating the guard.
+ * The post remains in the list with a retired assignment budget. */
 void G_BotRemoveGuardPosition(edict_t *unit) {
-    bot_t *bot;
-    uint32_t count;
-    if (!unit) return;
-    bot = G_BotState(unit->s.player);
-    if (!bot) return;
-    count = ARRAY_COUNT(bot->guards);
-    for (uint32_t i = 0; i < count; ++i) {
-        if (bot->guards[i].unit != unit) continue;
-        if (i + 1 < count)
-            memmove(bot->guards + i, bot->guards + i + 1,
-                    (count - i - 1) * sizeof(*bot->guards));
-        ARRAY_COUNT(bot->guards) = count - 1;
-        return;
+    if(!unit || !unit->inuse)return;
+    botGuardPost_t *post=G_BotAssignedGuard(unit);
+    if(!(unit->aiflags&AI_TOWN_OWNED) && !post)return;
+    uint32_t spawn=unit->spawn_time;
+    G_BotWithdrawTownUnit(unit,false);
+    unit->aiflags&=~AI_TOWN_OWNED;
+    order_stop_cleanup(unit);
+    if(!unit->inuse || unit->spawn_time!=spawn)return;
+    post=G_BotAssignedGuard(unit);
+    if(post) {
+        post->assignments=99999;
+        post->replacement_pending=false;
+        G_BotUnassignGuard(unit);
     }
+    G_BotWithdrawCaptainUnit(unit,false);
 }
 
+/*9bde20 refreshes membership after removal. Enrollment captures the current
+ * pose and observes Town policy; the old post is not simply offered again. */
 void G_BotRecycleGuardPosition(edict_t *unit) {
-    bot_t *bot;
-    if (!unit) return;
-    bot = G_BotState(unit->s.player);
-    if (!bot) return;
-    FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) {
-        if (post->unit != unit) continue;
-        /* Permit regular FillGuardPosts logic to reclaim a spare or train a
-         * replacement; the slot's position and class are preserved. */
-        post->unit = NULL;
-        post->replacement_pending = false;
-        return;
-    }
+    if(!unit || !unit->inuse)return;
+    uint32_t spawn=unit->spawn_time;
+    G_BotRemoveGuardPosition(unit);
+    if(unit->inuse && unit->spawn_time==spawn && !G_IsDeferredFree(unit))G_BotAdmitUnit(unit,true);
 }
 
 void G_BotRemoveAllGuardPositions(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    if (bot) ARRAY_COUNT(bot->guards) = 0;
+    if(!bot)return;
+    FOR_EACH_ARRAY(botGuardPost_t,post,bot->guards)if(post->unit) {
+        edict_t *unit=post->unit;
+        unit->ai_guard_handle=0;
+        G_BotWithdrawTownUnit(unit,false);
+        unit->aiflags&=~AI_TOWN_OWNED;
+        post->unit=NULL;
+    }
+    ARRAY_COUNT(bot->guards)=0;
 }
 
 static bool G_BotGuardHasUnit(bot_t *bot, edict_t *unit) {
-    FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) if (post->unit == unit) return true;
-    return false;
+    return G_BotAssignedGuard(unit)!=NULL && (unit->ai_guard_handle&31u)==(uint32_t)(bot-level.bots);
 }
 
 static bool G_BotGuardReplacementTraining(player_t *player, uint32_t class_id) {
@@ -1609,38 +1718,75 @@ static bool G_BotGuardReplacementTraining(player_t *player, uint32_t class_id) {
 /* Guard posts reserve ordinary completed units independently from the two captain rosters.
  * If a vacant post has exhausted the spare pool, FillGuardPosts requests one ordinary trained
  * replacement at a time and consumes the per-post replacement budget only after queue acceptance. */
+static botGuardPost_t *G_BotFindGuardIdentity(bot_t *bot,uint32_t identity) {
+    uint32_t lo=0,hi=ARRAY_COUNT(bot->guards);
+    while(lo<hi){uint32_t mid=lo+(hi-lo)/2;if(bot->guards[mid].identity<identity)lo=mid+1;else hi=mid;}
+    return lo<ARRAY_COUNT(bot->guards) && bot->guards[lo].identity==identity ? bot->guards+lo : NULL;
+}
+
 void G_BotFillGuardPosts(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
-    FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) {
+    uint32_t count=ARRAY_COUNT(bot->guards);
+    uint32_t *identities=count ? gi.MemAlloc(count*sizeof(*identities)) : NULL;
+    FOR_LOOP(i,count)identities[i]=bot->guards[i].identity;
+    FOR_LOOP(i,count) {
+        botGuardPost_t *post=G_BotFindGuardIdentity(bot,identities[i]);
+        if(!post)continue;
         if (G_BotUnitAlive(post->unit) && post->unit->s.player == PLAYER_NUM(player) && post->unit->class_id == post->class_id) continue;
-        post->unit = NULL;
+        if(post->unit)G_BotUnassignGuard(post->unit);
+        if(post->assignments>=(uint32_t)99999)continue;
         FILTER_EDICTS(unit, !post->unit && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
             unit->class_id == post->class_id && !unit->construction && !unit->training &&
-            !G_BotCaptainHasUnit(bot, unit) && !G_BotGuardHasUnit(bot, unit)) post->unit = unit;
+            !G_BotCaptainHasUnit(bot, unit) && !G_BotGuardHasUnit(bot, unit))
+                G_BotAssignGuard(bot,(uint32_t)(post-bot->guards),unit);
         if (post->unit) { post->replacement_pending = false; continue; }
         if (post->replacement_pending) {
             if (G_BotGuardReplacementTraining(player, post->class_id)) continue;
             post->replacement_pending = false;
         }
         if (post->replacements_used < bot->replacement_count && G_BotProduce(player, 1, post->class_id, -1)) {
-            post->replacement_pending = true;
-            post->replacements_used++;
+            /* Training/creation callbacks can grow or remove the post array. */
+            post=G_BotFindGuardIdentity(bot,identities[i]);
+            if(post){post->replacement_pending=post->unit==NULL;post->replacements_used++;}
         }
     }
+    gi.MemFree(identities);
 }
 
-/* A fighting guard keeps its combat target; an idle guard outside its post radius walks home. */
+/* Native9c0b00 uses predicted range50 plus source collision, then Attack point.
+ * Keep the authored post separate from the unit's transient movement goal. */
+static void G_BotReturnAssignedGuard(edict_t *unit,vec2_t const *origin) {
+    if(!G_BotUnitAlive(unit) || G_IsDeferredFree(unit) ||
+       !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) ||
+       !S_UnitCanTranslate(unit) || S_UnitPointInMoveRange(unit,origin,50))return;
+    G_IssueUnitPointOrder(unit,"attack",origin,false,unit->s.player,0);
+}
+
+/* A fighting guard keeps its combat target; an idle guard attacks toward home. */
 void G_BotReturnGuardPosts(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
-    FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) {
-        if (!G_BotUnitAlive(post->unit)) { post->unit = NULL; continue; }
-        /* Retail trains Hero guard replacements but does not send Heroes back to the authored guard point. */
-        if (G_UnitIsHero(post->unit)) continue;
-        if (!unit_affectingcombat(post->unit) && Vector2_distance(&post->unit->s.origin2, &post->origin) > BOT_GUARD_RETURN_RANGE)
-            order_move(post->unit, Waypoint_add(&post->origin));
+    /* Conditions run during order admission and may remove/reallocate posts.
+     * Capture identities, then re-resolve each through the member's live slot. */
+    typedef struct {edict_t *unit;uint32_t spawn,identity;} visit_t;
+    uint32_t count=ARRAY_COUNT(bot->guards);
+    visit_t *visits=count ? gi.MemAlloc(count*sizeof(*visits)) : NULL;
+    FOR_LOOP(i,count) {
+        botGuardPost_t *post=bot->guards+i;
+        visits[i]=(visit_t){post->unit,post->unit ? post->unit->spawn_time : 0,post->identity};
     }
+    for(uint32_t i=count;i>0;) {
+        visit_t visit=visits[--i];edict_t *unit=visit.unit;
+        if(!unit || !unit->inuse || unit->spawn_time!=visit.spawn || unit->s.player!=PLAYER_NUM(player))continue;
+        botGuardPost_t *post=G_BotAssignedGuard(unit);
+        if(!post || post->identity!=visit.identity)continue;
+        if(!G_BotUnitAlive(unit)){G_BotUnassignGuard(unit);continue;}
+        if(G_UnitIsHero(unit) || unit_affectingcombat(unit))continue;
+        vec2_t origin=post->origin;
+        G_BotReturnAssignedGuard(unit,&origin);
+    }
+    gi.MemFree(visits);
 }
 
 /* common.ai captain selectors are script constants: ATTACK_CAPTAIN=1, DEFENSE_CAPTAIN=2, BOTH_CAPTAINS=3. */
@@ -2336,15 +2482,63 @@ void G_BotHeroLevelUp(edict_t *hero) {
     G_BotHeroChooseSkill(bot, hero);
 }
 
+/* Match attached procedure classes, including object-data aliases and runtime
+ * additions/removals. The authored token cache avoids parsing unit rows here. */
+static bool G_BotUnitHasGuardExcludedAbility(edict_t const *unit,uint32_t code) {
+    abilityitem_t wanted=S_AbilityItem(code);
+    if(!wanted.ability)return false;
+    uint32_t count;uint32_t const *codes=G_UnitAbilityCodes(unit->data.UnitAbilities,&count);
+    FOR_LOOP(pass,2) {
+        if(pass){codes=unit->abilities.added;count=ARRAY_COUNT(unit->abilities.added);}
+        FOR_LOOP(i,count) {
+            if(!G_ActorHasAbilityCode(unit,codes[i]))continue;
+            abilityitem_t item=S_AbilityItem(codes[i]);
+            if(item.ability && item.ability->proc==wanted.ability->proc)return true;
+        }
+    }
+    return false;
+}
+
+/*9c72d0/9c3270: the initial guard is owned by the Town, independently of VM
+ * startup. Capture predicted world XY; only an exactly matching vacant post
+ * is reused. New posts are appended in storage, visited newest-first. */
+static void G_BotEnrollInitialGuard(edict_t *unit) {
+    bot_t *bot=level.bots+unit->s.player;
+    unsigned initial=unit->class_id&255u;
+    if(!(bot->flags&BOT_GUARD_NEW_UNITS) || G_BotAssignedGuard(unit) ||
+       G_UnitIsStructure(unit) || G_BotUnitIsWorker(unit) ||
+       (unit->aiflags&AI_ILLUSION) || (initial>='A' && initial<='Z') ||
+       unit_findstatus(unit,MAKEFOURCC('B','T','L','F')))return;
+    uint32_t resources[]={MAKEFOURCC('A','h','a','r'),MAKEFOURCC('A','a','h','a'),
+        MAKEFOURCC('A','h','r','l'),MAKEFOURCC('A','w','h','a')};
+    FOR_LOOP(i,4)if(G_BotUnitHasGuardExcludedAbility(unit,resources[i]))return;
+    if((unit->aiflags&AI_FLYING) && G_BotUnitHasGuardExcludedAbility(unit,MAKEFOURCC('A','d','r','o')))return;
+    float fine[2];S_PredictUnitFinePointAt(unit,&level.pathing_clock,fine);
+    box2_t bounds=CM_GetWorldBounds();
+    vec2_t origin={wc3_world_coordinate(fine[0],bounds.min.x,32),wc3_world_coordinate(fine[1],bounds.min.y,32)};
+    uint32_t index=ARRAY_COUNT(bot->guards);
+    for(uint32_t i=index;i>0;) {
+        botGuardPost_t *post=bot->guards+--i;
+        if(!post->unit && post->class_id==unit->class_id && post->origin.x==origin.x && post->origin.y==origin.y) {
+            index=i;break;
+        }
+    }
+    if(index==ARRAY_COUNT(bot->guards))G_BotAddGuardPost(&game.clients[unit->s.player].ps,unit->class_id,origin.x,origin.y);
+    G_BotAssignGuard(bot,index,unit);
+}
+
 /* Native9b9230 skips dead units and targeted-as wards, then enrolls through
  * the player's retained Town AI object. No script VM or Hero test is involved. */
-static void G_BotAdmitUnit(edict_t *unit) {
+static void G_BotAdmitUnit(edict_t *unit,bool initial_guard) {
     if(!unit || !unit->inuse || !(unit->svflags & SVF_MONSTER) || M_IsDead(unit) ||
        unit->targtype==TARG_WARD || unit->s.player>=MAX_PLAYERS)return;
     bool enrolled=unit->ai_town_player!=0;
     if(level.ai_owned_players&(1u<<unit->s.player))unit->aiflags|=AI_TOWN_OWNED;
     G_BotRegisterTownUnit(unit);
-    if(!enrolled && unit->ai_town_player)G_BotDispatchAIStop(unit);
+    if(!enrolled && unit->ai_town_player) {
+        if(initial_guard)G_BotEnrollInitialGuard(unit);
+        G_BotDispatchAIStop(unit);
+    }
 }
 
 /* Native1e9a40 creates Town AI for playing computer slots and always for
@@ -2358,23 +2552,24 @@ void G_BotInitPlayers(void) {
     }
     FOR_LOOP(i,MAX_PLAYERS) if ((level.ai_owned_players&(1u<<i)) && !level.bots[i].town_initialized) {
         level.bots[i].town_initialized=true;
-        if (i!=PLAYER_NEUTRAL_AGGRESSIVE) level.bots[i].flags|=BOT_GROUP_TIMED_LIFE;
+        if (i!=PLAYER_NEUTRAL_AGGRESSIVE) level.bots[i].flags|=BOT_GROUP_TIMED_LIFE|BOT_GUARD_NEW_UNITS;
     }
     /* OpenRealm loads preplaced units before config. Publish the configured
      * membership before main can observe those units; no owned sequence changes. */
-    FILTER_EDICTS(unit,unit->inuse)G_BotAdmitUnit(unit);
+    FILTER_EDICTS(unit,unit->inuse)G_BotAdmitUnit(unit,true);
 }
 
 void G_BotUnitOwnerChanged(edict_t *unit) {
     /* Native698ce0 clears bit4 after the owner event, then9b9230 reenrolls.
      * An already armed help request retains its original deadline. */
+    G_BotUnassignGuard(unit);
     G_BotWithdrawTownUnit(unit,false);
     unit->aiflags&=~AI_TOWN_OWNED;
-    G_BotAdmitUnit(unit);
+    G_BotAdmitUnit(unit,true);
 }
 
 void G_BotUnitReady(edict_t *unit) {
-    G_BotAdmitUnit(unit);
+    G_BotAdmitUnit(unit,true);
     bot_t *bot = unit && unit->s.player < MAX_PLAYERS ? G_BotState(unit->s.player) : NULL;
     G_BotApplyRepairToUnit(bot, unit);
     if (G_UnitIsHero(unit)) G_BotHeroChooseSkill(bot, unit);
@@ -2398,10 +2593,13 @@ void G_BotStop(uint32_t player) {
     G_BotClearCaptains(bot);
     if (bot->commands) gi.MemFree(bot->commands);
     if (bot->harvesters) gi.MemFree(bot->harvesters);
+    FOR_EACH_ARRAY(botGuardPost_t,post,bot->guards)if(post->unit)post->unit->ai_guard_handle=0;
     if (bot->guards) gi.MemFree(bot->guards);
     uint32_t spots[BOT_TOWN_SPOTS];
     memcpy(spots,bot->town_spots,sizeof(spots));
+    uint32_t guard_sequence=bot->guard_sequence;
     memset(bot, 0, sizeof(*bot));
+    bot->guard_sequence=guard_sequence;
     memcpy(bot->town_spots,spots,sizeof(spots));
 }
 
@@ -2459,7 +2657,7 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
     G_BotTraceClearWaits(playernum);
     if (!bot->town_initialized) {
         bot->town_initialized=true;
-        if (playernum!=PLAYER_NEUTRAL_AGGRESSIVE) bot->flags|=BOT_GROUP_TIMED_LIFE;
+        if (playernum!=PLAYER_NEUTRAL_AGGRESSIVE) bot->flags|=BOT_GROUP_TIMED_LIFE|BOT_GUARD_NEW_UNITS;
     }
     /* AI VMs can start before map spawning, which previously left the shared JASS allocator unset. */
     G_InitJassHost();

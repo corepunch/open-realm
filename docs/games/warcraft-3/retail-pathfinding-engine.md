@@ -20186,3 +20186,104 @@ This chunk establishes the named unit28040 producer/inverse and fixes its public
 suspension native; it does not substitute for those dispatch witnesses. Earlier
 observe1 lacked the loading helper; observe2's intended flesh removal preceded
 flesh. They remain archived diagnostics, not final evidence.
+
+## Failed AI Move and assigned guard return (ORDER344)
+
+A configured computer Footman moving toward a blocked point follows
+`603110 -> 5fb190 -> 6802f0 -> 9cd390 -> 9c0b00`: retire the failed Move,
+then admit **Attack point** toward its assigned guard position. Human control
+only ends Move. The AI branch increments its failure counter and tries the
+transport selector first; the nearby-Zeppelin control still returns null.
+Do not infer a successful ferry branch from a transport's presence.
+
+`tools/frida/research/order344_probe.j` uses six public scenes: human control,
+computer before script startup, computer with a Zeppelin and running AI,
+RemoveGuardPosition, computer-to-human transfer, and owner round-trip followed
+by another blocked Move. `retail-order344-1.27.json` and its compressed input
+bundle preserve two exact1,227-record native repeats and the unhooked control:
+all1,103 public markers agree in each run. The fresh verifier also checks1,744
+original instruction encodings and invokes current Classic and TFT tests.
+
+- Initial home is `(272,304)` (raw words1132986368,1134034944). Failed Move
+  at223/403 admits Attack; public issued-point events occur at224/404.
+- RemoveGuardPosition at550 stops at `(363.222,391.854)` immediately, emits no
+  public Stop, and stays idle. Transfer to human at730 likewise stops.
+- Owner round-trip910 captures a **new predicted home**, raw words
+  1136007793,1136943983. Failure943 returns there, not to the original spawn.
+- A separate event-only capture confirmed the AI Attack produces a public
+  point-order event; bypassing point-order admission would lose that contract.
+
+Recovered ownership and engine mapping:
+
+- `9c0b00 GuardAI_ReturnAssignedUnit` tests predicted point range50 plus source
+  collision radius, then requires Move and its disable count3c<1. `g_bot.c`
+  shares `S_UnitPointInMoveRange` and point-Attack admission between idle AI
+  dispatch and ReturnGuardPosts. Blocked point completion invokes AI dispatch
+  only after retiring the old mover; Captain priority remains intact.
+- `9c3660` selects initial guard enrollment with **Town2d0 bit0 set**. The
+  default80181 sets this for ordinary computer Towns, independently of script
+  startup; NeutralAggressive differs. `StopGathering` clears it even with an
+  existing spot. Campaign/melee modifies4000, not this policy. Engine policy
+  is `BOT_GUARD_NEW_UNITS` and survives save/load.
+- `9c72d0` excludes worker ability classes Ahar/Aaha/Ahrl/Awha (widget20 mask
+  d8000), structures, Hero-not-illusion and peon classification248.10. The
+  caller excludes **illusions** (admission40000000), BTLF and airborne Adro
+  transports. Earlier working notes incorrectly called40000000 summoned;
+  it is the illusion admission bit. Alias checks use cached ability tokens.
+- `9c3270` captures predicted world XY. `9c2ee0` reuses a vacant post only for
+  exact rawcode and XY, otherwise prepends logically. Engine storage appends
+  geometrically and return visits run newest-first. Guard scalar XY28/30,
+  class34, assigned identity38/3c, counter44 and next48/4c remain distinct.
+- `9bfc90` subscribes owner changes, binds the unit, increments assignment44,
+  and detaches a prior Captain. Engine guard/Captain assignment is exclusive;
+  owner transfer and destruction release membership before edict reuse.
+- `9c9b30` withdraws Town membership, replaces orders with Stop, unregisters
+  callbacks and invalidates the assigned unit, but **retains the post** with
+  assignment count99999. `9be910` also detaches any Captain. The old engine
+  simply deleted an array entry and left Move running; the new regression
+  reproduced three failures before this inverse was implemented.
+- `9bde20 RecycleGuardPosition` removes then refreshes AI membership; it does
+  not merely offer the former position again. `9c9a60 RemoveAllGuardPositions`
+  detaches the whole list and withdraws assigned Town units, without the
+  single-remove explicit Stop. These inverses have static and engine coverage;
+  not every native public producer was independently live-instrumented.
+- `9ccdb0` retires an existing guard before temporary-Captain assignment and
+  before BTLF publication. Reenrollment must suppress another default guard.
+  Disabled GroupTimedLife otherwise incorrectly issued Attack home; the new
+  public timed-life regression first failed order and membership assertions.
+
+`ai_guard_handle` is a derived `(slot+1)<<5 | player` lookup, rebuilt from saved
+posts, never a serialized pointer. Stable per-post identity plus unit spawn
+identity makes callback traversal safe when order conditions remove or grow the
+post array. Return snapshots do O(1) membership checks; Fill snapshots resolve
+post identities by binary search after callbacks. Post growth is geometric.
+Format196 stores policy, typed positions, assigned edict indexes, assignment
+counts and replacement budget/pending state; it rejects older formats. Network
+messages are unchanged. Previously no guard posts survived a cold load.
+
+Validation includes default and explicit guard blocked completion, cold Move
+continuation, owner transfer/removal/recycle, callback reallocation, disabled
+timed life, and full AI/save suites. The original default-post regression failed
+three assertions; cold save failed retained-post count; single removal failed
+three assertions; disabled timed life failed two assertions before their fixes.
+Engine blocked-completion tests supply the terminal blocked pose to the actual
+dispatcher. They do **not** certify complete engine/retail trajectory equality.
+The full movement suite passes 651 tests / 8,101,141 assertions in each edition;
+full unit suites pass 144 / 15,874 each. Ten evidence rejection checks and 37
+corpus checks pass. Fourteen Ghidra function names/comments are saved and
+verified by readback. The explicit-post test disables default enrollment and
+uses a distinct `(320,352)` home so it cannot pass through the automatic post.
+
+Complete ORDER-01.2 arrival/cannot-path gates, retained attack-target alternatives,
+and successful transport admission remain open; no new TODO leaf is introduced.
+
+Reproduction uses `order344_make_map.py --base <flat probe arena> --output <new
+map>` and `stop284_capture.py --map Maps\Order344d.w3m --preload order344.txt
+--marker-prefix 'O344 ' --observer order344_observer.js --seconds 175
+--continue-at 20` in isolated B/C, with the owned input helper. The shared capture
+controller's task label still says MAP-04.2; use map/source hashes and O344
+markers. The first map omitted the computer slot availability setting and is
+only a non-AI control. A later repeat failed before spawn because isolated C's
+Frida server was unavailable; it is excluded. Completed evidence is archived
+under `research/ORDER-01.2/order344/`. Preload byte hashes retain CRLF; normalize
+neither bytes nor marker numbers when checking the archived capture.

@@ -6553,6 +6553,7 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
             }
             if (target && (group->flags&1) && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) continue;
             completed=true;
+            bool cant_path=(member->flags&0x20000)!=0;
             bool follow=group->follow_continuation;
             float range=group->follow_range;
             move_detach_group(unit); unit->movement.group_id=0;
@@ -6596,8 +6597,11 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
                      * member that ended overlapping a peer (retail RA 1713d8). */
                     S_RecoverStoppedUnitPosition(unit);
                     G_CreepGuardMoveArrived(unit);
+                    uint32_t completed_spawn=unit->spawn_time;
                     unit->stand(unit);
                     if (unit->movement.captain_actor_owned) G_BotCaptainGoalEvent(unit);
+                    else if(cant_path && unit->inuse && unit->spawn_time==completed_spawn && !G_IsDeferredFree(unit) &&
+                            (unit->aiflags&AI_TOWN_OWNED)) G_BotDispatchAIStop(unit);
                 }
             }
         }

@@ -676,7 +676,7 @@ TEST(wc3_bot, campaign_settings_persist_for_authoritative_consumers) {
     bot_t *ai;
     uint32_t enabled = BOT_TARGET_HEROES | BOT_HEROES_FLEE | BOT_IGNORE_INJURED |
         BOT_UNITS_FLEE | BOT_SLOW_CHOPPING | BOT_SMART_ARTILLERY | BOT_NEW_HEROES |
-        BOT_DEFEND_PLAYER;
+        BOT_DEFEND_PLAYER | BOT_GUARD_NEW_UNITS;
 
     T_ASSERT(G_BotStart(&game.clients[3].ps, "test_ai_settings.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
@@ -712,7 +712,7 @@ TEST(wc3_bot, melee_settings_cover_inverse_flags_and_clamp_replacements) {
     bot_t *ai;
     uint32_t enabled = BOT_PEONS_REPAIR | BOT_WATCH_MEGA | BOT_HEROES_TAKE_ITEM |
         BOT_GROUPS_FLEE | BOT_CAPTAIN_CHANGES | BOT_GROUP_TIMED_LIFE |
-        BOT_RANDOM_PATHS | BOT_HEROES_BUY_ITEMS;
+        BOT_RANDOM_PATHS | BOT_HEROES_BUY_ITEMS | BOT_GUARD_NEW_UNITS;
 
     T_ASSERT(G_BotStart(&game.clients[4].ps, "test_ai_settings_inverse.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
@@ -1656,7 +1656,7 @@ TEST(wc3_bot, guard_posts_replace_dead_members_and_leave_missing_types_empty) {
     T_EQ(bot->guards[0].unit, replacement); T_NULL(bot->guards[1].unit);
 }
 
-TEST(wc3_bot, return_guard_posts_moves_idle_units_but_preserves_combat) {
+TEST(wc3_bot, return_guard_posts_attacks_home_but_preserves_combat) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
     edict_t *idle = alloc_test_unit(type, 0, 0), *fighting = alloc_test_unit(type, 0, 32);
@@ -1668,11 +1668,133 @@ TEST(wc3_bot, return_guard_posts_moves_idle_units_but_preserves_combat) {
     G_BotAddGuardPost(&game.clients[2].ps, type, 256, 32);
     G_BotFillGuardPosts(&game.clients[2].ps);
     G_BotReturnGuardPosts(&game.clients[2].ps);
-    T_EQ(bot->guards[0].unit, idle); T_EQ(idle->currentmove->proc, CAbilityMove);
+    T_EQ(bot->guards[0].unit, idle); T_EQ(idle->currentmove->proc, CAbilityAttack);
+    T_EQ(idle->current_order_id,G_OrderId("attack"));
     T_FEQ(idle->goalentity->s.origin2.x, 256, 0.001f);
     T_EQ(bot->guards[1].unit, fighting); T_NULL(fighting->currentmove);
     G_BotReturnGuardPosts(&game.clients[3].ps);
     T_EQ(ARRAY_COUNT(level.bots[3].guards), 0);
+}
+
+TEST(wc3_bot, order344_guard_posts_survive_cold_load_and_release_removed_members) {
+    G_BotStop(2);reset_entities();setup_test_world();
+    edict_t *unit=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){32,64},90);
+    T_NOT_NULL(unit);
+    if(!unit)return;
+    uint32_t number=unit-g_edicts;
+    G_BotAddGuardPost(&game.clients[2].ps,unit->class_id,272,304);
+    G_BotFillGuardPosts(&game.clients[2].ps);
+    T_EQ(level.bots[2].guards[0].unit,unit);
+    cstring_t file=Test_TempPath("wc3-order344-guards.bin");
+    T_ASSERT(WriteGame(file));
+    G_BotStop(2);
+    T_ASSERT(ReadGame(file));
+    T_EQ(ARRAY_COUNT(level.bots[2].guards),1);
+    if(ARRAY_COUNT(level.bots[2].guards)==1) {
+        botGuardPost_t *post=level.bots[2].guards;
+        T_EQ(post->unit,g_edicts+number);
+        T_FEQ(post->origin.x,272,0);T_FEQ(post->origin.y,304,0);
+        G_BotRemoveCaptainUnit(g_edicts+number);
+        T_NULL(post->unit);
+    }
+    remove(file);G_BotStop(2);reset_entities();setup_test_world();
+}
+
+static uint32_t order344_reentry_events;
+void G_TestIssuedPointObserver(void (*)(edict_t *));
+static void order344_remove_posts_on_order(edict_t *unit) {
+    order344_reentry_events++;
+    if(order344_reentry_events!=1)return;
+    player_t *player=&game.clients[unit->s.player].ps;
+    G_BotRemoveAllGuardPositions(player);
+    FOR_LOOP(i,33)G_BotAddGuardPost(player,unit->class_id,800+i*32,800);
+    G_BotFillGuardPosts(player);
+}
+
+TEST(wc3_bot, order344_return_guard_callback_reallocation_invalidates_captured_posts) {
+    G_BotStop(2);reset_entities();setup_test_world();
+    edict_t *a=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){32,64},90);
+    edict_t *b=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){128,64},90);
+    T_NOT_NULL(a);T_NOT_NULL(b);
+    if(a && b) {
+        G_BotAddGuardPost(&game.clients[2].ps,a->class_id,600,600);
+        G_BotAddGuardPost(&game.clients[2].ps,b->class_id,700,700);
+        G_BotFillGuardPosts(&game.clients[2].ps);
+        order344_reentry_events=0;G_TestIssuedPointObserver(order344_remove_posts_on_order);
+        G_BotReturnGuardPosts(&game.clients[2].ps);
+        G_TestIssuedPointObserver(NULL);
+        T_EQ(order344_reentry_events,1);
+        T_EQ(ARRAY_COUNT(level.bots[2].guards),33);
+        T_EQ(a->current_order_id,0);T_EQ(b->current_order_id,G_OrderId("attack"));
+    }
+    G_BotStop(2);reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, order344_initial_guard_tracks_owner_transfer_and_removal) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    int controller=game.clients[0].jass.controller;
+    typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){272,304},90);
+    T_NOT_NULL(unit);T_EQ(ARRAY_COUNT(level.bots[0].guards),1);
+    if(unit && ARRAY_COUNT(level.bots[0].guards)==1) {
+        T_EQ(level.bots[0].guards[0].unit,unit);
+        S_SetUnitAxisPosition(unit,0,480);S_SetUnitAxisPosition(unit,1,512);
+        G_SetUnitPlayer(unit,1);T_NULL(level.bots[0].guards[0].unit);
+        G_SetUnitPlayer(unit,0);T_EQ(ARRAY_COUNT(level.bots[0].guards),2);
+        if(ARRAY_COUNT(level.bots[0].guards)==2) {
+            T_EQ(level.bots[0].guards[1].unit,unit);
+            T_FEQ(level.bots[0].guards[1].origin.x,480,0);
+            T_FEQ(level.bots[0].guards[1].origin.y,512,0);
+            T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){800,800},false,0,0));
+            G_BotRemoveGuardPosition(unit);
+            T_EQ(unit->current_order_id,0);
+            T_ASSERT(!(unit->aiflags&AI_TOWN_OWNED));
+            T_EQ(ARRAY_COUNT(level.bots[0].guards),2);
+            if(ARRAY_COUNT(level.bots[0].guards)==2)T_NULL(level.bots[0].guards[1].unit);
+            G_SetUnitPlayer(unit,1);G_SetUnitPlayer(unit,0);
+            T_EQ(ARRAY_COUNT(level.bots[0].guards),2);
+            S_SetUnitAxisPosition(unit,0,800);S_SetUnitAxisPosition(unit,1,800);
+            G_BotRecycleGuardPosition(unit);
+            T_EQ(ARRAY_COUNT(level.bots[0].guards),3);
+            T_ASSERT(unit->aiflags&AI_TOWN_OWNED);
+            T_EQ(unit->current_order_id,0);
+            if(ARRAY_COUNT(level.bots[0].guards)==3) {
+                T_NULL(level.bots[0].guards[1].unit);
+                T_EQ(level.bots[0].guards[1].assignments,99999);
+                T_EQ(level.bots[0].guards[2].unit,unit);
+                T_FEQ(level.bots[0].guards[2].origin.x,800,0);
+                T_FEQ(level.bots[0].guards[2].origin.y,800,0);
+            }
+            G_FreeEdict(unit);
+            FOR_EACH_ARRAY(botGuardPost_t,post,level.bots[0].guards)T_NULL(post->unit);
+        }
+    }
+    G_BotStop(0);reset_entities();setup_test_world();
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+}
+
+TEST(wc3_bot, order344_disabled_timed_life_retires_initial_guard) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    int controller=game.clients[0].jass.controller;
+    typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+    level.bots[0].flags&=~BOT_GROUP_TIMED_LIFE;
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){272,304},90);
+    T_NOT_NULL(unit);T_EQ(ARRAY_COUNT(level.bots[0].guards),1);
+    if(unit && ARRAY_COUNT(level.bots[0].guards)==1) {
+        S_SetUnitAxisPosition(unit,0,800);S_SetUnitAxisPosition(unit,1,800);
+        S_ApplyTimedLife(unit,MAKEFOURCC('B','T','L','F'),10);
+        T_EQ(unit->current_order_id,0);
+        T_NULL(level.bots[0].guards[0].unit);
+        T_ASSERT(unit->aiflags&AI_TOWN_OWNED);
+    }
+    G_BotStop(0);reset_entities();setup_test_world();
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
 }
 
 TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {

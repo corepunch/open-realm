@@ -92,7 +92,7 @@ static uint32_t G_BotSpotForUnit(edict_t *unit,bool resource) {
     return best;
 }
 
-static bool G_BotTownWorker(edict_t const *unit) {
+bool G_BotUnitIsWorker(edict_t const *unit) {
     cstring_t list=unit->data.UnitBalance ? unit->data.UnitBalance->type : NULL;
     if(!list || !*list)list=unit->data.UnitData ? unit->data.UnitData->unitClassification : NULL;
     if(list){PARSE_LIST(list,item,parse_segment)if(!strcasecmp(item,"peon"))return true;}
@@ -138,11 +138,12 @@ static void G_BotAdmitTownSpot(bot_t *bot,edict_t *unit,vec2_t point) {
 void G_BotStopGathering(player_t *player) {
     if(!player || PLAYER_NUM(player)>=MAX_PLAYERS)return;
     bot_t *bot=level.bots+PLAYER_NUM(player);
+    bot->flags&=~BOT_GUARD_NEW_UNITS;
     if(bot->town_spots[0])return;
     edict_t *worker=NULL,*building=NULL,*other=NULL;
     FILTER_EDICTS(unit,unit->inuse && unit->s.player==PLAYER_NUM(player) &&
         (unit->aiflags&AI_TOWN_OWNED) && !M_IsDead(unit)) {
-        if(G_BotTownWorker(unit)) {
+        if(G_BotUnitIsWorker(unit)) {
             if(!worker || unit->own_seq>worker->own_seq)worker=unit;
         } else if(G_UnitIsStructure(unit)) {
             if(!building || unit->own_seq<building->own_seq)building=unit;
@@ -172,7 +173,7 @@ void G_BotRegisterTownUnit(edict_t *unit) {
     if(S_UnitTypeReturnsGold(unit->class_id))G_BotAdmitTownSpot(bot,unit,unit->s.origin2);
     /*9c4a20 restricts worker/ordinary building selection to the four owner
      * slots. Combat-unit9b9130 uses the shared pool directly. */
-    unit->ai_town_spot=G_BotTownWorker(unit) || G_UnitIsStructure(unit) ?
+    unit->ai_town_spot=G_BotUnitIsWorker(unit) || G_UnitIsStructure(unit) ?
         G_BotSpotForOwnedUnit(bot,unit) : G_BotSpotForUnit(unit,false);
     unit->ai_town_player=unit->s.player+1;
     botTownSpot_t *spot=G_BotSpot(unit->ai_town_spot);

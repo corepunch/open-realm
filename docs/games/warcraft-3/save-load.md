@@ -2002,3 +2002,12 @@ command, and crash-recovery garbage collector remain future improvements.
 Format195 adds persisted script-owned corpse decay suspension in `aiflags`.
 `UnitSuspendDecay(false)` starts a new bone phase; suspended and resumed states
 round-trip through the current layout. Older versions are rejected.
+
+Format196 persists Town guard posts and their automatic-enrollment policy.
+The guard block follows Captain state: per-player count, identity sequence and
+replacement budget, then typed positions, assigned edict indexes, assignment
+counts and pending replacements. `edict.ai_guard_handle` is derived and rebuilt,
+not a field_t pointer or persisted array slot. Read validates indexes, ownership,
+unique membership, ordered post identities and finite coordinates; retained
+vacant/retired posts are valid. Old formats are rejected. See ORDER344 in
+[retail movement engine](retail-pathfinding-engine.md).

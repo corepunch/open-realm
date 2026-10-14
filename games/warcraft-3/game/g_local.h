@@ -2172,6 +2172,7 @@ struct edict_s {
     uint32_t scheduled_think_frame; /* transient: prevent two owner thinks after a frame-local transition */
     uint32_t class_id;
     uint64_t own_seq; /* Current owned-pool insertion order; independent of edict address. */
+    uint32_t ai_guard_handle; /* Derived guard slot/player; rebuilt from saved posts. */
     uint32_t ai_town_spot, ai_town_player, ai_anchor_spot; /* Map-owned CTownSpot indexes; zero is absent. */
     uint32_t variation;
     uint32_t build_project;
@@ -2758,6 +2759,8 @@ typedef struct {
     uint32_t class_id;
     vec2_t origin;
     edict_t *unit;
+    uint32_t identity; /* Stable across array relocation and callback admission. */
+    uint32_t assignments; /* Native guard44; 99999 retires a single assigned post. */
     int32_t replacements_used;
     bool replacement_pending;
 } botGuardPost_t;
@@ -2789,6 +2792,7 @@ typedef enum {
     BOT_DEFEND_PLAYER    = 1 << 14,
     BOT_HEROES_BUY_ITEMS = 1 << 15,
     BOT_AMPHIBIOUS = 1 << 16, /* AI routing policy; never modifies unit movement domains */
+    BOT_GUARD_NEW_UNITS = 1 << 18, /* Town2d0.1: assign eligible new units their own post. */
     BOT_DISABLE_PATHING = 1 << 17, /* AI policy only; never ignore collision in orders */
 } botFlag_t;
 
@@ -2817,6 +2821,7 @@ typedef struct {
     ARRAY(botCommand_t, commands);
     ARRAY(edict_t *, harvesters);
     ARRAY(botGuardPost_t, guards);
+    uint32_t guards_capacity, guard_sequence;
     botMode_t mode;
     uint32_t flags;
     bool town_initialized; /* Town policy survives independent AI script startup. */
@@ -3197,6 +3202,7 @@ void G_BotHeroLevelUp(edict_t *);
 void G_BotInitPlayers(void);
 void G_BotRegisterTownUnit(edict_t *);
 void G_BotWithdrawTownUnit(edict_t *,bool);
+bool G_BotUnitIsWorker(edict_t const *);
 void G_BotRefreshTownSpot(botTownSpot_t *);
 void G_BotDefaultCaptainHomes(player_t *);
 void G_BotResetTownCaptainHomes(player_t *);
