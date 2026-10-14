@@ -8562,6 +8562,42 @@ TEST(wc3_api, enum_items_in_rect_visits_world_items) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+/* Item filters must receive GetFilterItem, exclude rejected candidates, and
+ * preserve outer item context when the action enumerates recursively. */
+TEST(wc3_api, enum_items_in_rect_filter_and_nested_context) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer udg_Accepted = 0\n"
+        "  integer udg_Filtered = 0\n"
+        "  item udg_Outer = null\n"
+        "  boolean udg_Nested = false\n"
+        "endglobals\n"
+        "function itemFilter takes nothing returns boolean\n"
+        "  set udg_Filtered = udg_Filtered + 1\n"
+        "  call BJassAssert(GetFilterItem() != null, \"filter item must be set\")\n"
+        "  return GetItemTypeId(GetFilterItem()) == 'spro'\n"
+        "endfunction\n"
+        "function innerAction takes nothing returns nothing\n"
+        "  call BJassAssert(GetEnumItem() != null, \"nested item must be set\")\n"
+        "endfunction\n"
+        "function outerAction takes nothing returns nothing\n"
+        "  local item saved = GetEnumItem()\n"
+        "  set udg_Accepted = udg_Accepted + 1\n"
+        "  if not udg_Nested then\n"
+        "    set udg_Nested = true\n"
+        "    call EnumItemsInRect(GetWorldBounds(), null, function innerAction)\n"
+        "    call BJassAssert(GetEnumItem() == saved, \"nested enumeration must restore outer item\")\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call CreateItem('spro', 0.0, 0.0)\n"
+        "  call EnumItemsInRect(GetWorldBounds(), Condition(function itemFilter), function outerAction)\n"
+        "  call BJassAssert(udg_Accepted == 1, \"accepted item must reach action\")\n"
+        "  call BJassAssert(udg_Filtered >= 1, \"item filter must run\")\n"
+        "  call BJassAssert(GetEnumItem() == null, \"enum context must clear after call\")\n"
+        "endfunction\n"));
+}
+
 /* Custom-map drop restrictions: maps decide whether another copy may spawn.
  * World enumeration deliberately excludes carried items; scripts must count
  * both populations when enforcing a concurrent global limit. */

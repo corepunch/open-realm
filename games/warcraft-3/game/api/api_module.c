@@ -491,6 +491,7 @@ jassModule_t jass_funcs[] = {
     { "SetItemPlayer", SetItemPlayer },
     { "SetItemInvulnerable", SetItemInvulnerable },
     { "IsItemInvulnerable", IsItemInvulnerable },
+    { "GetFilterItem", GetFilterItem },
     { "GetEnumItem", GetEnumItem },
     { "EnumItemsInRect", EnumItemsInRect },
     { "CreateUnit", CreateUnit },
