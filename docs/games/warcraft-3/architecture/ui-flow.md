@@ -445,12 +445,16 @@ Because `CustomVictoryDialogBJ` has already paused single-player simulation, thi
 queuing `CustomVictoryOkBJ` as a coroutine would leave its `PauseGame(false)` and `ChangeLevel(...)` calls stranded
 behind the very pause they are supposed to release. Multiplayer victory Continue still only dismisses the fallback.
 
-For result-lifecycle diagnosis, `wc3_game_result_debug 1` enables game-module `WC3_RESULT` breadcrumbs for
-`RemovePlayer` arguments and player/client mapping, result-event publication and matching trigger dispatch, pending-result
-deferral (`event_queue`, `cinematic`, or `disconnected`), paused-result event draining/cinematic override, FDF binding,
-server layout emission, and result-button session actions. Pair it with the shared `ui_layout_debug 1` transport trace when client receipt/storage must also be observed;
-that generic trace logs every UI layer and the server-side result breadcrumb identifies the numeric result layer to correlate.
-`wc3_dialog_debug 1` adds `WC3_DIALOG` breadcrumbs for JASS dialog creation, labels, visibility, generated button state, and callbacks. Use it to trace the script-authored choice path. All three diagnostics are runtime-gated and keep Warcraft-specific knowledge out of shared client code.
+For result-lifecycle diagnosis, build with `WC3_DEBUG_SCORE=1` and then set
+`wc3_game_result_debug 1` to enable bounded game-module `WC3_RESULT` breadcrumbs
+for result transitions, deferred navigation, paused-result event draining,
+score-page presentation and server-side modal dispatch. Per-trigger and
+per-score-row investigative dumps have been removed. See
+[Score Debug Build](../score-debug-build.md) for the two-switch contract.
+For transport diagnostics, `ui_layout_debug 1` remains independent and
+reports client UI-layer receipt/storage; `wc3_dialog_debug 1` separately traces
+script-authored JASS choice dialogs. These controls keep Warcraft-specific
+knowledge out of shared client code.
 
 Single-player result pausing is also intentionally still missing. Result UI should reuse the existing WC3 pause/modal
 ownership path rather than suppressing `SV_Frame` or creating a second clock-freeze mechanism. `PauseGame` and

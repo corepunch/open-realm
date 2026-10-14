@@ -500,13 +500,13 @@ uint32_t RemovePlayer(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");
     uint32_t *gameResult = jass_checkhandle(j, 2, "playergameresult");
 
-    WC3_SCORE_LOG("RemovePlayer enter player_handle=%p result_handle=%p result=%ld events=%u/%u",
+    BZ_WC3_SCORE_LOG("RemovePlayer enter player_handle=%p result_handle=%p result=%ld events=%u/%u",
         (void *)whichPlayer, (void *)gameResult,
         gameResult ? (long)*gameResult : -1L,
         (unsigned)level.events.read, (unsigned)level.events.write);
 
     if (!whichPlayer || !gameResult || *gameResult > 3) {
-        WC3_SCORE_LOG("RemovePlayer ignored reason=invalid_args player=%p result=%ld",
+        BZ_WC3_SCORE_LOG("RemovePlayer ignored reason=invalid_args player=%p result=%ld",
             (void *)whichPlayer, gameResult ? (long)*gameResult : -1L);
         return 0;
     }

@@ -1,9 +1,9 @@
 # Warcraft III score and game-result tracing build switch
 
-The game module's `WC3_SCORE_LOG(...)` macro uses `G_GameResultDebug` to emit
+The game module's `BZ_WC3_SCORE_LOG(...)` macro uses `G_GameResultDebug` to emit
 `WC3_RESULT` records for result/score-screen transitions, score calculations,
-bounded score and result-stage summaries. To keep these investigation traces off in normal
-builds, compile with `WC3_DEBUG_SCORE=1` and explicitly enable the existing
+and bounded score and result-stage summaries. To keep these investigation traces
+off in normal builds, compile with `WC3_DEBUG_SCORE=1` and enable the existing
 runtime cvar when running:
 
 ```sh
@@ -12,10 +12,12 @@ make build -j4 FFMPEG=1 WC3_DEBUG_SCORE=1
 ```
 
 The build switch is disabled by default. Every score/result trace call uses
-`WC3_SCORE_LOG(...)`, which expands to `((void)0)` in normal builds; its format
+`BZ_WC3_SCORE_LOG(...)`, which expands to `((void)0)` in normal builds; its format
 and arguments are not evaluated. Instrumented builds route those calls through
-the helper, which checks the runtime cvar before printing. Investigative per-unit, world-dump, and legacy tech-comparison traces have
-been removed; gameplay score tracking is always enabled.
+the helper, which checks the runtime cvar before printing. Investigation-only
+per-unit lifecycle, per-trigger, per-score-row, first-frame survivor, and
+obsolete tech-comparison traces have been removed; gameplay score tracking is
+always enabled.
 `wc3_game_result_debug 1` cannot activate these records when the module was
 built without `WC3_DEBUG_SCORE`; when built with the flag, the cvar still
 defaults to off. Both switches are
@@ -33,3 +35,6 @@ objects) avoids accidentally reusing instrumentation from the earlier mode.
 
 `wc3_score.disabled_score_log_skips_argument_evaluation` verifies that macro
 arguments are skipped in a normal build and evaluated in an instrumented build.
+`wc3_score.score_log_runtime_cvar_controls_output` captures actual stderr
+output and verifies that only the instrumented build with the runtime cvar set
+prints the tagged record.

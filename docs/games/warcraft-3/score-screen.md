@@ -297,8 +297,8 @@ without crediting the XP implicitly required by an authored level increase.
 Direct `SetHeroXP`, `AddHeroXP`, and combat grants still credit positive XP.
 This is a deliberate interpretation of **Experience Gained** as awarded XP
 rather than a hero's cumulative XP threshold; verify against retail maps.
-It does not yet resolve the retail Unit Score formula, Tech Percentage, or
-Largest Army (preplaced AI food accounting).
+At that stage, Unit Score, Tech Percentage, Largest Army, and Heroes Used
+still required retail comparison; see the later corrections below.
 
 ### Cost-weighted scoring and diagnostics (follow-on)
 
@@ -306,18 +306,18 @@ Produced/killed units and built/razed structures now accumulate their authored
 `UnitBalance` gold-plus-lumber costs independently of the raw counts. This is
 **provisional** for retail: exact contribution rules for heroes, kills and
 zero-cost/custom campaign units require controlled comparison. The new persisted
-value totals require save version 92. When `wc3_game_result_debug 1` is set,
-unit creation, food deltas/peaks, hero creation and XP changes, and provisional
-tech numerators/denominators are logged. These events can be verbose on maps
-with large armies. No mission-specific correction is applied to Largest Army,
-Heroes Used, XP or Tech Percentage without verified causality.
+value totals require save version 92. Earlier instrumentation traced every
+unit and food change; that investigation-only output has since been removed.
+The opt-in diagnostic build retains bounded score/result summaries instead.
+No mission-specific correction is applied to Largest Army, Heroes Used, XP
+or Tech Percentage without verified causality.
 
 ### Score startup and scripted hero XP attribution (follow-on)
 
-The map-setup food peak is provisional until the first connected client begins
-play; on frame zero, each map participant's score-only Largest Army baseline
-is reset to its current authoritative food usage. This leaves gameplay food
-accounting unchanged, and subsequent food peaks still accumulate normally.
+An earlier implementation reset the map-setup food peak after the first
+playable frame. Retail comparison proved that reset incorrect; it and the
+survivor audit have since been removed. Subsequent food peaks still accumulate
+normally.
 Scripted `SetHeroLevel` XP is retained on the hero entity (including across
 ownership transfers) and is added to the outgoing score for its **current**
 owner. Ordinary earned XP remains event-attributed. This approximates the
@@ -326,76 +326,24 @@ name/hero ID special cases; other campaign hero restoration rules need checks.
 The new entity field requires save version 93. Unit cost values and technology
 percentage remain provisional pending further retail evidence.
 
-### Post-main Largest Army baseline and unit audit
+### Largest Army startup, hero and technology investigations
 
-The initial score-only Largest Army peak is captured after the first playable
-simulation pass, following JASS initialization and deferred unit removals.
-`ClientBegin` may run on a nonzero frame and is not a reliable startup
-checkpoint. With `wc3_game_result_debug 1`, the `score baseline survivor`
-entries enumerate live unit rawcodes/food/cost and the `score food gameplay
-baseline` summary compares the previous peak, authoritative current food,
-surviving unit-food total and accrued unit score. This deliberately does not
-change `Units Produced` or unit score: the retail inclusion rule for scripted
-preplaced armies remains unverified. All subsequent food peaks still update.
+The first-playable-frame survivor enumeration was temporary instrumentation
+and has been removed. Largest Army retains the peak food usage observed during
+map initialization even when JASS subsequently removes units; there is no
+post-main reset or diagnostic full-world scan in normal gameplay.
 
-### Hero lifecycle and technology classification audit
+Hero creation, ownership changes, game-cache restoration and ShowUnit
+visibility were previously traced during the Heroes Used investigation. Those
+verbose per-unit traces have been removed; ownership and score calculation
+remain independent of the diagnostic switch. Retail evidence establishes
+current-owner portrait presentation; prior-mission cache restoration and
+static preplaced-hero behavior remain open.
 
-`wc3_game_result_debug 1` reports hero creation, ownership transfers and
-game-cache restoration with identity, level and XP. Retail experiments
-establish that the display follows current ownership and lists hero instances
-rather than historical ownership counts. The scalar creation counter is not a
-retail presentation value. Prior-mission cache restoration and static
-preplaced-hero behavior remain open. Tech Percentage now uses
-researched *levels* of authored `UpgradeData` rows seen in the player's tech
-state, instead of treating arbitrary tech-limit rows as researched upgrades.
-The diagnostic retains the previous observed-entry percentage alongside the
-classified numerator and denominator. **The authored race-wide denominator is
-not yet recovered**; therefore the classified result remains provisional and
-should be compared against retail in multiple missions before declaring parity.
-
-### Race-wide technology percentage candidate
-
-Technology percentage now enumerates all authored `UpgradeData.slk` rows with
-`used=1`, positive `maxlevel`, and a race matching the player's race, rather
-than limiting the denominator to technology entries explicitly touched at
-runtime. Each eligible upgrade contributes its maximum level count; its
-completed researched levels (clamped to the maximum) contribute to the
-numerator. `SetPlayerTechMaxAllowed` does not count as completed research.
-The computation uses integer truncation and returns zero when no eligible
-levels exist. With `wc3_game_result_debug 1`, `score tech eligible` reports
-each included upgrade, and `score tech player` summarizes both the previous
-observed-entry metric and the race-wide result. This reproduces the observed
-UndeadX07c 32%/0% comparison but remains a candidate retail rule pending
-verification in other races, expansions and custom maps.
-
-### Unit/food lifecycle diagnostics (score research)
-
-`wc3_game_result_debug 1` additionally reports `score lifecycle` events for
-map-unit entry, immediate JASS creation, training completion, scripted
-`RemoveUnit` requests, end-of-tick retirement and eventual edict freeing, unit death, ownership transfers,
-and training food reservation. Each entry carries the entity number, rawcode,
-owner, stock-resolved gold/lumber costs, authored and active food usage,
-player's current/peak food, and accumulated produced unit count/value. `score
-food state` shows before/after food-used and cap transitions, with the score
-peak on both sides. `score death attribution` and `score death credit` distinguish
-scripted `KillUnit`, combat kills, and deaths credited to another player.
-`jass_remove_requested` is separate from `free_begin` because removal may be
-deferred to the end of the simulation tick. These diagnostics are **read-only**;
-score totals and gameplay food are unchanged. They are investigative and should
-be removed once the retail inclusion/lifecycle rules are determined.
-
-For UndeadX07c, compare the 10 deterministic Normal/Easy script removals
-against `score_unit_credited`, `jass_remove_requested`, and `free_begin`
-records. Do not infer retail behaviour from the OpenRealm logs alone;
-retail experiments must establish whether particular removed units keep score
-credit and when Largest Army tracking begins.
-
-### ShowUnit visibility transitions
-
-With `wc3_game_result_debug 1`, `ShowUnit` emits `score lifecycle`
-`showunit_hide_before/after` and `showunit_show_before/after` records, including
-the hidden bit, unit/owner identity, current food, score food peak, and unit
-score. `showunit_unchanged` and `showunit_rejected_inactive` identify ignored calls.
+The technology-percentage candidate counts researched levels against
+race-matching authored `UpgradeData.slk` maximum levels. The obsolete
+observed-entry calculation and per-upgrade logs have been removed. The
+candidate rule remains unverified beyond the current retail comparisons.
 
 ### Retail Largest Army startup peak correction (2026-10-13)
 
@@ -408,10 +356,9 @@ reset `WC3_PLAYER_SCORE_FOOD_MAXUSED` to current food. The audit remains
 read-only; the food subsystem continues accumulating new peaks.
 
 Retail Hard screenshot reporting 71 has not been reproduced by this Normal
-experiment. The separate unit-cost score discrepancy (12,465 versus OpenRealm
-15,030) remains unresolved and is not adjusted. The apparent Heroes Used
-discrepancy was a comparison error: retail's `3` is Arthas's level label, while
-OpenRealm's `2` was a scalar hero creation count.
+experiment. The unit-cost discrepancy was subsequently resolved by selecting
+the correct `Custom_V1` game-data set for the map; the Heroes Used difference
+was a comparison error because retail's `3` is Arthas's level label.
 
 ### Score diagnostic cleanup (2026-10-14)
 

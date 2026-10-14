@@ -446,7 +446,7 @@ void G_FlushScriptSave(void) {
         return;
     }
     if (request.change_level) {
-        WC3_SCORE_LOG("scripted save complete; request ChangeLevel map=%s score_screen=%u",
+        BZ_WC3_SCORE_LOG("scripted save complete; request ChangeLevel map=%s score_screen=%u",
                           request.map, (unsigned)request.score_screen);
         /* SaveAndChangeLevel commits the source snapshot before the destination
          * transition is published. Stage difficulty before the deferred score flow. */
@@ -1497,7 +1497,7 @@ void G_RequestEndGame(bool do_score_screen) {
     cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
     bool campaign_select = level.campaign_select_on_end ||
         (G_IsSinglePlayer() && G_IsCampaignMapPath(map));
-    WC3_SCORE_LOG("request EndGame score_screen=%u campaign_select=%u map=%s",
+    BZ_WC3_SCORE_LOG("request EndGame score_screen=%u campaign_select=%u map=%s",
         (unsigned)do_score_screen, (unsigned)campaign_select, map ? map : "(null)");
     if (campaign_select) {
         level.campaign_select_on_end = false;
@@ -1526,7 +1526,7 @@ void G_RequestQuitGame(void) {
         ? "menu_single_player_campaign"
         : "menu_main";
 
-    WC3_SCORE_LOG("quit map=%s sp=%u target=%s", map ? map : "(null)", (unsigned)single, target);
+    BZ_WC3_SCORE_LOG("quit map=%s sp=%u target=%s", map ? map : "(null)", (unsigned)single, target);
     /* Retail campaign Quit Mission presents the outgoing scores before
      * returning to campaign selection. Do not bypass the deferred controller;
      * a missing/invalid FDF still falls through to the destination safely.
@@ -1538,7 +1538,7 @@ void G_RequestQuitGame(void) {
 }
 
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {
-    WC3_SCORE_LOG("request ChangeLevel map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
+    BZ_WC3_SCORE_LOG("request ChangeLevel map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
     if (!map || !*map || strlen(map) >= MAX_PATHLEN) return;
     if (script_save_rejected || script_standalone_load[0] || script_save_request.load_game) {
         fprintf(stderr, "WC3 ChangeLevel: conflicting scripted save/load request\n");
@@ -1565,7 +1565,7 @@ void G_RequestChangeLevel(cstring_t map, bool do_score_screen) {
 void G_RequestRestartGame(bool do_score_screen) {
     cstring_t map = level.map_path[0] ? level.map_path :
         (gi.CvarString ? gi.CvarString("map", "") : "");
-    WC3_SCORE_LOG("request RestartGame map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
+    BZ_WC3_SCORE_LOG("request RestartGame map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
     if (script_save_rejected || script_standalone_load[0] || script_save_request.pending) return;
     if (map && *map && G_StageDifficultyTransition(map)) {
         if (do_score_screen) G_QueueScoreTransition("level", map);
@@ -1575,7 +1575,7 @@ void G_RequestRestartGame(bool do_score_screen) {
 
 void G_RequestLoadGameMenu(void) {
     bool shown = false;
-    WC3_SCORE_LOG("request LoadGameMenu");
+    BZ_WC3_SCORE_LOG("request LoadGameMenu");
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
         edict_t *ent;
@@ -1590,7 +1590,7 @@ void G_RequestLoadGameMenu(void) {
 void G_RequestLoadGameNamed(cstring_t name) {
     if (!name || !*name) return;
     G_ResetDifficultyTransition();
-    WC3_SCORE_LOG("request LoadGame name=%s", name);
+    BZ_WC3_SCORE_LOG("request LoadGame name=%s", name);
     gi.MenuAction("load", name);
 }
 
@@ -1600,7 +1600,7 @@ void G_RequestCampaignSelect(void) {
      * while campaign ending cinematics are still running. It selects the
      * frontend destination for the eventual EndGame; it must not tear down the
      * active map immediately. */
-    WC3_SCORE_LOG("request CampaignSelect");
+    BZ_WC3_SCORE_LOG("request CampaignSelect");
     level.campaign_select_on_end = true;
 }
 
@@ -1735,7 +1735,7 @@ gameEvent_t *G_PublishEventWithValue(edict_t *edict, EVENTTYPE type, edict_t *so
     evt->source_spawn_tracked = source && source->inuse;
     evt->value = value;
     if (type == EVENT_PLAYER_VICTORY || type == EVENT_PLAYER_DEFEAT) {
-        WC3_SCORE_LOG("publish event type=%s ordinal=%u subject_ent=%ld owner=%u read=%u write=%u",
+        BZ_WC3_SCORE_LOG("publish event type=%s ordinal=%u subject_ent=%ld owner=%u read=%u write=%u",
             type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
             (unsigned)(index + 1),
             edict ? (long)edict->s.number : -1L,

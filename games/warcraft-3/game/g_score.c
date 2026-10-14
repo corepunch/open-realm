@@ -231,7 +231,7 @@ static int32_t G_ScoreGuessTechPercent(gameClient_t const *client) {
         eligible_levels += (uint32_t)upgrade->maxLevel;
         achieved_levels += achieved;
     }
-    WC3_SCORE_LOG("score tech summary player=%u achieved=%u eligible=%u",
+    BZ_WC3_SCORE_LOG("score tech summary player=%u achieved=%u eligible=%u",
         client->ps.number, achieved_levels, eligible_levels);
     return eligible_levels ? (int32_t)((100ull * achieved_levels) / eligible_levels) : 0;
 }

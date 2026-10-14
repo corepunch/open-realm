@@ -2,6 +2,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "../hud/score_screen_table.h"
+#include <unistd.h> /* dup/dup2 for the stderr-capture test */
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
@@ -96,7 +97,7 @@ static unsigned score_debug_log_argument_evaluations;
 
 TEST(wc3_score, disabled_score_log_skips_argument_evaluation) {
     score_debug_log_argument_evaluations = 0;
-    WC3_SCORE_LOG("test argument evaluation=%u", ++score_debug_log_argument_evaluations);
+    BZ_WC3_SCORE_LOG("test argument evaluation=%u", ++score_debug_log_argument_evaluations);
 #ifdef BZ_WC3_DEBUG_SCORE
     T_EQ(score_debug_log_argument_evaluations, 1);
 #else
@@ -113,6 +114,50 @@ static cstring_t score_debug_test_cvar_disabled(cstring_t name, cstring_t fallba
     (void)fallback;
     (void)name;
     return "0";
+}
+
+/* Exercise the real logging writer as well as the compile-time macro. Keep
+ * stderr restored before reporting assertions, including on setup failures. */
+TEST(wc3_score, score_log_runtime_cvar_controls_output) {
+    cstring_t (*saved_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    FILE *capture = tmpfile();
+    int saved_stderr = dup(STDERR_FILENO);
+    char diagnostic[256] = { 0 };
+    bool redirected;
+
+    T_NOT_NULL(capture);
+    T_ASSERT(saved_stderr >= 0);
+    if (!capture || saved_stderr < 0) {
+        if (capture) fclose(capture);
+        if (saved_stderr >= 0) close(saved_stderr);
+        return;
+    }
+
+    fflush(stderr);
+    redirected = dup2(fileno(capture), STDERR_FILENO) == STDERR_FILENO;
+    if (redirected) {
+        gi.CvarString = score_debug_test_cvar_disabled;
+        BZ_WC3_SCORE_LOG("score gate marker=disabled");
+        gi.CvarString = score_debug_test_cvar_enabled;
+        BZ_WC3_SCORE_LOG("score gate marker=enabled");
+        fflush(stderr);
+    }
+    int const restored = dup2(saved_stderr, STDERR_FILENO);
+    close(saved_stderr);
+    gi.CvarString = saved_cvar;
+    if (redirected) {
+        rewind(capture);
+        diagnostic[fread(diagnostic, 1, sizeof(diagnostic) - 1, capture)] = '\0';
+    }
+    fclose(capture);
+    T_ASSERT(redirected);
+    T_EQ(restored, STDERR_FILENO);
+    T_ASSERT(strstr(diagnostic, "marker=disabled") == NULL);
+#ifdef BZ_WC3_DEBUG_SCORE
+    T_ASSERT(strstr(diagnostic, "WC3_RESULT score gate marker=enabled") != NULL);
+#else
+    T_ASSERT(strstr(diagnostic, "marker=enabled") == NULL);
+#endif
 }
 
 TEST(wc3_score, diagnostic_build_gate_matches_configuration) {
@@ -135,6 +180,25 @@ TEST(wc3_score, diagnostic_build_gate_matches_configuration) {
     T_ASSERT(disabled_with_cvar);
     T_ASSERT(enabled_with_cvar);
     T_ASSERT(disabled_without_cvar);
+}
+
+/* A deferred removal whose edict identity changed must be discarded,
+ * rather than spinning forever or freeing the newly reused entity. */
+TEST(wc3_score, stale_deferred_removal_drains_without_freeing_reused_edict) {
+    edict_t *unit;
+
+    setup_test_world();
+    G_ResetDeferredFrees();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    G_DeferFreeEdict(unit);
+    T_ASSERT(G_IsDeferredFree(unit));
+    ++unit->spawn_time; /* Simulate an edict slot reused before queue drain. */
+    T_ASSERT(!G_IsDeferredFree(unit));
+    G_RunDeferredFrees();
+    T_ASSERT(unit->inuse);
+    G_ResetDeferredFrees();
 }
 
 /* The retail peak survives scripted food reductions without an audit pass. */

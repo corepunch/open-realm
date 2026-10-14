@@ -2440,7 +2440,7 @@ static void G_HeroSetXPInternal(edict_t *ent, uint32_t xp, bool count_score) {
     if (xp <= ent->hero.xp) {
         return;
     }
-    WC3_SCORE_LOG("score hero xp transition owner=%u rawcode=%08x entity=%u old=%u new=%u level=%u credited=%u",
+    BZ_WC3_SCORE_LOG("score hero xp transition owner=%u rawcode=%08x entity=%u old=%u new=%u level=%u credited=%u",
         ent->s.player, ent->class_id, ent->s.number, ent->hero.xp, xp,
         ent->hero.level, (unsigned)count_score);
     if (count_score) G_PlayerScoreExperienceGained(ent, xp - ent->hero.xp);

@@ -134,8 +134,8 @@ void G_RunDeferredFrees(void) {
             jass_runevents(level.vm);
             continue;
         }
-        /* This is the actual end-of-tick retirement of a JASS RemoveUnit;
-         * its request and the generic free are intentionally distinct. */
+        /* Retire the queue entry even if the edict was already replaced;
+         * only a matching live identity may be freed. */
         deferred_free_count--;
         if (pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time) G_FreeEdict(pending.ent);
     }
