@@ -616,6 +616,21 @@ No compile/game run has been done. Verify skin artwork availability for each
 race, the on/off icon appearance, button click target, and ribbon coverage
 of the Heroes Used column in an in-game screenshot.
 
+### Score-row ribbon height and ally-button border (14 October 2026)
+
+Retail comparison shows that the silver team-name ribbon nearly fills its
+coloured score row. The stock `scorescreen-silverbannerborder.blp` contains
+transparent vertical padding, so its UI texture frame is expanded from
+0.205 x 0.039 to 0.205 x 0.051 FDF units, adjusting the top anchor by
+0.006 to keep it centred. This is a screenshot-derived visual adjustment.
+
+The ally-colour button uses the skin-provided handshake images rather than the
+generic score-button chrome. Preserve the stock parent BACKDROP's gold
+border/background: it frames the icon once, without the prior duplicate
+chrome. Button state and server-owned ally-colour switching are unchanged.
+No compilation or in-game testing was performed; compare the resulting
+bevel coverage and button frame with the retail screenshot.
+
 ### Post-game lifecycle Patch 4 — integration checks and acceptance (14 October 2026)
 
 The post-game sequence is **finish JASS/frame work → finalize the frozen

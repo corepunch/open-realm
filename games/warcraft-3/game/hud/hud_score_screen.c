@@ -80,11 +80,10 @@ static bool ScoreScreenMakeRow(uint32_t slot) {
     /* Sprite coordinates are set by ScoreScreenSetRowBar to match each
      * model's native 0.032-height mesh (rather than scaling a BLP). */
     ScoreScreenPlace(backdrop, root, 0, -0.032f, 0, 0);
-    /* The stock silver ribbon BLP has transparent margins. Its old 0.180 x
-     * 0.031 frame left the visible bevel noticeably shorter and thinner than
-     * the surrounding MDX score bar; enlarge the texture frame rather than
-     * replacing the bevel with a flat rectangle. */
-    ScoreScreenPlace(border, root, 0, 0.004f, 0.205f, 0.039f);
+    /* The ribbon artwork includes transparent top/bottom padding. Expand its
+     * frame symmetrically so the visible silver bevel nearly fills the bar,
+     * without moving the row portrait or text. Retail screenshot estimate. */
+    ScoreScreenPlace(border, root, 0, 0.010f, 0.205f, 0.051f);
     UI_SetTexture(border, "UI\\Glues\\ScoreScreen\\scorescreen-silverbannerborder.blp", false);
     ScoreScreenPlace(icon, root, 0.005f, -0.003f, SCORE_ROW_ICON, SCORE_ROW_ICON);
     ScoreScreenPlace(name, root, 0.034f, -0.003f, 0.111f, SCORE_ROW_H-0.005f);
@@ -195,16 +194,9 @@ void UI_LoadHudScoreScreen(void) {
             strlcpy(button->Button.PushedTexture, pushed->Name,
                     sizeof(button->Button.PushedTexture));
         }
-        /* The FDF button already has a clickable frame. Its parent BACKDROP
-         * used a separate gold scorescreen-buttonbackground edge which
-         * produced the unwanted square/vertical bars around the icon. */
-        if (button->Parent && button->Parent->Type == FT_BACKDROP) {
-            frameDef_t *backdrop = UI_FindFrameNear(button, button->Parent->Name);
-            if (backdrop && backdrop->Type == FT_BACKDROP) {
-                backdrop->Backdrop.EdgeFile = 0;
-                backdrop->Backdrop.Background = 0;
-            }
-        }
+        /* Retain the stock FDF parent's gold border. The selected button
+         * textures now contain only the minimap handshake art, so the border
+         * is no longer doubled by the old scorescreen-button chrome. */
         UI_SetOnClick(button, "scorescreen_allycolors");
     }
     /* Replay recording/saving is not implemented: do not expose a button
