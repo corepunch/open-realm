@@ -616,3 +616,21 @@ uniqueness or global population limits; map triggers must implement such policy.
 The 256-entry maximum is an OpenRealm implementation limit, not a verified
 Warcraft III retail limit. Weighted selection and invalid-weight handling still
 require retail comparison where exact edge-case compatibility matters.
+
+## Custom-map item uniqueness and concurrent caps
+
+There is no universal item-type copy cap in the base item spawning path.
+Custom maps can use `UnitItemInSlot` to count copies held by each relevant
+hero, and `EnumItemsInRect` plus `GetEnumItem`/`GetItemTypeId` to count loose
+world copies. Inventory-held items must not also be counted as ground items.
+An item transfer preserves its handle and should not increase the total;
+`RemoveItem` decreases the count of currently existing copies. A map wishing
+to limit **lifetime spawns** instead must separately track total creations:
+removing an item does not refund that lifetime quota. The map decides whether
+an ineligible drop is suppressed or rerolled; neither is a default policy.
+
+Regression coverage: `wc3_api.item_unique_drop_counts_carried_and_world_instances`
+and `wc3_api.item_duplicate_pickup_counts_new_item_and_existing_copy`.
+The second test verifies the post-acquisition inventory view seen by item
+pickup triggers. Additional campaign/save-load compatibility is covered by
+existing item inventory tests; no global engine-owned counter is introduced.

@@ -8562,6 +8562,108 @@ TEST(wc3_api, enum_items_in_rect_visits_world_items) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+/* Custom-map drop restrictions: maps decide whether another copy may spawn.
+ * World enumeration deliberately excludes carried items; scripts must count
+ * both populations when enforcing a concurrent global limit. */
+TEST(wc3_api, item_unique_drop_counts_carried_and_world_instances) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit udg_HeroA = null\n"
+        "  unit udg_HeroB = null\n"
+        "  integer udg_WorldCount = 0\n"
+        "endglobals\n"
+        "function countGround takes nothing returns nothing\n"
+        "  if GetItemTypeId(GetEnumItem()) == 'ratf' then\n"
+        "    set udg_WorldCount = udg_WorldCount + 1\n"
+        "  endif\n"
+        "endfunction\n"
+        "function countHero takes unit u returns integer\n"
+        "  local integer slot = 0\n"
+        "  local integer result = 0\n"
+        "  loop\n"
+        "    exitwhen slot >= 6\n"
+        "    if GetItemTypeId(UnitItemInSlot(u, slot)) == 'ratf' then\n"
+        "      set result = result + 1\n"
+        "    endif\n"
+        "    set slot = slot + 1\n"
+        "  endloop\n"
+        "  return result\n"
+        "endfunction\n"
+        "function countExisting takes nothing returns integer\n"
+        "  set udg_WorldCount = 0\n"
+        "  call EnumItemsInRect(GetWorldBounds(), null, function countGround)\n"
+        "  return udg_WorldCount + countHero(udg_HeroA) + countHero(udg_HeroB)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local item carried = CreateItem('ratf', 0.0, 0.0)\n"
+        "  local item ground = CreateItem('ratf', 128.0, 0.0)\n"
+        "  set udg_HeroA = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  set udg_HeroB = CreateUnit(Player(0), 'Hpal', 64.0, 0.0, 0.0)\n"
+        "  call BJassAssert(UnitAddItem(udg_HeroA, carried), \"initial pickup failed\")\n"
+        "  call BJassAssert(countHero(udg_HeroA) == 1, \"carried copy missing\")\n"
+        "  call BJassAssert(countExisting() == 2, \"global count must include ground and carried\")\n"
+        "  call BJassAssert(countExisting() >= 2, \"cap of two should reject another drop\")\n"
+        "  call BJassAssert(UnitAddItem(udg_HeroB, carried), \"transfer failed\")\n"
+        "  call BJassAssert(countHero(udg_HeroA) == 0, \"source must lose item\")\n"
+        "  call BJassAssert(countHero(udg_HeroB) == 1, \"destination must receive item\")\n"
+        "  call BJassAssert(countExisting() == 2, \"transfer must not change global count\")\n"
+        "  call RemoveItem(ground)\n"
+        "  call BJassAssert(countExisting() == 1, \"removal must release a concurrent slot\")\n"
+        "  call RemoveItem(carried)\n"
+        "  call BJassAssert(countExisting() == 0, \"removal of carried item must clear inventory\")\n"
+        "endfunction\n"));
+}
+
+/* Acquisition-trigger scripts see the new item already in the destination's
+ * inventory. Duplicate detection must count copies rather than ask merely
+ * whether the item type is present. */
+TEST(wc3_api, item_duplicate_pickup_counts_new_item_and_existing_copy) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer udg_Pickups = 0\n"
+        "  integer udg_Duplicates = 0\n"
+        "endglobals\n"
+        "function onAcquire takes nothing returns nothing\n"
+        "  local unit u = GetTriggerUnit()\n"
+        "  local item picked = GetManipulatedItem()\n"
+        "  local integer slot = 0\n"
+        "  local integer copies = 0\n"
+        "  if GetItemTypeId(picked) != 'ratf' then\n"
+        "    return\n"
+        "  endif\n"
+        "  set udg_Pickups = udg_Pickups + 1\n"
+        "  loop\n"
+        "    exitwhen slot == 6\n"
+        "    if GetItemTypeId(UnitItemInSlot(u, slot)) == 'ratf' then\n"
+        "      set copies = copies + 1\n"
+        "    endif\n"
+        "    set slot = slot + 1\n"
+        "  endloop\n"
+        "  if copies > 1 then\n"
+        "    set udg_Duplicates = udg_Duplicates + 1\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local unit hero = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local item first = CreateItem('ratf', 0.0, 0.0)\n"
+        "  local item second = CreateItem('ratf', 32.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_PICKUP_ITEM, null)\n"
+        "  call TriggerAddAction(t, function onAcquire)\n"
+        "  call BJassAssert(UnitAddItem(hero, first), \"first pickup failed\")\n"
+        "  call BJassAssert(UnitAddItem(hero, second), \"second pickup failed\")\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(udg_Pickups == 2, \"each acquisition must fire an event\")\n"
+        "  call BJassAssert(udg_Duplicates == 1, \"only second pickup is duplicate\")\n"
+        "endfunction\n"));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "verify", true);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_api, create_item_rejects_empty_item_id) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
