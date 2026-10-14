@@ -22,6 +22,14 @@ static void ScoreScreenUseSprite(frameDef_t *frame) {
 
 static cstring_t ScoreScreenRaceArt(gameClient_t *viewer);
 
+/* A score presentation is the outgoing session's last visible screen. The
+ * generic close_window_command action would remove its UI_WINDOW_PRESENTATION
+ * cover before deferred MenuAction starts, briefly revealing the old world.
+ * Forward Continue without closing locally; destination teardown removes it. */
+static void ScoreScreenBindContinue(frameDef_t *button) {
+    UI_SetOnClick(button, "scorescreen_continue");
+}
+
 static cstring_t ScoreScreenPlayerIcon(uint32_t race) {
     /* Stock archive files, not replacement art. Preserve nonstandard race
      * slots without substituting a potentially incorrect icon. */
@@ -151,8 +159,7 @@ void UI_LoadHudScoreScreen(void) {
     /* This stock TopBar was incorrectly painted over the column headings.
      * The player rows below each own a proper bar model instead. */
     UI_SetHidden(score->ScoreScreenBarTop, true);
-    UI_SetOnClick(score->ScoreScreenOKButton,
-                  UI_WINDOW_CLOSE_COMMAND_PREFIX "scorescreen_continue");
+    ScoreScreenBindContinue(score->ScoreScreenOKButton);
     FOR_LOOP(i, WC3_SCORE_TABS)
         UI_SetOnClick(score->ScoreScreenTabButton[i], "scorescreen_tab %u", (unsigned)i);
     UI_SetOnClick(score->ScoreScreenScrollBar, "scorescreen_scroll");
@@ -482,3 +489,15 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
     UI_SetCurrentClient(NULL);
     return true;
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+
+TEST(wc3_score_postgame, continue_button_does_not_preclose_presentation) {
+    frameDef_t button = { 0 };
+    ScoreScreenBindContinue(&button);
+    T_STREQ(button.OnClick, "scorescreen_continue");
+    T_ASSERT(strncmp(button.OnClick, UI_WINDOW_CLOSE_COMMAND_PREFIX,
+                     sizeof(UI_WINDOW_CLOSE_COMMAND_PREFIX) - 1) != 0);
+}
+#endif
