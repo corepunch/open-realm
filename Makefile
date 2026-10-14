@@ -6,6 +6,7 @@ CFLAGS  := -Wall -Wmisleading-indentation -fno-common -I. -Ishared -Ishared/type
 BUILD   ?= debug
 MSAA    ?= 0
 GL_BACKEND ?= gl
+WC3_REFORGED_COLORS ?= 1
 GLSL      ?= 140
 
 ifeq ($(BUILD),release)
@@ -32,6 +33,10 @@ else ifeq ($(GL_BACKEND),gl)
 else
 	$(error GL_BACKEND must be gl or gles3)
 endif
+ifeq ($(filter $(WC3_REFORGED_COLORS),0 1),)
+	$(error WC3_REFORGED_COLORS must be 0 or 1)
+endif
+CFLAGS += -DWC3_REFORGED_COLORS=$(WC3_REFORGED_COLORS)
 CFLAGS += -DBZ_MSAA_SAMPLES=$(MSAA)
 ifneq ($(MSAA),0)
 	CFLAGS += -DBZ_USE_MSAA

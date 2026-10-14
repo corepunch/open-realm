@@ -72,3 +72,19 @@ Focused in-engine coverage lives in `games/warcraft-3/game/tests/t_api.c`, `t_co
 - ranged attack and Storm Bolt/Fire Bolt projectile inheritance;
 - selected-unit portrait color propagation;
 - build-placement and rally-indicator configured-player color propagation.
+
+## Build-time RGB palette
+
+`WC3_REFORGED_COLORS=1` (default) selects the 24-entry Reforged RGB
+palette for explicitly tinted UI elements. Use `make WC3_REFORGED_COLORS=0`
+for the twelve original Classic RGB values. The shared source of truth is
+`games/warcraft-3/common/player_colors.h` (`WC3_PlayerColorRGB(index)`).
+The mode is compiled into the renderer and must be used consistently by
+other game/UI modules that emit explicit RGB player-colour tints.
+
+The palette does **not** replace Warcraft's MDX replaceable-texture data:
+`ReplaceableTextures\TeamColor\TeamColorXX.blp` and `TeamGlowXX.blp`
+continue to come from the installed game archives. It also does not add
+24-player game slots or change JASS player-colour handle numbering. Classic
+has twelve published RGB entries, so colour IDs outside that range use a
+modulo-twelve fallback for explicitly tinted widgets.
