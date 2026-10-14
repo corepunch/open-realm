@@ -504,7 +504,12 @@ static bool item_speed_apply(edict_t *caster, uint32_t code, bool area_effect) {
                   (area_effect ? Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area : target == caster)) {
         float const duration = S_SpellHeroDuration(code, 1, target);
         heroabilitystatus_t *status = duration > 0.0f ? S_SpellApplyTimedTargetStatus(target, code, 1, buff, duration) : NULL;
-        if (status) status->data = code;
+        if (status) {
+            status->data = code;
+            /* The one-shot ability TargetArt is separate from the buff's
+             * persistent TargetArt (owned by the status lifecycle). */
+            G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        }
     }
     return true;
 }
@@ -697,7 +702,13 @@ BZ_ABILITY_PROC(CAbilitySpellShieldAoe) {
         /* The shield charge is untimed. Its buff (BNss) owns persistent art,
          * which the shared status lifecycle removes when a spell consumes it. */
         heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, 1, buff, 0.0f);
-        if (status) unit_status_enabletargetart(target, status, "origin");
+        if (status) {
+            unit_status_enabletargetart(target, status, "origin");
+            /* Emit the authored activation art only when a new charge was
+             * applied. The buff effect remains status-owned until blocked or
+             * dispelled, and is not recreated for duplicate pickups. */
+            G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        }
     }
     return true; /* Powerups consume even if all eligible allies already have shields. */
 }

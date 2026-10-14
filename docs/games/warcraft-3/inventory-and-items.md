@@ -648,6 +648,11 @@ lifecycle without adding an expiry timer. The buff rawcode resolves the model,
 not the ability's one-shot `TargetArt`. Refresh/reapplication is deduplicated;
 expiry, dispel, or consumption of the shield charge retires the owned effect.
 The existing ability `TargetArt` remains a separate one-shot activation effect.
+Speed and Shielding now emit that one-shot ability `TargetArt` when a
+recipient actually gains the respective status, independently from persistent
+buff visuals. A no-target pickup and a duplicate Shielding charge do not
+fabricate a per-recipient activation effect. This is data-driven: missing
+`TargetArt` is a no-op in the shared effects subsystem.
 This does not by itself establish retail parity for authored sounds or model
 animation sequences.
 
