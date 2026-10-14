@@ -600,3 +600,19 @@ These behaviours are exercised by `wc3_items.carried_item_transfer*`,
 `wc3_api.unit_drop_item_target_queues_a_targeted_give`. Campaign `StoreUnit`
 serialization and removal of a temporary carrier are separate lifecycle work;
 this handoff patch does not change game-cache format.
+
+## JASS item pools
+
+`CreateItemPool`, `DestroyItemPool`, `ItemPoolAddItemType`,
+`ItemPoolRemoveItemType`, and `PlaceRandomItem` support script-defined weighted
+item creation. Pools are JASS-owned handles with up to 256 distinct item types;
+adding an existing rawcode replaces its weight. Only finite positive weights
+are accepted. Empty, destroyed, and all-unresolved pools produce a null item.
+Unresolvable item types are excluded from selection, and successful selections
+spawn through the ordinary world-item path. Destroyed handles remain inert even
+if another JASS variable retains a reference. These pools do not enforce item
+uniqueness or global population limits; map triggers must implement such policy.
+
+The 256-entry maximum is an OpenRealm implementation limit, not a verified
+Warcraft III retail limit. Weighted selection and invalid-weight handling still
+require retail comparison where exact edge-case compatibility matters.
