@@ -92,6 +92,39 @@ TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
     T_EQ(value, 290); /* Counter saturation is independent of weighted totals. */
 }
 
+static cstring_t score_debug_test_cvar_enabled(cstring_t name, cstring_t fallback) {
+    (void)fallback;
+    return strcmp(name, "wc3_game_result_debug") == 0 ? "1" : "0";
+}
+
+static cstring_t score_debug_test_cvar_disabled(cstring_t name, cstring_t fallback) {
+    (void)fallback;
+    (void)name;
+    return "0";
+}
+
+TEST(wc3_score, diagnostic_build_gate_matches_configuration) {
+    cstring_t (*saved_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    bool disabled_with_cvar;
+    bool enabled_with_cvar;
+    bool disabled_without_cvar;
+
+    gi.CvarString = score_debug_test_cvar_disabled;
+    disabled_with_cvar = !G_GameResultDebugEnabled();
+    gi.CvarString = score_debug_test_cvar_enabled;
+#ifdef WC3_DEBUG_SCORE
+    enabled_with_cvar = G_GameResultDebugEnabled();
+#else
+    enabled_with_cvar = !G_GameResultDebugEnabled();
+#endif
+    gi.CvarString = NULL;
+    disabled_without_cvar = !G_GameResultDebugEnabled();
+    gi.CvarString = saved_cvar;
+    T_ASSERT(disabled_with_cvar);
+    T_ASSERT(enabled_with_cvar);
+    T_ASSERT(disabled_without_cvar);
+}
+
 /* Retail Normal map initialization creates an army before RemoveUnit trims it.
  * The historical peak must survive the first gameplay audit. */
 TEST(wc3_score, gameplay_food_audit_preserves_initialization_peak) {

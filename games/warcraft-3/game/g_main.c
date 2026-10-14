@@ -1477,7 +1477,7 @@ bool G_IsSinglePlayer(void) {
  * The cvar remains a separate run-time switch in instrumented builds. */
 bool G_GameResultDebugEnabled(void) {
 #ifdef WC3_DEBUG_SCORE
-    return atoi(gi.CvarString("wc3_game_result_debug", "0")) != 0;
+    return gi.CvarString && atoi(gi.CvarString("wc3_game_result_debug", "0")) != 0;
 #else
     return false;
 #endif

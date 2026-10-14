@@ -12,8 +12,13 @@ make build -j4 FFMPEG=1 WC3_DEBUG_SCORE=1
 ./build/bin/openwarcraft3 -data 'data/Warcraft III/' +set wc3_game_result_debug 1 -tft +map 'Maps\FrozenThrone\Campaign\UndeadX07c.w3x'
 ```
 
-The build switch is disabled by default. `wc3_game_result_debug 1` cannot
-activate these records when the module was built without `WC3_DEBUG_SCORE`;
+The build switch is disabled by default. Diagnostic-only survivor walks,
+lifecycle formatting, and legacy tech-percent comparison work are omitted from
+normal builds. Remaining score/result call sites still evaluate their ordinary
+arguments before entering the disabled logging helper, so the flag does not
+guarantee every argument expression is compiled away.
+`wc3_game_result_debug 1` cannot activate these records when the module was
+built without `WC3_DEBUG_SCORE`;
 when built with the flag, the cvar still defaults to off. Both switches are
 required to emit the `WC3_RESULT` trace. This affects diagnostics only; score
 accounting and gameplay do not depend on the switch.
