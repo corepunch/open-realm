@@ -2473,6 +2473,11 @@ bool ReadGame(cstring_t filename) {
         if (ent->destructable) G_RestoreDestructableData(ent);
         if (gi.LinkEntity) gi.LinkEntity(ent);
     }
+    /* SV_Map baked obstacles from the map's initial placements. Restored
+     * destructables and structures can have different footprints (notably
+     * a gate opened before saving). Rebuild once after every saved entity has
+     * been rebound, rather than retaining the pre-load blocking cells. */
+    CM_BakeStaticObstacles();
     fclose(f);
     /* Cinefilters are transient client presentation, not part of the save
      * contract. Map reload can leave its baseline black filter displayed;
