@@ -402,7 +402,12 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         mdxTexture_t const *modeltex = &model->textures[textureId];
         texture_t const *texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture, overrideSlot);
         R_BindTexture(texture, 0);
-        R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
+        uint32_t vao = MDX_GeosetArray(geoset, layer->coordId);
+        if (!vao) {
+            fprintf(stderr, "MDX model '%s': layer references unavailable UV channel %d\n", model->info.name, layer->coordId);
+            continue;
+        }
+        R_Call(glBindVertexArray, vao);
         /* The geoset VAO already binds the model-owned index buffer. */
         R_StatsDraw(GL_TRIANGLES, geoset->num_triangles, 1);
         R_ApplyShader(shader);

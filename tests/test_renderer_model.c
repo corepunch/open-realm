@@ -221,8 +221,10 @@ static void test_genva(GLsizei n, GLuint *ids) { while (n--) *ids++ = 7; }
 static void test_bindva(GLuint id) { (void)id; }
 static void test_bindbuf(GLenum target, GLuint id) { (void)target; (void)id; }
 static void test_enableattr(GLuint index) { (void)index; }
+static struct { bool active; vec2_t data[3]; GLsizei stride; uintptr_t offset; int uploads; } uv_upload;
 static void test_attrptr(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, void const *ptr) {
     (void)index; (void)size; (void)type; (void)normalized; (void)stride; (void)ptr;
+    if (uv_upload.active && index == attrib_texcoord) { uv_upload.stride = stride; uv_upload.offset = (uintptr_t)ptr; }
 }
 static void test_divisor(GLuint index, GLuint divisor) { (void)index; (void)divisor; }
 static void test_drawarrays(GLenum mode, GLint first, GLsizei count) {
@@ -235,6 +237,9 @@ static void test_drawarrays_inst(GLenum mode, GLint first, GLsizei count, GLsize
  * calls so these headless tests also run on macOS without a current context. */
 static void test_bufdata(GLenum target, GLsizeiptr size, void const *data, GLenum usage) {
     (void)target; (void)size; (void)data; (void)usage;
+    if (uv_upload.active && target == GL_ARRAY_BUFFER && size == sizeof(uv_upload.data)) {
+        memcpy(uv_upload.data, data, size); uv_upload.uploads++;
+    }
 }
 static void test_delete_ids(GLsizei count, GLuint const *ids) { (void)count; (void)ids; }
 #define glGenBuffers test_genva
@@ -963,6 +968,58 @@ enum {
 static void mdx_put_u32(uint8_t **p, uint32_t v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_f32(uint8_t **p, float v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_fourcc(uint8_t **p, uint32_t tag) { mdx_put_u32(p, tag); }
+
+/* NewRoughCliffDoodadCave2 uses UV0 for replacement slot 11 and UV1 for its alpha-key cave overlay. */
+TEST(renderer_model, mdx_cave_uv_channels_do_not_overwrite_the_cliff_coordinates) {
+    uint8_t data[256], *p = data, *channel2 = NULL;
+    mdx_put_fourcc(&p, MAKEFOURCC('V','R','T','X')); mdx_put_u32(&p, 3);
+    FOR_LOOP(i, 9) mdx_put_f32(&p, 0);
+    mdx_put_fourcc(&p, MAKEFOURCC('N','R','M','S')); mdx_put_u32(&p, 3);
+    FOR_LOOP(i, 9) mdx_put_f32(&p, i % 3 == 2 ? 1 : 0);
+    mdx_put_fourcc(&p, MAKEFOURCC('U','V','A','S'));
+    uint8_t *uvdecl = p; mdx_put_u32(&p, 2);
+    FOR_LOOP(set, 2) {
+        if (set) channel2 = p;
+        mdx_put_fourcc(&p, MAKEFOURCC('U','V','B','S')); mdx_put_u32(&p, 3);
+        FOR_LOOP(i, 3) { mdx_put_f32(&p, set ? 0.7f : 0.1f); mdx_put_f32(&p, set ? 0.8f : 0.2f); }
+    }
+    reset_registry();
+    mdxGeoset_t *geo = test_alloc(sizeof(*geo));
+    sizeBuf_t block = { .data = data, .cursize = (uint32_t)(p - data) };
+    ReadGeoset(&block, geo);
+    T_EQ(geo->num_texcoordChannels, 2); T_EQ(geo->num_texcoord, 3);
+    T_FEQ(geo->texcoord[0].x, 0.1f, 0.001f); T_FEQ(geo->texcoord[0].y, 0.2f, 0.001f);
+    T_FEQ(geo->texcoord[3].x, 0.7f, 0.001f); T_FEQ(geo->texcoord[3].y, 0.8f, 0.001f);
+    mdxModel_t model = { .geosets = geo };
+    geo->num_triangles = 3; geo->triangles = test_alloc(3 * sizeof(*geo->triangles));
+    geo->triangles[1] = 1; geo->triangles[2] = 2;
+    uv_upload = (typeof(uv_upload)){ .active = true };
+    MDX_BuildBuffers(&model);
+    T_EQ(ARRAY_COUNT(geo->vaos), 2); T_EQ(uv_upload.uploads, 1);
+    T_FEQ(uv_upload.data[0].x, 0.7f, 0.001f); T_EQ(uv_upload.stride, sizeof(vec2_t));
+    T_EQ(uv_upload.offset, 0);
+    geo->vaos[0] = 37; geo->vaos[1] = 41;
+    T_EQ(MDX_GeosetArray(geo, 0), 37); T_EQ(MDX_GeosetArray(geo, 1), 41);
+    T_EQ(MDX_GeosetArray(geo, -1), 37); T_EQ(MDX_GeosetArray(geo, 2), 0);
+    T_EQ(MDX_GeosetArray(geo, -2), 0);
+    uv_upload.active = false;
+    MDLX_Release(&model);
+    /* A missing declared channel is rejected before geometry upload, rather than filling it with UV0. */
+    geo = test_alloc(sizeof(*geo));
+    block = (sizeBuf_t){ .data = data, .cursize = (uint32_t)(channel2 - data) };
+    ReadGeoset(&block, geo);
+    T_EQ(geo->num_texcoordChannels, -1);
+    MDLX_ReleaseModelGeoset(geo);
+    /* The same shape with a single declared channel follows the ordinary packed-UV path. */
+    uint32_t one = 1; memcpy(uvdecl, &one, sizeof(one));
+    geo = test_alloc(sizeof(*geo)); block.readcount = 0;
+    ReadGeoset(&block, geo);
+    T_EQ(geo->num_texcoordChannels, 1); T_FEQ(geo->texcoord[0].x, 0.1f, 0.001f);
+    model = (mdxModel_t){ .geosets = geo };
+    MDX_BuildBuffers(&model);
+    T_EQ(ARRAY_COUNT(geo->vaos), 1); T_EQ(model.buffers[BZ_MDX_UV_BUFFER], 0);
+    MDLX_Release(&model);
+}
 
 TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     uint8_t blob[1024] = { 0 };
@@ -1989,6 +2046,44 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #undef _W3M_ClearMap
 #undef _W3M_RegisterMap
 void _W3M_RegisterMap(char const *map) { (void)map; }
+
+/* NightElfX04 (55,42) has a mid-ramp corner, but its neighbouring LHBA mesh extends west, not east. */
+TEST(renderer_terrain, nightelfx04_uncovered_ramp_corner_keeps_ground_and_splats) {
+    war3mapVertex_t verts[16] = {0};
+    war3map_t map = { .width = 4, .height = 4, .vertices = verts };
+    texture_t tex = { .width = 256, .height = 256 };
+    static const uint16_t heights[] = { 8377,8439,8428,8391, 8479,8559,8568,8527,
+                                       8582,8723,8653,8605, 8683,8719,8670,8598 };
+    static const uint8_t levels[] = { 6,7,7,7, 6,7,7,7, 6,7,7,7, 6,6,6,6 };
+    static const uint8_t mids[] = { 0,0,0,0, 0,0,0,0, 1,1,0,0, 0,1,1,1 };
+    FOR_LOOP(i, 16) verts[i] = (war3mapVertex_t){ .accurate_height = heights[i], .level = levels[i],
+                                                .ramp = i >= 8, .cliffVariation = mids[i] };
+    ground_current_vertex = ground_vertex_buffer;
+    R_MakeTile(&map, 1, 1, 0, &tex);
+    T_EQ(ground_current_vertex - ground_vertex_buffer, 6);
+    T_ASSERT(R_TileAcceptsSplat(&map, 1, 1));
+    /* The other reported hole, (60,34), touches a BALH transition extending east into (62,34). */
+    static const uint16_t height2[] = { 8410,8406,8380,8315, 8385,8366,8324,8249,
+                                       8356,8330,8281,8214, 8319,8289,8249,8200 };
+    static const uint8_t level2[] = { 6,6,6,6, 7,7,7,6, 7,7,7,6, 7,7,7,6 };
+    static const uint8_t mid2[] = { 1,1,1,0, 0,0,1,1, 0,0,0,0, 0,0,0,0 };
+    FOR_LOOP(i, 16) verts[i] = (war3mapVertex_t){ .accurate_height = height2[i], .level = level2[i],
+                                                .ramp = i < 8, .cliffVariation = mid2[i] };
+    ground_current_vertex = ground_vertex_buffer;
+    R_MakeTile(&map, 1, 1, 0, &tex);
+    T_EQ(ground_current_vertex - ground_vertex_buffer, 6);
+    T_ASSERT(R_TileAcceptsSplat(&map, 1, 1));
+    /* The actual low cell west of the transition must still belong to its mesh. */
+    FOR_LOOP(i, 16) verts[i] = (war3mapVertex_t){ .accurate_height = 8196, .level = 7 };
+    verts[0+2*4].ramp = verts[1+2*4].ramp = verts[2+2*4].ramp = 1;
+    verts[1+2*4].cliffVariation = 1;
+    verts[2+1*4].level = verts[2+2*4].level = 8;
+    ground_current_vertex = ground_vertex_buffer;
+    R_MakeTile(&map, 0, 1, 0, &tex);
+    T_EQ(ground_current_vertex - ground_vertex_buffer, 0);
+    T_ASSERT(!R_TileAcceptsSplat(&map, 0, 1));
+    ground_current_vertex = NULL;
+}
 
 TEST(renderer_terrain, null_segment_layer_does_not_drop_existing_layers) {
     maplayer_t first = {0};

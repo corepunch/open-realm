@@ -26,10 +26,13 @@ void R_ResetCliffCache(void);
 bool R_W3SpecialCellCovered(war3map_t const *map, uint32_t x, uint32_t y);
 void R_W3LoadSpecialCutouts(handle_t archive, war3map_t const *map);
 void R_W3ClearSpecialCutouts(void);
+void R_W3InvalidateSpecialModels(void);
+struct mdxModel_s const *R_W3SpecialModel(renderEntity_t const *entity, mat4_t const *transform);
 /* Resolve MDX replaceable texture 11 from the local W3E cliff palette. */
 texture_t const *R_W3CliffReplacementAt(float world_x, float world_y);
 void R_FinishCliffs(void);
 vec3_t R_GetVertexPosition(war3map_t const *map, uint32_t x, uint32_t y, bool useLevel);
+vec3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y);
 void R_ResetBlightCache(void);
 void R_LoadBlightTexture(uint8_t tileset);
 texture_t const *R_BlightTexture(void);
@@ -108,18 +111,33 @@ static inline bool R_IsCliffRamp(war3mapVertex_t const *tile) {
 }
 
 /* Ground, splats and cliff joins must agree on the cells owned by transition meshes. */
-static inline bool R_TileHasGround(war3mapVertex_t const *tile) {
+static inline bool R_TileHasGround(war3map_t const *map, int x, int y) {
+    war3mapVertex_t tile[4]; GetTileVertices(x, y, map, tile);
     uint32_t ramps = GetTileRamps(tile), mid = 0;
     FOR_LOOP(i, 4) mid += tile[i].ramp && tile[i].cliffVariation;
-    return !(IsTileCliff(tile) && ramps < 4) && !(ramps == 2 && mid == 1);
+    if (IsTileCliff(tile) && ramps < 4) return false;
+    if (ramps != 2 || mid != 1) return true;
+    /* A mid-ramp corner can touch an unrelated flat cell (NightElfX04). Only omit the low cell
+     * when an adjacent transition actually extends into it; the old corner-only test left holes. */
+    static const int step[][2] = { {-1,0}, {1,0}, {0,-1}, {0,1} };
+    FOR_LOOP(i, 4) {
+        int nx = x + step[i][0], ny = y + step[i][1];
+        if (nx < 0 || ny < 0 || nx + 1 >= map->width || ny + 1 >= map->height) continue;
+        war3mapVertex_t near[4]; GetTileVertices(nx, ny, map, near);
+        if (!IsTileCliff(near) || !R_IsCliffRamp(near)) continue;
+        bool alongx = near[0].ramp == near[1].ramp;
+        int dx = alongx ? (near[3].level + near[1].level < near[2].level + near[0].level ? -1 : 1) : 0;
+        int dy = alongx ? 0 : (near[3].level + near[2].level < near[1].level + near[0].level ? -1 : 1);
+        if (nx + dx == x && ny + dy == y) return false;
+    }
+    return true;
 }
 
 /* Preserve every corner of a cliff/transition footprint, including the low ramp neighbour. */
 static inline bool R_CliffOwnsCorner(war3map_t const *map, int x, int y) {
     for (int cy = MAX(0, y-1); cy <= y && cy + 1 < map->height; cy++)
         for (int cx = MAX(0, x-1); cx <= x && cx + 1 < map->width; cx++) {
-            war3mapVertex_t tile[4]; GetTileVertices(cx, cy, map, tile);
-            if (!R_TileHasGround(tile)) return true;
+            if (!R_TileHasGround(map, cx, cy)) return true;
         }
     return false;
 }

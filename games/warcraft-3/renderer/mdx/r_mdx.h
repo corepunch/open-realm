@@ -53,7 +53,7 @@ enum {
     BZ_MDX_PARTICLE_BOTH
 };
 
-enum { BZ_MDX_VERTEX_BUFFER, BZ_MDX_INDEX_BUFFER, BZ_MDX_BUFFER_COUNT };
+enum { BZ_MDX_VERTEX_BUFFER, BZ_MDX_INDEX_BUFFER, BZ_MDX_UV_BUFFER, BZ_MDX_BUFFER_COUNT };
 
 #define MDLXNODE_Helper 0
 #define MDLXNODE_DontInheritTranslation 1
@@ -407,7 +407,7 @@ typedef struct mdxDetachedRibbon_s {
 typedef struct mdxGeoset_s {
     vec3_t *vertices;
     vec3_t *normals;
-    vec2_t *texcoord;
+    vec2_t *texcoord; /* UVAS channels, each num_texcoord elements; channel zero remains the packed vertex UV. */
     mdxBounds_t *bounds;
     mdxBounds_t default_bounds;
     mdxGeosetAnim_t *geosetAnim;
@@ -434,10 +434,16 @@ typedef struct mdxGeoset_s {
     int num_matrixGroupSizes;
     int num_bounds;
     int num_texcoordChannels;    
-    uint32_t vertexArrayBuffer;
+    ARRAY(uint32_t, vaos); /* One binding per authored UV channel, sharing positions, skinning and indices. */
     uint32_t indexofs; // bytes into the model-owned index buffer; indices remain geoset-local
     struct mdxGeoset_s *next;
 } mdxGeoset_t;
+
+/* coordId=-1 is the untextured/native default; invalid positive channels must not silently use UV0. */
+static inline uint32_t MDX_GeosetArray(mdxGeoset_t const *geo, int coord) {
+    uint32_t index = coord == -1 ? 0 : (uint32_t)coord;
+    return index < ARRAY_COUNT(geo->vaos) ? geo->vaos[index] : 0;
+}
 
 typedef struct mdxSprite_s {
     void const *id, *scope;
@@ -521,6 +527,7 @@ bool MDLX_EventWorldTransform(mdxModel_t const *model, mdxEvent_t const *event,
 mdxModel_t *R_LoadModelMDLX(void *buffer, uint32_t size);
 void MDLX_Release(mdxModel_t *model);
 void MDX_BuildBuffers(mdxModel_t *model);
+void MDX_ReleaseBuffers(mdxModel_t *model);
 void MDX_PackModelGeometry(mdxModel_t *model, vertex_t *vertices, uint16_t *indices);
 void MDLX_Init(void);
 void MDLX_Shutdown(void);
@@ -531,6 +538,7 @@ bool MDLX_ExtractCamera(mdxCameraView_t const *view);
 bool MDLX_SetEntityAnimationFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);
 void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint);
 void MDLX_ReleaseSprites(mdxModel_t *model);
+void MDLX_ReleaseRibbonStates(mdxRibbonInstance_t *state);
 void MDLX_DrawSprite(model_t const *model, cstring_t anim, float x, float y);
 void MDLX_DrawSpriteTinted(model_t const *model, cstring_t anim, float x, float y, color32_t tint);
 

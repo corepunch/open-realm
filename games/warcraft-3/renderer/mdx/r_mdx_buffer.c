@@ -137,7 +137,7 @@ static void mdx_pack_vertices(mdxGeoset_t *geoset, vertex_t *vertices) {
     ri.MemFree(matrixGroups);
 }
 
-/* One model owns two buffers; VAOs retain each geoset's vertex range and local 16-bit index interpretation. */
+/* Primary UVs stay in the shared packed vertex format; secondary channels occupy a compact separate stream. */
 void MDX_PackModelGeometry(mdxModel_t *model, vertex_t *vertices, uint16_t *indices) {
     uint32_t base = 0, elems = 0;
     FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets) {
@@ -158,28 +158,50 @@ void MDX_BuildBuffers(mdxModel_t *model) {
         { attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, offsetof(vertex_t, skin) },
         { attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(vertex_t, boneWeight) },
     };
-    uint32_t verts = 0, elems = 0, base = 0;
+    uint32_t verts = 0, elems = 0, base = 0, uvcount = 0, uvbase = 0;
     FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets) {
         verts += geo->num_vertices;
         elems += geo->num_triangles;
+        uvcount += MAX(0, geo->num_texcoordChannels - 1) * geo->num_vertices;
     }
     if (!model->geosets) return;
     vertex_t *vertices = ri.MemAlloc(verts * sizeof(*vertices));
     uint16_t *indices = ri.MemAlloc(elems * sizeof(*indices));
     MDX_PackModelGeometry(model, vertices, indices);
-    R_Call(glGenBuffers, BZ_MDX_BUFFER_COUNT, model->buffers);
+    R_Call(glGenBuffers, uvcount ? BZ_MDX_BUFFER_COUNT : BZ_MDX_UV_BUFFER, model->buffers);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->buffers[BZ_MDX_VERTEX_BUFFER]);
     R_Call(glBufferData, GL_ARRAY_BUFFER, verts * sizeof(*vertices), vertices, GL_STATIC_DRAW);
+    if (uvcount) {
+        vec2_t *uvs = ri.MemAlloc(uvcount * sizeof(*uvs));
+        FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets) {
+            uint32_t count = MAX(0, geo->num_texcoordChannels - 1) * geo->num_vertices;
+            if (count) memcpy(uvs + uvbase, geo->texcoord + geo->num_texcoord, count * sizeof(*uvs));
+            uvbase += count;
+        }
+        R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->buffers[BZ_MDX_UV_BUFFER]);
+        R_Call(glBufferData, GL_ARRAY_BUFFER, uvcount * sizeof(*uvs), uvs, GL_STATIC_DRAW);
+        ri.MemFree(uvs);
+    }
+    uvbase = 0;
     base = 0;
     FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets) {
-        R_Call(glGenVertexArrays, 1, &geo->vertexArrayBuffer);
-        R_Call(glBindVertexArray, geo->vertexArrayBuffer);
-        R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, model->buffers[BZ_MDX_INDEX_BUFFER]);
-        FOR_LOOP(i, sizeof(attrs) / sizeof(*attrs)) {
-            R_Call(glEnableVertexAttribArray, attrs[i].attr);
-            R_Call(glVertexAttribPointer, attrs[i].attr, attrs[i].size, attrs[i].type, attrs[i].norm,
-                sizeof(vertex_t), (void *)(base * sizeof(vertex_t) + attrs[i].ofs));
+        ARRAY_COUNT(geo->vaos) = MAX(1, geo->num_texcoordChannels);
+        geo->vaos = ri.MemAlloc(ARRAY_COUNT(geo->vaos) * sizeof(*geo->vaos));
+        R_Call(glGenVertexArrays, ARRAY_COUNT(geo->vaos), geo->vaos);
+        FOR_LOOP(channel, ARRAY_COUNT(geo->vaos)) {
+            R_Call(glBindVertexArray, geo->vaos[channel]);
+            R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, model->buffers[BZ_MDX_INDEX_BUFFER]);
+            R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->buffers[BZ_MDX_VERTEX_BUFFER]);
+            FOR_LOOP(i, sizeof(attrs) / sizeof(*attrs)) {
+                R_Call(glEnableVertexAttribArray, attrs[i].attr);
+                R_Call(glVertexAttribPointer, attrs[i].attr, attrs[i].size, attrs[i].type, attrs[i].norm, sizeof(vertex_t), (void *)(base * sizeof(vertex_t) + attrs[i].ofs));
+            }
+            if (channel) {
+                R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->buffers[BZ_MDX_UV_BUFFER]);
+                R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(vec2_t), (void *)((uintptr_t)(uvbase + (channel - 1) * geo->num_vertices) * sizeof(vec2_t)));
+            }
         }
+        uvbase += MAX(0, geo->num_texcoordChannels - 1) * geo->num_vertices;
         base += geo->num_vertices;
     }
     /* Upload once after binding a VAO: core GL owns the element-buffer binding in the VAO. */

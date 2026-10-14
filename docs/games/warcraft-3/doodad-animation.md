@@ -81,10 +81,15 @@ asset; check mounted archives before treating that as a rendering defect.
 
 For special terrain doodads, the renderer separately resolves `pathTex` from
 `Doodads.slk` and map-local `war3map.w3d` edits to find the footprint that
-suppresses generated cliff faces. A custom ID may inherit through another
+suppresses generated cliff faces across the full footprint and fits each model vertex to W3E height.
+See [special terrain geometry](terrain-tiles-and-water.md#special-terrain-doodad-geometry-630).
+A custom ID may inherit through another
 map-local custom ID before reaching a stock doodad row. The renderer follows
 that parent chain and bounds traversal by the number of map-local rows, so
 cyclic object data fails lookup instead of hanging map registration.
+Cave materials may select separate cliff and overlay UV channels. See
+[cave material UV channels](terrain-tiles-and-water.md#cave-material-uv-channels-630)
+for the `UVAS`/`UVBS` contract and regression coverage.
 The renderer's bounded reader uses the same simple W3D modification layout as
 the game parser: field ID, type, value, trailing object ID. The local OrcX01
 version-1 data puts `PathTextures\4x4SimpleSolid.tga` immediately after `dptx`
