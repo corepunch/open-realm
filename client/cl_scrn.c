@@ -1059,7 +1059,9 @@ void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen) {
                 model ? "loaded" : "missing", anim,
                 screen->x, screen->y, screen->w, screen->h, -1);
     }
-    re.DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = screen->x, .y = screen->y, .id = frame, .scope = layout_current_window ? layout_current : (void *)(uintptr_t)(layout_current_layer + 1)));
+    re.DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = screen->x, .y = screen->y,
+        .blended_geosets_right_to_left = (frame->flagsvalue & UIFLAG_SPRITE_RTL_BLEND) != 0,
+        .id = frame, .scope = layout_current_window ? layout_current : (void *)(uintptr_t)(layout_current_layer + 1)));
 }
 
 /* Resolve the generic transient command-button alert tint from an absolute client/server clock deadline. */
@@ -1553,14 +1555,14 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && (f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
     }
-    /* An authored caption can sit above late-painted sprite artwork. Rank is
-     * generic UI data, not a game or window identifier. Descending rank makes
-     * rightmost overlapping captions draw first; ties keep frame order. */
-    for (int rank = 31; rank >= 0; --rank) {
+    /* Paint captions after the sprite, rightmost first. The rank belongs to
+     * high flag bits, never frame.stat (which changes the label's text). */
+    for (int rank = 3; rank >= 0; --rank) {
         FOR_LOOP(i, SCR_NumFrames()) {
             uiFrame_t const *f = SCR_Frame(i);
             if (f && f->flags.type == FT_TEXT && (f->flagsvalue & UIFLAG_TEXT_OVERLAY) &&
-                (int)f->stat == rank) SCR_LayoutDrawFrame(f);
+                (int)((f->flagsvalue & UIFLAG_TEXT_RANK_MASK) >> UIFLAG_TEXT_RANK_SHIFT) == rank)
+                SCR_LayoutDrawFrame(f);
         }
     }
 }

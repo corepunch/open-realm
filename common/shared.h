@@ -264,6 +264,7 @@ enum {
     FLAG(RDF_USE_ENTITY_CAMERA, 5),
     FLAG(RDF_ISOLATED_PARTICLES, 6),
     FLAG(RDF_UI_SPRITE, 7), /* screen-space UI model: events keyed by instance_id, sounds non-positional */
+    FLAG(RDF_UI_SPRITE_RTL_BLEND, 8), /* opt-in: render same-priority blended UI geosets right to left */
 };
 
 #define MAX_COMMANDS 12
@@ -1053,7 +1054,12 @@ typedef enum {
 #define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
 #define UIFLAG_EXTEND_WIDESCREEN_X (1 << 13) // flag bit; client expands this frame horizontally across the full UI canvas
 #define UIFLAG_SPRITE_OVERLAY (1 << 16) // flag bit; draws an authored sprite after the containing layout artwork
-#define UIFLAG_TEXT_OVERLAY (1 << 21) // FT_TEXT: late caption pass, descending authored paint rank in frame.stat
+#define UIFLAG_TEXT_OVERLAY (1u << 21) // FT_TEXT: late caption pass after overlay sprites
+/* Only FT_TEXT with UIFLAG_TEXT_OVERLAY interprets these bits as paint rank.
+ * Do not use frame.stat: it binds live player stats and replaces authored text. */
+#define UIFLAG_TEXT_RANK_SHIFT 22
+#define UIFLAG_TEXT_RANK_MASK (3u << UIFLAG_TEXT_RANK_SHIFT)
+#define UIFLAG_SPRITE_RTL_BLEND (1u << 24) // FT_SPRITE: sort same-priority blended geosets from right to left
 #define UIFLAG_TEXTURE_OVERLAY (1 << 19) // flag bit; draws a texture after the containing layout artwork
 #define UIFLAG_MINIMAP_PREVIEW (1 << 15) // flag bit; frame text names a static map preview; excludes fog, camera and input
 #define UIFLAG_ALERT_RED_PULSE (1 << 14) // flag bit; command-button art pulses red until frame.value absolute milliseconds; used for transient alerts
@@ -1066,7 +1072,8 @@ typedef enum {
     (UIFLAG_RADIAL_SHADE op UIFLAG_SIZE_TO_CONTENT op UIFLAG_ALTERNATE_ACTIVE op \
      UIFLAG_SPRITE_STAT_SEQUENCE op UIFLAG_EXTEND_WIDESCREEN_X op UIFLAG_ALERT_RED_PULSE op \
      UIFLAG_MINIMAP_PREVIEW op UIFLAG_SPRITE_OVERLAY op UIFLAG_ABILITY_ENGAGED op \
-     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFLAG_TEXT_OVERLAY op UIFRAME_DISABLED)
+     UIFLAG_ORDER_QUEUEABLE op UIFLAG_TEXTURE_OVERLAY op UIFLAG_TEXT_OVERLAY op \
+     UIFLAG_TEXT_RANK_MASK op UIFLAG_SPRITE_RTL_BLEND op UIFRAME_DISABLED)
 _Static_assert(UIFLAG_SHARED_BITS(+) == UIFLAG_SHARED_BITS(|), "UIFLAG_* bits overlap");
 _Static_assert((UIFLAG_SHARED_BITS(|) & ((1 << 9) - 1)) == 0, "UIFLAG_* bits collide with FDF state bits 0..8");
 

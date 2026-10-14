@@ -147,12 +147,15 @@ void UI_LoadHudScoreScreen(void) {
     UI_SetHidden(score->ScoreScreenMainPanel, false);
     ScoreScreenUseSprite(score->ScoreScreenBackground);
     ScoreScreenUseSprite(score->ScoreScreenPageTab);
-    /* The authored tab MDX is one composite sprite. Paint it after content,
-     * then paint the tab captions after that sprite (right to left). */
-    score->ScoreScreenPageTab->ui_flags |= UIFLAG_SPRITE_OVERLAY;
+    /* ScoreScreen-Tabs is one MDX. Only its equal-priority translucent
+     * geosets are drawn right-to-left; regular sprites retain retail material
+     * precedence. Draw the model late, then its captions in the same direction.
+     * The flags carry draw ranks without modifying text/stat bindings. */
+    score->ScoreScreenPageTab->ui_flags |= UIFLAG_SPRITE_OVERLAY | UIFLAG_SPRITE_RTL_BLEND;
     FOR_LOOP(i, WC3_SCORE_TABS) {
-        score->ScoreScreenTabText[i]->ui_flags |= UIFLAG_TEXT_OVERLAY;
-        score->ScoreScreenTabText[i]->Stat = i;
+        frameDef_t *caption = score->ScoreScreenTabText[i];
+        caption->ui_flags = (caption->ui_flags & ~UIFLAG_TEXT_RANK_MASK) |
+            UIFLAG_TEXT_OVERLAY | (i << UIFLAG_TEXT_RANK_SHIFT);
     }
     score->ScoreScreenTabTextSelected->ui_flags |= UIFLAG_TEXT_OVERLAY;
     ScoreScreenUseSprite(score->ScoreScreenRaceArt);
@@ -283,7 +286,8 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab,
         "SCORESCREEN_TAB0", "SCORESCREEN_TAB1", "SCORESCREEN_TAB2", "SCORESCREEN_TAB3"
     })[tab]);
     UI_SetText(selected, "%s", label);
-    selected->Stat = tab; /* late-text paint rank; matches active tab */
+    selected->ui_flags = (selected->ui_flags & ~UIFLAG_TEXT_RANK_MASK) |
+        UIFLAG_TEXT_OVERLAY | (tab << UIFLAG_TEXT_RANK_SHIFT);
     memset(&selected->Points, 0, sizeof(selected->Points));
     selected->AnyPointsSet = true;
     UI_SetPoint(selected, FRAMEPOINT_TOP, score->ScoreScreenBackground,

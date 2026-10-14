@@ -423,3 +423,23 @@ with authored `stat` ranks 3 to 0 (Resources, Heroes, Units, Overview), so capti
 remain on top of the model. This changes caption order, **not** the internal
 mesh/material order of the stock composite MDX. Verify parchment overlap
 visually against retail before treating that part as fixed.
+
+### Score tab caption and composite-geoset correction (14 October 2026)
+
+A screenshot after the previous presentation patch showed `0` instead of the
+Units/Heroes/Resources labels: the old late-caption code assigned 1/2/3 to the
+`Stat` binding, which the generic client resolves as player-stat text. The
+caption paint rank is now transported in distinct high bits of `ui_flags`,
+leaving `Stat` and the actual localized text untouched. The existing hero
+portrait/level side-by-side layout stays unchanged.
+
+The four parchment tabs live inside one authored `ScoreScreen-Tabs` MDX, not
+four separate UI sprites. Merely moving that composite later cannot reorder
+its internal geometry. The tab sprite now opts into **right-to-left ordering
+of equal-material-priority blended geosets**; stock material priority remains
+authoritative, and all other MDX sprites keep the default order. Captions paint
+after that sprite in Resources/ Heroes/ Units/ Overview order. This assumes the
+retail model separates the overlapping tab art into geosets. Without the
+original model's geoset inventory in this workspace, the geometry improvement
+is provisional and must be confirmed in a 4:3 screenshot. Do not globally
+reverse MDX blend ordering to address this game-specific layout.

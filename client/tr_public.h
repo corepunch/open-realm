@@ -258,6 +258,7 @@ typedef struct {
     texture_t const *skin; /* Optional model replacement texture. */
     uint32_t skin_slot;
     uint32_t start_time; /* Animation epoch; zero keeps the shared scene clock. */
+    bool blended_geosets_right_to_left; /* opt-in translucent UI model paint order */
     void const *id, *scope; /* Stable UI owner and layout identities; separate instances sharing one model. */
 } drawSprite_t;
 
