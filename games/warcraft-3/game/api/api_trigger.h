@@ -322,7 +322,7 @@ uint32_t TriggerRegisterPlayerEvent(jass_t *j) {
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, *whichPlayerEvent, evt->subject, "player");
     if (*whichPlayerEvent == EVENT_PLAYER_VICTORY || *whichPlayerEvent == EVENT_PLAYER_DEFEAT) {
-        G_GameResultDebug("register player event type=%s player=%u trigger=%p subject_ent=%ld",
+        WC3_SCORE_LOG("register player event type=%s player=%u trigger=%p subject_ent=%ld",
             *whichPlayerEvent == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
             whichPlayer ? (unsigned)PLAYER_NUM(whichPlayer) : 0u,
             (void *)whichTrigger, evt->subject ? (long)evt->subject->s.number : -1L);

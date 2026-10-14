@@ -2092,7 +2092,7 @@ CLIENTCOMMAND(Log) {
 
 CLIENTCOMMAND(HideGameResult) {
     uint32_t result = clent && clent->client ? clent->client->ps.stats[PLAYERSTATE_GAME_RESULT] : 3;
-    G_GameResultDebug("command hidegameresult ent=%u result=%u",
+    WC3_SCORE_LOG("command hidegameresult ent=%u result=%u",
         clent ? (unsigned)clent->s.number : 0u, (unsigned)result);
     UI_HideGameResult(clent);
     if (result == 0 && G_IsSinglePlayer() && level.vm) {
@@ -2102,14 +2102,14 @@ CLIENTCOMMAND(HideGameResult) {
          * has the single-player simulation paused.  Running this as a queued
          * coroutine would strand it behind that pause, so execute the Blizzard.j
          * continuation synchronously from the button command. */
-        G_GameResultDebug("command hidegameresult calling CustomVictoryOkBJ synchronously");
+        WC3_SCORE_LOG("command hidegameresult calling CustomVictoryOkBJ synchronously");
         jass_callbyname(level.vm, "CustomVictoryOkBJ", false);
     }
 }
 
 CLIENTCOMMAND(GameResultRestart) {
     (void)clent; (void)argc; (void)argv;
-    G_GameResultDebug("command gameresult_restart");
+    WC3_SCORE_LOG("command gameresult_restart");
     G_RequestRestartGame(true);
 }
 
@@ -2138,7 +2138,7 @@ CLIENTCOMMAND(GameResultReduceDifficulty) {
 
 CLIENTCOMMAND(GameResultLoad) {
     (void)clent; (void)argc; (void)argv;
-    G_GameResultDebug("command gameresult_load");
+    WC3_SCORE_LOG("command gameresult_load");
     G_RequestLoadGameMenu();
 }
 
@@ -2186,7 +2186,7 @@ CLIENTCOMMAND(ScoreScreenScroll) {
 
 CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
-    G_GameResultDebug("command gameresult_quit single_player=%u", (unsigned)G_IsSinglePlayer());
+    WC3_SCORE_LOG("command gameresult_quit single_player=%u", (unsigned)G_IsSinglePlayer());
     if (G_IsSinglePlayer()) level.setup.difficulty = level.setup.default_difficulty;
     G_RequestEndGame(true);
 }

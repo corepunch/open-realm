@@ -19,6 +19,14 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
+/* Investigative score/result traces only. Arguments are not evaluated unless
+ * WC3_DEBUG_SCORE=1 enables this instrumentation for the game module. */
+#ifdef WC3_DEBUG_SCORE
+#define WC3_SCORE_LOG(...) G_GameResultDebug(__VA_ARGS__)
+#else
+#define WC3_SCORE_LOG(...) ((void)0)
+#endif
+
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
 #define SEL_SCALE 72

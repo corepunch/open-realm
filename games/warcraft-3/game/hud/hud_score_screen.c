@@ -224,7 +224,7 @@ static void ScoreScreenSetPage(gameClient_t *viewer, uint32_t tab,
         cstring_t art = ScoreScreenRaceArt(viewer);
         uint32_t model = UI_LoadModel(art, false);
         score->ScoreScreenRaceArt->Portrait.model = model;
-        G_GameResultDebug("score art select player=%u race=%u expansion=%u path=%s model_index=%u frame=%p size=(%.4f,%.4f)",
+        WC3_SCORE_LOG("score art select player=%u race=%u expansion=%u path=%s model_index=%u frame=%p size=(%.4f,%.4f)",
             viewer ? (unsigned)viewer->ps.number : UINT32_MAX,
             viewer ? (unsigned)viewer->ps.race : 0,
             (unsigned)(atoi(gi.CvarString("fs_expansion", "0")) != 0),
@@ -320,7 +320,7 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
         static cstring_t const pages[] = { "overview", "units", "heroes", "resources" };
         FOR_LOOP(i, snapshot->count) {
             wc3ScorePlayerSnapshot_t const *player = &snapshot->players[i];
-            G_GameResultDebug("score values page=%s tab=%u snapshot_row=%u display_row=%u player=%u name=\"%s\" team=%u race=%u",
+            WC3_SCORE_LOG("score values page=%s tab=%u snapshot_row=%u display_row=%u player=%u name=\"%s\" team=%u race=%u",
                 pages[tab], (unsigned)tab, (unsigned)i,
                 (unsigned)(start + i), (unsigned)player->number, player->name,
                 (unsigned)player->team, (unsigned)player->race);
@@ -328,11 +328,11 @@ bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
                 int32_t value = 0;
                 bool percent = false;
                 bool const known = WC3_ScoreCellValue(player, tab, c, &value, &percent);
-                G_GameResultDebug("score cell page=%s player=%u col=%u available=%u value=%s%d",
+                WC3_SCORE_LOG("score cell page=%s player=%u col=%u available=%u value=%s%d",
                     pages[tab], (unsigned)player->number, (unsigned)c,
                     (unsigned)known, percent ? "%" : "", known ? value : 0);
             }
-            G_GameResultDebug("score raw player=%u trained=%d killed=%d built=%d razed=%d tech_pct=%d heroes_killed=%d items=%d mercs=%d gold_mined=%d lumber=%d gold_upkeep_lost=%d",
+            WC3_SCORE_LOG("score raw player=%u trained=%d killed=%d built=%d razed=%d tech_pct=%d heroes_killed=%d items=%d mercs=%d gold_mined=%d lumber=%d gold_upkeep_lost=%d",
                 (unsigned)player->number,
                 player->values[WC3_PLAYER_SCORE_UNITS_TRAINED],
                 player->values[WC3_PLAYER_SCORE_UNITS_KILLED],

@@ -92,6 +92,22 @@ TEST(wc3_score, guessed_aggregates_are_bounded_and_repeatable) {
     T_EQ(value, 290); /* Counter saturation is independent of weighted totals. */
 }
 
+static unsigned score_debug_log_argument_evaluations;
+
+static unsigned score_debug_log_test_argument(void) {
+    return ++score_debug_log_argument_evaluations;
+}
+
+TEST(wc3_score, disabled_score_log_skips_argument_evaluation) {
+    score_debug_log_argument_evaluations = 0;
+    WC3_SCORE_LOG("test argument evaluation=%u", score_debug_log_test_argument());
+#ifdef WC3_DEBUG_SCORE
+    T_EQ(score_debug_log_argument_evaluations, 1);
+#else
+    T_EQ(score_debug_log_argument_evaluations, 0);
+#endif
+}
+
 static cstring_t score_debug_test_cvar_enabled(cstring_t name, cstring_t fallback) {
     (void)fallback;
     return strcmp(name, "wc3_game_result_debug") == 0 ? "1" : "0";

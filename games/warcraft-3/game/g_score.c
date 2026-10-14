@@ -33,7 +33,7 @@ void G_PlayerScoreObserveFood(gameClient_t *client) {
     client->score.values[WC3_PLAYER_SCORE_FOOD_MAXPROD] =
         MAX(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXPROD], produced);
     if (used > client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED])
-        G_GameResultDebug("score food new peak player=%u old=%u new=%u cap=%u",
+        WC3_SCORE_LOG("score food new peak player=%u old=%u new=%u cap=%u",
             client->ps.number, client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], used, produced);
     client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] =
         MAX(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], used);
@@ -57,14 +57,14 @@ void G_PlayerScoreSetGameplayFoodBaseline(void) {
             live_food += food;
             live_cost += (uint32_t)MAX(ent->data.UnitBalance->goldCost, 0) +
                          (uint32_t)MAX(ent->data.UnitBalance->lumberCost, 0);
-            G_GameResultDebug("score baseline survivor player=%u rawcode=%08x entity=%u food=%u cost=%u",
+            WC3_SCORE_LOG("score baseline survivor player=%u rawcode=%08x entity=%u food=%u cost=%u",
                 i, ent->class_id, ent->s.number, food,
                 (uint32_t)MAX(ent->data.UnitBalance->goldCost, 0) +
                 (uint32_t)MAX(ent->data.UnitBalance->lumberCost, 0));
         }
         uint32_t previous_peak = client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED];
         uint32_t used = client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
-        G_GameResultDebug("score food gameplay baseline player=%u previous_peak=%u current_food=%u surviving_food=%u surviving_units=%u surviving_cost=%llu produced_value=%u",
+        WC3_SCORE_LOG("score food gameplay baseline player=%u previous_peak=%u current_food=%u surviving_food=%u surviving_units=%u surviving_cost=%llu produced_value=%u",
             i, previous_peak, used, live_food, survivors,
             (unsigned long long)live_cost, client->score.unit_value_produced);
     }
@@ -102,7 +102,7 @@ void G_PlayerScoreTraceLifecycle(edict_t const *unit, cstring_t event) {
     client = G_ScoreClient(unit->s.player);
     gold = (uint32_t)MAX(0, unit->data.UnitBalance->goldCost);
     lumber = (uint32_t)MAX(0, unit->data.UnitBalance->lumberCost);
-    G_GameResultDebug("score lifecycle event=%s frame=%u time=%u owner=%u rawcode=%08x entity=%u "
+    WC3_SCORE_LOG("score lifecycle event=%s frame=%u time=%u owner=%u rawcode=%08x entity=%u "
         "gold=%u lumber=%u cost=%u authored_food=%d tracked_food=%d player_food=%u "
         "peak_food=%u produced=%u produced_value=%u hero=%u structure=%u training=%u dead=%u hidden=%u deferred=%u",
         event ? event : "unknown", (unsigned)level.framenum, (unsigned)level.time,
@@ -132,16 +132,16 @@ void G_PlayerScoreUnitTrained(edict_t *unit) {
     G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_UNITS_TRAINED, 1);
     if (client) G_ScoreAddValue(&client->score.unit_value_produced, G_ScoreUnitValue(unit));
     G_PlayerScoreTraceLifecycle(unit, "score_unit_credited");
-    G_GameResultDebug("score unit created owner=%u rawcode=%08x hero=%u cost=%u food=%d produced=%u value=%u",
+    WC3_SCORE_LOG("score unit created owner=%u rawcode=%08x hero=%u cost=%u food=%d produced=%u value=%u",
         unit->s.player, unit->class_id, (unsigned)G_UnitIsHero(unit), G_ScoreUnitValue(unit),
         unit->data.UnitBalance ? unit->data.UnitBalance->foodUsed : 0,
         client ? client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] : 0,
         client ? client->score.unit_value_produced : 0);
-    if (G_UnitIsHero(unit)) G_GameResultDebug("score hero lifecycle event=create owner=%u rawcode=%08x entity=%u",
+    if (G_UnitIsHero(unit)) WC3_SCORE_LOG("score hero lifecycle event=create owner=%u rawcode=%08x entity=%u",
         unit->s.player, unit->class_id, unit->s.number);
     if (G_UnitIsHero(unit) && client && client->score.heroes_used < INT32_MAX) {
         client->score.heroes_used++;
-        G_GameResultDebug("score hero seen owner=%u rawcode=%08x entity=%u heroes_used=%u xp=%u level=%u",
+        WC3_SCORE_LOG("score hero seen owner=%u rawcode=%08x entity=%u heroes_used=%u xp=%u level=%u",
             unit->s.player, unit->class_id, unit->s.number, client->score.heroes_used,
             unit->hero.xp, unit->hero.level);
     }
@@ -152,7 +152,7 @@ void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount) {
     if (!hero || !amount || !G_UnitIsHero(hero)) return;
     client = G_ScoreClient(hero->s.player);
     if (!client) return;
-    G_GameResultDebug("score hero xp owner=%u rawcode=%08x entity=%u credited=%u before=%u level=%u",
+    WC3_SCORE_LOG("score hero xp owner=%u rawcode=%08x entity=%u credited=%u before=%u level=%u",
         hero->s.player, hero->class_id, hero->s.number, amount,
         client->score.experience_gained, hero->hero.level);
     client->score.experience_gained = (uint32_t)MIN(
@@ -205,7 +205,7 @@ void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker) {
     gameClient_t *client;
 
     if (!victim) return;
-    G_GameResultDebug("score death attribution entity=%u rawcode=%08x victim_owner=%u attacker_entity=%u attacker_owner=%u cost=%u eligible=%u",
+    WC3_SCORE_LOG("score death attribution entity=%u rawcode=%08x victim_owner=%u attacker_entity=%u attacker_owner=%u cost=%u eligible=%u",
         victim->s.number, victim->class_id, victim->s.player,
         attacker ? attacker->s.number : 0, attacker ? attacker->s.player : MAX_PLAYERS,
         G_ScoreUnitValue(victim),
@@ -223,7 +223,7 @@ void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker) {
         G_PlayerScoreAdd(client, WC3_PLAYER_SCORE_UNITS_KILLED, 1);
         G_ScoreAddValue(&client->score.unit_value_killed, G_ScoreUnitValue(victim));
     }
-    G_GameResultDebug("score death credit attacker_owner=%u victim_entity=%u hero=%u structure=%u units_killed=%u heroes_killed=%u buildings_razed=%u killed_value=%u razed_value=%u",
+    WC3_SCORE_LOG("score death credit attacker_owner=%u victim_entity=%u hero=%u structure=%u units_killed=%u heroes_killed=%u buildings_razed=%u killed_value=%u razed_value=%u",
         attacker->s.player, victim->s.number, (unsigned)G_UnitIsHero(victim),
         (unsigned)G_UnitIsStructure(victim),
         client->score.values[WC3_PLAYER_SCORE_UNITS_KILLED],
@@ -280,10 +280,13 @@ static int32_t G_ScoreClamp(uint64_t value) {
  * race-specific upgrade set (including untouched upgrades in the denominator).
  * JASS technology availability restrictions never count as research. */
 static int32_t G_ScoreGuessTechPercent(gameClient_t const *client) {
+#ifdef WC3_DEBUG_SCORE
     uint32_t observed = 0, researched = 0;
+#endif
     uint32_t eligible_rows = 0, eligible_levels = 0, achieved_levels = 0;
     unitRace_t const race = (unitRace_t)client->ps.race;
 
+#ifdef WC3_DEBUG_SCORE
     /* Keep the old observed-entry diagnostic for comparison with earlier runs. */
     FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
         playerTechState_t const *tech = &client->tech[i];
@@ -291,6 +294,7 @@ static int32_t G_ScoreGuessTechPercent(gameClient_t const *client) {
         observed++;
         if (tech->researched > 0) researched++;
     }
+#endif
 
     FOR_LOOP(i, g_UpgradeDataCount) {
         UpgradeData_t const *upgrade = &g_UpgradeData[i];
@@ -308,14 +312,18 @@ static int32_t G_ScoreGuessTechPercent(gameClient_t const *client) {
         eligible_rows++;
         eligible_levels += (uint32_t)upgrade->maxLevel;
         achieved_levels += achieved;
-        G_GameResultDebug("score tech eligible player=%u id=%08x race=%s researched=%u authored_max=%d",
+#ifdef WC3_DEBUG_SCORE
+        WC3_SCORE_LOG("score tech eligible player=%u id=%08x race=%s researched=%u authored_max=%d",
             client->ps.number, upgrade->id, upgrade->race, achieved, upgrade->maxLevel);
+#endif
     }
-    G_GameResultDebug("score tech player=%u race=%u observed=%u researched=%u previous_pct=%u eligible_rows=%u achieved_levels=%u authored_levels=%u race_pct=%u",
+#ifdef WC3_DEBUG_SCORE
+    WC3_SCORE_LOG("score tech player=%u race=%u observed=%u researched=%u previous_pct=%u eligible_rows=%u achieved_levels=%u authored_levels=%u race_pct=%u",
         client->ps.number, (unsigned)race, observed, researched,
         observed ? (unsigned)((100ull * researched) / observed) : 0,
         eligible_rows, achieved_levels, eligible_levels,
         eligible_levels ? (unsigned)((100ull * achieved_levels) / eligible_levels) : 0);
+#endif
     return eligible_levels ? (int32_t)((100ull * achieved_levels) / eligible_levels) : 0;
 }
 

@@ -105,7 +105,7 @@ void UI_LoadHudGameResult(void) {
         GameResultPrepareWindow();
         GameResultCreateReduceButton();
     }
-    G_GameResultDebug("hud load global_strings=%u dialog_loaded=%u root=%p text=%p continue=%p restart=%p quit=%p",
+    WC3_SCORE_LOG("hud load global_strings=%u dialog_loaded=%u root=%p text=%p continue=%p restart=%p quit=%p",
         (unsigned)global_strings, (unsigned)dialog_loaded,
         (void *)hud.result.GameResultDialog, (void *)hud.result.GameResultText,
         (void *)hud.result.GameResultContinueButton, (void *)hud.result.GameResultRestartButton,
@@ -122,11 +122,11 @@ static cstring_t GameResultString(cstring_t key, cstring_t fallback) {
 void UI_ShowGameResult(edict_t *ent, uint32_t result) {
     bool victory, single_player, can_reduce;
 
-    G_GameResultDebug("hud show enter ent=%p number=%ld client=%p result=%u",
+    WC3_SCORE_LOG("hud show enter ent=%p number=%ld client=%p result=%u",
         (void *)ent, ent ? (long)ent->s.number : -1L,
         ent ? (void *)ent->client : NULL, (unsigned)result);
     if (!ent || !ent->client || result > 1) {
-        G_GameResultDebug("hud show abort reason=invalid_args");
+        WC3_SCORE_LOG("hud show abort reason=invalid_args");
         return;
     }
     victory = result == 0;
@@ -135,7 +135,7 @@ void UI_ShowGameResult(edict_t *ent, uint32_t result) {
         (level.setup.difficulty == 1 || level.setup.difficulty == 2);
 
     if (!hud.result.GameResultDialog) {
-        G_GameResultDebug("hud show abort reason=missing_GameResultDialog_FDF");
+        WC3_SCORE_LOG("hud show abort reason=missing_GameResultDialog_FDF");
         return;
     }
 
@@ -181,7 +181,7 @@ void UI_ShowGameResult(edict_t *ent, uint32_t result) {
         GameResultPositionDefeatButtons(can_reduce);
     }
 
-    G_GameResultDebug("hud show write window=%08x ent=%u connected=%u victory=%u single_player=%u uiflags=0x%08x",
+    WC3_SCORE_LOG("hud show write window=%08x ent=%u connected=%u victory=%u single_player=%u uiflags=0x%08x",
         (unsigned)BZ_WC3_WINDOW_RESULT, (unsigned)ent->s.number,
         (unsigned)ent->client->connected, (unsigned)victory, (unsigned)single_player,
         (unsigned)ent->client->ps.uiflags);
@@ -191,7 +191,7 @@ void UI_ShowGameResult(edict_t *ent, uint32_t result) {
         .class_id = BZ_WC3_WINDOW_RESULT,
         .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE | UI_WINDOW_NO_PAUSE | UI_WINDOW_NO_ESCAPE));
     UI_SetCurrentClient(NULL);
-    G_GameResultDebug("hud show write complete window=%08x ent=%u",
+    WC3_SCORE_LOG("hud show write complete window=%08x ent=%u",
         (unsigned)BZ_WC3_WINDOW_RESULT, (unsigned)ent->s.number);
 }
 
@@ -214,7 +214,7 @@ void UI_FlushPendingGameResults(void) {
             if (G_GameResultDebugEnabled() && i < MAX_PLAYERS &&
                 (!game_result_last_defer_log[i] || now - game_result_last_defer_log[i] >= 1000)) {
                 game_result_last_defer_log[i] = now;
-                G_GameResultDebug("flush defer client_index=%u player=%u pending=%u connected=%u ui=%u events=%u/%u wait_event=%u reason=%s",
+                WC3_SCORE_LOG("flush defer client_index=%u player=%u pending=%u connected=%u ui=%u events=%u/%u wait_event=%u reason=%s",
                     (unsigned)i, (unsigned)client->ps.number,
                     (unsigned)client->jass.pending_game_result,
                     (unsigned)client->connected,
@@ -228,7 +228,7 @@ void UI_FlushPendingGameResults(void) {
         }
 
         if (client->ps.client_ui_state == CLIENT_UI_CINEMATIC && level.script_paused) {
-            G_GameResultDebug("flush cinematic override client_index=%u player=%u reason=script_paused_result_dialog",
+            WC3_SCORE_LOG("flush cinematic override client_index=%u player=%u reason=script_paused_result_dialog",
                 (unsigned)i, (unsigned)client->ps.number);
         }
 
@@ -237,20 +237,20 @@ void UI_FlushPendingGameResults(void) {
         client->jass.pending_game_result_event = 0;
         if (i < MAX_PLAYERS) game_result_last_defer_log[i] = 0;
         ent = G_GetPlayerEntityByNumber(client->ps.number);
-        G_GameResultDebug("flush ready client_index=%u player=%u result=%u ent=%p ent_number=%ld",
+        WC3_SCORE_LOG("flush ready client_index=%u player=%u result=%u ent=%p ent_number=%ld",
             (unsigned)i, (unsigned)client->ps.number, (unsigned)result,
             (void *)ent, ent ? (long)ent->s.number : -1L);
         if (ent) {
             UI_ShowGameResult(ent, result);
         } else {
-            G_GameResultDebug("flush drop player=%u reason=no_player_edict", (unsigned)client->ps.number);
+            WC3_SCORE_LOG("flush drop player=%u reason=no_player_edict", (unsigned)client->ps.number);
         }
     }
 }
 
 void UI_HideGameResult(edict_t *ent) {
     if (!ent) return;
-    G_GameResultDebug("hud hide ent=%u", (unsigned)ent->s.number);
+    WC3_SCORE_LOG("hud hide ent=%u", (unsigned)ent->s.number);
     /* svc_window result buttons close the client-owned window before forwarding
      * their server command.  Retain the legacy layer clear so upgraded clients
      * cannot keep a stale pre-window result layout around. */
