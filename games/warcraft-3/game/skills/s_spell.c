@@ -339,6 +339,15 @@ bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
     return S_UnitTargetInMoveRange(caster,target,range);
 }
 
+static float spell_approach_range(edict_t *caster, uint32_t code, uint32_t level, ability_t const *spell) {
+    abilityCall_t call;
+    if (!spell) return S_SpellRange(code, level);
+    abilityitem_t item = MAKE(abilityitem_t, .code = code, .ability = spell);
+    call = MAKE(abilityCall_t, .item = &item, .spell_approach_range = S_SpellRange(code, level));
+    spell->proc(caster, A_SPELL_APPROACH_RANGE, &call);
+    return MAX(0.0f, call.spell_approach_range);
+}
+
 bool S_SpellIsAliveTarget(edict_t *target) {
     return G_UnitIsWorldActive(target) && (target->svflags & SVF_MONSTER) && !M_IsDead(target);
 }
@@ -1400,17 +1409,19 @@ static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = thinker ? thinker->spell_item : NULL;
-    bool const point_target = spell && (S_SpellTargetType(caster,code) == SPELL_TARGET_POINT ||
-        (S_SpellTargetType(caster,code) == SPELL_TARGET_UNIT_OR_POINT && target == thinker));
+    bool const point_target = spell && target == thinker &&
+        (S_SpellTargetType(caster,code) == SPELL_TARGET_POINT || S_SpellTargetType(caster,code) == SPELL_TARGET_UNIT_OR_POINT);
+    /* Ability-owned entity cursors retain the entity and incarnation while
+     * approaching, rather than freezing a point at the original click. */
+    bool const entity_point_target = spell && target != thinker && S_SpellTargetType(caster,code) == SPELL_TARGET_POINT;
     uint32_t level;
     float range;
     spellTarget_t st;
 
     if (!caster || M_IsDead(caster) || !target || !spell ||
         !spell_item_source_valid(caster, source_item, thinker->spell_item_spawn_time) ||
-        (!point_target && S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT &&
-         S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT_OR_POINT) ||
-        (S_SpellTargetType(caster,code) == SPELL_TARGET_POINT && target != thinker)) {
+        (!point_target && !entity_point_target && S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT &&
+         S_SpellTargetType(caster,code) != SPELL_TARGET_UNIT_OR_POINT)) {
         if (caster && caster->goalentity == thinker) {
             S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
@@ -1433,23 +1444,26 @@ static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
         return;
     }
     level = S_SpellLevel(caster, code);
-    range = S_SpellRange(code, level);
-    if (point_target) {
+    range = spell_approach_range(caster, code, level, spell);
+    if (point_target || entity_point_target) {
         edict_t *clent = G_GetPlayerEntityByNumber(caster->s.player);
         spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
                                               .clent = clent, .caster = caster, .code = code,
-                                              .level = level, .point = &thinker->s.origin2,
+                                              .level = level, .point = &target->s.origin2,
                                               .range = 0.0f);
-        st = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = thinker->s.origin2);
+        /* The ability owns entity eligibility, including destructables which
+         * ordinary unit-target validation intentionally rejects. */
+        st = entity_point_target ? MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target) :
+                                   MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = target->s.origin2);
         if (!spell_validate_point(&val) || !spell_message(caster, A_VALIDATE, &item, &st)) {
-            if (caster->goalentity == thinker) S_SetMoveGoal(caster, &caster->goalentity, NULL);
+            if (caster->goalentity == target) S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
             G_FreeEdict(thinker);
             return;
         }
-        if (!arrived && range > 0.0f && !S_UnitPointInMoveRange(caster, &thinker->s.origin2, range))
+        if (!arrived && range > 0.0f && !S_UnitPointInMoveRange(caster, &target->s.origin2, range))
             return;
-        spell_execute_point_target(clent, caster, code, level, spell, &thinker->s.origin2,
+        spell_execute_point_target(clent, caster, code, level, spell, &target->s.origin2,
                                    source_item, thinker->spell_item_spawn_time, thinker);
         G_FreeEdict(thinker);
         return;
@@ -1546,10 +1560,13 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     /* Replace the old pending cast before installing a new Move order. A unit
      * target pointer alone cannot distinguish two casts aimed at that same unit. */
     spell_cancel_target_approaches(caster, thinker);
-    float range=S_SpellRange(code,S_SpellLevel(caster,code));
-    if(target && S_SpellTargetInRange(caster,target,range))range=FLT_MAX;
+    float range=spell_approach_range(caster,code,S_SpellLevel(caster,code),S_SpellAbilityForCode(code));
+    bool const entity_point=target && S_SpellTargetType(caster,code)==SPELL_TARGET_POINT;
+    if(target && (entity_point ? S_UnitPointInMoveRange(caster,&target->s.origin2,range) :
+                   S_SpellTargetInRange(caster,target,range)))range=FLT_MAX;
     if((point && S_BeginUnitPointTargetApproach(caster,goal,range,thinker,S_SpellTargetApproachComplete)) ||
-       (target && S_BeginUnitTargetApproach(caster,target,range,thinker,S_SpellTargetApproachComplete))) {
+       (target && (entity_point ? S_BeginUnitEntityPointApproach : S_BeginUnitTargetApproach)(
+           caster,target,range,thinker,S_SpellTargetApproachComplete))) {
         thinker->think=NULL;
     } else {
         order_move(caster, goal);
@@ -1575,8 +1592,8 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
-    float range = S_SpellRange(code, level);
     ability_t const *spell = S_SpellAbilityForCode(code);
+    float range = spell_approach_range(caster, code, level, spell);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = clent->client->menu.ability_item;
     uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
@@ -1640,13 +1657,14 @@ static bool spell_tiny_cursor_show(edict_t *clent, edict_t *caster, uint32_t cod
     return true;
 }
 
-/* Called when user clicks a location for a POINT-target spell. */
-static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
+/* Point execution may be reached through an ability-owned entity cursor.
+ * Keep that target for Move and validation until the actual cast. */
+static bool spell_point_or_entity_target_selected(edict_t *clent, vec2_t const *point, edict_t *target) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
-    float range = S_SpellRange(code, level);
     ability_t const *spell = S_SpellAbilityForCode(code);
+    float range = spell_approach_range(caster, code, level, spell);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = clent->client->menu.ability_item;
     uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
@@ -1656,11 +1674,12 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
 
     if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) return false;
     if (!spell_validate_point(&val)) return false;
-    spellTarget_t st = { .type = SPELL_TARGET_POINT, .point = *point };
+    spellTarget_t st = target ? MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target) :
+                                MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
 
     if (range > 0.0f && !S_UnitPointInMoveRange(caster, point, range)) {
-        if (!spell_begin_target_approach(caster, code, NULL, point,
+        if (!spell_begin_target_approach(caster, code, target, target ? NULL : point,
                                          source_item, source_item_spawn_time)) return false;
         spell_order_accepted(caster, spell);
         if (spell_is_tiny_structure(spell)) spell_tiny_cursor_clear(clent);
@@ -1678,12 +1697,42 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     return true;
 }
 
+/* Called when user clicks a location for a POINT-target spell. */
+static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
+    return spell_point_or_entity_target_selected(clent, point, NULL);
+}
+
+static bool spell_ability_entity_target_selected(edict_t *clent, edict_t *target) {
+    if (!clent || !clent->client || !target || !target->inuse || !S_SpellEntityTargetMode(clent)) return false;
+    return spell_point_or_entity_target_selected(clent, &target->s.origin2, target);
+}
+
 /* Entity hits arrive as Select commands from the universal client. While a
  * spell's point cursor is active, treat those hits as point casts at the
  * entity's ground position (retail accepts clicks on pickups for Blink). */
 bool S_SpellPointTargetMode(edict_t *clent) {
-    return clent && clent->client &&
+    return clent && clent->client && !clent->client->menu.on_entity_selected &&
            clent->client->menu.on_location_selected == spell_point_target_selected;
+}
+
+bool S_SpellEntityTargetMode(edict_t *clent) {
+    ability_t const *spell;
+    abilityitem_t item;
+    abilityCall_t call;
+    if (!clent || !clent->client) return false;
+    spell = S_SpellAbilityForCode(S_SpellCurrentCode(clent, 0));
+    if (!spell) return false;
+    item = MAKE(abilityitem_t, .code = S_SpellCurrentCode(clent, 0), .ability = spell);
+    call = MAKE(abilityCall_t, .item = &item);
+    spell->proc(G_GetMainSelectedUnit(clent->client), A_SPELL_TARGET_MODE, &call);
+    return call.spell_entity_target_mode;
+}
+
+bool S_SpellEntityTarget(edict_t *clent, edict_t *target) {
+    return clent && clent->client && target && target->inuse &&
+           (clent->client->menu.on_entity_selected ?
+             clent->client->menu.on_entity_selected(clent, target) :
+             spell_ability_entity_target_selected(clent, target));
 }
 
 static void spell_target_mode_exit(edict_t *clent) {
@@ -1696,7 +1745,8 @@ static void spell_target_mode_exit(edict_t *clent) {
  * which ability owns its cursor presentation. Dispatch cleanup through the
  * active ability while its target callback is still available. */
 void S_AbilityTargetModeExit(edict_t *clent) {
-    if (!S_SpellPointTargetMode(clent)) return;
+    if (!clent || !clent->client ||
+        (!clent->client->menu.on_entity_selected && !clent->client->menu.on_location_selected)) return;
     spell_target_mode_exit(clent);
 }
 
@@ -1734,13 +1784,45 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_NONE };
 
-    if (!caster || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
+    if (!caster || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) {
+        if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=missing_caster_ability_or_polymorph caster=%u level=%u polymorphed=%u\n",
+                    caster ? (unsigned)caster->s.number : 0u,
+                    caster ? G_UnitAbilityLevel(caster, code) : 0u,
+                    caster ? (unsigned)S_UnitPolymorphed(caster) : 0u);
+        return false;
+    }
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    if (!spell || S_SpellTargetType(caster,code) != SPELL_TARGET_NONE || !S_AbilityHasCommand(spell)) return false;
+    if (!spell || S_SpellTargetType(caster,code) != SPELL_TARGET_NONE || !S_AbilityHasCommand(spell)) {
+        if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=ability_shape spell=%p target_type=%u command=%u\n",
+                    (void *)spell, spell ? (unsigned)S_SpellTargetType(caster,code) : 0u,
+                    (unsigned)(spell && S_AbilityHasCommand(spell)));
+        return false;
+    }
     level = S_SpellLevel(caster, code);
-    if (!spell_validate(NULL, caster, code, level, NULL, 0)) return false;
-    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
+    if (!spell_validate(NULL, caster, code, level, NULL, 0)) {
+        if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=spell_validate caster=%u alive=%u stunned=%u silenced=%u cooldown=%u mana_ok=%u mana=%.1f/%.1f cost=%.1f\n",
+                    (unsigned)caster->s.number, (unsigned)S_SpellIsAliveTarget(caster),
+                    (unsigned)caster->stunned, (unsigned)S_UnitIsSilenced(caster),
+                    (unsigned)S_SpellCooldownReady(caster, code),
+                    (unsigned)S_SpellCanPay(caster, code, level), caster->mana.value,
+                    caster->mana.max_value, S_SpellNumber(code, ABILITY_NUMBER_COST, level));
+        return false;
+    }
+    if (!spell_message(caster, A_VALIDATE, &item, &target)) {
+        if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA cast-rejected ability=Arsg reason=ability_validate caster=%u\n",
+                    (unsigned)caster->s.number);
+        return false;
+    }
+
+    if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+        fprintf(stderr, "WC3_MISHA cast-accepted ability=Arsg caster=%u level=%u mana_before=%.1f cost=%.1f cooldown_ready=%u\n",
+                (unsigned)caster->s.number, level, caster->mana.value,
+                S_SpellNumber(code, ABILITY_NUMBER_COST, level), (unsigned)S_SpellCooldownReady(caster, code));
 
     abilityOrderResult_t ordered=spell_start_ordered_cast(caster,code,&target,NULL,0,NULL);
     if(ordered!=ABILITY_ORDER_UNHANDLED)return ordered==ABILITY_ORDER_ACCEPTED;
@@ -2258,11 +2340,18 @@ void spell_cmd(edict_t *clent) {
         }
         UI_AddCancelButton(clent);
         clent->client->menu.ability_code = code;
-        if (!spell_is_tiny_structure(spell)) {
+        abilityCall_t target_mode = MAKE(abilityCall_t, .item = &item);
+        spell->proc(caster, A_SPELL_TARGET_MODE, &target_mode);
+        bool const entity_target = target_mode.spell_entity_target_mode;
+        if (entity_target) {
+            clent->client->menu.on_location_selected = NULL;
+            clent->client->menu.on_entity_selected = spell_ability_entity_target_selected;
+        } else if (!spell_is_tiny_structure(spell)) {
             float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
             S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
         }
-        clent->client->menu.on_location_selected = spell_point_target_selected;
+        if (!entity_target)
+            clent->client->menu.on_location_selected = spell_point_target_selected;
         break;
     }
     case SPELL_TARGET_UNIT_OR_POINT:

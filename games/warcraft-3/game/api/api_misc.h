@@ -959,26 +959,15 @@ uint32_t ReloadGame(jass_t *j) {
 uint32_t DoNotSaveReplay(jass_t *j) { /* TODO: replay recording not yet implemented */ return 0; }
 uint32_t SaveGame(jass_t *j) {
     cstring_t name = jass_checkstring(j, 1);
-    PATHSTR path;
-
-    if (!name || !*name || strchr(name, '/') || strchr(name, '\\') || !gi.SavePath) {
-        fprintf(stderr, "WC3 SaveGame: invalid save name\n");
-        return 0;
-    }
-    gi.SavePath(name, path, sizeof(path));
-    if (!WriteGame(path)) fprintf(stderr, "WC3 SaveGame: could not write %s\n", path);
+    if (!G_RequestScriptSaveGame(name))
+        fprintf(stderr, "WC3 SaveGame: invalid, inaccessible, or already pending save\n");
     return 0;
 }
 uint32_t LoadGame(jass_t *j) {
     cstring_t name = jass_checkstring(j, 1);
-    PATHSTR path;
-
-    if (!name || !*name || strchr(name, '/') || strchr(name, '\\') || !gi.SavePath) {
-        fprintf(stderr, "WC3 LoadGame: invalid save name\n");
-        return 0;
-    }
-    gi.SavePath(name, path, sizeof(path));
-    if (!ReadGame(path)) fprintf(stderr, "WC3 LoadGame: could not read %s\n", path);
+    (void)jass_checkboolean(j, 2); /* doScoreScreen: not presented yet */
+    if (!G_RequestScriptLoadGame(name))
+        fprintf(stderr, "WC3 LoadGame: invalid, missing, or conflicting scripted save\n");
     return 0;
 }
 uint32_t SetCampaignMenuRace(jass_t *j) {
@@ -1016,9 +1005,25 @@ uint32_t EnablePreSelect(jass_t *j) { (void)jass_checkboolean(j, 1); (void)jass_
 uint32_t EnableSelect(jass_t *j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
 uint32_t SetReservedLocalHeroButtons(jass_t *j) { (void)jass_checkinteger(j, 1); return 0; }
 uint32_t CopySaveGame(jass_t *j) {
-    (void)jass_checkstring(j, 1);
-    (void)jass_checkstring(j, 2);
-    return jass_pushboolean(j, false); /* PMV Lua bridge; no save-file copy */
+    cstring_t source = jass_checkstring(j, 1);
+    cstring_t target = jass_checkstring(j, 2);
+    return jass_pushboolean(j, gi.ScriptCopySave && gi.ScriptCopySave(source, target));
+}
+uint32_t GetSaveBasicFilename(jass_t *j) {
+    return jass_pushstring(j, G_GetSaveBasicFilename());
+}
+uint32_t SaveGameExists(jass_t *j) {
+    cstring_t name = jass_checkstring(j, 1);
+    return jass_pushboolean(j, gi.ScriptSaveExists && gi.ScriptSaveExists(name));
+}
+uint32_t RenameSaveDirectory(jass_t *j) {
+    cstring_t source = jass_checkstring(j, 1);
+    cstring_t target = jass_checkstring(j, 2);
+    return jass_pushboolean(j, gi.ScriptRenameSaveDirectory && gi.ScriptRenameSaveDirectory(source, target));
+}
+uint32_t RemoveSaveDirectory(jass_t *j) {
+    cstring_t name = jass_checkstring(j, 1);
+    return jass_pushboolean(j, gi.ScriptRemoveSaveDirectory && gi.ScriptRemoveSaveDirectory(name));
 }
 uint32_t GetTerrainType(jass_t *j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
 uint32_t GetTerrainVariance(jass_t *j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
@@ -1208,6 +1213,10 @@ uint32_t InitGameCache(jass_t *j) {
     API_ALLOC(ggamecache_t, gamecache);
     G_GameCacheInit(gamecache, jass_checkstring(j, 1));
     return 1;
+}
+uint32_t DisableRestartMission(jass_t *j) {
+    (void)j;
+    return 0;
 }
 uint32_t SaveGameCache(jass_t *j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
@@ -2243,4 +2252,8 @@ uint32_t VersionCompatible(jass_t *j) {
 uint32_t VersionSupported(jass_t *j) {
     uint32_t *version = jass_checkhandle(j, 1, "version");
     return jass_pushboolean(j, version && *version == 0);
+}
+uint32_t ReloadGameCachesFromDisk(jass_t *j) {
+    (void)j;
+    return jass_pushboolean(j, true);
 }

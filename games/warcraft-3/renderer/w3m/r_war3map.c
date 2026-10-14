@@ -574,6 +574,7 @@ void _W3M_ClearMap(void) {
     R_ResetTerrainNormalCache();
     R_ResetGroundTextures();
     R_ResetCliffCache();
+    R_W3ClearSpecialCutouts();
     R_ResetBlightCache();
     R_FreeCameraHeightMap(&w3_camera_height);
     R_W3CloseTilesetArchive();
@@ -817,10 +818,13 @@ void _W3M_RegisterMap(char const *mapFilename) {
     map = FileReadWar3Map(hMpq);
     R_FileReadShadowMap(hMpq, map);
     R_LoadMapMinimap(hMpq, mapFilename);
-    SFileCloseArchive(hMpq);
-    ri.FS_FreeFile(mapData);
     tr.world = map;
     R_W3OpenTilesetArchive(map->tileset);
+    /* Read special-doodad footprint masks while the nested map MPQ is open,
+     * before baking either ground or ordinary cliff meshes. */
+    R_W3LoadSpecialCutouts(hMpq, map);
+    SFileCloseArchive(hMpq);
+    ri.FS_FreeFile(mapData);
     R_LoadBlightTexture(map->tileset);
     R_LoadWaterStyle(map->tileset);
     R_W3SetMapTerrainOffsets(map);

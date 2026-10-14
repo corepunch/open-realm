@@ -7,6 +7,10 @@
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#include "../port/web/src/web_opfs.h"
+#endif
 #ifdef _WIN32
 #include <conio.h>
 #include <direct.h>
@@ -19,6 +23,8 @@
 #define BZ_PLATFORM "Darwin"
 #elif defined(_WIN32)
 #define BZ_PLATFORM "Windows"
+#elif defined(__EMSCRIPTEN__)
+#define BZ_PLATFORM "Emscripten"
 #elif defined(__linux__)
 #define BZ_PLATFORM "Linux"
 #elif defined(__OpenBSD__)
@@ -70,6 +76,7 @@
 
 extern texture_t *Texture;
 
+#ifndef __EMSCRIPTEN__
 static void Com_LimitFrameRate(Uint64 frame_start, Uint64 frequency, bool dedicated) {
     int maxfps;
     Uint64 target_ticks;
@@ -101,6 +108,7 @@ static void Com_LimitFrameRate(Uint64 frame_start, Uint64 frequency, bool dedica
             SDL_Delay(0);
     }
 }
+#endif /* !__EMSCRIPTEN__ */
 
 static hostFrameBudget_t host_budget;
 static bool host_checkpoints, host_presenting;
@@ -115,7 +123,9 @@ void Com_FrameCheckpoint(void) {
     CL_PresentationFrame(tick - host_client_tick);
     host_client_tick = tick;
     Host_FrameRendered(&host_budget, SDL_GetPerformanceCounter() - now);
+#ifndef __EMSCRIPTEN__
     Com_LimitFrameRate(host_budget.start, host_budget.frequency, false);
+#endif
     host_budget.start = SDL_GetPerformanceCounter();
     host_presenting = false;
 }
@@ -254,6 +264,10 @@ static bool Sys_iOSHasWarcraftArchive(cstring_t dirname) {
  * flat portable (share/ beside the exe), the FHS build tree (share/ beside
  * bin/), and the in-tree CWD fallback. */
 static void Sys_ResolveShareDirectory(void) {
+#ifdef __EMSCRIPTEN__
+    FS_SetShareDirectory("/share");
+    return;
+#endif
     string_t base = SDL_GetBasePath();
 
     if (base) {
@@ -270,6 +284,10 @@ static void Sys_ResolveShareDirectory(void) {
 /* Resolve writable per-user game data: XDG_DATA_HOME (or ~/.local/share)
  * on Unix, APPDATA on Windows. Only adopted if creatable and writable. */
 static void Sys_ResolveHomeDirectory(void) {
+#ifdef __EMSCRIPTEN__
+    FS_SetHomeDirectory("/openrealm/user");
+    return;
+#endif
     PATHSTR dir;
 
 #if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
@@ -317,6 +335,7 @@ void Sys_Quit(void) {
 
 /* Read a line from stdin for dedicated server console input.
  * Returns NULL if no input is available (non-blocking check). */
+#ifndef __EMSCRIPTEN__
 static string_t Sys_ConsoleInput(void) {
     static char line[256];
     static char *pos = line;
@@ -357,6 +376,52 @@ static string_t Sys_ConsoleInput(void) {
         }
     }
 }
+#endif /* !__EMSCRIPTEN__ */
+
+/* The browser supplies frame scheduling; never busy-wait on its event thread.
+ * Keep the real client/server frame order identical to the native loop. */
+typedef struct {
+    uint32_t previous_time;
+    uint32_t frame_count;
+    bool dedicated;
+} openrealm_frame_state_t;
+
+static openrealm_frame_state_t frame_state;
+
+static void OpenRealm_Frame(void *argument) {
+    openrealm_frame_state_t *state = (openrealm_frame_state_t *)argument;
+    host_budget.start = SDL_GetPerformanceCounter();
+    int maxfps = Cvar_Integer("com_maxfps", 60);
+    host_budget.period = host_budget.frequency / (uint64_t)(maxfps > 0 ? maxfps : 60);
+    host_checkpoints = !state->dedicated;
+    uint32_t current_time = SDL_GetTicks();
+    uint32_t elapsed = current_time - state->previous_time;
+    Online_Frame(elapsed);
+    if (SV_IsActive())
+        SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : elapsed);
+    if (!state->dedicated) {
+        uint64_t render_start = SDL_GetPerformanceCounter();
+        uint32_t client_tick = SDL_GetTicks();
+        host_checkpoints = false;
+        CL_Frame(client_tick - host_client_tick);
+        host_client_tick = client_tick;
+        Host_FrameRendered(&host_budget, SDL_GetPerformanceCounter() - render_start);
+    } else {
+#ifndef __EMSCRIPTEN__
+        string_t cmd = Sys_ConsoleInput();
+        if (cmd && *cmd) {
+            Cbuf_AddText(cmd);
+            Cbuf_AddText("\n");
+            Cbuf_Execute();
+        }
+#endif
+    }
+    state->previous_time = current_time;
+    state->frame_count++;
+    if (Cvar_Integer("com_frame_limit", 0) > 0 &&
+        state->frame_count >= (uint32_t)Cvar_Integer("com_frame_limit", 0))
+        Com_Quit();
+}
 
 int main(int argc, string_t argv[]) {
     bool data = 0;
@@ -373,10 +438,29 @@ int main(int argc, string_t argv[]) {
             BZ_ARCH,
             BZ_BYTE_ORDER);
 
+#ifdef __EMSCRIPTEN__
+    if (!WebOPFS_Mount()) return 1;
+#endif
     Sys_ResolveShareDirectory();
     Sys_ResolveHomeDirectory();
     Com_Init(argc, (cstring_t *)argv);
 
+#ifdef __EMSCRIPTEN__
+    /* The browser launcher passes its validated OPFS generation as argv
+     * because PROXY_TO_PTHREAD runs main in a worker. */
+    const char *web_data_dir = NULL;
+    for (int i = 1; i < argc; i++) {
+        if (!strncmp(argv[i], "+openrealm-data=", 16)) {
+            web_data_dir = argv[i] + 16;
+            break;
+        }
+    }
+    if (!web_data_dir || !*web_data_dir) {
+        fprintf(stderr, "OpenRealm: no validated browser installation\n");
+        return 1;
+    }
+    Cvar_Set("data", web_data_dir);
+#endif
     cstring_t data_dir = Cvar_String("data", "");
 #if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
     /* iOS has no command line: default to the Files-visible Documents folder
@@ -564,47 +648,22 @@ int main(int argc, string_t argv[]) {
 
     fprintf(stderr, "OpenWarcraft3 initialized.\n\n");
 
-    uint32_t startTime = SDL_GetTicks();
-    uint32_t frameCount = 0;
+    host_budget.frequency = SDL_GetPerformanceFrequency();
+    host_client_tick = SDL_GetTicks();
+    frame_state.previous_time = host_client_tick;
+    frame_state.frame_count = 0;
+    frame_state.dedicated = dedicated;
+#ifdef __EMSCRIPTEN__
+    /* The launcher and storage mount must be ready before main() executes.
+     * Browser scheduling yields to input, rendering and other page tasks. */
+    emscripten_set_main_loop_arg(OpenRealm_Frame, &frame_state, 0, 1);
+#else
     Uint64 performanceFrequency = SDL_GetPerformanceFrequency();
-    host_budget.frequency = performanceFrequency;
-    host_client_tick = startTime;
     while (true) {
-        Uint64 frameStart = SDL_GetPerformanceCounter();
-        uint32_t currentTime = SDL_GetTicks();
-        uint32_t msec = currentTime - startTime;
-        int maxfps = Cvar_Integer("com_maxfps", 60);
-        host_budget.period = performanceFrequency / (uint64_t)(maxfps > 0 ? maxfps : 60);
-        host_budget.start = frameStart;
-        host_checkpoints = !dedicated;
-        Online_Frame(msec);
-        if (SV_IsActive()) {
-            SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : msec);
-        }
-        if (!dedicated) {
-            uint64_t render_start = SDL_GetPerformanceCounter();
-            uint32_t client_tick = SDL_GetTicks();
-            host_checkpoints = false;
-            CL_Frame(client_tick - host_client_tick);
-            host_client_tick = client_tick;
-            Host_FrameRendered(&host_budget, SDL_GetPerformanceCounter() - render_start);
-        } else {
-            /* Dedicated server: read console commands from stdin. */
-            string_t cmd = Sys_ConsoleInput();
-            if (cmd && *cmd) {
-                Cbuf_AddText(cmd);
-                Cbuf_AddText("\n");
-                Cbuf_Execute();
-            }
-        }
-        startTime = currentTime;
-        frameCount++;
-        if (Cvar_Integer("com_frame_limit", 0) > 0 &&
-            frameCount >= (uint32_t)Cvar_Integer("com_frame_limit", 0)) {
-            Com_Quit();
-        }
+        OpenRealm_Frame(&frame_state);
         Com_LimitFrameRate(host_budget.start, performanceFrequency, dedicated);
     }
+#endif
 
     return 0;
 }

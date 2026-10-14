@@ -726,9 +726,11 @@ blockReader_t R_MDLX[] = {
 
 mdxBounds_t MDX_CalculateBounds(mdxModel_t const *model) {
     mdxBounds_t b = { 0 };
+    bool have_vertices = false;
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         FOR_LOOP(i, geoset->num_vertices) {
             vec3_t const *vertex = geoset->vertices+i;
+            have_vertices = true;
             b.box.min.x = MIN(vertex->x, b.box.min.x);
             b.box.min.y = MIN(vertex->y, b.box.min.y);
             b.box.min.z = MIN(vertex->z, b.box.min.z);
@@ -736,6 +738,28 @@ mdxBounds_t MDX_CalculateBounds(mdxModel_t const *model) {
             b.box.max.y = MAX(vertex->y, b.box.max.y);
             b.box.max.z = MAX(vertex->z, b.box.max.z);
         }
+    }
+    /* Particle-only MDX models have no geoset vertices to measure. Their
+     * MODL extents still describe the space occupied by PRE2 emitters and
+     * must be retained so the world and model frustum cullers don't reject
+     * the effect at the emitter anchor. */
+    if (!have_vertices) {
+        b = model->info.bounds;
+        if (!isfinite(b.radius) || !isfinite(b.box.min.x) || !isfinite(b.box.min.y) ||
+            !isfinite(b.box.min.z) || !isfinite(b.box.max.x) || !isfinite(b.box.max.y) ||
+            !isfinite(b.box.max.z) || b.box.min.x > b.box.max.x ||
+            b.box.min.y > b.box.max.y || b.box.min.z > b.box.max.z) {
+            return (mdxBounds_t){ 0 };
+        }
+        if (b.radius <= 0.0f) {
+            vec3_t const half_extent = {
+                (b.box.max.x - b.box.min.x) * 0.5f,
+                (b.box.max.y - b.box.min.y) * 0.5f,
+                (b.box.max.z - b.box.min.z) * 0.5f,
+            };
+            b.radius = Vector3_len(&half_extent);
+        }
+        return b;
     }
     b.radius = MAX(b.radius, b.box.max.x - b.box.min.x);
     b.radius = MAX(b.radius, b.box.max.y - b.box.min.y);

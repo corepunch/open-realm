@@ -62,14 +62,17 @@ than inventing an unverified user-preference policy.
 Build with `WC3_DEBUG_TUTORIAL_FLOW=1` and enable `wc3_quest_debug 1` at runtime to emit `WC3_TUTORIAL_TEXT` diagnostics before message/transmission presentation state is mutated. Without the build option, these diagnostics are compiled out. Timestamps in the cinematic-scene diagnostics are elapsed simulation time in `HH:MM:SS.mmm`, not wall-clock time. Each record includes the active trigger ordinal and JASS caller plus both the raw map string token and its resolved text. Ordinary `DisplayText*` calls also record target/position/duration; `SetCinematicScene` records speaker, dialogue, portrait and scene/voice lifetimes, and `EndCinematicScene` records the clear. This is intended for campaign tutorial progression debugging and does not alter message timing or retention.
 
 `StartSound` records the sound handle's latest simulation start time. A later
-`TriggerWaitForSound` waits only for the remaining authored duration from that
-start, plus its offset. Waiting again after the duration has elapsed returns
-immediately; starting the same handle again begins a new duration window. A
-handle that has never started retains the previous full-duration wait behavior.
+`TriggerWaitForSound` waits until the sound has the requested offset remaining:
+the delay is `max(remaining duration - offset, 0)`. This lets a trigger use
+descending offsets as checkpoints within one voice line; waits after the sound
+ends return immediately. Starting the same handle again begins a new duration
+window. A handle that has never started retains the previous full-duration
+wait behavior.
 This tracks the server's logical sound dispatch, not client audibility: a
 missing/unresolved client asset can still leave the script waiting for the
-authored duration. The regression `wc3_api.repeated_wait_for_sound_only_waits_until_voice_end_once`
-covers a 3.5-second delay, repeated wait, restarted handle, and positive offset.
+authored duration. The regression
+`wc3_api.repeated_wait_for_sound_tracks_remaining_voice_offsets` covers
+descending checkpoints and confirms repeated waits do not extend the voice end.
 
 Prologue02 additionally traces the Burrow-completion handoff with `WC3_TUTORIAL_FLOW` for trigger ordinals 120-165 and `WC3_TUTORIAL_SOURCE` for the authored Burrow work-complete/check functions, `Trig_W2_BurrowComplete_Q`, directly referenced trigger globals, and whichever functions reference narrator sounds `T02Narrator031` through `T02Narrator035` (the lumber/War Mill teaching sequence). `WC3_TUTORIAL_COROUTINE` confirms sleep/resume boundaries for the same range. Current runtime evidence shows the nested `WaitForSoundBJ` in trigger 150 waking normally and the trigger reaching its final queue-removal call, so the remaining diagnostic focus is the earlier lumber-stage enqueue/event path. This is startup/runtime diagnostics only: it does not synthesize tutorial steps or change trigger queue, sleep, or transmission semantics.
 

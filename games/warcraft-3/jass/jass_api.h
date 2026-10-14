@@ -87,6 +87,9 @@ void   jass_rterror_clear(jass_t *j);
 uint32_t  jass_missingcount(jass_t *j);
 cstring_t jass_missingname(jass_t *j, uint32_t index);
 
+/* Read an owned scalar enum global without changing the VM stack. */
+bool jass_globalenum(jass_t *j, cstring_t name, cstring_t type, uint32_t *value);
+
 /* Stack / value API */
 int32_t   jass_checkinteger(jass_t *j, int index);
 float  jass_checknumber(jass_t *j, int index);

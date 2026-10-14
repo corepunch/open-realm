@@ -429,12 +429,48 @@ void G_AwardKillBounty(edict_t *victim, edict_t *killer) {
     }
 }
 
+/* Summoned spirit/beast death uses a magical one-shot effect.
+ * Resolve art in the WC3 game module, never through a renderer rawcode table.
+ * Prefer the buff's EffectArt and fall back to the summoned unit's SpecialArt,
+ * which also covers stock/custom maps with no usable buff effect. */
+void G_SpawnSummonMagicalEffect(edict_t *self) {
+    AbilityData_t const *ability;
+    cstring_t buff, art = NULL;
+    UnitProfile_t const *profile;
+    edict_t *effect;
+    uint32_t id, level;
+
+    if (!self || !self->summon_ability) return;
+    level = self->owner && self->owner->inuse
+        ? G_UnitAbilityLevel(self->owner, self->summon_ability) : 0;
+    if (!level) level = 1;
+    buff = G_AbilityLevel(self->summon_ability, level)->buffID;
+    ability = G_AbilityData(self->summon_ability);
+    if ((!buff || !*buff) && ability->code && ability->code != self->summon_ability)
+        buff = G_AbilityLevel(ability->code, level)->buffID;
+    if (buff && strlen(buff) >= 4) {
+        id = MAKEFOURCC(buff[0], buff[1], buff[2], buff[3]);
+        art = G_AbilityEffectArt(id, WC3_EFFECT_EFFECT, 0);
+    }
+    profile = self->data.UnitProfile ? self->data.UnitProfile : G_UnitProfile(self->class_id);
+    if (!art || !*art) art = profile ? profile->specialArt : NULL;
+    effect = G_SpawnModelEffect(art, &self->s.origin2, NULL, NULL, true);
+    if (effect) {
+        /* A point effect should use the summon's true Z (including bridges),
+         * not the terrain-sampled ground height at the same XY. */
+        effect->s.origin = self->s.origin;
+        G_InheritUnitTeamColor(effect, self);
+    }
+}
+
 void unit_die(edict_t *self, edict_t *attacker) {
     gameClient_t *owner;
     uint32_t selected_mask;
+    bool summon_explodes;
 
     if (!self || (self->svflags & SVF_DEADMONSTER)) return;
     selected_mask = self->selected;
+    summon_explodes = (self->aiflags & AI_SUMMON_EXPLODES_ON_DEATH) != 0;
 
     CAbilityAvatar(self,A_DEATH,NULL); /* Death must not start a reverse transition. */
     /* A dead polymorphed unit must not later restore as a living unit when its
@@ -487,13 +523,13 @@ void unit_die(edict_t *self, edict_t *attacker) {
     self->aiflags &= ~AI_HOLD_FRAME;
     if(G_ActorHasAbilityCode(self,MAKEFOURCC('A','m','o','v')))
         S_StopUnitMovementWithRecovery(self); /* New death d0144 task cleanup. */
-    unit_setmove(self, &unit_move_death);
+    unit_setmove(self, summon_explodes ? &unit_move_decay_remove : &unit_move_death);
     /* Warsmash advances the render Death animation after KillUnit even when
      * the simulation unit is paused by a cinematic. Keep the explicit frame
      * override active until the death move reaches its decay transition. */
     self->animation_override = true;
     if (self->animation) self->s.frame = self->animation->interval[0];
-    if (G_UnitSoundProfile(self)->death) {
+    if (!summon_explodes && G_UnitSoundProfile(self)->death) {
         self->sound.world_pending = G_UnitSoundProfile(self)->death;
         self->sound.world_pending_event = EV_DEATH;
     }
@@ -547,6 +583,16 @@ void unit_die(edict_t *self, edict_t *attacker) {
         (!owner->connected || owner->ps.number >= MAX_PLAYERS ||
          !(selected_mask & (1u << owner->ps.number))))
         G_InvalidateCommands(owner);
+
+    if (summon_explodes) {
+        /* Death triggers, bounty, food and selection still use ordinary
+         * unit_die semantics. Only presentation and remains differ: no
+         * bloody Death sound/animation, no corpse, no raise/decay window. */
+        G_SpawnSummonMagicalEffect(self);
+        self->s.renderfx |= RF_HIDDEN;
+        self->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
+        self->wait = FRAMETIME / 1000.0f;
+    }
 }
 
 void unit_birth(edict_t *self) {
@@ -740,6 +786,37 @@ uint32_t G_AbilityOrderId(ability_t const *ability) {
     return 0;
 }
 
+static uint32_t unit_spell_code_for_base(edict_t const *unit, uint32_t base_code) {
+    if (!unit || !base_code) return 0;
+    /* A shared order can belong to a concrete campaign alias (for example
+     * Rexxar's Arsg inherits AOsf's "spiritwolf" order). Keep that rawcode
+     * through dispatch so the alias's authored summon data and handler win. */
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t const *hero_ability = unit->heroabilities + i;
+        uint32_t code = hero_ability->code;
+        abilityitem_t item;
+        if (!hero_ability->level || !code || G_AbilityCode(code) != base_code) continue;
+        item = S_AbilityItem(code);
+        if (item.ability && (item.ability->flags & AB_SPELL)) return code;
+    }
+    uint32_t count;
+    unitAbilityToken_t const *tokens = G_UnitAbilityTokens(unit->data.UnitAbilities, &count);
+    FOR_LOOP(i, count) {
+        uint32_t code = tokens[i].code;
+        if (tokens[i].length != 4 || G_AbilityCode(code) != base_code) continue;
+        abilityitem_t item = S_AbilityItem(code);
+        if (item.ability && (item.ability->flags & AB_SPELL) && G_UnitAbilityLevel(unit, code)) return code;
+    }
+    FOR_LOOP(i, unit->abilities.added_count) {
+        uint32_t code = unit->abilities.added[i];
+        abilityitem_t item;
+        if (!code || G_AbilityCode(code) != base_code) continue;
+        item = S_AbilityItem(code);
+        if (item.ability && (item.ability->flags & AB_SPELL)) return code;
+    }
+    return G_UnitAbilityLevel(unit, base_code) ? base_code : 0;
+}
+
 static uint32_t unit_spell_code_for_order(edict_t const *unit, cstring_t order) {
     if (!unit || !order) return 0;
     spellOrderQuery_t query={.order_id=G_OrderId(order)};
@@ -753,10 +830,10 @@ static uint32_t unit_spell_code_for_order(edict_t const *unit, cstring_t order) 
     }
     FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
         uint32_t const code = unit_order_defs[i].ability;
-        uint32_t const level = code ? G_UnitAbilityLevel(unit, code) : 0;
         ability_t const *spell = code ? S_SpellAbilityForCode(code) : NULL;
-        if (code && !strcmp(order, unit_order_defs[i].name) && level && spell) {
-            return code;
+        if (code && !strcmp(order, unit_order_defs[i].name) && spell) {
+            uint32_t const resolved = unit_spell_code_for_base(unit, G_AbilityCode(code));
+            if (resolved && S_SpellAbilityForCode(resolved)) return resolved;
         }
     }
     return 0;
@@ -1546,9 +1623,21 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     }
     {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
+        if (WC3_MISHA_DEBUG_ENABLED() && !strcmp(order, "spiritwolf")) {
+            fprintf(stderr,
+                    "WC3_MISHA order unit=%u id=%.4s player=%u order=%s ability=%.4s mana=%.1f/%.1f\n",
+                    (unsigned)self->s.number, (cstring_t)&self->class_id,
+                    (unsigned)self->s.player, order,
+                    spell_code ? (cstring_t)&spell_code : "----",
+                    self->mana.value, self->mana.max_value);
+        }
         if (spell_code) {
             if(S_InterceptSpellOrder(self,spell_code))return true;
             bool const accepted = S_CastNoTargetSpell(self, spell_code);
+            if (WC3_MISHA_DEBUG_ENABLED() && !strcmp(order, "spiritwolf"))
+                fprintf(stderr, "WC3_MISHA order-result unit=%u ability=%.4s accepted=%u mana=%.1f/%.1f\n",
+                        (unsigned)self->s.number, (cstring_t)&spell_code,
+                        (unsigned)accepted, self->mana.value, self->mana.max_value);
             if (accepted) {
                 G_CreepGuardExplicitOrder(self);
                 S_UnitAbilityOrderAccepted(self, order);
@@ -1579,6 +1668,13 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     edict_t *unit = SP_SpawnAtLocationNoBirth(unitid, player, location);
     if (!unit) {
         return NULL;
+    }
+    /* A Hero created by map JASS on a fresh mission starts ready to play.
+     * Transition-carried Heroes use RestoreUnit, which applies their cached
+     * health and mana after spawning and therefore keeps the carried values. */
+    if (G_UnitIsHero(unit)) {
+        unit->health.value = unit->health.max_value;
+        unit->mana.value = unit->mana.max_value;
     }
     /* Retail public creation uses Move's32-ring admission and initial scalar
      * commit; the former64-unit circle spiral chose different destinations. */

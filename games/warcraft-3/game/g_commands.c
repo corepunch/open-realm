@@ -855,6 +855,14 @@ CLIENTCOMMAND(Select) {
          * player can click several waypoints/targets without reopening it. */
         if (accepted && !queued) Get_Commands_f(clent);
     } else {
+        if (S_SpellEntityTargetMode(clent)) {
+            uint32_t number;
+            if (argc < 2 || !G_ParseEntityNumber(argv[1], &number) || number >= globals.num_edicts)
+                return;
+            bool accepted = S_SpellEntityTarget(clent, &globals.edicts[number]);
+            if (accepted) Get_Commands_f(clent);
+            return;
+        }
         if (S_SpellPointTargetMode(clent)) {
             uint32_t number;
             if (argc < 2 || !G_ParseEntityNumber(argv[1], &number) || number >= globals.num_edicts)
@@ -2020,10 +2028,10 @@ static bool G_ItemDragSelectEntity(edict_t *clent, edict_t *target) {
         Get_Portrait_f(clent);
         return true;
     }
-    /* Warsmash uses an entity-target drop for allied item handoff. OpenRealm
-     * does not yet have that transfer behavior, but keep the drag target mode
-     * authoritative instead of letting a unit click fall through to selection. */
-    return false;
+    /* Targeted item giving uses the same order as UnitDropItemTarget. An
+     * inventory-capable allied building is a valid destination too. */
+    return client && G_UnitCanControl(client, carrier) &&
+           G_OrderGiveItemTarget(carrier, item, target);
 }
 
 /* Complete an inventory point drop using the exact item captured by the drag command. */
@@ -2256,8 +2264,12 @@ CLIENTCOMMAND(MenuSaveNamed) {
         return;
     }
     gi.SavePath(name, path, sizeof(path));
-    if (path[0] && !WriteGame(path))
-        fprintf(stderr, "WC3 menu: failed to save %s\n", path);
+    if (path[0]) {
+        if (!G_BeforeSaveGame(name) || !WriteGame(path))
+            fprintf(stderr, "WC3 menu: failed to save %s\n", path);
+        else if (gi.BindScriptSaveScope && !gi.BindScriptSaveScope(name))
+            fprintf(stderr, "WC3 menu: saved game, but could not bind campaign zone storage\n");
+    }
 }
 
 CLIENTCOMMAND(MenuLoadNamed) {

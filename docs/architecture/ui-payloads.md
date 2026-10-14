@@ -35,6 +35,27 @@ game UI authoring
 including `-1` sentinels. Code reading an unsigned wire field must cast its
 result to `BYTE`; do not globally change `MSG_ReadByte` semantics.
 
+## Frame Point ABI
+
+`common/msg.c:uiFrameFields` serializes each `uiFrame_t.points` element and
+`flagsvalue` as one four-byte `NFT_LONG`. Bitfield allocation units must therefore
+agree across platforms; a same-build encoder/decoder does not make an oversized
+point safe because the schema still copies only four bytes.
+
+The mixed enum/`uint8_t`/`int16_t` point declaration occupies four bytes with
+the Unix ABI but eight with Microsoft bitfield packing. The enum/`uint8_t`
+`flags` declaration similarly puts `alphaMode` outside `flagsvalue` under that
+ABI. [PR #628](https://github.com/corepunch/open-realm/pull/628) uses four-byte
+bitfield base types for both, preserving the Unix wire image. A point with
+`targetPos=FPP_MAX`, `used=1`, `relativeTo=UI_PARENT`, and `offset=-12345`
+must encode as `82 ff c7 cf` on supported little-endian targets.
+
+For an ABI diagnostic, build a fresh `test-core` with `CC='clang -mms-bitfields'`
+and separate `BIN_DIR`/`LIB_DIR` paths, then compare against the default build.
+PR #628 adds `net.layout_point_fields_survive_the_wire` to exercise the actual
+layout encoder and client decoder. This diagnostic checks packing; it does not
+replace a native Windows build for SDK, linker, or runtime verification.
+
 ## What Went Wrong
 
 In the first textured WoW quest scrollbar implementation, I made the mistake of
@@ -277,3 +298,21 @@ Do **not** globally defer every decorated FDF texture. That experiment fixed the
 retain their background pass. `uiFrame_t.flagsvalue` uses `NFT_LONG` as of protocol 6 so this and future high bits survive
 both normal layout and window payloads. The sender owns model selection and attachment; the shared client does not
 inspect game command strings to decide whether to draw effects. See [WC3 button particles](../games/warcraft-3/ui-button-particles.md).
+
+## Gameplay HUD hit testing
+
+`SCR_LayoutHitTest` blocks world interaction for visible `FT_TEXTURE` rectangles,
+frames with a click command or tooltip, and individually hittable `FT_MULTISELECT`
+entries. Console skin tiles intentionally block selection and orders even without
+commands or tooltips; removing the texture case lets clicks leak through the HUD.
+Noninteractive frame containers and `FT_BACKDROP` frames do not block by themselves.
+Hidden layout layers and `LAYER_WORLD_HOVER` are excluded; modal game-result and
+quest-dialog layers block globally. `SCR_LayoutMouseEvent` separately dispatches
+clickable controls.
+
+`make test-core` covers the console edges across aspect ratios and canvas policies
+in `client_canvas.console_edges_capture_input_under_both_policies`, and hiding,
+restoring, and clearing the layer in
+`client_canvas.console_texture_input_follows_layer_visibility`. Browser selection
+also requires the bundled input bindings; see
+[Browser configuration](../platform/browser.md#bundled-warcraft-iii-defaults).

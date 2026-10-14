@@ -116,6 +116,10 @@ void G_FreeEdict(edict_t *ent) {
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
     S_SpellReleasePointApproach(ent);
     G_BotRemoveCaptainUnit(ent);
+    /* The carrier is still a valid entity here. Retire its items before the
+     * edict and its pooled state can be reused; a prior StoreUnit snapshot is
+     * a value copy and remains independent of these live item handles. */
+    G_ReleaseInventoryOnUnitRemoval(ent);
     /* Direct JASS RemoveUnit must release transient construction/upgrade state
      * before the edict is cleared. Forced removal does not grant a player
      * cancellation refund. */

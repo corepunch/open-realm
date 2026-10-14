@@ -42,6 +42,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 retail audio admission, Ghidra/r2 setup, recovered structures and parity gaps | [docs/games/warcraft-3/audio-retail-analysis.md](docs/games/warcraft-3/audio-retail-analysis.md) |
 | WC3 background music, `Music.slk`/skin lookup, `svc_music`, optional FFmpeg streaming | [docs/games/warcraft-3/music.md](docs/games/warcraft-3/music.md) |
 | WC3 MDX `EVTS` presentation events, `SND` sounds, `SPN` child models, `SPL`/`FPT` SplatData decals, `UBR` UberSplats, transient lifetimes | [docs/games/warcraft-3/mdx-event-objects.md](docs/games/warcraft-3/mdx-event-objects.md) |
+| WC3 custom doodad `.w3d` models, animation ownership and Rexxar Forcewall presentation | [docs/games/warcraft-3/doodad-animation.md](docs/games/warcraft-3/doodad-animation.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | WC3 critter wandering (`Awan`): idle scheduling, Move ownership events, flee, building clearance, save fields, scheduler-path tests | [docs/games/warcraft-3/critter-ai.md](docs/games/warcraft-3/critter-ai.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
@@ -133,6 +134,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Required Animation Names (`animProps`/`uani`), alternate forms, `AddUnitAnimationProperties`, tagged MDX sequence selection | [docs/games/warcraft-3/unit-animation-properties.md](docs/games/warcraft-3/unit-animation-properties.md) |
 | WC3 resource-worker crowd routing and Human02 30-Peasant simulation | [docs/games/warcraft-3/worker-crowd-routing.md](docs/games/warcraft-3/worker-crowd-routing.md) |
 | WC3 inventory, world-item lifecycle, item UI presentation | [docs/games/warcraft-3/inventory-and-items.md](docs/games/warcraft-3/inventory-and-items.md) |
+| WC3 Rexxar stash `h003`, Orc Backpack inventory activation, six-slot evidence and campaign handoff | [docs/games/warcraft-3/rexxar-stash.md](docs/games/warcraft-3/rexxar-stash.md) |
 | WC3 HumanX06 elevators: authored height state, wall blockers, and transition sequences | [docs/games/warcraft-3/elevators.md](docs/games/warcraft-3/elevators.md) |
 | WC3 Goblin Land Mines `AIpm`/`Amin`/`Amnx`, delayed death AOE, targeted-item charge completion | [docs/games/warcraft-3/land-mines.md](docs/games/warcraft-3/land-mines.md) |
 | WC3 ability/item presentation art, effect edict lifetimes, JASS effect handles, consumable charge semantics | [docs/games/warcraft-3/ability-and-item-effects.md](docs/games/warcraft-3/ability-and-item-effects.md) |
@@ -436,7 +438,10 @@ Full rationale, ownership table and worked example: [docs/architecture/game-clie
 ## Mouse Input Architecture
 
 - Mouse state is owned by the client: the `mouse` global (`mouseEvent_t` in `client/cl_input.c`) is the single source of truth.
-- The UI library receives mouse events via `menu.MouseEvent(x, y, button, down)` — push-based, called during `SDL_PollEvent` in `CL_Input()`.
+- The UI library receives push-based input callbacks during `SDL_PollEvent` in
+  `CL_Input()`: `menu.MouseEvent(event, x, y, param, mods)` and
+  `menu.KeyEvent(key, mods, down, time)`. `mods` carries the current
+  Shift/Ctrl/Alt modifier bits.
 - Game-mode-specific mouse behavior lives in per-game `cl_input_<game>.c` files via the `CL_InputMode*` functions.
 - Never create a separate mouse state struct in game UI code. Never poll mouse event state during draw.
 
@@ -532,3 +537,10 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 - If a needed label doesn't exist, create it first with `gh label create`.
 - Keep issue titles at most 80 characters.
 - Keep issues scoped to one game/title when possible.
+
+## Browser platform
+
+The opt-in Emscripten/WebGL 2 foundation target and its current limitations are
+recorded in [Browser platform](docs/platform/browser.md). The smoke test is not
+a Warcraft III runtime. Keep browser adapters outside the universal client and
+game simulation modules.

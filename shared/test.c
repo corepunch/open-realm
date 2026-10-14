@@ -15,6 +15,7 @@
 #ifdef _WIN32
 #include <direct.h>
 #include <process.h>
+#include <sys/timeb.h> // _ftime64: MSVCRT/UCRT millisecond clock; MSVCRT has no C11 timespec_get
 #define test_getpid() _getpid()
 #define test_mkdir(path) _mkdir(path)
 #define test_rmdir(path) _rmdir(path)
@@ -79,9 +80,12 @@ const char *Test_TempPath(const char *name) {
     static char ring[TEST_TEMP_RING][TEST_TEMP_PATH_SIZE];
     static unsigned next;
     char *path = ring[next++ % TEST_TEMP_RING];
-    strlcpy(path, Test_TempDir(), TEST_TEMP_PATH_SIZE);
-    strlcat(path, "/", TEST_TEMP_PATH_SIZE);
-    strlcat(path, name ? name : "", TEST_TEMP_PATH_SIZE);
+    // strlcpy is unavailable here: Windows only supplies it through the common/shared.h shim, and this
+    // base-layer module cannot include common/. snprintf's return value is consumed so release
+    // -Wformat-truncation stays quiet and a cut path is reported rather than handed back silently.
+    int written = snprintf(path, TEST_TEMP_PATH_SIZE, "%s/%s", Test_TempDir(), name ? name : "");
+    if (written < 0 || (size_t)written >= TEST_TEMP_PATH_SIZE)
+        fprintf(stderr, "Test_TempPath: truncated '%s' to %d bytes\n", name ? name : "", written);
     return path;
 }
 
@@ -212,10 +216,16 @@ static int Test_NameMatches(const char *name, const char *pattern) {
 }
 
 static double Test_NowMs(void) {
+#ifdef _WIN32
+    struct __timeb64 tb; // mingw-w64 declares the C11 timespec_get only for UCRT; MSVCRT uses _ftime64
+    _ftime64(&tb);
+    return (double)tb.time * 1000.0 + (double)tb.millitm;
+#else
     struct timespec ts;
 
     timespec_get(&ts, TIME_UTC);
     return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1.0e6;
+#endif
 }
 
 int Test_Run(const char *pattern) {

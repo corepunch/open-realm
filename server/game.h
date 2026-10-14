@@ -113,6 +113,19 @@ struct game_import {
     void (*UserPath)(cstring_t rel, string_t out, uint32_t out_size);
     /* Resolve save files under the platform's per-user data directory. */
     void (*SavePath)(cstring_t rel, string_t out, uint32_t out_size);
+    /* Untrusted JASS save natives are confined to an engine-owned session
+     * sandbox. The game cannot choose its root or access manual saves. */
+    bool (*ScriptSavePath)(cstring_t name, string_t out, uint32_t out_size);
+    /* Read-only cache lookup never creates a workspace; the write path does. */
+    bool (*ScriptCachePath)(cstring_t name, string_t out, uint32_t out_size);
+    bool (*ScriptCacheReadPath)(cstring_t name, string_t out, uint32_t out_size);
+    /* Trusted engine-only operations, never exposed to JASS. */
+    bool (*BindScriptSaveScope)(cstring_t manual_name);
+    cstring_t (*ScriptScopeIdentity)(void);
+    bool (*ScriptSaveExists)(cstring_t name);
+    bool (*ScriptCopySave)(cstring_t source, cstring_t target);
+    bool (*ScriptRenameSaveDirectory)(cstring_t source, cstring_t target);
+    bool (*ScriptRemoveSaveDirectory)(cstring_t name);
     /* Enumerate save basenames as a double-NUL-terminated list. */
     uint32_t (*ListSaves)(string_t out, uint32_t out_size);
     /* Delete one save basename from the writable save directory. */
@@ -185,6 +198,10 @@ struct game_export {
     bool (*SaveGame)(cstring_t filename);
     bool (*LoadGame)(cstring_t filename);
     bool (*GetSaveMap)(cstring_t filename, string_t map, uint32_t map_size);
+    /* Optional map-owned JASS events around player save/load operations.
+     * The server passes the virtual filename, never its absolute disk path. */
+    bool (*BeforeSaveGame)(cstring_t name);
+    void (*AfterLoadGame)(cstring_t name);
     box2_t (*GetWorldBounds)(void);
     bool (*PathingEntityIsIgnored)(edict_t const *ent);
     
@@ -193,6 +210,9 @@ struct game_export {
     int max_edicts;
     int max_clients;
     int edict_size;
+    /* Internal scripted zone restores notify the map after its snapshot has
+     * been applied, separately from user save-slot loads. */
+    void (*AfterScriptLoadGame)(cstring_t name);
 };
 
 struct game_export *GetGameAPI(struct game_import *game_import);

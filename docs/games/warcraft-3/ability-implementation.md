@@ -252,6 +252,19 @@ point summons use `S_SummonAbilityAt()` instead of open-coding
 corpse handling, replacement and other summon policy. See
 [Ability Message Procedures](ability-procedures.md#shared-mechanic-families). The final authoritative position commit is shared through `S_SpellCommitRelocation()` so `s.origin2` and `s.origin.x/y` stay synchronized before FOW dirtiness, relinking and position-change events even when presentation differs; `S_SpellRelocateUnit()` is the standard `SpecialArt`-at-both-ends wrapper, while Blink keeps its own source/destination art.
 
+### Shared immediate-order names and campaign aliases
+
+An order string can identify more than one ability that shares a base order.
+Resolve the cast against the unit's concrete learned or assigned ability alias
+before falling back to the base rawcode, so alias-specific `UnitID` and summon
+counts are used. OrcX01 demonstrates this: its intro removes the preplaced
+`ngzc` Misha and issues Rexxar the immediate order `spiritwolf`. Rexxar learns
+campaign ability `Arsg`, whose AbilityData base is Feral Spirit `AOsf`. The
+order name is inherited, but `Arsg` summons one `ngzc`; the base `AOsf` row
+summons two Spirit Wolves. `wc3_spell.rexxar_spiritwolf_order_uses_learned_summon_misha_alias`
+drives that immediate order and checks the concrete summon type and ability
+identity.
+
 ### 6. Verify the focused pattern, then the family
 
 ```sh

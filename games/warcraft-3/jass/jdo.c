@@ -1169,38 +1169,42 @@ void jass_runevents(jass_t *j) { jass_run_event_queue(j,false); }
  * ========================================================================= */
 
 static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
+    if (!params->trigger->conditions) return true;
     player_t *player = params->event_player ? params->event_player : jass_eventplayer(params->unit);
-    jass_t tmp_state;
+    jass_t *tmp_state = jass_alloc(sizeof(*tmp_state));
+    if (!tmp_state) return false;
     FOR_EACH_LIST(gTriggerCondition_t, cond, params->trigger->conditions) {
-        memcpy(&tmp_state, j, sizeof(struct jass_s));
-        memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
-        tmp_state.num_stack = 0;
-        tmp_state.context.trigger = params->trigger;
-        tmp_state.context.unit = params->unit;
-        tmp_state.context.source = params->source;
-        tmp_state.context.eventType = params->type;
-        tmp_state.context.eventValue = params->value;
-        tmp_state.context.dialog_id = params->dialog_id;
-        tmp_state.context.dialog_button_id = params->dialog_button_id;
-        tmp_state.context.point = params->point ? *params->point : (vec2_t){ 0.0f, 0.0f };
-        tmp_state.context.hasPoint = params->has_point;
-        tmp_state.context.playerState = player;
-        tmp_state.context.localPlayerState = currentplayer;
-        tmp_state.context.timer = currenttimer;
+        memcpy(tmp_state, j, sizeof(struct jass_s));
+        memset(tmp_state->stack, 0, sizeof(tmp_state->stack));
+        tmp_state->num_stack = 0;
+        tmp_state->context.trigger = params->trigger;
+        tmp_state->context.unit = params->unit;
+        tmp_state->context.source = params->source;
+        tmp_state->context.eventType = params->type;
+        tmp_state->context.eventValue = params->value;
+        tmp_state->context.dialog_id = params->dialog_id;
+        tmp_state->context.dialog_button_id = params->dialog_button_id;
+        tmp_state->context.point = params->point ? *params->point : (vec2_t){ 0.0f, 0.0f };
+        tmp_state->context.hasPoint = params->has_point;
+        tmp_state->context.playerState = player;
+        tmp_state->context.localPlayerState = currentplayer;
+        tmp_state->context.timer = currenttimer;
         if (params->timer && ((gtimer_t const *)params->timer)->scalar_timing) {
-            tmp_state.context.timer_clock = ((gtimer_t const *)params->timer)->scalar_fired_clock;
-            tmp_state.context.hasTimerClock = true;
+            tmp_state->context.timer_clock = ((gtimer_t const *)params->timer)->scalar_fired_clock;
+            tmp_state->context.hasTimerClock = true;
         }
-        tmp_state.context.region = params->region ? params->region : jass_getcontext(j)->region;
-        jass_pushfunction(&tmp_state, cond->expr);
+        tmp_state->context.region = params->region ? params->region : jass_getcontext(j)->region;
+        jass_pushfunction(tmp_state, cond->expr);
         edict_t *previous_unit = currentunit;
         currentunit = params->unit;
-        uint32_t result_count = jass_call(&tmp_state, 0);
+        uint32_t result_count = jass_call(tmp_state, 0);
         currentunit = previous_unit;
-        if (result_count != 1 || !jass_popboolean(&tmp_state)) {
+        if (result_count != 1 || !jass_popboolean(tmp_state)) {
+            jass_free(tmp_state);
             return false;
         }
     }
+    jass_free(tmp_state);
     return true;
 }
 
@@ -1208,62 +1212,72 @@ bool jass_evaluatetrigger(jass_t *j, trigger_t *trigger, edict_t *unit) {
     return jass_evaluatetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit });
 }
 
+/* Scratch VMs are heap allocated: the two 4096-slot hash tables and value
+ * stack make a full jass_t too large for the browser engine thread stack.
+ * Allocate per evaluation so nested filters remain independent. */
 /* Evaluate a single boolexpr (a Condition()/Filter() code) against a candidate
  * unit, the way jass_evaluatetrigger evaluates a trigger condition: run the
  * function in a scratch state with the unit bound as the context/current unit
  * so GetFilterUnit()/GetEnumUnit() inside the filter resolve to it.  Returns
  * the filter's boolean result; a null filter passes (matches "no filter"). */
 bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit) {
-    if (!expr) {
-        return true;
-    }
-    jass_t tmp_state;
-    memcpy(&tmp_state, j, sizeof(struct jass_s));
-    memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
-    tmp_state.num_stack = 0;
-    tmp_state.context.unit = unit;
-    jass_pushfunction(&tmp_state, expr);
+    if (!expr) return true;
+    jass_t *tmp_state = jass_alloc(sizeof(*tmp_state));
+    if (!tmp_state) return false;
+    memcpy(tmp_state, j, sizeof(*tmp_state));
+    memset(tmp_state->stack, 0, sizeof(tmp_state->stack));
+    tmp_state->num_stack = 0;
+    tmp_state->context.unit = unit;
+    jass_pushfunction(tmp_state, expr);
     edict_t *previous_unit = currentunit;
     currentunit = unit;
-    uint32_t result_count = jass_call(&tmp_state, 0);
+    uint32_t result_count = jass_call(tmp_state, 0);
     currentunit = previous_unit;
-    return result_count == 1 && jass_popboolean(&tmp_state);
+    bool accepted = result_count == 1 && jass_popboolean(tmp_state);
+    jass_free(tmp_state);
+    return accepted;
 }
 
 /* Force filters bind players through the same scratch-state context used by
  * trigger callbacks, keeping GetFilterPlayer isolated across nested calls. */
 bool jass_evaluateplayerexpr(jass_t *j, jassFunc_t const *expr, player_t *player) {
     if (!expr) return true;
-    jass_t tmp_state;
-    memcpy(&tmp_state, j, sizeof(struct jass_s));
-    memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
-    tmp_state.num_stack = 0;
-    tmp_state.context.playerState = player;
-    jass_pushfunction(&tmp_state, expr);
-    uint32_t result_count = jass_call(&tmp_state, 0);
-    return result_count == 1 && jass_popboolean(&tmp_state);
+    jass_t *tmp_state = jass_alloc(sizeof(*tmp_state));
+    if (!tmp_state) return false;
+    memcpy(tmp_state, j, sizeof(*tmp_state));
+    memset(tmp_state->stack, 0, sizeof(tmp_state->stack));
+    tmp_state->num_stack = 0;
+    tmp_state->context.playerState = player;
+    jass_pushfunction(tmp_state, expr);
+    uint32_t result_count = jass_call(tmp_state, 0);
+    bool accepted = result_count == 1 && jass_popboolean(tmp_state);
+    jass_free(tmp_state);
+    return accepted;
 }
 
 /* AI hero-level callbacks are ordinary zero-argument code functions that return
  * an ability rawcode. Evaluate them in an isolated scratch state so their
  * player context does not disturb a sleeping common.ai coroutine. */
 bool jass_evaluateplayerinteger(jass_t *j, jassFunc_t const *expr, player_t *player, int32_t *result) {
-    jass_t tmp_state;
     uint32_t result_count;
     if (result) *result = 0;
     if (!j || !expr) return false;
-    memcpy(&tmp_state, j, sizeof(struct jass_s));
-    memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
-    tmp_state.num_stack = 0;
-    tmp_state.context.playerState = player;
-    jass_pushfunction(&tmp_state, expr);
-    result_count = jass_call(&tmp_state, 0);
-    if (result_count != 1 || jass_gettype(&tmp_state, -1) != jasstype_integer) {
-        if (result_count) jass_pop(&tmp_state, result_count);
+    jass_t *tmp_state = jass_alloc(sizeof(*tmp_state));
+    if (!tmp_state) return false;
+    memcpy(tmp_state, j, sizeof(*tmp_state));
+    memset(tmp_state->stack, 0, sizeof(tmp_state->stack));
+    tmp_state->num_stack = 0;
+    tmp_state->context.playerState = player;
+    jass_pushfunction(tmp_state, expr);
+    result_count = jass_call(tmp_state, 0);
+    if (result_count != 1 || jass_gettype(tmp_state, -1) != jasstype_integer) {
+        if (result_count) jass_pop(tmp_state, result_count);
+        jass_free(tmp_state);
         return false;
     }
-    if (result) *result = jass_checkinteger(&tmp_state, -1);
-    jass_pop(&tmp_state, 1);
+    if (result) *result = jass_checkinteger(tmp_state, -1);
+    jass_pop(tmp_state, 1);
+    jass_free(tmp_state);
     return true;
 }
 
@@ -1443,6 +1457,16 @@ static jassVar_t *find_global(jass_t const *j, cstring_t name) {
     return NULL;
 }
 
+bool jass_globalenum(jass_t *j, cstring_t name, cstring_t type, uint32_t *value) {
+    if (!j || !name || !type || !value) return false;
+    jassVar_t const *var = find_global(jass_root(j), name);
+    if (!var || var->array || !var->type || strcmp(var->type->name, type) ||
+        !jass_valuehandle(type) || !var->value || !var->ref || var->ref->size != sizeof(*value))
+        return false;
+    memcpy(value, var->value, sizeof(*value));
+    return true;
+}
+
 static jassType_t const *find_type(jass_t const *j, cstring_t name) {
     FOR_LOOP(i, sizeof(jass_types)/sizeof(*jass_types)) {
         if (!strcmp(jass_types[i].name, name)) {
@@ -1591,6 +1615,12 @@ static jassVar_t *ensure_array_value(jass_t *j, jassVar_t *dest, uint32_t index)
     jv->index = index;
     ADD_TO_LIST(jv, dest->_array);
     return &jv->value;
+}
+
+static jassVar_t const *find_array_value(jassVar_t const *array, uint32_t index) {
+    for (jassArray_t const *item = array->_array; item; item = item->next)
+        if (item->index == index) return &item->value;
+    return NULL;
 }
 
 void jass_copy(jass_t *j, jassVar_t *var, jassVar_t const *other) {
@@ -1832,13 +1862,13 @@ handle_t jass_checkhandle(jass_t *j, int index, cstring_t type) {
 
 bool jass_popboolean(jass_t *j) {
     bool value = jass_toboolean(j, -1);
-    jass_pop(j, 1);
+    jass_discard(j, 1);
     return value;
 }
 
 static uint32_t jass_popinteger(jass_t *j) {
     uint32_t value = jass_checkinteger(j, -1);
-    jass_pop(j, 1);
+    jass_discard(j, 1);
     return value;
 }
 
@@ -1909,14 +1939,19 @@ uint32_t VM_EvalArrayAccess(jass_t *j, token_t const *token) {
     uint32_t count = jass_dotoken(j, token->index);
     if (count != 1) { jass_pushnull(j); }
     uint32_t index_val = jass_popinteger(j);
-    VM_EvalIdentifier(j, token);
-    jassVar_t *var = jass_stackvalue(j, -1);
-    jassVar_t *item = ensure_array_value(j, var, index_val);
-    if (token->body) item = jass_array_value(j, item, token->body);
-    jass_pop(j, 1);
-    jassVar_t tmp;
-    memcpy(&tmp, item, sizeof(jassVar_t));
-    jass_pushvalue(j, &tmp);
+    jassVar_t *var = find_global(j, token->primary);
+    if (!var) var = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary);
+    if (!var) return jass_pushnull(j);
+    jassVar_t null_value = { .type = var->type };
+    jassVar_t const *item = find_array_value(var, index_val);
+    while (token->body) {
+        count = jass_dotoken(j, token->body->index);
+        if (count != 1) jass_pushnull(j);
+        uint32_t nested_index = jass_popinteger(j);
+        item = item ? find_array_value((jassVar_t *)item, nested_index) : NULL;
+        token = token->body;
+    }
+    jass_pushvalue(j, item ? item : &null_value);
     return 1;
 }
 
@@ -2028,7 +2063,7 @@ static void jass_set_value(jass_t *j, jassVar_t *dest, token_t const *init, cstr
     if (stack >= 1) {
         float before = jass_numbervalue(dest);
         jass_copy(j, dest, j->stack + jass_top(j));
-        jass_pop(j, stack);
+        jass_discard(j, stack);
         if (name && jass_host.VariableChanged &&
             (jass_getvarbasetype(dest) == jasstype_integer || jass_getvarbasetype(dest) == jasstype_real))
             jass_host.VariableChanged(name, before, jass_numbervalue(dest));
@@ -2045,7 +2080,7 @@ static void jass_set_array_value(jass_t *j, jassVar_t *dest, token_t const *toke
     count = jass_dotoken(j, init);
     if (count != 1) { jass_pushnull(j); }
     jass_copy(j, index_dest, j->stack + jass_top(j));
-    jass_pop(j, 1);
+    jass_discard(j, 1);
 }
 
 static jassdict_t *parse_dict(jass_t *j, token_t const *token) {

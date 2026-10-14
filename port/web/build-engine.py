@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""Experimental static Emscripten link using the existing native module boundaries.
+
+This build mounts browser-local archives via WasmFS OPFS; full runtime compatibility is unverified.
+"""
+import argparse
+import pathlib
+import os
+import shutil
+import subprocess
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+
+def sources(*directories, exclude=()):
+    result = []
+    for directory in directories:
+        result.extend((ROOT / directory).rglob("*.c"))
+    return sorted(p for p in result if p.name not in exclude)
+
+
+def unity(target, files):
+    # A quoted include resolves relative to the generated file, NOT the
+    # subprocess working directory. Use relative paths from that file.
+    includes = (os.path.relpath(path, target.parent).replace(os.sep, "/")
+                for path in files)
+    target.write_text("/* Generated module unity compilation unit. */\n" +
+                      "".join('#include "{}"\n'.format(path) for path in includes),
+                      encoding="utf-8")
+
+
+def run(args):
+    print("+", " ".join(str(a) for a in args), flush=True)
+    subprocess.run(list(map(str, args)), cwd=ROOT, check=True)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", default="build/web/engine")
+    parser.add_argument("--emcc", default="emcc")
+    parser.add_argument("--check", action="store_true", help="validate/generate sources without invoking Emscripten")
+    parser.add_argument("--debug", action="store_true",
+                        help="build an unoptimized, DWARF-symbolized browser engine for runtime failures")
+    args = parser.parse_args()
+    if args.debug and args.out == "build/web/engine":
+        args.out = "build/web/engine-debug"
+    out = (ROOT / args.out).resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    emcc = shutil.which(args.emcc)
+    if emcc is None and not args.check:
+        parser.error("emcc not available; activate the Emscripten SDK")
+
+    wc3 = "games/warcraft-3"
+    # Engine defaults are open-source assets, separate from user-imported MPQs.
+    # FS_BasePath() is /share in the browser, so embed at that absolute path.
+    wc3_share = ROOT / wc3 / "share"
+    if not (wc3_share / "config.cfg").is_file():
+        raise SystemExit("missing Warcraft III defaults: " + str(wc3_share / "config.cfg"))
+    module_sources = {
+        # shared/test.c defines a function-like TEST macro. In a unity build
+        # that leaks into blast.c, where #ifdef TEST enables its standalone
+        # stdin test main instead of the engine. Tests are not part of runtime.
+        "shared": sources("shared", exclude=("test.c",)) + [ROOT / "vendor/blast/blast.c"],
+        # Keep the test API symbol referenced by common command code, but
+        # isolate its TEST macro from vendor unity sources.
+        "test_harness": [ROOT / "shared/test.c"],
+        "jass": sources(wc3 + "/jass"),
+        "renderer": sources("renderer", wc3 + "/renderer"),
+        "game": sources(wc3 + "/game", exclude=("g_save.c",)) +
+                [ROOT / "port/web/src/web_save_unsupported.c"],
+        "menu": sources(wc3 + "/menu"),
+        # Compiled once: data/serialization helpers used by both game and menu.
+        "wc3_common": sources(wc3 + "/common", exclude=("world_w3.c",)),
+        "engine": sources("client", "server", "common", "sound",
+                          exclude=("stb_vorbis.c", "sv_routing.c")) +
+                  [ROOT / wc3 / "common/world_w3.c", ROOT / "port/web/src/web_opfs.c"],
+    }
+    # Source collection is deliberately scoped to the known native modules.
+    # Never accidentally compile fixture tests or a second platform main().
+    for name, files in module_sources.items():
+        if not files:
+            raise SystemExit("empty browser module: " + name)
+        missing = [str(path) for path in files if not path.is_file()]
+        if missing:
+            raise SystemExit("missing inputs for " + name + ": " + ", ".join(missing))
+    # Compile each native unity module separately, preserving module-local static
+    # definitions and the direct GetGameAPI/R_GetAPI/M_GetAPI interfaces.
+    optimization = "-O0" if args.debug else "-O2"
+    debug_flags = ["-g3", "-fno-omit-frame-pointer"] if args.debug else []
+    flags = [optimization, *debug_flags, "-I.", "-Ishared", "-Ishared/types", "-I" + wc3,
+             "-I" + wc3 + "/common", "-I" + wc3 + "/game",
+             "-I" + wc3 + "/game/api", "-I" + wc3 + "/game/skills",
+             "-DWC3", "-DUSE_FOGOFWAR", '-DBZ_GAME="warcraft-3"',
+             "-DBZ_GL_ES3", "-DBZ_MSAA_SAMPLES=0",
+             "-sUSE_SDL=2", "-sUSE_ZLIB=1", "-pthread"]
+    objects = []
+    for name, files in module_sources.items():
+        unit = out / (name + "_unity.c")
+        unity(unit, sorted(set(files)))
+        obj = out / (name + ".o")
+        # The WC3 game and menu are separate native libraries with independent
+        # FDF parser state/callbacks. The static WASM link must preserve both
+        # instances under distinct symbol namespaces. Only the engine has its
+        # own unrelated FDF implementation.
+        extra = ["-DSTB_FDF_IMPLEMENTATION", "-DSTB_FDF_GLOBALS"] if name in ("game", "menu", "engine") else []
+        if name == "engine":
+            extra.append("-DBZ_CLIENT_WORLD")
+        if name in ("game", "menu"):
+            # Each native module owns a distinct FDF registry/parser and host
+            # callbacks. Preserve that separation in the single WASM link.
+            extra.extend(["-include", "port/web/src/web_fdf_namespace.h",
+                          "-DBZ_WEB_FDF_" + name.upper()])
+        if name == "renderer":
+            extra.extend(["-include", "port/web/src/web_renderer_namespace.h"])
+        if not args.check:
+            run([emcc, *flags, *extra, "-c", unit, "-o", obj])
+        objects.append(obj)
+    for name in ("parser", "sheet"):
+        obj = out / (name + ".o")
+        if not (ROOT / wc3 / "sheet" / (name + ".c")).is_file():
+            raise SystemExit("missing sheet source: " + name)
+        if not args.check:
+            run([emcc, *flags, "-c", ROOT / wc3 / "sheet" / (name + ".c"), "-o", obj])
+        objects.append(obj)
+    # The existing renderer embeds generated font bytes from this source file.
+    if not (ROOT / "renderer/conchars_sysfont.h").exists():
+        raise SystemExit("renderer/conchars_sysfont.h missing; run native `make font` first")
+    if args.check:
+        print("Source validation complete; generated unity files in", out)
+        return
+    shell = ROOT / "port/web/site/engine-shell.html"
+    run([emcc, *objects, optimization, *debug_flags, "-sUSE_SDL=2", "-sUSE_ZLIB=1",
+         "-sMIN_WEBGL_VERSION=2", "-sMAX_WEBGL_VERSION=2", "-sFULL_ES3=1",
+         "-sWASMFS=1", "-pthread", "-sPROXY_TO_PTHREAD=1", "-sPTHREAD_POOL_SIZE=2",
+         # Renderer creates its WebGL context directly on the engine pthread.
+         # Transfer the canvas to that thread; do not proxy synchronous GL calls
+         # back to the browser thread (which can deadlock during initialization).
+         "-sOFFSCREENCANVAS_SUPPORT=1", "-sOFFSCREENCANVASES_TO_PTHREAD=#canvas",
+         "-sINITIAL_MEMORY=134217728", "-sALLOW_MEMORY_GROWTH=1",
+         "-sFILESYSTEM=1", "-sENVIRONMENT=web",
+         "-sASSERTIONS=2" if args.debug else "-sASSERTIONS=1",
+         "-sSTACK_OVERFLOW_CHECK=2" if args.debug else "-sSTACK_OVERFLOW_CHECK=0",
+         "-sEXPORTED_RUNTIME_METHODS=addRunDependency,removeRunDependency", "-lm", "--shell-file", shell,
+         "-sINCOMING_MODULE_JS_API=canvas,arguments,setStatus,onAbort",
+         # Make shipped bindings available before native Com_Init loads config.
+         # Emscripten's virtual FS maps this to /share/warcraft-3/.
+         "--embed-file", str(wc3_share) + "@/share/warcraft-3",
+         "-o", out / "index.html"])
+    for name in ("installer.js", "install-worker.js", "filesystem-bridge.js", "audio-worklet.js"):
+        shutil.copy2(ROOT / "port/web/site" / name, out / name)
+    print("Experimental static engine build emitted to", out)
+    print("OPFS archives mounted through WasmFS; native engine link/runtime remains experimental.")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except subprocess.CalledProcessError as exc:
+        sys.exit(exc.returncode)

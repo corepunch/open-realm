@@ -386,3 +386,80 @@ the second assignment erased already-built higher layers. The renderer fixture
 builds a populated `Lgrs` layer and lets the real lower `Ldrt` texture lookup
 fail. It first reproduces the lost list, then retains the populated batch after
 the brace fix. Missing terrain art remains logged by the existing resolver.
+
+### Special terrain doodad cave placement and cliff replacement textures
+
+The 16-byte special-doodad records after the ordinary `war3map.doo` placements
+are terrain-cell anchored, not conventional world-space doodad transforms. The
+last two words name the minimum tile coordinates. The second word is reserved
+metadata and must not be added to the sampled ground height. Warcraft's
+`Doodads.slk` `pathTex` defines a footprint in 4-pixel-per-cell coordinates.
+The model is centred at `(map.center + tile * 128 + pathTexPixelSize * 16)`
+per XY axis, with `fixedRot` and `defScale` supplied by the SLK row. The
+original footprint remains authored data, not a hardcoded cave offset.
+
+Models with MDX replacement ID 11 use the nearby W3E-selected `CliffTypes.slk`
+texture (`texDir`/`texFile`) from the current map tileset. Do not make slot 11
+white or replace it globally with a fixed Cliff0: the correct cliff tile varies
+by map location and tileset. Explicit unit/destructable skins retain priority.
+
+Special terrain doodads can replace generated cliff geometry under the
+rectangular `pathTex` footprint. The WC3 renderer reads the special placements
+in the `war3map.doo` tail, resolves `Doodads.slk` `pathTex` (including W3D
+custom doodad ID inheritance and map overrides), and marks covered 128-unit
+cells *before* baking terrain. The cliff baker skips those cells, including on
+terrain rebuilds. **The ground baker and splat placement do not use this mask:**
+normal W3E ground tiles and overlays remain visible where `R_TileHasGround`
+permits them. This is intended to reduce the rectangular ground void seen behind the
+OrcX01 Goblin Cave when both ground and cliffs were suppressed. The mask is visual
+only; gameplay pathing/collision and terrain height queries stay unchanged.
+Missing or malformed pathing textures do not remove geometry. The mask is
+cleared on map replacement.
+
+Warsmash's `War3MapViewer` suppresses both ground and generated cliff cells
+for special doodads, but OpenRealm renders the special cave as an ordinary
+height-adjusted MDX entity. For the observed OrcX01 result, retaining authored
+ground while suppressing generated cliffs is a narrow compatibility adjustment,
+**not yet a verified retail-equivalent terrain replacement rule**. This does
+not fabricate ground on W3E cliff-transition tiles where `R_TileHasGround` is
+false, so any remaining open gap must be investigated before widening the
+cutout or adding synthetic geometry. The MDX cave model's position, scale,
+rotation and replaceable cliff-texture selection are unchanged.
+
+### Selective cliff joins at special cave mouths
+
+The initial special-doodad cutout removed every generated cliff tile within
+its `pathTex` rectangle. In Rexxar's OrcX01 Goblin Cave this left visible,
+straight model boundaries along the roof and sides, even once ground rendering
+and the cave's terrain-sampled Z were corrected. Cliff cutouts now keep the
+north/rear footprint row and both side columns above the front row, retaining
+surrounding authored cliff pieces to cover the model's upper and side seams.
+The front row still suppresses cliffs all the way across the mouth, preserving
+the opening and shimmering barrier. Tiny or clipped footprints too narrow for
+an inset retain full suppression. This is a **visual-only, provisional** join
+policy; the original map's special doodad/MDX placement should be compared
+with retail before treating the north/rear assumption as universal. No pathing,
+height, ground, model scale/rotation, or textures are changed.
+
+### Special terrain doodad elevation (W3E terrain height)
+
+Special `war3map.doo` records provide indexed XY cells, not an absolute model
+Z. OpenRealm currently renders special doodads through the ordinary MDX entity
+path, which does **not** deform their vertices using the W3E heightmap.
+Previously the spawn helper forced every special model origin to `Z=0`, even
+where surrounding terrain/cliffs were raised. That could bury the cave model
+behind the terrain, leaving only stray geometry visible after cutouts.
+
+After pathing-footprint XY centering, the WC3 game module now samples the
+underlying W3E terrain at that XY (using `CM_GetHeightAtPoint`, including the
+map's cliff-level baseline) and sets the **special doodad only** to that Z.
+Sampling is clamped one-half tile inside the W3E vertex bounds for edge/
+malformed placements; the actual drawn XY is never clamped. No hard-coded
+cliff offset is added, and normal doodads, Forcewall entities, cutout masks,
+textures and collision remain unchanged.
+
+The exact retail mesh/heightmap deformation for these special models has not
+been visually verified from OrcX01 assets. Compare its Goblin Cave against
+retail: if the cavern silhouette remains incomplete, investigate the model
+origin/vertex geometry and terrain-cutout correspondence before adding
+further offsets.

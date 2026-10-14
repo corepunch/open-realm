@@ -18,12 +18,18 @@ Clockwerk FOURCC special cases in `unit_die`.
 `DataF=1`. Stock Goblin Sapper `Asds` leaves `DataF` empty/0 and does **not**
 explode when killed.
 
-Kaboom! is a point-target autocast command-card spell (Hotkey B, Untip
-right-click autocast). Intentional cast always deals DataA–E blast and kills
-the caster, independent of `DataF`. Stock `Asds` is registered
-`AB_SPELL | AB_AUTOCAST` with `SPELL_TARGET_POINT`. Clockwerk aliases stay
-`AB_PASSIVE` death-only (they share Untip/Hotkey strings but this leftover
-keeps click on the Sapper row).
+Kaboom! is an autocast command-card spell (Hotkey B, Untip right-click
+autocast). Its click command uses entity targeting without a spell-area
+overlay. The approach retains the selected entity and its incarnation,
+follows its current position, and revalidates its eligibility each tick. A dead,
+removed or reused target cancels the pending cast; Stop or a replacement order
+also cancels it. Since stock `Rng` is zero, the Goblin walks until it is within `DataA` (the full
+damage radius), then detonates at its own position. Intentional cast always
+deals DataA–E blast and kills the caster, independent of `DataF`. Stock `Asds`
+is registered `AB_SPELL | AB_AUTOCAST` with `SPELL_TARGET_POINT` so the blast
+still executes as a point cast. Clockwerk aliases stay `AB_PASSIVE` death-only
+(they share Untip/Hotkey strings but this leftover keeps click on the Sapper
+row).
 
 ## Authoritative Fields
 
@@ -43,7 +49,7 @@ WorldEdit `AbilityMetaData` labels (`WESTRING_AEVAL_DDA*` / `SDS*`):
 | `targs` | | ground,structure,debris,enemy,neutral | same | same | ground,structure,debris,tree,ward |
 
 Ubertips reference `DataB` as the listed damage. Damage is physical (`T_Damage`):
-armor applies; spell immunity does not block it. Buildings multiply by `DataE`.
+armor applies; spell immunity does not block it. Buildings multiply by `DataE`. Destructables matching the authored `targs` classes (such as `debris` and `tree`) also take the full/partial blast through the destructable damage lifecycle; a `debris` blast also hits `wall` destructables, matching stock Kaboom's OrcX01_02 support columns. The building factor does not apply to destructables.
 
 ## Data Flow
 
@@ -51,7 +57,8 @@ armor applies; spell immunity does not block it. Buildings multiply by `DataE`.
 UnitAbilities.abilList (Asdg / Asd2 / Asd3 / Asds)
   -> unit carries Self Destruct
 Click / autocast (Asds only):
-  S_CastPointTargetSpell(Asds, point)
+  click Asds -> select entity -> follow its current position to DataA range
+    -> point-target execute -> detonate at the Goblin's position
     -> CAbilitySelfDestruct(A_EXECUTE)
        self_destruct_explode(DataA–E)
        unit_die(caster)   /* DataF=0 => no second blast */
@@ -79,3 +86,22 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.pocket_factory*'
 Register `Asds` on `CAbilitySelfDestruct` with `AB_SPELL | AB_AUTOCAST` and
 `SPELL_TARGET_POINT`. Register `Asdg`/`Asd2`/`Asd3` with `AB_PASSIVE`. Do not
 register abstract `AAat`.
+
+Command-card regression tests advance `globals.RunFrame` through a moving
+target, target death, slot reuse, Stop, and save/load during the approach. The
+ability's `A_VALIDATE` owns both unit and destructable eligibility while the
+shared approach owns identity, Move cancellation, and point execution. See
+[save/load](save-load.md) for the versioned pending-cast contract.
+
+The physical approach uses `S_BeginUnitEntityPointApproach`: it follows a live
+entity with the existing Move receiver and measures DataA from the target
+center. Ordinary unit-target spells keep their hull-inclusive approach range.
+`A_SPELL_APPROACH_RANGE` receives the caster so level-specific data is retained.
+The receiver's `think` is cleared after physical admission; inspect it through
+`S_UnitTargetApproachReceiver`, not by scanning thinker callbacks.
+
+The minimal test archive lacks an `ncgb` UnitData movement row. These fixtures
+set turn speed and propagation window with their runtime override flags;
+otherwise the zero authored window prevents translation. Target relocation
+uses `S_SetUnitPosition` so fine poses and world positions agree. Frame tests
+reset both millisecond and scalar scheduler clocks between save formats.

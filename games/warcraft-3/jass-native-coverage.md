@@ -264,7 +264,11 @@ on-disk format.
 
 The `SyncStored*` callbacks remain **partial**: they validate/consume their
 arguments but do not implement multiplayer synchronization.
-`ReloadGameCachesFromDisk` remains unregistered.
+`ReloadGameCachesFromDisk` is registered and succeeds for the campaign import
+path: OpenRealm loads each disk-backed cache when `InitGameCache` creates its
+handle, which matches Rexxar scripts that call reload immediately before
+creating those handles. Refreshing cache handles that already exist is not
+implemented.
 
 ## Rally getters
 
@@ -602,3 +606,35 @@ a thin AI dispatch into Move; source reconstruction, retry preservation and
 explicit stopped motion belong to the game-owned movement consumer. Natural
 journey completion and broader captain policies remain open. See
 [the refill port](../../docs/games/warcraft-3/retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff).
+
+### Game save/load event and filename natives
+
+`TriggerRegisterGameEvent` supports `EVENT_GAME_SAVE` and `EVENT_GAME_LOADED`
+with real event handles, normal trigger enabled-state semantics and save/load
+registry identity. `GetSaveBasicFilename` exposes the logical slot basename
+only while the menu/server save or successful load notification is dispatched.
+The in-game named/quick save, server `save`, and server cross-map restore paths
+invoke the handlers at their respective boundaries. JASS `SaveGame` and
+`LoadGame` requests are deferred to VM-safe session boundaries; successful
+scripted zone restores dispatch `EVENT_GAME_LOADED` with `MAP_RELOADED` set
+during the return callback. See
+[trigger events](../../docs/games/warcraft-3/trigger-events.md) and
+[save/load](../../docs/games/warcraft-3/save-load.md).
+
+### Scripted save filesystem natives (Rexxar zone paths)
+
+`SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` are registered and use engine-owned restricted filesystem callbacks. These only operate within the current script-save session namespace and accept `Blizzard\Zones` / `Blizzard\<slot>` directories, plus flat scripted slots. Copying is bounded and atomic on POSIX; the parent directory cannot be renamed or removed. Manual save slots are not accessible. `SaveGame` defers its write to the end-of-frame VM-safe boundary and `ChangeLevel` waits for successful persistence. `LoadGame` defers to the session loader, which validates the saved map before loading it and restores the snapshot afterward. See `docs/games/warcraft-3/save-load.md`.
+
+- Rexxar multi-map `LoadGame` defers to the session loader, preserving the private scripted save scope and allowing different-map `.w3z` restores; paired `SaveGame`/`LoadGame` only dispatch after a successful VM-safe source snapshot. Internal zone restores dispatch `EVENT_GAME_LOADED` with `MAP_RELOADED` set so the map can import travelling Heroes without running the named-user-load handler.
+
+## Item handoff natives
+
+`UnitDropItemTarget(unit, item, widget)` now accepts an allied inventory-capable
+unit recipient and queues the regular give-item order. It is not a synchronous
+inventory mutation: the source approaches within `Misc.GiveItemRange` and the
+item changes carrier at order completion. Existing point drops and neutral shop
+pawn UI remain separate. `UnitAddItem(unit, item)` now also moves an item already
+carried by another unit directly between authoritative inventory slots, without
+requiring a world drop or changing the item handle. Scripted Soul Gem slot
+reattachment remains the first branch. See
+[Inventory And World Items](../../docs/games/warcraft-3/inventory-and-items.md#unit-to-unit-item-handoff).

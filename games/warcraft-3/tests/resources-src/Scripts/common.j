@@ -24,6 +24,7 @@ type event            extends handle
 type race             extends handle
 type triggeraction    extends handle
 type playerevent      extends handle
+type gameevent        extends handle
 type playerunitevent  extends handle
 type unitevent        extends handle
 type alliancetype     extends handle
@@ -75,14 +76,17 @@ type button          extends agent
 
 // Cinematic skip regression uses the same event and local-player guards as campaign scripts.
 native ConvertPlayerEvent         takes integer i returns playerevent
+native ConvertGameEvent           takes integer i returns gameevent
 native ConvertPlayerUnitEvent     takes integer i returns playerunitevent
 native ConvertUnitEvent           takes integer i returns unitevent
 native CreateTrigger              takes nothing returns trigger
 native TriggerRegisterPlayerEvent     takes trigger whichTrigger, player whichPlayer, playerevent whichPlayerEvent returns event
+native TriggerRegisterGameEvent    takes trigger whichTrigger, gameevent whichGameEvent returns event
 native TriggerRegisterPlayerUnitEvent takes trigger whichTrigger, player whichPlayer, playerunitevent whichPlayerUnitEvent, boolexpr filter returns event
 native TriggerRegisterUnitEvent   takes trigger whichTrigger, unit whichUnit, unitevent whichEvent returns event
 native TriggerAddAction           takes trigger whichTrigger, code actionFunc returns triggeraction
 native GetLocalPlayer             takes nothing returns player
+native GetSaveBasicFilename        takes nothing returns string
 native ShowInterface              takes boolean flag, real fadeDuration returns nothing
 native EnableUserControl          takes boolean b returns nothing
 native PauseGame                  takes boolean flag returns nothing
@@ -296,6 +300,7 @@ native SetFogStateRadiusLoc takes player forWhichPlayer, fogstate whichState, lo
 native ConvertPlayerGameResult  takes integer i returns playergameresult
 native RemovePlayer             takes player whichPlayer, playergameresult gameResult returns nothing
 native Player                   takes integer number returns player
+native GetPlayerNeutralPassive  takes nothing returns integer
 
 // Stock Blizzard.j drop helpers: authoritative game-side item creation and
 // position queries, with itemtype's value-handle enum used by stock filters.
@@ -411,13 +416,18 @@ globals
     constant playerunitevent EVENT_PLAYER_UNIT_RESEARCH_FINISH = ConvertPlayerUnitEvent(37)
     constant playerunitevent EVENT_PLAYER_UNIT_ISSUED_ORDER = ConvertPlayerUnitEvent(38)
     constant playerunitevent EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER = ConvertPlayerUnitEvent(39)
+    constant playerunitevent EVENT_PLAYER_UNIT_SELL_ITEM = ConvertPlayerUnitEvent(271)
     constant playerunitevent EVENT_PLAYER_UNIT_SPELL_EFFECT = ConvertPlayerUnitEvent(274)
     constant playerunitevent EVENT_PLAYER_HERO_LEVEL = ConvertPlayerUnitEvent(41)
     constant playerunitevent EVENT_PLAYER_UNIT_SUMMON = ConvertPlayerUnitEvent(47)
     constant playerunitevent EVENT_PLAYER_UNIT_PICKUP_ITEM = ConvertPlayerUnitEvent(49)
     constant playerunitevent EVENT_PLAYER_UNIT_USE_ITEM = ConvertPlayerUnitEvent(50)
+    constant unitevent EVENT_UNIT_SELL_ITEM = ConvertUnitEvent(288)
+    constant integer PLAYER_NEUTRAL_PASSIVE = GetPlayerNeutralPassive()
     constant gameevent EVENT_GAME_STATE_LIMIT = ConvertGameEvent(3)
     constant gameevent EVENT_GAME_ENTER_REGION = ConvertGameEvent(5)
+    constant gameevent EVENT_GAME_LOADED = ConvertGameEvent(256)
+    constant gameevent EVENT_GAME_SAVE = ConvertGameEvent(259)
     constant unitevent EVENT_UNIT_DAMAGED = ConvertUnitEvent(52)
     constant unitevent EVENT_UNIT_DEATH = ConvertUnitEvent(53)
     constant unitevent EVENT_UNIT_IN_RANGE = ConvertUnitEvent(61)

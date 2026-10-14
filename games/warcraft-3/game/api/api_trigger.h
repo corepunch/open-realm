@@ -260,9 +260,16 @@ uint32_t TriggerRegisterDialogButtonEvent(jass_t *j) {
     return jass_pushlighthandle(j, event, "event");
 }
 uint32_t TriggerRegisterGameEvent(jass_t *j) {
-    //trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //handle_t whichGameEvent = jass_checkhandle(j, 2, "gameevent");
-    return jass_pushnullhandle(j, "event");
+    trigger_t *trigger = jass_checkhandle(j, 1, "trigger");
+    uint32_t *game_event = jass_checkhandle(j, 2, "gameevent");
+    event_t *registration;
+    if (!trigger || !game_event ||
+        (*game_event != EVENT_GAME_SAVE && *game_event != EVENT_GAME_LOADED))
+        return jass_pushnullhandle(j, "event");
+    registration = G_MakeEvent((EVENTTYPE)*game_event);
+    if (!registration) return jass_pushnullhandle(j, "event");
+    registration->trigger = trigger;
+    return jass_pushlighthandle(j, registration, "event");
 }
 uint32_t TriggerRegisterEnterRegion(jass_t *j) {
     trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
@@ -326,12 +333,23 @@ uint32_t TriggerRegisterPlayerEvent(jass_t *j) {
 uint32_t GetTriggerPlayer(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->playerState, "player");
 }
+/* The later common.j inserted three player mouse events before these blocks.
+ * Normalize at registration; the simulation and saved event rows keep one
+ * canonical numbering. Map file format does not identify the common.j era. */
+static EVENTTYPE JassUnitEventType(jass_t *j, EVENTTYPE type, bool player_event) {
+    uint32_t effect;
+    if (!jass_globalenum(j, "EVENT_PLAYER_UNIT_SPELL_EFFECT", "playerunitevent", &effect) || effect != 274)
+        return type;
+    uint32_t first = player_event ? 269 : 286;
+    return (uint32_t)type >= first && (uint32_t)type <= first + 8 ? type + 3 : type;
+}
+
 uint32_t TriggerRegisterPlayerUnitEvent(jass_t *j) {
     trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
     player_t *whichPlayer = jass_checkhandle(j, 2, "player");
     EVENTTYPE *whichPlayerUnitEvent = jass_checkhandle(j, 3, "playerunitevent");
     //handle_t filter = jass_checkhandle(j, 4, "boolexpr");
-    event_t *evt = G_MakeEvent(*whichPlayerUnitEvent);
+    event_t *evt = G_MakeEvent(JassUnitEventType(j, *whichPlayerUnitEvent, true));
     G_SetPlayerEventSubject(evt, PLAYER_ENT(whichPlayer));
     G_SetEventTrigger(evt, whichTrigger);
     QuestPeonStageLogRegistration(whichTrigger, *whichPlayerUnitEvent, evt->subject, "player-unit");
@@ -418,7 +436,7 @@ uint32_t TriggerRegisterUnitEvent(jass_t *j) {
     if (!whichTrigger || !whichUnit || !whichEvent) {
         return jass_pushnullhandle(j, "event");
     }
-    event_t *evt = G_MakeEvent(*whichEvent);
+    event_t *evt = G_MakeEvent(JassUnitEventType(j, *whichEvent, false));
     G_SetEventSubject(evt, whichUnit);
     G_SetEventTrigger(evt, whichTrigger);
     QuestPeonStageLogRegistration(whichTrigger, *whichEvent, evt->subject, "unit");
@@ -562,7 +580,11 @@ uint32_t TriggerWaitForSound(jass_t *j) {
     float offset = jass_checknumber(j, 2);
     jassContext_t const *ctx = jass_getcontext(j);
     uint32_t duration = G_JassSoundRemainingDuration(s);
-    uint32_t wait_msec = G_SkipCutscene() ? 1 : duration + (uint32_t)(offset * 1000.0f);
+    double wait_msec_f = (double)duration - (double)offset * 1000.0;
+    bool const skip_cutscene = G_SkipCutscene();
+    uint32_t wait_msec = skip_cutscene ? 1 : 0;
+    if (!skip_cutscene && wait_msec_f > 0.0)
+        wait_msec = wait_msec_f >= UINT32_MAX ? UINT32_MAX : (uint32_t)wait_msec_f;
     if (QuestPeonStageDebugEnabled() && ctx && TutorialFlowDebugTrigger(ctx->trigger)) {
         char chain[256];
         jass_formatcallchain(j, chain, sizeof(chain));

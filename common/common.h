@@ -183,6 +183,18 @@ cstring_t FS_HomePath(void);
 void FS_UserPath(cstring_t rel, string_t out, uint32_t out_size);
 void FS_ConfigPath(cstring_t rel, string_t out, uint32_t out_size);
 void FS_SavePath(cstring_t rel, string_t out, uint32_t out_size);
+/* JASS-only filesystem API: engine-scoped sandbox, not the manual save area. */
+void FS_ResetScriptSaveScope(void);
+bool FS_BindScriptSaveScope(cstring_t manual_name);
+bool FS_RestoreScriptSaveScope(cstring_t manual_name);
+cstring_t FS_ScriptScopeIdentity(void);
+bool FS_ScriptSavePath(cstring_t name, string_t out, uint32_t out_size);
+bool FS_ScriptCachePath(cstring_t name, string_t out, uint32_t out_size);
+bool FS_ScriptCacheReadPath(cstring_t name, string_t out, uint32_t out_size);
+bool FS_ScriptSaveExists(cstring_t name);
+bool FS_ScriptCopySave(cstring_t source, cstring_t target);
+bool FS_ScriptRenameDirectory(cstring_t source, cstring_t target);
+bool FS_ScriptRemoveDirectory(cstring_t name);
 uint32_t FS_ListSaves(string_t out, uint32_t out_size);
 bool FS_DeleteSave(cstring_t rel);
 void FS_Shutdown(void);
@@ -255,6 +267,8 @@ void SV_StartLobby(cstring_t pFilename);
 void SV_Map(cstring_t pFilename);
 bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size);
 bool SV_LoadGame(cstring_t name, cstring_t map);
+bool SV_GetScriptSaveMap(cstring_t name, string_t map, uint32_t map_size);
+bool SV_LoadScriptGame(cstring_t name, cstring_t map);
 #ifdef WOW
 uint32_t SV_PlayerCreateMap(void);
 #endif

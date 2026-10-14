@@ -15,6 +15,27 @@ static bool self_destruct_allows(uint32_t code, edict_t *caster, edict_t *target
 	return S_TargsAllowsOwner(targets, caster, target);
 }
 
+/* Destructables use their own damage lifecycle and have no player alliance.
+ * Kaboom's stock target list includes debris but omits wall; retail still lets
+ * that blast destroy BTsc support columns, whose destructable class is wall. */
+static bool self_destruct_allows_destructable(uint32_t code, uint32_t level, edict_t *target) {
+    abilityLevel_t const *row;
+    cstring_t targets;
+    if (!G_IsDestructable(target) || target->destructable->dead || target->invulnerable)
+        return false;
+    row = G_AbilityLevel(code, level);
+    targets = row ? row->targs : NULL;
+    if (!targets) return false;
+    switch (target->targtype) {
+    case TARG_TREE:       return strstr(targets, "tree") != NULL;
+    case TARG_WALL:       return strstr(targets, "wall") != NULL || strstr(targets, "debris") != NULL;
+    case TARG_DEBRIS:     return strstr(targets, "debris") != NULL;
+    case TARG_BRIDGE:     return strstr(targets, "bridge") != NULL;
+    case TARG_DECORATION: return strstr(targets, "decoration") != NULL;
+    default:              return false;
+    }
+}
+
 static void self_destruct_explode(edict_t *ent, uint32_t code) {
 	uint32_t level = MAX(1u, G_UnitAbilityLevel(ent, code));
 	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
@@ -30,6 +51,12 @@ static void self_destruct_explode(edict_t *ent, uint32_t code) {
 		if (damage <= 0.0f) continue;
 		if (build != 1.0f && G_UnitIsStructure(target)) damage *= build;
 		T_Damage(target, ent, (int)damage);
+	}
+	FILTER_EDICTS(target, self_destruct_allows_destructable(code, level, target)) {
+		float dist = Vector2_distance(&target->s.origin2, &origin), damage;
+		if (dist > part_r) continue;
+		damage = dist <= full_r ? full_d : part_d;
+		if (damage > 0.0f) G_DestructableApplyDamage(target, ent, damage);
 	}
 }
 
@@ -69,8 +96,27 @@ BZ_ABILITY_PROC(CAbilitySelfDestruct) {
 	uint32_t code = call && call->item ? call->item->code : 0;
 	uint32_t level;
 	switch (msg) {
-	case A_VALIDATE:
-		return call && call->target && call->target->type == SPELL_TARGET_POINT;
+    case A_COMMAND:
+        if (!call || !call->client) return false;
+        spell_cmd(call->client);
+        return true;
+    case A_SPELL_APPROACH_RANGE:
+        if (code && call) ((abilityCall_t *)call)->spell_approach_range = MAX(0.0f,
+            S_SpellData(code, MAX(1u, S_SpellLevel(ent, code)), 1));
+        return true;
+    case A_SPELL_TARGET_MODE:
+        if (call) ((abilityCall_t *)call)->spell_entity_target_mode = true;
+        return true;
+    case A_VALIDATE:
+        if (!call || !call->target) return false;
+        if (call->target->type == SPELL_TARGET_POINT) return true;
+        if (call->target->type == SPELL_TARGET_UNIT) {
+            edict_t *target = call->target->entity;
+            return target && target->inuse && target != ent &&
+                ((G_IsDestructable(target) && !target->destructable->dead && !target->invulnerable) ||
+                 S_SpellIsAliveTarget(target));
+        }
+        return false;
 	case A_EXECUTE:
 		if (!ent || !code) return false;
 		self_destruct_kaboom(ent, code);

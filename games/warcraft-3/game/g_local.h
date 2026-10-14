@@ -335,6 +335,7 @@ enum {
     AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
     AI_TOWN_OWNED = 1 << 13, /* Retail unit5c.4; AI enrollment, independent of script VM. */
     AI_SUMMONED = 1 << 14, /* Retail unit248.4; independent of the creating ability. */
+    AI_SUMMON_EXPLODES_ON_DEATH = 1 << 15, /* spirit/beast summon magical death effect, no corpse */
 };
 
 typedef enum {
@@ -468,6 +469,8 @@ typedef enum {
     EVENT_GAME_TRACKABLE_TRACK = 8,
     EVENT_GAME_SHOW_SKILL = 9,
     EVENT_GAME_BUILD_SUBMENU = 10,
+    EVENT_GAME_LOADED = 256,
+    EVENT_GAME_SAVE = 259,
     EVENT_PLAYER_STATE_LIMIT = 11,
     EVENT_PLAYER_ALLIANCE_CHANGED = 12,
     EVENT_PLAYER_DEFEAT = 13,
@@ -551,34 +554,28 @@ typedef enum {
     EVENT_DIALOG_BUTTON_CLICK = 90,
     EVENT_DIALOG_CLICK = 91,
 
-    /* Later Warcraft III spell lifecycle event ids retain their retail numeric
-     * values so ConvertPlayerUnitEvent/ConvertUnitEvent handles compare exactly
-     * with the constants authored by common.j.  Only SPELL_EFFECT is currently
-     * published; the surrounding values are reserved for future lifecycle work. */
-    EVENT_PLAYER_UNIT_SPELL_CHANNEL = 272,
-    EVENT_PLAYER_UNIT_SPELL_CAST = 273,
-    EVENT_PLAYER_UNIT_SPELL_EFFECT = 274,
-    EVENT_PLAYER_UNIT_SPELL_FINISH = 275,
-    EVENT_PLAYER_UNIT_SPELL_ENDCAST = 276,
-    EVENT_UNIT_SPELL_CHANNEL = 289,
-    EVENT_UNIT_SPELL_CAST = 290,
-    EVENT_UNIT_SPELL_EFFECT = 291,
-    EVENT_UNIT_SPELL_FINISH = 292,
-    EVENT_UNIT_SPELL_ENDCAST = 293,
+    /* Retail common.j event values after the player mouse events were added. */
+    EVENT_PLAYER_UNIT_SELL = 272,
+    EVENT_PLAYER_UNIT_CHANGE_OWNER = 273,
+    EVENT_PLAYER_UNIT_SELL_ITEM = 274,
+    EVENT_PLAYER_UNIT_SPELL_CHANNEL = 275,
+    EVENT_PLAYER_UNIT_SPELL_CAST = 276,
+    EVENT_PLAYER_UNIT_SPELL_EFFECT = 277,
+    EVENT_PLAYER_UNIT_SPELL_FINISH = 278,
+    EVENT_PLAYER_UNIT_SPELL_ENDCAST = 279,
+    EVENT_PLAYER_UNIT_PAWN_ITEM = 280,
+    EVENT_UNIT_SELL = 289,
+    EVENT_UNIT_CHANGE_OWNER = 290,
+    EVENT_UNIT_SELL_ITEM = 291,
+    EVENT_UNIT_SPELL_CHANNEL = 292,
+    EVENT_UNIT_SPELL_CAST = 293,
+    EVENT_UNIT_SPELL_EFFECT = 294,
+    EVENT_UNIT_SPELL_FINISH = 295,
+    EVENT_UNIT_SPELL_ENDCAST = 296,
+    EVENT_UNIT_PAWN_ITEM = 297,
 
-    /* Ownership-change ids retain their retail common.j numbers (270/287) so
-     * TriggerRegisterPlayerUnitEvent/TriggerRegisterUnitEvent handles match.
-     * The published value carries the previous owner + 1 (zero stays reserved
-     * for "no change context", which keeps death/research/spell callbacks that
-     * share a trigger observing null from GetChangingUnit). */
-    EVENT_PLAYER_UNIT_CHANGE_OWNER = 270,
-    EVENT_UNIT_CHANGE_OWNER = 287,
-
-    /* Shop sell ids retain retail common.j numbers (269/271/286/288). */
-    EVENT_PLAYER_UNIT_SELL = 269,
-    EVENT_PLAYER_UNIT_SELL_ITEM = 271,
-    EVENT_UNIT_SELL = 286,
-    EVENT_UNIT_SELL_ITEM = 288,
+    /* The ownership-change payload carries previous owner + 1 (zero stays
+     * reserved), while the event type matches the retail common.j value above. */
 
     /* Player-unit damaged mirrors EVENT_UNIT_DAMAGED (52) at retail id 308. */
     EVENT_PLAYER_UNIT_DAMAGED = 308,
@@ -1068,6 +1065,8 @@ typedef enum {
     A_TRANSIENT_ORDER,  /* Execute a retained owner packet without public native validation. */
     A_CONSTRUCTION_FINISH, /* Structure completion is published; ability-owned continuations run now. */
     A_ORDER_RESUME, /* Retained head reactivation: the owner publishes its notification. */
+    A_SPELL_APPROACH_RANGE, /* Spell query: ability-specific distance for the shared approach behavior. */
+    A_SPELL_TARGET_MODE, /* Spell query: choose generic point or entity target selection. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -1151,6 +1150,10 @@ struct ability_call_s {
         spellCommandProfile_t *spell_command;
         spellOrderQuery_t *spell_order;
         spellCastProfile_t *cast_profile; /* A_CAST_PROFILE: borrowed output, no instance allocation. */
+        union {
+            float spell_approach_range;
+            bool spell_entity_target_mode;
+        };
         edict_t *client;
         edict_t *projectile;
         edict_t *removed_target; /* A_TARGET_REMOVED; valid throughout the notification. */
@@ -1403,6 +1406,9 @@ typedef struct {
 #else
 #define WC3_TUTORIAL_DEBUG_ENABLED() false
 #endif
+
+/* Focused diagnostics for the Orc campaign's Rexxar/Misha summon path. */
+#define WC3_MISHA_DEBUG_ENABLED() (gi.CvarString && atoi(gi.CvarString("wc3_misha_debug", "0")) != 0)
 
 /* Focused diagnostics for UndeadX07c's periodic flame damage and texttags. */
 
@@ -3044,6 +3050,13 @@ bool G_IsSinglePlayer(void);
 void G_RequestEndGame(bool do_score_screen);
 void G_RequestQuitGame(void);
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen);
+/* JASS saves are captured after the active VM callback returns, never inline
+ * from SaveGame(). A following ChangeLevel is conditional on save success. */
+bool G_RequestScriptSaveGame(cstring_t name);
+bool G_RequestScriptLoadGame(cstring_t name);
+bool G_ScriptSavePending(void);
+void G_FlushScriptSave(void);
+void G_ResetScriptSave(void);
 void G_RequestRestartGame(bool do_score_screen);
 void G_RequestLoadGameMenu(void);
 void G_RequestLoadGameNamed(cstring_t name);
@@ -3316,6 +3329,7 @@ void G_BindEntityData(edict_t *);
 void G_ResetUnitResources(void);
 void G_BindEntityRuntime(edict_t *);
 void G_ReleaseLevel(void);
+void G_FillMapPlacedUnitMana(edict_t *);
 void G_SpawnEntities(void);
 void G_InitMapRandom(void);
 #ifdef BZ_TESTS
@@ -3791,6 +3805,7 @@ void S_FreeMoveRoute(edict_t *self);
 void S_ClearMoveGroups(void);
 void S_RestoreMoveGroupBinding(edict_t *,moveGroup_t *);
 bool S_BeginUnitTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
+bool S_BeginUnitEntityPointApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
 bool S_BeginUnitPointTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
 edict_t *S_UnitTargetApproachReceiver(edict_t const *);
 void S_CancelUnitTargetApproach(edict_t *);
@@ -4510,6 +4525,7 @@ void G_ClearUnitOrderQueue(edict_t *);
 uint32_t G_UnitQueuedOrderCount(edict_t const *);
 void unit_birth(edict_t *);
 void unit_die(edict_t *, edict_t *);
+void G_SpawnSummonMagicalEffect(edict_t *);
 void unit_begin_decay(edict_t *);
 void G_RestartCorpseBoneDecayAfterCargo(edict_t *);
 edict_t *unit_create(uint32_t, uint32_t, vec2_t const *, float);
@@ -4823,6 +4839,11 @@ void G_BeginEntityFrame(void);
 void G_RunEntities(void);
 void G_RunEvents(void);
 void G_DrainRegionEvents(void);
+/* Host save/restore lifecycle; the basic filename is only visible during these callbacks. */
+bool G_BeforeSaveGame(cstring_t name);
+void G_AfterLoadGame(cstring_t name);
+void G_AfterScriptLoadGame(cstring_t name);
+cstring_t G_GetSaveBasicFilename(void);
 void G_DrainPausedResultEvents(void);
 
 // g_items.c
@@ -4831,6 +4852,7 @@ bool G_IsItem(edict_t const *item);
 uint8_t G_ItemPathingCategory(void);
 void G_SetItemPosition(edict_t *item, vec2_t const *position);
 uint32_t G_InventoryCapacity(edict_t const *unit);
+void G_RefreshInventoryAfterTechChange(gameClient_t const *owner, uint32_t techid);
 bool G_InventoryCanUseItems(edict_t const *unit);
 bool G_InventoryCanGetItems(edict_t const *unit);
 bool G_InventoryCanDropItems(edict_t const *unit);
@@ -4841,6 +4863,8 @@ bool G_ItemAbilityScriptedReattach(edict_t *unit, edict_t const *item);
 bool G_DetachItemAtScripted(edict_t *unit, uint32_t slot);
 bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot);
 void G_DropInventoryOnDeath(edict_t *unit);
+/* Forced RemoveUnit retires carried items without the death-drop rules. */
+void G_ReleaseInventoryOnUnitRemoval(edict_t *unit);
 bool G_UnitHasInventory(edict_t *unit);
 uint32_t G_ItemCharges(edict_t const *item);
 void G_SetItemCharges(edict_t *item, uint32_t charges);
@@ -4853,11 +4877,13 @@ bool G_CanPickupItem(edict_t *unit, edict_t *item);
 bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot);
 bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool publish_event);
 bool G_PickupItem(edict_t *unit, edict_t *item);
+bool G_TransferCarriedItem(edict_t *recipient, edict_t *item);
 bool G_OrderPickupItem(edict_t *unit, edict_t *item);
 bool G_DropItemAt(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItem(edict_t *unit, uint32_t slot);
 bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position);
+bool G_OrderGiveItemTarget(edict_t *source, edict_t *item, edict_t *recipient);
 void G_RemoveItem(edict_t *item);
 void G_UseItem(edict_t *unit, uint32_t slot);
 uint32_t G_ItemTypeFromClass(cstring_t cls);

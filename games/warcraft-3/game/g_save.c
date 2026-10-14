@@ -4,6 +4,12 @@
 #include "../common/wc3_pathing_regions.h"
 #include "../common/wc3_pathing_cell.h"
 #include <stdint.h>
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 #ifdef BZ_TESTS
 #include "shared/test.h"
 void reset_entities(void);
@@ -90,7 +96,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
  * Format183 drops creep guard leash/retry timers; the Attack guard owns returns. */
 /* Format184 retains inactive fine identities with exact empty coverage. */
 /* Format193 retains Attack's weak rejected-alternative identity. */
-static uint32_t const save_version = 193;
+/* Format194 integrates upstream spell entity targets and summon death policy. */
+static uint32_t const save_version = 194;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -3352,9 +3359,39 @@ static bool ReadPools(FILE *f) {
     return true;
 }
 
+/* Full-game saves are replace-on-commit. A failed serialization must never
+ * truncate the previous good save. The temporary file is created in the same
+ * directory so rename is atomic on supported POSIX filesystems. */
+static FILE *G_OpenSaveTemporary(cstring_t filename, PATHSTR temporary) {
+    FILE *f = NULL;
+    if (!filename || !*filename) return NULL;
+#ifdef _WIN32
+    PATHSTR directory;
+    cstring_t last_slash = strrchr(filename, '/');
+    cstring_t last_backslash = strrchr(filename, '\\');
+    cstring_t separator = !last_slash ? last_backslash :
+                          !last_backslash ? last_slash :
+                          last_slash > last_backslash ? last_slash : last_backslash;
+    size_t length = separator ? (size_t)(separator - filename) : 0;
+    if (length >= sizeof(directory)) return NULL;
+    if (length) { memcpy(directory, filename, length); directory[length] = '\0'; }
+    else strlcpy(directory, ".", sizeof(directory));
+    if (!GetTempFileNameA(directory, "w3s", 0, temporary)) return NULL;
+    f = fopen(temporary, "w+b");
+    if (!f) DeleteFileA(temporary);
+#else
+    if (snprintf(temporary, MAX_PATHLEN, "%s.tmpXXXXXX", filename) >= MAX_PATHLEN) return NULL;
+    int fd = mkstemp(temporary);
+    if (fd < 0) return NULL;
+    f = fdopen(fd, "w+b");
+    if (!f) { close(fd); remove(temporary); }
+#endif
+    return f;
+}
+
 bool WriteGame(cstring_t filename) {
-    FILE *f = fopen(filename, "w+b");
-    if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
+    PATHSTR temporary = { 0 };
+    FILE *f = NULL;
     saveHeader_t header = {
         .magic = save_magic, .version = save_version, .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
         .max_clients = game.max_clients, .script_identity = level.vm ? jass_programidentity(level.vm) : 0,
@@ -3369,13 +3406,15 @@ bool WriteGame(cstring_t filename) {
         return false;
     }
     bool ok = false;
+    f = G_OpenSaveTemporary(filename, temporary);
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
+    setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
     if (level.ai_owned_players >> (PLAYER_NEUTRAL_AGGRESSIVE+1)) { fprintf(stderr,"WC3 SaveGame: invalid Town AI players\n"); goto done; }
     if (level.ai_vm_initialized >> MAX_PLAYERS) { fprintf(stderr,"WC3 SaveGame: invalid AI initialization players\n"); goto done; }
     FILTER_EDICTS(unit,unit->inuse && unit->order_queue.count) {
         if (!unit->order_queue.entries) {
             fprintf(stderr, "WC3 LoadGame: missing order queue on edict %u\n", unit->s.number);
-            fclose(f); return false;
+            goto done;
         }
     }
     if (!S_ValidateWaygateIds()) { fprintf(stderr,"WC3 SaveGame: invalid Way Gate identities\n"); goto done; }
@@ -3428,8 +3467,21 @@ bool WriteGame(cstring_t filename) {
     if (!WriteFooter(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
     ok = true;
 done:
-    fclose(f);
-    if (!ok) remove(filename);
+    if (ok && fflush(f)) ok = false;
+#ifdef _WIN32
+    if (ok && _commit(_fileno(f)) != 0) ok = false;
+#else
+    if (ok && fsync(fileno(f)) != 0) ok = false;
+#endif
+    if (fclose(f)) ok = false;
+    if (ok) {
+#ifdef _WIN32
+        ok = MoveFileExA(temporary, filename, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
+        ok = rename(temporary, filename) == 0;
+#endif
+    }
+    if (!ok) remove(temporary);
     return ok;
 }
 
@@ -4806,6 +4858,27 @@ TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {
     S_SetMoveGoal(unit, &unit->movement.cargo_unload_goal, (edict_t *)(uintptr_t)1);
     T_ASSERT(!WriteGame(filename));
     S_SetMoveGoal(unit, &unit->movement.cargo_unload_goal, NULL);
+    remove(filename);
+}
+
+TEST(wc3_save, failed_overwrite_preserves_previous_committed_save) {
+    cstring_t filename = Test_TempPath("save-preserves-prior-commit.bin");
+    FILE *f;
+    edict_t *unit;
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(WriteGame(filename));
+    f = fopen(filename, "rb");
+    T_NOT_NULL(f);
+    if (f) { T_ASSERT(ReadFooter(f)); fclose(f); }
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->movement.cargo_unload_goal = (edict_t *)(uintptr_t)1;
+    T_ASSERT(!WriteGame(filename));
+    unit->movement.cargo_unload_goal = NULL;
+    f = fopen(filename, "rb");
+    T_NOT_NULL(f);
+    if (f) { T_ASSERT(ReadFooter(f)); fclose(f); }
+    T_ASSERT(ReadGame(filename));
     remove(filename);
 }
 

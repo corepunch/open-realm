@@ -5,7 +5,20 @@
 #include "test.h"
 #include <errno.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <zlib.h>
+#ifndef _WIN32
+#include <sys/file.h>
+#endif
+#if defined(__linux__)
+#include <sys/ioctl.h>
+#include <linux/fs.h>
+#endif
 #include <time.h>
+#include <ctype.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #ifdef _WIN32
 #include <io.h>
@@ -335,6 +348,7 @@ static PATHSTR fs_share_dir = { 0 };
  * absent or not writable, in which case FS_UserPath falls back to share/<game>/. */
 static PATHSTR fs_home_dir = { 0 };
 static PATHSTR fs_save_dir = { 0 };
+static char fs_script_session[33]; // 32 hex digits plus NUL for the session's random 128-bit token.
 
 /* Create every component of a user path because ~/.local/share/<game> may not exist on first launch. */
 static bool FS_CreateDirectoryPath(cstring_t dir) {
@@ -386,9 +400,10 @@ void FS_SetHomeDirectory(cstring_t dir) {
     if (!FS_CreateDirectoryPath(dir)) {
         return;
     }
+    /* Clean the old playthrough while its original save root is valid. */
+    FS_ResetScriptSaveScope();
     snprintf(fs_home_dir, sizeof(fs_home_dir), "%s", dir);
-    /* Save paths are cached after first use. A runtime/test home-directory
-     * change must invalidate that derived directory as well. */
+    /* Save paths are cached after first use. */
     fs_save_dir[0] = '\0';
 }
 
@@ -461,6 +476,10 @@ void FS_SavePath(cstring_t rel, string_t out, uint32_t out_size) {
     snprintf(out, out_size, "%s/%s%s", fs_save_dir, rel, extension);
 }
 
+#include "script_save_impl.inc"
+#include "script_scope_checkpoint.inc"
+#include "script_scope_binding.inc"
+
 /* Delete one resolved save slot without exposing unrestricted filesystem removal to game modules. */
 bool FS_DeleteSave(cstring_t rel) {
     PATHSTR path;
@@ -471,7 +490,7 @@ bool FS_DeleteSave(cstring_t rel) {
     }
     FS_SavePath(rel, path, sizeof(path));
     if (!path[0]) return false;
-    if (remove(path) == 0) return true;
+    if (remove(path) == 0) { FS_UnbindScriptSaveScope(rel); return true; }
     fprintf(stderr, "FS_DeleteSave: cannot remove %s: %s\n", path, strerror(errno));
     return false;
 }

@@ -384,10 +384,18 @@ static void UI_PrepareScrollBar(frameDef_t const *owner) {
      * width. Reproduce that relationship before flattening the FDF tree. */
     memset(&scrollbar->Points, 0, sizeof(scrollbar->Points));
     scrollbar->AnyPointsSet = true;
-    UI_SetPoint(scrollbar, FRAMEPOINT_TOPRIGHT, owner, FRAMEPOINT_TOPRIGHT,
-                -inset, -inset);
-    UI_SetPoint(scrollbar, FRAMEPOINT_BOTTOMRIGHT, owner, FRAMEPOINT_BOTTOMRIGHT,
-                -inset, inset);
+    if (owner->Type == FT_LISTBOX &&
+        !strcmp(owner->ListBox.FetchCommand, "FRAME_ROWS")) {
+        /* Child-row lists reserve their full authored width for the buttons;
+         * put the bar just outside that viewport. */
+        UI_SetPoint(scrollbar, FRAMEPOINT_TOPLEFT, owner, FRAMEPOINT_TOPRIGHT, 0.002f, 0.0f);
+        UI_SetPoint(scrollbar, FRAMEPOINT_BOTTOMLEFT, owner, FRAMEPOINT_BOTTOMRIGHT, 0.002f, 0.0f);
+    } else {
+        UI_SetPoint(scrollbar, FRAMEPOINT_TOPRIGHT, owner, FRAMEPOINT_TOPRIGHT,
+                    -inset, -inset);
+        UI_SetPoint(scrollbar, FRAMEPOINT_BOTTOMRIGHT, owner, FRAMEPOINT_BOTTOMRIGHT,
+                    -inset, inset);
+    }
     if (scrollbar->Width <= 0.0f) scrollbar->Width = 0.015f;
 }
 
@@ -547,6 +555,9 @@ bool UI_BuildFrameForWrite(frameDef_t const *frame,
         case FT_EDITBOX:
         case FT_GLUEEDITBOX:
         case FT_SLASHCHATBOX: {
+            /* The existing frame tint is unused by edit drawing. Reuse it
+             * for optional skin selection colour without changing the wire schema. */
+            out->color = frame->Edit.HighlightColor;
             frameDef_t const *text_frame = frame->Edit.TextFrame[0]
                 ? UI_FindFrameNear(frame, frame->Edit.TextFrame)
                 : NULL;
@@ -829,8 +840,6 @@ void UI_ClearCreateGameSlots(void) {}
 void UI_AddCreateGameSlot(uint32_t slot, cstring_t name, cstring_t race, cstring_t color, uint32_t team) {
     (void)slot; (void)name; (void)race; (void)color; (void)team;
 }
-
-#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
 
 void UI_ResetHud(void) {
     memset(&hud, 0, sizeof(hud));

@@ -6,6 +6,54 @@ authoritative gameplay publishes an event only when the corresponding state
 transition actually happens. Tutorial/campaign behavior must use this generic
 bridge rather than map-specific checks.
 
+## Event numbering across data versions
+
+The simulation uses the newer common.j spell/shop event numbers. At JASS
+registration, `JassUnitEventType` reads `EVENT_PLAYER_UNIT_SPELL_EFFECT` from
+the loaded VM through `jass_globalenum`. Value 274 identifies the older
+common.j: player-unit events 269–277 and unit events 286–294 are translated
+by +3. Value 277 already uses canonical numbers. Other event blocks are
+unchanged. Map format 24/25 does not identify this common.j difference.
+Translation occurs only during registration, so dispatch keeps its indexed
+subscriber lookup and saves retain canonical event rows (format 194).
+
+The fixture common.j keeps its existing 1.27 spell numbering; frozen native
+probe scripts must not be renumbered to mask dispatch failures.
+`wc3_api.legacy_and_modern_spell_shop_event_registration` covers both blocks
+in both eras and dispatches player/unit spell effects. The legacy channel,
+interrupt and end-to-end fixtures also exercise real callback ownership.
+
+## Player save/load game events
+
+`TriggerRegisterGameEvent` registers `EVENT_GAME_SAVE` (`259`) and
+`EVENT_GAME_LOADED` (`256`) using the normal bounded event registry. Other game
+IDs remain unsupported and return null event handles. The global registrations
+have no unit/player subject, respect disabled triggers, and survive a game
+snapshot alongside the other registered events.
+
+Normal ESC-menu Save Game / Quick Save and the server's `save` command issue
+`EVENT_GAME_SAVE` **before** writing the full snapshot, allowing map handlers
+such as the Rexxar zone-backup scripts to copy their existing zone files.
+The session loader issues `EVENT_GAME_LOADED` **after** a successful named
+full-game restore; this lets campaign scripts restore a saved slot's zone
+backups. A scripted zone restore also dispatches this event after applying its
+snapshot, with `MAP_RELOADED` temporarily set so campaign return handlers run
+without the named-save directory-copy handler. These callbacks run event
+conditions and queued actions through the existing JASS scheduler while the
+save-name context is valid. The event is not issued after a failed restore.
+The save is aborted if pre-save event execution reports a JASS runtime error or
+the event queue cannot accept the event.
+
+`GetSaveBasicFilename` returns the logical save basename (stripping a `.sav`
+or `.w3z` suffix) during these callbacks, not an OS path. Outside the callback
+it is empty. Actions that yield and run later do not retain this transient
+filename; asynchronous save-handler completion is **not** supported yet.
+JASS-initiated scripted zone saves and loads use deferred VM-safe/session
+operations. The internal source save does not synthesize `EVENT_GAME_SAVE`;
+the successful scripted restore dispatches `EVENT_GAME_LOADED` with
+`MAP_RELOADED` as described above. See
+[save/load](save-load.md).
+
 ## Event response payload
 
 `GAMEEVENT` carries the response state that must survive until the JASS action
@@ -22,6 +70,17 @@ coroutine runs:
 `jass_calltriggerevent()` copies those fields into `JASSCONTEXT`; sleeping JASS
 coroutines retain the same response context. The save/JASS snapshot serializers
 persist the queue/context fields introduced by the event bridge.
+
+## Retail event IDs
+
+The retail `common.j` used by current campaign data assigns player sell events
+to 272/273/274 and unit sell events to 289/290/291 (`SELL`, `CHANGE_OWNER`,
+`SELL_ITEM`). The corresponding spell lifecycle events follow those values
+through 279 and 296. Keep the `EVENTTYPE` values and the declarations in
+`game/common.txt` aligned with those IDs: `ConvertPlayerUnitEvent` and
+`ConvertUnitEvent` preserve the numeric value, so a stale producer enum can
+silently publish an event that no retail JASS registration matches. The
+OrcX01 armory regression in `t_items.c` exercises the player sell-item value.
 
 ## Explicit trigger execution
 
@@ -238,3 +297,14 @@ both logical operators in nested calls. Explicit `TriggerEvaluate` may evaluate
 a disabled trigger, while event delivery still suppresses its actions. Event
 evaluation counters advance before the disabled gate. Existing assertions for
 these separate entry points remain intact.
+
+### Scripted zone save lifecycle
+
+The JASS `SaveGame` native used by zone-transition wrappers is a deferred
+internal save, not a player-selected named game save. It does not synthesize
+`EVENT_GAME_SAVE` or `GetSaveBasicFilename` context. Normal player save
+entry points continue dispatching `EVENT_GAME_SAVE` before their own snapshot.
+A following `ChangeLevel` is queued only when that deferred internal save
+succeeds at the end-of-frame VM-safe boundary. The cross-map `LoadGame` uses
+the session loader and dispatches `EVENT_GAME_LOADED` after restoring the
+destination snapshot, with `MAP_RELOADED` temporarily set.

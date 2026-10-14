@@ -1,5 +1,16 @@
 #include "s_skills.h"
 
+/* Spirit/beast summons vanish in a magical burst when killed or expired.
+ * Keep ordinary summoned units on their existing death path. */
+static bool summon_magical_death(uint32_t code) {
+    return code == MAKEFOURCC('A','O','s','f') || /* Feral Spirit */
+           code == MAKEFOURCC('A','N','s','g') || /* Summon Grizzly */
+           code == MAKEFOURCC('A','N','s','q') || /* Summon Quilbeast */
+           code == MAKEFOURCC('A','N','s','w') || /* Summon Hawk */
+           code == MAKEFOURCC('A','r','s','g') || /* Campaign Misha */
+           code == MAKEFOURCC('A','r','s','q');   /* Campaign Quilbeast */
+}
+
 static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, uint32_t count, float duration) {
     vec2_t loc;
     float angle;
@@ -30,7 +41,21 @@ static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, u
 static edict_t *summon_ability_unit(edict_t *caster, uint32_t code, uint32_t unit_id, uint32_t index,
                                     uint32_t count, float duration) {
     edict_t *summon = summon_unit(caster, unit_id, index, count, duration);
-    if (summon) summon->summon_ability = code;
+    if (summon) {
+        summon->summon_ability = code;
+        if (summon_magical_death(code)) {
+            summon->aiflags |= AI_SUMMON_EXPLODES_ON_DEATH;
+            G_SpawnSummonMagicalEffect(summon);
+        }
+        if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+            fprintf(stderr, "WC3_MISHA summon-created caster=%u summon=%u id=%.4s owner=%u ability=%.4s index=%u/%u\n",
+                    (unsigned)caster->s.number, (unsigned)summon->s.number,
+                    (cstring_t)&summon->class_id, (unsigned)summon->s.player,
+                    (cstring_t)&code, index + 1, count);
+    } else if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g')) {
+        fprintf(stderr, "WC3_MISHA summon-failed caster=%u unit=%.4s index=%u/%u\n",
+                (unsigned)caster->s.number, (cstring_t)&unit_id, index + 1, count);
+    }
     return summon;
 }
 
@@ -56,7 +81,13 @@ edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float 
  * creating ability without every caller repeating this assignment. */
 edict_t *S_SummonAbilityAt(edict_t *caster, uint32_t code, uint32_t unit_id, vec2_t const *loc, float duration) {
     edict_t *summon = S_SummonAt(caster, unit_id, loc, duration);
-    if (summon) summon->summon_ability = code;
+    if (summon) {
+        summon->summon_ability = code;
+        if (summon_magical_death(code)) {
+            summon->aiflags |= AI_SUMMON_EXPLODES_ON_DEATH;
+            G_SpawnSummonMagicalEffect(summon);
+        }
+    }
     return summon;
 }
 
@@ -74,6 +105,11 @@ void S_SummonAbilityUnits(edict_t *caster, uint32_t code, spellTarget_t const *t
     unit_id = S_SpellUnitId(code, level);
     count = (uint32_t)MAX(1.0f, S_SpellData(code, level, 1));
     duration = S_SpellDuration(code, level, false);
+    if (WC3_MISHA_DEBUG_ENABLED() && code == MAKEFOURCC('A','r','s','g'))
+        fprintf(stderr, "WC3_MISHA summon-request caster=%u ability=Arsg level=%u unit=%.4s count=%u duration=%.2f target_type=%u origin=(%.1f,%.1f)\n",
+                (unsigned)caster->s.number, level, unit_id ? (cstring_t)&unit_id : "----",
+                count, duration, target ? (unsigned)target->type : 0u,
+                caster->s.origin2.x, caster->s.origin2.y);
     if (!unit_id) return;
     if (target && target->type == SPELL_TARGET_POINT) {
         FOR_LOOP(i, count) (void)S_SummonAbilityAt(caster, code, unit_id, &target->point, duration);
@@ -208,7 +244,8 @@ static void summon_execute(edict_t *caster, spellTarget_t st, abilityitem_t cons
     FOR_LOOP(i, count) {
         edict_t *summon = summon_ability_unit(caster, spell->code, unit_id, i, count, duration);
         if (!summon) continue;
-        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
+        if (!summon_magical_death(spell->code))
+            G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
     }
 }
 
@@ -281,9 +318,7 @@ BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf) {
     loc.x += cosf(caster->s.angle) * distance;
     loc.y += sinf(caster->s.angle) * distance;
     FOR_LOOP(i, count) {
-        edict_t *summon = S_SummonAbilityAt(caster, spell->code, unit_id, &loc, duration);
-        if (!summon) continue;
-        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, summon, NULL, true);
+        (void)S_SummonAbilityAt(caster, spell->code, unit_id, &loc, duration);
     }
 }
 

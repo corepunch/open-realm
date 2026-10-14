@@ -164,6 +164,7 @@ void CM_ReadUnits(handle_t archive);
 void CM_ReadItems(handle_t archive);
 void CM_ReadAbilities(handle_t archive);
 void CM_ReadDestructables(handle_t archive);
+void CM_ReadDoodadOverrides(handle_t archive);
 void CM_ReadStrings(handle_t archive);
 void CM_ReadMapScript(handle_t archive);
 
@@ -172,15 +173,16 @@ static handle_t cm_w3_map_data;
 
 static cmW3Read_t const cm_w3_readers[] = {
     CM_ReadPathMap,
+    CM_ReadHeightmap,
     CM_ReadDoodads,
     CM_ReadUnitDoodads,
-    CM_ReadHeightmap,
     CM_ReadInfo,
     CM_ReadWeather,
     CM_ReadUnits,
     CM_ReadItems,
     CM_ReadAbilities,
     CM_ReadDestructables,
+    CM_ReadDoodadOverrides,
     CM_ReadStrings,
     CM_ReadMapScript,
 };
@@ -540,6 +542,8 @@ static void CM_W3ClearMapData(void) {
     CM_W3FreeUnitOverrides(world.info.num_userCreatedAbilities, &world.info.userCreatedAbilities);
     CM_W3FreeUnitOverrides(world.info.num_originalDestructables, &world.info.originalDestructables);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedDestructables, &world.info.userCreatedDestructables);
+    CM_W3FreeUnitOverrides(world.info.num_originalDoodads, &world.info.originalDoodads);
+    CM_W3FreeUnitOverrides(world.info.num_userCreatedDoodads, &world.info.userCreatedDoodads);
     CM_ReleaseModel();
     while (world.doodads) {
         doodad_t *doodad = world.doodads;

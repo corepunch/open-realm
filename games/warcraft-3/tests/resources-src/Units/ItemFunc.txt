@@ -9,6 +9,15 @@ Hotkey=U
 Art=TestUI\Textures\solid_white.blp
 Hotkey=H
 Requires=TWN2
+
+[frhg]
+Art=TestUI\Textures\solid_white.blp
+
+[arsh]
+Art=TestUI\Textures\solid_white.blp
+
+[blba]
+Art=TestUI\Textures\solid_white.blp
 [moon]
 Art=TestUI\Textures\solid_white.blp
 [plcl]

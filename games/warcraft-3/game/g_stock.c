@@ -530,6 +530,7 @@ void G_RemoveItemStock(edict_t *shop, uint32_t item_id) {
                 (shop->stock->item_count - (uint32_t)index - 1u) * sizeof(shop->stock->items[0]));
     shop->stock->item_count--;
     memset(&shop->stock->items[shop->stock->item_count], 0, sizeof(shop->stock->items[0]));
+    G_InvalidateUnitCommands(shop);
 }
 
 void G_AddItemStockAll(uint32_t item_id, int32_t current, int32_t maximum) {
@@ -677,6 +678,7 @@ void G_RemoveUnitStock(edict_t *shop, uint32_t unit_id) {
                 (shop->stock->unit_count - (uint32_t)index - 1u) * sizeof(shop->stock->units[0]));
     shop->stock->unit_count--;
     memset(&shop->stock->units[shop->stock->unit_count], 0, sizeof(shop->stock->units[0]));
+    G_InvalidateUnitCommands(shop);
 }
 
 void G_AddUnitStockAll(uint32_t unit_id, int32_t current, int32_t maximum) {

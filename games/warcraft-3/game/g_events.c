@@ -33,6 +33,68 @@ static uint32_t move_next_region_event(uint32_t start) {
 bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
 bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit);
 
+/* GetSaveBasicFilename is a short-lived context provided by the host save/load
+ * operation, not a physical filesystem path or a script-selectable scope. */
+static char save_basic_filename[MAX_PATHLEN];
+static bool save_event_dispatching;
+
+cstring_t G_GetSaveBasicFilename(void) { return save_basic_filename; }
+
+static bool G_DispatchSaveLoadEvent(EVENTTYPE type, cstring_t name) {
+    cstring_t base, slash, backslash, extension;
+    size_t length;
+    if (!level.vm || !name || !*name || save_event_dispatching) return false;
+    slash = strrchr(name, '/');
+    backslash = strrchr(name, '\\');
+    base = name;
+    if (slash && slash >= base) base = slash + 1;
+    if (backslash && backslash >= base) base = backslash + 1;
+    length = strlen(base);
+    extension = strrchr(base, '.');
+    if (extension && (!strcasecmp(extension, ".sav") || !strcasecmp(extension, ".w3z")))
+        length = (size_t)(extension - base);
+    if (!length || length >= sizeof(save_basic_filename)) return false;
+
+    memcpy(save_basic_filename, base, length);
+    save_basic_filename[length] = '\0';
+    save_event_dispatching = true;
+    if (!G_PublishEvent(NULL, type)) {
+        save_basic_filename[0] = '\0';
+        save_event_dispatching = false;
+        return false;
+    }
+    /* Flush both the event queue and queued JASS actions while the name is
+     * valid. Actions that sleep resume later without this transient context. */
+    G_RunEvents();
+    jass_runevents(level.vm);
+    bool ok = !jass_rterror_pending(level.vm);
+    save_basic_filename[0] = '\0';
+    save_event_dispatching = false;
+    return ok;
+}
+
+bool G_BeforeSaveGame(cstring_t name) {
+    return G_DispatchSaveLoadEvent(EVENT_GAME_SAVE, name);
+}
+
+void G_AfterLoadGame(cstring_t name) {
+    if (!G_DispatchSaveLoadEvent(EVENT_GAME_LOADED, name))
+        fprintf(stderr, "WC3: restored game-loaded event handlers could not complete\n");
+}
+
+void G_AfterScriptLoadGame(cstring_t name) {
+    /* Rexxar zone snapshots omit travelling Heroes before saving. Run the
+     * map's reload trigger after restoration so it imports those Heroes from
+     * the transition cache. MAP_RELOADED selects that trigger while keeping
+     * the user-load handler (which replaces the live zone-save directory)
+     * disabled. Restore the saved flag after synchronous trigger dispatch. */
+    uint32_t const reloaded_flag = 8192u * 64u;
+    bool const was_reloaded = (level.setup.map_flags & reloaded_flag) != 0;
+    SET_FLAG(level.setup.map_flags, reloaded_flag, true);
+    G_AfterLoadGame(name);
+    SET_FLAG(level.setup.map_flags, reloaded_flag, was_reloaded);
+}
+
 bool G_LimitMatches(uint32_t op, float value, float limit) {
     switch (op) {
         case WC3_LIMITOP_LESS_THAN: return value < limit;
@@ -127,6 +189,7 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
     if(evt->responseTo && (!evt->responseTo->inuse ||
         evt->response_sequence!=evt->responseTo->registration_sequence))return;
     edict_t *subject = evt->edict;
+    bool misha_summon_event = false;
     bool result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     uint32_t matching_handlers = 0, invoked_handlers = 0;
     /* KillUnit followed by RemoveUnit still owes death notifications while the corpse exists. */
@@ -140,6 +203,17 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
         evt->source_spawn_time = 0;
         evt->source_spawn_tracked = false;
     }
+    misha_summon_event = WC3_MISHA_DEBUG_ENABLED() &&
+        (evt->type == EVENT_PLAYER_UNIT_SUMMON || evt->type == EVENT_UNIT_SUMMON) &&
+        evt->source && evt->source->class_id == MAKEFOURCC('O','r','e','x');
+
+    if (misha_summon_event)
+        fprintf(stderr, "WC3_MISHA dispatch-summon event=%u caster=%u summoned=%u id=%.4s owner=%u ability=%.4s\n",
+                (unsigned)evt->type, (unsigned)evt->source->s.number,
+                subject ? (unsigned)subject->s.number : 0u,
+                subject ? (cstring_t)&subject->class_id : "----",
+                subject ? (unsigned)subject->s.player : 0u,
+                subject && subject->summon_ability ? (cstring_t)&subject->summon_ability : "----");
 
     if (result_event) {
         G_GameResultDebug("execute event type=%s subject_ent=%ld owner=%u",
@@ -155,6 +229,12 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
             case EVENT_DIALOG_BUTTON_CLICK:
                 if (evt->responseTo == e && evt->dialog_id == e->dialog_id &&
                     (!e->button_id || evt->button_id == e->button_id))
+                    jass_calltriggerevent(level.vm, e->trigger, evt);
+                break;
+            case EVENT_GAME_SAVE:
+            case EVENT_GAME_LOADED:
+                /* Game events are global, with no unit/player subject. */
+                if (evt->type == e->type && !evt->responseTo)
                     jass_calltriggerevent(level.vm, e->trigger, evt);
                 break;
             case EVENT_GAME_VICTORY:
@@ -211,6 +291,13 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
                         e->subject == G_GetPlayerEntityByNumber(subject->s.player);
                     int32_t quest_trigger_ordinal = e->trigger
                         ? (int32_t)(e->trigger - level.triggers) : -1L;
+                    if (misha_summon_event) {
+                        fprintf(stderr, "WC3_MISHA summon-handler event=%u trigger=%ld handler_subject=%ld direct=%u owner_match=%u enabled=%u\n",
+                                (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                e->subject ? (long)e->subject->s.number : -1L,
+                                (unsigned)direct, (unsigned)owner_match,
+                                (unsigned)(e->trigger && !e->trigger->disabled));
+                    }
                     bool quest_peon_stage = gi.CvarString &&
                         WC3_TUTORIAL_DEBUG_ENABLED() &&
                         quest_trigger_ordinal >= 95 && quest_trigger_ordinal <= 106;
@@ -268,6 +355,11 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
                     }
                     if (direct || owner_match) {
                         bool queued = jass_calltriggerevent(level.vm, e->trigger, evt);
+                        if (misha_summon_event)
+                            fprintf(stderr, "WC3_MISHA summon-handler-result event=%u trigger=%ld queued=%u enabled=%u\n",
+                                    (unsigned)evt->type, (long)quest_trigger_ordinal,
+                                    (unsigned)queued,
+                                    (unsigned)(e->trigger && !e->trigger->disabled));
                         if (quest_build_event) {
                             fprintf(stderr,
                                     "WC3_QUEST_BUILD dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",

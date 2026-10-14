@@ -17,8 +17,6 @@
 #define UI_MAX_TEXTURES  1024
 #define UI_MAX_MODELS    256
 
-#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
-
 /* ---- Texture/model cache (menu-module specific) ----------------------------- */
 
 static texture_t const *ui_textures[UI_MAX_TEXTURES] = { 0 };

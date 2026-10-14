@@ -637,14 +637,23 @@ void SZ_Write(sizeBuf_t *buf, void const *data, uint32_t length) {
 }
 
 void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, uint32_t length, uint8_t *data) {
-    uint8_t send_buf[MAX_MSGLEN];
     sizeBuf_t send;
+    uint8_t *send_buf;
 
-    SZ_Init(&send, send_buf, sizeof(send_buf));
+    /* The 256 KiB packet buffer must not live on the WebAssembly pthread
+     * stack. Refuse oversized payloads before allocating or writing. */
+    if (length > MAX_MSGLEN - 4)
+        return;
+    send_buf = malloc((size_t)length + 4);
+    if (!send_buf)
+        return;
+
+    SZ_Init(&send, send_buf, length + 4);
     MSG_WriteLong(&send, -1);       // -1 sequence marks an out-of-band packet
     SZ_Write(&send, data, length);
 
     NET_SendPacket(netsrc, (int)send.cursize, send.data, adr);
+    free(send_buf);
 }
 
 void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, cstring_t format, ...) {

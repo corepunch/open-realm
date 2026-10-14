@@ -10,6 +10,7 @@
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
+void reset_entities(void);
 bool run_test_jass(cstring_t src);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
@@ -405,6 +406,152 @@ TEST(wc3_items, inventory_capacity_comes_from_inventory_ability_data) {
     T_EQ(G_InventoryCapacity(standard), 6);
     T_EQ(G_InventoryCapacity(small), 2);
     T_EQ(G_InventoryCapacity(none), 0);
+}
+
+/* Rexxar's h003 is an object-data override of hhou, not a new game
+ * subsystem. Use synthetic W3U/W3A records rather than original campaign
+ * archives, which must not be required by the headless test suite. */
+TEST(wc3_items, rexxar_stash_w3u_overrides_inherit_farm_and_inventory_ability) {
+    uint32_t no_food = 0;
+    float model_scale = 0.6f, selection_scale = 2.0f;
+    char name[] = "Rexxar's Stash";
+    char model[] = "buildings\\other\\WyvernCage\\WyvernCage.mdl";
+    char abilities[] = "Aion,Avul";
+    char upgrades[] = "Ropm";
+    char prevention[] = "";
+    char sound[] = "ArcaneObservatory";
+    unitModification_t modifications[] = {
+        { .modID = MAKEFOURCC('u','n','a','m'), .type = mod_string, .data = name },
+        { .modID = MAKEFOURCC('u','m','d','l'), .type = mod_string, .data = model },
+        { .modID = MAKEFOURCC('u','s','c','a'), .type = mod_real, .data = &model_scale },
+        { .modID = MAKEFOURCC('u','s','s','c'), .type = mod_real, .data = &selection_scale },
+        { .modID = MAKEFOURCC('u','a','b','i'), .type = mod_abilityList, .data = abilities },
+        { .modID = MAKEFOURCC('u','p','g','r'), .type = mod_upgradeList, .data = upgrades },
+        { .modID = MAKEFOURCC('u','p','a','p'), .type = mod_string, .data = prevention },
+        { .modID = MAKEFOURCC('u','s','n','d'), .type = mod_string, .data = sound },
+        { .modID = MAKEFOURCC('u','f','m','a'), .type = mod_int, .data = &no_food },
+    };
+    unitData_t stash_object = {
+        .originalUnitID = MAKEFOURCC('h','h','o','u'),
+        .newUnitID = MAKEFOURCC('h','0','0','3'),
+        .numbeOfModifications = sizeof(modifications) / sizeof(modifications[0]),
+        .modifications = modifications,
+    };
+    mapInfo_t mapinfo = { .num_userCreatedUnits = 1, .userCreatedUnits = &stash_object };
+    mapInfo_t const *previous;
+    edict_t *stash;
+    setup_test_world();
+    previous = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    stash = alloc_test_unit(stash_object.newUnitID, 320.0f, -1728.0f);
+    T_STREQ(stash->data.UnitProfile->name, name);
+    T_STREQ(stash->data.UnitUI->modelFile, model);
+    T_FEQ(stash->data.UnitUI->modelScale, 0.6f, 0.0001f);
+    T_FEQ(stash->data.UnitUI->selectionScale, 2.0f, 0.0001f);
+    T_STREQ(stash->data.UnitAbilities->abilList, abilities);
+    T_ASSERT(G_ActorHasSkill(stash, "Aion"));
+    T_ASSERT(G_ActorHasSkill(stash, "Avul"));
+    T_STREQ(stash->data.UnitBalance->upgrades, upgrades);
+    T_STREQ(stash->data.UnitUI->soundLabel, sound);
+    T_STREQ(stash->data.UnitBalance->preventPlace, prevention);
+    T_EQ(stash->data.UnitBalance->foodMade, 0);
+    T_FEQ(stash->s.origin2.x, 320.0f, 0.001f);
+    T_FEQ(stash->s.origin2.y, -1728.0f, 0.001f);
+    /* An associated upgrade is not a researched-upgrade grant. */
+    T_EQ(G_GetPlayerTechResearchedLevel(&game.clients[0], MAKEFOURCC('R','o','p','m')), 0);
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = previous;
+}
+
+TEST(wc3_items, rexxar_stash_backpack_six_slots_and_live_inventory_refresh) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
+        "C;Y2;X1;K\"Aion\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K1\nC;Y2;X6;K0\nC;Y2;X7;K1\nC;Y2;X8;K1\nE\n";
+    slkTestData_t *rows, *old_rows;
+    uint32_t const backpack = MAKEFOURCC('R','o','p','m');
+    uint32_t six = 6;
+    unitModification_t slot_override = {
+        .modID = MAKEFOURCC('i','n','v','1'), .type = mod_int,
+        .level = 1, .dataPointer = 1, .data = &six,
+    };
+    unitData_t original_ability = {
+        .originalUnitID = MAKEFOURCC('A','i','o','n'),
+        .numbeOfModifications = 1, .modifications = &slot_override,
+    };
+    mapInfo_t mapinfo = {
+        .fileFormat = 25, .num_originalAbilities = 1,
+        .originalAbilities = &original_ability,
+    };
+    static UnitAbilities_t stash_abilities = { .abilList = "Aion,Avul" };
+    mapInfo_t const *previous;
+    edict_t *stash, *player, *item;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    setup_test_world();
+    previous = level.mapinfo;
+    rows = parse_slk_string(slk);
+    old_rows = G_SetSLKRows("AbilityData", rows);
+    level.mapinfo = &mapinfo;
+    stash = alloc_test_unit(MAKEFOURCC('h','h','o','u'), 0, 0);
+    stash->s.player = 0;
+    stash->data.UnitAbilities = &stash_abilities;
+    player = &g_edicts[0];
+    player->client->connected = true;
+    player->client->ps.number = 0;
+    G_SelectEntity(player->client, stash);
+    T_EQ(G_InventoryCapacity(stash), 0); /* no researched Ropm */
+    T_ASSERT(!G_InventoryCanDropItems(stash));
+    T_ASSERT(!G_InventoryCanUseItems(stash));
+
+    /* Without an authored W3A capacity override this remains two slots. */
+    G_SetPlayerTechResearched(player->client, backpack, 1);
+    T_EQ(G_InventoryCapacity(stash), 2);
+    G_SetMapAbilityOverrides(&mapinfo);
+    T_EQ(G_InventoryCapacity(stash), 6);
+    T_ASSERT(!G_InventoryCanUseItems(stash));
+    T_ASSERT(G_InventoryCanGetItems(stash));
+    T_ASSERT(G_InventoryCanDropItems(stash));
+
+    /* Changing researched tech while the stash is selected must publish a
+     * fresh inventory layer, not just dirty its command card. */
+    gi.Write = capture_inventory_refresh_write;
+    gi.unicast = capture_inventory_refresh_unicast;
+    reset_inventory_refresh_capture();
+    G_SetPlayerTechResearched(player->client, backpack, 0);
+    T_EQ(G_InventoryCapacity(stash), 0);
+    T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(inventory_refresh_unicast_count > 0);
+    reset_inventory_refresh_capture();
+    G_AddPlayerTechResearched(player->client, backpack, 1);
+    T_EQ(G_InventoryCapacity(stash), 6);
+    T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(inventory_refresh_unicast_count > 0);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    /* A hidden selected unit is never a valid inventory interaction target;
+     * ShowUnit(true) makes the original world entity selectable again. */
+    stash->s.renderfx |= RF_HIDDEN;
+    T_ASSERT(!G_IsEntitySelected(player->client, stash));
+    stash->s.renderfx &= ~RF_HIDDEN;
+    T_ASSERT(G_IsEntitySelected(player->client, stash));
+
+    /* Scripted additions to a building use ordinary inventory objects. */
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 0, 0);
+    T_ASSERT(G_AddItemToSlot(stash, item, 5));
+    T_ASSERT(stash->inventory[5] == item);
+    T_ASSERT(item->item->carrier == stash);
+
+    G_SetMapAbilityOverrides(NULL);
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+    level.mapinfo = previous;
 }
 
 TEST(wc3_items, roc_hero_without_authored_inventory_gets_default_ainv_capacity) {
@@ -1232,6 +1379,28 @@ TEST(wc3_items, custom_speed_powerup_rawcode_gets_movement_cap) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, shimmerweed_powerup_without_ability_bypasses_inventory) {
+    static ItemData_t shimmerweed = { .abilList = "_", .powerup = true,
+        .usable = false, .perishable = false, .uses = 0 };
+    edict_t *unit, *item;
+
+    setup_test_world();
+    unit = make_item_test_inventory_unit(0, 0);
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(unit, held, slot));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), ITEM_PICKUP_RANGE + 100, 0);
+    item->data.ItemData = &shimmerweed;
+    T_ASSERT(G_OrderPickupItem(unit, item));
+    T_ASSERT(G_PickupItem(unit, item));
+    T_ASSERT(item->item->pending_use_removal);
+    T_ASSERT(!item->item->in_world);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) T_ASSERT(unit->inventory[slot] != item);
+}
+
 TEST(wc3_items, full_inventory_order_pickup_accepts_only_powerups) {
     static ItemData_t speed_data = { .abilList = "APsa", .powerup = true, .usable = true, .perishable = true };
     edict_t *unit, *rune, *ordinary;
@@ -1947,6 +2116,198 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 2);
     T_EQ(shop->stock->unit_count, 1);
     T_EQ(shop->stock->units[0].current, 0);
+}
+
+TEST(wc3_items, map_custom_reward_stock_uses_base_item_art_in_shop_buttons) {
+    static UnitAbilities_t const sell_items = { .abilList = "Asid", .heroAbilList = "" };
+    static uint32_t const stock_ids[] = {
+        MAKEFOURCC('I','0','0','0'), MAKEFOURCC('I','0','0','1'), MAKEFOURCC('I','0','0','2')
+    };
+    static uint32_t const base_ids[] = {
+        MAKEFOURCC('f','r','h','g'), MAKEFOURCC('a','r','s','h'), MAKEFOURCC('b','l','b','a')
+    };
+    unitData_t custom_items[3] = {
+        { .originalUnitID = MAKEFOURCC('f','r','h','g'), .newUnitID = MAKEFOURCC('I','0','0','0') },
+        { .originalUnitID = MAKEFOURCC('a','r','s','h'), .newUnitID = MAKEFOURCC('I','0','0','1') },
+        { .originalUnitID = MAKEFOURCC('b','l','b','a'), .newUnitID = MAKEFOURCC('I','0','0','2') },
+    };
+    mapInfo_t mapinfo = { .num_userCreatedItems = 3, .userCreatedItems = custom_items };
+    mapInfo_t const *old_mapinfo;
+    edict_t *player, *hero, *armory;
+    gameCommandButton_t buttons[4];
+    shopItemButtonsParams_t params;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    hero = make_item_test_inventory_unit(0, 0);
+    hero->s.player = 0;
+    armory = alloc_test_unit(MAKEFOURCC('o','0','0','1'), 0, 0);
+    armory->data.UnitAbilities = &sell_items;
+    armory->s.player = PLAYER_NEUTRAL_PASSIVE;
+    armory->collision = 32.0f;
+    armory->spawn_time = G_Time();
+    G_SetStockSlots(armory, true, 11);
+    gi.LinkEntity(armory);
+
+    old_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    FOR_LOOP(i, 3) {
+        T_EQ(G_ItemBaseID(stock_ids[i]), base_ids[i]);
+        T_ASSERT(G_AddItemStock(armory, stock_ids[i], 1, 1));
+    }
+    params = (shopItemButtonsParams_t){
+        .client = player->client, .shop = armory, .buttons = buttons, .max_buttons = 4
+    };
+
+    T_EQ(G_GetShopItemButtons(&params), 3);
+    FOR_LOOP(i, 3) {
+        char expected_code[5];
+        memcpy(expected_code, &stock_ids[i], 4);
+        expected_code[4] = '\0';
+        T_STREQ(buttons[i].command, expected_code);
+        T_STREQ(buttons[i].art, "TestUI\\Textures\\solid_white.blp");
+        T_ASSERT(!buttons[i].disabled);
+    }
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = old_mapinfo;
+}
+
+TEST(wc3_items, map_custom_item_art_inheritance_cycle_falls_back_to_item_id) {
+    unitData_t custom_items[] = {
+        { .originalUnitID = MAKEFOURCC('I','0','0','1'), .newUnitID = MAKEFOURCC('I','0','0','0') },
+        { .originalUnitID = MAKEFOURCC('I','0','0','0'), .newUnitID = MAKEFOURCC('I','0','0','1') },
+    };
+    mapInfo_t mapinfo = { .num_userCreatedItems = 2, .userCreatedItems = custom_items };
+    mapInfo_t const *old_mapinfo;
+
+    setup_test_world();
+    old_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    T_EQ(G_ItemBaseID(MAKEFOURCC('I','0','0','0')), MAKEFOURCC('I','0','0','0'));
+    T_EQ(G_ItemBaseID(MAKEFOURCC('I','0','0','1')), MAKEFOURCC('I','0','0','1'));
+    level.mapinfo = old_mapinfo;
+}
+
+TEST(wc3_items, map_created_reward_purchase_runs_sell_item_reward_flow) {
+    static UnitAbilities_t const sell_items = { .abilList = "Asid", .heroAbilList = "" };
+    static uint32_t const stock_ids[] = {
+        MAKEFOURCC('I','0','0','0'), MAKEFOURCC('I','0','0','1'), MAKEFOURCC('I','0','0','2')
+    };
+    static uint32_t const base_ids[] = {
+        MAKEFOURCC('f','r','h','g'), MAKEFOURCC('a','r','s','h'), MAKEFOURCC('b','l','b','a')
+    };
+    unitData_t custom_items[3] = {
+        { .originalUnitID = MAKEFOURCC('f','r','h','g'), .newUnitID = MAKEFOURCC('I','0','0','0') },
+        { .originalUnitID = MAKEFOURCC('a','r','s','h'), .newUnitID = MAKEFOURCC('I','0','0','1') },
+        { .originalUnitID = MAKEFOURCC('b','l','b','a'), .newUnitID = MAKEFOURCC('I','0','0','2') },
+    };
+    mapInfo_t mapinfo = { .num_userCreatedItems = 3, .userCreatedItems = custom_items };
+    mapInfo_t const *old_mapinfo;
+    edict_t *player, *buyer, *armory;
+    int32_t selected = 1; /* Arcanite Shield, matching OrcX01 I001. */
+    bool got_reward = false;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    player->client->connected = true;
+    player->client->ps.number = 0;
+    player->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+
+    old_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    /* This is the OrcX01 EVENT_PLAYER_UNIT_SELL_ITEM reward action in a
+     * compact fixture: remove all three placeholders, grant the matching
+     * base item, then mark the quest complete. */
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  boolean udg_GameOver = false\n"
+        "  integer udg_QuestHarpyThreatProgress = 4\n"
+        "  quest rewardQuest = null\n"
+        "  trigger completeTrigger = null\n"
+        "endglobals\n"
+        "function reward_condition takes nothing returns boolean\n"
+        "  if udg_GameOver then\n"
+        "    return false\n"
+        "  endif\n"
+        "  if udg_QuestHarpyThreatProgress != 4 then\n"
+        "    return false\n"
+        "  endif\n"
+        "  return GetItemTypeId(GetSoldItem()) == 'I000' or GetItemTypeId(GetSoldItem()) == 'I001' or GetItemTypeId(GetSoldItem()) == 'I002'\n"
+        "endfunction\n"
+        "function reward_sold takes nothing returns nothing\n"
+        "  local integer soldId = GetItemTypeId(GetSoldItem())\n"
+        "  call DisableTrigger(GetTriggeringTrigger())\n"
+        "  call RemoveItemFromStock(GetSellingUnit(), 'I000')\n"
+        "  call RemoveItemFromStock(GetSellingUnit(), 'I001')\n"
+        "  call RemoveItemFromStock(GetSellingUnit(), 'I002')\n"
+        "  if soldId == 'I000' then\n"
+        "    call UnitAddItemById(GetBuyingUnit(), 'frhg')\n"
+        "  elseif soldId == 'I001' then\n"
+        "    call UnitAddItemById(GetBuyingUnit(), 'arsh')\n"
+        "  elseif soldId == 'I002' then\n"
+        "    call UnitAddItemById(GetBuyingUnit(), 'blba')\n"
+        "  endif\n"
+        "  call TriggerExecute(completeTrigger)\n"
+        "endfunction\n"
+        "function complete_reward takes nothing returns nothing\n"
+        "  if not udg_GameOver then\n"
+        "    call QuestSetCompleted(rewardQuest, true)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function verify_reward takes nothing returns nothing\n"
+        "  call BJassAssert(IsQuestCompleted(rewardQuest), \"reward purchase did not complete quest\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger sold = CreateTrigger()\n"
+        "  set rewardQuest = CreateQuest()\n"
+        "  set completeTrigger = CreateTrigger()\n"
+        "  call TriggerAddAction(completeTrigger, function complete_reward)\n"
+        "  call TriggerRegisterPlayerUnitEvent(sold, Player(PLAYER_NEUTRAL_PASSIVE), EVENT_PLAYER_UNIT_SELL_ITEM, null)\n"
+        "  call TriggerAddCondition(sold, Condition(function reward_condition))\n"
+        "  call TriggerAddAction(sold, function reward_sold)\n"
+        "endfunction\n"));
+
+    buyer = make_item_test_inventory_unit(0, 0);
+    buyer->s.player = 0;
+    armory = alloc_test_unit(MAKEFOURCC('o','0','0','1'), 0, 0);
+    armory->s.player = PLAYER_NEUTRAL_PASSIVE;
+    armory->data.UnitAbilities = &sell_items;
+    armory->collision = 32.0f;
+    armory->spawn_time = G_Time();
+    armory->selected |= 1;
+    player->client->connected = true;
+    player->client->ps.number = 0;
+    G_SelectEntity(player->client, armory);
+    G_SetStockSlots(armory, true, 11);
+    gi.LinkEntity(armory);
+    FOR_LOOP(i, 3) T_ASSERT(G_AddItemStock(armory, stock_ids[i], 1, 1));
+    T_ASSERT(G_FindShopPatron(player->client, armory) == buyer);
+    T_ASSERT(G_ShopPurchaseItem(player, armory, stock_ids[selected]));
+    player->client->commands_dirty = false;
+    /* In the live frame the sell event is published during client-command
+     * handling and dispatched next frame, after end-of-frame item cleanup. */
+    G_RunConsumedItemFrees();
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(player->client->commands_dirty);
+    jass_callbyname(level.vm, "verify_reward", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+
+    T_EQ(armory->stock->item_count, 0);
+    T_ASSERT(player->client->commands_dirty);
+    FOR_LOOP(i, MAX_INVENTORY) {
+        if (buyer->inventory[i] && buyer->inventory[i]->class_id == base_ids[selected]) got_reward = true;
+    }
+    T_ASSERT(got_reward);
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = old_mapinfo;
 }
 
 TEST(wc3_items, neutral_unit_shop_runtime_stock_override_is_immediate_and_replenishes) {
@@ -2749,6 +3110,209 @@ TEST(wc3_items, point_drop_revalidates_carried_item) {
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
+/* Generic handoff is used both by targeted item orders and by scripted
+ * UnitAddItem when the item is already carried. None of these tests needs a
+ * Rexxar-specific unit or game asset. */
+TEST(wc3_items, carried_item_transfer_preserves_identity_and_charges) {
+    edict_t *source, *recipient, *item;
+    uint32_t old_charges = 3;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 2));
+    G_SetItemCharges(item, old_charges);
+    T_ASSERT(G_TransferCarriedItem(recipient, item));
+    T_NULL(source->inventory[2]);
+    T_ASSERT(recipient->inventory[0] == item);
+    T_ASSERT(item->item->carrier == recipient);
+    T_EQ(item->item->inventory_slot, 0);
+    T_EQ(G_ItemCharges(item), old_charges);
+    T_ASSERT(!item->item->in_world);
+    T_ASSERT(item->s.renderfx & RF_HIDDEN);
+    T_ASSERT(item->svflags & SVF_NOCLIENT);
+    T_ASSERT(G_TransferCarriedItem(recipient, item));
+    T_ASSERT(recipient->inventory[0] == item);
+}
+
+TEST(wc3_items, carried_item_transfer_full_recipient_is_atomic) {
+    edict_t *source, *recipient, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    FOR_LOOP(i, G_InventoryCapacity(recipient)) {
+        edict_t *filler = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 30 + i, 0);
+        T_ASSERT(G_AddItemToSlot(recipient, filler, i));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(!G_TransferCarriedItem(recipient, item));
+    T_ASSERT(source->inventory[0] == item);
+    T_ASSERT(item->item->carrier == source);
+    T_EQ(item->item->inventory_slot, 0);
+}
+
+TEST(wc3_items, targeted_give_to_inventory_unit_finishes_on_tick) {
+    edict_t *source, *recipient, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
+    T_ASSERT(source->inventory[0] == item); /* Pending orders do not teleport items. */
+    source->currentmove->think(source);
+    T_NULL(source->inventory[0]);
+    T_ASSERT(recipient->inventory[0] == item);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
+}
+
+TEST(wc3_items, inventory_drag_select_entity_queues_handoff) {
+    void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*saved_unicast)(edict_t *) = gi.unicast;
+    edict_t *source, *recipient, *item, *clent;
+    gameClient_t *client;
+    char target_number[32];
+    cstring_t drag[] = { "itemdrag", "0" };
+    cstring_t select[] = { "select", target_number };
+
+    setup_test_world();
+    gi.Write = item_noop_write;
+    gi.unicast = item_noop_unicast;
+    clent = &g_edicts[0];
+    client = clent->client;
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    source->s.player = recipient->s.player = client->ps.number;
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    G_SelectEntity(client, source);
+    G_ClientCommand(clent, 2, drag);
+    T_ASSERT(client->menu.dragged_item == item);
+    snprintf(target_number, sizeof(target_number), "%u", recipient->s.number);
+    G_ClientCommand(clent, 2, select);
+    T_ASSERT(source->item_drop == item);
+    T_ASSERT(source->goalentity == recipient);
+    T_ASSERT(source->inventory[0] == item);
+    source->currentmove->think(source);
+    T_NULL(source->inventory[0]);
+    T_ASSERT(recipient->inventory[0] == item);
+    gi.Write = saved_write;
+    gi.unicast = saved_unicast;
+}
+
+TEST(wc3_items, targeted_give_to_stationary_container) {
+    edict_t *source, *container, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    container = make_item_test_inventory_unit(80, 0);
+    container->movetype = MOVETYPE_NONE;
+    container->aiflags |= AI_IMMOBILE;
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, container));
+    source->currentmove->think(source);
+    T_ASSERT(container->inventory[0] == item);
+    T_NULL(source->inventory[0]);
+}
+
+TEST(wc3_items, stationary_inventory_giver_hands_off_only_in_range) {
+    edict_t *source, *recipient, *item, *far_recipient, *far_item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    source->movetype = MOVETYPE_NONE;
+    source->aiflags |= AI_IMMOBILE;
+    recipient = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
+    T_NULL(source->inventory[0]);
+    T_ASSERT(recipient->inventory[0] == item);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
+
+    far_recipient = make_item_test_inventory_unit(512, 0);
+    far_item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, far_item, 0));
+    T_ASSERT(!G_OrderGiveItemTarget(source, far_item, far_recipient));
+    T_ASSERT(source->inventory[0] == far_item);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
+}
+
+TEST(wc3_items, targeted_give_full_container_drops_at_target) {
+    edict_t *source, *recipient, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    FOR_LOOP(i, G_InventoryCapacity(recipient)) {
+        edict_t *filler = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 30 + i, 0);
+        T_ASSERT(G_AddItemToSlot(recipient, filler, i));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
+    source->currentmove->think(source);
+    T_NULL(source->inventory[0]);
+    T_NULL(item->item->carrier);
+    T_ASSERT(item->item->in_world);
+    T_ASSERT(Vector2_distance(&item->s.origin2, &recipient->s.origin2) <= ITEM_DROP_RANGE);
+}
+
+TEST(wc3_items, targeted_give_revalidates_cancelled_or_invalid_target) {
+    edict_t *source, *recipient, *item;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(1000, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(source, item, recipient));
+    source->currentmove->think(source);
+    T_ASSERT(source->inventory[0] == item);
+    T_NULL(recipient->inventory[0]);
+    recipient->health.value = 0.0f;
+    source->currentmove->think(source);
+    T_ASSERT(source->inventory[0] == item);
+    T_NULL(source->item_drop);
+    T_NULL(source->goalentity);
+}
+
+TEST(wc3_items, targeted_give_rejects_enemy_and_undroppable_item) {
+    edict_t *source, *recipient, *item;
+    uint16_t saved_alliance;
+
+    setup_test_world();
+    source = make_item_test_inventory_unit(0, 0);
+    recipient = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 12, 0);
+    T_ASSERT(G_AddItemToSlot(source, item, 0));
+    source->s.player = 0;
+    recipient->s.player = 1;
+    saved_alliance = level.alliances[0][1];
+    level.alliances[0][1] = 0;
+    T_ASSERT(!G_OrderGiveItemTarget(source, item, recipient));
+    recipient->s.player = source->s.player;
+    item->item->droppable_set = true;
+    item->item->droppable = false;
+    T_ASSERT(!G_OrderGiveItemTarget(source, item, recipient));
+    item->item->droppable = true;
+    {
+        edict_t *world_item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 48, 0);
+        T_ASSERT(!G_OrderGiveItemTarget(source, item, world_item));
+        T_ASSERT(!G_TransferCarriedItem(world_item, item));
+    }
+    T_ASSERT(source->inventory[0] == item);
+    level.alliances[0][1] = saved_alliance;
+}
+
 TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {
     gameClient_t *client;
     edict_t *clent;
@@ -2772,6 +3336,87 @@ TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {
     T_NULL(client->menu.on_entity_selected);
     T_NULL(client->menu.on_location_selected);
     T_ASSERT(unit->inventory[0] == item);
+}
+
+/* Forced RemoveUnit must retire owned inventory items rather than leaving
+ * live items pointing at a recyclable carrier edict. This is different from
+ * the inventory ability's drop-on-death semantics. */
+TEST(wc3_items, remove_unit_cleans_six_carried_items_without_world_drops) {
+    edict_t *carrier, *items[MAX_INVENTORY];
+
+    setup_test_world();
+    carrier = make_item_test_inventory_unit(0, 0);
+    T_EQ(G_InventoryCapacity(carrier), MAX_INVENTORY);
+    FOR_LOOP(slot, MAX_INVENTORY) {
+        items[slot] = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16 + slot, 0);
+        G_SetItemCharges(items[slot], slot + 2);
+        T_ASSERT(G_AddItemToSlot(carrier, items[slot], slot));
+    }
+    G_DeferFreeEdict(carrier);
+    /* RemoveUnit leaves the unit and inventory intact until its deferred
+     * teardown; StoreUnit can still capture that state beforehand. */
+    T_ASSERT(carrier->inuse);
+    FOR_LOOP(slot, MAX_INVENTORY) T_ASSERT(carrier->inventory[slot] == items[slot]);
+    G_TestFinishDeferredFrees();
+    T_ASSERT(!carrier->inuse);
+    FOR_LOOP(slot, MAX_INVENTORY) {
+        T_ASSERT(!items[slot]->inuse);
+        T_NULL(carrier->inventory[slot]);
+    }
+}
+
+TEST(wc3_items, remove_unit_preserves_items_already_transferred_elsewhere) {
+    edict_t *carrier, *survivor, *moved, *left;
+
+    setup_test_world();
+    carrier = make_item_test_inventory_unit(0, 0);
+    survivor = make_item_test_inventory_unit(96, 0);
+    moved = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
+    left = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    T_ASSERT(G_AddItemToSlot(carrier, moved, 0));
+    T_ASSERT(G_AddItemToSlot(carrier, left, 1));
+    G_SetItemCharges(moved, 5);
+    T_ASSERT(G_TransferCarriedItem(survivor, moved));
+    G_FreeEdict(carrier);
+    T_ASSERT(!carrier->inuse);
+    T_ASSERT(!left->inuse);
+    T_ASSERT(moved->inuse);
+    T_ASSERT(survivor->inventory[0] == moved);
+    T_ASSERT(moved->item->carrier == survivor);
+    T_EQ(G_ItemCharges(moved), 5);
+}
+
+TEST(wc3_items, remove_unit_cleans_script_detached_item) {
+    edict_t *carrier, *item;
+
+    setup_test_world();
+    carrier = make_item_test_inventory_unit(0, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
+    T_ASSERT(G_AddItemToSlot(carrier, item, 0));
+    T_ASSERT(G_DetachItemAtScripted(carrier, 0));
+    T_NULL(carrier->inventory[0]);
+    T_ASSERT(item->item->carrier == carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    G_FreeEdict(carrier);
+    T_ASSERT(!carrier->inuse);
+    T_ASSERT(!item->inuse);
+}
+
+TEST(wc3_items, remove_unit_severs_pending_consumed_item_carrier_link) {
+    edict_t *carrier, *consumed;
+
+    setup_test_world();
+    carrier = make_item_test_inventory_unit(0, 0);
+    consumed = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
+    consumed->item->in_world = false;
+    consumed->item->pending_use_removal = true;
+    consumed->item->pending_use_carrier = carrier;
+    consumed->item->pending_use_carrier_spawn_time = carrier->spawn_time;
+    G_FreeEdict(carrier);
+    T_ASSERT(consumed->inuse); /* Its JASS event may still own the handle. */
+    T_NULL(consumed->item->pending_use_carrier);
+    T_EQ(consumed->item->pending_use_carrier_spawn_time, 0);
+    G_FreeEdict(consumed);
 }
 
 TEST(wc3_items, removing_carried_item_clears_slot) {
@@ -3967,5 +4612,182 @@ TEST(wc3_items, teleport327_rejects_non_townhall_and_unfinished_destination) {
     }
 }
 
+
+
+/* The active handoff order carries two edict references and an umove_t.
+ * Both must survive a full snapshot before the giver completes the approach. */
+TEST(wc3_items, targeted_give_order_survives_full_game_save_load) {
+    cstring_t filename = Test_TempPath("wc3-item-handoff-inflight.sav");
+    edict_t *giver, *receiver, *item;
+
+    reset_entities();
+    setup_test_world();
+    giver = make_item_test_inventory_unit(0, 0);
+    receiver = make_item_test_inventory_unit(64, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 24, 0);
+    T_ASSERT(G_AddItemToSlot(giver, item, 0));
+    T_ASSERT(G_OrderGiveItemTarget(giver, item, receiver));
+    T_ASSERT(WriteGame(filename));
+    /* These transient changes are discarded by the restored save. */
+    giver->goalentity = NULL;
+    giver->item_drop = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(giver->goalentity == receiver);
+    T_ASSERT(giver->item_drop == item);
+    T_NOT_NULL(giver->currentmove);
+    T_ASSERT(giver->inventory[0] == item);
+    if (giver->currentmove && giver->currentmove->think)
+        giver->currentmove->think(giver);
+    T_NULL(giver->inventory[0]);
+    T_ASSERT(receiver->inventory[0] == item);
+    T_NULL(giver->item_drop);
+    T_NULL(giver->goalentity);
+    remove(filename);
+}
+
+/* A zero-slot inventory can still collect auto-usable powerups, but it does
+ * not acquire a regular item slot. inv3 must be enabled for consumption. */
+TEST(wc3_items, zero_slot_inventory_consumes_powerups_but_not_regular_items) {
+    static ItemData_t rune_data = {
+        .abilList = "APsa", .powerup = true, .usable = true, .perishable = true
+    };
+    static ItemData_t quest_data = { .abilList = "_", .powerup = true };
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K0\nC;Y2;X5;K0\nC;Y2;X6;K1\nC;Y2;X7;K1\nC;Y2;X8;K1\nE\n";
+    slkTestData_t *rows, *old_rows;
+    mapInfo_t tft = { .fileFormat = 25 };
+    mapInfo_t const *old_map;
+    edict_t *unit, *rune, *quest, *ordinary;
+
+    setup_test_world();
+    old_map = level.mapinfo;
+    rows = parse_slk_string(ability_slk);
+    old_rows = G_SetSLKRows("AbilityData", rows);
+    level.mapinfo = &tft;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    T_EQ(G_InventoryCapacity(unit), 0);
+    T_ASSERT(G_InventoryCanUseItems(unit));
+    T_ASSERT(G_InventoryCanGetItems(unit));
+    ordinary = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 16, 0);
+    T_ASSERT(!G_CanPickupItem(unit, ordinary));
+    T_ASSERT(!G_PickupItem(unit, ordinary));
+    T_ASSERT(ordinary->item->in_world);
+
+    rune = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_CanPickupItem(unit, rune));
+    T_ASSERT(G_PickupItem(unit, rune));
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(G_InventoryCapacity(unit), 0);
+
+    quest = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), 16, 0);
+    quest->data.ItemData = &quest_data;
+    T_ASSERT(G_CanPickupItem(unit, quest));
+    T_ASSERT(G_PickupItem(unit, quest));
+    T_ASSERT(quest->item->pending_use_removal);
+    T_NULL(quest->item->carrier);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+    level.mapinfo = old_map;
+}
+
+TEST(wc3_items, inventory_without_use_permission_carries_runes_and_quest_items) {
+    static ItemData_t rune_data = {
+        .abilList = "APsa", .powerup = true, .usable = true, .perishable = true
+    };
+    static ItemData_t quest_data = { .abilList = "_", .powerup = true };
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K1\nC;Y2;X6;K0\nC;Y2;X7;K1\nC;Y2;X8;K1\nE\n";
+    slkTestData_t *rows, *old_rows;
+    mapInfo_t tft = { .fileFormat = 25 };
+    mapInfo_t const *old_map;
+    edict_t *unit, *rune, *quest, *third;
+
+    setup_test_world();
+    old_map = level.mapinfo;
+    rows = parse_slk_string(ability_slk);
+    old_rows = G_SetSLKRows("AbilityData", rows);
+    level.mapinfo = &tft;
+    unit = make_item_test_inventory_unit(0, 0);
+    T_EQ(G_InventoryCapacity(unit), 2);
+    T_ASSERT(!G_InventoryCanUseItems(unit));
+
+    rune = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
+    rune->data.ItemData = &rune_data;
+    G_SetItemCharges(rune, 3);
+    T_ASSERT(G_OrderPickupItem(unit, rune));
+    T_ASSERT(G_PickupItem(unit, rune));
+    T_ASSERT(unit->inventory[0] == rune);
+    T_ASSERT(!rune->item->pending_use_removal);
+    T_EQ(G_ItemCharges(rune), 3);
+
+    quest = make_item_test_world_item(MAKEFOURCC('s','h','w','d'), 16, 0);
+    quest->data.ItemData = &quest_data;
+    T_ASSERT(G_PickupItem(unit, quest));
+    T_ASSERT(unit->inventory[1] == quest);
+    T_ASSERT(!quest->item->pending_use_removal);
+
+    third = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 16, 0);
+    third->data.ItemData = &rune_data;
+    T_ASSERT(!G_OrderPickupItem(unit, third));
+    T_ASSERT(!G_PickupItem(unit, third));
+    T_ASSERT(third->item->in_world);
+    T_NULL(third->item->carrier);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+    level.mapinfo = old_map;
+}
+
+TEST(wc3_items, pickup_approach_rechecks_inv4_after_ability_change) {
+    static UnitAbilities_t no_pickup = { .abilList = "A0nc" };
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K1\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K0\nC;Y2;X6;K1\nC;Y2;X7;K1\nC;Y2;X8;K1\n"
+        "C;Y3;X1;K\"A0nc\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K1\n"
+        "C;Y3;X4;K2\nC;Y3;X5;K0\nC;Y3;X6;K1\nC;Y3;X7;K0\nC;Y3;X8;K1\nE\n";
+    slkTestData_t *rows, *old_rows;
+    mapInfo_t tft = { .fileFormat = 25 };
+    mapInfo_t const *old_map;
+    edict_t *unit, *item;
+
+    setup_test_world();
+    old_map = level.mapinfo;
+    rows = parse_slk_string(ability_slk);
+    old_rows = G_SetSLKRows("AbilityData", rows);
+    level.mapinfo = &tft;
+    unit = make_item_test_inventory_unit(0, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE + 200, 0);
+    T_ASSERT(G_OrderPickupItem(unit, item));
+    T_ASSERT(unit->goalentity == item);
+    unit->data.UnitAbilities = &no_pickup;
+    T_EQ(G_InventoryCapacity(unit), 2);
+    T_ASSERT(!G_InventoryCanGetItems(unit));
+    T_NOT_NULL(unit->currentmove);
+    if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    T_NULL(unit->goalentity);
+    T_ASSERT(item->item->in_world);
+    T_NULL(item->item->carrier);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+    level.mapinfo = old_map;
+}
 
 #endif /* BZ_TESTS */

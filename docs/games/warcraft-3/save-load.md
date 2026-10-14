@@ -175,12 +175,11 @@ Attack/Unit spell-prevention counters to their optional pool. Counts survive
 overlapping buffs and load; inverse callbacks release the captured contribution.
 Save129 and older layouts are rejected. See [counted prevention](retail-pathfinding-engine.md#counted-attack-prevention-feeds-captain-admission-payoff155).
 
-The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`; the JASS `SaveGame` and `LoadGame` natives use the same callbacks and resolve names through `gi.SavePath`.
+The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`. Player-facing menu saves continue to use `gi.SavePath`; untrusted JASS `SaveGame` and `LoadGame` are resolved through `gi.ScriptSavePath` into a **separate engine-owned session sandbox**. Scripted save and load requests are deferred to VM-safe/session boundaries (see Scripted zone saves below).
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 192, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
-- mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
+- `W3SV` magic, format version 194, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -193,7 +192,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and a checksum over the complete preceding payload. Since version 74 the checksum folds native 64-bit words into four FNV-style lanes. The previous byte-wise FNV-1a dominated save/load time at about 6 MB per file.
 
-`WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
+`WriteGame()` writes a same-directory temporary file and replaces the destination only after the footer, flush, and file sync succeed. Any failure removes the temporary file and preserves the previous save. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
 
 Version144 adds a logical live-unit-release section immediately before the
 range listeners: count, then unit slot/incarnation, unsigned request serial and
@@ -384,6 +383,16 @@ is restored. Both unread issued-order events and sleeping actions have round-tri
 coverage. This callback change left outer W3SV56 and the network protocol unchanged, but the
 embedded exact-version guard rejects a version6 JASS snapshot. See
 [immutable issued-order callbacks](issued-target-order-events.md#immutable-callback-ownership).
+
+Upstream format89, integrated into format194, retains the selected entity and its `spawn_time` for ability-owned
+entity cursors that execute as point spells. A pending Kaboom approach saves
+its `S_SpellTargetApproachThink` callback, `goalentity`, owner and channel
+incarnations through the existing serializer. It resumes following the target
+after load rather than casting at a frozen click position. Earlier saves are
+rejected because this changes the meaning of point-spell approach state.
+`wc3_spell.self_destruct_entity_target_survives_save_load` exercises the live
+pending approach in ROC/TFT map state, then moves the restored target and
+advances the real scheduler through detonation.
 
 The server's map-selection read checks both the format version and entity size before reloading a map. The state reader applies the same guards, validates the existing checksum and reference domains, and requires the current payload to end at the commit footer.
 
@@ -583,14 +592,110 @@ This follows the Quake 2 `g_save.c` pattern while avoiding Quake 2's old global 
 
 ## Native Usage
 
-JASS save names are relative user-state names. Names containing `/` or `\\` are rejected. The engine's `FS_SavePath()` policy determines the writable directory.
+JASS save names are relative virtual names. Patch 1 accepts simple flat slots, `Blizzard\Zones\<filename>`, and `Blizzard\<slot>\<filename>` only. Each player-selected map session uses a private `saves/campaigns/<playthrough-id>/live/` root. Authored JASS `ChangeLevel`/`RestartGame` actions preserve that root; player-started maps and returning to the menu rotate it. A named manual save binds an immutable checkpoint of its script-save scope after the save commits. Loading that save clones the checkpoint into a fresh scope before loading the map; an unbound or invalid save receives a fresh empty scope. Map scripts never receive or choose the physical root, and cannot enumerate or manipulate manual saves or saves from other sessions. Disk-backed `gamecache-*.orcgc` sidecars are likewise under the private `cache/` directory, which JASS save-copy/delete natives cannot address. Valid names use ASCII letters/digits, dot, dash, underscore and internal spaces, at most 64 characters per component. Device names, trailing dots, absolute paths, traversal and extra directory depth are rejected. Existing `.sav` suffixes are preserved, otherwise `.sav` is appended consistently for scripted saves. These rules apply to `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` too. Directory operations are limited to `Blizzard\<slot>` and `Blizzard\Zones`; they cannot target the sandbox root or the `Blizzard` parent. Filesystem copying on POSIX uses directory-relative no-follow file descriptors and temporary replacement; the Windows implementation rejects reparse points.
+
+**Patch 5:** player-created manual saves now receive a private, engine-owned
+binding to their script-save session after the actual save file is committed.
+A player-selected load checks that binding against the manual save contents
+and reopens the previously authorized script scope before constructing the
+restored map. This also works across application restarts. A save without a
+valid binding uses a fresh private scope, preserving isolation but not older
+zone snapshots. Bindings are inaccessible to JASS and do not grant access to
+other manual saves. The fingerprint is a stale-file check, not a cryptographic
+signature against an attacker modifying the user's local save files. This patch established save-scope recovery but did not complete Rexxar travel; later deferred save/load and event-dispatch patches implement that path. Full cross-map rollback after a failed restore and broader storage quotas remain separate limitations.
 
 ```jass
 call SaveGame("chapter-01")
 call LoadGame("chapter-01", false)
 ```
 
-`LoadGame` completely reloads the saved map before restoring state. The initialized map must have the same JASS program. `main()` recreates the baseline native registries; objects created later in gameplay are allocated from the save and filled from trigger/event/timer records. The native names resolve through `FS_SavePath()`.
+`LoadGame` completely reloads the saved map before restoring state. The initialized map must have the same JASS program. `main()` recreates the baseline native registries; objects created later in gameplay are allocated from the save and filled from trigger/event/timer records. The JASS natives resolve paths through `gi.ScriptSavePath` (the menu uses `FS_SavePath()`).
+
+## Save/load trigger callbacks (Patch 2)
+
+The game module registers `EVENT_GAME_SAVE` and `EVENT_GAME_LOADED` with the
+normal event registry; `GetSaveBasicFilename` is registered as a transient
+string native. ESC-menu named/quick saves and the server `save` command call
+the optional `game_export.BeforeSaveGame(name)` hook before `WriteGame`, so
+synchronous map save handlers can copy Rexxar zone backups into
+`Blizzard\<slot>` within the authorized script sandbox. The server calls
+`game_export.AfterLoadGame(name)` when normal named-load restoration succeeds,
+giving map handlers a chance to restore zone backups. Scripted zone restores
+use a separate `AfterScriptLoadGame(name)` callback after the zone snapshot is
+applied. Events
+run through the JASS event dispatcher and scheduler with the logical basename
+available only during this callback. Normal save requests abort on a pre-save
+JASS error or exhausted event queue, instead of taking a knowingly incomplete
+snapshot. If an event action sleeps, its later continuation cannot use this
+transient name; maps should perform file-copy actions synchronously.
+
+### Scripted saved-zone restoration (Patch 4)
+
+`LoadGame(name, doScoreScreen)` now requests a deferred `scriptload`
+operation rather than calling `ReadGame()` within JASS. The request uses
+`ScriptSaveExists` to confirm that its destination is in the current private
+script scope. At the next frame boundary the client/server revalidate the
+name, obtain the map from the saved-game checksum/header (`GetSaveMap`),
+load that map via `SV_Map`, and restore its snapshot via the standard game
+module `LoadGame` callback. This preserves the script scope: unlike a
+player-selected manual load, it **does not** call `FS_ResetScriptSaveScope`.
+`LoadGame` without an earlier `SaveGame` is also deferred to the frame
+boundary.
+
+`SaveAndLoadGameBJ(source, destination, false)` issues `SaveGame` followed
+by `LoadGame` from the same callback. A single transient request now writes
+and commits the source snapshot at the safe point **before** queuing the
+scripted load; invalid, duplicate, or missing destinations and failed source
+saves cannot dispatch the load. Pending operations are excluded from the
+serialized snapshot. `doScoreScreen` remains presentation-only and is not
+implemented.
+
+Normal named player save restoration dispatches `EVENT_GAME_LOADED` without
+`MAP_RELOADED`. After a scripted zone snapshot is applied, the server dispatches
+the same event with `MAP_RELOADED` temporarily set. This runs the map's
+return handler (including transition-cache hero import) while keeping its
+ordinary user-load handler gated off; that handler copies backed-up zone files
+into `Blizzard/Zones` and could overwrite newer snapshots. The flag is restored
+after synchronous event dispatch. Normal named-load behavior is unchanged.
+
+**Remaining limitations:** the map identity/footer are checked before changing
+maps, but a damaged payload can still fail during `ReadGame` after replacement.
+The server's existing fallback loads a clean destination map, not the previous
+source map. A fully atomic cross-map rollback remains subsequent work.
+The later named-save checkpoint work addresses scope recovery across restarts
+and isolation of disk game caches between manual slots. As with Patch 3, this patch is designed for local session
+transitions; verify dedicated-server handling separately.
+
+### Deferred JASS saves and conditional ChangeLevel (Patch 3)
+
+The JASS `SaveGame` native no longer calls the serializer from its active
+callback. It validates the name through the restricted `ScriptSavePath` import
+and records one transient pending request. At the end of the WC3 simulation
+frame, after the active JASS stack has unwound, `G_FlushScriptSave` calls
+`WriteGame`. If JASS issued `ChangeLevel` after `SaveGame` in the same frame,
+that level change is submitted only after the source save succeeds. Failed,
+invalid, or duplicate scripted save requests cancel the dependent transition.
+The pending request is **not serialized** into a saved zone, so restoring the
+source cannot replay its outgoing map change. A standalone scripted save is
+written at the same safe point without switching maps.
+
+All WC3 full-game writes now use a private temporary file in the target
+directory, flush the completed checksum/footer, then replace the destination
+on success. A failed serializer or I/O operation leaves a previously committed
+save in place. POSIX uses a same-directory atomic rename; Windows uses a
+replace-existing move. This does not add an application-wide disk quota or
+protect against unrelated privileged processes mutating files concurrently.
+
+**Patch 3 scope:** Scripted `LoadGame` was deliberately rejected instead of
+calling `ReadGame` within an active JASS frame. Patch 4 subsequently routes it
+through the cross-map server loader and keeps the active script namespace.
+Scripted zone saves are distinct from the player's named manual save events:
+`EVENT_GAME_SAVE` is still dispatched only by the normal save entry points.
+Patches 5 and 5a subsequently add restart-safe campaign scope bindings and
+per-named-slot checkpoints; Rexxar hero-import fidelity remains unverified. This deferred mechanism captures the state at the simulation safe point,
+not necessarily the exact JASS instruction where `SaveGame` was called.
+
+
 
 ## Quake 2 Lifecycle
 
@@ -1755,3 +1860,141 @@ counted overlap. The 219-test save suite and the affected unit, movement and
 spell suites pass in both editions. See the
 [separation integration checkpoint](retail-pathfinding-separation.md#integration-checkpoint334)
 and [Stone/Destroyer forms](stone-form.md).
+
+Regression coverage includes prior/future version rejection, map-selection layout rejection, current combat/cargo round-trips, invalid cargo goal references, and payloads with unexpected trailing records. Shared Warcraft III ability lifecycles also have combined round trips for an ability-owned timed summon, a live homing spell projectile (owner/target generations plus movement state), corpse reservation (flag plus owning status marker), an owned attached effect (owner plus target-generation guard), and Flare's caster-bound reveal thinker (callback, point, expiry, and owner incarnation). Far Sight remains covered separately as a player-scoped reveal thinker whose saved lifecycle is intentionally independent of caster identity. The movement suite saves a Zeppelin en route and completes its unload after restoration. Run `make test-wc3-engine WC3_PATTERN='wc3_save.*'` for both ROC and TFT.
+
+### Manual-save script checkpoints (Patches 5 and 5a)
+
+After a successful ESC-menu or console manual save, the engine snapshots the
+active script-save scope into a **private, immutable checkpoint** under
+`saves/script/checkpoints/<engine-generated-id>/`. It includes exactly the
+permitted flat scripted saves, `Blizzard/<slot-or-Zones>/` zone files, and the
+`cache/` game-cache sidecars. The engine writes an `ORCSCOPE2` binding in
+`saves/script/bindings/` after the checkpoint copy completes; that binding
+contains the checkpoint ID plus the player-save file size and fingerprint.
+The file name / checkpoint ID is never supplied by JASS. A failed checkpoint
+must not publish a binding. The old `ORCSCOPE1` binding format is deliberately
+not accepted because it referred to mutable live storage.
+
+Loading a named manual save validates its file fingerprint, reads the private
+binding, then **clones the checkpoint into a new, random script scope** before
+loading the destination map. It does not continue writing to the original
+campaign session or to the checkpoint itself. Loading an older named save
+therefore reads its original `Campaigns.w3v` sidecar and saved zones, not later
+mutations made while playing a newer slot. Repeat loads create fresh branches,
+so evolving one loaded save never modifies either slot's checkpoint. The
+original Rexxar `EVENT_GAME_LOADED` handler still owns copying its backed-up
+zone files into the active `Blizzard/Zones` directory.
+
+Scripted zone `LoadGame` deliberately does **not** adopt a named-save binding
+or create a new scope: it continues within the current campaign's live storage.
+After applying the snapshot, its return callback dispatches
+`EVENT_GAME_LOADED` with `MAP_RELOADED` temporarily set, so the map imports
+travelling Heroes from its transition cache without running the user-load
+directory-copy handler. In disk-cache mode, `InitGameCache`
+reads committed cache sidecars in the active scope, invalidating in-memory
+cache entries when the engine changes scope. The campaign's `Export_All` and
+`Import_All` scripts remain authoritative for travelling heroes and their
+current quest progression; actual Rexxar integration remains to be tested.
+
+The copy is no-follow and fail-closed on POSIX, rejecting symlinks and special
+files. Both platforms enforce a narrow directory shape and a checkpoint limit
+of **512 MiB and 2,048 regular files**. These are per-checkpoint safeguards,
+not a total disk quota. Newer storage-management work optimizes and reclaims
+some of this space as described below.
+The storage is engine-owned; host-level tampering or modification is not
+cryptographically authenticated. Other limitations include full rollback after
+failed cross-map restoration and native compatibility with Blizzard's binary
+`.w3z` and `.w3v` formats. The engine's existing versioned save format is used.
+
+### Campaign-owned live workspaces and compact snapshots
+
+#### Lazy manual-save checkpoints
+
+Successful manual saves create campaign checkpoints **only if the active live
+workspace already contains at least one persisted script-save or game-cache
+file**. Simply starting a map, generating an opaque playthrough ID, resolving
+a script filename, or initializing an empty cache does not create a checkpoint.
+A normal single-map save therefore produces just its ordinary `.sav` file;
+loading or deleting it does not manufacture `script/bindings` or checkpoint
+directories. Empty script-workspace directories alone do not require a snapshot. Cache
+reads (including `InitGameCache` on ordinary maps) now resolve paths without
+creating a workspace or `cache/` directory; only the `SaveGameCache`
+write path may materialize that directory. Previously created empty workspace trees
+are removed at the ordinary playthrough reset when still owned by that session.
+
+When committed zone saves, scripted save files, or disk-backed cache sidecars
+exist, the existing immutable checkpoint and `ORCSCOPE2` binding behaviour is
+unchanged. An unreadable or unsafe workspace fails the binding step rather than
+silently dropping campaign state. If an existing named slot is overwritten in
+a map with no persistent script files, the old `.scope` binding is revoked so
+it cannot restore stale campaign data; its previous checkpoint is eligible for
+normal orphan cleanup. Existing bound saves remain loadable.
+
+
+The engine uses a **stable live workspace per playthrough branch**:
+
+```text
+saves/
+  <manual-slot>.sav
+  campaigns/<random-playthrough-id>/live/
+    Blizzard/Zones/<zone>.w3z.sav
+    Blizzard/<slot>/<zone>.w3z.sav
+    cache/gamecache-Campaigns.w3v.orcgc
+  script/bindings/<manual-slot>.sav.scope
+  script/checkpoints/<random-checkpoint-id>/
+    Blizzard/...  (immutable save-time data)
+    cache/...     (immutable save-time data)
+```
+
+`script/bindings` and `script/checkpoints` retain their existing locations and
+`ORCSCOPE2` format, so previously bound manual saves continue to restore from
+older, **uncompressed** checkpoints. No migration of the historical live
+`saves/script/<id>` directories is attempted. The playthrough ID is generated
+and managed by the engine and is never accepted from map JASS. `ChangeLevel`
+and scripted cross-map `LoadGame` keep using `live/`; selecting a manual save
+creates a fresh writable branch from the chosen immutable checkpoint. This
+preserves different save slots even when loading a much older one.
+
+The engine discards its own previous live workspace when resetting the
+playthrough scope (new game, return to menu, named manual load), using
+no-follow recursive deletion on POSIX and reparse-point checks on Windows.
+The underlying save file and immutable named-save checkpoint remain intact.
+A named-load request checks that the save has a readable map identity before
+abandoning the active workspace. A later payload-validation failure can still
+replace the running game and is not yet a transactionally reversible load.
+Deleting a manual save also removes its private binding. On POSIX, manual-save
+commit/delete opportunistically reclaims up to eight unreferenced checkpoints
+older than seven days under a cross-process advisory binding lock. Windows
+orphan-checkpoint collection and recovery of abandoned branches after an
+abrupt process crash remain follow-up work; never delete unrecognized data.
+
+Each checkpoint reference query opens a fresh binding-directory cursor with
+`openat(bindings, ".", ...)`. `dup(bindings)` shares the directory offset and
+can leave subsequent scans at end-of-directory, incorrectly treating bound
+checkpoints as orphans. The regression
+`script_saves.collection_preserves_all_bound_checkpoints_and_removes_orphans`
+ages two bound checkpoints and one orphan beyond the grace period, runs
+collection, restores both bound saves, and verifies only the orphan vanished.
+
+For each **immutable checkpoint file**, Linux first attempts a CoW reflink.
+This shares physical extents while keeping writable files independent; it is
+safe even when a writer truncates the live copy in place. When reflinking is
+unavailable (or on Windows), the engine can instead write a level-1 gzip
+payload inside an engine-private `ORCPGZ1!` envelope if that consumes fewer
+bytes than the original file. The restore path requires a real gzip member
+following the private marker, rejecting a malformed marker-only file rather
+than accidentally using zlib's transparent raw-read fallback. Restoring
+checkpoints expands such files back
+into their original uncompressed bytes; legacy plain checkpoint files are also
+accepted. The live zone snapshots and manual `.sav` files retain the existing
+serializer and checksum format. This is intentionally **not** an on-disk WC3
+`.w3z`/`.w3v` format conversion. Compression work is confined to a checkpoint
+copy so normal zone transitions need not compress/decompress an entire zone.
+
+Checkpointing remains bounded by 512 MiB of logical contents / 2,048 files;
+compressed files are expanded with a corresponding upper bound. Checkpoint
+creation may temporarily require extra space, and compression is a fallback,
+not guaranteed. On filesystems without reflink support, restores materialize
+new live files in full. A separate aggregate quota, explicit storage audit
+command, and crash-recovery garbage collector remain future improvements.

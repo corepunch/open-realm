@@ -53,8 +53,10 @@ uint32_t CL_RealTime(void) { return cl_realtime; }
 typedef enum {
     CL_MENU_ACTION_NONE,
     CL_MENU_ACTION_MAP,
+    CL_MENU_ACTION_LEVEL,
     CL_MENU_ACTION_MENU,
     CL_MENU_ACTION_LOAD,
+    CL_MENU_ACTION_SCRIPT_LOAD,
     CL_MENU_ACTION_QUIT,
 } clMenuActionType_t;
 
@@ -681,12 +683,16 @@ void MenuAction(cstring_t action, cstring_t arg) {
         if (!arg || !*arg) return;
         if (!Com_ResolveMapArgument(arg, pending.arg, sizeof(pending.arg))) return;
         pending.type = CL_MENU_ACTION_MAP;
+    } else if (!strcmp(action, "level")) {
+        if (!arg || !*arg) return;
+        if (!Com_ResolveMapArgument(arg, pending.arg, sizeof(pending.arg))) return;
+        pending.type = CL_MENU_ACTION_LEVEL;
     } else if (!strcmp(action, "menu")) {
         pending.type = CL_MENU_ACTION_MENU;
         if (arg && *arg) strlcpy(pending.arg, arg, sizeof(pending.arg));
-    } else if (!strcmp(action, "load")) {
-        if (!arg || !*arg) return;
-        pending.type = CL_MENU_ACTION_LOAD;
+    } else if (!strcmp(action, "load") || !strcmp(action, "scriptload")) {
+        if (!arg || !*arg || strlen(arg) >= sizeof(pending.arg)) return;
+        pending.type = !strcmp(action, "scriptload") ? CL_MENU_ACTION_SCRIPT_LOAD : CL_MENU_ACTION_LOAD;
         strlcpy(pending.arg, arg, sizeof(pending.arg));
     } else if (!strcmp(action, "quit")) {
         pending.type = CL_MENU_ACTION_QUIT;
@@ -846,6 +852,11 @@ static void CL_ProcessPendingMenuAction(void) {
 execute:
     switch (pending.type) {
     case CL_MENU_ACTION_MAP:
+        /* A map selected by the user starts a fresh untrusted-map save scope.
+         * JASS ChangeLevel uses "level" to retain its current campaign scope. */
+        FS_ResetScriptSaveScope();
+        /* fallthrough */
+    case CL_MENU_ACTION_LEVEL:
         CL_SetGameplayBindings();
         CL_BeginLoadingMap(pending.arg);
         SV_Map(pending.arg);
@@ -858,14 +869,33 @@ execute:
          * valid again even after a runtime menu restart. */
         CL_DisconnectInternal("Game ended.", false, false);
         SV_Shutdown();
+        /* Workspace cleanup now removes files: finish game shutdown first. */
+        FS_ResetScriptSaveScope();
         CL_RebuildMenu(pending.arg[0] ? pending.arg : "menu_main");
         break;
     case CL_MENU_ACTION_LOAD: {
         PATHSTR map;
+        /* Do not delete the running campaign workspace when the named save
+         * is missing or has an unreadable map identity. Restoration itself
+         * starts a fresh scope after this validation succeeds. */
         if (!SV_GetSaveMap(pending.arg, map, sizeof(map))) break;
+        /* Only a player-selected manual save may reauthorize its original
+         * private campaign storage. Missing/stale bindings leave a new scope. */
+        FS_RestoreScriptSaveScope(pending.arg);
         CL_SetGameplayBindings();
         CL_BeginLoadingMap(map);
         SV_LoadGame(pending.arg, map);
+        break;
+    }
+    case CL_MENU_ACTION_SCRIPT_LOAD: {
+        PATHSTR map;
+        /* Unlike a player-selected load, retain the active campaign's private
+         * script storage. Never forward these names to the manual-save path. */
+        if (!SV_GetScriptSaveMap(pending.arg, map, sizeof(map))) break;
+        CL_SetGameplayBindings();
+        CL_BeginLoadingMap(map);
+        if (!SV_LoadScriptGame(pending.arg, map))
+            fprintf(stderr, "script load: failed to restore zone %s\n", pending.arg);
         break;
     }
     case CL_MENU_ACTION_QUIT:
@@ -923,6 +953,24 @@ TEST(client_session, menu_action_map_is_deferred_until_client_frame) {
 
     /* Do not call CL_ProcessPendingMenuAction here: the regression contract is
      * specifically that MenuAction itself cannot enter SV_Map re-entrantly. */
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+}
+
+TEST(client_session, script_level_change_preserves_session_action_type) {
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+    MenuAction("level", "Maps\\Campaign\\Human02.w3m");
+    T_EQ(cl_pending_menu_action.type, CL_MENU_ACTION_LEVEL);
+    T_STREQ(cl_pending_menu_action.arg, "Maps\\Campaign\\Human02.w3m");
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+}
+
+TEST(client_session, script_load_uses_distinct_deferred_action) {
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+    MenuAction("scriptload", "Blizzard/Zones/OrcX01_02.w3z");
+    T_EQ(cl_pending_menu_action.type, CL_MENU_ACTION_SCRIPT_LOAD);
+    T_STREQ(cl_pending_menu_action.arg, "Blizzard/Zones/OrcX01_02.w3z");
+    /* The scriptload execution path must not call FS_ResetScriptSaveScope.
+     * Do not invoke a real map load from the unit test. */
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
 }
 

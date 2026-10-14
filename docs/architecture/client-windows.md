@@ -220,3 +220,28 @@ Transient edit-box text rendering uses the parent edit control's serialized font
 - Transient edit-box rendering is parent-owned: the edit control draws the live client-side value directly into its authored STRING/TEXT child rectangle using the serialized edit font/color; the child remains a geometry/value carrier and is not drawn separately.
 
 - Edit-box text is clipped to the parent control's inner backdrop rectangle, not the authored child STRING width; the child still supplies vertical placement. This keeps editable text/cursor width aligned with the visible input background.
+
+## Text entry and pointer activation
+
+The shared `client/menu_text_input.h` engine holds an anchor and caret for edit selection.
+Shift+arrow extends the selected range, plain left/right collapses it, Ctrl+A
+selects the entire buffer, and typing, Backspace, or Delete replaces/removes the
+selection. SDL supplies its normal delayed repeat events for text editing:
+printable text arrives through `SDL_TEXTINPUT`, while editing keys (Backspace,
+Delete, arrows, Home/End) are allowed to repeat only into the focused edit
+widget. The gameplay binding path still ignores repeated key-downs.
+
+A clickable client-window frame activates only if the same window and frame
+received the left-button press. Standalone Warcraft menu frames and persistent gameplay HUD controls likewise track
+which control received the press and suppress mismatched releases. This avoids
+accidental activation when pressing outside and releasing over a button.
+
+The first edit box in a newly opened client window starts with its existing text selected. In the Warcraft III Save dialog, the timestamp is therefore selected and typing replaces it immediately; arrows collapse the selection. Transient edit state retains caret and anchor. Selection uses authored skin colour when available, otherwise grey.
+
+The edit payload (`uiEditBox_t`) is unchanged. For edit frames only, the
+existing `uiFrame_t.color` carries optional FDF `EditHighlightColor` (it is
+otherwise unused by the edit renderer). Initial selection is local state, not
+an extra wire flag. This preserves the existing network layout exactly.
+Closing or replacing a window invalidates its press/drag capture. When a save
+list row changes the editable filename, the caret and selection anchor both
+move to the end of the new name.

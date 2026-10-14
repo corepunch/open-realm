@@ -296,4 +296,20 @@ TEST(wc3_spawn, fresh_arena_slots_omit_only_proven_redundant_clears) {
     reset_entities(); setup_test_world();
 }
 
+TEST(wc3_spawn, map_placed_units_and_buildings_start_with_full_mana) {
+    edict_t unit = { .mana = { .value = 20.0f, .max_value = 125.0f } };
+    edict_t building = { .mana = { .value = 0.0f, .max_value = 300.0f } };
+    edict_t no_mana = { .mana = { .value = 0.0f, .max_value = 0.0f } };
+
+    unit.s.flags |= EF_UNIT;
+    building.s.flags |= EF_UNIT | EF_BUILDING;
+    no_mana.s.flags |= EF_UNIT;
+    G_FillMapPlacedUnitMana(&unit);
+    G_FillMapPlacedUnitMana(&building);
+    G_FillMapPlacedUnitMana(&no_mana);
+
+    T_FEQ(unit.mana.value, 125.0f, 0.001f);
+    T_FEQ(building.mana.value, 300.0f, 0.001f);
+    T_FEQ(no_mana.mana.value, 0.0f, 0.001f);
+}
 #endif

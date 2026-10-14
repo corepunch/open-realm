@@ -518,6 +518,10 @@ static void G_ApplyTechLevelToOwnedUnits(gameClient_t *client, uint32_t techid,
     uint32_t player;
 
     if (!client || !techid || old_level == new_level) return;
+    /* Backpack availability is a player-tech property, not a UnitBalance
+     * stat delta. Update selected inventory panels even if the upgrade has no
+     * UpgradeData effect or was granted directly by campaign JASS. */
+    G_RefreshInventoryAfterTechChange(client, techid);
     upgrade = G_UpgradeData(techid);
     player = client->ps.number;
     FILTER_EDICTS(unit, unit->inuse && unit->s.player == player && unit->data.UnitBalance) {

@@ -529,6 +529,7 @@ typedef struct { uint32_t code, length, base; } unitAbilityToken_t;
 unitAbilityToken_t const *G_UnitAbilityTokens(UnitAbilities_t const *row, uint32_t *count);
 MusicData_t const *G_MusicData(cstring_t name);
 ItemData_t    const *G_ItemData(uint32_t id);
+uint32_t G_ItemBaseID(uint32_t id);
 ItemData_t    const *G_ItemDataRows(uint32_t *count);
 DestructableData_t const *G_DestructableData(uint32_t id);
 float G_UnitCollisionFromRows(UnitBalance_t const *, UnitData_t const *);

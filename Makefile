@@ -168,6 +168,8 @@ TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort) common/mpq.c common/mpq.h
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 COMMON_HEADERS := $(shell find common -name '*.h' | sort)
+# Included implementation fragments must invalidate unity-build dependents.
+COMMON_HEADERS += common/script_save_impl.inc common/script_scope_binding.inc common/script_scope_checkpoint.inc
 SERVER_HEADERS := $(shell find server -name '*.h' | sort)
 WORLD_CORE_SRCS := common/world.c server/sv_routing.c server/routing.h
 FONT_SRC := renderer/conchars.pcx
@@ -300,3 +302,6 @@ list-devices:
 	xcrun devicectl list devices
 
 .PHONY: default build shared tools font $(TOOL_NAMES) diag clean install-share $(WC3_PHONY) $(WOW_PHONY) $(SC2_PHONY)
+
+# Browser foundation is isolated from native module linking and platform flags.
+include port/web/build.mk

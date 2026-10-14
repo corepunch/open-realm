@@ -4437,13 +4437,21 @@ void S_RemoveMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status) {
 /* Effective current move speed of a unit (runtime override, else data table). */
 static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     if (M_UnitMoveDisabled(ent)) return 0;
-    /* Roots and Ensnare/Web hold Move7c in retail:5fc890 publishes zero
-     * while virtual18c preserves mobile acquisition priority. */
-    if (S_UnitIsEntanglingRooted(ent) || S_UnitIsEnsnared(ent)) return 0;
-    if (ent->movement.captain_actor_type) return ent->unitinfo.MoveSpeed;
-    if (S_ItemSpeedActive(ent)) return game.constants.maxUnitSpeed;
     unitStatusQuery_t statuses;
     G_BeginUnitStatusQuery(ent,&statuses);
+    /* Roots and Ensnare/Web hold Move7c in retail:5fc890 publishes zero
+     * while virtual18c preserves mobile acquisition priority. Reuse this
+     * calculation's occupied-slot discovery for the common empty case. */
+    if (!G_UnitStatusQueryEmpty(ent) &&
+        (S_UnitIsEntanglingRooted(ent) || S_UnitIsEnsnared(ent))) {
+        G_EndUnitStatusQuery(&statuses);return 0;
+    }
+    if (ent->movement.captain_actor_type) {
+        G_EndUnitStatusQuery(&statuses);return ent->unitinfo.MoveSpeed;
+    }
+    if (S_ItemSpeedActive(ent)) {
+        G_EndUnitStatusQuery(&statuses);return game.constants.maxUnitSpeed;
+    }
     float speed = (ent->unitinfo.move_flags & BZ_UNIT_SPEED_SET) || ent->unitinfo.MoveSpeed > 0
         ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
     speed = wc3_add(speed, bonus);
@@ -5467,7 +5475,7 @@ static void move_start_follow_group(edict_t *unit, edict_t *target, bool persist
 /* Original40a7a0/5ff8b0 admits flyers and structures through the same target task.
  *05a5c0 adds world radii before converting the captured range. The spell's
  * read-only05b580 admission predicate instead converts first. */
-bool S_BeginUnitTargetApproach(edict_t *unit, edict_t *target, float range,
+static bool move_begin_target_approach(edict_t *unit, edict_t *target, float range, bool center_range,
                               edict_t *receiver, void (*complete)(edict_t *,edict_t *,bool)) {
     if(!unit || !target || !receiver || !complete ||
        !S_UnitCanTranslate(unit))return false;
@@ -5475,12 +5483,24 @@ bool S_BeginUnitTargetApproach(edict_t *unit, edict_t *target, float range,
     order_move(unit,target);
     if(unit->goalentity!=target || unit->currentmove!=&move_move_walk)return false;
     S_SetFollowTarget(unit,target);
-    float world=wc3_add(wc3_add(range,S_MoveCollisionRadius(unit)),S_MoveCollisionRadius(target));
+    float world=center_range ? range : wc3_add(wc3_add(range,S_MoveCollisionRadius(unit)),S_MoveCollisionRadius(target));
     uint32_t word=wc3_float_bits(world);
     float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
     moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine),range==FLT_MAX);
     group->receiver=receiver;group->receiver_spawn=receiver->spawn_time;group->complete=complete;
     return true;
+}
+
+bool S_BeginUnitTargetApproach(edict_t *unit,edict_t *target,float range,
+                              edict_t *receiver,void (*complete)(edict_t *,edict_t *,bool)) {
+    return move_begin_target_approach(unit,target,range,false,receiver,complete);
+}
+
+/* Entity-selected point spells track a live target but measure their authored
+ * point radius from its center. Ordinary unit-target spells retain hull reach. */
+bool S_BeginUnitEntityPointApproach(edict_t *unit,edict_t *target,float range,
+                                   edict_t *receiver,void (*complete)(edict_t *,edict_t *,bool)) {
+    return move_begin_target_approach(unit,target,range,true,receiver,complete);
 }
 
 edict_t *S_UnitTargetApproachReceiver(edict_t const *unit) {
