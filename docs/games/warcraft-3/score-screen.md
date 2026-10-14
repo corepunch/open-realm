@@ -5,6 +5,10 @@ retail-presentation Patch 1, and dynamic-row Patch 2.
 The installed Warcraft assets are required for visual presentation; the project
 never bundles Blizzard FDF or score artwork.
 
+For the repeatable retail workflow used to capture score traces, edit disposable
+map copies, repack them safely, and compare UnitBalance variants, see
+[Retail Score Experiments](retail-score-experiments.md).
+
 ## Source and confidence
 
 The raw score counters are simulation-authored as described in the preceding
