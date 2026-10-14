@@ -117,6 +117,8 @@ struct game_import {
     uint32_t (*ListSaves)(string_t out, uint32_t out_size);
     /* Delete one save basename from the writable save directory. */
     bool (*DeleteSave)(cstring_t rel);
+    /* Persist local input conveniences alongside a committed manual save. */
+    bool (*SaveLocalClientState)(cstring_t name);
 };
 
 struct client;

@@ -182,6 +182,7 @@ void SV_InitGameProgs(void) {
     import.ScriptRemoveSaveDirectory = FS_ScriptRemoveDirectory;
     import.ListSaves = FS_ListSaves;
     import.DeleteSave = FS_DeleteSave;
+    import.SaveLocalClientState = Cvar_Integer("dedicated", 0) ? NULL : CL_ControlGroupsSave;
 
     ge = GetGameAPI(&import);
     ge->Init();
