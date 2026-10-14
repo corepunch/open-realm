@@ -622,14 +622,21 @@ static bool dispel_is_summoned(edict_t const *unit) {
     return unit && (unit->owner || unit->summon_ability || (unit->aiflags & AI_ILLUSION));
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
-    uint32_t level = S_SpellLevel(caster, spell->code), removed = 0;
-    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    float data_a = S_SpellData(spell->code, level, 1), data_b = S_SpellData(spell->code, level, 2);
-    float data_e = S_SpellData(spell->code, level, 5);
+/* Shared point-area dispel for ordinary spells and item power-ups.  Use the
+ * authored code's own DataB/Area rather than borrowing the Priest's values.
+ * Timed-life and other non-dispellable lifecycle statuses are protected by
+ * unit_status_can_magic_dispel; resurrected/animated dispel-immune summons
+ * are separately protected from summoned damage. */
+void S_DispelMagicArea(edict_t *caster, uint32_t code, uint32_t level, vec2_t const *point) {
+    uint32_t removed = 0;
+    float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    float data_a = S_SpellData(code, level, 1), data_b = S_SpellData(code, level, 2);
+    float data_e = S_SpellData(code, level, 5);
     float summon_dmg = data_e > 0.0f ? data_e : data_b;
     float heal_hp = data_e > 0.0f ? data_a : 0.0f, heal_mana = data_e > 0.0f ? data_b : 0.0f;
-    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
+    if (!caster || !point || !(area >= 0.0f)) return;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                  Vector2_distance(&target->s.origin2, point) <= area) {
         uint32_t target_removed = 0;
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
@@ -642,12 +649,18 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
             unit_refreshstatusflags(target);
             G_InvalidateUnitInfoPanel(target);
         }
-        if (dispel_is_summoned(target) && !S_SummonIsDispelImmune(target) && summon_dmg > 0.0f)
+        /* Retail dispel damages hostile summons, not friendly summons. */
+        if (!S_SpellIsFriend(caster, target) && dispel_is_summoned(target) &&
+            !S_SummonIsDispelImmune(target) && summon_dmg > 0.0f)
             S_SpellDamage(target, caster, (int)summon_dmg);
     }
     if (removed && heal_hp > 0.0f) S_SpellHeal(caster, heal_hp * (float)removed);
     if (removed && heal_mana > 0.0f)
         caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + heal_mana * (float)removed);
+}
+
+BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
+    S_DispelMagicArea(caster, spell->code, S_SpellLevel(caster, spell->code), &st.point);
 }
 /* Name=Heal; Ubertip="Heals a target friendly non-mechanical wounded unit for <Ahea,DataA1> hit points." */
 BZ_HUMAN_AUTOCAST_SPELL(AbilityHeal, heal_validate(ent, target, call ? call->item : NULL), heal_execute, true, true)
