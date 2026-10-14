@@ -4568,6 +4568,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 16);
     T_EQ(building->food->made, 6);
     T_EQ(building_stand_calls, 1);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_STRUCT_BUILT], 1);
     T_ASSERT(building->sound.owner_pending != 0);
     T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
@@ -4577,6 +4578,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
 
     G_CompleteConstruction(building);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 16);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_STRUCT_BUILT], 1);
     T_EQ(building_stand_calls, 1);
     T_EQ(level.events.write, 2);
 }

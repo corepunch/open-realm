@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 89, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 95, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -21,11 +21,19 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 `WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
 Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Event references use physical slot IDs, so retired region-event slots may leave holes; the loader checks that a referenced slot is in use instead of assuming active slots form a dense prefix. Map startup can recreate a region registration that the saved state had removed, and the saved event table restores that removal. Quest state is restored from its fixed slots even when the pre-load active quest count differs. Loading completely reloads the saved map first, then applies state.
 
-The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 60 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. The version-59 layout cannot be read by version 60 because its client-record boundary has no list count; version 60 saves are likewise rejected by older exact-version readers.
+The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 60 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. Version 90 adds the inline Warcraft player-score counters to `gameClient_t`, so completed training/construction, kills, gathered resources/upkeep, food maxima, item acquisition, and mercenary hires survive save/load. The exact-version reader rejects version 89 and earlier rather than migrating their shorter client layout.
 
 ### Save compatibility policy
 
 Save compatibility is deliberately unsupported. Load only the current format version and serialized layout, and reject older or otherwise mismatched saves with a diagnostic. Bump the format version when the serialized layout, callback identity, or meaning changes, including changes that leave `sizeof(edict_t)` unchanged. Do not retain legacy layouts, migration defaults, compatibility aliases, or optional extension records.
+
+Version 90 serializes current and default Warcraft III game difficulty as
+independent `level.setup` fields. This preserves a temporarily reduced current
+difficulty across save/load, without reapplying the archived campaign preference
+or overwriting the original default. Version 89 saves are rejected by the
+existing exact-version check. `wc3_save.current_and_default_difficulty_round_trip_independently`
+exercises Normal / Hard and Insane / Easy snapshots. The transient per-map
+restart/ChangeLevel override is session-only and is never persisted.
 
 Version 89 retains the selected entity and its `spawn_time` for ability-owned
 entity cursors that execute as point spells. A pending Kaboom approach saves
@@ -154,6 +162,16 @@ Weather effects use the same stable-slot rule. `level.weather_effects[MAX_WEATHE
 
 Event handler registrations store type, subject entity index, trigger index, timer index, region, range, game-state ID, `limitop`, and limit value. The extra condition fields preserve `TriggerRegisterGameStateEvent` time-of-day registrations across save/load. The unread portion of the bounded gameplay event ring preserves event type, subject/source entity indexes, scalar value, optional point target, and the target registration ordinal. Consumed queue entries are not saved. Loads reject queue overflow and unresolved entity or registration IDs.
 
+
+## Difficulty and zone transition boundary
+
+The campaign preference is an archived client cvar; a running mission owns
+independent `level.setup.difficulty` / `level.setup.default_difficulty` values.
+The one-shot state used by a scripted RestartGame or ChangeLevel is **not** part
+of a game-save snapshot. `SaveGame` followed by `ChangeLevel` stages a transition
+only after a successful `WriteGame`, whereas `LoadGame` must restore its own
+serialized values. Difficulty level-field serialization and the associated save
+format version change remain follow-up work; see [Game difficulty](game-difficulty.md).
 
 ## JASS Snapshot
 
@@ -857,3 +875,12 @@ creation may temporarily require extra space, and compression is a fallback,
 not guaranteed. On filesystems without reflink support, restores materialize
 new live files in full. A separate aggregate quota, explicit storage audit
 command, and crash-recovery garbage collector remain future improvements.
+
+### Hero score-screen snapshot and version 95
+
+The Heroes Used column is built from currently owned hero entities when the
+score screen freezes the outgoing match. It is not a persisted running counter.
+Version 95 removes `heroes_used` from the serialized `gameClient_t::score`
+layout; the serializer rejects version 94 and earlier without migration. The
+score-screen hero portraits/levels are transient and are not saved. Earned XP
+and the existing unit/resource score state still round-trip normally.

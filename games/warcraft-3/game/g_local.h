@@ -19,6 +19,14 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
+/* Investigative score/result traces only. Arguments are not evaluated unless
+ * WC3_DEBUG_SCORE=1 enables this instrumentation for the game module. */
+#ifdef BZ_WC3_DEBUG_SCORE
+#define BZ_WC3_SCORE_LOG(...) G_GameResultDebug(__VA_ARGS__)
+#else
+#define BZ_WC3_SCORE_LOG(...) ((void)0)
+#endif
+
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
 #define SEL_SCALE 72
@@ -333,6 +341,37 @@ typedef enum {
     WC3_LIMITOP_NOT_EQUAL = 5,
 } WC3LIMITOP;
 
+/* common.j playerscore ids.  Keep the numeric order stable: JASS passes these
+ * handles back to GetPlayerScore and the score screen consumes the same state. */
+typedef enum {
+    WC3_PLAYER_SCORE_UNITS_TRAINED = 0,
+    WC3_PLAYER_SCORE_UNITS_KILLED,
+    WC3_PLAYER_SCORE_STRUCT_BUILT,
+    WC3_PLAYER_SCORE_STRUCT_RAZED,
+    WC3_PLAYER_SCORE_TECH_PERCENT,
+    WC3_PLAYER_SCORE_FOOD_MAXPROD,
+    WC3_PLAYER_SCORE_FOOD_MAXUSED,
+    WC3_PLAYER_SCORE_HEROES_KILLED,
+    WC3_PLAYER_SCORE_ITEMS_GAINED,
+    WC3_PLAYER_SCORE_MERCS_HIRED,
+    WC3_PLAYER_SCORE_GOLD_MINED_TOTAL,
+    WC3_PLAYER_SCORE_GOLD_MINED_UPKEEP,
+    WC3_PLAYER_SCORE_GOLD_LOST_UPKEEP,
+    WC3_PLAYER_SCORE_GOLD_LOST_TAX,
+    WC3_PLAYER_SCORE_GOLD_GIVEN,
+    WC3_PLAYER_SCORE_GOLD_RECEIVED,
+    WC3_PLAYER_SCORE_LUMBER_TOTAL,
+    WC3_PLAYER_SCORE_LUMBER_LOST_UPKEEP,
+    WC3_PLAYER_SCORE_LUMBER_LOST_TAX,
+    WC3_PLAYER_SCORE_LUMBER_GIVEN,
+    WC3_PLAYER_SCORE_LUMBER_RECEIVED,
+    WC3_PLAYER_SCORE_UNIT_TOTAL,
+    WC3_PLAYER_SCORE_HERO_TOTAL,
+    WC3_PLAYER_SCORE_RESOURCE_TOTAL,
+    WC3_PLAYER_SCORE_TOTAL,
+    WC3_PLAYER_SCORE_COUNT
+} WC3PLAYERSCORE;
+
 typedef enum {
     EVENT_GAME_VICTORY = 0,
     EVENT_GAME_END_LEVEL = 1,
@@ -549,6 +588,45 @@ typedef enum {
     CAMERA_TARGET_ORIENT,        // SetCameraOrientController: the source stays at orient_eye and turns toward the unit
 } cameraTargetMode_t;
 
+/* Conservative viewport size until runtime row metrics can be verified against retail.
+ * FDF only authors the fixed header and scrollbar, not dynamic row geometry. */
+#define WC3_SCORE_VISIBLE_ROWS 10u
+/* Native Heroes-page column fits four individual portrait/level pairs.
+ * Hero count still tracks all currently owned instances if a map exceeds this. */
+#define WC3_SCORE_HERO_PORTRAITS 4u
+
+typedef struct {
+    /* Raw engine-owned score counters.  Aggregate score formulas stay separate
+     * until their retail weighting is established. */
+    uint32_t values[WC3_PLAYER_SCORE_COUNT];
+    /* Earned XP has no common.j PLAYER_SCORE_* id; persist independently.
+     * Heroes Used is a current-entity presentation, not a persisted counter. */
+    uint32_t experience_gained;
+    /* Cost-weighted event totals; counts above remain separate for retail tabs. */
+    uint32_t unit_value_produced, unit_value_killed, structure_value_built, structure_value_razed;
+} wc3PlayerScoreState_t;
+
+/* Transient, immutable outgoing-match presentation. Never serialized in
+ * gameClient_t or level: a zone save must not resurrect an old score modal. */
+typedef struct {
+    uint32_t entity, rawcode, level;
+    char art[MAX_PATHLEN]; /* copy authored portrait art before unloading the map */
+} wc3ScoreHeroSnapshot_t;
+
+typedef struct {
+    uint32_t number, race, team, color;
+    char name[64];
+    int32_t values[WC3_PLAYER_SCORE_COUNT];
+    uint32_t hero_count, experience_gained;
+    wc3ScoreHeroSnapshot_t heroes[WC3_SCORE_HERO_PORTRAITS];
+} wc3ScorePlayerSnapshot_t;
+
+typedef struct {
+    uint32_t count;
+    uint32_t elapsed_ms; /* frozen gameplay time; never use wall clock after modal pause */
+    wc3ScorePlayerSnapshot_t players[MAX_PLAYERS];
+} wc3ScoreSnapshot_t;
+
 struct client_s {
     player_t ps;
     bool connected; /* ClientBegin completed for this reserved player edict. */
@@ -560,6 +638,8 @@ struct client_s {
         uint8_t tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
         float handicap, handicap_xp;
         bool race_selectable, on_score_screen;
+        /* An explicit false differs from the default (unspecified) setting. */
+        bool on_score_screen_set;
         bool removed;
         uint8_t pending_game_result; /* 0 = none, PLAYER_GAME_RESULT_* + 1 while fallback UI is deferred */
         uint32_t pending_game_result_event; /* level.events.read must reach this write ordinal before fallback UI */
@@ -569,6 +649,7 @@ struct client_s {
         size_t disabled_ability_capacity;
     } jass;
     playerTechState_t tech[MAX_PLAYER_TECH_STATE];
+    wc3PlayerScoreState_t score;
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
     uint32_t playerTextCursor[PLAYERTEXT_COUNT];
     mapPlayer_t const *mapplayer;
@@ -1847,6 +1928,8 @@ struct edict_s {
     stock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
     doodadHero_t hero;
+    /* XP supplied by scripted level assignments, retained with the hero when ownership changes. */
+    uint32_t score_level_xp;
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
@@ -2472,6 +2555,19 @@ bool G_GameResultDebugEnabled(void);
 void G_GameResultDebug(cstring_t format, ...);
 bool G_IsSinglePlayer(void);
 void G_RequestEndGame(bool do_score_screen);
+void G_FlushScoreTransition(void);
+void G_FlushPausedScoreTransition(void);
+bool G_ScoreTransitionTerminal(void);
+void G_ScoreTransitionContinue(edict_t *player);
+void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab);
+void G_ScoreTransitionScroll(edict_t *player, float position);
+void G_ScoreTransitionSort(edict_t *player, uint32_t column);
+void G_ScoreTransitionToggleTeams(edict_t *player);
+void G_ScoreTransitionToggleAllyColors(edict_t *player);
+#ifdef BZ_TESTS
+bool G_ScoreTransitionPending(void);
+void G_TestResetScoreTransition(void);
+#endif
 void G_RequestQuitGame(void);
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen);
 /* JASS saves are captured after the active VM callback returns, never inline
@@ -2482,10 +2578,15 @@ bool G_ScriptSavePending(void);
 void G_FlushScriptSave(void);
 void G_ResetScriptSave(void);
 void G_RequestRestartGame(bool do_score_screen);
+/* A one-shot map replacement carries difficulty only for a scripted level
+ * transition or restart. Fresh menu launches use their profile preference. */
+bool G_HasPendingDifficultyTransition(void);
+bool G_TakeDifficultyTransition(cstring_t map, uint32_t *current, uint32_t *original_default);
 void G_RequestLoadGameMenu(void);
 void G_RequestLoadGameNamed(cstring_t name);
 void G_RequestCampaignSelect(void);
 void G_CampaignProgressResetRuntime(void);
+bool G_CampaignProgressRecordVictory(uint32_t player_num);
 bool G_CampaignProgressSetTutorialCleared(bool cleared);
 bool G_CampaignProgressSetCampaignAvailable(int32_t campaign, bool available);
 bool G_CampaignProgressSetMissionAvailable(int32_t campaign, int32_t mission, bool available);
@@ -2709,7 +2810,7 @@ void SP_CallSpawn(edict_t *);
 void G_BindEntityData(edict_t *);
 void G_BindEntityRuntime(edict_t *);
 void G_FillMapPlacedUnitMana(edict_t *);
-void G_SpawnEntities(void);
+void G_SpawnEntities(cstring_t map_path);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif
@@ -2951,6 +3052,19 @@ bool G_GetUnitColorOverride(edict_t const *unit, uint32_t *color);
 void G_SetUnitColorOverride(edict_t *unit, uint32_t color);
 void G_ClearUnitColorOverride(edict_t *unit);
 void G_RecomputePlayerUpkeep(gameClient_t *client);
+void G_PlayerScoreObserveFood(gameClient_t *client);
+void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state);
+void G_PlayerScoreUnitTrained(edict_t *unit);
+void G_PlayerScoreSnapshotHeroes(wc3ScorePlayerSnapshot_t *player);
+void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount);
+uint32_t G_PlayerScoreScriptedXP(uint32_t player);
+bool G_ScorePlayerEligible(gameClient_t const *client);
+void G_PlayerScoreStructureBuilt(edict_t *building);
+void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker);
+void G_PlayerScoreItemGained(edict_t *unit);
+void G_PlayerScoreMercenaryHired(gameClient_t *client);
+void G_PlayerScoreResourceIncome(player_t *player, uint32_t resource_state, int32_t gross_amount, int32_t credited_amount);
+bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *value);
 int32_t G_ApplyResourceIncome(player_t *player, uint32_t resource_state, int32_t gross_amount);
 int32_t G_CreditResourceIncome(player_t *player, edict_t *source, uint32_t resource_state, int32_t gross_amount);
 bool G_UnitCanReviveHeroes(edict_t const *altar);
@@ -3237,7 +3351,7 @@ void UI_LoadHudLeaderboards(void);
 void UI_WriteLeaderboard(edict_t *ent);
 void UI_WriteLoadingLayout(edict_t *ent, mapInfo_t const *info);
 void UI_ParseFDF(cstring_t);
-void UI_ParseFDF_Buffer(cstring_t, string_t);
+bool UI_ParseFDF_Buffer(cstring_t, string_t);
 void UI_SetAllPoints(frameDef_t *);
 void UI_SetParent(frameDef_t *, frameDef_t const *);
 void UI_SetText(frameDef_t *, cstring_t, ...);
@@ -3255,6 +3369,9 @@ void UI_WriteLayout(edict_t *, frameDef_t const *, uint32_t);
 void UI_WriteStart(uint32_t);
 void UI_ClearLayer(edict_t *, uint32_t);
 void UI_ShowGameResult(edict_t *, uint32_t);
+struct wc3ScoreView_s;
+bool UI_ShowScoreScreen(edict_t *, wc3ScoreSnapshot_t const *, uint32_t, uint32_t,
+                        struct wc3ScoreView_s const *);
 void UI_FlushPendingGameResults(void);
 void UI_HideGameResult(edict_t *);
 /* JASS interactive choice dialogs: the registry and click authority live in the game. */
@@ -3556,6 +3673,7 @@ uint32_t G_HeroXPForLevel(uint32_t level);
 uint32_t G_HeroLevelForXP(uint32_t xp);
 void G_HeroApplyLevel(edict_t *, uint32_t level);
 void G_HeroSetXP(edict_t *, uint32_t xp);
+void G_HeroSetXPForLevel(edict_t *, uint32_t xp);
 bool G_HeroStripLevels(edict_t *, uint32_t levels);
 void G_GrantKillXP(edict_t *victim, edict_t *killer);
 void G_AwardKillBounty(edict_t *victim, edict_t *killer);

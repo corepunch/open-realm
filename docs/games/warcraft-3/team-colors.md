@@ -55,7 +55,7 @@ The game-setup lobby transports team and color independently. Maps with Fixed Pl
 
 OpenRealm currently exposes Warcraft player-color handles through the extended color range, but the active multiplayer/player and MDX texture contracts are still `MAX_PLAYERS == 16` / `MAX_TEAMS == 16`. Extending rendered/lobby colors past the classic 16 is separate work because it changes those shared limits and resource assumptions.
 
-Map `config()` now runs before the map's normal script start/UI initialization, so its gameplay-time player colors are available before `main`. It is still not a distinct **pre-lobby** configuration phase, so exact authored-map-before-lobby slot/color precedence remains separate lifecycle work described in [UI Flow](../../architecture/ui-flow.md).
+Map `config()` now runs before the map's normal script start/UI initialization, so its gameplay-time player colors are available before `main`. It is still not a distinct **pre-lobby** configuration phase, so exact authored-map-before-lobby slot/color precedence remains separate lifecycle work described in [UI Flow](architecture/ui-flow.md).
 
 Point-only JASS/special effects do not have an owning unit/player color to inherit. OpenRealm intentionally leaves them without an explicit team-color payload rather than guessing a player slot.
 
@@ -72,3 +72,19 @@ Focused in-engine coverage lives in `games/warcraft-3/game/tests/t_api.c`, `t_co
 - ranged attack and Storm Bolt/Fire Bolt projectile inheritance;
 - selected-unit portrait color propagation;
 - build-placement and rally-indicator configured-player color propagation.
+
+## Build-time RGB palette
+
+`WC3_REFORGED_COLORS=1` (default) selects the 24-entry Reforged RGB
+palette for explicitly tinted UI elements. Use `make WC3_REFORGED_COLORS=0`
+for the twelve original Classic RGB values. The shared source of truth is
+`games/warcraft-3/common/player_colors.h` (`WC3_PlayerColorRGB(index)`).
+The mode is compiled into the renderer and must be used consistently by
+other game/UI modules that emit explicit RGB player-colour tints.
+
+The palette does **not** replace Warcraft's MDX replaceable-texture data:
+`ReplaceableTextures\TeamColor\TeamColorXX.blp` and `TeamGlowXX.blp`
+continue to come from the installed game archives. It also does not add
+24-player game slots or change JASS player-colour handle numbering. Classic
+has twelve published RGB entries, so colour IDs outside that range use a
+modulo-twelve fallback for explicitly tinted widgets.

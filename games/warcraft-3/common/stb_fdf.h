@@ -154,6 +154,12 @@ typedef struct {
 #define UIFLAG_VISIBLE  (1 << 5)
 #define UIFLAG_PASSTHROUGH (1 << 6)
 
+/* Retail FDF LayerStyle bits. Retain them on frame definitions even when the
+ * rendering backend does not yet implement the corresponding viewport mode. */
+#define FDF_LAYERSTYLE_NOSHADING         (1u << 0)
+#define FDF_LAYERSTYLE_IGNORETRACKEVENTS (1u << 1)
+#define FDF_LAYERSTYLE_SETSVIEWPORT      (1u << 2)
+
 /* -------------------------------------------------------------------------- */
 /* Frame template definition                                                   */
 /* -------------------------------------------------------------------------- */
@@ -176,6 +182,7 @@ struct uiFrameDef_s {
     uint32_t hidden: 1;
     uint32_t disabled: 1;
     uint32_t TextLength;
+    uint32_t LayerStyle;
     uint32_t Stat;
     string_t DynamicText;
     uint32_t DynamicTextCapacity;
@@ -402,7 +409,7 @@ FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
 /* -------------------------------------------------------------------------- */
 bool UI_EnsureFDF(cstring_t filename);
 void UI_ParseFDF(cstring_t filename);
-void UI_ParseFDF_Buffer(cstring_t filename, string_t buffer);
+bool UI_ParseFDF_Buffer(cstring_t filename, string_t buffer);
 void UI_ClearTemplates(void);
 void UI_ClearTextures(void);
 
@@ -566,7 +573,8 @@ static inline cstring_t parse_token(wordExtractor_t *p) {
     } else {
         size_t n = 0;
         while (*p->buffer && !isspace((unsigned char)*p->buffer) &&
-               !strchr(p->delimiters, *p->buffer) && n < PARSER_MAX_SEGMENT - 1)
+               *p->buffer != '"' && !strchr(p->delimiters, *p->buffer) &&
+               n < PARSER_MAX_SEGMENT - 1)
             word[n++] = *(p->buffer++);
         word[n] = '\0';
         return word;
@@ -1466,6 +1474,26 @@ FDF_MAKE_ENUMPARSER(FramePointType, FDF_ParseFramePointType);
 FDF_MAKE_FLAGSPARSER(CornerFlags, FDF_ParseCornerFlags);
 FDF_MAKE_FLAGSPARSER(ControlStyle, FDF_ParseControlStyle);
 
+/* LayerStyle is used by the retail ScoreScreen.fdf MODEL and header layers.
+ * Unlike ControlStyle, this is not an enum but a pipe-separated set of flags.
+ * Existing 2-D sprite/model presentation is unlit; preserve NOSHADING and
+ * SETSVIEWPORT for a future dedicated renderer implementation. */
+FDF_MAKE_PARSER(LayerStyle) {
+    UINAME flags = { 0 };
+    char *part;
+    (void)sscanf(token, UINAME_FMT, flags);
+    if (!frame) return;
+    for (part = strtok(flags, "|"); part; part = strtok(NULL, "|")) {
+        if (!strcmp(part, "NOSHADING"))
+            frame->LayerStyle |= FDF_LAYERSTYLE_NOSHADING;
+        else if (!strcmp(part, "IGNORETRACKEVENTS")) {
+            frame->LayerStyle |= FDF_LAYERSTYLE_IGNORETRACKEVENTS;
+            frame->ui_flags |= UIFLAG_PASSTHROUGH;
+        } else if (!strcmp(part, "SETSVIEWPORT"))
+            frame->LayerStyle |= FDF_LAYERSTYLE_SETSVIEWPORT;
+    }
+}
+
 FDF_MAKE_PARSER(TextureFile) {
     PATHSTR path = { 0 };
     uint32_t image = 0;
@@ -1648,6 +1676,7 @@ static fdf_parseItem_t items[] = {
     { "File", { FDF_F(Texture.Image, TextureFile), FDF_F_END } },
     { "TexCoord", { FDF_F(Texture.TexCoord.min.x, Float), FDF_F(Texture.TexCoord.max.x, Float), FDF_F(Texture.TexCoord.min.y, Float), FDF_F(Texture.TexCoord.max.y, Float), FDF_F_END } },
     { "BackgroundArt", { FDF_F(Portrait.model, ModelPath), FDF_F_END } },
+    { "LayerStyle", { FDF_F(LayerStyle, LayerStyle), FDF_F_END } },
     { "AlphaMode", { FDF_F(AlphaMode, AlphaMode), FDF_F_END } },
     { "Anchor", { FDF_F(Anchor.corner, FramePointType), FDF_F(Anchor.x, Float), FDF_F(Anchor.y, Float), FDF_F_END }, Anchor },
     { "Font", { FDF_F(Font.Name, Name), FDF_F(Font.Size, Float), FDF_F_END }, Font },
@@ -1781,6 +1810,9 @@ static void parse_func(wordExtractor_t *parser, frameDef_t *frame) {
         parser->error = true;
         return;
     parse_next:;
+        /* Nested frame definitions in retail FDF commonly separate child
+         * classes with commas. Top-level parsing already accepts these. */
+        while (*parser->buffer == ',') ++parser->buffer;
     }
 }
 
@@ -1965,7 +1997,7 @@ void FDF_ParseScene(wordExtractor_t *parser) {
     }
 }
 
-void UI_ParseFDF_Buffer(cstring_t fileName, string_t buffer2) {
+bool UI_ParseFDF_Buffer(cstring_t fileName, string_t buffer2) {
     string_t buffer = buffer2;
     UI_RemoveBom(buffer);
     wordExtractor_t parser = {
@@ -1977,6 +2009,7 @@ void UI_ParseFDF_Buffer(cstring_t fileName, string_t buffer2) {
     if (parser.error) {
         fprintf(stderr, "Failed to parse %s\n", fileName);
     }
+    return !parser.error;
 }
 
 static bool UI_FDFLoaded(cstring_t fileName) {
@@ -2030,10 +2063,12 @@ bool UI_EnsureFDF(cstring_t fileName) {
                 memcpy(text, buffer, (size_t)size);
                 text[size] = '\0';
             }
-            UI_ParseFDF_Buffer(fileName, text);
+            loaded = UI_ParseFDF_Buffer(fileName, text);
             UI_FdfFree(text);
-            UI_MarkFDFLoaded(fileName);
-            loaded = true;
+            /* A rejected retail FDF must not be cached as successfully loaded.
+             * In particular, do not allow a partial ScoreScreenFrame to mask
+             * a parser failure on subsequent attempts. */
+            if (loaded) UI_MarkFDFLoaded(fileName);
         }
         UI_FdfFreeFile(buffer);
     }

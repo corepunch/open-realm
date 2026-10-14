@@ -101,6 +101,8 @@ TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
     T_EQ(unit->food->made, 6);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 3);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 6);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 3);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXPROD], 6);
 
     unit_die(unit, NULL);
 
@@ -108,6 +110,8 @@ TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
     T_ASSERT(!unit->food || unit->food->made == 0);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 0);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 0);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 3);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXPROD], 6);
 }
 
 TEST(wc3_food, explicit_remove_releases_used_and_made_food) {
@@ -305,6 +309,10 @@ TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
 
     T_EQ(G_CreditResourceIncome(player, source, PLAYERSTATE_RESOURCE_GOLD, 10), 7);
     T_EQ(player->stats[PLAYERSTATE_RESOURCE_GOLD], 507);
+    T_EQ(player->stats[PLAYERSTATE_GOLD_GATHERED], 10);
+    T_EQ(game.clients[0].score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL], 10);
+    T_EQ(game.clients[0].score.values[WC3_PLAYER_SCORE_GOLD_MINED_UPKEEP], 7);
+    T_EQ(game.clients[0].score.values[WC3_PLAYER_SCORE_GOLD_LOST_UPKEEP], 3);
     T_EQ(resource_gain_capture.count, 10);
     T_EQ(resource_gain_capture.types[0], PF_BYTE);
     T_EQ(resource_gain_capture.integral[0], svc_temp_entity);

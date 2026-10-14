@@ -134,6 +134,8 @@ void G_RunDeferredFrees(void) {
             jass_runevents(level.vm);
             continue;
         }
+        /* Retire the queue entry even if the edict was already replaced;
+         * only a matching live identity may be freed. */
         deferred_free_count--;
         if (pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time) G_FreeEdict(pending.ent);
     }

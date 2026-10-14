@@ -93,13 +93,13 @@ bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
     edict_t *pent;
 
     if (player_num >= game.max_clients || game_result > 3) {
-        G_GameResultDebug("RemovePlayer ignored reason=invalid_args player=%u result=%u",
+        BZ_WC3_SCORE_LOG("RemovePlayer ignored reason=invalid_args player=%u result=%u",
             (unsigned)player_num, (unsigned)game_result);
         return false;
     }
 
     client = G_GetPlayerClientByNumber(player_num);
-    G_GameResultDebug("RemovePlayer resolved player=%u client_index=%ld connected=%u removed=%u ui=%u",
+    BZ_WC3_SCORE_LOG("RemovePlayer resolved player=%u client_index=%ld connected=%u removed=%u ui=%u",
         (unsigned)player_num,
         client ? (long)(client - game.clients) : -1L,
         client ? (unsigned)client->connected : 0u,
@@ -107,11 +107,11 @@ bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
         client ? (unsigned)client->ps.client_ui_state : 0u);
 
     if (!client) {
-        G_GameResultDebug("RemovePlayer ignored player=%u reason=no_client", (unsigned)player_num);
+        BZ_WC3_SCORE_LOG("RemovePlayer ignored player=%u reason=no_client", (unsigned)player_num);
         return false;
     }
     if (client->jass.removed) {
-        G_GameResultDebug("RemovePlayer ignored player=%u reason=already_removed stored_result=%u",
+        BZ_WC3_SCORE_LOG("RemovePlayer ignored player=%u reason=already_removed stored_result=%u",
             (unsigned)player_num, (unsigned)client->ps.stats[PLAYERSTATE_GAME_RESULT]);
         return false;
     }
@@ -123,13 +123,13 @@ bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
     G_BotRequestStop(player_num);
 
     pent = G_GetPlayerEntityByNumber(player_num);
-    G_GameResultDebug("RemovePlayer state player=%u result=%u pent=%p ent=%ld inuse=%u owner=%u",
+    BZ_WC3_SCORE_LOG("RemovePlayer state player=%u result=%u pent=%p ent=%ld inuse=%u owner=%u",
         (unsigned)player_num, (unsigned)game_result, (void *)pent,
         pent ? (long)pent->s.number : -1L,
         pent ? (unsigned)pent->inuse : 0u,
         pent ? (unsigned)pent->s.player : 0u);
     if (!pent) {
-        G_GameResultDebug("RemovePlayer player=%u result=%u has no player edict; no result event/UI queued",
+        BZ_WC3_SCORE_LOG("RemovePlayer player=%u result=%u has no player edict; no result event/UI queued",
             (unsigned)player_num, (unsigned)game_result);
         return true;
     }
@@ -138,18 +138,18 @@ bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
         G_PublishEvent(pent, EVENT_PLAYER_VICTORY);
         client->jass.pending_game_result = 1;
         client->jass.pending_game_result_event = level.events.write;
-        G_GameResultDebug("RemovePlayer queued VICTORY player=%u wait_event=%u events=%u/%u",
+        BZ_WC3_SCORE_LOG("RemovePlayer queued VICTORY player=%u wait_event=%u events=%u/%u",
             (unsigned)player_num, (unsigned)client->jass.pending_game_result_event,
             (unsigned)level.events.read, (unsigned)level.events.write);
     } else if (game_result == 1) {
         G_PublishEvent(pent, EVENT_PLAYER_DEFEAT);
         client->jass.pending_game_result = 2;
         client->jass.pending_game_result_event = level.events.write;
-        G_GameResultDebug("RemovePlayer queued DEFEAT player=%u wait_event=%u events=%u/%u",
+        BZ_WC3_SCORE_LOG("RemovePlayer queued DEFEAT player=%u wait_event=%u events=%u/%u",
             (unsigned)player_num, (unsigned)client->jass.pending_game_result_event,
             (unsigned)level.events.read, (unsigned)level.events.write);
     } else {
-        G_GameResultDebug("RemovePlayer player=%u result=%u records removal only; no victory/defeat UI",
+        BZ_WC3_SCORE_LOG("RemovePlayer player=%u result=%u records removal only; no victory/defeat UI",
             (unsigned)player_num, (unsigned)game_result);
     }
     return true;
@@ -159,7 +159,6 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
     edict_t *subject = evt->edict;
     bool misha_summon_event = false;
     bool result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
-    uint32_t matching_handlers = 0, invoked_handlers = 0;
     /* KillUnit followed by RemoveUnit still owes death notifications while the corpse exists. */
     if (evt->edict_spawn_tracked &&
         (!subject || !subject->inuse || subject->spawn_time != evt->edict_spawn_time ||
@@ -184,7 +183,7 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
                 subject && subject->summon_ability ? (cstring_t)&subject->summon_ability : "----");
 
     if (result_event) {
-        G_GameResultDebug("execute event type=%s subject_ent=%ld owner=%u",
+        BZ_WC3_SCORE_LOG("execute event type=%s subject_ent=%ld owner=%u",
             evt->type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
             subject ? (long)subject->s.number : -1L,
             subject ? (unsigned)subject->s.player : 0u);
@@ -314,13 +313,6 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
                                 direct, owner_match, direct || owner_match,
                                 e->trigger ? (int)e->trigger->disabled : -1);
                     }
-                    if (result_event) {
-                        matching_handlers++;
-                        G_GameResultDebug("event handler candidate trigger=%p handler_subject=%ld direct=%u owner_match=%u",
-                            (void *)e->trigger,
-                            e->subject ? (long)e->subject->s.number : -1L,
-                            (unsigned)direct, (unsigned)owner_match);
-                    }
                     if (direct || owner_match) {
                         bool queued = jass_calltriggerevent(level.vm, e->trigger, evt);
                         if (misha_summon_event)
@@ -346,20 +338,10 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
                                     (unsigned)evt->type, (long)quest_trigger_ordinal,
                                     queued, e->trigger ? (int)e->trigger->disabled : -1);
                         }
-                        if (result_event) {
-                            invoked_handlers++;
-                            G_GameResultDebug("event handler dispatch trigger=%p queued=%u",
-                                (void *)e->trigger, (unsigned)queued);
-                        }
                     }
                 }
                 break;
         }
-    }
-    if (result_event) {
-        G_GameResultDebug("execute event complete type=%s matching_handlers=%u invoked_handlers=%u",
-            evt->type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
-            (unsigned)matching_handlers, (unsigned)invoked_handlers);
     }
 }
 
@@ -493,11 +475,6 @@ bool G_HasPendingDeathEvent(edict_t const *ent) {
 void G_RunEvents(void) {
     for (levelEvents_t *e = &level.events; e->read < e->write; e->read++) {
         gameEvent_t *evt = &e->queue[e->read % MAX_EVENT_QUEUE];
-        if (evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT) {
-            G_GameResultDebug("run event ordinal=%u/%u type=%s",
-                (unsigned)(e->read + 1), (unsigned)e->write,
-                evt->type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT");
-        }
         G_ExecuteEvent(evt);
     }
 }
@@ -527,12 +504,12 @@ void G_DrainPausedResultEvents(void) {
         }
         if (!waiting) return;
 
-        G_GameResultDebug("frame drain paused result events pass=%u events=%u/%u",
+        BZ_WC3_SCORE_LOG("frame drain paused result events pass=%u events=%u/%u",
             (unsigned)passes, (unsigned)level.events.read, (unsigned)level.events.write);
         G_RunEvents();
         jass_runevents(level.vm);
     }
 
-    G_GameResultDebug("frame drain paused result events stopped after %u passes events=%u/%u",
+    BZ_WC3_SCORE_LOG("frame drain paused result events stopped after %u passes events=%u/%u",
         (unsigned)MAX_PLAYERS, (unsigned)level.events.read, (unsigned)level.events.write);
 }

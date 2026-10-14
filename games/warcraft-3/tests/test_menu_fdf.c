@@ -13,6 +13,7 @@
 #include "../menu/menu_screen.h"
 #include "../common/minimap_render.h"
 #include "../common/campaign_progress.h"
+#include "../common/difficulty.h"
 #include "../../../common/mpq.h"
 #include "../../../common/video_modes.h"
 
@@ -54,7 +55,7 @@ static bool test_skip_menu_transitions;
 static bool test_background_birth_available = true;
 static int test_vid_native = -1;
 static cstring_t test_campaign_visibility;
-static PATHSTR test_campaign_progress_path = "campaign-progress-menu-test.orcp";
+#define test_campaign_progress_path Test_TempPath("campaign-progress-menu-test.orcp")
 static vec2_t test_mouse_pos;
 static cstring_t test_map = "";
 static uint32_t map_reads, texture_releases;
@@ -107,6 +108,35 @@ static void parse_fdf(char const *name, char const *src) {
 static int require_not_null(void const *ptr) {
     T_NOT_NULL(ptr);
     return ptr != NULL;
+}
+
+TEST(menu_fdf, retail_score_screen_layer_styles_are_parsed_without_skipping_children) {
+    char text[] =
+        "Frame \"FRAME\" \"ScoreScreenLayerStyleFixture\" { "
+        "Frame \"MODEL\" \"ScoreScreenFixtureModel\" { "
+        "LayerStyle \"NOSHADING\", "
+        "Frame \"FRAME\" \"ScoreScreenFixtureChild\" { "
+        "LayerStyle \"NOSHADING|IGNORETRACKEVENTS\", "
+        "}, }, "
+        "Frame \"FRAME\" \"ScoreScreenFixtureViewport\" { "
+        "LayerStyle \"SETSVIEWPORT\", "
+        "}, }";
+    frameDef_t *root, *model, *child, *viewport;
+    T_ASSERT(UI_ParseFDF_Buffer("score_layers.fdf", text));
+    root = UI_FindFrame("ScoreScreenLayerStyleFixture");
+    T_NOT_NULL(root);
+    if (!root) return;
+    model = UI_FindChildFrame(root, "ScoreScreenFixtureModel");
+    child = model ? UI_FindChildFrame(model, "ScoreScreenFixtureChild") : NULL;
+    viewport = UI_FindChildFrame(root, "ScoreScreenFixtureViewport");
+    T_NOT_NULL(model);
+    T_NOT_NULL(child);
+    T_NOT_NULL(viewport);
+    if (!model || !child || !viewport) return;
+    T_ASSERT(model->LayerStyle & FDF_LAYERSTYLE_NOSHADING);
+    T_ASSERT(child->LayerStyle & FDF_LAYERSTYLE_IGNORETRACKEVENTS);
+    T_ASSERT(child->ui_flags & UIFLAG_PASSTHROUGH);
+    T_ASSERT(viewport->LayerStyle & FDF_LAYERSTYLE_SETSVIEWPORT);
 }
 
 TEST(menu_fdf, minimap_content_rect_preserves_rectangular_map_aspect) {
@@ -373,6 +403,17 @@ static cstring_t test_cvar_string(cstring_t name, cstring_t fallback) {
         return test_campaign_visibility;
     }
     return fallback;
+}
+
+static char captured_registered_cvar_name[64];
+static char captured_registered_cvar_default[16];
+static uint32_t captured_registered_cvar_flags;
+
+static void test_cvar_register(cstring_t name, cstring_t value, uint32_t flags) {
+    snprintf(captured_registered_cvar_name, sizeof(captured_registered_cvar_name), "%s", name);
+    snprintf(captured_registered_cvar_default, sizeof(captured_registered_cvar_default), "%s", value);
+    captured_registered_cvar_flags = flags;
+    Cvar_Get(name, value, flags);
 }
 
 static void test_cvar_set(cstring_t name, cstring_t value) {
@@ -1498,6 +1539,91 @@ TEST(menu_fdf, single_line_text_auto_height_uses_fdf_font_size) {
     T_EQ(captured_text_draws, 2);
     T_FEQ(captured_text_rects[0].h, 0.013f, 0.0001f);
     T_FEQ(captured_text_rects[1].h, 0.016f, 0.0001f);
+}
+
+TEST(menu_fdf, campaign_difficulty_rejects_invalid_preference_and_isolates_melee_maps) {
+    uint32_t difficulty = 99;
+    char const *invalid[] = {
+        "", "-1", "+1", "3", "4", "1junk", " 1", "1 ",
+        "9999999999999999999999999999", "0x1", "1.0",
+    };
+
+    T_ASSERT(WC3_ParseCampaignDifficulty("0", &difficulty));
+    T_EQ(difficulty, WC3_CAMPAIGN_DIFFICULTY_EASY);
+    T_ASSERT(WC3_ParseCampaignDifficulty("01", &difficulty));
+    T_EQ(difficulty, WC3_CAMPAIGN_DIFFICULTY_NORMAL);
+    T_ASSERT(WC3_ParseCampaignDifficulty("2", &difficulty));
+    T_EQ(difficulty, WC3_CAMPAIGN_DIFFICULTY_HARD);
+    T_ASSERT(!WC3_ParseCampaignDifficulty(NULL, &difficulty));
+    T_ASSERT(!WC3_ParseCampaignDifficulty("1", NULL));
+    FOR_LOOP(i, sizeof(invalid) / sizeof(invalid[0])) {
+        difficulty = 99;
+        T_ASSERT(!WC3_ParseCampaignDifficulty(invalid[i], &difficulty));
+        T_EQ(difficulty, 99);
+        T_EQ(WC3_CampaignDifficultyOrNormal(invalid[i]), WC3_CAMPAIGN_DIFFICULTY_NORMAL);
+    }
+    T_EQ(WC3_CampaignDifficultyOrNormal(NULL), WC3_CAMPAIGN_DIFFICULTY_NORMAL);
+
+    T_ASSERT(WC3_IsCampaignMap("Maps\\Campaign\\Human02.w3m"));
+    T_ASSERT(WC3_IsCampaignMap("maps/campaign/human02.w3m"));
+    T_ASSERT(WC3_IsCampaignMap("Maps\\FrozenThrone\\Campaign\\HumanX01.w3x"));
+    T_ASSERT(WC3_IsCampaignMap("maps/frozenthrone/campaign/humanx01.w3x"));
+    T_ASSERT(!WC3_IsCampaignMap("Maps\\Melee\\Test.w3m"));
+    T_ASSERT(!WC3_IsCampaignMap(NULL));
+    T_EQ(WC3_InitialGameDifficulty("Maps\\Campaign\\Human02.w3m", "2"), 2);
+    T_EQ(WC3_InitialGameDifficulty("Maps/FrozenThrone/Campaign/HumanX01.w3x", "0"), 0);
+    T_EQ(WC3_InitialGameDifficulty("Maps/Campaign/Human02.w3m", "2junk"), 1);
+    T_EQ(WC3_InitialGameDifficulty("Maps\\Melee\\Test.w3m", "2"), 1);
+    T_EQ(WC3_InitialGameDifficulty(NULL, "2"), 1);
+}
+
+TEST(menu_fdf, campaign_difficulty_registration_marks_loaded_setting_archived) {
+    menuImport_t saved = mi;
+    char previous_value[64];
+    cvar_t *preference;
+    char const *config_path = Test_TempPath("difficulty-menu-config.cfg");
+    char config_line[1024];
+    bool found_archived_preference = false;
+    FILE *file;
+
+    test_command_imports();
+    reset_ui_state();
+    snprintf(previous_value, sizeof(previous_value), "%s",
+             Cvar_String(WC3_CAMPAIGN_DIFFICULTY_CVAR, WC3_CAMPAIGN_DIFFICULTY_DEFAULT));
+    Cvar_Set(WC3_CAMPAIGN_DIFFICULTY_CVAR, "2");
+    captured_registered_cvar_name[0] = 0;
+    captured_registered_cvar_default[0] = 0;
+    captured_registered_cvar_flags = 0;
+    mi.Printf = test_ui_printf;
+    mi.FS_ReadFile = test_missing_fs_read;
+    mi.FS_FreeFile = test_fs_free_file;
+    mi.Cvar_String = test_cvar_string;
+    mi.Cvar_Register = test_cvar_register;
+    M_Init();
+
+    T_STREQ(captured_registered_cvar_name, WC3_CAMPAIGN_DIFFICULTY_CVAR);
+    T_STREQ(captured_registered_cvar_default, WC3_CAMPAIGN_DIFFICULTY_DEFAULT);
+    T_ASSERT(captured_registered_cvar_flags & CVAR_ARCHIVE);
+    preference = Cvar_Get(WC3_CAMPAIGN_DIFFICULTY_CVAR, "1", 0);
+    T_NOT_NULL(preference);
+    if (preference) {
+        T_STREQ(preference->string, "2");
+        T_ASSERT(preference->flags & CVAR_ARCHIVE);
+    }
+    Cvar_WriteConfig(config_path);
+    file = fopen(config_path, "rb");
+    T_NOT_NULL(file);
+    if (file) {
+        while (fgets(config_line, sizeof(config_line), file)) {
+            if (strstr(config_line, "seta wc3_campaign_difficulty \"2\""))
+                found_archived_preference = true;
+        }
+        T_ASSERT(found_archived_preference);
+        fclose(file);
+    }
+    M_Shutdown();
+    Cvar_Set(WC3_CAMPAIGN_DIFFICULTY_CVAR, previous_value);
+    mi = saved;
 }
 
 TEST(menu_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
@@ -3524,6 +3650,7 @@ static void test_single_player_campaign_profile(bool tft) {
         wc3_campaign_progress_init(&progress);
         T_ASSERT(wc3_campaign_progress_set_campaign(&progress, undead, true));
         T_ASSERT(wc3_campaign_progress_set_mission(&progress, human02, true));
+        T_ASSERT(wc3_campaign_progress_complete_mission(&progress, human02, 2));
         T_ASSERT(wc3_campaign_progress_save(test_campaign_progress_path, &progress));
     }
     test_campaign_visibility = "unlocked";
@@ -3538,16 +3665,21 @@ static void test_single_player_campaign_profile(bool tft) {
     T_ASSERT(sp_row_blank("CampaignListBox", 4));
 
     Cmd_ExecuteString("menu_single_player_campaign_select 0");
+    {
+        char completed_name[256];
+        snprintf(completed_name, sizeof(completed_name), "%s (%s)",
+                 tft ? "A Dark Covenant" : "Blackrock & Roll", UI_GetString("HARD"));
 #ifdef BZ_FFMPEG
-    T_ASSERT(tft ? sp_row_shows("MissionListBox", 4, "Chapter Two", "A Dark Covenant", false, 3)
-                 : sp_row_shows("MissionListBox", 4, "", "Blackrock & Roll", false, 3));
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 4, "Chapter Two", completed_name, false, 3)
+                 : sp_row_shows("MissionListBox", 4, "", completed_name, false, 3));
 #else
     T_ASSERT(tft ? sp_row_shows("MissionListBox", 0, "Chapter One", "Misconceptions", false, 0)
                  : sp_row_shows("MissionListBox", 0, "", "The Defense of Strahnbrad", false, 0));
-    T_ASSERT(tft ? sp_row_shows("MissionListBox", 1, "Chapter Two", "A Dark Covenant", false, 1)
-                 : sp_row_shows("MissionListBox", 1, "", "Blackrock & Roll", false, 1));
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 1, "Chapter Two", completed_name, false, 1)
+                 : sp_row_shows("MissionListBox", 1, "", completed_name, false, 1));
     T_ASSERT(sp_row_blank("MissionListBox", 2));
 #endif
+    }
 
     captured_command[0] = '\0';
     captured_cvar_name[0] = '\0';

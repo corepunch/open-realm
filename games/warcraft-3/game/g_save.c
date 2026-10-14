@@ -117,7 +117,14 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 87 persists creep guard return recovery state. */
 /* Version 88 stores a single creep guard lifecycle phase. */
 /* Version 89 retains entity identity for ability-owned point-spell approaches. */
-static uint32_t const save_version = 89;
+/* Version 90 persists authoritative Warcraft player-score counters in GAMECLIENT. */
+/* Version 91 tracks per-player hero usage/experience and explicit score row settings. */
+/* Version 92 adds per-unit cost-weighted score totals to GAMECLIENT. */
+/* Version 93 adds per-hero scripted XP score attribution to EDICT. */
+/* Version 94 serializes current and default game difficulty independently. */
+/* Version 95 removes the historical Heroes Used counter: the retail page
+ * snapshots current hero entities and is not part of the saved client state. */
+static uint32_t const save_version = 95;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -516,6 +523,8 @@ static fieldRing_t const game_event_ring = {
 };
 
 static field_t const level_fields[] = {
+    F(level_locals, setup.difficulty, F_INT),
+    F(level_locals, setup.default_difficulty, F_INT),
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
     F(level_locals, stock.item_slots, F_INT),
@@ -929,6 +938,7 @@ field_t edict_fields[] = {
     F(edict_s, attack1, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, attack2, F_STRUCT, 1, unit_attack_fields),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
+    F(edict_s, score_level_xp, F_INT),
     F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
@@ -2495,12 +2505,72 @@ bool ReadGame(cstring_t filename) {
 #ifdef BZ_TESTS
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 
+/* The mission may be temporarily reduced while the campaign/default remains
+ * Hard. A restored save must not consult the current frontend preference or
+ * collapse these two independently script-writable JASS values. */
+TEST(wc3_save, current_and_default_difficulty_round_trip_independently) {
+    cstring_t filename = Test_TempPath("wc3-difficulty-pair-save.bin");
+
+    reset_entities();
+    setup_test_world();
+    level.setup.difficulty = 1; /* Normal after a reduced-difficulty restart */
+    level.setup.default_difficulty = 2; /* Original Hard campaign selection */
+    T_ASSERT(WriteGame(filename));
+
+    level.setup.difficulty = 0;
+    level.setup.default_difficulty = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.setup.difficulty, 1u);
+    T_EQ(level.setup.default_difficulty, 2u);
+
+    /* Neither getter is inferred from the other, including the Insane handle. */
+    level.setup.difficulty = 3;
+    level.setup.default_difficulty = 0;
+    T_ASSERT(WriteGame(filename));
+    level.setup.difficulty = 1;
+    level.setup.default_difficulty = 1;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.setup.difficulty, 3u);
+    T_EQ(level.setup.default_difficulty, 0u);
+    remove(filename);
+}
+
 TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {
     int const index = SaveCFunctionIndex((void *)S_SpellTargetApproachThink);
 
     T_ASSERT(index > 0);
     if (index > 0 && index <= (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0])))
         T_STREQ(save_cfunctions[index - 1].name, "S_SpellTargetApproachThink");
+}
+
+TEST(wc3_save, player_score_state_round_trips) {
+    cstring_t const filename = Test_TempPath("wc3-player-score-save.bin");
+    gameClient_t *client;
+
+    reset_entities();
+    setup_test_world();
+    client = &game.clients[0];
+    client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED] = 7;
+    client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL] = 1234;
+    client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED] = 73;
+    client->score.experience_gained = 500;
+    client->score.unit_value_produced = 2325;
+    client->jass.on_score_screen_set = true;
+    client->jass.on_score_screen = false;
+    T_ASSERT(WriteGame(filename));
+
+    memset(&client->score, 0, sizeof(client->score));
+    client->jass.on_score_screen_set = false;
+    T_ASSERT(ReadGame(filename));
+    client = &game.clients[0];
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_UNITS_TRAINED], 7);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_GOLD_MINED_TOTAL], 1234);
+    T_EQ(client->score.values[WC3_PLAYER_SCORE_FOOD_MAXUSED], 73);
+    T_EQ(client->score.experience_gained, 500);
+    T_EQ(client->score.unit_value_produced, 2325);
+    T_ASSERT(client->jass.on_score_screen_set);
+    T_ASSERT(!client->jass.on_score_screen);
+    remove(filename);
 }
 
 TEST(wc3_save, disabled_player_abilities_grow_and_round_trip) {

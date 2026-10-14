@@ -1570,8 +1570,113 @@ TEST(wc3_jass_map, paused_victory_drains_result_event_and_releases_fallback) {
 }
 
 
+TEST(wc3_jass_map, score_transition_defers_map_change_and_falls_back_without_viewers) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    __typeof__(gi.ResolveMap) old_resolver = gi.ResolveMap;
+    uint32_t const clients = game.max_clients;
+
+    G_ResetScriptSave();
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+    gi.MenuAction = capture_victory_menu_action;
+    gi.ResolveMap = NULL; /* This controller test exercises deferred routing, not archive lookup. */
+    /* No connected recipient: the score FDF cannot be displayed. The exact
+     * outgoing destination must still execute, and only once. */
+    game.max_clients = 0;
+    G_RequestChangeLevel("Maps\\Campaign\\Human03.w3m", true);
+    T_ASSERT(G_ScoreTransitionPending());
+    T_STREQ(victory_menu_action, "");
+    G_FlushScoreTransition();
+    T_ASSERT(!G_ScoreTransitionPending());
+    T_ASSERT(!G_ScoreTransitionTerminal()); /* no displayed window, no terminal pause */
+    T_STREQ(victory_menu_action, "level");
+    T_STREQ(victory_menu_arg, "Maps\\Campaign\\Human03.w3m");
+    victory_menu_action[0] = '\0';
+    G_FlushScoreTransition();
+    T_STREQ(victory_menu_action, "");
+
+    game.max_clients = clients;
+    gi.MenuAction = old_menu_action;
+    gi.ResolveMap = old_resolver;
+}
+
+/* A victory/defeat dialog may dispatch its action while the server is
+ * paused, so the next G_RunFrame never happens. The command boundary must
+ * finalize without a further simulation tick and must still fall through to
+ * the campaign menu if no score-screen viewer can be shown. */
+TEST(wc3_jass_map, paused_result_command_finalizes_without_another_frame) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
+    uint32_t const old_max_clients = game.max_clients;
+    bool const old_script_paused = level.script_paused;
+    bool const old_modal_paused = level.modal_paused;
+    char old_map[MAX_PATHLEN];
+    cstring_t command[] = { "gameresult_quit" };
+
+    reset_entities();
+    setup_test_world();
+    G_ResetScriptSave();
+    strlcpy(old_map, level.map_path, sizeof(old_map));
+    strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
+    level.mapinfo = NULL;
+    level.script_paused = true;
+    level.modal_paused = false;
+    game.max_clients = 0; /* test the existing missing-recipient fallback */
+    gi.MenuAction = capture_victory_menu_action;
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+
+    uint32_t const outgoing_frame = level.framenum;
+    G_ClientCommand(&g_edicts[0], 1, command);
+    T_EQ(level.framenum, outgoing_frame); /* no G_RunFrame was required */
+    T_ASSERT(!G_ScoreTransitionPending());
+    T_STREQ(victory_menu_action, "menu");
+    T_STREQ(victory_menu_arg, "menu_single_player_campaign");
+
+    /* No second destination is sent by a subsequent empty score flush. */
+    victory_menu_action[0] = '\0';
+    G_FlushScoreTransition();
+    T_STREQ(victory_menu_action, "");
+
+    gi.MenuAction = old_menu_action;
+    level.mapinfo = old_mapinfo;
+    level.script_paused = old_script_paused;
+    level.modal_paused = old_modal_paused;
+    game.max_clients = old_max_clients;
+    strlcpy(level.map_path, old_map, sizeof(level.map_path));
+}
+
+TEST(wc3_jass_map, campaign_quit_waits_for_score_screen_before_campaign_menu) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    uint32_t const clients = game.max_clients;
+    PATHSTR old_map;
+
+    strlcpy(old_map, level.map_path, sizeof(old_map));
+    strlcpy(level.map_path, "Maps\\FrozenThrone\\Campaign\\UndeadX07c.w3x",
+            sizeof(level.map_path));
+    setup_test_world(); /* no human-controlled peers: single-player semantics */
+    G_ResetScriptSave();
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+    gi.MenuAction = capture_victory_menu_action;
+    game.max_clients = 0; /* cannot present a modal; verify deferred fallback */
+
+    G_RequestQuitGame();
+    T_ASSERT(G_ScoreTransitionPending());
+    T_STREQ(victory_menu_action, "");
+    G_FlushScoreTransition();
+    T_ASSERT(!G_ScoreTransitionPending());
+    T_STREQ(victory_menu_action, "menu");
+    T_STREQ(victory_menu_arg, "menu_single_player_campaign");
+
+    strlcpy(level.map_path, old_map, sizeof(level.map_path));
+    game.max_clients = clients;
+    gi.MenuAction = old_menu_action;
+}
+
 TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    __typeof__(gi.ResolveMap) old_resolver = gi.ResolveMap;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
     cstring_t command[] = { "hidegameresult" };
@@ -1588,6 +1693,7 @@ TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
     victory_menu_action[0] = '\0';
     victory_menu_arg[0] = '\0';
     gi.MenuAction = capture_victory_menu_action;
+    gi.ResolveMap = NULL; /* The test map path is already resolved in this harness. */
     gi.Write = victory_noop_write;
     gi.unicast = victory_noop_unicast;
     level.script_paused = true;
@@ -1600,6 +1706,7 @@ TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
     T_STREQ(victory_menu_arg, "Maps\\Campaign\\Human03.w3m");
 
     gi.MenuAction = old_menu_action;
+    gi.ResolveMap = old_resolver;
     gi.Write = old_write;
     gi.unicast = old_unicast;
 }
@@ -1685,6 +1792,7 @@ TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
     mapInfo_t const *old_mapinfo = level.mapinfo;
     cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
+    uint32_t const clients = game.max_clients;
 
     strlcpy(old_map, level.map_path, sizeof(old_map));
     victory_menu_action[0] = '\0';
@@ -1692,14 +1800,19 @@ TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
     level.mapinfo = NULL;
     strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
     gi.MenuAction = capture_victory_menu_action;
+    game.max_clients = 0; /* Exercise fallback when no score-screen recipient exists. */
 
     G_ClientCommand(&g_edicts[0], 1, command);
+    T_STREQ(victory_menu_action, "");
+    T_ASSERT(G_ScoreTransitionPending());
+    G_FlushScoreTransition();
 
     T_STREQ(victory_menu_action, "menu");
     T_STREQ(victory_menu_arg, "menu_single_player_campaign");
 
     level.mapinfo = old_mapinfo;
     strlcpy(level.map_path, old_map, sizeof(level.map_path));
+    game.max_clients = clients;
     gi.MenuAction = old_menu_action;
 }
 
@@ -1708,6 +1821,7 @@ TEST(wc3_jass_map, escape_menu_quit_frozen_throne_campaign_returns_to_campaign_s
     mapInfo_t const *old_mapinfo = level.mapinfo;
     cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
+    uint32_t const clients = game.max_clients;
 
     strlcpy(old_map, level.map_path, sizeof(old_map));
     victory_menu_action[0] = '\0';
@@ -1715,14 +1829,19 @@ TEST(wc3_jass_map, escape_menu_quit_frozen_throne_campaign_returns_to_campaign_s
     level.mapinfo = NULL;
     strlcpy(level.map_path, "Maps/FrozenThrone/Campaign/HumanX02.w3x", sizeof(level.map_path));
     gi.MenuAction = capture_victory_menu_action;
+    game.max_clients = 0;
 
     G_ClientCommand(&g_edicts[0], 1, command);
+    T_STREQ(victory_menu_action, "");
+    T_ASSERT(G_ScoreTransitionPending());
+    G_FlushScoreTransition();
 
     T_STREQ(victory_menu_action, "menu");
     T_STREQ(victory_menu_arg, "menu_single_player_campaign");
 
     level.mapinfo = old_mapinfo;
     strlcpy(level.map_path, old_map, sizeof(level.map_path));
+    game.max_clients = clients;
     gi.MenuAction = old_menu_action;
 }
 

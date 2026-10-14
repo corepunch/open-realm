@@ -1,6 +1,7 @@
 #include "client.h"
 #include "menu_text_input.h"
 #include <ctype.h>
+#include <SDL2/SDL.h>
 
 #define MAX_WINDOW_SCROLL_VALUES 32 // entries; bounds retained scroll state; used per transient window
 #define MAX_WINDOW_EDIT_VALUES 8 // entries; bounds retained edit state; used per transient window
@@ -36,6 +37,10 @@ typedef struct clientWindow_s {
     handle_t layout;
     vec2_t offset;
     bool debug_draw_logged;
+    bool blackout; /* local presentation dismissal pending the server-authorized transition */
+    uint32_t blackout_start_ms;
+    bool blackout_command_sent;
+    char blackout_command[CMDARG_LEN * 4];
     clientWindowValue_t scroll_values[MAX_WINDOW_SCROLL_VALUES];
     uint32_t num_scroll_values;
     clientWindowEdit_t edit_values[MAX_WINDOW_EDIT_VALUES];
@@ -747,8 +752,19 @@ static bool CL_WindowSetScroll(clientWindow_t *window, uiFrame_t *owner, float v
         int max_scroll = CL_WindowListMaxScroll(owner);
         if (max_scroll > 0) value = (float)lroundf(value * max_scroll) / max_scroll;
     }
+    if (fabsf(owner->value - value) < 0.00001f) return true;
     owner->value = value;
     CL_WindowRememberScroll(window, owner->number, value);
+    /* A standalone server-authored scrollbar may own a paged table instead
+     * of a client TEXTAREA/LISTBOX. Send its new normalized position only in
+     * response to user input, never when restoring a saved scroll position. */
+    if (owner->flags.type == FT_SCROLLBAR && owner->onclick[0]) {
+        char command[CMDARG_LEN * 4], source[CMDARG_LEN * 2];
+        snprintf(source, sizeof(source), "%s %.6f", owner->onclick, value);
+        if (CL_WindowFormatCommand(window, source,
+                &MAKE(windowTextOut_t, .data = command, .size = sizeof(command))))
+            Cmd_ForwardToServer(command);
+    }
     /* TextArea scrollbars mirror their parent's local viewport state. */
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t *child = SCR_Frame(i);
@@ -823,6 +839,7 @@ static bool CL_WindowContains(clientWindow_t *window, vec2_t const *point) {
 bool CL_WindowMouseOver(int x, int y) {
     vec2_t point = SCR_ScreenToUI(x, y);
     clientWindow_t *modal = CL_WindowModal();
+    if (modal && modal->blackout) return true;
     for (clientWindow_t *window = cl_windows.last; window; window = window->prev) {
         if (modal && window != modal) continue;
         if (CL_WindowContains(window, &point)) return true;
@@ -843,8 +860,9 @@ static uiFrame_t const *CL_WindowClickableAt(clientWindow_t *window, vec2_t cons
 /* Consume client-owned button actions locally; ordinary layout actions remain server commands. */
 static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *frame) {
     size_t const close_command_len = sizeof(UI_WINDOW_CLOSE_COMMAND_PREFIX) - 1;
+    size_t const blackout_command_len = sizeof(UI_WINDOW_BLACKOUT_COMMAND_PREFIX) - 1;
     windowCvar_t binding;
-    if (!frame) return;
+    if (!window || !frame || window->blackout) return;
     if (CL_WindowRunCvarTransactionCommand(window, frame->onclick)) return;
     if (CL_WindowCvarBinding(frame, &binding)) {
         CL_WindowSetCvar(&binding, binding.slider ? frame->value : (frame->value < 0.5f ? 1.0f : 0.0f));
@@ -864,6 +882,21 @@ static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *fram
         if (CL_WindowFormatCommand(window, source, &MAKE(windowTextOut_t, .data = command, .size = sizeof(command))))
             Cmd_ForwardToServer(command);
         CL_WindowClose(window->id);
+    } else if (!strncmp(frame->onclick, UI_WINDOW_BLACKOUT_COMMAND_PREFIX, blackout_command_len)) {
+        /* Server-authored, generic post-presentation action. Blank *locally*
+         * before the deferred destination runs; keep the presentation window
+         * installed so SCR_DrawScreenField continues clearing to black, never
+         * exposing the outgoing world. Only presentation windows may do this. */
+        char command[CMDARG_LEN * 4];
+        cstring_t source = frame->onclick + blackout_command_len;
+        if ((window->flags & (UI_WINDOW_PRESENTATION | UI_WINDOW_MODAL)) !=
+            (UI_WINDOW_PRESENTATION | UI_WINDOW_MODAL) || !*source) return;
+        if (!CL_WindowFormatCommand(window, source,
+                &MAKE(windowTextOut_t, .data = command, .size = sizeof(command)))) return;
+        window->blackout = true;
+        window->blackout_start_ms = SDL_GetTicks();
+        window->blackout_command_sent = false;
+        strlcpy(window->blackout_command, command, sizeof(window->blackout_command));
     } else if (!strcmp(frame->onclick, UI_WINDOW_DISCONNECT_ACTION)) {
         /* A gameplay leave is a full world-to-front-end boundary.  Defer it
          * until input dispatch returns so the client can disconnect, stop the
@@ -888,9 +921,27 @@ static void CL_WindowEndSliderDrag(void) {
     cl_windows.slider_drag_frame = 0;
 }
 
+/* Duplicate score-window refreshes may already be in flight at Continue.
+ * Preserve the blackout for the same presentation ID, never an unrelated
+ * window reusing the unique class or a normal gameplay popup. */
+static bool CL_WindowRetainsBlackout(clientWindow_t const *window, uiWindowDef_t const *def) {
+    return window && def && window->blackout && window->id == def->id &&
+           (def->flags & UI_WINDOW_PRESENTATION) && (def->flags & UI_WINDOW_MODAL);
+}
+
 void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
     clientWindow_t *window = CL_WindowById(def->id);
+    bool retain_blackout;
+    uint32_t old_blackout_start_ms = 0;
+    bool old_blackout_command_sent = false;
+    char old_blackout_command[CMDARG_LEN * 4] = { 0 };
     if (!window && (def->flags & UI_WINDOW_UNIQUE)) window = CL_WindowByClass(def->class_id);
+    retain_blackout = CL_WindowRetainsBlackout(window, def);
+    if (retain_blackout) {
+        old_blackout_start_ms = window->blackout_start_ms;
+        old_blackout_command_sent = window->blackout_command_sent;
+        strlcpy(old_blackout_command, window->blackout_command, sizeof(old_blackout_command));
+    }
     if (!window) {
         window = MemAlloc(sizeof(*window));
         memset(window, 0, sizeof(*window));
@@ -916,6 +967,10 @@ void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
     window->camera_namespace = CL_WindowNewCameraNamespace();
     window->id = def->id; window->class_id = def->class_id; window->flags = def->flags; window->layout = layout;
     window->debug_draw_logged = false;
+    window->blackout = retain_blackout;
+    window->blackout_start_ms = old_blackout_start_ms;
+    window->blackout_command_sent = old_blackout_command_sent;
+    strlcpy(window->blackout_command, old_blackout_command, sizeof(window->blackout_command));
     window->num_edit_values = 0;
     window->num_list_values = 0;
     CL_WindowFocus(window);
@@ -974,6 +1029,14 @@ void CL_WindowClear(void) {
 
 bool CL_WindowModalActive(void) { return CL_WindowModal() != NULL; }
 
+/* A presentation window owns the entire gameplay surface until it is closed.
+ * No WC3-specific window IDs or rendering policy belong in the generic client. */
+bool CL_WindowPresentationActive(void) {
+    for (clientWindow_t const *window = cl_windows.last; window; window = window->prev)
+        if (window->flags & UI_WINDOW_PRESENTATION) return true;
+    return false;
+}
+
 /* SDL text input is owned by a focused transient edit box while gameplay
  * remains key_game. Player snapshots repeatedly reaffirm gameplay input, so
  * expose that ownership rather than letting CL_SetGameplayInput disable text
@@ -982,8 +1045,25 @@ bool CL_WindowTextInputActive(void) {
     return cl_windows.edit_window != NULL && cl_windows.edit_frame != 0;
 }
 
+/* Fade is driven by client presentation time, not the paused game clock. */
+#define PRESENTATION_BLACKOUT_FADE_MS 400u
+
+static uint8_t CL_WindowBlackoutAlpha(uint32_t elapsed_ms) {
+    if (elapsed_ms >= PRESENTATION_BLACKOUT_FADE_MS) return 255;
+    return (uint8_t)((elapsed_ms * 255u) / PRESENTATION_BLACKOUT_FADE_MS);
+}
+
+static bool CL_WindowShouldDraw(clientWindow_t const *window, bool exclusive) {
+    return window &&
+           (!exclusive || (window->flags & UI_WINDOW_PRESENTATION));
+}
+
 void CL_WindowDraw(void) {
+    /* A presentation can coexist with an old result dialog still in the
+     * window stack; paint only the presentation, never the stale dialog. */
+    bool const exclusive = CL_WindowPresentationActive();
     FOR_EACH_LIST(clientWindow_t, window, cl_windows.first) {
+        if (!CL_WindowShouldDraw(window, exclusive)) continue;
         rect_t root = CL_WindowRoot(window);
         CL_WindowPrepareState(window, &root);
         if (!window->debug_draw_logged && CL_WindowDebugEnabled()) {
@@ -993,7 +1073,18 @@ void CL_WindowDraw(void) {
                     root.x, root.y, root.w, root.h);
             window->debug_draw_logged = true;
         }
-        SCR_LayoutDrawOverlay(window->layout);
+        if (!window->blackout || !window->blackout_command_sent)
+            SCR_LayoutDrawOverlay(window->layout);
+        if (window->blackout) {
+            uint8_t const alpha = CL_WindowBlackoutAlpha(SDL_GetTicks() - window->blackout_start_ms);
+            size2_t const size = re.GetWindowSize();
+            rect_t const screen = { 0, 0, size.width, size.height };
+            re.DrawFill(&screen, MAKE(color32_t, 0, 0, 0, alpha));
+            if (alpha == 255 && !window->blackout_command_sent) {
+                window->blackout_command_sent = true;
+                Cmd_ForwardToServer(window->blackout_command);
+            }
+        }
     }
 }
 
@@ -1033,6 +1124,9 @@ bool CL_WindowMouseEventWithMods(menuMouseEvent_t event, int x, int y, int32_t p
     clientWindow_t *modal = CL_WindowModal(), *window;
     uiFrame_t const *frame;
 
+    /* The presentation is blank but still modal: no invisible UI controls or
+     * repeated Continue actions may be activated while navigation is pending. */
+    if (modal && modal->blackout) return true;
     if (event == MENU_MOUSE_DOWN && param == 1) {
         cl_windows.pressed_window = NULL;
         cl_windows.pressed_frame = 0;
@@ -1214,6 +1308,7 @@ bool CL_WindowKeyEvent(int key, uint32_t mods) {
 
     if (!window) window = cl_windows.focus;
     if (!window) return false;
+    if (window->blackout) return true;
     modal = window->flags & UI_WINDOW_MODAL;
     if (cl_windows.edit_window == window && cl_windows.edit_frame) {
         clientWindowEdit_t *value = NULL;
@@ -1280,6 +1375,7 @@ bool CL_WindowTextInput(cstring_t text) {
     menuTextInput_t ti;
 
     if (!window || !text || !*text) return false;
+    if (window->blackout) return true;
     FOR_LOOP(i, window->num_edit_values)
         if (window->edit_values[i].frame == cl_windows.edit_frame) { value = &window->edit_values[i]; break; }
     if (!value) return false;
@@ -1350,3 +1446,64 @@ bool CL_WindowEditSelection(uint32_t text_frame, uint32_t *start, uint32_t *sele
     }
     return false;
 }
+#ifdef BZ_TESTS
+#include "shared/test.h"
+
+TEST(client_windows, presentation_flag_hides_gameplay_only_while_window_exists) {
+    clientWindow_t *old_first = cl_windows.first, *old_last = cl_windows.last;
+    clientWindow_t dialog = { .flags = UI_WINDOW_MODAL };
+    clientWindow_t scores = { .flags = UI_WINDOW_MODAL | UI_WINDOW_PRESENTATION,
+                              .prev = &dialog };
+    dialog.next = &scores;
+    cl_windows.first = &dialog;
+    cl_windows.last = &dialog;
+    T_ASSERT(!CL_WindowPresentationActive());
+    cl_windows.last = &scores;
+    T_ASSERT(CL_WindowPresentationActive());
+    cl_windows.last = &dialog;
+    T_ASSERT(!CL_WindowPresentationActive());
+    cl_windows.first = old_first;
+    cl_windows.last = old_last;
+}
+
+TEST(client_windows, blackout_keeps_presentation_cover_but_does_not_draw_old_layout) {
+    clientWindow_t *old_first = cl_windows.first, *old_last = cl_windows.last;
+    clientWindow_t scores = { .id = 10u, .flags = UI_WINDOW_MODAL | UI_WINDOW_PRESENTATION };
+    clientWindow_t normal = { .id = 11u, .flags = UI_WINDOW_MODAL };
+    cl_windows.first = cl_windows.last = &scores;
+    T_ASSERT(CL_WindowPresentationActive());
+    T_ASSERT(CL_WindowShouldDraw(&scores, true));
+    scores.blackout = true;
+    T_ASSERT(CL_WindowPresentationActive()); /* SCR clears the display to black. */
+    T_ASSERT(CL_WindowShouldDraw(&scores, true)); /* draw fade/black instead of old world */
+    T_ASSERT(!CL_WindowShouldDraw(&normal, true));
+    T_ASSERT(CL_WindowShouldDraw(&normal, false)); /* unrelated windows unchanged */
+    cl_windows.first = old_first;
+    cl_windows.last = old_last;
+}
+
+TEST(client_windows, blackout_fade_uses_wall_time_and_reaches_full_black) {
+    T_EQ(CL_WindowBlackoutAlpha(0), 0);
+    T_EQ(CL_WindowBlackoutAlpha(100), 63);
+    T_EQ(CL_WindowBlackoutAlpha(200), 127);
+    T_EQ(CL_WindowBlackoutAlpha(399), 254);
+    T_EQ(CL_WindowBlackoutAlpha(400), 255);
+    T_EQ(CL_WindowBlackoutAlpha(800), 255);
+}
+
+TEST(client_windows, blackout_survives_late_refresh_but_not_new_window) {
+    clientWindow_t old = { .id = 2, .flags = UI_WINDOW_MODAL | UI_WINDOW_PRESENTATION,
+                           .blackout = true };
+    uiWindowDef_t same_id = { .id = 2, .flags = UI_WINDOW_MODAL | UI_WINDOW_PRESENTATION };
+    uiWindowDef_t new_id = { .id = 3, .flags = UI_WINDOW_MODAL | UI_WINDOW_PRESENTATION };
+    uiWindowDef_t ordinary = { .id = 2, .flags = UI_WINDOW_MODAL };
+    uiWindowDef_t nonmodal = { .id = 2, .flags = UI_WINDOW_PRESENTATION };
+    T_ASSERT(CL_WindowRetainsBlackout(&old, &same_id));
+    T_ASSERT(!CL_WindowRetainsBlackout(&old, &new_id));
+    T_ASSERT(!CL_WindowRetainsBlackout(&old, &ordinary));
+    T_ASSERT(!CL_WindowRetainsBlackout(&old, &nonmodal));
+    T_ASSERT(!CL_WindowRetainsBlackout(NULL, &same_id));
+    old.blackout = false;
+    T_ASSERT(!CL_WindowRetainsBlackout(&old, &same_id));
+}
+#endif

@@ -36,6 +36,14 @@ WoW incoming messages use `FT_MESSAGE_QUEUE` on `LAYER_MESSAGE`. The server emit
 when selected, one additional record carrying the server-owned popup text. `cl_scrn.c` draws both the unread icon pool and the
 popup; clicks send `message_open <id>` or `message_close` back to the server, which updates the authoritative layer.
 
+`UI_WINDOW_PRESENTATION` is a separate, opt-in full-surface ownership flag.
+While such a window exists, the active-game draw path paints a black background
+and only the presentation window(s), skipping the world scene, persistent HUD
+layers and other transient windows. The window remains modal for input and
+uses normal pause/close arbitration; closing it automatically restores the
+ordinary view without persisting or mutating player UI flags. Warcraft III's
+retail score screen is its first caller; the client does not know score IDs.
+
 `UI_WINDOW_MODAL`, `UI_WINDOW_NO_PAUSE`, `UI_WINDOW_NO_ESCAPE`, and `UI_WINDOW_UNIQUE` are independent. Modal means the topmost
 modal window consumes input outside its bounds. `NO_PAUSE` means that modal does not acquire the client-owned simulation pause.
 `NO_ESCAPE` consumes Escape without dismissing the window, for mandatory result/decision flows that must close through an
@@ -85,6 +93,12 @@ retained arena; it does not duplicate strings.
 - Key-up still reaches gameplay `+command` releases so opening or focusing a window cannot leave an input held.
 - `close_window_command <command>` forwards the suffix to the server and then closes the owning window; use it for transactional
   Accept/Cancel buttons that must commit or discard server-owned draft state before dismissal.
+- `blackout_window_command <command>` is valid only for a server-authored modal `UI_WINDOW_PRESENTATION` window. It
+  immediately blocks local interaction, fades a black overlay over the window using client time, and forwards the suffix
+  once the fade reaches full black. It retains the modal/presentation window throughout, so the renderer never reveals
+  the outgoing world. A late same-ID window refresh preserves the fade and cannot re-show artwork after it completes.
+  Navigation and eventual window removal remain server/session-owned; ordinary game windows cannot use this action to
+  mask the game world.
 - Scrollable TextArea state is client-owned. Because a retained `svc_window` packet is reparsed for each draw/hit test,
   `client/cl_window.c` stores scroll fractions by frame number and reapplies them after each parse. Mouse wheel input, scrollbar
   arrows/track, and thumb dragging update that retained value rather than mutating only the temporary parsed frame.
@@ -198,6 +212,19 @@ The standalone net tests cover text offsets, a text arena above 255 bytes, scree
 linked-list raise order, keyboard focus, non-modal/modal edit-box arrow ownership, and malformed packets without a frame terminator.
 The `window_cvar_*` tests cover cvar controls: live checkbox/slider edits, rejection of unflagged and unknown cvars,
 Accept/Cancel, Escape-as-Cancel, repeated Begin, and transaction reset on `CL_WindowClear()`.
+
+### Standalone scrollbar callbacks
+
+A server-authored standalone `FT_SCROLLBAR` can optionally set `OnClick` to an
+ordinary server command prefix. When a user moves the thumb, clicks the track,
+or wheels over that scrollbar, the generic window client appends its normalized
+`[0,1]` position to the authored command and forwards it. No command is sent
+when a window is opened/refreshed or a scrollbar is restored from a snapshot.
+The server must still authenticate the recipient, validate the numeric range,
+and map the value to its own content. Native text areas/listboxes keep their
+existing client-owned scrolling and are not forwarded. Warcraft III uses this
+for the dynamically authored score-table viewport; the client does not know
+about score rows, players, or Warcraft frame names.
 
 ## See Also
 

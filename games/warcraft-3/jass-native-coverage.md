@@ -185,7 +185,7 @@ modal/unique, does not acquire a second client-owned pause, and cannot be dismis
 window while forwarding the existing result commands. `GameResultBackdrop` reuses the loaded Esc-menu backdrop art
 for a consistent race-skinned menu panel and extends one action row below the nominal dialog bounds so the authored
 Quit button remains inside that panel. The fallback still uses `GlobalStrings.fdf`
-`GAMEOVER_*` labels where available and only exposes actions the current engine can execute.
+`GAMEOVER_*` labels where available, including a single-player defeat-only Reduce Difficulty action. The action validates the result on the server and restarts using the preserved current/default difficulty pair.
 
 DotA 6.83d's compiled map script references 525 natives, 137 of them unregistered.
 The patch-1.24 hashtable family (`InitHashtable`, `GetHandleId`, `StringHash`, typed
@@ -205,8 +205,7 @@ selection as the destination for the eventual `EndGame`. This is required by `Pr
 the Human campaign before a long final cinematic and calls `CustomVictoryBJ` only after that cinematic finishes.
 `SetTutorialCleared`, `SetCampaignAvailable`, and `SetMissionAvailable` now persist their profile availability state to
 `campaign-progress.orcp`, so those Prologue02 unlocks are durable before the eventual frontend transition. See
-[campaign-progress.md](../../docs/games/warcraft-3/campaign-progress.md). The `doScoreScreen` parameter is consumed but score-screen presentation
-is not implemented yet.
+[campaign-progress.md](../../docs/games/warcraft-3/campaign-progress.md). When `doScoreScreen` is true, the server freezes an outgoing score snapshot, presents the ScoreScreen.fdf-rooted modal, and resumes the previously resolved destination on Continue. Missing FDF fails open to the destination.
 
 `PlayModelCinematic` now queues the authored MDL path to an isolated MDX
 model scene in the client; this works even when no new map/menu action follows.
@@ -225,12 +224,19 @@ continue the session transition. `SetOpCinematicAvailable` and `SetEdCinematicAv
 movie unlock persistence and camera-button rows remain follow-up work. See [pre-rendered-movies.md](../../docs/games/warcraft-3/pre-rendered-movies.md).
 
 `GetDefaultDifficulty` / `SetDefaultDifficulty` now own a per-level default distinct from mutable
-`GetGameDifficulty()` state. Campaign map startup seeds both values from `wc3_campaign_difficulty`; scripts may then
-change current and default difficulty independently.
+`GetGameDifficulty()` state. Fresh campaign map startup seeds both values from the archived, strictly parsed
+`wc3_campaign_difficulty` preference; other fresh maps use Normal. Scripts can change current and default
+independently. See [Game difficulty](../../docs/games/warcraft-3/game-difficulty.md) for initialization,
+preference persistence and remaining restart/save-load gaps.
 
-The generic `Dialog*` and dialog/button event natives now have bounded registries, server-authoritative click dispatch, and local modal-window presentation. `DialogAddQuitButton` creates handles but its quit policy remains incomplete; see [JASS dialogs](../../docs/games/warcraft-3/jass-dialogs.md). Still incomplete: actual score-screen
-presentation, Reduce Difficulty/observer-on-death result policy, and result-dialog ownership of single-player modal
-pausing. The existing `PauseGame` / modal path should be reused for that work rather than adding a second pause model.
+The generic `Dialog*` and dialog/button event natives now have bounded registries, server-authoritative click dispatch, and local modal-window presentation. `DialogAddQuitButton` creates handles but its quit policy remains incomplete; see [JASS dialogs](../../docs/games/warcraft-3/jass-dialogs.md). Still incomplete: pixel-accurate retail score-screen field binding, Reduce Difficulty/observer-on-death result policy, and result-dialog ownership of single-player modal pausing. The score-screen modal uses the existing pause model.
+
+Player-score accounting now supplies the engine-side foundation for that future screen. `GetPlayerScore` is
+registered and reports completed training/construction, unit/Hero/building kill credit, food maxima, item pickups,
+neutral-unit hiring, and resource income/upkeep counters. Resource income also updates the cumulative gathered
+player states, and explicit JASS `SetPlayerState` writes synchronize the corresponding score sources.
+`PLAYER_SCORE_TECH_PERCENT`, `PLAYER_SCORE_UNIT_TOTAL`, `PLAYER_SCORE_HERO_TOTAL`,
+`PLAYER_SCORE_RESOURCE_TOTAL` and `PLAYER_SCORE_TOTAL` now return explicitly tagged, unverified best-guess formulas (NOT retail-validated). See [score-screen.md](../../docs/games/warcraft-3/score-screen.md).
 
 ## Campaign Game Cache
 

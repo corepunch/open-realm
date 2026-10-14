@@ -50,7 +50,7 @@ void UI_DrawGlueSceneLayers(cstring_t left_panel_anim, cstring_t right_panel_ani
 /* ui_fdf.c — FDF parsing (moved from game/ui/ui_fdf.c) */
 bool UI_EnsureFDF(cstring_t filename);
 void UI_ParseFDF(cstring_t filename);
-void UI_ParseFDF_Buffer(cstring_t filename, string_t buffer);
+bool UI_ParseFDF_Buffer(cstring_t filename, string_t buffer);
 void UI_ClearTemplates(void);
 void UI_WireFrameTypeFunctions(frameDef_t *frame);
 void UI_SetText(frameDef_t *, cstring_t, ...);

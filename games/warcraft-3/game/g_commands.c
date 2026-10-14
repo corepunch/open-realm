@@ -2092,7 +2092,7 @@ CLIENTCOMMAND(Log) {
 
 CLIENTCOMMAND(HideGameResult) {
     uint32_t result = clent && clent->client ? clent->client->ps.stats[PLAYERSTATE_GAME_RESULT] : 3;
-    G_GameResultDebug("command hidegameresult ent=%u result=%u",
+    BZ_WC3_SCORE_LOG("command hidegameresult ent=%u result=%u",
         clent ? (unsigned)clent->s.number : 0u, (unsigned)result);
     UI_HideGameResult(clent);
     if (result == 0 && G_IsSinglePlayer() && level.vm) {
@@ -2102,26 +2102,91 @@ CLIENTCOMMAND(HideGameResult) {
          * has the single-player simulation paused.  Running this as a queued
          * coroutine would strand it behind that pause, so execute the Blizzard.j
          * continuation synchronously from the button command. */
-        G_GameResultDebug("command hidegameresult calling CustomVictoryOkBJ synchronously");
+        BZ_WC3_SCORE_LOG("command hidegameresult calling CustomVictoryOkBJ synchronously");
         jass_callbyname(level.vm, "CustomVictoryOkBJ", false);
     }
 }
 
 CLIENTCOMMAND(GameResultRestart) {
     (void)clent; (void)argc; (void)argv;
-    G_GameResultDebug("command gameresult_restart");
+    BZ_WC3_SCORE_LOG("command gameresult_restart");
+    G_RequestRestartGame(true);
+}
+
+/* The stock Blizzard.j reduction is Normal -> Easy or Hard -> Normal.
+ * It changes current difficulty only; Patch 2's restart transition captures
+ * the original default independently before the map is replaced. */
+CLIENTCOMMAND(GameResultReduceDifficulty) {
+    (void)argc; (void)argv;
+    if (!clent || !clent->client || !G_IsSinglePlayer() ||
+        clent->client->ps.stats[PLAYERSTATE_GAME_RESULT] != 1 ||
+        G_HasPendingDifficultyTransition()) return;
+    switch (level.setup.difficulty) {
+    case 2:
+        level.setup.difficulty = 1;
+        break;
+    case 1:
+        level.setup.difficulty = 0;
+        break;
+    default:
+        return; /* Easy cannot be reduced; Insane is unchanged by stock BJ. */
+    }
+    /* The authored BJ unpauses before calling RestartGame. */
+    G_SetScriptPaused(false);
     G_RequestRestartGame(true);
 }
 
 CLIENTCOMMAND(GameResultLoad) {
     (void)clent; (void)argc; (void)argv;
-    G_GameResultDebug("command gameresult_load");
+    BZ_WC3_SCORE_LOG("command gameresult_load");
     G_RequestLoadGameMenu();
+}
+
+CLIENTCOMMAND(ScoreScreenContinue) {
+    (void)argc; (void)argv;
+    G_ScoreTransitionContinue(clent);
+}
+
+CLIENTCOMMAND(ScoreScreenTab) {
+    char *end;
+    unsigned long tab;
+    if (!clent || argc != 2 || !argv[1] || !argv[1][0]) return;
+    tab = strtoul(argv[1], &end, 10);
+    if (*end || tab >= 4) return;
+    G_ScoreTransitionSelectTab(clent, (uint32_t)tab);
+}
+
+CLIENTCOMMAND(ScoreScreenSort) {
+    char *end;
+    unsigned long column;
+    if (!clent || argc != 2 || !argv[1] || !argv[1][0] || argv[1][0] == '-') return;
+    column = strtoul(argv[1], &end, 10);
+    if (*end || column >= 5) return;
+    G_ScoreTransitionSort(clent, (uint32_t)column);
+}
+
+CLIENTCOMMAND(ScoreScreenTeams) {
+    (void)argc; (void)argv;
+    G_ScoreTransitionToggleTeams(clent);
+}
+
+CLIENTCOMMAND(ScoreScreenAllyColors) {
+    (void)argc; (void)argv;
+    G_ScoreTransitionToggleAllyColors(clent);
+}
+
+CLIENTCOMMAND(ScoreScreenScroll) {
+    char *end;
+    float pos;
+    if (!clent || argc != 2 || !argv[1] || !argv[1][0]) return;
+    pos = strtof(argv[1], &end);
+    if (*end || !isfinite(pos) || pos < 0.0f || pos > 1.0f) return;
+    G_ScoreTransitionScroll(clent, pos);
 }
 
 CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
-    G_GameResultDebug("command gameresult_quit single_player=%u", (unsigned)G_IsSinglePlayer());
+    BZ_WC3_SCORE_LOG("command gameresult_quit single_player=%u", (unsigned)G_IsSinglePlayer());
     if (G_IsSinglePlayer()) level.setup.difficulty = level.setup.default_difficulty;
     G_RequestEndGame(true);
 }
@@ -3066,8 +3131,15 @@ clientCommand_t clientCommands[] = {
     { "music_selected", CMD_MusicSelected },
     { "music_snapshot", CMD_MusicSnapshot },
     { "gameresult_restart", CMD_GameResultRestart },
+    { "gameresult_reduce_difficulty", CMD_GameResultReduceDifficulty },
     { "gameresult_load", CMD_GameResultLoad },
     { "gameresult_quit", CMD_GameResultQuit },
+    { "scorescreen_continue", CMD_ScoreScreenContinue },
+    { "scorescreen_tab", CMD_ScoreScreenTab },
+    { "scorescreen_scroll", CMD_ScoreScreenScroll },
+    { "scorescreen_sort", CMD_ScoreScreenSort },
+    { "scorescreen_teams", CMD_ScoreScreenTeams },
+    { "scorescreen_allycolors", CMD_ScoreScreenAllyColors },
     { "jassdialog", CMD_JassDialogChoice },
     { "debugspawn", CMD_DebugSpawn },
     { "enemiesclear", CMD_EnemiesClear },
@@ -3101,8 +3173,25 @@ clientCommand_t clientCommands[] = {
 };
 
 void G_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    /* Completed single-player gameplay has no valid simulation commands.
+     * Leave score-window interactions on the normal validated game-owned
+     * dispatcher; never pass the command through the minimap signal overlay. */
+    if (G_ScoreTransitionTerminal() &&
+        (!argc || !argv || !argv[0] ||
+         (strcmp(argv[0], "scorescreen_continue") &&
+          strcmp(argv[0], "scorescreen_tab") &&
+          strcmp(argv[0], "scorescreen_sort") &&
+          strcmp(argv[0], "scorescreen_scroll") &&
+          strcmp(argv[0], "scorescreen_teams") &&
+          strcmp(argv[0], "scorescreen_allycolors")))) return;
+    /* Victory/defeat buttons can execute synchronous Blizzard.j after the
+     * server has already paused, with no further G_RunFrame to flush scores.
+     * Remember the entry state: the authored callback may unpause itself. */
+    bool const was_paused = level.script_paused || level.modal_paused;
     if (G_SignalCommand(ent, argc, argv)) {
         UI_UpdateCursorPresentation(ent->client);
+        if (was_paused || level.script_paused || level.modal_paused)
+            G_FlushPausedScoreTransition();
         return;
     }
     for (clientCommand_t const *cmd = clientCommands; cmd->name; cmd++) {
@@ -3113,6 +3202,8 @@ void G_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
              * player again before publishing derived presentation. */
             gameClient_t *client = game.clients && player < MAX_PLAYERS ? G_GetPlayerClientByNumber(player) : NULL;
             if (client) UI_UpdateCursorPresentation(client);
+            if (was_paused || level.script_paused || level.modal_paused)
+                G_FlushPausedScoreTransition();
             return;
         }
     }

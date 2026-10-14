@@ -159,7 +159,9 @@ uint32_t ShowUnit(jass_t *j) {
     if (!whichUnit) {
         return 0;
     }
-    if (show && !G_UnitIsWorldActive(whichUnit)) return 0;
+    if (show && !G_UnitIsWorldActive(whichUnit)) {
+        return 0;
+    }
     was_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
     if (show) {
         whichUnit->s.renderfx &= ~RF_HIDDEN;
@@ -254,6 +256,10 @@ uint32_t SetUnitOwner(jass_t *j) {
     if (whichUnit && whichPlayer) {
         uint32_t const previous_player = whichUnit->s.player;
         uint32_t const previous_color = G_GetUnitTeamColor(whichUnit);
+        if (G_UnitIsHero(whichUnit) && previous_player != PLAYER_NUM(whichPlayer))
+            BZ_WC3_SCORE_LOG("score hero lifecycle event=owner_change rawcode=%08x entity=%u from=%u to=%u level=%u xp=%u",
+                whichUnit->class_id, whichUnit->s.number, previous_player,
+                PLAYER_NUM(whichPlayer), whichUnit->hero.level, whichUnit->hero.xp);
         G_SetUnitPlayer(whichUnit, PLAYER_NUM(whichPlayer));
         if (change_color) {
             G_ClearUnitColorOverride(whichUnit);
@@ -486,7 +492,7 @@ uint32_t SetHeroLevelBJ(jass_t *j) {
         G_HeroStripLevels(whichHero, (uint32_t)MIN(remove, (int64_t)UINT32_MAX));
     } else if (newLevel > (int32_t)whichHero->hero.level) {
         uint32_t const target = MIN((uint32_t)newLevel, G_MaxHeroLevel());
-        G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, G_HeroXPForLevel(target)));
+        G_HeroSetXPForLevel(whichHero, MAX(whichHero->hero.xp, G_HeroXPForLevel(target)));
     }
     return 0;
 }
@@ -501,7 +507,7 @@ uint32_t SetHeroLevel(jass_t *j) {
          * identical to ordinary XP gains. */
         uint32_t const target = MIN((uint32_t)level, G_MaxHeroLevel());
         uint32_t const need = G_HeroXPForLevel(target);
-        G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, need));
+        G_HeroSetXPForLevel(whichHero, MAX(whichHero->hero.xp, need));
     }
     return 0;
 }

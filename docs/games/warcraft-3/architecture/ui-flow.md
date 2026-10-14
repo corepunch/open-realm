@@ -426,8 +426,17 @@ after the enclosing `SV_Frame` has returned. Keep `CustomVictoryOkBJ` itself syn
 executes, but keep the actual world replacement deferred.
 
 `EndGame(doScoreScreen)` returns single-player campaign maps to the campaign selector and other sessions to the main
-menu, consuming an explicit `ForceCampaignSelectScreen` request as well. It cannot yet honor `doScoreScreen`; there
-is no score-screen controller. `ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
+menu, consuming an explicit `ForceCampaignSelectScreen` request as well. When score presentation is requested, the
+Warcraft module now freezes player statistics and defers that same destination behind the retail `ScoreScreen.fdf`
+modal. The client presentation window replaces world/HUD rendering, and the original OK button uses the
+shared `blackout_window_command` action to fade the score artwork to black over 400 ms of client time. It forwards
+`scorescreen_continue` only after reaching full black, while retaining the presentation surface so the old world
+stays hidden until the next client frame begins the queued map/menu transition. No JASS stack frame is kept alive
+across the transition. The controller includes provisional,
+explicitly labelled assumptions for score aggregates, dynamic row geometry, sorting and team/ally-colour behavior;
+see [../score-screen.md](../score-screen.md). When score FDF or recipients are unavailable, the deferred destination
+still proceeds so an outgoing match cannot deadlock.
+`ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
 `DisplayLoadDialog` opens the in-game save/load panel (or the front-end load screen when that panel is unavailable).
 Every Esc-menu page derives its lock from the player's result state, not from the command that opened it: once a
 single-player player has been removed with a result (Blizzard.j's `CustomDefeatBJ` and the fallback both
@@ -439,17 +448,39 @@ Because `CustomVictoryDialogBJ` has already paused single-player simulation, thi
 queuing `CustomVictoryOkBJ` as a coroutine would leave its `PauseGame(false)` and `ChangeLevel(...)` calls stranded
 behind the very pause they are supposed to release. Multiplayer victory Continue still only dismisses the fallback.
 
-For result-lifecycle diagnosis, `wc3_game_result_debug 1` enables game-module `WC3_RESULT` breadcrumbs for
-`RemovePlayer` arguments and player/client mapping, result-event publication and matching trigger dispatch, pending-result
-deferral (`event_queue`, `cinematic`, or `disconnected`), paused-result event draining/cinematic override, FDF binding,
-server layout emission, and result-button session actions. Pair it with the shared `ui_layout_debug 1` transport trace when client receipt/storage must also be observed;
-that generic trace logs every UI layer and the server-side result breadcrumb identifies the numeric result layer to correlate.
-`wc3_dialog_debug 1` adds `WC3_DIALOG` breadcrumbs for JASS dialog creation, labels, visibility, generated button state, and callbacks. Use it to trace the script-authored choice path. All three diagnostics are runtime-gated and keep Warcraft-specific knowledge out of shared client code.
+A score-producing exit request records its destination immediately but defers
+capturing the immutable player/hero scores until the frame-end finalization
+boundary, after deferred frees and dependent scripted saves. When a paused
+result-dialog button invokes its handler outside the simulation scheduler, the
+game module completes equivalent work after synchronous command/JASS return.
+Once a single local viewer receives the score presentation, the game module
+holds an irreversible terminal pause reason until the next map; normal score
+commands still run through the paused server transport, while gameplay input
+is rejected. Multi-viewer matches retain the existing lifecycle. The first
+accepted score exit also owns its destination and staged campaign difficulty;
+late requests cannot trigger loading early, and the disconnect callback
+completes the transition when the final score viewer leaves a paused session.
+See [Score Screen](../score-screen.md).
 
-Single-player result pausing is also intentionally still missing. Result UI should reuse the existing WC3 pause/modal
-ownership path rather than suppressing `SV_Frame` or creating a second clock-freeze mechanism. `PauseGame` and
-single-client modal pausing already flow through the generic server scheduler, which freezes simulation time while
-continuing network reads and client traffic.
+For result-lifecycle diagnosis, build with `WC3_DEBUG_SCORE=1` and then set
+`wc3_game_result_debug 1` to enable bounded game-module `WC3_RESULT` breadcrumbs
+for result transitions, deferred navigation, paused-result event draining,
+score-page presentation and server-side modal dispatch. Per-trigger and
+per-score-row investigative dumps have been removed. See
+[Score Debug Build](../score-debug-build.md) for the two-switch contract.
+For transport diagnostics, `ui_layout_debug 1` remains independent and
+reports client UI-layer receipt/storage; `wc3_dialog_debug 1` separately traces
+script-authored JASS choice dialogs. These controls keep Warcraft-specific
+knowledge out of shared client code.
+
+The earlier generic victory/defeat fallback is still governed by its authored
+script/modal pause policy; its remaining pause limitations are separate from
+the post-game score screen. Once a local score window has been emitted, the
+WC3 module owns a terminal pause reason and `G_RunFrame` rejects unexpected
+post-completion simulation callbacks. `SV_Frame` continues receiving network
+commands while paused, so tabs, scroll, sorting and Continue remain responsive.
+The map and game module are intentionally retained until the deferred
+destination begins: "match ended" does **not** mean `SV_Shutdown` has run.
 
 ### Remaining frontend lifecycle gaps
 

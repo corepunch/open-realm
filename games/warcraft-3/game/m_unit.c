@@ -522,6 +522,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * (TriggerRegisterDeathEvent/UnitEvent); EVENT_PLAYER_UNIT_DEATH fires the
      * owner's player-unit-death triggers (TriggerRegisterPlayerUnitEvent), e.g.
      * the mission win check that counts the player's dying naga. */
+    G_PlayerScoreDeath(self, attacker);
     G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
@@ -1429,6 +1430,7 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     }
     unit->s.angle = facing * M_PI / 180;
     G_ActivateUnitFood(unit);
+    G_PlayerScoreUnitTrained(unit); /* immediately entered play, not queued */
     G_BotUnitReady(unit);
     return unit;
 }
@@ -2376,6 +2378,18 @@ static uint32_t G_HeroXPRequirement(uint32_t index) {
             100.0; /* BZ_HARDCODED_DATA_FALLBACK: stock NeedHeroXP formula B. */
         double const c = (cText && *cText) ? atof(cText) :
             0.0; /* BZ_HARDCODED_DATA_FALLBACK: stock NeedHeroXP formula C. */
+
+        /* Retail 1.29's stock MiscGame data authors only NeedHeroXP=200,
+         * while the measured level requirements are 200,300,400,... . The
+         * formula fields describe that stock linear progression; applying
+         * B*the absolute table index recursively instead produces
+         * 200,300,500,... and makes scripted level-4 heroes carry 1000 XP.
+         * Keep custom formula tables on the general recurrence below. */
+        if (count == 1 && current == 200 && a == 1.0 && b == 100.0 && c == 0.0) {
+            unsigned long long const stock = 200ull + 100ull * index;
+            return stock > (unsigned long long)UINT32_MAX ? UINT32_MAX : (uint32_t)stock;
+        }
+
         for (uint32_t i = count; i <= index; i++) {
             double next = a * (double)current + b * (double)i + c;
             if (next < 0.0) next = 0.0;
@@ -2428,7 +2442,7 @@ void G_HeroApplyLevel(edict_t *ent, uint32_t level) {
 }
 
 /* Update a hero's accumulated XP, leveling it up if a threshold was crossed. */
-void G_HeroSetXP(edict_t *ent, uint32_t xp) {
+static void G_HeroSetXPInternal(edict_t *ent, uint32_t xp, bool count_score) {
     uint32_t const oldLevel = ent->hero.level;
     uint32_t newLevel;
 
@@ -2438,6 +2452,11 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
     if (xp <= ent->hero.xp) {
         return;
     }
+    BZ_WC3_SCORE_LOG("score hero xp transition owner=%u rawcode=%08x entity=%u old=%u new=%u level=%u credited=%u",
+        ent->s.player, ent->class_id, ent->s.number, ent->hero.xp, xp,
+        ent->hero.level, (unsigned)count_score);
+    if (count_score) G_PlayerScoreExperienceGained(ent, xp - ent->hero.xp);
+    else ent->score_level_xp = (uint32_t)MIN((uint64_t)ent->score_level_xp + xp - ent->hero.xp, (uint64_t)INT32_MAX);
     ent->hero.xp = xp;
     newLevel = G_HeroLevelForXP(xp);
     if (newLevel > oldLevel) {
@@ -2452,6 +2471,17 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
             G_BotHeroLevelUp(ent);
         }
     }
+}
+
+void G_HeroSetXP(edict_t *ent, uint32_t xp) {
+    G_HeroSetXPInternal(ent, xp, true);
+}
+
+/* SetHeroLevel is a scripted level assignment, not experience earned in play.
+ * Keep identical hero-level events and skill updates, but do not score the XP
+ * automatically introduced to reach the requested level. */
+void G_HeroSetXPForLevel(edict_t *ent, uint32_t xp) {
+    G_HeroSetXPInternal(ent, xp, false);
 }
 
 /* Adjust only the level-derived fraction of an attribute. The remaining

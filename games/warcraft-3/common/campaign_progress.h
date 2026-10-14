@@ -28,6 +28,10 @@ typedef struct {
                       [WC3_CAMPAIGN_PROGRESS_MISSIONS];
     uint8_t mission_available[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS]
                           [WC3_CAMPAIGN_PROGRESS_MISSIONS];
+    uint8_t mission_completed[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS]
+                             [WC3_CAMPAIGN_PROGRESS_MISSIONS];
+    uint8_t mission_best_difficulty[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS]
+                                   [WC3_CAMPAIGN_PROGRESS_MISSIONS];
 } wc3CampaignProgress_t;
 
 void wc3_campaign_progress_init(wc3CampaignProgress_t *progress);
@@ -46,6 +50,15 @@ bool wc3_campaign_progress_has_mission(wc3CampaignProgress_t const *progress,
                                        wc3CampaignProgressKey_t key);
 bool wc3_campaign_progress_mission_available(wc3CampaignProgress_t const *progress,
                                              wc3CampaignProgressKey_t key);
+/* Completion is independent of mission availability; a smaller replay never downgrades the record. */
+bool wc3_campaign_progress_complete_mission(wc3CampaignProgress_t *progress,
+                                            wc3CampaignProgressKey_t key, uint32_t difficulty);
+bool wc3_campaign_progress_best_difficulty(wc3CampaignProgress_t const *progress,
+                                            wc3CampaignProgressKey_t key, uint32_t *difficulty);
+/* Resolve a playable map against the active CampaignStrings asset, not a guessed filename index. */
+bool wc3_campaign_progress_resolve_map(uint32_t edition, cstring_t map_path,
+                                        cstring_t campaign_strings, size_t size,
+                                        wc3CampaignProgressKey_t *key);
 int32_t wc3_campaign_progress_campaign_index(uint32_t edition, cstring_t key);
 
 #endif
