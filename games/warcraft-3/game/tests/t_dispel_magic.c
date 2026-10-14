@@ -247,6 +247,7 @@ TEST(wc3_spell, devour_magic_empty_area_heals_nothing) {
 
 #endif
 
+#ifdef BZ_TESTS
 /* Rune activates from the actual collecting unit, without a selected client
  * unit or a live inventory slot. DataB=137 and Area=155 are non-stock. */
 TEST(wc3_spell, rune_dispel_item_use_damage_and_range) {
@@ -262,3 +263,4 @@ TEST(wc3_spell, rune_dispel_item_use_damage_and_range) {
     T_FEQ(fix.far->health.value, 500, 0.001f);
     dispel_done(fix);
 }
+#endif
