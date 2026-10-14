@@ -220,6 +220,7 @@ enum {
     AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
     AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
     AI_SUMMON_EXPLODES_ON_DEATH = 1 << 13, /* spirit/beast summon magical death effect, no corpse */
+    AI_SCRIPT_EXPLODED = 1 << 14, /* SetUnitExploded: SpecialArt death effect instead of corpse */
 };
 
 typedef enum {
@@ -2512,6 +2513,7 @@ struct level_locals {
     bool scriptsStarted;
     bool cinematic_debug_result_window; /* per-map debug latch for result-window tracing */
     bool campaign_select_on_end; /* ForceCampaignSelectScreen defers campaign selection until EndGame */
+    int32_t campaign_menu_race; /* legacy SetCampaignMenuRace, 1..4; 0 is campaign selector */
 };
 
 #define FOR_EACH_EVENT(property) \
@@ -2982,6 +2984,8 @@ void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t)
 void unit_removestatus_deferred(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
 void unit_status_enabletargetart(edict_t *, heroabilitystatus_t *, cstring_t attach_point);
 bool unit_status_can_dispel(heroabilitystatus_t const *);
+void unit_removebuffs(edict_t *, bool remove_positive, bool remove_negative,
+                      bool magic, bool physical, bool timed_life, bool aura, bool auto_dispel);
 /* Magical dispels reject explicitly physical-only statuses; legacy unclassified buffs retain compatibility. */
 bool unit_status_can_magic_dispel(heroabilitystatus_t const *);
 bool unit_status_can_steal(heroabilitystatus_t const *);

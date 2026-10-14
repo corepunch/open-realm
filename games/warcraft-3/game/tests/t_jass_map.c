@@ -1787,6 +1787,41 @@ TEST(wc3_jass_map, endgame_campaign_map_returns_to_campaign_select) {
     gi.MenuAction = old_menu_action;
 }
 
+TEST(wc3_jass_map, endgame_respects_legacy_campaign_race) {
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
+    bool old_campaign_select = level.campaign_select_on_end;
+    int32_t old_race = level.campaign_menu_race;
+    char old_map[MAX_PATHLEN];
+    strlcpy(old_map, level.map_path, sizeof(old_map));
+    level.mapinfo = NULL;
+    level.campaign_select_on_end = false;
+    strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
+    gi.MenuAction = capture_victory_menu_action;
+    static cstring_t const routes[] = {
+        "menu_single_player_campaign", "menu_single_player_campaign_human",
+        "menu_single_player_campaign_orc", "menu_single_player_campaign_undead",
+        "menu_single_player_campaign_night_elf"
+    };
+    FOR_LOOP(i, 5) {
+        level.campaign_menu_race = (int32_t)i;
+        victory_menu_arg[0] = '\0';
+        G_RequestEndGame(false);
+        T_STREQ(victory_menu_arg, routes[i]);
+    }
+    level.campaign_menu_race = 4;
+    G_RequestQuitGame();
+    T_STREQ(victory_menu_arg, routes[4]);
+    level.campaign_menu_race = 99;
+    G_RequestEndGame(false);
+    T_STREQ(victory_menu_arg, routes[0]);
+    level.mapinfo = old_mapinfo;
+    level.campaign_select_on_end = old_campaign_select;
+    level.campaign_menu_race = old_race;
+    strlcpy(level.map_path, old_map, sizeof(level.map_path));
+    gi.MenuAction = old_menu_action;
+}
+
 TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
     mapInfo_t const *old_mapinfo = level.mapinfo;

@@ -857,6 +857,15 @@ collection, restores both bound saves, and verifies only the orphan vanished.
 For each **immutable checkpoint file**, Linux first attempts a CoW reflink.
 This shares physical extents while keeping writable files independent; it is
 safe even when a writer truncates the live copy in place. When reflinking is
+
+### Native-owned campaign and death state (version 98)
+
+Version 90 serializes `level.campaign_menu_race` (legacy 1..4 or 0 for selector)
+and preserves `AI_SCRIPT_EXPLODED` in the existing saved `edict.aiflags` field.
+This avoids losing legacy campaign selection and scripted unit death intent
+across save/load. `wc3_save.legacy_campaign_menu_race_round_trip` and
+`wc3_save.field_script_explosion_round_trip` cover the values. Older saves are
+rejected by the existing strict save-version policy.
 unavailable (or on Windows), the engine can instead write a level-1 gzip
 payload inside an engine-private `ORCPGZ1!` envelope if that consumes fewer
 bytes than the original file. The restore path requires a real gzip member

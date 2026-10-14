@@ -680,6 +680,42 @@ TEST(wc3_unit, feral_spirit_death_uses_magic_burst_instead_of_blood) {
     T_FEQ(wolf->wait, FRAMETIME / 1000.0f, 0.0001f);
 }
 
+static char exploded_special_art[MAX_PATHLEN];
+static int test_explode_special_model_index(cstring_t path) {
+    strlcpy(exploded_special_art, path ? path : "", sizeof(exploded_special_art));
+    return 77;
+}
+
+TEST(wc3_unit, scripted_explosion_selects_unit_special_art) {
+    struct game_import old = gi;
+    UnitProfile_t profile = { .specialArt = "Abilities\\Spells\\Other\\TestExplosion.mdl" };
+    reset_test_entities();
+    edict_t *unit = make_unit(80.0f, 130.0f);
+    unit->data.UnitProfile = &profile;
+    gi.ModelIndex = test_explode_special_model_index;
+    exploded_special_art[0] = '\0';
+    unit->aiflags |= AI_SCRIPT_EXPLODED;
+    unit_die(unit, NULL);
+    T_STREQ(exploded_special_art, profile.specialArt);
+    T_ASSERT(unit->svflags & SVF_DEADMONSTER);
+    T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    gi = old;
+}
+
+TEST(wc3_unit, scripted_explosion_keeps_death_lifecycle_without_corpse) {
+    reset_test_entities();
+    edict_t *unit = make_unit(64.0f, 96.0f);
+    unit->aiflags |= AI_SCRIPT_EXPLODED;
+    unit->sound.death = 23;
+    unit_die(unit, NULL);
+    T_ASSERT(unit->svflags & SVF_DEADMONSTER);
+    T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    T_ASSERT(unit->aiflags & AI_CORPSE_UNRAISABLE);
+    T_ASSERT(unit->aiflags & AI_CORPSE_NO_DECAY);
+    T_EQ(unit->sound.world_pending, 0);
+    T_FEQ(unit->wait, FRAMETIME / 1000.0f, 0.0001f);
+}
+
 TEST(wc3_unit, die_emits_registered_death_sound) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);

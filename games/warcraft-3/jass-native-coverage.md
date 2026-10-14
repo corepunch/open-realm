@@ -603,6 +603,39 @@ during the return callback. See
 
 - Rexxar multi-map `LoadGame` defers to the session loader, preserving the private scripted save scope and allowing different-map `.w3z` restores; paired `SaveGame`/`LoadGame` only dispatch after a successful VM-safe source snapshot. Internal zone restores dispatch `EVENT_GAME_LOADED` with `MAP_RELOADED` set so the map can import travelling Heroes without running the named-user-load handler.
 
+
+### Buff-removal JASS natives
+
+`UnitRemoveBuffs` and `UnitRemoveBuffsEx` now remove explicitly classified,
+ordinary timed status records using the normal `STATUS_REMOVE_SCRIPT` lifecycle,
+including owner cleanup and a single post-removal status/UI refresh. The basic
+native selects either polarity with either magical or physical resistance; the
+extended native applies its explicit polarity and resistance selections.
+Unclassified and ambiguous records, undispellable statuses, and timed-life
+ownership are preserved. Extended `timedLife`, `aura`, and `autoDispel` categories
+are **not implemented**: the status representation does not yet distinguish
+those categories. They must not be guessed from a status timer or a TargetArt
+flag. This is partial, conservative compatibility, not full retail equivalence.
+
+### Classified buff removal and legacy gameplay natives
+
+`UnitRemoveBuffs` and `UnitRemoveBuffsEx` are registered in `api_unit.h` and
+remove explicitly classified, ordinary dispellable timed statuses using
+`unit_removestatus_deferred(..., STATUS_REMOVE_SCRIPT)`. Negative/positive and
+magical/physical filtering use `buff_flags`; ambiguous or unknown status
+classification does not trigger removal. Special `timedLife`, `aura` and
+`autoDispel` categories are not yet independently modeled: the extra booleans
+are accepted but do not yet select these classes. `UnitRemoveBuffsBJ` and
+`UnitRemoveBuffsExBJ` in Blizzard.j define the filter combinations, including
+`NONTLIFE` with aura selection enabled.
+
+`SetUnitExploded` sets/clears a persistent unit flag used by `unit_die` to
+spawn the unit's `UnitProfile.SpecialArt` as a temporary model effect and to
+skip corpse/death sound/animation while keeping the normal death event and
+resource lifecycle. This is distinct from summoned units' magical effect art.
+`SetCampaignMenuRace` accepts campaign races 1..4 and chooses the corresponding
+registered menu command on campaign EndGame/quit; unsupported values leave the
+selection unchanged. `SetCampaignMenuRaceEx` is separate and remains a stub.
 ## Item handoff natives
 
 `UnitDropItemTarget(unit, item, widget)` now accepts an allied inventory-capable

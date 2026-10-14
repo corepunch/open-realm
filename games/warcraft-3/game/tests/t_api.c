@@ -9565,4 +9565,34 @@ TEST(wc3_api, destroy_trigger_retires_registered_and_queued_events) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_api, gameplay_natives_dispatch_and_select_race) {
+    setup_test_world();
+    level.campaign_menu_race = 0;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call UnitRemoveBuffs(u, true, false)\n"
+        "  call UnitRemoveBuffsEx(u, true, true, true, true, false, false, false)\n"
+        "  call SetUnitExploded(u, true)\n"
+        "  call SetUnitExploded(u, false)\n"
+        "  call SetCampaignMenuRace(RACE_ORC)\n"
+        "endfunction\n"));
+    T_EQ(level.campaign_menu_race, 2);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hpea', 16.0, 16.0, 0.0)\n"
+        "  call SetUnitExploded(u, true)\n"
+        "  call KillUnit(u)\n"
+        "  call BJassAssert(IsUnitType(u, UNIT_TYPE_DEAD), \"scripted explosion preserves death\")\n"
+        "endfunction\n"));
+    /* Invalid and unsupported races retain the previous valid selection. */
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCampaignMenuRace(RACE_DEMON)\n"
+        "  call SetCampaignMenuRace(null)\n"
+        "endfunction\n"));
+    T_EQ(level.campaign_menu_race, 2);
+    level.campaign_menu_race = 0;
+}
+
 #endif /* BZ_TESTS */
