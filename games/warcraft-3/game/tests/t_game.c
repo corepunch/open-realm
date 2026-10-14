@@ -4125,6 +4125,18 @@ TEST(wc3_perf, crowded_unstuck_search) {
     T_FEQ(out.y, -64.0f, 0.001f);
 }
 
+TEST(wc3_save, legacy_campaign_menu_race_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-campaign-menu-race.sav");
+    setup_test_world();
+    level.campaign_menu_race = 3;
+    T_ASSERT(WriteGame(filename));
+    level.campaign_menu_race = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.campaign_menu_race, 3);
+    level.campaign_menu_race = 0;
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_edict_and_player_state) {
     cstring_t filename = Test_TempPath("wc3-save-test.bin");
     questItem_t item = { .description = strdup("Find the key"), .completed = true, .inuse = true };
@@ -4735,6 +4747,7 @@ SAVE_INT_FIELD_TEST(field_heatmap_round_trip, heatmap2, 73)
 SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, peonsinside, 5)
 SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
 SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED)
+SAVE_INT_FIELD_TEST(field_script_explosion_round_trip, aiflags, AI_SCRIPT_EXPLODED)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
 SAVE_INT_FIELD_TEST(field_projectile_attack_type_round_trip, projectile_attack_type, ATK_PIERCE)
 SAVE_INT_FIELD_TEST(field_attack_cooldown_active_round_trip, attack_cooldown_active, 1)

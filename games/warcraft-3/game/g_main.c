@@ -1563,6 +1563,21 @@ void G_GameResultDebug(cstring_t format, ...) {
 
 static bool G_IsCampaignMapPath(cstring_t path);
 
+/* SetCampaignMenuRace is the legacy map-selected destination after a campaign
+ * session. Resolve it in the game module and dispatch only generic menu names. */
+static cstring_t G_CampaignMenuTarget(void) {
+    static cstring_t const targets[] = {
+        "menu_single_player_campaign",
+        "menu_single_player_campaign_human",
+        "menu_single_player_campaign_orc",
+        "menu_single_player_campaign_undead",
+        "menu_single_player_campaign_night_elf"
+    };
+    int32_t race = level.campaign_menu_race;
+    if (race < 1 || race > 4) race = 0;
+    return targets[race];
+}
+
 void G_RequestEndGame(bool do_score_screen) {
     if (G_ScoreTransitionOwnsExit()) return;
     G_ResetDifficultyTransition();
@@ -1573,8 +1588,8 @@ void G_RequestEndGame(bool do_score_screen) {
         (unsigned)do_score_screen, (unsigned)campaign_select, map ? map : "(null)");
     if (campaign_select) {
         level.campaign_select_on_end = false;
-        if (do_score_screen) G_QueueScoreTransition("menu", "menu_single_player_campaign");
-        else gi.MenuAction("menu", "menu_single_player_campaign");
+        if (do_score_screen) G_QueueScoreTransition("menu", G_CampaignMenuTarget());
+        else gi.MenuAction("menu", G_CampaignMenuTarget());
         return;
     }
     if (do_score_screen) G_QueueScoreTransition("menu", "menu_main");
@@ -1596,7 +1611,7 @@ void G_RequestQuitGame(void) {
     cstring_t map = level.map_path[0] ? level.map_path : gi.CvarString("map", "");
     bool single = G_IsSinglePlayer();
     cstring_t target = single && G_IsCampaignMapPath(map)
-        ? "menu_single_player_campaign"
+        ? G_CampaignMenuTarget()
         : "menu_main";
 
     BZ_WC3_SCORE_LOG("quit map=%s sp=%u target=%s", map ? map : "(null)", (unsigned)single, target);

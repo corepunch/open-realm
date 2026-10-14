@@ -712,8 +712,12 @@ uint32_t ReviveHeroLoc(jass_t *j) {
         G_ReviveHero(whichHero, location->x, location->y));
 }
 uint32_t SetUnitExploded(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //bool exploded = jass_checkboolean(j, 2);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    bool exploded = jass_checkboolean(j, 2);
+    if (whichUnit && !(whichUnit->svflags & SVF_DEADMONSTER)) {
+        if (exploded) whichUnit->aiflags |= AI_SCRIPT_EXPLODED;
+        else whichUnit->aiflags &= ~AI_SCRIPT_EXPLODED;
+    }
     return 0;
 }
 uint32_t SetUnitInvulnerable(jass_t *j) {
@@ -1105,14 +1109,23 @@ uint32_t UnitMakeAbilityPermanent(jass_t *j) {
     return jass_pushboolean(j, G_ActorSetSkillPermanent(whichUnit, abilityId, permanent));
 }
 uint32_t UnitRemoveBuffs(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //bool removePositive = jass_checkboolean(j, 2);
-    //bool removeNegative = jass_checkboolean(j, 3);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    bool removePositive = jass_checkboolean(j, 2);
+    bool removeNegative = jass_checkboolean(j, 3);
+    unit_removebuffs(whichUnit, removePositive, removeNegative, true, true, false, false, false);
     return 0;
 }
 uint32_t UnitRemoveBuffsEx(jass_t *j) {
-    /* TODO: ability-owned dispel filtering is not represented yet. */
-    (void)j;
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    bool removePositive = jass_checkboolean(j, 2);
+    bool removeNegative = jass_checkboolean(j, 3);
+    bool magic = jass_checkboolean(j, 4);
+    bool physical = jass_checkboolean(j, 5);
+    bool timedLife = jass_checkboolean(j, 6);
+    bool aura = jass_checkboolean(j, 7);
+    bool autoDispel = jass_checkboolean(j, 8);
+    unit_removebuffs(whichUnit, removePositive, removeNegative, magic, physical,
+                     timedLife, aura, autoDispel);
     return 0;
 }
 uint32_t UnitAddSleep(jass_t *j) {

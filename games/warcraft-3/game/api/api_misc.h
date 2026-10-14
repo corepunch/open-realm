@@ -868,7 +868,9 @@ uint32_t LoadGame(jass_t *j) {
     return 0;
 }
 uint32_t SetCampaignMenuRace(jass_t *j) {
-    //handle_t r = jass_checkhandle(j, 1, "race");
+    uint32_t const *race = jass_checkhandle(j, 1, "race");
+    /* Only the four campaign races have a matching registered menu command. */
+    if (race && *race >= 1 && *race <= 4) level.campaign_menu_race = (int32_t)*race;
     return 0;
 }
 static bool creep_camp_filter_state = true;
