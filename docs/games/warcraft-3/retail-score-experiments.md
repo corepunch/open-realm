@@ -212,11 +212,54 @@ wine "$WAR3_EXE" -window -graphicsapi OpenGL2 \
   -loadfile "$(winepath -w "$variant")"
 ```
 
-Use an unused display number and stop the server after the run. In another
-terminal, set `DISPLAY=:91` for `xdotool` and `xwd`. A screenshot is also a
-useful way to confirm the intro was skipped, the right page opened and input
-reached the game; do not rely on sleeps alone to establish those transitions.
-For example, send the skip input and open the game menu, then inspect the
+### Stable headless mouse input
+
+Keep one Xvfb server alive for the entire retail run. Use that same display for
+Wine, `xdotool`, and `xwd`; otherwise input may go to a different X server from
+the one showing the game. Start Wine in the foreground of a long-lived
+terminal/tool session, then issue clicks and captures from separate commands.
+Launching Wine in the background from a short-lived shell was unreliable: the
+game process could be terminated when that shell exited, leaving no responsive
+window for later input.
+
+The tested setup used a dedicated Wine prefix and a 1280x960x24 Xvfb display:
+
+```sh
+TRACE="$PWD/build/retail-score-test"
+export WINEPREFIX="$TRACE/wineprefix"
+Xvfb :91 -screen 0 1280x960x24 > "$TRACE/work/xvfb.log" 2>&1 &
+XVFB_PID=$!
+export DISPLAY=:91
+wine "$WAR3_EXE" -window -graphicsapi OpenGL2 \
+  -loadfile "$(winepath -w "$variant")"
+```
+
+The Wine command above must remain attached to its long-lived session. In a
+separate command/session, direct `xdotool` to `DISPLAY=:91` and capture the
+root window with `xwd -root`. This headless Xvfb setup had no window manager,
+so `xdotool windowactivate` failed with an `_NET_ACTIVE_WINDOW` error. Direct
+pointer movement and clicks worked; do not make window activation a
+prerequisite for sending input.
+
+Calibrate pointer coordinates from screenshots for the current display size
+and game window. The observed pointer coordinates on this setup did not map to
+the visible client area in an intuitive one-to-one way: the game uses a 4:3
+viewport inside the 1280x960 display, and the apparent input mapping included
+scaling/offset effects. A coordinate that worked at one resolution is not a
+portable control location. Capture with `xwd` before interacting, send one
+click, capture again, and use the visible result to determine whether the
+control activated, only highlighted, or was missed. Some controls required a
+second click at the same location (without moving the pointer) to activate.
+Confirm every transition visually before issuing the next action.
+
+In the tested 1280x960 run, the empirically calibrated path was Menu, End
+Game, Quit Mission, then the Heroes tab. Example coordinates from that run
+were Menu `(423,215)`, End Game `(768,697)`, Quit Mission `(768,455)`, and
+Heroes `(830,291)`. Treat these only as historical observations for that
+specific setup; recalibrate rather than copying them to another resolution,
+window mode, Wine setup, or game build.
+
+For example, send the intro-skip input and open the game menu, then inspect the
 screen before choosing the next menu item:
 
 ```sh
@@ -226,7 +269,89 @@ DISPLAY=:91 xwd -root -silent -out "$TRACE/work/menu-check.xwd"
 ```
 
 Use the visible menu and the target build's input behavior to choose Quit
-Mission; do not reuse guessed screen coordinates from a different resolution.
+Mission. After each menu action, take and inspect another screenshot before
+continuing; do not batch a chain of guessed clicks or rely on elapsed time as
+proof that a click registered. Use keyboard input for a transition only when
+the target screen and its response are likewise confirmed visually. Stop the
+Xvfb server after the retail process has exited and the trace/screenshots have
+been collected.
+
+## Heroes Used presentation experiments
+
+The retail **Heroes Used** column is not a single aggregate hero count. It
+shows one portrait for each hero instance credited to a player, with that
+hero's current level printed beside the portrait. This distinction resolves
+the apparent `3` versus `2` discrepancy from UndeadX07c: the retail screenshot
+shows Arthas at level 3; it does not show three heroes. The fresh-run JASS
+trace reports Arthas (`Uear`) at level 3 and Anubarak (`Uanb`) at level 7, then
+records Anubarak changing from Player 0 to Neutral Passive. The retail Heroes
+page has one Player 0 portrait labeled `3`.
+
+The controlled retail maps were disposable copies of `(2)Harrow.w3m` under
+`build/retail-heroes-used/simple/`. Their `HeroExpRun` functions made the
+listed change, wrote a `PreloadGen` trace, and ended with
+`CustomVictoryBJ(Player(0), true, true)`. Retail first displayed a Victory
+dialog; choosing **Quit Campaign** opened the score screen. `EndGame(true)`
+alone did not reliably open that score page. Keep the actual map, trace and
+screenshot together when repeating these cases.
+
+| Controlled case | Retail Heroes Used page | Evidence |
+|---|---|---|
+| No hero created | No portrait for either player | `simple/no_heroes_end-heroes.png` |
+| One level-1 Paladin for Player 0 | One Paladin portrait labeled `1` | `simple/one_p0-result-heroes2.png`; trace `heroexp-simple-one_p0.txt` |
+| Level-1 Paladin and Mountain King for Player 0 | Two portraits, each labeled `1` | `simple/two_p0-heroes2.png`; trace `heroexp-simple-two_p0.txt` |
+| One Paladin set to level 3 | One Paladin portrait labeled `3` | `simple/one_p0_level3_end-heroes.png`; trace `heroexp-simple-one-level3.txt` |
+| Two separate Paladins for Player 0 | Two Paladin portraits, each labeled `1` | `simple/duplicate_p0_end-heroes.png`; trace `heroexp-simple-duplicate_p0_end.txt` |
+| Paladin created for Player 0, transferred to Player 1 | No Player 0 portrait; Player 1 has one portrait labeled `1` | `simple/transfer_out_p1_end-heroes2.png`; trace `heroexp-simple-transfer_out_p1_end.txt` |
+| Paladin created for Player 1, transferred to Player 0 | Player 0 has one portrait labeled `1`; no Player 1 portrait | `simple/transfer_in_end-heroes2.png`; trace `heroexp-simple-transfer_in_end.txt` |
+| Paladin transferred 0 → 1 → 0 → Neutral Passive → 1 | Only Player 1 has one portrait labeled `1` | `simple/repeated_transfer_end-heroes.png`; trace `heroexp-simple-repeated_transfer_end.txt` |
+| Player 0 hero killed, not removed | One portrait labeled `1` remains | `simple/kill_hero_end-heroes.png`; trace `heroexp-simple-kill_hero_end.txt` |
+| Player 0 hero hidden with `ShowUnit(false)` | One portrait labeled `1` remains | `simple/hide_hero_end-heroes.png`; trace `heroexp-simple-hide_hero_end.txt` |
+| Player 0 hero killed, then revived | One portrait labeled `1`; revival did not add another entry | `simple/revive_hero_end-heroes.png`; trace `heroexp-simple-revive_hero_end.txt` |
+| Player 0 hero removed with `RemoveUnit` | No portrait remains | `simple/remove_hero_end-heroes.png`; trace `heroexp-simple-remove_hero_end.txt` |
+| Level-3 Paladin stored, removed, then restored in the same match | One portrait labeled `3` | `simple/cache_restore_end-heroes.png`; trace `heroexp-simple-cache_restore_end.txt` |
+| Fresh UndeadX07c run | Player 0 has one portrait labeled `3`; Anubarak is owned by Neutral Passive at the result sample | `fresh_campaign-result-heroes.png`; trace `scoretrace-normal.txt` |
+
+The JASS traces are in
+`build/retail-heroes-used/wineprefix/drive_c/users/agent/Documents/Warcraft III/CustomMapData/`.
+They identify the unit rawcode, owner and level for the controlled cases. The
+campaign trace has `Arthas_after_restore present=0` and
+`Anubarak_after_restore present=0`, followed by the default-created heroes;
+the Anubarak owner trace changes from `0` to `15` at intro cleanup. The score
+page was captured after the normal **F10 → End Game → Quit Mission** route.
+
+These runs support the following retail behavior with high confidence:
+
+- The value beside a portrait is that hero instance's level, not a count of
+  heroes or a count of creation events. A single level-3 hero displays `3`.
+- The page lists hero instances separately, including two instances with the
+  same rawcode. Their portrait labels reflect their levels.
+- The listing follows the hero's current player owner. Transferring a hero
+  moves the portrait to the receiving player's row; repeated transfers do not
+  leave historical copies in the previous owners' rows.
+- Hidden and dead-but-not-removed heroes remain listed. A removed hero does
+  not. Reviving the same unit does not produce a second listing.
+- A same-match `StoreUnit` / `RestoreUnit` round trip restores one portrait at
+  the restored level; the removed source handle is not a second listed hero.
+
+OpenRealm currently represents this cell differently: `G_PlayerScoreUnitTrained`
+increments the scalar `client->score.heroes_used` for each hero creation in
+[`g_score.c`](../../../games/warcraft-3/game/g_score.c), and
+`WC3_ScoreCellValue` returns that scalar in
+[`score_screen_table.h`](../../../games/warcraft-3/game/hud/score_screen_table.h).
+Thus OpenRealm's `2` for the campaign is two creation events, whereas retail's
+visible `3` is the level on one listed portrait. They are not comparable
+values. The score-screen payload should retain current player-owned hero
+instances and their levels, then render a portrait plus level for each; the
+existing creation count may remain a diagnostic but should not populate this
+retail cell.
+
+The exact static preplaced-hero case and a campaign-cache restoration seeded
+by completing a prior mission were not isolated here. The UndeadX07c fresh
+run took the default-creation branches, and the custom cache experiment tested
+same-match `StoreUnit` / `RestoreUnit`. Those two cases remain useful follow-up
+checks, but they do not change the interpretation of the observed `3` versus
+`2` result.
 
 ## Read and compare the trace
 
