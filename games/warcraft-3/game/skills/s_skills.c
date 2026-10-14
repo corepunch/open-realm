@@ -360,7 +360,7 @@ static ability_t abilitylist[] = {
     { "AIgo", CAbilityItemGold, AB_ITEM | AB_POWERUP },  /* Chest of Gold / Gold Coins */
     { "AIlu", CAbilityItemLumber, AB_ITEM | AB_POWERUP },  /* Bundle of Lumber */
     // TODO: AIfa a_agility_mod  /* Flare Gun */
-    // TODO: AIrv a_item_heal_aoe  /* Item Reveal Entire Map */
+    { "AIrv", CAbilityItemRevealEntireMap, AB_ITEM | AB_POWERUP }, /* Glyph of Omniscience */
     // TODO: AIdc CAbilityItemDefenseAoe  /* Item Chain Dispel */
     // TODO: AIwb a_button  /* Item Web */
     // TODO: AImo a_item_mana_restore_aoe  /* Monster Lure */

@@ -605,6 +605,25 @@ BZ_ABILITY_PROC(CAbilityItemRestoreAoe) {
     return true;
 }
 
+/* Glyph of Omniscience (AIrv): temporary full-map visibility for the
+ * collecting player's fog grid, not the global FogEnable cheat. */
+BZ_ABILITY_PROC(CAbilityItemRevealEntireMap) {
+    edict_t *caster;
+    uint32_t code;
+    float duration;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    code = call->item->code;
+    if (!G_AbilityLevel(code, 1)) return false;
+    duration = S_SpellDuration(code, 1, false);
+    /* Stock AIrv reveals for five seconds. Preserve custom Dur overrides. */
+    if (!(duration > 0.0f)) duration = 5.0f;
+    G_FowRevealEntireMapTimed(caster->s.player, duration);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
+    return true;
+}
+
 /* Rune of Dispel Magic (AIdi): one-shot area dispel centred on the picker.
  * Use the same status removal and summon damage semantics as Priest Dispel,
  * including undispellable lifecycle effects. Successful power-up activation
