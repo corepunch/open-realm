@@ -148,7 +148,11 @@ document.addEventListener('fullscreenchange', function () {
   var active = document.fullscreenElement === gameContainer || document.fullscreenElement === gameCanvas;
   gameFullscreen.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
   gameFullscreen.title = active ? 'Exit fullscreen' : 'Toggle fullscreen';
-  window.dispatchEvent(new Event('resize'));
+  if (window.openrealmRequestFullscreenResize) {
+    window.openrealmRequestFullscreenResize();
+  } else {
+    window.dispatchEvent(new Event('resize'));
+  }
 });
 /* AudioContext is created from the first user gesture for browser autoplay policy.
  * The engine worker supplies shared WASM pointers once S_Init has run. */
@@ -219,6 +223,7 @@ window.openrealmStartEngine = function (arguments_) {
 <script>
 openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);
 </script>
+<script src="fullscreen-resize.js"></script>
 <script src="installer.js"></script>
 <script src="mpq-header.js"></script>
 <script src="filesystem-bridge.js"></script>

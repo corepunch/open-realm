@@ -19,6 +19,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Server-authored UI payload design, limits, diagnostics, scrollbar postmortem | [docs/architecture/ui-payloads.md](docs/architecture/ui-payloads.md) |
 | Client-managed gameplay windows, focus, z-order, dragging, modal input, text arenas | [docs/architecture/client-windows.md](docs/architecture/client-windows.md) |
 | UI canvas: window geometry, stretch/expand/centered policies, widescreen console chrome, resize settling, `ui_canvas` class command | [docs/architecture/ui-canvas.md](docs/architecture/ui-canvas.md) |
+| Web browser fullscreen and post-layout canvas resize synchronization | [docs/platform/browser-fullscreen.md](docs/platform/browser-fullscreen.md) |
 | Shared GL/ES shader generation, typed submission and lifetime | [docs/architecture/shared-shaders.md](docs/architecture/shared-shaders.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Browser ISO 9660/Joliet sector reader, limits, test command, integration boundary | [docs/platform/browser-iso9660.md](docs/platform/browser-iso9660.md) |

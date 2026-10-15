@@ -152,6 +152,7 @@ def main():
          "-o", out / "index.html"])
     for name in ("browser-keyboard.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
+    shutil.copy2(ROOT / "port/web/site/fullscreen-resize.js", out / "fullscreen-resize.js")
     print("Experimental static engine build emitted to", out)
     print("OPFS archives mounted through WasmFS; native engine link/runtime remains experimental.")
 
