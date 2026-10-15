@@ -11,6 +11,11 @@ Manifest version 1 mounts `/opfs/openrealm/game-data/wc3`; version 2 mounts
 These checks are only format checks, not integrity hashes or complete game-data
 validation. Importing a new generation does not alter already-open files.
 
+The importer worker can also read one ISO 9660/Joliet image, select the
+recognized WC3 MPQs and store them in the same version-2 generation format.
+`Setup.mpq` is deliberately not installed as a playable archive; its internal
+content is not yet extracted. See [browser ISO reader](browser-iso9660.md).
+
 The browser engine uses Emscripten WasmFS (`-sWASMFS=1`) and mounts the upstream
 OPFS backend at `/opfs` before `Sys_ResolveShareDirectory`, `Com_Init`, or
 archive discovery. The existing `common/mpq.c` uses normal seek/read operations;

@@ -69,10 +69,12 @@ probe in this phase. Browser file storage and installation are not yet present.
 
 ## Phase 3 — browser-local game data importer
 
-The standalone [ISO 9660/Joliet reader](browser-iso9660.md) added for the
-Warcraft III disc-import work indexes files without changing the current
-MPQ/W3M/W3X browser installer. ISO selection, asset extraction and packaging are
-separate follow-up patches.
+The [ISO 9660/Joliet reader](browser-iso9660.md) can now be invoked by the
+installer worker with a single ISO File, to selectively copy recognized
+Warcraft III game MPQs through the existing OPFS generation writer. The
+current file picker still accepts only standalone archives; UI selection,
+multi-disc composition and extraction from installer packages such as
+`Setup.mpq` remain follow-up tasks.
 
 The platform probe page now exposes a launcher-only file importer.
 `site/installer.js` sends File objects to `site/install-worker.js`, which

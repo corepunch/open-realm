@@ -147,7 +147,7 @@ def main():
          # Emscripten's virtual FS maps this to /share/warcraft-3/.
          "--embed-file", str(wc3_share) + "@/share/warcraft-3",
          "-o", out / "index.html"])
-    for name in ("installer.js", "install-worker.js", "filesystem-bridge.js", "audio-worklet.js"):
+    for name in ("installer.js", "install-worker.js", "iso9660.js", "filesystem-bridge.js", "audio-worklet.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
     print("Experimental static engine build emitted to", out)
     print("OPFS archives mounted through WasmFS; native engine link/runtime remains experimental.")

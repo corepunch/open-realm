@@ -1,4 +1,4 @@
-# Browser ISO 9660 reader (Warcraft III disc import, patch 1)
+# Browser ISO 9660 reader (Warcraft III disc import, patches 1–2)
 
 ## Scope and ownership
 
@@ -15,14 +15,29 @@ copies of on-disc integers, checks extents against the Blob size, limits
 traversal, detects directory loops and normalized path collisions, and rejects
 unsupported interleaved/multi-extent records rather than returning partial data.
 
-The current `site/install-worker.js` does **not** load this module: enabling
-ISO uploads, selection and copying are separate follow-up patches. Until then
-the existing MPQ/W3M/W3X-only installer and game-data manifest are unchanged.
+Patch 2 connects this module to `site/install-worker.js` for one ISO per import.
+The worker lazily loads `iso9660.js`, discovers the recognized game MPQs and
+copies only their source byte ranges through the existing 1 MiB OPFS writer.
+`Setup.mpq`, movies and arbitrary archives are skipped; `Setup.mpq` contents
+are **not** unpacked. The root `War3.mpq` is mandatory for a valid installation.
+An expansion-only disc, multiple ISOs, or a mixed ISO/MPQ selection is rejected
+rather than replacing existing game data with a partial set; composition is
+planned for patch 3. UI file-picker changes are planned for patch 4. The
+engine build copies the ISO reader alongside the worker, but the current
+`.iso` file picker filter has not yet been enabled.
+
+`install-worker.js` accepts the existing `postMessage({type:'import',files})`
+message, where `files` may contain a **single** `.iso` File. Its output remains
+a version-2 generation manifest with the same archive names/sizes. No changes
+to `filesystem-bridge.js` or native MPQ loading are required. Name matching is
+case-insensitive and traverses ISO subdirectories, but repeated candidate names
+are rejected as ambiguous. Only bounded MPQ header validation is performed;
+this does not prove the disc archives are complete or playable.
 
 ## Usage from a browser worker
 
-Load with `importScripts('iso9660.js')` once it is included by a future browser
-build (packaging is not part of this patch). The API is also exported via
+Load with `importScripts('iso9660.js')` in the installer worker (the
+experimental engine build now packages it). The API is also exported via
 CommonJS to allow dependency-free Node.js tests.
 
 ```js
@@ -31,7 +46,7 @@ const iso = await ISO9660.openISO(file, {signal: controller.signal});
 const entries = await iso.listFiles();
 const archives = await iso.findFiles('War3.mpq');
 
-// Patch 2 will reuse this zero-copy slice with the existing OPFS writer.
+// The worker uses this zero-copy slice with the existing OPFS writer.
 for (const entry of archives) {
   const bytes = file.slice(entry.offset, entry.offset + entry.size);
   // Consume bytes without copying the whole disc.
@@ -90,9 +105,18 @@ cover primary/Joliet selection, nested files, sector padding, byte extents,
 filename normalization, lookup, cancellation, corrupt records, cycles and
 unsupported encodings. They use no proprietary media or installed WC3 data.
 
-Patch 1 intentionally does **not** verify a retail Reign of Chaos or Frozen
-Throne image, any `Setup.mpq` contents, the browser UI or final game launch.
-Testing real discs and packaging the script are follow-up tasks.
+Neither patch verifies a retail Reign of Chaos or Frozen Throne image,
+`Setup.mpq` extraction, the browser UI or final game launch. Testing real
+discs and exposing ISO selection through the file picker are follow-up tasks.
 
 See also [Browser platform](browser.md) for OPFS installer ownership, runtime
 mounting and experimental engine build constraints.
+
+## Patch 2 verification
+
+Synthetic worker-level tests: `node --test port/web/tests/iso-import.test.cjs`.
+Parser tests: `node --test port/web/tests/iso9660.test.cjs`.
+The worker tests exercise recognized/canonical names, ignored installer
+containers, source-byte copying, unchanged standalone MPQ imports, rejection
+of duplicate/invalid/expansion-only images, and cancellation preserving the
+previous OPFS generation. They use no retail data.
