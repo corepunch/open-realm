@@ -39,6 +39,7 @@
     const busy = value !== null;
     fileInput.disabled = busy;
     install.disabled = busy;
+    install.classList.toggle('has-selection', value !== 'import' && !!(fileInput.files && fileInput.files.length));
     cancel.disabled = value !== 'import';
     remove.disabled = busy;
     if (play) play.disabled = busy || !playable;

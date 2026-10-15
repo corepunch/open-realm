@@ -13,10 +13,6 @@ canvas { display: block; max-width: 100%; background: #000; }
 /* Keep controls in a stacking context above the engine canvas, including when
  * Emscripten changes canvas dimensions or applies its own canvas styles. */
 #game-container[hidden] { display: none; }
-#game-launch-placeholder { min-height: 240px; aspect-ratio: 16 / 9; max-height: 65vh;
-  display: flex; align-items: center; justify-content: center; }
-#game-launch-placeholder[hidden] { display: none; }
-#reload-to-play { padding: .9rem 1.6rem; font-size: 1.1rem; cursor: pointer; }
 #game-container { position: relative; width: 100%; max-width: 100%; isolation: isolate; }
 /* Keep the windowed canvas height tied to the viewport rather than a fixed
  * aspect ratio, so ordinary browser resizes can cross the game's UI aspect
@@ -106,9 +102,6 @@ canvas { display: block; max-width: 100%; background: #000; }
   </select>
   <p>Changing edition restarts the browser game. The Frozen Throne requires War3x.mpq.</p>
 </section>
-<div id="game-launch-placeholder" hidden>
-  <button id="reload-to-play" type="button">Reload to play Warcraft III</button>
-</div>
 <div id="game-container" hidden>
   <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
   <div id="game-controls" aria-label="Game controls">
@@ -116,7 +109,6 @@ canvas { display: block; max-width: 100%; background: #000; }
     <button id="game-fullscreen" type="button" aria-label="Enter fullscreen" title="Toggle fullscreen">⛶</button>
   </div>
 </div>
-<p>This is a WebGL 2 platform probe, not yet the game.</p>
 <p>Experimental OpenRealm browser runtime. Imported archives are read directly from OPFS through WasmFS. Engine compatibility is experimental.</p>
 </div>
 </main>
@@ -139,15 +131,10 @@ var Module = {
 window.addEventListener('error', function (event) {
   document.getElementById('status').textContent = 'Error: ' + event.message;
 });
-/* The game canvas stays absent from layout until archive validation succeeds.
- * A successful import requires a fresh document to mount the new OPFS generation. */
+/* The game canvas stays absent from layout until archive validation succeeds. */
 window.openrealmGamePresentation = function (state) {
   document.getElementById('game-container').hidden = state !== 'playing';
-  document.getElementById('game-launch-placeholder').hidden = state !== 'reload';
 };
-document.getElementById('reload-to-play').addEventListener('click', function () {
-  window.location.reload();
-});
 var gameCanvas = document.getElementById('canvas');
 var gameContainer = document.getElementById('game-container');
 var gameFullscreen = document.getElementById('game-fullscreen');
