@@ -7,7 +7,7 @@ const path = require('node:path');
 const html = fs.readFileSync(path.resolve(__dirname, '../site/engine-shell.html'), 'utf8');
 
 test('game controls are siblings of the canvas inside the fullscreen container', () => {
-  assert.match(html, /<div id="game-container">\s*<canvas[^>]*><\/canvas>\s*<div id="game-controls"/);
+  assert.match(html, /<div id="game-container" hidden>\s*<canvas[^>]*><\/canvas>\s*<div id="game-controls"/);
   assert.match(html, /id="game-escape"/);
   assert.match(html, /id="game-fullscreen"/);
 });
