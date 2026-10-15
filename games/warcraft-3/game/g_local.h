@@ -1972,6 +1972,20 @@ typedef struct {
     bool hide_order_active; /* Ahid/ambush: suppress voluntary acquisition until replaced */
 } shadowMeld_t;
 
+/* Predicted health regeneration keeps a committed base rather than per-frame rounding. */
+typedef struct {
+    wc3Clock_t clock;
+    float base, value, rate;
+    bool sampling;
+} healthRegen_t;
+
+/* Shadow Strike's impact payload and independent recovery/damage/expiry clocks. */
+typedef struct {
+    abilityPrimaryTimer_t timers[3];
+    uint32_t status_id, rank, buff;
+    float duration, interval, damage, initial, move, attack, exponent, factor;
+} shadowStrike_t;
+
 typedef struct {
     uint32_t ability;          /* Amil alias that supplied Data A/B and duration */
     uint32_t normal_type;      /* Data A: worker form retained across the timed morph */
@@ -2222,6 +2236,8 @@ struct edict_s {
     uint32_t wander_goal_generation;
     uint32_t waypoint_generation; /* increments whenever the waypoint ring reuses this edict */
     shadowMeld_t *shadowmeld;
+    shadowStrike_t *shadow_strike;
+    healthRegen_t *health_regen;
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */
     uint32_t shared_vision; /* players that receive this unit's ordinary sight via UnitShareVision */
     uint32_t shared_reveal; /* UnitShareVision's captured alliance expansion; not a live query */
@@ -3651,6 +3667,7 @@ void S_AcquireMoveGroupIsolation(edict_t *);
 void S_ReleaseMoveGroupIsolation(edict_t *);
 void S_ApplyMoveSpeedContribution(edict_t *, heroabilitystatus_t *, float);
 void S_RemoveMoveSpeedContribution(edict_t *, heroabilitystatus_t *);
+void S_UpdateMoveSpeedContribution(edict_t *, heroabilitystatus_t *, float);
 float S_UnitMoveSpeed(edict_t *);
 float S_UnitDefaultMoveSpeed(edict_t const *);
 void S_SetUnitMoveSpeed(edict_t *, float);
@@ -5027,6 +5044,15 @@ void G_FreeMilitia(edict_t *ent);
 militia_t *G_AllocMilitia(void);
 void G_FreePolymorph(edict_t *ent);
 polymorph_t *G_AllocPolymorph(void);
+healthRegen_t *G_AllocHealthRegen(void);
+void G_FreeHealthRegen(edict_t *);
+void G_SampleHealthRegen(edict_t *);
+void G_RebaseHealthRegen(edict_t *);
+void G_UpdateHealthRegen(edict_t *,float);
+shadowStrike_t *G_AllocShadowStrike(void);
+void G_FreeShadowStrike(edict_t *);
+void S_ForgetShadowStrike(edict_t *);
+void S_ShadowStrikeProjectileHit(edict_t *);
 void G_FreeMorph(edict_t *ent);
 morph_t *G_AllocMorph(void);
 void G_FreeRaven(edict_t *ent);

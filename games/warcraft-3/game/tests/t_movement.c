@@ -29071,4 +29071,125 @@ TEST(wc3_movement, move348_removed_intrinsic_class_cannot_be_publicly_recreated)
         "endfunction\n"));
     reset_entities();
 }
+#include "fixtures/retail_power349.h"
+static uint32_t power349_xy[2];
+static edict_t *power349_unit;
+static unsigned power349_row,power349_bad;
+static void power349_coordinate(edict_t *unit,unsigned axis,float value) {
+    power349_unit=unit;
+    if(axis<2)power349_xy[axis]=wc3_float_bits(value);
+}
+/* Exercise the same public order/setter script; the expected words are retail
+ * getter returns, not prescribed motion or copies of the update formulas. */
+static void power349_marker(cstring_t text) {
+    unsigned tick,index,order;
+    if(sscanf(text,"P349 tick=%u label=unit u=%u order=%u",&tick,&index,&order)!=3)return;
+    edict_t *unit=power349_unit;
+    char const *life=strstr(text," life=");T_NOT_NULL(life);
+    if(life && unit)T_FEQ(atof(life+6),unit->health.value,0.001f);
+    uint32_t row[]={index,tick,order,power349_xy[0],power349_xy[1],
+        unit ? wc3_float_bits(wc3_radians_to_degrees(S_UnitFacing(unit))) : 0,
+        unit ? wc3_float_bits(S_UnitMoveSpeed(unit)) : 0,
+        unit ? wc3_float_bits(unit->health.value) : 0};
+    memset(power349_xy,0,sizeof(power349_xy));power349_unit=NULL;
+    unsigned count=sizeof(power349_public)/sizeof(*power349_public);
+    T_ASSERT(power349_row<count);
+    if(power349_row>=count){power349_bad++;return;}
+    FOR_LOOP(k,8) {
+        uint32_t expected=power349_public[power349_row][k];T_EQ(row[k],expected);
+        if(row[k]!=expected) {
+            fprintf(stderr,"power349 public row%u tick%u unit%u field%u expected%08x actual%08x\n",power349_row,tick,index,k,expected,row[k]);power349_bad++;
+        }
+    }
+    power349_row++;
+}
+static void power349_run(bool saved) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotShutdown();reset_entities();setup_test_world();
+    void (*old_write)(pfWriteType_t,void const *)=gi.Write;void (*old_unicast)(edict_t *)=gi.unicast;
+    gi.Write=foot347_write;gi.unicast=foot347_unicast;
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    uint8_t cells[64*64]={0};CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+    mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+    info.players[0].playerType=kPlayerTypeComputer;info.players[1].playerType=kPlayerTypeNeutral;
+    FOR_LOOP(i,game.max_clients) {g_edicts[i].client=game.clients+i;game.clients[i].ps.number=i;}
+    info.players[0].startingPosition=(vec2_t){272,304};game.clients[0].ps.start_location=0;
+    float radius=8,turn=.37f,window=45,range=90,acquire=500;
+    float castpt=wc3_decimal("0.3"),castbsw=wc3_decimal("0.51"),regen=.25f,launch=60,scale=1;int speed=333,min=1,max=522,weapons=1,hp=5000,mana=1000;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_int,.data=&speed},
+        {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&min},
+        {.modID=MAKEFOURCC('u','m','a','s'),.type=mod_int,.data=&max},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_unreal,.data=&turn},
+        {.modID=MAKEFOURCC('u','p','r','w'),.type=mod_unreal,.data=&window},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&range},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+    unitModification_t health[]={
+        {.modID=MAKEFOURCC('u','h','p','m'),.type=mod_int,.data=&hp},
+        {.modID=MAKEFOURCC('u','m','p','m'),.type=mod_int,.data=&mana},
+        {.modID=MAKEFOURCC('u','m','p','i'),.type=mod_int,.data=&mana},
+        {.modID=MAKEFOURCC('u','t','a','r'),.type=mod_string,.data="ground"},
+        {.modID=MAKEFOURCC('u','c','p','t'),.type=mod_unreal,.data=&castpt},
+        {.modID=MAKEFOURCC('u','c','b','s'),.type=mod_unreal,.data=&castbsw},
+        {.modID=MAKEFOURCC('u','h','p','r'),.type=mod_unreal,.data=&regen},
+        {.modID=MAKEFOURCC('u','l','p','z'),.type=mod_unreal,.data=&launch},
+        {.modID=MAKEFOURCC('u','i','m','z'),.type=mod_unreal,.data=&launch},
+        {.modID=MAKEFOURCC('u','s','c','a'),.type=mod_unreal,.data=&scale}};
+    unitModification_t all[19];memcpy(all,mods,sizeof(mods));memcpy(all+9,health,sizeof(health));
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','P','4','9'),.numbeOfModifications=19,.modifications=all};
+    info.num_userCreatedUnits=1;info.userCreatedUnits=&type;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    char const ability[]=
+        "ID;PWXL;N;EBB;Y2;X14\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\n"
+        "C;X5;K\"DataC1\"\nC;X6;K\"DataD1\"\nC;X7;K\"DataE1\"\nC;X8;K\"Dur1\"\n"
+        "C;X9;K\"HeroDur1\"\nC;X10;K\"BuffID1\"\nC;X11;K\"Cast1\"\nC;X12;K\"Rng1\"\n"
+        "C;X13;K\"Cost1\"\nC;X14;K\"targs\"\n"
+        "C;Y2;X1;K\"AEsh\"\nC;X2;K\"AEsh\"\nC;X3;K\"10\"\nC;X4;K\"0.5\"\n"
+        "C;X5;K\"0\"\nC;X6;K\"3\"\nC;X7;K\"75\"\nC;X8;K\"15.1\"\n"
+        "C;X9;K\"15.1\"\nC;X10;K\"BEsh\"\nC;X11;K\"3\"\nC;X12;K\"300\"\n"
+        "C;X13;K\"65\"\nC;X14;K\"ground,air,enemy,neutral,organic\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(ability),*old_rows=G_SetSLKRows("AbilityData",rows);
+    float follow=game.constants.followRange;game.constants.followRange=300;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+    uint32_t length=0;char *probe=gi.ReadFile("Scripts\\power349.j",&length);T_NOT_NULL(probe);
+    if(probe) {
+        /* Retail common.j owns these constants; the minimal test common.j
+         * omits unitstate. Keep the captured probe itself byte-for-byte intact. */
+        char const states[]="type unitstate extends handle\n"
+            "globals\nconstant unitstate UNIT_STATE_LIFE=ConvertUnitState(0)\n"
+            "constant unitstate UNIT_STATE_MAX_LIFE=ConvertUnitState(1)\n"
+            "constant unitstate UNIT_STATE_MANA=ConvertUnitState(2)\n"
+            "constant unitstate UNIT_STATE_MAX_MANA=ConvertUnitState(3)\nendglobals\n";
+        char *script=malloc(length+sizeof(states)+100);
+        snprintf(script,length+sizeof(states)+100,"%s%s\nfunction main takes nothing returns nothing\ncall PathProbeInit()\nendfunction\n",states,probe);
+        T_ASSERT(run_test_jass(script));free(script);gi.MemFree(probe);
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        power349_row=power349_bad=0;memset(power349_xy,0,sizeof(power349_xy));power349_unit=NULL;
+        test_preload_marker=power349_marker;test_unit_position_query=power349_coordinate;
+        bool restored=false;
+        while(level.time<23000) {
+            level.time+=5;globals.RunFrame();
+            if(saved && !restored && level.time==3405) {
+                cstring_t file=Test_TempPath("wc3-power349.bin");T_ASSERT(WriteGame(file));
+                test_preload_marker=NULL;test_unit_position_query=NULL;
+                T_ASSERT(ReadGame(file));remove(file);restored=true;
+                test_preload_marker=power349_marker;test_unit_position_query=power349_coordinate;
+            }
+        }
+        T_EQ(power349_row,sizeof(power349_public)/sizeof(*power349_public));T_EQ(power349_bad,0);
+        if(saved)T_ASSERT(restored);
+    }
+    test_preload_marker=NULL;test_unit_position_query=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotShutdown();G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.followRange=follow;gi.Write=old_write;gi.unicast=old_unicast;
+}
+TEST(wc3_movement, power349_public_parameter_overwrites_match_retail) {power349_run(false);}
+TEST(wc3_movement, power349_saved_parameter_overwrites_match_retail) {power349_run(true);}
 #endif

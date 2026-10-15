@@ -249,10 +249,12 @@ void unit_stand(edict_t *self) {
 
 /* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
 void G_SetHealth(edict_t *ent, float value) {
+    G_SampleHealthRegen(ent);
     uint8_t const old = compress_stat(&ent->health);
     float const old_value = ent->health.value;
     uint8_t next;
     ent->health.value = value;
+    G_RebaseHealthRegen(ent);
     next = compress_stat(&ent->health);
     if (old_value != value) FOR_EACH_EVENT(evt) {
         if (evt->type == EVENT_GAME_STATE_LIMIT && G_EventSubjectIsCurrent(evt) && evt->subject == ent && evt->state == WC3_UNIT_STATE_LIFE &&
@@ -264,7 +266,7 @@ void G_SetHealth(edict_t *ent, float value) {
         S_RefreshAbilityLevel(ent, FindAbilityByClassname("Afih"));
 }
 
-void G_AddHealth(edict_t *ent, float value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
+void G_AddHealth(edict_t *ent, float value) { G_SampleHealthRegen(ent);G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
 
 static void unit_apply_health_cap_delta(edict_t *ent, float amount, float *ledger) {
     float old_max, fraction;

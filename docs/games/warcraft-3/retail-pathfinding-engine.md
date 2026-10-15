@@ -21333,3 +21333,92 @@ python3 tools/ghidra/verify_wc3_pathing_move348.py --binary /path/game.dll --rep
 retail installation is needed by the engine regressions. Broader authored
 producer families remain MOVE-01.1; nonfinite terminals remain NUM-03.2.
 No entity/network layout or save format changed (Save198).
+
+### Pow/log/exp caller closure (Power349)
+
+NUM-01.19 inventories every referenced Pow, Log and Exp caller, including the
+forwarding and distribution wrappers. The guarded export contains38 complete
+functions /2387 instructions. `power349_callers.py` executes209 complete caller
+cases and checks1111 nested math results against the independent integer model
+and the compiled engine. No numerical result is manufactured for nonreturning
+power inputs; original VM lifetime remains NUM-01.14.
+
+| Caller | Pointer relationship and operation order |
+|---|---|
+| `1705c0` visual heading, call170726 | Separate local base/output; exponent points into the immutable policy row.96 cases cover all16 rows, both turn signs and three easing inputs. Existing Facing207 production/public/save regressions remain exact. |
+| `171500` forwarding Pow | Preserves caller pointers, including supplied output/base or output/exponent alias. No incoming Ghidra reference; this is an ABI witness, not a claim that arbitrary indirect calls are impossible. |
+| `20f990` public Pow | Owns separate locals before0710e0; public near-zero guards precede the helper. Four complete wrapper cases and live public calls cover the finite path. |
+| `502600` Shadow Strike | Copies duration/exponent, writes the duration power and remaining-duration power to separate locals, divides, normalizes near zero, then writes external output. |
+| `1d4450/1d44a0` exponential distributions | Native PRNG mantissa becomes2-word; Log reads a separate local, result sign flips, scaled variant multiplies afterward. Complete fill wrappers1d1c10/1d1c50 include zero counts. |
+| `1d4500/1d4630` Gaussian distributions | Two native draws, distinct SinCos outputs, separate Log output, then -2 multiplication, square root and paired products. Global cached second sample preserves draw consumption. Fill wrappers1d1c90/1d1cd0 and scaled mean/deviation composition are exercised. |
+| `1d1de0` forwarding Log | Preserves supplied input/output alias; no incoming Ghidra reference. |
+| Internal reductions | Pow→Log→LogReduced→LogCore, Pow→Exp→ExpQuarter and integer-power calls retain distinct local destinations. Existing raw-helper power oracle covers reduction branches and supplied helper aliases; those are kept separate from observed producer relationships. |
+
+The reachable Shadow Strike consumer exposed a real missing implementation:
+OpenRealm applied only the initial hit. The failing-first regression recorded
+three failures: no BEsh status, no movement reduction and no source ownership.
+The implementation now owns a sparse per-target status record and one heap row
+for its independently ordered recovery, damage and expiry requests. Native500a60
+finds the BEsh ability class (515440), so reapplication preserves one owner even
+when the authored display BuffID changes. The failing cross-BuffID regression
+now verifies that the old status does not survive. The implementation preserves
+save/load identity, replaces the old movement contribution with one software
+subtraction/addition, and frees the row on removal/death. The ability and its
+ACss alias stay in the game module; client/network structures do not change.
+
+The recovery formula is
+`Pow(abs(elapsed-duration),exponent)/Pow(duration,exponent)`. Timer84 virtual1c
+is elapsed (`060630`), obtained by duration-minus-remaining. Its first captured
+age is3f800008, not binary321.0. Exponent/duration are independent snapshots;
+the retained multiplier is written after contribution publication. The custom
+5.7/.5 regression compares literal factor3f687638 from the complete original
+caller, exercising Log/Exp rather than integer-power alone. Legacy RoC data
+columns and TFT columns are both covered; Shadow Strike's fifth data cell uses
+the TFT DataE1 extension. Custom BuffID,17 periodic damage,.375 movement and.25
+attack reduction prevent a stock-constant implementation from passing.
+
+Actual1.27 patched AEsh level1 has DataA10 (War3Patch overrides War3x's older15),
+DataB.5, DataC0, DataD3, DataE75, Cast3 and duration15.1. Word12c is the poison
+interval, not damage; inherited wordec holds damage10. The missile launches at
+speed1200 from the authored model launch offset; hfoo's captured launch Z is
+59.999996. Cast is the pulse interval, not spell windup. The projectile now
+integrates its private elapsed clock instead of advancing100ms per host call.
+Full moving-target interception/trajectory fidelity remains existing E2E-06.1.
+
+The raw life getter also reproduced a clock/rounding defect. The original health
+bridge (`685170`→`057fd0`) predicts a committed base plus rate times primary
+elapsed time. Writes (`058190/161b70/162340`) settle that value and rebase. A
+read must not rebase. Sparse engine health state now follows that contract;
+ordinary direct entity-step fixtures retain their established update sequence.
+Unbound temporary entities cannot own a health bridge; healthy units without
+drains skip regeneration queries. Terminal health writes retire the positive
+prediction immediately; a failing-first death regression verifies that health
+remains zero on subsequent frames.
+The native primary counter and a script callback's logical deadline are distinct.
+Diagnostic capture349j proves the five poison commits and their clock origins,
+including first pulse primary4.634902477. Using the callback deadline, or starting
+regeneration on the next host frame, produces raw life mismatches.
+
+Two read-only observations match3615 native records each and1351 scalar calls.
+The observer-free control agrees on all428 public markers. An additional bounded
+read-only diagnostic retains the clock, missile and health-write observations.
+The exact public JASS script produces422 frozen raw getter rows (order, X/Y,
+facing, speed and life); all match fresh and through a cold save during recovery.
+The harness supplies the unitstate constants omitted by the minimal test
+common.j; it also checks the actual JASS life getter through its R2S result.
+Expected retail words were never rebaselined. Additional lifecycle regressions
+cover a saved in-flight callback, reapplication, dispel, source removal and death.
+The new sparse pointers/callback are serialized explicitly; Save199 rejects prior
+layouts. The general sparse-pool round trip includes their scalar contents.
+
+Reproduce with:
+```
+python3 tools/ghidra/verify_wc3_pathing_power349.py --binary /path/game.dll \
+  --engine-library /fresh/pathing-engine.so --report /fresh/power349.json
+```
+The sibling shipped msvcr120.dll is required for original decimal initialization.
+The frozen bundle `tools/ghidra/fixtures/retail-power349-1.27.json.gz` retains raw
+preload line endings, exact captured source versions, ownership metadata and the
+complete instruction/reference inventory. Engine regressions require no retail
+installation. The verifier requires nonempty Classic/TFT runs and rejects altered
+getters, alias relationships, elapsed-clock observations and health commits.

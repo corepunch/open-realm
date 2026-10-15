@@ -311,3 +311,35 @@ compiler warnings. Logs, red baselines and final reports are under
 A parallel production rebuild initially raced MPQ tools loading `libgame.so`;
 the final suite ran after that build. Avoid rebuilding that library while
 archive-generation tools are running.
+
+### Power349 Pow caller checkpoint
+
+NUM-01.19 closes with302/336 leaves done and34 remaining. The portable
+original-code verifier checks38 functions/2387 instructions,209 complete caller
+cases and1111 nested arithmetic results. Two read-only retail streams match3615
+records and1351 scalar calls; the control agrees428 public markers. The engine
+matches422 immutable getter rows fresh and through a cold save. The minimal
+common.j omissions are supplied by the harness; actual JASS life/R2S values are
+checked alongside raw unit state.
+
+`make test TEST_JOBS=8` completed successfully:9379 native tests across32 JUnit
+reports, and2273 Python evidence tests (602.129s). The final health-death
+regression then reproduced four failures: the cached positive regeneration could
+raise a dead unit's health. Terminal writes now retire that prediction. All eight
+Classic/TFT shards were rerun after the fix; their fresh reports preserve the
+9379-test aggregate with zero failures/errors/skips. No Python implementation
+changed after the completed sweep; the corpus/catalog checks are rerun after
+final documentation and pin updates. Debug production/test targets and the
+isolated optimized game module build pass. The earlier optimized renderer build
+retains its existing blockHeader warnings in unchanged r_mdx_load.c; the changed
+game module builds without warnings.
+
+Logs, red reproducers, original captures, focused verifier reports and final
+JUnit files are under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-01.19/power349/`.
+`full-accepted.log` records the aggregate sweep;
+`native-after-death-fix.log` and `full-accepted-junit/` record the final native
+acceptance. The guard for unbound temporary entities and the cross-BuffID
+single-owner regression are retained with their original failing logs. Save199
+round trips active status/health state and an in-flight callback, and rejects
+older layouts. No new TODOs; no push.

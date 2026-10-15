@@ -103,7 +103,15 @@ void SV_Physics_Toss(edict_t *ent) {
     bool const fixed_target = (ent->aiflags & AI_PROJECTILE_FIXED_TARGET) != 0;
 
     if (!fixed_target && (!ent->goalentity || !ent->goalentity->inuse)) { G_FreeEdict(ent); return; }
-    distance = ent->velocity * FRAMETIME;
+    /* The host may submit5ms frames while the game retains its private scalar
+     * clock. A projectile must integrate its own elapsed time, not100ms per call. */
+    float millis=FRAMETIME;
+    if(level.scheduled_frame && ent->movement.clock_valid) {
+        wc3Clock_t now=G_TimerQueryClock(NULL);
+        millis=wc3_mul(MAX(0,wc3_elapsed(&now,&ent->movement.pose_clock)),1000);
+        ent->movement.pose_clock=now;
+    }
+    distance = ent->velocity * millis;
     if (fixed_target) {
         assert(ent->channel);
         target = MAKE(vec3_t, ent->channel->origin.x, ent->channel->origin.y,
@@ -175,11 +183,74 @@ static bool G_UnitRegeneratesHP(edict_t const *ent) {
     return true; /* "always" */
 }
 
+/* Scalar bridges observe the advanced primary counter even inside a timer
+ * callback. A callback's logical request deadline is a separate clock. */
+static bool health_entity_frame;
+static wc3Clock_t G_HealthClock(void) {
+    wc3Clock_t now=level.pathing_clock;
+    if(level.scheduled_frame && health_entity_frame)wc3_clock_advance(&now,wc3_float(0x3ba3d70a),0);
+    return now;
+}
+
+static float G_HealthRegenRate(edict_t *unit) {
+    if(!unit->data.UnitBalance || unit->health.max_value<=0 || unit->health.value<=0)return 0;
+    float drain=S_UnholyFrenzyLifeDrain(unit)+S_SoulBurnDamageRate(unit);
+    if(!unit->health_regen && unit->health.value>=unit->health.max_value && drain==0)return 0;
+    float rate=S_RegenerationHealthAura(unit)+S_RejuvHealRate(unit);
+    if(G_UnitRegeneratesHP(unit))rate+=unit->data.UnitBalance->healthRegen+
+        (float)unit->hero.str*STR_REGEN_BONUS+S_UnholyHealthRegen(unit);
+    return rate-drain;
+}
+
+/*057fd0 samples base+rate*elapsed before clamping; sampling must not rebase. */
+void G_SampleHealthRegen(edict_t *unit) {
+    healthRegen_t *state=unit ? unit->health_regen : NULL;
+    if(!state || state->sampling)return;
+    wc3Clock_t now=G_HealthClock();
+    if(wc3_float_bits(unit->health.value)!=wc3_float_bits(state->value)) {
+        state->clock=now;state->base=state->value=unit->health.value;
+    }
+    float value=wc3_add(state->base,wc3_mul(state->rate,wc3_elapsed(&now,&state->clock)));
+    value=MAX(0,MIN(unit->health.max_value,value));
+    state->sampling=true;G_SetHealth(unit,value);state->sampling=false;state->value=value;
+}
+void G_RebaseHealthRegen(edict_t *unit) {
+    healthRegen_t *state=unit->health_regen;
+    if(!state) {
+        /* A missile can wound a unit after that unit's frame was visited.
+         * Its scalar starts at the health write, not the next host frame. */
+        if(level.scheduled_frame && (unit->svflags&SVF_MONSTER))
+            G_UpdateHealthRegen(unit,G_HealthRegenRate(unit));
+        return;
+    }
+    if(state->sampling)return;
+    /* A terminal health write retires its positive prediction immediately;
+     * the next entity frame must not sample regeneration back above zero. */
+    if(unit->health.value<=0) {G_FreeHealthRegen(unit);return;}
+    state->base=state->value=unit->health.value;state->clock=G_HealthClock();
+}
+void G_UpdateHealthRegen(edict_t *unit,float rate) {
+    G_SampleHealthRegen(unit);
+    if(!unit->health_regen && rate!=0 && unit->health.value>0 &&
+       (rate<0 || unit->health.value<unit->health.max_value)) {
+        unit->health_regen=G_AllocHealthRegen();
+        *unit->health_regen=(healthRegen_t){.clock=G_HealthClock(),
+            .base=unit->health.value,.value=unit->health.value,.rate=rate};
+    }
+    healthRegen_t *state=unit->health_regen;
+    if(!state)return;
+    if(wc3_float_bits(rate)!=wc3_float_bits(state->rate)) {
+        state->rate=rate;G_RebaseHealthRegen(unit);
+    }
+    if(unit->health.value<=0 || (rate>=0 && unit->health.value>=unit->health.max_value))G_FreeHealthRegen(unit);
+}
+
 /* Per-entity update called every game frame.  Runs physics based on movetype,
  * then calls the entity's think function, and finally compresses health/mana
  * into the 8-bit stat fields that are sent to clients. */
 void G_RunEntity(edict_t *ent) {
     if (!ent->inuse) return; /* defensive: freed edicts carry no simulation state */
+    bool const saved_health_frame=health_entity_frame;health_entity_frame=true;
     bool const world_active = G_UnitIsWorldActive(ent);
     spell_run_frame(ent);
     unit_updatestatuses(ent);
@@ -209,6 +280,8 @@ void G_RunEntity(edict_t *ent) {
                  + S_RegenerationManaAura(ent);
         ent->mana.value = MIN(ent->mana.max_value, ent->mana.value + rate * (FRAMETIME / 1000.0f));
     }
+    if(level.scheduled_frame)G_UpdateHealthRegen(ent,G_HealthRegenRate(ent));
+    else {
     /* Hit-point regeneration (WC3 'uhpr', HP/second), plus a hero's Strength
      * regen bonus (MiscGame StrRegenBonus = 0.05 HP/sec per Strength).  Gated by
      * the unit's 'uhrt' regenType: "always" any time, "night" only at night
@@ -228,6 +301,7 @@ void G_RunEntity(edict_t *ent) {
     { float const drain = S_UnholyFrenzyLifeDrain(ent); if (drain > 0.0f && ent->health.value > 0) G_AddHealth(ent, -drain * (FRAMETIME / 1000.0f)); }
     /* Soul Burn deals DataA damage per second to the afflicted unit. */
     { float const rate = S_SoulBurnDamageRate(ent); if (rate > 0.0f && ent->health.value > 0) G_AddHealth(ent, -rate * (FRAMETIME / 1000.0f)); }
+    }
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
     if (ent->currentmove) {
@@ -236,6 +310,7 @@ void G_RunEntity(edict_t *ent) {
         ent->s.ability = 255;
     }
     ent->s.class_id = ent->class_id;
+    health_entity_frame=saved_health_frame;
 }
 
 inline bool M_CheckCollision(vec2_t const *origin, float radius) {

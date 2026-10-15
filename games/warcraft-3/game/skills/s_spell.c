@@ -517,7 +517,7 @@ bool S_PrepareUnitSpellEffect(edict_t *caster, uint32_t code, edict_t *target) {
 bool S_SpellShieldImpactDeferred(uint32_t code) {
     ability_t const *ability = S_SpellAbilityForCode(code);
     return ability && (ability->proc == CAbilityThunderBolt || ability->proc == CAbilityFireBolt ||
-                       ability->proc == CAbilityDeathCoil);
+                       ability->proc == CAbilityDeathCoil || ability->proc == CAbilityShadowStrike);
 }
 
 /* The authored targs mask without the unit-target visibility rule: area effects reach
@@ -1935,7 +1935,9 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
     if (!missile) return NULL;
     art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
     missile->class_id = code;
-    missile->s.origin = caster->s.origin;
+    mat4_t matrix;M_GetEntityMatrix(&caster->s,&matrix);
+    vec3_t launch={G_UnitAttack1LaunchX(caster->class_id),G_UnitAttack1LaunchY(caster->class_id),G_UnitAttack1LaunchZ(caster->class_id)};
+    missile->s.origin = Matrix4_multiply_vector3(&matrix,&launch);
     missile->s.angle = caster->s.angle;
     missile->s.model = art ? G_RegisterModel(art) : 0;
     missile->s.player = caster->s.player;

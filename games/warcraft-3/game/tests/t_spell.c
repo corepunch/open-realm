@@ -7196,4 +7196,117 @@ static void cast283_bulk(bool saved) {
 }
 TEST(wc3_spell, cast283_active_pool_growth_and_deadline_order) {cast283_bulk(false);}
 TEST(wc3_spell, cast283_active_pool_growth_and_deadline_order_saved) {cast283_bulk(true);}
+/* Retail stock Shadow Strike applies BEsh and halves a333-speed victim at impact. */
+TEST(wc3_spell, power349_shadow_strike_applies_owned_movement_status) {
+    char const slk[]=
+        "ID;PWXL;N;EBB;Y2;X14\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\n"
+        "C;X5;K\"DataC1\"\nC;X6;K\"DataD1\"\nC;X7;K\"DataE1\"\nC;X8;K\"Dur1\"\n"
+        "C;X9;K\"HeroDur1\"\nC;X10;K\"BuffID1\"\nC;X11;K\"Cast1\"\nC;X12;K\"Rng1\"\n"
+        "C;X13;K\"Cost1\"\nC;X14;K\"targs\"\n"
+        "C;Y2;X1;K\"AEsh\"\nC;X2;K\"AEsh\"\nC;X3;K\"15\"\nC;X4;K\"0.5\"\n"
+        "C;X5;K\"0\"\nC;X6;K\"3\"\nC;X7;K\"75\"\nC;X8;K\"15.1\"\n"
+        "C;X9;K\"15.1\"\nC;X10;K\"BEsh\"\nC;X11;K\"3\"\nC;X12;K\"300\"\n"
+        "C;X13;K\"0\"\nC;X14;K\"ground,air,enemy,organic\"\nE\n";
+    reset_entities();setup_test_world();
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('h','f','o','o'),512,768);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),672,768);
+    caster->s.player=0;target->s.player=1;caster->svflags|=SVF_MONSTER;target->svflags|=SVF_MONSTER;
+    target->health.value=target->health.max_value=5000;
+    S_SetUnitMoveSpeed(target,333);level.time=level.pathing_msec=0;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    T_ASSERT(test_execute_code(caster,"AEsh",MAKE(spellTarget_t,.type=SPELL_TARGET_UNIT,.entity=target)));
+    for(unsigned i=0;i<100;i++){level.time+=5;globals.RunFrame();}
+    T_ASSERT(S_UnitHasStatus(target,MAKEFOURCC('B','E','s','h')));
+    T_EQ(wc3_float_bits(S_UnitMoveSpeed(target)),0x43268000u);
+    heroabilitystatus_t *status=unit_findstatus(target,MAKEFOURCC('B','E','s','h'));
+    T_NOT_NULL(status);
+    if(status) {
+        T_EQ(status->source_ability,MAKEFOURCC('A','E','s','h'));
+        T_EQ(status->source,caster);
+        unit_removestatus(target,status,STATUS_REMOVE_SCRIPT);
+        T_EQ(wc3_float_bits(S_UnitMoveSpeed(target)),0x43a68000u);
+    }
+    level.started=false;reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+/* RoC numeric data columns, custom data, a live missile callback and status
+ * replacement/removal all go through production dispatch and the scheduler. */
+static void power349_custom_lifecycle(bool roc) {
+    reset_entities();setup_test_world();
+    char slk[2400];
+    char const *rank="1";
+    snprintf(slk,sizeof(slk),
+        "ID;PWXL;N;EBB;Y2;X14\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"Data%s\"\nC;X4;K\"Data%s\"\n"
+        "C;X5;K\"Data%s\"\nC;X6;K\"Data%s\"\nC;X7;K\"Data%s\"\nC;X8;K\"Dur%s\"\n"
+        "C;X9;K\"HeroDur%s\"\nC;X10;K\"BuffID%s\"\nC;X11;K\"Cast%s\"\nC;X12;K\"Rng%s\"\n"
+        "C;X13;K\"Cost%s\"\nC;X14;K\"targs\"\n"
+        "C;Y2;X1;K\"ACss\"\nC;X2;K\"AEsh\"\nC;X3;K\"17\"\nC;X4;K\"0.375\"\n"
+        "C;X5;K\"0.25\"\nC;X6;K\"0.5\"\nC;X7;K\"37\"\nC;X8;K\"5.7\"\n"
+        "C;X9;K\"5.7\"\nC;X10;K\"BX49\"\nC;X11;K\"0.7\"\nC;X12;K\"300\"\n"
+        "C;X13;K\"0\"\nC;X14;K\"ground,air,enemy,organic\"\nE\n",
+        roc ? "11" : "A1",roc ? "12" : "B1",roc ? "13" : "C1",roc ? "14" : "D1","E1",rank,rank,rank,rank,rank,rank);
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    void (*old_write)(pfWriteType_t,void const *)=gi.Write;void (*old_unicast)(edict_t *)=gi.unicast;
+    gi.Write=spell_panel_test_write;gi.unicast=spell_panel_test_unicast;
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('h','f','o','o'),512,768);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),672,768);
+    caster->s.player=0;target->s.player=1;caster->svflags|=SVF_MONSTER;target->svflags|=SVF_MONSTER;
+    target->health.value=target->health.max_value=5000;target->die=unit_die;
+    S_SetUnitMoveSpeed(target,333);level.time=level.pathing_msec=0;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    T_ASSERT(test_execute_code(caster,"ACss",MAKE(spellTarget_t,.type=SPELL_TARGET_UNIT,.entity=target)));
+    while(level.time<50){level.time+=5;globals.RunFrame();}
+    edict_t *missile=NULL;
+    FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].shadow_strike && !g_edicts[i].shadow_strike->status_id)missile=g_edicts+i;
+    T_NOT_NULL(missile);
+    cstring_t file=Test_TempPath("wc3-power349-flight.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    if(missile) {T_NOT_NULL(missile->shadow_strike);T_EQ(missile->currentmove->endfunc,S_ShadowStrikeProjectileHit);}
+    while(level.time<500){level.time+=5;globals.RunFrame();}
+    T_FEQ(target->health.value,4963,0.5f);
+    T_FEQ(S_UnitMoveSpeed(target),208.125f,0.0001f);
+    heroabilitystatus_t *status=unit_findstatus(target,MAKEFOURCC('B','X','4','9'));T_NOT_NULL(status);
+    T_NOT_NULL(target->shadow_strike);
+    while(level.time<1300){level.time+=5;globals.RunFrame();}
+    T_FEQ(target->health.value,4946,1.0f);
+    if(target->shadow_strike) {T_ASSERT(target->shadow_strike->factor>0);T_ASSERT(target->shadow_strike->factor<1);
+        /* Original502600, authored5.7/exponent.5, elapsed3f800008. */
+        T_EQ(wc3_float_bits(target->shadow_strike->factor),0x3f687638u);
+    }
+    T_ASSERT(S_UnitMoveSpeed(target)>208.125f);T_ASSERT(S_UnitMoveSpeed(target)<333);
+    /* Native500a60 replaces the BEsh class even when authored BuffID changes. */
+    memcpy(strstr(slk,"BX49"),"BY49",4);
+    slkTestData_t *replacement=parse_slk_string(slk);
+    G_SetSLKRows("AbilityData",replacement);free_slk_rows(rows);rows=replacement;
+    T_ASSERT(test_execute_code(caster,"ACss",MAKE(spellTarget_t,.type=SPELL_TARGET_UNIT,.entity=target)));
+    while(level.time<1800){level.time+=5;globals.RunFrame();}
+    T_FEQ(S_UnitMoveSpeed(target),208.125f,0.0001f);
+    status=unit_findstatus(target,MAKEFOURCC('B','Y','4','9'));T_NOT_NULL(status);
+    T_ASSERT(!S_UnitHasStatus(target,MAKEFOURCC('B','X','4','9')));
+    if(status)unit_removestatus(target,status,STATUS_REMOVE_DISPEL);
+    T_NULL(target->shadow_strike);T_FEQ(S_UnitMoveSpeed(target),333,0.0001f);
+    float health=target->health.value;
+    while(level.time<2600){level.time+=5;globals.RunFrame();}
+    T_FEQ(target->health.value,health,0.5f);
+    T_ASSERT(test_execute_code(caster,"ACss",MAKE(spellTarget_t,.type=SPELL_TARGET_UNIT,.entity=target)));
+    while(level.time<3000){level.time+=5;globals.RunFrame();}
+    T_NOT_NULL(target->shadow_strike);G_FreeEdict(caster);
+    while(level.time<3500){level.time+=5;globals.RunFrame();}
+    T_NOT_NULL(target->shadow_strike); /* Poison outlives its source incarnation. */
+    T_Damage(target,NULL,10000);
+    T_NULL(target->shadow_strike);T_NULL(target->health_regen);
+    while(level.time<4000){level.time+=5;globals.RunFrame();}
+    T_EQ(wc3_float_bits(target->health.value),0u);
+    T_NULL(target->shadow_strike);
+    level.started=false;reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    gi.Write=old_write;gi.unicast=old_unicast;
+}
+TEST(wc3_spell,power349_custom_roc_lifecycle){power349_custom_lifecycle(true);}
+TEST(wc3_spell,power349_custom_tft_lifecycle){power349_custom_lifecycle(false);}
 #endif

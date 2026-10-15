@@ -293,7 +293,8 @@
     "oracle-order345",
     "oracle-order346",
     "oracle-foot347",
-    "oracle-move348"
+    "oracle-move348",
+    "oracle-power349"
   ],
   "entries": [
     {
@@ -6714,6 +6715,18 @@
           "task": "NUM-03.2",
           "disposition": "evidence-boundary",
           "rationale": "The existing nonfinite task owns exceptional terminal behavior; this capture composes finite public requests."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-power349",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Original nonreturning public VM lifetime remains NUM-01.14.",
+          "task": "NUM-01.14",
+          "disposition": "evidence-boundary",
+          "rationale": "The existing VM lifetime task owns nonreturning scheduling and failure policy; finite caller operands and arithmetic do not establish that behavior."
         }
       ]
     }

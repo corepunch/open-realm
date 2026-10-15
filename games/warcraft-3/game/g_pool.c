@@ -112,6 +112,8 @@ DEFINE_POOL(unsummon, Unsummon, unsummon_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(shadowmeld, ShadowMeld, shadowMeld_t, MAX_ENTITIES)
 DEFINE_POOL(militia, Militia, militia_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL(health_regen, HealthRegen, healthRegen_t, MAX_ENTITIES)
+DEFINE_POOL_CALLBACKS(shadow_strike, ShadowStrike, shadowStrike_t, LIFECYCLE_POOL_CAP, (void)0, S_ForgetShadowStrike(ent))
 DEFINE_POOL(raven, Raven, raven_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(morph, Morph, morph_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(blight_growth, BlightGrowth, blightGrowth_t, LIFECYCLE_POOL_CAP)
@@ -149,6 +151,8 @@ void G_PoolsReportPeaks(void) {
     REPORT_POOL(shadowmeld);
     REPORT_POOL(militia);
     REPORT_POOL(polymorph);
+    REPORT_POOL(shadow_strike);
+    REPORT_POOL(health_regen);
     REPORT_POOL(raven);
     REPORT_POOL(morph);
     REPORT_POOL(blight_growth);
@@ -195,6 +199,8 @@ void G_PoolsReset(void) {
             g_edicts[i].shadowmeld = NULL;
             g_edicts[i].militia = NULL;
             g_edicts[i].polymorph = NULL;
+            g_edicts[i].shadow_strike = NULL;
+            g_edicts[i].health_regen = NULL;
             g_edicts[i].raven = NULL;
             g_edicts[i].morph = NULL;
             g_edicts[i].blight_growth = NULL;
@@ -229,6 +235,8 @@ void G_PoolsReset(void) {
     G_ResetShadowMeldPool();
     G_ResetMilitiaPool();
     G_ResetPolymorphPool();
+    G_ResetShadowStrikePool();
+    G_ResetHealthRegenPool();
     G_ResetRavenPool();
     G_ResetMorphPool();
     G_ResetBlightGrowthPool();
@@ -267,6 +275,8 @@ void G_PoolsReleaseEdict(edict_t *ent) {
     G_FreeShadowMeld(ent);
     G_FreeMilitia(ent);
     G_FreePolymorph(ent);
+    G_FreeShadowStrike(ent);
+    G_FreeHealthRegen(ent);
     G_FreeRaven(ent);
     G_FreeMorph(ent);
     G_FreeBlightGrowth(ent);
@@ -328,6 +338,8 @@ TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     CHECK_POOL(shadowmeld, ShadowMeld, shadowMeld_t);
     CHECK_POOL(militia, Militia, militia_t);
     CHECK_POOL(polymorph, Polymorph, polymorph_t);
+    CHECK_POOL(shadow_strike, ShadowStrike, shadowStrike_t);
+    CHECK_POOL(health_regen, HealthRegen, healthRegen_t);
     CHECK_POOL(raven, Raven, raven_t);
     CHECK_POOL(morph, Morph, morph_t);
     CHECK_POOL(blight_growth, BlightGrowth, blightGrowth_t);

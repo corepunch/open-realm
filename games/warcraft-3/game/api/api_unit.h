@@ -236,6 +236,7 @@ uint32_t SetUnitState(jass_t *j) {
 uint32_t GetUnitState(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
+    if(whichUnit && whichUnitState && *whichUnitState==WC3_UNIT_STATE_LIFE)G_SampleHealthRegen(whichUnit);
     float value = whichUnit && whichUnitState ? (&whichUnit->health.value)[*whichUnitState] : 0;
     return jass_pushnumber(j, value);
 }

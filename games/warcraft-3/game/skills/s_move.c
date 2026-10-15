@@ -285,6 +285,8 @@ void S_InitMoveProjectile(edict_t *mover) {
     mover->movetype=MOVETYPE_FLYMISSILE;
     mover->movement.adaptive_disabled=true;
     mover->movement.fine_class=15;
+    mover->movement.pose_clock=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    mover->movement.clock_valid=true;
     mover->collision=0;
     mover->no_pathing=true;
 }
@@ -4450,6 +4452,12 @@ void S_ApplyMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status,floa
        !G_UnitAbilityLevel(unit,MAKEFOURCC('A','m','o','v')))return;
     status->move_speed_delta=delta;status->move_speed_applied=1;
     move_adjust_speed_factor(unit,delta);
+}
+/*64cf40 replaces a retained negative contribution with one scalar difference. */
+void S_UpdateMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status,float delta) {
+    if(!status || !status->move_speed_applied) {S_ApplyMoveSpeedContribution(unit,status,delta);return;}
+    float change=wc3_sub(delta,status->move_speed_delta);
+    status->move_speed_delta=delta;move_adjust_speed_factor(unit,change);
 }
 void S_RemoveMoveSpeedContribution(edict_t *unit,heroabilitystatus_t *status) {
     if(!unit || !status || !status->move_speed_applied)return;

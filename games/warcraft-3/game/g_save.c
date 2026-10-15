@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 198;
+static uint32_t const save_version = 199;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -131,6 +131,7 @@ typedef struct {
  * idle/move/run/attack have no production assignments; they still use F_CFUNCTION so a later
  * assignment must be rostered here or WriteGame fails instead of writing an ASLR address. */
 static saveCFunction_t const save_cfunctions[] = {
+    SAVE_CFUNCTION(S_ShadowStrikeProjectileHit),
     SAVE_CFUNCTION(monster_think),
     SAVE_CFUNCTION(blight_mine_think),
     SAVE_CFUNCTION(G_FreeEdict),
@@ -1229,6 +1230,8 @@ field_t edict_fields[] = {
     F(edict_s, shadowmeld, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, militia, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, polymorph, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, shadow_strike, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, health_regen, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, raven, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, morph, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, blight_growth, F_IGNORE, 0, FIELD_RUNTIME),
@@ -3246,6 +3249,8 @@ POOL_ALLOC(Unsummon)
 POOL_ALLOC(ShadowMeld)
 POOL_ALLOC(Militia)
 POOL_ALLOC(Polymorph)
+POOL_ALLOC(ShadowStrike)
+POOL_ALLOC(HealthRegen)
 POOL_ALLOC(Raven)
 POOL_ALLOC(Morph)
 POOL_ALLOC(BlightGrowth)
@@ -3278,6 +3283,8 @@ static savePool_t const save_pools[] = {
     { "shadowmeld", offsetof(edict_t, shadowmeld), sizeof(shadowMeld_t), scalar_pool_fields, SaveAllocShadowMeld },
     { "militia", offsetof(edict_t, militia), sizeof(militia_t), militia_fields, SaveAllocMilitia },
     { "polymorph", offsetof(edict_t, polymorph), sizeof(polymorph_t), polymorph_fields, SaveAllocPolymorph },
+    { "shadow_strike", offsetof(edict_t, shadow_strike), sizeof(shadowStrike_t), scalar_pool_fields, SaveAllocShadowStrike },
+    { "health_regen", offsetof(edict_t, health_regen), sizeof(healthRegen_t), scalar_pool_fields, SaveAllocHealthRegen },
     { "raven", offsetof(edict_t, raven), sizeof(raven_t), raven_fields, SaveAllocRaven },
     { "morph", offsetof(edict_t, morph), sizeof(morph_t), morph_fields, SaveAllocMorph },
     { "blight_growth", offsetof(edict_t, blight_growth), sizeof(blightGrowth_t), scalar_pool_fields, SaveAllocBlightGrowth },
@@ -5116,6 +5123,12 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     };
     unit->buildwork->ability = MAKEFOURCC('A','r','e','p');
     unit->buildwork->gold_accum = 2.5f;
+    unit->shadow_strike->factor = 0.375f;
+    unit->shadow_strike->damage = 17;
+    unit->shadow_strike->buff = MAKEFOURCC('B','X','4','9');
+    unit->health_regen->base = unit->health_regen->value = unit->health.value;
+    unit->health_regen->rate = 0.25f;
+    unit->health_regen->clock = (wc3Clock_t){1.25f,0,300};
     unit->shadowmeld->fade_start = 1750;
     unit->shadowmeld->hide_order_active = true;
     unit->blight_growth->ability = MAKEFOURCC('A','b','l','i');
@@ -5149,6 +5162,13 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     }
     T_ASSERT(unit->construction);
     T_FEQ(unit->construction->progress, 13.5f, 0.001f);
+    T_FEQ(unit->shadow_strike->factor,0.375f,0);
+    T_FEQ(unit->shadow_strike->damage,17,0);
+    T_EQ(unit->shadow_strike->buff,MAKEFOURCC('B','X','4','9'));
+    T_FEQ(unit->health_regen->base,unit->health.value,0);
+    T_FEQ(unit->health_regen->rate,0.25f,0);
+    T_FEQ(unit->health_regen->clock.time,1.25f,0);
+    T_ASSERT(!unit->health_regen->sampling);
     T_ASSERT(unit->construction->worker == target);
     T_EQ(unit->research->upgrade, MAKEFOURCC('R','h','m','e'));
     T_FEQ(unit->research->progress, 9.25f, 0.001f);

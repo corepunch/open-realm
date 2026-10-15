@@ -59,16 +59,3 @@ BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives) {
         S_SpellDamage(target, caster, (uint32_t)damage);
 #undef FOK_HITS
 }
-
-/* ---- Shadow Strike (AEsh): single-target nuke ----------------------------- */
-
-BZ_SIMPLE_SPELL_PROC(AbilityShadowStrike) {
-    edict_t *target = st.entity;
-    uint32_t level = S_SpellLevel(caster, spell->code);
-    uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 5)); /* DataE = Initial Damage */
-
-    S_SpellDamage(target, caster, damage);
-    /* TODO(1:1): Shadow Strike also applies a movement slow and a decaying
-     * poison DoT via the BEsh buff.  The status system needs a movement-speed
-     * modifier and a periodic-damage tick first. */
-}
