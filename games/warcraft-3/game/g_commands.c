@@ -1532,7 +1532,6 @@ CLIENTCOMMAND(Unit) {
         }
         FOR_LOOP(i, count) {
             edict_t *unit = selected[i];
-            if (!G_UnitCanControl(client, unit)) continue;
             selected_count++;
             if (!unit->die) continue;
             unit->invulnerable = false;
@@ -1541,7 +1540,7 @@ CLIENTCOMMAND(Unit) {
             killed++;
         }
         if (!selected_count) {
-            G_CheatPrintf(clent, "WC3: unit kill requires selected controllable units");
+            G_CheatPrintf(clent, "WC3: unit kill requires selected units");
             return;
         }
         G_CheatPrintf(clent, "WC3: killed %u of %u selected unit(s)",
