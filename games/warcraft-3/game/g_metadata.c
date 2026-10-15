@@ -4,6 +4,11 @@
 
 cstring_t config_files[] = {
     "UI\\WorldEditGameStrings.txt",
+#if BZ_COMPAT_WORKAROUNDS
+    /* RoC 1.0 stores destructable WESTRING_DOOD_* labels here rather than in
+     * the WorldEditGameStrings file loaded above. */
+    "UI\\WorldEditStrings.txt",
+#endif
     "Units\\OrcAbilityStrings.txt",
     "Units\\HumanUnitFunc.txt",
     "Units\\OrcUpgradeFunc.txt",
