@@ -292,7 +292,8 @@
     "oracle-order344",
     "oracle-order345",
     "oracle-order346",
-    "oracle-foot347"
+    "oracle-foot347",
+    "oracle-move348"
   ],
   "entries": [
     {
@@ -6694,6 +6695,25 @@
           "task": "NUM-03.2",
           "disposition": "evidence-boundary",
           "rationale": "The existing nonfinite producer/terminal task retains that numeric domain; the finite radius lifecycle is verified here."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-move348",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Full forced ballistic and other nonunit trajectories remain separate from parameter writer ownership.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The existing full-contract task owns nonunit trajectories; this contract inventories their parameter producer."
+        },
+        {
+          "index": 1,
+          "text": "Nonfinite parameter terminal behavior is outside this finite public composition.",
+          "task": "NUM-03.2",
+          "disposition": "evidence-boundary",
+          "rationale": "The existing nonfinite task owns exceptional terminal behavior; this capture composes finite public requests."
         }
       ]
     }

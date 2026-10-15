@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "290 executable original/evidence contracts;571 total entries; provenance and limitations remain per-entry.",
+  "scope": "291 executable original/evidence contracts;572 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -55439,6 +55439,57 @@
         "Full missile trajectories/effects and every ability task parent lifecycle are separate from the radius production inventory.",
         "Nonfinite radius terminal behavior remains outside this finite public composition."
       ]
+    },
+    {
+      "id": "oracle-move348",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_move348.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "move348.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 3
+        },
+        "public_markers": {
+          "equal": 549
+        },
+        "native_records": {
+          "equal": 2885
+        },
+        "public_states": {
+          "equal": 488
+        },
+        "writes": {
+          "equal": 152
+        },
+        "instructions": {
+          "equal": 1383
+        }
+      },
+      "evidence": [
+        "S",
+        "L",
+        "C"
+      ],
+      "scope": "MOVE-01.3 request parameter overwrite order, independent speed/turn/window publications, moving immediate facing and removed intrinsic Move ownership; fresh/cold-save public parity.",
+      "exclusions": [
+        "Full forced ballistic and other nonunit trajectories remain separate from parameter writer ownership.",
+        "Nonfinite parameter terminal behavior is outside this finite public composition."
+      ]
     }
   ],
   "fixtures": [
@@ -56337,7 +56388,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "3b70e9bd2f12b5cdf62f27ad27e2ed1e03f6e58cce9e41f708b1af639e1a30a3"
+      "sha256": "1f20d3503ef2ff7b5650b009e3f602f7770ce5bf1d90f42f6b73c8733d3bdcf6"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -57193,7 +57244,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "896f38ec92b44c7bc87f8d3d97941ff79b9070708cb716fc6d21b9da5dabd2ec"
+      "sha256": "203b005275c92a2ecf4c3ab4077dd9a5af44a2d25e1003df51ca50f1c5bac098"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -57885,7 +57936,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "bf55f9b75b80b585b8ab2ce60ea4be9217395e99fef64bc955f7dd0e81d46dc7"
+      "sha256": "103234ca60b340d457ffbd245cc25797fa58c59f36493d84dca70e3ff8f72b1a"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -58129,7 +58180,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "efc6809667c558bbf5b555eddd974e1d270ce3d2bb9b013acab67769201fd140"
+      "sha256": "566dbc18504956c2217be91e5d5a89ccc1c848ca1f7ff8354c93c06ed3e780d0"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -58141,11 +58192,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "aeffbd84c11cf6e5a9e09d7e236618ecc9416e6251c27acd366381399f836685"
+      "sha256": "80dd0350881093af6dc9b9bda76fe3a0616aeddd59430fc24a70a9da8630882a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "86d1dddb1fcd61f6d21ef41bd9c349eb7218236d227198b3eb849ac029ef9c64"
+      "sha256": "a4a53b895faa72b623307e527c6667d37b91aa463285569b43d7b38590eff32d"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -59437,7 +59488,7 @@
     },
     {
       "path": "games/warcraft-3/game/api/api_unit.h",
-      "sha256": "7b47f41277b8047fd8806dc2001f59d4293887bcb5fe92b52fc0c679388a6ec0"
+      "sha256": "9249ac745c85f87d5fb303b386241f0e637ecd8ab69c5de4e7cde052610431fe"
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
@@ -65001,7 +65052,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "cb4f11fa0fcd828fe9fdd3fb46192c59d8a087538ece04fbb8588419d4c0eaea"
+      "sha256": "6a0c80ddfaff0f53b246059c05b0ed2f6fccf0fff566aac5eeb20f4fc82fe7fa"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -65033,7 +65084,7 @@
     },
     {
       "path": "docs/test-performance.md",
-      "sha256": "98446d532fea61395bfb0497ac3a63113eb75a4b1b4c379146e1c662af6dab8c"
+      "sha256": "8420c5a7b995d3e37c2b99cfccbe480e67559439af9f1eac51b3dfe153e1c02a"
     },
     {
       "path": "docs/games/warcraft-3/corpse-mechanics.md",
@@ -65226,6 +65277,50 @@
     {
       "path": "tools/frida/research/foot347_probe.j",
       "sha256": "cdcd8b316ebd9e269c86cf2ee371a0332bcdc6936f65a47f43b15a3eaa3efe53"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_move348.py",
+      "sha256": "67590e2c3c4682d785c35e8c960bd917927c5065dd497e0e7bdc71298081d67c"
+    },
+    {
+      "path": "tools/ghidra/research/Move348Evidence.java",
+      "sha256": "4d6fd1e26ea60d2b30a43f91c2f0b49a3da610baa2ac804e09926976d03e3007"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-move348-1.27.json",
+      "sha256": "aa78455f43d1950de4111bae41e789a42043d7a905147944edcc04ca008a6dac"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-move348-1.27.json.gz",
+      "sha256": "1a5f5a86fc118500e641a3933951a97c8b7e55216caa21f4c5ac66555a1c5bff"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_move348.py",
+      "sha256": "7ec70147118b0fedeba38bfcb8597405c306b00494071c4966a6f1d414330882"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_move348.h",
+      "sha256": "7f16c28d59ee3f6ff5c0134eef9d78ac99255633c201d9718c5d5fa6186d1209"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Scripts/move348.j",
+      "sha256": "46ca83c44882a0ed45491e2114380ce751e6854de4269be776a180840ff38f83"
+    },
+    {
+      "path": "tools/frida/research/move348_capture.py",
+      "sha256": "dd5666179b18104c6b02a67f8534006579665991aea64714bac7caddaa92b4e1"
+    },
+    {
+      "path": "tools/frida/research/move348_make_map.py",
+      "sha256": "8dd1b1a888da231c2843953565db9178fcd3b23875b4f2e7e7c882dfdd9a0ee1"
+    },
+    {
+      "path": "tools/frida/research/move348_observer.js",
+      "sha256": "275f1d049ddfdbbf0c5985df9b9b551bada2f74e22bf03140fb78952bb19a05c"
+    },
+    {
+      "path": "tools/frida/research/move348_probe.j",
+      "sha256": "46ca83c44882a0ed45491e2114380ce751e6854de4269be776a180840ff38f83"
     }
   ]
 }

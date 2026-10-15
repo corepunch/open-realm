@@ -21277,3 +21277,59 @@ fresh output. No new production behavior was required; the new regression
 build is warning-free. Durable reports are under
 `FOOT-01.3/foot347/`: `full-checkpoint.log`, `accepted.json`, `strict-corpus/`,
 `accepted-native-junit.json` and `accepted-junit/`.
+
+### Request parameters preserve independent publications (Move348)
+
+MOVE-01.3 uses the authored `hM48` profile: integer `umvs=333`, `umis=173`,
+`umas=389`, unreal `umvr=.37`, `uprw=45` degrees and collision radius8.
+`move348_probe.j` runs point Move, target Smart/Follow, a mixed-speed group,
+independent timed facing, speed/turn/window writes before and during requests,
+point/target replacement, Stop/restart and explicit `Amov` removal.
+
+The complete original writers are exported by `Move348Evidence.java` (24 function
+bodies,1383 instruction guards and their references). `05c5c0` writes maximum88
+then incrementb4; `05b970` and `05a5c0` republish both on point/target admission.
+These do not overwrite independently published turnb8/windowbc. `16a790`
+temporarily substitutes group74 into b8 for group200, then restores it;
+unseen pursuit similarly restores b0 (existing166 contract). Shared cap
+selection/publication remains `16b060/16b5c0/16c220`, covered by189/190 and the
+existing scalar motion matrix. `173bd0` is the forced ballistic producer using
+FLTMAX cap; its full nonunit trajectory belongs to existing E2E-06.1.
+
+Three real divergences were reproduced against unchanged literal retail words:
+
+- At tick27, immediate `SetUnitFacing(315)` during Move incorrectly redirected
+  steering. Original `16a790` derives heading from retained velocity when its
+  fine-cell length is at least runtime `cd5474=0x34d6bf95`; only stationary
+  members use physical8c. The engine now initializes the decision the same way.
+  This is a length threshold, unlike the squared-length helper used elsewhere.
+- At tick36, removing `Amov` incorrectly retained public Move and accepted a
+  speed setter. Original `685310/698af0` require Unit1ec's attached Move owner.
+  The engine consults existing removed-class state and retires Move/Smart's head
+  on explicit removal; counted suspension still retains its public head.
+- At tick38, public `UnitAddAbility(Amov)` incorrectly recreated the intrinsic
+  owner and group Move accepted it. Original `2181a0` uses authored factory
+  `4725f0`, which cannot construct this class. The public API now requires an
+  authored alias; point admission rejects an absent owner. Internal lifecycle
+  restoration through `G_ActorAddSkill` retains its separate existing contract.
+  Admission tests explicit removal, preserving fixtures with partial ability
+  metadata. Direct `A_DISABLE` cleanup returns false, like other void-style
+  notifications; it must not claim an unrelated innate message was handled.
+
+The frozen bundle retains raw preload line endings, captured source versions,
+owned environment B provenance, two identical read-only streams (2885 native
+records each),549 identical public markers in the uninstrumented control,
+152 parameter writer pairs and488 raw public getter states. The engine runs
+that same JASS script fresh and through a cold save at1405ms during timed facing.
+The original red run failed at27; successive fixes moved the first failure to36,
+then38. Expected fixture words were never changed. The verifier also checks
+explicit Remove=true/Add=false results and requires nonempty Classic/TFT tests.
+
+Reproduce with:
+```
+python3 tools/ghidra/verify_wc3_pathing_move348.py --binary /path/game.dll --report /fresh/move348.json
+```
+`tools/ghidra/fixtures/retail-move348-1.27.json.gz` is portable evidence; no local
+retail installation is needed by the engine regressions. Broader authored
+producer families remain MOVE-01.1; nonfinite terminals remain NUM-03.2.
+No entity/network layout or save format changed (Save198).

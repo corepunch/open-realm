@@ -288,3 +288,26 @@ Reports: `FOOT-01.3/foot347/full-checkpoint.log`, `accepted.json`,
 `strict-corpus/`, `accepted-native-junit.json` and `accepted-junit/` in the
 local retail research report archive. FOOT-01.3 is closed:300/336 done,36
 remain. This is a completed full-suite checkpoint for subsequent iterations.
+
+### Move348 parameter overwrite checkpoint
+
+MOVE-01.3 closes with301/336 leaves done. The repeated retail public scene
+matches2885 native records,549 public markers and488 raw getter states.
+`verify_wc3_pathing_move348.py` passes8 focused tests/58003 assertions per
+Classic/TFT, including the same JASS script across a cold save during timed
+facing. Seven evidence rejection tests and37 corpus checks pass; the ownership
+audit assigns all743 exclusions across291 oracle contracts.
+
+`make test TEST_JOBS=8` ran2265 Python evidence tests successfully (654.555s).
+Its first native sweep exposed a void-notification return-contract error in
+`A_DISABLE`; after correction, all29 dispatcher tests passed and the entire
+failed Classic shard3 was rerun:1006 tests/4757816 assertions, zero failures.
+The final32 JUnit reports contain9369 native tests, zero failures/errors/skips.
+The aggregate invocation itself retains its nonzero status from that original
+shard; the fresh shard report is the final acceptance, not an edited report.
+Debug tests and isolated optimized production game module builds pass without
+compiler warnings. Logs, red baselines and final reports are under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/MOVE-01.3/move348/`.
+A parallel production rebuild initially raced MPQ tools loading `libgame.so`;
+the final suite ran after that build. Avoid rebuilding that library while
+archive-generation tools are running.

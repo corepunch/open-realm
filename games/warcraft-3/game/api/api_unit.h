@@ -1124,7 +1124,9 @@ uint32_t UnitSuspendDecay(jass_t *j) {
 uint32_t UnitAddAbility(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     uint32_t abilityId = jass_checkinteger(j, 2);
-    return jass_pushboolean(j, G_ActorAddSkill(whichUnit, abilityId));
+    /*2181a0 goes through the authored ability factory. An intrinsic class
+     * removed earlier (e.g. Amov) is not a constructible AbilityData alias. */
+    return jass_pushboolean(j, G_AbilityData(abilityId)->id==abilityId && G_ActorAddSkill(whichUnit, abilityId));
 }
 uint32_t UnitRemoveAbility(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

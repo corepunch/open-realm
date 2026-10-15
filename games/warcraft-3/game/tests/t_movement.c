@@ -28970,4 +28970,105 @@ static void foot347_run(bool saved) {
 }
 TEST(wc3_movement, foot347_shared_radius_public_resize_and_removal) {foot347_run(false);}
 TEST(wc3_movement, foot347_shared_radius_saved_pending_resize_and_removal) {foot347_run(true);}
+#include "fixtures/retail_move348.h"
+static uint32_t move348_xy[2];
+static edict_t *move348_unit;
+static unsigned move348_row,move348_bad;
+static void move348_coordinate(edict_t *unit,unsigned axis,float value) {
+    move348_unit=unit;
+    if(axis<2)move348_xy[axis]=wc3_float_bits(value);
+}
+/* Exercise the same public order/setter script; the expected words are retail
+ * getter returns, not prescribed motion or copies of the update formulas. */
+static void move348_marker(cstring_t text) {
+    unsigned tick,index,order;
+    if(sscanf(text,"M348 tick=%u label=unit u=%u order=%u",&tick,&index,&order)!=3)return;
+    edict_t *unit=move348_unit;
+    uint32_t row[]={index,tick,order,move348_xy[0],move348_xy[1],
+        unit ? wc3_float_bits(wc3_radians_to_degrees(S_UnitFacing(unit))) : 0,
+        unit ? wc3_float_bits(S_UnitMoveSpeed(unit)) : 0,
+        unit ? wc3_float_bits(unit_turnspeed(unit)) : 0,
+        unit ? wc3_float_bits(unit_propwindow(unit)) : 0};
+    memset(move348_xy,0,sizeof(move348_xy));move348_unit=NULL;
+    if(move348_bad)return;
+    unsigned count=sizeof(move348_public)/sizeof(*move348_public);
+    T_ASSERT(move348_row<count);
+    if(move348_row>=count){move348_bad++;return;}
+    FOR_LOOP(k,9) {
+        uint32_t expected=move348_public[move348_row][k];T_EQ(row[k],expected);
+        if(row[k]!=expected) {
+            fprintf(stderr,"move348 public row%u tick%u unit%u field%u expected%08x actual%08x\n",move348_row,tick,index,k,expected,row[k]);move348_bad++;
+        }
+    }
+    move348_row++;
+}
+static void move348_run(bool saved) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotShutdown();reset_entities();setup_test_world();
+    void (*old_write)(pfWriteType_t,void const *)=gi.Write;void (*old_unicast)(edict_t *)=gi.unicast;
+    gi.Write=foot347_write;gi.unicast=foot347_unicast;
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    uint8_t cells[64*64]={0};CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+    mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+    info.players[0].startingPosition=(vec2_t){272,304};game.clients[0].ps.start_location=0;
+    float radius=8,turn=.37f,window=45,range=90,acquire=500;int speed=333,min=173,max=389,weapons=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_int,.data=&speed},
+        {.modID=MAKEFOURCC('u','m','i','s'),.type=mod_int,.data=&min},
+        {.modID=MAKEFOURCC('u','m','a','s'),.type=mod_int,.data=&max},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_unreal,.data=&turn},
+        {.modID=MAKEFOURCC('u','p','r','w'),.type=mod_unreal,.data=&window},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&range},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','M','4','8'),.numbeOfModifications=sizeof(mods)/sizeof(*mods),.modifications=mods};
+    info.num_userCreatedUnits=1;info.userCreatedUnits=&type;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    float follow=game.constants.followRange;game.constants.followRange=300;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+    uint32_t length=0;char *probe=gi.ReadFile("Scripts\\move348.j",&length);T_NOT_NULL(probe);
+    if(probe) {
+        char *script=malloc(length+100);snprintf(script,length+100,"%s\nfunction main takes nothing returns nothing\ncall PathProbeInit()\nendfunction\n",probe);
+        T_ASSERT(run_test_jass(script));free(script);gi.MemFree(probe);
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        move348_row=move348_bad=0;memset(move348_xy,0,sizeof(move348_xy));move348_unit=NULL;
+        test_preload_marker=move348_marker;test_unit_position_query=move348_coordinate;
+        bool restored=false;
+        while(level.time<7500 && !move348_bad) {
+            level.time+=5;globals.RunFrame();
+            if(saved && !restored && level.time==1405) {
+                cstring_t file=Test_TempPath("wc3-move348.bin");T_ASSERT(WriteGame(file));
+                test_preload_marker=NULL;test_unit_position_query=NULL;
+                T_ASSERT(ReadGame(file));remove(file);restored=true;
+                test_preload_marker=move348_marker;test_unit_position_query=move348_coordinate;
+            }
+        }
+        T_EQ(move348_row,sizeof(move348_public)/sizeof(*move348_public));T_EQ(move348_bad,0);
+        if(saved)T_ASSERT(restored);
+    }
+    test_preload_marker=NULL;test_unit_position_query=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotShutdown();G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+    game.constants.followRange=follow;gi.Write=old_write;gi.unicast=old_unicast;
+}
+TEST(wc3_movement, move348_public_parameter_overwrites_match_retail) {move348_run(false);}
+TEST(wc3_movement, move348_saved_parameter_overwrites_match_retail) {move348_run(true);}
+/* The public factory cannot reattach an intrinsic class removed from a unit. */
+TEST(wc3_movement, move348_removed_intrinsic_class_cannot_be_publicly_recreated) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit u=CreateUnit(Player(0),'hfoo',512.,512.,0.)\n"
+        "call BJassAssert(UnitRemoveAbility(u,'Amov'),\"remove attached Move\")\n"
+        "call SetUnitMoveSpeed(u,389.)\n"
+        "call BJassAssert(GetUnitMoveSpeed(u)==0.,\"absent Move ignores speed\")\n"
+        "call BJassAssert(not UnitAddAbility(u,'Amov'),\"intrinsic class has no authored factory\")\n"
+        "call BJassAssert(not IssuePointOrder(u,\"move\",768.,512.),\"absent Move rejects point\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(u)==0,\"rejected packet leaves no head\")\n"
+        "endfunction\n"));
+    reset_entities();
+}
 #endif

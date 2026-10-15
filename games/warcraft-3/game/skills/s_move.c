@@ -1077,7 +1077,15 @@ uint8_t S_UnitMoveCoarseMask(edict_t const *ent) {
  * speed and explicit setter flag retain an existing owner when shared defaults
  * change; allocator-only owners also publish their speed there. Captains own
  * their independent speed even without a UnitBalance row. */
+static bool move_class_removed(edict_t const *ent) {
+    if(ent)FOR_LOOP(i,ARRAY_COUNT(ent->abilities.removed))
+        if(ent->abilities.removed[i]==MAKEFOURCC('A','m','o','v'))return true;
+    return false;
+}
 bool M_UnitMoveDisabled(edict_t const *ent) {
+    /*685310/698af0 require the attached Move owner, including after explicit
+     * Amov removal. A positive authored speed alone cannot recreate it. */
+    if(move_class_removed(ent))return true;
     return ent && !ent->movement.captain_actor_type && ent->data.UnitBalance &&
         ent->data.UnitBalance->speed==0 && ent->unitinfo.MoveSpeed==0 &&
         !(ent->unitinfo.move_flags&BZ_UNIT_SPEED_SET);
@@ -6351,15 +6359,26 @@ static void move_group_adjust_destination(moveGroup_t *group, moveGroupMember_t 
     member->world_destination=(vec2_t){wc3_add(bounds.min.x,wc3_mul(member->destination.x,32)),wc3_add(bounds.min.y,wc3_mul(member->destination.y,32))};
 }
 
+/*16a790 starts each decision from velocity when it is moving. An immediate
+ * facing write changes physical8c without redirecting the retained velocity;
+ * using that write as the steering origin incorrectly turns a running unit. */
+static float move_member_heading(edict_t const *unit) {
+    float x=wc3_mul(unit->movement.velocity.x,1.0f/32),y=wc3_mul(unit->movement.velocity.y,1.0f/32);
+    float speed=wc3_sqrt(wc3_add(wc3_mul(x,x),wc3_mul(y,y)));
+    return wc3_float(wc3_float_bits(wc3_sub(speed,0))&0x7fffffffu)>=wc3_float(0x34d6bf95) ?
+        wc3_vector_heading(x,y) : unit->s.angle;
+}
+
 static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *member) {
     if (group->flags&0x10000) move_group_adjust_destination(group,member);
     moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     edict_t *unit=member->unit;
+    float old_angle=unit->s.angle,heading=move_member_heading(unit);
     wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
     wc3Arrival_t arrival={.source={pose.grid[0],pose.grid[1]},.target={member->destination.x,member->destination.y},
         /* Native16a790 temporarily replaces b0 with runtime .49 during
          * unseen pursuit, then restores the retained authored arrival range. */
-        .heading=unit->s.angle,.range=!group->unseen_counter ? member->arrival_range : wc3_float(0x3efae148),
+        .heading=heading,.range=!group->unseen_counter ? member->arrival_range : wc3_float(0x3efae148),
         .flags=member->forced_arrival || (group->flags&0x200) ? 0x10000 : 0};
     /* Original16a790 replaces arrival10000 from this visit's result. A cached
      * slot may cease to be reached after SetUnitX/Y or physical displacement. */
@@ -6369,15 +6388,15 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
         return;
     }
     member->arrived=wc3_arrival_update(&arrival); member->in_range=arrival.in_range;
-    float old_angle=unit->s.angle;
     if (member->arrived) {
         member->flags|=0x10000; member->forced_arrival=false;
-        member->speed=0; member->heading=old_angle;
+        member->speed=0; member->heading=heading;
         /*16fbd0 retires pending work on every successful arrival, including
          * forced arrival; cached routes and retry/delay remain owned here. */
         move_unlink_requests(unit);
         return;
     }
+    unit->s.angle=heading;
     if (arrival.in_range || (member->flags&0x200000)) {
         /* Original16fbd0/16fd90 turn an in-range or held member with stop1
          * before replacing its destination, retiring only scheduler work.
@@ -6959,6 +6978,10 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 /* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
 BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
+    case A_POINT_ORDER_ADMIT:
+        /* Public point packets require the attached class. The generic order
+         * dispatcher must not recreate a removed intrinsic Move owner. */
+        return move_class_removed(ent) ? ABILITY_ORDER_REJECTED : ABILITY_ORDER_UNHANDLED;
     case A_TARGET_ORDER_ADMIT: {
         if (!call || !call->issued_target_order.order) return ABILITY_ORDER_UNHANDLED;
         cstring_t order=call->issued_target_order.order;
@@ -7014,6 +7037,15 @@ BZ_ABILITY_PROC(CAbilityMove) {
          * RemoveUnit trace has no additional69a840 at deferred destruction. */
         if(!call->retirement.destroying)move_suspend_physical_task(ent);
         return true;
+    case A_DISABLE:
+        /* Explicit class removal also retires Move's user packet. Counted
+         * suspension above only stops its physical task and retains that head. */
+        if(ent && call && call->item && call->item->code==MAKEFOURCC('A','m','o','v') &&
+           !G_ActorHasAbilityCode(ent,call->item->code) &&
+           (ent->current_order_id==G_OrderId("move") || ent->current_order_id==G_OrderId("smart"))) {
+            S_SetFollowTarget(ent,NULL);S_SetMoveGoal(ent,&ent->goalentity,NULL);unit_stand(ent);
+        }
+        return false;
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
             .limit = unit_effective_speed(ent) };
