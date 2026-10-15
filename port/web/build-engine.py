@@ -76,7 +76,7 @@ def main():
         "wc3_common": sources(wc3 + "/common", exclude=("world_w3.c",)),
         "engine": sources("client", "server", "common", "sound",
                           exclude=("stb_vorbis.c", "sv_routing.c")) +
-                  [ROOT / wc3 / "common/world_w3.c", ROOT / "port/web/src/web_opfs.c"],
+                  [ROOT / wc3 / "common/world_w3.c", ROOT / "port/web/src/web_opfs.c", ROOT / "port/web/src/web_loading.c"],
     }
     # Source collection is deliberately scoped to the known native modules.
     # Never accidentally compile fixture tests or a second platform main().
@@ -150,7 +150,7 @@ def main():
          # Emscripten's virtual FS maps this to /share/warcraft-3/.
          "--embed-file", str(wc3_share) + "@/share/warcraft-3",
          "-o", out / "index.html"])
-    for name in ("browser-keyboard.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js"):
+    for name in ("browser-keyboard.js", "early-map-loading.js", "installer.js", "install-worker.js", "iso9660.js", "setup-mpq.js", "mpq-header.js", "filesystem-bridge.js", "audio-worklet.js"):
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
     shutil.copy2(ROOT / "port/web/site/fullscreen-resize.js", out / "fullscreen-resize.js")
     print("Experimental static engine build emitted to", out)

@@ -1,4 +1,7 @@
 #include "client.h"
+#ifdef __EMSCRIPTEN__
+#include "../port/web/src/web_loading.h"
+#endif
 #include "menu_text_input.h"
 #include "ui_layout.h"
 #include <ctype.h>
@@ -149,6 +152,9 @@ void SCR_BeginLoadingPlaque(void) {
 }
 
 void SCR_EndLoadingPlaque(void) {
+#ifdef __EMSCRIPTEN__
+    Web_LoadingOverlay(false);
+#endif
     cls.disable_screen = 0;
 }
 
@@ -226,6 +232,11 @@ void SCR_UpdateLoadingPlaque(void) {
     if (Cvar_Integer("r_norefresh", 0)) return;
     if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING) return;
     SCR_DrawScreenField(0);
+#ifdef __EMSCRIPTEN__
+    /* Wait for the authored loading layout to be submitted, never hide on
+     * CL_PrepLoading alone. The browser then waits two animation frames. */
+    if (cl.layout[LAYER_LOADING]) Web_LoadingOverlay(false);
+#endif
 }
 
 void SCR_UpdateScreen(uint32_t msec) {

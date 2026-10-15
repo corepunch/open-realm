@@ -11,6 +11,17 @@ engine; follow [the run guide](browser-run.md) to build and launch it. The
 native build graph in `Makefile` still produces ELF/dylib/DLL modules and must
 not be run under `emcc` as if these were browser-loadable modules.
 
+### Browser-only early preparation overlay
+
+The Emscripten engine shows a neutral HTML `Preparing map…` indicator from
+`CL_BeginLoadingMap()` before synchronous map preparation. It stays visible
+until `SCR_UpdateLoadingPlaque()` submits a frame with the server-authored
+loading layout; JavaScript waits two animation frames before hiding it to avoid
+revealing a stale menu frame. The Warcraft III loading artwork, progress and
+protocol remain unchanged. Disconnect, shutdown and map-load failure clear the
+overlay. Only Emscripten compiles this bridge. Tests are under
+`port/web/tests/`.
+
 ## Build
 
 Activate an Emscripten SDK (`emsdk_env.sh`) and run:

@@ -14,6 +14,16 @@ canvas { display: block; max-width: 100%; background: #000; }
  * Emscripten changes canvas dimensions or applies its own canvas styles. */
 #game-container[hidden] { display: none; }
 #game-container { position: relative; width: 100%; max-width: 100%; isolation: isolate; }
+#early-map-loading { position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #0b1220; color: #dce6f2; text-align: center; pointer-events: none;
+  font: 500 1rem system-ui, sans-serif; }
+#early-map-loading[hidden] { display: none; }
+#early-map-loading .spinner { width: 2rem; height: 2rem; margin-bottom: 1rem;
+  border: 3px solid #394c65; border-top-color: #e0eaf7; border-radius: 50%;
+  animation: early-map-spin 1s linear infinite; }
+@keyframes early-map-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #early-map-loading .spinner { animation: none; } }
 /* Keep the windowed canvas height tied to the viewport rather than a fixed
  * aspect ratio, so ordinary browser resizes can cross the game's UI aspect
  * threshold. SDL may set inline dimensions, so the CSS box takes precedence;
@@ -104,6 +114,9 @@ canvas { display: block; max-width: 100%; background: #000; }
 </section>
 <div id="game-container" hidden>
   <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+  <div id="early-map-loading" hidden role="status" aria-live="polite">
+    <span class="spinner" aria-hidden="true"></span>Preparing map…
+  </div>
   <div id="game-controls" aria-label="Game controls">
     <button id="game-escape" type="button" aria-label="Send Escape to game" title="Escape / skip cinematic">Esc</button>
     <button id="game-fullscreen" type="button" aria-label="Enter fullscreen" title="Toggle fullscreen">⛶</button>
@@ -281,6 +294,7 @@ function openrealmStartIsolatedEngine(arguments_) {
 openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);
 </script>
 <script src="fullscreen-resize.js"></script>
+<script src="early-map-loading.js"></script>
 <script src="installer.js"></script>
 <script src="mpq-header.js"></script>
 <script src="pages-isolation.js"></script>
