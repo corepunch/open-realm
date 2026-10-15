@@ -111,7 +111,9 @@
       });
     });
   }
-  begin().catch(error => {
+  // Installer's removal-only reload must never re-acquire the game-data lease.
+  if (sessionStorage.getItem('openrealm-wc3-remove-after-reload') !== '1')
+    begin().catch(error => {
     const message = error && error.message || String(error);
     status('Cannot start OpenRealm: ' + message + ' Import the game files above, then reload this page.');
   });

@@ -24,7 +24,7 @@ class Element {
   appendChild(node) { this.children.push(node); }
   removeAttribute(name) { if (name === 'value') this.value = undefined; }
 }
-function harness({storage = true} = {}) {
+function harness({storage = true, session = new Map()} = {}) {
   const ids = ['game-files', 'install-data', 'cancel-install', 'remove-data',
     'data-status', 'install-progress', 'selection-summary', 'discovered-files', 'archive-list',
     'installation-edition'];
@@ -39,7 +39,11 @@ function harness({storage = true} = {}) {
     postMessage(message) { this.messages.push(message); }
     send(message) { this.onmessage({data:message}); }
   }
+  let reloads = 0;
   const context = vm.createContext({
+    sessionStorage: {getItem: key => session.get(key) || null,
+      setItem: (key, value) => session.set(key, value),
+      removeItem: key => session.delete(key)},
     document: {
       getElementById: id => elements[id],
       createElement: tag => {
@@ -47,14 +51,14 @@ function harness({storage = true} = {}) {
         return new Element('li');
       }
     },
-    window: {Worker}, Worker,
+    window: {Worker, location: {reload: () => { reloads++; }}}, Worker,
     navigator: {storage: storage ? {getDirectory: () => {}} : undefined,
       locks: {request:async (name, options, callback) => callback({name})}},
     confirm: () => true
   });
   vm.runInContext(fs.readFileSync(path.join(SITE, 'installer.js'), 'utf8'),
     context, {filename:'installer.js'});
-  return {elements, worker};
+  return {elements, worker, session, get reloads() { return reloads; }};
 }
 
 test('both browser pages expose ISO/mixed selection and detected archive list', () => {
@@ -68,7 +72,7 @@ test('both browser pages expose ISO/mixed selection and detected archive list', 
 });
 
 test('multi-disc selection, validated discovery, copying and final UI states', () => {
-  const {elements: e, worker} = harness();
+  const {elements: e, worker, session, reloads} = harness();
   assert.deepEqual(Array.from(worker.messages, message => message.type), ['list']);
   e['game-files'].files = [{name:'RoC.iso'}, {name:'TFT.iso'}, {name:'War3Patch.mpq'}];
   e['game-files'].fire('change');
@@ -104,7 +108,8 @@ test('multi-disc selection, validated discovery, copying and final UI states', (
 });
 
 test('cancellation, failed import and removal do not display stale discoveries', () => {
-  const {elements: e, worker} = harness();
+  const page = harness();
+  const {elements: e, worker, session} = page;
   e['game-files'].files = [{name:'RoC.iso'}];
   e['install-data'].fire('click');
   worker.send({type:'discovered', bytes:64,
@@ -119,12 +124,12 @@ test('cancellation, failed import and removal do not display stale discoveries',
   worker.send({type:'error', message:'Duplicate archive War3.mpq'});
   assert.match(e['data-status'].textContent, /Duplicate archive/);
   e['remove-data'].fire('click');
-  assert.equal(worker.messages.at(-1).type, 'remove');
+  assert.equal(worker.messages.some(message => message.type === 'remove'), false);
+  assert.equal(page.reloads, 1); // Removal requires a fresh document to release the lease.
+  assert.equal(session.get('openrealm-wc3-remove-after-reload'), '1');
   assert.equal(e['remove-data'].disabled, true);
-  worker.send({type:'list', manifest:null});
   assert.equal(e['discovered-files'].hidden, true);
-  assert.equal(e['remove-data'].disabled, false);
-  assert.equal(e['data-status'].textContent, 'No game data installed.');
+  assert.equal(e['remove-data'].disabled, true);
 });
 
 test('missing OPFS disables installer controls', () => {
@@ -189,4 +194,33 @@ test('demo edition is clearly labelled on import, reload and removal', () => {
   assert.match(e['data-status'].textContent, /Demo installed/);
   worker.send({type:'list', manifest:null});
   assert.equal(e['installation-edition'].hidden, true);
+});
+
+
+test('removal reloads to stop game before worker removes local files', () => {
+  const session = new Map();
+  const before = harness({session});
+  before.elements['remove-data'].fire('click');
+  assert.equal(before.reloads, 1);
+  assert.equal(before.worker.messages.some(m => m.type === 'remove'), false);
+  assert.equal(session.get('openrealm-wc3-remove-after-reload'), '1');
+
+  const after = harness({session});
+  assert.deepEqual(Array.from(after.worker.messages, m => m.type), ['remove']);
+  after.worker.send({type:'list', manifest:null});
+  assert.equal(session.has('openrealm-wc3-remove-after-reload'), false);
+  assert.equal(after.elements['data-status'].textContent, 'No game data installed.');
+});
+
+test('failed removal clears deferred action without reporting deletion', () => {
+  const session = new Map([['openrealm-wc3-remove-after-reload', '1']]);
+  const page = harness({session});
+  page.worker.send({type:'error', message:'Close other Warcraft III game tabs before removing installed data'});
+  assert.equal(session.size, 0);
+  assert.match(page.elements['data-status'].textContent, /Close other Warcraft III game tabs/);
+});
+
+test('engine startup is suppressed on removal-only reload', () => {
+  const bridge = fs.readFileSync(path.join(SITE, 'filesystem-bridge.js'), 'utf8');
+  assert.match(bridge, /sessionStorage\.getItem\('openrealm-wc3-remove-after-reload'\) !== '1'/);
 });

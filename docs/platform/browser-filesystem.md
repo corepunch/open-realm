@@ -145,3 +145,17 @@ multi-sector MPQs cannot overlap. Synthetic cross-tab Web Locks, rollback,
 validation and pruning scenarios live in
 `port/web/tests/iso-import.test.cjs`. Runtime behavior, including multi-tab
 WasmFS reads and actual TFT installer fingerprints, remains unverified.
+
+### Removing local data from a running browser game
+
+The running engine holds a shared lease for its OPFS installation generation.
+Consequently, the installer cannot remove that generation while the same page
+is playing. After confirmation, **Remove local data** sets a session-scoped
+one-shot removal marker and reloads the page. Navigation shuts down the old
+Emscripten worker and releases its shared generation lease. On the new page,
+`filesystem-bridge.js` skips engine startup and `installer.js` asks the
+installation worker to remove the game data. Success or failure clears the
+marker; failed removal leaves the archives intact and displays the Web Locks
+error (other game tabs still need to be closed). Normal page loads have no
+removal marker and continue starting the engine. This intentionally uses a
+page reload instead of attempting unsafe teardown of a live WasmFS mount.

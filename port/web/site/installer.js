@@ -18,6 +18,10 @@
     remove.disabled = true;
     return;
   }
+  // Reloading ends the Emscripten game worker and releases its generation lease.
+  // On the next load, delete before starting any new game worker.
+  const REMOVE_ON_RELOAD = 'openrealm-wc3-remove-after-reload';
+  const pendingRemoval = sessionStorage.getItem(REMOVE_ON_RELOAD) === '1';
   const worker = new Worker('install-worker.js');
   let operation = null;
   let warnings = [];
@@ -96,6 +100,9 @@
       fileInput.value = '';
       showSelection();
     } else if (data.type === 'list') {
+      if (operation === 'remove' && pendingRemoval) {
+        sessionStorage.removeItem(REMOVE_ON_RELOAD);
+      }
       if (operation === 'import') return; // Ignore a delayed initial list response.
       setOperation(null);
       const manifest = data.manifest;
@@ -107,6 +114,7 @@
         : 'No game data installed.';
       if (!manifest) clearDiscovery();
     } else if (data.type === 'error') {
+      if (pendingRemoval) sessionStorage.removeItem(REMOVE_ON_RELOAD);
       setOperation(null);
       status.textContent = data.message === 'Import cancelled'
         ? 'Import cancelled. Previous installed data (if any) was retained.'
@@ -114,6 +122,7 @@
     }
   };
   worker.onerror = () => {
+    if (pendingRemoval) sessionStorage.removeItem(REMOVE_ON_RELOAD);
     setOperation(null);
     status.textContent = 'Game-data worker failed. Reload the page before retrying.';
   };
@@ -137,10 +146,20 @@
   });
   remove.addEventListener('click', () => {
     if (operation || !confirm('Delete all imported Warcraft III files from this browser?')) return;
+    // A running game holds an OPFS Web Lock in this tab. Reload to shut it
+    // down, then remove from the fresh page without starting the engine.
+    try { sessionStorage.setItem(REMOVE_ON_RELOAD, '1'); }
+    catch (error) { status.textContent = 'Cannot prepare safe removal: ' + error.message; return; }
     setOperation('remove');
-    status.textContent = 'Removing local Warcraft III data…';
-    worker.postMessage({type:'remove'});
+    status.textContent = 'Stopping game before removing local data…';
+    window.location.reload();
   });
   showSelection();
-  worker.postMessage({type:'list'});
+  if (pendingRemoval) {
+    setOperation('remove');
+    status.textContent = 'Game stopped. Removing local Warcraft III data…';
+    worker.postMessage({type:'remove'});
+  } else {
+    worker.postMessage({type:'list'});
+  }
 })();
