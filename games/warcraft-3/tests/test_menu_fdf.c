@@ -69,6 +69,7 @@ void Key_Init(void) {}
 void Key_WriteBindings(FILE *file) { (void)file; }
 void Cmd_ForwardToServer(cstring_t text) { snprintf(forwarded_command, sizeof(forwarded_command), "%s", text); }
 void CL_SetGameplayBindings(void) {}
+void CL_ControlGroupsLoad(cstring_t name) { (void)name; }
 void CL_Connect(cstring_t host, unsigned short port) { (void)host; (void)port; }
 void CL_BeginLoadingMap(cstring_t map) { (void)map; Cbuf_AddText("menu_ingame\n"); }
 void CL_Shutdown(void) {}
