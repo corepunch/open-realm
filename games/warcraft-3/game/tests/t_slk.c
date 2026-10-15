@@ -267,6 +267,7 @@ TEST(wc3_slk, legacy_worldedit_destructable_names_use_compatibility_lookup) {
     T_NULL(FindConfigValue("WorldEditStrings", "WESTRING_DOOD_LOCS"));
 #endif
     ShutdownUnitData();
+    InitUnitData(); /* Restore shared tables for later tests in this process. */
 }
 
 /* Map-archive Units\CampaignUnitFunc.txt and war3mapMisc.txt must win over base

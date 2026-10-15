@@ -5078,10 +5078,6 @@ static bool movement_issue_entangle_command(edict_t *clent, gameClient_t *client
     return client->menu.on_entity_selected(clent, parent);
 }
 
-static cstring_t movement_roc_expansion_cvar(cstring_t name, cstring_t fallback) {
-    return !strcmp(name, "fs_expansion") ? "0" : fallback;
-}
-
 static cstring_t movement_tft_expansion_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "fs_expansion") ? "1" : fallback;
 }
