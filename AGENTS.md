@@ -57,18 +57,20 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 leaderboards, counted-objective HUDs, per-player assignment, save/load identity | [docs/games/warcraft-3/leaderboards.md](docs/games/warcraft-3/leaderboards.md) |
 | WC3 Team Resources HUD, multiboard sharing and advanced shared-control permission boundary | [docs/games/warcraft-3/team-resources.md](docs/games/warcraft-3/team-resources.md) |
 | WC3 multiboard/texttag JASS registries, single visible board, suppression, HUD limitations | [docs/games/warcraft-3/multiboard-and-texttag.md](docs/games/warcraft-3/multiboard-and-texttag.md) |
-| WC3 campaign map bulk runtime audit, per-map reports, commands | [docs/games/warcraft-3/map-audit.md](docs/games/warcraft-3/map-audit.md) |
+| WC3 campaign map bulk runtime and static difficulty-source audit, per-map reports, commands | [docs/games/warcraft-3/map-audit.md](docs/games/warcraft-3/map-audit.md) |
 | WC3 DotA custom-map playability, protected-MPQ load, hashtable demand | [docs/games/warcraft-3/dota-map-playability.md](docs/games/warcraft-3/dota-map-playability.md) |
 | WC3 JASS group handle lifecycle, DestroyGroup slot reuse, save/load identity | [docs/games/warcraft-3/jass-groups.md](docs/games/warcraft-3/jass-groups.md) |
 | WC3 campaign game cache, persisted Hero progression, `StoreUnit`/`RestoreUnit` | [docs/games/warcraft-3/campaign-game-cache.md](docs/games/warcraft-3/campaign-game-cache.md) |
 | WC3 Human09 cinematic lifecycle, selection/region diagnostics, and campaign failure evidence | [docs/games/warcraft-3/human09-cinematic-lifecycle.md](docs/games/warcraft-3/human09-cinematic-lifecycle.md) |
-| WC3 campaign/mission unlock persistence, retail `.w3p` distinction, selector visibility | [docs/games/warcraft-3/campaign-progress.md](docs/games/warcraft-3/campaign-progress.md) |
+| WC3 campaign unlocks, completed-difficulty tracking, ORCP migration, selector visibility | [docs/games/warcraft-3/campaign-progress.md](docs/games/warcraft-3/campaign-progress.md) |
+| WC3 difficulty preference, fresh-map initialization and JASS difficulty state | [docs/games/warcraft-3/game-difficulty.md](docs/games/warcraft-3/game-difficulty.md) |
 | WC3 sparse edict state: direct pointer access, allocation, release and persistence | [docs/games/warcraft-3/pooled-entity-state.md](docs/games/warcraft-3/pooled-entity-state.md) |
 | WC3 game save/load format, Hero walk diagnostic, `F_CFUNCTION` C callbacks, and `field_t` synchronization | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
 | WC3 HUD texture/font indices vs names across `SV_Map` / save-load | [docs/games/warcraft-3/hud-media.md](docs/games/warcraft-3/hud-media.md) |
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
 | WC3 ground tile atlas layout, nested `<tileset>.mpq` texture layer, Water.slk water height/tint/animation | [docs/games/warcraft-3/terrain-tiles-and-water.md](docs/games/warcraft-3/terrain-tiles-and-water.md) |
 | WC3 environmental terrain fog / distance mist, `SetTerrainFogEx`, `DefaultZFog`, renderer handoff | [docs/games/warcraft-3/environmental-fog.md](docs/games/warcraft-3/environmental-fog.md) |
+| WC3 runtime water tint, `SetWaterBaseColor`, scene configstring and W3M water-layer shader multiply | [docs/games/warcraft-3/water-base-color.md](docs/games/warcraft-3/water-base-color.md) |
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |
 | WC3 Night Elf Hide/Shadow Meld, ambush order, fade/reveal rules, detection integration | [docs/games/warcraft-3/shadowmeld.md](docs/games/warcraft-3/shadowmeld.md) |
 | WC3 invisibility causes, detector integration, Wind Walk/Ghost/item invisibility, Ghost Visible/Burrow compatibility policy | [docs/games/warcraft-3/invisibility.md](docs/games/warcraft-3/invisibility.md) |
@@ -171,7 +173,6 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 client UI lifecycle, glue Birth/Stand/Death transitions, single-player campaign/mission/custom-game flow | [docs/games/warcraft-3/architecture/ui-flow.md](docs/games/warcraft-3/architecture/ui-flow.md) |
 | WC3 main-menu transparent layers, MenuZFog, #620/#621 regression history and visual checks | [docs/games/warcraft-3/main-menu-rendering.md](docs/games/warcraft-3/main-menu-rendering.md) |
 | WC3 campaign loading lifecycle, texture references, unused FDF art, cliff transitions | [docs/games/warcraft-3/loading-and-assets.md](docs/games/warcraft-3/loading-and-assets.md) |
-| WC3 retail executable version reporting for data diagnostics | [docs/games/warcraft-3/data-version-reporting.md](docs/games/warcraft-3/data-version-reporting.md) |
 | WC3 perf hot spots: MDX bone/geoset setup, shadow batching, client/server entity scans | [docs/games/warcraft-3/performance.md](docs/games/warcraft-3/performance.md) |
 | WC3 RAM profiling: MDX buffer overhead, FDF pools, texture residency, loopback budgets | [docs/games/warcraft-3/memory.md](docs/games/warcraft-3/memory.md) |
 | SC2 dropped-unit selection/control, shared WC3 routing, M3 picking and selection rings | [docs/games/starcraft-2/selection-and-control.md](docs/games/starcraft-2/selection-and-control.md) |

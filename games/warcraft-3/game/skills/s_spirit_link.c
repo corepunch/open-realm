@@ -8,6 +8,7 @@
  * distances keep edict order (deterministic tie-break). */
 static uint32_t spirit_link_nearest_insert(edict_t * *cands, float *dists, uint32_t n, uint32_t maxn, edict_t *target, float dist) {
 	uint32_t far = 0;
+	if (!maxn) return 0;
 	FOR_LOOP(i, n) if (dists[i] > dists[far]) far = i;
 	if (n < maxn) { cands[n] = target; dists[n] = dist; return n + 1; }
 	if (dist < dists[far]) { cands[far] = target; dists[far] = dist; }
@@ -17,15 +18,15 @@ static uint32_t spirit_link_nearest_insert(edict_t * *cands, float *dists, uint3
 /* Apply Bspl to up to DataB nearest valid units in Area of the click target.
  * The click target is kept first when valid; remaining slots go to the
  * nearest others. Equal distances keep edict order. */
-static void spirit_link_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+static void spirit_link_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell, bool powerup) {
 	uint32_t level, maxn, n = 0, j, rest, restmax;
 	bool clicked;
 	float area, dur, dist;
 	cstring_t buffstr;
 	edict_t *cands[SPL_MAX_CANDS];
 	float dists[SPL_MAX_CANDS];
-	if (!st.entity || !spell) return;
-	level = S_SpellLevel(caster, spell->code);
+	if (!caster || !st.entity || !spell) return;
+	level = powerup ? 1 : S_SpellLevel(caster, spell->code);
 	area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
 	maxn = (uint32_t)S_SpellData(spell->code, level, 2);
 	dur = S_SpellHeroDuration(spell->code, level, st.entity);
@@ -57,7 +58,23 @@ static void spirit_link_execute(edict_t *caster, spellTarget_t st, abilityitem_t
 	}
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilitySpiritLink) { spirit_link_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySpiritLink) { spirit_link_execute(caster, st, spell, false); }
+
+/* Aspp (Rune of Spirit Link) inherits the Spirit Link procedure through
+ * AbilityData.code, but is an immediate power-up: its picker is the centre,
+ * and its own authored fields determine target count, radius and duration. */
+BZ_ABILITY_PROC(CAbilityItemSpiritLink) {
+    edict_t *picker;
+    spellTarget_t target;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    picker = ent && ent->inuse && ent->targtype != TARG_ITEM ? ent :
+        call->source_item && G_IsItem(call->source_item) ? call->source_item->item->carrier : NULL;
+    if (!picker || !S_SpellIsAliveTarget(picker) ||
+        !G_AbilityLevel(call->item->code, 1)) return false;
+    target = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = picker);
+    spirit_link_execute(picker, target, call->item, true);
+    return true; /* Power-ups consume on touch, including empty eligible areas. */
+}
 
 static heroabilitystatus_t *spirit_link_slot(edict_t *unit) {
 	if (!unit) return NULL;

@@ -55,17 +55,35 @@ static frameDef_t *MenuSaveListBox(void) {
     return hud.save_list.inuse && hud.save_list.Parent == hud.save_list_art.MapListBox ? &hud.save_list : NULL;
 }
 
-static void MenuDefaultSaveName(string_t out, uint32_t out_size) {
-    time_t now;
-    struct tm const *local;
+/* Use the active map file, not the localized mission title. */
+static void MenuFormatSaveName(string_t out, uint32_t out_size,
+                               cstring_t map_path, struct tm const *local) {
+    cstring_t base = map_path ? map_path : "";
+    cstring_t dot;
+    char timestamp[32] = { 0 };
+    size_t length;
 
-    if (!out || out_size == 0) return;
+    if (!out || !out_size) return;
     out[0] = '\0';
-    now = time(NULL);
-    local = localtime(&now);
-    if (local && strftime(out, out_size, "%Y-%m-%d_%H-%M-%S", local) > 0)
+    if (!local || !strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H-%M-%S", local)) {
+        snprintf(out, out_size, "Save Game");
         return;
-    snprintf(out, out_size, "Save Game");
+    }
+    for (cstring_t p = base; *p; p++)
+        if (*p == '/' || *p == '\\') base = p + 1;
+    dot = strrchr(base, '.');
+    length = dot && dot > base ? (size_t)(dot - base) : strlen(base);
+    /* Leave the timestamp intact even if the active map has a long name. */
+    if (!length || length + 1 + strlen(timestamp) >= out_size) {
+        snprintf(out, out_size, "%s", timestamp);
+        return;
+    }
+    snprintf(out, out_size, "%.*s_%s", (int)length, base, timestamp);
+}
+
+static void MenuDefaultSaveName(string_t out, uint32_t out_size) {
+    time_t now = time(NULL);
+    MenuFormatSaveName(out, out_size, level.map_path, localtime(&now));
 }
 
 static bool MenuSavePanelReady(void) {
@@ -561,3 +579,24 @@ void UI_ShowGameMenuOptions(edict_t *ent) {
 void UI_ShowGameMenuOptionsSound(edict_t *ent) {
     MenuWriteOptions(ent, MENU_OPTIONS_SOUND);
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+TEST(wc3_menu, save_default_uses_map_basename_without_extension) {
+    struct tm date = { .tm_year = 126, .tm_mon = 8, .tm_mday = 20,
+                       .tm_hour = 21, .tm_min = 30, .tm_sec = 30 };
+    char name[CMDARG_LEN];
+    MenuFormatSaveName(name, sizeof(name), "Maps\\Campaign\\NightElf04.w3x", &date);
+    T_STREQ(name, "NightElf04_2026-09-20_21-30-30");
+    MenuFormatSaveName(name, sizeof(name), "Maps/Campaign/Human02.w3m", &date);
+    T_STREQ(name, "Human02_2026-09-20_21-30-30");
+    MenuFormatSaveName(name, sizeof(name), "", &date);
+    T_STREQ(name, "2026-09-20_21-30-30");
+}
+
+TEST(wc3_menu, save_names_with_spaces_are_valid) {
+    T_ASSERT(MenuSaveNameSafe("Night Elf 04 custom save"));
+    T_ASSERT(MenuSaveNameSafe("NightElf04_2026-09-20_21-30-30"));
+    T_ASSERT(!MenuSaveNameSafe("../outside"));
+}
+#endif

@@ -341,7 +341,12 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     target->s.renderfx |= RF_HIDDEN;
     {
         heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, 1, duration);
-        if (status) status->data = code;
+        if (status) {
+            status->data = code;
+            /* The timed buff owns its persistent TargetArt; expiry, dispel and
+             * refresh use the common status-effect lifecycle. */
+            unit_status_enabletargetart(target, status, "origin");
+        }
         if (status) return true;
     }
     if (!S_UnitHasTemporaryInvisibility(target, NULL)) {
@@ -380,9 +385,18 @@ BZ_ITEM_PROC(AbilityItemManaRestore) {
     return true;
 }
 
-BZ_ITEM_PROC(AbilityMaxLifeMod) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_LIFE_GAIN);
+/* World powerups target the collecting unit; ordinary carried item use keeps
+ * the existing selected-unit client contract. Never read a client from a
+ * server-side collector. */
+static edict_t *item_stat_recipient(edict_t *ent) {
+    if (!ent) return NULL;
+    return ent->client ? G_GetMainSelectedUnit(ent->client) : ent;
+}
+
+BZ_ABILITY_PROC(CAbilityMaxLifeMod) {
+    if (msg != A_ITEM_USE) return false;
+    edict_t *target = item_stat_recipient(ent);
+    uint32_t code = call && call->item ? call->item->code : ID_ITEM_LIFE_GAIN;
     float amount = S_SpellData(code, 1, 1);
 
     if (!target || amount <= 0) {
@@ -396,9 +410,10 @@ BZ_ITEM_PROC(AbilityMaxLifeMod) {
 
 /* WarSmash: CAbilityItemPermanentStatGain.checkBeforeQueue
  * Permanently adds to hero base stats, consumes the item. */
-BZ_ITEM_PROC(AbilityStrengthMod) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, 0);
+BZ_ABILITY_PROC(CAbilityStrengthMod) {
+    if (msg != A_ITEM_USE) return false;
+    edict_t *target = item_stat_recipient(ent);
+    uint32_t code = call && call->item ? call->item->code : 0;
     float str = S_SpellData(code, 1, 3);
     float agi = S_SpellData(code, 1, 1);
     float intel = S_SpellData(code, 1, 2);
@@ -415,9 +430,10 @@ BZ_ITEM_PROC(AbilityStrengthMod) {
 }
 
 /* WarSmash: CAbilityItemExperienceGain — grants XP. */
-BZ_ITEM_PROC(AbilityExperienceMod) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_XP_GAIN);
+BZ_ABILITY_PROC(CAbilityExperienceMod) {
+    if (msg != A_ITEM_USE) return false;
+    edict_t *target = item_stat_recipient(ent);
+    uint32_t code = call && call->item ? call->item->code : ID_ITEM_XP_GAIN;
     uint32_t amount = (uint32_t)S_SpellData(code, 1, 1);
 
     if (!target || !G_UnitIsHero(target) || amount == 0) {
@@ -429,9 +445,10 @@ BZ_ITEM_PROC(AbilityExperienceMod) {
 }
 
 /* WarSmash: CAbilityItemLevelGain — grants hero level. */
-BZ_ITEM_PROC(AbilityLevelMod) {
-    edict_t *target = G_GetMainSelectedUnit(clent->client);
-    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_LEVEL_GAIN);
+BZ_ABILITY_PROC(CAbilityLevelMod) {
+    if (msg != A_ITEM_USE) return false;
+    edict_t *target = item_stat_recipient(ent);
+    uint32_t code = call && call->item ? call->item->code : ID_ITEM_LEVEL_GAIN;
     uint32_t levels = (uint32_t)S_SpellData(code, 1, 1);
 
     if (!target || !G_UnitIsHero(target) || levels == 0) {
@@ -487,7 +504,12 @@ static bool item_speed_apply(edict_t *caster, uint32_t code, bool area_effect) {
                   (area_effect ? Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area : target == caster)) {
         float const duration = S_SpellHeroDuration(code, 1, target);
         heroabilitystatus_t *status = duration > 0.0f ? S_SpellApplyTimedTargetStatus(target, code, 1, buff, duration) : NULL;
-        if (status) status->data = code;
+        if (status) {
+            status->data = code;
+            /* The one-shot ability TargetArt is separate from the buff's
+             * persistent TargetArt (owned by the status lifecycle). */
+            G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        }
     }
     return true;
 }
@@ -551,6 +573,114 @@ BZ_ABILITY_PROC(CAbilityItemManaAoe) {
     return true;
 }
 
+/* Area Heal/Mana Regain (AIra, Rune of Restoration): DataA heals and
+ * DataB restores mana. Both resources are independently capped per target;
+ * use one authored target search so a target missing either resource qualifies.
+ * A well-formed powerup is consumed even when no resource is missing. */
+BZ_ABILITY_PROC(CAbilityItemRestoreAoe) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    uint32_t code;
+    float health, mana;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row || !(row->area >= 0.0f)) return false;
+    health = S_SpellData(code, 1, 1); /* DataA / Hit Points Gained */
+    mana = S_SpellData(code, 1, 2);   /* DataB / Mana Points Gained */
+    if (!(health >= 0.0f) || !(mana >= 0.0f)) return false;
+
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 S_SpellIsFriend(caster, target) &&
+                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
+        bool changed = false;
+        if (health > 0.0f && target->health.value < target->health.max_value) {
+            S_SpellHeal(target, health);
+            changed = true;
+        }
+        if (mana > 0.0f && target->mana.value < target->mana.max_value) {
+            target->mana.value = MIN(target->mana.max_value, target->mana.value + mana);
+            changed = true;
+        }
+        if (changed) G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    }
+    return true;
+}
+
+/* Glyph of Omniscience (AIrv): temporary full-map visibility for the
+ * collecting player's fog grid, not the global FogEnable cheat. */
+BZ_ABILITY_PROC(CAbilityItemRevealEntireMap) {
+    edict_t *caster;
+    uint32_t code;
+    float duration;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    code = call->item->code;
+    if (!G_AbilityLevel(code, 1)) return false;
+    duration = S_SpellDuration(code, 1, false);
+    /* Stock AIrv reveals for five seconds. Preserve custom Dur overrides. */
+    if (!(duration > 0.0f)) duration = 5.0f;
+    G_FowRevealEntireMapTimed(caster->s.player, duration);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
+    return true;
+}
+
+/* Glyph of Fortification / Ultravision (AIgf / AIgu): the glyph ability
+ * grants an authored upgrade to its owner. Unit effects are recalculated by
+ * the ordinary researched-tech transition, including future unit spawns. */
+BZ_ABILITY_PROC(CAbilityItemGlyphUpgrade) {
+    edict_t *caster;
+    gameClient_t *owner;
+    abilityLevel_t const *row;
+    UpgradeData_t const *upgrade;
+    uint32_t code, upgrade_id;
+    int32_t levels, current, maximum;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!owner || !row) return false;
+
+    /* Iglu is the upgrade rawcode (UnitID); Igl1 is the number of levels.
+     * Some custom data exporters place Iglu in DataB instead. */
+    upgrade_id = row->unitID ? row->unitID : row->data[1].id;
+    levels = (int32_t)row->data[0].number;
+    upgrade = upgrade_id ? G_UpgradeData(upgrade_id) : NULL;
+    if (!upgrade || upgrade->id != upgrade_id || levels <= 0) return false;
+    current = G_GetPlayerTechResearchedLevel(owner, upgrade_id);
+    maximum = G_GetPlayerTechMaxAllowed(owner, upgrade_id);
+    if (maximum >= 0 && current >= maximum) return true;
+    if (maximum >= 0) levels = MIN(levels, maximum - current);
+    G_AddPlayerTechResearched(owner, upgrade_id, levels);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
+    return true;
+}
+
+/* Rune of Dispel Magic (AIdi): one-shot area dispel centred on the picker.
+ * Use the same status removal and summon damage semantics as Priest Dispel,
+ * including undispellable lifecycle effects. Successful power-up activation
+ * does not require there to be a dispellable buff in range. */
+BZ_ABILITY_PROC(CAbilityItemDispelAoe) {
+    edict_t *caster;
+    uint32_t code;
+    abilityLevel_t const *row;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row || !(row->area >= 0.0f)) return false;
+    S_DispelMagicArea(caster, code, 1, &caster->s.origin2);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, caster, NULL, true);
+    return true;
+}
+
 /* Rune of Shielding (ANse): a one-use, untimed BNss protection per eligible
  * ally. Stock zero Dur is intentional: only an incoming block or dispel
  * removes it. Re-pickup does not stack charges or create an expiry timer. */
@@ -569,8 +699,16 @@ BZ_ABILITY_PROC(CAbilitySpellShieldAoe) {
                  S_SpellAllowsAreaTarget(code, caster, target) &&
                  Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
         if (G_UnitStatusLevel(target, FS_SLKKey(buff))) continue;
-        /* TargetArt is one-shot presentation; BNss owns persistent game state. */
-        S_SpellApplyTimedTargetStatus(target, code, 1, buff, 0.0f);
+        /* The shield charge is untimed. Its buff (BNss) owns persistent art,
+         * which the shared status lifecycle removes when a spell consumes it. */
+        heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(target, code, 1, buff, 0.0f);
+        if (status) {
+            unit_status_enabletargetart(target, status, "origin");
+            /* Emit the authored activation art only when a new charge was
+             * applied. The buff effect remains status-owned until blocked or
+             * dispelled, and is not recreated for duplicate pickups. */
+            G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        }
     }
     return true; /* Powerups consume even if all eligible allies already have shields. */
 }
@@ -629,7 +767,9 @@ BZ_ABILITY_PROC(CAbilityItemResurrection) {
     return true;
 }
 
-/* Chest of Gold / Gold Coins. DataA is the authored gold grant; a powerup
+/* Chest of Gold / Gold Coins. DataA can grant or drain gold (negative
+ * values in custom maps), clamped to the player resource range.
+ * DataA is the authored gold change; a powerup
  * executes on its actual picker rather than on a local client's selection.
  * Resource pickups grant their full amount and do not pass through the
  * worker-harvesting upkeep tax calculation. */
@@ -637,7 +777,7 @@ BZ_ABILITY_PROC(CAbilityItemGold) {
     edict_t *caster;
     gameClient_t *owner;
     float amount;
-    uint32_t balance, credited;
+    uint32_t balance, result;
 
     if (msg != A_ITEM_USE || !call || !call->item) return false;
     caster = item_use_caster(ent, call);
@@ -645,11 +785,11 @@ BZ_ABILITY_PROC(CAbilityItemGold) {
     owner = G_GetPlayerClientByNumber(caster->s.player);
     if (!owner) return false;
     amount = S_SpellData(call->item->code, 1, 1); /* DataA / Gold Given */
-    if (!(amount > 0.0f)) return false;
+    if (!isfinite(amount)) return false;
     balance = owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
-    credited = (uint32_t)MIN((double)amount, (double)(USHRT_MAX - balance));
-    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)(balance + credited);
-    if (credited) G_ResourceGainEvent(caster, owner->ps.number, PLAYERSTATE_RESOURCE_GOLD, (int32_t)credited);
+    result = (uint32_t)MAX(0.0, MIN((double)USHRT_MAX, (double)balance + (double)amount));
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)result;
+    if (result > balance) G_ResourceGainEvent(caster, owner->ps.number, PLAYERSTATE_RESOURCE_GOLD, (int32_t)(result - balance));
     return true;
 }
 
@@ -668,7 +808,7 @@ BZ_ABILITY_PROC(CAbilityItemLumber) {
     owner = G_GetPlayerClientByNumber(caster->s.player);
     if (!owner) return false;
     amount = S_SpellData(call->item->code, 1, 1); /* DataA / Lumber Given */
-    if (isnan(amount)) return false;
+    if (!isfinite(amount)) return false;
     balance = owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
     result = (uint32_t)MAX(0.0, MIN((double)USHRT_MAX, (double)balance + (double)amount));
     owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)result;
@@ -694,6 +834,28 @@ bool S_ItemSpeedActive(edict_t const *unit) {
         if (ability && (ability->proc == CAbilityItemSpeed || ability->proc == CAbilityItemSpeedAoe)) return true;
     }
     return false;
+}
+
+/* Rune of Rebirth does not charm an arbitrary nearby monster.  WC3's
+ * SetItemDropID records the monster type for the dropped rune; on pickup the
+ * collecting player receives that unit.  The slain monster is no longer a
+ * live entity to transfer, so use the normal unit spawn/food lifecycle.
+ * An unassociated rune must not fabricate a monster. */
+BZ_ABILITY_PROC(CAbilityItemRebirth) {
+    edict_t *picker, *rune, *reborn;
+    uint32_t unit_id;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    picker = item_use_caster(ent, call);
+    rune = call->source_item;
+    if (!picker || !rune || !G_IsItem(rune) || !rune->item->in_world ||
+        rune->spawn_time != call->source_item_spawn_time) return false;
+    unit_id = rune->item->drop_id;
+    if (!unit_id || G_UnitData(unit_id)->id != unit_id) return false;
+    reborn = SP_SpawnAtLocation(unit_id, picker->s.player, &rune->s.origin2);
+    if (!reborn) return false;
+    G_ActivateUnitFood(reborn);
+    G_SpawnAbilityEffectTarget(call->item->code, WC3_EFFECT_TARGET, 0, reborn, NULL, true);
+    return true;
 }
 
 /* Quake's itemlist decides what a touch picks up; here the AB_POWERUP row

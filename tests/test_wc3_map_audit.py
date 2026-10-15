@@ -8,6 +8,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -40,6 +41,59 @@ class MapMetadataTest(unittest.TestCase):
 
     def test_map_name_is_used_without_loading_titles(self):
         self.assertEqual(AUDIT.parse_w3i_name(w3i_fixture("Human05", "", ""), "", "fallback"), "Human05")
+
+
+class DifficultySourceAuditTest(unittest.TestCase):
+    def test_masks_comments_and_literals_but_keeps_real_native_calls(self):
+        source = (
+            '// call SetGameDifficulty(MAP_DIFFICULTY_HARD)\n'
+            'function main takes nothing returns nothing\n'
+            '  call DisplayTextToPlayer(Player(0), 0, 0, "GetGameDifficulty()")\n'
+            '  if GetGameDifficulty() == MAP_DIFFICULTY_NORMAL then\n'
+            '    call SetPlayerHandicap(Player(1), 0.75) // GetDefaultDifficulty()\n'
+            '  endif\n'
+            'endfunction\n'
+        )
+        calls = AUDIT.scan_difficulty_source(source)["calls"]
+        self.assertEqual(calls["GetGameDifficulty"], [4])
+        self.assertEqual(calls["SetPlayerHandicap"], [5])
+        self.assertNotIn("SetGameDifficulty", calls)
+        self.assertNotIn("GetDefaultDifficulty", calls)
+
+    def test_literal_ai_paths_and_map_calls_are_discovered(self):
+        source = (
+            'native GetGameDifficulty takes nothing returns gamedifficulty\n'
+            'function main takes nothing returns nothing\n'
+            '  call StartCampaignAI(Player(1),\n'
+            '      "h02_red.ai")\n'
+            '  call StartCampaignAI(Player(2), "Scripts\\h02_blue.ai")\n'
+            '  // call StartCampaignAI(Player(3), "missing.ai")\n'
+            '  call SetDefaultDifficulty(MAP_DIFFICULTY_EASY)\n'
+            'endfunction\n'
+        )
+        result = AUDIT.scan_difficulty_source(source)
+        self.assertEqual(result["calls"]["StartCampaignAI"], [3, 5])
+        self.assertEqual(result["calls"]["SetDefaultDifficulty"], [7])
+        self.assertEqual(result["ai_scripts"], ["h02_red.ai", "Scripts/h02_blue.ai"])
+
+    def test_map_inventory_marks_missing_ai_as_unresolved(self):
+        item = {"edition": "RoC", "filename": "Human02.w3m",
+                "archive": "/missing/War3.mpq", "path": "Maps/Campaign/Human02.w3m"}
+        with mock.patch.object(AUDIT, "read_map_member", return_value=(
+                b'call StartCampaignAI(Player(1), "h02_red.ai")\n')):
+            with mock.patch.object(AUDIT, "read_campaign_ai_source", return_value=None):
+                row = AUDIT.difficulty_map_result(item, Path("/missing"), Path("/unused"))
+        self.assertNotIn("error", row)
+        self.assertEqual(row["ai_scripts"][0]["path"], "h02_red.ai")
+        self.assertFalse(row["ai_scripts"][0]["found"])
+        markdown = AUDIT.render_difficulty_markdown([row])
+        self.assertIn("(not resolved)", markdown)
+        self.assertIn("**static inventory**", markdown)
+
+    def test_static_scan_mode_needs_no_game_executable(self):
+        args = AUDIT.parse_args(["--difficulty-scan", "--map", "Human*.w3m"])
+        self.assertTrue(args.difficulty_scan)
+        self.assertEqual(args.map, "Human*.w3m")
 
 
 class DiagnosticTest(unittest.TestCase):
@@ -160,6 +214,14 @@ class LooseMapTest(unittest.TestCase):
             "data/Warcraft III/Maps/Other.w3m",
         ])
         self.assertEqual(args.frames, 10)
+
+    def test_campaign_difficulty_runtime_option(self):
+        easy = AUDIT.parse_args(["--campaign-difficulty", "0", "--map", "Human02.w3m"])
+        hard = AUDIT.parse_args(["--campaign-difficulty", "2", "--map", "Human02.w3m"])
+        self.assertEqual(easy.campaign_difficulty, 0)
+        self.assertEqual(hard.campaign_difficulty, 2)
+        with self.assertRaises(SystemExit):
+            AUDIT.parse_args(["--campaign-difficulty", "3"])
 
     def test_filter_maps_matches_loose_path(self):
         maps = [{

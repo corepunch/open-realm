@@ -497,6 +497,7 @@ bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool p
     G_ApplyItemStats(unit, item, true);
     G_RefreshInventoryUI(unit);
     if (publish_event) {
+        G_PlayerScoreItemGained(unit);
         G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
         G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
     }
@@ -584,7 +585,8 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
         /* Resurrection is a validated use: with no legal corpse, WC3 reports
          * failure and leaves the powerup in the world. Other supported runes
          * keep their consume-on-touch behavior even when no target qualifies. */
-        if (!used && powerup.ability->proc == CAbilityItemResurrection) return false;
+        if (!used && (powerup.ability->proc == CAbilityItemResurrection ||
+                      powerup.ability->proc == CAbilityItemRebirth)) return false;
         G_QueueOwnerSoundAlias(unit, "ItemGet");
         G_CompletePowerupUse(unit, item);
         return true;
@@ -594,8 +596,10 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
         G_QueueOwnerSoundAlias(unit, "ItemGet");
         G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
         G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
-        /* Defer destruction so queued JASS pickup callbacks can still read
-         * GetManipulatedItem/GetItemTypeId from their original handle. */
+        /* A quest powerup is consumed just once even without an ability.
+         * Retain its live handle for pickup-trigger callbacks, but do not
+         * fabricate a use-item event for an ability-less pickup. */
+        item->item->charges = 0;
         G_RetainConsumedItemForUseEvent(item);
         return true;
     }
@@ -732,11 +736,15 @@ bool G_DropItem(edict_t *unit, uint32_t slot) {
 
 void G_DropInventoryOnDeath(edict_t *unit) {
     uint32_t capacity;
+    bool default_drop;
 
-    if (!unit || !G_InventoryDropsItemsOnDeath(unit)) return;
+    if (!unit) return;
+    default_drop = G_InventoryDropsItemsOnDeath(unit);
     capacity = G_InventoryCapacity(unit);
     FOR_LOOP(slot, capacity) {
-        if (unit->inventory[slot] && !G_ItemAbilitiesPreventDrop(unit, unit->inventory[slot]))
+        edict_t *item = unit->inventory[slot];
+        if (!G_IsItem(item) || G_ItemAbilitiesPreventDrop(unit, item)) continue;
+        if (item->item->drop_on_death_set ? item->item->drop_on_death : default_drop)
             G_DropItemAtInternal(unit, slot, &unit->s.origin2, false);
     }
 }

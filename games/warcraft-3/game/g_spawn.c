@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "games/warcraft-3/common/difficulty.h"
 #include "jass/jass.h"
 
 #define MAX_SPAWN_ITERATIONS 10
@@ -711,6 +712,8 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     G_ClearPlayerAbilityAvailability(clent->client);
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(clent->client->tech, 0, sizeof(clent->client->tech));
+    /* Score totals belong to the outgoing match, never the next loaded map. */
+    memset(&clent->client->score, 0, sizeof(clent->client->score));
     memset(ps, 0, sizeof(player_t));
     ps->number = playernum;
     ps->team = G_MapPlayerTeam(mapinfo, playernum);
@@ -756,6 +759,14 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     clent->client->jass.race_selectable = true;
     clent->client->jass.handicap = 100.0f;
     clent->client->jass.handicap_xp = 1.0f;
+    /* Single-player retail displays the profile name for the local human
+     * slot, rather than the W3I placeholder (often "Player 1"). JASS
+     * SetPlayerName runs later and can intentionally override this value. */
+    if (player && player->playerType == kPlayerTypeHuman &&
+        G_IsSinglePlayer() && gi.CvarString) {
+        cstring_t profile_name = gi.CvarString("name", "");
+        if (profile_name && *profile_name) name = profile_name;
+    }
     strlcpy(clent->client->jass.name, name ? name : "", sizeof(clent->client->jass.name));
     ps->name = clent->client->jass.name;
 }
@@ -834,12 +845,11 @@ TEST(wc3_doodad, special_height_samples_remain_inside_heightmap) {
 }
 #endif
 
-void G_SpawnEntities(void) {
+void G_SpawnEntities(cstring_t map_path) {
     mapInfo_t const *mapinfo = CM_GetMapInfo();
     doodad_t const *entities = CM_GetDoodads();
     uint32_t local_player = G_LocalMapPlayerNumber(mapinfo);
-    int32_t difficulty = 1;
-    cstring_t map_path = gi.CvarString("map", "");
+    uint32_t difficulty, original_default;
 
     /* Map replacement must release script roots before level pointers are cleared. */
     G_BotShutdown();
@@ -861,21 +871,21 @@ void G_SpawnEntities(void) {
     level.mapinfo = mapinfo;
     G_BlightInit();
     G_EnvironmentFogInitMap();
+    G_WaterBaseColorInitMap();
     G_InitPlayerAlliances(mapinfo);
     level.setup.teams = mapinfo ? mapinfo->num_teams : 0;
     if (mapinfo) FOR_LOOP(i, MAX_PLAYERS) level.setup.players += mapinfo->players[i].used;
     level.setup.game_type = 4;
     level.setup.speed = 2;
-    if ((!strncasecmp(map_path, "Maps\\Campaign\\", 14) ||
-         !strncasecmp(map_path, "Maps/Campaign/", 14) ||
-         !strncasecmp(map_path, "Maps\\FrozenThrone\\Campaign\\", 26) ||
-         !strncasecmp(map_path, "Maps/FrozenThrone/Campaign/", 26)) && gi.CvarString) {
-        difficulty = atoi(gi.CvarString("wc3_campaign_difficulty", "1"));
+    if (!G_TakeDifficultyTransition(map_path, &difficulty, &original_default)) {
+        difficulty = WC3_InitialGameDifficulty(map_path,
+            WC3_IsCampaignMap(map_path) && gi.CvarString
+                ? gi.CvarString(WC3_CAMPAIGN_DIFFICULTY_CVAR, WC3_CAMPAIGN_DIFFICULTY_DEFAULT)
+                : WC3_CAMPAIGN_DIFFICULTY_DEFAULT);
+        original_default = difficulty;
     }
-    if (difficulty < 0) difficulty = 0;
-    if (difficulty > 3) difficulty = 3;
-    level.setup.difficulty = (uint32_t)difficulty;
-    level.setup.default_difficulty = (uint32_t)difficulty;
+    level.setup.difficulty = difficulty;
+    level.setup.default_difficulty = original_default;
     level.setup.resource_density = level.setup.creature_density = 2;
     if (mapinfo) {
         strlcpy(level.setup.name, G_LevelString(mapinfo->mapName ? mapinfo->mapName : ""), sizeof(level.setup.name));
@@ -934,6 +944,9 @@ void G_SpawnEntities(void) {
         }
         SP_CallSpawn(ent);
         G_FillMapPlacedUnitMana(ent);
+        if (ent->s.flags & EF_UNIT) {
+            G_PlayerScoreUnitTrained(ent); /* preplaced map units count */
+        }
         if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (uint32_t)-1)
             ent->resources = doodad->goldAmount;
         if (ent->svflags & SVF_MONSTER) G_ApplyMapUnitTeamColor(ent, doodad);
@@ -945,6 +958,14 @@ void G_SpawnEntities(void) {
     }
     S_MineOverlayBindPreplaced();
     SP_worldspawn(NULL);
+    /* Every W3I participant has its own preplaced army, including computer
+     * factions without network connections. Seed authoritative food peaks
+     * before map JASS starts; the later ClientBegin pass is delta-idempotent. */
+    FOR_LOOP(i, MAX_PLAYERS) {
+        gameClient_t *client = game.clients + i;
+        if (client->mapplayer && client->mapplayer->used)
+            G_AccumulatePlayerFood(client);
+    }
     
     jass_dofile(level.vm, "Scripts\\common.j");
     gi.LoadingFrame();

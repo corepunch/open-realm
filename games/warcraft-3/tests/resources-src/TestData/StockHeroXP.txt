@@ -1,0 +1,5 @@
+[Misc]
+NeedHeroXP=200
+NeedHeroXPFormulaA=1
+NeedHeroXPFormulaB=100
+NeedHeroXPFormulaC=0

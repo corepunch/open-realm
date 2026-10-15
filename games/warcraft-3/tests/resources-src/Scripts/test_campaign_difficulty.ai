@@ -1,0 +1,33 @@
+// Focused difficulty contract fixture. The installed common.ai remains
+// authoritative for live games; this script exercises the same Easy/Normal/
+// Hard selection and the Hard fallback for unsupported higher difficulties.
+function FixtureQuantity takes integer easy, integer normal, integer hard returns integer
+    if GetGameDifficulty() == MAP_DIFFICULTY_EASY then
+        return easy
+    elseif GetGameDifficulty() == MAP_DIFFICULTY_NORMAL then
+        return normal
+    endif
+    return hard
+endfunction
+
+function FixtureCampaignAI takes nothing returns nothing
+    if GetGameDifficulty() == MAP_DIFFICULTY_EASY then
+        call SetTargetHeroes(false)
+        call SetUnitsFlee(false)
+    elseif GetGameDifficulty() == MAP_DIFFICULTY_NORMAL then
+        call SetTargetHeroes(false)
+        call SetUnitsFlee(false)
+    elseif GetGameDifficulty() == MAP_DIFFICULTY_HARD then
+        call SetPeonsRepair(true)
+    endif
+endfunction
+
+function main takes nothing returns nothing
+    call FixtureCampaignAI()
+    call SetReplacementCount(FixtureQuantity(0, 1, 3))
+    call CreateCaptains()
+    call AddDefenders(FixtureQuantity(1, 1, 2), 'ogru')
+    call InitAssault()
+    call AddAssault(FixtureQuantity(2, 3, 5), 'ohun')
+    call Sleep(1000.0)
+endfunction

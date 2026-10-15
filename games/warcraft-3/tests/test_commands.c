@@ -26,6 +26,8 @@ static bool command_tests_initialized;
 static bool late_command_called;
 static bool save_map_readable;
 static bool load_game_ok;
+static uint32_t control_groups_load_calls;
+static PATHSTR last_control_groups_load;
 static unsigned short last_connect_port;
 
 extern bool cl_screenshot_pending;
@@ -55,6 +57,11 @@ void CL_Connect(cstring_t host, unsigned short port) {
 
 void CL_BeginLoadingMap(cstring_t mapName) {
     snprintf(last_loading_map, sizeof(last_loading_map), "%s", mapName ? mapName : "");
+}
+
+void CL_ControlGroupsLoad(cstring_t name) {
+    control_groups_load_calls++;
+    snprintf(last_control_groups_load, sizeof(last_control_groups_load), "%s", name ? name : "");
 }
 
 void CL_Shutdown(void) {
@@ -92,6 +99,8 @@ static void reset_map_handoff(void) {
     last_sv_map[0] = '\0';
     last_load_name[0] = '\0';
     last_load_map[0] = '\0';
+    control_groups_load_calls = 0;
+    last_control_groups_load[0] = '\0';
     last_connect_host[0] = '\0';
     last_forwarded[0] = '\0';
     late_command_called = false;
@@ -265,6 +274,23 @@ TEST(commands, save_list_returns_newest_sav_basenames_first) {
     remove(older);
     remove(newer);
     remove(ignored);
+}
+
+TEST(commands, save_list_keeps_basenames_containing_spaces) {
+    PATHSTR path;
+    char list[256] = { 0 };
+    FILE *file;
+
+    setup_command_tests();
+    FS_SetHomeDirectory(Test_TempPath("save-space-list-test"));
+    FS_SavePath("Night Elf 04 custom save", path, sizeof(path));
+    remove(path);
+    file = fopen(path, "wb"); T_NOT_NULL(file);
+    if (file) fclose(file);
+    T_EQ(FS_ListSaves(list, sizeof(list)), 1);
+    T_STREQ(list, "Night Elf 04 custom save");
+    T_EQ(list[strlen(list) + 1], '\0');
+    T_ASSERT(FS_DeleteSave("Night Elf 04 custom save"));
 }
 
 TEST(commands, delete_save_removes_named_save_file) {
@@ -632,8 +658,21 @@ TEST(commands, load_command_reloads_saved_map_without_connect) {
     T_STREQ(last_loading_map, "Maps\\Campaign\\Human02.w3m");
     T_STREQ(last_load_name, "quick");
     T_STREQ(last_load_map, "Maps\\Campaign\\Human02.w3m");
+    T_EQ(control_groups_load_calls, 1);
+    T_STREQ(last_control_groups_load, "quick");
     /* Q2 load reconnects with "new" on the existing slot, not CL_Connect. */
     T_STREQ(last_connect_host, "");
+}
+
+TEST(commands, load_command_accepts_quoted_save_name_with_spaces) {
+    setup_command_tests();
+    reset_map_handoff();
+    Cvar_Set("dedicated", "0"); Cvar_Set("game_port", "28015");
+
+    Cmd_ExecuteString("load \"Night Elf 04 custom save\"");
+
+    T_STREQ(last_load_name, "Night Elf 04 custom save");
+    T_STREQ(last_load_map, "Maps\\Campaign\\Human02.w3m");
 }
 
 TEST(commands, load_command_stops_when_save_map_is_unreadable) {

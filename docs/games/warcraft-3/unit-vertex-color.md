@@ -12,7 +12,7 @@ Current scope is intentionally narrow:
 - `UnitUI.slk` `red`/`green`/`blue` values initialize the authored default tint;
   omitted columns resolve to white, while `SetUnitVertexColor` remains an explicit
   per-unit override across type rebinds.
-- `SetWaterBaseColor` remains a placeholder; the W3M water renderer has no live server-authored base-colour contract yet.
+- `SetWaterBaseColor` is implemented separately through the scene water-color contract; see [Water Base Color](water-base-color.md).
 - JASS `texttag` / `SetTextTagColor` store registry state and publish generic keyed texttag presentation updates ([multiboard-and-texttag.md](multiboard-and-texttag.md)).
 - Gameplay visibility/detection remains independent from vertex alpha. Shadow Meld and active gameplay invisibility reuse the same per-client tint transport for owner/shared-vision presentation; the recipient tint multiplies authored alpha by a documented approximate fade/ghost opacity.
 

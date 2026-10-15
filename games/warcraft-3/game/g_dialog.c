@@ -168,7 +168,7 @@ void G_JassDialogDisplay(player_t *player, jassDialog_t *dialog, bool visible) {
         /* A script-authored choice dialog is the result presentation for this
          * player. Do not also flush the temporary native result fallback. */
         if (ent && ent->client && ent->client->jass.pending_game_result) {
-            G_GameResultDebug("fallback suppressed player=%u result=%u reason=jass_choice_dialog dialog=%u",
+            BZ_WC3_SCORE_LOG("fallback suppressed player=%u result=%u reason=jass_choice_dialog dialog=%u",
                 index, (unsigned)ent->client->jass.pending_game_result - 1, dialog->id);
             ent->client->jass.pending_game_result = 0;
             ent->client->jass.pending_game_result_event = 0;

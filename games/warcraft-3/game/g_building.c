@@ -1941,6 +1941,7 @@ void G_CompleteConstruction(edict_t *building) {
     G_SetUnitFoodMade(building, building->data.UnitBalance->foodMade);
     G_QueueOwnerUISound(building, "JobDoneSound");
     G_SendOwnerMinimapAlert(building);
+    G_PlayerScoreStructureBuilt(building);
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
     G_PublishEvent(building, EVENT_UNIT_CONSTRUCT_FINISH);
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {

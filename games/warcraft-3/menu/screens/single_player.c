@@ -6,6 +6,7 @@
 #include "../menu_screen.h"
 #include "../generated/single_player_menu.h"
 #include "common/campaign_progress.h"
+#include "common/difficulty.h"
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -141,6 +142,9 @@ static uint32_t campaign_background_last_render_time;
 static uint32_t selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
 static wc3CampaignProgress_t campaign_progress;
+/* Stable text storage for completion suffixes; visible rows bind to these
+ * rather than altering the authored CampaignStrings mission names. */
+static char mission_completion_names[UI_MAX_MAP_LIST_ITEMS][256];
 
 static void SinglePlayer_ReleaseCampaignBackdropState(void) {
     refExport_t *renderer = mi.GetRenderer ? mi.GetRenderer() : NULL;
@@ -813,8 +817,11 @@ static void SinglePlayer_AddCinematicItem(singlePlayerCampaign_t const *campaign
 }
 #endif
 
+static cstring_t SinglePlayer_DifficultyName(uint32_t difficulty);
+
 static void SinglePlayer_PopulateMissionList(singlePlayerCampaign_t const *campaign) {
     memset(&mission_list, 0, sizeof(mission_list));
+    memset(mission_completion_names, 0, sizeof(mission_completion_names));
     if (!campaign) {
         return;
     }
@@ -847,6 +854,23 @@ static void SinglePlayer_PopulateMissionList(singlePlayerCampaign_t const *campa
         }
         snprintf(item->path, sizeof(item->path), "%s", mission->map_path);
         item->flags = i;
+        {
+            int32_t const campaign_index = SinglePlayer_CampaignProgressIndex(campaign);
+            uint32_t best;
+            wc3CampaignProgressKey_t const key = MAKE(wc3CampaignProgressKey_t,
+                .edition = SinglePlayer_CampaignEdition(),
+                .campaign = campaign_index < 0 ? UINT32_MAX : (uint32_t)campaign_index,
+                .mission = i);
+            if (campaign_index >= 0 &&
+                wc3_campaign_progress_best_difficulty(&campaign_progress, key, &best)) {
+                cstring_t name = mission->name[0] ? mission->name : mission->map_path;
+                cstring_t difficulty = SinglePlayer_DifficultyName(best);
+                /* Reserve room for " (", the difficulty, and ")" so the
+                 * completion marker stays visible for long mission names. */
+                snprintf(mission_completion_names[mission_list.count - 1],
+                         sizeof(mission_completion_names[0]), "%.220s (%.30s)", name, difficulty);
+            }
+        }
     }
 
 #ifdef BZ_FFMPEG
@@ -970,7 +994,9 @@ static void SinglePlayer_FillMissionRows(singlePlayerCampaign_t const *campaign)
             name = campaign->cinematics[index].name;
         } else if (!cinematic && index < campaign->num_missions) {
             header = campaign->missions[index].header;
-            name = campaign->missions[index].name[0] ? campaign->missions[index].name : name;
+            name = mission_completion_names[i][0]
+                ? mission_completion_names[i]
+                : (campaign->missions[index].name[0] ? campaign->missions[index].name : name);
         }
         SinglePlayer_AddListEntry(&mission_rows, i, cinematic, header, name);
         if (cinematic && index == SINGLE_PLAYER_CINEMATIC_INTRO && i + 1 < mission_list.count)
@@ -1066,6 +1092,7 @@ static cstring_t SinglePlayer_DifficultyName(uint32_t difficulty) {
     switch (difficulty) {
         case 0: return UI_GetString("EASY");
         case 2: return UI_GetString("HARD");
+        case 3: return UI_GetString("INSANE");
         default: return UI_GetString("NORMAL");
     }
 }
@@ -1108,13 +1135,9 @@ static void SinglePlayer_BindCampaignMenu(void) {
         UI_SetHidden(DifficultyMenu, true);
     }
     difficulty_value = mi.Cvar_String
-        ? mi.Cvar_String("wc3_campaign_difficulty", "1") : "1";
-    if (difficulty_value) {
-        int32_t value = atoi(difficulty_value);
-        if (value >= 0 && value <= 2) {
-            difficulty = (uint32_t)value;
-        }
-    }
+        ? mi.Cvar_String(WC3_CAMPAIGN_DIFFICULTY_CVAR, WC3_CAMPAIGN_DIFFICULTY_DEFAULT)
+        : WC3_CAMPAIGN_DIFFICULTY_DEFAULT;
+    difficulty = WC3_CampaignDifficultyOrNormal(difficulty_value);
     SinglePlayer_UpdateDifficultyTitle(difficulty);
 }
 
@@ -1253,13 +1276,13 @@ void SinglePlayerMenu_LaunchMissionIndex(uint32_t index) {
 void SinglePlayerMenu_SetDifficulty(uint32_t difficulty) {
     char value[8];
 
-    if (difficulty > 2) {
+    if (difficulty > WC3_CAMPAIGN_DIFFICULTY_HARD) {
         return;
     }
     SinglePlayer_UpdateDifficultyTitle(difficulty);
     if (mi.Cvar_Set) {
         snprintf(value, sizeof(value), "%u", (unsigned)difficulty);
-        mi.Cvar_Set("wc3_campaign_difficulty", value);
+        mi.Cvar_Set(WC3_CAMPAIGN_DIFFICULTY_CVAR, value);
     }
 }
 

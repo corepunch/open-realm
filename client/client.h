@@ -237,6 +237,7 @@ bool CL_WindowEditCursor(uint32_t text_frame, uint32_t *cursor);
 bool CL_WindowEditSelection(uint32_t text_frame, uint32_t *start, uint32_t *end);
 void CL_SetTransientTextInput(bool enabled);
 bool CL_WindowModalActive(void);
+bool CL_WindowPresentationActive(void);
 
 void CON_DrawConsole(void);
 void CON_printf(cstring_t fmt, ...);

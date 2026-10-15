@@ -10,6 +10,9 @@ uint32_t CL_ControlGroupAppendUnique(uint32_t *group, uint32_t count, uint32_t c
                                   uint32_t const *ids, uint32_t num_ids);
 
 void CL_ControlGroupsReset(void);
+/* Local-only, versioned sidecar for manual save slots. */
+bool CL_ControlGroupsSave(cstring_t name);
+void CL_ControlGroupsLoad(cstring_t name);
 void CL_ControlGroupsInit(void);
 
 #endif

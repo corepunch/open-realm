@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 89, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 99, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -21,11 +21,19 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 `WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
 Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Event references use physical slot IDs, so retired region-event slots may leave holes; the loader checks that a referenced slot is in use instead of assuming active slots form a dense prefix. Map startup can recreate a region registration that the saved state had removed, and the saved event table restores that removal. Quest state is restored from its fixed slots even when the pre-load active quest count differs. Loading completely reloads the saved map first, then applies state.
 
-The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 60 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. The version-59 layout cannot be read by version 60 because its client-record boundary has no list count; version 60 saves are likewise rejected by older exact-version readers.
+The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 60 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. Version 90 adds the inline Warcraft player-score counters to `gameClient_t`, so completed training/construction, kills, gathered resources/upkeep, food maxima, item acquisition, and mercenary hires survive save/load. The exact-version reader rejects version 89 and earlier rather than migrating their shorter client layout.
 
 ### Save compatibility policy
 
 Save compatibility is deliberately unsupported. Load only the current format version and serialized layout, and reject older or otherwise mismatched saves with a diagnostic. Bump the format version when the serialized layout, callback identity, or meaning changes, including changes that leave `sizeof(edict_t)` unchanged. Do not retain legacy layouts, migration defaults, compatibility aliases, or optional extension records.
+
+Version 90 serializes current and default Warcraft III game difficulty as
+independent `level.setup` fields. This preserves a temporarily reduced current
+difficulty across save/load, without reapplying the archived campaign preference
+or overwriting the original default. Version 89 saves are rejected by the
+existing exact-version check. `wc3_save.current_and_default_difficulty_round_trip_independently`
+exercises Normal / Hard and Insane / Easy snapshots. The transient per-map
+restart/ChangeLevel override is session-only and is never persisted.
 
 Version 89 retains the selected entity and its `spawn_time` for ability-owned
 entity cursors that execute as point spells. A pending Kaboom approach saves
@@ -154,6 +162,16 @@ Weather effects use the same stable-slot rule. `level.weather_effects[MAX_WEATHE
 
 Event handler registrations store type, subject entity index, trigger index, timer index, region, range, game-state ID, `limitop`, and limit value. The extra condition fields preserve `TriggerRegisterGameStateEvent` time-of-day registrations across save/load. The unread portion of the bounded gameplay event ring preserves event type, subject/source entity indexes, scalar value, optional point target, and the target registration ordinal. Consumed queue entries are not saved. Loads reject queue overflow and unresolved entity or registration IDs.
 
+
+## Difficulty and zone transition boundary
+
+The campaign preference is an archived client cvar; a running mission owns
+independent `level.setup.difficulty` / `level.setup.default_difficulty` values.
+The one-shot state used by a scripted RestartGame or ChangeLevel is **not** part
+of a game-save snapshot. `SaveGame` followed by `ChangeLevel` stages a transition
+only after a successful `WriteGame`, whereas `LoadGame` must restore its own
+serialized values. Difficulty level-field serialization and the associated save
+format version change remain follow-up work; see [Game difficulty](game-difficulty.md).
 
 ## JASS Snapshot
 
@@ -521,18 +539,18 @@ native `FT_LISTBOX` state child constrained by its anchors. The panel is hosted 
 the geometry source of truth. The transient client owns list selection, scrolling, and edit state while the
 modal is open; gameplay code only fills data, visibility, enable state, and click handlers.
 
-New saves are prefilled with a filesystem/command-safe local timestamp (`YYYY-MM-DD_HH-MM-SS`). The value remains an ordinary
+New saves are prefilled with the active map file basename (without extension) and a filesystem/command-safe local timestamp (`NightElf04_YYYY-MM-DD_HH-MM-SS`). If the map path is unavailable, the timestamp alone is used. The value remains an ordinary
 editable transient edit box, so the player can replace or amend it before saving.
 
 Each time Save Game opens, the authored `SaveGameFileEditBox`
-the edit box is initialized from local wall-clock time as `YYYY-MM-DD_HH-MM-SS`; the value is only a default and remains editable before
+the edit box is initialized from the current map basename and local wall-clock time as `MapName_YYYY-MM-DD_HH-MM-SS`; the value is only a default and remains editable before
 submission. The timestamp avoids characters rejected by the save-path validator.
 
 `FS_ListSaves()` enumerates `.sav` basenames under the directory derived by `FS_SavePath()` and returns a double-NUL list ordered by
 filesystem modification time, newest first. Equal modification times fall back to a case-insensitive basename sort for deterministic
 ordering. This keeps recently written or overwritten saves at the top even when the player replaces the timestamp with a custom name.
 The list is exposed to game modules through `gi.ListSaves`. The WC3 menu only publishes entries for which `G_GetSaveMap()` can read a map identity.
-The basename `quick` is rendered as `Quick Save`, preserving the F6/console quick slot alongside named files.
+Spaces within manually entered save names are preserved in save enumeration and quoted load commands; tests cover directory enumeration and quoted command parsing. The basename `quick` is rendered as `Quick Save`, preserving the F6/console quick slot alongside named files.
 
 Menu-entered names are trimmed, optional `.sav` is removed, length is capped to `CMDARG_LEN - 1`, and path/control characters are
 rejected. `Quick Save` normalizes back to `quick`. Saving an existing basename currently overwrites it immediately. Delete removes the
@@ -839,6 +857,15 @@ collection, restores both bound saves, and verifies only the orphan vanished.
 For each **immutable checkpoint file**, Linux first attempts a CoW reflink.
 This shares physical extents while keeping writable files independent; it is
 safe even when a writer truncates the live copy in place. When reflinking is
+
+### Native-owned campaign and death state (version 98)
+
+Version 98 serializes `level.campaign_menu_race` (legacy 1..4 or 0 for selector)
+and preserves `AI_SCRIPT_EXPLODED` in the existing saved `edict.aiflags` field.
+This avoids losing legacy campaign selection and scripted unit death intent
+across save/load. `wc3_save.legacy_campaign_menu_race_round_trip` and
+`wc3_save.field_script_explosion_round_trip` cover the values. Older saves are
+rejected by the existing strict save-version policy.
 unavailable (or on Windows), the engine can instead write a level-1 gzip
 payload inside an engine-private `ORCPGZ1!` envelope if that consumes fewer
 bytes than the original file. The restore path requires a real gzip member
@@ -857,3 +884,57 @@ creation may temporarily require extra space, and compression is a fallback,
 not guaranteed. On filesystems without reflink support, restores materialize
 new live files in full. A separate aggregate quota, explicit storage audit
 command, and crash-recovery garbage collector remain future improvements.
+
+### Hero score-screen snapshot and version 95
+
+The Heroes Used column is built from currently owned hero entities when the
+score screen freezes the outgoing match. It is not a persisted running counter.
+Version 95 removes `heroes_used` from the serialized `gameClient_t::score`
+layout; the serializer rejects version 94 and earlier without migration. The
+score-screen hero portraits/levels are transient and are not saved. Earned XP
+and the existing unit/resource score state still round-trip normally.
+
+### Item death-drop overrides and version 96
+
+Version 96 persists per-item `SetItemDropOnDeath` overrides in the raw edict
+record. Version 95 and earlier saves are rejected; save compatibility and
+migration are not supported.
+
+### Water base color and version 97
+
+Version 97 persists the `SetWaterBaseColor` RGBA value and republishes it after
+load so connected clients restore the authored water tint. Version 96 and
+earlier saves are rejected.
+
+### Timed full-map visibility and version 99
+
+Version 99 persists the player-local simulation deadlines for Glyph of
+Omniscience. Visibility is recomputed from those deadlines after load, while
+the explored map remains in the existing fog exploration payload.
+
+### Restored static pathing (opened gates)
+
+`SV_Map` builds static obstacles from the map's initial entities, before the
+saved snapshot is restored. A gate opened or destroyed during gameplay can
+therefore appear open after loading while the old, closed gate's cells remain
+in the pathfinding grid. `ReadGame` must finish rebinding all saved entities,
+restore destructable alive/death footprints using `G_RestoreDestructableData`,
+then call `CM_BakeStaticObstacles()` **once** before resuming simulation.
+This also updates footprints for other moved/removed structures. Animation is
+not the authoritative input for pathfinding; the saved destructable lifecycle
+and pathing fields are.
+
+## Local numbered control groups
+
+Manual Warcraft III saves persist the ten local selection groups (0–9) in a
+versioned companion file named `<slot>.sav.groups` in the normal user-save
+directory. This data is owned by the universal client, not by JASS or the
+game-module simulation. Both the `save` command and in-game Save menu write
+the companion after the main game save succeeds. The `load` command and
+in-game Load menu restore it only after a successful game-state load, following
+the normal map-transition reset. Missing or incompatible companion files leave
+groups empty (so older saves remain loadable); saved IDs are bounded on read
+and checked against live selectable entities when recalled. Double-tap focus
+state never survives a load. Scripted zone loads do not restore manual groups.
+Deleting a manual save also deletes its companion file. The companion must
+travel alongside the `.sav` file when copying saves to another installation.

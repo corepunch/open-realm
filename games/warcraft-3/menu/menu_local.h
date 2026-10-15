@@ -77,7 +77,7 @@ float UI_GlueSideOffset(uiGlueSide_t side);
 /* menu_fdf.c — FDF parsing (moved from game/menu/menu_fdf.c) */
 bool UI_EnsureFDF(cstring_t filename);
 void UI_ParseFDF(cstring_t filename);
-void UI_ParseFDF_Buffer(cstring_t filename, string_t buffer);
+bool UI_ParseFDF_Buffer(cstring_t filename, string_t buffer);
 void UI_ClearTemplates(void);
 void UI_SetCameraEventRelease(void (*release)(uintptr_t));
 void UI_ReleaseAssets(void);

@@ -499,7 +499,7 @@ permission. Detach/removal always reverses an effect that was already applied,
 even if `CanUseItems` changed while the item was carried, so permission changes
 cannot leak a permanent stat bonus.
 
-Automatic acquisition/use is implemented for the supported Speed (`AIsp`/`AIsa`/`APsa`), Gold (`AIgo`), Lumber (`AIlu`), Area Healing (`AIha`), Area Mana (`AImr`/`APmr`/`APmg`), and Resurrection (`APrl`/`APrr`) powerups: these items bypass inventory capacity, execute against the actual picking unit, publish pickup/use events, and are consumed without occupying a slot. An `AB_POWERUP` flag on the ability registry row selects supported ability-driven powerups. An ItemData `powerup` item with no `abilList` (including `_`) is also collected without an inventory slot, even when its `usable` and `uses` values are zero. This publishes pickup events with a live item handle before deferred removal, without inventing a use-item event or an ability effect. Most flagged powerups are consumed on touch even when no unit qualifies (for example a mechanical picker of a speed rune). Speed uses authored timed effects, and any rawcode whose AbilityData `code` is a speed procedure gets the `Misc.MaxUnitSpeed` cap; Gold and Lumber use their authored `DataA` resource grants (not upkeep-taxed harvesting income); `AIlu` also supports negative custom-map amounts clamped to zero; Area Healing uses authored `DataA`, `Area`, and target masks, consuming runes even if every valid recipient is at full health; Area Mana uses authored `DataA`, `Area`, and target masks to restore mana to nearby friendly units, capped at each recipient's maximum mana, and consumes even with no missing mana; Resurrection uses authored `DataA` and `Area`, permanently revives nearby friendly non-Hero/non-structure corpses at full life, and leaves the rune in the world with a failed-use message when no eligible corpse is nearby. Powerups with unsupported nonempty ability lists remain on the normal inventory path until their gameplay handlers are implemented; silently consuming them would discard authored effects.
+Automatic acquisition/use is implemented for the supported Speed (`AIsp`/`AIsa`/`APsa`), Gold (`AIgo`), Lumber (`AIlu`), Area Healing (`AIha`), Area Mana (`AImr`/`APmr`/`APmg`), Area Restoration (`AIra`), and Resurrection (`APrl`/`APrr`) powerups: these items bypass inventory capacity, execute against the actual picking unit, publish pickup/use events, and are consumed without occupying a slot. An `AB_POWERUP` flag on the ability registry row selects supported ability-driven powerups. An ItemData `powerup` item with no `abilList` (including `_`) is also collected without an inventory slot, even when its `usable` and `uses` values are zero. This publishes pickup events with a live item handle before deferred removal, without inventing a use-item event or an ability effect. Most flagged powerups are consumed on touch even when no unit qualifies (for example a mechanical picker of a speed rune). Speed uses authored timed effects, and any rawcode whose AbilityData `code` is a speed procedure gets the `Misc.MaxUnitSpeed` cap; Gold and Lumber use their authored `DataA` resource grants (not upkeep-taxed harvesting income); `AIlu` also supports negative custom-map amounts clamped to zero; Area Healing uses authored `DataA`, `Area`, and target masks, consuming runes even if every valid recipient is at full health; Area Mana uses authored `DataA`, `Area`, and target masks to restore mana to nearby friendly units, capped at each recipient's maximum mana, and consumes even with no missing mana; Area Restoration uses authored `DataA` (health), `DataB` (mana), `Area`, and `targs`, restoring both independently with one area scan and consuming at full resources; Resurrection uses authored `DataA` and `Area`, permanently revives nearby friendly non-Hero/non-structure corpses at full life, and leaves the rune in the world with a failed-use message when no eligible corpse is nearby. Powerups with unsupported nonempty ability lists remain on the normal inventory path until their gameplay handlers are implemented; silently consuming them would discard authored effects.
 
 Rune of Shielding (`rsps`, `ANse`) shares this slot-free pickup/use lifecycle.
 It applies a permanent one-charge `BNss` buff to eligible nearby allies and
@@ -600,3 +600,162 @@ These behaviours are exercised by `wc3_items.carried_item_transfer*`,
 `wc3_api.unit_drop_item_target_queues_a_targeted_give`. Campaign `StoreUnit`
 serialization and removal of a temporary carrier are separate lifecycle work;
 this handoff patch does not change game-cache format.
+
+## Item ownership and per-item death-drop policy
+
+`GetItemPlayer` returns the player associated with the item entity, regardless
+of which unit currently carries it. `SetItemPlayer` changes that item player
+without moving the item or changing its inventory carrier. The `changeColor`
+flag is accepted, but a separate mutable item visual colour is not yet supported.
+
+`SetItemDropOnDeath` records an explicit per-item override. On its carrier's
+death, an overridden item follows this flag; otherwise the inventory ability's
+`inv2` (DataB) default continues to govern drops. Items not dropped remain
+attached for normal hero-death/revival behaviour. This is separate from
+`SetItemDroppable`, which controls ordinary player-initiated drops.
+
+### Permanent-stat tome powerups
+
+The ability registry permits automatic consumption of `AIsm`, `AIam`, `AIim`,
+`AIxm`, `AImi`, `AIem` and `AIlm` **only** for ItemData rows explicitly marked
+`powerup` and `usable`. These share the ordinary carried-item ability procedure,
+but pickup dispatch uses the actual collector rather than a client selection.
+Values come from the concrete ability rawcode's Data fields, including custom
+map overrides. Pickup and use events precede deferred removal, as for other
+ability-bearing runes. Non-powerup items carrying these abilities retain their
+normal inventory/use behavior; unsupported nonempty powerup abilities are not
+silently consumed.
+
+Hero-only attribute and XP/level effects require a hero recipient. Further
+retail comparison is needed for consumption on failed hero-only effects.
+
+### Rune of Dispel Magic (`AIdi`)
+
+The `AIdi` power-up invokes shared `S_DispelMagicArea` at the collecting
+unit's position. `AbilityData` owns Area and DataB (summoned damage). The
+procedure dispels removable statuses, preserves timed-life and other
+non-dispellable statuses, and damages hostile, dispellable summoned units.
+It consumes the rune even when no magical effects are nearby and uses the
+authored TargetArt through the existing effect pipeline. Retail visual/audio
+timing still needs in-game comparison.
+
+### Speed and Shielding buff presentation
+
+Rune of Speed (`APsa`) and other timed item-speed variants now opt their
+authored buff status into the shared persistent `TargetArt` lifecycle. Rune of
+Shielding (`ANse`) similarly opts its one-charge `BNss` status into that
+lifecycle without adding an expiry timer. The buff rawcode resolves the model,
+not the ability's one-shot `TargetArt`. Refresh/reapplication is deduplicated;
+expiry, dispel, or consumption of the shield charge retires the owned effect.
+The existing ability `TargetArt` remains a separate one-shot activation effect.
+Speed and Shielding now emit that one-shot ability `TargetArt` when a
+recipient actually gains the respective status, independently from persistent
+buff visuals. A no-target pickup and a duplicate Shielding charge do not
+fabricate a per-recipient activation effect. This is data-driven: missing
+`TargetArt` is a no-op in the shared effects subsystem.
+This does not by itself establish retail parity for authored sounds or model
+animation sequences.
+
+### Rune of Spirit Link (`rspl` / `Aspp`)
+
+`Aspp` executes automatically on pickup and shares the normal `Aspl`/`Bspl`
+damage-redistribution implementation. The collector is the center and priority
+target; the rune's authored `DataB`, `Area`, `Dur`/`HeroDur`, `BuffID` and
+target flags govern selection and status lifetime. The rune is consumed even
+with no eligible recipients.
+
+### Glyph of Omniscience (`gomn` / `AIrv`)
+
+The `AIrv` power-up reveals the full map temporarily to the collecting player,
+without disabling fog for all players. The visibility overlay is reapplied
+following ordinary unit sight until its ability `Dur` expires (stock five
+seconds); explored terrain remains explored afterwards. Repeated glyphs extend
+the ongoing reveal rather than shortening it. Generic world-item pickup events,
+consumption, and the authored target effect are reused. The per-player simulation
+deadline is saved with fog state, so visibility resumes for its remaining time
+after load; explored terrain remains in the existing exploration payload.
+
+### Fortification and Ultravision glyphs
+
+`AIgf` and `AIgu` (with legacy `AIgl` as a compatibility alias) use the
+existing automatic power-up pickup path. `Iglu` identifies an upgrade and
+`Igl1` specifies how many research levels to grant; the handler does not
+hard-code `Rgfo`/`Rguv`. The normal player tech-change pathway updates units
+that use the upgrade, including existing and newly spawned units. Upgrade
+maximums are respected, and an already-maxed glyph is still collected. An
+unknown upgrade or missing ability data does not silently grant another tech.
+The authored TargetArt is emitted on successful use. Retail audiovisual parity
+and whether custom maps use other `Iglu` export encodings remain unverified.
+
+## JASS item enumeration
+
+`EnumItemsInRect` enumerates in-world items within the given rectangle. Its optional
+boolexpr filter is evaluated per candidate with `GetFilterItem`; accepted items
+are delivered to the action with `GetEnumItem`. Nested calls restore their
+caller's item context. Inventory-held items are excluded from world enumeration.
+
+## JASS item pools
+
+`CreateItemPool`, `DestroyItemPool`, `ItemPoolAddItemType`,
+`ItemPoolRemoveItemType`, and `PlaceRandomItem` support script-defined weighted
+item creation. Pools are JASS-owned handles with up to 256 distinct item types;
+adding an existing rawcode replaces its weight. Only finite positive weights
+are accepted. Empty, destroyed, and all-unresolved pools produce a null item.
+Unresolvable item types are excluded from selection, and successful selections
+spawn through the ordinary world-item path. Destroyed handles remain inert even
+if another JASS variable retains a reference. These pools do not enforce item
+uniqueness or global population limits; map triggers must implement such policy.
+
+The 256-entry maximum is an OpenRealm implementation limit, not a verified
+Warcraft III retail limit. Weighted selection and invalid-weight handling still
+require retail comparison where exact edge-case compatibility matters.
+
+## Custom-map item uniqueness and concurrent caps
+
+There is no universal item-type copy cap in the base item spawning path.
+Custom maps can use `UnitItemInSlot` to count copies held by each relevant
+hero, and `EnumItemsInRect` plus `GetEnumItem`/`GetItemTypeId` to count loose
+world copies. Inventory-held items must not also be counted as ground items.
+An item transfer preserves its handle and should not increase the total;
+`RemoveItem` decreases the count of currently existing copies. A map wishing
+to limit **lifetime spawns** instead must separately track total creations:
+removing an item does not refund that lifetime quota. The map decides whether
+an ineligible drop is suppressed or rerolled; neither is a default policy.
+
+Regression coverage: `wc3_api.item_unique_drop_counts_carried_and_world_instances`
+and `wc3_api.item_duplicate_pickup_counts_new_item_and_existing_copy`.
+The second test verifies the post-acquisition inventory view seen by item
+pickup triggers. Additional campaign/save-load compatibility is covered by
+existing item inventory tests; no global engine-owned counter is introduced.
+
+### Rune of Rebirth (`rreb` / `AIrb`)
+
+`AIrb` is a validated automatic power-up. `SetItemDropID` on the dropped item
+identifies the original monster unit **type**, not a live entity handle. On
+pickup, the game spawns that type for the collecting player's ownership at
+the rune's position, using ordinary unit food accounting and authored
+ability TargetArt. If the item has no valid unit drop ID or spawning fails,
+the rune is not consumed. The effect never converts the nearest unrelated
+creep. Generic pickup sound and item events follow the normal power-up path.
+
+The retail description identifies the original monster as the recipient;
+this implementation restores its type, not its prior instance-specific health,
+experience, buffs or inventory. Detailed retail fidelity for these fields
+requires additional map-level verification.
+
+## Campaign powerups: gold, lumber, and secret-level pickups
+
+`AIgo` and `AIlu` change the collecting player's resources by authored
+`DataA`, bypassing upkeep taxation. Both accept negative values for custom
+items and clamp the resulting balance to the supported resource range; positive
+changes use the existing resource-gain notification. A zero change still
+consumes a supported powerup. Resource grants do not invent a grant when an
+ability list is missing.
+
+`sclp` (Secret Level Powerup) uses the same ability-less powerup
+pickup path as Shimmerweed: it can be collected with a full inventory,
+publishes pickup events with the original item handle retained until queued
+callbacks complete, and then disappears. An ability-less quest pickup does
+**not** fabricate item-use events or unlock a specific campaign chapter.
+Map scripts/campaign progression own the secret-level unlock; no global
+`sclp` special case is required in the item system.

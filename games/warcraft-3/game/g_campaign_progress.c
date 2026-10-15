@@ -82,3 +82,56 @@ bool G_CampaignProgressSetMissionAvailable(int32_t campaign, int32_t mission, bo
     if (!wc3_campaign_progress_set_mission(&campaign_progress, key, available)) return false;
     return G_CampaignProgressCommit();
 }
+
+/* Only an accepted authored victory for a human-controlled, map-backed stock
+ * campaign mission awards progress. The developer win command does not call
+ * this entry point; it uses G_RemovePlayerWithResult directly. */
+bool G_CampaignProgressRecordVictory(uint32_t player_num) {
+    wc3CampaignProgressKey_t key;
+    cstring_t campaign_file;
+    uint32_t edition, size = 0;
+    handle_t data = NULL;
+    gameClient_t *client;
+    bool found = false;
+
+    if (!level.mapinfo || !level.map_path[0] || player_num >= game.max_clients ||
+        player_num >= MAX_PLAYERS || level.setup.difficulty > 3 ||
+        !level.mapinfo->players[player_num].used ||
+        level.mapinfo->players[player_num].playerType != kPlayerTypeHuman ||
+        !(client = G_GetPlayerClientByNumber(player_num)) || !client->connected ||
+        !client->jass.removed || client->ps.stats[PLAYERSTATE_GAME_RESULT] != 0 ||
+        !gi.ReadFile || !gi.MemFree) return false;
+
+    /* This is profile completion for single-player missions, not multiplayer
+     * sessions run against campaign maps. */
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t const *other = game.clients + i;
+        if (other != client && other->connected && other->ps.number != player_num) return false;
+    }
+
+    edition = G_CampaignProgressEdition();
+    campaign_file = Theme_String("CampaignFile", "Default");
+    if (campaign_file && strcmp(campaign_file, "CampaignFile") &&
+        strcmp(campaign_file, "Default")) {
+        data = gi.ReadFile(campaign_file, &size);
+        if (data) {
+            found = wc3_campaign_progress_resolve_map(edition, level.map_path, data, size, &key);
+            gi.MemFree(data);
+            /* A loaded custom CampaignFile is authoritative; never fall back
+             * to stock metadata and award a similarly named map by mistake. */
+            if (!found) return false;
+        }
+    }
+    if (!found) {
+        if (edition == WC3_CAMPAIGN_EDITION_TFT)
+            data = gi.ReadFile("UI\\CampaignStrings_exp.txt", &size);
+        if (!data) data = gi.ReadFile("UI\\CampaignStrings.txt", &size);
+        if (!data) return false;
+        found = wc3_campaign_progress_resolve_map(edition, level.map_path, data, size, &key);
+        gi.MemFree(data);
+    }
+    if (!found) return false;
+    G_CampaignProgressEnsureLoaded();
+    if (!wc3_campaign_progress_complete_mission(&campaign_progress, key, level.setup.difficulty)) return false;
+    return G_CampaignProgressCommit();
+}

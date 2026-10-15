@@ -91,13 +91,25 @@ static void UI_CopyFrameBase(uiFrame_t *dest, frameDef_t const *src) {
     dest->tex.index2 = UI_LiveImage(src->Texture.Image2);
     dest->flags.type = src->Type;
     dest->flags.alphaMode = src->AlphaMode;
-    dest->flagsvalue |= src->ui_flags & (UIFLAG_EXTEND_WIDESCREEN_X | UIFLAG_MINIMAP_PREVIEW);
+    dest->flagsvalue |= src->ui_flags & (UIFLAG_EXTEND_WIDESCREEN_X | UIFLAG_MINIMAP_PREVIEW |
+        UIFLAG_SPRITE_OVERLAY | UIFLAG_TEXT_OVERLAY | UIFLAG_TEXT_RANK_MASK);
     if (src->disabled) dest->flagsvalue |= UIFRAME_DISABLED;
     dest->textLength = src->TextLength;
     dest->stat = src->Stat;
     dest->text = src->Text;
     dest->tooltip = tooltip_text;
     dest->onclick = src->OnClick;
+    /* FDF ControlShortcutKey is the native glue-button keyboard shortcut.
+     * Expose it to the existing modal window hotkey dispatcher (e.g. score
+     * screen OK = O). Other FDF-authored shortcuts benefit automatically. */
+    /* Avoid interpreting unexpanded localization keys like KEY_SAVE_E as
+     * the K shortcut. Expand when the skin has a single-character value. */
+    {
+        cstring_t shortcut = src->Control.ShortcutKey;
+        cstring_t resolved = shortcut && shortcut[0] && shortcut[1]
+            ? UI_GetString(shortcut) : shortcut;
+        dest->hotkey = resolved && resolved[0] && !resolved[1] ? resolved[0] : 0;
+    }
 }
 
 static uiBackdrop_t MakeBackdrop(frameDef_t const *frame) {
@@ -856,6 +868,7 @@ void UI_LoadHud(void) {
     UI_LoadHudMenu();
     UI_LoadHudAllies();
     UI_LoadHudGameResult();
+    UI_LoadHudScoreScreen();
     UI_LoadHudCinematic();
     UI_LoadHudMessage();
     UI_LoadHudTimerDialogs();

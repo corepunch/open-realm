@@ -273,6 +273,14 @@ handle IDs. This response context is copied to a coroutine, so
 `GetClickedButton` / `GetClickedDialog` continue to work after a trigger wait.
 See [JASS choice dialogs](jass-dialogs.md) for lifecycle and limitations.
 
+## Trigger destruction
+
+`DestroyTrigger` retires every live `event_t` registration owned by the trigger
+and clears queued `responseTo` references before those event slots can be reused.
+It disables the map-lifetime trigger object instead of freeing it, so an action
+can destroy its own trigger safely. `DisableTrigger` leaves registrations intact
+so `EnableTrigger` can resume them.
+
 ### Scripted zone save lifecycle
 
 The JASS `SaveGame` native used by zone-transition wrappers is a deferred

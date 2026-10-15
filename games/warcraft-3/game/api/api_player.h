@@ -94,7 +94,11 @@ uint32_t SetPlayerName(jass_t *j) {
 }
 uint32_t SetPlayerOnScoreScreen(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
-    if (player) PLAYER_CLIENT(player)->jass.on_score_screen = jass_checkboolean(j, 2);
+    if (player) {
+        gameClient_t *client = PLAYER_CLIENT(player);
+        client->jass.on_score_screen = jass_checkboolean(j, 2);
+        client->jass.on_score_screen_set = true;
+    }
     return 0;
 }
 uint32_t GetPlayerTeam(jass_t *j) {
@@ -357,6 +361,19 @@ uint32_t GetPlayerStructureCount(jass_t *j) {
     }
     return jass_pushinteger(j, count);
 }
+uint32_t GetPlayerScore(jass_t *j) {
+    player_t *whichPlayer = jass_checkhandle(j, 1, "player");
+    uint32_t *whichScore = jass_checkhandle(j, 2, "playerscore");
+    int32_t value;
+
+    if (!whichPlayer || !whichScore ||
+        !G_GetPlayerScoreValue(PLAYER_CLIENT(whichPlayer), *whichScore, &value)) {
+        jass_rterror(j, "GetPlayerScore: requested score is not implemented");
+        return jass_pushinteger(j, 0);
+    }
+    return jass_pushinteger(j, value);
+}
+
 uint32_t GetPlayerState(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");
     PLAYERSTATE *whichPlayerState = jass_checkhandle(j, 2, "playerstate");
@@ -458,6 +475,14 @@ uint32_t SetPlayerState(jass_t *j) {
             (unsigned)client->ps.stats[*whichPlayerState], (long)value);
     }
     client->ps.stats[*whichPlayerState] = (uint16_t)MIN(MAX(0, value), USHRT_MAX);
+    if (*whichPlayerState == PLAYERSTATE_RESOURCE_FOOD_USED ||
+        *whichPlayerState == PLAYERSTATE_RESOURCE_FOOD_CAP) {
+        G_PlayerScoreObserveFood(client);
+    }
+    if (*whichPlayerState == PLAYERSTATE_GOLD_GATHERED ||
+        *whichPlayerState == PLAYERSTATE_LUMBER_GATHERED) {
+        G_PlayerScoreSetGathered(client, *whichPlayerState);
+    }
     if (*whichPlayerState == PLAYERSTATE_RESOURCE_FOOD_USED) {
         G_RecomputePlayerUpkeep(client);
     }
@@ -475,18 +500,19 @@ uint32_t RemovePlayer(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");
     uint32_t *gameResult = jass_checkhandle(j, 2, "playergameresult");
 
-    G_GameResultDebug("RemovePlayer enter player_handle=%p result_handle=%p result=%ld events=%u/%u",
+    BZ_WC3_SCORE_LOG("RemovePlayer enter player_handle=%p result_handle=%p result=%ld events=%u/%u",
         (void *)whichPlayer, (void *)gameResult,
         gameResult ? (long)*gameResult : -1L,
         (unsigned)level.events.read, (unsigned)level.events.write);
 
     if (!whichPlayer || !gameResult || *gameResult > 3) {
-        G_GameResultDebug("RemovePlayer ignored reason=invalid_args player=%p result=%ld",
+        BZ_WC3_SCORE_LOG("RemovePlayer ignored reason=invalid_args player=%p result=%ld",
             (void *)whichPlayer, gameResult ? (long)*gameResult : -1L);
         return 0;
     }
 
-    G_RemovePlayerWithResult(PLAYER_NUM(whichPlayer), *gameResult);
+    if (G_RemovePlayerWithResult(PLAYER_NUM(whichPlayer), *gameResult) && *gameResult == 0)
+        G_CampaignProgressRecordVictory(PLAYER_NUM(whichPlayer));
     return 0;
 }
 uint32_t CachePlayerHeroData(jass_t *j) {

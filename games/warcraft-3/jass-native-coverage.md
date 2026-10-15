@@ -25,6 +25,11 @@ not load assets; `Preload`, `Preloader`, and preload-file generation remain
 unimplemented. `wc3_api.preload_refresh_boundaries_are_registered` guards the
 map-script call contract.
 
+`DestroyTrigger` retires every live event registration owned by the trigger,
+clears queued `responseTo` references, and disables the trigger without freeing
+its map-lifetime object underneath an executing callback. This is stronger
+than `DisableTrigger`, which preserves registrations for later re-enabling.
+
 The AI-only `UnitInvis(unit)` native reports intrinsic active invisibility through `S_UnitHasInvisibilityState()`; it
 does not incorporate owner/shared vision or detector coverage. Stock `common.ai` calls it separately from
 `IsUnitDetected(target, ai_player)`. The latter and `IsUnitInvisible(unit, player)` remain placeholders in
@@ -73,7 +78,7 @@ the original placeholder baseline" is a different target: 180 of the original
 360 placeholders, yielding 656 implemented callbacks (78.5% overall). Recount whenever callbacks are added
 to the registry or a placeholder begins consuming authoritative state.
 
-Issue #418 campaign-audit JASS native families now implemented: `SetCaptainHome`, `SetStagePoint`, `ShiftTownSpot`, `SuicideUnit`, `SuicideUnitEx`, `SuicidePlayer`, `MergeUnits`, `GetUpgradeGoldCost`, `GetUpgradeWoodCost` (plus the historical OpenRealm `GetUpgradeLumberCost` alias; all in `api_ai.h`), `EnumItemsInRect` / `GetEnumItem` (items in rect, mirrors `EnumDestructablesInRect`; boolexpr filter TODO), `GetChangingUnit` / `GetChangingUnitPrevOwner` (ownership-change event context, eventValue = prev_owner+1), `SetUnitUserData` / `GetUnitUserData` / `UnitSetUsesAltIcon` (unit state fields). Stubs added: `SetCampaignMenuRaceEx`, `SetAltMinimapIcon`, `DoNotSaveReplay`. Bot AI signatures for `SetCaptainHome` and `SuicideUnit*` take the player as explicit arg 1 (not from context); scripts call `GetAiPlayer()` to supply it. `EnumItemsInRect` arg 3 is the actionFunc; arg 2 (boolexpr) is skipped (TODO). `currentenumitem` is defined alongside `G_IsItem` in `g_items.c`.
+Issue #418 campaign-audit JASS native families now implemented: `SetCaptainHome`, `SetStagePoint`, `ShiftTownSpot`, `SuicideUnit`, `SuicideUnitEx`, `SuicidePlayer`, `MergeUnits`, `GetUpgradeGoldCost`, `GetUpgradeWoodCost` (plus the historical OpenRealm `GetUpgradeLumberCost` alias; all in `api_ai.h`), `EnumItemsInRect` / `GetEnumItem` (items in rect, mirrors `EnumDestructablesInRect`; boolexpr filter TODO), `GetChangingUnit` / `GetChangingUnitPrevOwner` (ownership-change event context, eventValue = prev_owner+1), `SetUnitUserData` / `GetUnitUserData` / `UnitSetUsesAltIcon` (unit state fields). Stubs added: `SetCampaignMenuRaceEx`, `SetAltMinimapIcon`, `DoNotSaveReplay`. Bot AI signatures for `SetCaptainHome` and `SuicideUnit*` take the player as explicit arg 1 (not from context); scripts call `GetAiPlayer()` to supply it. `EnumItemsInRect` evaluates arg 2 (boolexpr) with `GetFilterItem` bound to the candidate, then invokes arg 3 (actionFunc) with `GetEnumItem` bound. Nested enumerations restore the outer context. `currentenumitem` is defined alongside `G_IsItem` in `g_items.c`.
 
 `GetFilterDestructable()` and `GetEnumDestructable()` resolve the currently
 enumerated destructable while an `EnumDestructablesInRect` action runs. The
@@ -94,7 +99,7 @@ covers Blizzard.j's `UnitAddIndicatorBJ`, whose wrapper calls the generic `AddIn
 
 `SetUnitColor` publishes a per-unit replaceable team-color override without changing unit ownership. The presentation payload is packed into `effect_flags` as `playercolor + 1`, while persistent explicit-unit state carries a separate override flag so `PLAYER_COLOR_RED` remains distinct from the zero/default owner-color state across game-cache restore. `SetPlayerColor` also updates existing units still displaying the player's previous color, and `SetUnitOwner` honors its `changeColor` argument. Initial unit presentation resolves Warcraft's `utco`/`utcc` and `war3mapUnits.doo` custom-color precedence before falling back to the owner's configured player color. Ranged missiles, unit-attached model effects, selected portraits, placement previews, and rally indicators now consume the same resolved/configured color paths rather than falling back to the owner slot number; see [Team Colors](../../docs/games/warcraft-3/team-colors.md).
 
-`SetUnitVertexColor` now retains a persistent clamped RGBA override in WC3 game state and publishes visible overrides through the existing per-frame game datagram rather than widening `entityState_t`. The client keeps an explicit-validity tint cache so alpha `0` is distinct from the renderer's historical "unset tint" sentinel, then the MDX renderer reuses its existing per-instance geoset-colour multiply and translucent-layer path. `SetTextTagPos`, `SetWaterBaseColor`, authored `UnitUI.slk` RGB defaults, and invisibility-alpha parity remain separate gaps; implemented JASS texttag presentation is described in [Multiboard And TextTag](../../docs/games/warcraft-3/multiboard-and-texttag.md). See [Unit Vertex Color](../../docs/games/warcraft-3/unit-vertex-color.md).
+`SetUnitVertexColor` now retains a persistent clamped RGBA override in WC3 game state and publishes visible overrides through the existing per-frame game datagram rather than widening `entityState_t`. The client keeps an explicit-validity tint cache so alpha `0` is distinct from the renderer's historical "unset tint" sentinel, then the MDX renderer reuses its existing per-instance geoset-colour multiply and translucent-layer path. Authored `UnitUI.slk` RGB defaults and invisibility-alpha parity remain separate gaps; implemented JASS texttag presentation is described in [Multiboard And TextTag](../../docs/games/warcraft-3/multiboard-and-texttag.md). `SetWaterBaseColor` is implemented via a generic scene color contract; see [Water Base Color](../../docs/games/warcraft-3/water-base-color.md). See [Unit Vertex Color](../../docs/games/warcraft-3/unit-vertex-color.md).
 
 `SetTerrainFogEx` and `ResetTerrainFog` now own persistent WC3 environmental distance-fog state and publish it through the generic `CS_SCENE_FOG` presentation contract. `SetTerrainFogEx` retains style/start/end/density/RGB, while `ResetTerrainFog` restores the merged `[DefaultZFog]` RoC/TFT row. The renderer currently uses Warsmash-compatible linear start/end blending for every enabled style; legacy `SetTerrainFog`, true exponential equations, and particle fog remain separate gaps. See [Environmental Terrain Fog](../../docs/games/warcraft-3/environmental-fog.md).
 
@@ -185,7 +190,7 @@ modal/unique, does not acquire a second client-owned pause, and cannot be dismis
 window while forwarding the existing result commands. `GameResultBackdrop` reuses the loaded Esc-menu backdrop art
 for a consistent race-skinned menu panel and extends one action row below the nominal dialog bounds so the authored
 Quit button remains inside that panel. The fallback still uses `GlobalStrings.fdf`
-`GAMEOVER_*` labels where available and only exposes actions the current engine can execute.
+`GAMEOVER_*` labels where available, including a single-player defeat-only Reduce Difficulty action. The action validates the result on the server and restarts using the preserved current/default difficulty pair.
 
 DotA 6.83d's compiled map script references 525 natives, 137 of them unregistered.
 The patch-1.24 hashtable family (`InitHashtable`, `GetHandleId`, `StringHash`, typed
@@ -205,8 +210,7 @@ selection as the destination for the eventual `EndGame`. This is required by `Pr
 the Human campaign before a long final cinematic and calls `CustomVictoryBJ` only after that cinematic finishes.
 `SetTutorialCleared`, `SetCampaignAvailable`, and `SetMissionAvailable` now persist their profile availability state to
 `campaign-progress.orcp`, so those Prologue02 unlocks are durable before the eventual frontend transition. See
-[campaign-progress.md](../../docs/games/warcraft-3/campaign-progress.md). The `doScoreScreen` parameter is consumed but score-screen presentation
-is not implemented yet.
+[campaign-progress.md](../../docs/games/warcraft-3/campaign-progress.md). When `doScoreScreen` is true, the server freezes an outgoing score snapshot, presents the ScoreScreen.fdf-rooted modal, and resumes the previously resolved destination on Continue. Missing FDF fails open to the destination.
 
 `PlayModelCinematic` now queues the authored MDL path to an isolated MDX
 model scene in the client; this works even when no new map/menu action follows.
@@ -225,12 +229,19 @@ continue the session transition. `SetOpCinematicAvailable` and `SetEdCinematicAv
 movie unlock persistence and camera-button rows remain follow-up work. See [pre-rendered-movies.md](../../docs/games/warcraft-3/pre-rendered-movies.md).
 
 `GetDefaultDifficulty` / `SetDefaultDifficulty` now own a per-level default distinct from mutable
-`GetGameDifficulty()` state. Campaign map startup seeds both values from `wc3_campaign_difficulty`; scripts may then
-change current and default difficulty independently.
+`GetGameDifficulty()` state. Fresh campaign map startup seeds both values from the archived, strictly parsed
+`wc3_campaign_difficulty` preference; other fresh maps use Normal. Scripts can change current and default
+independently. See [Game difficulty](../../docs/games/warcraft-3/game-difficulty.md) for initialization,
+preference persistence and remaining restart/save-load gaps.
 
-The generic `Dialog*` and dialog/button event natives now have bounded registries, server-authoritative click dispatch, and local modal-window presentation. `DialogAddQuitButton` creates handles but its quit policy remains incomplete; see [JASS dialogs](../../docs/games/warcraft-3/jass-dialogs.md). Still incomplete: actual score-screen
-presentation, Reduce Difficulty/observer-on-death result policy, and result-dialog ownership of single-player modal
-pausing. The existing `PauseGame` / modal path should be reused for that work rather than adding a second pause model.
+The generic `Dialog*` and dialog/button event natives now have bounded registries, server-authoritative click dispatch, and local modal-window presentation. `DialogAddQuitButton` creates handles but its quit policy remains incomplete; see [JASS dialogs](../../docs/games/warcraft-3/jass-dialogs.md). Still incomplete: pixel-accurate retail score-screen field binding, Reduce Difficulty/observer-on-death result policy, and result-dialog ownership of single-player modal pausing. The score-screen modal uses the existing pause model.
+
+Player-score accounting now supplies the engine-side foundation for that future screen. `GetPlayerScore` is
+registered and reports completed training/construction, unit/Hero/building kill credit, food maxima, item pickups,
+neutral-unit hiring, and resource income/upkeep counters. Resource income also updates the cumulative gathered
+player states, and explicit JASS `SetPlayerState` writes synchronize the corresponding score sources.
+`PLAYER_SCORE_TECH_PERCENT`, `PLAYER_SCORE_UNIT_TOTAL`, `PLAYER_SCORE_HERO_TOTAL`,
+`PLAYER_SCORE_RESOURCE_TOTAL` and `PLAYER_SCORE_TOTAL` now return explicitly tagged, unverified best-guess formulas (NOT retail-validated). See [score-screen.md](../../docs/games/warcraft-3/score-screen.md).
 
 ## Campaign Game Cache
 
@@ -592,6 +603,39 @@ during the return callback. See
 
 - Rexxar multi-map `LoadGame` defers to the session loader, preserving the private scripted save scope and allowing different-map `.w3z` restores; paired `SaveGame`/`LoadGame` only dispatch after a successful VM-safe source snapshot. Internal zone restores dispatch `EVENT_GAME_LOADED` with `MAP_RELOADED` set so the map can import travelling Heroes without running the named-user-load handler.
 
+
+### Buff-removal JASS natives
+
+`UnitRemoveBuffs` and `UnitRemoveBuffsEx` now remove explicitly classified,
+ordinary timed status records using the normal `STATUS_REMOVE_SCRIPT` lifecycle,
+including owner cleanup and a single post-removal status/UI refresh. The basic
+native selects either polarity with either magical or physical resistance; the
+extended native applies its explicit polarity and resistance selections.
+Unclassified and ambiguous records, undispellable statuses, and timed-life
+ownership are preserved. Extended `timedLife`, `aura`, and `autoDispel` categories
+are **not implemented**: the status representation does not yet distinguish
+those categories. They must not be guessed from a status timer or a TargetArt
+flag. This is partial, conservative compatibility, not full retail equivalence.
+
+### Classified buff removal and legacy gameplay natives
+
+`UnitRemoveBuffs` and `UnitRemoveBuffsEx` are registered in `api_unit.h` and
+remove explicitly classified, ordinary dispellable timed statuses using
+`unit_removestatus_deferred(..., STATUS_REMOVE_SCRIPT)`. Negative/positive and
+magical/physical filtering use `buff_flags`; ambiguous or unknown status
+classification does not trigger removal. Special `timedLife`, `aura` and
+`autoDispel` categories are not yet independently modeled: the extra booleans
+are accepted but do not yet select these classes. `UnitRemoveBuffsBJ` and
+`UnitRemoveBuffsExBJ` in Blizzard.j define the filter combinations, including
+`NONTLIFE` with aura selection enabled.
+
+`SetUnitExploded` sets/clears a persistent unit flag used by `unit_die` to
+spawn the unit's `UnitProfile.SpecialArt` as a temporary model effect and to
+skip corpse/death sound/animation while keeping the normal death event and
+resource lifecycle. This is distinct from summoned units' magical effect art.
+`SetCampaignMenuRace` accepts campaign races 1..4 and chooses the corresponding
+registered menu command on campaign EndGame/quit; unsupported values leave the
+selection unchanged. `SetCampaignMenuRaceEx` is separate and remains a stub.
 ## Item handoff natives
 
 `UnitDropItemTarget(unit, item, widget)` now accepts an allied inventory-capable
@@ -603,3 +647,10 @@ carried by another unit directly between authoritative inventory slots, without
 requiring a world drop or changing the item handle. Scripted Soul Gem slot
 reattachment remains the first branch. See
 [Inventory And World Items](../../docs/games/warcraft-3/inventory-and-items.md#unit-to-unit-item-handoff).
+
+Item pools: `CreateItemPool`, `DestroyItemPool`, `ItemPoolAddItemType`, `ItemPoolRemoveItemType` and `PlaceRandomItem` implement bounded weighted item creation (see `docs/games/warcraft-3/inventory-and-items.md`).
+
+Item owner/death-drop natives: `GetItemPlayer` and `SetItemPlayer` use item
+entity player ownership independently of inventory carriers. `SetItemDropOnDeath`
+overrides the carrier inventory's default death-drop policy per item. The
+`SetItemPlayer` `changeColor` flag currently has no additional visual effect.

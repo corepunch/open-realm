@@ -485,11 +485,19 @@ cstring_t Theme_PlayerString(gameClient_t *client, cstring_t key, cstring_t def)
     if (!game.config.theme.source) return def;
     category = Theme_PlayerRaceCategory(client ? client->ps.race : kPlayerRaceNone);
     value = Stb_IniCacheFind(&game.config.theme, category, key);
-    if (!value && strcmp(category, "Default")) value = Stb_IniCacheFind(&game.config.theme, "Default", key);
     if (value) return value;
 
     value = Stb_IniCacheFind(&game.config.theme, category, versioned);
-    if (!value && strcmp(category, "Default")) value = Stb_IniCacheFind(&game.config.theme, "Default", versioned);
+    if (value) return value;
+
+    /* Keep a race's edition-specific value ahead of the shared unversioned
+     * Default. war3skins uses this for ScoreScreenVictory_V0/V1 while its
+     * Default ScoreScreenVictory points at Human art. */
+    if (strcmp(category, "Default")) {
+        value = Stb_IniCacheFind(&game.config.theme, "Default", key);
+        if (value) return value;
+    }
+    value = Stb_IniCacheFind(&game.config.theme, "Default", versioned);
     return value ? value : def;
 }
 

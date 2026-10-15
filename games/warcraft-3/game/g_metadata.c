@@ -2361,9 +2361,10 @@ uint32_t G_MapGameDataSet(mapInfo_t const *mapinfo) {
         ? mapinfo->gameDataSet
         : WC3_MAP_GAME_DATA_SET_DEFAULT;
 
-    /* W3I <= 24 has no gameDataSet field.  Warsmash also uses this fallback
-     * when a later map stores zero: melee maps select Melee, other maps Custom. */
-    if (data_set == WC3_MAP_GAME_DATA_SET_DEFAULT) {
+    /* W3I <= 24 has no gameDataSet field; later maps may encode an unset
+     * data set as either zero or 0xFFFFFFFF.  In both cases, the melee flag
+     * selects Melee and non-melee maps select Custom. */
+    if (data_set == WC3_MAP_GAME_DATA_SET_DEFAULT || data_set == UINT32_MAX) {
         data_set = mapinfo && (mapinfo->flags & melee_map)
             ? WC3_MAP_GAME_DATA_SET_MELEE
             : WC3_MAP_GAME_DATA_SET_CUSTOM;

@@ -542,6 +542,10 @@ static void CL_UICvarSet(cstring_t name, cstring_t value) {
     Cvar_Set(name, value);
 }
 
+static void CL_UICvarRegister(cstring_t name, cstring_t default_value, uint32_t flags) {
+    Cvar_Get(name, default_value, flags);
+}
+
 void CL_SetLoadingProgress(float progress) {
     if (progress < 0.0f) progress = 0.0f;
     if (progress > 1.0f) progress = 1.0f;
@@ -884,7 +888,7 @@ execute:
         FS_RestoreScriptSaveScope(pending.arg);
         CL_SetGameplayBindings();
         CL_BeginLoadingMap(map);
-        SV_LoadGame(pending.arg, map);
+        if (SV_LoadGame(pending.arg, map)) CL_ControlGroupsLoad(pending.arg);
         break;
     }
     case CL_MENU_ACTION_SCRIPT_LOAD: {
@@ -1165,6 +1169,7 @@ void CL_Init(void) {
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
         .Cvar_Set = CL_UICvarSet,
+        .Cvar_Register = CL_UICvarRegister,
         .GetConfigString = CL_GetConfigString,
         .LAN_RefreshServers = CL_LANRefreshServers,
         .LAN_NumServers = CL_LANNumServers,

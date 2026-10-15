@@ -28,6 +28,7 @@ _Static_assert(WC3_LAYER_MULTIBOARD != WC3_LAYER_COMMAND_ERROR &&
 #include "../generated/chat_dialog.h"
 #include "../generated/alliance_dialog.h"
 #include "../generated/game_result_dialog.h"
+#include "../generated/score_screen.h"
 #include "../generated/cinematic_panel.h"
 #include "../generated/loading_screen.h"
 #include "../generated/timer_dialog.h"
@@ -100,6 +101,19 @@ typedef struct {
     FRAMEDEF save_list;
     AllianceDialog_t allies;
     GameResultDialog_t result;
+    /* ScoreScreen.fdf authors chrome; player rows/cells are dynamic. */
+    ScoreScreen_t score;
+    struct {
+        frameDef_t *root, *backdrop, *border, *icon, *name;
+        frameDef_t *cells[5];
+        frameDef_t *hero_icons[WC3_SCORE_HERO_PORTRAITS];
+        frameDef_t *hero_levels[WC3_SCORE_HERO_PORTRAITS];
+        frameDef_t *hero_overflow;
+    } score_rows[WC3_SCORE_VISIBLE_ROWS];
+    frameDef_t *score_elapsed;
+    frameDef_t *game_result_reduce_button;
+    frameDef_t *game_result_reduce_text;
+    float game_result_original_height;
     CinematicPanel_t cinematic;
     TimerDialog_t timer_dialog;
     LeaderBoard_t leaderboard;
@@ -164,6 +178,10 @@ void UI_LoadHudLog(void);
 void UI_LoadHudMenu(void);
 void UI_LoadHudAllies(void);
 void UI_LoadHudGameResult(void);
+void UI_LoadHudScoreScreen(void);
+bool UI_ShowScoreScreen(edict_t *ent, wc3ScoreSnapshot_t const *snapshot,
+                       uint32_t tab, uint32_t scroll,
+                       struct wc3ScoreView_s const *view);
 void UI_LoadHudCinematic(void);
 void UI_LoadHudMessage(void);
 void UI_LoadHudTimerDialogs(void);

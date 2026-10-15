@@ -19,6 +19,14 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
+/* Investigative score/result traces only. Arguments are not evaluated unless
+ * WC3_DEBUG_SCORE=1 enables this instrumentation for the game module. */
+#ifdef BZ_WC3_DEBUG_SCORE
+#define BZ_WC3_SCORE_LOG(...) G_GameResultDebug(__VA_ARGS__)
+#else
+#define BZ_WC3_SCORE_LOG(...) ((void)0)
+#endif
+
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
 #define SEL_SCALE 72
@@ -212,6 +220,7 @@ enum {
     AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
     AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
     AI_SUMMON_EXPLODES_ON_DEATH = 1 << 13, /* spirit/beast summon magical death effect, no corpse */
+    AI_SCRIPT_EXPLODED = 1 << 14, /* SetUnitExploded: SpecialArt death effect instead of corpse */
 };
 
 typedef enum {
@@ -332,6 +341,37 @@ typedef enum {
     WC3_LIMITOP_GREATER_THAN = 4,
     WC3_LIMITOP_NOT_EQUAL = 5,
 } WC3LIMITOP;
+
+/* common.j playerscore ids.  Keep the numeric order stable: JASS passes these
+ * handles back to GetPlayerScore and the score screen consumes the same state. */
+typedef enum {
+    WC3_PLAYER_SCORE_UNITS_TRAINED = 0,
+    WC3_PLAYER_SCORE_UNITS_KILLED,
+    WC3_PLAYER_SCORE_STRUCT_BUILT,
+    WC3_PLAYER_SCORE_STRUCT_RAZED,
+    WC3_PLAYER_SCORE_TECH_PERCENT,
+    WC3_PLAYER_SCORE_FOOD_MAXPROD,
+    WC3_PLAYER_SCORE_FOOD_MAXUSED,
+    WC3_PLAYER_SCORE_HEROES_KILLED,
+    WC3_PLAYER_SCORE_ITEMS_GAINED,
+    WC3_PLAYER_SCORE_MERCS_HIRED,
+    WC3_PLAYER_SCORE_GOLD_MINED_TOTAL,
+    WC3_PLAYER_SCORE_GOLD_MINED_UPKEEP,
+    WC3_PLAYER_SCORE_GOLD_LOST_UPKEEP,
+    WC3_PLAYER_SCORE_GOLD_LOST_TAX,
+    WC3_PLAYER_SCORE_GOLD_GIVEN,
+    WC3_PLAYER_SCORE_GOLD_RECEIVED,
+    WC3_PLAYER_SCORE_LUMBER_TOTAL,
+    WC3_PLAYER_SCORE_LUMBER_LOST_UPKEEP,
+    WC3_PLAYER_SCORE_LUMBER_LOST_TAX,
+    WC3_PLAYER_SCORE_LUMBER_GIVEN,
+    WC3_PLAYER_SCORE_LUMBER_RECEIVED,
+    WC3_PLAYER_SCORE_UNIT_TOTAL,
+    WC3_PLAYER_SCORE_HERO_TOTAL,
+    WC3_PLAYER_SCORE_RESOURCE_TOTAL,
+    WC3_PLAYER_SCORE_TOTAL,
+    WC3_PLAYER_SCORE_COUNT
+} WC3PLAYERSCORE;
 
 typedef enum {
     EVENT_GAME_VICTORY = 0,
@@ -549,6 +589,45 @@ typedef enum {
     CAMERA_TARGET_ORIENT,        // SetCameraOrientController: the source stays at orient_eye and turns toward the unit
 } cameraTargetMode_t;
 
+/* Conservative viewport size until runtime row metrics can be verified against retail.
+ * FDF only authors the fixed header and scrollbar, not dynamic row geometry. */
+#define WC3_SCORE_VISIBLE_ROWS 10u
+/* Native Heroes-page column fits four individual portrait/level pairs.
+ * Hero count still tracks all currently owned instances if a map exceeds this. */
+#define WC3_SCORE_HERO_PORTRAITS 4u
+
+typedef struct {
+    /* Raw engine-owned score counters.  Aggregate score formulas stay separate
+     * until their retail weighting is established. */
+    uint32_t values[WC3_PLAYER_SCORE_COUNT];
+    /* Earned XP has no common.j PLAYER_SCORE_* id; persist independently.
+     * Heroes Used is a current-entity presentation, not a persisted counter. */
+    uint32_t experience_gained;
+    /* Cost-weighted event totals; counts above remain separate for retail tabs. */
+    uint32_t unit_value_produced, unit_value_killed, structure_value_built, structure_value_razed;
+} wc3PlayerScoreState_t;
+
+/* Transient, immutable outgoing-match presentation. Never serialized in
+ * gameClient_t or level: a zone save must not resurrect an old score modal. */
+typedef struct {
+    uint32_t entity, rawcode, level;
+    char art[MAX_PATHLEN]; /* copy authored portrait art before unloading the map */
+} wc3ScoreHeroSnapshot_t;
+
+typedef struct {
+    uint32_t number, race, team, color;
+    char name[64];
+    int32_t values[WC3_PLAYER_SCORE_COUNT];
+    uint32_t hero_count, experience_gained;
+    wc3ScoreHeroSnapshot_t heroes[WC3_SCORE_HERO_PORTRAITS];
+} wc3ScorePlayerSnapshot_t;
+
+typedef struct {
+    uint32_t count;
+    uint32_t elapsed_ms; /* frozen gameplay time; never use wall clock after modal pause */
+    wc3ScorePlayerSnapshot_t players[MAX_PLAYERS];
+} wc3ScoreSnapshot_t;
+
 struct client_s {
     player_t ps;
     bool connected; /* ClientBegin completed for this reserved player edict. */
@@ -560,6 +639,8 @@ struct client_s {
         uint8_t tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
         float handicap, handicap_xp;
         bool race_selectable, on_score_screen;
+        /* An explicit false differs from the default (unspecified) setting. */
+        bool on_score_screen_set;
         bool removed;
         uint8_t pending_game_result; /* 0 = none, PLAYER_GAME_RESULT_* + 1 while fallback UI is deferred */
         uint32_t pending_game_result_event; /* level.events.read must reach this write ordinal before fallback UI */
@@ -569,6 +650,7 @@ struct client_s {
         size_t disabled_ability_capacity;
     } jass;
     playerTechState_t tech[MAX_PLAYER_TECH_STATE];
+    wc3PlayerScoreState_t score;
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
     uint32_t playerTextCursor[PLAYERTEXT_COUNT];
     mapPlayer_t const *mapplayer;
@@ -1034,7 +1116,7 @@ typedef struct {
 #define MAX_GROUP_SIZE 256 // entities; Warcraft III group enumeration cap used by JASS group handles
 #define JASS_GROUP_INITIAL_CAPACITY 64 // handle pointer slots; grows dynamically while group objects stay at stable addresses
 #define MAX_TRIGGERS 4096 // handles; bounds deterministic per-map trigger registry slots
-#define MAX_TIMERS 1024 // handles; bounds deterministic per-map timer registry slots
+#define MAX_TIMERS 4096 // handles; stable slots are retained for stale JASS handle safety across repeated waits
 #define MAX_TIMERDIALOGS 64 // handles; bounds map-lifetime timer-dialog registry slots
 #define MAX_LEADERBOARDS 32 // handles; fixed save-stable leaderboard registry
 #define MAX_LEADERBOARD_ITEMS 24 // rows; covers classic player/campaign boards
@@ -1278,6 +1360,9 @@ typedef struct {
 #define WC3_UNIT_TYPE_GROUND 4 // handle value; authored ground movement class; used by IsUnitType
 #define WC3_UNIT_TYPE_POLYMORPHED 22 // handle value; Warcraft Polymorphed type; used by IsUnitType
 #define WC3_UNIT_STATE_LIFE 0 // handle value; UNIT_STATE_LIFE
+#define WC3_UNIT_STATE_MAX_LIFE 1 // handle value; UNIT_STATE_MAX_LIFE
+#define WC3_UNIT_STATE_MANA 2 // handle value; UNIT_STATE_MANA
+#define WC3_UNIT_STATE_MAX_MANA 3 // handle value; UNIT_STATE_MAX_MANA
 #define WC3_ORDER_ID_POLYMORPH 852074 // order ID; Warcraft Polymorph command; used by order dispatch
 
 typedef struct {
@@ -1690,6 +1775,8 @@ typedef struct {
     bool pawnable;        /* effective pawnable when pawnable_set */
     bool droppable_set;   /* SetItemDroppable overrode ItemData.droppable */
     bool droppable;       /* effective droppable when droppable_set */
+    bool drop_on_death_set; /* per-item death-drop override */
+    bool drop_on_death;     /* effective death-drop flag when overridden */
     bool pending_use_removal; /* final perishable charge retained for use-event context */
     edict_t *pending_use_carrier;
     uint32_t pending_use_carrier_spawn_time;
@@ -1847,6 +1934,8 @@ struct edict_s {
     stock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
     doodadHero_t hero;
+    /* XP supplied by scripted level assignments, retained with the hero when ownership changes. */
+    uint32_t score_level_xp;
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
@@ -2163,6 +2252,7 @@ typedef struct {
     uint32_t width;
     uint32_t height;
     box2_t bounds;
+    uint32_t omniscience_until[MAX_PLAYERS];
     uint8_t *blocked;
     uint32_t num_blocked;
     ARRAY(uint32_t, rim_cells);
@@ -2420,12 +2510,14 @@ struct level_locals {
     uint32_t dialog_count, dialog_button_count; /* high-water slot counts; free slots below are reused */
     timeOfDay_t timeofday;
     wc3EnvironmentFog_t environment_fog;
+    color32_t water_base_color;
     box2_t camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
     bool started;
     bool scriptsConfigured;
     bool scriptsStarted;
     bool cinematic_debug_result_window; /* per-map debug latch for result-window tracing */
     bool campaign_select_on_end; /* ForceCampaignSelectScreen defers campaign selection until EndGame */
+    int32_t campaign_menu_race; /* legacy SetCampaignMenuRace, 1..4; 0 is campaign selector */
 };
 
 #define FOR_EACH_EVENT(property) \
@@ -2472,6 +2564,19 @@ bool G_GameResultDebugEnabled(void);
 void G_GameResultDebug(cstring_t format, ...);
 bool G_IsSinglePlayer(void);
 void G_RequestEndGame(bool do_score_screen);
+void G_FlushScoreTransition(void);
+void G_FlushPausedScoreTransition(void);
+bool G_ScoreTransitionTerminal(void);
+void G_ScoreTransitionContinue(edict_t *player);
+void G_ScoreTransitionSelectTab(edict_t *player, uint32_t tab);
+void G_ScoreTransitionScroll(edict_t *player, float position);
+void G_ScoreTransitionSort(edict_t *player, uint32_t column);
+void G_ScoreTransitionToggleTeams(edict_t *player);
+void G_ScoreTransitionToggleAllyColors(edict_t *player);
+#ifdef BZ_TESTS
+bool G_ScoreTransitionPending(void);
+void G_TestResetScoreTransition(void);
+#endif
 void G_RequestQuitGame(void);
 void G_RequestChangeLevel(cstring_t map, bool do_score_screen);
 /* JASS saves are captured after the active VM callback returns, never inline
@@ -2482,10 +2587,15 @@ bool G_ScriptSavePending(void);
 void G_FlushScriptSave(void);
 void G_ResetScriptSave(void);
 void G_RequestRestartGame(bool do_score_screen);
+/* A one-shot map replacement carries difficulty only for a scripted level
+ * transition or restart. Fresh menu launches use their profile preference. */
+bool G_HasPendingDifficultyTransition(void);
+bool G_TakeDifficultyTransition(cstring_t map, uint32_t *current, uint32_t *original_default);
 void G_RequestLoadGameMenu(void);
 void G_RequestLoadGameNamed(cstring_t name);
 void G_RequestCampaignSelect(void);
 void G_CampaignProgressResetRuntime(void);
+bool G_CampaignProgressRecordVictory(uint32_t player_num);
 bool G_CampaignProgressSetTutorialCleared(bool cleared);
 bool G_CampaignProgressSetCampaignAvailable(int32_t campaign, bool available);
 bool G_CampaignProgressSetMissionAvailable(int32_t campaign, int32_t mission, bool available);
@@ -2672,6 +2782,7 @@ void S_PermanentInvisibilityInitialize(edict_t *unit);
 void S_PermanentInvisibilityReveal(edict_t *unit);
 void G_FowSetStateRect(fogWrite_t const *fog, box2_t const *box);
 void G_FowSetStateRadius(fogWrite_t const *fog, vec2_t const *center, float radius);
+void G_FowRevealEntireMapTimed(uint32_t player, float duration);
 void G_FogModifierStart(fogModifier_t *mod);
 void G_FogModifierStop(fogModifier_t *mod);
 uint32_t G_FowWorldToCellX(float x);
@@ -2695,6 +2806,11 @@ void G_EnvironmentFogSet(wc3EnvironmentFogParams_t const *params);
 void G_EnvironmentFogReset(void);
 void G_EnvironmentFogPublish(void);
 
+// g_water_color.c
+void G_WaterBaseColorInitMap(void);
+void G_WaterBaseColorSet(int32_t red, int32_t green, int32_t blue, int32_t alpha);
+void G_WaterBaseColorPublish(void);
+
 // skills/s_creep_sleep.c — JASS natural-sleep interface
 bool G_UnitCanSleep(edict_t const *);
 bool G_UnitIsSleeping(edict_t const *);
@@ -2709,7 +2825,7 @@ void SP_CallSpawn(edict_t *);
 void G_BindEntityData(edict_t *);
 void G_BindEntityRuntime(edict_t *);
 void G_FillMapPlacedUnitMana(edict_t *);
-void G_SpawnEntities(void);
+void G_SpawnEntities(cstring_t map_path);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif
@@ -2872,6 +2988,8 @@ void unit_removestatus(edict_t *, heroabilitystatus_t *, status_remove_reason_t)
 void unit_removestatus_deferred(edict_t *, heroabilitystatus_t *, status_remove_reason_t);
 void unit_status_enabletargetart(edict_t *, heroabilitystatus_t *, cstring_t attach_point);
 bool unit_status_can_dispel(heroabilitystatus_t const *);
+void unit_removebuffs(edict_t *, bool remove_positive, bool remove_negative,
+                      bool magic, bool physical, bool timed_life, bool aura, bool auto_dispel);
 /* Magical dispels reject explicitly physical-only statuses; legacy unclassified buffs retain compatibility. */
 bool unit_status_can_magic_dispel(heroabilitystatus_t const *);
 bool unit_status_can_steal(heroabilitystatus_t const *);
@@ -2951,6 +3069,19 @@ bool G_GetUnitColorOverride(edict_t const *unit, uint32_t *color);
 void G_SetUnitColorOverride(edict_t *unit, uint32_t color);
 void G_ClearUnitColorOverride(edict_t *unit);
 void G_RecomputePlayerUpkeep(gameClient_t *client);
+void G_PlayerScoreObserveFood(gameClient_t *client);
+void G_PlayerScoreSetGathered(gameClient_t *client, uint32_t state);
+void G_PlayerScoreUnitTrained(edict_t *unit);
+void G_PlayerScoreSnapshotHeroes(wc3ScorePlayerSnapshot_t *player);
+void G_PlayerScoreExperienceGained(edict_t *hero, uint32_t amount);
+uint32_t G_PlayerScoreScriptedXP(uint32_t player);
+bool G_ScorePlayerEligible(gameClient_t const *client);
+void G_PlayerScoreStructureBuilt(edict_t *building);
+void G_PlayerScoreDeath(edict_t *victim, edict_t *attacker);
+void G_PlayerScoreItemGained(edict_t *unit);
+void G_PlayerScoreMercenaryHired(gameClient_t *client);
+void G_PlayerScoreResourceIncome(player_t *player, uint32_t resource_state, int32_t gross_amount, int32_t credited_amount);
+bool G_GetPlayerScoreValue(gameClient_t const *client, uint32_t score, int32_t *value);
 int32_t G_ApplyResourceIncome(player_t *player, uint32_t resource_state, int32_t gross_amount);
 int32_t G_CreditResourceIncome(player_t *player, edict_t *source, uint32_t resource_state, int32_t gross_amount);
 bool G_UnitCanReviveHeroes(edict_t const *altar);
@@ -3237,7 +3368,7 @@ void UI_LoadHudLeaderboards(void);
 void UI_WriteLeaderboard(edict_t *ent);
 void UI_WriteLoadingLayout(edict_t *ent, mapInfo_t const *info);
 void UI_ParseFDF(cstring_t);
-void UI_ParseFDF_Buffer(cstring_t, string_t);
+bool UI_ParseFDF_Buffer(cstring_t, string_t);
 void UI_SetAllPoints(frameDef_t *);
 void UI_SetParent(frameDef_t *, frameDef_t const *);
 void UI_SetText(frameDef_t *, cstring_t, ...);
@@ -3255,6 +3386,9 @@ void UI_WriteLayout(edict_t *, frameDef_t const *, uint32_t);
 void UI_WriteStart(uint32_t);
 void UI_ClearLayer(edict_t *, uint32_t);
 void UI_ShowGameResult(edict_t *, uint32_t);
+struct wc3ScoreView_s;
+bool UI_ShowScoreScreen(edict_t *, wc3ScoreSnapshot_t const *, uint32_t, uint32_t,
+                        struct wc3ScoreView_s const *);
 void UI_FlushPendingGameResults(void);
 void UI_HideGameResult(edict_t *);
 /* JASS interactive choice dialogs: the registry and click authority live in the game. */
@@ -3466,6 +3600,7 @@ bool G_IsDeferredFree(edict_t const *);
 void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
 event_t *G_MakeEvent(EVENTTYPE);
+void G_RetireEvent(event_t *);
 void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);
 bool G_EventSubjectIsCurrent(event_t *);
@@ -3556,6 +3691,7 @@ uint32_t G_HeroXPForLevel(uint32_t level);
 uint32_t G_HeroLevelForXP(uint32_t xp);
 void G_HeroApplyLevel(edict_t *, uint32_t level);
 void G_HeroSetXP(edict_t *, uint32_t xp);
+void G_HeroSetXPForLevel(edict_t *, uint32_t xp);
 bool G_HeroStripLevels(edict_t *, uint32_t levels);
 void G_GrantKillXP(edict_t *victim, edict_t *killer);
 void G_AwardKillBounty(edict_t *victim, edict_t *killer);

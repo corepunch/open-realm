@@ -211,7 +211,7 @@ static uiNameTag_t timer_dialog_size_to_text;
 static uint32_t timer_dialog_unicast_count;
 static edict_t *timer_dialog_unicast_target;
 static bool leaderboard_size_capture;
-static char leaderboard_measure_capture_text[128];
+static char leaderboard_measure_capture_text[512];
 
 static void timer_dialog_test_unicast(edict_t *ent) {
     timer_dialog_unicast_count++;
@@ -1440,6 +1440,73 @@ TEST(wc3_game, ingame_menu_stays_locked_after_cancelling_result_load) {
     gi.Write = old_write;
     gi.unicast = old_unicast;
     gi.MenuAction = old_action;
+    UI_ResetHud();
+}
+
+TEST(wc3_game, defeat_reduce_difficulty_preserves_default_for_restart) {
+    __typeof__(gi.MenuAction) old_action = gi.MenuAction;
+    __typeof__(gi.ResolveMap) old_resolver = gi.ResolveMap;
+    uint32_t const old_clients = game.max_clients;
+    edict_t *player = menu_test_setup();
+    uint32_t current = 99, original_default = 99;
+
+    gi.MenuAction = menu_test_action;
+    gi.ResolveMap = NULL; /* Headless map path already resolved. */
+    game.max_clients = 0; /* No viewer: the deferred score transition falls through. */
+    G_TakeDifficultyTransition("", &current, &original_default);
+    strlcpy(level.map_path, "Maps\\Campaign\\Human02.w3m", sizeof(level.map_path));
+    player->client->ps.stats[PLAYERSTATE_GAME_RESULT] = 1;
+    level.setup.difficulty = 2;
+    level.setup.default_difficulty = 2;
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_ASSERT(G_ScoreTransitionPending());
+    G_FlushScoreTransition();
+    T_STREQ(menu_action_capture, "level Maps\\Campaign\\Human02.w3m");
+    T_EQ(level.setup.difficulty, 1u);
+    T_EQ(level.setup.default_difficulty, 2u);
+    T_ASSERT(G_HasPendingDifficultyTransition());
+
+    /* A duplicate late client command must not reduce a second time. */
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_EQ(level.setup.difficulty, 1u);
+    T_ASSERT(G_TakeDifficultyTransition(level.map_path, &current, &original_default));
+    T_EQ(current, 1u);
+    T_EQ(original_default, 2u);
+
+    /* The last menu action would normally replace the map. Model that new
+     * session boundary before exercising the next defeat: Patch 3 correctly
+     * rejects every later exit in the already-completed outgoing world. */
+    G_TestResetScoreTransition();
+    /* The same defeat on Normal reduces to Easy without changing default. */
+    menu_action_capture[0] = '\0';
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_ASSERT(G_ScoreTransitionPending());
+    G_FlushScoreTransition();
+    T_EQ(level.setup.difficulty, 0u);
+    T_EQ(level.setup.default_difficulty, 2u);
+    T_ASSERT(G_TakeDifficultyTransition(level.map_path, &current, &original_default));
+    T_EQ(current, 0u);
+    T_EQ(original_default, 2u);
+
+    menu_action_capture[0] = '\0';
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_STREQ(menu_action_capture, ""); /* No Reduce action on Easy. */
+    T_EQ(level.setup.difficulty, 0u);
+    level.setup.difficulty = 3;
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_EQ(level.setup.difficulty, 3u); /* Stock BJ does not reduce Insane. */
+    T_STREQ(menu_action_capture, "");
+
+    /* A non-defeated player cannot invoke the command from the console. */
+    player->client->ps.stats[PLAYERSTATE_GAME_RESULT] = 0;
+    level.setup.difficulty = 2;
+    G_ClientCommand(player, 1, (cstring_t[]){ "gameresult_reduce_difficulty" });
+    T_EQ(level.setup.difficulty, 2u);
+    T_STREQ(menu_action_capture, "");
+
+    gi.MenuAction = old_action;
+    gi.ResolveMap = old_resolver;
+    game.max_clients = old_clients;
     UI_ResetHud();
 }
 
@@ -2693,6 +2760,82 @@ TEST(wc3_game, title_only_leaderboard_does_not_reserve_an_empty_row) {
     T_STREQ(leaderboard_measure_capture_text, "A Runner is on its way!");
     T_ASSERT(container.hidden);
     T_FEQ(root.Height, 0.035f, 0.0001f);
+}
+
+TEST(wc3_game, leaderboard_preserves_blank_title_trailing_rows_and_authored_labels) {
+    FRAMEDEF root = { .Type = FT_SIMPLEFRAME };
+    FRAMEDEF backdrop = { .Type = FT_BACKDROP, .Parent = &root };
+    FRAMEDEF title = { .Type = FT_STRING, .Parent = &root };
+    FRAMEDEF container = { .Type = FT_SIMPLEFRAME, .Parent = &root };
+    LeaderBoard_t old_binding = hud.leaderboard;
+    leaderboard_t old_board;
+    int32_t old_player_board;
+    uint32_t old_dirty;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+    leaderboard_t *board;
+
+    setup_test_world();
+    old_board = level.leaderboards[0];
+    old_player_board = level.player_leaderboards[0];
+    old_dirty = level.leaderboard_dirty_clients;
+    memset(&level.leaderboards[0], 0, sizeof(level.leaderboards[0]));
+    board = &level.leaderboards[0];
+    board->inuse = true;
+    board->displayed_clients = 1u;
+    board->show_label = false;
+    board->show_names = true;
+    board->show_values = true;
+    board->size_by_item_count = 3; /* Blank-title BJ resize subtracts one. */
+    board->item_count = 4;
+    board->items[0] = (struct gleaderboarditem_s){
+        .player = 0, .value = 100, .show_label = true, .show_value = true,
+    };
+    strlcpy(board->items[0].label, "Portal Life %", sizeof(board->items[0].label));
+    board->items[1] = (struct gleaderboarditem_s){
+        .player = 1, .value = 27, .show_label = true, .show_value = true,
+    };
+    strlcpy(board->items[1].label, "Waves Remaining", sizeof(board->items[1].label));
+    board->items[2] = (struct gleaderboarditem_s){
+        .player = 2, .value = 0, .show_label = true, .show_value = true,
+        .value_color_set = true, .value_color = { .a = 0 },
+    };
+    strlcpy(board->items[2].label, "__________________", sizeof(board->items[2].label));
+    board->items[3] = (struct gleaderboarditem_s){
+        .player = 3, .value = 0, .show_label = true, .show_value = true,
+    };
+    strlcpy(board->items[3].label, "High Scores", sizeof(board->items[3].label));
+    game.clients[0].ps.name = "Player";
+    level.player_leaderboards[0] = 0;
+    title.Font.Size = 0.0f;
+    hud.leaderboard = (LeaderBoard_t){
+        .Leaderboard = &root, .LeaderboardBackdrop = &backdrop,
+        .LeaderboardTitle = &title, .LeaderboardListContainer = &container,
+    };
+    leaderboard_size_capture = false;
+    leaderboard_measure_capture_text[0] = '\0';
+    gi.Write = leaderboard_test_write;
+    gi.unicast = selection_test_unicast;
+    gi.FontIndex = portrait_test_font;
+
+    UI_WriteLeaderboard(&g_edicts[0]);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    hud.leaderboard = old_binding;
+    level.leaderboards[0] = old_board;
+    level.player_leaderboards[0] = old_player_board;
+    level.leaderboard_dirty_clients = old_dirty;
+    T_ASSERT(leaderboard_size_capture);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "Portal Life %") != NULL);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "Player - Portal Life %") == NULL);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "Waves Remaining") != NULL);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "High Scores") != NULL);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "__________________    0") == NULL);
+    T_ASSERT(!container.hidden);
+    T_FEQ(container.Height, 0.048f, 0.0001f);
 }
 
 TEST(wc3_game, hud_save_panel_accepts_native_list_in_authored_frame_slot) {
@@ -4058,6 +4201,18 @@ TEST(wc3_perf, crowded_unstuck_search) {
     T_FEQ(out.y, -64.0f, 0.001f);
 }
 
+TEST(wc3_save, legacy_campaign_menu_race_round_trip) {
+    cstring_t filename = Test_TempPath("wc3-campaign-menu-race.sav");
+    setup_test_world();
+    level.campaign_menu_race = 3;
+    T_ASSERT(WriteGame(filename));
+    level.campaign_menu_race = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.campaign_menu_race, 3);
+    level.campaign_menu_race = 0;
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_edict_and_player_state) {
     cstring_t filename = Test_TempPath("wc3-save-test.bin");
     questItem_t item = { .description = strdup("Find the key"), .completed = true, .inuse = true };
@@ -4140,6 +4295,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
             .initialized = true,
         },
     };
+    level.water_base_color = (color32_t){ 12, 34, 56, 78 };
     level.environment_fog = (wc3EnvironmentFog_t){
         .active = {
             .style = WC3_ENV_FOG_LINEAR,
@@ -4239,6 +4395,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     saved_item->completed = false;
     memset(&level.timeofday, 0, sizeof(level.timeofday));
     memset(&level.environment_fog, 0, sizeof(level.environment_fog));
+    level.water_base_color = (color32_t){0};
     T_ASSERT(ReadGame(filename));
     T_ASSERT(!level.cinefilter.displayed);
     /* The sleeping unit's persistent ACsp overlay is a linked, non-selectable
@@ -4284,6 +4441,10 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(level.environment_fog.defaults.color.y, 0.5f, 0.001f);
     T_FEQ(level.environment_fog.defaults.color.z, 0.6f, 0.001f);
     T_ASSERT(level.environment_fog.defaults_valid);
+    T_EQ(level.water_base_color.r, 12);
+    T_EQ(level.water_base_color.g, 34);
+    T_EQ(level.water_base_color.b, 56);
+    T_EQ(level.water_base_color.a, 78);
     T_ASSERT(level.started && level.scriptsConfigured && level.scriptsStarted);
     T_EQ(level.multiboard_suppressed_clients, 1u << 3);
     T_EQ(level.team_resources_collapsed_clients, 1u << 5);
@@ -4361,6 +4522,30 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
 }
 
 /* A load restores the Q2-style server tick; timers are clock-free countdowns and need no rebase. */
+TEST(wc3_timer, registry_enforces_capacity_without_reusing_destroyed_slots) {
+    gtimer_t *first, *timer = NULL;
+
+    setup_test_world();
+    first = G_AllocJassTimer();
+    T_NOT_NULL(first);
+    if (!first) return;
+    G_TimerStart(first, 1000, false, NULL);
+    FOR_LOOP(i, MAX_TIMERS - 1) {
+        timer = G_AllocJassTimer();
+        T_NOT_NULL(timer);
+        if (!timer) return;
+    }
+    T_EQ(level.num_timers, MAX_TIMERS);
+    T_ASSERT(timer != first);
+    T_ASSERT(level.num_timers == MAX_TIMERS);
+    T_NULL(G_AllocJassTimer());
+
+    G_TimerDestroy(first);
+    T_ASSERT(!first->running);
+    T_NULL(G_AllocJassTimer());
+    T_EQ(level.num_timers, MAX_TIMERS);
+}
+
 TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     cstring_t filename = Test_TempPath("wc3-save-clock.bin");
     gtimer_t *timer;
@@ -4662,6 +4847,7 @@ SAVE_INT_FIELD_TEST(field_heatmap_round_trip, heatmap2, 73)
 SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, peonsinside, 5)
 SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
 SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED)
+SAVE_INT_FIELD_TEST(field_script_explosion_round_trip, aiflags, AI_SCRIPT_EXPLODED)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
 SAVE_INT_FIELD_TEST(field_projectile_attack_type_round_trip, projectile_attack_type, ATK_PIERCE)
 SAVE_INT_FIELD_TEST(field_attack_cooldown_active_round_trip, attack_cooldown_active, 1)

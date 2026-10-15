@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include "menu_local.h"
+#include "common/difficulty.h"
 
 static void M_ReleaseCameraEventInstance(uintptr_t instance_id) {
     refExport_t *renderer = mi.GetRenderer ? mi.GetRenderer() : NULL;
@@ -357,6 +358,10 @@ static void UI_UpdateMouseFrameFlags(frameDef_t const *hit, bool clear_pressed) 
 }
 
 void M_Init(void) {
+    /* Register before any campaign view is opened, including sessions launched
+     * directly into a map. Cvar_Get preserves previously loaded user values. */
+    if (mi.Cvar_Register)
+        mi.Cvar_Register(WC3_CAMPAIGN_DIFFICULTY_CVAR, WC3_CAMPAIGN_DIFFICULTY_DEFAULT, CVAR_ARCHIVE);
     UI_SetCameraEventRelease(M_ReleaseCameraEventInstance);
     memset(&ui_state, 0, sizeof(ui_state));
     UI_ResetGlueSceneModels();

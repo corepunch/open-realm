@@ -17,6 +17,7 @@
 #define BZ_WC3_WINDOW_MENU  MAKEFOURCC('M','E','N','U') // opaque class/instance ID; identifies the singleton pause menu window
 #define BZ_WC3_WINDOW_ALLIES MAKEFOURCC('A','L','L','Y') // opaque class/instance ID; identifies the singleton Allies window
 #define BZ_WC3_WINDOW_RESULT MAKEFOURCC('R','S','L','T') // opaque class/instance ID; identifies the singleton victory/defeat result window
+#define BZ_WC3_WINDOW_SCORE MAKEFOURCC('S','C','O','R') // opaque WC3 score-screen modal; no client WC3 policy
 #define WC3_MODAL_QUEST  (1u << 0) // modal owner bit; retained for the Quest/JASS ownership compatibility path
 #define WC3_MODAL_CLIENT (1u << 1) // modal owner bit; tracks whether the client has any open modal window
 #define WC3_LAYER_COMMAND_ERROR LAYER_GAME_2 // command-failure overlay; independent of ordinary messages/transmissions

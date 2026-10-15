@@ -73,6 +73,7 @@ typedef struct {
     void (*ServerCommand)(cstring_t text);
     cstring_t (*Cvar_String)(cstring_t name, cstring_t fallback);
     void (*Cvar_Set)(cstring_t name, cstring_t value);
+    void (*Cvar_Register)(cstring_t name, cstring_t default_value, uint32_t flags); /* Declare a menu-owned preference without replacing an existing value */
     cstring_t (*GetConfigString)(uint32_t index);
     void (*LAN_RefreshServers)(void);
     uint32_t (*LAN_NumServers)(void);

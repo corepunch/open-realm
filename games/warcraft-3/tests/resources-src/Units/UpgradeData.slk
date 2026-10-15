@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X7;Y2;D0
+B;X9;Y3;D0
 C;X1;Y1;K"upgradeid"
 C;X2;K"class"
 C;X3;K"maxlevel"
@@ -7,6 +7,8 @@ C;X4;K"goldbase"
 C;X5;K"goldmod"
 C;X6;K"lumberbase"
 C;X7;K"lumbermod"
+C;X8;K"race"
+C;X9;K"used"
 C;X1;Y2;K"Rhme"
 C;X2;K"melee"
 C;X3;K3
@@ -14,4 +16,11 @@ C;X4;K100
 C;X5;K75
 C;X6;K50
 C;X7;K125
+C;X8;K"human"
+C;X9;K1
+C;X1;Y3;K"Rhac"
+C;X2;K"melee"
+C;X3;K1
+C;X8;K"human"
+C;X9;K1
 E

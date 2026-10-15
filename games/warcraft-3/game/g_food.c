@@ -61,6 +61,9 @@ static void G_AdjustFoodStat(gameClient_t *client, uint32_t state, int32_t delta
     if (!client || !delta) return;
     value = (int32_t)client->ps.stats[state] + delta;
     client->ps.stats[state] = (uint16_t)MAX(0, MIN(value, USHRT_MAX));
+    if (state == PLAYERSTATE_RESOURCE_FOOD_USED || state == PLAYERSTATE_RESOURCE_FOOD_CAP) {
+        G_PlayerScoreObserveFood(client);
+    }
     if (state == PLAYERSTATE_RESOURCE_FOOD_USED) {
         G_RecomputePlayerUpkeep(client);
     }
@@ -236,7 +239,9 @@ int32_t G_ApplyResourceIncome(player_t *player, uint32_t resource_state, int32_t
 int32_t G_CreditResourceIncome(player_t *player, edict_t *source, uint32_t resource_state, int32_t gross_amount) {
     int32_t const credited = G_ApplyResourceIncome(player, resource_state, gross_amount);
 
-    if (!player || resource_state >= MAX_STATS || credited <= 0) return 0;
+    if (!player || resource_state >= MAX_STATS || gross_amount <= 0) return 0;
+    G_PlayerScoreResourceIncome(player, resource_state, gross_amount, credited);
+    if (credited <= 0) return 0;
     player->stats[resource_state] += credited;
     if (resource_state == PLAYERSTATE_RESOURCE_GOLD ||
         resource_state == PLAYERSTATE_RESOURCE_LUMBER)

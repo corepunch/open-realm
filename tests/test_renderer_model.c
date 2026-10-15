@@ -315,7 +315,8 @@ void R_TestSetTextureLoadResult(texture_t *texture) { texture_load_result = text
 model_t *R_LoadModel(cstring_t filename) {
     load_count++;
     snprintf(last_model_load, sizeof(last_model_load), "%s", filename ? filename : "");
-    if (fail_load || (fail_scoped_load && strstr(last_model_load, ".w3m\\"))) return NULL;
+    if (fail_load || (fail_scoped_load &&
+        (strstr(last_model_load, ".w3m\\") || strstr(last_model_load, ".w3x\\")))) return NULL;
     if (use_production_model_loader && strstr(last_model_load, "TestUI\\Models\\quad_sprite.mdx"))
         return R_TestProductionLoadModel(filename);
     model_t *model = test_alloc(sizeof(model_t));
@@ -1254,6 +1255,66 @@ TEST(renderer_model, map_scope_precedes_base_model_and_clears_at_boundary) {
     first = R_LoadRegisteredModel("Units\\Human\\Footman\\Footman.mdx");
     T_STREQ(last_model_load, "Units\\Human\\Footman\\Footman.mdx");
     R_ReleaseRegisteredModel(first);
+}
+
+/* ScoreScreen.fdf references an MDX whose textures use stock path names.
+ * Map imports must win for both the model and each parchment BLP; changing
+ * maps must not continue looking inside the previous map's archive. */
+TEST(renderer_model, score_screen_background_map_model_override_and_fallback) {
+    static cstring_t const background =
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\ScoreScreen-Background.mdx";
+    model_t *model;
+
+    reset_registry();
+    R_RegisterMapAssets("Maps\\Custom\\ScoreOverride.w3x");
+    model = R_LoadRegisteredModel(background);
+    T_STREQ(last_model_load,
+        "Maps\\Custom\\ScoreOverride.w3x\\UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\ScoreScreen-Background.mdx");
+    R_ReleaseRegisteredModel(model);
+
+    /* A map without a replacement must still load the original model. */
+    R_RegisterMapAssets("Maps\\Custom\\StockScore.w3x");
+    fail_scoped_load = true;
+    model = R_LoadRegisteredModel(background);
+    T_STREQ(last_model_load, background);
+    R_ReleaseRegisteredModel(model);
+
+    /* Leaving the match also drops the map-specific lookup prefix. */
+    R_RegisterMapAssets(NULL);
+    fail_scoped_load = false;
+    model = R_LoadRegisteredModel(background);
+    T_STREQ(last_model_load, background);
+    R_ReleaseRegisteredModel(model);
+}
+
+TEST(renderer_model, score_screen_background_blp_paths_prefer_current_map) {
+    static cstring_t const textures[] = {
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-L1.blp",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-L2.blp",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-R1.blp",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-R2.blp",
+        "UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-sort4.blp",
+    };
+    assetCandidates_t paths;
+
+    R_SetMapAssetScope("Maps\\Custom\\ScoreOverride.w3x");
+    FOR_LOOP(i, sizeof(textures) / sizeof(textures[0])) {
+        char expected[MAX_PATHLEN];
+        snprintf(expected, sizeof(expected), "Maps\\Custom\\ScoreOverride.w3x\\%s", textures[i]);
+        R_AssetCandidates(textures[i], &paths);
+        T_ASSERT(paths.scoped);
+        T_ASSERT(paths.count >= 2);
+        T_STREQ(paths.path[0], expected);
+        T_STREQ(paths.path[paths.count - 1], textures[i]);
+    }
+    R_SetMapAssetScope("Maps\\Custom\\Another.w3x");
+    R_AssetCandidates(textures[0], &paths);
+    T_STREQ(paths.path[0],
+        "Maps\\Custom\\Another.w3x\\UI\\Glues\\ScoreScreen\\ScoreScreen-Background\\scorescreen-background-L1.blp");
+    R_SetMapAssetScope(NULL);
+    R_AssetCandidates(textures[0], &paths);
+    T_ASSERT(!paths.scoped);
+    T_STREQ(paths.path[paths.count - 1], textures[0]);
 }
 
 TEST(renderer_model, map_scope_falls_back_when_import_is_absent) {

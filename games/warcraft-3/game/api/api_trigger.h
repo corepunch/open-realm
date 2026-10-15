@@ -62,7 +62,17 @@ uint32_t CreateTrigger(jass_t *j) {
     return jass_pushlighthandle(j, trigger, "trigger");
 }
 uint32_t DestroyTrigger(jass_t *j) {
-    //trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
+    trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
+    if (!whichTrigger) return 0;
+
+    /* Trigger handles live for the map lifetime, so destruction retires every
+     * registration and disables automatic dispatch without freeing the trigger
+     * object underneath a currently executing condition or action. */
+    whichTrigger->disabled = true;
+    FOR_LOOP(i, MAX_EVENTS) {
+        event_t *event = &level.events.handlers[i];
+        if (event->inuse && event->trigger == whichTrigger) G_RetireEvent(event);
+    }
     return 0;
 }
 uint32_t ResetTrigger(jass_t *j) {
@@ -321,12 +331,6 @@ uint32_t TriggerRegisterPlayerEvent(jass_t *j) {
     G_SetPlayerEventSubject(evt, PLAYER_ENT(whichPlayer));
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, *whichPlayerEvent, evt->subject, "player");
-    if (*whichPlayerEvent == EVENT_PLAYER_VICTORY || *whichPlayerEvent == EVENT_PLAYER_DEFEAT) {
-        G_GameResultDebug("register player event type=%s player=%u trigger=%p subject_ent=%ld",
-            *whichPlayerEvent == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
-            whichPlayer ? (unsigned)PLAYER_NUM(whichPlayer) : 0u,
-            (void *)whichTrigger, evt->subject ? (long)evt->subject->s.number : -1L);
-    }
     return jass_pushlighthandle(j, evt, "event");
 }
 uint32_t GetTriggerPlayer(jass_t *j) {

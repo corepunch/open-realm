@@ -1807,6 +1807,15 @@ static void ai_move_walk(edict_t *ent) {
         /* Plain Move owns a private destination, so location-aware steering
          * uses the mover footprint and retargets a disconnected click before
          * this behavior treats an unresolved route as terminal. */
+        if (ent->no_pathing) {
+            /* Scripted pathing-disabled units must keep their authored point
+             * order. Static route fields can redirect them away from the
+             * trigger even though movement itself ignores those blockers. */
+            unit_changeangle_towards_point(ent, &ent->goalentity->s.origin2);
+            move_route_wait_diag(ent, false, MOVE_DIAG_NONE);
+            unit_moveindirection(ent);
+            return;
+        }
         unit_changeangle(ent);
 
         if (ent->movement.flow_unreachable) {

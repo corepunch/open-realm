@@ -137,3 +137,49 @@ make audit-wc3-maps WC3_AUDIT_ARGS="--jobs 1 --frames 10 --timeout 60 --loose-ma
 
 Without `--loose-map`, the enumerator only walks retail campaign members inside
 `War3.mpq` / `War3x.mpq`. See [DotA Custom-Map Playability](dota-map-playability.md).
+
+## Campaign difficulty source inventory (Patch 5)
+
+Before interpreting runtime tests, enumerate difficulty-related branches and AI
+script references in the *installed* RoC/TFT campaign maps:
+
+```sh
+python3 tools/wc3_map_audit.py --difficulty-scan \
+  --data 'data/Warcraft III' --mpqtool build/bin/mpqtool
+```
+
+Use `--map 'Human*.w3m'` or `--loose-map` to narrow the scan. This mode requires
+`mpqtool` and readable map MPQs but **does not** require a compiled game binary,
+launch the game, or write profile state. Results are saved alongside the other
+map audits as `difficulty-report.json` and `difficulty-report.md`.
+
+The inventory reports source-line references to `GetGameDifficulty`,
+`SetGameDifficulty`, `GetDefaultDifficulty`, `SetDefaultDifficulty`,
+`SetPlayerHandicap`, `SetPlayerHandicapXP`, AI start calls, and
+`CampaignAI`/`CampaignAttackerEx`/`CampaignDefenderEx`/`SetReplacements` helpers.
+It also follows literal `.ai` names referenced by startup calls and checks
+for map-local overrides before resolving AI scripts in the stock MPQs. Dynamic
+script filenames and wrapper-only difficulty checks cannot be resolved by a
+static scan; scripts marked **not resolved** need manual investigation.
+
+**This is not a difficulty parity score.** Presence of a branch does not prove
+that it ran or that a resulting unit, research, resource, timer, handicap, or
+wave behaved correctly. Use the line references to construct focused
+Easy/Normal/Hard `wc3_jass_map` or `wc3_bot` tests, then compare with retail
+behaviour before changing game logic. In particular, do not invent a global
+stat multiplier or hardcode authored waves by map name.
+
+For runtime comparison after the static scan, run bounded map audits on each
+level with separate output directories (shown for Human02):
+
+```sh
+for difficulty in 0 1 2; do
+  python3 tools/wc3_map_audit.py --map Human02.w3m \
+    --campaign-difficulty "$difficulty" --frames 1200 --jobs 1 \
+    --output-dir "build/wc3-map-audit/human02-difficulty-$difficulty"
+done
+```
+
+The preference is set before `+map` in each isolated game process. Even three
+successful frame-limited runs only establish startup health at the requested
+setting; they do not establish that authored waves or objectives are correct.

@@ -42,6 +42,19 @@ static bool G_FowReady(void) {
     return level.fow.width > 0 && level.fow.height > 0;
 }
 
+/* Item Reveal Entire Map is a temporary, player-local sight source. Its
+ * deadline lives in map state so save/load preserves the remaining duration. */
+void G_FowRevealEntireMapTimed(uint32_t player, float duration) {
+    uint32_t until;
+    if (player >= MAX_PLAYERS || !(duration > 0.0f)) return;
+    until = G_Time() + (uint32_t)(duration * 1000.0f);
+    if (until > level.fow.omniscience_until[player])
+        level.fow.omniscience_until[player] = until;
+    if (G_FowReady())
+        G_FowSetStateRect(&(fogWrite_t){ player, WC3_FOG_STATE_VISIBLE, false },
+                          &level.fow.bounds);
+}
+
 bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner) {
     if (viewer >= MAX_PLAYERS || owner >= MAX_PLAYERS) {
         return false;
@@ -1066,6 +1079,13 @@ void G_FowUpdate(void) {
                             &ent->s.origin2, ent->collision);
     }
 
+    /* Glyph vision is bounded in simulation time and does not leak to other
+     * players. Apply after the per-frame visibility grid has been rebuilt. */
+    FOR_LOOP(player, MAX_PLAYERS) {
+        if (level.fow.omniscience_until[player] > G_Time() && (viewers & (1u << player)))
+            G_FowSetStateRect(&(fogWrite_t){ player, WC3_FOG_STATE_VISIBLE, false },
+                              &level.fow.bounds);
+    }
     G_FowApplyModifiers(viewers);
 }
 

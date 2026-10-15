@@ -158,6 +158,7 @@ void SV_InitGameProgs(void) {
     import.UnlinkEntity = SV_UnlinkEntity;
     import.BoxEdicts = SV_AreaEdicts;
     import.MenuAction = MenuAction;
+    import.ResolveMap = Com_ResolveMapArgument;
     import.QueueMovie = CL_QueueMovie;
     import.QueueModelCinematic = CL_QueueModelCinematic;
     import.ClearWorld = SV_ClearWorld;
@@ -181,6 +182,7 @@ void SV_InitGameProgs(void) {
     import.ScriptRemoveSaveDirectory = FS_ScriptRemoveDirectory;
     import.ListSaves = FS_ListSaves;
     import.DeleteSave = FS_DeleteSave;
+    import.SaveLocalClientState = Cvar_Integer("dedicated", 0) ? NULL : CL_ControlGroupsSave;
 
     ge = GetGameAPI(&import);
     ge->Init();
