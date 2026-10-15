@@ -492,9 +492,11 @@ bool FS_DeleteSave(cstring_t rel) {
     if (!path[0]) return false;
     if (remove(path) == 0) {
         PATHSTR groups;
+        size_t path_length = strlen(path);
         /* A manual save owns its local-control companion. */
-        if (strlen(path) + sizeof(".groups") <= sizeof(groups)) {
-            snprintf(groups, sizeof(groups), "%s.groups", path);
+        if (path_length + sizeof(".groups") <= sizeof(groups)) {
+            memcpy(groups, path, path_length);
+            memcpy(groups + path_length, ".groups", sizeof(".groups"));
             remove(groups);
         }
         FS_UnbindScriptSaveScope(rel);

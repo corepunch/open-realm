@@ -31,9 +31,12 @@ bool CL_ControlGroupsSave(cstring_t name) {
     clGroupSave_t *saved;
     FILE *file;
     bool ok;
+    size_t path_length;
     if (!CL_GroupSavePath(name, path, sizeof(path)) ||
         strlen(path) + sizeof(".tmp") > sizeof(temporary)) return false;
-    snprintf(temporary, sizeof(temporary), "%s.tmp", path);
+    path_length = strlen(path);
+    memcpy(temporary, path, path_length);
+    memcpy(temporary + path_length, ".tmp", sizeof(".tmp"));
     saved = MemAlloc(sizeof(*saved));
     memset(saved, 0, sizeof(*saved));
     saved->magic = CL_GROUP_SAVE_MAGIC;
