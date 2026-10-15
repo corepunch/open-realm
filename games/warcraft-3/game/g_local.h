@@ -1151,9 +1151,6 @@ typedef struct {
 /* Focused diagnostics for the Orc campaign's Rexxar/Misha summon path. */
 #define WC3_MISHA_DEBUG_ENABLED() (gi.CvarString && atoi(gi.CvarString("wc3_misha_debug", "0")) != 0)
 
-/* Focused diagnostics for HumanX03Secret's final-wave completion trigger. */
-#define WC3_FINAL_WAVE_DEBUG_ENABLED() (gi.CvarString && atoi(gi.CvarString("wc3_final_wave_debug", "0")) != 0)
-
 /* Focused diagnostics for UndeadX07c's periodic flame damage and texttags. */
 
 typedef struct {
