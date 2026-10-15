@@ -1,12 +1,12 @@
-/* Browser-only map loading notification. Never blocks the engine worker. */
+/* Browser DOM loading presentation adapter. Never blocks the engine worker. */
 #ifdef __EMSCRIPTEN__
-#include "web_loading.h"
+#include "common/common.h"
 #include <emscripten/em_asm.h>
-void Web_LoadingOverlay(bool visible) {
+void Sys_UpdateLoadingPresentation(bool active, float progress, bool loading_screen_submitted) {
     MAIN_THREAD_ASYNC_EM_ASM({
         if (typeof window !== 'undefined' &&
             typeof window.openrealmEarlyMapLoading === 'function')
-            window.openrealmEarlyMapLoading($0 !== 0);
-    }, visible ? 1 : 0);
+            window.openrealmEarlyMapLoading($0 !== 0, $1, $2 !== 0);
+    }, active ? 1 : 0, progress, loading_screen_submitted ? 1 : 0);
 }
 #endif

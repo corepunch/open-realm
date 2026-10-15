@@ -1,7 +1,4 @@
 #include "server.h"
-#ifdef __EMSCRIPTEN__
-#include "../port/web/src/web_loading.h"
-#endif
 #include "common/online.h"
 #include <zlib.h>
 
@@ -446,17 +443,13 @@ void SV_Map(cstring_t mapFilename) {
     if (!ge->PrepareMap(mapFilename)) {
         fprintf(stderr, "SV_Map: loading presentation failed for %s\n", mapFilename);
         SV_Shutdown();
-#ifdef __EMSCRIPTEN__
-        Web_LoadingOverlay(false);
-#endif
+        Sys_UpdateLoadingPresentation(false, 1.0f, true);
         CL_LoadingFrame();
         return;
     }
     if (!SV_BuildLoadingScreen()) {
         SV_Shutdown();
-#ifdef __EMSCRIPTEN__
-        Web_LoadingOverlay(false);
-#endif
+        Sys_UpdateLoadingPresentation(false, 1.0f, true);
         CL_LoadingFrame();
         return;
     }
@@ -469,9 +462,7 @@ void SV_Map(cstring_t mapFilename) {
     if (!ge->LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
         SV_Shutdown();
-#ifdef __EMSCRIPTEN__
-        Web_LoadingOverlay(false);
-#endif
+        Sys_UpdateLoadingPresentation(false, 1.0f, true);
         CL_LoadingFrame();
         return;
     }

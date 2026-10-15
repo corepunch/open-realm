@@ -13,8 +13,8 @@ test('placeholder stays visible until browser painting opportunities', () => {
   try {
     const node = {hidden:true};
     const show = makeEarlyMapLoading({getElementById:()=>node});
-    show(true);
-    show(false);
+    show(true, 0, false);
+    show(false, 1, true);
     assert.equal(node.hidden, false);
     frames.shift()();
     assert.equal(node.hidden, false);
@@ -30,7 +30,7 @@ test('a new map transition cancels an earlier pending hide', () => {
   try {
     const node = {hidden:true};
     const show = makeEarlyMapLoading({getElementById:()=>node});
-    show(true); show(false); show(true);
+    show(true, 0, false); show(false, 1, true); show(true, 0, false);
     frames.shift()(); frames.shift()();
     assert.equal(node.hidden, false);
   } finally { globalThis.requestAnimationFrame = old; }
@@ -40,7 +40,11 @@ test('native handoff is owned by a submitted authored loading frame', () => {
   const base = path.resolve(__dirname, '../../..');
   const prep = fs.readFileSync(path.join(base, 'client/cl_configstrings.c'), 'utf8');
   const screen = fs.readFileSync(path.join(base, 'client/cl_scrn.c'), 'utf8');
+  const main = fs.readFileSync(path.join(base, 'client/cl_main.c'), 'utf8');
+  const server = fs.readFileSync(path.join(base, 'server/sv_init.c'), 'utf8');
   const prepBody = prep.split('void CL_PrepLoading(void) {')[1].split('}', 1)[0];
-  assert.doesNotMatch(prepBody, /Web_LoadingOverlay\(false\)/);
-  assert.match(screen, /cl\.loading_progress >= 0\.40f/);
+  assert.doesNotMatch(prepBody, /Sys_UpdateLoadingPresentation\(false/);
+  assert.match(screen, /SCR_DrawScreenField\(0\);\s*Sys_UpdateLoadingPresentation\(true, cl\.loading_progress, cl\.layout\[LAYER_LOADING\] != NULL\)/);
+  assert.match(main, /Sys_UpdateLoadingPresentation\(true, cl\.loading_progress, false\)/);
+  assert.doesNotMatch(main + screen + server, /Web_LoadingOverlay|__EMSCRIPTEN__/);
 });

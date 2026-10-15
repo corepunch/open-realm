@@ -1,7 +1,4 @@
 #include "client.h"
-#ifdef __EMSCRIPTEN__
-#include "../port/web/src/web_loading.h"
-#endif
 #include "menu_text_input.h"
 #include "ui_layout.h"
 #include <ctype.h>
@@ -152,9 +149,7 @@ void SCR_BeginLoadingPlaque(void) {
 }
 
 void SCR_EndLoadingPlaque(void) {
-#ifdef __EMSCRIPTEN__
-    Web_LoadingOverlay(false);
-#endif
+    Sys_UpdateLoadingPresentation(false, 1.0f, true);
     cls.disable_screen = 0;
 }
 
@@ -232,14 +227,7 @@ void SCR_UpdateLoadingPlaque(void) {
     if (Cvar_Integer("r_norefresh", 0)) return;
     if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING) return;
     SCR_DrawScreenField(0);
-#ifdef __EMSCRIPTEN__
-    /* The loading layout is registered very early, before the first useful
-     * frame reaches the browser. Keep the overlay while the server prepares
-     * and the client registers the map. 40% is reached after RegisterMap,
-     * which establishes a genuine loading presentation handoff. */
-    if (cl.layout[LAYER_LOADING] && cl.loading_progress >= 0.40f)
-        Web_LoadingOverlay(false);
-#endif
+    Sys_UpdateLoadingPresentation(true, cl.loading_progress, cl.layout[LAYER_LOADING] != NULL);
 }
 
 void SCR_UpdateScreen(uint32_t msec) {

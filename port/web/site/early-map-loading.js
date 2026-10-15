@@ -4,10 +4,13 @@
   function makeEarlyMapLoading(document) {
     const overlay = document && document.getElementById('early-map-loading');
     let serial = 0;
-    return function setEarlyMapLoading(visible) {
+    return function setEarlyMapLoading(active, progress, loadingScreenSubmitted) {
       if (!overlay) return;
       const request = ++serial;
-      if (visible) {
+      // Loading layouts arrive before map registration is finished. Keep the
+      // browser placeholder until the authored loading frame is ready and the
+      // client reaches the existing post-RegisterMap 40% checkpoint.
+      if (active && (!loadingScreenSubmitted || progress < 0.4)) {
         overlay.hidden = false;
         return;
       }
