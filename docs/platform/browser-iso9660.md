@@ -55,7 +55,7 @@ now produces a version-3 generation manifest, which also supports
 nested `Maps/...` paths. `filesystem-bridge.js` validates these paths and
 reads their OPFS entries; native MPQ loading does not change. Name matching is
 case-insensitive and traverses ISO subdirectories, but repeated candidate names
-are rejected as ambiguous. Only bounded MPQ header validation is performed;
+are rejected as ambiguous. A shared MPQ structure validator checks archive size and table boundaries;
 this does not prove the disc archives are complete or playable.
 
 ## Usage from a browser worker
@@ -321,3 +321,24 @@ and preservation of the previous installation on failure. These tests do not
 prove the fingerprint paths exist in the actual May 2003 embedded archives.
 To verify that disc, import **both RoC and TFT ISOs together** and inspect the
 worker's `discovered` list before any conclusion about complete retail support.
+
+## ISO importer hardening and outstanding evidence
+
+A shared `site/mpq-header.js` validator checks MPQ version, header size,
+archive-size bounds and decrypted-table **location** bounds before OPFS commit
+and again at engine startup; it does not yet check decrypted table contents.
+Direct `.mpq` members permit up to 4096 trailing bytes for signatures or padding. This catches
+bad headers previously accepted by a `MPQ\x1a` signature check alone.
+
+The importer uses the Web Locks API to serialize commits and protect active
+WasmFS generations while pruning old storage. The active and immediately
+preceding generations are retained; earlier, non-leased generations are
+reclaimed. The missing `War3xLocal.mpq` archive is reported as a partial
+expansion installation rather than full TFT support.
+
+The native source and synthetic tests cannot independently establish the
+identity of anonymous MPQs inside the **user's May 2003 retail `Setup.mpq`**:
+the posted block signatures establish that entries 155/156 are intact MPQ
+containers but not their exact game role. Fingerprints currently reflect
+candidate internal paths and still require real-archive validation. No test or
+change here claims retail TFT compatibility has been established.

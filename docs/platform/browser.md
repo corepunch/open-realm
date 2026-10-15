@@ -356,3 +356,13 @@ The `web-warcraft3-foundation` make rule copies `installer.js`,
 `index.html`; the experimental engine build also ships these assets.
 See [browser ISO reader](browser-iso9660.md) for the worker event contract and
 headless UI tests.
+
+### ISO installation hardening
+
+The browser installer now validates MPQ declared sizes and hash/block table
+bounds before storing files; the launcher performs equivalent checks before
+starting the engine. Web Locks prevent concurrent installation commits across
+tabs, and running game tabs hold leases so cleanup cannot remove their OPFS
+archive generation. See [browser filesystem](browser-filesystem.md) for lock
+names, generation retention, manifest completeness and remaining limitations,
+and [ISO import details](browser-iso9660.md) for real-disc verification gaps.

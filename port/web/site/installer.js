@@ -10,8 +10,8 @@
   const selection = document.getElementById('selection-summary');
   const discovered = document.getElementById('discovered-files');
   const archives = document.getElementById('archive-list');
-  if (!navigator.storage?.getDirectory || !window.Worker) {
-    status.textContent = 'OPFS and Web Workers are required to install files in this browser.';
+  if (!navigator.storage?.getDirectory || !window.Worker || !navigator.locks?.request) {
+    status.textContent = 'OPFS, Web Workers and Web Locks are required to install files safely in this browser.';
     install.disabled = true;
     fileInput.disabled = true;
     remove.disabled = true;
@@ -76,7 +76,9 @@
     } else if (data.type === 'done' && operation === 'import') {
       setOperation(null);
       progress.value = 1;
-      status.textContent = `Stored ${data.manifest.files.length} game file(s) locally ` +
+      status.textContent = (data.manifest.completeness === 'partial-expansion'
+        ? 'Partial Frozen Throne installation: expansion localization archives are missing. ' : '') +
+        `Stored ${data.manifest.files.length} game file(s) locally ` +
         `(${sizeLabel(data.manifest.bytes)}). Reload this page to use the new data.` +
         (warnings.length ? ' Note: ' + warnings.join(' | ') : '');
       fileInput.value = '';
@@ -86,7 +88,8 @@
       setOperation(null);
       const manifest = data.manifest;
       status.textContent = manifest
-        ? 'Local files: ' + manifest.files.map(file => file.name).join(', ')
+        ? (manifest.completeness === 'partial-expansion' ? 'Partial expansion installation. ' : '') +
+          'Local files: ' + manifest.files.map(file => file.name).join(', ')
         : 'No game data installed.';
       if (!manifest) clearDiscovery();
     } else if (data.type === 'error') {

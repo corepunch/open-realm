@@ -47,7 +47,8 @@ function harness({storage = true} = {}) {
       }
     },
     window: {Worker}, Worker,
-    navigator: {storage: storage ? {getDirectory: () => {}} : undefined},
+    navigator: {storage: storage ? {getDirectory: () => {}} : undefined,
+      locks: {request:async (name, options, callback) => callback({name})}},
     confirm: () => true
   });
   vm.runInContext(fs.readFileSync(path.join(SITE, 'installer.js'), 'utf8'),
@@ -137,7 +138,7 @@ test('both browser build targets ship all referenced installer scripts', () => {
   const root = path.resolve(SITE, '..');
   const foundation = fs.readFileSync(path.join(root, 'build.mk'), 'utf8');
   const engine = fs.readFileSync(path.join(root, 'build-engine.py'), 'utf8');
-  for (const asset of ['installer.js', 'install-worker.js', 'iso9660.js']) {
+  for (const asset of ['installer.js', 'install-worker.js', 'iso9660.js', 'setup-mpq.js', 'mpq-header.js']) {
     assert.ok(foundation.includes(`port/web/site/${asset}`), `foundation build missing ${asset}`);
     assert.ok(engine.includes(`"${asset}"`), `engine build missing ${asset}`);
   }
@@ -154,4 +155,19 @@ test('unknown installer layout warning remains visible after committed import', 
   worker.send({type:'done', manifest:{files:[{name:'War3.mpq',size:64}],bytes:64}});
   assert.match(e['data-status'].textContent, /Unknown Setup.mpq layout/);
   assert.equal(e['install-data'].disabled, false);
+});
+
+test('partial expansion is distinguished from complete installation in UI', () => {
+  const {elements:e, worker} = harness();
+  e['game-files'].files = [{name:'RoC.iso'}, {name:'TFT.iso'}];
+  e['install-data'].fire('click');
+  worker.send({type:'done', manifest:{completeness:'partial-expansion',
+    bytes:128, files:[{name:'War3.mpq'}, {name:'War3x.mpq'}]}});
+  assert.match(e['data-status'].textContent, /Partial Frozen Throne installation/);
+});
+
+test('repository ignore rules retain browser source modules as committable files', () => {
+  const ignore = fs.readFileSync(path.resolve(SITE, '../../..', '.gitignore'), 'utf8');
+  assert.match(ignore, /^\/site\/$/m);
+  assert.doesNotMatch(ignore, /^site\/$/m);
 });

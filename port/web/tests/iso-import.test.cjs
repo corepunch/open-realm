@@ -30,14 +30,21 @@ function record(name, extent, size, directory = false) {
   id.copy(bytes, 33);
   return bytes;
 }
-function mpq() {
-  const bytes = Buffer.alloc(64);
+function mpq(length = 64, fill = 0) {
+  const bytes = Buffer.alloc(length, fill);
   bytes.write('MPQ', 0, 'ascii');
   bytes[3] = 0x1a;
+  bytes.writeUInt32LE(32, 4);
+  bytes.writeUInt32LE(length, 8);
+  bytes.writeUInt32LE(32, 16);
+  bytes.writeUInt32LE(48, 20);
+  bytes.writeUInt32LE(1, 24);
+  bytes.writeUInt32LE(1, 28);
   return bytes;
 }
 function iso(entries, {duplicate = false, name = 'Disc.iso'} = {}) {
-  const sectors = 48;
+  const sizeInSectors = entries.reduce((total, [, data]) => total + Math.ceil(data.length / BLOCK), 0);
+  const sectors = Math.max(48, 24 + sizeInSectors + 2);
   const bytes = Buffer.alloc(BLOCK * sectors);
   for (const [sector, type] of [[16, 1], [17, 255]]) {
     const pos = sector * BLOCK;
@@ -54,7 +61,7 @@ function iso(entries, {duplicate = false, name = 'Disc.iso'} = {}) {
   for (const [name, data] of entries) {
     rootEntries.push(record(name + ';1', sector, data.length));
     data.copy(bytes, sector * BLOCK);
-    sector++;
+    sector += Math.ceil(data.length / BLOCK);
   }
   if (duplicate) {
     rootEntries.push(record('NESTED', 21, BLOCK, true));
@@ -120,20 +127,53 @@ class MemoryDir {
   async removeEntry(name) {
     if (!this.dirs.delete(name) && !this.files.delete(name)) missing(name);
   }
+  async *entries() {
+    for (const [name, dir] of this.dirs) yield [name, {kind:'directory', ...dir}];
+    for (const [name, file] of this.files) yield [name, {kind:'file', ...file}];
+  }
 }
-function makeWorker({estimate, failWritesFor = null} = {}) {
+class TestLocks {
+  constructor() { this.held = new Map(); }
+  async request(name, options, callback) {
+    const mode = options.mode || 'exclusive';
+    const entries = this.held.get(name) || [];
+    const busy = entries.some(entry => entry.mode === 'exclusive' || mode === 'exclusive');
+    if (busy && options.ifAvailable) return callback(null);
+    if (busy) throw new Error('Test lock contention (unexpected wait)');
+    const token = {mode};
+    entries.push(token);
+    this.held.set(name, entries);
+    try { return await callback({name, mode}); }
+    finally {
+      const updated = this.held.get(name) || [];
+      updated.splice(updated.indexOf(token), 1);
+      if (!updated.length) this.held.delete(name);
+    }
+  }
+  hold(name, mode = 'shared') {
+    const entries = this.held.get(name) || [];
+    const token = {mode};
+    entries.push(token);
+    this.held.set(name, entries);
+    return () => {
+      entries.splice(entries.indexOf(token), 1);
+      if (!entries.length) this.held.delete(name);
+    };
+  }
+}
+function makeWorker({estimate, failWritesFor = null, locks = new TestLocks()} = {}) {
   const root = new MemoryDir(failWritesFor);
   const messages = [];
   const storage = {getDirectory: async () => root};
   if (estimate !== undefined) storage.estimate = async () => estimate;
   const context = vm.createContext({
     Blob, AbortController, DOMException, DecompressionStream, Uint8Array, DataView, Number, Date, Math,
-    navigator: {storage},
+    navigator: {storage, locks},
     postMessage: message => messages.push(message)
   });
   context.importScripts = (...scripts) => {
     for (const script of scripts) {
-      assert.ok(['iso9660.js', 'setup-mpq.js'].includes(script));
+      assert.ok(['iso9660.js', 'setup-mpq.js', 'mpq-header.js'].includes(script));
       vm.runInContext(fs.readFileSync(path.join(SITE, script), 'utf8'), context,
         {filename:script});
     }
@@ -149,10 +189,10 @@ function makeWorker({estimate, failWritesFor = null} = {}) {
     return (await (await root.getDirectoryHandle('openrealm')).getDirectoryHandle('game-data'))
       .getDirectoryHandle('wc3');
   }
-  return {run, messages, context, gameDir};
+  return {run, messages, context, gameDir, locks};
 }
 
-test('ISO import copies only recognized archive extents and writes v2 manifest', async () => {
+test('ISO import copies only recognized archive extents and writes v3 manifest', async () => {
   const worker = makeWorker();
   const data = mpq();
   const output = await worker.run([iso([
@@ -200,7 +240,7 @@ test('rejects ambiguous archive names and invalid MPQ data before staging', asyn
   assert.match(duplicate.at(-1).message, /Ambiguous archive/);
   const invalid = await worker.run([iso([['WAR3.MPQ', Buffer.alloc(64)]])]);
   assert.equal(invalid.at(-1).type, 'error');
-  assert.match(invalid.at(-1).message, /No supported MPQ header/);
+  assert.match(invalid.at(-1).message, /Invalid MPQ archive/);
   await assert.rejects(worker.gameDir(), error => error.name === 'NotFoundError');
 });
 
@@ -303,8 +343,7 @@ test('cancel during copying preserves the previous generation', async () => {
   const first = await worker.run([namedBlob(mpq(), 'War3.mpq')]);
   const previous = first.at(-1).manifest.generation;
   // The first progress message is published after the first 1 MiB write.
-  const large = Buffer.alloc(1024 * 1024 + 64);
-  mpq().copy(large, 0);
+  const large = mpq(1024 * 1024 + 64);
   worker.context.postMessage = message => {
     worker.messages.push(message);
     if (message.type === 'progress') {
@@ -412,8 +451,8 @@ test('unsupported map codec fails before replacing previous manifest', async () 
 
 test('TFT installer with explicitly named expansion MPQs is imported with RoC', async () => {
   const worker = makeWorker();
-  const original = Buffer.concat([mpq(), Buffer.alloc(1600, 0x5a)]);
-  const local = Buffer.concat([mpq(), Buffer.alloc(260, 0x38)]);
+  const original = mpq(1664, 0x5a);
+  const local = mpq(324, 0x38);
   const tft = setupMpq({entries:[
     {name:'War3x.mpq', data:original, compressed:true},
     {name:'War3xLocal.mpq', data:local, compressed:false}
@@ -613,4 +652,111 @@ test('duplicate archive names across an ISO and a Setup.mpq are rejected before 
   const dir = await worker.gameDir();
   const manifest = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
   assert.equal(manifest.generation, existing);
+});
+
+// Lock/manifest/cleanup regressions operate on the actual worker handler.
+test('rejects forged headers with invalid length, counts, or out-of-file tables', async () => {
+  const worker = makeWorker();
+  for (const corrupt of [
+    data => data.writeUInt32LE(100000, 8),
+    data => data.writeUInt32LE(3, 24),
+    data => data.writeUInt32LE(52, 20),
+    data => data.writeUInt16LE(20, 14),
+    data => data.writeUInt32LE(63, 8)
+  ]) {
+    const data = mpq();
+    corrupt(data);
+    const result = await worker.run([namedBlob(data, 'War3.mpq')]);
+    assert.equal(result.at(-1).type, 'error');
+    assert.match(result.at(-1).message, /Invalid MPQ archive/);
+  }
+  await assert.rejects(worker.gameDir(), err => err.name === 'NotFoundError');
+});
+
+test('an MPQ with excessive trailing bytes is refused', async () => {
+  const worker = makeWorker();
+  const data = mpq(8192);
+  data.writeUInt32LE(64, 8);
+  const result = await worker.run([namedBlob(data, 'War3.mpq')]);
+  assert.equal(result.at(-1).type, 'error');
+  assert.match(result.at(-1).message, /excessive trailing data/);
+});
+
+test('stale generations are pruned before the next quota preflight', async () => {
+  const worker = makeWorker();
+  const first = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest.generation;
+  const second = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest.generation;
+  const dir = await worker.gameDir();
+  worker.context.navigator.storage.estimate = async () => {
+    // The earlier unused generation must have been removed before estimating.
+    assert.equal(dir.dirs.has(first), false);
+    assert.equal(dir.dirs.has(second), true);
+    return {usage:0, quota:4096};
+  };
+  const result = await worker.run([namedBlob(mpq(), 'War3.mpq')]);
+  assert.equal(result.at(-1).type, 'done');
+});
+
+test('older unleased OPFS generations are reclaimed, retaining current and prior', async () => {
+  const worker = makeWorker();
+  const a = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest.generation;
+  const b = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest.generation;
+  const c = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest.generation;
+  const dir = await worker.gameDir();
+  assert.equal(dir.dirs.has(a), false);
+  assert.equal(dir.dirs.has(b), true);
+  assert.equal(dir.dirs.has(c), true);
+});
+
+test('leased older generation is not pruned until a later import', async () => {
+  const worker = makeWorker();
+  const a = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest.generation;
+  const release = worker.locks.hold('openrealm-wc3-generation:' + a);
+  await worker.run([namedBlob(mpq(), 'War3.mpq')]);
+  await worker.run([namedBlob(mpq(), 'War3.mpq')]);
+  assert.equal((await worker.gameDir()).dirs.has(a), true);
+  release();
+  await worker.run([namedBlob(mpq(), 'War3.mpq')]);
+  assert.equal((await worker.gameDir()).dirs.has(a), false);
+});
+
+test('cross-tab writer lock prevents import, and leased generation blocks removal', async () => {
+  const worker = makeWorker();
+  const locked = worker.locks.hold('openrealm-wc3-installation', 'exclusive');
+  const denied = await worker.run([namedBlob(mpq(), 'War3.mpq')]);
+  assert.equal(denied.at(-1).type, 'error');
+  assert.match(denied.at(-1).message, /Another browser tab/);
+  locked();
+  const installed = await worker.run([namedBlob(mpq(), 'War3.mpq')]);
+  assert.equal(installed.at(-1).type, 'done');
+  const gen = installed.at(-1).manifest.generation;
+  const release = worker.locks.hold('openrealm-wc3-generation:' + gen);
+  await worker.context.onmessage({data:{type:'remove'}});
+  assert.match(worker.messages.at(-1).message, /Close other Warcraft III game tabs/);
+  assert.equal((await worker.gameDir()).dirs.has(gen), true);
+  release();
+  await worker.context.onmessage({data:{type:'remove'}});
+  await assert.rejects(worker.gameDir(), error => error.name === 'NotFoundError');
+});
+
+test('missing War3xLocal marks partial expansion instead of claiming full content', async () => {
+  const worker = makeWorker();
+  const result = await worker.run([namedBlob(mpq(), 'War3.mpq'), namedBlob(mpq(), 'War3x.mpq')]);
+  assert.equal(result.at(-1).type, 'done');
+  assert.equal(result.at(-1).manifest.completeness, 'partial-expansion');
+  assert.deepEqual(Array.from(result.at(-1).manifest.missing), ['War3xLocal.mpq']);
+  assert.ok(result.some(message => message.type === 'notice' && /Partial expansion/.test(message.message)));
+});
+
+test('realistic multi-sector fixture preserves nonoverlapping source extents', async () => {
+  const worker = makeWorker();
+  const large = mpq(2048 * 3 + 100, 0x49);
+  const base = mpq(2048 * 2 + 51, 0x53);
+  const result = await worker.run([iso([['WAR3.MPQ', large], ['WAR3X.MPQ', base]])]);
+  assert.equal(result.at(-1).type, 'done');
+  const stage = await (await worker.gameDir()).getDirectoryHandle(result.at(-1).manifest.generation);
+  const a = Buffer.from(await (await (await stage.getFileHandle('War3.mpq')).getFile()).arrayBuffer());
+  const b = Buffer.from(await (await (await stage.getFileHandle('War3x.mpq')).getFile()).arrayBuffer());
+  assert.equal(Buffer.compare(a, large), 0);
+  assert.equal(Buffer.compare(b, base), 0);
 });

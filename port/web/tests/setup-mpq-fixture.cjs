@@ -32,6 +32,12 @@ function encrypt(bytes, key) {
 function mapBytes(length = 256) {
   const bytes = Buffer.alloc(length, 0x41);
   bytes.write('MPQ', 0, 'ascii'); bytes[3] = 0x1a;
+  bytes.writeUInt32LE(32, 4);
+  bytes.writeUInt32LE(length, 8);
+  bytes.writeUInt32LE(32, 16);
+  bytes.writeUInt32LE(48, 20);
+  bytes.writeUInt32LE(1, 24);
+  bytes.writeUInt32LE(1, 28);
   return bytes;
 }
 function setupMpq({count = MAP_COUNT, compressed = false, unsupported = false,

@@ -7,6 +7,8 @@ const META = 'installation.json';
 const CHUNK = 1024 * 1024;
 const MAX_INPUT_FILES = 512; // Match filesystem-bridge.js manifest limit.
 const MAX_ISO_IMAGES = 8; // Limit expensive full-directory scans per import.
+const COMMIT_LOCK = 'openrealm-wc3-installation';
+const GENERATION_LOCK = 'openrealm-wc3-generation:';
 // Only recognized game archives are mountable. Setup.mpq is an installer
 // container: recover known map payloads but never mount the container itself.
 const DISC_ARCHIVES = Object.freeze({
@@ -134,6 +136,8 @@ async function selectSources(files) {
   }
   // A standalone TFT disc is a valid *input*, but not a complete install.
   // Check the union of all sources, not each ISO separately.
+  if (names.has('war3xlocal.mpq') && !names.has('war3x.mpq'))
+    throw new Error('War3xLocal.mpq requires War3x.mpq in the same installation');
   if (!names.has('war3.mpq')) {
     throw new Error('War3.mpq missing; select the Reign of Chaos base disc or MPQ alongside expansion data');
   }
@@ -174,18 +178,67 @@ async function metadata(dir) {
     return JSON.parse(await file.text());
   } catch (err) { if (err.name === 'NotFoundError') return null; throw err; }
 }
-// Keep this probe aligned with common/mpq.c: it searches the first 1024
-// bytes for MPQ\x1a. This is a fast format check, not full archive verification.
+// Require a structurally valid MPQ envelope and in-bounds tables. This is
+// stronger than magic-byte checking but does not prove every payload is intact.
 async function checkMpqHeader(file) {
-  if (file.size < 32) throw new Error('Archive too small: ' + file.name);
-  const probe = new Uint8Array(await file.blob.slice(0, 1024).arrayBuffer());
-  checkCancelled();
-  for (let i = 0; i + 32 <= probe.length; ++i) {
-    if (probe[i] === 77 && probe[i+1] === 80 &&
-        probe[i+2] === 81 && probe[i+3] === 26) return;
+  if (!globalThis.MPQHeader) importScripts('mpq-header.js');
+  try {
+    const header = await MPQHeader.validate(file.blob, {signal:scanController.signal});
+    // Classic MPQs may carry short signatures/alignment trailers. Reject
+    // implausible excess data, but do not demand byte-for-byte header length.
+    if (/\.mpq$/i.test(file.name) && file.size - header.offset - header.archiveSize > 4096)
+      throw new Error('MPQ has excessive trailing data beyond its declared archive size');
   }
-  throw new Error('No supported MPQ header in ' + file.name);
+  catch (err) {
+    if (err.name === 'AbortError') throw err;
+    throw new Error('Invalid MPQ archive ' + file.name + ': ' + err.message);
+  }
+  checkCancelled();
 }
+
+// The writer and the launcher take opposite modes of this lock. Any tab
+// starting the engine must finish acquiring its generation lease before a
+// writer is allowed to commit and prune an older generation.
+async function withCommitLock(action) {
+  if (!navigator.locks || typeof navigator.locks.request !== 'function')
+    throw new Error('The Web Locks API is required for safe browser installation');
+  return navigator.locks.request(COMMIT_LOCK, {mode:'exclusive', ifAvailable:true}, async lock => {
+    if (!lock) throw new Error('Another browser tab is installing or starting Warcraft III');
+    return action();
+  });
+}
+const isGeneration = name => /^install-[a-z0-9]+-[a-z0-9]{1,16}$/.test(name);
+async function generations(dir) {
+  const result = [];
+  for await (const [name, entry] of dir.entries())
+    if (entry.kind === 'directory' && isGeneration(name)) result.push(name);
+  return result;
+}
+async function withGenerationLocks(names, action, index = 0) {
+  if (index === names.length) return action();
+  return navigator.locks.request(GENERATION_LOCK + names[index],
+    {mode:'exclusive', ifAvailable:true}, async lock => {
+      if (!lock) throw new Error('Close other Warcraft III game tabs before removing installed data');
+      return withGenerationLocks(names, action, index + 1);
+    });
+}
+async function collectOldGenerations(dir, current, previous) {
+  // Keep one prior generation for legacy tabs loaded before leases existed;
+  // other leased generations are skipped until a later successful import.
+  for (const name of await generations(dir)) {
+    if (name === current || name === previous) continue;
+    try {
+      await navigator.locks.request(GENERATION_LOCK + name,
+        {mode:'exclusive', ifAvailable:true}, async lock => {
+          if (lock) await dir.removeEntry(name, {recursive:true});
+        });
+    } catch (_) {
+      postMessage({type:'notice', message:'Could not clean up old installation ' + name +
+        '; close other game tabs and retry on the next installation.'});
+    }
+  }
+}
+
 async function install(files) {
   if (active) throw new Error('An installation is already in progress');
   // Own the entire scan, validation and copy lifecycle, not only OPFS writes.
@@ -195,6 +248,7 @@ async function install(files) {
   let dir = null;
   let generation = null;
   let committed = false;
+  let previous = null;
   try {
     const selected = await selectSources(files);
     checkCancelled();
@@ -206,9 +260,21 @@ async function install(files) {
     if (!Number.isSafeInteger(total)) throw new Error('Installation size overflow');
     postMessage({type:'discovered', files:selected.map(f=>({name:f.name,size:f.size,source:f.source})), bytes:total});
     postMessage({type:'phase', phase:'storage'});
+    // First recover safe space from obsolete generations. Without this step,
+    // quota preflight could reject imports that would have fit after pruning.
+    try { dir = await directory(false); }
+    catch (err) { if (err.name !== 'NotFoundError') throw err; }
+    if (dir) {
+      try { previous = await metadata(dir); }
+      catch (_) {
+        // A corrupt manifest must not prevent the user repairing an install.
+        postMessage({type:'notice', message:'Previous installation manifest unreadable; replacing it.'});
+      }
+      await collectOldGenerations(dir, previous && previous.generation, null);
+    }
     await checkAvailableStorage(total);
     checkCancelled();
-    dir = await directory(true);
+    if (!dir) dir = await directory(true);
     // Every import is a fresh immutable generation, committed by a manifest.
     generation = 'install-' + Date.now().toString(36) + '-' +
         Math.random().toString(36).slice(2, 10);
@@ -240,8 +306,14 @@ async function install(files) {
     }
     checkCancelled();
     postMessage({type:'phase', phase:'committing'});
+    const archiveNames = new Set(selected.map(f => f.name.toLowerCase()));
+    const hasExpansion = archiveNames.has('war3x.mpq');
+    const missing = hasExpansion && !archiveNames.has('war3xlocal.mpq') ?
+      ['War3xLocal.mpq'] : [];
+    const completeness = !hasExpansion ? 'base' :
+      (missing.length ? 'partial-expansion' : 'expansion');
     const manifest = {
-      version:3, generation,
+      version:3, generation, completeness, missing,
       files:selected.map(f=>({name:f.name,size:f.size})), bytes:total
     };
     // This root manifest is the sole commit point. Do not remove any old
@@ -254,6 +326,12 @@ async function install(files) {
       await out.close();
     } catch (err) { await out.abort().catch(()=>{}); throw err; }
     committed = true;
+    if (missing.length) postMessage({type:'notice', message:'Partial expansion installation: ' +
+      missing.join(', ') + ' missing. Some campaign and localized content may not work.'});
+    // A cleanup failure cannot undo a committed manifest. Previous readers
+    // hold shared generation leases; skip them instead of deleting open files.
+    try { await collectOldGenerations(dir, generation, previous && previous.generation); }
+    catch (_) { postMessage({type:'notice', message:'Old installation cleanup could not finish; game files remain installed.'}); }
     postMessage({type:'done', manifest});
   } finally {
     if (dir && generation && !committed)
@@ -268,9 +346,14 @@ async function list() {
 }
 async function remove() {
   if (active) throw new Error('Cannot remove files while importing');
-  const origin=await navigator.storage.getDirectory();
-  try { const root=await origin.getDirectoryHandle(ROOT); const game=await root.getDirectoryHandle(GAME); await game.removeEntry(WC3,{recursive:true}); }
-  catch(err) {if(err.name!=='NotFoundError') throw err;}
+  const origin = await navigator.storage.getDirectory();
+  try {
+    const root = await origin.getDirectoryHandle(ROOT);
+    const game = await root.getDirectoryHandle(GAME);
+    const dir = await game.getDirectoryHandle(WC3);
+    await withGenerationLocks([...(await generations(dir)), 'legacy'],
+      () => game.removeEntry(WC3, {recursive:true}));
+  } catch (err) { if (err.name !== 'NotFoundError') throw err; }
   postMessage({type:'list',manifest:null});
 }
 onmessage = async ({data}) => {
@@ -279,9 +362,9 @@ onmessage = async ({data}) => {
     return;
   }
   try {
-    if(data.type==='import') await install(data.files);
+    if(data.type==='import') await withCommitLock(() => install(data.files));
     else if(data.type==='list') await list();
-    else if(data.type==='remove') await remove();
+    else if(data.type==='remove') await withCommitLock(remove);
   } catch(err) {
     postMessage({type:'error', message:err.name==='AbortError' ? 'Import cancelled' : err.message||String(err)});
   }
