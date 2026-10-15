@@ -265,6 +265,56 @@ TEST(wc3_api, authored_race_names_map_to_jass_race_values) {
     T_EQ(WC3_JassRaceFromString("NAGA"), 11);
 }
 
+TEST(wc3_api, jass_arithmetic_operators_are_left_associative) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  real percent = 0.0\n"
+        "  real subtract = 0.0\n"
+        "  real divide = 0.0\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set percent = 100.0 / 100.0 * 100.0\n"
+        "  set subtract = 10.0 - 3.0 - 2.0\n"
+        "  set divide = 100.0 / 10.0 / 2.0\n"
+        "  call BJassAssert(percent == 100.0, \"percentage expression precedence\")\n"
+        "  call BJassAssert(subtract == 5.0, \"subtraction associativity\")\n"
+        "  call BJassAssert(divide == 5.0, \"division associativity\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, unit_state_natives_map_life_and_mana_fields) {
+    edict_t *unit = NULL;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit u = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set u = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(1), 200.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(0), 75.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(3), 100.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(2), 45.0)\n"
+        "  call BJassAssert(GetUnitState(u, ConvertUnitState(0)) == 75.0, \"unit life\")\n"
+        "  call BJassAssert(GetUnitState(u, ConvertUnitState(1)) == 200.0, \"unit max life\")\n"
+        "  call BJassAssert(GetUnitState(u, ConvertUnitState(2)) == 45.0, \"unit mana\")\n"
+        "  call BJassAssert(GetUnitState(u, ConvertUnitState(3)) == 100.0, \"unit max mana\")\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (globals.edicts[i].inuse && globals.edicts[i].class_id == MAKEFOURCC('h','f','o','o') &&
+            globals.edicts[i].s.player == 0) unit = globals.edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        T_FEQ(unit->health.value, 75.0f, 0.001f);
+        T_FEQ(unit->health.max_value, 200.0f, 0.001f);
+        T_FEQ(unit->mana.value, 45.0f, 0.001f);
+        T_FEQ(unit->mana.max_value, 100.0f, 0.001f);
+    }
+}
+
 TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
     edict_t *unit = NULL;
     event_t *registration = NULL;

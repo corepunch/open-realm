@@ -211,7 +211,7 @@ static uiNameTag_t timer_dialog_size_to_text;
 static uint32_t timer_dialog_unicast_count;
 static edict_t *timer_dialog_unicast_target;
 static bool leaderboard_size_capture;
-static char leaderboard_measure_capture_text[128];
+static char leaderboard_measure_capture_text[512];
 
 static void timer_dialog_test_unicast(edict_t *ent) {
     timer_dialog_unicast_count++;
@@ -2760,6 +2760,82 @@ TEST(wc3_game, title_only_leaderboard_does_not_reserve_an_empty_row) {
     T_STREQ(leaderboard_measure_capture_text, "A Runner is on its way!");
     T_ASSERT(container.hidden);
     T_FEQ(root.Height, 0.035f, 0.0001f);
+}
+
+TEST(wc3_game, leaderboard_preserves_blank_title_trailing_rows_and_authored_labels) {
+    FRAMEDEF root = { .Type = FT_SIMPLEFRAME };
+    FRAMEDEF backdrop = { .Type = FT_BACKDROP, .Parent = &root };
+    FRAMEDEF title = { .Type = FT_STRING, .Parent = &root };
+    FRAMEDEF container = { .Type = FT_SIMPLEFRAME, .Parent = &root };
+    LeaderBoard_t old_binding = hud.leaderboard;
+    leaderboard_t old_board;
+    int32_t old_player_board;
+    uint32_t old_dirty;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+    leaderboard_t *board;
+
+    setup_test_world();
+    old_board = level.leaderboards[0];
+    old_player_board = level.player_leaderboards[0];
+    old_dirty = level.leaderboard_dirty_clients;
+    memset(&level.leaderboards[0], 0, sizeof(level.leaderboards[0]));
+    board = &level.leaderboards[0];
+    board->inuse = true;
+    board->displayed_clients = 1u;
+    board->show_label = false;
+    board->show_names = true;
+    board->show_values = true;
+    board->size_by_item_count = 3; /* Blank-title BJ resize subtracts one. */
+    board->item_count = 4;
+    board->items[0] = (struct gleaderboarditem_s){
+        .player = 0, .value = 100, .show_label = true, .show_value = true,
+    };
+    strlcpy(board->items[0].label, "Portal Life %", sizeof(board->items[0].label));
+    board->items[1] = (struct gleaderboarditem_s){
+        .player = 1, .value = 27, .show_label = true, .show_value = true,
+    };
+    strlcpy(board->items[1].label, "Waves Remaining", sizeof(board->items[1].label));
+    board->items[2] = (struct gleaderboarditem_s){
+        .player = 2, .value = 0, .show_label = true, .show_value = true,
+        .value_color_set = true, .value_color = { .a = 0 },
+    };
+    strlcpy(board->items[2].label, "__________________", sizeof(board->items[2].label));
+    board->items[3] = (struct gleaderboarditem_s){
+        .player = 3, .value = 0, .show_label = true, .show_value = true,
+    };
+    strlcpy(board->items[3].label, "High Scores", sizeof(board->items[3].label));
+    game.clients[0].ps.name = "Player";
+    level.player_leaderboards[0] = 0;
+    title.Font.Size = 0.0f;
+    hud.leaderboard = (LeaderBoard_t){
+        .Leaderboard = &root, .LeaderboardBackdrop = &backdrop,
+        .LeaderboardTitle = &title, .LeaderboardListContainer = &container,
+    };
+    leaderboard_size_capture = false;
+    leaderboard_measure_capture_text[0] = '\0';
+    gi.Write = leaderboard_test_write;
+    gi.unicast = selection_test_unicast;
+    gi.FontIndex = portrait_test_font;
+
+    UI_WriteLeaderboard(&g_edicts[0]);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    hud.leaderboard = old_binding;
+    level.leaderboards[0] = old_board;
+    level.player_leaderboards[0] = old_player_board;
+    level.leaderboard_dirty_clients = old_dirty;
+    T_ASSERT(leaderboard_size_capture);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "Portal Life %") != NULL);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "Player - Portal Life %") == NULL);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "Waves Remaining") != NULL);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "High Scores") != NULL);
+    T_ASSERT(strstr(leaderboard_measure_capture_text, "__________________    0") == NULL);
+    T_ASSERT(!container.hidden);
+    T_FEQ(container.Height, 0.048f, 0.0001f);
 }
 
 TEST(wc3_game, hud_save_panel_accepts_native_list_in_authored_frame_slot) {

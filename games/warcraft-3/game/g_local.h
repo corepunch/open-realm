@@ -1360,6 +1360,9 @@ typedef struct {
 #define WC3_UNIT_TYPE_GROUND 4 // handle value; authored ground movement class; used by IsUnitType
 #define WC3_UNIT_TYPE_POLYMORPHED 22 // handle value; Warcraft Polymorphed type; used by IsUnitType
 #define WC3_UNIT_STATE_LIFE 0 // handle value; UNIT_STATE_LIFE
+#define WC3_UNIT_STATE_MAX_LIFE 1 // handle value; UNIT_STATE_MAX_LIFE
+#define WC3_UNIT_STATE_MANA 2 // handle value; UNIT_STATE_MANA
+#define WC3_UNIT_STATE_MAX_MANA 3 // handle value; UNIT_STATE_MAX_MANA
 #define WC3_ORDER_ID_POLYMORPH 852074 // order ID; Warcraft Polymorph command; used by order dispatch
 
 typedef struct {

@@ -289,24 +289,24 @@ wordExtractor_t(read_single_identifier) {
 
 wordExtractor_t(parse_multiplicative_expression) {
     token_t *left = read_single_identifier(p);
-    if (is_multiplicative_operator(peek_token(p))) {
+    while (is_multiplicative_operator(peek_token(p))) {
         token_t *oper = parse_operator_token(p);
-        token_t *right = parse_multiplicative_expression(p);
+        token_t *right = read_single_identifier(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
-        return oper;
+        left = oper;
     }
     return left;
 }
 
 wordExtractor_t(parse_additive_expression) {
     token_t *left = parse_multiplicative_expression(p);
-    if (is_additive_operator(p, peek_token(p))) {
+    while (is_additive_operator(p, peek_token(p))) {
         token_t *oper = parse_operator_token(p);
-        token_t *right = parse_additive_expression(p);
+        token_t *right = parse_multiplicative_expression(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
-        return oper;
+        left = oper;
     }
     return left;
 }
