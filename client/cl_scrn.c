@@ -233,9 +233,12 @@ void SCR_UpdateLoadingPlaque(void) {
     if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING) return;
     SCR_DrawScreenField(0);
 #ifdef __EMSCRIPTEN__
-    /* Wait for the authored loading layout to be submitted, never hide on
-     * CL_PrepLoading alone. The browser then waits two animation frames. */
-    if (cl.layout[LAYER_LOADING]) Web_LoadingOverlay(false);
+    /* The loading layout is registered very early, before the first useful
+     * frame reaches the browser. Keep the overlay while the server prepares
+     * and the client registers the map. 40% is reached after RegisterMap,
+     * which establishes a genuine loading presentation handoff. */
+    if (cl.layout[LAYER_LOADING] && cl.loading_progress >= 0.40f)
+        Web_LoadingOverlay(false);
 #endif
 }
 

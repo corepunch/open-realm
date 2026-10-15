@@ -22,6 +22,11 @@ protocol remain unchanged. Disconnect, shutdown and map-load failure clear the
 overlay. Only Emscripten compiles this bridge. Tests are under
 `port/web/tests/`.
 
+The layout is registered before the client finishes registering the map, so
+layout presence alone is too early for the visual handoff. The overlay now
+stays up through `re.RegisterMap` and is released at the existing 40% loading
+checkpoint, with the browser's two-frame delay as a compositing safeguard.
+
 ## Build
 
 Activate an Emscripten SDK (`emsdk_env.sh`) and run:

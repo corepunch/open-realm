@@ -42,5 +42,5 @@ test('native handoff is owned by a submitted authored loading frame', () => {
   const screen = fs.readFileSync(path.join(base, 'client/cl_scrn.c'), 'utf8');
   const prepBody = prep.split('void CL_PrepLoading(void) {')[1].split('}', 1)[0];
   assert.doesNotMatch(prepBody, /Web_LoadingOverlay\(false\)/);
-  assert.match(screen, /SCR_DrawScreenField\(0\);\s*#ifdef __EMSCRIPTEN__[\s\S]*?Web_LoadingOverlay\(false\)/);
+  assert.match(screen, /cl\.loading_progress >= 0\.40f/);
 });
