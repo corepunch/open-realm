@@ -21,6 +21,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | UI canvas: window geometry, stretch/expand/centered policies, widescreen console chrome, resize settling, `ui_canvas` class command | [docs/architecture/ui-canvas.md](docs/architecture/ui-canvas.md) |
 | Shared GL/ES shader generation, typed submission and lifetime | [docs/architecture/shared-shaders.md](docs/architecture/shared-shaders.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Browser ISO 9660/Joliet sector reader, limits, test command, integration boundary | [docs/platform/browser-iso9660.md](docs/platform/browser-iso9660.md) |
 | GitHub release publication, contributor notes, platform artifacts and verification | [docs/releasing.md](docs/releasing.md) |
 | Agent documentation capture, placement, templates, and indexing | [docs/documentation-guide.md](docs/documentation-guide.md) |
 | Diagnostic tools (mpqtool, dbctool, mdxtool, ability_audit, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
