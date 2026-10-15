@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X32;Y18;D0
+B;X33;Y18;D0
 C;X1;Y1;K"unitID"
 C;X21;K"movetp"
 C;X28;K"isBuildOn"
@@ -7,6 +7,7 @@ C;X29;K"canBuildOn"
 C;X30;K"turnRate"
 C;X31;K"propWin"
 C;X32;K"race"
+C;X33;K"cargoSize"
 C;X1;Y2;K"ugol"
 C;X28;KTRUE
 C;X31;K60
@@ -15,6 +16,7 @@ C;X29;KTRUE
 C;X31;K60
 C;X1;Y4;K"hfoo"
 C;X21;Y4;K"foot"
+C;X33;K1
 C;X30;K0.6
 C;X31;K60
 C;X1;Y5;K"hgry"
@@ -22,6 +24,7 @@ C;X21;Y5;K"fly"
 C;X30;K0.4
 C;X31;K61
 C;X1;Y6;K"hpea"
+C;X33;K1
 C;X21;K"foot"
 C;X30;K0.6
 C;X31;K60
@@ -30,6 +33,7 @@ C;X21;K"horse"
 C;X30;K0.5
 C;X31;K60
 C;X1;Y8;K"ewsp"
+C;X33;K1
 C;X21;K"hover"
 C;X30;K0.6
 C;X31;K60
@@ -57,6 +61,7 @@ C;X21;K"fly"
 C;X30;K0.6
 C;X31;K60
 C;X1;Y16;K"hRTE"
+C;X33;K1
 C;X21;K"foot"
 C;X30;K0.6
 C;X31;K60

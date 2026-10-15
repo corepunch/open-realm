@@ -105,8 +105,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format184 retains inactive fine identities with exact empty coverage. */
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
-/* Format196 persists Town guard policy, assigned posts and replacement budgets. */
-static uint32_t const save_version = 196;
+/* Format198 additionally retains naval shore points and point-Load arrival ownership. */
+static uint32_t const save_version = 198;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -185,6 +185,10 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(S_AncientFacingComplete),
     SAVE_CFUNCTION(S_AttackTargetChaseComplete),
     SAVE_CFUNCTION(S_AttackRecoveryComplete),
+    SAVE_CFUNCTION(S_AttackMoveComplete),
+    SAVE_CFUNCTION(S_CargoBoardComplete),
+    SAVE_CFUNCTION(S_CargoLoadComplete),
+    SAVE_CFUNCTION(S_CargoDropComplete),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -802,6 +806,8 @@ static field_t const destructable_fields[] = {
 static field_t const cargo_fields[] = {
     /* Per-passenger separation ownership is plain saved pool state (Save192). */
     TF(cargo_t, units, F_EDICT, MAX_CARGO, FIELD_NONE),
+    TF(cargo_t, boarding, F_EDICT, MAX_BOARDING_RESERVATIONS, FIELD_NONE),
+    TF(cargo_t, board_withdrawal, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 

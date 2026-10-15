@@ -421,17 +421,17 @@ void G_StartFowUpdates(void) {
 static void TimerDrain(float limit,bool before_owner) {
     for(;;) {
         gtimer_t *timer=level.timer_heap_count ? level.timers+level.timer_heap[0] : NULL;
-        wc3Clock_t maintenance;uint32_t sequence;
+        wc3Clock_t maintenance;uint32_t sequence=0;
         bool spatial=S_NextMoveSpatialMaintenance(&maintenance,&sequence) &&
             (!timer || maintenance.time<timer->scalar_deadline.time ||
                 (maintenance.time==timer->scalar_deadline.time && sequence<timer->scalar_sequence));
         abilityTimerRequest_t ability;
         bool owned=S_NextAbilityPrimaryTimer(&ability);
-        wc3Clock_t release;uint32_t release_sequence;
+        wc3Clock_t release;uint32_t release_sequence=0;
         bool releasing=G_NextTriggerRelease(&release,&release_sequence);
-        wc3Clock_t unit_release;uint32_t unit_sequence;
+        wc3Clock_t unit_release;uint32_t unit_sequence=0;
         bool removing=G_NextUnitRelease(&unit_release,&unit_sequence);
-        wc3Clock_t range;uint32_t range_sequence;
+        wc3Clock_t range;uint32_t range_sequence=0;
         bool polling=G_NextRangeRequest(&range,&range_sequence);
         bool fog=level.fow_clock_valid;
         if(!spatial && !timer && !owned && !releasing && !removing && !polling && !fog)break;

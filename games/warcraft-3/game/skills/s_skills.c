@@ -9,6 +9,8 @@ int G_AutocastDebugLevel(void) {
 }
 #endif
 
+static cstring_t const cargo_drop_orders[] = { "unloadall", NULL };
+static cstring_t const cargo_load_orders[] = { "load", NULL };
 static cstring_t const burrow_orders[] = { "burrow", "unburrow", NULL };
 static cstring_t const avenger_form_orders[] = { "avengerform", NULL };
 static cstring_t const robo_goblin_orders[] = { "robogoblin", "unrobogoblin", NULL };
@@ -226,8 +228,8 @@ static ability_t abilitylist[] = {
     { "ANto", CAbilityTornado, AB_SPELL | AB_CHANNEL },  /* Tornado */
     { "Abgm", CAbilityBlightedGoldMine, 0 },  /* Blighted Gold Mine Ability */
     { "Aegm", CAbilityEntangledGoldMine, AB_PASSIVE | AB_UPDATE | AB_TYPE_UPDATE },  /* Entangled Gold Mine Ability */
-    { "Aloa", CAbilityCargoLoad, AB_COMMAND },  /* Load */
-    { "Adro", CAbilityCargoDrop, AB_COMMAND | AB_MOVE_TARGET_NO_WARP },  /* Unload */
+    { "Aloa", CAbilityCargoLoad, AB_COMMAND, SPELL_TARGET_NONE, cargo_load_orders },  /* Load */
+    { "Adro", CAbilityCargoDrop, AB_COMMAND | AB_MOVE_TARGET_NO_WARP, SPELL_TARGET_NONE, cargo_drop_orders },  /* Unload */
     { "Adri", CAbilityCargoDropInstant, AB_COMMAND },  /* Unload Instant */
     { "Abun", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Orc Burrow) */
     { "Acar", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold */

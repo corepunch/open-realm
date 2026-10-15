@@ -20358,3 +20358,839 @@ Accepted evidence and validation are archived in
 baseline; `strict-chase-cancellation.json` and `movement-cancellation.json`
 are the accepted post-fix reports. Earlier fixture experiments and failed
 integration reports are retained with their original failures.
+
+## Failed Move ferry and guard return (ORDER346, in progress)
+
+The progress headings below preserve the investigation chronology. The current
+result is in [final arrival/failure acceptance](#order346-final-arrivalfailure-acceptance).
+
+The owned MapC captures in `/tmp/order346/observe4.jsonl` and
+`observe5.jsonl` match all 1,125 native/marker records; the unhooked
+`control2.jsonl` matches all 979 public markers. At tick517 a computer
+Footman selects its same-owner Zeppelin; Board/Load follow at518,
+loaded/Drop at532, and unload at1600,1040 at570. Guard Attack then fails
+on the reverse crossing, requests Board at608, loads at628 and unloads
+at its original272,304 guard post at663. MapD injury/heal and its control
+confirm that current250/max500 rejects the carrier while500/500 accepts.
+These are working captures, not yet a frozen corpus acceptance.
+
+The first full engine return regression failed: legacy Attack-move steering
+substituted a reachable point and ended at953.498,314.571 without another
+ferry request. Point Attack now owns the shared physical point task, matching
+49a980's d016b range0 producer, so terminal failure retains the guard
+destination. Fresh and saved return runs pass. A separate Stop-during-return
+regression then exposed cancellation incorrectly reserving a ferry; the
+completion callback now distinguishes the retained old physical binding on
+cancellation from a terminal scan that has already cleared that binding.
+The callback is serialized in save format197 alongside the new cargo owners.
+
+Before the Attack point conversion, the complete movement suite passed662
+tests/8,102,697 assertions per Classic/TFT. Those results do not validate the
+subsequent conversion. The conversion now passes all12 ferry lifecycle tests
+with3,148 assertions and22 Attack-order tests with10,941 assertions per
+Classic/TFT. Including unit, bot and save suites,524 tests/99,924 assertions
+pass per edition. The subsequent full movement rerun passed665 tests and
+8,104,336 assertions per edition. Ability removal and
+the remaining ORDER-01.2 dispatch inventory also remain open. No TODO is
+closed by this progress note.
+
+
+ORDER346 queued Drop follow-up: MapF uses an owned-window Shift+U click
+to queue Drop behind a live carrier Move. At tick91,610710 rejects that
+carrier for the requested1600,1040 ferry destination; the queued Drop only
+activates at101. Observed runs8/9 match all215 native/marker records, and
+unhooked control4 matches all165 retained preload markers. The engine's
+active-order-only check failed the mismatch and first-mismatch regressions
+(six assertions). It now walks the FIFO to the first matching command,
+preserving native exact-XY comparison and non-point acceptance. The fix
+passes528 focused/adjacent tests and99,972 assertions per edition; final
+edge coverage passes17 ferry tests/3,209 assertions per edition, including
+name-only orders, unrelated predecessors and a non-point first match.
+
+Working raw evidence and SHA256 manifest are preserved under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-01.2/order346/working-retail/`.
+This includes failed captures and source snapshots, not a completed corpus
+acceptance. Ability removal, cargo-size/morph policy and the remaining
+arrival/failure branch inventory still prevent closing ORDER-01.2.
+
+
+ORDER346 removal and availability follow-up: MapH removes Aloa during its
+approach and Adro during flight or boarding. GetUnitAbilityLevel reports0.
+The retained physical approach continues, but the removed ability's effect
+does not execute: removed Load leaves Board pending outside cargo, while
+removed Drop keeps the passenger loaded. Two captures match824 records;
+the unhooked control matches668 public markers. Fresh and saved engine
+regressions fail first (22 assertions), then pass with effect-time membership
+checks that preserve the active physical task.
+
+MapI distinguishes SetPlayerAbilityAvailable from removal. Aloa stays at
+level1; hiding it during an already-started Load still permits loading. A
+later Load admission emits its issued event then stops without executing.
+Adro made unavailable in flight or boarding suppresses the Drop effect.
+Two captures match866 records and the control matches674 public markers.
+The first fresh/saved active-Load tests failed four assertions; the fix
+retains active Load execution while blocking a new unavailable Load. Board
+now owns only the passenger approach, so it cannot bypass the carrier's
+rejected Load by adding cargo directly. Final27 ferry tests/3,446 assertions
+and539 focused/adjacent tests/100,222 assertions pass per Classic/TFT. The
+new full movement rerun is still in progress.
+
+Remaining integration reviews include the issued-event timing of newly
+rejected Load (retail emits852046 before returning to0), the legacy UI
+unload path versus the shared point-order owner, cargo-size/morph policy,
+and the remaining arrival/failure branch inventory. These are gaps in the
+existing ORDER-01.2 scope, not newly split TODOs.
+
+ORDER346 relay investigation (MapJ/MapK): the completed movement sweep passes
+680 tests / 8,104,634 assertions per edition. Public JASS Load with unavailable
+Aloa rejects without an event. Internal Board-to-Load publishes Load before
+availability is checked. MapK callback re-enabling Aloa allows loading; nested
+Move replaces Load. Re-enable plus Stop clears the public head but still runs
+the approach without loading. Carrier removal in the callback sends the source
+into guard return. `observe16` contains 638 public markers, exactly matching unhooked
+`control7`. New regressions distinguish internal publication from public
+admission; implementation and final acceptance remain in progress.
+
+The three internal-relay regressions fail first with seven assertions
+(`/tmp/order346/relay-red2.xml`). The first fixture attempt crashed because
+fixture common.j lacked `EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER`; adding the
+standard ConvertPlayerUnitEvent(40) constant makes the intended failures
+observable. The relay now publishes before admission and preserves a callback's
+replacement task. Stop's retained approach/effect distinction still needs a
+regression and implementation review before acceptance.
+
+Internal relay implementation passes 31 ferry tests and 551 focused/adjacent
+tests (100,307 assertions) per Classic/TFT, including order reentry, attack,
+unit, bot and save suites. The initial Stop endpoint check passed, but the stronger per-frame check
+caught transient loading and unloading (158 failed assertions of 340).
+The retained approach must not execute a cargo effect after Stop retires the
+Load head. The fix gates the effect on Load ownership and ends the retained
+approach at completion without loading. The final focused/adjacent run passes 551 tests / 100,627 assertions per
+edition, including 31 ferry regressions / 3,833 assertions. The test-library build and
+`git diff --check` pass. This does not close ORDER-01.2 or establish full numeric ferry trajectory parity.
+
+ORDER346 UI Drop follow-up: MapM uses genuine owned-window U+click. Retail
+publishes Unload852048 at46; removing Adro at51 reports level0 while the
+carrier continues from311.165,313.928 to182.328,183.146, then retires to0
+with the passenger still loaded. MapL's input arrived after removal and is
+retained as an unsuccessful coverage attempt. Fresh/saved engine UI tests
+fail ten assertions: Adro's old click path used ordinary Move rather than
+the shared Drop task. The click now issues the shared unloadall point order,
+including the menu's queued flag. Drop Pilot (Atdp) and corpse drop (Amed)
+keep their distinct handlers. Unhooked control8 confirms the lifecycle with
+all162 retained markers reporting loaded1. Its click occurs at72/removal77
+versus observed46/51, and final carrier coordinates differ by about0.01;
+this is behavioral evidence, not exact trajectory parity. Final focused validation passes33 ferry tests / 4,267 assertions per
+Classic/TFT. The full movement sweep is running; this does not establish
+full-suite or numeric trajectory acceptance.
+
+ORDER346 cargo accounting follow-up: the completed UI/relay movement sweep
+passes686 tests / 8,105,455 assertions per edition. MapO's custom Footman
+has cargo size2. Read-only hooks confirm occupied7/free1, size2 rejection10
+before and during real Polymorph, then size1 admission0. Morph initialization
+captures the original size through48d330(0), and queries during Bply return
+that snapshot rather than the sheep form's size. Unhooked control9 matches
+all105 public markers. MapP confirms authored zero becomes -1 and is rejected
+before and during Polymorph. MapN did not establish Polymorph because its
+players were allied; it is retained as a failed coverage attempt.
+
+The engine's ordinary Acar loading still used passenger count. The new
+regression fails four assertions: it overfills, retains the wrongly loaded
+unit and accepts cargo size0. Admission, Board and actual cargo insertion
+now check authored occupied space. Peasant/Wisp and custom Footman fixture
+rows carry explicit size1; other holder implementations retain their existing
+slot rules. Focused/adjacent validation passes579 tests / 101,563 assertions per
+Classic/TFT, including34 ferry regressions / 4,278 assertions. The new full
+movement rerun is in progress. `verify-cargo-size.py` checks the captured
+occupied/free/admission values, Polymorph snapshot, zero-size rejection and
+105-marker control equality. Evidence is archived under
+`working-retail/cargo-size-map-o/`.
+
+The native selector also subtracts *pending boarding* space (5aa8a0,
+identities+100) from free space (5806f0, authored capacity minus occupied+74).
+Loaded identities live at+84. This distinction was missing from the earlier
+selector interpretation; concurrent boarding reservations remain within the
+existing ORDER-01.2 scope and need a runtime witness before implementation.
+
+ORDER346 boarding reservations: the completed cargo-space movement sweep
+passes687 tests / 8,105,466 assertions per edition. MapR reserves the last
+free space through a real Smart order at50. Selector610820 reads pending1
+at61 and rejects the carrier; Stop70 withdraws the reservation and leaves
+the carrier idle. A new failed Move reads pending0 at127 and selects it.
+Unhooked control10 matches220 public markers exactly. MapQ's Stop90 happened
+after the first passenger loaded, so that earlier capture only establishes
+reservation rejection, not cancellation before loading.
+
+Fresh/saved regressions fail six assertions. The engine now retains the
+Board transport in its existing secondary goal, accounts for active Board
+owners through the sparse cargo index during ferry selection, and stops the
+matching carrier Load when that Board owner leaves. Cargo insertion already
+clears the retained goal before leaving Board, preserving a successful Load.
+No new save fields or per-frame full-world scan are needed. Final validation
+passes36 ferry tests / 4,320 assertions and581 focused/adjacent tests /
+101,605 assertions per edition. Working evidence and the strict marker/native
+comparison are archived under `working-retail/boarding-map-r/`. Explicit carrier-issued Load producers and reservation displacement
+under competing manual requests still require separate runtime coverage
+within ORDER-01.2; this change does not claim those branches complete.
+
+
+### ORDER346 direct carrier Load reservations (MapS)
+
+MapS changes MapR's passenger Smart to `IssueTargetOrder(carrier,"load",first)`.
+Read-only `observe25` sees reservation0→1 at50, while the passenger's public order
+remains0. The failed mover at61 sees pending space1 and rejects the carrier with
+seven occupied spaces out of eight. Passenger Stop70 leaves carrier Load852046
+active and emits no reservation withdrawal. All218 public markers match the
+uninstrumented `control11`. Do not implement this as passenger-owned Board:
+passenger Stop cancels Smart boarding, but does not cancel a direct carrier Load.
+Ghidra5af5d0/5a08b0 separately show Load-owner replacement clearing reservations.
+
+The engine reservation query previously counted only passenger Board owners.
+`order346_direct_load_reserves_until_carrier_stop` failed four assertions before
+adding the active carrier Load target to pending space. Its saved variant covers
+restoring that ownership. Both drive failed Move completion before passenger Stop,
+after passenger Stop, and after carrier Stop. Existing saved goal/current-move
+state suffices; this addition changes neither wire nor save layout. Board targets
+remain counted by the existing sparse owner query, avoiding double counting.
+Manual competing-request displacement and the complete ORDER-01.2 branch inventory
+remain open. MapT adds carrier Stop75 after passenger Stop70: Load ends at75,
+and failed selection127 now sees pending0 and admits the carrier. Read-only
+`observe26` supplies the runtime inverse to5af5d0/5a08b0.
+
+Validation:38 ferry regressions/4374 assertions and583 focused/adjacent tests/101659
+assertions pass per Classic/TFT (`direct-final.json`). Production `libgame.so`
+and test `libgame-wc3-test.so` build successfully. The first combined build used
+an invalid production target `libgame-wc3.so`; the correct production target was
+then built separately. No full repository suite was rerun for this game-local
+iteration; the existing batch checkpoint and remaining ORDER346 acceptance work
+are unchanged.
+
+MapT's uninstrumented `control12` also matches every public preload marker;
+`verify-direct-load.py` verifies both MapS and MapT control comparisons, reserved
+rejection, passenger Stop retention and carrier Stop release. Sources, captures,
+failing regression, successful tests and SHA256 manifest are archived under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/ORDER-01.2/order346/working-retail/direct-load-map-s-t/`.
+This is working evidence, not a frozen corpus acceptance claim.
+
+
+### ORDER346 Load owner retirement (MapU/MapV)
+
+MapU replaces MapR's passenger Stop with carrier Stop70. Smart50 starts passenger
+Board and carrier Load51. Carrier Stop70 immediately sets both public orders0;
+failed selection61 rejects pending space1, but127 accepts pending0. Instrumented
+`observe27` and uninstrumented `control13` match220 preload markers. The native
+`5a08b0` clears pending identities before cancelling matching passenger tasks.
+The engine previously left Board, its target chase and saved reservation active;
+`order346_carrier_stop_retires_pending_board` failed five assertions.
+
+MapV additionally issues a fresh public Load65 to the same target. That request
+also retires the passenger Board before registering a fresh carrier-owned
+reservation; passenger public order becomes0 and carrier stays852046. The
+`5af5d0` same-owner branch alone does **not** establish public Load-to-Load
+reservation preservation: public order replacement already tears down ownership.
+A proposed shortcut preserving Board was rejected by this runtime evidence.
+The engine regression includes this distinction and saved ownership.
+
+`order346_public_load_replacement_retires_pending_board` caught the incorrect
+preservation shortcut with three failing assertions. The final fix retains the
+normal public Load cleanup and makes `cargo_ferry_load_leave` retire pending
+Board owners from the sparse cargo-owner index. Each passenger's secondary
+reservation is cleared before `unit_stand`, preventing Board leave from
+recursively stopping the carrier. Existing loaded passengers already clear that
+reference before leaving Board. No new saved fields or wire changes are needed.
+MapV's `observe28`/`control14` match222 preload markers; both comparisons pass
+`verify-retire-board.py`. Multiple simultaneous Board requests and displacement
+remain part of the open ORDER-01.2 inventory.
+
+For the remaining competing-request branch, `5a3a70` compares Unit240/244,
+which the existing queued-cohort research identifies as the latest canonical
+request identity, not generic unit priority fields. `5a6f30` ranks ordinary
+candidates by committed bridge point distance squared; when carrier1fc==0x10
+and passenger1fc is1 or0x20, it obtains a special approach point via58edd0 first.
+Keep that movement-domain branch explicit in further probes. These are static
+findings only; no competing-request parity claim is made here.
+
+The first broader run caught two existing MapH regressions (fresh/saved removed
+Load). `observe11` retains passenger Board852043 through tick300 after Aloa was
+removed198 and carrier approach ended by220. Its control5 markers agree. The
+removed ability no longer owns a subscriber that can cancel passenger Board;
+`cargo_ferry_load_leave` therefore performs reservation cancellation only while
+Aloa remains attached. Player availability is distinct from attachment. These
+existing tests caught and constrain the fix, rather than weakening their expected
+Board order. `verify-retire-board.py` also checks the MapH contrast.
+
+Final validation:42 ferry tests/4490 assertions and587 focused/adjacent tests/
+101775 assertions pass in each of Classic and TFT (`retire-final2.json`). Both
+production and test game libraries build successfully. Ghidra comments and
+`MapPathfinding.java` capture the owner distinction and the removed-owner
+exception. Red runs, the initially failing broader run, corrected green runs,
+MapU/V captures and controls, MapH contrast, verifier and source snapshots are
+archived with SHA256 manifest under
+`working-retail/load-retirement-map-u-v/`. This remains working evidence; the
+full ORDER-01.2 acceptance inventory has not been closed or split.
+
+
+### ORDER346 simultaneous Board requests (MapW/MapX/MapY)
+
+MapW preloads six of eight cargo spaces, then issues passenger Smart50 and55.
+Both Board orders remain active; reservation54 grows1→2. The failed mover at61
+sees pending2 and cannot select the carrier. Carrier Stop70 retires both Board
+orders. MapX omits Stop: selector5856a0 keeps the first pending passenger through54,
+selects the second at83, emits a second Load85, and both passengers are loaded by90.
+The engine instead replaced Load on the second passenger's first tick, cancelling
+both Board tasks and loading only one passenger; the two initial regressions
+failed12 assertions. Fresh/saved checks cover reservations, Stop and both loads.
+
+MapY moves the second passenger to200,1100. Nearest selection54/55 now returns
+that passenger, but active Load still finishes the first through83. Public Load
+events occur51,85,92; the last occurs after both passengers have loaded. Do not
+retarget the active physical Load merely because nearest selection changed.
+`59b850` sets Cargo800 around `59ec90`; this suppresses reservation withdrawal.
+`59ec90` inserts a transient order while Aloa8000 is active, unless retained target
+or point matches. Otherwise it admits the order immediately. The complete
+transient replay/callback behavior remains an ORDER-01.2 integration requirement.
+
+MapX/control15 match218 public markers; MapY/control16 match219; MapW/control17
+match220. `verify-simultaneous.py` checks both reservations, full carrier Stop,
+nearest-query identity changes, both-loaded states and the deferred event at92.
+The nearer-passenger engine regression also fails first (seven assertions),
+including preservation of the first active target.
+
+The engine now registers additional Board owners without replacing active Load.
+After loading, `cargo_next_boarder` selects the nearest valid pending passenger
+from the sparse cargo-owner index and requests the successor Load while retaining
+reservations. Public Load still uses normal replacement cleanup. Selection runs
+on completion rather than adding a world scan to every movement tick. Existing
+saved Board secondary goals supply the pending membership, with no new fields.
+This implements simultaneous membership and successor loading; it does not yet
+implement the full transient FIFO demonstrated by MapY's extra event92. Exact
+equal-distance pending-slot ordering and competing-capacity displacement also
+remain within the existing open ORDER-01.2 scope.
+
+Validation:48 ferry regressions/4614 assertions and593 focused/adjacent tests/
+101899 assertions pass per Classic/TFT (`multi-final.json`). Production/test game
+libraries build, and all three native/control comparisons pass. Evidence,
+source snapshots, failing-first logs, green results and SHA256 manifest are
+archived under `working-retail/simultaneous-map-w-x-y/`. No full repository suite
+was rerun for this game-local iteration. This does not close ORDER-01.2: MapY's
+transient insertion/replay must still be modeled, including callback ownership,
+save/load and public order replacement, alongside capacity displacement.
+
+
+### ORDER346 deferred Load replay (MapAC)
+
+`691c70` inserts flags1/1 immediately after the active user head, ahead of
+existing successors. This can use the engine's existing saved `unitOrderQueue_t`,
+with a Cargo-owned `owner_context`, instead of adding a cargo-specific pointer
+queue or save fields. A replay must notify before validating whether its target
+is already loaded. The first two replay/callback regressions failed eight
+assertions before implementation.
+
+MapAC (`observe35`/`control18`) matches all684 public markers. Scene0 replays
+Load92 after both passengers loaded; its callback's Move toward1600,1600
+survives (native settled position1585.767,1600.229 at tick180).
+Scene1 carrier Stop260 discards the deferred Load. Scene2 removes the second
+passenger460; replay485 emits a **point** Load with point0,0 and null target,
+then becomes idle. `59ec90` constructs the transient with zero scalar point
+arguments; substituting the passenger's position is incorrect. MapZ was a
+confounded precursor because its failed main mover reused the newly freed
+capacity; MapAA/AB isolated and distinguished null-target versus point-event
+behavior before the controlled three-scene capture.
+
+The initial saved-test discrepancy was a fixture error: player-event subjects
+were registered as null because the reserved player edict lacked its client
+pointer. ReadGame restores those pointers, so subsequent events had a different
+subject. Initializing the player entity before registration fixes the round trip;
+the saved queue head, target incarnation and owner_context were intact.
+
+Point checks use a dedicated point-event trigger and `0.0` comparisons. The
+engine's `GetTriggerEventId` is currently stubbed, and generic JASS equality does
+not coerce an integer literal to real in this fixture path. Neither limitation
+should masquerade as a Cargo replay failure. The actual incorrect retained
+passenger-position payload was rebuilt and reproduced against the corrected
+real-valued point regression (two failed assertions), then restored to zero.
+
+`observe36` adds guarded691c70 instrumentation and preserves all684 markers:
+59ee6a inserts at55,83,255,455 with flags1/1, increments count by one and retains
+the current head identity. The observer's function-entry guard and Unit1b4 count
+offset were read from Ghidra before attachment. `verify-deferred.py` validates
+these insertions against `observe35` and the uninstrumented control.
+
+The implementation adds generic `G_PrependUnitOrder` to the existing saved ring.
+Cargo-owned replay publishes a target event even after loading; a lost target
+publishes the retained zero point instead. Spawn-time checks prevent recycled
+slots from redirecting replay. Internal completion preserves remaining queued
+commands; public Stop still clears them. Regression coverage includes a wrapped
+ring with a pre-existing queued Move, proving the transient executes first, plus
+save/load, Stop and nested Move replacement. No wire or save-layout change.
+Validation:603 focused tests/102171 assertions and711 full movement tests/
+8106074 assertions pass per Classic/TFT edition. After that sweep started, the
+removed-target fixture was strengthened to wait past the allocator reuse delay
+and assert the replacement occupies the original edict slot. Both fresh and
+saved variants pass separately against the isolated rebuilt test library in
+both editions (two tests/54 assertions per edition). The production engine is
+identical in both builds; only those fixture assertions changed.
+
+Evidence is archived under `research/ORDER-01.2/order346/working-retail/
+deferred-load-map-ac`, including the corrected failing-first point regression,
+raw captures, control, verifier and test reports. This closes the deferred replay
+implementation step, not ORDER-01.2: capacity displacement, equal-distance
+reservation ordering, multi-passenger withdrawal and broader arrival gates
+still require retail witnesses and implementation. Exact numerical transport
+trajectories and frozen corpus acceptance are not established by these tests.
+
+
+### ORDER346 passenger withdrawal (MapAD, validation in progress)
+
+Controlled MapAD (`observe37`/`control19`) matches all680 public markers.
+Stopping the active passenger at60 retires the carrier head immediately while
+the other passenger retains Smart. Load for the other passenger is published
+at61; only that passenger is loaded at180. Stopping the pending passenger at260
+preserves the active Load **and its already queued transient**: both passengers
+are loaded by380. Carrier Stop460 still cancels both reservations.
+
+`5a0800` forgets the withdrawn identity, uses Cargo800 to guard other reservations
+while stopping the matching active Load, and schedules refresh through5a6f00.
+Native reservation counts fall2->1 for both passenger withdrawals. A broad
+engine assertion about eventual loading initially passed because `unit_stand`
+immediately replayed the queued Load. Adding immediate carrier-head and issued
+notification-count assertions exposes the difference (two failed assertions).
+The fix clears the retired carrier queue while guarding other Board owners;
+the nearest surviving Board requests Load on its next think. The synchronous
+guard is explicitly runtime-only in the pool serializer; continuation uses the
+existing saved Board request flag. Fresh/saved tests also cover save between
+withdrawal and refresh. Production/test builds pass, as do607 focused/adjacent
+tests with102291 assertions per Classic/TFT edition (62 ferry tests/5006
+assertions). The archived verifier independently passes against the captured
+control. Full movement validation passes715 tests/8106194 assertions per edition. The network protocol is unchanged;
+the cumulative uncommitted ORDER346 save version remains197.
+
+
+MapAE capacity follow-up is captured as `observe38` (701 markers), with its
+control20 now matching all701 public markers. Third Smart at60/260 cancels the
+farther first passenger's Board but preserves the carrier's active Load; the
+first and second passengers still load, leaving the newcomer outside. At460
+the farther newcomer is immediately idle despite public Smart returning true.
+Do not treat public order acceptance as successful reservation admission.
+Assembly5a3bbb-5a3bc6 confirms two **SUB** instructions followed by unsigned JA
+for the removable-space test; do not silently turn this into intuitive signed
+addition when implementing parity. Identity comparison uses the latest request
+history (`movement.previous_request_id` in the engine), not the physical group.
+The displacement/rejection behavior is now implemented below; frozen corpus
+acceptance and the different-request identity matrix remain open.
+
+
+### ORDER346 carrier-owned reservation slots (MapAE)
+
+MapAE observe38/control20 agree on701 public markers. The nearer third Board
+request displaces the farther reservation but does not retire the active Load
+for that displaced passenger. Its current Load and the second passenger's
+queued Load fill the hold; the newcomer retains Board without boarding. A farther
+third request reports public Smart acceptance but retires immediately without
+acquiring a reservation. The near/far regressions failed three/one assertions
+before implementation.
+
+Cargo now owns ten stable pending slots with edict references and incarnation
+stamps, separate from eight occupant slots and from active movement owners.
+Registration deduplicates and takes the first empty slot; displacement compares
+latest canonical request identity then squared distance, preserving the native
+unsigned free-minus-removable-minus-pending calculation. Displacement clears
+the victim's reservation before retiring Board, so its leave hook cannot Stop
+the carrier. Nearest selection clears invalid reservations without cancelling
+physical Board; a full hold therefore does not silently retire that approach.
+Pending queries and selection iterate ten carrier-local slots, replacing sparse
+holder scans. Removal clears pending references, and saved F_EDICT pool fields
+retain slot order and identity. The cumulative ORDER346 save version is197;
+network bytes remain unchanged.
+
+Production/test builds and611 focused/adjacent tests/102421 assertions pass per
+Classic/TFT edition, including66 ferry tests/5136 assertions. Fresh and saved
+near/far tests cover immediate owner state and eventual cargo membership.
+The full movement sweep passes719 tests/8106324 assertions per edition. This does not establish exact distance-tie
+runtime behavior, different-request displacement, FLOAT approach-point distance,
+or full transport/arrival acceptance; ORDER-01.2 stays open.
+
+
+The first exact-distance probe (MapAF/observe39) is excluded from tie evidence:
+SetUnitPosition cancels the first passenger's Board and its reservation. Its
+coincident marker therefore contains only one candidate. MapAG replaces those
+calls with SetUnitX/SetUnitY; the controlled tie investigation is recorded below.
+
+
+### ORDER346 equal-distance reservation selection (MapAG)
+
+Observe40/control21 agree on229 public markers. Both Board reservations remain
+live at55 after SetUnitX/SetUnitY put the passengers at200,1800; native5856a0
+keeps the first reserved passenger, which was created after the second. Observe41
+adds a guarded05b1c0 hook and preserves all229 markers. Both predicted-distance
+results are bit-identical1154185621, confirming a real tie rather than rounded
+coordinate equality. The selector's strict comparison preserves slot order.
+
+Fresh and saved regressions reverse edict creation versus reservation order and
+invoke Board's normal arrival callback before geometry advances. The initial
+fixture omitted retail's SetUnitPathing(false), allowing recovery to move the
+second passenger to208,1776; those failures are not tie evidence. With matching
+pathing state and exact geometry assertions, rebuilding the previous edict-order
+selector fails only the unwanted queued-Load assertion in each variant. The
+carrier-slot selector passes both, and613 focused/adjacent tests/102461 assertions
+pass per Classic/TFT edition (68 ferry tests/5176 assertions). Production engine
+source is unchanged from the719-test/8106324-assertion movement sweep; only test
+coverage and instrumentation changed. The control, repeated raw capture, guard,
+corrected failing baseline, fixture diagnostic and green reports are archived
+under `working-retail/equal-distance-map-ag`.
+
+### ORDER-01.2 dispatch inventory checkpoint
+
+Fresh decompilation of603110,5fb190 and5fa7a0 distinguishes the remaining core
+arrival/failure requirements from optional transport refinements. This is an
+inventory inside the existing TODO, not additional TODO IDs.
+
+| Dispatch gate | Existing evidence or required check |
+|---|---|
+|603110 flag2 clear → ordinary recovery|Payoff197 blocked public Move and queued successor; recheck frozen reports during final acceptance.|
+|603110 retained Attack alternative found/absent|ORDER345 alternative selection and ORDER344/346 null-target/ferry paths; verify complete branch mapping.|
+|603110 typed point/target order absent → recovery + AI immediate|MapAY: headless automatic Attack fails51, recovery603305, d0144 arrival, immediate60330e and guard272,304; exact repeated native trace/control and fresh/saved engine regression.|
+|603110 current Board852043 or Load852046 → no recursive ferry recovery|MapsAM/AO cover Load/Board exclusions:603110 retains head/task without recursive recovery; engine saved dormant continuations pass.|
+|603110 eligible order, no carrier versus selected carrier|ORDER344 guard return and ORDER346 MapC repeated/control ferry-return lifecycle; freeze the accepted semantic evidence.|
+|5fb190 Smart/Board/Load/Drop recovery gated by widget400000 and arg04|5fb4c0 reason0 human/AI fallback, pending ferry same/different carrier, and in-range arrival covered by MapsAI/AJ/AK. MapsAI/AJ/AK/AO cover Board reason0/1 and range/AI branches; MapAL covers Drop near/far. MapAM covers Load fallback; MapBC proves positive point-Load recovery with flags8011 and d016b arrival after a dynamic Float wall.|
+|5fa7a0 persistent valid target early return versus invalid target cleanup|Payoff166/221 and target-life evidence; confirm complete dispatcher coverage.|
+|5fa7a0 flags800/4 and qualifying internal task head → pop/dispatch|Original motion oracle36 complete dispatch cases revalidated; MapC37 proves800 release (2196→16), widget flag release and empty heads. MapAY covers d0144, MapBC d016b;166/221 cover persistent-target validity.|
+|Unit state gates including unit280 bit40|ORDER343 covers public corpse-task cancellation; audit remaining gate inventory before closure.|
+
+Different-request cargo displacement and equal-distance displacement priority
+remain fidelity follow-ups, but they are not substitutes for the arrival/failure
+branch witnesses required by ORDER-01.2.
+
+
+MapAH/observe42 completed808 markers. Explicit blocked Board remains852043 in
+both human/computer scenes with Load unavailable; **603110 never executes**.
+It is not a witness for the Board exclusion in can't-path. Carrier removal at390
+and790 does enter5fb190 through5ff645, and only the human scene enters5fa7a0
+through5fb403; the computer scene bypasses that default arrival path. The later
+AI immediate/guard trace belongs to passenger removal, not carrier removal. That provides
+a concrete public producer for the pending transport-specific recovery audit,
+but needs controlled repeats and helper-entry instrumentation before acceptance.
+
+
+### ORDER346 synchronous Board carrier removal (MapAI)
+
+Observe43/44 and control22 match all810 public markers. The human passenger's
+5fb4c0 recovery helper returns0; the computer passenger's returns1, both with
+arg04=0. Carrier removal nevertheless leaves **both** idle in place. The second
+read-only capture samples native state after RemoveUnit returns: public head,
+internal task and retained target are all empty; move flags are410/412. There is
+no guard return during either post-removal observation window. The earlier MapAH
+guard-return inference was confounded by removing the passenger in the same call.
+
+The first engine fixture used direct G_FreeEdict, which skips public semantic
+removal notification; its failures are not the accepted regression evidence.
+Using G_DeferFreeEdict (the public RemoveUnit path), the four human/computer
+fresh/saved tests fail20 assertions: Board head, physical group, chase, reservation
+reference and stationary suffix. CAbilityBattlestations previously handled only
+commands and ignored A_TARGET_REMOVED. It now releases its ferry chase and clears
+the target synchronously before stand can start a queued successor. Reservation
+withdrawal does not issue Stop into a carrier already being removed. No network
+or save contract changes in this fix. Production/test builds and617 focused/
+adjacent tests/102525 assertions pass per Classic/TFT edition, including72 ferry
+tests/5240 assertions. The full movement sweep passes725 tests/8106428 assertions
+per edition. This covers the
+arg04=0 human fallback and AI handled-without-return branch; it does not prove
+the nonzero reason, Acar range success or Adro return/reselection branches.
+
+
+### ORDER346 selected ferry carrier loss (MapAJ, movement validation pending)
+
+Observe45 and control23 match all496 public markers. A computer-owned Footman
+first fails public Move across the barrier and enters Board with Aloa unavailable.
+Removing that carrier at tick38 calls5fb4c0 with reason0. The selector returns
+the same retiring carrier; the helper invokes AI immediate recovery and public
+Attack851983 returns toward the guard post. In the second scene, a new carrier
+at500,600 is closer than the retiring one at400,400. The same helper selects that
+different identity at278 and synchronously retains Board852043 targeting it.
+Both helper calls return1. This is distinct from MapAI's explicit Board with no
+pending ferry destination, which stays idle after removal. The selector's ability
+to return the retiring carrier matters: simply excluding it and choosing any
+farther available carrier would not match this native branch. Fresh/saved engine
+regressions fail10 assertions across four tests before the fix. The Board owner
+now selects before releasing its chase, retaining the retiring carrier as a
+candidate only during this synchronous target-loss callback. Same/null selection
+dispatches AI guard recovery; a different selection receives the destination and
+Board order. All621 focused/adjacent tests/102579 assertions pass per edition,
+including76 ferry tests/5294 assertions. Production/test builds pass; the full
+movement sweep passes729 tests/8106482 assertions per edition. No new saved
+fields or network changes.
+
+MapAI's completed725-test movement sweep, raw controls, public-removal failing
+baseline and focused green results are archived under
+`working-retail/removed-carrier-map-ai`; its verifier passes from that archive.
+
+
+### ORDER346 in-range Board recovery (MapAK)
+
+Observe46/control24 match494 markers. After failed Move selects the ferry, public
+axis setters put the passenger at450,400 beside its carrier at400,400. Removing
+the carrier enters5fb4c0 reason0, then OnArrival through5fb534 before the AI check.
+Both no-alternate and alternate scenes return1, clear all three owner identities,
+and remain at450,400 for180 ticks. Neither selects a carrier nor returns to guard.
+This proves the Acar in-range early exit. Four fresh/saved coverage cases exercise
+the range guard already included in the MapAJ fix; they are additional branch
+coverage, not a new failing-first implementation claim. All80 ferry tests/5358
+assertions pass per edition. Evidence is archived under `working-retail/near-carrier-map-ak`.
+
+The next Drop helper5fb620 compares squared distance against67600 (260 squared).
+Its global d6fb44 is zero in the executable image but initialized by0134f0 passing
+integer10810 to070d80. MapAL's read-only startup sample confirms67600. Initial
+public blocked Drop scenes reach the near handled and far fallback branches, but
+both keep the passenger loaded after the carrier stops. Calling arrival does not
+by itself mean Drop successfully unloads. The capture/control audit remains in
+progress; do not change cargo effects from the helper name alone.
+
+MapAL source data check: the installed War3Patch AbilityData row for Adro has
+Rng1=80. The initial engine fixture used120 and incorrectly reached normal near-goal
+completion; those passenger-unload failures are not parity regressions. Corrected
+fixtures use stock80 and non-stock64, keeping the endpoint outside cast range. The native260 recovery
+threshold is independent of this authored cast range.
+
+
+MapAL observe47/control25 complete with1219 identical public markers. All four
+human/computer near/far scenes enter603110 then5fb190 and5fb620 at29/329/629/929;
+helper results are1/0/1/0. All passengers remain loaded through the suffix. The
+computer near case attempts AI immediate recovery; the far case selects its own
+Adro carrier identity and emits Board852043 at930, then ends idle. Static607950
+returns the source immediately when it has Adro, before ordinary candidate
+enumeration. Engine Drop failure currently bypasses AI recovery, and ordinary
+ferry selection excludes self, so the far-case order notification is missing.
+Corrected production-path regressions fail only two missing self-Board
+notifications (fresh/saved); all other new cases pass before the fix. Drop
+failure now continues AI recovery, and shared ferry selection preserves the
+source-Adro shortcut before candidate filtering. Internal self-Board publishes
+the head/event, then retires failed self admission while preserving a reentrant
+replacement order. Production/test builds and633 focused/adjacent tests/102747 assertions pass
+per edition, including88 ferry tests/5462 assertions. The full movement sweep passes741 tests/8106650 assertions per edition. Raw control, rejected initial fixture, corrected red, green and
+verifier are archived under `working-retail/blocked-drop-map-al`.
+
+
+### ORDER346 blocked Load dispatch (MapAM, implementation pending)
+
+Observe48/control26 match1211 public markers. With a no-fly wall, human/computer
+near targets load successfully across the wall from cast range. Human far Load
+reaches603110 at330 then5fb190/5fb6e0, whose result0 triggers fallback cleanup.
+Computer far Load reaches603110 at930 with flags22, returns with the same public
+head and internal task, and keeps852046 through1180. No recursive recovery,
+carrier selection or AI immediate runs in that suffix. This is the required
+full-dispatch witness for603110's Load exclusion, distinct from earlier blocked
+Board probes that never reached603110. Native16d4e0 invalidates the physical
+member before dispatch; retaining the logical task does not justify keeping a
+live physical mover or restarting it every frame. Fresh/saved engine tests are
+being established, with a separate target-relocation capture to determine how
+the retained owner responds afterward.
+
+
+MapAM's corrected verifier excludes the explicit cleanup at1190 (native hooks
+still carry previous marker tick1189). It does not misclassify that deliberate
+RemoveUnit recovery as recursive failure recovery. The fresh/saved engine Load
+regressions fail four head-retention assertions before the fix. A retained failed
+Load needs saved dormant owner state after its physical member has been released;
+MapAN's observed relocation into range does not resume loading. The game now
+retains that dormant Load until a new order or target removal, clears it on owner
+replacement and synchronously retires it on target removal. Save197 is still the
+uncommitted ORDER346 layout and now includes the dormant flag; no wire change.
+MapAN control27 matches all610 markers. Production/test builds and641
+focused/adjacent tests/102845 assertions pass per edition (96 ferry tests/5560
+assertions), including saved dormant state, relocation and synchronous target
+removal. Full movement sweep passes749 tests/8106748 assertions per edition. Evidence is archived under
+`working-retail/blocked-load-map-am-an`.
+
+
+MapAO (capture still running) removes Amov from the carrier before explicit
+Board, keeping Aloa unavailable and the walkability wall. Unlike MapsAH/AI,
+this reaches603110: human reason1 enters5fb4c0 at82 and later retry visits,
+while computer481 takes the Board exclusion and retains852043. The human
+helper's result1 initially advances the internal task while retaining the
+public head; it must not be equated with immediate final idle. The final human
+visit124 empties both. Control and engine regressions remain pending. This
+supplies a promising producer for the two previously missing Board gates.
+
+
+### ORDER346 Board tasks for a carrier without Move (MapsAO/AP)
+
+Observe50/52/control28 match805 markers.5fad30 selects persistent d0173 for a
+flying carrier with Move, otherwise an Acar-range d0174 followed by d017f.
+5a3820 does not reserve a Load slot when the carrier lacks Move. In the latter
+path,5ff750 owns loading directly, without requiring an accepted Aloa task.
+Outside range it increments Move+c8 and, for old counts0..4, schedules d01c5
+at0.5 seconds.5feb60 then creates a fresh d0174; the sixth failed approach
+withdraws Board. Captured human failures82/90/98/107/115/124 have retry creations
+87/95/103/112/120, all exactly five public ticks after the prior failure. AI
+failure481 instead takes603110's Board exclusion and retains the dormant head.
+
+Observe51 failed instrumentation setup because the entry guard compared an
+absolute relocated exception-table address. It is excluded. The corrected guard
+checks the runtime pointer against base+a58410 before normalizing those four
+bytes; repeated observe52 matches every public marker and supplies task callers.
+
+Eight fresh/saved engine cases fail13 assertions before the fix. Board now owns
+the no-Move strategy, direct loading, saved retry count/deadline and dormant AI
+state, with no Load reservation.649 focused/adjacent tests/102936 assertions pass
+per edition, including104 ferry tests/5651 assertions. The full movement sweep passes757 tests/8106839 assertions per edition. MapAP's nearby human/AI passengers load at51/251 despite Aloa being
+unavailable; control29 matches all405 markers. Save197 remains the uncommitted ORDER346
+layout; no network change.
+
+
+Static Board evidence and both passing semantic verifiers are archived under
+`working-retail/static-board-map-ao-ap`. MapAQ's automatic-acquisition attempt
+left the computer Footman idle despite AcquireRange2000, so it does not witness
+the missing no-public-head failure branch; only its explicit-Attack control
+scene reached failure. MapAS prepares damage retaliation as a different public
+producer. MapAR is probing point Load for the positive Load-recovery gate.
+
+
+ORDER346 negative producer checks: MapAR observe55 completes604 markers with
+point Load rejected in both human scenes; no Load recovery dispatch occurs.
+MapAS observe56 completes808 markers: public UnitDamageTarget succeeds at20,
+but the idle computer Footman remains stationary/head0 through300. Only the
+explicit-Attack control reaches603110 at453, with a typed target order. Neither
+capture supplies the missing positive-Load or no-typed-head witness. MapAT
+changes admission to passenger Board across both walk/fly barriers and reads
+the Aloa flags returned by the original48cb80 call at5fb715; the observer never
+invokes native functions or mutates game state.
+
+
+MapAU removes Aloa before static Board admission (Amov also absent). Observe58
+completes1608 markers: six human failures82/90/98/107/115/124 and one AI481,
+with nearby human/AI direct loading. The engine previously chose the legacy
+Board path when Aloa was absent; eight fresh/saved cases reproduce seven failed
+assertions. Admission now selects flying Board independently of Aloa presence.
+All112 ferry tests/5750 assertions pass per Classic/TFT. Full movement and
+unhooked control are pending. MapAT shows the ordinary target-Load failure
+has Aloa flags0x18011: the10000 target-mode flag excludes positive5fb6e0.
+
+
+Closure audit refresh: the synthetic144-dispatch oracle in
+`verify_wc3_pathing_motion.py` sets Move flags0/4 and alternates d016b/d016c;
+it does **not** by itself witness the800 cleanup branch or every qualifying
+head. MapC observe4/5 arrival flags2196/2198 do include800; later Load arrivals
+20/22 do not. The live166 frozen238 raw owner rows cover hidden persistent
+arrival; fresh221 acceptance again validates934 original instructions, two
+observed captures plus control, and the Classic/TFT owner-transfer regression
+(135 assertions each). Preserve these scopes when joining the acceptance
+matrix; do not infer complete branch coverage from the144-case count.
+
+
+ORDER346 resume1015: MapAY supplies the previously missing603110 no-typed-head
+branch at51. The computer unit has public headFFFFFFFF/FFFFFFFF, Move flags22
+and a retained automatic Attack target. Recovery enters from603305, arrival
+processes d0144, AI immediate enters from60330e and guard return follows.
+The public producer explicitly sets hostile alliances, starts the AI VM, deals
+damage nearby, then moves the enemy across the barrier. Earlier AQ/AS/AV did
+not explicitly clear passive alliance and must not establish unreachability.
+Observe-ay/repeat-ay/control-ay match all871 public markers; the first missing-head
+dispatch is identical in both instrumented runs. The natural-wall engine regression
+`order346_headless_blocked_attack_returns_to_guard_and_save` passes31 assertions
+in Classic and TFT, including restored head0 and retained automatic target. Existing
+ORDER345 recovery already implements this branch; no new engine fix was needed. Temporary reports from the interrupted
+1014 run were lost; archived MapAU1608-marker verification still passes.
+
+Resume1015 movement checkpoint: all765 movement tests/8106938 assertions pass
+per Classic/TFT, including the eight removed-Aloa cases. This sweep precedes the
+new headless coverage test (which separately passes31 assertions per edition).
+MapAU observe58/control31 match1608 markers. Reports are durable in
+`order346/resume-1015/movement.json` and the corresponding shard logs/XML.
+
+### ORDER346 positive point-Load recovery (MapBC)
+
+The positive5fb6e0 branch requires active **point-mode** Load, not the ordinary
+flying transport's unit-target Load. Native58edd0/059ca0 compute separate ground
+and water shore points for Float carrier plus ground passenger;5fad30 uses
+passenger d016c range500, while40a7a0 gives the carrier d016b at Aloa range64.
+MapBC native pair is ground(1110.39990234375,432), water(1008,432). Start with
+connected water/land; block water columns22..27 at25, after Load admission21.
+At32 the carrier reaches603110 ->5fb190 ->5fb6e0, Aloa flags0x8011, result1:
+arrival advances the existing internal task without fallback cleanup. Passenger
+then performs six failed static Board approaches71/79/88/96/104/113 and retires.
+An initially blocked water arena (MapBB) instead chooses an already-reachable
+shore and never witnesses the positive Load recovery. MapBA attempted too much
+terrain work in init and never reached its start marker; it is excluded.
+MapsAW/AZ removed-target deferred point Load does not start a point approach,
+regardless of full versus spare cargo capacity; neither is a positive witness.
+
+Observe-bc-shore/repeat-bc-shore/control-bc match607 public markers. The
+repeated observer adds two059ca0 query records; all743 common native records
+match exactly. Float Board now starts carrier-owned point Load and preserves
+the recovered shore pair. Ten fresh/saved success, blockage, Stop, direct Load and AI shore-failure
+regressions pass3748 assertions per edition; see final acceptance below.
+
+
+### ORDER346 final arrival/failure acceptance
+
+The portable `retail-order346-inputs-1.27.json.gz` preserves69 complete captures,
+all captured observer versions and19 existing semantic verifiers. The failed
+MapAO observe51 (absolute relocated EH address) is explicitly excluded. The
+three historical scratch-path verifiers use their extracted directory instead;
+all assertions are unchanged. Preload files retain their original mixed line
+endings so their capture-footer hashes verify. MapM's three startup markers and
+six captures' post-PreloadGenEnd callbacks remain recorded and have explicit
+recording-window checks; they are not discarded or asserted as public parity.
+
+MapC observe4/5/control2 match979 public markers and the complete shared native
+stream. At37, OnArrival clears800/4 (2196→16), releases the widget movement flag
+(536876102→5702), and empties public/internal heads. MapAY observe/repeat/control
+match871 public markers and3326 native records. Its automatic Attack has no typed
+public head at51:603110 calls recovery at603305, dispatches d0144 arrival, then
+60330e admits AI immediate and the guard returns to272,304. The existing recovery
+implementation already handled this branch; the new natural-wall fresh/save
+regression supplies31 assertions, not a fabricated failing baseline.
+
+MapBC supplies the previously missing positive5fb6e0 Load branch. A Float ship
+and ground passenger produce a ground point1110.39990234375,432 and a water
+point1008,432. Internal point tasks use d016c/range500 and d016b/Aloa range64.
+After the script blocks Float columns22–27, Load fails32 with active Aloa8011;
+5fb6e0 returns1 through OnArrival5fb731. Board then fails at71/79/88/96/104/113
+and retires.607 public markers match observed/repeated/unhooked runs.743 shared
+native records match exactly; the repeat additionally records two059ca0 queries
+with masks0,4,2,0,4,6,0. Those two extra rows are separately checked, rather than
+calling differently instrumented streams identical.
+
+The engine now uses the recovered amphibious shore query and separate ground/
+Float approach points. Load's physical failure runs arrival and waits for Board;
+it does not load a distant passenger. Direct Load starts Board through ordinary
+order dispatch. Plain cargo state persists with save version198. The initial
+naval admission test failed3 assertions; the expanded natural-blocker tests then
+found internal ability point tasks bypassing the entering-cell collector while
+a fine path was cached. The physical owner now runs that collector regardless
+of the public ability. Direct-Load fresh/saved tests separately failed before
+adding the missing Board producer. All ten naval tests now pass3748 assertions per edition. The final pair
+injects terminal failure at the production d016c physical completion boundary:
+AI Board must retain its head without advancing to the next shore phase. Both
+fresh and restored cases failed12 assertions before moving the universal603110
+AI Board exclusion ahead of shore continuation. This is a dispatcher-boundary
+regression, not a claim of a new measured naval trajectory.
+
+Pre-final-AI-check validation:774 movement tests/8110671 assertions per Classic and TFT edition;
+1095 focused ownership/cargo/save tests/127147 assertions per edition;69 frozen
+captures,19 semantic verifiers and2235 original instruction guards. Original
+motion verification passes36 full arrival dispatch cases and12 subscriber entry
+cases. Fresh166/221 evidence verifies persistent valid/invalid target branches.
+`Order346Evidence.java` and `MapPathfinding.java` retain the recovered owners;
+the Ghidra program is saved. This acceptance concerns the ORDER-01.2 dispatch
+branches; it does not claim arbitrary naval terrain trajectory parity.
+
+Final checkpoint (2026-10-15): `make test TEST_JOBS=8` exits0 with9359
+native tests (32 JUnit reports, zero failures/errors) and2250 Python pathfinding
+evidence tests. The final ORDER346 verifier passes1097 tests/127193 assertions
+in each of Classic and TFT, including all ten naval cases/3748 assertions.
+The release build passes without warnings. ORDER-01.2 is closed:299/336 done,
+37 remain; no new TODOs were introduced. Source-inventory hashes were refreshed
+for the upstream merge and reviewed implementation; retail capture, executable
+and expected-result pins were not rebaselined. Durable checkpoint reports live
+under `ORDER-01.2/order346/resume-1015/` (`make-test-accepted.log`,
+`accepted-junit/`, `order346-final.json`, `release-accepted-build.log`).
+
+The checkpoint inventory above is resolved as follows: ordinary failure and
+queued successor were revalidated by197; retained Attack alternatives by345;
+carrier absence/selection by344 and346; persistent valid/invalid targets by166/221;
+corpse-task unit280 bit40 by343; arrival flag/task dispatch by the36 complete
+original calls and MapC; headless failure by MapAY; positive Load by MapBC.
+Board/Load exclusions include the final fresh/saved AI shore-boundary regression.
+This closes the dispatch inventory, while the existing broader routing and
+ability-queue items retain their separately documented fidelity scope.

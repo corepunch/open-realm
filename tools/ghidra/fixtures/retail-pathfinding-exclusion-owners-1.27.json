@@ -287,7 +287,11 @@
     "oracle-group339",
     "oracle-group340",
     "oracle-group341",
-    "oracle-map342"
+    "oracle-map342",
+    "oracle-order343",
+    "oracle-order344",
+    "oracle-order345",
+    "oracle-order346"
   ],
   "entries": [
     {
@@ -6615,6 +6619,61 @@
           "task": "E2E-05.2",
           "disposition": "evidence-boundary",
           "rationale": "Native repeats/control establish held-filter chronology; engine save continuations and the complete scope audit have separately stated evidence boundaries."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-order343",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "ORDER346 completes the arrival/cant-path dispatch audit. Structure runtime, general animation-frame and retail save-UI parity are outside this corpse witness.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The dispatch gate is now joined by ORDER346; the existing cross-domain contract freeze owns the stated structure/animation/save evidence boundary."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-order344",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "ORDER345/346 complete retained Attack, successful transport and arrival/failure dispatch branches. Guard/Captain save tests certify the engine; broader private AI inverses are not all independently live-instrumented.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "evidence-boundary",
+          "rationale": "Existing captain-policy lifetime work owns wider autonomous AI inverses; the null-carrier and selected-carrier dispatch branches are covered by ORDER344/346."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-order345",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "ORDER346 completes the arrival/failure branch inventory and successful transport. Moving/hidden alternative producers beyond the captured nearest-selection scenes are not certified.",
+          "task": "TARGET-02.1",
+          "disposition": "evidence-boundary",
+          "rationale": "Existing target visibility/loss and other-order-family work owns those producer domains; the alternative-found/absent dispatch branches themselves are frozen by ORDER345/346."
+        },
+        {
+          "index": 1,
+          "text": "Broader private AI queue behavior and retail save UI remain outside these engine cancellation/save tests.",
+          "task": "ORDER-02.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Existing internal versus public queue producer/control-bit inventory owns wider private AI queue behavior; no retail save-UI claim is made."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-order346",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Naval shore evidence covers the captured Float/ground crossing and blocked continuation, not arbitrary terrain/lane/radius trajectory parity. Retail save UI is not certified by engine round trips.",
+          "task": "E2E-03.2",
+          "disposition": "evidence-boundary",
+          "rationale": "Existing fixed-seed lane/radius/goal corpus owns broader naval domain coverage. ORDER346 supplies the required positive Load failure dispatch and checks fresh/saved engine ownership, without claiming retail save UI."
         }
       ]
     }

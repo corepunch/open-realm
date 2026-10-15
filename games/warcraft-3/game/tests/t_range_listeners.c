@@ -77,7 +77,7 @@ TEST(wc3_range_listeners, callback_destroy_and_registration_share_the_popped_dea
 }
 
 TEST(wc3_range_listeners, late_drain_catches_up_without_changing_repeating_serials) {
-    T_ASSERT(range_setup(true,false));wc3Clock_t due;uint32_t serial;
+    T_ASSERT(range_setup(true,false));wc3Clock_t due={0};uint32_t serial=0;
     T_ASSERT(G_NextRangeRequest(&due,&serial));uint32_t first=serial;
     float next=due.time;
     while(next<=wc3_add(2.0f,wc3_float(0x3ba3d70a)))next=wc3_add(next,.125f);
@@ -101,7 +101,7 @@ TEST(wc3_range_listeners, moving_prediction_uses_listener_deadline_not_frame_tar
 
 TEST(wc3_range_listeners, cold_save_restores_phase_serials_and_retained_occupants) {
     T_ASSERT(range_setup(true,false));range_advance(1.125f);range_check("check_pair");
-    wc3Clock_t before,after;uint32_t serial,loaded;
+    wc3Clock_t before={0},after={0};uint32_t serial=0,loaded=0;
     T_ASSERT(G_NextRangeRequest(&before,&serial));
     cstring_t file=Test_TempPath("wc3-range-listener180.bin");
     T_ASSERT(WriteGame(file));G_ResetRangeListeners();T_ASSERT(!G_NextRangeRequest(&after,&loaded));
@@ -235,7 +235,7 @@ TEST(wc3_range_listeners, cold_save_restores_partially_completed_release_chain) 
     T_ASSERT(range_setup(true,false));jass_callbyname(level.vm,"destroy_all",false);
     wc3Clock_t due;uint32_t serial;T_ASSERT(G_NextTriggerRelease(&due,&serial));
     level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;level.timer_clock=due;
-    G_FireTriggerRelease();wc3Clock_t before;uint32_t saved;
+    G_FireTriggerRelease();wc3Clock_t before={0};uint32_t saved=0;
     T_ASSERT(G_NextRangeRequest(&before,&saved));
     cstring_t file=Test_TempPath("wc3-range-release180.bin");T_ASSERT(WriteGame(file));G_ResetRangeListeners();
     T_ASSERT(ReadGame(file));T_ASSERT(G_NextRangeRequest(&due,&serial));
@@ -259,7 +259,7 @@ TEST(wc3_range_listeners, full_legacy_queue_does_not_drop_primary_listener_callb
  * last pre-wrap poll and software-truncated rearm words. */
 TEST(wc3_range_listeners, span_poll_rearms_before_rebase_and_keeps_live_retail_words) {
     T_ASSERT(range_setup_at(true,false,wc3_float(0x4395efff)));
-    wc3Clock_t due;uint32_t serial,initial;T_ASSERT(G_NextRangeRequest(&due,&initial));
+    wc3Clock_t due={0};uint32_t serial=0,initial=0;T_ASSERT(G_NextRangeRequest(&due,&initial));
     T_EQ(wc3_float_bits(due.time),0x4395ffffu);
     range_advance(wc3_float(0x4395fffe));range_check("check_pair");
     T_ASSERT(G_NextRangeRequest(&due,&serial));T_EQ(due.epoch,1u);T_EQ(serial,initial);
@@ -275,7 +275,7 @@ TEST(wc3_range_listeners, span_poll_rearms_before_rebase_and_keeps_live_retail_w
 TEST(wc3_range_listeners, cold_ui_load_keeps_absolute_retail_poll_deadline_and_serial) {
     T_ASSERT(range_setup_at(true,false,wc3_float(0x41efffff)));
     level.pathing_clock.time=wc3_float(0x41f05e1f);
-    wc3Clock_t before,after;uint32_t saved,serial;T_ASSERT(G_NextRangeRequest(&before,&saved));
+    wc3Clock_t before={0},after={0};uint32_t saved=0,serial=0;T_ASSERT(G_NextRangeRequest(&before,&saved));
     T_EQ(wc3_float_bits(before.time),0x41f0ffffu);
     cstring_t file=Test_TempPath("wc3-request-range181.bin");T_ASSERT(WriteGame(file));G_ResetRangeListeners();
     level.pathing_clock=(wc3Clock_t){.time=70,.epoch=1,.span=300};

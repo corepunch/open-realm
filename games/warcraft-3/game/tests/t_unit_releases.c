@@ -76,7 +76,7 @@ TEST(wc3_unit_releases, different_deadlines_and_unsigned_serial_wrap_choose_the_
     wc3Clock_t clocks[]={{.time=1,.span=300},{.time=0.5f,.span=300},{.time=1,.span=300}};
     edict_t *units[3];level.timer_sequence=UINT32_MAX-1;
     FOR_LOOP(i,3) {units[i]=G_Spawn();G_DeferFreeEdictAt(units[i],clocks+i);}
-    wc3Clock_t due;uint32_t serial;
+    wc3Clock_t due={0};uint32_t serial=0;
     T_ASSERT(G_NextUnitRelease(&due,&serial));T_EQ(serial,0);
     T_EQ(wc3_float_bits(due.time),wc3_float_bits(wc3_add(0.5f,G_ClockMinimumDelay())));
     G_FireUnitRelease();T_ASSERT(!units[1]->inuse);T_ASSERT(units[0]->inuse && units[2]->inuse);
@@ -92,7 +92,7 @@ TEST(wc3_unit_releases, duplicate_request_reset_and_epoch_rebase_preserve_member
     uint32_t const sequence=level.timer_sequence;G_DeferFreeEdictAt(unit,&clock);
     T_EQ(level.timer_sequence,sequence);T_ASSERT(G_IsDeferredFree(unit));
     G_RebaseUnitReleases(clock.span);
-    wc3Clock_t due;uint32_t serial;T_ASSERT(G_NextUnitRelease(&due,&serial));T_EQ(due.epoch,1);
+    wc3Clock_t due={0};uint32_t serial=0;T_ASSERT(G_NextUnitRelease(&due,&serial));T_EQ(due.epoch,1);
     T_EQ(wc3_float_bits(due.time),wc3_float_bits(wc3_sub(wc3_add(300,G_ClockMinimumDelay()),300)));
     G_ResetDeferredFrees();T_ASSERT(!G_IsDeferredFree(unit));T_ASSERT(!G_NextUnitRelease(&due,&serial));
     G_DeferFreeEdictAt(unit,&clock);T_ASSERT(G_IsDeferredFree(unit));G_TestFinishDeferredFrees();
@@ -158,11 +158,11 @@ TEST(wc3_unit_releases, large_mixed_heap_retains_keys_after_arbitrary_cancellati
     FOR_LOOP(i,count)if(expected[i].unit->inuse)expected[retained++]=expected[i];
     qsort(expected,retained,sizeof(*expected),release_expected_compare);
     FOR_LOOP(i,retained) {
-        wc3Clock_t due;uint32_t serial;T_ASSERT(G_NextUnitRelease(&due,&serial));
+        wc3Clock_t due={0};uint32_t serial=0;T_ASSERT(G_NextUnitRelease(&due,&serial));
         T_EQ(wc3_float_bits(due.time),wc3_float_bits(expected[i].deadline));T_EQ(serial,expected[i].sequence);
         T_ASSERT(G_IsDeferredFree(expected[i].unit));G_FireUnitRelease();T_ASSERT(!expected[i].unit->inuse);
     }
-    wc3Clock_t due;uint32_t serial;T_ASSERT(!G_NextUnitRelease(&due,&serial));
+    wc3Clock_t due={0};uint32_t serial=0;T_ASSERT(!G_NextUnitRelease(&due,&serial));
 }
 
 static bool releases_timer_setup(bool timer_first) {
@@ -194,7 +194,7 @@ TEST(wc3_unit_releases, tied_timer_registered_after_removal_observes_released_id
 /* Loading must reconstruct logical requests; retaining this process's side heap
  * accidentally masks missing serialization on an ordinary warm round trip. */
 TEST(wc3_unit_releases, cold_save_restores_absolute_deadlines_serials_and_callback_order) {
-    T_ASSERT(releases_setup());wc3Clock_t saved,loaded;uint32_t serial,next;
+    T_ASSERT(releases_setup());wc3Clock_t saved={0},loaded={0};uint32_t serial=0,next=0;
     T_ASSERT(G_NextUnitRelease(&saved,&serial));uint32_t sequence=level.timer_sequence;
     cstring_t file=Test_TempPath("wc3-request-release181.bin");T_ASSERT(WriteGame(file));
     G_ResetDeferredFrees();T_ASSERT(!G_NextUnitRelease(&loaded,&next));
@@ -227,7 +227,7 @@ TEST(wc3_unit_releases, cold_restore_after_wrap_keeps_rebased_release_and_borrow
     edict_t *unit=G_Spawn();uint32_t slot=unit->s.number;G_DeferFreeEdict(unit);
     G_RebaseUnitReleases(300);level.pathing_clock=(wc3Clock_t){.epoch=1,.span=300};
     level.timer_clock=level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;
-    wc3Clock_t before,after;uint32_t serial,next;T_ASSERT(G_NextUnitRelease(&before,&serial));
+    wc3Clock_t before={0},after={0};uint32_t serial=0,next=0;T_ASSERT(G_NextUnitRelease(&before,&serial));
     cstring_t file=Test_TempPath("wc3-request-epoch181.bin");T_ASSERT(WriteGame(file));G_ResetDeferredFrees();
     T_ASSERT(ReadGame(file));T_ASSERT(G_NextUnitRelease(&after,&next));
     T_EQ(wc3_float_bits(after.time),wc3_float_bits(before.time));T_EQ(after.epoch,1u);T_EQ(next,serial);
@@ -283,13 +283,13 @@ TEST(wc3_unit_releases, load_flushes_only_old_owner_requests_within_point_two_se
     }
     T_ASSERT(ReadGame(file));S_ReplaceAbilityProcedure(defend,release_flush_parent);
     T_EQ(release_flush_trace,12u);T_EQ(wc3_float_bits(release_flush_clock.time),wc3_float_bits(wc3_add(1.1f,G_ClockMinimumDelay())));
-    wc3Clock_t due;uint32_t serial;T_ASSERT(!G_NextUnitRelease(&due,&serial));
+    wc3Clock_t due={0};uint32_t serial=0;T_ASSERT(!G_NextUnitRelease(&due,&serial));
     uint32_t active=0;FILTER_EDICTS(unit,unit->class_id==MAKEFOURCC('h','f','o','o')) {active++;T_ASSERT(!G_IsDeferredFree(unit));}
     T_EQ(active,3u);remove(file);
 }
 TEST(wc3_unit_releases, moving_clock_backwards_leaves_absolute_requests_pending) {
     T_ASSERT(releases_setup());level.pathing_clock.time=.5f;level.scheduled_frame=true;G_RunTimers();
-    wc3Clock_t due;uint32_t serial;T_ASSERT(G_NextUnitRelease(&due,&serial));
+    wc3Clock_t due={0};uint32_t serial=0;T_ASSERT(G_NextUnitRelease(&due,&serial));
     T_EQ(wc3_float_bits(due.time),wc3_float_bits(wc3_add(1,G_ClockMinimumDelay())));
     level.pathing_clock.time=1.5f;G_RunTimers();jass_callbyname(level.vm,"check_order",false);
     T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(!G_NextUnitRelease(&due,&serial));
@@ -313,7 +313,7 @@ TEST(wc3_unit_releases, logical_reader_rejects_invalid_payload_and_drops_partial
         FOR_LOOP(i,mode==7 ? 2 : 1) {
             T_EQ(fwrite(fields,sizeof(fields),1,file),1u);T_EQ(fwrite(&clock,sizeof(clock),1,file),1u);
         }
-        rewind(file);T_ASSERT(!G_ReadUnitReleases(file));wc3Clock_t due;uint32_t serial;
+        rewind(file);T_ASSERT(!G_ReadUnitReleases(file));wc3Clock_t due={0};uint32_t serial=0;
         T_ASSERT(!G_NextUnitRelease(&due,&serial));unit->inuse=true;fclose(file);
     }
 }

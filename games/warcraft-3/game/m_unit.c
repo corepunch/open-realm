@@ -676,7 +676,8 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "patrol", WC3_ORDER_ID_PATROL, 0 },
     { "holdposition", 851993, 0 },
     { "repair", 852024, 0 },
-    { "board", 852043, 0 }, /* Public retail OrderId; Captain speed excludes this head. */
+    { "board", 852043, 0 }, /* Captain speed excludes this head. */
+    { "load", 852046, 0 },
     { "ambush", 852131, MAKEFOURCC('A','h','i','d') },
     { "repairon", 852025, 0 },
     { "repairoff", 852026, 0 },
@@ -972,6 +973,17 @@ bool G_AppendUnitOrder(edict_t *self, unitOrder_t const *order) {
     return true;
 }
 
+/* Native transient insertion goes immediately after the active head, ahead
+ * of existing successors. The ring already persists the retained command. */
+bool G_PrependUnitOrder(edict_t *self,unitOrder_t const *order) {
+    if(!self || !order || !unit_order_name_valid(order->order))return false;
+    unitOrderQueue_t *queue=&self->order_queue;
+    if(queue->count>=UNIT_ORDER_STORAGE_CAPACITY || !G_ReserveUnitOrders(self,queue->count+1))return false;
+    queue->head=(queue->head+queue->capacity-1)%queue->capacity;
+    queue->entries[queue->head]=*order;queue->count++;
+    return true;
+}
+
 bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t target_type,
                       vec2_t const *point, edict_t *target, uint32_t issuer_player,
                       float group_speed, uint32_t order_id) {
@@ -1095,6 +1107,8 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
         }
         return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f, NULL);
     }
+    if (!strcmp(order,"board")) return S_CargoOrderBoard(self,target);
+    if (!strcmp(order,"load")) return S_CargoOrderLoad(self,target);
     if (!strcmp(order, "move") && (target->svflags & SVF_MONSTER)) {
         return S_IssueFollowOrder(self, target, G_OrderId(order));
     }

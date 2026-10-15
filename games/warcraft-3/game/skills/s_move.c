@@ -3206,7 +3206,12 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
     float const goal_angle = wc3_vector_heading(dir->x, dir->y);
     bool wait=false;
     bool fine_heading=false;
-    if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self)) {
+    moveGroup_t const *physical=move_unit_group(self);
+    /* Internal ability point tasks use the same retained fine path and
+     * entering-cell collector as public Move. A Load/Board head must not
+     * bypass newly blocked terrain while its physical leg is cached. */
+    if (policy==MOVE_AVOID_GENERIC && (unit_routes_to_location(self) ||
+        (physical && !physical->individual && !physical->turning))) {
         movePathQuery_t query=move_route_query(self,(moveRoutePoint_t){&self->goalentity->s.origin2,S_MoveCollisionRadius(self),policy});
         wc3GridPose_t prediction;unit_predicted_pose(self,&prediction);
         vec2_t source={prediction.grid[0],prediction.grid[1]};
@@ -6566,6 +6571,7 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
             if (target && (group->flags&1) && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) continue;
             completed=true;
             bool cant_path=(member->flags&0x20000)!=0;
+            vec2_t failed_goal=unit->goalentity ? unit->goalentity->s.origin2 : unit->s.origin2;
             bool follow=group->follow_continuation;
             float range=group->follow_range;
             move_detach_group(unit); unit->movement.group_id=0;
@@ -6613,7 +6619,7 @@ static void move_group_complete_members(moveGroup_t *group, moveGroupMember_t **
                     unit->stand(unit);
                     if (unit->movement.captain_actor_owned) G_BotCaptainGoalEvent(unit);
                     else if(cant_path && unit->inuse && unit->spawn_time==completed_spawn && !G_IsDeferredFree(unit) &&
-                            (unit->aiflags&AI_TOWN_OWNED)) G_BotDispatchAIStop(unit);
+                            (unit->aiflags&AI_TOWN_OWNED) && !S_CargoTryFailedMove(unit,&failed_goal)) G_BotDispatchAIStop(unit);
                 }
             }
         }

@@ -29,7 +29,7 @@ TEST(wc3_interrupt, pending_removal_retains_all_order_shapes_and_saved_head) {
         "call BJassAssert(events==0,\"suspended admission sends no issued events\")\nendfunction\n"));
     edict_t *units[4]={0};unsigned count=0;
     FILTER_EDICTS(ent,G_IsDeferredFree(ent))if(count<4)units[count++]=ent;
-    T_EQ(count,4);wc3Clock_t due;uint32_t serial;
+    T_EQ(count,4);wc3Clock_t due;uint32_t serial=0;
     T_ASSERT(G_NextUnitRelease(&due,&serial));uint32_t sequence=level.timer_sequence;
     cstring_t const orders[]={"stop","holdposition","move","move"};
     FOR_LOOP(i,count) {
@@ -45,7 +45,7 @@ TEST(wc3_interrupt, pending_removal_retains_all_order_shapes_and_saved_head) {
     }
     T_EQ(level.timer_sequence,sequence);
     cstring_t file=Test_TempPath("wc3-interrupt209.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
-    wc3Clock_t loaded;uint32_t loaded_serial;T_ASSERT(G_NextUnitRelease(&loaded,&loaded_serial));
+    wc3Clock_t loaded={0};uint32_t loaded_serial=0;T_ASSERT(G_NextUnitRelease(&loaded,&loaded_serial));
     T_EQ(wc3_float_bits(loaded.time),wc3_float_bits(due.time));T_EQ(loaded.epoch,due.epoch);T_EQ(loaded_serial,serial);
     FOR_LOOP(i,count){T_ASSERT(G_IsDeferredFree(units[i]));T_EQ(units[i]->order_queue.count,1);}
     level.pathing_clock=due;G_RunDeferredFrees();FOR_LOOP(i,count)T_ASSERT(!units[i]->inuse);

@@ -257,3 +257,19 @@ checks and37 corpus checks pass. Production and test libraries build; no full
 suite repeated. Two842-record original traces, unhooked187-marker control and476
 original instruction guards pass the strict verifier. Logs: `/tmp/order343/`;
 archive: `research/ORDER-01.2/order343/` under the1.27 report root.
+
+## ORDER346 arrival/failure closure checkpoint (2026-10-15)
+
+`make test TEST_JOBS=8` passed:9359 native tests across32 JUnit reports, zero
+failures/errors;2250 Python pathfinding evidence tests in705.896 seconds.
+Final focused ORDER346 verification passed1097 tests/127193 assertions per
+Classic/TFT edition, including ten naval tests/3748 assertions per edition.
+The production release build passed without warnings. The earlier full run
+passed all native tests but caught the corpus oracle count still set to288;
+updating the inventory expectation to289 fixed that failure. The accepted full
+run includes the subsequent failing-first AI shore-phase exclusion fix.
+
+Evidence: `ORDER-01.2/order346/resume-1015/make-test-accepted.log`,
+`accepted-native-junit.json`, `accepted-junit/`, `order346-final.json` and
+`release-accepted-build.log` in the local retail research report archive.
+ORDER-01.2 is closed;299/336 backlog tasks are done,37 remain.

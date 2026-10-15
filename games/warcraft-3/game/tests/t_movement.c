@@ -12707,7 +12707,7 @@ TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
     if (clent->client->menu.on_location_selected)
         T_ASSERT(clent->client->menu.on_location_selected(clent, &transport->s.origin2));
     T_EQ(transport->cargo->count, 3); /* Point-target unload waits for move arrival. */
-    T_ASSERT(transport->movement.cargo_unload_pending);
+    T_ASSERT(transport->cargo->ferry_pending);
     T_ASSERT(S_CargoBeginUnloadAll(transport)); /* Repeated clicks do not bypass Dur. */
     T_EQ(transport->cargo->count, 2);
     G_ClientCommand(clent, 2, instant);
@@ -12789,7 +12789,7 @@ TEST(wc3_movement, replacement_point_order_cancels_pending_cargo_unload) {
     level.time = 1000;
     G_ClientCommand(clent, 2, drop);
     T_ASSERT(clent->client->menu.on_location_selected(clent, &unload_point));
-    T_ASSERT(transport->movement.cargo_unload_pending);
+    T_ASSERT(transport->cargo->ferry_pending);
     T_ASSERT(move_selectlocation(clent, &replacement));
     T_EQ(transport->goalentity->s.origin2.x, replacement.x);
     T_EQ(transport->goalentity->s.origin2.y, replacement.y);
@@ -12798,7 +12798,7 @@ TEST(wc3_movement, replacement_point_order_cancels_pending_cargo_unload) {
         globals.RunFrame();
     }
     T_EQ(transport->cargo->count, 3);
-    T_ASSERT(!transport->movement.cargo_unload_pending);
+    T_ASSERT(!transport->cargo->ferry_pending);
     gi.Write = old_write; gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -20210,6 +20210,659 @@ TEST(wc3_movement, completion195_blocked_member_retries_before_terminal_scan) {
 
 /* Retail fallback recovery retires the old task then activates the pending
  * user head synchronously. The replaced group remains for its next owner visit. */
+/* ORDER346 retail MapC: failed AI Move admits board, the flyer loads the
+ * passenger and drops it across the barrier before guard return takes over. */
+static void order346_ferry_scenario(uint32_t mode) {
+    bool removed_load=mode>=104 && mode<=111;
+    if(removed_load)mode-=8;
+    G_BotStop(0);reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,64)for(uint32_t x=22;x<=27;x++)cells[y*64+x]=(mode>=80 && mode<=95) ? CM_PATHING_UNFLYABLE : CM_PATHING_UNWALKABLE;
+    CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\ncall FogEnable(false)\ncall FogMaskEnable(false)\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    int controller=game.clients[0].jass.controller;
+    typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+    game.clients[0].jass.controller=(mode==6 || mode==68 || mode==69 || (mode>=80 && mode<=83) || (mode>=88 && mode<=91) || mode==96 || mode==97 || mode==100 || mode==102) ? 0 : 1;((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+    char ability_text[1024];
+    snprintf(ability_text,sizeof(ability_text),
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"Rng1\"\nC;X5;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Acar\"\nC;X2;K\"Acar\"\nC;X3;K3\nC;X4;K120\nC;X5;K0.3\n"
+        "C;Y3;X1;K\"Aloa\"\nC;X2;K\"Aloa\"\nC;X4;K120\n"
+        "C;Y4;X1;K\"Adro\"\nC;X2;K\"Adro\"\nC;X4;K%u\nE\n",
+        mode>=80 ? ((mode&1) ? 64u : 80u) : 120u);
+    slkTestData_t *rows=parse_slk_string(ability_text);
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    bool load_available=G_IsPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','l','o','a'));
+    bool drop_available=G_IsPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','d','r','o'));
+    G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','l','o','a'),true);
+    G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','d','r','o'),true);
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){272,304},90);
+    edict_t *transport=unit_create(0,MAKEFOURCC('h','g','r','y'),&(vec2_t){400,400},90);
+    T_NOT_NULL(unit);T_NOT_NULL(transport);
+    if(unit && transport) {
+        unit->collision=31;G_PublishMoveSpatialObject(unit); /* Retail Footman hull. */
+        T_ASSERT(transport->aiflags&AI_FLYING);
+        G_ActorAddSkill(transport,MAKEFOURCC('A','c','a','r'));
+        G_ActorAddSkill(transport,MAKEFOURCC('A','l','o','a'));
+        G_ActorAddSkill(transport,MAKEFOURCC('A','d','r','o'));
+        T_EQ(S_CargoCapacity(transport),3);
+        if(mode==4)transport->health.value*=.5f;
+        if(mode==5)transport->s.player=1;
+        if(mode==8)unit->aiflags|=AI_SUMMONED;
+        vec2_t goal={mode==7 ? 1008 : 1600,1040};
+        if(mode>=96 && mode<=103) {
+            bool near=mode>=100,ai=mode==98 || mode==99 || mode==101 || mode==103;
+            bool saved=mode==97 || mode==99 || mode>=102;
+            if(!near)S_SetUnitPosition(transport,&(vec2_t){1600,1040});
+            T_ASSERT(G_ActorRemoveSkill(transport,MAKEFOURCC('A','m','o','v')));
+            if(removed_load)T_ASSERT(G_ActorRemoveSkill(transport,MAKEFOURCC('A','l','o','a')));
+            else G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','l','o','a'),false);
+            T_ASSERT(G_IssueUnitTargetOrder(unit,"board",transport,false,0));
+            for(unsigned tick=0;tick<3;tick++) {level.time+=50;globals.RunFrame();}
+            uint32_t last=unit->movement.group_id,attempts=last ? 1 : 0;
+            cstring_t file=Test_TempPath("order346-static-board.bin");
+            if(saved) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+            bool saved_retry=false;
+            for(unsigned tick=0;tick<500;tick++) {
+                level.time+=50;globals.RunFrame();
+                uint32_t id=unit->movement.group_id;
+                if(id && id!=last) {last=id;attempts++;}
+                if(saved && !ai && !near && attempts==3 && !saved_retry) {
+                    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));saved_retry=true;
+                }
+            }
+            if(near) {
+                T_EQ(S_CargoTransportForUnit(unit),transport);
+                T_EQ(unit->current_order_id,0);
+            } else {
+                T_NULL(S_CargoTransportForUnit(unit));
+                T_EQ(unit->current_order_id,ai ? G_OrderId("board") : 0);
+                T_EQ(attempts,ai ? 1 : 6);
+                T_EQ(unit->movement.group_id,0);
+                if(saved && !ai)T_ASSERT(saved_retry);
+            }
+            remove(file);goto cleanup;
+        }
+        if(mode>=88 && mode<=95) {
+            S_SetUnitPosition(unit,&(vec2_t){(mode&2) ? 1600 : 780,400});
+            T_ASSERT(G_IssueUnitTargetOrder(transport,"load",unit,false,0));
+            for(unsigned tick=0;tick<3;tick++) {level.time+=50;globals.RunFrame();}
+            cstring_t file=Test_TempPath("order346-blocked-load.bin");
+            if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+            for(unsigned tick=0;tick<500;tick++) {level.time+=50;globals.RunFrame();}
+            bool retained=mode>=94;
+            T_EQ(transport->current_order_id,retained ? G_OrderId("load") : 0);
+            if(mode&2)T_NULL(S_CargoTransportForUnit(unit));
+            else T_EQ(S_CargoTransportForUnit(unit),transport);
+            T_EQ(transport->movement.group_id,0);
+            if(retained) {
+                T_EQ(transport->goalentity,unit);
+                if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+                for(unsigned tick=0;tick<100;tick++) {level.time+=50;globals.RunFrame();}
+                T_EQ(transport->current_order_id,G_OrderId("load"));
+                T_EQ(transport->movement.group_id,0);
+                S_SetUnitAxisPosition(unit,0,500);S_SetUnitAxisPosition(unit,1,400);
+                for(unsigned tick=0;tick<150;tick++) {level.time+=50;globals.RunFrame();}
+                T_EQ(transport->current_order_id,G_OrderId("load"));
+                T_NULL(S_CargoTransportForUnit(unit));
+                T_EQ(transport->movement.group_id,0);
+                G_DeferFreeEdict(unit);
+                T_EQ(transport->current_order_id,0);
+                T_NULL(transport->goalentity);
+            }
+            remove(file);goto cleanup;
+        }
+        if(mode>=80 && mode<=87) {
+            S_SetUnitPosition(unit,&(vec2_t){432,400});
+            T_ASSERT(S_CargoTryLoad(transport,unit));
+            g_edicts[0].client=game.clients;
+            T_ASSERT(run_test_jass("function boardevent takes nothing returns nothing\n"
+                "if GetIssuedOrderId()==852043 then\n"
+                "call BJassAssert(GetTriggerUnit()==GetOrderTargetUnit(),\"failed Drop selects itself\")\n"
+                "call SetUnitUserData(GetTriggerUnit(),GetUnitUserData(GetTriggerUnit())+1)\nendif\nendfunction\n"
+                "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+                "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,null)\n"
+                "call TriggerAddAction(t,function boardevent)\nendfunction\n"));
+            vec2_t destination={(mode&2) ? 1600 : 780,400};
+            T_ASSERT(G_IssueUnitPointOrder(transport,"unloadall",&destination,false,0,0));
+            for(unsigned tick=0;tick<3;tick++) {level.time+=50;globals.RunFrame();}
+            cstring_t file=Test_TempPath("order346-blocked-drop.bin");
+            if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+            for(unsigned tick=0;tick<500;tick++) {level.time+=50;globals.RunFrame();}
+            T_EQ(transport->current_order_id,0);
+            T_EQ(S_CargoTransportForUnit(unit),transport);
+            T_EQ(transport->user_data,mode>=86 ? 1 : 0);
+            T_EQ(transport->movement.group_id,0);
+            remove(file);goto cleanup;
+        }
+        if(mode>=72 && mode<=79) {
+            G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','l','o','a'),false);
+            T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,false,0,0));
+            for(unsigned tick=0;tick<500 && unit->current_order_id!=G_OrderId("board");tick++) {
+                level.time+=50;globals.RunFrame();
+            }
+            T_EQ(unit->current_order_id,G_OrderId("board"));
+            T_EQ(unit->goalentity,transport);
+            T_ASSERT(transport->cargo && transport->cargo->ferry_pending);
+            edict_t *alternate=NULL;
+            if(mode==74 || mode==75 || mode>=78) {
+                alternate=unit_create(0,MAKEFOURCC('h','g','r','y'),&(vec2_t){500,600},90);
+                G_ActorAddSkill(alternate,MAKEFOURCC('A','c','a','r'));
+                G_ActorAddSkill(alternate,MAKEFOURCC('A','l','o','a'));
+                G_ActorAddSkill(alternate,MAKEFOURCC('A','d','r','o'));
+            }
+            if(mode>=76) {
+                S_SetUnitAxisPosition(unit,0,450);S_SetUnitAxisPosition(unit,1,400);
+            }
+            cstring_t file=Test_TempPath("order346-removed-ai-ferry.bin");
+            if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+            G_DeferFreeEdict(transport);
+            if(mode>=76) {
+                T_EQ(unit->current_order_id,0);
+                T_EQ(unit->movement.group_id,0);
+                T_NULL(unit->goalentity);
+                for(unsigned tick=0;tick<250;tick++) {level.time+=50;globals.RunFrame();}
+                T_EQ(unit->current_order_id,0);
+                T_FEQ(unit->s.origin2.x,450,1);
+                T_FEQ(unit->s.origin2.y,400,1);
+            } else if(alternate) {
+                T_EQ(unit->current_order_id,G_OrderId("board"));
+                T_EQ(unit->goalentity,alternate);
+                T_ASSERT(alternate->cargo && alternate->cargo->ferry_pending);
+                if(alternate->cargo) {
+                    T_FEQ(alternate->cargo->ferry_destination.x,goal.x,1);
+                    T_FEQ(alternate->cargo->ferry_destination.y,goal.y,1);
+                }
+            } else {
+                T_EQ(unit->current_order_id,G_OrderId("attack"));
+                for(unsigned tick=0;tick<500;tick++) {level.time+=50;globals.RunFrame();}
+                T_ASSERT(hypotf(unit->s.origin2.x-272,unit->s.origin2.y-304)<64);
+            }
+            remove(file);goto cleanup;
+        }
+        if(mode>=68 && mode<=71) {
+            S_SetUnitPosition(transport,&(vec2_t){1600,1040});
+            G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','l','o','a'),false);
+            T_ASSERT(G_IssueUnitTargetOrder(unit,"board",transport,false,0));
+            for(unsigned tick=0;tick<4;tick++) {level.time+=50;globals.RunFrame();}
+            T_EQ(unit->current_order_id,G_OrderId("board"));
+            T_EQ(transport->current_order_id,0);
+            S_SetUnitAxisPosition(unit,0,682);S_SetUnitAxisPosition(unit,1,1030);
+            cstring_t file=Test_TempPath("order346-removed-board-carrier.bin");
+            if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+            G_DeferFreeEdict(transport); /* Public RemoveUnit retirement, before storage release. */
+            T_EQ(unit->current_order_id,0);
+            T_EQ(unit->movement.group_id,0);
+            T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityBattlestations));
+            T_NULL(unit->secondarygoal);
+            for(unsigned tick=0;tick<250;tick++) {level.time+=50;globals.RunFrame();}
+            T_EQ(unit->current_order_id,0);
+            T_FEQ(unit->s.origin2.x,682,2);
+            T_FEQ(unit->s.origin2.y,1030,2);
+            remove(file);goto cleanup;
+        }
+        if(mode>=42 && mode<=67) {
+            edict_t *occupant=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){400,400},90);
+            T_ASSERT(S_CargoTryLoad(transport,occupant));
+            /* Match live reserved player entities before registering saved events. */
+            if(mode>=48)g_edicts[0].client=game.clients;
+            if(mode>=48)T_ASSERT(run_test_jass("function pointload takes nothing returns nothing\n"
+                "if GetIssuedOrderId()==852046 then\n"
+                "call BJassAssert(GetOrderPointX()==0.0 and GetOrderPointY()==0.0,\"transient Load retained zero point\")\n"
+                "call SetUnitUserData(GetTriggerUnit(),GetUnitUserData(GetTriggerUnit())+1)\nendif\nendfunction\n"
+                "function queuedload takes nothing returns nothing\n"
+                "if GetIssuedOrderId()==852046 then\n"
+                "call SetUnitUserData(GetTriggerUnit(),GetUnitUserData(GetTriggerUnit())+1)\n"
+                "if IsUnitLoaded(GetOrderTargetUnit()) then\n"
+                "if GetUnitUserData(GetOrderTargetUnit())==200 then\n"
+                "call BJassAssert(GetUnitX(GetTriggerUnit())<1000.0,\"transient precedes queued Move\")\nendif\n"
+                "call SetUnitUserData(GetOrderTargetUnit(),GetUnitUserData(GetOrderTargetUnit())+1)\nendif\n"
+                "if GetUnitUserData(GetTriggerUnit())==3 and GetUnitUserData(GetOrderTargetUnit())==101 then\n"
+                "call IssuePointOrder(GetTriggerUnit(),\"move\",1600,1600)\nendif\nendif\nendfunction\n"
+                "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+                "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,null)\n"
+                "call TriggerAddAction(t,function queuedload)\n"
+                "set t=CreateTrigger()\n"
+                "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,null)\n"
+                "call TriggerAddAction(t,function pointload)\nendfunction\n"));
+            edict_t *second=mode>=66 ? unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){200,1800},90) : NULL;
+            edict_t *first=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){200,1800},90);
+            if(!second)second=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){mode>=46 ? 200 : 500,mode>=46 ? 1100 : 1800},90);
+            if(mode>=66)first->no_pathing=second->no_pathing=true; /* MapAG SetUnitPathing(false). */
+            T_ASSERT(G_IssueUnitTargetOrder(first,"smart",transport,false,0));
+            for(unsigned tick=0;tick<4;tick++) {level.time+=50;globals.RunFrame();}
+            if(mode==56 || mode==57)T_ASSERT(G_IssueUnitPointOrder(transport,"move",&(vec2_t){1600,1600},true,0,0));
+            if(mode>=66) {
+                S_SetUnitAxisPosition(first,0,200);S_SetUnitAxisPosition(first,1,1800);
+                S_SetUnitAxisPosition(second,0,200);S_SetUnitAxisPosition(second,1,1800);
+            }
+            T_ASSERT(G_IssueUnitTargetOrder(second,"smart",transport,false,0));
+            if(mode>=66) {
+                T_ASSERT(second->s.number<first->s.number);
+                T_EQ(transport->cargo->boarding[0],first);
+                T_EQ(transport->cargo->boarding[1],second);
+                cstring_t file=Test_TempPath("order346-equal-board-slots.bin");
+                if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+                T_FEQ(first->s.origin2.x,second->s.origin2.x,0);
+                T_FEQ(first->s.origin2.y,second->s.origin2.y,0);
+                /* Execute Board's normal arrival callback before either mover
+                 * advances. Equal geometry must not enqueue the later slot. */
+                S_CargoBoardComplete(second,second,true);
+                T_EQ(G_UnitQueuedOrderCount(transport),0);
+                T_EQ(transport->goalentity,first);
+                T_EQ(first->current_order_id,G_OrderId("board"));
+                T_EQ(second->current_order_id,G_OrderId("board"));
+                T_EQ(transport->user_data,1);
+                remove(file);goto cleanup;
+            }
+            for(unsigned tick=0;tick<4;tick++) {level.time+=50;globals.RunFrame();}
+            T_EQ(first->current_order_id,G_OrderId("board"));
+            T_EQ(second->current_order_id,G_OrderId("board"));
+            T_EQ(first->secondarygoal,transport);T_EQ(second->secondarygoal,transport);
+            T_NULL(S_CargoTransportForUnit(first));T_NULL(S_CargoTransportForUnit(second));
+            if(mode>=46)T_EQ(transport->goalentity,first);
+            if(mode>=48) {T_EQ(transport->user_data,1);T_EQ(G_UnitQueuedOrderCount(transport),(mode==56 || mode==57) ? 2 : 1);}
+            if(mode==52 || mode==53)second->user_data=100;
+            if(mode==56 || mode==57)second->user_data=200;
+            cstring_t file=Test_TempPath("order346-simultaneous-board.bin");
+            if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+            if(mode>=62) {
+                bool near=mode<=63;
+                S_SetUnitPosition(unit,&(vec2_t){200,near ? 304 : 2000});
+                T_ASSERT(G_IssueUnitTargetOrder(unit,"smart",transport,false,0));
+                T_EQ(unit->current_order_id,near ? G_OrderId("board") : 0);
+                T_EQ(first->current_order_id,near ? 0 : G_OrderId("board"));
+                T_EQ(second->current_order_id,G_OrderId("board"));
+                T_EQ(transport->goalentity,first);
+                T_EQ(transport->current_order_id,G_OrderId("load"));
+                if(near)T_NULL(first->secondarygoal);
+                if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+                for(unsigned tick=0;tick<250;tick++) {level.time+=50;globals.RunFrame();}
+                T_EQ(S_CargoTransportForUnit(first),transport);
+                T_EQ(S_CargoTransportForUnit(second),transport);
+                T_NULL(S_CargoTransportForUnit(unit));
+                T_EQ(unit->current_order_id,near ? G_OrderId("board") : 0);
+                T_EQ(transport->cargo->count,3);
+            } else if(mode>=58) {
+                edict_t *stopped=mode<=59 ? first : second;
+                edict_t *remaining=mode<=59 ? second : first;
+                order_stop(stopped);
+                T_EQ(stopped->current_order_id,0);T_NULL(stopped->secondarygoal);
+                if(mode<=59) {
+                    /* Withdrawal retires Load now; refresh notifies next tick. */
+                    T_EQ(transport->current_order_id,0);
+                    T_EQ(transport->user_data,1);
+                    T_EQ(G_UnitQueuedOrderCount(transport),0);
+                }
+                T_EQ(remaining->current_order_id,G_OrderId("board"));
+                T_EQ(remaining->secondarygoal,transport);
+                if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+                for(unsigned tick=0;tick<250;tick++) {level.time+=50;globals.RunFrame();}
+                /* Retail MapAD: stopping the pending boarder leaves its
+                 * already queued carrier Load, which still loads it later. */
+                if(mode<=59)T_NULL(S_CargoTransportForUnit(stopped));
+                else T_EQ(S_CargoTransportForUnit(stopped),transport);
+                T_EQ(S_CargoTransportForUnit(remaining),transport);
+                T_EQ(transport->cargo->count,mode<=59 ? 2 : 3);
+            } else if(mode==54 || mode==55) {
+                G_FreeEdict(second);level.time+=1050; /* Pass the allocator's reuse cooldown. */
+                edict_t *replacement=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){200,1100},90);
+                T_NOT_NULL(replacement);T_EQ(replacement,second);
+                for(unsigned tick=0;tick<250;tick++) {level.time+=50;globals.RunFrame();}
+                T_EQ(transport->user_data,2);T_EQ(transport->cargo->count,2);
+                T_NULL(S_CargoTransportForUnit(replacement));T_EQ(replacement->user_data,0);
+                T_EQ(G_UnitQueuedOrderCount(transport),0);
+            } else if(mode==50 || mode==51) {
+                order_stop(transport);
+                T_EQ(G_UnitQueuedOrderCount(transport),0);
+                for(unsigned tick=0;tick<250;tick++) {level.time+=50;globals.RunFrame();}
+                T_EQ(transport->user_data,1);
+                T_NULL(S_CargoTransportForUnit(first));T_NULL(S_CargoTransportForUnit(second));
+            } else if(mode<=43) {
+                T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,false,0,0));
+                moveGroup_t *failed=move_unit_group(unit);T_NOT_NULL(failed);
+                if(failed) {
+                    S_SetUnitAxisPosition(unit,0,681);S_SetUnitAxisPosition(unit,1,1028);
+                    failed->ticking=true;
+                    moveGroupMember_t *member=failed->members;
+                    member->flags|=0x20000;member->arrived=true;
+                    moveGroupMember_t *finished[]={member};move_group_complete_members(failed,finished,1);
+                    failed->ticking=false;
+                    T_NE(unit->current_order_id,G_OrderId("board"));
+                    T_NE(unit->goalentity,transport);
+                }
+                order_stop(transport);
+                T_EQ(first->current_order_id,0);T_EQ(second->current_order_id,0);
+                T_NULL(first->secondarygoal);T_NULL(second->secondarygoal);
+                T_ASSERT(!S_UnitTargetChaseActive(first,CAbilityBattlestations));
+                T_ASSERT(!S_UnitTargetChaseActive(second,CAbilityBattlestations));
+            } else {
+                for(unsigned tick=0;tick<250;tick++) {level.time+=50;globals.RunFrame();}
+                T_EQ(S_CargoTransportForUnit(first),transport);
+                T_EQ(S_CargoTransportForUnit(second),transport);
+                T_EQ(transport->cargo->count,3);
+                if(mode>=48) {
+                    T_EQ(transport->user_data,3);
+                    T_EQ(second->user_data,mode>=56 ? 201 : mode>=52 ? 101 : 1);
+                    T_EQ(G_UnitQueuedOrderCount(transport),0);
+                    if(mode>=52) {T_ASSERT(transport->s.origin2.x>1500);T_ASSERT(transport->s.origin2.y>1500);}
+                }
+            }
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            remove(file);goto cleanup;
+        }
+        if(mode>=34 && mode<=41) {
+            bool direct_load=mode==36 || mode==37;
+            bool carrier_stop=mode==38 || mode==39;
+            bool replace_load=mode==40 || mode==41;
+            FOR_LOOP(i,2) {
+                edict_t *passenger=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){400,400},90);
+                T_ASSERT(S_CargoTryLoad(transport,passenger));
+            }
+            edict_t *first=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){200,1800},90);
+            if(direct_load)T_ASSERT(G_IssueUnitTargetOrder(transport,"load",first,false,0));
+            else T_ASSERT(G_IssueUnitTargetOrder(first,"smart",transport,false,0));
+            for(unsigned tick=0;tick<4;tick++) {level.time+=50;globals.RunFrame();}
+            T_EQ(transport->current_order_id,G_OrderId("load"));
+            T_NULL(S_CargoTransportForUnit(first));
+            cstring_t file=Test_TempPath("order346-board-reservation.bin");
+            if(mode&1) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+            FOR_LOOP(pass,direct_load || replace_load ? 3 : 2) {
+                T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,false,0,0));
+                moveGroup_t *failed=move_unit_group(unit);T_NOT_NULL(failed);
+                if(!failed)break;
+                S_SetUnitAxisPosition(unit,0,681);S_SetUnitAxisPosition(unit,1,1028);
+                failed->ticking=true;
+                moveGroupMember_t *member=failed->members;
+                member->flags|=0x20000;member->arrived=true;
+                moveGroupMember_t *finished[]={member};move_group_complete_members(failed,finished,1);
+                failed->ticking=false;
+                if(pass<(direct_load || replace_load ? 2 : 1)) {
+                    T_NE(unit->current_order_id,G_OrderId("board"));
+                    T_NE(unit->goalentity,transport);
+                    if(replace_load && !pass) {
+                        T_ASSERT(G_IssueUnitTargetOrder(transport,"load",first,false,0));
+                    } else if(pass || carrier_stop)order_stop(transport);
+                    else order_stop(first);
+                    T_EQ(transport->current_order_id,(direct_load || replace_load) && !pass ? G_OrderId("load") : 0);
+                    T_NULL(S_CargoTransportForUnit(first));
+                    if(carrier_stop || replace_load) {
+                        T_EQ(first->current_order_id,0);
+                        T_NULL(first->secondarygoal);
+                        T_ASSERT(!S_UnitTargetChaseActive(first,CAbilityBattlestations));
+                    }
+                } else {
+                    T_EQ(unit->current_order_id,G_OrderId("board"));
+                    T_EQ(unit->goalentity,transport);
+                }
+            }
+            remove(file);goto cleanup;
+        }
+        if(mode==31 || mode==32) {
+            S_SetUnitAxisPosition(unit,0,400);S_SetUnitAxisPosition(unit,1,400);
+            T_ASSERT(S_CargoTryLoad(transport,unit));
+            edict_t *clent=g_edicts;clent->client=game.clients;
+            void (*old_write)(pfWriteType_t,void const *)=gi.Write;
+            void (*old_unicast)(edict_t *)=gi.unicast;
+            gi.Write=movement_noop_write;gi.unicast=movement_noop_unicast;
+            G_SelectEntity(clent->client,transport);
+            cstring_t command[]={"button","Adro"};G_ClientCommand(clent,2,command);
+            T_NOT_NULL(clent->client->menu.on_location_selected);
+            if(clent->client->menu.on_location_selected)
+                T_ASSERT(clent->client->menu.on_location_selected(clent,&goal));
+            T_EQ(transport->current_order_id,G_OrderId("unloadall"));
+            T_ASSERT(transport->cargo->ferry_pending);
+            for(unsigned tick=0;tick<4;tick++) {level.time+=50;globals.RunFrame();}
+            T_NE(transport->movement.group_id,0);
+            T_ASSERT(G_ActorRemoveSkill(transport,MAKEFOURCC('A','d','r','o')));
+            T_EQ(transport->current_order_id,G_OrderId("unloadall"));
+            T_NE(transport->movement.group_id,0);
+            cstring_t file=Test_TempPath("order346-ui-drop.bin");
+            if(mode==32) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+            for(unsigned tick=0;tick<200;tick++) {
+                level.time+=50;globals.RunFrame();
+                T_EQ(S_CargoTransportForUnit(unit),transport);
+            }
+            T_EQ(transport->current_order_id,0);
+            T_ASSERT(transport->s.origin2.x>1400);
+            remove(file);gi.Write=old_write;gi.unicast=old_unicast;
+            goto cleanup;
+        }
+        if(mode>=12 && mode<=16) {
+            /* The carrier is executing Move; only a queued Drop constrains
+             * the ferry destination. Use the production FIFO insertion. */
+            T_ASSERT(G_IssueUnitPointOrder(transport,"move",&(vec2_t){400,1600},false,0,0));
+            unitOrder_t queued={.target_type=UNIT_ORDER_TARGET_POINT,.point=goal,
+                .order_id=G_OrderId("unloadall")};
+            strcpy(queued.order,"unloadall");
+            if(mode==12) {
+                unitOrder_t other={.target_type=UNIT_ORDER_TARGET_POINT,.point={800,800},
+                    .order_id=G_OrderId("move")};
+                strcpy(other.order,"move");T_ASSERT(G_AppendUnitOrder(transport,&other));
+            }
+            if(mode==13)queued.order_id=0; /* Internal heads may retain only their name. */
+            if(mode==16)queued.target_type=UNIT_ORDER_TARGET_NONE;
+            if(mode==12 || mode==15)queued.point.x=1200;
+            T_ASSERT(G_AppendUnitOrder(transport,&queued));
+            if(mode==14 || mode==15 || mode==16) {
+                queued.target_type=UNIT_ORDER_TARGET_POINT;
+                queued.point.x=mode==15 ? 1600 : 1200;
+                T_ASSERT(G_AppendUnitOrder(transport,&queued));
+            }
+        }
+
+        if(mode>=27) {
+            T_ASSERT(run_test_jass("function relay takes nothing returns nothing\n"
+                "if GetIssuedOrderId()==852046 then\n"
+                "call BJassAssert(GetUnitCurrentOrder(GetTriggerUnit())==852046,\"Load head precedes callback\")\n"
+                "call SetUnitUserData(GetTriggerUnit(),GetUnitUserData(GetTriggerUnit())+1)\n"
+                "if GetUnitUserData(GetOrderTargetUnit())==28 then\n"
+                "call SetPlayerAbilityAvailable(Player(0),'Aloa',true)\n"
+                "elseif GetUnitUserData(GetOrderTargetUnit())==30 then\n"
+                "call SetPlayerAbilityAvailable(Player(0),'Aloa',true)\n"
+                "call IssueImmediateOrder(GetTriggerUnit(),\"stop\")\n"
+                "elseif GetUnitUserData(GetOrderTargetUnit())==29 then\n"
+                "call IssuePointOrder(GetTriggerUnit(),\"move\",1600,1600)\nendif\nendif\nendfunction\n"
+                "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+                "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,null)\n"
+                "call TriggerAddAction(t,function relay)\nendfunction\n"));
+            unit->user_data=mode;
+            G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','l','o','a'),false);
+            /* MapJ: public admission must still reject without notification. */
+            T_ASSERT(!G_IssueUnitTargetOrder(transport,"load",unit,false,0));
+            T_EQ(transport->user_data,0);
+        }
+
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,false,0,0));
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            S_SetUnitAxisPosition(unit,0,681);S_SetUnitAxisPosition(unit,1,1028);
+            group->ticking=true;
+            moveGroupMember_t *member=group->members;
+            member->flags|=0x20000;member->arrived=true;
+            moveGroupMember_t *finished[]={member};move_group_complete_members(group,finished,1);
+            group->ticking=false;
+            if((mode>=4 && mode<=8) || mode==12 || mode==15) {
+                T_EQ(unit->current_order_id,mode==6 ? 0 : G_OrderId("attack"));
+                T_NE(unit->goalentity,transport);
+                T_ASSERT(!transport->cargo || !transport->cargo->ferry_pending);
+                goto cleanup;
+            }
+            T_EQ(unit->current_order_id,852043); /* board */
+            T_EQ(unit->goalentity,transport);
+            if(mode>=12 && mode<=16)goto cleanup;
+            if(mode>=27) {
+                for(unsigned tick=0;tick<4;tick++) {level.time+=50;globals.RunFrame();}
+                T_EQ(transport->user_data,1);
+                T_EQ(transport->current_order_id,(mode==27 || mode==30) ? 0 : G_OrderId(mode==28 ? "load" : "move"));
+                if(mode==28 || mode==29)T_NE(transport->movement.group_id,0);
+                if(mode==30) {
+                    T_NE(transport->movement.group_id,0);
+                    for(unsigned tick=0;tick<160;tick++) {
+                        level.time+=50;globals.RunFrame();
+                        T_NULL(S_CargoTransportForUnit(unit));
+                        T_EQ(transport->current_order_id,0);
+                    }
+                    T_EQ(transport->current_order_id,0);
+                    T_EQ(transport->movement.group_id,0);
+                    T_ASSERT(Vector2_distance(&transport->s.origin2,&(vec2_t){400,400})>100);
+                    T_ASSERT(!transport->cargo->count);
+                }
+                T_NULL(S_CargoTransportForUnit(unit));
+                goto cleanup;
+            }
+
+            bool loaded=false,dropped=false,saved=false,stopped=false,return_loaded=false,returned=false;
+            bool removed=false;vec2_t removed_at={0};
+            uint32_t number=unit-g_edicts,carrier=transport-g_edicts;
+            cstring_t file=Test_TempPath("wc3-order346-ferry.bin");
+            for(uint32_t tick=0;tick<1200 && (!dropped || (mode>=9 && mode!=22 && mode!=25 && !returned));tick++) {
+                level.time+=50;globals.RunFrame();
+                if(S_CargoTransportForUnit(unit)==transport) {
+                    if(dropped)return_loaded=true;
+                    loaded=true;
+                    if(!stopped && mode<17)T_EQ(transport->current_order_id,852048); /* drop */
+                    if(mode==3 && !stopped) {order_stop(transport);stopped=true;}
+                    if(stopped) {
+                        T_EQ(transport->current_order_id,0);
+                        T_ASSERT(!transport->cargo->ferry_pending);
+                    }
+                } else if(return_loaded) {
+                    returned=true;
+                    T_FEQ(unit->s.origin2.x,272,1);T_FEQ(unit->s.origin2.y,304,1);
+                    T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));T_ASSERT(!unit->paused);
+                } else if(loaded && !dropped) {
+                    dropped=true;
+                    T_ASSERT(unit->s.origin2.x>900);
+                    T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));T_ASSERT(!unit->paused);
+                }
+                if(mode==26 && dropped && !removed) {
+                    G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','l','o','a'),false);
+                    removed=true;
+                }
+                bool remove_load=(mode==17 || mode==21 || mode==22 || mode==25);
+                bool remove_board_drop=(mode==19 || mode==24);
+                bool remove_flight_drop=(mode==18 || mode==20 || mode==23);
+                if(!removed && (((remove_load || remove_board_drop) &&
+                   transport->current_order_id==G_OrderId("load") && transport->movement.group_id) ||
+                   (remove_flight_drop && loaded && transport->movement.group_id))) {
+                    uint32_t code=remove_load ? MAKEFOURCC('A','l','o','a') : MAKEFOURCC('A','d','r','o');
+                    uint32_t order=transport->current_order_id;
+                    removed_at=transport->s.origin2;
+                    if(mode>=22) {
+                        G_SetPlayerAbilityAvailable(game.clients,code,false);
+                        T_ASSERT(G_ActorHasAbilityCode(transport,code));
+                        T_ASSERT(!G_IsUnitAbilityAvailable(transport,code));
+                    } else T_ASSERT(G_ActorRemoveSkill(transport,code));
+                    removed=true;
+                    T_EQ(transport->current_order_id,order);
+                    T_NE(transport->movement.group_id,0);
+                    if(mode==20 || mode==21 || mode==25) {
+                        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));saved=true;
+                        unit=g_edicts+number;transport=g_edicts+carrier;
+                        T_EQ(G_ActorHasAbilityCode(transport,code),mode==25);
+                    }
+                }
+                if(mode==11 && dropped && unit->movement.group_id) {
+                    order_stop(unit);
+                    T_EQ(unit->current_order_id,0);
+                    T_ASSERT(!transport->cargo->ferry_pending);
+                    stopped=true;break;
+                }
+                if(!saved && ((mode==1 && tick==2) || (mode==2 && loaded) ||
+                              (mode==10 && dropped && !return_loaded && unit->movement.group_id))) {
+                    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));saved=true;
+                    unit=g_edicts+number;transport=g_edicts+carrier;
+                    if(mode==10) {
+                        T_EQ(unit->current_order_id,G_OrderId("attack"));
+                        T_NOT_NULL(move_unit_group(unit));
+                    } else {
+                        T_ASSERT(transport->cargo->ferry_pending);
+                        T_FEQ(transport->cargo->ferry_destination.x,1600,0);
+                        T_FEQ(transport->cargo->ferry_destination.y,1040,0);
+                    }
+                }
+            }
+            if(mode==26) {
+                T_ASSERT(removed);T_ASSERT(loaded);T_ASSERT(dropped);T_ASSERT(!return_loaded);
+                T_NULL(S_CargoTransportForUnit(unit));
+                T_EQ(unit->current_order_id,G_OrderId("board"));
+                T_EQ(transport->current_order_id,0);
+                T_ASSERT(!unit->paused);T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+                remove(file);goto cleanup;
+            }
+            if(mode>=17 && mode!=22 && mode!=25) {
+                T_ASSERT(removed);T_ASSERT(!dropped);
+                T_EQ(transport->current_order_id,0);
+                T_ASSERT(!transport->cargo->ferry_pending);
+                if(mode==17 || mode==21) {
+                    T_ASSERT(!loaded);T_NULL(S_CargoTransportForUnit(unit));
+                    T_EQ(unit->current_order_id,G_OrderId("board"));
+                    T_ASSERT(!unit->paused);T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+                } else {
+                    T_ASSERT(loaded);T_EQ(S_CargoTransportForUnit(unit),transport);
+                    T_ASSERT(unit->paused);T_ASSERT(unit->s.renderfx&RF_HIDDEN);
+                    if(mode!=19 && mode!=24)T_ASSERT(transport->s.origin2.x>900);
+                }
+                T_ASSERT(Vector2_distance(&removed_at,&transport->s.origin2)>32);
+                if(mode==20 || mode==21)T_ASSERT(saved);
+                remove(file);goto cleanup;
+            }
+            T_ASSERT(loaded);
+            if(mode==3) {
+                T_ASSERT(stopped);T_ASSERT(!dropped);
+                T_EQ(S_CargoTransportForUnit(unit),transport);
+                T_ASSERT(unit->paused);T_ASSERT(unit->s.renderfx&RF_HIDDEN);
+            } else T_ASSERT(dropped);
+            if(mode==9 || mode==10) {T_ASSERT(return_loaded);T_ASSERT(returned);}
+            if(mode==11)T_ASSERT(stopped);
+            if(mode==22 || mode==25)T_ASSERT(removed);
+            if(mode==25)T_ASSERT(saved);
+            if(mode==1 || mode==2 || mode==10)T_ASSERT(saved);
+            remove(file);
+        }
+    }
+cleanup:
+    G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','l','o','a'),load_available);
+    G_SetPlayerAbilityAvailable(game.clients,MAKEFOURCC('A','d','r','o'),drop_available);
+    G_BotStop(0);G_FowShutdown();reset_entities();setup_test_world();
+    game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+TEST(wc3_movement, order346_unavailable_load_rejects_next_ferry_loading) {order346_ferry_scenario(26);}
+TEST(wc3_movement, order346_unavailable_load_keeps_active_loading_effect) {order346_ferry_scenario(22);}
+TEST(wc3_movement, order346_unavailable_drop_finishes_without_unloading) {order346_ferry_scenario(23);}
+TEST(wc3_movement, order346_unavailable_drop_during_boarding_keeps_passenger_loaded) {order346_ferry_scenario(24);}
+TEST(wc3_movement, order346_saved_unavailable_load_keeps_active_loading_effect) {order346_ferry_scenario(25);}
+TEST(wc3_movement, order346_removed_load_finishes_approach_without_loading) {order346_ferry_scenario(17);}
+TEST(wc3_movement, order346_removed_drop_finishes_flight_without_unloading) {order346_ferry_scenario(18);}
+TEST(wc3_movement, order346_removed_drop_during_boarding_keeps_passenger_loaded) {order346_ferry_scenario(19);}
+TEST(wc3_movement, order346_saved_removed_drop_finishes_without_unloading) {order346_ferry_scenario(20);}
+TEST(wc3_movement, order346_saved_removed_load_finishes_without_loading) {order346_ferry_scenario(21);}
+TEST(wc3_movement, order346_nonpoint_drop_precedes_later_difference) {order346_ferry_scenario(16);}
+TEST(wc3_movement, order346_different_queued_drop_rejects_carrier) {order346_ferry_scenario(12);}
+TEST(wc3_movement, order346_same_queued_drop_accepts_carrier) {order346_ferry_scenario(13);}
+TEST(wc3_movement, order346_first_same_drop_precedes_later_difference) {order346_ferry_scenario(14);}
+TEST(wc3_movement, order346_first_different_drop_precedes_later_match) {order346_ferry_scenario(15);}
+TEST(wc3_movement, order346_stop_return_does_not_request_ferry) {order346_ferry_scenario(11);}
+TEST(wc3_movement, order346_saved_guard_return_uses_second_ferry) {order346_ferry_scenario(10);}
+TEST(wc3_movement, order346_guard_return_uses_second_ferry) {order346_ferry_scenario(9);}
+TEST(wc3_movement, order346_failed_move_uses_flying_transport) {order346_ferry_scenario(0);}
+TEST(wc3_movement, order346_save_during_boarding_continues_ferry) {order346_ferry_scenario(1);}
+TEST(wc3_movement, order346_save_during_flight_continues_drop) {order346_ferry_scenario(2);}
+TEST(wc3_movement, order346_stop_loaded_carrier_cancels_drop) {order346_ferry_scenario(3);}
+TEST(wc3_movement, order346_damaged_carrier_is_rejected) {order346_ferry_scenario(4);}
+TEST(wc3_movement, order346_foreign_carrier_is_rejected) {order346_ferry_scenario(5);}
+TEST(wc3_movement, order346_human_failure_does_not_request_ferry) {order346_ferry_scenario(6);}
+TEST(wc3_movement, order346_near_destination_does_not_request_ferry) {order346_ferry_scenario(7);}
+TEST(wc3_movement, order346_summoned_source_does_not_request_ferry) {order346_ferry_scenario(8);}
+
 TEST(wc3_movement, order344_ai_blocked_move_dispatches_return_to_assigned_guard) {
     FOR_LOOP(saved,2) {
     G_BotStop(0);reset_entities();setup_test_world();
@@ -22794,6 +23447,162 @@ TEST(wc3_movement, order345_blocked_attack_retires_or_returns_to_guard) {
     }
 }
 
+/* MapBC uses a Float carrier and ground passenger: Board must ask the
+ * carrier to approach its water-side point, not strand both at a target chase. */
+static void order346_naval_board_scenario(bool blocked,bool saved,bool cancel,bool direct,bool ai_shore_failure) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    uint8_t cells[64*64];
+    FOR_LOOP(y,64)FOR_LOOP(x,64)cells[y*64+x]=x<32 ? CM_PATHING_UNWALKABLE : CM_PATHING_UNFLOATABLE;
+    CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    char movement[]="float";
+    unitModification_t mod={.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=movement};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','g','r','y'),.newUnitID=MAKEFOURCC('h','N','4','6'),
+        .numbeOfModifications=1,.modifications=&mod};
+    mapInfo_t const *oldinfo=level.mapinfo;mapInfo_t info=*oldinfo;
+    info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"Rng1\"\n"
+        "C;Y2;X1;K\"Acar\"\nC;X2;K\"Acar\"\nC;X3;K8\nC;X4;K200\n"
+        "C;Y3;X1;K\"Aloa\"\nC;X2;K\"Aloa\"\nC;X4;K64\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\ncall FogEnable(false)\ncall FogMaskEnable(false)\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    edict_t *passenger=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){ai_shore_failure ? 1900 : 1600,400},90);
+    edict_t *ship=unit_create(0,custom.newUnitID,&(vec2_t){400,400},90);
+    T_NOT_NULL(passenger);T_NOT_NULL(ship);
+    if(passenger && ship) {
+        /* Stock retail hfoo/hbot authored hulls; fixture units differ. */
+        passenger->collision=31;ship->collision=48;
+        G_PublishMoveSpatialObject(passenger);G_PublishMoveSpatialObject(ship);
+        G_ActorAddSkill(ship,MAKEFOURCC('A','c','a','r'));G_ActorAddSkill(ship,MAKEFOURCC('A','l','o','a'));
+        T_EQ(S_UnitMoveCoarseMask(ship),CM_PATHING_UNFLOATABLE);
+        T_ASSERT(direct ? G_IssueUnitTargetOrder(ship,"load",passenger,false,0) :
+            G_IssueUnitTargetOrder(passenger,"board",ship,false,0));
+        if(ai_shore_failure)passenger->aiflags|=AI_TOWN_OWNED;
+        FOR_LOOP(tick,4){level.time+=50;globals.RunFrame();}
+        T_EQ(ship->current_order_id,G_OrderId("load"));
+        T_NOT_NULL(ship->currentmove);
+        if(ship->currentmove)T_EQ(ship->currentmove->proc,CAbilityCargoLoad);
+        T_NOT_NULL(move_unit_group(ship));
+        T_NULL(S_CargoTransportForUnit(passenger));
+        T_ASSERT(passenger->cargo && passenger->cargo->shore_valid);
+        if(passenger->cargo && !ai_shore_failure) {
+            T_EQ(wc3_float_bits(passenger->cargo->shore_ground.x),1149947084u);
+            T_EQ(wc3_float_bits(passenger->cargo->shore_ground.y),1138229248u);
+            T_EQ(wc3_float_bits(passenger->cargo->shore_water.x),1148977152u);
+            T_EQ(wc3_float_bits(passenger->cargo->shore_water.y),1138229248u);
+        }
+        cstring_t file=Test_TempPath("order346-naval.bin");
+        if(saved) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+        if(ai_shore_failure) {
+            /* The native603110 Board exclusion also owns d016c shore tasks.
+             * Inject terminal failure at the real physical completion boundary. */
+            T_ASSERT(!passenger->cargo->shore_arrived);
+            moveGroup_t *group=move_unit_group(passenger);T_NOT_NULL(group);
+            if(group) {
+                group->ticking=true;
+                moveGroupMember_t *member=group->members;member->flags|=0x20000;member->arrived=true;
+                moveGroupMember_t *finished[]={member};move_group_complete_members(group,finished,1);
+                group->ticking=false;
+            }
+            T_ASSERT(passenger->cargo->board_failed);
+            T_ASSERT(!passenger->cargo->shore_arrived);T_NULL(move_unit_group(passenger));
+            if(saved) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+            FOR_LOOP(tick,100){level.time+=50;globals.RunFrame();}
+            T_EQ(passenger->current_order_id,G_OrderId("board"));
+            T_ASSERT(passenger->cargo->board_failed);T_ASSERT(!passenger->cargo->shore_arrived);
+            T_NULL(move_unit_group(passenger));T_NULL(S_CargoTransportForUnit(passenger));
+            remove(file);goto naval_done;
+        }
+        if(blocked)FOR_LOOP(y,64)for(unsigned x=22;x<=27;x++) {
+            terrainPathingEdit_t edit={.point={x*32.f+16,y*32.f+16},.mask=CM_PATHING_UNFLOATABLE,.blocked=true};
+            T_ASSERT(G_SetTerrainPathingFlags(&edit));
+        }
+        bool recovered=false;
+        FOR_LOOP(tick,500) {
+            level.time+=50;globals.RunFrame();
+            if(blocked && ship->cargo->load_point_arrived && !recovered) {
+                recovered=true;
+                T_EQ(ship->current_order_id,G_OrderId("load"));
+                T_NULL(move_unit_group(ship));T_NULL(S_CargoTransportForUnit(passenger));
+                if(saved) {
+                    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+                    T_ASSERT(ship->cargo->load_point_arrived);T_NULL(move_unit_group(ship));
+                }
+                if(cancel)T_ASSERT(unit_issueimmediateorder(ship,"stop"));
+            }
+            if(blocked)T_NULL(S_CargoTransportForUnit(passenger));
+        }
+        if(blocked) {
+            T_ASSERT(recovered);T_EQ(passenger->current_order_id,0);T_EQ(ship->current_order_id,0);
+        } else T_EQ(S_CargoTransportForUnit(passenger),ship);
+        remove(file);
+    }
+naval_done:
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;setup_test_world();
+}
+TEST(wc3_movement, order346_naval_board_loads_at_shore) {order346_naval_board_scenario(false,false,false,false,false);}
+TEST(wc3_movement, order346_naval_saved_board_loads_at_shore) {order346_naval_board_scenario(false,true,false,false,false);}
+TEST(wc3_movement, order346_naval_blocked_point_load_runs_arrival) {order346_naval_board_scenario(true,false,false,false,false);}
+TEST(wc3_movement, order346_naval_saved_blocked_point_load_runs_arrival) {order346_naval_board_scenario(true,true,false,false,false);}
+TEST(wc3_movement, order346_naval_stop_after_recovery_retires_board) {order346_naval_board_scenario(true,false,true,false,false);}
+TEST(wc3_movement, order346_naval_saved_stop_after_recovery_retires_board) {order346_naval_board_scenario(true,true,true,false,false);}
+
+TEST(wc3_movement, order346_naval_direct_load_starts_board) {order346_naval_board_scenario(false,false,false,true,false);}
+TEST(wc3_movement, order346_naval_saved_direct_load_starts_board) {order346_naval_board_scenario(false,true,false,true,false);}
+
+TEST(wc3_movement, order346_naval_ai_failed_shore_stays_dormant) {order346_naval_board_scenario(false,false,false,false,true);}
+TEST(wc3_movement, order346_naval_saved_ai_failed_shore_stays_dormant) {order346_naval_board_scenario(false,true,false,false,true);}
+
+/* MapAY: automatic combat has no typed public order. A naturally blocked
+ * chase retires before the AI guard continuation, including after restore. */
+TEST(wc3_movement, order346_headless_blocked_attack_returns_to_guard_and_save) {
+    FOR_LOOP(saved,2) {
+        G_BotStop(0);
+        edict_t *unit,*target;target166_setup(&unit,&target);target222_arm(unit,target,100);
+        int controller=game.clients[0].jass.controller;
+        typeof(game.clients[0].mapplayer) mapplayer=game.clients[0].mapplayer;
+        game.clients[0].jass.controller=1;
+        ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+        game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+        T_ASSERT(unit->aiflags&AI_TOWN_OWNED);
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,64)for(unsigned x=22;x<=27;x++)cells[y*64+x]=CM_PATHING_UNWALKABLE;
+        CM_SetupTestPathmap(64,64,cells);
+        S_SetUnitPosition(unit,&(vec2_t){500,400});
+        S_SetUnitPosition(target,&(vec2_t){1600,1040});G_FowUpdate();
+        unit->runtime.acquisition_range=0;
+        order_attack(unit,target);
+        T_EQ(unit->current_order_id,0);T_EQ(unit->attack_target,target);
+        T_NOT_NULL(unit->currentmove);
+        if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
+        T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+        if(saved) {
+            cstring_t file=Test_TempPath("order346-headless.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(unit->current_order_id,0);T_EQ(unit->attack_target,target);
+            T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+        }
+        FOR_LOOP(tick,1000) {
+            target166_tick();
+            if(unit->current_order_id)break;
+        }
+        T_EQ(unit->current_order_id,G_OrderId("attack"));
+        T_NULL(unit->attack_target);T_NOT_NULL(unit->goalentity);
+        if(unit->goalentity) {
+            T_NE(unit->goalentity,target);
+            T_FEQ(unit->goalentity->s.origin2.x,256,0);
+            T_FEQ(unit->goalentity->s.origin2.y,256,0);
+        }
+        T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+        G_BotStop(0);G_FowShutdown();reset_entities();setup_test_world();
+        game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
+    }
+}
+
 TEST(wc3_movement, order345_failed_attack_selects_alternative_without_acquisition_range) {
     FOR_LOOP(invulnerable,2) {
     G_BotStop(0);
@@ -23320,7 +24129,7 @@ TEST(wc3_movement, target222_short_fog_reacquires_same_chase_after_cold_restore)
             FOR_LOOP(i,3)target166_tick();
             T_EQ(group->unseen_counter,3);
             T_EQ(group->route.group_goal.y,cached.y);
-            uint32_t fog_id;T_ASSERT(G_FogModifierId(fog,&fog_id));
+            uint32_t fog_id=0;T_ASSERT(G_FogModifierId(fog,&fog_id));
             cstring_t file=Test_TempPath("wc3-target222-hidden.bin");
             T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
             group=move_unit_group(unit);T_NOT_NULL(group);
@@ -24198,7 +25007,7 @@ TEST(wc3_movement, target256_reacquisition_keeps_countdown_across_target_owners_
         vec2_t cached=group->route.group_goal;uint64_t sequence=group->sequence;
         fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)continue;
         *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={1024,1024},.radius=2000};
-        uint32_t fog_id;T_ASSERT(G_FogModifierId(fog,&fog_id));
+        uint32_t fog_id=0;T_ASSERT(G_FogModifierId(fog,&fog_id));
         G_FogModifierStart(fog);T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
         S_SetUnitAxisPosition(target,1,1280);
         FOR_LOOP(i,cases[n].hidden) {
@@ -27931,4 +28740,116 @@ cleanup_route336:
     G_SetMapAbilityOverrides(NULL);G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
+
+TEST(wc3_movement, order346_internal_unavailable_load_publishes) {order346_ferry_scenario(27);}
+TEST(wc3_movement, order346_internal_load_callback_enables_execution) {order346_ferry_scenario(28);}
+TEST(wc3_movement, order346_internal_load_callback_move_survives) {order346_ferry_scenario(29);}
+
+TEST(wc3_movement, order346_internal_load_callback_stop_retains_approach_only) {order346_ferry_scenario(30);}
+TEST(wc3_movement, order346_ui_drop_removal_retains_approach) {order346_ferry_scenario(31);}
+TEST(wc3_movement, order346_saved_ui_drop_removal_retains_approach) {order346_ferry_scenario(32);}
+
+/* Retail Acar subtracts occupied cargo space, not passenger count. */
+TEST(wc3_movement, order346_load_accounts_for_authored_cargo_space) {
+    reset_entities();setup_test_world();
+    slkTestData_t *rows=parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    edict_t *transport=cargo_unload_transport();
+    G_ActorAddSkill(transport,MAKEFOURCC('A','l','o','a'));
+    UnitData_t large=*G_UnitData(MAKEFOURCC('h','f','o','o'));large.cargoSize=3;
+    UnitData_t forbidden=large;forbidden.cargoSize=0;
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,256);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,256);
+    first->data.UnitData=second->data.UnitData=&large;
+    T_ASSERT(S_CargoTryLoad(transport,first)); /* Three peasants + size3 = six of eight. */
+    T_ASSERT(!S_CargoTryLoad(transport,second));
+    T_NULL(S_CargoTransportForUnit(second));
+    T_ASSERT(!S_CargoOrderLoad(transport,second));
+    T_ASSERT(S_CargoUnloadAt(transport,3));
+    T_ASSERT(S_CargoTryLoad(transport,second));
+    cargo_drop_all(transport);
+    first->data.UnitData=&forbidden;
+    T_ASSERT(!S_CargoTryLoad(transport,first));
+    T_ASSERT(!S_CargoOrderLoad(transport,first));
+    reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+TEST(wc3_movement, order346_reserved_boarding_space_blocks_ferry_until_stop) {order346_ferry_scenario(34);}
+TEST(wc3_movement, order346_saved_boarding_space_blocks_ferry_until_stop) {order346_ferry_scenario(35);}
+TEST(wc3_movement, order346_direct_load_reserves_until_carrier_stop) {order346_ferry_scenario(36);}
+TEST(wc3_movement, order346_saved_direct_load_reserves_until_carrier_stop) {order346_ferry_scenario(37);}
+TEST(wc3_movement, order346_carrier_stop_retires_pending_board) {order346_ferry_scenario(38);}
+TEST(wc3_movement, order346_saved_carrier_stop_retires_pending_board) {order346_ferry_scenario(39);}
+TEST(wc3_movement, order346_public_load_replacement_retires_pending_board) {order346_ferry_scenario(40);}
+TEST(wc3_movement, order346_saved_public_load_replacement_retires_pending_board) {order346_ferry_scenario(41);}
+TEST(wc3_movement, order346_simultaneous_board_reservations_survive_until_stop) {order346_ferry_scenario(42);}
+TEST(wc3_movement, order346_saved_simultaneous_board_reservations_survive_until_stop) {order346_ferry_scenario(43);}
+TEST(wc3_movement, order346_simultaneous_board_passengers_both_load) {order346_ferry_scenario(44);}
+TEST(wc3_movement, order346_saved_simultaneous_board_passengers_both_load) {order346_ferry_scenario(45);}
+TEST(wc3_movement, order346_nearer_boarder_preserves_active_load) {order346_ferry_scenario(46);}
+TEST(wc3_movement, order346_saved_nearer_boarder_preserves_active_load) {order346_ferry_scenario(47);}
+TEST(wc3_movement, order346_deferred_load_replays_loaded_target) {order346_ferry_scenario(48);}
+TEST(wc3_movement, order346_saved_deferred_load_replays_loaded_target) {order346_ferry_scenario(49);}
+TEST(wc3_movement, order346_stop_discards_deferred_load) {order346_ferry_scenario(50);}
+TEST(wc3_movement, order346_saved_stop_discards_deferred_load) {order346_ferry_scenario(51);}
+TEST(wc3_movement, order346_deferred_load_callback_move_survives) {order346_ferry_scenario(52);}
+TEST(wc3_movement, order346_saved_deferred_load_callback_move_survives) {order346_ferry_scenario(53);}
+TEST(wc3_movement, order346_deferred_load_removed_target_uses_retained_point) {order346_ferry_scenario(54);}
+TEST(wc3_movement, order346_saved_deferred_load_removed_target_uses_retained_point) {order346_ferry_scenario(55);}
+TEST(wc3_movement, order346_deferred_load_precedes_queued_move) {order346_ferry_scenario(56);}
+TEST(wc3_movement, order346_saved_deferred_load_precedes_queued_move) {order346_ferry_scenario(57);}
+TEST(wc3_movement, order346_stop_active_boarder_preserves_other) {order346_ferry_scenario(58);}
+TEST(wc3_movement, order346_saved_stop_active_boarder_preserves_other) {order346_ferry_scenario(59);}
+TEST(wc3_movement, order346_stop_pending_boarder_preserves_active) {order346_ferry_scenario(60);}
+TEST(wc3_movement, order346_saved_stop_pending_boarder_preserves_active) {order346_ferry_scenario(61);}
+TEST(wc3_movement, order346_capacity_displacement_preserves_active_load) {order346_ferry_scenario(62);}
+TEST(wc3_movement, order346_saved_capacity_displacement_preserves_active_load) {order346_ferry_scenario(63);}
+TEST(wc3_movement, order346_far_board_request_retires_without_reservation) {order346_ferry_scenario(64);}
+TEST(wc3_movement, order346_saved_far_board_request_retires_without_reservation) {order346_ferry_scenario(65);}
+TEST(wc3_movement, order346_equal_distance_keeps_first_reservation_slot) {order346_ferry_scenario(66);}
+TEST(wc3_movement, order346_saved_equal_distance_keeps_first_reservation_slot) {order346_ferry_scenario(67);}
+TEST(wc3_movement, order346_human_removed_carrier_retires_board) {order346_ferry_scenario(68);}
+TEST(wc3_movement, order346_saved_human_removed_carrier_retires_board) {order346_ferry_scenario(69);}
+TEST(wc3_movement, order346_computer_removed_carrier_retires_board) {order346_ferry_scenario(70);}
+TEST(wc3_movement, order346_saved_computer_removed_carrier_retires_board) {order346_ferry_scenario(71);}
+TEST(wc3_movement, order346_removed_ai_ferry_returns_to_guard) {order346_ferry_scenario(72);}
+TEST(wc3_movement, order346_saved_removed_ai_ferry_returns_to_guard) {order346_ferry_scenario(73);}
+TEST(wc3_movement, order346_removed_ai_ferry_selects_replacement) {order346_ferry_scenario(74);}
+TEST(wc3_movement, order346_saved_removed_ai_ferry_selects_replacement) {order346_ferry_scenario(75);}
+TEST(wc3_movement, order346_near_removed_ferry_arrives_without_guard) {order346_ferry_scenario(76);}
+TEST(wc3_movement, order346_saved_near_removed_ferry_arrives_without_guard) {order346_ferry_scenario(77);}
+TEST(wc3_movement, order346_near_removed_ferry_ignores_alternate) {order346_ferry_scenario(78);}
+TEST(wc3_movement, order346_saved_near_removed_ferry_ignores_alternate) {order346_ferry_scenario(79);}
+TEST(wc3_movement, order346_human_near_blocked_drop_keeps_passenger) {order346_ferry_scenario(80);}
+TEST(wc3_movement, order346_saved_human_near_blocked_drop_keeps_passenger) {order346_ferry_scenario(81);}
+TEST(wc3_movement, order346_human_far_blocked_drop_keeps_passenger) {order346_ferry_scenario(82);}
+TEST(wc3_movement, order346_saved_human_far_blocked_drop_keeps_passenger) {order346_ferry_scenario(83);}
+TEST(wc3_movement, order346_computer_near_blocked_drop_keeps_passenger) {order346_ferry_scenario(84);}
+TEST(wc3_movement, order346_saved_computer_near_blocked_drop_keeps_passenger) {order346_ferry_scenario(85);}
+TEST(wc3_movement, order346_computer_far_blocked_drop_emits_self_board) {order346_ferry_scenario(86);}
+TEST(wc3_movement, order346_saved_computer_far_blocked_drop_emits_self_board) {order346_ferry_scenario(87);}
+TEST(wc3_movement, order346_human_near_load_across_flight_barrier) {order346_ferry_scenario(88);}
+TEST(wc3_movement, order346_saved_human_near_load_across_flight_barrier) {order346_ferry_scenario(89);}
+TEST(wc3_movement, order346_human_far_blocked_load_retires) {order346_ferry_scenario(90);}
+TEST(wc3_movement, order346_saved_human_far_blocked_load_retires) {order346_ferry_scenario(91);}
+TEST(wc3_movement, order346_computer_near_load_across_flight_barrier) {order346_ferry_scenario(92);}
+TEST(wc3_movement, order346_saved_computer_near_load_across_flight_barrier) {order346_ferry_scenario(93);}
+TEST(wc3_movement, order346_computer_far_blocked_load_retains_head) {order346_ferry_scenario(94);}
+TEST(wc3_movement, order346_saved_computer_far_blocked_load_retains_head) {order346_ferry_scenario(95);}
+TEST(wc3_movement, order346_human_static_board_retries_five_times) {order346_ferry_scenario(96);}
+TEST(wc3_movement, order346_saved_human_static_board_retries_five_times) {order346_ferry_scenario(97);}
+TEST(wc3_movement, order346_computer_static_board_failure_stays_dormant) {order346_ferry_scenario(98);}
+TEST(wc3_movement, order346_saved_computer_static_board_failure_stays_dormant) {order346_ferry_scenario(99);}
+TEST(wc3_movement, order346_human_static_board_loads_without_aloa) {order346_ferry_scenario(100);}
+TEST(wc3_movement, order346_computer_static_board_loads_without_aloa) {order346_ferry_scenario(101);}
+TEST(wc3_movement, order346_saved_human_static_board_loads_without_aloa) {order346_ferry_scenario(102);}
+TEST(wc3_movement, order346_saved_computer_static_board_loads_without_aloa) {order346_ferry_scenario(103);}
+TEST(wc3_movement, order346_removed_load_human_static_retries) {order346_ferry_scenario(104);}
+TEST(wc3_movement, order346_removed_load_saved_human_static_retries) {order346_ferry_scenario(105);}
+TEST(wc3_movement, order346_removed_load_computer_static_dormant) {order346_ferry_scenario(106);}
+TEST(wc3_movement, order346_removed_load_saved_computer_static_dormant) {order346_ferry_scenario(107);}
+TEST(wc3_movement, order346_removed_load_human_static_loads) {order346_ferry_scenario(108);}
+TEST(wc3_movement, order346_removed_load_computer_static_loads) {order346_ferry_scenario(109);}
+TEST(wc3_movement, order346_removed_load_saved_human_static_loads) {order346_ferry_scenario(110);}
+TEST(wc3_movement, order346_removed_load_saved_computer_static_loads) {order346_ferry_scenario(111);}
 #endif

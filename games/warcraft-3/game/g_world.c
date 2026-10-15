@@ -900,6 +900,62 @@ uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *input,uint32_t *work) {
     return result;
 }
 
+/*59ca0 Float/ground shore query. The amphibious route only selects a
+ * crossing; independent ground/water lanes retain the two approach points. */
+static bool move_shore_clear(unsigned lane,wc3FineVector_t point) {
+    wc3AccMap_t const *map=move_acc.maps;
+    int x=(int)floorf(point.x),y=(int)floorf(point.y);
+    return x>=0 && y>=0 && (unsigned)x<map->width && (unsigned)y<map->height &&
+        move_acc_classes[lane][0][(unsigned)y*map->width+(unsigned)x]==0;
+}
+bool G_FindCargoShorePair(edict_t const *passenger,edict_t const *ship,vec2_t *ground,vec2_t *water) {
+    if(!passenger || !ship || !pathmap.width || !pathmap.height)return false;
+    move_acc_prepare();move_spatial_sync();
+    vec2_t a=move_grid_from_world(passenger->s.origin2.x,passenger->s.origin2.y);
+    vec2_t b=move_grid_from_world(ship->s.origin2.x,ship->s.origin2.y);
+    wc3AccRequest_t req={{wc3_mul(a.x,.5f),wc3_mul(a.y,.5f)},
+        {wc3_mul(b.x,.5f),wc3_mul(b.y,.5f)},1,2048};
+    /* The native shore query does not enable waypoint portals. */
+    bool old_warp=move_acc.warp;move_acc.warp=false;
+    bool amphibious=S_UnitMoveCoarseMask(passenger)==CM_PATHING_UNAMPHIBIOUS;
+    FOR_LOOP(i,4)move_acc.maps[i].classes=move_acc_classes[3][i];
+    uint32_t result=wc3_acc_route(&move_acc,&req,move_acc_points),count=result&0x7fffffffu;
+    if(!count) {move_acc.warp=old_warp;return false;}
+    wc3FineVector_t land=move_acc_points[0],sea=land;
+    if(result&0x80000000u) {
+        wc3AccRequest_t partial=req;partial.goal=land;
+        FOR_LOOP(i,4)move_acc.maps[i].classes=move_acc_classes[amphibious ? 3 : 0][i];
+        wc3_acc_query_distance(&move_acc,&partial,&land);
+        partial.start=req.goal;partial.goal=land;
+        FOR_LOOP(i,4)move_acc.maps[i].classes=move_acc_classes[2][i];
+        wc3_acc_query_distance(&move_acc,&partial,&sea);
+    } else if(count>1 && (!amphibious || !move_shore_clear(2,req.start)) &&
+              move_shore_clear(0,move_acc_points[count-1]) && move_shore_clear(2,move_acc_points[0])) {
+        unsigned land_index=count-1,sea_index=0;
+        for(int i=(int)count-2;i>=0;i--) {
+            if(move_shore_clear(2,move_acc_points[i])) {sea_index=(unsigned)i;break;}
+            if(move_shore_clear(0,move_acc_points[i]))land_index=(unsigned)i;
+        }
+        sea=move_acc_points[sea_index];land=move_acc_points[land_index];
+        wc3FineVector_t delta={wc3_sub(land.x,sea.x),wc3_sub(land.y,sea.y)};
+        float length=wc3_sqrt(wc3_add(wc3_mul(delta.x,delta.x),wc3_mul(delta.y,delta.y)));
+        uint32_t steps=(uint32_t)wc3_int_bits(wc3_float_bits(wc3_div(length,1.5f)));
+        if(!steps)steps=1;
+        float divisor=wc3_float(wc3_from_int(steps));
+        delta.x=wc3_div(delta.x,divisor);delta.y=wc3_div(delta.y,divisor);
+        wc3FineVector_t sample=sea;
+        while(--steps) {
+            sample.x=wc3_add(sample.x,delta.x);sample.y=wc3_add(sample.y,delta.y);
+            if(move_shore_clear(2,sample))sea=sample;
+            else if(move_shore_clear(0,sample)) {land=sample;break;}
+        }
+    }
+    *ground=move_world_from_grid(wc3_mul(land.x,2),wc3_mul(land.y,2));
+    *water=move_world_from_grid(wc3_mul(sea.x,2),wc3_mul(sea.y,2));
+    move_acc.warp=old_warp;
+    return true;
+}
+
 bool G_CaptainMoveReachable(edict_t const *actor,edict_t const *source,edict_t const *target,
                           vec2_t const *from,vec2_t const *to) {
     moveOwnerDistance_t input={.actor=actor,.source=source ? source : actor,

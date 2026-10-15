@@ -1820,6 +1820,7 @@ bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {
 
 /* Attack-move: walk toward the goal, but each tick prefer engaging the
  * nearest enemy within acquisition range over continuing to walk. */
+static umove_t attackmove_move_walk;
 static void ai_attackmove_walk(edict_t *ent) {
     if (G_ShouldAcquireThisFrame(ent)) {
         edict_t *enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
@@ -1830,32 +1831,32 @@ static void ai_attackmove_walk(edict_t *ent) {
         }
     }
 
-    float distance = M_DistanceToGoal(ent);
-    float move_distance = unit_movedistance(ent);
-
-    if (!S_UnitCanTranslate(ent)) return;
-    if (move_should_arrive(ent, move_distance)) {
-        /* A shared attack-move waypoint may be across blocked terrain. Don't
-         * snap onto it based only on Euclidean proximity: each mover must be
-         * able to reach the goal in its own collision-sized flow field. */
-        uint32_t const heatmap = M_RefreshHeatmapForMover(ent, ent->goalentity, ent->collision);
-        if (heatmap && CM_FlowCanReach(heatmap, ent->s.origin.x, ent->s.origin.y) &&
-            M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
-            ent->s.origin2 = ent->goalentity->s.origin2;
-            gi.LinkEntity(ent);
-        }
-        S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
-        ent->stand(ent);
-    } else if (move_is_blocked(ent, distance, move_distance)) {
-        S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
-        ent->stand(ent);
-    } else {
-        unit_changeangle(ent);
-        unit_moveindirection(ent);
-    }
+    if (!ent->goalentity || !S_UnitCanTranslate(ent)) return;
+    /* Point Attack shares Move's physical task and blocked-endpoint retries.
+     * The old steering path replaced an unreachable guard goal with a nearby
+     * reachable point, so failure could never request the return ferry. */
+    if (!S_UnitTargetChaseActive(ent,CAbilityAttack))
+        if (!S_BeginUnitPointApproach(ent,&ent->goalentity->s.origin2,0,CAbilityAttack,S_AttackMoveComplete))
+            S_AttackMoveComplete(ent,ent,false);
 }
 
-static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, CAbilityAttack };
+/* Retire the point task before ferry/AI admission, preserving its destination
+ * independently of the waypoint released by stand and order callbacks. */
+void S_AttackMoveComplete(edict_t *receiver,edict_t *unit,bool arrived) {
+    if(receiver!=unit || unit->currentmove!=&attackmove_move_walk)return;
+    /* Cancellation calls back while the old physical binding is retained.
+     * Only the terminal scan clears it before reporting cannot-path. */
+    if(!arrived && unit->movement.group_id)return;
+    vec2_t point=unit->goalentity ? unit->goalentity->s.origin2 : unit->s.origin2;
+    uint32_t spawn=unit->spawn_time;
+    S_SetMoveGoal(unit,&unit->movement.attackmove_waypoint,NULL);
+    unit->stand(unit);
+    if(!arrived && unit->inuse && unit->spawn_time==spawn && !G_IsDeferredFree(unit) &&
+       (unit->aiflags&AI_TOWN_OWNED) && !S_CargoTryFailedMove(unit,&point))G_BotDispatchAIStop(unit);
+}
+
+static umove_t attackmove_move_walk = {.animation="walk",.think=ai_attackmove_walk,.proc=CAbilityAttack,
+    .sample_pose=S_PublishMovement,.leave=attack_chase_leave};
 
 /*49d680's ordinary player priority is independent of encounter order. Query
  * just the incoming and retained targets; do not rescan the neighborhood. */

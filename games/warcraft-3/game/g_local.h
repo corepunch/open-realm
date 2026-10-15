@@ -187,6 +187,7 @@ typedef struct {
 #define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
 #define MAX_SHOP_STOCK 24 // entries; exceeds Blizzard.j's default 11 item slots; bounds persisted shop merchandise
 #define MAX_CARGO 8
+#define MAX_BOARDING_RESERVATIONS 10
 #define MAX_HERO_ABILITIES 4
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
 #define MAX_UNIT_COOLDOWNS 16 // independent per-unit ability cooldown records; does not consume buff/status capacity
@@ -2118,6 +2119,16 @@ typedef struct {
     edict_t *units[MAX_CARGO];
     bool separation_suppression[MAX_CARGO]; /* Entangle Cargo task ownership. */
     uint32_t count;
+    vec2_t ferry_destination; /* Adro retained destination, including the loading phase. */
+    bool ferry_pending, ferry_arrived, board_requested;
+    bool load_failed; /* AI Load retains its logical head after terminal path failure. */
+    bool shore_valid, shore_arrived, load_point, load_point_arrived;
+    vec2_t shore_ground, shore_water, load_destination;
+    bool board_static, board_failed;
+    uint8_t board_retries; /* d017f: initial approach plus five half-second retries. */
+    bool board_withdrawal; /* Synchronous Cargo800 cleanup guard; never saved. */
+    edict_t *boarding[MAX_BOARDING_RESERVATIONS];
+    uint32_t boarding_spawn[MAX_BOARDING_RESERVATIONS];
 } cargo_t;
 
 typedef struct {
@@ -4516,6 +4527,7 @@ void G_PublishIssuedTargetOrder(edict_t *, cstring_t, edict_t *, uint32_t);
 bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, uint32_t, float, uint32_t);
 bool G_RetainSuspendedUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, bool, uint32_t, float);
 bool G_AppendUnitOrder(edict_t *, unitOrder_t const *);
+bool G_PrependUnitOrder(edict_t *, unitOrder_t const *);
 bool G_UnitHasActiveOrder(edict_t const *);
 uint32_t G_CountUnitOrders(edict_t const *, uint32_t);
 void G_PublishIssuedPointOrder(edict_t *, uint32_t, vec2_t const *, uint32_t, cstring_t);
@@ -4654,6 +4666,7 @@ typedef struct {
     uint32_t budget;
 } moveOwnerDistance_t;
 uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *,uint32_t *);
+bool G_FindCargoShorePair(edict_t const *,edict_t const *,vec2_t *,vec2_t *);
 bool G_CaptainMoveReachable(edict_t const *, edict_t const *, edict_t const *, vec2_t const *, vec2_t const *);
 void S_SetCaptainHomeActor(botCaptain_t *, uint32_t, uint32_t);
 void S_TeleportCaptainActor(botCaptain_t *, vec2_t const *);
@@ -4761,6 +4774,13 @@ void S_CargoInitUnit(edict_t *);
 bool S_CargoTryLoad(edict_t *, edict_t *);
 bool S_CorpseCargoTryLoad(edict_t *, edict_t *);
 bool S_CargoOrderBoard(edict_t *, edict_t *);
+bool S_CargoOrderLoad(edict_t *, edict_t *);
+bool S_CargoOrderDrop(edict_t *, vec2_t const *);
+bool S_CargoTryFailedMove(edict_t *, vec2_t const *);
+void S_AttackMoveComplete(edict_t *, edict_t *, bool);
+void S_CargoBoardComplete(edict_t *, edict_t *, bool);
+void S_CargoLoadComplete(edict_t *, edict_t *, bool);
+void S_CargoDropComplete(edict_t *, edict_t *, bool);
 bool S_CargoOrderNearestEntangledMine(edict_t *);
 bool S_CargoAttacksEnabled(edict_t const *);
 edict_t *S_CargoTransportForUnit(edict_t const *);
