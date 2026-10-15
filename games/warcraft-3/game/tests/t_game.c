@@ -4522,6 +4522,30 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
 }
 
 /* A load restores the Q2-style server tick; timers are clock-free countdowns and need no rebase. */
+TEST(wc3_timer, registry_enforces_capacity_without_reusing_destroyed_slots) {
+    gtimer_t *first, *timer = NULL;
+
+    setup_test_world();
+    first = G_AllocJassTimer();
+    T_NOT_NULL(first);
+    if (!first) return;
+    G_TimerStart(first, 1000, false, NULL);
+    FOR_LOOP(i, MAX_TIMERS - 1) {
+        timer = G_AllocJassTimer();
+        T_NOT_NULL(timer);
+        if (!timer) return;
+    }
+    T_EQ(level.num_timers, MAX_TIMERS);
+    T_ASSERT(timer != first);
+    T_ASSERT(level.num_timers == MAX_TIMERS);
+    T_NULL(G_AllocJassTimer());
+
+    G_TimerDestroy(first);
+    T_ASSERT(!first->running);
+    T_NULL(G_AllocJassTimer());
+    T_EQ(level.num_timers, MAX_TIMERS);
+}
+
 TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     cstring_t filename = Test_TempPath("wc3-save-clock.bin");
     gtimer_t *timer;
