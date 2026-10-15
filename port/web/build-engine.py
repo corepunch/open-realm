@@ -42,6 +42,8 @@ def main():
     parser.add_argument("--check", action="store_true", help="validate/generate sources without invoking Emscripten")
     parser.add_argument("--debug", action="store_true",
                         help="build an unoptimized, DWARF-symbolized browser engine for runtime failures")
+    parser.add_argument("--compat-workarounds", type=int, choices=(0, 1), default=1,
+                        help="enable compatibility workarounds (default: 1)")
     args = parser.parse_args()
     if args.debug and args.out == "build/web/engine":
         args.out = "build/web/engine-debug"
@@ -93,6 +95,7 @@ def main():
              "-I" + wc3 + "/game/api", "-I" + wc3 + "/game/skills",
              "-DWC3", "-DUSE_FOGOFWAR", '-DBZ_GAME="warcraft-3"',
              "-DBZ_GL_ES3", "-DBZ_MSAA_SAMPLES=0",
+             "-DBZ_COMPAT_WORKAROUNDS=" + str(args.compat_workarounds),
              "-sUSE_SDL=2", "-sUSE_ZLIB=1", "-pthread"]
     objects = []
     for name, files in module_sources.items():

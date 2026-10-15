@@ -1307,6 +1307,23 @@ static void entangle_error(edict_t *clent, cstring_t key, cstring_t fallback) {
     if (clent) G_ShowCommandErrorKey(clent, key, fallback);
 }
 
+static uint32_t entangle_overlay_type(AbilityData_t const *data, bool expansion) {
+    if (!data) return 0;
+    if (data->level[0].unitID) return data->level[0].unitID;
+#if BZ_COMPAT_WORKAROUNDS
+    return expansion ? 0 : MAKEFOURCC('e','g','o','l');
+#else
+    (void)expansion;
+    return 0;
+#endif
+}
+
+#ifdef BZ_TESTS
+uint32_t G_TestEntangleOverlayType(AbilityData_t const *data, bool expansion) {
+    return entangle_overlay_type(data, expansion);
+}
+#endif
+
 static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool instant, edict_t *clent) {
     edict_t *entangled;
     uint32_t alias, resulting_type;
@@ -1324,7 +1341,13 @@ static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool insta
     if (!(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) return false;
     {
         AbilityData_t const *data = G_AbilityData(alias);
-        if (data->id != alias || !data->level[0].unitID) {
+        if (data->id != alias) {
+            fprintf(stderr, "WC3 Entangle: AbilityData %08x missing UnitID\n", alias);
+            entangle_error(clent, "EntangleUnavailable", "Entangle is unavailable because its unit data is missing.");
+            return false;
+        }
+        resulting_type = entangle_overlay_type(data, atoi(gi.CvarString("fs_expansion", "0")) != 0);
+        if (!resulting_type) {
             fprintf(stderr, "WC3 Entangle: AbilityData %08x missing UnitID\n", alias);
             entangle_error(clent, "EntangleUnavailable", "Entangle is unavailable because its unit data is missing.");
             return false;
@@ -1338,8 +1361,6 @@ static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool insta
         entangle_error(clent, "Mustbeclosertomine", "Must be closer to the Gold Mine.");
         return false;
     }
-    resulting_type = G_AbilityLevel(alias, 1)->unitID;
-
     entangled = SP_SpawnAtLocation(resulting_type, caster->s.player, &target->s.origin2);
     if (!entangled) return false;
     bound = S_MineOverlayBind(entangled, target);

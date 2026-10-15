@@ -106,6 +106,17 @@ Haunted and Entangled mines instead use `edict.mineoverlay.parent` plus the pare
 ordinary mine while it exists, but never copies its `resources`; death or `RemoveUnit` restores the parent. Normal `isBuildOn`
 construction binds an Undead overlay to the exact mine found by authoritative placement. `Aent` creates the authored Night Elf
 resulting UnitID at the target mine and starts the autonomous Night Elf construction clock without attaching a Wisp.
+There is a stock RoC data omission here: `War3.mpq` has the `egol` unit in
+`Units\\UnitData.slk`, but its `Aent` row leaves `UnitID1` empty. With the default
+`COMPAT_WORKAROUNDS=1` build, an empty RoC `Aent.UnitID1` resolves to `egol` so
+RoC-only installations can Entangle mines without loading TFT data. An authored
+UnitID always takes precedence. TFT does not receive this fallback: if its
+`Aent.UnitID1` is missing, Entangle remains unavailable and reports the existing
+missing-unit-data error. Set `COMPAT_WORKAROUNDS=0` to disable this fallback;
+the empty RoC field then follows the same unavailable path. See
+[Build Profiles](../../build-and-renderer-platforms.md#build-profiles) for the
+flag contract.
+
 When a map script removes a neutral mine before creating a Haunted Mine, `RemoveUnit` defers freeing that edict until the current
 tick ends. Preplaced overlay binding skips deferred mines and creates a live parent at the same location, preserving the replacement's
 gold and allowing Haunted Mine death to restore a working ordinary mine.
@@ -146,6 +157,11 @@ auto-root path because Blizzard's melee script explicitly issues `entangleinstan
 and the associated scalar timing/index/slot state.
 
 Haunted Mine ring `EffectArt` follows the same deterministic slot positions/facing as Warsmash and is removed with the overlay; Acolyte wrong-target, wrong-owner, and full-ring failures use Warcraft `CommandStrings` error keys. Entangle uses `Targetgoldmine`, retains the casting Tree's persistent caster art, and hides/marks Aent permanent only for the live overlay lifetime. Wisp lumber remains separate from Entangled gold cargo and now uses persistent direct DataA income, one-Wisp-per-tree reservation, TargetArt at DataC height, and authored looped harvest audio.
+
+The RoC fallback regression checks edition-dependent overlay type resolution. The
+synthetic test archive does not include the `egol` unit metadata needed to exercise
+a full RoC overlay spawn; the existing live Entangle spawn regression covers the
+authored-unit path used by TFT.
 
 ## Moon Well replenish
 

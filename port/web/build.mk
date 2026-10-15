@@ -30,7 +30,7 @@ web-warcraft3-engine-check:
 # a standalone graphics probe; this target compiles the real source modules.
 .PHONY: web-warcraft3-engine
 web-warcraft3-engine:
-	python3 port/web/build-engine.py --emcc $(EMCC) --out $(WEB_BUILD_DIR)/engine
+	python3 port/web/build-engine.py --emcc $(EMCC) --compat-workarounds $(COMPAT_WORKAROUNDS) --out $(WEB_BUILD_DIR)/engine
 
 # Patch 10: non-compiling source-layout preflight. Useful before installing emsdk.
 .PHONY: web-warcraft3-preflight

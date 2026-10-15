@@ -25,7 +25,10 @@
 #include <math.h>
 #include "test.h"
 #include "../g_local.h"
+#include "../skills/s_skills.h"
 #include "games/warcraft-3/common/terrain.h"
+
+uint32_t G_TestEntangleOverlayType(AbilityData_t const *data, bool expansion);
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -5075,6 +5078,14 @@ static bool movement_issue_entangle_command(edict_t *clent, gameClient_t *client
     return client->menu.on_entity_selected(clent, parent);
 }
 
+static cstring_t movement_roc_expansion_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "0" : fallback;
+}
+
+static cstring_t movement_tft_expansion_cvar(cstring_t name, cstring_t fallback) {
+    return !strcmp(name, "fs_expansion") ? "1" : fallback;
+}
+
 static void movement_prepare_rooted_entangle_caster(edict_t *caster, uint32_t player) {
     uint32_t const entangle = MAKEFOURCC('A','e','n','t');
     uint32_t const root = MAKEFOURCC('A','r','o','1');
@@ -5091,15 +5102,17 @@ static void movement_prepare_rooted_entangle_caster(edict_t *caster, uint32_t pl
     caster->runtime.flags |= UNIT_BALANCE_BUILDING;
 }
 
-TEST(wc3_movement, entangleinstant_target_order_creates_completed_overlay) {
+TEST(wc3_movement, entangle_tft_uses_authored_overlay_unit_id) {
     edict_t *caster, *parent, *overlay;
     slkTestData_t *rows, *old_abilities;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
 
     reset_entities();
     setup_test_world();
     old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.CvarString = movement_tft_expansion_cvar;
     gi.Write = movement_noop_write;
     gi.unicast = movement_noop_unicast;
     caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
@@ -5113,11 +5126,13 @@ TEST(wc3_movement, entangleinstant_target_order_creates_completed_overlay) {
     T_NOT_NULL(overlay);
     T_ASSERT(overlay && !overlay->construction);
     T_ASSERT(overlay && overlay->build != overlay);
+    T_EQ(overlay->s.class_id, MAKEFOURCC('h','b','a','r'));
     T_ASSERT(parent->s.renderfx & RF_HIDDEN);
     T_ASSERT(parent->paused);
 
     gi.Write = old_write;
     gi.unicast = old_unicast;
+    gi.CvarString = old_cvar;
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }
@@ -5513,23 +5528,31 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     free_slk_rows(rows);
 }
 
-TEST(wc3_movement, entangle_missing_overlay_unit_id_reports_unavailable) {
-    static char const missing_unit_id[] =
-        "ID;PWXL;N;EBB;Y2;X4\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
-        "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"DataA1\"\n"
-        "C;Y2;X1;K\"Aent\"\nC;Y2;X2;K\"Aent\"\n"
-        "C;Y2;X3;K10\nE\n";
+TEST(wc3_movement, entangle_roc_uses_stock_overlay_unit_without_authored_id) {
+    AbilityData_t data = { .id = MAKEFOURCC('A','e','n','t') };
+#if BZ_COMPAT_WORKAROUNDS
+    T_EQ(G_TestEntangleOverlayType(&data, false), MAKEFOURCC('e','g','o','l'));
+#else
+    T_EQ(G_TestEntangleOverlayType(&data, false), 0);
+#endif
+}
+
+TEST(wc3_movement, entangle_tft_still_requires_authored_overlay_unit_id) {
     slkTestData_t *rows, *old_abilities;
     edict_t *clent, *caster, *parent;
     gameClient_t *client;
     uint32_t count_before;
+    AbilityData_t *data;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
 
     reset_entities(); setup_test_world();
-    rows = parse_slk_string(missing_unit_id);
-    old_abilities = G_SetSLKRows("AbilityData", rows);
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    data = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','e','n','t'));
+    data->level[0].unitID = 0;
+    gi.CvarString = movement_tft_expansion_cvar;
+    T_EQ(G_TestEntangleOverlayType(data, atoi(gi.CvarString("fs_expansion", "0")) != 0), 0);
     gi.Write = movement_noop_write;
     gi.unicast = movement_noop_unicast;
     clent = &g_edicts[0]; client = &game.clients[0];
@@ -5552,8 +5575,14 @@ TEST(wc3_movement, entangle_missing_overlay_unit_id_reports_unavailable) {
 
     gi.Write = old_write;
     gi.unicast = old_unicast;
+    gi.CvarString = old_cvar;
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+}
+
+TEST(wc3_movement, entangle_tft_uses_authored_overlay_unit_id_without_fallback) {
+    AbilityData_t data = { .level = {{ .unitID = MAKEFOURCC('h','b','a','r') }} };
+    T_EQ(G_TestEntangleOverlayType(&data, true), MAKEFOURCC('h','b','a','r'));
 }
 
 TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
