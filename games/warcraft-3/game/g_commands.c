@@ -1513,15 +1513,44 @@ CLIENTCOMMAND(Unit) {
     float requested = 0.0f;
     uint32_t selected_count = 0;
     uint32_t changed_count = 0;
+    bool const kill = argc >= 2 && !strcasecmp(argv[1], "kill");
     bool const health = argc >= 2 && !strcasecmp(argv[1], "health");
 
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
+    if (kill) {
+        edict_t *selected[WC3_SELECTION_MAX];
+        uint32_t const count = G_GetOrderedSelectedUnits(client, selected,
+                sizeof(selected) / sizeof(selected[0]));
+        uint32_t killed = 0;
+
+        if (argc != 2) {
+            G_CheatPrintf(clent, "WC3: usage: unit kill");
+            return;
+        }
+        FOR_LOOP(i, count) {
+            edict_t *unit = selected[i];
+            if (!G_UnitCanControl(client, unit)) continue;
+            selected_count++;
+            if (!unit->die) continue;
+            unit->invulnerable = false;
+            G_SetHealth(unit, 0);
+            unit->die(unit, unit);
+            killed++;
+        }
+        if (!selected_count) {
+            G_CheatPrintf(clent, "WC3: unit kill requires selected controllable units");
+            return;
+        }
+        G_CheatPrintf(clent, "WC3: killed %u of %u selected unit(s)",
+                (unsigned)killed, (unsigned)selected_count);
+        return;
+    }
     if (argc < 2 || argc > 3 ||
             (strcasecmp(argv[1], "health") && strcasecmp(argv[1], "mana"))) {
-        G_CheatPrintf(clent, "WC3: usage: unit health [amount] | unit mana [amount]");
+        G_CheatPrintf(clent, "WC3: usage: unit kill | unit health [amount] | unit mana [amount]");
         return;
     }
     if (argc == 3 && !G_ParseUnitStatAmount(argv[2], &requested)) {

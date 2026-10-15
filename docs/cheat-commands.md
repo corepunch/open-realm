@@ -105,9 +105,10 @@ unit health
 unit health <amount>
 unit mana
 unit mana <amount>
+unit kill
 ```
 
-With no amount, the requested current pool is filled independently to each selected unit's current maximum. With an amount, each selected unit is set to that non-negative integer clamped independently to its own current maximum. The commands do not change maximum health/mana. `unit health` affects every selected controllable unit. `unit mana` affects only selected controllable units whose maximum mana is greater than zero; units with no mana pool are skipped without changing their current mana value. Missing or enemy-only selections are rejected.
+With no amount, the requested current pool is filled independently to each selected unit's current maximum. With an amount, each selected unit is set to that non-negative integer clamped independently to its own current maximum. The commands do not change maximum health/mana. `unit health` affects every selected controllable unit. `unit mana` affects only selected controllable units whose maximum mana is greater than zero; units with no mana pool are skipped without changing their current mana value. `unit kill` invokes the ordinary death callback on every selected controllable unit, including death events and cleanup. Missing or enemy-only selections are rejected.
 
 For map-start resource testing, `wc3_cheat_starting_resources` is a session-only CVar. Set it before loading the map:
 
@@ -242,11 +243,12 @@ give ability <rawcode>
 give xp <amount>       # hero only
 unit health [amount]
 unit mana [amount]
+unit kill
 god                    # toggle selected player unit invulnerability
 kill                   # kill the selected controllable unit
 ```
 
-`unit health` and `unit mana` operate on the full selected controllable group (including shared-control units), while
+`unit health`, `unit mana`, and `unit kill` operate on the full selected controllable group (including shared-control units), while
 `god` and `kill` continue to resolve the primary controllable selection. Missing/enemy-only selections are rejected.
 The stat commands fill or set only the current pool, clamped independently to each unit's current maximum; `unit mana`
 skips units whose maximum mana is zero. `god` changes that actor's invulnerability; `kill` clears it and invokes the
