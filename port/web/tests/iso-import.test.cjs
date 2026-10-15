@@ -42,8 +42,9 @@ function mpq(length = 64, fill = 0) {
   bytes.writeUInt32LE(1, 28);
   return bytes;
 }
-function iso(entries, {duplicate = false, name = 'Disc.iso'} = {}) {
-  const sizeInSectors = entries.reduce((total, [, data]) => total + Math.ceil(data.length / BLOCK), 0);
+function iso(entries, {duplicate = false, retailMaps = [], name = 'Disc.iso'} = {}) {
+  const sizeInSectors = [...entries, ...retailMaps].reduce(
+    (total, [, data]) => total + Math.ceil(data.length / BLOCK), 0);
   const sectors = Math.max(48, 24 + sizeInSectors + 2);
   const bytes = Buffer.alloc(BLOCK * sectors);
   for (const [sector, type] of [[16, 1], [17, 255]]) {
@@ -62,6 +63,17 @@ function iso(entries, {duplicate = false, name = 'Disc.iso'} = {}) {
     rootEntries.push(record(name + ';1', sector, data.length));
     data.copy(bytes, sector * BLOCK);
     sector += Math.ceil(data.length / BLOCK);
+  }
+  if (retailMaps.length) {
+    rootEntries.push(record('RETAILMAPS', 22, BLOCK, true));
+    const mapEntries = [record(0, 22, BLOCK, true), record(1, 20, BLOCK, true)];
+    for (const [name, data] of retailMaps) {
+      mapEntries.push(record(name + ';1', sector, data.length));
+      data.copy(bytes, sector * BLOCK);
+      sector += Math.ceil(data.length / BLOCK);
+    }
+    let pos = 22 * BLOCK;
+    for (const entry of mapEntries) { entry.copy(bytes, pos); pos += entry.length; }
   }
   if (duplicate) {
     rootEntries.push(record('NESTED', 21, BLOCK, true));
@@ -515,16 +527,46 @@ test('a malformed explicitly named expansion archive is rejected safely', async 
   await assert.rejects(worker.gameDir(), error => error.name === 'NotFoundError');
 });
 
-test('2002 demo CD layout is rejected even if the ISO is renamed', async () => {
+test('2002 demo ISO imports base data and RetailMaps with a persistent demo label', async () => {
   const worker = makeWorker();
+  const demoMap = mpq(256);
   const result = await worker.run([iso([
     ['WAR3.MPQ', mpq()], ['WAR3DEMO.ICO', Buffer.alloc(64)],
-    ['SCDEMO.EXE', Buffer.alloc(64)]
-  ], {name:'Retail-Warcraft-III.iso'})]);
+    ['SCDEMO.EXE', Buffer.alloc(64)],
+    ['SETUP.MPQ', Buffer.alloc(64)] // Never apply retail installer-map mappings here.
+  ], {name:'Retail-Warcraft-III.iso', retailMaps:[
+    ['(4)Roundabout.w3m', demoMap], ['(6)EnakrosWay.w3m', mpq()]
+  ]})]);
+  assert.equal(result.at(-1).type, 'done');
+  assert.equal(result.at(-1).manifest.edition, 'demo');
+  assert.equal(result.at(-1).manifest.completeness, 'demo');
+  assert.deepEqual(Array.from(result.at(-1).manifest.files, file => file.name),
+    ['War3.mpq', 'Maps/(4)Roundabout.w3m', 'Maps/(6)EnakrosWay.w3m']);
+  assert.ok(result.some(message => message.type === 'notice' &&
+    /Warcraft III Demo disc detected/.test(message.message)));
+  const dir = await worker.gameDir();
+  const stored = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
+  assert.equal(stored.edition, 'demo');
+  const stage = await dir.getDirectoryHandle(stored.generation);
+  const maps = await stage.getDirectoryHandle('Maps');
+  assert.equal(Buffer.compare(Buffer.from(await (await (await maps.getFileHandle(
+    '(4)Roundabout.w3m')).getFile()).arrayBuffer()), demoMap), 0);
+});
+
+test('mixing demo and retail sources is rejected without replacing an installation', async () => {
+  const worker = makeWorker();
+  const existing = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest;
+  const demo = iso([['WAR3.MPQ', mpq()], ['WAR3DEMO.ICO', Buffer.alloc(64)],
+    ['SCDEMO.EXE', Buffer.alloc(64)]], {name:'Demo.iso'});
+  const result = await worker.run([demo, iso([['WAR3X.MPQ', mpq()]], {name:'TFT.iso'})]);
   assert.equal(result.at(-1).type, 'error');
-  assert.match(result.at(-1).message, /Warcraft III Demo disc detected/);
-  assert.equal(result.some(message => message.type === 'discovered'), false);
-  await assert.rejects(worker.gameDir(), error => error.name === 'NotFoundError');
+  assert.match(result.at(-1).message, /Demo discs must be imported separately/);
+  const dir = await worker.gameDir();
+  const stored = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
+  assert.equal(stored.generation, existing.generation);
+  const mixed = await worker.run([demo, namedBlob(mpq(), 'War3x.mpq')]);
+  assert.equal(mixed.at(-1).type, 'error');
+  assert.match(mixed.at(-1).message, /Demo discs must be imported separately/);
 });
 
 // Anonymous game MPQs are identified from their own hash tables, not by a

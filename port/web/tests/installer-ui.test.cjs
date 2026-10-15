@@ -26,7 +26,8 @@ class Element {
 }
 function harness({storage = true} = {}) {
   const ids = ['game-files', 'install-data', 'cancel-install', 'remove-data',
-    'data-status', 'install-progress', 'selection-summary', 'discovered-files', 'archive-list'];
+    'data-status', 'install-progress', 'selection-summary', 'discovered-files', 'archive-list',
+    'installation-edition'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element(id)]));
   let worker;
   class Worker {
@@ -60,7 +61,7 @@ test('both browser pages expose ISO/mixed selection and detected archive list', 
   for (const name of ['shell.html', 'engine-shell.html']) {
     const html = fs.readFileSync(path.join(SITE, name), 'utf8');
     assert.match(html, /id="game-files"[^>]*accept="\.iso,\.mpq,\.w3m,\.w3x"[^>]*multiple/);
-    for (const id of ['selection-summary', 'discovered-files', 'archive-list', 'data-status'])
+    for (const id of ['selection-summary', 'discovered-files', 'archive-list', 'data-status', 'installation-edition'])
       assert.ok(html.includes(`id="${id}"`), `${name}: missing ${id}`);
     assert.match(html, /<script src="installer\.js"><\/script>/);
   }
@@ -170,4 +171,22 @@ test('repository ignore rules retain browser source modules as committable files
   const ignore = fs.readFileSync(path.resolve(SITE, '../../..', '.gitignore'), 'utf8');
   assert.match(ignore, /^\/site\/$/m);
   assert.doesNotMatch(ignore, /^site\/$/m);
+});
+
+
+test('demo edition is clearly labelled on import, reload and removal', () => {
+  const {elements:e, worker} = harness();
+  e['game-files'].files = [{name:'2002.iso'}];
+  e['install-data'].fire('click');
+  worker.send({type:'done', manifest:{edition:'demo', completeness:'demo', bytes:64,
+    files:[{name:'War3.mpq', size:64}]}});
+  assert.match(e['data-status'].textContent, /Warcraft III Demo installed/);
+  assert.equal(e['installation-edition'].hidden, false);
+  assert.match(e['installation-edition'].textContent, /limited demo content/);
+  worker.send({type:'list', manifest:{edition:'demo', completeness:'demo',
+    files:[{name:'War3.mpq'}]}});
+  assert.equal(e['installation-edition'].hidden, false);
+  assert.match(e['data-status'].textContent, /Demo installed/);
+  worker.send({type:'list', manifest:null});
+  assert.equal(e['installation-edition'].hidden, true);
 });

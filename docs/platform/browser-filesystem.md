@@ -22,7 +22,9 @@ generation. The combined selection must contain `War3.mpq`; duplicate archive
 names are errors, not implicit overrides. Patch 5 additionally extracts a
 known original RoC `Setup.mpq` map profile into nested `Maps/` directories.
 Patch 6 can recover directly named `War3x.mpq`/`War3xLocal.mpq` members from
-a TFT `Setup.mpq` and rejects a recognized 2002 demo ISO. Patch 7 additionally
+a TFT `Setup.mpq`. The follow-on demo import patch accepts the documented
+September 2002 demo disc separately and identifies it as demo in the manifest.
+Patch 7 additionally
 scans uncompressed anonymous installer blocks for nested MPQs, assigning game
 archive filenames only where internal Warcraft III file-path hash evidence
 identifies their roles. It also recognizes named base/local/patch members. It refuses to commit
@@ -118,6 +120,25 @@ uploads but is visibly labelled partial, not full Frozen Throne support.
 that yields no `War3x.mpq` still fails without replacing the prior manifest.
 Neither field proves the game is complete; additional patch/archive versions,
 localization and proprietary game-data coverage need real-disc tests.
+
+The importer now recognizes the documented demo disc by the root files
+`War3Demo.ico` and `SCDemo.exe`, independent of ISO filename. Unlike prior
+rejection behavior, demo imports are allowed and recorded as
+`edition: "demo"`, `completeness: "demo"` in the existing version-3 manifest.
+`War3.mpq` still passes normal structure validation. Directly available
+`RetailMaps/*.w3m` and `.w3x` files are copied to `Maps/<filename>` for the
+normal map search path. Demo `Setup.mpq` is not interpreted with the retail
+RoC installer-map profile. A demo disc cannot be mixed with retail ISOs or
+standalone MPQs, though standalone map files may accompany it.
+
+`installer.js` displays a persistent demo notice after importing and on
+later reloads (`list`), separate from the transient progress message. The
+engine launcher also identifies the demo on startup. Old manifests without
+an `edition` field remain valid and are treated as retail/unclassified. The
+launcher rejects unknown edition values or contradictory demo completeness
+metadata, but edition is informational, not a verification of game playability.
+Other demo CD layouts and loose demo MPQs are not automatically classified;
+no retail ISO or working in-browser demo run was provided for verification.
 
 The ISO fixture writer allocates enough 2048-byte sectors for each file so
 multi-sector MPQs cannot overlap. Synthetic cross-tab Web Locks, rollback,

@@ -27,9 +27,10 @@ function dir(entries) {
     }
   };
 }
-async function launch(mapPath, {corruptBase = false} = {}) {
+async function launch(mapPath, {corruptBase = false, edition, completeness} = {}) {
   const manifest = {
     version:3, generation:'install-abcd-1234',
+    ...(edition ? {edition, completeness} : {}),
     files:[{name:'War3.mpq', size:mpq.length}, {name:mapPath, size:map.length}],
     bytes:mpq.length + map.length
   };
@@ -85,4 +86,19 @@ test('launcher rejects corrupt MPQ declared length before engine startup', async
   const {starts, status} = await launch('Maps/(4)LostTemple.w3m', {corruptBase:true});
   assert.equal(starts.length, 0);
   assert.match(status.textContent, /Invalid MPQ archive War3.mpq/);
+});
+
+
+test('launcher accepts and visibly identifies a stored demo edition', async () => {
+  const {starts, status} = await launch('Maps/(4)LostTemple.w3m',
+    {edition:'demo', completeness:'demo'});
+  assert.equal(starts.length, 1);
+  assert.match(status.textContent, /Warcraft III Demo installation/);
+});
+
+test('launcher refuses contradictory demo edition metadata', async () => {
+  const {starts, status} = await launch('Maps/(4)LostTemple.w3m',
+    {edition:'demo', completeness:'expansion'});
+  assert.equal(starts.length, 0);
+  assert.match(status.textContent, /Invalid demo installation manifest/);
 });

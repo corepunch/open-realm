@@ -32,6 +32,15 @@
     if (!manifest || ![1, 2, 3].includes(manifest.version) ||
         !Array.isArray(manifest.files) || !manifest.files.length || manifest.files.length > 512)
       throw new Error('Unsupported installation manifest');
+    // v1-v3 manifests without edition came from older retail-only importers.
+    // The label is informational, but reject contradictory new metadata.
+    if (manifest.edition !== undefined &&
+        manifest.edition !== 'demo' && manifest.edition !== 'retail')
+      throw new Error('Invalid installation edition');
+    if (manifest.edition === 'demo' && (manifest.version !== 3 ||
+        manifest.completeness !== 'demo' ||
+        manifest.files.some(entry => entry && /^war3x(local)?\.mpq$/i.test(entry.name))))
+      throw new Error('Invalid demo installation manifest');
     let archiveDir = dir;
     let path = ROOT;
     if (manifest.version >= 2) {
@@ -73,7 +82,8 @@
     }
     if (!seen.has('war3.mpq') || manifest.bytes !== total)
       throw new Error('War3.mpq missing or installation size mismatch');
-    return {path, generation:manifest.version >= 2 ? manifest.generation : 'legacy'};
+    return {path, generation:manifest.version >= 2 ? manifest.generation : 'legacy',
+      edition:manifest.edition === 'demo' ? 'demo' : 'retail'};
   }
   // A shared commit lock protects the manifest-to-generation transition.
   // After reading it, hold a shared generation lease for this tab's lifetime,
@@ -88,7 +98,9 @@
         navigator.locks.request(GENERATION_LOCK + installation.generation,
           {mode:'shared'}, async () => {
             try {
-              status('Validated browser installation; starting engine…');
+              status(installation.edition === 'demo'
+                ? 'Warcraft III Demo installation — limited content; starting experimental engine…'
+                : 'Validated browser installation; starting engine…');
               window.openrealmStartEngine(['+openrealm-data=' + installation.path]);
               resolve(); // Release commit lock after acquiring the lease.
             } catch (err) { reject(err); return; }

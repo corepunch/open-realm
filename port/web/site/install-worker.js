@@ -49,6 +49,7 @@ async function selectSources(files) {
   const sources = [];
   const setups = [];
   const names = new Map();
+  let demoDiscCount = 0;
   function add(name, blob, source) {
     const key = name.toLowerCase();
     if (names.has(key)) {
@@ -76,12 +77,21 @@ async function selectSources(files) {
     const image = await ISO9660.openISO(file, {signal: scanController.signal});
     const entries = await image.listFiles();
     checkCancelled();
-    // The 2002 public demo has a legitimate War3.mpq header but is not the
-    // retail game. Use distinctive *on-disc files*, never the user's ISO name.
+    // Detect the documented September 2002 demo by its disc contents, not
+    // its ISO name or MPQ size. Other demo layouts remain unverified.
     const discNames = new Set(entries.map(entry => entry.path.toLowerCase()));
-    if (discNames.has('war3demo.ico') && discNames.has('scdemo.exe'))
-      throw new Error('Warcraft III Demo disc detected in ' + file.name +
-        '; the demo War3.mpq does not contain the complete retail game data');
+    const isDemo = discNames.has('war3demo.ico') && discNames.has('scdemo.exe');
+    if ((isDemo && (images.length !== 1 ||
+        files.some(input => !isoName(input.name) && /\.mpq$/i.test(input.name)))) ||
+        (demoDiscCount && !isDemo)) {
+      throw new Error('Warcraft III Demo discs must be imported separately from ' +
+        'retail ISOs and standalone MPQs');
+    }
+    if (isDemo) {
+      demoDiscCount++;
+      postMessage({type:'notice', message:'Warcraft III Demo disc detected in ' +
+        file.name + '. Demo content is limited and is not a retail installation.'});
+    }
     const onDisc = new Set();
     // Never apply RoC's anonymous FileNN map mapping to a TFT-only disc.
     const baseDisc = entries.some(entry => entry.name.toLowerCase() === 'war3.mpq');
@@ -89,8 +99,15 @@ async function selectSources(files) {
       checkCancelled();
       const name = DISC_ARCHIVES[entry.name.toLowerCase()];
       if (!name) {
-        if (entry.name.toLowerCase() === 'setup.mpq')
+        if (entry.name.toLowerCase() === 'setup.mpq' && !isDemo)
           setups.push({blob:file.slice(entry.offset, entry.offset + entry.size), source:file.name, roc:baseDisc});
+        // The documented demo exposes three standalone melee maps in
+        // RetailMaps/. Store them in the regular Maps/ search directory.
+        if (isDemo && entry.path.toLowerCase().startsWith('retailmaps/') &&
+            entry.path.slice('retailmaps/'.length).indexOf('/') === -1 &&
+            /^[a-z0-9(][a-z0-9 _().-]{0,200}\.w3[mx]$/i.test(entry.name)) {
+          add('Maps/' + entry.name, file.slice(entry.offset, entry.offset + entry.size), file.name);
+        }
         continue;
       }
       const key = name.toLowerCase();
@@ -99,6 +116,13 @@ async function selectSources(files) {
       // Validated extents are views into the original Blob, not ISO copies.
       add(name, file.slice(entry.offset, entry.offset + entry.size), file.name);
     }
+  }
+  // Demo and retail assets have different coverage and must not masquerade
+  // as a combined retail installation. Standalone maps are still permitted.
+  if (demoDiscCount && (demoDiscCount !== 1 || images.length !== 1 ||
+      files.some(file => !isoName(file.name) && /\.mpq$/i.test(file.name)))) {
+    throw new Error('Warcraft III Demo discs must be imported separately from ' +
+      'retail ISOs and standalone MPQs');
   }
   // Never infer installer File000000NN names from an unknown release. An
   // observed retail RoC layout is supported only if its entire map set is
@@ -148,7 +172,7 @@ async function selectSources(files) {
       'Anonymous MPQs must match internal game-data fingerprints; provide ' +
       'installed expansion MPQs if this disc layout is unsupported.');
   }
-  return sources;
+  return {sources, edition: demoDiscCount ? 'demo' : 'retail'};
 }
 // Best-effort quota check: estimates are advisory, and browsers can evict
 // origin data or deny later writes. The actual copy still handles failures.
@@ -250,7 +274,7 @@ async function install(files) {
   let committed = false;
   let previous = null;
   try {
-    const selected = await selectSources(files);
+    const {sources:selected, edition} = await selectSources(files);
     checkCancelled();
     // Validate before creating any replacement generation. Maps are MPQs too.
     postMessage({type:'phase', phase:'validating'});
@@ -310,10 +334,10 @@ async function install(files) {
     const hasExpansion = archiveNames.has('war3x.mpq');
     const missing = hasExpansion && !archiveNames.has('war3xlocal.mpq') ?
       ['War3xLocal.mpq'] : [];
-    const completeness = !hasExpansion ? 'base' :
+    const completeness = edition === 'demo' ? 'demo' : !hasExpansion ? 'base' :
       (missing.length ? 'partial-expansion' : 'expansion');
     const manifest = {
-      version:3, generation, completeness, missing,
+      version:3, generation, edition, completeness, missing,
       files:selected.map(f=>({name:f.name,size:f.size})), bytes:total
     };
     // This root manifest is the sole commit point. Do not remove any old

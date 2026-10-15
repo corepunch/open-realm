@@ -242,10 +242,21 @@ installation remains unimplemented; do not advertise universal CD support.
 
 The September 2002 demo ISO listing supplied for compatibility planning includes
 `War3Demo.ico`, `SCDemo.exe`, and a smaller but otherwise valid `War3.mpq`.
-When an ISO contains both of those distinctive root files, the importer rejects
-it as the demo before opening an OPFS generation, regardless of the ISO filename.
-This is a positive identification of **that disc layout**, not a complete
-retail-vs-demo classifier for loose MPQs or every possible demo edition.
+When an ISO contains both of those distinctive root files, the importer
+classifies it as a **demo installation** regardless of the ISO filename. The
+follow-on demo patch replaces the earlier Patch 6 rejection: it imports
+`War3.mpq` and available `RetailMaps/` map files, storing the maps in `Maps/`
+with their original filenames. It intentionally skips the demo `Setup.mpq`
+rather than trying the retail RoC map profile. Demo discs must be imported
+separately from retail ISOs and standalone MPQs; custom standalone maps remain
+allowed. This is positive identification of **that disc layout**, not a
+complete retail-vs-demo classifier for loose MPQs or every demo edition.
+
+The version-3 manifest records `edition: "demo"` and
+`completeness: "demo"`; new non-demo imports use `edition: "retail"`.
+The UI displays the demo label after import and on subsequent visits, while
+the launcher announces demo mode during startup. This does not establish that
+all demo gameplay or cinematics work with the experimental browser engine.
 
 The May 2003 Frozen Throne ISO listing supplied for planning includes only a
 large `Setup.mpq` rather than a visible `War3x.mpq`. The browser now checks

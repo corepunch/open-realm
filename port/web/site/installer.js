@@ -10,6 +10,7 @@
   const selection = document.getElementById('selection-summary');
   const discovered = document.getElementById('discovered-files');
   const archives = document.getElementById('archive-list');
+  const editionNotice = document.getElementById('installation-edition');
   if (!navigator.storage?.getDirectory || !window.Worker || !navigator.locks?.request) {
     status.textContent = 'OPFS, Web Workers and Web Locks are required to install files safely in this browser.';
     install.disabled = true;
@@ -37,6 +38,14 @@
   function clearDiscovery() {
     archives.replaceChildren();
     discovered.hidden = true;
+  }
+  function showEdition(manifest) {
+    if (!editionNotice) return;
+    const isDemo = manifest && manifest.edition === 'demo';
+    editionNotice.hidden = !isDemo;
+    editionNotice.textContent = isDemo
+      ? 'Warcraft III Demo — limited demo content only, not the full Reign of Chaos or Frozen Throne game.'
+      : '';
   }
   function showSelection() {
     const files = Array.from(fileInput.files || []);
@@ -76,7 +85,10 @@
     } else if (data.type === 'done' && operation === 'import') {
       setOperation(null);
       progress.value = 1;
-      status.textContent = (data.manifest.completeness === 'partial-expansion'
+      showEdition(data.manifest);
+      status.textContent = (data.manifest.edition === 'demo'
+        ? 'Warcraft III Demo installed (limited content). ' :
+        data.manifest.completeness === 'partial-expansion'
         ? 'Partial Frozen Throne installation: expansion localization archives are missing. ' : '') +
         `Stored ${data.manifest.files.length} game file(s) locally ` +
         `(${sizeLabel(data.manifest.bytes)}). Reload this page to use the new data.` +
@@ -87,8 +99,10 @@
       if (operation === 'import') return; // Ignore a delayed initial list response.
       setOperation(null);
       const manifest = data.manifest;
+      showEdition(manifest);
       status.textContent = manifest
-        ? (manifest.completeness === 'partial-expansion' ? 'Partial expansion installation. ' : '') +
+        ? (manifest.edition === 'demo' ? 'Warcraft III Demo installed (limited content). ' :
+            manifest.completeness === 'partial-expansion' ? 'Partial expansion installation. ' : '') +
           'Local files: ' + manifest.files.map(file => file.name).join(', ')
         : 'No game data installed.';
       if (!manifest) clearDiscovery();

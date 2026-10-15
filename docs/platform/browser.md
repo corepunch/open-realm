@@ -341,8 +341,10 @@ validated MPQs with their source disc and size, copy progress, and final
 manifest commit. Patch 5 extracts known installer-only map contents
 from selected original RoC `Setup.mpq` layouts, but does not support
 incremental RoC/TFT imports: select both discs in one operation.
-Patch 6 recognizes the listed September 2002 demo disc by its distinctive
-`War3Demo.ico` and `SCDemo.exe` contents, and can recover *named* whole
+Patch 6 originally rejected the listed September 2002 demo disc by its
+`War3Demo.ico` and `SCDemo.exe` files. The later demo import patch now accepts
+that disc separately, imports its base MPQ and `RetailMaps/` maps, and
+persists a clearly labelled demo edition across visits. Patch 6 can also recover *named* whole
 expansion MPQ members from a TFT installer. The May 2003 TFT disc's internal
 `Setup.mpq` layout has not been verified against the actual retail bytes.
 Patch 7 scans anonymous uncompressed installer blocks for nested MPQs,
