@@ -74,6 +74,12 @@ async function selectSources(files) {
     const image = await ISO9660.openISO(file, {signal: scanController.signal});
     const entries = await image.listFiles();
     checkCancelled();
+    // The 2002 public demo has a legitimate War3.mpq header but is not the
+    // retail game. Use distinctive *on-disc files*, never the user's ISO name.
+    const discNames = new Set(entries.map(entry => entry.path.toLowerCase()));
+    if (discNames.has('war3demo.ico') && discNames.has('scdemo.exe'))
+      throw new Error('Warcraft III Demo disc detected in ' + file.name +
+        '; the demo War3.mpq does not contain the complete retail game data');
     const onDisc = new Set();
     // Never apply RoC's anonymous FileNN map mapping to a TFT-only disc.
     const baseDisc = entries.some(entry => entry.name.toLowerCase() === 'war3.mpq');
@@ -101,7 +107,15 @@ async function selectSources(files) {
     for (const setup of setups) {
       checkCancelled();
       if (setup.roc === false) {
-        postMessage({type:'notice', message:'Skipping installer map names on non-RoC disc ' + setup.source});
+        // TFT discs commonly hold expansion data inside Setup.mpq. Recover
+        // only members whose *internal* names identify whole game archives.
+        const expansions = await SetupMPQ.extractNamedExpansionArchives(setup.blob,
+          {signal:scanController.signal});
+        for (const entry of expansions)
+          add(entry.name, entry.blob, setup.source + ' / Setup.mpq');
+        if (!expansions.length)
+          postMessage({type:'notice', message:'No named expansion MPQs found inside ' +
+            setup.source + ' / Setup.mpq; anonymous installer payloads need an edition-specific mapping.'});
         continue;
       }
       const maps = await SetupMPQ.extractKnownMaps(setup.blob, {signal:scanController.signal});
@@ -117,6 +131,13 @@ async function selectSources(files) {
   // Check the union of all sources, not each ISO separately.
   if (!names.has('war3.mpq')) {
     throw new Error('War3.mpq missing; select the Reign of Chaos base disc or MPQ alongside expansion data');
+  }
+  // An explicitly selected TFT Setup.mpq must not quietly produce a RoC-only
+  // installation and report success. Retain the old generation instead.
+  if (setups.some(setup => setup.roc === false) && !names.has('war3x.mpq')) {
+    throw new Error('Could not recover War3x.mpq from the Frozen Throne Setup.mpq. ' +
+      'This installer layout needs an identified member mapping; provide the ' +
+      'installed War3x.mpq and War3xLocal.mpq alongside the Reign of Chaos data.');
   }
   return sources;
 }

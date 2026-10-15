@@ -19,6 +19,10 @@ from each disc and stores their source byte ranges in a version-3
 generation. The combined selection must contain `War3.mpq`; duplicate archive
 names are errors, not implicit overrides. Patch 5 additionally extracts a
 known original RoC `Setup.mpq` map profile into nested `Maps/` directories.
+Patch 6 can recover directly named `War3x.mpq`/`War3xLocal.mpq` members from
+a TFT `Setup.mpq` and rejects a recognized 2002 demo ISO. It refuses to commit
+a selected TFT installer that cannot supply `War3x.mpq`, rather than silently
+claiming an expansion installation.
 `Setup.mpq` itself is not a playable archive and is never installed.
 Both browser pages expose ISO selection from patch 4. See
 [browser ISO reader](browser-iso9660.md).

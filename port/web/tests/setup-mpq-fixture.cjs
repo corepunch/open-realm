@@ -34,7 +34,13 @@ function mapBytes(length = 256) {
   bytes.write('MPQ', 0, 'ascii'); bytes[3] = 0x1a;
   return bytes;
 }
-function setupMpq({count = MAP_COUNT, compressed = false, unsupported = false} = {}) {
+function setupMpq({count = MAP_COUNT, compressed = false, unsupported = false,
+  entries = null} = {}) {
+  const members = entries || Array.from({length:count}, (_, i) => ({
+    name:'File' + String(i + 69).padStart(8, '0') + '.w3x', data:mapBytes(),
+    compressed:compressed && i === 0, unsupported:unsupported && i === 0
+  }));
+  count = members.length;
   const hashSize = 128;
   const hashTable = Buffer.alloc(hashSize * 16, 0xff);
   const blocks = Buffer.alloc(count * 16);
@@ -43,14 +49,22 @@ function setupMpq({count = MAP_COUNT, compressed = false, unsupported = false} =
   const payloads = [];
   let offset = firstOffset;
   for (let i = 0; i < count; i++) {
-    const name = 'File' + String(i + 69).padStart(8, '0') + '.w3x';
-    const map = mapBytes();
+    const {name, data:map, compressed:useCompression, unsupported:badCodec} = members[i];
     let stored = map, flags = 0x80000000;
-    if (compressed && i === 0) {
-      const method = Buffer.concat([Buffer.from([unsupported ? 0x08 : 0x02]), zlib.deflateSync(map)]);
-      const offsets = Buffer.alloc(8);
-      offsets.writeUInt32LE(8, 0); offsets.writeUInt32LE(8 + method.length, 4);
-      stored = Buffer.concat([offsets, method]);
+    if (useCompression) {
+      const sectors = Math.ceil(map.length / 512);
+      const offsets = Buffer.alloc((sectors + 1) * 4);
+      const parts = [];
+      let sectorOffset = offsets.length;
+      for (let sector = 0; sector < sectors; ++sector) {
+        const raw = map.subarray(sector * 512, Math.min(map.length, (sector + 1) * 512));
+        const method = Buffer.concat([Buffer.from([badCodec ? 0x08 : 0x02]), zlib.deflateSync(raw)]);
+        offsets.writeUInt32LE(sectorOffset, sector * 4);
+        sectorOffset += method.length;
+        parts.push(method);
+      }
+      offsets.writeUInt32LE(sectorOffset, sectors * 4);
+      stored = Buffer.concat([offsets, ...parts]);
       flags |= 0x200;
     }
     blocks.writeUInt32LE(offset, i * 16);

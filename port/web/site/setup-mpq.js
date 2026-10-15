@@ -9,6 +9,9 @@
   const SINGLE_UNIT = 0x1000000;
   const MAX_TABLE = 65536, MAX_MAP = 32 * 1024 * 1024;
   const MAX_TOTAL = 128 * 1024 * 1024;
+  const MAX_GAME_ARCHIVE = 512 * 1024 * 1024;
+  const MAX_EXPANSION_TOTAL = 768 * 1024 * 1024;
+  const MAX_SECTORS = Math.ceil(MAX_GAME_ARCHIVE / 512);
   class SetupMPQError extends Error { constructor(message) { super(message); this.name = 'SetupMPQError'; } }
   function requireCondition(ok, message) { if (!ok) throw new SetupMPQError(message); }
   function aborted(signal) { if (signal && signal.aborted) throw new DOMException('Import cancelled', 'AbortError'); }
@@ -107,57 +110,78 @@
       return null;
     }
     has(name) { return this.find(name) !== null; }
-    async read(name) {
+    async read(name, {maxSize = MAX_MAP} = {}) {
       aborted(this.signal);
       const block = this.find(name);
       if (!block) return null;
-      requireCondition((block.flags & FILE_EXISTS) !== 0 && block.size > 0 && block.size <= MAX_MAP,
-        'Invalid or oversized installer map: ' + name);
+      requireCondition((block.flags & FILE_EXISTS) !== 0 && block.size >= 32 &&
+        block.size <= maxSize, 'Invalid or oversized installer entry: ' + name);
       requireCondition(!(block.flags & 0x100) && !(block.flags & 0x4000000),
-        'Unsupported MPQ implode/checksum map entry: ' + name);
-      requireCondition(block.offset + block.packed <= this.length && block.packed > 0,
-        'Installer map exceeds archive: ' + name);
+        'Unsupported MPQ implode/checksum entry: ' + name);
+      requireCondition(block.offset <= this.length && block.packed > 0 &&
+        block.packed <= this.length - block.offset,
+        'Installer entry exceeds archive: ' + name);
       const read = (offset, size) => at(this.blob, this.base + block.offset + offset, size, this.signal);
       let key = 0;
       if (block.flags & ENCRYPTED) {
         key = hash(name.split(/[\\/]/).pop(), 3);
         if (block.flags & KEY_ADJUST) key = (((key + block.offset) >>> 0) ^ block.size) >>> 0;
       }
-      let out;
-      if (!(block.flags & COMPRESS)) {
-        requireCondition(block.packed >= block.size, 'Short uncompressed installer map');
-        out = await read(0, block.size);
-        if (block.flags & ENCRYPTED) decrypt(out.subarray(0, out.length & ~3), key);
+      let result;
+      if (!(block.flags & COMPRESS) && !(block.flags & ENCRYPTED)) {
+        // An uncompressed installer member is a view of the source ISO, not
+        // a second multi-hundred-MiB allocation in the browser worker.
+        requireCondition(block.packed >= block.size, 'Short uncompressed installer entry');
+        result = this.blob.slice(this.base + block.offset, this.base + block.offset + block.size);
+      } else if (!(block.flags & COMPRESS)) {
+        // Large encrypted single-unit members need a streaming decryptor.
+        requireCondition(block.size <= MAX_MAP, 'Unsupported large encrypted installer entry: ' + name);
+        const bytes = await read(0, block.size);
+        decrypt(bytes.subarray(0, bytes.length & ~3), key);
+        result = new Blob([bytes]);
       } else if (block.flags & SINGLE_UNIT) {
-        let packed = await read(0, block.packed);
-        if (block.flags & ENCRYPTED) {
-          const aligned = packed.length & ~3;
-          decrypt(packed.subarray(0, aligned), key);
-        }
-        out = await decodeSector(packed, block.size);
+        // Never buffer a potentially 400+ MiB compressed member in one read.
+        requireCondition(block.size <= MAX_MAP && block.packed <= MAX_MAP,
+          'Unsupported large single-unit compressed installer entry: ' + name);
+        const packed = await read(0, block.packed);
+        if (block.flags & ENCRYPTED) decrypt(packed.subarray(0, packed.length & ~3), key);
+        result = new Blob([await decodeSector(packed, block.size)]);
       } else {
         const sectors = Math.ceil(block.size / this.sectorSize);
         const tableLength = (sectors + 1) * 4;
-        requireCondition(tableLength <= block.packed && sectors <= 8192,
+        requireCondition(sectors > 0 && sectors <= MAX_SECTORS && tableLength <= block.packed,
           'Invalid Setup.mpq sector table');
-        let table = await read(0, tableLength);
+        const table = await read(0, tableLength);
         if (block.flags & ENCRYPTED) decrypt(table, (key - 1) >>> 0);
         const offsets = Array.from({length: sectors + 1}, (_, i) => word(table, i * 4));
         requireCondition(offsets[0] >= tableLength && offsets.at(-1) <= block.packed,
           'Invalid Setup.mpq sector offsets');
-        out = new Uint8Array(block.size);
+        const parts = [];
+        let batch = [], batchBytes = 0;
         for (let i = 0; i < sectors; ++i) {
           aborted(this.signal);
           const start = offsets[i], end = offsets[i + 1];
           requireCondition(start <= end && end <= block.packed, 'Invalid Setup.mpq sector order');
           const count = Math.min(this.sectorSize, block.size - i * this.sectorSize);
-          let chunk = await read(start, end - start);
+          const chunk = await read(start, end - start);
           if (block.flags & ENCRYPTED) decrypt(chunk.subarray(0, chunk.length & ~3), (key + i) >>> 0);
-          out.set(await decodeSector(chunk, count), i * this.sectorSize);
+          const decoded = await decodeSector(chunk, count);
+          batch.push(decoded);
+          batchBytes += decoded.byteLength;
+          if (batchBytes >= 1024 * 1024) {
+            parts.push(new Blob(batch));
+            batch = [];
+            batchBytes = 0;
+          }
         }
+        if (batch.length) parts.push(new Blob(batch));
+        result = new Blob(parts);
       }
-      requireCondition(isMap(out), 'Installer entry is not an MPQ map: ' + name);
-      return new Blob([out]);
+      requireCondition(result.size === block.size, 'Incorrect installer entry size: ' + name);
+      const probe = new Uint8Array(await result.slice(0, 1024).arrayBuffer());
+      aborted(this.signal);
+      requireCondition(isMap(probe), 'Installer entry is not an MPQ: ' + name);
+      return result;
     }
   }
   async function open(blob, {signal} = {}) {
@@ -191,6 +215,24 @@
       size:word(bbytes, i * 16 + 8), flags:word(bbytes, i * 16 + 12)
     }));
     return new Reader(blob, base, archiveSize, 512 << shift, hashes, blocks, signal);
+  }
+  // Some installer editions may store an entire expansion archive under its
+  // final filename. Only recover *named*, independently verifiable MPQ members;
+  // never guess the role of FileNNNNNNNN or an anonymous MPQ block.
+  const expansionNames = Object.freeze(['War3x.mpq', 'War3xLocal.mpq']);
+  async function extractNamedExpansionArchives(blob, {signal} = {}) {
+    const archive = await open(blob, {signal});
+    const results = [];
+    let total = 0;
+    for (const name of expansionNames) {
+      aborted(signal);
+      if (!archive.has(name)) continue;
+      const data = await archive.read(name, {maxSize: MAX_GAME_ARCHIVE});
+      total += data.size;
+      requireCondition(total <= MAX_EXPANSION_TOTAL, 'Expansion archive data exceeds safety limit');
+      results.push({name, blob: data, size: data.size});
+    }
+    return results;
   }
   // One observed original RoC disc layout (Polish retail release). These
   // installer-generated names are not universal across discs/patch levels.
@@ -228,5 +270,5 @@
     }
     return results;
   }
-  scope.SetupMPQ = Object.freeze({open, extractKnownMaps, knownMaps, SetupMPQError});
+  scope.SetupMPQ = Object.freeze({open, extractKnownMaps, extractNamedExpansionArchives, knownMaps, SetupMPQError});
 })(globalThis);

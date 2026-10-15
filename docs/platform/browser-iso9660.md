@@ -1,4 +1,4 @@
-# Browser ISO 9660 reader (Warcraft III disc import, patches 1–5)
+# Browser ISO 9660 reader (Warcraft III disc import, patches 1–6)
 
 ## Scope and ownership
 
@@ -237,3 +237,42 @@ The first real-disc compatibility milestone must verify the filename mapping,
 `DecompressionStream` support. Support for unknown TFT installers,
 PKWARE/implode-compressed payloads, archive encryption variants and movie
 installation remains unimplemented; do not advertise universal CD support.
+
+## Patch 6 — 2002 demo identification and TFT installer handling
+
+The September 2002 demo ISO listing supplied for compatibility planning includes
+`War3Demo.ico`, `SCDemo.exe`, and a smaller but otherwise valid `War3.mpq`.
+When an ISO contains both of those distinctive root files, the importer rejects
+it as the demo before opening an OPFS generation, regardless of the ISO filename.
+This is a positive identification of **that disc layout**, not a complete
+retail-vs-demo classifier for loose MPQs or every possible demo edition.
+
+The May 2003 Frozen Throne ISO listing supplied for planning includes only a
+large `Setup.mpq` rather than a visible `War3x.mpq`. The browser now checks
+this installer for MPQ members explicitly named `War3x.mpq` and
+`War3xLocal.mpq`. When present and independently recognizable as MPQ data,
+those members can be extracted without running any installer code:
+
+- Uncompressed, unencrypted members are returned as Blob views of the ISO.
+- Zlib-compressed sector-based members are decoded sector by sector, with
+  size/offset checks and bounded per-sector allocations.
+- Single-unit compressed members remain limited to 32 MiB of packed data;
+  PKWARE implode, bzip2, and checksum-protected members remain unsupported.
+- Decoded archive size is capped at 512 MiB per member and 768 MiB combined.
+- Anonymous `FileNNNNNNNN` members are **not** assigned guessed archive names.
+
+If a selected TFT installer supplies no `War3x.mpq` (and none was provided by
+other selected files), the import **fails without replacing the existing
+manifest**. It does not silently commit a Reign-of-Chaos-only installation.
+The actual 441,517,482-byte `Setup.mpq` from the listed May 2003 disc has **not**
+been supplied, so its internal naming/layout remains unknown. The new code
+does not establish that this particular disc can yield the required expansion
+files. For now an installed-game `War3x.mpq` and `War3xLocal.mpq` remain a
+supported way to provide that data alongside RoC.
+
+Synthetic coverage in `node --test port/web/tests/iso-import.test.cjs`
+includes named TFT installer MPQs (one multi-sector compressed), unknown
+installer layouts, invalid nested archives, incomplete expansion members,
+rollback, and the demo-disc fingerprint. No retail media or files are required
+for the tests. A separate real-media investigation of TFT's anonymous
+installer members is still needed before claiming full original-CD support.

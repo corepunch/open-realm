@@ -409,3 +409,81 @@ test('unsupported map codec fails before replacing previous manifest', async () 
   const manifest = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
   assert.equal(manifest.generation, existing);
 });
+
+test('TFT installer with explicitly named expansion MPQs is imported with RoC', async () => {
+  const worker = makeWorker();
+  const original = Buffer.concat([mpq(), Buffer.alloc(1600, 0x5a)]);
+  const local = Buffer.concat([mpq(), Buffer.alloc(260, 0x38)]);
+  const tft = setupMpq({entries:[
+    {name:'War3x.mpq', data:original, compressed:true},
+    {name:'War3xLocal.mpq', data:local, compressed:false}
+  ]});
+  const result = await worker.run([
+    iso([['WAR3.MPQ', mpq()]], {name:'Retail-RoC.iso'}),
+    iso([['SETUP.MPQ', tft]], {name:'Retail-TFT.iso'})
+  ]);
+  assert.equal(result.at(-1).type, 'done');
+  assert.deepEqual(Array.from(result.at(-1).manifest.files, entry => entry.name),
+    ['War3.mpq', 'War3x.mpq', 'War3xLocal.mpq']);
+  const stage = await (await worker.gameDir()).getDirectoryHandle(result.at(-1).manifest.generation);
+  for (const [name, expected] of [['War3x.mpq', original], ['War3xLocal.mpq', local]]) {
+    const stored = Buffer.from(await (await (await stage.getFileHandle(name)).getFile()).arrayBuffer());
+    assert.equal(Buffer.compare(stored, expected), 0);
+  }
+  assert.equal(stage.files.has('Setup.mpq'), false);
+});
+
+test('unknown TFT installer mapping fails instead of committing incomplete expansion', async () => {
+  const worker = makeWorker();
+  const existing = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest.generation;
+  const result = await worker.run([
+    iso([['WAR3.MPQ', mpq()]], {name:'RoC.iso'}),
+    iso([['SETUP.MPQ', setupMpq({count:1})]], {name:'Frozen-Throne.iso'})
+  ]);
+  assert.equal(result.at(-1).type, 'error');
+  assert.match(result.at(-1).message, /Could not recover War3x.mpq/);
+  const dir = await worker.gameDir();
+  const manifest = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
+  assert.equal(manifest.generation, existing);
+  assert.equal(dir.dirs.size, 1);
+  assert.ok(result.some(message => message.type === 'notice' && /No named expansion/.test(message.message)));
+});
+
+test('a TFT installer holding only localized data is not considered a complete expansion', async () => {
+  const worker = makeWorker();
+  const result = await worker.run([
+    iso([['WAR3.MPQ', mpq()]], {name:'RoC.iso'}),
+    iso([['SETUP.MPQ', setupMpq({entries:[
+      {name:'War3xLocal.mpq', data:mpq()}
+    ]})]], {name:'TFT.iso'})
+  ]);
+  assert.equal(result.at(-1).type, 'error');
+  assert.match(result.at(-1).message, /Could not recover War3x.mpq/);
+  await assert.rejects(worker.gameDir(), error => error.name === 'NotFoundError');
+});
+
+test('a malformed explicitly named expansion archive is rejected safely', async () => {
+  const worker = makeWorker();
+  const broken = Buffer.alloc(64, 0);
+  const result = await worker.run([
+    iso([['WAR3.MPQ', mpq()]], {name:'RoC.iso'}),
+    iso([['SETUP.MPQ', setupMpq({entries:[
+      {name:'War3x.mpq', data:broken, compressed:true}
+    ]})]], {name:'TFT.iso'})
+  ]);
+  assert.equal(result.at(-1).type, 'error');
+  assert.match(result.at(-1).message, /not an MPQ/);
+  await assert.rejects(worker.gameDir(), error => error.name === 'NotFoundError');
+});
+
+test('2002 demo CD layout is rejected even if the ISO is renamed', async () => {
+  const worker = makeWorker();
+  const result = await worker.run([iso([
+    ['WAR3.MPQ', mpq()], ['WAR3DEMO.ICO', Buffer.alloc(64)],
+    ['SCDEMO.EXE', Buffer.alloc(64)]
+  ], {name:'Retail-Warcraft-III.iso'})]);
+  assert.equal(result.at(-1).type, 'error');
+  assert.match(result.at(-1).message, /Warcraft III Demo disc detected/);
+  assert.equal(result.some(message => message.type === 'discovered'), false);
+  await assert.rejects(worker.gameDir(), error => error.name === 'NotFoundError');
+});

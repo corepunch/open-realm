@@ -341,6 +341,13 @@ validated MPQs with their source disc and size, copy progress, and final
 manifest commit. Patch 5 extracts known installer-only map contents
 from selected original RoC `Setup.mpq` layouts, but does not support
 incremental RoC/TFT imports: select both discs in one operation.
+Patch 6 recognizes the listed September 2002 demo disc by its distinctive
+`War3Demo.ico` and `SCDemo.exe` contents, and can recover *named* whole
+expansion MPQ members from a TFT installer. The May 2003 TFT disc's internal
+`Setup.mpq` layout has not been verified; an unknown expansion container now
+reports an error instead of committing an incomplete installation. See
+[disc import format limitations](browser-iso9660.md).
+
 The `web-warcraft3-foundation` make rule copies `installer.js`,
 `install-worker.js`, `iso9660.js` and `setup-mpq.js` into the probe output next to
 `index.html`; the experimental engine build also ships these assets.
