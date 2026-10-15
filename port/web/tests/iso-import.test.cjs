@@ -35,7 +35,9 @@ function mpq(length = 64, fill = 0) {
   bytes.write('MPQ', 0, 'ascii');
   bytes[3] = 0x1a;
   bytes.writeUInt32LE(32, 4);
-  bytes.writeUInt32LE(length, 8);
+  bytes.writeUInt32LE(Math.max(64, length), 8);
+  bytes.writeUInt16LE(0, 12);
+  bytes.writeUInt16LE(0, 14);
   bytes.writeUInt32LE(32, 16);
   bytes.writeUInt32LE(48, 20);
   bytes.writeUInt32LE(1, 24);
@@ -509,7 +511,7 @@ test('a TFT installer holding only localized data is not considered a complete e
     ]})]], {name:'TFT.iso'})
   ]);
   assert.equal(result.at(-1).type, 'error');
-  assert.match(result.at(-1).message, /Could not recover War3x.mpq/);
+  assert.match(result.at(-1).message, /War3xLocal.mpq requires War3x.mpq in the same installation/);
   await assert.rejects(worker.gameDir(), error => error.name === 'NotFoundError');
 });
 

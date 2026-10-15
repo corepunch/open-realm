@@ -30,10 +30,10 @@ function encrypt(bytes, key) {
   }
 }
 function mapBytes(length = 256) {
-  const bytes = Buffer.alloc(length, 0x41);
+  const bytes = Buffer.alloc(length, 0);
   bytes.write('MPQ', 0, 'ascii'); bytes[3] = 0x1a;
   bytes.writeUInt32LE(32, 4);
-  bytes.writeUInt32LE(length, 8);
+  bytes.writeUInt32LE(Math.max(64, length), 8);
   bytes.writeUInt32LE(32, 16);
   bytes.writeUInt32LE(48, 20);
   bytes.writeUInt32LE(1, 24);
@@ -50,7 +50,7 @@ function setupMpq({count = MAP_COUNT, compressed = false, unsupported = false,
   // Support synthetic installer block tables as large as the observed 245
   // entries; reserve spare hash slots for linear probing.
   let hashSize = 128;
-  while (hashSize < count * 2) hashSize *= 2;
+  while (hashSize < count) hashSize *= 2;
   const hashTable = Buffer.alloc(hashSize * 16, 0xff);
   const blocks = Buffer.alloc(count * 16);
   const headerSize = 32;
@@ -79,7 +79,7 @@ function setupMpq({count = MAP_COUNT, compressed = false, unsupported = false,
     blocks.writeUInt32LE(offset, i * 16);
     blocks.writeUInt32LE(stored.length, i * 16 + 4);
     blocks.writeUInt32LE(map.length, i * 16 + 8);
-    blocks.writeUInt32LE(flags, i * 16 + 12);
+    blocks.writeUInt32LE(flags >>> 0, i * 16 + 12);
     payloads.push(stored);
     offset += stored.length;
     let slot = hash(name, 0) & (hashSize - 1);
