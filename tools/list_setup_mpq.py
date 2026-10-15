@@ -17,6 +17,8 @@ from pathlib import Path
 
 MASK = 0xFFFFFFFF
 EXISTS = 0x80000000
+MAX_TABLE_ENTRIES = 1_000_000
+MPQ_HEADER = struct.Struct('<4sIIHHIIII')
 
 
 def crypt_table():
@@ -49,6 +51,33 @@ def decrypt_words(encrypted, key, table):
         yield decoded
 
 
+def validate_header(data, base):
+    if base < 0 or base + MPQ_HEADER.size > len(data):
+        raise ValueError('No complete MPQ header found in the first MiB')
+    (signature, header_size, archive_size, version, sector_shift,
+     hash_pos, block_pos, hash_count, block_count) = MPQ_HEADER.unpack_from(data, base)
+    if signature != b'MPQ\x1a':
+        raise ValueError('Invalid MPQ signature')
+    if version not in (0, 1) or header_size < (44 if version == 1 else 32):
+        raise ValueError('Unsupported or invalid MPQ header version')
+    if header_size > archive_size or base + archive_size > len(data):
+        raise ValueError('Declared MPQ archive extends beyond file')
+    if sector_shift > 15:
+        raise ValueError('Invalid MPQ sector size')
+    if (hash_count == 0 or hash_count > MAX_TABLE_ENTRIES or
+            hash_count & (hash_count - 1)):
+        raise ValueError('Invalid MPQ hash table size')
+    if block_count == 0 or block_count > MAX_TABLE_ENTRIES:
+        raise ValueError('Invalid MPQ block table size')
+    if hash_pos < header_size or block_pos < header_size:
+        raise ValueError('MPQ tables overlap the archive header')
+    if hash_pos + hash_count * 16 > archive_size:
+        raise ValueError('Hash table extends beyond declared MPQ archive')
+    if block_pos + block_count * 16 > archive_size:
+        raise ValueError('Block table extends beyond declared MPQ archive')
+    return (archive_size, hash_pos, block_pos, hash_count, block_count)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mpq', type=Path, help='Path to Setup.mpq (or any classic MPQ)')
@@ -60,15 +89,12 @@ def main():
     with args.mpq.open('rb') as stream, mmap.mmap(stream.fileno(), 0, access=mmap.ACCESS_READ) as data:
         # Warcraft III installers normally have an MPQ header at byte zero.
         base = data.find(b'MPQ\x1a', 0, min(len(data), 1024 * 1024))
-        if base < 0 or base + 32 > len(data):
-            parser.error('No MPQ header found in the first MiB')
-        signature, header_size, archive_size, version, sector_shift, hash_pos, block_pos, hash_count, block_count = struct.unpack_from('<4sIIHHIIII', data, base)
-        if version > 1 or header_size < 32 or block_count > 1_000_000:
-            parser.error('Unsupported or invalid MPQ header')
+        try:
+            archive_size, hash_pos, block_pos, hash_count, block_count = validate_header(data, base)
+        except ValueError as error:
+            parser.error(str(error))
         table_start = base + block_pos
         table_end = table_start + block_count * 16
-        if table_end > len(data):
-            parser.error('Block table extends beyond file')
         table = crypt_table()
         words = list(decrypt_words(data[table_start:table_end],
                                    hash_string('(block table)', table, 3), table))
@@ -78,8 +104,6 @@ def main():
         if args.names_file:
             hash_start = base + hash_pos
             hash_end = hash_start + hash_count * 16
-            if hash_end > len(data):
-                parser.error('Hash table extends beyond file')
             hash_words = list(decrypt_words(data[hash_start:hash_end],
                                             hash_string('(hash table)', table, 3), table))
             candidates = {}
