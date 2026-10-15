@@ -685,6 +685,28 @@ TEST(wc3_api, pathfinding_public_power_native_matches_retail_words) {
     reset_entities();
 }
 
+#include "fixtures/retail_trig351.h"
+/* Actual VM calls retain value operands in storage distinct from native locals.
+ * Expectations are literal retail returns, including public domain guards. */
+TEST(wc3_api, trig351_public_callers_preserve_operand_signs_and_storage) {
+    setup_test_world();
+    FOR_LOOP(i, sizeof(retail_trig351) / sizeof(*retail_trig351)) {
+        G_ClearHashtableRegistry();
+        char script[512];
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "local hashtable values = InitHashtable()\ncall SaveReal(values,0,0,%s)\nendfunction\n",
+            retail_trig351[i].expression);
+        T_ASSERT(run_test_jass(script));
+        T_EQ(level.hashtables[0].num_entries, 1u);
+        if (level.hashtables[0].num_entries == 1) {
+            uint32_t word;
+            memcpy(&word, &level.hashtables[0].entries[0].value.real, sizeof(word));
+            T_EQ(word, retail_trig351[i].word);
+        }
+    }
+    reset_entities();
+}
+
 /* Actual nonreturning native calls belong to the bounded stress worker below;
  * public guards and the neighboring large terminating domain remain in '*'. */
 TEST(wc3_api, pathfinding_power_large_terminating_domain_preserves_public_guards) {

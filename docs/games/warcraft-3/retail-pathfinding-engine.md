@@ -21484,3 +21484,74 @@ whole-binary hashes, all guards, semantic record digests, map reconstruction,
 checked C domains and actual native worker lifetime. Nonfinite producers remain
 NUM-03.2; non-VM gameplay-consumer lifetime and full trajectories remain E2E-06.1.
 These boundaries do not reopen the verified public VM contract or add TODOs.
+
+### Scalar trig caller storage and sign rereads (Trig351)
+
+NUM-01.18 audits every direct reference to Acos, Asin, Atan, Atan2, Sin, Cos,
+Tan and paired SinCos:140 sites across70 complete functions/6897 guarded
+instructions. Counts are respectively3/8/3/26/42/42/3/13; Atan's three sites
+are distinct from Atan2's26. `Trig351Evidence.java` exports full assembly,
+decompilation and incoming references, and saves recovered notes in Ghidra.
+`MapPathfinding.java` retains the scalar and forwarding contracts.
+
+The verifier follows CFG predecessors to each output-register definition.
+All132 concrete local-output sites resolve to LEA addresses in their own EBP
+frame. The ledger also resolves every input pointer, forwarded register and third
+stack operand: all concrete input/output origins are disjoint; concrete paired
+outputs occupy different locals. Scalar pointer-return callees preserve their
+output origin, and callee-saved registers retain theirs across calls. A rejection
+test deliberately aliases the vector-heading quotient and Acos output; merely
+proving that an output is local would not detect it. A linear backward scan gets nine matrix branches wrong by reading past
+an earlier RET; the CFG version retains both conditional edges. The seven thin
+forwarders preserve their caller's pointer relationships; their lack of decoded
+incoming references is recorded, not promoted into a general unreachability
+claim. The remaining16e6c0 wrapper copies angle by value and forwards two output
+addresses. It can share its sine/cosine outputs; cosine is stored last.
+The ledger retains every call site and its instruction context, including the
+vector-heading producer1d4c80 and matrix/Euler helpers. Arbitrary external output
+aliasing can still alter later matrix reads; a local trig destination does not
+certify an entire matrix transform's alias contract.
+
+`research/trig351_callers.py` executes1170 original/model contexts, preserving
+stack cleanup, output return pointers, nonvolatile registers and backing guards.
+It covers both unary pointer partitions, all five Atan2/paired partitions, and
+both value-pair output relations. Forty forced controls distinguish sign loss
+from value-return arithmetic: Acos/Asin overwrite absolute input before their
+sign-sensitive reads, while Atan and Atan2 reread inputs after output stores.
+Forwarders preserve those effects. These are forced helper contracts; they do
+not establish a public gameplay producer for the alias.
+
+The public script exercises all seven registered natives with twelve signed,
+near-zero, near-one, endpoint and out-of-domain argument pairs, then timed facing
+and a real point Move. Two read-only observations match the entire nested trace:
+394 caller lifetimes,454 scalar lifetimes and98 public markers. An unhooked run
+matches all98 markers. Every observed scalar input/output pointer is distinct,
+and every input remains unchanged. All454 outputs match independent integer
+models and production C exactly; the existing heading/formation/paired oracles
+cover the other already recovered movement compositions.
+
+The84 public native returns are frozen literally in `retail_trig351.h`.
+`wc3_api.trig351_public_callers_preserve_operand_signs_and_storage` calls the
+actual JASS VM and checks raw saved real words, including public domain guards.
+It passes252 assertions per Classic/TFT build, both debug and optimized.
+Combined with the existing full timed-facing/Move/save regression, the verifier
+passes4 tests/14560 assertions per edition. No production mismatch was found in
+this caller-storage audit: existing value semantics are correct for the observed
+producers. There is no new production behavior to implement or failing engine
+reproducer to claim; raw helper sign loss must not be injected into disjoint
+public or movement inputs. The earlier Pow lifetime fix remains independent.
+
+The portable18-file bundle preserves the complete inventory, captures, raw
+preloads, exact source versions, frozen base and authored map. The verifier
+checks whole-binary guards, CFG ledger, complete repeats/control, native nesting,
+literal engine fixture, original forwarding contexts and exact map rebuild.
+Reproduce with `verify_wc3_pathing_trig351.py --binary <game.dll>
+--engine-library <fresh-wc3_pathing_engine_probe.so> --report <new.json>`.
+The capture controller owns and bounds each launch; no live probe remains.
+
+This closes the trig caller/alias inventory, not all numeric inputs or complete
+trajectories. The old Work245 zero-elapsed query is still labelled as such;
+nonzero prediction and wider composed-query domains remain E2E-06.1. Additional
+indirect roots remain BASE-03.1. No new TODOs are created. RTTI identifies59ae50
+as `CAbilityTornadoWander` vtableb35874+2f8; ordinary `Awan` uses59af20 and a
+different, non-trig producer. Do not infer class identity from adjacent addresses.

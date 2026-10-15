@@ -379,3 +379,31 @@ Acceptance logs, red regressions, final build logs, O2 worker report,
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-01.14/power350/`.
 The committed portable bundle preserves all12 captures and rebuildable map
 inputs. Network and save formats are unchanged. No new TODOs; no push.
+
+### Trig351 caller-storage checkpoint
+
+NUM-01.18 closes after the complete140-site/70-function/6897-instruction audit.
+Two read-only traces agree on454 scalar and394 caller lifetimes;98 observer-free
+markers agree. The original forwarding harness checks1170 contexts with40
+forced sign-loss controls. All observed disjoint scalar results already match
+production, so this chunk adds evidence and engine regressions without inventing
+a production arithmetic change.
+
+Debug and optimized test targets build successfully. All84 literal retail native
+returns pass through the real JASS VM (252 assertions per edition/build).
+The complete verifier also runs the established facing/Move/save cases:
+4 tests/14560 assertions in each edition, at O0 and O2. Eleven new evidence/rejection
+tests pass. An initial optimized verifier invocation lacked the custom library
+directory and exited127 before running tests; its failed log remains preserved.
+The accepted optimized invocation explicitly supplies
+`LD_LIBRARY_PATH=/run/media/lofcz/ssd_external/GitHub/open-realm/build/move348-release/lib`.
+
+The immediately preceding Power350 full checkpoint remains9379 native tests,
+eight bounded lifetime checks and2283 Python checks; that full sweep is not
+claimed again for this evidence/test-only chunk. Logs, raw captures, original
+inventory and focused acceptance are under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-01.18/trig351/`.
+`corpus-final-frozen/trig351-callers.json` and `verification-o2-proof-accepted.json`
+record the original,
+independent-model and engine comparisons. Ghidra saved; no wire/save-format
+change and no new TODOs.

@@ -295,7 +295,8 @@
     "oracle-foot347",
     "oracle-move348",
     "oracle-power349",
-    "oracle-power350"
+    "oracle-power350",
+    "oracle-trig351"
   ],
   "entries": [
     {
@@ -939,10 +940,10 @@
       "exclusions": [
         {
           "index": 0,
-          "text": "All other trigonometric caller input domains",
-          "task": "NUM-01.18",
-          "disposition": "behavior",
-          "rationale": "Extend trigonometric caller/operand-domain and alias coverage beyond the supplied heading case."
+          "text": "All140 direct trig references and forwarding pointer relationships are audited by oracle-trig351; full caller numeric domains and trajectories remain E2E-06.1.",
+          "task": "E2E-06.1",
+          "disposition": "superseded-review",
+          "rationale": "Trig351 closes the caller-storage and sign-reread inventory; wider caller numeric domains and full composed trajectories are separate from pointer-relationship evidence."
         },
         {
           "index": 1,
@@ -4382,9 +4383,9 @@
         {
           "index": 1,
           "text": "Facing oracle executes the complete original query/callees with zero elapsed prediction time; nonzero elapsed queries are not exhaustively certified.",
-          "task": "NUM-01.18",
-          "disposition": "behavior",
-          "rationale": "Extend trigonometric caller/operand-domain and alias coverage beyond the supplied heading case."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "This zero-elapsed complete facing query retains its original numeric-domain boundary. Trig351 verifies its trig caller storage; nonzero prediction/full query compositions remain in the complete numerical contract."
         },
         {
           "index": 2,
@@ -6747,6 +6748,25 @@
           "task": "E2E-06.1",
           "disposition": "evidence-boundary",
           "rationale": "The full replacement contract retains non-VM consumer policies and trajectories; checked numeric analysis is distinguished explicitly from actual public native execution."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-trig351",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Full caller numeric domains, nonunit transforms and complete gameplay trajectories remain E2E-06.1.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "A pointer-relationship audit does not establish every gameplay numerical domain or full trajectory."
+        },
+        {
+          "index": 1,
+          "text": "Additional indirect/public roots for the seven unreferenced forwarding thunks remain BASE-03.1; forced helper aliases are not public-producer evidence.",
+          "task": "BASE-03.1",
+          "disposition": "reachability",
+          "rationale": "The transparent helpers are fully tested, but absence of decoded references alone is not a proof of unreachable indirect producers."
         }
       ]
     }

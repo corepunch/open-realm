@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "293 executable original/evidence contracts;574 total entries; provenance and limitations remain per-entry.",
+  "scope": "294 executable original/evidence contracts;575 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -8356,7 +8356,7 @@
       ],
       "scope": "Original vector-heading distinct quotient/Acos operands and complete heading-error output aliases; exact production C words. Other trig caller domains and whole-frame cadence excluded.",
       "exclusions": [
-        "All other trigonometric caller input domains",
+        "All140 direct trig references and forwarding pointer relationships are audited by oracle-trig351; full caller numeric domains and trajectories remain E2E-06.1.",
         "Complete owner clock/trajectory parity"
       ]
     },
@@ -55583,6 +55583,69 @@
         "Nonfinite public producer/visibility terminal compositions remain NUM-03.2.",
         "Non-VM gameplay consumer lifetime and full trajectory contracts remain E2E-06.1."
       ]
+    },
+    {
+      "id": "oracle-trig351",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_trig351.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "trig351-callers.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "sites": {
+          "equal": 140
+        },
+        "functions": {
+          "equal": 70
+        },
+        "instructions": {
+          "equal": 6897
+        },
+        "scalar_calls": {
+          "equal": 454
+        },
+        "public_results": {
+          "equal": 84
+        },
+        "markers": {
+          "equal": 98
+        },
+        "engine": {
+          "nonempty": true
+        },
+        "forwarding": {
+          "nonempty": true
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Every direct trig call site output-definition and forwarding pointer relationship, original forced alias controls, repeated public/timed-facing/Move operands, exact scalar C outputs and literal actual-VM native returns.",
+      "exclusions": [
+        "Full caller numeric domains, nonunit transforms and complete gameplay trajectories remain E2E-06.1.",
+        "Additional indirect/public roots for the seven unreferenced forwarding thunks remain BASE-03.1; forced helper aliases are not public-producer evidence."
+      ]
     }
   ],
   "fixtures": [
@@ -56481,7 +56544,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "d05a68d236f8e0c74aaed1df0df98506d6ac3bd96468c61f7eb78c060a22e596"
+      "sha256": "f7d06d8044b8b325496aa33bb115d2254399832d1f6f97ec2aa09b690fc09bab"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -58273,7 +58336,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "2d5bcdad458551e22b92dcc8ce56213603cb484550f7c8816f8c3a43beb2a2e4"
+      "sha256": "69320fdd89cd137a03dfeca9a011e1f0c4029ca62e8f2e3f00148539bef13a79"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -58285,11 +58348,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "2caa8fa0f203b2295682acf1274dbcb01fe82a20b1b4010b23b0ad59729b6a4c"
+      "sha256": "54e15b3aa2d293ec2ad95f96a710d5f31996841883aa4411185acc38c1b90e06"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "81d1d338d2e82b7984540c8ade7060bab0fcb8c25a4b1fedfef36a7c4e7a577e"
+      "sha256": "269aeca1c16b39dcc03baaeba3f9f9c998d22d52a723cadb729f0cb9d1bda416"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -59077,7 +59140,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_api.c",
-      "sha256": "109987c0992aefb5a3b046bbf70ef89a6763dd58d803d22bc8f1f68707ed1e16"
+      "sha256": "e213c3229d48bfaabf5a7a7e53aff2c4f6b85538e4608382725d948a000a4838"
     },
     {
       "path": "games/warcraft-3/game/tests/t_collision.c",
@@ -65145,7 +65208,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "5d3a23538913a9a8c02017804f2fadff0006c03612d066987b57cdea2c68ab4e"
+      "sha256": "571f1f6c450de427e8ed62bc0180555dd171ed8bf5b754ec177ac24d10650d5e"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -65177,7 +65240,7 @@
     },
     {
       "path": "docs/test-performance.md",
-      "sha256": "e3d7288db72b9ce916d57884a0c88039d4dfa0873c1d60c87857a2c4ac40faaa"
+      "sha256": "5a6a493c49e326524850bc254f49afe256432df58964aa0a95e21a5af8f4c70b"
     },
     {
       "path": "docs/games/warcraft-3/corpse-mechanics.md",
@@ -65514,6 +65577,46 @@
     {
       "path": "tests/test_wc3_pathfinding_power_lifetime_controller.py",
       "sha256": "024e35bad6da42f36a5a114b915d2daeccaa21e226cc1f0f90e0d689aa68eea6"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_trig351.h",
+      "sha256": "d200749ffaafcbbe1310f53217e23b61b430f0a1ddbebc33ca6f6878f86561f8"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_trig351.py",
+      "sha256": "bdc807e1b677aec367079dff5c547e7dfcafb2cb09580e982582fd0fb14c55e9"
+    },
+    {
+      "path": "tools/frida/research/trig351_make_map.py",
+      "sha256": "40203b7a5df0039bac116135535246d2ec26191b4abb2024762c4b887b29883a"
+    },
+    {
+      "path": "tools/frida/research/trig351_observer.js",
+      "sha256": "83f45e47f54c6f6835cd8ffc27169f515f1ea518200e602a346118f06a27b02d"
+    },
+    {
+      "path": "tools/frida/research/trig351_probe.j",
+      "sha256": "15c5eab834c6b7d27d69e769d1b487b2dd218dd79626f02125bebd7fca2b2abf"
+    },
+    {
+      "path": "tools/ghidra/research/Trig351Evidence.java",
+      "sha256": "ca5214b2d1c1893c2c2a18b86f75851fa606f4d3c0823c1638fadafc173c210b"
+    },
+    {
+      "path": "tools/ghidra/research/trig351_callers.py",
+      "sha256": "df7fc245f17dc5af91b342a9c8bd88cbcbd2373db37f1388e5b56c8ca8399b08"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_trig351.py",
+      "sha256": "2e81d57180f0947ba18be81cccb5b73e91e31dbba5c137ba292f0b5cda76c50e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-trig351-1.27.json",
+      "sha256": "69d691009920bf53555271109e44ec8e209b23975bde0ba6ef3291cd5c1c534c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-trig351-1.27.json.gz",
+      "sha256": "d20d85a779731e4463259b0b0c7df6b5eb04aeac2c13f1bd938f2feaeb5fd85b"
     }
   ]
 }
