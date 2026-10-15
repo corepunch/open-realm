@@ -377,3 +377,9 @@ tabs, and running game tabs hold leases so cleanup cannot remove their OPFS
 archive generation. See [browser filesystem](browser-filesystem.md) for lock
 names, generation retention, manifest completeness and remaining limitations,
 and [ISO import details](browser-iso9660.md) for real-disc verification gaps.
+
+## Experimental static hosting on GitHub Pages
+
+See [GitHub Pages deployment and Service Worker example](browser-github-pages.md).
+This is documentation and reference code only; automatic registration, startup
+isolation gating, Pages deployment and complete offline caching are not enabled.

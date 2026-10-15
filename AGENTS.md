@@ -23,6 +23,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Browser ISO 9660/Joliet sector reader, limits, test command, integration boundary | [docs/platform/browser-iso9660.md](docs/platform/browser-iso9660.md) |
 | Building, serving, importing game data, and running the experimental browser engine | [docs/platform/browser-run.md](docs/platform/browser-run.md) |
+| Browser static hosting on GitHub Pages, Service Worker isolation and example | [docs/platform/browser-github-pages.md](docs/platform/browser-github-pages.md) |
 | GitHub release publication, contributor notes, platform artifacts and verification | [docs/releasing.md](docs/releasing.md) |
 | Agent documentation capture, placement, templates, and indexing | [docs/documentation-guide.md](docs/documentation-guide.md) |
 | Diagnostic tools (mpqtool, dbctool, mdxtool, ability_audit, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
