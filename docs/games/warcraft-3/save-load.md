@@ -199,6 +199,25 @@ common path memcpy-shaped while making pointer exceptions declarative rather tha
 
 This follows the Quake 2 `g_save.c` pattern while avoiding Quake 2's old global pointer addresses and unbounded save stream.
 
+## Pointer width and wasm32
+
+`g_save.c` explicitly requires 8-byte data and C-function pointers. `WriteField1()` replaces each
+`F_MMOVE` pointer slot in the temporary raw record with a signed 32-bit offset from `umove_reloc`
+plus a 32-bit animation-name hash. `F_CFUNCTION` uses the same eight bytes for a 32-bit roster index
+plus a 32-bit callback-name hash. `ReadField()` validates those pairs and reconstructs the pointers.
+The two `_Static_assert` checks reject wasm32's 4-byte pointers at compilation; removing the checks
+would make the hash write at `p + 4` overwrite the next field. The move-slot check originated in
+`7fadeb71af`; the callback-slot check in `bc53cca76d`.
+
+Supporting wasm32 requires changing this serialization contract, for example by storing validation
+hashes separately from pointer slots, and bumping the save version. Native desktop saves are also
+ABI-dependent because edicts, clients, and pool records are copied as raw structs; the header's
+`edict_size` check rejects a mismatched entity layout. Cross-architecture save interchange would
+require a portable record format. The footer's `uint64_t` checksum arithmetic is a separate concern:
+WebAssembly supports 64-bit integers even when pointers are 32-bit. See the
+[Emscripten pointer documentation](https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html)
+and [WebAssembly integer types](https://www.w3.org/TR/wasm-core-1/).
+
 ## Native Usage
 
 JASS save names are relative virtual names. Patch 1 accepts simple flat slots, `Blizzard\Zones\<filename>`, and `Blizzard\<slot>\<filename>` only. Each player-selected map session uses a private `saves/campaigns/<playthrough-id>/live/` root. Authored JASS `ChangeLevel`/`RestartGame` actions preserve that root; player-started maps and returning to the menu rotate it. A named manual save binds an immutable checkpoint of its script-save scope after the save commits. Loading that save clones the checkpoint into a fresh scope before loading the map; an unbound or invalid save receives a fresh empty scope. Map scripts never receive or choose the physical root, and cannot enumerate or manipulate manual saves or saves from other sessions. Disk-backed `gamecache-*.orcgc` sidecars are likewise under the private `cache/` directory, which JASS save-copy/delete natives cannot address. Valid names use ASCII letters/digits, dot, dash, underscore and internal spaces, at most 64 characters per component. Device names, trailing dots, absolute paths, traversal and extra directory depth are rejected. Existing `.sav` suffixes are preserved, otherwise `.sav` is appended consistently for scripted saves. These rules apply to `SaveGameExists`, `CopySaveGame`, `RenameSaveDirectory`, and `RemoveSaveDirectory` too. Directory operations are limited to `Blizzard\<slot>` and `Blizzard\Zones`; they cannot target the sandbox root or the `Blizzard` parent. Filesystem copying on POSIX uses directory-relative no-follow file descriptors and temporary replacement; the Windows implementation rejects reparse points.
