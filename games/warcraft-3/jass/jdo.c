@@ -1469,7 +1469,11 @@ void jass_setnull(jassVar_t *var) {
         return;
     }
     uintptr_t typeaddr = (uintptr_t)var->type;
-    if ((typeaddr & (sizeof(void *) - 1)) || typeaddr < 4096 || typeaddr >= 0x0000800000000000ULL) {
+    bool invalid_type_address = (typeaddr & (sizeof(void *) - 1)) || typeaddr < 4096;
+#if UINTPTR_MAX > 0x0000800000000000ULL
+    invalid_type_address = invalid_type_address || typeaddr >= 0x0000800000000000ULL;
+#endif
+    if (invalid_type_address) {
         memset(var, 0, sizeof(*var));
         return;
     }
