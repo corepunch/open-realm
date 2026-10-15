@@ -75,3 +75,31 @@ verify the `ui_canvas` transition for 1.30+ game archives, then exit and reenter
 fullscreen, and check browser zoom/DPR behaviour. A real browser is needed to
 establish whether the Emscripten SDL2 version reliably accepts the correction;
 this cannot be proven by static checks alone.
+
+## Windowed browser resizing and widescreen HUD transitions
+
+Fullscreen sizing is a separate case from resizing the **ordinary browser
+window**. Previously, `engine-shell.html` forced the windowed canvas to
+`aspect-ratio: 16 / 9`. Changing the browser width therefore changed the
+canvas height proportionally: OpenRealm kept seeing the same logical aspect,
+so the `UI_CANVAS_STANDARD`/`UI_CANVAS_WIDE` boundary could never be crossed.
+For browsers where SDL wrote inline canvas dimensions, the CSS rules could
+also stop following the actual windowed-page layout.
+
+The windowed canvas instead uses 100% of its container width and a bounded,
+viewport-relative height. Its CSS aspect is now permitted to vary with the
+browser window. The browser renderer continues to sample the CSS box and sets
+both SDL logical dimensions and the worker's pixel backing store as before;
+`CL_CanvasFrame` alone owns the 250 ms settle and `ui_canvas` command. CSS uses
+`!important` because SDL may write inline width/height styles. The fullscreen
+rules are unchanged and take over when the container enters fullscreen.
+
+**Expected behaviour:** with widescreen-capable game assets, make the browser
+window narrow enough for a 4:3 canvas, then widen it past the canvas class
+threshold and keep it there for 250 ms: the HUD extensions should appear.
+Reverse the resize and the extensions should disappear. At resolutions that
+remain widescreen on both sides of the resize, the widescreen UI class should
+not flap or unnecessarily reload. Classic archives without `ConsoleTexture05`
+continue to use the retail-derived stretch policy; this CSS fix does not
+fabricate missing widescreen assets. Test this in a real browser as well as
+running the synthetic regression in `port/web/tests/fullscreen-resize.test.cjs`.

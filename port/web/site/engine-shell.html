@@ -9,7 +9,7 @@ body { background: #0b1220; color: #e6ecf4; font: 16px system-ui, sans-serif; ma
 main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
 button, input { margin: .3rem; }
 progress { width: 100%; }
-canvas { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; background: #000; }
+canvas { display: block; max-width: 100%; background: #000; }
 /* Keep controls in a stacking context above the engine canvas, including when
  * Emscripten changes canvas dimensions or applies its own canvas styles. */
 #game-container[hidden] { display: none; }
@@ -18,6 +18,16 @@ canvas { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; bac
 #game-launch-placeholder[hidden] { display: none; }
 #reload-to-play { padding: .9rem 1.6rem; font-size: 1.1rem; cursor: pointer; }
 #game-container { position: relative; width: 100%; max-width: 100%; isolation: isolate; }
+/* Keep the windowed canvas height tied to the viewport rather than a fixed
+ * aspect ratio, so ordinary browser resizes can cross the game's UI aspect
+ * threshold. SDL may set inline dimensions, so the CSS box takes precedence;
+ * the renderer separately syncs the worker-owned backing pixels. */
+#game-container:not(:fullscreen) > canvas:not(:fullscreen) {
+  width: 100% !important;
+  height: min(65dvh, 75vw, 620px) !important;
+  min-height: 240px;
+  aspect-ratio: auto !important;
+}
 #game-container > canvas { position: relative; z-index: 0; }
 #game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2147483647;
   visibility: visible; opacity: 1; pointer-events: auto;

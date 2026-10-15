@@ -2,6 +2,8 @@
 'use strict';
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {installFullscreenResize} = require('../site/fullscreen-resize.js');
 function fixture() {
   const listeners = new Map(), queue = [], events = [];
@@ -66,4 +68,17 @@ test('a hidden canvas never requests a zero-sized SDL framebuffer', () => {
   const f=fixture();
   f.changeSize(0,0); f.fullscreen(); f.frame(); f.frame();
   assert.deepEqual(f.events,[]);
+});
+
+// No synthetic DOM event alone can verify real CSS geometry. This checks the
+// regression-inducing style: forcing a constant 16:9 aspect for windowed play.
+test('windowed game canvas follows viewport aspect and ignores SDL inline sizes', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../site/engine-shell.html'), 'utf8');
+  const rule = html.match(/#game-container:not\(:fullscreen\) > canvas:not\(:fullscreen\) \{([^}]+)\}/);
+  assert.ok(rule, 'windowed canvas must have a dedicated CSS sizing rule');
+  assert.match(rule[1], /width:\s*100%\s*!important/);
+  assert.match(rule[1], /height:\s*min\(65dvh,\s*75vw,\s*620px\)\s*!important/);
+  assert.match(rule[1], /aspect-ratio:\s*auto\s*!important/);
+  assert.doesNotMatch(html, /canvas\s*\{[^}]*aspect-ratio:\s*16\s*\/\s*9/);
+  assert.match(html, /#game-container:fullscreen canvas \{[^}]*width:\s*100% !important/);
 });
