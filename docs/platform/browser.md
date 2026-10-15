@@ -344,8 +344,11 @@ incremental RoC/TFT imports: select both discs in one operation.
 Patch 6 recognizes the listed September 2002 demo disc by its distinctive
 `War3Demo.ico` and `SCDemo.exe` contents, and can recover *named* whole
 expansion MPQ members from a TFT installer. The May 2003 TFT disc's internal
-`Setup.mpq` layout has not been verified; an unknown expansion container now
-reports an error instead of committing an incomplete installation. See
+`Setup.mpq` layout has not been verified against the actual retail bytes.
+Patch 7 scans anonymous uncompressed installer blocks for nested MPQs,
+classifies known base and expansion roles by internal file-path hash evidence,
+and reports unknown archives without guessing filenames. An incomplete TFT
+selection still fails without replacing the previous installation. See
 [disc import format limitations](browser-iso9660.md).
 
 The `web-warcraft3-foundation` make rule copies `installer.js`,

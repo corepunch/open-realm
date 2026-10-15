@@ -487,3 +487,130 @@ test('2002 demo CD layout is rejected even if the ISO is renamed', async () => {
   assert.equal(result.some(message => message.type === 'discovered'), false);
   await assert.rejects(worker.gameDir(), error => error.name === 'NotFoundError');
 });
+
+// Anonymous game MPQs are identified from their own hash tables, not by a
+// guessed installer FileNNN name, byte offset or MPQ size. The synthetic
+// archives below use harmless dummy content with documented WC3 path names.
+function nestedGame(paths) {
+  return setupMpq({entries:paths.map((name, i) => ({
+    name, data:Buffer.concat([mpq(), Buffer.alloc(i + 1)])
+  }))});
+}
+const EXPANSION_PATHS = [
+  'Melee_V0\\Units\\UnitBalance.slk',
+  'Custom_V0\\Units\\UnitBalance.slk',
+  'Custom_V1\\Units\\UnitBalance.slk'
+];
+const EXPANSION_LOCAL_PATHS = [
+  'Maps\\FrozenThrone\\Campaign\\HumanX01.w3x',
+  'Maps\\FrozenThrone\\Campaign\\UndeadX01.w3x',
+  'Maps\\FrozenThrone\\Campaign\\NightElfX01.w3x'
+];
+
+test('anonymous embedded TFT archives are classified by internal file hashes', async () => {
+  const worker = makeWorker();
+  const main = nestedGame(EXPANSION_PATHS);
+  const local = nestedGame(EXPANSION_LOCAL_PATHS);
+  // Match the reported TFT installer layout: anonymous MPQ blocks 155/156,
+  // surrounded by unrelated installer members. No hard-coded offsets needed.
+  const members = Array.from({length:245}, (_, i) => ({
+    name:'File' + String(i).padStart(8, '0') + '.w3x', data:mpq()
+  }));
+  members[155].data = main;
+  members[156].data = local;
+  const output = await worker.run([
+    iso([['WAR3.MPQ', mpq()]], {name:'RoC.iso'}),
+    iso([['SETUP.MPQ', setupMpq({entries:members})]], {name:'TFT.iso'})
+  ]);
+  assert.equal(output.at(-1).type, 'done');
+  assert.deepEqual(Array.from(output.at(-1).manifest.files, entry => entry.name),
+    ['War3.mpq', 'War3x.mpq', 'War3xLocal.mpq']);
+  const stage = await (await worker.gameDir()).getDirectoryHandle(output.at(-1).manifest.generation);
+  for (const [name, expected] of [['War3x.mpq', main], ['War3xLocal.mpq', local]]) {
+    const actual = Buffer.from(await (await (await stage.getFileHandle(name)).getFile()).arrayBuffer());
+    assert.equal(Buffer.compare(actual, expected), 0);
+  }
+  assert.equal(stage.files.has('Setup.mpq'), false);
+});
+
+test('named non-expansion MPQs in an installer are imported without guessing roles', async () => {
+  const worker = makeWorker();
+  const baseLocal = nestedGame(['Maps\\Campaign\\Human01.w3m']);
+  const patch = nestedGame(['Units\\UnitBalance.slk']);
+  const output = await worker.run([
+    namedBlob(mpq(), 'War3.mpq'),
+    namedBlob(setupMpq({entries:[
+      {name:'War3Local.mpq', data:baseLocal},
+      {name:'War3Patch.mpq', data:patch}
+    ]}), 'Setup.mpq')
+  ]);
+  assert.equal(output.at(-1).type, 'done');
+  assert.deepEqual(Array.from(output.at(-1).manifest.files, entry => entry.name),
+    ['War3.mpq', 'War3Local.mpq', 'War3Patch.mpq']);
+});
+
+test('anonymous base and localized archives require their own fingerprints', async () => {
+  const worker = makeWorker();
+  const base = nestedGame([
+    'Scripts\\common.j', 'Scripts\\human.ai',
+    'UI\\FrameDef\\Glue\\StandardTemplates.fdf'
+  ]);
+  const local = nestedGame([
+    'Maps\\Campaign\\Human01.w3m', 'Maps\\Campaign\\Undead01.w3m'
+  ]);
+  const output = await worker.run([namedBlob(setupMpq({entries:[
+    {name:'X001.dat',data:base},{name:'X002.dat',data:local}
+  ]}), 'Setup.mpq')]);
+  assert.equal(output.at(-1).type, 'done');
+  assert.deepEqual(Array.from(output.at(-1).manifest.files, e => e.name),
+    ['War3.mpq','War3Local.mpq']);
+});
+
+test('anonymous nested MPQ with ambiguous evidence is never assigned an archive name', async () => {
+  const worker = makeWorker();
+  const ambiguous = nestedGame([...EXPANSION_PATHS, ...EXPANSION_LOCAL_PATHS]);
+  const output = await worker.run([
+    iso([['WAR3.MPQ', mpq()]], {name:'RoC.iso'}),
+    iso([['SETUP.MPQ', setupMpq({entries:[
+      {name:'unknown.blob', data:ambiguous}
+    ]})]], {name:'TFT.iso'})
+  ]);
+  assert.equal(output.at(-1).type, 'error');
+  assert.match(output.at(-1).message, /Could not recover War3x.mpq/);
+  assert.ok(output.some(m => m.type === 'notice' && /could not be identified/.test(m.message)));
+  await assert.rejects(worker.gameDir(), e => e.name === 'NotFoundError');
+});
+
+test('anonymous archives with too little evidence are skipped, but named expansion still works', async () => {
+  const worker = makeWorker();
+  const unknown = nestedGame([EXPANSION_PATHS[0]]);
+  const named = nestedGame(EXPANSION_PATHS);
+  const output = await worker.run([
+    namedBlob(mpq(), 'War3.mpq'),
+    namedBlob(setupMpq({entries:[
+      {name:'War3x.mpq', data:named},
+      {name:'unknown.dat',data:unknown}
+    ]}), 'Setup.mpq')
+  ]);
+  assert.equal(output.at(-1).type, 'done');
+  assert.deepEqual(Array.from(output.at(-1).manifest.files, e => e.name),
+    ['War3.mpq', 'War3x.mpq']);
+  assert.ok(output.some(m => m.type === 'notice' && /1 embedded MPQ/.test(m.message)));
+});
+
+test('duplicate archive names across an ISO and a Setup.mpq are rejected before committing', async () => {
+  const worker = makeWorker();
+  const existing = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest.generation;
+  const output = await worker.run([
+    iso([['WAR3.MPQ', mpq()]], {name:'RoC.iso'}),
+    iso([['SETUP.MPQ', setupMpq({entries:[
+      {name:'War3.mpq', data:nestedGame(EXPANSION_PATHS)},
+      {name:'War3x.mpq', data:nestedGame(EXPANSION_PATHS)}
+    ]})]], {name:'TFT.iso'})
+  ]);
+  assert.equal(output.at(-1).type, 'error');
+  assert.match(output.at(-1).message, /Duplicate archive War3.mpq/);
+  const dir = await worker.gameDir();
+  const manifest = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
+  assert.equal(manifest.generation, existing);
+});

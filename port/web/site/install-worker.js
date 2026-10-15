@@ -106,16 +106,21 @@ async function selectSources(files) {
     if (!globalThis.SetupMPQ) importScripts('setup-mpq.js');
     for (const setup of setups) {
       checkCancelled();
+      // Discover *all* intact nested game archives. Named entries include
+      // ordinary War3/War3Local/War3Patch archives; anonymous entries require
+      // distinct internal path fingerprints before receiving a game filename.
+      const discovered = await SetupMPQ.extractGameArchives(setup.blob,
+        {signal:scanController.signal});
+      for (const entry of discovered.archives)
+        add(entry.name, entry.blob, setup.source + ' / Setup.mpq (' + entry.method + ')');
+      if (discovered.unidentified)
+        postMessage({type:'notice', message:discovered.unidentified +
+          ' embedded MPQ(s) in ' + setup.source + ' / Setup.mpq could not be ' +
+          'identified by contents and were not installed.'});
       if (setup.roc === false) {
-        // TFT discs commonly hold expansion data inside Setup.mpq. Recover
-        // only members whose *internal* names identify whole game archives.
-        const expansions = await SetupMPQ.extractNamedExpansionArchives(setup.blob,
-          {signal:scanController.signal});
-        for (const entry of expansions)
-          add(entry.name, entry.blob, setup.source + ' / Setup.mpq');
-        if (!expansions.length)
-          postMessage({type:'notice', message:'No named expansion MPQs found inside ' +
-            setup.source + ' / Setup.mpq; anonymous installer payloads need an edition-specific mapping.'});
+        if (!discovered.archives.length)
+          postMessage({type:'notice', message:'No named expansion or identifiable embedded game MPQs in ' +
+            setup.source + ' / Setup.mpq; unsupported layouts require further investigation.'});
         continue;
       }
       const maps = await SetupMPQ.extractKnownMaps(setup.blob, {signal:scanController.signal});
@@ -136,8 +141,8 @@ async function selectSources(files) {
   // installation and report success. Retain the old generation instead.
   if (setups.some(setup => setup.roc === false) && !names.has('war3x.mpq')) {
     throw new Error('Could not recover War3x.mpq from the Frozen Throne Setup.mpq. ' +
-      'This installer layout needs an identified member mapping; provide the ' +
-      'installed War3x.mpq and War3xLocal.mpq alongside the Reign of Chaos data.');
+      'Anonymous MPQs must match internal game-data fingerprints; provide ' +
+      'installed expansion MPQs if this disc layout is unsupported.');
   }
   return sources;
 }

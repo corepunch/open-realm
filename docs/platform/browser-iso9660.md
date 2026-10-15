@@ -276,3 +276,48 @@ installer layouts, invalid nested archives, incomplete expansion members,
 rollback, and the demo-disc fingerprint. No retail media or files are required
 for the tests. A separate real-media investigation of TFT's anonymous
 installer members is still needed before claiming full original-CD support.
+
+## Patch 7 — discover anonymous MPQs in original TFT Setup.mpq
+
+The May 2003 Frozen Throne installer in the supplied `7z l` listing contains
+`Setup.mpq` (~441.5 MB), not loose `War3x.mpq` files. A raw MPQ block-table
+inspection of that installer found 245 occupied blocks. Uncompressed blocks
+155 and 156 contain complete MPQ headers and self-consistent archive sizes of
+284,508,109 and 44,795,849 bytes respectively. Blocks 135–137 contain RIFF
+AVI payloads, not MPQs. This explains why attempts to open `War3x.mpq` or
+`(listfile)` as members of the outer installer failed, even though the MPQ
+itself can be opened. **Their final game-archive identities are not proven by
+those sizes alone.** These measurements came from a user-supplied listing and
+header probes, not from retail ISO bytes in the source tree.
+
+`site/setup-mpq.js` now scans occupied block-table entries without requiring a
+`(listfile)`. It supports two distinct recovery paths:
+
+- When an MPQ member is explicitly named `War3.mpq`, `War3Local.mpq`,
+  `War3x.mpq`, `War3xLocal.mpq`, or `War3Patch.mpq`, use named hash lookup and
+  the existing bounded MPQ reader (including its zlib sector decoding).
+- For anonymous members, scan **unencrypted, uncompressed, whole-file blocks**
+  for a valid, self-contained MPQ header. Check internal hash-table membership
+  for multiple known Warcraft III file paths before assigning a canonical
+  archive role. Do not identify archives by block number, size, order, or by
+  merely finding `MPQ\x1a`. Ambiguous or unrecognized archives are skipped
+  with a notice. Plain archive byte ranges remain `Blob.slice()` views into the
+  source ISO: no temporary 284 MiB JavaScript copy is needed.
+
+The conservative internal-path fingerprints cover RoC base/localized content
+and TFT expansion/expansion-localized content. A patch archive does not have a
+stable content-only signature, so anonymous patch archives are not guessed;
+`War3Patch.mpq` is imported only when explicitly named. File contents and
+hash membership can vary between release editions, so the fingerprints may
+fail to classify a legitimate archive. A TFT input that fails to provide
+`War3x.mpq` still rejects the installation without committing a partial
+manifest. Base `War3.mpq` is still required and normally comes from the RoC
+CD; no assertion is made that the TFT CD contains another base archive.
+
+Synthetic fixture tests include a 245-entry outer installer with anonymous
+archives at the observed indices, named non-expansion archives, anonymous
+base/localized candidates, missing/ambiguous fingerprints, duplicate sources,
+and preservation of the previous installation on failure. These tests do not
+prove the fingerprint paths exist in the actual May 2003 embedded archives.
+To verify that disc, import **both RoC and TFT ISOs together** and inspect the
+worker's `discovered` list before any conclusion about complete retail support.

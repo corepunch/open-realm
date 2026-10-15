@@ -41,7 +41,10 @@ function setupMpq({count = MAP_COUNT, compressed = false, unsupported = false,
     compressed:compressed && i === 0, unsupported:unsupported && i === 0
   }));
   count = members.length;
-  const hashSize = 128;
+  // Support synthetic installer block tables as large as the observed 245
+  // entries; reserve spare hash slots for linear probing.
+  let hashSize = 128;
+  while (hashSize < count * 2) hashSize *= 2;
   const hashTable = Buffer.alloc(hashSize * 16, 0xff);
   const blocks = Buffer.alloc(count * 16);
   const headerSize = 32;

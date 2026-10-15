@@ -1,5 +1,6 @@
-/* Read a *bounded, named* subset of original Warcraft III Setup.mpq files.
- * Do not attempt generic MPQ listing or execute installer code. No OPFS writes. */
+/* Read bounded Warcraft III Setup.mpq entries and discover intact nested MPQs.
+ * Hash tables do not expose filenames; identify anonymous archives only from
+ * multiple game-specific internal path hashes. No OPFS writes. */
 (function (scope) {
   'use strict';
   const HASH_KEY = 0xC3AF3770;
@@ -10,7 +11,8 @@
   const MAX_TABLE = 65536, MAX_MAP = 32 * 1024 * 1024;
   const MAX_TOTAL = 128 * 1024 * 1024;
   const MAX_GAME_ARCHIVE = 512 * 1024 * 1024;
-  const MAX_EXPANSION_TOTAL = 768 * 1024 * 1024;
+  const MAX_EMBEDDED_TOTAL = 1024 * 1024 * 1024;
+  const MAX_RAW_PROBES = 8192;
   const MAX_SECTORS = Math.ceil(MAX_GAME_ARCHIVE / 512);
   class SetupMPQError extends Error { constructor(message) { super(message); this.name = 'SetupMPQError'; } }
   function requireCondition(ok, message) { if (!ok) throw new SetupMPQError(message); }
@@ -109,7 +111,7 @@
       }
       return null;
     }
-    has(name) { return this.find(name) !== null; }
+    has(name) { const block = this.find(name); return !!block && !!(block.flags & FILE_EXISTS); }
     async read(name, {maxSize = MAX_MAP} = {}) {
       aborted(this.signal);
       const block = this.find(name);
@@ -216,21 +218,128 @@
     }));
     return new Reader(blob, base, archiveSize, 512 << shift, hashes, blocks, signal);
   }
-  // Some installer editions may store an entire expansion archive under its
-  // final filename. Only recover *named*, independently verifiable MPQ members;
-  // never guess the role of FileNNNNNNNN or an anonymous MPQ block.
-  const expansionNames = Object.freeze(['War3x.mpq', 'War3xLocal.mpq']);
+  // The classic game archives may be stored under their final names, or as
+  // anonymous, uncompressed blocks. In the latter case MPQ filenames cannot
+  // be recovered from the outer hash table. These probes are based on
+  // documented paths INSIDE the real game archives, not size/order guesses.
+  // Do not label a patch archive or a base/local archive from a mere size.
+  const gameNames = Object.freeze([
+    'War3.mpq', 'War3Local.mpq', 'War3x.mpq', 'War3xLocal.mpq', 'War3Patch.mpq'
+  ]);
+  const fingerprints = Object.freeze([
+    Object.freeze({name:'War3.mpq', required:3, paths:Object.freeze([
+      'Scripts\\common.j',
+      'Scripts\\human.ai',
+      'UI\\FrameDef\\Glue\\StandardTemplates.fdf'
+    ])}),
+    Object.freeze({name:'War3Local.mpq', required:2, paths:Object.freeze([
+      'Maps\\Campaign\\Human01.w3m',
+      'Maps\\Campaign\\Undead01.w3m',
+      'Maps\\Campaign\\Orc01.w3m'
+    ])}),
+    Object.freeze({name:'War3x.mpq', required:2, paths:Object.freeze([
+      'Melee_V0\\Units\\UnitBalance.slk',
+      'Custom_V0\\Units\\UnitBalance.slk',
+      'Custom_V1\\Units\\UnitBalance.slk'
+    ])}),
+    Object.freeze({name:'War3xLocal.mpq', required:2, paths:Object.freeze([
+      'Maps\\FrozenThrone\\Campaign\\HumanX01.w3x',
+      'Maps\\FrozenThrone\\Campaign\\HumanX06.w3x',
+      'Maps\\FrozenThrone\\Campaign\\UndeadX01.w3x',
+      'Maps\\FrozenThrone\\Campaign\\NightElfX01.w3x'
+    ])})
+  ]);
+  // Check header/table plausibility before opening an embedded archive and
+  // decrypting its tables. Every extent is relative to the OUTER MPQ header.
+  // Require an exact self-contained archive size, as observed on the 2003 TFT
+  // disc; padded, compressed and encrypted payloads are not inferred.
+  function nestedHeader(header, expected) {
+    if (header.length < 32 || header[0] !== 77 || header[1] !== 80 ||
+        header[2] !== 81 || header[3] !== 26) return false;
+    const length = word(header, 8), headerSize = word(header, 4);
+    const version = header[12] | (header[13] << 8);
+    const hcount = word(header, 24), bcount = word(header, 28);
+    const hpos = word(header, 16), bpos = word(header, 20);
+    return headerSize >= 32 && headerSize <= length &&
+      length === expected && (version === 0 || version === 1) &&
+      (header[14] | (header[15] << 8)) <= 15 &&
+      hcount > 0 && hcount <= MAX_TABLE && (hcount & (hcount - 1)) === 0 &&
+      bcount > 0 && bcount <= MAX_TABLE &&
+      hpos >= headerSize && bpos >= headerSize &&
+      hpos + hcount * 16 <= length && bpos + bcount * 16 <= length;
+  }
+  function classifyAnonymous(inner) {
+    const matches = fingerprints.filter(profile =>
+      profile.paths.reduce((found, path) => found + Number(inner.has(path)), 0) >= profile.required);
+    return matches.length === 1 ? matches[0].name : null;
+  }
+  async function extractGameArchives(blob, {signal} = {}) {
+    const archive = await open(blob, {signal});
+    const results = [];
+    const claimed = new Set();
+    let total = 0, unidentified = 0;
+    function add(name, data, method, index) {
+      total += data.size;
+      requireCondition(total <= MAX_EMBEDDED_TOTAL, 'Embedded MPQs exceed safety limit');
+      claimed.add(index);
+      results.push({name, blob:data, size:data.size, method});
+    }
+    // Try known names first, including the regular (non-x) game archives.
+    // A named, compressed entry is supported by Reader.read().
+    for (const name of gameNames) {
+      aborted(signal);
+      const block = archive.find(name);
+      if (!block) continue;
+      const index = archive.blocks.indexOf(block);
+      requireCondition(index >= 0, 'Invalid installer block reference');
+      const data = await archive.read(name, {maxSize:MAX_GAME_ARCHIVE});
+      // The named lookup is already an identity proof. Preserve existing
+      // installer support for archive variants with minimal MPQ headers.
+      add(name, data, 'named', index);
+    }
+    // MPQ block-table enumeration works even when the outer `(listfile)` is
+    // missing. Only plain whole-file blocks can be sliced without filename-
+    // dependent decryption. Crucially, do not infer an identity from offset,
+    // block index, byte count or from the number of embedded archives.
+    requireCondition(archive.blocks.length <= MAX_RAW_PROBES,
+      'Installer has too many blocks for bounded raw MPQ discovery');
+    for (const [index, block] of archive.blocks.entries()) {
+      aborted(signal);
+      if (claimed.has(index) || block.flags !== FILE_EXISTS ||
+          block.size < 32 || block.size > MAX_GAME_ARCHIVE ||
+          block.packed !== block.size || block.offset < 32 ||
+          block.offset > archive.length || block.size > archive.length - block.offset) continue;
+      const offset = archive.base + block.offset;
+      const header = await at(archive.blob, offset, 32, signal);
+      if (!nestedHeader(header, block.size)) continue;
+      const data = archive.blob.slice(offset, offset + block.size);
+      // Only read small encrypted hash/block tables of the nested archive.
+      // A game data archive never has to be copied into JS heap memory.
+      let identity = null;
+      try { identity = classifyAnonymous(await open(data, {signal})); }
+      catch (err) {
+        if (err.name === 'AbortError') throw err;
+        // A syntactically valid header may still contain an unsupported or
+        // damaged MPQ table. Never install it on a guessed filename.
+      }
+      if (identity) add(identity, data, 'internal-paths', index);
+      else ++unidentified;
+    }
+    // An unknown archive is deliberately not returned with an invented name.
+    return {archives:results, unidentified};
+  }
+  // Retain the old API for tools that use it; the browser installer now uses
+  // the general scanner to discover named and anonymous game archives.
   async function extractNamedExpansionArchives(blob, {signal} = {}) {
     const archive = await open(blob, {signal});
     const results = [];
     let total = 0;
-    for (const name of expansionNames) {
-      aborted(signal);
+    for (const name of ['War3x.mpq', 'War3xLocal.mpq']) {
       if (!archive.has(name)) continue;
-      const data = await archive.read(name, {maxSize: MAX_GAME_ARCHIVE});
+      const data = await archive.read(name, {maxSize:MAX_GAME_ARCHIVE});
       total += data.size;
-      requireCondition(total <= MAX_EXPANSION_TOTAL, 'Expansion archive data exceeds safety limit');
-      results.push({name, blob: data, size: data.size});
+      requireCondition(total <= MAX_EMBEDDED_TOTAL, 'Expansion archive data exceeds safety limit');
+      results.push({name, blob:data, size:data.size});
     }
     return results;
   }
@@ -270,5 +379,6 @@
     }
     return results;
   }
-  scope.SetupMPQ = Object.freeze({open, extractKnownMaps, extractNamedExpansionArchives, knownMaps, SetupMPQError});
+  scope.SetupMPQ = Object.freeze({open, extractKnownMaps, extractNamedExpansionArchives,
+    extractGameArchives, knownMaps, SetupMPQError});
 })(globalThis);

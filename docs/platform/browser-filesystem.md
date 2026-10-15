@@ -20,7 +20,10 @@ generation. The combined selection must contain `War3.mpq`; duplicate archive
 names are errors, not implicit overrides. Patch 5 additionally extracts a
 known original RoC `Setup.mpq` map profile into nested `Maps/` directories.
 Patch 6 can recover directly named `War3x.mpq`/`War3xLocal.mpq` members from
-a TFT `Setup.mpq` and rejects a recognized 2002 demo ISO. It refuses to commit
+a TFT `Setup.mpq` and rejects a recognized 2002 demo ISO. Patch 7 additionally
+scans uncompressed anonymous installer blocks for nested MPQs, assigning game
+archive filenames only where internal Warcraft III file-path hash evidence
+identifies their roles. It also recognizes named base/local/patch members. It refuses to commit
 a selected TFT installer that cannot supply `War3x.mpq`, rather than silently
 claiming an expansion installation.
 `Setup.mpq` itself is not a playable archive and is never installed.
