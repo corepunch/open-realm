@@ -29,6 +29,15 @@ canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
 <main>
 <h1>OpenRealm browser foundation</h1>
 <p id="status" role="status">Checking browser-local Warcraft III data…</p>
+<section aria-labelledby="mode-heading">
+<h2 id="mode-heading">Game edition</h2>
+<label for="game-edition">Launch mode</label>
+<select id="game-edition" disabled aria-label="Warcraft III game edition">
+<option value="roc">Reign of Chaos</option>
+<option value="tft">The Frozen Throne</option>
+</select>
+<p>Changing edition restarts the browser game. The Frozen Throne requires War3x.mpq.</p>
+</section>
 <section aria-labelledby="data-heading">
 <h2 id="data-heading">Local Warcraft III data (experimental)</h2>
 <p>Select an original Warcraft III Reign of Chaos ISO, optionally alongside

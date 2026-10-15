@@ -27,16 +27,18 @@ function dir(entries) {
     }
   };
 }
-async function launch(mapPath, {corruptBase = false, edition, completeness} = {}) {
+async function launch(mapPath, {corruptBase = false, edition, completeness, expansion = false, requested = null} = {}) {
   const manifest = {
     version:3, generation:'install-abcd-1234',
     ...(edition ? {edition, completeness} : {}),
-    files:[{name:'War3.mpq', size:mpq.length}, {name:mapPath, size:map.length}],
-    bytes:mpq.length + map.length
+    files:[{name:'War3.mpq', size:mpq.length}, {name:mapPath, size:map.length},
+      ...(expansion ? [{name:'War3x.mpq',size:mpq.length}] : [])],
+    bytes:mpq.length + map.length + (expansion ? mpq.length : 0)
   };
   const broken = Buffer.from(mpq);
   if (corruptBase) broken.writeUInt32LE(1024, 8);
-  const stage = dir({'War3.mpq':new Blob([corruptBase ? broken : mpq]), 'Maps':dir({
+  const stage = dir({'War3.mpq':new Blob([corruptBase ? broken : mpq]),
+    ...(expansion ? {'War3x.mpq':new Blob([mpq])} : {}), 'Maps':dir({
     '(4)LostTemple.w3m':new Blob([map])
   })});
   const store = dir({openrealm:dir({'game-data':dir({wc3:dir({
@@ -46,6 +48,9 @@ async function launch(mapPath, {corruptBase = false, edition, completeness} = {}
   const starts = [];
   const lockRequests = [];
   const status = {textContent:''};
+  const selector = {value:'roc',disabled:true,handlers:{},addEventListener(name,fn){this.handlers[name]=fn;}};
+  const session = new Map(requested ? [['openrealm-wc3-browser-mode',requested]] : []);
+  let reloads = 0;
   const context = vm.createContext({
     navigator:{storage:{getDirectory:async () => store}, locks:{
       request:async (name, options, callback) => {
@@ -53,13 +58,15 @@ async function launch(mapPath, {corruptBase = false, edition, completeness} = {}
         return callback({name, mode:options.mode});
       }
     }},
-    document:{getElementById:() => status},
+    document:{getElementById:id => id === 'game-edition' ? selector : status},
+    sessionStorage:{getItem:key=>session.get(key) ?? null,setItem:(key,value)=>session.set(key,value)},
+    location:{reload:()=>{reloads++;}},
     window:{openrealmStartEngine:args => starts.push(args), MPQHeader:require('../site/mpq-header.js')},
     Uint8Array, Number, DataView
   });
   vm.runInContext(fs.readFileSync(path.join(site, 'filesystem-bridge.js'), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
-  return {starts, status, lockRequests};
+  return {starts, status, lockRequests, selector, session, get reloads(){return reloads;}};
 }
 test('launcher accepts a validated version-3 map under Maps/', async () => {
   const {starts, status} = await launch('Maps/(4)LostTemple.w3m');
@@ -101,4 +108,30 @@ test('launcher refuses contradictory demo edition metadata', async () => {
     {edition:'demo', completeness:'expansion'});
   assert.equal(starts.length, 0);
   assert.match(status.textContent, /Invalid demo installation manifest/);
+});
+
+
+test('RoC is the default even with expansion archives installed', async () => {
+  const result = await launch('Maps/(4)LostTemple.w3m', {expansion:true});
+  assert.equal(result.selector.disabled, false);
+  assert.equal(result.selector.value, 'roc');
+  assert.deepEqual(Array.from(result.starts[0].slice(-3)), ['+set','fs_expansion','0']);
+});
+
+test('TFT selection passes expansion mode on next page launch', async () => {
+  const result = await launch('Maps/(4)LostTemple.w3m',
+    {expansion:true, requested:'tft'});
+  assert.equal(result.selector.value, 'tft');
+  assert.deepEqual(Array.from(result.starts[0].slice(-3)), ['+set','fs_expansion','1']);
+  result.selector.value = 'roc';
+  result.selector.handlers.change();
+  assert.equal(result.session.get('openrealm-wc3-browser-mode'), 'roc');
+  assert.equal(result.reloads, 1);
+});
+
+test('TFT preference falls back safely for a base-only install', async () => {
+  const result = await launch('Maps/(4)LostTemple.w3m', {requested:'tft'});
+  assert.equal(result.selector.disabled, true);
+  assert.equal(result.selector.value, 'roc');
+  assert.deepEqual(Array.from(result.starts[0].slice(-3)), ['+set','fs_expansion','0']);
 });

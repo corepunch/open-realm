@@ -7,6 +7,7 @@
   const MANIFEST_PATH = ['openrealm', 'game-data', 'wc3'];
   const COMMIT_LOCK = 'openrealm-wc3-installation';
   const GENERATION_LOCK = 'openrealm-wc3-generation:';
+  const MODE_KEY = 'openrealm-wc3-browser-mode';
   function status(message) {
     const node = document.getElementById('status');
     if (node) node.textContent = message;
@@ -83,7 +84,8 @@
     if (!seen.has('war3.mpq') || manifest.bytes !== total)
       throw new Error('War3.mpq missing or installation size mismatch');
     return {path, generation:manifest.version >= 2 ? manifest.generation : 'legacy',
-      edition:manifest.edition === 'demo' ? 'demo' : 'retail'};
+      edition:manifest.edition === 'demo' ? 'demo' : 'retail',
+      hasExpansion:seen.has('war3x.mpq')};
   }
   // A shared commit lock protects the manifest-to-generation transition.
   // After reading it, hold a shared generation lease for this tab's lifetime,
@@ -94,6 +96,15 @@
       throw new Error('Web Locks API is required to protect installed game data');
     await navigator.locks.request(COMMIT_LOCK, {mode:'shared'}, async () => {
       const installation = await validate();
+      const selector = document.getElementById('game-edition');
+      const requested = sessionStorage.getItem(MODE_KEY);
+      const mode = requested === 'tft' && installation.hasExpansion &&
+        installation.edition !== 'demo' ? 'tft' : 'roc';
+      if (selector) {
+        selector.disabled = installation.edition === 'demo' || !installation.hasExpansion;
+        selector.value = mode;
+      }
+      if (requested !== mode) sessionStorage.setItem(MODE_KEY, mode);
       await new Promise((resolve, reject) => {
         navigator.locks.request(GENERATION_LOCK + installation.generation,
           {mode:'shared'}, async () => {
@@ -101,7 +112,8 @@
               status(installation.edition === 'demo'
                 ? 'Warcraft III Demo installation — limited content; starting experimental engine…'
                 : 'Validated browser installation; starting engine…');
-              window.openrealmStartEngine(['+openrealm-data=' + installation.path]);
+              window.openrealmStartEngine(['+openrealm-data=' + installation.path,
+                '+set', 'fs_expansion', mode === 'tft' ? '1' : '0']);
               resolve(); // Release commit lock after acquiring the lease.
             } catch (err) { reject(err); return; }
             // The engine may access WasmFS indefinitely. Keep this lease until
@@ -111,6 +123,14 @@
       });
     });
   }
+  // Changing edition requires a reload: the existing engine owns the canvas
+  // and its WasmFS lifetime cannot be safely reinitialized in the same page.
+  const selector = document.getElementById('game-edition');
+  if (selector) selector.addEventListener('change', () => {
+    if (selector.disabled || !['roc', 'tft'].includes(selector.value)) return;
+    sessionStorage.setItem(MODE_KEY, selector.value);
+    location.reload();
+  });
   // Installer's removal-only reload must never re-acquire the game-data lease.
   if (sessionStorage.getItem('openrealm-wc3-remove-after-reload') !== '1')
     begin().catch(error => {

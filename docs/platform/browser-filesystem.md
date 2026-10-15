@@ -159,3 +159,18 @@ marker; failed removal leaves the archives intact and displays the Web Locks
 error (other game tabs still need to be closed). Normal page loads have no
 removal marker and continue starting the engine. This intentionally uses a
 page reload instead of attempting unsafe teardown of a live WasmFS mount.
+
+## Browser RoC/TFT selection
+
+The engine page exposes a game-edition selector above the installer. After
+validating the stored manifest, the launcher enables The Frozen Throne only if
+`War3x.mpq` is present and the installation is not labelled as demo. The
+selection is preserved in tab-scoped `sessionStorage` and defaults to Reign of
+Chaos. Selecting a different edition reloads the document to release the
+existing Web Locks generation lease and stop the current Emscripten engine.
+The new engine receives `+set fs_expansion 0` (RoC) or `+set fs_expansion 1`
+(TFT) as early-startup arguments. No archive re-import is needed.
+
+A demo or base-only installation disables TFT and resets a stale expansion
+preference to RoC. This only selects the existing engine's expansion mode; it
+does not claim complete TFT assets or gameplay compatibility.
