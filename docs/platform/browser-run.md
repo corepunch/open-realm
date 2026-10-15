@@ -92,8 +92,9 @@ page, but cannot delete a generation that an open game tab is using.
 
 The canvas uses the Warcraft III defaults bundled with the browser build:
 left-click selection, right-click smart orders and middle mouse button pan.
-The **Esc** overlay sends Escape to the game, and the fullscreen control
-toggles canvas fullscreen. Interact with the page once to unlock browser audio.
+The **Esc** overlay sends Escape to the game. The fullscreen control expands
+the game container, keeping both overlay controls visible; canvas resizing does
+not cover the controls. Interact with the page once to unlock browser audio.
 
 If the page says cross-origin isolation is unavailable, use the included
 `port/web/serve.py` server and verify in DevTools:
@@ -119,8 +120,9 @@ been verified across all retail game data.
 The browser target statically links the engine, renders through WebGL 2,
 embeds Warcraft III default configuration, imports supported media into OPFS,
 and mounts the selected generation through WasmFS. The page includes local
-installer status, detected archives, import cancellation/removal, Escape and
-fullscreen controls, and AudioWorklet playback.
+installer status, detected archives, import cancellation/removal, persistent
+Escape and fullscreen controls during fullscreen and canvas resizing, and
+AudioWorklet playback.
 
 Run the dependency-free browser tests from the repository root with:
 

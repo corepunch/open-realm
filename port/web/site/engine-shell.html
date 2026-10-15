@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenRealm — Browser foundation</title>
+<title>OpenRealm</title>
 <style>
 body { background: #0b1220; color: #e6ecf4; font: 16px system-ui, sans-serif; margin: 0; }
 main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
@@ -49,33 +49,53 @@ canvas { display: block; max-width: 100%; background: #000; }
 #game-container:fullscreen #game-controls { top: max(.65rem, env(safe-area-inset-top));
   right: max(.65rem, env(safe-area-inset-right)); }
 #status { margin: 1rem 0; }
+#browser-unsupported { padding: 1rem; border: 1px solid #b84b4b; border-radius: .4rem; }
+#page-content[hidden], #browser-unsupported[hidden] { display: none; }
+#play-game-row { display: flex; justify-content: center; margin: .9rem 0; }
+#play-game { margin: .3rem; padding: .8rem 2.4rem; border: 1px solid #16803c;
+  border-radius: .4rem; background: #16803c; color: #fff; font: 700 1.25rem system-ui, sans-serif;
+  cursor: pointer; }
+#play-game:hover, #play-game:focus-visible { background: #116b32; }
+#install-data.has-selection { border-color: #16803c; background: #16803c; color: #fff; }
+#install-data.has-selection:hover, #install-data.has-selection:focus-visible { background: #116b32; }
 </style>
 </head>
 <body>
 <main>
-<h1>OpenRealm browser foundation</h1>
+<section id="browser-unsupported" role="alert" hidden>
+  <h1>Browser not supported</h1>
+  <p>OpenRealm requires WebGL 2, OffscreenCanvas, and cross-origin isolation to run.</p>
+</section>
+<div id="page-content" hidden>
+<h1>OpenRealm</h1>
 <p id="status" role="status">Checking browser-local Warcraft III data…</p>
-<section aria-labelledby="data-heading">
-<h2 id="data-heading">Local Warcraft III data (experimental)</h2>
-<p>Select an original Warcraft III Reign of Chaos ISO, optionally alongside
-its Frozen Throne ISO, a Warcraft III Demo ISO, or standalone MPQ/W3M/W3X files.
-Import demo discs separately from retail game data. Select retail RoC and TFT together;
-each import replaces the active installation. The browser copies
-recognized disc archives and directly selected files to local OPFS only;
-nothing is uploaded. Known original RoC Setup.mpq map files are extracted when the disc layout matches; unknown installer layouts are skipped.</p>
+<details id="data-panel">
+<summary id="data-heading">Local Warcraft III data (experimental)</summary>
+<ul>
+  <li>MPQ files from Warcraft III version 1.29 are the most tested</li>
+  <li>When importing files it is possible to select multiple</li>
+  <li>Select standalone MPQ/W3M/W3X files from a local installation (e.g. Warcraft III - Legacy TFT 1.29 installed by Battle.Net)</li>
+  <li>OR</li>
+  <li>Select a Reign of Chaos ISO, optionally with a Frozen Throne ISO. Selecting RoC and TFT together installs both editions.</li>
+  <li>Reforged is not supported</li>
+  <li>Demo files are not yet supported</li>
+  <li>Files are stored locally in your browser; nothing is uploaded</li>
+</ul>
 <input id="game-files" type="file" accept=".iso,.mpq,.w3m,.w3x" multiple aria-label="Warcraft III ISO images and game data files">
 <p id="selection-summary">No files selected.</p>
 <button id="install-data" type="button">Import selected files</button>
 <button id="cancel-install" type="button" disabled>Cancel</button>
 <button id="remove-data" type="button">Remove local data</button>
 <progress id="install-progress" max="1" value="0" aria-label="Game data import progress"></progress>
-<p id="data-status" role="status">Checking local storage…</p>
+<div id="play-game-row"><button id="play-game" type="button" hidden>Play Game</button></div>
+
+  <p id="data-status" role="status">Checking local storage…</p>
 <p id="installation-edition" role="note" hidden></p>
 <div id="discovered-files" hidden>
 <h3>Detected game files</h3>
 <ul id="archive-list"></ul>
 </div>
-</section>
+</details>
 
 <section aria-labelledby="mode-heading">
   <h2 id="mode-heading">Game edition</h2>
@@ -96,13 +116,21 @@ nothing is uploaded. Known original RoC Setup.mpq map files are extracted when t
     <button id="game-fullscreen" type="button" aria-label="Enter fullscreen" title="Toggle fullscreen">⛶</button>
   </div>
 </div>
+<p>This is a WebGL 2 platform probe, not yet the game.</p>
 <p>Experimental OpenRealm browser runtime. Imported archives are read directly from OPFS through WasmFS. Engine compatibility is experimental.</p>
+</div>
 </main>
 <script>
+var webglProbe = document.createElement('canvas');
+var browserSupported = !!(webglProbe.getContext('webgl2') &&
+  typeof OffscreenCanvas !== 'undefined' &&
+  HTMLCanvasElement.prototype.transferControlToOffscreen &&
+  window.crossOriginIsolated);
+document.getElementById(browserSupported ? 'page-content' : 'browser-unsupported').hidden = false;
 var Module = {
   canvas: document.getElementById('canvas'),
   setStatus: function (message) {
-    document.getElementById('status').textContent = message || 'WebGL 2 probe running';
+    document.getElementById('status').textContent = message || 'WebGL 2 ready';
   },
   onAbort: function (reason) {
     document.getElementById('status').textContent = 'WebAssembly aborted: ' + reason;
@@ -123,15 +151,13 @@ document.getElementById('reload-to-play').addEventListener('click', function () 
 var gameCanvas = document.getElementById('canvas');
 var gameContainer = document.getElementById('game-container');
 var gameFullscreen = document.getElementById('game-fullscreen');
-/* A canvas-only fullscreen request hides sibling controls because the browser
- * displays only the requested fullscreen element. Always fullscreen the wrapper
- * so both canvas and controls remain in the fullscreen top layer. */
+/* Prefer fullscreening the wrapper so game controls stay with the canvas. */
 if (gameCanvas.requestFullscreen && gameContainer.requestFullscreen) {
   try {
     gameCanvas.requestFullscreen = function (options) {
       return gameContainer.requestFullscreen(options);
     };
-  } catch (_) { /* Non-writable fullscreen method: the page button still works. */ }
+  } catch (_) { /* The page fullscreen button requests the wrapper directly. */ }
 }
 function sendGameEscape() {
   gameCanvas.focus();
@@ -216,17 +242,7 @@ window.openrealmAudioDetach = function () {
   }
 };
 window.openrealmStartEngine = function (arguments_) {
-  if (typeof OffscreenCanvas === 'undefined' ||
-      !HTMLCanvasElement.prototype.transferControlToOffscreen) {
-    document.getElementById('status').textContent =
-      'WebGL requires OffscreenCanvas support for the game worker.';
-    return;
-  }
-  if (!window.crossOriginIsolated) {
-    document.getElementById('status').textContent =
-      'The engine requires COOP/COEP cross-origin isolation.';
-    return;
-  }
+  if (!browserSupported) return;
   Module.arguments = arguments_;
   var script = document.createElement('script');
   script.src = 'index.js';

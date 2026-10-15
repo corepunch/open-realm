@@ -4,6 +4,7 @@
   const fileInput = document.getElementById('game-files');
   const install = document.getElementById('install-data');
   const cancel = document.getElementById('cancel-install');
+  const play = document.getElementById('play-game');
   const remove = document.getElementById('remove-data');
   const status = document.getElementById('data-status');
   const progress = document.getElementById('install-progress');
@@ -11,6 +12,7 @@
   const discovered = document.getElementById('discovered-files');
   const archives = document.getElementById('archive-list');
   const editionNotice = document.getElementById('installation-edition');
+  const dataPanel = document.getElementById('data-panel');
   if (!navigator.storage?.getDirectory || !window.Worker || !navigator.locks?.request) {
     status.textContent = 'OPFS, Web Workers and Web Locks are required to install files safely in this browser.';
     install.disabled = true;
@@ -25,6 +27,7 @@
   const worker = new Worker('install-worker.js');
   let operation = null;
   let warnings = [];
+  let playable = false;
   const sizeLabel = bytes => {
     if (bytes < 1024) return bytes + ' B';
     const unit = bytes < 1024 * 1024 ? 'KiB' : bytes < 1024 ** 3 ? 'MiB' : 'GiB';
@@ -38,6 +41,17 @@
     install.disabled = busy;
     cancel.disabled = value !== 'import';
     remove.disabled = busy;
+    if (play) play.disabled = busy || !playable;
+  }
+  function updatePlayable(manifest) {
+    playable = !!(manifest && Array.isArray(manifest.files) &&
+      manifest.files.some(file => file && typeof file.name === 'string' &&
+        file.name.toLowerCase() === 'war3.mpq') &&
+      (manifest.edition === undefined || manifest.edition === 'retail' || manifest.edition === 'demo'));
+    if (play) {
+      play.hidden = !playable;
+      play.disabled = operation !== null || !playable;
+    }
   }
   function clearDiscovery() {
     archives.replaceChildren();
@@ -53,6 +67,7 @@
   }
   function showSelection() {
     const files = Array.from(fileInput.files || []);
+    install.classList.toggle('has-selection', files.length > 0);
     const isos = files.filter(file => /\.iso$/i.test(file.name)).length;
     const direct = files.length - isos;
     selection.textContent = files.length
@@ -90,9 +105,7 @@
       setOperation(null);
       progress.value = 1;
       showEdition(data.manifest);
-      if (window.openrealmGamePresentation &&
-          data.manifest.files.some(file => file.name.toLowerCase() === 'war3.mpq'))
-        window.openrealmGamePresentation('reload');
+      updatePlayable(data.manifest);
       status.textContent = (data.manifest.edition === 'demo'
         ? 'Warcraft III Demo installed (limited content). ' :
         data.manifest.completeness === 'partial-expansion'
@@ -110,6 +123,8 @@
       setOperation(null);
       const manifest = data.manifest;
       showEdition(manifest);
+      updatePlayable(manifest);
+      if (dataPanel) dataPanel.open = !manifest;
       status.textContent = manifest
         ? (manifest.edition === 'demo' ? 'Warcraft III Demo installed (limited content). ' :
             manifest.completeness === 'partial-expansion' ? 'Partial expansion installation. ' : '') +
@@ -155,6 +170,10 @@
     catch (error) { status.textContent = 'Cannot prepare safe removal: ' + error.message; return; }
     setOperation('remove');
     status.textContent = 'Stopping game before removing local data…';
+    window.location.reload();
+  });
+  if (play) play.addEventListener('click', () => {
+    if (!playable || operation) return;
     window.location.reload();
   });
   showSelection();
