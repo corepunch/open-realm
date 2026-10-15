@@ -1,4 +1,4 @@
-# Browser ISO 9660 reader (Warcraft III disc import, patches 1–2)
+# Browser ISO 9660 reader (Warcraft III disc import, patches 1–3)
 
 ## Scope and ownership
 
@@ -15,19 +15,41 @@ copies of on-disc integers, checks extents against the Blob size, limits
 traversal, detects directory loops and normalized path collisions, and rejects
 unsupported interleaved/multi-extent records rather than returning partial data.
 
-Patch 2 connects this module to `site/install-worker.js` for one ISO per import.
-The worker lazily loads `iso9660.js`, discovers the recognized game MPQs and
-copies only their source byte ranges through the existing 1 MiB OPFS writer.
-`Setup.mpq`, movies and arbitrary archives are skipped; `Setup.mpq` contents
-are **not** unpacked. The root `War3.mpq` is mandatory for a valid installation.
-An expansion-only disc, multiple ISOs, or a mixed ISO/MPQ selection is rejected
-rather than replacing existing game data with a partial set; composition is
-planned for patch 3. UI file-picker changes are planned for patch 4. The
-engine build copies the ISO reader alongside the worker, but the current
-`.iso` file picker filter has not yet been enabled.
+Patch 2 connects this module to `site/install-worker.js` and patch 3 adds
+composition of up to eight ISO images and directly selected MPQ/W3M/W3X files
+in a **single** import. Each ISO is scanned for the recognized game MPQs and
+only their source byte ranges are copied through the existing 1 MiB OPFS
+writer. `Setup.mpq`, movies and arbitrary archives inside an ISO are skipped:
+installer-package contents are **not** unpacked. Archive names are matched
+case-insensitively; repeated archive names within one ISO are ambiguous, and
+conflicting names across ISOs or direct uploads are rejected, with the source
+names reported. The importer does not guess which duplicate is newer.
+
+The *combined* selection must contain `War3.mpq` (from an ISO or an upload).
+A TFT ISO without it can be combined with the RoC ISO in the same operation.
+An expansion-only selection is rejected rather than creating an unlaunchable
+manifest. A subsequent import still **replaces**, rather than augments, the
+active manifest. To install RoC and TFT, select both together; patch 3 does not
+merge a newly selected ISO with the previous installation. UI ISO file-picker
+changes remain planned for patch 4.
+
+Before creating a new generation, the worker validates each source's MPQ
+header and checks `navigator.storage.estimate()` when available. An estimate
+showing insufficient remaining quota rejects the import without replacing the
+previous generation. Missing, denied or invalid estimates do not block the
+operation, because quotas are advisory and actual OPFS writes can still fail.
+The existing staged-generation cleanup protects the prior manifest on copy
+errors and cancellation. Already-committed generations are not deleted by
+normal imports: they may be in use by a running engine, so their bytes still
+count against storage usage. A user-triggered persistent-storage request is a
+follow-up UI consideration, not an automatic permission request in the worker.
+The worker prevents overlapping imports within one page, but does not
+coordinate commits across multiple open browser tabs. Do not install from two
+tabs concurrently; cross-tab locking and recovery need separate work.
 
 `install-worker.js` accepts the existing `postMessage({type:'import',files})`
-message, where `files` may contain a **single** `.iso` File. Its output remains
+message, where `files` is an ordered array containing ISO images, direct game
+archives, or both (maximum 512 input files and eight ISO images). Its output remains
 a version-2 generation manifest with the same archive names/sizes. No changes
 to `filesystem-bridge.js` or native MPQ loading are required. Name matching is
 case-insensitive and traverses ISO subdirectories, but repeated candidate names
@@ -105,7 +127,7 @@ cover primary/Joliet selection, nested files, sector padding, byte extents,
 filename normalization, lookup, cancellation, corrupt records, cycles and
 unsupported encodings. They use no proprietary media or installed WC3 data.
 
-Neither patch verifies a retail Reign of Chaos or Frozen Throne image,
+These patches do not verify a retail Reign of Chaos or Frozen Throne image,
 `Setup.mpq` extraction, the browser UI or final game launch. Testing real
 discs and exposing ISO selection through the file picker are follow-up tasks.
 
@@ -120,3 +142,12 @@ The worker tests exercise recognized/canonical names, ignored installer
 containers, source-byte copying, unchanged standalone MPQ imports, rejection
 of duplicate/invalid/expansion-only images, and cancellation preserving the
 previous OPFS generation. They use no retail data.
+
+## Patch 3 verification
+
+Run `node --test port/web/tests/iso-import.test.cjs` for worker-level synthetic
+fixtures covering combined RoC/TFT ISOs, mixed ISO and standalone MPQs in
+either order, duplicate conflicts across sources, source count limits, quota
+preflight, optional estimate failures and write-failure rollback. The existing
+single-ISO, direct-MPQ and cancellation cases remain in the same file. These
+tests do not require a retail Warcraft III disc.

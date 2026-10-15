@@ -11,10 +11,24 @@ Manifest version 1 mounts `/opfs/openrealm/game-data/wc3`; version 2 mounts
 These checks are only format checks, not integrity hashes or complete game-data
 validation. Importing a new generation does not alter already-open files.
 
-The importer worker can also read one ISO 9660/Joliet image, select the
-recognized WC3 MPQs and store them in the same version-2 generation format.
-`Setup.mpq` is deliberately not installed as a playable archive; its internal
-content is not yet extracted. See [browser ISO reader](browser-iso9660.md).
+The importer worker can read multiple ISO 9660/Joliet images and mix them with
+direct MPQ/W3M/W3X uploads in one import. It selects recognized WC3 archives
+from each disc and stores their source byte ranges in the same version-2
+generation. The combined selection must contain `War3.mpq`; duplicate archive
+names are errors, not implicit overrides. `Setup.mpq` is deliberately not
+installed as a playable archive; its internal content is not yet extracted.
+The browser picker does not yet expose ISO selection (patch 4). See
+[browser ISO reader](browser-iso9660.md).
+
+Before staging, the worker asks `navigator.storage.estimate()` for remaining
+quota when available. An explicit shortage prevents an import; absence or
+failure of this optional estimate does not prevent trying to write. OPFS can
+still fail during a write, in which case the uncommitted generation is removed
+and the active manifest is retained. Importing again **replaces** the manifest
+rather than merging with the current installation; select both RoC and TFT in
+the same operation. Old generations are deliberately retained because active
+engine readers may have them open. This affects the storage space needed for
+future installs; persistent-storage permission is not requested by the worker.
 
 The browser engine uses Emscripten WasmFS (`-sWASMFS=1`) and mounts the upstream
 OPFS backend at `/opfs` before `Sys_ResolveShareDirectory`, `Com_Init`, or

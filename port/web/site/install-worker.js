@@ -5,6 +5,8 @@ const GAME = 'game-data';
 const WC3 = 'wc3';
 const META = 'installation.json';
 const CHUNK = 1024 * 1024;
+const MAX_INPUT_FILES = 512; // Match filesystem-bridge.js manifest limit.
+const MAX_ISO_IMAGES = 8; // Limit expensive full-directory scans per import.
 // Only game archives are mountable. An installer container such as Setup.mpq
 // must not be treated as game content: unpacking it is a separate feature.
 const DISC_ARCHIVES = Object.freeze({
@@ -25,49 +27,84 @@ function checkCancelled() {
 }
 // Convert direct uploads or ISO extents into the same Blob-backed contract.
 async function selectSources(files) {
-  if (!Array.isArray(files) || !files.length) {
-    throw new Error('Select MPQ, W3M, W3X or ISO files');
+  if (!Array.isArray(files) || !files.length || files.length > MAX_INPUT_FILES) {
+    throw new Error('Select 1-512 MPQ, W3M, W3X or ISO files');
   }
   const images = files.filter(f => f && isoName(f.name));
-  if (images.length) {
-    // Patch 3 will implement multi-disc/mixed inputs and merge semantics.
-    if (images.length !== 1 || files.length !== 1) {
-      throw new Error('Select one ISO at a time; multi-disc imports are not yet supported');
+  if (images.length > MAX_ISO_IMAGES) {
+    throw new Error('Too many ISO images in one import (maximum 8)');
+  }
+  if (files.some(f => !f || !cleanName(f.name) ||
+                       (!isoName(f.name) && !allowed(f.name)) ||
+                       !Number.isSafeInteger(f.size) || f.size < 0 ||
+                       typeof f.slice !== 'function')) {
+    throw new Error('Select only ISO, MPQ, W3M or W3X files with safe filenames');
+  }
+
+  // Resolve all inputs before writing anything. A Reign of Chaos ISO and a
+  // Frozen Throne ISO (or direct MPQs) can supply complementary archives.
+  // Do not silently choose between two sources with the same archive name.
+  const sources = [];
+  const names = new Map();
+  function add(name, blob, source) {
+    const key = name.toLowerCase();
+    if (names.has(key)) {
+      throw new Error('Duplicate archive ' + name + ' from ' + source +
+          ' (already provided by ' + names.get(key) + ')');
     }
-    const disc = images[0];
-    if (!cleanName(disc.name) || typeof disc.slice !== 'function') {
-      throw new Error('Invalid ISO filename');
+    names.set(key, source);
+    sources.push({name, size:blob.size, blob});
+    if (sources.length > MAX_INPUT_FILES) {
+      throw new Error('Too many game files in one installation');
     }
-    // Load lazily: MPQ-only imports should work in existing deployments even
-    // if an older site build does not yet ship the ISO reader.
+  }
+
+  for (const file of files) {
+    checkCancelled();
+    if (!isoName(file.name)) {
+      add(file.name, file, file.name);
+      continue;
+    }
+    // MPQ-only installs must still function when an older site build does
+    // not ship the ISO module. ISO scanning never materializes a full image.
     if (!globalThis.ISO9660) importScripts('iso9660.js');
-    const image = await ISO9660.openISO(disc, {signal: scanController.signal});
+    const image = await ISO9660.openISO(file, {signal: scanController.signal});
     const entries = await image.listFiles();
     checkCancelled();
-    const sources = [];
-    const found = new Set();
+    const onDisc = new Set();
     for (const entry of entries) {
       checkCancelled();
       const name = DISC_ARCHIVES[entry.name.toLowerCase()];
-      if (!name) continue;
+      if (!name) continue; // In particular, Setup.mpq is not game data.
       const key = name.toLowerCase();
-      if (found.has(key)) throw new Error('Ambiguous archive in ISO: ' + name);
-      found.add(key);
-      // ISO9660 validated this range. Blob.slice() creates a range view,
-      // rather than allocating a second copy of the disc.
-      sources.push({name, size: entry.size,
-        blob: disc.slice(entry.offset, entry.offset + entry.size)});
+      if (onDisc.has(key)) throw new Error('Ambiguous archive in ISO: ' + name);
+      onDisc.add(key);
+      // Validated extents are views into the original Blob, not ISO copies.
+      add(name, file.slice(entry.offset, entry.offset + entry.size), file.name);
     }
-    if (!found.has('war3.mpq')) {
-      throw new Error('ISO has no War3.mpq; the Reign of Chaos base disc is required');
-    }
-    return sources;
   }
-  if (files.some(f => !f || !allowed(f.name) || !cleanName(f.name) ||
-                       typeof f.slice !== 'function')) {
-    throw new Error('Select only MPQ, W3M or W3X files with safe filenames');
+  // A standalone TFT disc is a valid *input*, but not a complete install.
+  // Check the union of all sources, not each ISO separately.
+  if (!names.has('war3.mpq')) {
+    throw new Error('War3.mpq missing; select the Reign of Chaos base disc or MPQ alongside expansion data');
   }
-  return files.map(f => ({name:f.name, size:f.size, blob:f}));
+  return sources;
+}
+// Best-effort quota check: estimates are advisory, and browsers can evict
+// origin data or deny later writes. The actual copy still handles failures.
+async function checkAvailableStorage(bytes) {
+  if (typeof navigator.storage.estimate !== 'function') return;
+  let estimate;
+  try { estimate = await navigator.storage.estimate(); }
+  catch (_) { return; } // A refused estimate must not disable imports.
+  checkCancelled();
+  const {usage, quota} = estimate || {};
+  if (!Number.isFinite(quota) || !Number.isFinite(usage) ||
+      quota < 0 || usage < 0 || usage > quota) return;
+  if (bytes > quota - usage) {
+    throw new Error('Not enough estimated browser storage for ' + bytes +
+        ' bytes of game data; free storage and retry');
+  }
 }
 async function directory(create) {
   const origin = await navigator.storage.getDirectory();
@@ -105,17 +142,13 @@ async function install(files) {
   try {
     const selected = await selectSources(files);
     checkCancelled();
-    const names = new Set();
-    for (const f of selected) {
-      const key = f.name.toLowerCase();
-      if (names.has(key)) throw new Error('Duplicate filename: ' + f.name);
-      names.add(key);
-    }
     // Validate before creating any replacement generation. Maps are MPQs too.
     for (const file of selected) await checkMpqHeader(file);
     checkCancelled();
     const total = selected.reduce((sum, f) => sum + f.size, 0);
     if (!Number.isSafeInteger(total)) throw new Error('Installation size overflow');
+    await checkAvailableStorage(total);
+    checkCancelled();
     dir = await directory(true);
     // Every import is a fresh immutable generation, committed by a manifest.
     generation = 'install-' + Date.now().toString(36) + '-' +
