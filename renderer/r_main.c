@@ -41,6 +41,60 @@ static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE web_gl_context;
 static bool renderer_shutdown = false;
 static bool drawable_dirty;
 
+#ifdef __EMSCRIPTEN__
+/* The fullscreen button changes CSS on the DOM thread, not SDL's logical
+ * window or the worker-owned OffscreenCanvas backing store. A synthetic
+ * window.resize alone cannot reliably update either value in SDL2. Keep the
+ * game canvas authoritative for browser-only dimensions, sampled at bounded
+ * intervals so resolving UI geometry never requires a main-thread proxy on
+ * every frame. Native SDL ownership and resolution handling are unchanged. */
+#define WEB_CANVAS_POLL_MS 100
+#define WEB_CANVAS_MAX_DIM 16384
+static uint32_t web_canvas_poll_time;
+static bool web_canvas_polled;
+
+static void R_WebSyncCanvasSize(void) {
+    double css_width = 0, css_height = 0;
+    int logical_width, logical_height, current_width, current_height;
+    int pixel_width, pixel_height, actual_width = 0, actual_height = 0;
+    double ratio;
+    uint32_t now = SDL_GetTicks();
+
+    if (!window || (web_canvas_polled && (uint32_t)(now - web_canvas_poll_time) < WEB_CANVAS_POLL_MS))
+        return;
+    web_canvas_polled = true;
+    web_canvas_poll_time = now;
+    /* The DOM element remains available on the main browser thread even
+     * though WebGL rendering was transferred to the engine pthread. */
+    if (emscripten_get_element_css_size("#canvas", &css_width, &css_height) != EMSCRIPTEN_RESULT_SUCCESS)
+        return;
+    if (!(css_width >= 1.0 && css_width <= WEB_CANVAS_MAX_DIM &&
+          css_height >= 1.0 && css_height <= WEB_CANVAS_MAX_DIM))
+        return;
+    logical_width = (int)(css_width + 0.5);
+    logical_height = (int)(css_height + 0.5);
+    SDL_GetWindowSize(window, &current_width, &current_height);
+    if (current_width != logical_width || current_height != logical_height) {
+        SDL_SetWindowSize(window, logical_width, logical_height);
+        drawable_dirty = true;
+    }
+    /* Canvas backing pixels are separate from the CSS display box. Apply
+     * the correction on the context-owning pthread through Emscripten, NOT
+     * HTMLCanvasElement.width/height on the browser main thread. */
+    ratio = emscripten_get_device_pixel_ratio();
+    if (!(ratio >= 0.5 && ratio <= 4.0)) ratio = 1.0;
+    if (css_width * ratio > WEB_CANVAS_MAX_DIM || css_height * ratio > WEB_CANVAS_MAX_DIM)
+        ratio = 1.0;
+    pixel_width = (int)(css_width * ratio + 0.5);
+    pixel_height = (int)(css_height * ratio + 0.5);
+    if (emscripten_get_canvas_element_size("#canvas", &actual_width, &actual_height) == EMSCRIPTEN_RESULT_SUCCESS &&
+        (actual_width != pixel_width || actual_height != pixel_height)) {
+        if (emscripten_set_canvas_element_size("#canvas", pixel_width, pixel_height) == EMSCRIPTEN_RESULT_SUCCESS)
+            drawable_dirty = true;
+    }
+}
+#endif
+
 /* SDL's drawable framebuffer. On desktop GL this is id 0; on iOS SDL renders
  * into its own FBO (SDL_uikitopenglview viewFramebuffer, non-zero) and
  * presents whichever renderbuffer is bound, so drawing to 0 draws nowhere.
@@ -552,7 +606,14 @@ static bool R_RefreshDrawableSize(cstring_t reason) {
     uint32_t old_width, old_height;
 
     if (!window) return false;
+#ifdef __EMSCRIPTEN__
+    /* SDL's cached drawable can retain the old fullscreen dimensions after
+     * HTML fullscreen. The worker canvas element is the render target. */
+    if (emscripten_get_canvas_element_size("#canvas", &drawable_width, &drawable_height) != EMSCRIPTEN_RESULT_SUCCESS)
+        return false;
+#else
     SDL_GL_GetDrawableSize(window, &drawable_width, &drawable_height);
+#endif
     if (drawable_width <= 0 || drawable_height <= 0) return false;
     if (tr.drawableSize.width == (uint32_t)drawable_width &&
         tr.drawableSize.height == (uint32_t)drawable_height) {
@@ -1066,6 +1127,9 @@ static void R_FinishFrameStats(void) {
 }
 
 void R_BeginFrame(void) {
+#ifdef __EMSCRIPTEN__
+    R_WebSyncCanvasSize();
+#endif
     if (drawable_dirty) {
         drawable_dirty = false;
         R_RefreshDrawableSize("window-event");
@@ -1101,6 +1165,9 @@ void R_EndFrame(void) {
 
 size2_t R_GetWindowSize(void) {
     int width, height;
+#ifdef __EMSCRIPTEN__
+    R_WebSyncCanvasSize();
+#endif
     SDL_GetWindowSize(window, &width, &height);
     return (size2_t) {
         .width = width,

@@ -28,7 +28,10 @@ canvas { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; bac
   cursor: pointer; touch-action: manipulation; }
 #game-controls button:hover, #game-controls button:focus-visible { background: #304969; }
 #game-container:fullscreen { width: 100%; height: 100%; background: #000; }
-#game-container:fullscreen canvas { width: 100%; height: 100%; aspect-ratio: auto; }
+/* SDL may assign inline element sizes. In fullscreen the CSS display size
+ * must remain the fullscreen viewport; backing pixels are synced by the
+ * Emscripten renderer on its worker, not by these style rules. */
+#game-container:fullscreen canvas { width: 100% !important; height: 100% !important; aspect-ratio: auto; }
 #game-container:fullscreen #game-controls { top: max(.65rem, env(safe-area-inset-top));
   right: max(.65rem, env(safe-area-inset-right)); }
 #status { margin: 1rem 0; }
