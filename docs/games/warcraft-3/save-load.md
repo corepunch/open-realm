@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 97, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 98, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -860,7 +860,7 @@ safe even when a writer truncates the live copy in place. When reflinking is
 
 ### Native-owned campaign and death state (version 98)
 
-Version 90 serializes `level.campaign_menu_race` (legacy 1..4 or 0 for selector)
+Version 98 serializes `level.campaign_menu_race` (legacy 1..4 or 0 for selector)
 and preserves `AI_SCRIPT_EXPLODED` in the existing saved `edict.aiflags` field.
 This avoids losing legacy campaign selection and scripted unit death intent
 across save/load. `wc3_save.legacy_campaign_menu_race_round_trip` and

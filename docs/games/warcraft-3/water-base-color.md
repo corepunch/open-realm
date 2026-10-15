@@ -28,11 +28,11 @@ Water vertices already encode depth-derived opacity. The runtime alpha multiplie
 
 ## Persistence and Networking
 
-The configstring is authoritative for connected/reconnecting clients during the map lifetime. Save format version 67 adds `level.water_base_color`; `ReadGame()` republishes it after the map reload rebuilds configstrings, matching the existing environmental-fog pattern. Older save formats remain intentionally incompatible.
+The configstring is authoritative for connected/reconnecting clients during the map lifetime. Save format version 97 adds `level.water_base_color`; `ReadGame()` republishes it after the map reload rebuilds configstrings, matching the existing environmental-fog pattern. Older save formats remain intentionally incompatible.
 
 ## Verification
 
-Automated coverage is intended to check the game-side contract without retail assets:
+Automated coverage checks the game-side contract without retail assets:
 
 - `wc3_api.set_water_base_color_clamps_and_publishes_rgba` checks argument consumption, `0..255` clamping, retained RGBA state, and `CS_SCENE_WATER_COLOR` publication.
 - the WC3 save round-trip fixture includes a non-default water color and verifies all four components after reload.
