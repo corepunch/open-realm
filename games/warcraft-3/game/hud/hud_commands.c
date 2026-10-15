@@ -8,6 +8,55 @@
 
 #include "hud_local.h"
 
+/* Temporary diagnostics for production panels that disappear with legacy
+ * game data. Enable with `set wc3_production_ui_debug 1`. */
+static bool production_ui_debug_enabled(void) {
+    cstring_t value = gi.CvarString ? gi.CvarString("wc3_production_ui_debug", "0") : "0";
+    return value && atoi(value) != 0;
+}
+
+static void UI_DebugBuildQueue(edict_t *ent, gameQueueItem_t const *queue, uint8_t count,
+                               bool constructing, bool upgrading, bool unsummoning,
+                               uint32_t shell_frame) {
+    static uint32_t last_entity = UINT32_MAX;
+    static uint32_t last_head_class;
+    static uint8_t last_count;
+    static bool last_constructing, last_upgrading, last_unsummoning, last_has_art, last_shell;
+    uint32_t head_class = ent && ent->build ? ent->build->class_id :
+                          ent && ent->research ? ent->research->upgrade : 0;
+    bool has_art = count && queue[0].art[0];
+    bool has_shell = shell_frame != 0;
+
+    if (!production_ui_debug_enabled()) {
+        last_entity = UINT32_MAX;
+        return;
+    }
+    if (ent && ent->s.number == last_entity && head_class == last_head_class && count == last_count &&
+        constructing == last_constructing && upgrading == last_upgrading &&
+        unsummoning == last_unsummoning && has_art == last_has_art && has_shell == last_shell) return;
+    last_entity = ent ? ent->s.number : UINT32_MAX;
+    last_head_class = head_class;
+    last_count = count;
+    last_constructing = constructing;
+    last_upgrading = upgrading;
+    last_unsummoning = unsummoning;
+    last_has_art = has_art;
+    last_shell = has_shell;
+    fprintf(stderr,
+            "WC3_PRODUCTION_UI queue unit=%u class=%.4s balance=%u building=%u count=%u head=%.4s head_training=%u head_research=%u head_upgrade=%.4s head_balance=%u head_upgrade_data=%u head_art=%s shell_frame=%u constructing=%u upgrading=%u unsummoning=%u\n",
+            (unsigned)(ent ? ent->s.number : 0), ent ? (char *)&ent->class_id : "----",
+            (unsigned)(ent && ent->data.UnitBalance),
+            (unsigned)(ent && ent->data.UnitBalance && ent->data.UnitBalance->isBuilding),
+            (unsigned)count, ent && ent->build ? (char *)&ent->build->class_id : "----",
+            (unsigned)(ent && ent->build && ent->build->training),
+            (unsigned)(ent && ent->build && ent->build->research),
+            ent && ent->build && ent->build->research ? (char *)&ent->build->research->upgrade : "----",
+            (unsigned)(ent && ent->build && ent->build->data.UnitBalance),
+            (unsigned)(head_class && G_UpgradeData(head_class)),
+            has_art ? queue[0].art : "<missing>", (unsigned)shell_frame,
+            (unsigned)constructing, (unsigned)upgrading, (unsigned)unsummoning);
+}
+
 uint32_t UI_ClassIdFromCode(cstring_t code) {
     uint32_t class_id = 0;
 
@@ -235,7 +284,10 @@ void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer) {
     float const waiting_size = 0.020390625f;
     float const waiting_step = 0.028125000f;
 
-    if (!count) return;
+    if (!count) {
+        UI_DebugBuildQueue(ent, queue, count, constructing, upgrading, unsummoning, 0);
+        return;
+    }
 
     /* The building name, action label, queue backdrop, and progress-bar
      * geometry come from retail SimpleInfoPanel.fdf.  The runtime queue owns
@@ -245,6 +297,8 @@ void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer) {
         ent, constructing ? "CONSTRUCTING" : upgrading ? "UPGRADING" :
              (ent && ent->build && ent->build->research && ent->build->research->upgrade != 0 ? "RESEARCHING" : "TRAINING"),
         !hide_queue_slots);
+    UI_DebugBuildQueue(ent, queue, count, constructing, upgrading, unsummoning,
+                       buildtimer_number);
     if (!buildtimer_number) {
         fprintf(stderr, "UI_WriteBuildQueue: SimpleInfoPanel building shell unavailable; using runtime progress fallback\n");
         memset(&buildtimer, 0, sizeof(buildtimer));

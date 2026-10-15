@@ -24,6 +24,13 @@ static int timed_status_debug_level(void) {
     return value ? atoi(value) : 0;
 }
 
+/* Temporary diagnostics for missing training/research panels with legacy
+ * game data. Enable with `set wc3_production_ui_debug 1`. */
+static bool infopanel_production_ui_debug_enabled(void) {
+    cstring_t value = gi.CvarString ? gi.CvarString("wc3_production_ui_debug", "0") : "0";
+    return value && atoi(value) != 0;
+}
+
 static void timed_status_debug_dump(edict_t *ent, gameClient_t *viewer, cstring_t stage) {
     int const debug = timed_status_debug_level();
     uint32_t const now = G_Time();
@@ -997,11 +1004,61 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) 
 }
 
 static bool UI_UsesBuildingQueuePanel(gameClient_t *viewer, edict_t *unit) {
-    if (!viewer || !unit || !unit->data.UnitBalance || !unit->data.UnitBalance->isBuilding)
+    if (!viewer || !unit || !G_UnitIsBuilding(unit->class_id))
         return false;
     if (!G_UnitCanControl(viewer, unit))
         return false;
     return unit->construction || G_BuildingUpgradeActive(unit) || unit->build != NULL;
+}
+
+static void UI_DebugProductionPanelRoute(gameClient_t *viewer, edict_t *unit, bool queue_panel) {
+    static uint32_t last_viewer = UINT32_MAX;
+    static uint32_t last_unit = UINT32_MAX;
+    static bool last_queue_panel;
+    static bool last_is_building;
+    static bool last_has_balance;
+    static bool last_can_control;
+    static bool last_training;
+    static bool last_research;
+    static uint32_t last_head_class;
+    uint32_t viewer_id = viewer ? viewer->ps.number : UINT32_MAX;
+    uint32_t unit_id = unit ? unit->s.number : UINT32_MAX;
+    bool has_balance = unit && unit->data.UnitBalance;
+    bool balance_building = has_balance && unit->data.UnitBalance->isBuilding;
+    bool is_building = unit && G_UnitIsBuilding(unit->class_id);
+    bool can_control = viewer && unit && G_UnitCanControl(viewer, unit);
+    bool training = unit && unit->training;
+    bool research = unit && unit->research && unit->research->upgrade;
+    uint32_t head_class = unit && unit->build ? unit->build->class_id : 0;
+
+    if (!infopanel_production_ui_debug_enabled()) {
+        last_viewer = last_unit = UINT32_MAX;
+        return;
+    }
+    if (viewer_id == last_viewer && unit_id == last_unit && queue_panel == last_queue_panel &&
+        is_building == last_is_building && has_balance == last_has_balance &&
+        can_control == last_can_control && training == last_training &&
+        research == last_research && head_class == last_head_class) return;
+    last_viewer = viewer_id;
+    last_unit = unit_id;
+    last_queue_panel = queue_panel;
+    last_is_building = is_building;
+    last_has_balance = has_balance;
+    last_can_control = can_control;
+    last_training = training;
+    last_research = research;
+    last_head_class = head_class;
+    fprintf(stderr,
+            "WC3_PRODUCTION_UI route viewer=%u unit=%u class=%.4s has_balance=%u balance_building=%u is_building=%u can_control=%u construction=%u upgrade_active=%u build_head=%u head_class=%.4s head_training=%u head_research=%u head_research_upgrade=%.4s queue_panel=%u\n",
+            (unsigned)viewer_id, (unsigned)unit_id,
+            unit ? (char *)&unit->class_id : "----", (unsigned)has_balance,
+            (unsigned)balance_building, (unsigned)is_building, (unsigned)can_control,
+            (unsigned)(unit && unit->construction), (unsigned)G_BuildingUpgradeActive(unit),
+            (unsigned)(unit && unit->build), unit && unit->build ? (char *)&unit->build->class_id : "----",
+            (unsigned)(unit && unit->build && unit->build->training),
+            (unsigned)(unit && unit->build && unit->build->research),
+            unit && unit->build && unit->build->research ? (char *)&unit->build->research->upgrade : "----",
+            (unsigned)queue_panel);
 }
 
 #ifdef BZ_TESTS
@@ -1032,7 +1089,9 @@ void UI_SeedInfoPanelCache(edict_t *ent, edict_t * *selected, uint32_t count) {
 void UI_SendInfoPanel(edict_t *ent, edict_t * *selected, uint32_t count) {
     UI_WriteStart(LAYER_INFOPANEL);
     if (count == 1) {
-        if (UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
+        bool const queue_panel = UI_UsesBuildingQueuePanel(ent->client, selected[0]);
+        UI_DebugProductionPanelRoute(ent->client, selected[0], queue_panel);
+        if (queue_panel) {
             UI_WriteBuildQueue(selected[0], ent->client);
         } else {
             UI_WriteSingleInfo(selected[0], ent->client);
