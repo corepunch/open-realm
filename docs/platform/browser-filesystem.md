@@ -4,19 +4,22 @@ The game-data importer writes immutable installation generations to the
 origin-private file system at `openrealm/game-data/wc3/install-*`, with the
 active manifest in `openrealm/game-data/wc3/installation.json`.
 
-The launcher checks manifest versions 1 and 2, file names/sizes, byte totals,
+The launcher checks manifest versions 1, 2 and 3, file names/sizes, byte totals,
 required `War3.mpq`, and the bounded MPQ header probe before native startup.
-Manifest version 1 mounts `/opfs/openrealm/game-data/wc3`; version 2 mounts
+Manifest version 1 mounts `/opfs/openrealm/game-data/wc3`; versions 2 and 3 mount
 `/opfs/openrealm/game-data/wc3/<generation>` via the engine's `-data` argument.
-These checks are only format checks, not integrity hashes or complete game-data
-validation. Importing a new generation does not alter already-open files.
+Version 3 permits strictly validated nested `Maps/...` paths (not arbitrary
+relative paths); versions 1 and 2 continue to accept their existing flat
+archive files. These checks are only format checks, not integrity hashes or
+complete game-data validation. Importing a new generation does not alter already-open files.
 
 The importer worker can read multiple ISO 9660/Joliet images and mix them with
 direct MPQ/W3M/W3X uploads in one import. It selects recognized WC3 archives
-from each disc and stores their source byte ranges in the same version-2
+from each disc and stores their source byte ranges in a version-3
 generation. The combined selection must contain `War3.mpq`; duplicate archive
-names are errors, not implicit overrides. `Setup.mpq` is deliberately not
-installed as a playable archive; its internal content is not yet extracted.
+names are errors, not implicit overrides. Patch 5 additionally extracts a
+known original RoC `Setup.mpq` map profile into nested `Maps/` directories.
+`Setup.mpq` itself is not a playable archive and is never installed.
 Both browser pages expose ISO selection from patch 4. See
 [browser ISO reader](browser-iso9660.md).
 

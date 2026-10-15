@@ -1,4 +1,4 @@
-# Browser ISO 9660 reader (Warcraft III disc import, patches 1–4)
+# Browser ISO 9660 reader (Warcraft III disc import, patches 1–5)
 
 ## Scope and ownership
 
@@ -19,8 +19,9 @@ Patch 2 connects this module to `site/install-worker.js` and patch 3 adds
 composition of up to eight ISO images and directly selected MPQ/W3M/W3X files
 in a **single** import. Each ISO is scanned for the recognized game MPQs and
 only their source byte ranges are copied through the existing 1 MiB OPFS
-writer. `Setup.mpq`, movies and arbitrary archives inside an ISO are skipped:
-installer-package contents are **not** unpacked. Archive names are matched
+writer. Patch 5 also detects `Setup.mpq` for a conservative, known-map
+extraction profile; movies, installer executables and arbitrary MPQs are
+not unpacked. Archive names are matched
 case-insensitively; repeated archive names within one ISO are ambiguous, and
 conflicting names across ISOs or direct uploads are rejected, with the source
 names reported. The importer does not guess which duplicate is newer.
@@ -49,9 +50,10 @@ tabs concurrently; cross-tab locking and recovery need separate work.
 
 `install-worker.js` accepts the existing `postMessage({type:'import',files})`
 message, where `files` is an ordered array containing ISO images, direct game
-archives, or both (maximum 512 input files and eight ISO images). Its output remains
-a version-2 generation manifest with the same archive names/sizes. No changes
-to `filesystem-bridge.js` or native MPQ loading are required. Name matching is
+archives, or both (maximum 512 input files and eight ISO images). The worker
+now produces a version-3 generation manifest, which also supports
+nested `Maps/...` paths. `filesystem-bridge.js` validates these paths and
+reads their OPFS entries; native MPQ loading does not change. Name matching is
 case-insensitive and traverses ISO subdirectories, but repeated candidate names
 are rejected as ambiguous. Only bounded MPQ header validation is performed;
 this does not prove the disc archives are complete or playable.
@@ -128,7 +130,7 @@ filename normalization, lookup, cancellation, corrupt records, cycles and
 unsupported encodings. They use no proprietary media or installed WC3 data.
 
 These patches do not verify a retail Reign of Chaos or Frozen Throne image,
-`Setup.mpq` extraction, a real browser import or final game launch. Testing real
+real-disc `Setup.mpq` extraction, a real browser import or final game launch. Testing real
 discs and launching the experimental engine are follow-up tasks.
 
 See also [Browser platform](browser.md) for OPFS installer ownership, runtime
@@ -159,12 +161,12 @@ accept `.iso,.mpq,.w3m,.w3x` as multi-file input. Select the original
 Reign of Chaos and Frozen Throne images **together** when both are needed;
 each import creates a replacement manifest and does not merge with an existing
 installation. Images are scanned within `install-worker.js`, not on the UI
-thread, and only recognized archives from each ISO are imported. `Setup.mpq`
-is not unpacked. An `.iso` filename containing a raw-sector BIN image does
+thread, and only recognized archives from each ISO are mounted. Patch 5
+extracts a known subset of `Setup.mpq` maps. An `.iso` filename containing a raw-sector BIN image does
 not make it a supported ISO 9660 image.
 
 The worker reports `phase` events (`scanning` with a disc `source`,
-`validating`, `storage`, `copying`, `committing`), one `discovered` event after
+`extracting`, `validating`, `storage`, `copying`, `committing`), one `discovered` event after
 MPQ-header validation, and the existing `progress`, `done`, `list` and `error`
 events. Each discovered entry has `name`, `size` and `source`; `bytes` is the
 combined copy size, not the selected ISO size. `progress` retains its existing
@@ -190,3 +192,48 @@ node --test port/web/tests/iso9660.test.cjs port/web/tests/iso-import.test.cjs p
 `installer-ui.test.cjs` exercises actual browser handler code with a synthetic
 DOM and Worker harness; it does not establish browser CSS/layout, browser
 storage quotas, or retail ISO compatibility. The engine remains experimental.
+
+## Patch 5 — original RoC installer maps
+
+`port/web/site/setup-mpq.js` implements a bounded, filename-driven MPQ reader
+for map payloads, **not** a general-purpose installer. It decrypts MPQ hash
+and block tables, looks up known member names, and reads uncompressed or
+zlib-compressed sectors (`DecompressionStream('deflate')`). Unsupported
+compression types, encrypted tables with invalid extents, and oversized
+entries are rejected. Entire retail MPQs are not loaded into JavaScript
+memory, but each extracted map is buffered and validated as MPQ content;
+individual map size is limited to 32 MiB and the total map set to 128 MiB.
+
+The initial rename profile maps `File00000069.w3x` through
+`File00000112.w3x` to 44 original RoC melee/scenario map paths, based on a
+published disassembly of a **specific Polish retail CD**. It is accepted only
+if *all 44* names can be found in the installer hash table. ISOs
+without `War3.mpq` are excluded from this RoC-only mapping, even if their
+Setup.mpq contains similarly numbered filenames. This is an
+observed example, **not** proof that every language, release or TFT disc uses
+those numeric filenames. Unsupported layouts emit a visible warning and
+are skipped. Once a profile matches, damaged maps or unsupported codecs
+reject the import rather than silently writing a partial map collection.
+No executables, DLLs, CD keys or installer code are extracted or executed.
+
+The importer writes maps as e.g. `Maps/(4)LostTemple.w3m` inside the staged
+installation. Generation-manifest version 3 validates these nested paths;
+versions 1 and 2 remain readable. This enables the existing native filesystem
+map discovery to find loose `Maps/` contents without mounting `Setup.mpq`.
+`Setup.mpq` itself is never listed as a game archive. Direct MPQ uploads,
+multiple ISO selections, cancellation and atomic manifest commits remain.
+
+Fixture tests are in `port/web/tests/setup-mpq-fixture.cjs` and
+`port/web/tests/iso-import.test.cjs` (synthetic encrypted MPQ index tables,
+raw and zlib sectors, map-name mapping, unsupported layouts and codec
+failures, nested OPFS paths). Run:
+
+```sh
+node --test port/web/tests/*.test.cjs
+```
+
+The first real-disc compatibility milestone must verify the filename mapping,
+`Setup.mpq` compression methods, map display names and browser
+`DecompressionStream` support. Support for unknown TFT installers,
+PKWARE/implode-compressed payloads, archive encryption variants and movie
+installation remains unimplemented; do not advertise universal CD support.

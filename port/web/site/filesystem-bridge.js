@@ -27,12 +27,12 @@
     }
     const text = await (await (await dir.getFileHandle('installation.json')).getFile()).text();
     const manifest = JSON.parse(text);
-    if (!manifest || ![1, 2].includes(manifest.version) ||
+    if (!manifest || ![1, 2, 3].includes(manifest.version) ||
         !Array.isArray(manifest.files) || !manifest.files.length || manifest.files.length > 512)
       throw new Error('Unsupported installation manifest');
     let archiveDir = dir;
     let path = ROOT;
-    if (manifest.version === 2) {
+    if (manifest.version >= 2) {
       if (typeof manifest.generation !== 'string' ||
           !/^install-[a-z0-9]+-[a-z0-9]{1,16}$/.test(manifest.generation))
         throw new Error('Invalid installation generation');
@@ -42,12 +42,22 @@
     const seen = new Set();
     let total = 0;
     for (const entry of manifest.files) {
-      if (!entry || !validName(entry.name) || !Number.isSafeInteger(entry.size) || entry.size < 32)
+      const parts = entry && typeof entry.name === 'string' ? entry.name.split('/') : [];
+      const nestedMap = manifest.version === 3 && parts.length >= 2 &&
+        parts.length <= 8 && parts[0] === 'Maps' &&
+        parts.slice(1, -1).every(segment => /^[a-z0-9][a-z0-9 _().-]{0,100}$/i.test(segment) &&
+          segment !== '.' && segment !== '..') &&
+        /^[a-z0-9(][a-z0-9 _().-]{0,200}\.w3[mx]$/i.test(parts.at(-1));
+      if (!entry || !(validName(entry.name) || nestedMap) ||
+          !Number.isSafeInteger(entry.size) || entry.size < 32)
         throw new Error('Invalid archive manifest entry');
       const key = entry.name.toLowerCase();
       if (seen.has(key)) throw new Error('Duplicate archive: ' + entry.name);
       seen.add(key);
-      const file = await (await archiveDir.getFileHandle(entry.name)).getFile();
+      let parent = archiveDir;
+      if (nestedMap) for (const part of parts.slice(0, -1))
+        parent = await parent.getDirectoryHandle(part);
+      const file = await (await parent.getFileHandle(parts.at(-1))).getFile();
       if (file.size !== entry.size) throw new Error('Archive size changed: ' + entry.name);
       const probe = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
       let found = false;

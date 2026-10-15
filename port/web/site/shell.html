@@ -23,7 +23,7 @@ canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
 its Frozen Throne ISO, or standalone MPQ/W3M/W3X files. Select both discs
 together: each import replaces the active installation. The browser copies
 recognized disc archives and directly selected files to local OPFS only;
-nothing is uploaded. Installer packages such as Setup.mpq are not unpacked.</p>
+nothing is uploaded. Known original RoC Setup.mpq map files are extracted when the disc layout matches; unknown installer layouts are skipped.</p>
 <input id="game-files" type="file" accept=".iso,.mpq,.w3m,.w3x" multiple aria-label="Warcraft III ISO images and game data files">
 <p id="selection-summary">No files selected.</p>
 <button id="install-data" type="button">Import selected files</button>

@@ -142,3 +142,16 @@ test('both browser build targets ship all referenced installer scripts', () => {
     assert.ok(engine.includes(`"${asset}"`), `engine build missing ${asset}`);
   }
 });
+
+test('unknown installer layout warning remains visible after committed import', () => {
+  const {elements:e, worker} = harness();
+  e['game-files'].files = [{name:'RoC.iso'}];
+  e['install-data'].fire('click');
+  worker.send({type:'phase', phase:'extracting'});
+  assert.match(e['data-status'].textContent, /Setup.mpq/);
+  worker.send({type:'notice', message:'Unknown Setup.mpq layout in RoC.iso; maps skipped.'});
+  worker.send({type:'phase', phase:'copying'});
+  worker.send({type:'done', manifest:{files:[{name:'War3.mpq',size:64}],bytes:64}});
+  assert.match(e['data-status'].textContent, /Unknown Setup.mpq layout/);
+  assert.equal(e['install-data'].disabled, false);
+});

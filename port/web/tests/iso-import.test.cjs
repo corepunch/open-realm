@@ -7,6 +7,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const SITE = path.resolve(__dirname, '../site');
 const BLOCK = 2048;
+const {setupMpq} = require('./setup-mpq-fixture.cjs');
 
 function put16(bytes, pos, value) {
   bytes.writeUInt16LE(value, pos);
@@ -126,13 +127,13 @@ function makeWorker({estimate, failWritesFor = null} = {}) {
   const storage = {getDirectory: async () => root};
   if (estimate !== undefined) storage.estimate = async () => estimate;
   const context = vm.createContext({
-    Blob, AbortController, Uint8Array, DataView, Number, Date, Math,
+    Blob, AbortController, DOMException, DecompressionStream, Uint8Array, DataView, Number, Date, Math,
     navigator: {storage},
     postMessage: message => messages.push(message)
   });
   context.importScripts = (...scripts) => {
     for (const script of scripts) {
-      assert.equal(script, 'iso9660.js');
+      assert.ok(['iso9660.js', 'setup-mpq.js'].includes(script));
       vm.runInContext(fs.readFileSync(path.join(SITE, script), 'utf8'), context,
         {filename:script});
     }
@@ -155,12 +156,12 @@ test('ISO import copies only recognized archive extents and writes v2 manifest',
   const worker = makeWorker();
   const data = mpq();
   const output = await worker.run([iso([
-    ['WAR3.MPQ', data], ['SETUP.MPQ', Buffer.alloc(64)],
+    ['WAR3.MPQ', data], ['SETUP.MPQ', setupMpq({count:1})],
     ['WAR3LOCAL.MPQ', data], ['README.TXT', Buffer.from('ignored')]
   ])]);
   assert.equal(output.at(-1).type, 'done');
   const manifest = output.at(-1).manifest;
-  assert.equal(manifest.version, 2);
+  assert.equal(manifest.version, 3);
   assert.deepEqual(Array.from(manifest.files, f => f.name), ['War3.mpq', 'War3Local.mpq']);
   assert.equal(manifest.bytes, 2 * data.length);
   assert.ok(output.some(m => m.type === 'progress' && m.copied === 2 * data.length));
@@ -206,7 +207,7 @@ test('rejects ambiguous archive names and invalid MPQ data before staging', asyn
 test('RoC and TFT ISOs produce a combined, engine-compatible manifest', async () => {
   const worker = makeWorker();
   const result = await worker.run([
-    iso([['WAR3.MPQ', mpq()], ['SETUP.MPQ', Buffer.alloc(64)]], {name:'RoC.iso'}),
+    iso([['WAR3.MPQ', mpq()], ['SETUP.MPQ', setupMpq({count:1})]], {name:'RoC.iso'}),
     iso([['WAR3X.MPQ', mpq()], ['WAR3XLOCAL.MPQ', mpq()]], {name:'TFT.iso'})
   ]);
   assert.equal(result.at(-1).type, 'done');
@@ -354,4 +355,57 @@ test('invalid archive does not announce a valid discovered file set', async () =
   assert.equal(result.at(-1).type, 'error');
   assert.equal(result.some(message => message.type === 'discovered'), false);
   assert.equal(result.some(message => message.type === 'committing'), false);
+});
+
+
+test('recognized retail Setup.mpq layout imports maps into nested paths', async () => {
+  const worker = makeWorker();
+  const output = await worker.run([iso([
+    ['WAR3.MPQ', mpq()], ['SETUP.MPQ', setupMpq()]
+  ])]);
+  assert.equal(output.at(-1).type, 'done');
+  const manifest = output.at(-1).manifest;
+  assert.equal(manifest.version, 3);
+  assert.equal(manifest.files.length, 45);
+  assert.ok(manifest.files.some(entry => entry.name === 'Maps/(4)LostTemple.w3m'));
+  assert.ok(manifest.files.some(entry => entry.name === 'Maps/Scenario/(4)WarChasers.w3m'));
+  assert.equal(manifest.files.some(entry => entry.name.toLowerCase() === 'setup.mpq'), false);
+  const dir = await worker.gameDir();
+  const stage = await dir.getDirectoryHandle(manifest.generation);
+  const maps = await stage.getDirectoryHandle('Maps');
+  const map = await (await maps.getFileHandle('(4)LostTemple.w3m')).getFile();
+  assert.equal(map.size, 256);
+  assert.equal(Buffer.from(await map.arrayBuffer()).subarray(0,4).toString('latin1'), 'MPQ\x1a');
+});
+
+test('zlib sector-compressed Setup.mpq entry is restored to a valid map', async () => {
+  const worker = makeWorker();
+  const output = await worker.run([namedBlob(mpq(), 'War3.mpq'),
+    namedBlob(setupMpq({compressed:true}), 'Setup.mpq')]);
+  assert.equal(output.at(-1).type, 'done');
+  const dir = await worker.gameDir();
+  const stage = await dir.getDirectoryHandle(output.at(-1).manifest.generation);
+  const maps = await stage.getDirectoryHandle('Maps');
+  assert.equal((await (await maps.getFileHandle('(10)DustwallowKeys.w3m')).getFile()).size, 256);
+});
+
+test('unknown Setup.mpq layout reports skipped maps without installing container', async () => {
+  const worker = makeWorker();
+  const output = await worker.run([namedBlob(mpq(), 'War3.mpq'),
+    namedBlob(setupMpq({count:1}), 'Setup.mpq')]);
+  assert.equal(output.at(-1).type, 'done');
+  assert.equal(output.at(-1).manifest.files.length, 1);
+  assert.ok(output.some(message => message.type === 'notice' && /Unknown Setup/.test(message.message)));
+});
+
+test('unsupported map codec fails before replacing previous manifest', async () => {
+  const worker = makeWorker();
+  const existing = (await worker.run([namedBlob(mpq(), 'War3.mpq')])).at(-1).manifest.generation;
+  const output = await worker.run([namedBlob(mpq(), 'War3.mpq'),
+    namedBlob(setupMpq({compressed:true, unsupported:true}), 'Setup.mpq')]);
+  assert.equal(output.at(-1).type, 'error');
+  assert.match(output.at(-1).message, /Unsupported Setup.mpq map compression/);
+  const dir = await worker.gameDir();
+  const manifest = JSON.parse(await (await (await dir.getFileHandle('installation.json')).getFile()).text());
+  assert.equal(manifest.generation, existing);
 });

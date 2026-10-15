@@ -77,8 +77,9 @@ selection, rejects duplicate archive names and checks estimated storage quota
 before staging when the browser provides an estimate. Imports still replace,
 rather than merge with, the existing installation. Both browser file pickers
 now accept ISO images alongside standalone archives and show detected files
-and copy progress (patch 4). Extraction from
-installer packages such as `Setup.mpq` remains a follow-up task.
+and copy progress (patch 4). Patch 5 extracts the 44-map profile observed
+on one original RoC `Setup.mpq` disc, without executing installer code;
+unknown layouts are reported and skipped.
 
 The platform probe page now exposes a launcher-only file importer.
 `site/installer.js` sends File objects to `site/install-worker.js`, which
@@ -89,9 +90,10 @@ removal. OPFS is origin-scoped and no data is sent to a server.
 
 This is a *storage foundation*, not the game-data engine mount. The importer
 does not claim that every MPQ is sufficient or valid for a playable Warcraft
-installation. It currently supports selected ISO 9660 images and flat
-MPQ/W3M/W3X files, but does not unpack `Setup.mpq`, CASC, ZIP archives or
-directories. The experimental engine uses a WasmFS OPFS mount to expose the
+installation. It supports selected ISO 9660 images, loose MPQ/W3M/W3X
+files and validated nested `Maps/` outputs from recognized original RoC
+`Setup.mpq` archives; it does not offer general-purpose installer extraction,
+CASC or ZIP support. The experimental engine uses a WasmFS OPFS mount to expose the
 selected archive directory to the native MPQ reader; this needs browser
 runtime validation. Interrupted commits can leave orphan files,
 and replacing an existing installation is not a fully atomic transaction;
@@ -336,10 +338,11 @@ loading stalls and output-device sample rates. Audio may underrun during stalls.
 
 The patch 4 UI adds `.iso` to the browser file input and reports ISO scanning,
 validated MPQs with their source disc and size, copy progress, and final
-manifest commit. It does not extract installer-only maps from `Setup.mpq` or
-support incremental RoC/TFT imports: select both discs in one operation.
+manifest commit. Patch 5 extracts known installer-only map contents
+from selected original RoC `Setup.mpq` layouts, but does not support
+incremental RoC/TFT imports: select both discs in one operation.
 The `web-warcraft3-foundation` make rule copies `installer.js`,
-`install-worker.js` and `iso9660.js` into the probe output next to
+`install-worker.js`, `iso9660.js` and `setup-mpq.js` into the probe output next to
 `index.html`; the experimental engine build also ships these assets.
 See [browser ISO reader](browser-iso9660.md) for the worker event contract and
 headless UI tests.

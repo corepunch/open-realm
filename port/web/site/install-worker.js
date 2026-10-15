@@ -7,8 +7,8 @@ const META = 'installation.json';
 const CHUNK = 1024 * 1024;
 const MAX_INPUT_FILES = 512; // Match filesystem-bridge.js manifest limit.
 const MAX_ISO_IMAGES = 8; // Limit expensive full-directory scans per import.
-// Only game archives are mountable. An installer container such as Setup.mpq
-// must not be treated as game content: unpacking it is a separate feature.
+// Only recognized game archives are mountable. Setup.mpq is an installer
+// container: recover known map payloads but never mount the container itself.
 const DISC_ARCHIVES = Object.freeze({
   'war3.mpq': 'War3.mpq',
   'war3local.mpq': 'War3Local.mpq',
@@ -45,6 +45,7 @@ async function selectSources(files) {
   // Frozen Throne ISO (or direct MPQs) can supply complementary archives.
   // Do not silently choose between two sources with the same archive name.
   const sources = [];
+  const setups = [];
   const names = new Map();
   function add(name, blob, source) {
     const key = name.toLowerCase();
@@ -62,7 +63,8 @@ async function selectSources(files) {
   for (const file of files) {
     checkCancelled();
     if (!isoName(file.name)) {
-      add(file.name, file, file.name);
+      if (/^setup\.mpq$/i.test(file.name)) setups.push({blob:file, source:file.name});
+      else add(file.name, file, file.name);
       continue;
     }
     postMessage({type:'phase', phase:'scanning', source:file.name});
@@ -73,15 +75,42 @@ async function selectSources(files) {
     const entries = await image.listFiles();
     checkCancelled();
     const onDisc = new Set();
+    // Never apply RoC's anonymous FileNN map mapping to a TFT-only disc.
+    const baseDisc = entries.some(entry => entry.name.toLowerCase() === 'war3.mpq');
     for (const entry of entries) {
       checkCancelled();
       const name = DISC_ARCHIVES[entry.name.toLowerCase()];
-      if (!name) continue; // In particular, Setup.mpq is not game data.
+      if (!name) {
+        if (entry.name.toLowerCase() === 'setup.mpq')
+          setups.push({blob:file.slice(entry.offset, entry.offset + entry.size), source:file.name, roc:baseDisc});
+        continue;
+      }
       const key = name.toLowerCase();
       if (onDisc.has(key)) throw new Error('Ambiguous archive in ISO: ' + name);
       onDisc.add(key);
       // Validated extents are views into the original Blob, not ISO copies.
       add(name, file.slice(entry.offset, entry.offset + entry.size), file.name);
+    }
+  }
+  // Never infer installer File000000NN names from an unknown release. An
+  // observed retail RoC layout is supported only if its entire map set is
+  // present; other Setup.mpq containers are skipped with a visible notice.
+  if (setups.length) {
+    postMessage({type:'phase', phase:'extracting'});
+    if (!globalThis.SetupMPQ) importScripts('setup-mpq.js');
+    for (const setup of setups) {
+      checkCancelled();
+      if (setup.roc === false) {
+        postMessage({type:'notice', message:'Skipping installer map names on non-RoC disc ' + setup.source});
+        continue;
+      }
+      const maps = await SetupMPQ.extractKnownMaps(setup.blob, {signal:scanController.signal});
+      if (!maps) {
+        postMessage({type:'notice', message:'Unknown Setup.mpq layout in ' + setup.source +
+          '; installer maps were not imported. Game archives are still usable.'});
+        continue;
+      }
+      for (const map of maps) add(map.name, map.blob, setup.source + ' / Setup.mpq');
     }
   }
   // A standalone TFT disc is a valid *input*, but not a complete install.
@@ -163,7 +192,11 @@ async function install(files) {
     for (const [index, f] of selected.entries()) {
       let fileCopied = 0;
       checkCancelled();
-      const dest = await stage.getFileHandle(f.name, {create:true});
+      const parts = f.name.split('/');
+      let parent = stage;
+      for (const part of parts.slice(0, -1))
+        parent = await parent.getDirectoryHandle(part, {create:true});
+      const dest = await parent.getFileHandle(parts[parts.length - 1], {create:true});
       const writable = await dest.createWritable();
       try {
         for (let pos = 0; pos < f.size; pos += CHUNK) {
@@ -182,7 +215,7 @@ async function install(files) {
     checkCancelled();
     postMessage({type:'phase', phase:'committing'});
     const manifest = {
-      version:2, generation,
+      version:3, generation,
       files:selected.map(f=>({name:f.name,size:f.size})), bytes:total
     };
     // This root manifest is the sole commit point. Do not remove any old

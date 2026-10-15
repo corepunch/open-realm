@@ -19,6 +19,7 @@
   }
   const worker = new Worker('install-worker.js');
   let operation = null;
+  let warnings = [];
   const sizeLabel = bytes => {
     if (bytes < 1024) return bytes + ' B';
     const unit = bytes < 1024 * 1024 ? 'KiB' : bytes < 1024 ** 3 ? 'MiB' : 'GiB';
@@ -47,8 +48,12 @@
       : 'No files selected.';
   }
   worker.onmessage = ({data}) => {
-    if (data.type === 'phase' && operation === 'import') {
+    if (data.type === 'notice' && operation === 'import') {
+      warnings.push(data.message);
+      status.textContent = data.message;
+    } else if (data.type === 'phase' && operation === 'import') {
       if (data.phase === 'scanning') status.textContent = 'Scanning ISO: ' + data.source;
+      else if (data.phase === 'extracting') status.textContent = 'Extracting supported maps from Setup.mpq…';
       else if (data.phase === 'validating') status.textContent = 'Validating game archives…';
       else if (data.phase === 'storage') status.textContent = 'Checking available browser storage…';
       else if (data.phase === 'copying') status.textContent = 'Copying detected game archives…';
@@ -72,7 +77,8 @@
       setOperation(null);
       progress.value = 1;
       status.textContent = `Stored ${data.manifest.files.length} game file(s) locally ` +
-        `(${sizeLabel(data.manifest.bytes)}). Reload this page to use the new data.`;
+        `(${sizeLabel(data.manifest.bytes)}). Reload this page to use the new data.` +
+        (warnings.length ? ' Note: ' + warnings.join(' | ') : '');
       fileInput.value = '';
       showSelection();
     } else if (data.type === 'list') {
@@ -100,6 +106,7 @@
     const files = Array.from(fileInput.files || []);
     if (!files.length) { status.textContent = 'Choose Warcraft III ISO or game archive files first.'; return; }
     clearDiscovery();
+    warnings = [];
     progress.removeAttribute('value'); // Unknown copy size while discs are scanned.
     setOperation('import');
     status.textContent = 'Inspecting selected game files…';
