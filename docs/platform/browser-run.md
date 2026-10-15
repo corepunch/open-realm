@@ -122,10 +122,16 @@ and mounts the selected generation through WasmFS. The page includes local
 installer status, detected archives, import cancellation/removal, Escape and
 fullscreen controls, and AudioWorklet playback.
 
-Automated browser tests cover ISO parsing, synthetic archive imports, UI and
-launcher behavior. They do not establish compatibility with every retail disc,
-map, browser/device combination or a complete real-data playthrough. Use the
-native application when reliability or performance matters.
+Run the dependency-free browser tests from the repository root with:
+
+```sh
+node --test port/web/tests/*.test.cjs
+```
+
+These tests cover ISO parsing, synthetic archive imports, UI and launcher
+behavior. They do not establish compatibility with every retail disc, map,
+browser/device combination or a complete real-data playthrough. Use the native
+application when reliability or performance matters.
 
 For implementation details, see [Browser platform](browser.md),
 [Browser filesystem](browser-filesystem.md), and
