@@ -51,12 +51,15 @@ ROC `War3.mpq` and TFT `War3x.mpq` both author those strings in
 `Units/HumanAbilityFunc.txt` and `Units/UndeadAbilityFunc.txt`. `Targetattach`
 is `origin` for each. TFT ranks set `AHad` `BuffID` to `BHad` and `AUau` to
 `BUau` (`ability_audit -tft -raw AHad`). ROC `AbilityData.slk` has no `BuffID`
-column, so
-`hero_aura_sync_overlay` falls back to the ability `TargetArt` on every
-recipient, including the caster. `hero_aura_sync_source` must not spawn a second
-copy of that same model. TFT keeps both models: ability art once on the owner,
-buff art on each recipient. The owner is also a recipient when `targs` includes
-`friend` or `self`.
+column, but the RoC executable has a hardcoded Devotion Aura mapping from
+`AHad` to `BHad`. The missing field therefore does not mean the recipient uses
+the caster's model. For RoC Devotion, render ability art once on the owner and
+buff art on each eligible recipient, as TFT data does explicitly. The owner is
+also a recipient when `targs` includes `friend` or `self`. The executable path
+and registration evidence are documented in [RoC Aura Registrations](roc-aura-registrations.md).
+
+This engine mapping has only been traced for `AHad`→`BHad` in this investigation.
+Do not generalize it to every aura from the class registration table alone.
 
 Each effect is a persistent `WC3_EFFECT_TARGET` owned by the unit it follows.
 Both effects store the base rawcode (`AHad` or `AUau`) in `summon_ability`,
@@ -111,8 +114,10 @@ fixture `AHad` art `panel_sprite.mdx` and `BHad` art `anim_pulse.mdx`. The caste
 keeps one of each, the ally keeps only the glow, a second refresh does not
 stack a copy, leaving range removes the ally glow, and clearing the ability
 removes both of the caster's effects.
-`wc3_spell.devotion_aura_roc_fallback_does_not_stack_on_source` omits `BuffID`
-and expects one ability-art effect on the caster and one on the ally.
+`wc3_spell.devotion_aura_roc_fallback_does_not_stack_on_source` currently omits
+`BuffID` and expects one ability-art effect on the caster and one on the ally.
+That fixture captures the old generic fallback contract; it does not establish
+the original RoC executable's `AHad`→`BHad` mapping or its distinct recipient art.
 `wc3_spell.devotion_aura_custom_art_is_removed_while_another_source_keeps_glow`
 and the matching `unholy_aura_custom_art_is_removed_while_another_source_keeps_glow`
 use custom `XHfx`/`XUfx` aliases with `ui_panel.mdx` art, distinct from both the
