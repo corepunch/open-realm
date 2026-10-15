@@ -99,6 +99,10 @@ test('worker rewrites only same-origin game resources; no docs interception or c
 test('boot script loads before filesystem launcher and gates engine startup', () => {
   const shell = fs.readFileSync(path.join(repo, 'port/web/site/engine-shell.html'), 'utf8');
   assert.ok(shell.indexOf('src="pages-isolation.js"') < shell.indexOf('src="filesystem-bridge.js"'));
+  assert.match(shell, /if \(!browserCapable\) \{\s*browserUnsupported\.hidden = false/);
+  assert.match(shell, /if \(ready\) \{\s*pageContent\.hidden = false/);
+  assert.match(shell, /browserUnsupportedMessage\.textContent =/);
+  assert.doesNotMatch(shell, /document\.getElementById\(browserCapable \? 'page-content'/);
   assert.match(shell, /return window\.openrealmPagesReady\.then/);
   assert.match(shell, /var browserCapable =/);
   assert.match(shell, /return ready \? openrealmStartIsolatedEngine\(arguments_\) : false/);
@@ -107,5 +111,10 @@ test('boot script loads before filesystem launcher and gates engine startup', ()
   assert.match(build, /site\/pages-isolation\.js/);
   const workflow = fs.readFileSync(path.join(repo, '.github/workflows/docs.yml'), 'utf8');
   assert.match(workflow, /port\/web\/publish-pages\.py build\/web\/engine site\/play/);
+  const buildJob = workflow.match(/^  build:([\s\S]*?)(?=^  deploy:)/m)?.[1] || '';
+  const deployJob = workflow.match(/^  deploy:([\s\S]*)$/m)?.[1] || '';
+  assert.match(buildJob, /permissions:[\s\S]*?contents: read[\s\S]*?pages: read/);
+  assert.match(deployJob, /permissions:[\s\S]*?pages: write[\s\S]*?id-token: write/);
+  assert.doesNotMatch(workflow, /^permissions:/m);
   assert.doesNotMatch(fs.readFileSync(path.join(repo, 'mkdocs.yml'), 'utf8'), /Play Warcraft III/);
 });

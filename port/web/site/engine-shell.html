@@ -60,7 +60,7 @@ canvas { display: block; max-width: 100%; background: #000; }
 <main>
 <section id="browser-unsupported" role="alert" hidden>
   <h1>Browser not supported</h1>
-  <p>OpenRealm requires WebGL 2 and OffscreenCanvas support. Cross-origin isolation is checked before the game starts.</p>
+  <p id="browser-unsupported-message">OpenRealm requires WebGL 2 and OffscreenCanvas support.</p>
 </section>
 <div id="page-content" hidden>
 <h1>OpenRealm</h1>
@@ -117,7 +117,25 @@ var webglProbe = document.createElement('canvas');
 var browserCapable = !!(webglProbe.getContext('webgl2') &&
   typeof OffscreenCanvas !== 'undefined' &&
   HTMLCanvasElement.prototype.transferControlToOffscreen);
-document.getElementById(browserCapable ? 'page-content' : 'browser-unsupported').hidden = false;
+var pageContent = document.getElementById('page-content');
+var browserUnsupported = document.getElementById('browser-unsupported');
+var browserUnsupportedMessage = document.getElementById('browser-unsupported-message');
+if (!browserCapable) {
+  browserUnsupported.hidden = false;
+} else if (!window.openrealmPagesReady && window.crossOriginIsolated) {
+  pageContent.hidden = false;
+}
+if (browserCapable && window.openrealmPagesReady) {
+  window.openrealmPagesReady.then(function (ready) {
+    if (ready) {
+      pageContent.hidden = false;
+      return;
+    }
+    browserUnsupportedMessage.textContent =
+      'Cross-origin isolation could not be enabled. The game controls are unavailable.';
+    browserUnsupported.hidden = false;
+  });
+}
 var Module = {
   canvas: document.getElementById('canvas'),
   setStatus: function (message) {
