@@ -7,6 +7,16 @@ on:
       - "README.md"
       - "docs/**"
       - "games/**"
+      - "client/**"
+      - "common/**"
+      - "renderer/**"
+      - "server/**"
+      - "shared/**"
+      - "sound/**"
+      - "vendor/**"
+      - "port/web/**"
+      - "share/**"
+      - "Makefile"
       - "mkdocs.yml"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
@@ -29,8 +39,20 @@ jobs:
         run: pip install mkdocs-material
       - name: Setup Pages
         uses: actions/configure-pages@v4
+      # The browser engine uses pthreads, WasmFS and OffscreenCanvas; this
+      # must be the actual static engine target, not the foundation probe.
+      - name: Set up Emscripten
+        uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: "4.0.21"
+      - name: Prepare embedded font
+        run: make font
+      - name: Build Warcraft III browser engine
+        run: make web-warcraft3-engine
       - name: Build with MkDocs
         run: mkdocs build
+      - name: Package browser game into Pages artifact
+        run: python3 port/web/publish-pages.py build/web/engine site/play
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

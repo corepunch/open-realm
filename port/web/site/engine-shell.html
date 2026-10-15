@@ -229,6 +229,17 @@ window.openrealmAudioDetach = function () {
   }
 };
 window.openrealmStartEngine = function (arguments_) {
+  // GitHub Pages must reload under its game-scoped Service Worker before
+  // pthreads start so the navigation receives COOP/COEP headers.
+  if (window.openrealmPagesReady) {
+    window.openrealmPagesReady.then(function (ready) {
+      if (ready) openrealmStartIsolatedEngine(arguments_);
+    });
+    return;
+  }
+  openrealmStartIsolatedEngine(arguments_);
+};
+function openrealmStartIsolatedEngine(arguments_) {
   if (!browserSupported) return;
   Module.arguments = arguments_;
   var script = document.createElement('script');
@@ -246,6 +257,7 @@ openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);
 <script src="fullscreen-resize.js"></script>
 <script src="installer.js"></script>
 <script src="mpq-header.js"></script>
+<script src="pages-isolation.js"></script>
 <script src="filesystem-bridge.js"></script>
 <template id="engine-script">{{{ SCRIPT }}}</template>
 </body>

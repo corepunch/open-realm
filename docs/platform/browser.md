@@ -381,5 +381,28 @@ and [ISO import details](browser-iso9660.md) for real-disc verification gaps.
 ## Experimental static hosting on GitHub Pages
 
 See [GitHub Pages deployment and Service Worker example](browser-github-pages.md).
-This is documentation and reference code only; automatic registration, startup
-isolation gating, Pages deployment and complete offline caching are not enabled.
+The deployment below adds browser game hosting to the existing Pages artifact;
+it does not add automatic offline caching or a documentation navigation link.
+
+### GitHub Pages deployment (browser engine only)
+
+The `.github/workflows/docs.yml` workflow also builds the Emscripten engine and
+copies runtime assets only to `site/play/` before uploading the Pages artifact.
+`port/web/publish-pages.py` excludes generated unity C and object files. The
+installed Warcraft III MPQs are never committed or uploaded; the browser
+installer continues to use local OPFS. No documentation navigation or Play
+link is added.
+
+GitHub Pages does not provide the required COOP/COEP headers. The game registers
+`coi-serviceworker.js` at `/openwarcraft3/play/` with that exact scope; its fetch
+handler adds the required isolation headers only to GET responses within the
+game directory. It does not cache assets or intercept documentation requests.
+On first visit, `pages-isolation.js` waits for the worker to control the page
+and reloads once so the navigation receives those headers. Engine startup waits
+for isolation and requires `crossOriginIsolated` before starting WASM pthreads.
+For other hosting paths, the existing server-provided isolation headers remain
+required.
+
+The automated checks cover synthetic bootstrap, fetch scoping, packaging and
+wiring. They do not verify actual browser Service Worker activation or CI builds
+with the pinned Emscripten SDK; those require deployment verification.

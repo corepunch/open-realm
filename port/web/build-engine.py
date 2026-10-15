@@ -154,6 +154,8 @@ def main():
         shutil.copy2(ROOT / "port/web/site" / name, out / name)
     shutil.copy2(ROOT / "port/web/site/fullscreen-resize.js", out / "fullscreen-resize.js")
     print("Experimental static engine build emitted to", out)
+    # Pages loads this only from its game path; other hosting may ignore it.
+    shutil.copy2(ROOT / "port/web/site/pages-isolation.js", out / "pages-isolation.js")
     print("OPFS archives mounted through WasmFS; native engine link/runtime remains experimental.")
 
 
