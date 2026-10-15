@@ -112,6 +112,7 @@
               status(installation.edition === 'demo'
                 ? 'Warcraft III Demo installation — limited content; starting experimental engine…'
                 : 'Validated browser installation; starting engine…');
+              if (window.openrealmGamePresentation) window.openrealmGamePresentation('playing');
               window.openrealmStartEngine(['+openrealm-data=' + installation.path,
                 '+set', 'fs_expansion', mode === 'tft' ? '1' : '0']);
               resolve(); // Release commit lock after acquiring the lease.

@@ -90,6 +90,9 @@
       setOperation(null);
       progress.value = 1;
       showEdition(data.manifest);
+      if (window.openrealmGamePresentation &&
+          data.manifest.files.some(file => file.name.toLowerCase() === 'war3.mpq'))
+        window.openrealmGamePresentation('reload');
       status.textContent = (data.manifest.edition === 'demo'
         ? 'Warcraft III Demo installed (limited content). ' :
         data.manifest.completeness === 'partial-expansion'

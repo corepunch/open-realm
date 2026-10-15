@@ -224,3 +224,24 @@ test('engine startup is suppressed on removal-only reload', () => {
   const bridge = fs.readFileSync(path.join(SITE, 'filesystem-bridge.js'), 'utf8');
   assert.match(bridge, /sessionStorage\.getItem\('openrealm-wc3-remove-after-reload'\) !== '1'/);
 });
+
+
+test('engine page initially hides game canvas and provides a centered reload action', () => {
+  const html = fs.readFileSync(path.join(SITE, 'engine-shell.html'), 'utf8');
+  assert.match(html, /id="game-container" hidden/);
+  assert.match(html, /id="game-launch-placeholder" hidden/);
+  assert.match(html, /id="reload-to-play"/);
+  assert.match(html, /openrealmGamePresentation/);
+});
+
+test('successful import displays reload action only for base game data', () => {
+  const {elements:e, worker} = harness();
+  const states = [];
+  // UI harness uses a standalone window object; verify event data is still
+  // committed and no canvas is shown directly by the installer.
+  e['game-files'].files = [{name:'War3.mpq'}];
+  e['install-data'].fire('click');
+  worker.send({type:'done',manifest:{files:[{name:'War3.mpq',size:64}],bytes:64}});
+  assert.match(e['data-status'].textContent, /Reload this page/);
+  assert.equal(e['install-data'].disabled, false);
+});

@@ -202,3 +202,15 @@ grant the optional Keyboard Lock API for Escape and modifier keys; unavailable
 or denied locks fall back to ordinary keyboard events. Fullscreen exit unlocks
 keyboard capture. Escape may still be intercepted by browser fullscreen controls.
 Synthetic test coverage is in `port/web/tests/browser-keyboard.test.cjs`.
+
+## Browser canvas visibility and post-import launch
+
+The engine page initially hides the game canvas and its Escape/fullscreen controls.
+Only `filesystem-bridge.js`, after validating the active OPFS manifest and
+archive headers and acquiring its generation lease, makes the canvas visible
+when launching the game. A successful browser import that includes `War3.mpq`
+shows a centered **Reload to play Warcraft III** button instead of starting
+an engine against a different in-memory generation. Reloading revalidates the
+installation before showing the game. An empty installation leaves the canvas
+and reload button hidden; importing only invalid or incomplete files does not
+expose them. Demo installations use the same validated startup path.
