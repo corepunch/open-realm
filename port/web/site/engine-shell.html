@@ -198,6 +198,10 @@ window.openrealmStartEngine = function (arguments_) {
   document.body.appendChild(script);
 };
 </script>
+<script src="browser-keyboard.js"></script>
+<script>
+openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);
+</script>
 <script src="installer.js"></script>
 <script src="mpq-header.js"></script>
 <script src="filesystem-bridge.js"></script>

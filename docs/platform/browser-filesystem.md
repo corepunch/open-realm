@@ -185,3 +185,20 @@ controls remain visible in the browser fullscreen top layer. The page also
 redirects direct `canvas.requestFullscreen()` calls to the container when
 that method is writable. The Escape button continues to dispatch keyboard
 events to the canvas and the fullscreen button can leave fullscreen mode.
+
+## Browser gameplay keyboard ownership
+
+`port/web/site/browser-keyboard.js` captures browser keyboard defaults only while
+the Warcraft III canvas owns focus (or its game container is fullscreen). Actual
+`keydown`/`keyup` events continue through SDL/Emscripten unchanged; the capture
+listener never calls `stopPropagation()`. Ctrl/Shift, Escape and number-group
+shortcuts are handled in gameplay focus; reserved browser/OS shortcuts are not
+claimed. Installer inputs and buttons retain normal keyboard behavior.
+
+When a window loses focus, the canvas blurs, or the document is hidden, the
+browser adapter emits key-up events for held Ctrl/Shift keys to avoid stuck
+modifiers. While the game container is fullscreen, supported browsers may
+grant the optional Keyboard Lock API for Escape and modifier keys; unavailable
+or denied locks fall back to ordinary keyboard events. Fullscreen exit unlocks
+keyboard capture. Escape may still be intercepted by browser fullscreen controls.
+Synthetic test coverage is in `port/web/tests/browser-keyboard.test.cjs`.
