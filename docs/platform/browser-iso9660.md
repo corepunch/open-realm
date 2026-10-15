@@ -1,4 +1,4 @@
-# Browser ISO 9660 reader (Warcraft III disc import, patches 1–3)
+# Browser ISO 9660 reader (Warcraft III disc import, patches 1–4)
 
 ## Scope and ownership
 
@@ -30,8 +30,8 @@ A TFT ISO without it can be combined with the RoC ISO in the same operation.
 An expansion-only selection is rejected rather than creating an unlaunchable
 manifest. A subsequent import still **replaces**, rather than augments, the
 active manifest. To install RoC and TFT, select both together; patch 3 does not
-merge a newly selected ISO with the previous installation. UI ISO file-picker
-changes remain planned for patch 4.
+merge a newly selected ISO with the previous installation. Patch 4 exposes ISO
+selection in both browser pages.
 
 Before creating a new generation, the worker validates each source's MPQ
 header and checks `navigator.storage.estimate()` when available. An estimate
@@ -128,8 +128,8 @@ filename normalization, lookup, cancellation, corrupt records, cycles and
 unsupported encodings. They use no proprietary media or installed WC3 data.
 
 These patches do not verify a retail Reign of Chaos or Frozen Throne image,
-`Setup.mpq` extraction, the browser UI or final game launch. Testing real
-discs and exposing ISO selection through the file picker are follow-up tasks.
+`Setup.mpq` extraction, a real browser import or final game launch. Testing real
+discs and launching the experimental engine are follow-up tasks.
 
 See also [Browser platform](browser.md) for OPFS installer ownership, runtime
 mounting and experimental engine build constraints.
@@ -151,3 +151,42 @@ either order, duplicate conflicts across sources, source count limits, quota
 preflight, optional estimate failures and write-failure rollback. The existing
 single-ISO, direct-MPQ and cancellation cases remain in the same file. These
 tests do not require a retail Warcraft III disc.
+
+## Patch 4 browser UI and packaging
+
+Both `port/web/site/engine-shell.html` and `port/web/site/shell.html`
+accept `.iso,.mpq,.w3m,.w3x` as multi-file input. Select the original
+Reign of Chaos and Frozen Throne images **together** when both are needed;
+each import creates a replacement manifest and does not merge with an existing
+installation. Images are scanned within `install-worker.js`, not on the UI
+thread, and only recognized archives from each ISO are imported. `Setup.mpq`
+is not unpacked. An `.iso` filename containing a raw-sector BIN image does
+not make it a supported ISO 9660 image.
+
+The worker reports `phase` events (`scanning` with a disc `source`,
+`validating`, `storage`, `copying`, `committing`), one `discovered` event after
+MPQ-header validation, and the existing `progress`, `done`, `list` and `error`
+events. Each discovered entry has `name`, `size` and `source`; `bytes` is the
+combined copy size, not the selected ISO size. `progress` retains its existing
+`copied`, `total` and `file` fields, plus `index`, `count`, `fileCopied` and
+`fileSize`. The UI renders these values as plain text, never HTML. Before
+copy size is known, the progress bar is indeterminate. The final manifest
+write occurs after copying, so a 100% copy indication is not success until
+`done` arrives. Cancelling an import and failed writes preserve the previous
+manifest through the worker's staged-generation cleanup.
+
+The experimental engine build already copies `installer.js`, `install-worker.js`
+and `iso9660.js` in `port/web/build-engine.py`; no change to that target was
+needed. Patch 4 adds those files as dependencies and copies them into the
+`build/web/` foundation output from `port/web/build.mk`; its `shell.html`
+previously referenced `installer.js` without packaging it.
+
+Run focused tests:
+
+```sh
+node --test port/web/tests/iso9660.test.cjs port/web/tests/iso-import.test.cjs port/web/tests/installer-ui.test.cjs
+```
+
+`installer-ui.test.cjs` exercises actual browser handler code with a synthetic
+DOM and Worker harness; it does not establish browser CSS/layout, browser
+storage quotas, or retail ISO compatibility. The engine remains experimental.

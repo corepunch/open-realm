@@ -318,3 +318,40 @@ test('cancel during copying preserves the previous generation', async () => {
   assert.equal(committed.generation, previous);
   assert.equal(dir.dirs.size, 1);
 });
+
+test('worker reports scanning, validated discovery, copy progress and commit in order', async () => {
+  const worker = makeWorker();
+  const result = await worker.run([
+    iso([['WAR3.MPQ', mpq()]], {name:'RoC.iso'}),
+    iso([['WAR3X.MPQ', mpq()]], {name:'TFT.iso'})
+  ]);
+  const scans = result.filter(message => message.type === 'phase' && message.phase === 'scanning');
+  assert.deepEqual(Array.from(scans, message => message.source), ['RoC.iso', 'TFT.iso']);
+  const events = result.map(message => message.type === 'phase' ? message.phase : message.type);
+  const validating = events.indexOf('validating');
+  const discovered = events.indexOf('discovered');
+  const storage = events.indexOf('storage');
+  const copying = events.indexOf('copying');
+  const committing = events.indexOf('committing');
+  assert.ok(validating > events.indexOf('scanning'));
+  assert.ok(discovered > validating);
+  assert.ok(storage > discovered);
+  assert.ok(copying > storage);
+  assert.ok(committing > events.indexOf('progress'));
+  assert.ok(events.indexOf('done') > committing);
+  const entry = result[discovered];
+  assert.equal(entry.bytes, 128);
+  assert.deepEqual(Array.from(entry.files, f => [f.name, f.size, f.source]),
+    [['War3.mpq', 64, 'RoC.iso'], ['War3x.mpq', 64, 'TFT.iso']]);
+  const copied = result.filter(message => message.type === 'progress');
+  assert.deepEqual(Array.from(copied, m => [m.index, m.count, m.fileCopied, m.fileSize]),
+    [[1, 2, 64, 64], [2, 2, 64, 64]]);
+});
+
+test('invalid archive does not announce a valid discovered file set', async () => {
+  const worker = makeWorker();
+  const result = await worker.run([iso([['WAR3.MPQ', Buffer.alloc(64)]])]);
+  assert.equal(result.at(-1).type, 'error');
+  assert.equal(result.some(message => message.type === 'discovered'), false);
+  assert.equal(result.some(message => message.type === 'committing'), false);
+});

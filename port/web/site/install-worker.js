@@ -53,7 +53,7 @@ async function selectSources(files) {
           ' (already provided by ' + names.get(key) + ')');
     }
     names.set(key, source);
-    sources.push({name, size:blob.size, blob});
+    sources.push({name, size:blob.size, blob, source});
     if (sources.length > MAX_INPUT_FILES) {
       throw new Error('Too many game files in one installation');
     }
@@ -65,6 +65,7 @@ async function selectSources(files) {
       add(file.name, file, file.name);
       continue;
     }
+    postMessage({type:'phase', phase:'scanning', source:file.name});
     // MPQ-only installs must still function when an older site build does
     // not ship the ISO module. ISO scanning never materializes a full image.
     if (!globalThis.ISO9660) importScripts('iso9660.js');
@@ -143,10 +144,13 @@ async function install(files) {
     const selected = await selectSources(files);
     checkCancelled();
     // Validate before creating any replacement generation. Maps are MPQs too.
+    postMessage({type:'phase', phase:'validating'});
     for (const file of selected) await checkMpqHeader(file);
     checkCancelled();
     const total = selected.reduce((sum, f) => sum + f.size, 0);
     if (!Number.isSafeInteger(total)) throw new Error('Installation size overflow');
+    postMessage({type:'discovered', files:selected.map(f=>({name:f.name,size:f.size,source:f.source})), bytes:total});
+    postMessage({type:'phase', phase:'storage'});
     await checkAvailableStorage(total);
     checkCancelled();
     dir = await directory(true);
@@ -155,7 +159,9 @@ async function install(files) {
         Math.random().toString(36).slice(2, 10);
     const stage = await dir.getDirectoryHandle(generation, {create: true});
     let copied = 0;
-    for (const f of selected) {
+    postMessage({type:'phase', phase:'copying'});
+    for (const [index, f] of selected.entries()) {
+      let fileCopied = 0;
       checkCancelled();
       const dest = await stage.getFileHandle(f.name, {create:true});
       const writable = await dest.createWritable();
@@ -166,12 +172,15 @@ async function install(files) {
           checkCancelled();
           await writable.write(buffer);
           copied += buffer.byteLength;
-          postMessage({type:'progress', file:f.name, copied, total});
+          fileCopied += buffer.byteLength;
+          postMessage({type:'progress', file:f.name, copied, total,
+            index:index+1, count:selected.length, fileCopied, fileSize:f.size});
         }
         await writable.close();
       } catch (err) { await writable.abort().catch(()=>{}); throw err; }
     }
     checkCancelled();
+    postMessage({type:'phase', phase:'committing'});
     const manifest = {
       version:2, generation,
       files:selected.map(f=>({name:f.name,size:f.size})), bytes:total

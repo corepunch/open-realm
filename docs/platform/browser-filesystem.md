@@ -17,7 +17,7 @@ from each disc and stores their source byte ranges in the same version-2
 generation. The combined selection must contain `War3.mpq`; duplicate archive
 names are errors, not implicit overrides. `Setup.mpq` is deliberately not
 installed as a playable archive; its internal content is not yet extracted.
-The browser picker does not yet expose ISO selection (patch 4). See
+Both browser pages expose ISO selection from patch 4. See
 [browser ISO reader](browser-iso9660.md).
 
 Before staging, the worker asks `navigator.storage.estimate()` for remaining
@@ -58,3 +58,11 @@ To test locally, serve build output over HTTPS (or localhost) with headers:
 `Cross-Origin-Opener-Policy: same-origin` and
 `Cross-Origin-Embedder-Policy: require-corp`. The requirements apply to the
 worker-backed game, not just the launcher. See `docs/platform/browser.md`.
+
+Patch 4 adds worker event-driven browser UI: phase updates and a validated
+per-source archive list precede byte-copy progress, while a final `done`
+confirms that the manifest has been committed. The foundation build now
+copies the importer scripts next to the emitted HTML; the engine build already
+did so. Browser UI behavior is exercised by
+`node --test port/web/tests/installer-ui.test.cjs`; see
+[browser ISO reader](browser-iso9660.md) for the message contract.
