@@ -26,6 +26,8 @@ static bool command_tests_initialized;
 static bool late_command_called;
 static bool save_map_readable;
 static bool load_game_ok;
+static uint32_t control_groups_load_calls;
+static PATHSTR last_control_groups_load;
 static unsigned short last_connect_port;
 
 extern bool cl_screenshot_pending;
@@ -55,6 +57,11 @@ void CL_Connect(cstring_t host, unsigned short port) {
 
 void CL_BeginLoadingMap(cstring_t mapName) {
     snprintf(last_loading_map, sizeof(last_loading_map), "%s", mapName ? mapName : "");
+}
+
+void CL_ControlGroupsLoad(cstring_t name) {
+    control_groups_load_calls++;
+    snprintf(last_control_groups_load, sizeof(last_control_groups_load), "%s", name ? name : "");
 }
 
 void CL_Shutdown(void) {
@@ -92,6 +99,8 @@ static void reset_map_handoff(void) {
     last_sv_map[0] = '\0';
     last_load_name[0] = '\0';
     last_load_map[0] = '\0';
+    control_groups_load_calls = 0;
+    last_control_groups_load[0] = '\0';
     last_connect_host[0] = '\0';
     last_forwarded[0] = '\0';
     late_command_called = false;
@@ -649,6 +658,8 @@ TEST(commands, load_command_reloads_saved_map_without_connect) {
     T_STREQ(last_loading_map, "Maps\\Campaign\\Human02.w3m");
     T_STREQ(last_load_name, "quick");
     T_STREQ(last_load_map, "Maps\\Campaign\\Human02.w3m");
+    T_EQ(control_groups_load_calls, 1);
+    T_STREQ(last_control_groups_load, "quick");
     /* Q2 load reconnects with "new" on the existing slot, not CL_Connect. */
     T_STREQ(last_connect_host, "");
 }

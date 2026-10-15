@@ -270,6 +270,8 @@ void CL_BeginLoadingMap(cstring_t mapName) {
     (void)mapName;
 }
 
+void CL_ControlGroupsLoad(cstring_t name) { (void)name; }
+
 void CL_Shutdown(void) {
 }
 
