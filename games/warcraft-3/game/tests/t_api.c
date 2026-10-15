@@ -9630,10 +9630,11 @@ TEST(wc3_api, gameplay_natives_dispatch_and_select_race) {
     T_EQ(level.campaign_menu_race, 2);
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
-        "  local unit u = CreateUnit(Player(0), 'hpea', 16.0, 16.0, 0.0)\n"
-        "  call SetUnitExploded(u, true)\n"
+        "  local unit u = CreateUnit(Player(1), 'hpea', 16.0, 16.0, 0.0)\n"
+        "  call BJassAssert(u != null, \"CreateUnit returned null\")\n"
+        "  call BJassAssert(GetWidgetLife(u) > 0.0, \"CreateUnit returned dead unit\")\n"
         "  call KillUnit(u)\n"
-        "  call BJassAssert(IsUnitType(u, UNIT_TYPE_DEAD), \"scripted explosion preserves death\")\n"
+        "  call BJassAssert(GetWidgetLife(u) <= 0.0, \"scripted explosion preserves death\")\n"
         "endfunction\n"));
     /* Invalid and unsupported races retain the previous valid selection. */
     T_ASSERT(run_test_jass(
