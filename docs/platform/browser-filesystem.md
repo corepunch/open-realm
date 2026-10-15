@@ -174,3 +174,14 @@ The new engine receives `+set fs_expansion 0` (RoC) or `+set fs_expansion 1`
 A demo or base-only installation disables TFT and resets a stale expansion
 preference to RoC. This only selects the existing engine's expansion mode; it
 does not claim complete TFT assets or gameplay compatibility.
+
+## Browser game control visibility
+
+The browser Escape and fullscreen controls belong to `#game-container`, not
+inside the canvas. The container creates a stacking context and keeps the
+control bar above the canvas even if Emscripten adjusts canvas dimensions.
+Fullscreen is requested on the container rather than the canvas, so the
+controls remain visible in the browser fullscreen top layer. The page also
+redirects direct `canvas.requestFullscreen()` calls to the container when
+that method is writable. The Escape button continues to dispatch keyboard
+events to the canvas and the fullscreen button can leave fullscreen mode.

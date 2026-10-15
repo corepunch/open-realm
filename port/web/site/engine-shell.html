@@ -9,9 +9,13 @@ body { background: #0b1220; color: #e6ecf4; font: 16px system-ui, sans-serif; ma
 main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
 button, input { margin: .3rem; }
 progress { width: 100%; }
-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
-#game-container { position: relative; }
-#game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2;
+canvas { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; background: #000; }
+/* Keep controls in a stacking context above the engine canvas, including when
+ * Emscripten changes canvas dimensions or applies its own canvas styles. */
+#game-container { position: relative; width: 100%; max-width: 100%; isolation: isolate; }
+#game-container > canvas { position: relative; z-index: 0; }
+#game-controls { position: absolute; top: .65rem; right: .65rem; z-index: 2147483647;
+  visibility: visible; opacity: 1; pointer-events: auto;
   display: flex; gap: .5rem; }
 #game-controls button { margin: 0; min-width: 2.8rem; min-height: 2.8rem;
   padding: .45rem .7rem; border: 1px solid #9baec7; border-radius: .4rem;
@@ -85,6 +89,16 @@ window.addEventListener('error', function (event) {
 var gameCanvas = document.getElementById('canvas');
 var gameContainer = document.getElementById('game-container');
 var gameFullscreen = document.getElementById('game-fullscreen');
+/* A canvas-only fullscreen request hides sibling controls because the browser
+ * displays only the requested fullscreen element. Always fullscreen the wrapper
+ * so both canvas and controls remain in the fullscreen top layer. */
+if (gameCanvas.requestFullscreen && gameContainer.requestFullscreen) {
+  try {
+    gameCanvas.requestFullscreen = function (options) {
+      return gameContainer.requestFullscreen(options);
+    };
+  } catch (_) { /* Non-writable fullscreen method: the page button still works. */ }
+}
 function sendGameEscape() {
   gameCanvas.focus();
   for (var i = 0; i < 2; ++i) {
@@ -105,7 +119,7 @@ document.getElementById('game-escape').addEventListener('click', function (event
 });
 gameFullscreen.addEventListener('click', function (event) {
   event.stopPropagation();
-  if (document.fullscreenElement === gameContainer) {
+  if (document.fullscreenElement === gameContainer || document.fullscreenElement === gameCanvas) {
     document.exitFullscreen().catch(function () {});
   } else if (gameContainer.requestFullscreen) {
     gameContainer.requestFullscreen().catch(function (error) {
@@ -114,7 +128,7 @@ gameFullscreen.addEventListener('click', function (event) {
   }
 });
 document.addEventListener('fullscreenchange', function () {
-  var active = document.fullscreenElement === gameContainer;
+  var active = document.fullscreenElement === gameContainer || document.fullscreenElement === gameCanvas;
   gameFullscreen.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Enter fullscreen');
   gameFullscreen.title = active ? 'Exit fullscreen' : 'Toggle fullscreen';
   window.dispatchEvent(new Event('resize'));
