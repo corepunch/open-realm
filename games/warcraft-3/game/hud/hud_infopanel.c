@@ -997,7 +997,7 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) 
 }
 
 static bool UI_UsesBuildingQueuePanel(gameClient_t *viewer, edict_t *unit) {
-    if (!viewer || !unit || !unit->data.UnitBalance || !unit->data.UnitBalance->isBuilding)
+    if (!viewer || !unit || !G_UnitIsBuilding(unit->class_id))
         return false;
     if (!G_UnitCanControl(viewer, unit))
         return false;
@@ -1032,7 +1032,8 @@ void UI_SeedInfoPanelCache(edict_t *ent, edict_t * *selected, uint32_t count) {
 void UI_SendInfoPanel(edict_t *ent, edict_t * *selected, uint32_t count) {
     UI_WriteStart(LAYER_INFOPANEL);
     if (count == 1) {
-        if (UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
+        bool const queue_panel = UI_UsesBuildingQueuePanel(ent->client, selected[0]);
+        if (queue_panel) {
             UI_WriteBuildQueue(selected[0], ent->client);
         } else {
             UI_WriteSingleInfo(selected[0], ent->client);

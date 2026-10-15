@@ -235,7 +235,9 @@ void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer) {
     float const waiting_size = 0.020390625f;
     float const waiting_step = 0.028125000f;
 
-    if (!count) return;
+    if (!count) {
+        return;
+    }
 
     /* The building name, action label, queue backdrop, and progress-bar
      * geometry come from retail SimpleInfoPanel.fdf.  The runtime queue owns

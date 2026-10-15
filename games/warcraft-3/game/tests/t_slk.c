@@ -257,6 +257,19 @@ TEST(wc3_slk, ini_cache_handles_carriage_return_only_lines) {
     Stb_IniCacheFree(&cache);
 }
 
+TEST(wc3_slk, legacy_worldedit_destructable_names_use_compatibility_lookup) {
+    InitUnitData();
+#if BZ_COMPAT_WORKAROUNDS
+    T_STREQ(FindConfigValue("WorldEditStrings", "WESTRING_DOOD_LOBA"), "Barricade");
+    T_STREQ(FindConfigValue("WorldEditStrings", "WESTRING_DOOD_LOCS"), "Crates");
+#else
+    T_NULL(FindConfigValue("WorldEditStrings", "WESTRING_DOOD_LOBA"));
+    T_NULL(FindConfigValue("WorldEditStrings", "WESTRING_DOOD_LOCS"));
+#endif
+    ShutdownUnitData();
+    InitUnitData(); /* Restore shared tables for later tests in this process. */
+}
+
 /* Map-archive Units\CampaignUnitFunc.txt and war3mapMisc.txt must win over base
  * TFT through gi.SetPriorityArchive (the same hook CM_LoadMapFormat installs). */
 TEST(wc3_slk, map_archive_campaign_unit_func_overrides_base) {

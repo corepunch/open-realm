@@ -15,7 +15,7 @@ War3.mpq
 .claude/
 .vscode/
 screenshots/
-site/
+/site/
 .idea/
 __pycache__/
 *.pyc

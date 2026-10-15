@@ -443,10 +443,16 @@ void SV_Map(cstring_t mapFilename) {
     if (!ge->PrepareMap(mapFilename)) {
         fprintf(stderr, "SV_Map: loading presentation failed for %s\n", mapFilename);
         SV_Shutdown();
+        Sys_UpdateLoadingPresentation(false, 1.0f, true);
         CL_LoadingFrame();
         return;
     }
-    if (!SV_BuildLoadingScreen()) { SV_Shutdown(); CL_LoadingFrame(); return; }
+    if (!SV_BuildLoadingScreen()) {
+        SV_Shutdown();
+        Sys_UpdateLoadingPresentation(false, 1.0f, true);
+        CL_LoadingFrame();
+        return;
+    }
     FOR_LOOP(i, svs.num_clients) {
         client_t *cl = &svs.clients[i];
         /* num_clients spans reusable holes after disconnects; send only to live peers. */
@@ -456,6 +462,7 @@ void SV_Map(cstring_t mapFilename) {
     if (!ge->LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
         SV_Shutdown();
+        Sys_UpdateLoadingPresentation(false, 1.0f, true);
         CL_LoadingFrame();
         return;
     }

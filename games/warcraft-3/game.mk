@@ -190,6 +190,7 @@ profile-map: $(BINARY) xctraceprof
 
 # Headless launcher, campaign catalog, and binding-generator checks.
 test-render-harness: fdfbindgen mpqtool
+	python3 tools/test_list_setup_mpq.py
 	python3 tests/test_parity_launcher.py
 	python3 tests/test_parity_maps.py
 	python3 tests/test_fdfbindgen.py

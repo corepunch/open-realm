@@ -4,6 +4,8 @@ LIB_DIR := build/lib
 SHARE_INSTALL := build/share
 CFLAGS  := -Wall -Wmisleading-indentation -fno-common -I. -Ishared -Ishared/types
 BUILD   ?= debug
+# Keep compatibility workarounds enabled unless explicitly disabled.
+COMPAT_WORKAROUNDS ?= 1
 MSAA    ?= 0
 GL_BACKEND ?= gl
 GLSL      ?= 140
@@ -15,6 +17,10 @@ else ifneq ($(BUILD),debug)
 else
 	CFLAGS += -O0 -g
 endif
+ifeq ($(filter $(COMPAT_WORKAROUNDS),0 1),)
+	$(error COMPAT_WORKAROUNDS must be 0 or 1)
+endif
+CFLAGS += -DBZ_COMPAT_WORKAROUNDS=$(COMPAT_WORKAROUNDS)
 ifeq ($(filter $(MSAA),0 2 4 8),)
 	$(error MSAA must be 0, 2, 4, or 8)
 endif

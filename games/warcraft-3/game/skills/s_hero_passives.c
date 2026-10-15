@@ -328,6 +328,30 @@ static uint32_t aura_buff_code(cstring_t buff_id) {
     return code;
 }
 
+/* Original RoC omits AbilityData.BuffID, but its engine maps stock Devotion
+ * Aura to BHad. Keep this compatibility mapping limited to that base family;
+ * an explicit buff on a custom alias still takes precedence. */
+typedef struct {
+    uint32_t ability, buff;
+} heroAuraCompatBuff_t;
+
+#if BZ_COMPAT_WORKAROUNDS
+static heroAuraCompatBuff_t const hero_aura_compat_buffs[] = {
+    { ID_DEVOTION_AURA, MAKEFOURCC('B', 'H', 'a', 'd') }
+};
+#endif
+
+static uint32_t hero_aura_compat_buff(uint32_t base_code) {
+#if BZ_COMPAT_WORKAROUNDS
+    FOR_LOOP(i, sizeof(hero_aura_compat_buffs) / sizeof(*hero_aura_compat_buffs))
+        if (hero_aura_compat_buffs[i].ability == base_code)
+            return hero_aura_compat_buffs[i].buff;
+#else
+    (void)base_code;
+#endif
+    return 0;
+}
+
 /* TargetArt model for an ability or buff rawcode. Empty art stays unregistered. */
 static uint32_t aura_target_model(uint32_t code) {
     cstring_t art = code ? G_AbilityEffectArt(code, WC3_EFFECT_TARGET, 0) : NULL;
@@ -694,6 +718,8 @@ static heroAuraPresentation_t hero_aura_presentation(edict_t *unit, uint32_t bas
         result.alias = ability.alias;
         result.level = ability.level;
         result.buff = aura_buff_code(buff_id);
+        if (!result.buff)
+            result.buff = hero_aura_compat_buff(base_code);
     }
     return result;
 }

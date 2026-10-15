@@ -149,6 +149,7 @@ void SCR_BeginLoadingPlaque(void) {
 }
 
 void SCR_EndLoadingPlaque(void) {
+    Sys_UpdateLoadingPresentation(false, 1.0f, true);
     cls.disable_screen = 0;
 }
 
@@ -226,6 +227,7 @@ void SCR_UpdateLoadingPlaque(void) {
     if (Cvar_Integer("r_norefresh", 0)) return;
     if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING) return;
     SCR_DrawScreenField(0);
+    Sys_UpdateLoadingPresentation(true, cl.loading_progress, cl.layout[LAYER_LOADING] != NULL);
 }
 
 void SCR_UpdateScreen(uint32_t msec) {

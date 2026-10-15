@@ -19,8 +19,12 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Server-authored UI payload design, limits, diagnostics, scrollbar postmortem | [docs/architecture/ui-payloads.md](docs/architecture/ui-payloads.md) |
 | Client-managed gameplay windows, focus, z-order, dragging, modal input, text arenas | [docs/architecture/client-windows.md](docs/architecture/client-windows.md) |
 | UI canvas: window geometry, stretch/expand/centered policies, widescreen console chrome, resize settling, `ui_canvas` class command | [docs/architecture/ui-canvas.md](docs/architecture/ui-canvas.md) |
+| Web browser fullscreen and post-layout canvas resize synchronization | [docs/platform/browser-fullscreen.md](docs/platform/browser-fullscreen.md) |
 | Shared GL/ES shader generation, typed submission and lifetime | [docs/architecture/shared-shaders.md](docs/architecture/shared-shaders.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Browser ISO 9660/Joliet sector reader, limits, test command, integration boundary | [docs/platform/browser-iso9660.md](docs/platform/browser-iso9660.md) |
+| Building, serving, importing game data, and running the experimental browser engine | [docs/platform/browser-run.md](docs/platform/browser-run.md) |
+| Browser static hosting on GitHub Pages, Service Worker isolation and example | [docs/platform/browser-github-pages.md](docs/platform/browser-github-pages.md) |
 | GitHub release publication, contributor notes, platform artifacts and verification | [docs/releasing.md](docs/releasing.md) |
 | Agent documentation capture, placement, templates, and indexing | [docs/documentation-guide.md](docs/documentation-guide.md) |
 | Diagnostic tools (mpqtool, dbctool, mdxtool, ability_audit, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
@@ -77,6 +81,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Neutral Hostile camp assistance, creep guard leash, scripted guard controls and persistence | [docs/games/warcraft-3/neutral-creep-guard.md](docs/games/warcraft-3/neutral-creep-guard.md) |
 | WC3 regeneration auras and Fountain health/mana alias/data flow | [docs/games/warcraft-3/regeneration-auras.md](docs/games/warcraft-3/regeneration-auras.md) |
 | WC3 aura target masks, RoC rank columns, source pattern vs recipient glow | [docs/games/warcraft-3/aura-targets-and-overlays.md](docs/games/warcraft-3/aura-targets-and-overlays.md) |
+| RoC aura RTTI registrations and hardcoded `AHad`→`BHad` mapping evidence | [docs/games/warcraft-3/roc-aura-registrations.md](docs/games/warcraft-3/roc-aura-registrations.md) |
 | WC3 mutable Blight world state, Abli growth, placement/regen, JASS natives, save/load | [docs/games/warcraft-3/blight.md](docs/games/warcraft-3/blight.md) |
 | WC3 Barkskin modal autocast, authored armor status, expiry/death inverse | [docs/games/warcraft-3/barkskin.md](docs/games/warcraft-3/barkskin.md) |
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |
@@ -536,7 +541,8 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 
 ## Browser platform
 
-The opt-in Emscripten/WebGL 2 foundation target and its current limitations are
-recorded in [Browser platform](docs/platform/browser.md). The smoke test is not
-a Warcraft III runtime. Keep browser adapters outside the universal client and
-game simulation modules.
+Browser engine build/run steps and current limitations are recorded in
+[Browser run guide](docs/platform/browser-run.md) and
+[Browser platform](docs/platform/browser.md). The foundation smoke test is not
+the Warcraft III runtime. Keep browser adapters outside the universal client
+and game simulation modules.

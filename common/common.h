@@ -202,6 +202,15 @@ BOMStatus PF_TextRemoveBom(string_t buffer);
 
 void Com_Quit(void);
 void Sys_Quit(void);
+#ifdef __EMSCRIPTEN__
+void Sys_UpdateLoadingPresentation(bool active, float progress, bool loading_screen_submitted);
+#else
+static inline void Sys_UpdateLoadingPresentation(bool active, float progress, bool loading_screen_submitted) {
+    (void)active;
+    (void)progress;
+    (void)loading_screen_submitted;
+}
+#endif
 
 handle_t FS_AddArchive(cstring_t filename);
 bool FS_AddDataDirectory(cstring_t dirname);

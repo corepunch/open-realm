@@ -453,3 +453,10 @@ been visually verified from OrcX01 assets. Compare its Goblin Cave against
 retail: if the cavern silhouette remains incomplete, investigate the model
 origin/vertex geometry and terrain-cutout correspondence before adding
 further offsets.
+
+### Web-only early map loading placeholder
+
+Before the authored map-specific loading screen arrives, a neutral browser
+overlay remains visible. Its handoff is triggered from a submitted loading
+layout frame, not merely from asset registration. It does not change the
+original Warcraft III loading-screen progress, artwork or presentation.

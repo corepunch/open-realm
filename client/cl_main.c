@@ -213,6 +213,7 @@ static void CL_SendDisconnect(void) {
 static void CL_CancelCinematicSession(void);
 
 static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu) {
+    Sys_UpdateLoadingPresentation(false, 1.0f, true);
     CL_CancelCinematicSession();
     Cbuf_ClearDefer();
     if (cls.state == ca_disconnected) {
@@ -567,6 +568,7 @@ void CL_BeginLoadingMap(cstring_t mapName) {
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_connected;
     CL_SetGameplayInput();
+    Sys_UpdateLoadingPresentation(true, cl.loading_progress, false);
     SCR_BeginLoadingPlaque();
     /* New map baselines repopulate the compact active-entity list; drop any
      * stale entries from the previous map before they arrive. */
@@ -1496,6 +1498,7 @@ void CL_Connect(cstring_t host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
+    Sys_UpdateLoadingPresentation(false, 1.0f, true);
     CL_CancelCinematicSession();
     CL_SuspendMenu();
     cl_menu_life = CL_MENU_UNLOADED;

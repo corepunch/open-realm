@@ -1,9 +1,31 @@
-# Browser platform — phase 1 foundation
+# Browser platform — experimental Warcraft III port
 
-This stage adds an opt-in Emscripten / SDL2 / WebGL 2 smoke-test target. It
-**does not** compile or start OpenWarcraft III yet. The native build graph in
-`Makefile` still produces ELF/dylib/DLL modules and must not be run under `emcc`
-as if these were browser-loadable modules.
+For end-user build, serving, import and run instructions, see
+[Build and run OpenRealm Warcraft III in a browser](browser-run.md). This page
+records implementation stages, ownership and technical limitations. The
+foundation target below remains a separate smoke test, not the playable engine.
+
+The initial stage added an opt-in Emscripten / SDL2 / WebGL 2 smoke-test
+target. The repository now also has an experimental statically linked browser
+engine; follow [the run guide](browser-run.md) to build and launch it. The
+native build graph in `Makefile` still produces ELF/dylib/DLL modules and must
+not be run under `emcc` as if these were browser-loadable modules.
+
+### Browser-only early preparation overlay
+
+The Emscripten engine shows a neutral HTML `Preparing map…` indicator from
+`CL_BeginLoadingMap()` before synchronous map preparation. It stays visible
+until `SCR_UpdateLoadingPlaque()` submits a frame with the server-authored
+loading layout; JavaScript waits two animation frames before hiding it to avoid
+revealing a stale menu frame. The Warcraft III loading artwork, progress and
+protocol remain unchanged. Disconnect, shutdown and map-load failure clear the
+overlay. Only Emscripten compiles this bridge. Tests are under
+`port/web/tests/`.
+
+The layout is registered before the client finishes registering the map, so
+layout presence alone is too early for the visual handoff. The overlay now
+stays up through `re.RegisterMap` and is released at the existing 40% loading
+checkpoint, with the browser's two-frame delay as a compositing safeguard.
 
 ## Build
 
@@ -41,7 +63,8 @@ gesture and may be unavailable under restrictive embedding policies.
 3. Audit the existing GLES3 renderer and shader paths against WebGL 2.
 4. Provide a WASM filesystem bridge with random-access archive reads and
    persistent local game data.
-5. Add a launcher, installer, audio, save persistence and PWA support.
+5. The experimental launcher, installer and AudioWorklet playback have since
+   been added. Save persistence and PWA support remain future work.
 
 The source-only platform probe deliberately avoids browser-pthread requirements,
 proprietary retail archives, new gameplay code and modifications to existing
@@ -69,6 +92,18 @@ probe in this phase. Browser file storage and installation are not yet present.
 
 ## Phase 3 — browser-local game data importer
 
+The [ISO 9660/Joliet reader](browser-iso9660.md) can now be invoked by the
+installer worker with up to eight ISO files plus direct game archive files in
+one selection, to selectively copy recognized Warcraft III game MPQs through
+the existing OPFS generation writer. It requires `War3.mpq` in the combined
+selection, rejects duplicate archive names and checks estimated storage quota
+before staging when the browser provides an estimate. Imports still replace,
+rather than merge with, the existing installation. Both browser file pickers
+now accept ISO images alongside standalone archives and show detected files
+and copy progress (patch 4). Patch 5 extracts the 44-map profile observed
+on one original RoC `Setup.mpq` disc, without executing installer code;
+unknown layouts are reported and skipped.
+
 The platform probe page now exposes a launcher-only file importer.
 `site/installer.js` sends File objects to `site/install-worker.js`, which
 reads them in 1 MiB chunks and stores them under OPFS
@@ -78,16 +113,19 @@ removal. OPFS is origin-scoped and no data is sent to a server.
 
 This is a *storage foundation*, not the game-data engine mount. The importer
 does not claim that every MPQ is sufficient or valid for a playable Warcraft
-installation. It currently supports flat selected MPQ/W3M/W3X files, and
-does not extract CASC, ZIP archives or directories. Existing MPQ code has not
-yet been connected to OPFS. Interrupted commits can leave orphan files,
+installation. It supports selected ISO 9660 images, loose MPQ/W3M/W3X
+files and validated nested `Maps/` outputs from recognized original RoC
+`Setup.mpq` archives; it does not offer general-purpose installer extraction,
+CASC or ZIP support. The experimental engine uses a WasmFS OPFS mount to expose the
+selected archive directory to the native MPQ reader; this needs browser
+runtime validation. Interrupted commits can leave orphan files,
 and replacing an existing installation is not a fully atomic transaction;
 the engine must not trust file presence without validating a manifest and
 actual archive contents. Avoid importing over an active game session.
 
-A later patch must mount this storage into Emscripten FS using efficient
-random-access reads, validate complete installations, and integrate the
-actual OpenRealm WASM engine. The probe remains only a probe.
+The existing experimental WasmFS mount uses seekable reads; end-to-end
+browser verification and complete installation validation remain necessary.
+The probe remains only a probe.
 
 ## Phase 4 — experimental static engine link
 
@@ -270,19 +308,21 @@ The change avoids needing to increase the default pthread stack solely for
 these temporary images. Recheck browser startup after shader loading; other
 large local buffers might still need their own targeted fixes.
 
-### Browser sound initialization (temporary limitation)
+### Earlier browser sound initialization limitation (superseded)
 
 The browser executable uses `PROXY_TO_PTHREAD`, placing engine startup on a
 worker. SDL 2's Emscripten audio device setup currently accesses JavaScript
 `audioContext` state that is unavailable in that worker and throws before
 client initialization completes. For now `S_Init` declines to initialize audio
-on Emscripten and preserves the normal uninitialized-sound guards. The native
-SDL audio path remains unchanged. Browser playback is intentionally silent.
+on Emscripten and preserves the normal uninitialized-sound guards. At that
+stage browser playback was silent. The later AudioWorklet integration below
+provides browser playback; this section records the earlier constraint rather
+than current behavior. The native SDL audio path remains unchanged.
 
-Restore browser sound with a dedicated browser audio adapter or a verified
-main-thread initialization and mixing bridge; do not call the standard SDL
-Emscripten audio device opener from the engine worker. Verify the next browser
-startup stage with both debug and release builds.
+The current browser audio adapter uses a shared sample ring and AudioWorklet;
+do not call the standard SDL Emscripten audio device opener from the engine
+worker. Playback still needs checks across stalls, suspend/resume and device
+sample rates.
 
 ### Bundled Warcraft III defaults
 
@@ -320,3 +360,65 @@ The audio worklet script is copied alongside index.js by the browser build.
 The native SDL backend is unchanged. Verify playback for UI sounds, positional
 unit acknowledgements, dialogue and music; also verify tab suspend/resume,
 loading stalls and output-device sample rates. Audio may underrun during stalls.
+
+The patch 4 UI adds `.iso` to the browser file input and reports ISO scanning,
+validated MPQs with their source disc and size, copy progress, and final
+manifest commit. Patch 5 extracts known installer-only map contents
+from selected original RoC `Setup.mpq` layouts, but does not support
+incremental RoC/TFT imports: select both discs in one operation.
+Patch 6 originally rejected the listed September 2002 demo disc by its
+`War3Demo.ico` and `SCDemo.exe` files. The later demo import patch now accepts
+that disc separately, imports its base MPQ and `RetailMaps/` maps, and
+persists a clearly labelled demo edition across visits. Patch 6 can also recover *named* whole
+expansion MPQ members from a TFT installer. The May 2003 TFT disc's internal
+`Setup.mpq` layout has not been verified against the actual retail bytes.
+Patch 7 scans anonymous uncompressed installer blocks for nested MPQs,
+classifies known base and expansion roles by internal file-path hash evidence,
+and reports unknown archives without guessing filenames. An incomplete TFT
+selection still fails without replacing the previous installation. See
+[disc import format limitations](browser-iso9660.md).
+
+The `web-warcraft3-foundation` make rule copies `installer.js`,
+`install-worker.js`, `iso9660.js` and `setup-mpq.js` into the probe output next to
+`index.html`; the experimental engine build also ships these assets.
+See [browser ISO reader](browser-iso9660.md) for the worker event contract and
+headless UI tests.
+
+### ISO installation hardening
+
+The browser installer now validates MPQ declared sizes and hash/block table
+bounds before storing files; the launcher performs equivalent checks before
+starting the engine. Web Locks prevent concurrent installation commits across
+tabs, and running game tabs hold leases so cleanup cannot remove their OPFS
+archive generation. See [browser filesystem](browser-filesystem.md) for lock
+names, generation retention, manifest completeness and remaining limitations,
+and [ISO import details](browser-iso9660.md) for real-disc verification gaps.
+
+## Experimental static hosting on GitHub Pages
+
+See [GitHub Pages deployment and Service Worker example](browser-github-pages.md).
+The deployment below adds browser game hosting to the existing Pages artifact;
+it does not add automatic offline caching or a documentation navigation link.
+
+### GitHub Pages deployment (browser engine only)
+
+The `.github/workflows/docs.yml` workflow also builds the Emscripten engine and
+copies runtime assets only to `site/play/` before uploading the Pages artifact.
+`port/web/publish-pages.py` excludes generated unity C and object files. The
+installed Warcraft III MPQs are never committed or uploaded; the browser
+installer continues to use local OPFS. No documentation navigation or Play
+link is added.
+
+GitHub Pages does not provide the required COOP/COEP headers. The game registers
+`coi-serviceworker.js` at `/openwarcraft3/play/` with that exact scope; its fetch
+handler adds the required isolation headers only to GET responses within the
+game directory. It does not cache assets or intercept documentation requests.
+On first visit, `pages-isolation.js` waits for the worker to control the page
+and reloads once so the navigation receives those headers. Engine startup waits
+for isolation and requires `crossOriginIsolated` before starting WASM pthreads.
+For other hosting paths, the existing server-provided isolation headers remain
+required.
+
+The automated checks cover synthetic bootstrap, fetch scoping, packaging and
+wiring. They do not verify actual browser Service Worker activation or CI builds
+with the pinned Emscripten SDK; those require deployment verification.
