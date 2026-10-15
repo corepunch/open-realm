@@ -21,12 +21,15 @@ class PublishPagesTest(unittest.TestCase):
                 (build / name).write_bytes(b'fixture')
             for name in module.PAGES_ASSETS:
                 (assets / name).write_bytes(b'fixture')
+            site.mkdir(parents=True)
+            (site / 'stale.js').write_bytes(b'old deployment asset')
             for name in ('engine_unity.c', 'engine.o', 'War3.mpq', 'index.worker.js', 'index.data'):
                 (build / name).write_bytes(b'fixture')
             module.publish(build, site, assets)
             self.assertTrue((site / 'index.wasm').exists())
             self.assertTrue((site / 'index.worker.js').exists())
             self.assertTrue((site / 'index.data').exists())
+            self.assertFalse((site / 'stale.js').exists())
             for name in ('engine_unity.c', 'engine.o', 'War3.mpq'):
                 self.assertFalse((site / name).exists(), name)
             self.assertTrue((site / 'coi-serviceworker.js').exists())

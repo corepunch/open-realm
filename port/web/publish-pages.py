@@ -25,6 +25,10 @@ def publish(source, destination, site_assets):
             raise RuntimeError('missing browser runtime asset: ' + name)
     if destination.is_symlink():
         raise RuntimeError('Pages destination must not be a symlink')
+    if destination.exists():
+        if not destination.is_dir():
+            raise RuntimeError('Pages destination must be a directory')
+        shutil.rmtree(destination)
     destination.mkdir(parents=True, exist_ok=True)
     count = 0
     for asset in source.rglob('*'):
