@@ -1,6 +1,6 @@
 # Host the experimental Warcraft III browser build on GitHub Pages
 
-**Status: deployment design and example, not an enabled production feature.**
+**Status: deployed by the repository's GitHub Pages workflow.**
 OpenRealm's `python3 port/web/serve.py` is a convenient local test server that
 adds `Cross-Origin-Opener-Policy: same-origin` and
 `Cross-Origin-Embedder-Policy: require-corp`. GitHub Pages is a static host and
@@ -10,33 +10,28 @@ the page*. Initial navigation cannot rely on a not-yet-installed worker.
 
 ## Build and deployment outline
 
-1. Build the **engine**, not the foundation smoke test, on Linux with Emscripten
-   activated: `make web-warcraft3-engine`. Output: `build/web/engine/`.
-2. Publish **the entire** `build/web/engine/` directory as the Pages artifact
-   (or a dedicated deployment branch). Keep `index.html`, `index.js`,
-   `index.wasm`, `install-worker.js`, `filesystem-bridge.js`, installer
-   support scripts, `audio-worklet.js`, and any `.data`/other emitted files
-   together. Do not publish Blizzard MPQs or imported disc contents.
-3. Copy `docs/platform/examples/github-pages-sw.js` to
-   `build/web/engine/sw.js`. Customize the service worker cache version when
-   shipping a changed engine. See the source comments for security constraints.
-4. Add the *registration gate* below **before** `filesystem-bridge.js` in the
-   generated page, preferably by maintaining a deployment-specific
-   `port/web/site/engine-shell.html` variant and rebuilding rather than
-   hand-editing emitted HTML after each build. This example is intentionally
-   **not installed** by the repository build.
-5. Set GitHub repository **Settings → Pages → Build and deployment** to use
-   your chosen GitHub Actions Pages deployment workflow. Deploy the output
-   folder as the Pages artifact. The exact workflow depends on your CI setup.
-6. Visit `https://<account>.github.io/<repository>/` (or your configured
-   custom HTTPS domain). On the first visit, install the worker, then reload
-   under worker control. Verify `crossOriginIsolated === true` before
-   starting the threaded engine. Ordinary `file://` URLs do not work.
+1. The GitHub Actions workflow prepares the embedded font, builds the
+   **engine** (not the foundation smoke test) with Emscripten, and runs
+   `mkdocs build`.
+2. `port/web/publish-pages.py` copies allowed runtime assets to `site/play/`
+   before uploading the Pages artifact. It excludes generated unity C and
+   object files. Do not publish Blizzard MPQs or imported disc contents.
+3. The game-scoped `coi-serviceworker.js` and startup gate in
+   `pages-isolation.js` are shipped with the game. The worker scope is
+   `/openwarcraft3/play/`, matching the repository Pages URL.
+4. Pushes to `main` that change documentation or browser-build inputs trigger
+   the Pages deployment workflow. No game link is added to documentation
+   navigation.
+5. Visit `https://corepunch.github.io/openwarcraft3/play/`. On the first visit,
+   the page installs the worker and reloads once under its control. Verify
+   `crossOriginIsolated === true` before the threaded engine starts. Ordinary
+   `file://` URLs do not work.
 
 A repository project site has a path prefix; avoid root-absolute URLs such
 as `/index.wasm` or `/sw.js`. Relative URLs resolve within that project's
 Pages origin and path. Emscripten-generated asset paths must follow the same
-rule. This example does not provide an automatic GitHub Pages workflow.
+rule. The deploy workflow uses the game-scoped worker described below; the
+sample worker remains a separate reference for a cache-enabled deployment.
 
 ## Registration and startup gate (illustrative)
 
@@ -68,19 +63,16 @@ async function enablePagesIsolation() {
 </script>
 ```
 
-**Important integration detail:** The existing
-`port/web/site/filesystem-bridge.js` can start the game immediately when it
-finds OPFS data. Registering the worker in the page without *gating that
-startup* is insufficient. A production implementation must defer loading
-`filesystem-bridge.js` and the Emscripten engine until the registration
-function reports `true`, and display a reload/error status otherwise.
-This document does not claim the snippet alone completes that integration.
+**Important integration detail:** `port/web/site/filesystem-bridge.js` can
+start the game immediately when it finds OPFS data. The deployed page therefore
+loads `pages-isolation.js` before the filesystem bridge, and
+`openrealmStartEngine` waits for its result before loading the Emscripten
+engine. A failed isolation check reports an error and releases the archive
+generation lease instead of leaving an unusable tab holding it.
 
-For a first-visit page that runs non-isolated, do not initialize any
-pthreads/WasmFS/OffscreenCanvas engine components before the reload. A
-`controllerchange` listener plus a single reload is a useful production
-refinement. If isolation remains false after control, show a failure rather
-than loop forever.
+The deployed bootstrap waits for `controllerchange`, reloads once, and reports
+a visible failure if isolation is still unavailable after that reload. It does
+not initialize pthreads, WasmFS or the game renderer before isolation succeeds.
 
 ## Worker and security rules
 
@@ -106,16 +98,15 @@ name so changed engine assets cannot silently mix with earlier versions.
 
 ## Local validation without `serve.py`
 
-Run a normal static HTTP server from the emitted folder:
+For local development, start the header-enabled repository server from the
+repository root:
 
 ```sh
-cd build/web/engine
-python3 -m http.server 8000
+python3 port/web/serve.py
 ```
 
-Open `http://localhost:8000/`. Service Workers are supported on localhost
-as a secure-context exception. On the first visit reload after the worker
-takes control. Check in developer tools:
+Open `http://127.0.0.1:8000/`. The server provides isolation headers directly,
+so the Pages Service Worker path is not involved. Check in developer tools:
 
 ```js
 navigator.serviceWorker.controller !== null
@@ -123,7 +114,7 @@ crossOriginIsolated
 typeof SharedArrayBuffer
 ```
 
-The expected values *after control* are `true`, `true`, and `"function"`.
+The expected values are `true`, `true`, and `"function"`.
 Also confirm a threaded engine launches and reads an OPFS installation.
 Neither loading the page nor seeing a registered worker proves full game
 compatibility. `serve.py` remains useful for native header-driven local

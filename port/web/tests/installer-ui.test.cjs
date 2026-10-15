@@ -11,12 +11,24 @@ class Element {
   constructor(id) {
     this.id = id;
     this.textContent = '';
-    this.value = id === 'install-progress' ? 0 : '';
+    this._value = id === 'install-progress' ? 0 : '';
     this.disabled = false;
-    this.hidden = id === 'discovered-files';
+    this.hidden = ['discovered-files', 'play-game'].includes(id);
     this.files = [];
+    this.classList = {names:new Set(),
+      toggle(name, force) {
+        const enabled = force === undefined ? !this.names.has(name) : !!force;
+        if (enabled) this.names.add(name); else this.names.delete(name);
+        return enabled;
+      },
+      contains(name) { return this.names.has(name); }};
     this.children = [];
     this.listeners = new Map();
+  }
+  get value() { return this._value; }
+  set value(value) {
+    this._value = value;
+    if (this.id === 'game-files' && value === '') this.files = [];
   }
   addEventListener(name, callback) { this.listeners.set(name, callback); }
   fire(name) { this.listeners.get(name)(); }
@@ -27,7 +39,7 @@ class Element {
 function harness({storage = true, session = new Map()} = {}) {
   const ids = ['game-files', 'install-data', 'cancel-install', 'remove-data',
     'data-status', 'install-progress', 'selection-summary', 'discovered-files', 'archive-list',
-    'installation-edition'];
+    'installation-edition', 'play-game', 'data-panel'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element(id)]));
   let worker;
   class Worker {
@@ -77,11 +89,13 @@ test('multi-disc selection, validated discovery, copying and final UI states', (
   e['game-files'].files = [{name:'RoC.iso'}, {name:'TFT.iso'}, {name:'War3Patch.mpq'}];
   e['game-files'].fire('change');
   assert.match(e['selection-summary'].textContent, /2 ISO image\(s\) and 1 standalone/);
+  assert.equal(e['install-data'].classList.contains('has-selection'), true);
   e['install-data'].fire('click');
   assert.equal(worker.messages.at(-1).type, 'import');
   assert.equal(worker.messages.at(-1).files.length, 3);
   assert.equal(e['install-progress'].value, undefined);
   assert.equal(e['install-data'].disabled, true);
+  assert.equal(e['install-data'].classList.contains('has-selection'), false);
   assert.equal(e['cancel-install'].disabled, false);
   assert.equal(e['game-files'].disabled, true);
   worker.send({type:'list', manifest:null}); // Delayed initial response is ignored.
@@ -103,6 +117,8 @@ test('multi-disc selection, validated discovery, copying and final UI states', (
   worker.send({type:'done', manifest:{bytes:128, files:[{name:'War3.mpq'}, {name:'War3x.mpq'}]}});
   assert.equal(e['install-progress'].value, 1);
   assert.equal(e['install-data'].disabled, false);
+  assert.equal(e['install-data'].classList.contains('has-selection'), false);
+  assert.equal(e['play-game'].hidden, false);
   assert.equal(e['cancel-install'].disabled, true);
   assert.match(e['data-status'].textContent, /Reload this page/);
 });
@@ -226,22 +242,23 @@ test('engine startup is suppressed on removal-only reload', () => {
 });
 
 
-test('engine page initially hides game canvas and provides a centered reload action', () => {
+test('engine page initially hides game canvas and uses the data-panel Play Game action', () => {
   const html = fs.readFileSync(path.join(SITE, 'engine-shell.html'), 'utf8');
   assert.match(html, /id="game-container" hidden/);
-  assert.match(html, /id="game-launch-placeholder" hidden/);
-  assert.match(html, /id="reload-to-play"/);
+  assert.doesNotMatch(html, /game-launch-placeholder|reload-to-play/);
+  assert.match(html, /id="play-game-row"[^>]*><button id="play-game"/);
   assert.match(html, /openrealmGamePresentation/);
 });
 
-test('successful import displays reload action only for base game data', () => {
-  const {elements:e, worker} = harness();
-  const states = [];
-  // UI harness uses a standalone window object; verify event data is still
-  // committed and no canvas is shown directly by the installer.
+test('successful playable import reveals Play Game and reloads into autostart', () => {
+  const page = harness();
+  const {elements:e, worker} = page;
   e['game-files'].files = [{name:'War3.mpq'}];
   e['install-data'].fire('click');
   worker.send({type:'done',manifest:{files:[{name:'War3.mpq',size:64}],bytes:64}});
   assert.match(e['data-status'].textContent, /Reload this page/);
   assert.equal(e['install-data'].disabled, false);
+  assert.equal(e['play-game'].hidden, false);
+  e['play-game'].fire('click');
+  assert.equal(page.reloads, 1);
 });

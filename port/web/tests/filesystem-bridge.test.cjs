@@ -27,7 +27,8 @@ function dir(entries) {
     }
   };
 }
-async function launch(mapPath, {corruptBase = false, edition, completeness, expansion = false, requested = null} = {}) {
+async function launch(mapPath, {corruptBase = false, edition, completeness, expansion = false,
+  requested = null, startResult = true} = {}) {
   const manifest = {
     version:3, generation:'install-abcd-1234',
     ...(edition ? {edition, completeness} : {}),
@@ -47,6 +48,7 @@ async function launch(mapPath, {corruptBase = false, edition, completeness, expa
   })})})});
   const starts = [];
   const lockRequests = [];
+  const activeLocks = new Set();
   const status = {textContent:''};
   const selector = {value:'roc',disabled:true,handlers:{},addEventListener(name,fn){this.handlers[name]=fn;}};
   const session = new Map(requested ? [['openrealm-wc3-browser-mode',requested]] : []);
@@ -55,18 +57,21 @@ async function launch(mapPath, {corruptBase = false, edition, completeness, expa
     navigator:{storage:{getDirectory:async () => store}, locks:{
       request:async (name, options, callback) => {
         lockRequests.push([name, options.mode]);
-        return callback({name, mode:options.mode});
+        activeLocks.add(name);
+        try { return await callback({name, mode:options.mode}); }
+        finally { activeLocks.delete(name); }
       }
     }},
     document:{getElementById:id => id === 'game-edition' ? selector : status},
     sessionStorage:{getItem:key=>session.get(key) ?? null,setItem:(key,value)=>session.set(key,value)},
     location:{reload:()=>{reloads++;}},
-    window:{openrealmStartEngine:args => starts.push(args), MPQHeader:require('../site/mpq-header.js')},
+    window:{openrealmStartEngine:args => { starts.push(args); return startResult; },
+      MPQHeader:require('../site/mpq-header.js')},
     Uint8Array, Number, DataView
   });
   vm.runInContext(fs.readFileSync(path.join(site, 'filesystem-bridge.js'), 'utf8'), context);
   await new Promise(resolve => setImmediate(resolve));
-  return {starts, status, lockRequests, selector, session, get reloads(){return reloads;}};
+  return {starts, status, lockRequests, activeLocks, selector, session, get reloads(){return reloads;}};
 }
 test('launcher accepts a validated version-3 map under Maps/', async () => {
   const {starts, status} = await launch('Maps/(4)LostTemple.w3m');
@@ -81,12 +86,20 @@ test('launcher rejects path traversal in a version-3 manifest', async () => {
 });
 
 test('launcher holds a shared commit lock and generation lease while starting', async () => {
-  const {starts, lockRequests} = await launch('Maps/(4)LostTemple.w3m');
+  const {starts, lockRequests, activeLocks} = await launch('Maps/(4)LostTemple.w3m');
   assert.equal(starts.length, 1);
   assert.deepEqual(lockRequests, [
     ['openrealm-wc3-installation', 'shared'],
     ['openrealm-wc3-generation:install-abcd-1234', 'shared']
   ]);
+  assert.deepEqual(Array.from(activeLocks), ['openrealm-wc3-generation:install-abcd-1234']);
+});
+
+test('failed isolated startup releases the generation lease', async () => {
+  const result = await launch('Maps/(4)LostTemple.w3m', {startResult:false});
+  assert.equal(result.starts.length, 1);
+  assert.equal(result.activeLocks.size, 0);
+  assert.match(result.status.textContent, /Browser support or cross-origin isolation is unavailable/);
 });
 
 test('launcher rejects corrupt MPQ declared length before engine startup', async () => {

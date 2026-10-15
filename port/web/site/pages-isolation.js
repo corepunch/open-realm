@@ -40,6 +40,20 @@
     });
   }
 
+  function waitForActivation(worker, timeoutMs) {
+    return new Promise(function (resolve) {
+      let done = false;
+      function finish(value) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve(value);
+      }
+      const timer = setTimeout(function () { finish(false); }, timeoutMs === undefined ? 10000 : timeoutMs);
+      worker.ready.then(function () { finish(true); }, function () { finish(false); });
+    });
+  }
+
   async function ensurePagesIsolation(win) {
     if (!pageMatches(win.location.pathname)) return true;
     const worker = win.navigator && win.navigator.serviceWorker;
@@ -49,9 +63,12 @@
     }
     const scriptURL = new URL('coi-serviceworker.js', win.location.href).href;
     try {
-      const registration = await worker.register(scriptURL, {scope: PATH});
+      await worker.register(scriptURL, {scope: PATH});
       // On first visit, the new worker must activate and claim the game page.
-      await worker.ready;
+      if (!(await waitForActivation(worker))) {
+        status(win, 'The game Service Worker did not activate. Check browser support and reload to retry.');
+        return false;
+      }
       if (win.crossOriginIsolated) {
         try { win.sessionStorage.removeItem(RELOAD_KEY); } catch (_) {}
         return true;
@@ -84,7 +101,7 @@
   }
 
   if (typeof module === 'object' && module.exports)
-    module.exports = {pageMatches, ensurePagesIsolation};
+    module.exports = {pageMatches, ensurePagesIsolation, waitForActivation};
   else
     root.openrealmPagesReady = ensurePagesIsolation(root);
 })(globalThis);

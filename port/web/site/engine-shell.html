@@ -60,7 +60,7 @@ canvas { display: block; max-width: 100%; background: #000; }
 <main>
 <section id="browser-unsupported" role="alert" hidden>
   <h1>Browser not supported</h1>
-  <p>OpenRealm requires WebGL 2, OffscreenCanvas, and cross-origin isolation to run.</p>
+  <p>OpenRealm requires WebGL 2 and OffscreenCanvas support. Cross-origin isolation is checked before the game starts.</p>
 </section>
 <div id="page-content" hidden>
 <h1>OpenRealm</h1>
@@ -114,11 +114,10 @@ canvas { display: block; max-width: 100%; background: #000; }
 </main>
 <script>
 var webglProbe = document.createElement('canvas');
-var browserSupported = !!(webglProbe.getContext('webgl2') &&
+var browserCapable = !!(webglProbe.getContext('webgl2') &&
   typeof OffscreenCanvas !== 'undefined' &&
-  HTMLCanvasElement.prototype.transferControlToOffscreen &&
-  window.crossOriginIsolated);
-document.getElementById(browserSupported ? 'page-content' : 'browser-unsupported').hidden = false;
+  HTMLCanvasElement.prototype.transferControlToOffscreen);
+document.getElementById(browserCapable ? 'page-content' : 'browser-unsupported').hidden = false;
 var Module = {
   canvas: document.getElementById('canvas'),
   setStatus: function (message) {
@@ -232,15 +231,23 @@ window.openrealmStartEngine = function (arguments_) {
   // GitHub Pages must reload under its game-scoped Service Worker before
   // pthreads start so the navigation receives COOP/COEP headers.
   if (window.openrealmPagesReady) {
-    window.openrealmPagesReady.then(function (ready) {
-      if (ready) openrealmStartIsolatedEngine(arguments_);
+    return window.openrealmPagesReady.then(function (ready) {
+      return ready ? openrealmStartIsolatedEngine(arguments_) : false;
     });
-    return;
   }
-  openrealmStartIsolatedEngine(arguments_);
+  return Promise.resolve(openrealmStartIsolatedEngine(arguments_));
 };
 function openrealmStartIsolatedEngine(arguments_) {
-  if (!browserSupported) return;
+  if (!browserCapable) {
+    document.getElementById('status').textContent =
+      'WebGL 2 and OffscreenCanvas support are required to run OpenRealm.';
+    return false;
+  }
+  if (!window.crossOriginIsolated) {
+    document.getElementById('status').textContent =
+      'The engine requires COOP/COEP cross-origin isolation.';
+    return false;
+  }
   Module.arguments = arguments_;
   var script = document.createElement('script');
   script.src = 'index.js';
@@ -248,6 +255,7 @@ function openrealmStartIsolatedEngine(arguments_) {
     document.getElementById('status').textContent = 'Could not load the OpenRealm engine.';
   };
   document.body.appendChild(script);
+  return true;
 };
 </script>
 <script src="browser-keyboard.js"></script>

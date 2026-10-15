@@ -14,6 +14,7 @@ on:
       - "shared/**"
       - "sound/**"
       - "vendor/**"
+      - "tools/**"
       - "port/web/**"
       - "share/**"
       - "Makefile"

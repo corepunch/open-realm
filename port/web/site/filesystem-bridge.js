@@ -112,9 +112,16 @@
               status(installation.edition === 'demo'
                 ? 'Warcraft III Demo installation — limited content; starting experimental engine…'
                 : 'Validated browser installation; starting engine…');
-              if (window.openrealmGamePresentation) window.openrealmGamePresentation('playing');
-              window.openrealmStartEngine(['+openrealm-data=' + installation.path,
+              const started = await window.openrealmStartEngine([
+                '+openrealm-data=' + installation.path,
                 '+set', 'fs_expansion', mode === 'tft' ? '1' : '0']);
+              if (!started) {
+                const error = new Error('Browser support or cross-origin isolation is unavailable.');
+                error.code = 'OPENREALM_STARTUP_UNAVAILABLE';
+                reject(error);
+                return;
+              }
+              if (window.openrealmGamePresentation) window.openrealmGamePresentation('playing');
               resolve(); // Release commit lock after acquiring the lease.
             } catch (err) { reject(err); return; }
             // The engine may access WasmFS indefinitely. Keep this lease until
@@ -136,7 +143,9 @@
   if (sessionStorage.getItem('openrealm-wc3-remove-after-reload') !== '1')
     begin().catch(error => {
     const message = error && error.message || String(error);
-    status('Cannot start OpenRealm: ' + message + ' Import the game files above, then reload this page.');
+    status(error && error.code === 'OPENREALM_STARTUP_UNAVAILABLE'
+      ? 'Cannot start OpenRealm: ' + message
+      : 'Cannot start OpenRealm: ' + message + ' Import the game files above, then reload this page.');
   });
   // The previous IDBFS save directory is intentionally left untouched.
   // A follow-up migration is required before claiming old saves are accessible.

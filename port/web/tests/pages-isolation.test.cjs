@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const {pageMatches, ensurePagesIsolation} = require('../site/pages-isolation.js');
+const {pageMatches, ensurePagesIsolation, waitForActivation} = require('../site/pages-isolation.js');
 const repo = path.resolve(__dirname, '../../..');
 
 function windowStub(pathname) {
@@ -66,6 +66,10 @@ test('unsupported Service Worker fails without attempting the engine', async () 
   assert.equal(win.reloadCount, 0);
 });
 
+test('a Service Worker that never activates times out instead of holding startup', async () => {
+  assert.equal(await waitForActivation({ready:new Promise(() => {})}, 1), false);
+});
+
 test('worker rewrites only same-origin game resources; no docs interception or cache', async () => {
   const callbacks = new Map();
   const worker = {
@@ -95,7 +99,10 @@ test('worker rewrites only same-origin game resources; no docs interception or c
 test('boot script loads before filesystem launcher and gates engine startup', () => {
   const shell = fs.readFileSync(path.join(repo, 'port/web/site/engine-shell.html'), 'utf8');
   assert.ok(shell.indexOf('src="pages-isolation.js"') < shell.indexOf('src="filesystem-bridge.js"'));
-  assert.match(shell, /window\.openrealmPagesReady\.then/);
+  assert.match(shell, /return window\.openrealmPagesReady\.then/);
+  assert.match(shell, /var browserCapable =/);
+  assert.match(shell, /return ready \? openrealmStartIsolatedEngine\(arguments_\) : false/);
+  assert.match(shell, /if \(!window\.crossOriginIsolated\)/);
   const build = fs.readFileSync(path.join(repo, 'port/web/build-engine.py'), 'utf8');
   assert.match(build, /site\/pages-isolation\.js/);
   const workflow = fs.readFileSync(path.join(repo, '.github/workflows/docs.yml'), 'utf8');
