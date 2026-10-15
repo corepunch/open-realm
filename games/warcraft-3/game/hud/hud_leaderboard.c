@@ -39,7 +39,11 @@ static char leaderboard_measure_text[(MAX_TRIGSTR_LENGTH + 48) * (MAX_LEADERBOAR
 static leaderboardLayout_t LeaderboardLayout(leaderboard_t const *board) {
     frameDef_t const *title = hud.leaderboard.LeaderboardTitle;
     leaderboardLayout_t layout = { 0 };
-    layout.rows = board->size_by_item_count >= 0 ? (uint32_t)board->size_by_item_count : board->item_count;
+    /* The BJ LeaderboardResize helper subtracts one from the requested size
+     * when the title is blank. That size is not a cap on authored rows: maps
+     * can use trailing rows as separators and headings (e.g. "High Scores"). */
+    layout.rows = MAX(board->item_count,
+                      board->size_by_item_count >= 0 ? (uint32_t)board->size_by_item_count : 0u);
     layout.rows = MAX(1u, MIN(layout.rows, (uint32_t)MAX_LEADERBOARD_ITEMS));
     layout.visible_rows = board->item_count ? MAX(1u, MIN(board->item_count, layout.rows)) : 0;
     layout.has_title = board->show_label && board->label[0];
@@ -69,18 +73,18 @@ static void LeaderboardItemText(leaderboard_t const *board, struct gleaderboardi
     player_t *player = item->player >= 0 ? G_GetPlayerByNumber((uint32_t)item->player) : NULL;
     cstring_t name = board->show_names && player && player->name ? player->name : "";
     cstring_t label = item->show_label ? item->label : "";
-    if (*name && *label && out_size > 1) {
-        size_t const separator_size = MIN((size_t)3, out_size - 1);
-        size_t const text_size = out_size - separator_size - 1;
-        size_t const name_size = MIN(strlen(name), text_size / 2);
-        size_t const label_size = MIN(strlen(label), text_size - name_size);
-        memcpy(out, name, name_size);
-        memcpy(out + name_size, " - ", separator_size);
-        memcpy(out + name_size + separator_size, label, label_size);
-        out[name_size + separator_size + label_size] = '\0';
-    } else {
-        strlcpy(out, *name ? name : label, out_size);
-    }
+    /* Stock leaderboards use an item's authored label as its row caption.
+     * The associated player supplies color/identity; prefixing its name here
+     * turns campaign captions into "Player - Portal Life %". */
+    strlcpy(out, *label ? label : name, out_size);
+}
+
+static bool LeaderboardItemValueVisible(leaderboard_t const *board,
+                                        struct gleaderboarditem_s const *item) {
+    if (!item->show_value || !board->show_values) return false;
+    if (item->value_color_set) return item->value_color.a != 0;
+    if (board->value_color_set) return board->value_color.a != 0;
+    return true;
 }
 
 static void WriteLeaderboardText(leaderboardTextParams_t const *params) {
@@ -245,7 +249,7 @@ void UI_WriteLeaderboard(edict_t *ent) {
         snprintf(number, sizeof(number), "%ld", (long)item->value);
         LeaderboardAppendMeasureLine(leaderboard_measure_text, sizeof(leaderboard_measure_text),
                                      text[0] ? text : " ",
-                                     item->show_value && board->show_values ? number : NULL);
+                                     LeaderboardItemValueVisible(board, item) ? number : NULL);
     }
     measure_font = title ? UI_LiveFont(title->Font.Index) : 0;
     if (!measure_font) measure_font = gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
@@ -276,7 +280,7 @@ void UI_WriteLeaderboard(edict_t *ent) {
         LeaderboardItemText(board, item, text, sizeof(text));
         snprintf(number, sizeof(number), "%ld", (long)item->value);
         label_params.text = text[0] ? text : " ";
-        value_params.text = item->show_value && board->show_values ? number : " ";
+        value_params.text = LeaderboardItemValueVisible(board, item) ? number : " ";
         value_params.color = value_color;
         value_params.align = FONT_JUSTIFYRIGHT;
         value_params.right_anchored = true;

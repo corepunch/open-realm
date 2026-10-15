@@ -197,8 +197,19 @@ uint32_t SetUnitState(jass_t *j) {
          * animation, cleanup, and campaign triggers that react to death. */
         if (oldLife > 0.0f && newVal <= 0.0f && !(whichUnit->svflags & SVF_DEADMONSTER) && whichUnit->die)
             whichUnit->die(whichUnit, NULL);
+    } else if (*whichUnitState == WC3_UNIT_STATE_MAX_LIFE) {
+        float const old_max = whichUnit->health.max_value;
+        float const ratio = old_max > 0.0f ? whichUnit->health.value / old_max : 0.0f;
+        whichUnit->health.max_value = MAX(0.0f, newVal);
+        G_SetHealth(whichUnit, MIN(whichUnit->health.max_value, whichUnit->health.max_value * ratio));
+    } else if (*whichUnitState == WC3_UNIT_STATE_MANA) {
+        whichUnit->mana.value = MAX(0.0f, MIN(whichUnit->mana.max_value, newVal));
+    } else if (*whichUnitState == WC3_UNIT_STATE_MAX_MANA) {
+        float const old_max = whichUnit->mana.max_value;
+        float const ratio = old_max > 0.0f ? whichUnit->mana.value / old_max : 0.0f;
+        whichUnit->mana.max_value = MAX(0.0f, newVal);
+        whichUnit->mana.value = whichUnit->mana.max_value * ratio;
     }
-    else (&whichUnit->health.value)[*whichUnitState] = newVal;
     if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichUnit)) G_FowMarkBlockersDirty();
     return 0;
 }
@@ -210,9 +221,30 @@ uint32_t SetUnitState(jass_t *j) {
 //    return 0;
 //}
 uint32_t GetUnitState(jass_t *j) {
-    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
-    float value = whichUnit && whichUnitState ? (&whichUnit->health.value)[*whichUnitState] : 0;
+    handle_t first = jass_checkhandle(j, 1, "unit");
+    handle_t second = jass_checkhandle(j, 2, "unitstate");
+    edict_t *whichUnit = NULL;
+    UNITSTATE *whichUnitState = NULL;
+    float value = 0.0f;
+
+    /* Some retail scripts pass (unitstate, unit) to this native via the
+     * Blizzard GetUnitStateSwap wrapper. Identify live edict handles by
+     * membership before dereferencing either argument as a unit. */
+    FILTER_EDICTS(ent, true) {
+        if ((handle_t)ent == first) whichUnit = ent;
+        if ((handle_t)ent == second) whichUnit = ent;
+    }
+    if (whichUnit == (edict_t *)first) whichUnitState = second;
+    else if (whichUnit == (edict_t *)second) whichUnitState = first;
+
+    if (whichUnit && whichUnitState) {
+        switch (*whichUnitState) {
+        case WC3_UNIT_STATE_LIFE: value = whichUnit->health.value; break;
+        case WC3_UNIT_STATE_MAX_LIFE: value = whichUnit->health.max_value; break;
+        case WC3_UNIT_STATE_MANA: value = whichUnit->mana.value; break;
+        case WC3_UNIT_STATE_MAX_MANA: value = whichUnit->mana.max_value; break;
+        }
+    }
     return jass_pushnumber(j, value);
 }
 uint32_t SetUnitPosition(jass_t *j) {
