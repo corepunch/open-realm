@@ -671,9 +671,9 @@ without disabling fog for all players. The visibility overlay is reapplied
 following ordinary unit sight until its ability `Dur` expires (stock five
 seconds); explored terrain remains explored afterwards. Repeated glyphs extend
 the ongoing reveal rather than shortening it. Generic world-item pickup events,
-consumption, and the authored target effect are reused. Current timed reveal
-state is maintained in the fog runtime and is not yet serialized for save/load;
-this remains a specific save-while-active compatibility gap.
+consumption, and the authored target effect are reused. The per-player simulation
+deadline is saved with fog state, so visibility resumes for its remaining time
+after load; explored terrain remains in the existing exploration payload.
 
 ### Fortification and Ultravision glyphs
 

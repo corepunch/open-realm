@@ -18,8 +18,8 @@ uint32_t class_id(cstring_t str) { return *(uint32_t *)str; }
 
 /* Converted enums are owned JASS handles; enum equality compares their uint32_t payload. */
 static uint32_t JassPushEnumHandle(jass_t *j, cstring_t type, int32_t value) {
-    uint32_t *handle = jass_newhandle(j, sizeof(*handle), type);
-    *handle = (uint32_t)value;
+    int32_t *handle = jass_newhandle(j, sizeof(*handle), type);
+    *handle = value;
     return 1;
 }
 
@@ -868,9 +868,11 @@ uint32_t LoadGame(jass_t *j) {
     return 0;
 }
 uint32_t SetCampaignMenuRace(jass_t *j) {
-    uint32_t const *race = jass_checkhandle(j, 1, "race");
+    int32_t const *race = jass_checkhandle(j, 1, "race");
     /* Only the four campaign races have a matching registered menu command. */
-    if (race && *race >= 1 && *race <= 4) level.campaign_menu_race = (int32_t)*race;
+    int32_t value = 0;
+    if (race) value = *race;
+    if (race && value >= 1 && value <= 4) level.campaign_menu_race = value;
     return 0;
 }
 static bool creep_camp_filter_state = true;

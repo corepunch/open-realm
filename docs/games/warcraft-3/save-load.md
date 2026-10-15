@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 98, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 99, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -905,6 +905,12 @@ migration are not supported.
 Version 97 persists the `SetWaterBaseColor` RGBA value and republishes it after
 load so connected clients restore the authored water tint. Version 96 and
 earlier saves are rejected.
+
+### Timed full-map visibility and version 99
+
+Version 99 persists the player-local simulation deadlines for Glyph of
+Omniscience. Visibility is recomputed from those deadlines after load, while
+the explored map remains in the existing fog exploration payload.
 
 ### Restored static pathing (opened gates)
 

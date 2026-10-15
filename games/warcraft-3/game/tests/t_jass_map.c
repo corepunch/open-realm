@@ -1812,6 +1812,7 @@ TEST(wc3_jass_map, endgame_respects_legacy_campaign_race) {
     level.campaign_menu_race = 4;
     G_RequestQuitGame();
     T_STREQ(victory_menu_arg, routes[4]);
+    G_TestResetScoreTransition();
     level.campaign_menu_race = 99;
     G_RequestEndGame(false);
     T_STREQ(victory_menu_arg, routes[0]);

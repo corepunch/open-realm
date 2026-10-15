@@ -42,17 +42,14 @@ static bool G_FowReady(void) {
     return level.fow.width > 0 && level.fow.height > 0;
 }
 
-/* Item Reveal Entire Map is a temporary, player-local sight source.  The
- * expiration is in simulation milliseconds; explored cells remain explored
- * when normal fog visibility returns. */
-static uint32_t g_omniscience_until[MAX_PLAYERS];
-
+/* Item Reveal Entire Map is a temporary, player-local sight source. Its
+ * deadline lives in map state so save/load preserves the remaining duration. */
 void G_FowRevealEntireMapTimed(uint32_t player, float duration) {
     uint32_t until;
     if (player >= MAX_PLAYERS || !(duration > 0.0f)) return;
     until = G_Time() + (uint32_t)(duration * 1000.0f);
-    if (until > g_omniscience_until[player])
-        g_omniscience_until[player] = until;
+    if (until > level.fow.omniscience_until[player])
+        level.fow.omniscience_until[player] = until;
     if (G_FowReady())
         G_FowSetStateRect(&(fogWrite_t){ player, WC3_FOG_STATE_VISIBLE, false },
                           &level.fow.bounds);
@@ -953,7 +950,6 @@ void G_FowShutdown(void) {
     SAFE_DELETE(level.fow.blocked, gi.MemFree);
     SAFE_DELETE(level.fow.rim_cells, gi.MemFree);
     memset(&level.fow, 0, sizeof(level.fow));
-    memset(g_omniscience_until, 0, sizeof(g_omniscience_until));
     memset(g_fog_modifiers, 0, sizeof(g_fog_modifiers));
     g_num_fog_modifiers = 0;
     g_fow_blocker_hash = 0;
@@ -1086,7 +1082,7 @@ void G_FowUpdate(void) {
     /* Glyph vision is bounded in simulation time and does not leak to other
      * players. Apply after the per-frame visibility grid has been rebuilt. */
     FOR_LOOP(player, MAX_PLAYERS) {
-        if (g_omniscience_until[player] > G_Time() && (viewers & (1u << player)))
+        if (level.fow.omniscience_until[player] > G_Time() && (viewers & (1u << player)))
             G_FowSetStateRect(&(fogWrite_t){ player, WC3_FOG_STATE_VISIBLE, false },
                               &level.fow.bounds);
     }
