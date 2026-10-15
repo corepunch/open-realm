@@ -22,6 +22,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Shared GL/ES shader generation, typed submission and lifetime | [docs/architecture/shared-shaders.md](docs/architecture/shared-shaders.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Browser ISO 9660/Joliet sector reader, limits, test command, integration boundary | [docs/platform/browser-iso9660.md](docs/platform/browser-iso9660.md) |
+| Building, serving, importing game data, and running the experimental browser engine | [docs/platform/browser-run.md](docs/platform/browser-run.md) |
 | GitHub release publication, contributor notes, platform artifacts and verification | [docs/releasing.md](docs/releasing.md) |
 | Agent documentation capture, placement, templates, and indexing | [docs/documentation-guide.md](docs/documentation-guide.md) |
 | Diagnostic tools (mpqtool, dbctool, mdxtool, ability_audit, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
@@ -537,7 +538,8 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 
 ## Browser platform
 
-The opt-in Emscripten/WebGL 2 foundation target and its current limitations are
-recorded in [Browser platform](docs/platform/browser.md). The smoke test is not
-a Warcraft III runtime. Keep browser adapters outside the universal client and
-game simulation modules.
+Browser engine build/run steps and current limitations are recorded in
+[Browser run guide](docs/platform/browser-run.md) and
+[Browser platform](docs/platform/browser.md). The foundation smoke test is not
+the Warcraft III runtime. Keep browser adapters outside the universal client
+and game simulation modules.

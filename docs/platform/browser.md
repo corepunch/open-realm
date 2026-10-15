@@ -1,9 +1,15 @@
-# Browser platform — phase 1 foundation
+# Browser platform — experimental Warcraft III port
 
-This stage adds an opt-in Emscripten / SDL2 / WebGL 2 smoke-test target. It
-**does not** compile or start OpenWarcraft III yet. The native build graph in
-`Makefile` still produces ELF/dylib/DLL modules and must not be run under `emcc`
-as if these were browser-loadable modules.
+For end-user build, serving, import and run instructions, see
+[Build and run OpenRealm Warcraft III in a browser](browser-run.md). This page
+records implementation stages, ownership and technical limitations. The
+foundation target below remains a separate smoke test, not the playable engine.
+
+The initial stage added an opt-in Emscripten / SDL2 / WebGL 2 smoke-test
+target. The repository now also has an experimental statically linked browser
+engine; follow [the run guide](browser-run.md) to build and launch it. The
+native build graph in `Makefile` still produces ELF/dylib/DLL modules and must
+not be run under `emcc` as if these were browser-loadable modules.
 
 ## Build
 
@@ -41,7 +47,8 @@ gesture and may be unavailable under restrictive embedding policies.
 3. Audit the existing GLES3 renderer and shader paths against WebGL 2.
 4. Provide a WASM filesystem bridge with random-access archive reads and
    persistent local game data.
-5. Add a launcher, installer, audio, save persistence and PWA support.
+5. The experimental launcher, installer and AudioWorklet playback have since
+   been added. Save persistence and PWA support remain future work.
 
 The source-only platform probe deliberately avoids browser-pthread requirements,
 proprietary retail archives, new gameplay code and modifications to existing
@@ -285,19 +292,21 @@ The change avoids needing to increase the default pthread stack solely for
 these temporary images. Recheck browser startup after shader loading; other
 large local buffers might still need their own targeted fixes.
 
-### Browser sound initialization (temporary limitation)
+### Earlier browser sound initialization limitation (superseded)
 
 The browser executable uses `PROXY_TO_PTHREAD`, placing engine startup on a
 worker. SDL 2's Emscripten audio device setup currently accesses JavaScript
 `audioContext` state that is unavailable in that worker and throws before
 client initialization completes. For now `S_Init` declines to initialize audio
-on Emscripten and preserves the normal uninitialized-sound guards. The native
-SDL audio path remains unchanged. Browser playback is intentionally silent.
+on Emscripten and preserves the normal uninitialized-sound guards. At that
+stage browser playback was silent. The later AudioWorklet integration below
+provides browser playback; this section records the earlier constraint rather
+than current behavior. The native SDL audio path remains unchanged.
 
-Restore browser sound with a dedicated browser audio adapter or a verified
-main-thread initialization and mixing bridge; do not call the standard SDL
-Emscripten audio device opener from the engine worker. Verify the next browser
-startup stage with both debug and release builds.
+The current browser audio adapter uses a shared sample ring and AudioWorklet;
+do not call the standard SDL Emscripten audio device opener from the engine
+worker. Playback still needs checks across stalls, suspend/resume and device
+sample rates.
 
 ### Bundled Warcraft III defaults
 
