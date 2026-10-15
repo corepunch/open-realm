@@ -296,7 +296,8 @@
     "oracle-move348",
     "oracle-power349",
     "oracle-power350",
-    "oracle-trig351"
+    "oracle-trig351",
+    "oracle-basic352"
   ],
   "entries": [
     {
@@ -6767,6 +6768,32 @@
           "task": "BASE-03.1",
           "disposition": "reachability",
           "rationale": "The transparent helpers are fully tested, but absence of decoded references alone is not a proof of unreachable indirect producers."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-basic352",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Oversized original native-buffer and arithmetic-fault lifetimes remain NUM-01.2; engine formatting bounds are transactional safety behavior, not proven retail overflow parity.",
+          "task": "NUM-01.2",
+          "disposition": "behavior",
+          "rationale": "Native buffer overflow and integer fault lifetime require their own bounded original evidence; successful formatting cases do not establish those policies."
+        },
+        {
+          "index": 1,
+          "text": "Broad render/query streams are diagnostic outside the synchronous public callback; complete trajectory and wider caller numeric-domain parity remain E2E-06.1.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "Counter-stable public input and scalar comparisons do not establish a full trajectory in different collision geometry."
+        },
+        {
+          "index": 2,
+          "text": "Additional indirect roots outside the complete direct-reference inventory remain BASE-03.1.",
+          "task": "BASE-03.1",
+          "disposition": "reachability",
+          "rationale": "Direct cross references and exact startup table roots do not enumerate every possible indirect entry."
         }
       ]
     }

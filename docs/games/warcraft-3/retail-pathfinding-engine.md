@@ -21555,3 +21555,88 @@ nonzero prediction and wider composed-query domains remain E2E-06.1. Additional
 indirect roots remain BASE-03.1. No new TODOs are created. RTTI identifies59ae50
 as `CAbilityTornadoWander` vtableb35874+2f8; ordinary `Awan` uses59af20 and a
 different, non-trig producer. Do not infer class identity from adjacent addresses.
+
+### Basic scalar callers and formatted Move inputs (Basic352)
+
+NUM-01.17 expands the original33-root/6898-reference inventory to41 roots,
+7097 references,2008 complete functions and179722 guarded instructions. The
+basic15 account for6721 references. Added roots include decimal conversion,
+reciprocal square root, integer square root/count-leading-zeroes, unsigned
+integer power, decimal formatting and its registered R2S/R2SW natives.
+`Basic352Evidence.java` exports complete bodies and saves the recovered notes;
+`MapPathfinding.java` retains the contracts.199 formerly uncontained initializer
+thunks are now exact three-instruction functions reached from data-table words:
+183 pass integer values and16 pass decimal text. `Basic352Startup.java` records
+the table roots; the verifier executes every original thunk from poisoned output,
+checks neighboring guards and ABI, and uses the shipped CRT digit classifier.
+
+`research/basic352_callers.py::caller_storage` classifies every6912 basic and
+extended arithmetic/conversion reference, including address registrations. CFG
+predecessors retain register definitions across branches, entry forwarding and
+volatile call boundaries. Pointer-input, value-input, memory-output and EAX-value
+ABIs stay distinct; binary third operands remain original stack pointers. Opaque
+external addresses are never asserted disjoint. This is not a name-filtered
+movement subset. The raw overlap witness establishes that basic helper results
+remain equivalent for all five binary word-equality partitions and nine partial
+byte-overlap layouts. It preserves operand snapshots, Modulo's cached divisor
+and intermediate reread, exact guarded backing bytes, output-return pointers,
+nonvolatile registers and stack cleanup:34038 original/model/C contexts,16470
+partial overlaps. Integer-value arguments cannot alias a pointer input. Decimal
+conversion consumes text before its first output write. Trig and Pow's different
+alias-sensitive contracts remain in their separate completed caller audits.
+
+Two owned read-only retail captures repeat the complete2272-record synchronous
+public callback at counter1030. All81 public markers match an observer-free
+control. Broad later render/query streams do not repeat in length; they remain
+diagnostic, and individual scalar comparisons do not certify full-frame parity.
+A separate public formatting script repeats9553 complete native records:
+423 formatter lifetimes,3714 nested scalars and426 public markers, also matched
+by an unhooked control. All420 width/precision matrix results are frozen as
+literal strings in `retail_basic352_format.h`.
+
+The original0701d0 ABI is ECX scalar input, EDX character output, two stack
+integers and RET8. Both registered natives own separate256-byte character
+buffers. Negative precision selects6 fractional places, then trims zeroes down
+to one place; ordinary nonnegative precision caps9. The decimal dot is always
+present, including precision0. Integer padding uses max(signed32(width minus
+shown fractional places),1); a minus sign is outside that field. Negative zero
+has no sign. Large magnitudes use software division by10 and append decimal
+zeroes, ignore width, and retain max(requested precision,1) fractional zeroes
+without the ordinary9-place cap. Exact max-finite/infinity emit inf; NaNs take
+the original unordered reduction branch. Unsigned integer power070f20 uses
+logical SHR and wrapping products, unlike signed-SAR scalar power071180.
+
+`R2SW(1152.125,8,3)` returns `" 1152.125"`. Original S2R rejects the leading
+space, producing raw0. Actual retail point-order851986 at counter1094 receives
+X0/Y0x44400000. Host `%*.*f` previously emitted `"1152.125"`, causing the engine
+to store a different target and move right instead of left. The failing-first
+regression recorded516 failures/1691 assertions. Shared `wc3_format_real` now
+uses software fractional scaling/round/carry and bounded integer formatting.
+The actual JASS VM tests check420 strings and parsed words, public Move target,
+cold-save target and scheduled movement direction. Transactional bounds checks
+bring the focused total to3 tests/2231 assertions per edition.
+
+The original formatter witness executes5124 contexts with raw boundary/random
+words and width/precision combinations. Only the two integer sprintf layouts
+are delegated; scalar arithmetic and all control flow execute original code.
+The boundary poisons ECX/EDX, and each case retains input bytes, output guards,
+nonvolatile registers and RET8. O0/O2 production bridges must match exact
+outcome digests. Engine oversized formatting returns a recoverable VM error
+before writing; original overflowing-buffer/fault lifetime is explicitly still
+NUM-01.2, alongside its other arithmetic-fault work. This is not retail fault
+parity. Arbitrary internal character/scalar output overlap is not a public
+producer: the registered natives' buffers are distinct. Wider caller domains,
+full trajectories and additional indirect roots retain E2E-06.1/BASE-03.1.
+The six frozen retail motion getters are retained as evidence; generic flat-map
+engine tests verify direction and stored target, not those exact positions.
+
+Reproduce with `verify_wc3_pathing_basic352.py --binary <game.dll>
+--engine-library <fresh-wc3_pathing_engine_probe.so> --report <new.json>`.
+The portable bundle retains all six captures/preloads, captured source versions,
+full inventory, startup table rows, both maps and frozen base. The verifier
+checks provenance, full original instruction guards, CFG ledger, startup/alias/
+formatter witnesses, exact map rebuilding and actual Classic/TFT VM, compiled
+expression, facing, Move and save tests. Rejection tests cover missing callers,
+instructions/thunks, damaged storage proof, ownership, ABI, counters, incomplete
+controls, changed literal returns and host-formatted Move inputs. No network or
+save layout changes are required.

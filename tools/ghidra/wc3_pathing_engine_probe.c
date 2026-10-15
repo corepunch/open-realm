@@ -964,3 +964,17 @@ void pathing_power_loop(uint32_t base, uint32_t exponent, uint32_t output[4]) {
     output[0]=wc3_pow_evaluate(wc3_float(base),wc3_float(exponent),&result,&loop);
     output[1]=wc3_float_bits(result);output[2]=wc3_float_bits(loop.base);output[3]=loop.exponent;
 }
+
+/* Basic352 observes value operands before any aliased caller store. */
+uint32_t pathing_integer_wrapped(uint32_t word) { return wc3_int_bits(word); }
+uint32_t pathing_integer_sqrt(uint32_t word) { return wc3_isqrt(word); }
+uint32_t pathing_leading_zeroes(uint32_t word) { return word ? __builtin_clz(word) : 32; }
+uint32_t pathing_reciprocal_sqrt(uint32_t word) {
+    return wc3_float_bits(wc3_recip(wc3_sqrt(wc3_float(word))));
+}
+
+#include "games/warcraft-3/common/wc3_format.h"
+uint32_t pathing_u32_power(uint32_t base, uint32_t exponent) { return wc3_u32_power(base, exponent); }
+int pathing_format_real(uint32_t word, int32_t width, int32_t precision, char *output, uint32_t capacity) {
+    return wc3_format_real(wc3_float(word), width, precision, output, capacity);
+}

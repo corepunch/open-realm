@@ -407,3 +407,47 @@ inventory and focused acceptance are under
 record the original,
 independent-model and engine comparisons. Ghidra saved; no wire/save-format
 change and no new TODOs.
+
+### Basic352 formatter and caller checkpoint
+
+NUM-01.17 closes with the complete7097-reference/2008-function/179722-instruction
+inventory,6912 CFG basic operand/destination records,34038 original alias contexts
+(16470 partial overlaps),199 original startup thunks and5124 formatter contexts.
+All O0/O2 original/model/C comparisons agree, including63656 captured scalar
+calls. Two public formatting traces repeat9553 records/423 lifetimes/3714 nested
+scalars;426 public markers match observer-free control. Broad query traces outside
+the2272-record synchronous callback remain diagnostic, not full-frame parity.
+
+The actual R2SW/S2R/Move regression fails516 assertions before the fix.
+Production/test debug and optimized builds complete without new warnings.
+Three focused tests pass2231 assertions per Classic/TFT edition, including420
+literal public strings, cold-save Move targets/direction and transactional output
+bounds. The combined native/compiled-expression/facing suites pass15 tests and
+17716 assertions per edition at O0/O2. Thirteen evidence/rejection tests pass.
+The original overflowing native-buffer/fault lifetime remains NUM-01.2; engine
+bounds are a safety contract. No network or save-layout change is involved.
+
+`LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 make test TEST_JOBS=8
+TEST_JUNIT_DIR=<report-root>/full-junit` passes. All33 JUnit reports are green:
+9387 regular native tests plus eight bounded lifetime checks,9395 total.
+The required pathfinding Python discovery passes2315 tests in672.253s.
+Fresh corpus entries oracle-basic352, oracle-numeric and oracle-trig351 pass.
+Catalog validation covers295 executable contracts/576 entries/2509 pinned inputs;
+exclusion ownership has zero unassigned statements. Ghidra is saved.
+
+A separate broader `python3 -m unittest discover -s tests -p 'test_*.py'`
+includes optional local-binary integration classes outside the redistributable
+fixture suite. Their setup reports two missing-file errors for
+`data/warcraft3demo/game.dll` and `data/Warcraft III/Warcraft III.exe` (TFT1.29.2).
+These binaries are absent; no fixture substitutes or skipped-test edits were
+introduced. Its diagnostic result is recorded separately from passing required
+`make test` and focused evidence. Failed early verifier invocations (wrong DLL
+filename, Python without Unicorn, and an empty native filter) remain in the
+report history; accepted runs use verify-venv and the correct nonempty filter.
+
+All build, failing-first, complete verifier, corpus, full-suite and Python logs
+are retained under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-01.17/basic352/`.
+The portable bundle preserves all six owned captures and source/map inputs.
+No probe remains live. Upstream/main is already an ancestor after a fresh fetch;
+no merge or push is needed. No new TODOs.

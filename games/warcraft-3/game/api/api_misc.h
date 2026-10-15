@@ -1,5 +1,6 @@
 #include "games/warcraft-3/common/minimap.h"
 #include "games/warcraft-3/common/wc3_math.h"
+#include "games/warcraft-3/common/wc3_format.h"
 #include "games/warcraft-3/common/wc3_pathing_masks.h"
 
 extern player_t *currentplayer;
@@ -160,44 +161,17 @@ uint32_t I2S(jass_t *j) {
     snprintf(buffer, sizeof(buffer), "%d", i);
     return jass_pushstring(j, buffer);
 }
-uint32_t R2S(jass_t *j) {
-    /* Original2103b0 requests width0/precision3 from0701d0. Its fractional
-     * multiply and add-half rounding use software scalars, not host printf. */
-    uint32_t word=wc3_float_bits(jass_checknumber(j,1)),magnitude=word&0x7fffffff;
-    char buffer[64],*out=buffer;
-    if ((word&0x80000000u) && magnitude) *out++='-';
-    float value=wc3_float(magnitude);
-    if (magnitude>0x4effffffu) {
-        /* COMISS's unordered carry takes the reduction branch for NaNs.
-         * Only exact max-finite/infinity emit inf; reduction retains the
-         * leading truncated integer plus zeroes. */
-        if (magnitude==0x7f7fffffu || magnitude==0x7f800000u) memcpy(out,"inf",4);
-        else {
-            unsigned zeroes=0;
-            do { value=wc3_div(value,10);zeroes++; } while(wc3_float_bits(value)>0x4effffffu);
-            out+=snprintf(out,sizeof(buffer)-(out-buffer),"%d",(int32_t)wc3_int_bits(wc3_float_bits(value)));
-            memset(out,'0',zeroes);out+=zeroes;memcpy(out,".000",5);
-        }
-    } else {
-        uint32_t whole=wc3_int_bits(magnitude);
-        uint32_t fraction=wc3_int_bits(wc3_round_bits(wc3_float_bits(wc3_mul(wc3_fraction(value),1000))));
-        if (fraction>=1000) { whole++;fraction-=1000; }
-        snprintf(out,sizeof(buffer)-(out-buffer),"%d.%03d",(int32_t)whole,(int32_t)fraction);
+static uint32_t api_format_real(jass_t *j, int32_t width, int32_t precision) {
+    char buffer[256];
+    if (!wc3_format_real(jass_checknumber(j, 1), width, precision, buffer, sizeof(buffer))) {
+        jass_rterror(j, "R2SW: formatted result exceeds native buffer");
+        return 0;
     }
-    return jass_pushstring(j,buffer);
-}
-uint32_t R2SW(jass_t *j) {
-    float r = jass_checknumber(j, 1);
-    int32_t width = jass_checkinteger(j, 2);
-    int32_t precision = jass_checkinteger(j, 3);
-    /* Clamp to safe values so the formatted float fits in the 64-byte buffer.
-     * A floating-point number needs at most ~25 chars; add width up to 32
-     * and precision up to 16 for a safe upper bound well within 64 bytes. */
-    if (width < 0 || width > 32) width = 0;
-    if (precision < 0 || precision > 16) precision = 6;
-    char buffer[64];
-    snprintf(buffer, sizeof(buffer), "%*.*f", (int)width, (int)precision, (double)r);
     return jass_pushstring(j, buffer);
+}
+uint32_t R2S(jass_t *j) { return api_format_real(j, 0, 3); }
+uint32_t R2SW(jass_t *j) {
+    return api_format_real(j, jass_checkinteger(j, 2), jass_checkinteger(j, 3));
 }
 uint32_t SubString(jass_t *j) {
     cstring_t source = jass_checkstring(j, 1);

@@ -685,6 +685,67 @@ TEST(wc3_api, pathfinding_public_power_native_matches_retail_words) {
     reset_entities();
 }
 
+#include "games/warcraft-3/common/wc3_format.h"
+#include "fixtures/retail_basic352_format.h"
+TEST(wc3_api, basic352_public_width_strings_and_numeric_roundtrip) {
+    setup_test_world();
+    FOR_LOOP(i, sizeof(retail_basic352_format) / sizeof(*retail_basic352_format)) {
+        G_ClearHashtableRegistry();
+        char script[512];
+        snprintf(script, sizeof(script), "function main takes nothing returns nothing\n"
+            "local hashtable h=InitHashtable()\nlocal string s=%s\n"
+            "call SaveStr(h,0,0,s)\ncall SaveReal(h,0,1,S2R(s))\nendfunction\n",
+            retail_basic352_format[i].expression);
+        T_ASSERT(run_test_jass(script));
+        T_EQ(level.hashtables[0].num_entries, 2u);
+        if (level.hashtables[0].num_entries == 2) {
+            T_STREQ(level.hashtables[0].entries[0].value.string, retail_basic352_format[i].value);
+            uint32_t word;
+            memcpy(&word, &level.hashtables[0].entries[1].value.real, sizeof(word));
+            T_EQ(word, retail_basic352_format[i].parsed);
+        }
+    }
+    reset_entities();
+}
+/* These are engine buffer guarantees, not a claim of retail overflow/fault parity. */
+TEST(wc3_api, basic352_native_format_buffer_boundary_is_transactional) {
+    unsigned char bytes[264];
+    memset(bytes, 0xa5, sizeof(bytes));
+    T_ASSERT(wc3_format_real(-0.5f,252,0,(char *)bytes+4,256));
+    T_EQ(strlen((char *)bytes+4),255u);
+    FOR_LOOP(i,4) { T_EQ(bytes[i],0xa5u);T_EQ(bytes[260+i],0xa5u); }
+    memset(bytes, 0xa5, sizeof(bytes));
+    T_ASSERT(!wc3_format_real(-0.5f,253,0,(char *)bytes+4,256));
+    FOR_LOOP(i,sizeof(bytes))T_EQ(bytes[i],0xa5u);
+    T_ASSERT(!wc3_format_real(wc3_float(0x4f000000u),0,INT32_MAX,(char *)bytes+4,256));
+    FOR_LOOP(i,sizeof(bytes))T_EQ(bytes[i],0xa5u);
+}
+
+TEST(wc3_api, basic352_formatted_numeric_input_reaches_move_and_cold_save) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local unit u=CreateUnit(Player(0),'hfoo',768.,768.,0.)\n"
+        "call UnitRemoveAbility(u,'Aatk')\n"
+        "call IssuePointOrder(u,\"move\",S2R(R2SW(1152.125,8,3)),768.)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) {unit=ent;break;}
+    T_NOT_NULL(unit);if(!unit)return;
+    T_NOT_NULL(unit->goalentity);if(!unit->goalentity)return;
+    /* Original public point-order input is raw X=0: width inserts a leading
+     * space, and S2R's verified grammar does not skip it. */
+    T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x), 0u);
+    T_EQ(wc3_float_bits(unit->goalentity->s.origin2.y), 0x44400000u);
+    T_EQ(unit->current_order_id, G_OrderId("move"));
+    unsigned number=unit->s.number;
+    cstring_t file=Test_TempPath("wc3-basic352-format.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    unit=&g_edicts[number];T_NOT_NULL(unit->goalentity);
+    if(unit->goalentity)T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x), 0u);
+    api_run_move_entities(50);
+    T_ASSERT(unit->s.origin2.x<768.0f);
+    reset_entities();setup_test_world();
+}
+
 #include "fixtures/retail_trig351.h"
 /* Actual VM calls retain value operands in storage distinct from native locals.
  * Expectations are literal retail returns, including public domain guards. */
