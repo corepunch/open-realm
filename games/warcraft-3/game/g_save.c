@@ -127,7 +127,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 96 persists per-item death-drop overrides. */
 /* Version 97 persists the SetWaterBaseColor RGBA state. */
 /* Version 98 persists legacy campaign-menu race and scripted explosion state. */
-static uint32_t const save_version = 98;
+/* Version 99 persists timed full-map visibility deadlines. */
+static uint32_t const save_version = 99;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -2031,7 +2032,7 @@ static bool WriteFow(FILE *f) {
         uint8_t const *explored = level.fow.players[player].explored;
         if (!explored || !SaveBytes(f, explored, width * height)) return false;
     }
-    return true;
+    return SaveBytes(f, level.fow.omniscience_until, sizeof(level.fow.omniscience_until));
 }
 
 static bool ReadFow(FILE *f) {
@@ -2064,7 +2065,7 @@ static bool ReadFow(FILE *f) {
         }
 #endif
     }
-    return true;
+    return LoadBytes(f, level.fow.omniscience_until, sizeof(level.fow.omniscience_until));
 }
 
 static bool ReadEdict(FILE *f, edict_t *ent) {
@@ -2763,15 +2764,19 @@ TEST(wc3_save, fog_exploration_round_trips_and_visibility_restarts_clear) {
     if (!level.fow.width || !level.fow.height) return;
     level.fow.players[0].explored[index] = 1;
     level.fow.players[0].visible[index] = 1;
+    G_FowRevealEntireMapTimed(0, 1.25f);
+    T_ASSERT(level.fow.omniscience_until[0] > G_Time());
     T_ASSERT(WriteGame(filename));
 
     level.fow.players[0].explored[index] = 0;
     level.fow.players[0].visible[index] = 1;
+    level.fow.omniscience_until[0] = 0;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(level.fow.players[0].explored[index]);
     T_ASSERT(!level.fow.players[0].visible[index]);
     T_ASSERT(level.fow.players[0].dirty_visible_rows[0]);
     T_ASSERT(level.fow.players[0].dirty_explored_rows[0]);
+    T_ASSERT(level.fow.omniscience_until[0] > G_Time());
 #ifdef WC3_FOW_PACKED_MASK
     T_ASSERT(level.fow.players[0].packed_explored[0] & 1u);
     T_ASSERT(!(level.fow.players[0].packed_visible[0] & 1u));

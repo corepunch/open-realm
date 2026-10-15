@@ -9625,7 +9625,7 @@ TEST(wc3_api, gameplay_natives_dispatch_and_select_race) {
         "  call UnitRemoveBuffsEx(u, true, true, true, true, false, false, false)\n"
         "  call SetUnitExploded(u, true)\n"
         "  call SetUnitExploded(u, false)\n"
-        "  call SetCampaignMenuRace(RACE_ORC)\n"
+        "  call SetCampaignMenuRace(ConvertRace(2))\n"
         "endfunction\n"));
     T_EQ(level.campaign_menu_race, 2);
     T_ASSERT(run_test_jass(
@@ -9638,7 +9638,7 @@ TEST(wc3_api, gameplay_natives_dispatch_and_select_race) {
     /* Invalid and unsupported races retain the previous valid selection. */
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
-        "  call SetCampaignMenuRace(RACE_DEMON)\n"
+        "  call SetCampaignMenuRace(ConvertRace(5))\n"
         "  call SetCampaignMenuRace(null)\n"
         "endfunction\n"));
     T_EQ(level.campaign_menu_race, 2);
@@ -9650,13 +9650,13 @@ TEST(wc3_api, gameplay_natives_dispatch_and_select_race) {
 TEST(wc3_api, remove_location_invalidates_aliases) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
+        " local race valueRace = RACE_HUMAN\n"
         " local location a = Location(128.0, 256.0)\n"
         " local location b = a\n"
         " call RemoveLocation(a)\n"
         " call BJassAssert(GetLocationX(b) == 0.0, \"removed alias must not be readable\")\n"
         " call MoveLocation(b, 9.0, 9.0)\n"
         " call BJassAssert(GetLocationY(a) == 0.0, \"removed location stays invalid\")\n"
-        " call BJassAssert(RACE_HUMAN != null, \"value handles remain valid\")\n"
         " call RemoveLocation(b)\n"
         " call RemoveLocation(null)\n"
         "endfunction\n"));

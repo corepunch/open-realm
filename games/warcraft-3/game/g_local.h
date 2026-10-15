@@ -2252,6 +2252,7 @@ typedef struct {
     uint32_t width;
     uint32_t height;
     box2_t bounds;
+    uint32_t omniscience_until[MAX_PLAYERS];
     uint8_t *blocked;
     uint32_t num_blocked;
     ARRAY(uint32_t, rim_cells);

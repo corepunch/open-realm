@@ -850,7 +850,7 @@ BZ_ABILITY_PROC(CAbilityItemRebirth) {
     if (!picker || !rune || !G_IsItem(rune) || !rune->item->in_world ||
         rune->spawn_time != call->source_item_spawn_time) return false;
     unit_id = rune->item->drop_id;
-    if (!unit_id || !G_UnitData(unit_id)) return false;
+    if (!unit_id || G_UnitData(unit_id)->id != unit_id) return false;
     reborn = SP_SpawnAtLocation(unit_id, picker->s.player, &rune->s.origin2);
     if (!reborn) return false;
     G_ActivateUnitFood(reborn);

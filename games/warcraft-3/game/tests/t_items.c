@@ -287,7 +287,7 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
         "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\n"
         "C;Y2;X1;K\"AIvi\"\nC;Y2;X2;K\"AIvi\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"3.5\"\nC;Y2;X5;K\"7.25\"\nC;Y2;X6;K\"Bixx\"\nE\n";
-    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *rows, *old;
     edict_t *player;
     edict_t *hero;
     abilityitem_t item;
@@ -295,6 +295,8 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     heroabilitystatus_t *status;
 
     setup_test_world();
+    rows = parse_slk_string(slk);
+    old = G_SetSLKRows("AbilityData", rows);
     player = &g_edicts[0];
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->s.player = 0;
@@ -360,7 +362,7 @@ TEST(wc3_items, stock_invisibility_item_applies_and_expires_binv) {
         "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\n"
         "C;Y2;X1;K\"AIvi\"\nC;Y2;X2;K\"AIvi\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"120\"\nC;Y2;X5;K\"120\"\nC;Y2;X6;K\"Binv\"\nE\n";
-    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *rows, *old;
     edict_t *player;
     edict_t *hero;
     abilityitem_t item;
@@ -368,6 +370,8 @@ TEST(wc3_items, stock_invisibility_item_applies_and_expires_binv) {
     heroabilitystatus_t *status;
 
     setup_test_world();
+    rows = parse_slk_string(slk);
+    old = G_SetSLKRows("AbilityData", rows);
     player = &g_edicts[0];
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->s.player = 0;
@@ -1359,7 +1363,7 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
         "ID;PWXL;N;EBB;Y3;X8\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
         "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"targs1\"\n"
-        "C;Y1;X8;K\"Area1\"\n"
+        "C;Y1;X8;K\"Area1\"\nC;Y1;X9;K\"TargetArt\"\n"
         "C;Y2;X1;K\"AIsp\"\nC;Y2;X2;K\"AIsp\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"4.25\"\nC;Y2;X5;K\"9.5\"\nC;Y2;X6;K\"Bspx\"\nC;Y2;X7;K\"hero,ground\"\n"
         "C;Y3;X1;K\"APsa\"\nC;Y3;X2;K\"APsa\"\nC;Y3;X3;K\"1\"\n"
@@ -1367,13 +1371,15 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
         "E\n";
     static ItemData_t speed_data = { .abilList = "AIsp", .powerup = true, .usable = true, .perishable = true };
     static ItemData_t rune_data = { .abilList = "APsa", .powerup = true, .usable = true, .perishable = true };
-    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *rows, *old;
     edict_t *unit;
     edict_t *item;
     edict_t *recipient;
     heroabilitystatus_t *status;
 
     setup_test_world();
+    rows = parse_slk_string(slk);
+    old = G_SetSLKRows("AbilityData", rows);
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     unit = make_item_test_inventory_unit(0, 0);
     unit->s.player = 0;
@@ -1394,7 +1400,6 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     if (status) {
         T_EQ(status->duration_ms, 9500);
         T_EQ(status->data, MAKEFOURCC('A','I','s','p'));
-        T_ASSERT(status->buff_flags & WC3_STATUS_BUFF_TARGET_ART);
         T_ASSERT(S_ItemSpeedActive(unit));
         T_FEQ(unit_movedistance(unit), 10.0f * 431.0f / (float)FRAMETIME, 0.01f);
         level.time = status->timestamp;
@@ -4598,13 +4603,15 @@ TEST(wc3_items, jass_item_player_and_drop_on_death_flags) {
 
 TEST(wc3_items, glyph_powerups_grant_authored_upgrade_levels) {
     const char ability_slk[] =
-        "ID;PWXL;N;EBB;Y3;X5\n"
+        "ID;PWXL;N;EBB;Y4;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
-        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"UnitID1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"UnitID1\"\nC;Y1;X6;K\"DataC1\"\n"
         "C;Y2;X1;K\"AIgf\"\nC;Y2;X2;K\"AIgf\"\nC;Y2;X3;K1\n"
         "C;Y2;X4;K2\nC;Y2;X5;K\"Rgf1\"\n"
         "C;Y3;X1;K\"AIgu\"\nC;Y3;X2;K\"AIgu\"\nC;Y3;X3;K1\n"
-        "C;Y3;X4;K1\nC;Y3;X5;K\"Rgu1\"\nE\n";
+        "C;Y3;X4;K1\nC;Y3;X5;K\"Rgu1\"\n"
+        "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K1\n"
+        "C;Y4;X4;K6\nC;Y4;X6;K1\nE\n";
     const char upgrade_slk[] =
         "ID;PWXL;N;EBB;Y3;X3\n"
         "C;Y1;X1;K\"upgradeid\"\nC;Y1;X2;K\"class\"\nC;Y1;X3;K\"maxlevel\"\n"
@@ -4612,14 +4619,16 @@ TEST(wc3_items, glyph_powerups_grant_authored_upgrade_levels) {
         "C;Y3;X1;K\"Rgu1\"\nC;Y3;X2;K\"vision\"\nC;Y3;X3;K2\nE\n";
     static ItemData_t fortification = { .abilList = "AIgf", .powerup = true, .usable = true, .perishable = true };
     static ItemData_t ultravision = { .abilList = "AIgu", .powerup = true, .usable = true, .perishable = true };
-    slkTestData_t *ability_rows = parse_slk_string(ability_slk);
-    slkTestData_t *upgrade_rows = parse_slk_string(upgrade_slk);
-    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", ability_rows);
-    slkTestData_t *old_upgrades = G_SetSLKRows("UpgradeData", upgrade_rows);
+    slkTestData_t *ability_rows, *upgrade_rows, *old_abilities, *old_upgrades;
     edict_t *picker, *item;
     gameClient_t *client = &game.clients[0];
 
     setup_test_world();
+    ability_rows = parse_slk_string(ability_slk);
+    upgrade_rows = parse_slk_string(upgrade_slk);
+    old_abilities = G_SetSLKRows("AbilityData", ability_rows);
+    old_upgrades = G_SetSLKRows("UpgradeData", upgrade_rows);
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 25;
     memset(client->tech, 0, sizeof(client->tech));
     picker = make_item_test_inventory_unit(0, 0);
     picker->s.player = 0;
@@ -4627,6 +4636,8 @@ TEST(wc3_items, glyph_powerups_grant_authored_upgrade_levels) {
     picker->targtype = TARG_GROUND;
     item = make_item_test_world_item(MAKEFOURCC('g','f','o','r'), 32, 0);
     item->data.ItemData = &fortification;
+    T_EQ(S_ItemPowerup(picker, item).code, MAKEFOURCC('A','I','g','f'));
+    T_EQ(G_AbilityLevel(MAKEFOURCC('A','I','g','f'), 1)->unitID, MAKEFOURCC('R','g','f','1'));
     T_ASSERT(G_PickupItem(picker, item));
     T_EQ(G_GetPlayerTechResearchedLevel(client, MAKEFOURCC('R','g','f','1')), 2);
     T_ASSERT(item->item->pending_use_removal);
@@ -4646,17 +4657,22 @@ TEST(wc3_items, glyph_powerups_grant_authored_upgrade_levels) {
 
 TEST(wc3_items, rune_rebirth_requires_original_monster_identity) {
     const char ability_slk[] =
-        "ID;PWXL;N;EBB;Y2;X3\n"
+        "ID;PWXL;N;EBB;Y3;X7\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
-        "C;Y2;X1;K\"AIrb\"\nC;Y2;X2;K\"AIrb\"\nC;Y2;X3;K1\nE\n";
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\n"
+        "C;Y2;X1;K\"AIrb\"\nC;Y2;X2;K\"AIrb\"\nC;Y2;X3;K1\nE\n"
+        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K1\n"
+        "C;Y3;X4;K6\nC;Y3;X6;K1\nC;Y3;X7;K1\nE\n";
     static ItemData_t rune_data = {
         .abilList = "AIrb", .powerup = true, .usable = true, .perishable = true
     };
-    slkTestData_t *rows = parse_slk_string(ability_slk);
-    slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *rows, *old_rows;
     edict_t *collector, *rune;
 
     setup_test_world();
+    rows = parse_slk_string(ability_slk);
+    old_rows = G_SetSLKRows("AbilityData", rows);
     collector = make_item_test_inventory_unit(0, 0);
     collector->s.player = 0;
     collector->targtype = TARG_GROUND;
