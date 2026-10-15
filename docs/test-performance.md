@@ -273,3 +273,18 @@ Evidence: `ORDER-01.2/order346/resume-1015/make-test-accepted.log`,
 `accepted-native-junit.json`, `accepted-junit/`, `order346-final.json` and
 `release-accepted-build.log` in the local retail research report archive.
 ORDER-01.2 is closed;299/336 backlog tasks are done,37 remain.
+
+## FOOT347 radius producer closure checkpoint (2026-10-15)
+
+`make test TEST_JOBS=8` passed9363 native tests in32 JUnit reports, with zero
+failures/errors, and2258 Python pathfinding evidence tests in721.686 seconds.
+The focused radius producer suite passed28 tests/434088 assertions in each
+Classic/TFT edition. Its two new public fresh/save cases contribute19975
+assertions per edition and compare1209 getter states/253 shared-cache states.
+The strict corpus runner verified `oracle-foot347` from fresh output.
+The regression build emitted no warnings; production code is unchanged.
+
+Reports: `FOOT-01.3/foot347/full-checkpoint.log`, `accepted.json`,
+`strict-corpus/`, `accepted-native-junit.json` and `accepted-junit/` in the
+local retail research report archive. FOOT-01.3 is closed:300/336 done,36
+remain. This is a completed full-suite checkpoint for subsequent iterations.

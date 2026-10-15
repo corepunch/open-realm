@@ -291,7 +291,8 @@
     "oracle-order343",
     "oracle-order344",
     "oracle-order345",
-    "oracle-order346"
+    "oracle-order346",
+    "oracle-foot347"
   ],
   "entries": [
     {
@@ -6674,6 +6675,25 @@
           "task": "E2E-03.2",
           "disposition": "evidence-boundary",
           "rationale": "Existing fixed-seed lane/radius/goal corpus owns broader naval domain coverage. ORDER346 supplies the required positive Load failure dispatch and checks fresh/saved engine ownership, without claiming retail save UI."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-foot347",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Full missile trajectories/effects and every ability task parent lifecycle are separate from the radius production inventory.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The existing full-contract freeze owns complete non-unit trajectories and cross-feature gameplay; FOOT347 proves the finite radius producers and their captured lifetime."
+        },
+        {
+          "index": 1,
+          "text": "Nonfinite radius terminal behavior remains outside this finite public composition.",
+          "task": "NUM-03.2",
+          "disposition": "evidence-boundary",
+          "rationale": "The existing nonfinite producer/terminal task retains that numeric domain; the finite radius lifecycle is verified here."
         }
       ]
     }

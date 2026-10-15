@@ -28852,4 +28852,122 @@ TEST(wc3_movement, order346_removed_load_human_static_loads) {order346_ferry_sce
 TEST(wc3_movement, order346_removed_load_computer_static_loads) {order346_ferry_scenario(109);}
 TEST(wc3_movement, order346_removed_load_saved_human_static_loads) {order346_ferry_scenario(110);}
 TEST(wc3_movement, order346_removed_load_saved_computer_static_loads) {order346_ferry_scenario(111);}
+#include "fixtures/retail_foot347.h"
+static uint32_t foot347_query[2];
+static unsigned foot347_row,foot347_bad,foot347_radius_row;
+static edict_t *foot347_units[13],*foot347_queried;
+static void foot347_coordinate(edict_t *unit,unsigned axis,float value) {
+    foot347_queried=unit;
+    if(axis<2)foot347_query[axis]=wc3_float_bits(value);
+}
+/* The identical public script runs in both engines; compare the getters at
+ * each marker instead of supplying routes, poses or completion decisions. */
+static void foot347_marker(cstring_t text) {
+    unsigned tick,index,order;int type;
+    if(sscanf(text,"F347 tick=%u scene=0 label=unit u=%u type=%d order=%u",&tick,&index,&type,&order)!=4)return;
+    uint32_t row[]={index,tick,order,(uint32_t)type,foot347_query[0],foot347_query[1]};
+    if(index<13 && type)foot347_units[index]=foot347_queried;
+    memset(foot347_query,0,sizeof(foot347_query));
+    if(foot347_bad)return;
+    T_ASSERT(foot347_row<(sizeof(foot347_public)/sizeof(*foot347_public)));
+    if(foot347_row>=(sizeof(foot347_public)/sizeof(*foot347_public))){foot347_bad++;return;}
+    FOR_LOOP(k,6) {
+        uint32_t expected=foot347_public[foot347_row][k];T_EQ(row[k],expected);
+        if(row[k]!=expected) {
+            fprintf(stderr,"foot347 public row%u tick%u unit%u field%u expected%08x actual%08x\n",foot347_row,tick,index,k,expected,row[k]);
+            foot347_bad++;
+        }
+    }
+    foot347_row++;
+}
+/* Compare the live shared aggregate separately from the retained route hull. */
+static void foot347_radius(moveGroup_t const *group,edict_t *singleton) {
+    (void)singleton;
+    if(!group || !group->shared_id || foot347_bad)return;
+    moveShared_t const *shared=S_FindMoveShared(group->shared_id);T_NOT_NULL(shared);
+    if(!shared)return;
+    uint32_t mask=0;
+    FOR_LOOP(i,group->count)FOR_LOOP(j,13)if(group->members[i].unit==foot347_units[j])mask|=1u<<j;
+    uint32_t row[]={level.pathing_counter,mask,wc3_float_bits(wc3_mul(shared->radius,1.0f/32)),wc3_float_bits(wc3_mul(group->route.group_radius,1.0f/32))};
+    T_ASSERT(foot347_radius_row<sizeof(foot347_radii)/sizeof(*foot347_radii));
+    if(foot347_radius_row>=sizeof(foot347_radii)/sizeof(*foot347_radii)){foot347_bad++;return;}
+    FOR_LOOP(k,4) {
+        uint32_t expected=foot347_radii[foot347_radius_row][k];T_EQ(row[k],expected);
+        if(row[k]!=expected) {
+            fprintf(stderr,"foot347 radius row%u counter%u field%u expected%08x actual%08x\n",foot347_radius_row,level.pathing_counter,k,expected,row[k]);foot347_bad++;
+        }
+    }
+    foot347_radius_row++;
+}
+/* Headless owner-removal UI notifications have no connected client here. */
+static void foot347_write(pfWriteType_t type,void const *value) {(void)type;(void)value;}
+static void foot347_unicast(edict_t *unit) {(void)unit;}
+static void foot347_run(bool saved) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotShutdown();reset_entities();setup_test_world();
+    void (*old_write)(pfWriteType_t,void const *)=gi.Write;void (*old_unicast)(edict_t *)=gi.unicast;
+    gi.Write=foot347_write;gi.unicast=foot347_unicast;
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    uint8_t cells[64*64]={0};CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    world.map->width=world.map->height=17;world.map->center=(vec2_t){0,0};
+    FOR_LOOP(i,17*17)((war3mapVertex_t *)world.map->vertices)[i]=(war3mapVertex_t){.accurate_height=8192,.waterlevel=8550,.level=2};
+    mapInfo_t const *old=level.mapinfo;mapInfo_t info=*old;
+    info.players[0].startingPosition=(vec2_t){272,304};game.clients[0].ps.start_location=0;
+    float radii[]={31,63,7,95},speed=270,range=90,acquire=500;uint32_t weapons=1;
+    unitModification_t mods[4][5];unitData_t types[4];
+    uint32_t codes[]={MAKEFOURCC('h','F','3','A'),MAKEFOURCC('h','F','3','G'),MAKEFOURCC('h','F','3','S'),MAKEFOURCC('h','F','3','H')};
+    FOR_LOOP(i,4) {
+        unitModification_t row[]={
+            {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radii+i},
+            {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+            {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire},
+            {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&range},
+            {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+        memcpy(mods[i],row,sizeof(row));
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=codes[i],.numbeOfModifications=5,.modifications=mods[i]};
+    }
+    unitData_t original={.originalUnitID=MAKEFOURCC('h','f','o','o'),.numbeOfModifications=5,.modifications=mods[0]};
+    char *targets[]={"hF3G","hF3S"};unitModification_t amods[2][2];unitData_t abilities[2];
+    FOR_LOOP(i,2) {
+        amods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=targets[i]};
+        amods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
+        abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=i ? MAKEFOURCC('A','F','3','S') : MAKEFOURCC('A','F','3','G'),.numbeOfModifications=2,.modifications=amods[i]};
+    }
+    info.num_originalUnits=1;info.originalUnits=&original;info.num_userCreatedUnits=4;info.userCreatedUnits=types;
+    info.num_userCreatedAbilities=2;info.userCreatedAbilities=abilities;level.mapinfo=&info;
+    G_SetMapUnitOverrides(&info);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\nC;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);G_SetMapAbilityOverrides(&info);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();game.clients[0].ps.rdflags|=RDF_NOFOG;
+    uint32_t length=0;char *probe=gi.ReadFile("Scripts\\foot347.j",&length);T_NOT_NULL(probe);
+    if(probe) {
+        char *script=malloc(length+100);snprintf(script,length+100,"%s\nfunction main takes nothing returns nothing\ncall PathProbeInit()\nendfunction\n",probe);
+        T_ASSERT(run_test_jass(script));free(script);gi.MemFree(probe);
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        foot347_row=foot347_bad=foot347_radius_row=0;memset(foot347_query,0,sizeof(foot347_query));memset(foot347_units,0,sizeof(foot347_units));
+        move_test_group_route=foot347_radius;
+        test_preload_marker=foot347_marker;test_unit_position_query=foot347_coordinate;
+        bool restored=false;
+        while(level.time<14000 && !foot347_bad) {
+            level.time+=5;globals.RunFrame();
+            if(saved && !restored && level.time==3005) {
+                cstring_t file=Test_TempPath("wc3-foot347.bin");T_ASSERT(WriteGame(file));
+                test_preload_marker=NULL;test_unit_position_query=NULL;
+                T_ASSERT(ReadGame(file));remove(file);restored=true;
+                test_preload_marker=foot347_marker;test_unit_position_query=foot347_coordinate;
+            }
+        }
+        T_EQ(foot347_row,(sizeof(foot347_public)/sizeof(*foot347_public)));T_EQ(foot347_bad,0);
+        T_EQ(foot347_radius_row,sizeof(foot347_radii)/sizeof(*foot347_radii));
+        if(saved)T_ASSERT(restored);
+    }
+    test_preload_marker=NULL;test_unit_position_query=NULL;move_test_group_route=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotShutdown();G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);
+    level.mapinfo=old;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    gi.Write=old_write;gi.unicast=old_unicast;
+}
+TEST(wc3_movement, foot347_shared_radius_public_resize_and_removal) {foot347_run(false);}
+TEST(wc3_movement, foot347_shared_radius_saved_pending_resize_and_removal) {foot347_run(true);}
 #endif

@@ -21194,3 +21194,86 @@ original calls and MapC; headless failure by MapAY; positive Load by MapBC.
 Board/Load exclusions include the final fresh/saved AI shore-boundary regression.
 This closes the dispatch inventory, while the existing broader routing and
 ability-queue items retain their separately documented fidelity scope.
+
+## Shared and target radius producer closure (FOOT347)
+
+FOOT-01.3 joins the previously integrated radius producers with a complete
+public largest-member lifetime. The three accepted Foot347i runs use the same
+map: two read-only observations repeat4944 native records exactly, and both
+match the uninstrumented control's1304 public markers. The literal engine
+fixture compares1209 raw public getter states and253 shared/cached footprint
+states through ordinary frames, plus a cold save during pending Chaos.
+
+The source is a thirteen-unit Captain roster, split into physical groups12+1.
+Its two large members have authored collision63 and95. Native owner1098/tick22
+publishes live95 into both groups and captures95 in both coarse paths. Public
+Chaos shrinks the95 member to7; replacement detaches it before the radius pass.
+At owner1125/tick30, both remaining groups read live63 while their cached paths
+still retain95. The same member grows to63 on a private replacement task; that
+private radius does not contribute to the old shared owner. Removing the other
+large member at owner1158/tick40 lowers the survivor's live radius to31; its
+cached route remains95. Later removal, Stop and retirement preserve this split.
+The native identity mapping is derived from original creation poses, rather
+than from process pointers or guessed group numbers.
+
+| Producer / consumer | Recovered contract | Executable evidence |
+|---|---|---|
+|Unit profile6945a0 → bridge05c2e0 → mover15fef0|The physical radius is a published mover90 value. An authored radius and a retained path footprint are different fields.|FOOT-01.2/Payoff51 public Chaos boundary matrix; FOOT347 live replacement.|
+|Shared16c220 → all16e1f0 passes → physical visits|Publish prior speed, reset radius, then resolve current membership and accumulate the maximum before routing any bound group.|Original motion's128 two-group radius sequences; grown-owner189; ordered scheduler190; FOOT347 two-group shrink/removal.|
+|Group16c940 →16ce10 → pathb4|Bound groups read shared7c+28; unbound groups scan local members. A cached path does not acquire a new radius merely because the live maximum changes.|Local group52 growth/shrink/removal; FOOT347's253 shared/cached states.|
+|Target bridge05a5c0|Resolve both canonical movers; convert each radius90 to world with the guarded exponent adjustment; add authored range, source radius, then target radius; convert to fine and apply the.49 minimum. The result is captured on task admission.|Original arrival arithmetic; Follow50 retained versus fresh growth/shrink; spell185; structure279; flying280.|
+|Target task renewal/loss|A target radius change is not a per-frame rewrite of an existing captured arrival range. A new task captures the replacement profile. Persistent unit loss cancels; a nonpersistent structure approach can hand off to the retained point.|Follow50 and target166/221; structure278; removed Footman/Farm308; Attack223/224 recovery range.|
+
+Fresh Ghidra references find **five direct callers** of05a5c0, with complete
+bodies and962 original instructions retained in the FOOT347 certificate:
+
+| Call site | Producer | Radius data flow |
+|---|---|---|
+|5fc750|Move_BeginTargetTaskRequest5fc640|Ordinary Move/Follow, Attack and ability target tasks pass their selected scalar range into the common source/target capture. Unit/structure ownership differs before this bridge; the radius arithmetic has no target-family branch.|
+|9d3f38|Captain combat target update9d3bc0|The virtual actor bridge and selected unit bridge feed the same capture; the actor radius is zero.|
+|9d46e4|CaptainAI_RefreshMovementRequest9d4600|The live-target branch supplies the selected authored approach range and target bridge. The null-target branch publishes a point request instead.|
+|6d3252|CMissile_StartTargetPath6d3190|The shared BulletPath/MissilePath/SpiderAttack initializer publishes collision0 and class15 before target admission.|
+|6d0681|Missile target replacement6d0630|The replacement target's virtual bridge feeds the same zero-authored-range target capture.|
+
+The non-unit radius0 producer and target-region fine requests are already
+covered by scheduling104's repeated public SpiderAttack evidence and production
+projectile initialization tests. This inventory concerns radius production;
+complete missile trajectories/effects and the remaining broader target/ability
+lifetimes retain their existing task ownership. Ground, flying, structure and
+virtual-actor radius inputs all reach the common capture above; footprint
+rectangle extents must never replace those scalar radii.
+
+The existing Move implementation already matches this new shared composition.
+No production behavior or save layout was changed for FOOT347, and no failing
+engine baseline is invented: the new tests add the missing public composition
+and saved-continuation coverage to the earlier189/190/50 implementations.
+Diagnostic maps with an incorrectly typed authored speed cell did not exercise
+the intended cohort and are excluded. The first getter observer also stopped
+before the final thirteen getters; it was corrected to end after the final unit
+marker, then two fresh complete observations were taken. The verifier explicitly
+rejects stale nonzero getter values for removed handles, including that final
+report block. Control-o's identical public stream remains the unhooked control.
+
+Reproduce with `foot347_make_map.py --base <Shared315-foot-2-final.w3m>
+--output <fresh-map.w3m>` and the owned B/C `live.sh` wrapper. The portable
+`retail-foot347-1.27.json.gz` contains the three accepted captures, original
+preload bytes, captured source versions, map hash and Ghidra instruction/caller
+inventory. `verify_wc3_pathing_foot347.py` validates those contracts, reconstructs
+the engine literals, checks the original binary and executes Classic/TFT tests.
+Eight verifier rejection tests protect ownership, repeats, cache retention,
+shrink publication, the final getter window, caller coverage and archive pins.
+Ghidra progress is saved; `Foot347Evidence.java` reproduces its annotations and
+instruction/caller export.
+
+FOOT347 focused acceptance:28 tests/434088 assertions per Classic/TFT edition,
+including the complete new fresh/saved cases (19975 assertions per edition).
+All eight verifier tests pass. FOOT-01.3 is closed:300/336 done,36 remain.
+No new TODO, production state field, save-format change or network change.
+
+Final FOOT347 checkpoint: `make test TEST_JOBS=8` exits0 with9363 native tests
+across32 JUnit reports (zero failures/errors) and2258 Python evidence tests
+in721.686 seconds. The strict corpus runner verifies `oracle-foot347` from
+fresh output. No new production behavior was required; the new regression
+build is warning-free. Durable reports are under
+`FOOT-01.3/foot347/`: `full-checkpoint.log`, `accepted.json`, `strict-corpus/`,
+`accepted-native-junit.json` and `accepted-junit/`.
