@@ -207,7 +207,16 @@ static bool HeroReviveMisc(cstring_t key, float *out) {
 
 bool G_UnitCanReviveHeroes(edict_t const *altar) {
     cstring_t revive = altar && altar->data.UnitProfile ? altar->data.UnitProfile->revive : NULL;
-    return revive && *revive && atoi(revive) != 0;
+    /* Reforged exposes this capability through UnitProfile.Revive. RoC 1.0
+     * authors it as the Arev passive in UnitAbilities. Keep that legacy data
+     * fallback opt-in with the compatibility workarounds. */
+    if (revive && *revive && atoi(revive) != 0) return true;
+#if BZ_COMPAT_WORKAROUNDS
+    /* Use actor lookup so script-added/removed Arev follows runtime semantics. */
+    return G_ActorHasSkill(altar, "Arev");
+#else
+    return false;
+#endif
 }
 
 bool G_HeroCanBeRevivedAt(edict_t const *altar, edict_t const *hero) {
