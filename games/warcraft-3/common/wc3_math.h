@@ -160,15 +160,19 @@ static inline float wc3_div(float a, float b) {
     return wc3_float_bits(a) == wc3_float_bits(b) ? 1 : wc3_mul(a, wc3_recip(b));
 }
 
-/* Original071180 for a nonnegative integer exponent; parser070de0 uses base10. */
+/* Original071180 uses SAR: negative converted exponents reach -1 forever.
+ * Checked scalar evaluations below retain that loop input without executing it;
+ * the public VM native executes the original loop synchronously. */
 static inline float wc3_integer_power(float base, uint32_t exponent) {
     float result = 1.0f;
-    while (exponent) {
+    /* A constant loop condition also preserves nonreturn under C's forward-
+     * progress rules; the zero-exponent exit is the original loop's test. */
+    for (;;) {
+        if (!exponent) return result;
         if (exponent & 1) result = wc3_mul(result, base);
         base = wc3_mul(base, base);
-        exponent >>= 1;
+        exponent = (exponent >> 1) | (exponent & 0x80000000u);
     }
-    return result;
 }
 
 /* 0715c0 truncates the raw significand, including signed zero and exceptional words. */
@@ -228,13 +232,18 @@ static inline float wc3_ln(float value) {
 
 /* 070c20/06fe10: quarter-step integer power and ordered polynomial, reciprocal for negative input.
  * False denotes the original signed-SAR exponent loop's nonterminating domain; output is untouched. */
-static inline bool wc3_exp(float value, float *output) {
+typedef struct { float base; uint32_t exponent; } wc3PowerLoop_t;
+
+static inline bool wc3_exp_evaluate(float value, float *output, wc3PowerLoop_t *loop) {
     uint32_t word = wc3_float_bits(value);
     bool neg = word & 0x80000000u && (word & 0x7fffffffu);
     if (neg) word ^= 0x80000000u;
     uint32_t scaled = word + (word & 0x7f800000u ? 0x1000000u : 0);
     uint32_t whole = wc3_trunc_bits(scaled), exp = wc3_int_bits(whole);
-    if (exp & 0x80000000u) return false;
+    if (exp & 0x80000000u) {
+        if(loop)*loop=(wc3PowerLoop_t){.base=wc3_float(0x3fa45af2),.exponent=exp};
+        return false;
+    }
     uint32_t frac = wc3_float_bits(wc3_sub(wc3_float(scaled), wc3_float(whole)));
     frac = ((frac - 0x1800000u) ^ frac) & 0x80000000u ? 0 : frac - 0x1000000u;
     float part = wc3_float(frac), result = wc3_float(wc3_exp_coeffs[0]);
@@ -245,12 +254,17 @@ static inline bool wc3_exp(float value, float *output) {
     return true;
 }
 
+static inline bool wc3_exp(float value, float *output) { return wc3_exp_evaluate(value,output,NULL); }
+
 /* 0710e0 uses integer powers only for exact nonnegative integral exponents; other powers use ln/exp. */
-static inline bool wc3_pow(float base, float power, float *output) {
+static inline bool wc3_pow_evaluate(float base, float power, float *output, wc3PowerLoop_t *loop) {
     uint32_t word = wc3_float_bits(power);
     if (wc3_float(wc3_trunc_bits(word)) == power && !(word & 0x80000000u && (word & 0x7fffffffu))) {
         uint32_t exp = wc3_int_bits(word);
-        if (exp & 0x80000000u) return false;
+        if (exp & 0x80000000u) {
+            if(loop)*loop=(wc3PowerLoop_t){.base=base,.exponent=exp};
+            return false;
+        }
         *output = wc3_integer_power(base, exp);
         return true;
     }
@@ -258,7 +272,23 @@ static inline bool wc3_pow(float base, float power, float *output) {
         *output = 0.0f;
         return true;
     }
-    return wc3_exp(wc3_mul(power, wc3_ln(base)), output);
+    return wc3_exp_evaluate(wc3_mul(power, wc3_ln(base)), output, loop);
+}
+
+
+/* The checked facade is also used by bounded numeric evidence and consumers
+ * with an explicit failure policy. It never manufactures a native result. */
+static inline bool wc3_pow(float base, float power, float *output) { return wc3_pow_evaluate(base,power,output,NULL); }
+
+/* Public JASS native invocation has no suspension or watchdog boundary inside
+ * Pow. Preserve the actual offending integer-loop operands and execute SAR;
+ * returning an error here would resume unrelated simulation timers. */
+static inline float wc3_pow_execute(float base, float power) {
+    float result;
+    wc3PowerLoop_t loop;
+    if(!wc3_pow_evaluate(base,power,&result,&loop))
+        result=wc3_integer_power(loop.base,loop.exponent);
+    return result;
 }
 
 

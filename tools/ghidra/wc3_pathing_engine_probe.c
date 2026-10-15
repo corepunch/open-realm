@@ -956,3 +956,11 @@ void pathing_adaptive_gate_threshold(uint32_t const *q,uint32_t const *words,uin
 uint32_t pathing_attack_exemption_rearm(uint32_t active,uint32_t deadline,uint32_t now) {
     return wc3_attack_speed_cap_rearm(active,wc3_sub(wc3_float(deadline),wc3_float(now)));
 }
+
+/* Checked analysis exposes the exact native loop input, never a fake result. */
+void pathing_power_loop(uint32_t base, uint32_t exponent, uint32_t output[4]) {
+    wc3PowerLoop_t loop={.base=wc3_float(0xabcdef03u),.exponent=0xabcdef04u};
+    float result=wc3_float(0xabcdef02u);
+    output[0]=wc3_pow_evaluate(wc3_float(base),wc3_float(exponent),&result,&loop);
+    output[1]=wc3_float_bits(result);output[2]=wc3_float_bits(loop.base);output[3]=loop.exponent;
+}

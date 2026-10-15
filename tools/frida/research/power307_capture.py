@@ -22,6 +22,10 @@ def main():
     ap.add_argument('--marker-prefix', default='P307 ')
     ap.add_argument('--observer', default='power307_observer.js')
     ap.add_argument('--observer-config', default='{}', help='extra JSON merged into the observer config')
+    ap.add_argument('--task', default='NUM-01.14/power307')
+    ap.add_argument('--extra-source', type=Path, action='append', default=[])
+    ap.add_argument('--before-file', help='Owned pre-native marker file; also bounds observer-free stalls')
+    ap.add_argument('--hold-seconds', type=float, default=12)
     ap.add_argument('--mode', choices=('observe', 'control'), required=True)
     ap.add_argument('--remote', required=True)
     ap.add_argument('--x11-display', required=True)
@@ -36,6 +40,7 @@ def main():
     ap.add_argument('--start-file', default=None, help='CustomMapData file the probe writes at tick 1 (control timing)')
     ap.add_argument('--output', type=Path, required=True, help='new JSONL path')
     args = ap.parse_args()
+    if not 0<args.hold_seconds<=60:ap.error('hold must be in (0,60]')
     if args.remote.split(':')[-1] in ('27046', '27048') or args.x11_display in (':94', ':97'):
         ap.error('refusing the owner environments')
     if {'B': ':98', 'C': ':99'}[args.env] != args.x11_display:
@@ -66,10 +71,15 @@ def main():
     config.update(json.loads(args.observer_config))
     map_path = data / args.map.replace('\\', '/')
     sources = [Path(__file__), HERE / args.observer, HERE / 'power307_make_map.py', HERE / 'power307_probe.j', HERE / 'smart277_ui_input.c', HERE / 'point214_ui_input.c', HERE.parent / 'wc3_ui_input.c']
+    sources += args.extra_source
     if args.input_helper:
         sources += [args.input_helper, Path(str(args.input_helper) + '.so')]
     provenance = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
     provenance['map'] = hashlib.sha256(map_path.read_bytes()).hexdigest()
+    before_file=data/'CustomMapData'/args.before_file if args.before_file else None
+    before_seen=None
+    if before_file is not None and before_file.exists():
+        Path(str(args.output.with_suffix(''))+'-previous-before.txt').write_bytes(before_file.read_bytes());before_file.unlink()
     generated = data / 'CustomMapData' / args.preload
     started = data / 'CustomMapData' / args.start_file if args.start_file else None
     if started is not None and started.exists():
@@ -109,8 +119,8 @@ def main():
                     state['complete'] = True
         try:
             pid = device.spawn([path + r'\war3.exe', '-window', '-loadfile', args.map], cwd=path)
-            record(dict(event='metadata', task='NUM-01.14/power307', mode=args.mode, sha256=HASH, pid=pid, owned=True,
-                        source_sha256=provenance, map=args.map, seconds=args.seconds, continue_at=args.continue_at,
+            record(dict(event='metadata', task=args.task, mode=args.mode, sha256=HASH, pid=pid, owned=True,
+                        source_sha256=provenance, map=args.map, seconds=args.seconds, continue_at=args.continue_at, hold_seconds=args.hold_seconds, before_file=args.before_file,
                         display=args.x11_display, remote=args.remote, env=args.env, input=plan, input_seconds=args.input_seconds,
                         frida=frida.__version__, **config))
             script = None
@@ -141,6 +151,13 @@ def main():
                     record(dict(event='loading-key', elapsed=now - start, tick=state['tick']))
                     keys += 1
                     next_key = now + 8
+                if before_file is not None and before_seen is None and before_file.exists():
+                    before_seen=now
+                    raw=before_file.read_bytes()
+                    Path(str(stem)+'-before.txt').write_bytes(raw)
+                    record(dict(event='before-file',elapsed=now-start,sha256=hashlib.sha256(raw).hexdigest()))
+                if args.mode=='control' and before_seen is not None and now-before_seen>=args.hold_seconds:
+                    record(dict(event='bounded-control-deadline',elapsed=now-start,hold=now-before_seen));break
                 due = False
                 if sent < len(plan):
                     if args.mode == 'observe':
@@ -155,7 +172,7 @@ def main():
                     record(dict(event='player-input', at_tick=state['tick'], plan=p, cmd=cmd[1:], rc=res.returncode, stdout=res.stdout,
                                 stderr=res.stderr[-2000:], elapsed=time.monotonic() - start))
                     sent += 1
-                if state.get('power_enter_wall') is not None and now-state['power_enter_wall'] >= 12:
+                if state.get('power_enter_wall') is not None and now-state['power_enter_wall'] >= args.hold_seconds:
                     record(dict(event='bounded-power-deadline', elapsed=now-start, tick=state['tick']))
                     break
                 if done_at is None and (state['complete'] or (args.mode == 'control' and generated.exists() and

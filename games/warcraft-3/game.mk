@@ -280,6 +280,9 @@ $(WC3_ENGINE_SHARDS): test-wc3-engine-%: $(WC3_TEST_BINARY) test-assets | $(TEST
 	TEST_SHARD="$(lastword $(subst -, ,$*))/$(WC3_TEST_SHARDS)" TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-engine-$*.xml" TEST_JUNIT_SUITE="test-wc3-engine-$*" \
 		$(WC3_TEST_BINARY) -data $(TESTS_DIR) $(if $(filter tft-%,$*),-tft) +dedicated 1 +test '$(WC3_PATTERN)'
 
+test-wc3-power-lifetime: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
+	python3 tools/ghidra/wc3_power_lifetime.py --binary $(WC3_TEST_BINARY) --data $(TESTS_DIR) --junit $(TEST_JUNIT_DIR)/test-wc3-power-lifetime.xml
+
 .PHONY: test-client-camera
 test-client-camera: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-client-camera.xml" TEST_JUNIT_SUITE="test-client-camera" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'client_camera.*' +com_frame_limit 100
@@ -323,7 +326,7 @@ TEST_JOBS ?= 16
 	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound \
 		test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
-		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-pathfinding-tools test-render-harness test-mpq-compression
+		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-wc3-power-lifetime test-pathfinding-tools test-render-harness test-mpq-compression
 
 # Lossy 33.6 kbps modem simulation; kept off the default `make test` critical path (the `stress_` suites skip a `*` run).
 .PHONY: test-stress
@@ -477,3 +480,5 @@ $(RENDERER_LIB): $(WC3_DIR)/common/wc3_coords.h renderer/r_game.h
 $(BIN_DIR)/test_renderer_model$(EXE_EXT) $(BIN_DIR)/test_renderer_shadows$(EXE_EXT): $(wildcard vendor/gl_shader/*.[ch])
 
 $(eval $(call test_schema,test-gl-shader,$(wildcard vendor/gl_shader/*.[ch]),$(TEST_CFLAGS),$(BIN_DIR)/test_gl_shader$(EXE_EXT),tests/test_runner.c tests/test_gl_shader.c shared/test.c,$(LIBS),))
+
+.PHONY: test-wc3-power-lifetime

@@ -685,11 +685,14 @@ TEST(wc3_api, pathfinding_public_power_native_matches_retail_words) {
     reset_entities();
 }
 
-/* A converted negative signed exponent has no retail helper result; reject without inventing one. */
-TEST(wc3_api, pathfinding_power_nonterminating_domain_reports_error) {
+/* Actual nonreturning native calls belong to the bounded stress worker below;
+ * public guards and the neighboring large terminating domain remain in '*'. */
+TEST(wc3_api, pathfinding_power_large_terminating_domain_preserves_public_guards) {
     setup_test_world();
-    T_ASSERT(!run_test_jass("function main takes nothing returns nothing\n  local real r = Pow(2.0, I2R(1073741824) * 2.0)\nendfunction\n"));
-    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n  call BJassAssert(Pow(2.0, 3.0) == 8.0, \"power recovers after rejected domain\")\nendfunction\n"));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "call BJassAssert(Pow(0.0,-I2R(1073741824)*2.0)==0.0,\"public negative zero-base guard\")\n"
+        "call BJassAssert(Pow(1.0,-I2R(1000000000))==1.0,\"zero log remains terminating\")\n"
+        "call BJassAssert(Pow(2.0,I2R(1073741824))==0.0,\"large positive converted exponent\")\nendfunction\n"));
     reset_entities();
 }
 
@@ -11080,4 +11083,35 @@ TEST(wc3_api, legacy_and_modern_spell_shop_event_registration) {
     }
 }
 
+
+/* This worker deliberately enters a nonreturning native. It is excluded from
+ * '*' and may only be launched by the bounded, owning process controller. */
+extern void (*test_preload_marker)(cstring_t);
+static bool power350_complete;
+static void power350_marker(cstring_t marker) {
+    if(strncmp(marker,"P350 ",5))return;
+    fprintf(stdout,"POWER350 c=%u %s\n",level.pathing_counter,marker);fflush(stdout);
+    if(strstr(marker,"label=complete"))power350_complete=true;
+}
+TEST(stress_wc3_power_lifetime, public_timer_worker) {
+    reset_entities();setup_test_world();
+    G_BotShutdown();
+    unsigned kind=(unsigned)atoi(gi.CvarString("wc3_power350_case","0"));T_ASSERT(kind<4);
+    if(kind>=4)return;
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    uint32_t length=0;char *probe=gi.ReadFile("Scripts\\power350.j",&length);T_NOT_NULL(probe);
+    if(!probe)return;
+    char *token=strstr(probe,"@CASE@");T_NOT_NULL(token);
+    if(!token){gi.MemFree(probe);return;}
+    char *script=malloc(length+100);size_t prefix=token-probe;
+    memcpy(script,probe,prefix);
+    snprintf(script+prefix,length+100-prefix,"%u%s\nfunction main takes nothing returns nothing\ncall PathProbeInit()\nendfunction\n",kind,token+6);
+    gi.MemFree(probe);power350_complete=false;test_preload_marker=power350_marker;
+    T_ASSERT(run_test_jass(script));free(script);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<3500){level.time+=5;globals.RunFrame();}
+    T_ASSERT(power350_complete); /* A terminating worker must run the real timers. */
+    test_preload_marker=NULL;level.started=false;reset_entities();
+}
 #endif /* BZ_TESTS */

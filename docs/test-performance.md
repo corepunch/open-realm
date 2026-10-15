@@ -343,3 +343,39 @@ acceptance. The guard for unbound temporary entities and the cross-BuffID
 single-owner regression are retained with their original failing logs. Save199
 round trips active status/health state and an in-flight callback, and rejects
 older layouts. No new TODOs; no push.
+
+### Power350 public-native lifetime checkpoint
+
+NUM-01.14 closes with303/336 leaves done and33 remaining. Eight read-only retail
+observations and four observer-free controls agree;295 thread samples remain in
+the original guarded integer-power/multiply loop. The saved Ghidra inventory
+covers eight complete functions/1574 instructions. The original engine failure
+returned a recoverable VM error; actual public native invocation now retains
+synchronous arithmetic execution with signed-SAR semantics. The checked numeric
+facade stays bounded and does not assign a result to nonreturning inputs.
+
+The final debug and optimized production/test builds pass. All eight bounded
+Classic/TFT workers pass in each build, matching complete public marker/counter
+sequences. `make test TEST_JOBS=8` passes9379 native tests plus eight new bounded
+process-lifetime checks across33 JUnit reports, with zero failures/errors/skips.
+The Python discovery passes2283 tests in583.278s. Eight controller tests
+added after discovery started pass separately; they verify rejected evidence,
+process ownership/cleanup and inherited test-environment isolation. Debug/O2
+workers use the final constant-control loop, preserving C forward-progress
+semantics. The existing renderer blockHeader warnings remain in unchanged code;
+the changed game code builds without warnings.
+
+The fresh O0 numeric oracle verifies24423 calls and preserves the prior outcome
+digest; the fresh O2 corpus passes oracle-power, oracle-power349 and
+oracle-power350. Original VM behavior is separate from emulator instruction
+budgets. The permanent `test-wc3-power-lifetime` target bounds startup and native
+hold in owned children and is included in `make test`; do not invoke the stress
+worker directly. The archive/evidence tests reject altered counters, PCs,
+conversion/sign/order, source/map provenance, missing controls and instruction
+guards. The exclusion ownership audit has zero unassigned statements.
+
+Acceptance logs, red regressions, final build logs, O2 worker report,
+`full-test.log`, `full-junit/`, and `corpus-accepted/` are retained under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-01.14/power350/`.
+The committed portable bundle preserves all12 captures and rebuildable map
+inputs. Network and save formats are unchanged. No new TODOs; no push.

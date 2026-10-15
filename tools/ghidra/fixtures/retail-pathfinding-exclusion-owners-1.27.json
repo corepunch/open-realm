@@ -294,7 +294,8 @@
     "oracle-order346",
     "oracle-foot347",
     "oracle-move348",
-    "oracle-power349"
+    "oracle-power349",
+    "oracle-power350"
   ],
   "entries": [
     {
@@ -883,10 +884,10 @@
       "exclusions": [
         {
           "index": 0,
-          "text": "Supplied -1/0/1 globals; full initialization/compiled decimal literals/original VM watchdog remain NUM-01.2/07. No numeric result is assigned to budget-stopped negative signed exponents.",
-          "task": "NUM-01.14",
-          "disposition": "behavior",
-          "rationale": "Resolve the public nonreturning power/VM lifetime deviation without substituting an instruction-budget result."
+          "text": "Checked helper evaluation assigns no numeric result to budget-stopped signed-negative exponents. Original startup and compiled literals have separate contracts; public VM lifetime is verified by oracle-power350. Full gameplay composition remains E2E-06.1.",
+          "task": "E2E-06.1",
+          "disposition": "superseded-review",
+          "rationale": "The former initialization/literal/VM lifetime limitations have dedicated verified contracts; this bounded numeric oracle still does not establish full gameplay composition."
         }
       ]
     },
@@ -6055,10 +6056,10 @@
       "exclusions": [
         {
           "index": 0,
-          "text": "Arbitrary terrain and other producer families remain open. Nonreturning Pow discovery does not claim engine lifetime parity;45 tasks remain.",
-          "task": "NUM-01.14",
+          "text": "Arbitrary terrain and other producer families remain open. Public Pow VM lifetime and the prior engine recovery deviation are verified separately by oracle-power350.",
+          "task": "FOOT-04.2",
           "disposition": "behavior",
-          "rationale": "Resolve the public nonreturning power/VM lifetime deviation without substituting an instruction-budget result."
+          "rationale": "The original placement oracle retains its arbitrary-terrain and other-producer boundary; Power350 closes only its historical public Pow VM lifetime discovery."
         }
       ]
     },
@@ -6723,10 +6724,29 @@
       "exclusions": [
         {
           "index": 0,
-          "text": "Original nonreturning public VM lifetime remains NUM-01.14.",
-          "task": "NUM-01.14",
+          "text": "Public VM lifetime is verified by oracle-power350; this finite consumer contract does not execute nonreturning public scripts. Non-VM consumer lifetime and full trajectories remain E2E-06.1.",
+          "task": "E2E-06.1",
+          "disposition": "superseded-review",
+          "rationale": "The former public VM scheduling limitation is closed by a separate bounded lifetime contract; non-VM consumer lifetime and full gameplay composition remain outside this finite caller oracle."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-power350",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Nonfinite public producer/visibility terminal compositions remain NUM-03.2.",
+          "task": "NUM-03.2",
           "disposition": "evidence-boundary",
-          "rationale": "The existing VM lifetime task owns nonreturning scheduling and failure policy; finite caller operands and arithmetic do not establish that behavior."
+          "rationale": "The exceptional-producer task retains broader propagation/fault compositions; this contract verifies VM lifetime once its integer loop is reached."
+        },
+        {
+          "index": 1,
+          "text": "Non-VM gameplay consumer lifetime and full trajectory contracts remain E2E-06.1.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The full replacement contract retains non-VM consumer policies and trajectories; checked numeric analysis is distinguished explicitly from actual public native execution."
         }
       ]
     }

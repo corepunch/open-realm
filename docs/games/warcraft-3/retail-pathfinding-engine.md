@@ -18992,10 +18992,11 @@ lifetime evidence, separately labelled from helper-emulator instruction budgets.
 Captures, maps, observer sources and saved/readback listings are retained in the
 same archive under `power-discovery/`.
 
-**NUM-01.14 remains open.** The engine deliberately reports a recoverable runtime
-error for this domain; it does not reproduce retail's simulation stall. Existing
-error/recovery tests remain valid descriptions of that explicit engine deviation
-and were not overwritten. No numeric result or lifetime parity is claimed.
+At the Payoff307 checkpoint, NUM-01.14 remained open because the engine
+reported a recoverable runtime error while retail stalled. The failing lifetime
+regression and the subsequent public-native fix are now retained in
+[Power350](#public-power-native-lifetime-power350). Helper instruction-budget
+stops still assign no numeric result.
 
 
 ## Unit placement clamps before admission; lost approaches retain physical ownership (Payoff308)
@@ -21341,7 +21342,7 @@ forwarding and distribution wrappers. The guarded export contains38 complete
 functions /2387 instructions. `power349_callers.py` executes209 complete caller
 cases and checks1111 nested math results against the independent integer model
 and the compiled engine. No numerical result is manufactured for nonreturning
-power inputs; original VM lifetime remains NUM-01.14.
+power inputs; public VM lifetime is now verified separately by Power350 below.
 
 | Caller | Pointer relationship and operation order |
 |---|---|
@@ -21422,3 +21423,64 @@ preload line endings, exact captured source versions, ownership metadata and the
 complete instruction/reference inventory. Engine regressions require no retail
 installation. The verifier requires nonempty Classic/TFT runs and rejects altered
 getters, alias relationships, elapsed-clock observations and health commits.
+
+### Public power native lifetime (Power350)
+
+NUM-01.14 closes with actual public-native scheduling evidence and an engine
+regression that first failed: the old native raised a recoverable error and let
+the VM continue. Retail retains synchronous execution inside integer power.
+Public `Pow` now executes the original offending arithmetic loop with signed
+SAR semantics. The ordinary checked scalar facade remains bounded, reports false
+without writing output, and supplies the real loop operands to the public native.
+No numeric result, synthetic delay or recoverable error substitutes for native
+nonreturn. The C loop has a constant controlling expression and an explicit zero
+exit, preserving nonreturn under the language's forward-progress rules.
+
+The public timer/independent-heartbeat probe covers `Pow(2,I2R(1073741824)*2)`,
+`Pow(2,-I2R(1000000000))`, `Pow(0.5,-I2R(1000000000))`, and the terminating
+`Pow(2,I2R(1073741824))` control. Direct conversion reaches exponent80000000;
+both Exp reductions reacha5425800, with opposite Exp input signs. All three
+negative converted exponents approachffffffff under SAR and never reach zero.
+The terminating control returns raw0, reaches its after marker and completes.
+
+Eight read-only observed launches (two per case) and four observer-free launches
+agree on every public marker. Each nonreturning case retains
+counter1090/tick20/beat13 for at least12 wall seconds, without an after marker,
+heartbeat or native return. All295 thread samples remain running on the same
+thread inside the guarded IntegerPower/Multiply bodies. A verified VM return
+address alone is explicitly rejected as evidence of loop execution. Before-file
+boundaries independently anchor the unhooked controls. All launches have bounded
+startup/hold deadlines, owned-process cleanup and archived raw logs; no live
+nonreturning probe remains after capture.
+
+The saved Ghidra inventory covers eight complete functions and1574 instructions.
+Public opcode15 calls918fd0 inline at91ba8a; indirect native CALL919120 returns
+at919123 before argument cleanup and bytecode-limit checks. Those limits cannot
+preempt an executing native. This establishes VM lifetime independently of the
+bounded helper emulator's instruction budget. `MapPathfinding.java` and
+`Power350Evidence.java` preserve the findings; the Ghidra program is saved.
+
+All eight real Classic/TFT engine workers pass in both debug and optimized builds.
+The verifier compares the entire15-record nonreturning prefix and23-record
+terminating sequence, including every owner counter and independent heartbeat,
+against immutable retail observations. The checked domain/context outputs also
+match at O0/O2, with output/loop sentinels preserved on the appropriate paths.
+The previous numerical Pow oracle remains unchanged and passes with a freshly
+compiled bridge. Ordinary public guard and finite caller regressions also pass.
+
+`make test-wc3-power-lifetime`, included in `make test`, launches only bounded
+owned children and emits eight JUnit cases. The stress worker is excluded from
+ordinary wildcard runs and must be invoked through its controller. Controller
+regressions reject exited children, short/absent admission, missing control
+completion, inherited test sharding and attempts to overwrite parent JUnit;
+they also verify kill/reap cleanup. Evidence rejection tests cover ownership,
+short controls, counter drift, thread PCs, Exp order/sign, conversion, complete
+instruction guards and map/archive provenance.
+
+The portable `retail-power350-1.27.json.gz` bundle retains all12 raw captures,
+before/preload files, exact capture/observer/probe/helper sources, the frozen base
+map and all four rebuilt maps. `verify_wc3_pathing_power350.py` checks source and
+whole-binary hashes, all guards, semantic record digests, map reconstruction,
+checked C domains and actual native worker lifetime. Nonfinite producers remain
+NUM-03.2; non-VM gameplay-consumer lifetime and full trajectories remain E2E-06.1.
+These boundaries do not reopen the verified public VM contract or add TODOs.
