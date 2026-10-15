@@ -7,7 +7,7 @@ The Makefile has five independent build choices:
 | Variable | Values | Default | Contract |
 |---|---|---|---|
 | `BUILD` | `debug`, `release` | `debug` | `release` adds `-O2`; debug adds `-O0 -g` |
-| `COMPAT_WORKAROUNDS` | `0`, `1` | `1` | Enables explicitly gated compatibility workarounds; currently controls the RoC Entangle overlay fallback described in [Race Mechanics](games/warcraft-3/race-mechanics.md#race-specific-gold-mining) |
+| `COMPAT_WORKAROUNDS` | `0`, `1` | `1` | Enables explicitly gated compatibility workarounds, including RoC Entangle data recovery and the `AHad`→`BHad` aura visual mapping described in [Race Mechanics](games/warcraft-3/race-mechanics.md#race-specific-gold-mining) and [Aura Targets And Overlays](games/warcraft-3/aura-targets-and-overlays.md) |
 | `GL_BACKEND` | `gl`, `gles3` | `gl` | Desktop OpenGL 3.1, or Linux OpenGL ES 3.0 |
 | `MSAA` | `0`, `2`, `4`, `8` | `0` | Compile-time default framebuffer sample count |
 | `GLSL` | `120`, `140`, `150` | `140` | GLSL version for descriptor-based shaders (ignored when `GL_BACKEND=gles3`) |

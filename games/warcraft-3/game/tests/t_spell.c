@@ -1519,62 +1519,7 @@ TEST(wc3_spell, devotion_aura_source_shows_pattern_and_recipient_keeps_glow) {
     free_slk_rows(rows);
 }
 
-/* RoC AbilityData has no BuffID. Recipients fall back to ability TargetArt,
- * and the caster must not spawn a second copy of that same model. */
-TEST(wc3_spell, devotion_aura_roc_fallback_does_not_stack_on_source) {
-    const char slk[] =
-        "ID;PWXL;N;EBB;Y3;X6\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
-        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\n"
-        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
-        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"1\"\n"
-        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"1\"\nE\n";
-    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
-    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
-    cstring_t art = G_AbilityEffectArt(MAKEFOURCC('A','H','a','d'), WC3_EFFECT_TARGET, 0);
-    int model = G_RegisterModel(art);
-    int source_n, target_n;
-
-    T_NOT_NULL(art);
-    T_ASSERT(model > 0);
-    level.time = level.framenum = 0;
-    source->s.player = target->s.player = 0;
-    source->targtype = target->targtype = TARG_GROUND;
-    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
-    source->think = target->think = monster_think;
-
-    G_RunEntities();
-    source_n = target_n = 0;
-    FOR_LOOP(i, globals.num_edicts) {
-        edict_t *effect = g_edicts + i;
-        if (!effect->inuse || effect->goalentity != effect->owner ||
-            effect->summon_ability != MAKEFOURCC('A','H','a','d') || effect->s.model != model) continue;
-        if (effect->owner == source) source_n++;
-        if (effect->owner == target) target_n++;
-    }
-    T_EQ(source_n, 1);
-    T_EQ(target_n, 1);
-
-    level.time = AURA_UPDATE_MS;
-    level.framenum++;
-    G_RunEntities();
-    source_n = target_n = 0;
-    FOR_LOOP(i, globals.num_edicts) {
-        edict_t *effect = g_edicts + i;
-        if (!effect->inuse || effect->goalentity != effect->owner ||
-            effect->summon_ability != MAKEFOURCC('A','H','a','d') || effect->s.model != model) continue;
-        if (effect->owner == source) source_n++;
-        if (effect->owner == target) target_n++;
-    }
-    T_EQ(source_n, 1);
-    T_EQ(target_n, 1);
-
-    G_SetSLKRows("AbilityData", old);
-    free_slk_rows(rows);
-}
-
-/* Count attached presentation, excluding effects already playing their death sequence. */
+/* Count attached presentation effects by model and owner. */
 static uint32_t hero_aura_art_count(edict_t *unit, uint32_t base, uint32_t model) {
     uint32_t count = 0;
     FOR_LOOP(i, globals.num_edicts) {
@@ -1584,6 +1529,95 @@ static uint32_t hero_aura_art_count(edict_t *unit, uint32_t base, uint32_t model
     }
     return count;
 }
+
+#if BZ_COMPAT_WORKAROUNDS
+/* RoC omits BuffID; the compatibility table resolves stock AHad to BHad,
+ * preserving separate caster pattern and recipient glow. */
+TEST(wc3_spell, devotion_aura_roc_compat_uses_bhad_recipient_art) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"1\"\nE\n";
+    const char buff_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
+        "C;Y2;X1;K\"BHad\"\nC;Y2;X2;K\"BHad\"\n"
+        "C;Y2;X3;K\"TestUI\\\\Models\\\\anim_pulse.mdx\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff;
+    edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    uint32_t base = MAKEFOURCC('A','H','a','d');
+    uint32_t buff = MAKEFOURCC('B','H','a','d');
+    int pattern = G_RegisterModel(G_AbilityEffectArt(base, WC3_EFFECT_TARGET, 0));
+    int glow;
+
+    old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
+    glow = G_RegisterModel(G_AbilityEffectArt(buff, WC3_EFFECT_TARGET, 0));
+
+    T_ASSERT(pattern > 0);
+    T_ASSERT(glow > 0);
+    T_NE(pattern, glow);
+    level.time = level.framenum = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    source->think = target->think = monster_think;
+
+    G_RunEntities();
+    T_EQ(hero_aura_art_count(source, base, pattern), 1);
+    T_EQ(hero_aura_art_count(source, base, glow), 1);
+    T_EQ(hero_aura_art_count(target, base, glow), 1);
+    T_EQ(S_DevotionAuraBuff(source), buff);
+    T_EQ(S_DevotionAuraBuff(target), buff);
+
+    level.time = AURA_UPDATE_MS;
+    level.framenum++;
+    G_RunEntities();
+    T_EQ(hero_aura_art_count(source, base, pattern), 1);
+    T_EQ(hero_aura_art_count(source, base, glow), 1);
+    T_EQ(hero_aura_art_count(target, base, glow), 1);
+
+    G_SetSLKRows("AbilityData", old);
+    G_SetSLKRows("AbilityBuffData", old_buff);
+    free_slk_rows(rows);
+    free_slk_rows(buff_rows);
+}
+#else
+/* With compatibility workarounds disabled, missing BuffID keeps the generic
+ * ability-art recipient fallback. */
+TEST(wc3_spell, devotion_aura_without_compat_uses_ability_art_fallback) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"AHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"1\"\nE\n";
+    uint32_t const base = MAKEFOURCC('A','H','a','d');
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    int const model = G_RegisterModel(G_AbilityEffectArt(base, WC3_EFFECT_TARGET, 0));
+
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = base, .level = 1);
+    source->think = target->think = monster_think;
+    G_RunEntities();
+
+    T_EQ(hero_aura_art_count(source, base, model), 1);
+    T_EQ(hero_aura_art_count(target, base, model), 1);
+    T_EQ(S_DevotionAuraBuff(source), 0);
+    T_EQ(S_DevotionAuraBuff(target), 0);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+#endif
 
 /* Removing a custom alias must retire its rune while a nearby aura keeps the recipient glow alive. */
 static void custom_hero_aura_removal(cstring_t base, cstring_t alias, cstring_t buff) {

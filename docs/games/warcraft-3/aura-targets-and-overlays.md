@@ -59,7 +59,10 @@ also a recipient when `targs` includes `friend` or `self`. The executable path
 and registration evidence are documented in [RoC Aura Registrations](roc-aura-registrations.md).
 
 This engine mapping has only been traced for `AHad`→`BHad` in this investigation.
-Do not generalize it to every aura from the class registration table alone.
+The matching OpenRealm fallback is a stock `AHad` compatibility entry gated by
+`BZ_COMPAT_WORKAROUNDS`; it applies when the resolved aura has no authored buff
+ID. Explicit `BuffID` values continue to take precedence. Do not generalize the
+mapping to every aura from the class registration table alone.
 
 Each effect is a persistent `WC3_EFFECT_TARGET` owned by the unit it follows.
 Both effects store the base rawcode (`AHad` or `AUau`) in `summon_ability`,
@@ -114,10 +117,11 @@ fixture `AHad` art `panel_sprite.mdx` and `BHad` art `anim_pulse.mdx`. The caste
 keeps one of each, the ally keeps only the glow, a second refresh does not
 stack a copy, leaving range removes the ally glow, and clearing the ability
 removes both of the caster's effects.
-`wc3_spell.devotion_aura_roc_fallback_does_not_stack_on_source` currently omits
-`BuffID` and expects one ability-art effect on the caster and one on the ally.
-That fixture captures the old generic fallback contract; it does not establish
-the original RoC executable's `AHad`→`BHad` mapping or its distinct recipient art.
+`wc3_spell.devotion_aura_roc_compat_uses_bhad_recipient_art` omits `BuffID` and,
+with `BZ_COMPAT_WORKAROUNDS` enabled, checks the caster pattern and recipient
+glow from `BHad.TargetArt`. With the flag disabled,
+`wc3_spell.devotion_aura_without_compat_uses_ability_art_fallback` checks the
+generic ability-art fallback.
 `wc3_spell.devotion_aura_custom_art_is_removed_while_another_source_keeps_glow`
 and the matching `unholy_aura_custom_art_is_removed_while_another_source_keeps_glow`
 use custom `XHfx`/`XUfx` aliases with `ui_panel.mdx` art, distinct from both the
