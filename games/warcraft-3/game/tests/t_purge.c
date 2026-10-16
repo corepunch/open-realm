@@ -24,7 +24,7 @@ void free_slk_rows(slkTestData_t *rows);
 	"C;Y1;X10;K\"BuffID1\"\nC;Y1;X11;K\"DataA1\"\nC;Y1;X12;K\"DataC1\"\n" \
 	"C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"DataE1\"\n" \
 	"C;Y2;X1;K\"Apg2\"\nC;Y2;X2;K\"Aprg\"\nC;Y2;X3;K\"1\"\n" \
-	"C;Y2;X4;K\"air,ground,ward,vuln,invu,tree\"\nC;Y2;X5;K\"75\"\nC;Y2;X6;K\"0\"\n" \
+	"C;Y2;X4;K\"air,ground,ward,vuln,invu,tree,friend,enemy\"\nC;Y2;X5;K\"75\"\nC;Y2;X6;K\"0\"\n" \
 	"C;Y2;X7;K\"700\"\nC;Y2;X8;K\"12\"\nC;Y2;X9;K\"4\"\n" \
 	"C;Y2;X10;K\"Bprg\"\nC;Y2;X11;K\"0.5\"\nC;Y2;X12;K\"180\"\n" \
 	"C;Y2;X13;K\"2\"\nC;Y2;X14;K\"1\"\n" \
@@ -96,6 +96,26 @@ TEST(wc3_spell, purge_reuses_slot_freed_by_dispel) {
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 1);
     FOR_LOOP(i, MAX_UNIT_STATUSES) T_ASSERT(fix.enemy->abilstatus[i].level);
+    purge_done(fix);
+}
+
+/* Friendly Purge still dispels, but does not install the hostile movement status. */
+TEST(wc3_spell, purge_friendly_dispels_without_slowing) {
+    purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
+    heroabilitystatus_t *status = unit_applystatus(fix.enemy, &(status_application_t){
+        .buff = "Bfr1", .level = 1, .duration = 30.0f,
+        .buff_flags = WC3_STATUS_BUFF_NEGATIVE | WC3_STATUS_BUFF_MAGICAL
+    });
+    edict_t *wp;
+    T_NOT_NULL(status);
+    fix.enemy->s.player = fix.caster->s.player;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
+    T_EQ(G_UnitStatusLevel(fix.enemy, MAKEFOURCC('B','f','r','1')), 0);
+    T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 0);
+    T_FEQ(S_PurgeMoveReduction(fix.enemy), 0.0f, 0.001f);
+    wp = Waypoint_add(&(vec2_t){200, 0});
+    order_move(fix.enemy, wp);
+    T_ASSERT(fix.enemy->goalentity == wp);
     purge_done(fix);
 }
 

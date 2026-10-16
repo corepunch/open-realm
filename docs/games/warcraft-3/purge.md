@@ -92,5 +92,6 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.purge*'
 
 Focused tests cover alias procedure sharing, Aprg authored DataA slow,
 Apg2 DataD immobilize + expiry restore, Hero DataE pause, summoned DataC
-damage, and gradual post-pause recovery. Existing `t_spell.c` Purge cases must
-keep passing.
+damage, gradual post-pause recovery, and friendly dispel without movement
+status. `t_spell.c` also verifies hostile slow and summon damage with explicit
+player-relation setup.

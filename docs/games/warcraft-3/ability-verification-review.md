@@ -57,8 +57,9 @@ the pinned Warcraft III 1.29.2.9231 executable (PE32 x86; SHA-256
 
 These are Retail JASS observations, not a complete target-mask specification.
 The implementation rejects dead or resistant Charm targets and gates Purge's
-movement status on hostility. Regression coverage for these specific cases
-should accompany future changes to either path.
+movement status on hostility. Regression tests cover these exclusions and relationship-dependent Purge effects
+in `games/warcraft-3/game/tests/t_charm.c` and `t_purge.c`. The complete
+classic/TFT WC3 suites run through `make test`.
 
 ## Data and timing
 
