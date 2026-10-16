@@ -65,7 +65,9 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff;
     heroabilitystatus_t *slot;
+    bool hostile;
     if (!st.entity) return;
+    hostile = S_SpellIsEnemy(caster, st.entity);
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *s = st.entity->abilstatus + i;
         if (!s->level || !s->timestamp) continue;
@@ -74,14 +76,17 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     }
     unit_refreshstatusflags(st.entity);
     G_InvalidateUnitInfoPanel(st.entity);
-    buff = S_SpellBuffId(spell->code, level);
-    if (!buff || strlen(buff) < 4) buff = "Bprg";
-    slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                         S_SpellDuration(spell->code, level, false));
-    if (slot) slot->data = spell->code;
+    /* The hostile-only movement effect is independent of Purge's dispel. */
+    if (hostile) {
+        buff = S_SpellBuffId(spell->code, level);
+        if (!buff || strlen(buff) < 4) buff = "Bprg";
+        slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                             S_SpellDuration(spell->code, level, false));
+        if (slot) slot->data = spell->code;
+    }
     if (st.entity->owner && !S_SummonIsDispelImmune(st.entity))
         S_SpellDamage(st.entity, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, 3)));
-    if (S_PurgeIsImmobilized(st.entity) && st.entity->stand) st.entity->stand(st.entity);
+    if (hostile && S_PurgeIsImmobilized(st.entity) && st.entity->stand) st.entity->stand(st.entity);
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityPurge) { purge_execute(caster, st, spell); }

@@ -4920,6 +4920,9 @@ TEST(wc3_spell, purge_removes_status_applies_slow_and_damages_summoned) {
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	edict_t *caster = make_hero(MAKEFOURCC('o','s', 'h','m'), 300, 300, 0, 0);
 	edict_t *enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 500, 0);
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	memset(level.alliances, 0, sizeof(level.alliances));
 	caster->s.player = 0; enemy->s.player = 1;
 	enemy->svflags |= SVF_MONSTER; enemy->health.value = enemy->health.max_value = 500;
 	T_EQ(S_AbilityItem(FS_SLKKey("Aprg")).ability->proc, CAbilityPurge);
