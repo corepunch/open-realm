@@ -870,6 +870,11 @@ void SCR_LayoutUpdateBuildQueue(uiFrame_t const *frame, rect_t const *screen) {
     }
     FOR_LOOP(i, queue->numitems) {
         uiBuildQueueItem_t const *item = &queue->items[i];
+        if (item->flags & UI_BUILDQUEUE_ITEM_PAUSED) {
+            if (buildtimer) buildtimer->value = MAX(0, MIN(item->progress, 1));
+            if (firstitem) firstitem->tex.index = item->image;
+            break;
+        }
         if (cl.time < item->endtime) {
             float dur  = item->endtime - item->starttime;
             float elap = cl.time > item->starttime ? (float)(cl.time - item->starttime) : 0;

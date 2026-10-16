@@ -797,6 +797,10 @@ void MDX_RenderModel(renderEntity_t const *entity,
                      mdxModel_t const *model,
                      mat4_t const *transform)
 {
+    /* Observe pause transitions even when this entity is culled. Otherwise a
+     * complete held interval outside the view is invisible to the per-entity
+     * global-sequence clock and causes a phase jump when it returns. */
+    MDLX_UpdateEntityAnimationPause(entity);
     if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
         vec3_t const center = Box3_Center(&model->bounds.box);
         sphere3_t const sphere = {
@@ -821,6 +825,9 @@ void MDX_RenderModel(renderEntity_t const *entity,
         remappedEntity.oldframe = MDLX_RemapAnimation(model, remappedEntity.oldframe, "Gold");
         entity = &remappedEntity;
     }
+
+    mdxAnimationTimeScope_t animation_time_scope;
+    MDLX_PushEntityAnimationTime(entity, &animation_time_scope);
     
     modelProg_t *shader = mdlx.shader;
     mat3_t normalMatrix;
@@ -929,4 +936,5 @@ void MDX_RenderModel(renderEntity_t const *entity,
         R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
+    MDLX_PopEntityAnimationTime(&animation_time_scope);
 }

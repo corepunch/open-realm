@@ -3138,6 +3138,7 @@ bool S_OrderRepair(edict_t *ent, edict_t *target, uint32_t preferred);
 bool S_SetRepairAutocast(edict_t *ent, bool enabled);
 bool S_RepairSmart(edict_t *ent, edict_t *target);
 void S_CancelRepair(edict_t *ent);
+bool S_RepairWorkerAdvancingHumanConstruction(edict_t const *worker, edict_t const *building);
 void G_SetPlayerTechMaxAllowed(gameClient_t *client, uint32_t techid, int32_t maximum);
 int32_t G_GetPlayerTechMaxAllowed(gameClient_t *client, uint32_t techid);
 void G_SetPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t level_value);

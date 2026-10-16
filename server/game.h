@@ -155,6 +155,8 @@ typedef struct {
     char art[256];
     uint32_t starttime;
     uint32_t endtime;
+    uint16_t flags;
+    float progress;
 } gameQueueItem_t;
 
 struct game_export {

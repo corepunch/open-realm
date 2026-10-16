@@ -277,8 +277,10 @@ void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer) {
     buildqueue->numitems = visible_count;
     FOR_LOOP(i, visible_count) {
         buildqueue->items[i].image = (uint16_t)gi.ImageIndex(queue[i].art);
+        buildqueue->items[i].flags = queue[i].flags;
         buildqueue->items[i].starttime = queue[i].starttime;
         buildqueue->items[i].endtime = queue[i].endtime;
+        buildqueue->items[i].progress = queue[i].progress;
     }
 
     memset(&list, 0, sizeof(list));

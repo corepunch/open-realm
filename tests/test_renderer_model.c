@@ -455,6 +455,101 @@ TEST(renderer_model, mdx_global_sequence_uses_first_key_when_duration_precedes_i
     T_FEQ(value.w, authored.w, 0.001f);
 }
 
+TEST(renderer_model, mdx_global_sequence_holds_per_entity_and_resumes_without_jumping) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxGlobalSequence_t global = { .value = 1000 };
+    mdxModel_t model = { .globalSequences = &global, .num_globalSequences = 1 };
+    renderEntity_t entity = { .number = MAX_GAME_ENTITIES - 1, .generation = 0x574333u };
+    mdxKeyFrame_t *first = (mdxKeyFrame_t *)track->values;
+    mdxKeyFrame_t *last = (mdxKeyFrame_t *)((uint8_t *)track->values + sizeof(int) + sizeof(float));
+    uint32_t const old_time = tr.viewDef.time;
+    float const values[2] = { 0.0f, 10.0f };
+    float value = 0.0f;
+    mdxAnimationTimeScope_t scope;
+
+    track->keyframeCount = 2;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = 0;
+    first->time = 0;
+    last->time = 1000;
+    memcpy(first->data, &values[0], sizeof(values[0]));
+    memcpy(last->data, &values[1], sizeof(values[1]));
+
+    tr.viewDef.time = 400;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 4.0f, 0.001f);
+
+    entity.flags |= RF_MDX_ANIMATION_PAUSED;
+    tr.viewDef.time = 800;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 8.0f, 0.001f);
+
+    tr.viewDef.time = 900;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 8.0f, 0.001f);
+
+    entity.flags &= ~RF_MDX_ANIMATION_PAUSED;
+    tr.viewDef.time = 1200;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 8.0f, 0.001f); /* no phase jump on resume */
+
+    tr.viewDef.time = 1300;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 9.0f, 0.001f);
+    tr.viewDef.time = old_time;
+}
+
+TEST(renderer_model, mdx_global_sequence_pause_transitions_can_be_observed_while_culled) {
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxGlobalSequence_t global = { .value = 1000 };
+    mdxModel_t model = { .globalSequences = &global, .num_globalSequences = 1 };
+    renderEntity_t entity = { .number = MAX_GAME_ENTITIES - 2, .generation = 0x574334u };
+    mdxKeyFrame_t *first = (mdxKeyFrame_t *)track->values;
+    mdxKeyFrame_t *last = (mdxKeyFrame_t *)((uint8_t *)track->values + sizeof(int) + sizeof(float));
+    mdxAnimationTimeScope_t scope;
+    uint32_t const old_time = tr.viewDef.time;
+    float values[2] = { 0.0f, 10.0f }, value = 0.0f;
+
+    track->keyframeCount = 2;
+    track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR;
+    track->globalSeqId = 0;
+    first->time = 0; last->time = 1000;
+    memcpy(first->data, &values[0], sizeof(values[0]));
+    memcpy(last->data, &values[1], sizeof(values[1]));
+
+    tr.viewDef.time = 100;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 1.0f, 0.001f);
+    entity.flags |= RF_MDX_ANIMATION_PAUSED;
+    tr.viewDef.time = 300;
+    MDLX_UpdateEntityAnimationPause(&entity); /* model is outside the frustum */
+    entity.flags &= ~RF_MDX_ANIMATION_PAUSED;
+    tr.viewDef.time = 700;
+    MDLX_UpdateEntityAnimationPause(&entity); /* still culled */
+    tr.viewDef.time = 900;
+    MDLX_PushEntityAnimationTime(&entity, &scope);
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    MDLX_PopEntityAnimationTime(&scope);
+    T_FEQ(value, 5.0f, 0.001f); /* 400 ms held interval removed */
+    tr.viewDef.time = old_time;
+}
+
 TEST(renderer_model, mdx_sequence_zero_clock_wraps_with_render_time) {
     uint32_t old_time = tr.viewDef.time;
     mdxSequence_t seq = { .interval = { 100, 1100 } };
@@ -618,6 +713,65 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
     T_FEQ(emitted[0].org.y, pivot.y, 0.00001f);
     T_FEQ(emitted[0].size[0] * emitted[0].size_value_scale, 0.01f, 0.0001f);
     T_FEQ(emitted[1].tail.z, 0.006f, 0.00001f);
+    tr.viewDef = saved;
+}
+
+/* A gate's non-looping Open sequence must not indefinitely respawn PRE2
+ * particles after it holds its final frame. Looping Stand effects still work. */
+TEST(renderer_model, mdx_one_shot_emitter_stops_only_after_final_frame_is_held) {
+    mdxParticleEmitter_t emitter = { .node.node_id = 0, .LifeSpan = 1,
+        .EmissionRate = 50, .Speed = 1, .Alpha = {255, 255, 255},
+        .ParticleScaling = {1, 1, 1}, .SegmentColor = {1,1,1, 1,1,1, 1,1,1},
+        .Rows = 1, .Columns = 1 };
+    mdxSequence_t sequences[2] = {
+        { .name = "Open", .interval = {100, 500}, .flags = 1 },
+        { .name = "Stand", .interval = {500, 900}, .flags = 0 },
+    };
+    mdxModel_t model = { .emitters = &emitter, .sequences = sequences, .num_sequences = 2 };
+    renderEntity_t entity = { .frame = 499, .oldframe = 499 };
+    viewDef_t saved = tr.viewDef;
+    mat4_t matrix;
+
+    Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    tr.viewDef.deltaTime = 20;
+    emit_count = 0;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 0); /* Open has ended */
+
+    entity.oldframe = 450; /* transitional sample still permits its final burst */
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 1);
+
+    entity.oldframe = entity.frame = 899; /* Stand is looping, despite a held sample */
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 2);
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_paused_worker_construction_does_not_spawn_particles) {
+    mdxParticleEmitter_t emitter = { .node.node_id = 0, .LifeSpan = 1,
+        .EmissionRate = 50, .Speed = 1, .Alpha = {255, 255, 255},
+        .ParticleScaling = {1, 1, 1}, .SegmentColor = {1,1,1, 1,1,1, 1,1,1},
+        .Rows = 1, .Columns = 1 };
+    mdxSequence_t sequence = { .name = "Birth", .interval = {100, 2000}, .flags = 1 };
+    mdxModel_t model = { .emitters = &emitter, .sequences = &sequence, .num_sequences = 1 };
+    renderEntity_t entity = { .frame = 900, .oldframe = 900,
+                               .flags = RF_BUILDING | RF_MDX_EMISSION_PAUSED };
+    viewDef_t saved = tr.viewDef;
+    mat4_t matrix;
+
+    Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    tr.viewDef.deltaTime = 20;
+    emit_count = 0;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 0);
+
+    entity.flags &= ~RF_MDX_EMISSION_PAUSED;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 1); /* worker resumed: same Birth frame can emit again */
+    entity.flags |= RF_MDX_EMISSION_PAUSED;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 1);
     tr.viewDef = saved;
 }
 

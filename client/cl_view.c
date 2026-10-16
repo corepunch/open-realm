@@ -13,6 +13,11 @@ static struct {
     int num_splat_rects;
 } view_state;
 
+/* cl_debug_entities prints paused construction's render inputs once per second,
+ * even when no entity delta arrives. This distinguishes a moving server frame
+ * from renderer animation that advances with fixed entity frames. */
+static int debug_paused_building_time[MAX_CLIENT_ENTITIES];
+
 static bool world_loaded = false;
 static bool begin_sent = false;
 
@@ -305,6 +310,20 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_GROUND_CONFORM) re.flags |= RF_GROUND_CONFORM;
     if (ent->current.flags & EF_GROUND_SURFACE) re.flags |= RF_GROUND_SURFACE;
     if (ent->current.flags & EF_SELECTION_CIRCLE_ON_WATER) re.flags |= RF_SELECTION_CIRCLE_ON_WATER;
+    if (ent->current.flags & EF_MDX_EMISSION_PAUSED) re.flags |= RF_MDX_EMISSION_PAUSED;
+    if (ent->current.flags & EF_MDX_ANIMATION_PAUSED) re.flags |= RF_MDX_ANIMATION_PAUSED;
+    if (Cvar_Integer("cl_debug_entities", 0) &&
+        (ent->current.flags & EF_MDX_EMISSION_PAUSED) &&
+        ent->current.number < MAX_CLIENT_ENTITIES) {
+        int *last = &debug_paused_building_time[ent->current.number];
+        if (!*last || cl.time < *last || cl.time - *last >= 1000) {
+            *last = cl.time;
+            fprintf(stderr, "CL_BUILD paused-render ent=%u model=%u time=%d frame=%u oldframe=%u lerp=%.3f flags=0x%08x\n",
+                    (unsigned)ent->current.number, (unsigned)ent->current.model,
+                    cl.time, re.frame, re.oldframe, cl.viewDef.lerpfrac,
+                    ent->current.flags);
+        }
+    }
     re.radius = ent->current.radius;
     re.ground_offset = ent->current.ground_offset;
     re.ground_snapshot_z = ent->current.origin.z;

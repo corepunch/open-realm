@@ -3956,6 +3956,26 @@ TEST(net, entity_delta_preserves_ground_surface_flags) {
     T_ASSERT(out.flags & EF_GROUND_SURFACE);
 }
 
+/* Held construction presentation flags are server-authored snapshot state and
+ * must reach the universal client renderer intact. */
+TEST(net, entity_delta_preserves_mdx_pause_flags) {
+    uint8_t buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1,
+        .flags = EF_MDX_EMISSION_PAUSED | EF_MDX_ANIMATION_PAUSED }, out = { 0 };
+    uint32_t bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_MDX_EMISSION_PAUSED);
+    T_ASSERT(out.flags & EF_MDX_ANIMATION_PAUSED);
+}
+
 /* WC3 building damage rendering relies on server-authored effect presentation
  * data surviving the shared entity delta unchanged. */
 TEST(net, entity_delta_preserves_effect_model) {

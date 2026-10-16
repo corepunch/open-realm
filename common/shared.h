@@ -204,6 +204,8 @@ enum {
     FLAG(RF_ALLIED, 25),         /* recipient-relative ally; prioritize after the local player's units */
     FLAG(RF_SELECTION_CIRCLE_ON_WATER, 26), /* draw this entity's ground overlays over supported water */
     FLAG(RF_GROUND_SURFACE_SUPPORT, 27), /* WC3 renderer found a walkable destructable under this entity */
+    FLAG(RF_MDX_EMISSION_PAUSED, 28), /* renderer: do not spawn particles while entity emission is paused */
+    FLAG(RF_MDX_ANIMATION_PAUSED, 29), /* renderer: freeze MDX global-sequence tracks for this entity */
 };
 
 enum {
@@ -228,6 +230,8 @@ enum {
     FLAG(EF_UNIT, 16),             /* gameplay actor; prioritize in broad box-selection candidate queries */
     FLAG(EF_ALLIED, 17),          /* recipient-relative alliance, distinct from neutral relationship */
     FLAG(EF_SELECTION_CIRCLE_ON_WATER, 18), /* WC3 authored water-supported selection overlay */
+    FLAG(EF_MDX_EMISSION_PAUSED, 19), /* suppress new MDX particles while authored entity animation is held */
+    FLAG(EF_MDX_ANIMATION_PAUSED, 20), /* hold MDX global-sequence tracks while authored entity animation is held */
 };
 
 enum {
@@ -1170,9 +1174,13 @@ typedef uint16_t RESOURCE;
 
 typedef struct {
     uint16_t image;
+    uint16_t flags;
     uint32_t starttime;
     uint32_t endtime;
+    float progress; /* normalized authoritative progress; used directly when paused */
 } uiBuildQueueItem_t;
+
+#define UI_BUILDQUEUE_ITEM_PAUSED (1u << 0)
 
 #define UI_MULTISELECT_ITEM_FOCUSED (1u << 0)
 

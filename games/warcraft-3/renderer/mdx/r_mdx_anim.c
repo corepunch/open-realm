@@ -89,6 +89,69 @@ static mdxKeyFrame_t *R_KeyFrameAt(mdxKeyTrack_t const *track, uint32_t stride, 
     return (mdxKeyFrame_t *)((string_t)track->values + stride * index);
 }
 
+typedef struct {
+    uint32_t generation;
+    uint32_t last_time;
+    uint32_t pause_start;
+    uint32_t paused_total;
+    bool valid;
+    bool paused;
+} mdxGlobalSequencePauseState_t;
+
+static mdxGlobalSequencePauseState_t global_sequence_pause[MAX_GAME_ENTITIES];
+static bool entity_global_time_valid;
+static uint32_t entity_global_time;
+
+/* MDX global sequences usually follow view time, but held construction must
+ * keep per-entity global tracks (for example a Farm's globally animated saw)
+ * at their current phase. Subtract accumulated paused time on resume so the
+ * track continues from that phase instead of jumping forward. */
+void MDLX_UpdateEntityAnimationPause(renderEntity_t const *entity) {
+    uint32_t now = tr.viewDef.time ? tr.viewDef.time : SDL_GetTicks();
+    if (entity && entity->number < MAX_GAME_ENTITIES) {
+        mdxGlobalSequencePauseState_t *state = &global_sequence_pause[entity->number];
+        bool const paused = (entity->flags & RF_MDX_ANIMATION_PAUSED) != 0;
+        if (!state->valid || state->generation != entity->generation) {
+            *state = (mdxGlobalSequencePauseState_t){ .generation = entity->generation,
+                .last_time = now, .pause_start = now, .valid = true, .paused = paused };
+        } else {
+            if (now < state->last_time) {
+                state->paused_total = 0;
+                state->pause_start = now;
+            }
+            state->last_time = now;
+            if (paused && !state->paused) {
+                state->pause_start = now;
+                state->paused = true;
+            } else if (!paused && state->paused) {
+                state->paused_total += now - state->pause_start;
+                state->paused = false;
+            }
+        }
+    }
+}
+
+void MDLX_PushEntityAnimationTime(renderEntity_t const *entity, mdxAnimationTimeScope_t *scope) {
+    uint32_t now = tr.viewDef.time ? tr.viewDef.time : SDL_GetTicks();
+    uint32_t effective = now;
+    if (!scope) return;
+    scope->previous_valid = entity_global_time_valid;
+    scope->previous_time = entity_global_time;
+    MDLX_UpdateEntityAnimationPause(entity);
+    if (entity && entity->number < MAX_GAME_ENTITIES) {
+        mdxGlobalSequencePauseState_t const *state = &global_sequence_pause[entity->number];
+        effective = state->paused ? state->pause_start - state->paused_total : now - state->paused_total;
+    }
+    entity_global_time = effective;
+    entity_global_time_valid = true;
+}
+
+void MDLX_PopEntityAnimationTime(mdxAnimationTimeScope_t const *scope) {
+    if (!scope) return;
+    entity_global_time = scope->previous_time;
+    entity_global_time_valid = scope->previous_valid;
+}
+
 /* MDX key times are authored in ascending order; binary bounds avoid rescanning every track for every model instance. */
 static uint32_t R_KeyFrameBound(mdxKeyTrack_t const *track, uint32_t stride, uint32_t time, bool upper) {
     uint32_t lo = 0, hi = track->keyframeCount;
@@ -131,7 +194,8 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
            range while keeping fixed-time renderer captures deterministic. */
         {
             uint32_t gs_len = interval[1] + 1;
-            uint32_t global_time = tr.viewDef.time ? tr.viewDef.time : SDL_GetTicks();
+            uint32_t global_time = entity_global_time_valid ? entity_global_time :
+                                   (tr.viewDef.time ? tr.viewDef.time : SDL_GetTicks());
             time = gs_len > 0 ? (global_time % gs_len) : 0;
         }
     } else {
