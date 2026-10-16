@@ -1,0 +1,17 @@
+function main takes nothing returns nothing
+ call SetCampaignAI()
+ call CreateCaptains()
+ call SetCaptainHome(1,512,1536)
+ call InitAssault()
+ if AddAssault(1,'hF3G') and AddAssault(11,'hfoo') and AddAssault(1,'hF3H') then
+  call Preload("F347 tick=12 scene=0 label=assault-accepted")
+ else
+  call Preload("F347 tick=12 scene=0 label=assault-rejected")
+ endif
+ if CaptainGroupSize()==13 then
+  call Preload("F347 tick=12 scene=0 label=roster-thirteen")
+ endif
+ loop
+  call Sleep(1.0)
+ endloop
+endfunction

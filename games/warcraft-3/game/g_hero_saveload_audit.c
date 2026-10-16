@@ -162,14 +162,17 @@ static bool hsa_issue_walk(edict_t *hero) {
     };
     vec2_t dest, goal;
 
-    /* unit_issueorder("move") stays true when ClosestPathable snaps the click
-     * back onto the current cell (intro pocket). Require the waypoint to leave. */
+    /* The diagnostic needs a reachable walk, while public Move retains its
+     * requested click. Admit a pathable candidate here before issuing it. */
     FOR_LOOP(d, sizeof(dist) / sizeof(dist[0])) {
         FOR_LOOP(i, sizeof(dirs) / sizeof(dirs[0])) {
             dest.x = hero->s.origin2.x + dirs[i].x * dist[d];
             dest.y = hero->s.origin2.y + dirs[i].y * dist[d];
-            if (!unit_issueorder(hero, "move", &dest) || !hero->goalentity) continue;
-            goal = hero->goalentity->s.origin2;
+            pathAccelParams_t query={&dest,NULL,hero->collision,M_UnitStaticPathingFlags(hero)};
+            if (!G_ClosestMovePathPoint(&query,&goal)) continue;
+            if (fabsf(goal.x-hero->s.origin2.x)<=HSA_LEAVE_EPS &&
+                fabsf(goal.y-hero->s.origin2.y)<=HSA_LEAVE_EPS) continue;
+            if (!unit_issueorder(hero,"move",&goal) || !hero->goalentity) continue;
             if (fabsf(goal.x - hero->s.origin2.x) > HSA_LEAVE_EPS ||
                     fabsf(goal.y - hero->s.origin2.y) > HSA_LEAVE_EPS)
                 return true;

@@ -1,0 +1,230 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "scope": "Execute the complete original5fccc0 queued-command predicate without stand-ins.\n\nThe active head is ignored. Commands851990/851991 preserve the found flag;\nany other queued command writes1 and ends iteration. This is the classifier,\nnot an emulation of the user-list traversal or entire Patrol task graph.\n",
+  "rows": [
+    {
+      "command": 851990,
+      "head": 0,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 851990,
+      "head": 0,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    },
+    {
+      "command": 851990,
+      "head": 1,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 851990,
+      "head": 1,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    },
+    {
+      "command": 851991,
+      "head": 0,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 851991,
+      "head": 0,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    },
+    {
+      "command": 851991,
+      "head": 1,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 851991,
+      "head": 1,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    },
+    {
+      "command": 851986,
+      "head": 0,
+      "previous": 0,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 851986,
+      "head": 0,
+      "previous": 1,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 851986,
+      "head": 1,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 851986,
+      "head": 1,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    },
+    {
+      "command": 851983,
+      "head": 0,
+      "previous": 0,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 851983,
+      "head": 0,
+      "previous": 1,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 851983,
+      "head": 1,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 851983,
+      "head": 1,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    },
+    {
+      "command": 851972,
+      "head": 0,
+      "previous": 0,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 851972,
+      "head": 0,
+      "previous": 1,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 851972,
+      "head": 1,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 851972,
+      "head": 1,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    },
+    {
+      "command": 851993,
+      "head": 0,
+      "previous": 0,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 851993,
+      "head": 0,
+      "previous": 1,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 851993,
+      "head": 1,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 851993,
+      "head": 1,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    },
+    {
+      "command": 0,
+      "head": 0,
+      "previous": 0,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 0,
+      "head": 0,
+      "previous": 1,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 0,
+      "head": 1,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 0,
+      "head": 1,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    },
+    {
+      "command": 4294967295,
+      "head": 0,
+      "previous": 0,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 4294967295,
+      "head": 0,
+      "previous": 1,
+      "continued": 0,
+      "found": 1
+    },
+    {
+      "command": 4294967295,
+      "head": 1,
+      "previous": 0,
+      "continued": 1,
+      "found": 0
+    },
+    {
+      "command": 4294967295,
+      "head": 1,
+      "previous": 1,
+      "continued": 1,
+      "found": 1
+    }
+  ]
+}

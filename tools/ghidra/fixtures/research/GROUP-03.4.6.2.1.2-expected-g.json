@@ -1,0 +1,2132 @@
+{
+ "task": "GROUP-03.4.6.2.1.2",
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "source_reports": {
+  "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.4.6.2.1.2/captures/g-observe-1-envB-report.json": "d2905525ee5f0584bcc7d32b01aa977a93b254f57a238cb42f78df8f95ff94dc",
+  "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.4.6.2.1.2/captures/g-observe-2-envC-report.json": "094d881894dbdac557eacfdb2edbcaa77dbe839a46fae09ef471d4d9d1de539e"
+ },
+ "captures": {
+  "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.4.6.2.1.2/captures/g-observe-1-envB.jsonl": "0877e2b6f623b15e3cfb74c48cfe99a66b5cdfcc01750e52786d005be9d372d5",
+  "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.4.6.2.1.2/captures/g-observe-2-envC.jsonl": "868becbeb491ba1cd7759de1f313c87a093d457aa6f95b02f7fee4f845b2532d"
+ },
+ "repeats_identical": true,
+ "authored_calls": [
+  {
+   "tick": 9,
+   "unit": "hRA0",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    90.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1119092736
+    ]
+   ],
+   "range_word": 1123549184,
+   "range": 124.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA1",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    1,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    90.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     0
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     0
+    ]
+   ],
+   "range_word": 1116471296,
+   "range": 70.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA2",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    1,
+    0
+   ],
+   "weapon_types": [
+    2,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    400.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     0
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     0
+    ]
+   ],
+   "range_word": 1116471296,
+   "range": 70.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA3",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    1,
+    0,
+    0
+   ],
+   "weapon_types": [
+    2,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    400.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1137180672
+    ]
+   ],
+   "range_word": 1134231552,
+   "range": 310.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA4",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    2,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    400.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1137180672
+    ]
+   ],
+   "range_word": 1134231552,
+   "range": 310.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA5",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    90.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [],
+   "range_word": 1112014848,
+   "range": 50.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA6",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    90.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1119092736
+    ]
+   ],
+   "range_word": 1123549184,
+   "range": 124.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA7",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": false,
+   "suppress": null,
+   "weapon_types": null,
+   "targets": null,
+   "ranges": null,
+   "flags20": null,
+   "target": null,
+   "adjusted": null,
+   "trail": [],
+   "range_word": 1133903872,
+   "range": 300.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA8",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    90.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1119092736
+    ]
+   ],
+   "range_word": 1123549184,
+   "range": 124.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA9",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    4,
+    0
+   ],
+   "targets": [
+    "0x13e",
+    "0x1"
+   ],
+   "ranges": [
+    400.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1137180672
+    ]
+   ],
+   "range_word": 1134231552,
+   "range": 310.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRAs",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    1
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x40",
+    "0x1"
+   ],
+   "ranges": [
+    200.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     0
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     0
+    ]
+   ],
+   "range_word": 1116471296,
+   "range": 70.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRAt",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    1,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x40",
+    "0x1"
+   ],
+   "ranges": [
+    200.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1128792064
+    ]
+   ],
+   "range_word": 1128136704,
+   "range": 190.0
+  },
+  {
+   "tick": 9,
+   "unit": "HRA0",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x1205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    2
+   ],
+   "targets": [
+    "0x13a",
+    "0x13e"
+   ],
+   "ranges": [
+    100.0,
+    500.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1120403456
+    ]
+   ],
+   "range_word": 1142292480,
+   "range": 600.0
+  },
+  {
+   "tick": 9,
+   "unit": "HRA1",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x1205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    2
+   ],
+   "targets": [
+    "0x13a",
+    "0x13e"
+   ],
+   "ranges": [
+    883.0,
+    500.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1146929152
+    ]
+   ],
+   "range_word": 1142292480,
+   "range": 600.0
+  },
+  {
+   "tick": 9,
+   "unit": "HRA2",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1",
+   "flags5c": "0x1205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    2
+   ],
+   "targets": [
+    "0x13a",
+    "0x13e"
+   ],
+   "ranges": [
+    884.0,
+    500.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1146945536
+    ]
+   ],
+   "range_word": 1142299033,
+   "range": 600.3999633789062
+  },
+  {
+   "tick": 40,
+   "unit": "HRA0/illusion",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x40001005",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    2
+   ],
+   "targets": [
+    "0x13a",
+    "0x13e"
+   ],
+   "ranges": [
+    100.0,
+    500.0
+   ],
+   "flags20": "0x2086012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [],
+   "range_word": 1112014848,
+   "range": 50.0
+  },
+  {
+   "tick": 40,
+   "unit": "hRA0/illusion",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x40001005",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    90.0,
+    0.0
+   ],
+   "flags20": "0x2086012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [],
+   "range_word": 1112014848,
+   "range": 50.0
+  },
+  {
+   "tick": 90,
+   "unit": "hRA4",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    2,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    400.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1137180672
+    ]
+   ],
+   "range_word": 1134231552,
+   "range": 310.0
+  },
+  {
+   "tick": 200,
+   "unit": "hRA6",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    90.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1119092736
+    ]
+   ],
+   "range_word": 1123549184,
+   "range": 124.0
+  },
+  {
+   "tick": 310,
+   "unit": "hRA8",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    90.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1119092736
+    ]
+   ],
+   "range_word": 1123549184,
+   "range": 124.0
+  },
+  {
+   "tick": 420,
+   "unit": "hRA9",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    4,
+    0
+   ],
+   "targets": [
+    "0x13e",
+    "0x1"
+   ],
+   "ranges": [
+    400.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1137180672
+    ]
+   ],
+   "range_word": 1134231552,
+   "range": 310.0
+  },
+  {
+   "tick": 530,
+   "unit": "hRA4",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    1,
+    0
+   ],
+   "weapon_types": [
+    2,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    400.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     0
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     0
+    ]
+   ],
+   "range_word": 1116471296,
+   "range": 70.0
+  },
+  {
+   "tick": 640,
+   "unit": "hRA6",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    0
+   ],
+   "targets": [
+    "0x13a",
+    "0x1"
+   ],
+   "ranges": [
+    90.0,
+    0.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [],
+   "range_word": 1112014848,
+   "range": 50.0
+  },
+  {
+   "tick": 750,
+   "unit": "hRA8",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x205",
+   "attack_present": false,
+   "suppress": null,
+   "weapon_types": null,
+   "targets": null,
+   "ranges": null,
+   "flags20": null,
+   "target": null,
+   "adjusted": null,
+   "trail": [],
+   "range_word": 1133903872,
+   "range": 300.0
+  },
+  {
+   "tick": 860,
+   "unit": "hRA9",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    4,
+    0
+   ],
+   "targets": [
+    "0x13e",
+    "0x1"
+   ],
+   "ranges": [
+    600.0,
+    200.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1142292480
+    ]
+   ],
+   "range_word": 1138163712,
+   "range": 430.0
+  },
+  {
+   "tick": 970,
+   "unit": "HRA0",
+   "caller": "0x5fd922",
+   "captain_flags": "0x1001",
+   "flags5c": "0x1205",
+   "attack_present": true,
+   "suppress": [
+    0,
+    0,
+    0
+   ],
+   "weapon_types": [
+    1,
+    2
+   ],
+   "targets": [
+    "0x13a",
+    "0x13e"
+   ],
+   "ranges": [
+    100.0,
+    500.0
+   ],
+   "flags20": "0x22084012",
+   "target": [
+    "0xffffffff",
+    "0xffffffff"
+   ],
+   "adjusted": 0.0,
+   "trail": [
+    [
+     "slot",
+     0,
+     1
+    ],
+    [
+     "slot",
+     1,
+     0
+    ],
+    [
+     "maximum",
+     1120403456
+    ]
+   ],
+   "range_word": 1142292480,
+   "range": 600.0
+  }
+ ],
+ "task_ranges": [
+  {
+   "tick": 9,
+   "unit": "hRA0",
+   "kind": "0xd0170",
+   "range": 124.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA1",
+   "kind": "0xd0170",
+   "range": 70.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA2",
+   "kind": "0xd0170",
+   "range": 70.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA3",
+   "kind": "0xd0170",
+   "range": 310.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA4",
+   "kind": "0xd0170",
+   "range": 310.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA5",
+   "kind": "0xd0170",
+   "range": 50.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA6",
+   "kind": "0xd0170",
+   "range": 124.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA7",
+   "kind": "0xd0170",
+   "range": 300.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA8",
+   "kind": "0xd0170",
+   "range": 124.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRA9",
+   "kind": "0xd0170",
+   "range": 310.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRAs",
+   "kind": "0xd0170",
+   "range": 70.0
+  },
+  {
+   "tick": 9,
+   "unit": "hRAt",
+   "kind": "0xd0170",
+   "range": 190.0
+  },
+  {
+   "tick": 9,
+   "unit": "HRA0",
+   "kind": "0xd0170",
+   "range": 600.0
+  },
+  {
+   "tick": 9,
+   "unit": "HRA1",
+   "kind": "0xd0170",
+   "range": 600.0
+  },
+  {
+   "tick": 9,
+   "unit": "HRA2",
+   "kind": "0xd0170",
+   "range": 600.3999633789062
+  },
+  {
+   "tick": 40,
+   "unit": "HRA0/illusion",
+   "kind": "0xd0170",
+   "range": 50.0
+  },
+  {
+   "tick": 40,
+   "unit": "hRA0/illusion",
+   "kind": "0xd0170",
+   "range": 50.0
+  },
+  {
+   "tick": 90,
+   "unit": "hRA4",
+   "kind": "0xd0170",
+   "range": 310.0
+  },
+  {
+   "tick": 200,
+   "unit": "hRA6",
+   "kind": "0xd0170",
+   "range": 124.0
+  },
+  {
+   "tick": 310,
+   "unit": "hRA8",
+   "kind": "0xd0170",
+   "range": 124.0
+  },
+  {
+   "tick": 420,
+   "unit": "hRA9",
+   "kind": "0xd0170",
+   "range": 310.0
+  },
+  {
+   "tick": 530,
+   "unit": "hRA4",
+   "kind": "0xd0170",
+   "range": 70.0
+  },
+  {
+   "tick": 640,
+   "unit": "hRA6",
+   "kind": "0xd0170",
+   "range": 50.0
+  },
+  {
+   "tick": 750,
+   "unit": "hRA8",
+   "kind": "0xd0170",
+   "range": 300.0
+  },
+  {
+   "tick": 860,
+   "unit": "hRA9",
+   "kind": "0xd0170",
+   "range": 430.0
+  },
+  {
+   "tick": 970,
+   "unit": "HRA0",
+   "kind": "0xd0170",
+   "range": 600.0
+  }
+ ],
+ "arrival_ranges": {
+  "HRA0": [
+   {
+    "tick": 9,
+    "radius": 32.0,
+    "stored_word": 1100873728,
+    "stored": 19.75
+   },
+   {
+    "tick": 10,
+    "radius": 32.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   },
+   {
+    "tick": 970,
+    "radius": 32.0,
+    "stored_word": 1100873728,
+    "stored": 19.75
+   },
+   {
+    "tick": 1000,
+    "radius": 32.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "HRA0/illusion": [
+   {
+    "tick": 2,
+    "radius": 31.0,
+    "stored_word": 2097151999,
+    "stored": 1.0633823332454027e+37
+   },
+   {
+    "tick": 40,
+    "radius": 32.0,
+    "stored_word": 1076101120,
+    "stored": 2.5625
+   },
+   {
+    "tick": 40,
+    "radius": 32.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "HRA1": [
+   {
+    "tick": 9,
+    "radius": 32.0,
+    "stored_word": 1100873728,
+    "stored": 19.75
+   },
+   {
+    "tick": 10,
+    "radius": 32.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "HRA2": [
+   {
+    "tick": 9,
+    "radius": 32.0,
+    "stored_word": 1100880281,
+    "stored": 19.76249885559082
+   },
+   {
+    "tick": 10,
+    "radius": 32.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA0": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1083899904,
+    "stored": 4.84375
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA0/illusion": [
+   {
+    "tick": 2,
+    "radius": 31.0,
+    "stored_word": 2097151999,
+    "stored": 1.0633823332454027e+37
+   },
+   {
+    "tick": 40,
+    "radius": 31.0,
+    "stored_word": 1075970048,
+    "stored": 2.53125
+   },
+   {
+    "tick": 40,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA1": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1078591488,
+    "stored": 3.15625
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA2": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1078591488,
+    "stored": 3.15625
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA3": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1093304320,
+    "stored": 10.65625
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA4": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1093304320,
+    "stored": 10.65625
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   },
+   {
+    "tick": 90,
+    "radius": 31.0,
+    "stored_word": 1093304320,
+    "stored": 10.65625
+   },
+   {
+    "tick": 110,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   },
+   {
+    "tick": 530,
+    "radius": 31.0,
+    "stored_word": 1078591488,
+    "stored": 3.15625
+   },
+   {
+    "tick": 550,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA5": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1075970048,
+    "stored": 2.53125
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA6": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1083899904,
+    "stored": 4.84375
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   },
+   {
+    "tick": 200,
+    "radius": 31.0,
+    "stored_word": 1083899904,
+    "stored": 4.84375
+   },
+   {
+    "tick": 220,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   },
+   {
+    "tick": 640,
+    "radius": 31.0,
+    "stored_word": 1075970048,
+    "stored": 2.53125
+   },
+   {
+    "tick": 660,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA7": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1092976640,
+    "stored": 10.34375
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA8": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1083899904,
+    "stored": 4.84375
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   },
+   {
+    "tick": 310,
+    "radius": 31.0,
+    "stored_word": 1083899904,
+    "stored": 4.84375
+   },
+   {
+    "tick": 330,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   },
+   {
+    "tick": 750,
+    "radius": 31.0,
+    "stored_word": 1092976640,
+    "stored": 10.34375
+   },
+   {
+    "tick": 770,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRA9": [
+   {
+    "tick": 9,
+    "radius": 32.0,
+    "stored_word": 1093337088,
+    "stored": 10.6875
+   },
+   {
+    "tick": 10,
+    "radius": 32.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   },
+   {
+    "tick": 420,
+    "radius": 32.0,
+    "stored_word": 1093337088,
+    "stored": 10.6875
+   },
+   {
+    "tick": 450,
+    "radius": 32.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   },
+   {
+    "tick": 860,
+    "radius": 32.0,
+    "stored_word": 1097269248,
+    "stored": 14.4375
+   },
+   {
+    "tick": 890,
+    "radius": 32.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRAs": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1078591488,
+    "stored": 3.15625
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ],
+  "hRAt": [
+   {
+    "tick": 9,
+    "radius": 31.0,
+    "stored_word": 1088225280,
+    "stored": 6.90625
+   },
+   {
+    "tick": 10,
+    "radius": 31.0,
+    "stored_word": 1056629064,
+    "stored": 0.49000000953674316
+   }
+  ]
+ },
+ "roster": [
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA0",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA1",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA2",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA3",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA4",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA5",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA6",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA7",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA8",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRA9",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRAs",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "hRAt",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "HRA0",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "HRA1",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 9,
+   "name": "attach",
+   "unit": "HRA2",
+   "captain_flags": "0x1",
+   "caller": "0x9c348e"
+  },
+  {
+   "tick": 40,
+   "name": "attach",
+   "unit": "HRA0/illusion",
+   "captain_flags": "0x1001",
+   "caller": "0x9cce50"
+  },
+  {
+   "tick": 40,
+   "name": "attach",
+   "unit": "hRA0/illusion",
+   "captain_flags": "0x1001",
+   "caller": "0x9cce50"
+  },
+  {
+   "tick": 640,
+   "name": "detach",
+   "unit": "HRA0/illusion",
+   "captain_flags": "0x1001",
+   "caller": "0x9d7906"
+  },
+  {
+   "tick": 640,
+   "name": "detach",
+   "unit": "hRA0/illusion",
+   "captain_flags": "0x1001",
+   "caller": "0x9d7906"
+  }
+ ],
+ "reissues": [
+  {
+   "tick": 9,
+   "unit": "hRA0",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRA1",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRA2",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRA3",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRA4",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRA5",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRA6",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRA7",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRA8",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRA9",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRAs",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "hRAt",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "HRA0",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "HRA1",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 9,
+   "unit": "HRA2",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 40,
+   "unit": "HRA0/illusion",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 40,
+   "unit": "hRA0/illusion",
+   "order": "0xd0012",
+   "caller": "0x9d8ad2"
+  },
+  {
+   "tick": 90,
+   "unit": "hRA4",
+   "order": "0xd0012",
+   "caller": "0x9d8ff4"
+  },
+  {
+   "tick": 200,
+   "unit": "hRA6",
+   "order": "0xd0012",
+   "caller": "0x9d8ff4"
+  },
+  {
+   "tick": 310,
+   "unit": "hRA8",
+   "order": "0xd0012",
+   "caller": "0x9d8ff4"
+  },
+  {
+   "tick": 420,
+   "unit": "hRA9",
+   "order": "0xd0012",
+   "caller": "0x9d8ff4"
+  },
+  {
+   "tick": 530,
+   "unit": "hRA4",
+   "order": "0xd0012",
+   "caller": "0x9d8ff4"
+  },
+  {
+   "tick": 640,
+   "unit": "hRA6",
+   "order": "0xd0012",
+   "caller": "0x9d8ff4"
+  },
+  {
+   "tick": 750,
+   "unit": "hRA8",
+   "order": "0xd0012",
+   "caller": "0x9d8ff4"
+  },
+  {
+   "tick": 860,
+   "unit": "hRA9",
+   "order": "0xd0012",
+   "caller": "0x9d8ff4"
+  },
+  {
+   "tick": 970,
+   "unit": "HRA0",
+   "order": "0xd0012",
+   "caller": "0x9d8ff4"
+  }
+ ],
+ "suppression": [
+  {
+   "tick": 2,
+   "release": 0,
+   "masks": [
+    0,
+    1,
+    0
+   ],
+   "before": [
+    0,
+    0,
+    0
+   ],
+   "after": [
+    0,
+    1,
+    0
+   ],
+   "caller": "0x501b38"
+  },
+  {
+   "tick": 2,
+   "release": 0,
+   "masks": [
+    0,
+    0,
+    1
+   ],
+   "before": [
+    0,
+    0,
+    0
+   ],
+   "after": [
+    0,
+    0,
+    1
+   ],
+   "caller": "0x501b38"
+  },
+  {
+   "tick": 2,
+   "release": 0,
+   "masks": [
+    1,
+    0,
+    0
+   ],
+   "before": [
+    0,
+    0,
+    0
+   ],
+   "after": [
+    1,
+    0,
+    0
+   ],
+   "caller": "0x501b38"
+  },
+  {
+   "tick": 2,
+   "release": 0,
+   "masks": [
+    1,
+    0,
+    0
+   ],
+   "before": [
+    0,
+    0,
+    0
+   ],
+   "after": [
+    1,
+    0,
+    0
+   ],
+   "caller": "0x501b38"
+  },
+  {
+   "tick": 2,
+   "release": 0,
+   "masks": [
+    1,
+    0,
+    0
+   ],
+   "before": [
+    0,
+    0,
+    0
+   ],
+   "after": [
+    1,
+    0,
+    0
+   ],
+   "caller": "0x501b38"
+  },
+  {
+   "tick": 100,
+   "release": 0,
+   "masks": [
+    0,
+    1,
+    0
+   ],
+   "before": [
+    0,
+    0,
+    0
+   ],
+   "after": [
+    0,
+    1,
+    0
+   ],
+   "caller": "0x501b38"
+  }
+ ],
+ "markers": [
+  "RSG tick=0 label=start_group0346212",
+  "RSG tick=2 label=pre-admission",
+  "RSG tick=2 label=haze caster=0 ability=1095910449 target=1 issued=1",
+  "RSG tick=2 label=haze caster=1 ability=1095910450 target=2 issued=1",
+  "RSG tick=2 label=haze caster=2 ability=1095910449 target=3 issued=1",
+  "RSG tick=2 label=haze caster=3 ability=1095910452 target=10 issued=1",
+  "RSG tick=2 label=haze caster=4 ability=1095910449 target=11 issued=1",
+  "RSG tick=2 label=removed-attack u=7 result=1",
+  "RSG tick=9 label=start-ai",
+  "RSG tick=40 label=illusions",
+  "RSG tick=40 label=wand caster=5 target=0 item=2003397740 slots=6 held=1 used=1",
+  "RSG tick=40 label=wand caster=6 target=12 item=2003397740 slots=6 held=1 used=1",
+  "RSG tick=55 label=illusion u=15 type=1213350192",
+  "RSG tick=55 label=illusion u=16 type=1750221104",
+  "RSG tick=90 label=depart-1 u=4",
+  "RSG tick=100 label=change u=4 ranged-prevented",
+  "RSG tick=100 label=haze caster=7 ability=1095910450 target=4 issued=1",
+  "RSG tick=200 label=depart-1 u=6",
+  "RSG tick=210 label=change u=6 timed-life",
+  "RSG tick=310 label=depart-1 u=8",
+  "RSG tick=320 label=change u=8 removed-attack",
+  "RSG tick=320 label=removed-attack u=8 result=1",
+  "RSG tick=420 label=depart-1 u=9",
+  "RSG tick=430 label=change u=9 long-rifles",
+  "RSG tick=530 label=depart-2 u=4",
+  "RSG tick=640 label=depart-2 u=6",
+  "RSG tick=750 label=depart-2 u=8",
+  "RSG tick=860 label=depart-2 u=9",
+  "RSG tick=970 label=depart u=12 hero",
+  "RSG tick=1080 label=complete"
+ ]
+}

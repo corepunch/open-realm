@@ -64,6 +64,7 @@ bool   jass_dobuffer_ex(jass_t *j, string_t buffer, JASSMODE mode);
 bool   jass_hasfunction(jass_t *j, cstring_t name);
 void   jass_callbyname(jass_t *j, cstring_t name, bool spawn_coroutine);
 void   jass_runevents(jass_t *j);
+void jass_runnewevents(jass_t *j);
 bool   jass_writesnapshot(jass_t *j, jassSnapshot_t *snapshot);
 bool   jass_readsnapshot(jass_t *j, jassSnapshot_t *snapshot);
 uint32_t  jass_programidentity(jass_t *j);
@@ -85,6 +86,9 @@ void   jass_rterror_clear(jass_t *j);
 /* Unique missing calls persist until VM close, independently of the latest error. */
 uint32_t  jass_missingcount(jass_t *j);
 cstring_t jass_missingname(jass_t *j, uint32_t index);
+
+/* Read an owned scalar enum global without changing the VM stack. */
+bool jass_globalenum(jass_t *j, cstring_t name, cstring_t type, uint32_t *value);
 
 /* Stack / value API */
 int32_t   jass_checkinteger(jass_t *j, int index);

@@ -31,3 +31,29 @@ TEST(wc3_coordinates, mandatory_identity_preserves_mdx_placement) {
         FOR_LOOP(k, 16) T_FEQ(actual.v[k], expected.v[k], 0.0001f);
     }
 }
+
+TEST(wc3_coordinates, game_authored_pose_offset_reaches_model_matrix) {
+    model_t model = {.modeltype = ID_MDLX};
+    renderEntity_t ent = {.model = &model, .origin = {3, 5, 7}, .scale = 1,
+        .angle = 0.7f, .pose_offset = {.yaw = -0.02f, .pitch = 0.05f, .roll = -0.08f}};
+    mat4_t actual, expected;
+    orientation_t angles = {.yaw = 0.68f, .pitch = 0.05f, .roll = -0.08f};
+    quaternion_t q = Quaternion_fromOrientation(&angles);
+    Matrix4_from_rotation_translation_scale_origin(&expected, &q, &ent.origin,
+        &(vec3_t){1, 1, 1}, &(vec3_t){0, 0, 0});
+    R_GetEntityMatrix(&ent, &actual);
+    FOR_LOOP(i, 16) T_FEQ(actual.v[i], expected.v[i], 0.000001f);
+    T_FEQ(ent.angle, 0.7f, 0); /* Presentation never writes gameplay facing. */
+}
+
+#include "games/warcraft-3/common/terrain.h"
+#include "games/warcraft-3/game/tests/fixtures/retail_slope272.h"
+TEST(wc3_coordinates, ground_interpolation_matches_unchanged_retail_kernel) {
+    FOR_LOOP(i,sizeof(slope272_ground)/sizeof(*slope272_ground)) {
+        float point[2],heights[4],actual;uint32_t bits;
+        memcpy(point,slope272_ground[i].point,sizeof(point));
+        memcpy(heights,slope272_ground[i].heights,sizeof(heights));
+        actual=W3_InterpolateGroundHeight(point[0]/128,point[1]/128,heights);
+        memcpy(&bits,&actual,sizeof(bits));T_EQ(bits,slope272_ground[i].result);
+    }
+}

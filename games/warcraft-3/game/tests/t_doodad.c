@@ -68,7 +68,7 @@ TEST(wc3_doodad, nonlooping_animation_holds_authored_final_frame) {
     umove_t move = { "death", NULL, G_DoodadAnimationEnd };
 
     ent->animation = &death;
-    ent->currentmove = &move;
+    M_SetMove(ent,&move);
     ent->s.frame = 1200;
     ent->aiflags &= ~AI_HOLD_FRAME;
 
@@ -84,7 +84,7 @@ TEST(wc3_doodad, looping_animation_wraps_to_sequence_start) {
     umove_t move = { "stand", NULL, G_DoodadAnimationEnd };
 
     ent->animation = &stand;
-    ent->currentmove = &move;
+    M_SetMove(ent,&move);
     ent->s.frame = 1200;
     ent->aiflags &= ~AI_HOLD_FRAME;
 
@@ -115,7 +115,7 @@ TEST(wc3_doodad, spawn_enters_nonzero_stand_and_script_can_replace_it) {
         T_ASSERT(G_IsDoodad(ent));
         T_NOT_NULL(ent->animation);
         T_EQ(ent->s.frame, first);
-        T_STREQ(ent->animation_request, "Stand");
+        T_STREQ(G_UnitAnimationRequest(ent), "Stand");
         T_ASSERT(ent->think == monster_think);
         if (ent->animation && ent->think) {
             ent->think(ent);

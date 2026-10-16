@@ -1,5 +1,6 @@
 #include "common/common.h"
 #include "games/warcraft-3/common/terrain.h"
+#include "games/warcraft-3/common/wc3_pathing_masks.h"
 #include "common/ui_constants.h"
 #include <float.h>
 #include <math.h>
@@ -260,19 +261,19 @@ bool CL_GameBuildPathingBlocked(vec2_t const *point, uint8_t pathing, uint8_t pr
     bool shallow_water = false;
 
     if ((prevented & naga_shallow) && (pathing & unbuildable) && point &&
-        !(pathing & (CM_PATHING_UNSWIMMABLE | CM_PATHING_UNFLYABLE))) {
+        !(pathing & (CM_PATHING_UNFLOATABLE | CM_PATHING_UNFLYABLE))) {
         shallow_water = CM_GetWaterHeightAtPoint(point->x, point->y) >
                         CM_GetHeightAtPoint(point->x, point->y);
     }
     if (shallow_water) simple &= (uint8_t)~unbuildable;
     if ((pathing & simple) != 0) return true;
     if ((prevented & unamph) && (pathing & CM_PATHING_UNWALKABLE) &&
-        (pathing & CM_PATHING_UNSWIMMABLE)) return true;
+        (pathing & CM_PATHING_UNFLOATABLE)) return true;
 
     simple = required & (uint8_t)~unamph;
     if ((pathing & simple) != simple) return true;
     if ((required & unamph) &&
-        !((pathing & CM_PATHING_UNWALKABLE) && (pathing & CM_PATHING_UNSWIMMABLE))) return true;
+        !((pathing & CM_PATHING_UNWALKABLE) && (pathing & CM_PATHING_UNFLOATABLE))) return true;
     return false;
 }
 
@@ -599,9 +600,7 @@ float CM_GetHeightAtPoint(float sx, float sy) {
     float b = CM_GetWar3MapVertexHeight(vb);
     float c = CM_GetWar3MapVertexHeight(vc);
     float d = CM_GetWar3MapVertexHeight(vd);
-    float ab = LerpNumber(a, b, x - fx);
-    float cd = LerpNumber(c, d, x - fx);
-    return LerpNumber(ab, cd, y - fy);
+    return W3_InterpolateGroundHeight(x-fx,y-fy,(float const[4]){a,b,c,d});
 }
 
 float CM_GetWaterHeightAtPoint(float sx, float sy) {
@@ -681,6 +680,7 @@ void CM_ReadPathMap(handle_t archive) {
     cells = MemAlloc(width * height);
     SFileReadFile(file, cells, width * height, 0, 0);
     SFileCloseFile(file);
+    FOR_LOOP(i, width * height) cells[i] = wc3_wpm_movement_flags(cells[i]);
     CM_SetupPathMap(width, height, cells);
     MemFree(cells);
 }

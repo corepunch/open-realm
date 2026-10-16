@@ -1,0 +1,67 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "program": "game.dll",
+  "unsaved_changes": false,
+  "functions": [
+    {
+      "address": "6f14ad50",
+      "name": "PathFine_SetupSearch",
+      "comment": "Four footprint classes from .5/1/1.5 internal-size thresholds; initializes goals and budget. ushort header20 increments at this original mutation on every request. Payoff77 pre-seeds FFFE once then original increments FFFF/0/1/2 while lane/class change; complete result, node states and routes equal clean controls. Reset14a980 preserves stamp and backing allocation. Payoff91 same-cell setup returns1 before stamp/class/obstruction initialization, with zero nodes/work and exact goal; previous obstruction/class/stamp remain. No source-footprint validity test; source bounds only. Four-class167ce0/165ae0 caller matrix and292 repeated live complete requests match production C.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Setup0 resets work/counts and writes new coordinate scalars/integers, but retains source90/goal94/nearest9c, budget68, mask/class/target and metadata epoch. Setup1 same-cell also retains query history. Public JASS axis setters accept all three outside coordinates in two completing Frida repeats and an observer-free control; a separate interrupted negative-X Move reaches setup0. Its later movement is not certified."
+    },
+    {
+      "address": "6f14a980",
+      "name": "PathFine_ResetSearch",
+      "comment": "Resets work counter, closed list, node/heap counts and restores heap sentinel. Flag optionally resets additional state. Stamp-reuse oracle. Payoff76 natural1068-pop request repeats unchanged raw queue generations, charged work and full route without clearing backing; header20 is ushort request stamp, nodes30/count40 and heap50/slots60 retain allocation.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Count reset does not erase nodes, source/goal/nearest indices or cell metadata. Retained backing remains relevant to a later outside-source setup0; semantic count0 does not bound reconstruction of that old chain."
+    },
+    {
+      "address": "6f14aa10",
+      "name": "PathFine_StartSearch",
+      "comment": "Sets start-node piecewise heuristic, enqueues it, calls search. 288 static searches match production wc3_pathing_fine.h cell chains, cost, pops and node creation on identical legal graphs. Engine radius/admission/smoothing remain separate.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Even setup0 reaches this body through148100: writes retained source node heuristic from the NEW requested integer coordinates, then enqueues the old source identity using retained work limit."
+    },
+    {
+      "address": "6f148100",
+      "name": "PathFine_BuildRoute",
+      "comment": "Clears output; setup/search/reconstruct. Failure retains nearest chain; nearest start emits original source, otherwise adjusts stored destination to node centre before reconstruction.Payoff75 adds3200 complete static passage requests with raw fractional source/goal and partial/complete route words over50 shapes/four classes/lanes/offsets. Seeded static maps and direct producer bodies; public admission/clock/steering separate.208 full mixed-object scenarios plus1456 budget-boundary complete calls validate result/endpoints/source and exact nearest parent chains against C atO0/O2. Engine idle wall reaches10.5,4.5 partial turn, preserves point goal, resumes after blocker removal. Payoff91 covers admitted167ce0/165ae0 consumption across same-cell, blocked source/goal, disconnected, zero-budget and suppressed target cases, plus four retained same-cell latches. Engine full-route adapter preserves raw owner source and exact source-only failure; all292 live fine requests repeat/C-exact. Outside-source setup and full physical source recovery remain separate.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: 264 frozen public-advance scenarios plus12 growth cases reach452 complete fine builds. Every result/work/count/obstruction/route word matches production C at O0/O2. Two valid priors followed by source(-3.5,10.25) yield22/19 old nearest chains, count0/work1, with exact new source endpoint; actual engine regression fails six assertions before the retention port."
+    },
+    {
+      "address": "6f164c30",
+      "name": "PathAcc_SetupSearch",
+      "comment": "ECX adaptive,stack4 lane,8 source,c goal,10 budget,14 size-input,18 warp,RET18/EAX setup result. Resets retained work then increments fullDWORD2c when distinct source/goal cells; lane d4,stored-size90,warp-mode d8. Payoff78 one pre-call seed FFFFFFFD naturally reaches FFFFFFFE/FFFFFFFF/0..5 across four lanes/sizes, all511 final nodes/work/routes equal fresh controls/C. All searchable metadata warmed by actual lookup; billions of historical requests/capacity/public scheduler excluded. Same-cell/blocked start returns1 without search; indices -1 on blocked start.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Lane/size/warp and coordinates are assigned before source bounds; setup0 preserves sourcec4/goalc8/nearestd0, work limit98 and prior cell epoch. Same-cell setup1 does not expire cell identities. Distinct valid source resets lookup; blocked source sets source/goal=-1."
+    },
+    {
+      "address": "6f164230",
+      "name": "PathAcc_ResetSearch",
+      "comment": "ECX adaptive,stack4 cleanup,RET4/void. Clear a0/work9c/closed-head94 and node count6c/heap8c; restore sentinel. Preserve DWORDstamp2c, map cell metadata and allocated node/heap storage; optional cleanup calls149080/1490b0. Payoff78 uses this actual reset and complete setup across32-bit wrap, four lanes and sizes1/2.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Node count6c/work9c/heap count8c are reset, without erasing node backing, sourcec4/goalc8/nearestd0 or retained cell identities."
+    },
+    {
+      "address": "6f164a20",
+      "name": "PathAcc_StartSearch",
+      "comment": "Fastcall ECX adaptive search. Writes node[+c4].h=isqrt((24|sx-gx|)^2+(24|sy-gy|)^2) from +b4..+c0, enqueues +c4 (162780), tail-jumps 163f50; EAX=found node or -1. 162cb0 reaches it whenever 164c30 does not return1, including setup0 (source floor outside map0): then +c4 is the previous request's stale source node. ROUTE-01.2 assembly + original-code oracle.\n   [ROUTE-01.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Setup0 still reaches start through162cb0: heuristic from NEW source/goal integers is written to retained sourcec4 before enqueue/search. Work limit survives invalid setup."
+    },
+    {
+      "address": "6f162cb0",
+      "name": "PathAcc_BuildRoute",
+      "comment": "Setup/search/reconstruct; 1 can be setup bypass, 0 can carry partial route to adaptive representative. 356 size-1 requests across all lanes. Payoff80 complete file-backed64x64 reduced passage public Move collision40 (footprint1.25,size2) reproduces group38pop/56node six-point partial. Original group consumes intermediate destinations26.5/26.5 then34.5/50.5 then the requested54.5/55.5; never equate this search result with terminal movement. Two full live repeats and437 exact normal engine commits plus800 saved suffix commits verify final failure. Payoff99 unchanged original/C two-edge chain and symmetric equal-distance alternatives preserve every route/node/work/distance word for512 controls, both publication orders and four activation combinations. Payoff102 distinguishes actual inner search from legitimate one-point adaptive setup bypass: wrapper succeeds/count1/work0 without this function. Accepted searches charge actual pops; never fabricate missing search work.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: 152 complete adaptive builds reached by the264 frozen public-advance scenarios match production C at O0/O2, including initialized outside-source retained chains. Supplied terrain/registry/bucket/storage preconditions; not a public timing or cold-invalid-source safety proof."
+    },
+    {
+      "address": "6f1485f0",
+      "name": "DynamicTable_AppendPoints",
+      "comment": "Thiscall ECX 32-byte dynamic table (data+c,growth+14,capacity+18,count+1c), stack4 source point pointer (NULL = reserve only), stack8 count n; RET8; EAX1, or0 only when count+n>capacity and growth==0. Growth adds max(growth,needed) elements via 1c5130 (always returns1). Path route tables (CLrPath+34/+54) have growth 0x80 from 1657c0/166060: first append allocates 0x400 bytes/128 points, the 129th reallocs 0x800/256 points; capacity is retained after shorter refills. ROUTE-01.2 original-code oracle (verify_route01_2_buffers.py).\n   [ROUTE-01.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Owned path fine/coarse growth is128 points. Twelve fine growth requests exercise127/128/129-point boundaries and lengths181/251; shorter11-point refills retain capacity and make no Storm call. Engine fine/adaptive/group route stores now reserve by this quantum and never shrink on refill."
+    },
+    {
+      "address": "6f14a760",
+      "name": "DynamicTable_ErasePoints",
+      "comment": "Thiscall ECX table, stack4 first index, stack8 count; RET8; EAX0 if first>=count else memmove tail and count-=clipped n. Only callers on path route tables: 148100/162cb0 (clear before rebuild), 168740, 165b60, 167120; each rewrites the matching index afterwards. ROUTE-01.2 instruction inventory.\n   [ROUTE-01.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Erasing route count does not shrink backing. Engine count/index reset remains separate from capacity; only owner release frees the allocation."
+    },
+    {
+      "address": "6f14aba0",
+      "name": "DynamicTable_FillPoints",
+      "comment": "Thiscall ECX table, stack4 first, stack8 point pointer, stack c end; RET c; copies one 8-byte point into [first,min(end,count)). Called by 1485f0 after growth. ROUTE-01.2.\n   [ROUTE-01.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Ordered route fill/reconstruction retains destination-first words; refilling a shorter route does not require rebuilding allocation."
+    },
+    {
+      "address": "6f165a20",
+      "name": "PathRouteTable_Construct",
+      "comment": "Element constructor for the two CLrPath route tables (eh vector ctor from 1657c0, size0x20, count2): 058460 with capacity0, growth0x20; 1657c0 then overwrites both growth words (+48,+68) with 0x80. ROUTE-01.2.\n   [ROUTE-01.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff141 ROUTE-01.2: Element constructor initializes capacity0/growth32; path1657c0/166060 replace growth with128. Empty paths allocate no route points."
+    }
+  ]
+}

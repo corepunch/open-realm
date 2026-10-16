@@ -2,7 +2,7 @@
 
 ## Contract
 
-Rally is producer-owned metadata. A unit whose `UnitProfile.trains` is non-empty or whose normalized `Revive` field is non-zero exposes `CmdRally`. The producer stores one current target independently of its production queue; queue entries do not snapshot the rally destination.
+Rally is producer-owned metadata. Authored/runtime `ARal` enables Rally, including on a mobile unit. Legacy producers with non-empty `UnitProfile.trains` or normalized `Revive` also expose `CmdRally`; explicit ARal removal disables this fallback. The producer stores one current target independently of its production queue; queue entries do not snapshot the rally destination.
 
 Zero-initialized `edict.rally.type == RALLY_TARGET_SELF` is the default state. It means the producer itself is the rally widget for the marker and JASS getters, without allocating a separate target object during spawn. When a unit finishes training with this untouched default, retail leaves the new unit without an order; OpenRealm does not Smart-interact with the producer. This matters for Peasants: a damaged Town Hall must not trigger Repair when Auto Repair is off.
 
@@ -30,6 +30,13 @@ unit_issuetargetorder(producer, "smart", widget)
 ```
 
 This handling occurs before immobile-unit and gold-mine-worker movement guards because setting Rally is metadata, not producer movement.
+
+Ordinary public Rally orders still perform normal order admission. After
+capability validation, an accepted nonqueued request cancels active movement
+and pending orders, updates metadata, then leaves public current order0. A
+rejected request preserves movement and its queue. Direct command-card metadata
+setters have a separate boundary; retail Shift/UI timing is not established by
+the public native captures. See [modal admission evidence and saved continuations](retail-pathfinding-engine.md#modal-orders-validate-before-replacing-active-movement).
 
 Right-click point handling preserves the existing formation-aware SmartPoint path for normal units. A selection containing only rally-capable production structures stores the clicked point instead of trying to move the structures.
 

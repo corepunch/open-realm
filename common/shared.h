@@ -730,6 +730,7 @@ typedef struct entityState_s {
         struct { vec2_t origin2; float z; };
     };
     float angle; /* Canonical actor heading, radians. */
+    orientation_t pose_offset; /* Game-authored yaw/pitch/roll offset from the actor heading, radians. */
 #ifdef WOW
     vec3_t rotation; /* Raw placement Euler degrees; preserve the wire layout and decode in the game pose hook. */
 #endif

@@ -265,7 +265,7 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     client->connected = true; client->ps.number = 0; client->ps.color = 6;
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 64, 96);
     producer->data.UnitProfile = &rally_train_profile;
-    producer->s.player = 0; producer->selected = 1;
+    producer->s.player = 0; G_SetEntitySelectionMask(producer, 1);
 
     T_ASSERT(G_SetRallyPoint(producer, &MAKE(vec2_t, 320.0f, 448.0f)));
     indicator = client->rally_indicator;
@@ -292,7 +292,7 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     T_FEQ(indicator->s.origin.y, 224.0f, 0.01f);
     T_FEQ(indicator->s.origin.z, 32.0f, 0.01f);
 
-    producer->selected = 0;
+    G_SetEntitySelectionMask(producer, 0);
     G_UpdateRallyIndicator(client);
     T_NULL(client->rally_indicator);
     T_ASSERT(!indicator->inuse);
@@ -404,6 +404,36 @@ TEST(wc3_rally, training_completion_leaves_unit_idle_on_default_rally) {
     T_NULL(trained->movement.follow_target);
     T_NULL(trained->build);
     T_ASSERT(!trained->buildwork || trained->buildwork->ability == 0);
+}
+
+/* Public native119 reaches normal order admission even for Rally metadata. */
+TEST(wc3_rally, authored_ability_admits_native_replacement_and_rejection_preserves_queue) {
+    char const slk[]="ID;PWXL;N;E\nB;X2;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;Y2;X1;K\"ARal\"\nC;X2;K\"ARal\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    reset_entities();setup_test_world();
+    edict_t *unit=rally_unit(MAKEFOURCC('h','f','o','o'),272,512);
+    unit->stand=unit_stand;unit_stand(unit);
+    vec2_t goal={1280,512},point={1600,768};uint32_t code=MAKEFOURCC('A','R','a','l');
+    T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(G_UnitHasRally(unit));
+    T_ASSERT(unit_issueorder(unit,"move",&goal));
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,true,0,0));
+    T_ASSERT(unit_issueorder(unit,"setrally",&point));
+    T_EQ(unit->current_order_id,0);T_EQ(G_UnitQueuedOrderCount(unit),0);T_ASSERT(!unit_is_walking(unit));
+    vec2_t resolved;T_EQ(G_ResolveRallyTarget(unit,&resolved,NULL),RALLY_TARGET_POINT);
+    T_FEQ(resolved.x,point.x,0);T_FEQ(resolved.y,point.y,0);
+    T_ASSERT(G_ActorRemoveSkill(unit,code));T_ASSERT(!G_UnitHasRally(unit));
+    T_ASSERT(unit_issueorder(unit,"move",&goal));T_ASSERT(G_IssueUnitPointOrder(unit,"move",&goal,true,0,0));
+    T_ASSERT(!unit_issueorder(unit,"setrally",&point));
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(G_UnitQueuedOrderCount(unit),1);
+    T_ASSERT(WriteGame(Test_TempPath("wc3-rally119.bin")));
+    T_ASSERT(G_ActorAddSkill(unit,code));T_ASSERT(unit_issueorder(unit,"setrally",&point));
+    T_ASSERT(ReadGame(Test_TempPath("wc3-rally119.bin")));
+    T_ASSERT(!G_UnitHasRally(unit));T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_EQ(G_UnitQueuedOrderCount(unit),1);T_ASSERT(!unit_issueorder(unit,"setrally",&point));
+    T_EQ(G_UnitQueuedOrderCount(unit),1);remove(Test_TempPath("wc3-rally119.bin"));
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
 }
 
 #endif

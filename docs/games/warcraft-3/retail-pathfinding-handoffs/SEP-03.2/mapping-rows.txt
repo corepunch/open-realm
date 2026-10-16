@@ -1,0 +1,1 @@
+// SEP-03.2: no new MapPathfinding.java rows beyond mapping-rows-SEP-03.1.txt (pool/link/map rows there cover this task). Not applied to the repository.

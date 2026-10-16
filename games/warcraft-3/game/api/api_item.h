@@ -81,13 +81,7 @@ uint32_t SetItemPosition(jass_t *j) {
     edict_t *item = jass_checkhandle(j, 1, "item");
     float x = jass_checknumber(j, 2);
     float y = jass_checknumber(j, 3);
-    if (item && item->item->in_world) {
-        item->s.origin.x = x;
-        item->s.origin.y = y;
-        item->s.origin.z = CM_GetHeightAtPoint(x, y);
-        item->s.origin2 = MAKE(vec2_t, x, y);
-        gi.LinkEntity(item);
-    }
+    G_SetItemPosition(item, &(vec2_t){x, y});
     return 0;
 }
 uint32_t SetItemDropOnDeath(jass_t *j) {
@@ -168,10 +162,10 @@ uint32_t SetItemVisible(jass_t *j) {
     bool show = jass_checkboolean(j, 2);
     if (!whichItem || !G_IsItem(whichItem)) return 0;
     if (show) {
-        whichItem->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(whichItem,false);
         whichItem->svflags &= ~SVF_NOCLIENT;
     } else {
-        whichItem->s.renderfx |= RF_HIDDEN;
+        G_SetEntityHidden(whichItem,true);
         whichItem->svflags |= SVF_NOCLIENT;
     }
     return 0;

@@ -21,6 +21,8 @@ static void disease_tick(edict_t *target, heroabilitystatus_t *slot) {
 
 /* DataA is lifetime, DataB is DPS. Re-entry refreshes duration without adding an extra damage pulse. */
 BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return S_UnitTypeHasAbilityCode(call->unit_type, ID_DISEASE_CLOUD) ? UNIT_UPDATE_RUN : UNIT_UPDATE_SKIP;
     abilityAliasRef_t ability;
     abilityLevel_t const *row;
     cstring_t buff;

@@ -1,5 +1,9 @@
 # Retail Warcraft III camera tracing
 
+For movement experiments using this copied-map workflow, see
+[retail pathfinding](retail-pathfinding.md#cinematic-experiments). Its Ghidra and
+Frida addresses target 1.27.1.7085, not the 1.29.2 camera reference used here.
+
 This documents the repeatable retail-reference workflow used for the
 `Human02Interlude.w3m` opening cinematic. The reference was Warcraft III ROC
 1.29.2 running under Wine. The original campaign map was never modified.

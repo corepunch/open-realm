@@ -105,6 +105,11 @@ Run the isolated VM/native suite:
 make test-galaxy
 ```
 
+`galaxy.foundation_reset_and_invalid_indices` intentionally calls `PlayerSetState` with player32 and state32.
+The resulting `Player index outside [0,31]` and `Galaxy property index out of range` diagnostics are expected:
+the test checks the runtime error, clears it, and verifies that valid state remains intact. Judge suite failure by
+failed assertions and the process exit status, rather than these negative-test diagnostics alone.
+
 Run the TRaynor01 lifecycle with a bounded frame count:
 
 ```sh

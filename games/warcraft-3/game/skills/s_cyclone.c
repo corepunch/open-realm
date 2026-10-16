@@ -51,7 +51,7 @@ BZ_ABILITY_PROC(CAbilityCyclone) {
     /* Timed-status replacement clears payload; restore the applying rawcode. */
     if (slot) { slot->data = call->item->code; slot->source_ability = call->item->code; }
     if (!slot) return false; /* Do not interrupt movement on allocation failure at impact time. */
-    target->entity->goalentity = NULL;
-    target->entity->currentmove = &holdpos_move_stand;
+    S_SetMoveGoal(target->entity, &target->entity->goalentity, NULL);
+    M_SetMove(target->entity, &holdpos_move_stand);
     return true;
 }

@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "task": "E2E-01.3",
+  "parent": "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json",
+  "build": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "pins": {
+    "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json": "53987a235e33469671b080a68bd645c3ddc2eae94b8f702bc95803050abf8619",
+    "tools/ghidra/fixtures/retail-scheduler-contention-1.27.json": "9e4a5917302aa3a1e3d6f9d8e119fe5110d0dd9af63a2e3b4f30bad9b316b0f4",
+    "tools/ghidra/fixtures/retail-scheduler-contention-1.27.jsonl.gz": "0c90046cb55fc2e5b929e7277112e00f82851530ebbb660569238751bc86fcf8",
+    "tools/frida/verify_wc3_scheduler_trace.py": "8fb5e28112e311698dd5543d0bab6838e627dda3e4e55b91b70f009e7994f601",
+    "games/warcraft-3/game/tests/retail_scheduler_contention.h": "b62dfce3b0985ed406afcd5564f9c49f89b6fd81f567a62745d692d97222e91a",
+    "tools/ghidra/fixtures/retail-cancel208-1.27.json": "d4e7daf14eb705e9bfae72d014a1dc0be5f3845688fd24d55eef7a70badaf0c3",
+    "tools/ghidra/fixtures/retail-cancel208-turning-1.27.jsonl.gz": "05475ec2666a322e9a871b650f0b39744d168df075fa8b92daffab260cbaeed1",
+    "tools/ghidra/fixtures/retail-cancel208-queue-1.27.jsonl.gz": "7822bff0d1aacac453485f307f68904a2bebe328157391e0d28a62a45bd100e4",
+    "games/warcraft-3/game/tests/retail_cancel208.h": "571abced5b0e0feeae54f3460973324bdbe10093a2bfa23ea24f676f6cf884b8",
+    "games/warcraft-3/game/tests/retail_cancel208_scene.h": "f5503bd4eb9c0f2243c3eb68cc766c0328df45c1a1f47c32e28ca98a563ef7ec",
+    "tools/ghidra/fixtures/retail-interrupt209-1.27.json": "0fec51d9c8100240dd349659451c846a00779037ae53475f46010ab2cedec368",
+    "tools/ghidra/fixtures/retail-interrupt209-1.27.jsonl.gz": "ee5317349248136bb8f5a9302284781bab4c233fa8e3c34c61f7a29ab42d3a8d",
+    "games/warcraft-3/game/tests/retail_interrupt209_scene.h": "18bf246182b16881c064a195c787b27199d620bfd838a35f782194be565a4472",
+    "tools/ghidra/fixtures/research/patrol176-queue.json": "65f9f940839f59dafc5b336a234b60d91b807c846253c1011b8e1b51e062e381"
+  },
+  "engine_repeats": 2,
+  "engine_editions": [
+    "classic",
+    "tft"
+  ],
+  "categories": [
+    {
+      "id": "contention",
+      "test": "wc3_e2e210.player_contention_retains_ordered_admission_and_saved_queues",
+      "entries": [],
+      "entry_sha256": {},
+      "scope": "Independent two-player coarse/fine FIFO admission, exact budgets/reset/timestamps in the captured owner window; actual96-unit public Move and cold saved continuation.",
+      "completion": "Both complete30-second original repeats retain25902 scheduling events,288 paths and the one pending request at the producer boundary. Engine saved two-player state and RNG match its uninterrupted suffix; full96-unit numerical retail motion is not claimed."
+    },
+    {
+      "id": "cancellation",
+      "test": "wc3_e2e210.cancellation_and_completion_release_preserve_successor_ownership",
+      "entries": [
+        "oracle-cancel208",
+        "oracle-interrupt209"
+      ],
+      "entry_sha256": {
+        "oracle-cancel208": "d6c1230b01b92933e46f2b6f61c70cf87afee56e21a259b921005d9c4f27393d",
+        "oracle-interrupt209": "c933dd511468564c1eb9125e359d97877d43d1604cca3363d58f8b6d264fab90"
+      },
+      "scope": "Stop/Hold/point replacement across pending fine/coarse requests, active motion and independent angular ownership; real spell-completion and first deferred-cleanup replacement.",
+      "completion": "Exact turning samples and visual visits, canceled FIFO survivors, unspent interrupted mana, no pending-order execution, unique wrapper destruction, next-frontier successors and final resumed Move. Save150 continuation retains release deadlines and typed heads."
+    },
+    {
+      "id": "successors",
+      "test": "wc3_e2e210.queued_orders_follow_arrival_combat_and_blocked_completion",
+      "entries": [
+        "live-patrol-leg-ownership"
+      ],
+      "entry_sha256": {
+        "live-patrol-leg-ownership": "05dadf279f03f15c0967d8413f9a3042b527e12fae5eddd20e2523e0e2334264"
+      },
+      "scope": "Public queued Move after Patrol leg, ordered reversed Patrol endpoints, combat return to the retained leg and saved blocked-completion successor.",
+      "completion": "Existing queued commands precede the appended Patrol return; cold rotation keeps both endpoint payloads. Blocked recovery dispatches the saved successor. Patrol remains a persistent public order, not an invented idle outcome."
+    }
+  ],
+  "scheduler_archives": {
+    "runtime/scheduler-contention-102-c.jsonl": "bc48a4c309e164099a008da7ad4203ef125eff30e88090adac61620b416150dc",
+    "runtime/scheduler-contention-102-e.jsonl": "6cc5045cfd6ace9ca146894a1fe136f95a36f864b997208035cf1a0ed3d3f79d"
+  },
+  "exclusions": [
+    "No new live gameplay claim; existing original expectations and child exclusions remain unchanged.",
+    "Contention runs the original budget policy (responsive scheduling disabled); faster deterministic scheduling remains an explicitly different engine policy.",
+    "Exact engine scheduling covers the captured owner window. Public96-unit saved/RNG continuation checks engine determinism, not complete numerical retail trajectory parity.",
+    "Pending at the retail30-second marker is retained, not silently replaced by a later empty queue.",
+    "Ground unit-target arrival CHANNEL only; full spell lifecycle, other target shapes, private member rows and arbitrary reentrant FIFO edits remain excluded.",
+    "Patrol witnesses retain physical-motion and observer limits of their child contract. No whole-world, multiplayer, frame-budget or all-scenario determinism claim.",
+    "Saved engine suffixes are compared with uninterrupted expectations; no new original retail UI save/load is claimed."
+  ]
+}

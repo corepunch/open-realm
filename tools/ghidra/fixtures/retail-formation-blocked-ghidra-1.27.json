@@ -1,0 +1,262 @@
+{
+  "native_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "base": "6f000000",
+  "unsaved": false,
+  "functions": [
+    {
+      "address": "6f16a790",
+      "name": "PathGroup_StepMember",
+      "comment": "While unseen counter +6c nonzero, temporarily replaces mover arrival +b0 with 0.49; restores after movement. Original slices and live fog reacquisition. Payoff36 scene45: member18 destination is intermediate233.5/113.5 or49.5/65.5, then final238.99609375/122.0078125 or61.48828125/69.984375. Natural arrival zero-commits at159/158 before group refresh; one public point order per life. Payoff110 two completed ordinary public six-member captures: cohort classification precedes this member refresh adjustment16e250; group10000 controls adjustment here. Terrain block under first assigned slot yields25/21 fine destination and40000 while members1/2/3/5 retain200000 on first tick. Next cached visit sees adjusted flags and releases held members through66-tick classification cooldown. Do not adjust destinations during layout before16c250 classification.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16c30c:UNCONDITIONAL_CALL",
+        "6f16c373:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16e250",
+      "name": "PathGroup_AdjustMemberDestination",
+      "comment": "Group54+memberC offsets, clear70000; enabled path bounded acc query budget30: <=20 keep, finite>20 group point, -1 partial endpoint*scale; set40000 when adjusted.384 full cases. Payoff110 actual public ordinary mixed-rank first slot blocked at base13/10: assigned raw fine41d31f87/41ae8e70 replaced by25/21 and40000. Six calls occur inside first decide phase after classification;195 later/initial owner passes retain one2-point group plan, with no cached-tick re-adjustment. Full first/cached engine stage replay uses captured absolute clocks.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16a7e2:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16ce10",
+      "name": "PathGroup_RequestRoute",
+      "comment": "ECX group; stack4 destination,8 target-region,c readiness output,10 final-destination output ret10; EAX success. Resolves target, checks changed/readied destination and existing coarse route, otherwise requests route then1697a0→16d990→16a5b0. Repeated group member Chaos/removal shows unchanged destination plus retained coarse route bypasses radius resampling; fresh rebound owner samples63/7. Engine keeps current member maximum separate from cached footprint. Bound shared7c and other task families remain open. GROUP-04.5 actual680320 survivor point replacement creates a new singleton group; next owner tick executes this full refresh chain before new-goal arrival. Direct helper calls do not establish a public runtime retarget path. Payoff47 scene53 confirms continuous target sampling through countdown reloads and retains destination when167e40 reports no changed shifted bucket. Public Smart approaches106 owner visits then persistent Follow861, target point Move48; all1015 absolute commits repeat and match normal engine frames. Persistent user head survives internal approach arrival and terminates by authored Stop. Wider visibility/loss and delayed timestamp producer domains remain open. Payoff36: actual repeated public oblique singleton journeys expose separate group5000 and member400 searches. Group count9/6 selects intermediate index1; member paths count8/5 select their own local index0. Baseline group count4 selects final directly. Payoff80 real reduced size2 public Move retains the six-point partial group plan and progresses selected fine destinations26.5/26.5 ->34.5/50.5 ->54.5/55.5. At final group index0, member400 search retains its source as adjusted goal, then fine700 budget exhausts twice at701 pops. Original and engine normal-frame motion agree through full cleanup. Payoff103 before retained route bypass call168ab0 with ResolveTarget!=NULL. Repeated full Smart/Follow captures expose group requests (owner,policy,pops,quota): (1058,1,4,5000),(1164,1,2,5000),(1291,0,9,5000),(1300,1,3,5000),(1317,1,3,5000),(1334,1,15,5000). Target priority changes work pool, not search quota. Engine/public saved motion regression retains complete1015 commits. Payoff110 two completed blocked-slot captures each retain195 route-owner passes: first adaptive_count0/index-1 ->2/index0; all194 cached passes preserve route and formation point. One six-member refresh adjusts only the blocked first slot, not every cached visit.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16c19c:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f169b00",
+      "name": "PathGroup_CanClassifyProjectedMembers",
+      "comment": "Return0 when member flags e0000, resolved moverD8.01000000 or path88.30000000; otherwise1.16c250 denial seeds group68 cooldown66, and16b120 permits regroup once a member arrives during that cooldown. Payoff63 captain shared groups retain cooldown in Save86; wider mover-special/projected-priority producer parity remains GROUP-03.2. Payoff110 blocked slot40000 is produced after first classification, so denial begins on the following retained-route visit;16c250 sets66 and16c150 decrements after commit. Engine early adjustment incorrectly seeded this cooldown one owner visit early.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16c2a7:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16c250",
+      "name": "PathGroup_ComputeMemberMovement",
+      "comment": "576 forced-arrival cases plus12 held-member cases and144 cached-route decision/commit/integration sequences. Clear member200000; classify; temporary fine-object40000000 around all steps; clear preserving20000000, mark member100000 for positive request. Singleton/group200 bypass; group2 skips classification. 144 full cached ticks plus fresh fine-search elapsed open/wall compositions verified; adaptive/crowd owner composition open. Payoff38 actual public pair stages requested own speeds150/350; only commit uses eligible shared150 cap. Blocked first formation slot triggers retry2-to1-to4 with native final destination and groupcount1; heading/stop/forced arrival now consumed in engine. Payoff39 snapshots temporary40000000 eligibility before all decisions; both fine search and step collection read peer committed fine poses, never sampled presentation. Full twelve-member normal-frame motion agrees, including final partial-route forced arrivals.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16c1a8:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16c150",
+      "name": "PathGroup_TickMovement",
+      "comment": "144 full cached-route ticks: real membership/region prepass, fixed destination, cached group request, all decisions then all commits. Also77 elapsed arrival/reclamation trajectories include fresh fine searches, stock flat/slope presentation and repeated wall detour; one fresh adaptive wall composition covered; crowds/moving-target full owner composition remains open. Payoff38 scene47: two complete public GroupPointOrder repeats,60 owners/115 raw commits. Engine Move-owned physical registry runs all member decisions before all commits through normal RunFrame; Save74 resumes87 suffix commits. Supplied combined static geometry, wider crowds and task producer flags remain open. Payoff39 scene48: all1953 raw native pose/velocity/facing commits across297 ordinary class0 owner passes now match actual engine RunFrame; two Save75 continuations also match. Locked setup and explicit static scene geometry bound this claim. Payoff67 complete repeated all13 public Stop leaves both shared bindings alive through owner1331;16c150 prepares/prunes members and retires empty physical groups after shared publication. Next owner1332/clock4113d4ca observes zero references and16c220 invalidates the shared identity. Engine retains empty bound physical groups until their owner visit;Save88 preserves them and the independent AI initialization gate. Payoff107 ordinary unshared group survives member cancellation until next owner visit too: original canonical group/path live immediately after KillUnit/RemoveUnit, retired at following sample. Original group38 still reports one stale row at native return although mover9c/a0 is invalid;16c150 prunes it. Engine compacts live bindings immediately but must retain the ordinary owner through this boundary and save/load it; full private layout parity remains GROUP-04.6.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f15aae7:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16fbd0",
+      "name": "Mover_StepRoute",
+      "comment": "Arrival first; update changed destination/footprint; Path_Advance then heading/speed selection. Original16a790 passes05bdd0 native fine prediction in stack4.16fd3b subtracts fine waypoint minus fine source before16f630 direction heading; world projection is downstream, so world-coordinate subtraction or inversion loses valid bits.144 cached two-member ticks and controlled full open/wall motion verified. Engine payoff21 matches the34-tick wall trace and22 saved continuation ticks at four world origins; this is a native-input/projection contract, not a live primary-owner producer claim. Engine payoff31:1008 complete caller wait calls retain final destination, turn from native destination-minus-predicted-source, consume94 and stop speed; four map-origin engine regression exposed eight world-heading failures. Acquisition-time165c60 wait instead retains the fine waypoint. Engine payoff34: eight actual post-CreateUnit Move lifetimes capture247 exact velocity/position/facing commits and predicted arrivals; clear paths still advance fine waypoints. Fractional source43257e00 initially targets166.5/65.5, not final173/65.5. The direct world shortcut caused79/183 engine word failures; retained native routing matches all29 scheduled commits and saved continuation at supplied measured primary phase. Initial phase producer and full crowd policy remain open. Payoff49 actual public axis teleport during target Move resumes after a native turn-induced stop at counter1378, preserving its route and current head;1060 complete commits repeat. Engine legacy eight-frame progress/near-goal Hold prematurely ended this retained point route; bounded native arrival/retry owns completion instead. Payoff53 complete public blocked-goal journey207 commits repeats; terminal retry4 sets forced arrival at1262, range acceptance still needs final angular turn1263 before cleanup1264. Engine preserves original click, partial searches and saved force state instead of pre-clamping goal. Payoff69 changed member destination must clear retry/delay before the path wait gate. Native private captain follower with pending delay20 refills three-point partial fine path atcounter1821. Engine skipping on old delay retained old heading; reset extends initial exact travel from23.8 to27.2s. Payoff70 query_word starts1 and becomes0 only for Path_Advance result0. Result2 therefore passes stop1 even for a tiny heading error. Native counter1996 has error941096960 and outputs zero speed1076350364 heading; relying on the turn window alone moved the engine. Public GoHome now matches7933 motion commits,812 shared footprints and7310 saved suffix commits through30s. Natural completion remains open. Payoff110 first cached ordinary mixed-rank tick exposes16 low-word engine failures when route queries use stale sampled_pose.16a790 passes the current05bdd0 predicted fine source to this routine; both route direction and blocker collection must use that owner-clock prediction. Stack-local fine query inputs fix all first/cached stage words without publishing a new pose or consuming the committed clock.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16a91a:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f173720",
+      "name": "Math_WrappedHeadingDelta",
+      "comment": "Payoff110 scalar body subtracts current minus requested heading; negate within pi, otherwise wrap by signed tau. Mover16fe20 writes the result into c4, so observer requested[1] is a signed heading delta, not the member heading. Both completed blocked-slot traces verify all960 stored deltas separately from actual speed/heading arguments and share-cap selection. No inferred prototype.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f363361:UNCONDITIONAL_CALL",
+        "6f15f754:UNCONDITIONAL_CALL",
+        "6f16e991:UNCONDITIONAL_CALL",
+        "6f16f682:UNCONDITIONAL_CALL",
+        "6f16fe43:UNCONDITIONAL_CALL",
+        "6f1705f4:UNCONDITIONAL_CALL",
+        "6f16f5df:UNCONDITIONAL_CALL",
+        "6f1722cc:UNCONDITIONAL_CALL",
+        "6f21521a:UNCONDITIONAL_CALL"
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 0,
+      "name": "vtable"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 20,
+      "name": "identity"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 28,
+      "name": "members"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 60,
+      "name": "path"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 64,
+      "name": "target"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 84,
+      "name": "formation_point"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 92,
+      "name": "age"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 96,
+      "name": "completion_counter"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 104,
+      "name": "classification_cooldown"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 108,
+      "name": "unseen_counter"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 112,
+      "name": "formation_heading"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 124,
+      "name": "shared_parameters"
+    },
+    {
+      "type": "WC3PathGroupPrefix",
+      "offset": 128,
+      "name": "flags"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 0,
+      "name": "vtable"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 20,
+      "name": "identity"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 28,
+      "name": "destination"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 36,
+      "name": "adjusted"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 64,
+      "name": "fine_data"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 80,
+      "name": "fine_count"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 96,
+      "name": "adaptive_data"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 112,
+      "name": "adaptive_count"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 116,
+      "name": "fine_index"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 120,
+      "name": "adaptive_index"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 124,
+      "name": "fine_request_time"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 128,
+      "name": "adaptive_request_time"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 132,
+      "name": "fine_limit"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 134,
+      "name": "adaptive_limit"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 136,
+      "name": "flags"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 140,
+      "name": "queue_previous"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 144,
+      "name": "queue_next"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 148,
+      "name": "retry_delay"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 152,
+      "name": "retry_count"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 156,
+      "name": "query_mask"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 164,
+      "name": "fine_target"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 168,
+      "name": "blocker_identity"
+    },
+    {
+      "type": "WC3PathPrefix",
+      "offset": 180,
+      "name": "footprint"
+    }
+  ]
+}

@@ -278,3 +278,38 @@ For in-depth details on specific engine subsystems, consult the following dedica
   timing and callback order. Extend fixtures and harnesses before resorting to a game launch. See
   [verification workflow](CONTRIBUTING.md#test-first-behavior-verification) for the limited visual/platform exceptions.
 - **No Silent Fallbacks or Demotions**: If an asset or resource fails to load, log a clear diagnostic. Do not hide bugs behind silent fallback flags. Confirm root causes with regression tests and authoritative data; use diagnostic logs when needed.
+
+
+## Ordered server spatial queries
+
+`server/sv_world.c` retains Quake's fixed area tree and intrusive entity lists as
+the authoritative `BoxEdicts` encounter order. A derived hierarchical hash grid
+selects candidates without scanning every object in the reached coarse lists.
+It contains one entry per exported edict; large bounds use a larger grid level,
+so insertion does not grow with covered area. Bounds remain server-owned and
+must be updated through `SV_LinkEntity`. The grid is rebuilt by `SV_ClearWorld`
+and is not serialized.
+
+Candidate enumeration must never expose hash-bucket order to a game predicate.
+Node preorder plus a monotonically increasing link serial reconstructs the old
+list order, including every same-cell relink. Bucket membership may remain in
+place for those relinks because only the canonical serial is observable.
+A stable fixed-width radix sort restores candidate order in linear work, using
+only the differing serial bytes plus node preorder. Strict tree split comparisons
+are retained for point queries on a boundary. Predicates run in canonical order before applying the result limit.
+
+Whole-world queries, small reached populations and expensive bucket chains use
+the original list traversal when it is cheaper. Nonfinite/inverted queries use
+its original comparisons; exceptional entity bounds are checked separately.
+Nested queries use the lists to avoid overwriting the outer candidate buffer.
+If a predicate relinks another object, the outer query resumes the original
+lists after its current object, so it neither repeats a predicate nor misses an
+object that just entered the query. As with the original intrusive iterator,
+predicates must not remove their currently examined link or replace the world.
+
+The `server_area.*` regression compares complete result and predicate order
+against the original recursive traversal across mixed sizes, negative and
+out-of-map coordinates, strict split boundaries, relinking, removal, limits,
+exceptional floats, nested queries and mutation of another object. It also
+checks that a selective 4096-entity fixture actually prunes candidate work.
+Performance evidence belongs in [WC3 performance](docs/games/warcraft-3/performance.md).

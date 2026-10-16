@@ -6,6 +6,23 @@ authoritative gameplay publishes an event only when the corresponding state
 transition actually happens. Tutorial/campaign behavior must use this generic
 bridge rather than map-specific checks.
 
+## Event numbering across data versions
+
+The simulation uses the newer common.j spell/shop event numbers. At JASS
+registration, `JassUnitEventType` reads `EVENT_PLAYER_UNIT_SPELL_EFFECT` from
+the loaded VM through `jass_globalenum`. Value 274 identifies the older
+common.j: player-unit events 269–277 and unit events 286–294 are translated
+by +3. Value 277 already uses canonical numbers. Other event blocks are
+unchanged. Map format 24/25 does not identify this common.j difference.
+Translation occurs only during registration, so dispatch keeps its indexed
+subscriber lookup and saves retain canonical event rows (format 194).
+
+The fixture common.j keeps its existing 1.27 spell numbering; frozen native
+probe scripts must not be renumbered to mask dispatch failures.
+`wc3_api.legacy_and_modern_spell_shop_event_registration` covers both blocks
+in both eras and dispatches player/unit spell effects. The legacy channel,
+interrupt and end-to-end fixtures also exercise real callback ownership.
+
 ## Player save/load game events
 
 `TriggerRegisterGameEvent` registers `EVENT_GAME_SAVE` (`259`) and
@@ -142,38 +159,28 @@ GetAttacker()    = attacker
 The attacked unit is `GAMEEVENT.edict`; the attacker is `GAMEEVENT.source`.
 Destructable attacks do not synthesize unit-attacked events.
 
-## Spell effect events
+## Spell phase events
 
-The current unified spell pipeline supports the high-confidence **starts the
-effect** transition:
+The shared pipeline emits both EFFECT families synchronously before resource
+commit and gameplay execution. Ordered Flame Strike and Inner Fire additionally
+own CHANNEL, CAST, delayed EFFECT, FINISH and ENDCAST transitions. Their concrete
+procedures supply class timing through `A_CAST_PROFILE`; the shared dispatcher
+retains ownership, executes exact primary deadlines and cancels through Move,
+Stop, death and removal. These verified classes expose distinct phases for
+in-range and completed physical approaches. Other concrete classes and true
+channels retain explicit gaps under ORDER-01.13.
 
-```text
-validation succeeds
-    -> mana/cooldown commit where applicable
-    -> EVENT_PLAYER_UNIT_SPELL_EFFECT
-    -> EVENT_UNIT_SPELL_EFFECT
-    -> spell gameplay callback
-```
+Player delivery precedes unit delivery with frozen subscriber presence. Spell
+source/ability identity is retained, but target response getters query current
+ability state during synchronous phases. Nested interruption ENDCAST sees the
+old target; the returning unit CHANNEL/CAST/EFFECT sees cleared target and zero
+coordinates. Normal FINISH/ENDCAST also have cleared target fields. Unit targets
+supply their coordinates, and point targets supply the authored point.
+`GetSpellTargetLoc` follows those same current values; item/destructable getters
+classify the current secondary target. `GetSpellAbility` instance handles and
+live target responses across suspended callbacks remain unsupported.
 
-Response context is:
-
-```text
-GetSpellAbilityUnit() = caster
-GetSpellAbilityId()   = ability rawcode
-GetSpellTargetUnit()  = entity target when the current spell target is a unit
-GetSpellTargetX/Y()   = point target coordinates when the current target is a point
-GetSpellTargetLoc()   = location for a point target
-```
-
-`GetSpellTargetItem()` / `GetSpellTargetDestructable()` safely classify the
-secondary target handle if future spell target modes carry those widget types.
-OpenRealm does not yet expose a confident ability-instance handle for
-`GetSpellAbility()`.
-
-Do **not** fake the rest of the lifecycle. `SPELL_CHANNEL`, `SPELL_CAST`,
-`SPELL_FINISH`, and `SPELL_ENDCAST` remain unsupported until the spell state
-machine has distinct authoritative transitions for them; event diagnostics
-continue to report registrations for those gaps.
+See [retail evidence, phase timing and save ownership](retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).
 
 ## Orders, items, Hero skills, regions and range
 
@@ -272,6 +279,24 @@ dialog and button, with the authoritative player ID and one-based clicked
 handle IDs. This response context is copied to a coroutine, so
 `GetClickedButton` / `GetClickedDialog` continue to work after a trigger wait.
 See [JASS choice dialogs](jass-dialogs.md) for lifecycle and limitations.
+
+
+### Merge integration: response identity and argument parsing
+
+Dialog click registrations must publish `response_sequence` together with
+`responseTo`. The queue validates both to reject removed/reused subscribers;
+leaving the sequence zero silently discards an otherwise valid click. Synchronous
+trigger context copies clicked-dialog/button/player values as well as ordinary
+unit/order values. Dialog coroutine/save regressions cover those observations.
+
+Logical operator recursion in `jparser.c` stops before a comma. The outer call
+owns the following argument and its closing delimiter; otherwise
+`BJassAssert(a and b, "message")` attaches the string to `b` and presents a malformed
+native argument list. `logical_call_arguments_preserve_outer_delimiters` exercises
+both logical operators in nested calls. Explicit `TriggerEvaluate` may evaluate
+a disabled trigger, while event delivery still suppresses its actions. Event
+evaluation counters advance before the disabled gate. Existing assertions for
+these separate entry points remain intact.
 
 ### Scripted zone save lifecycle
 

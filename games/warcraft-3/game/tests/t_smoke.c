@@ -23,7 +23,7 @@ TEST(wc3_smoke, region_contains_center) {
 
 TEST(wc3_smoke, region_rejects_outside) {
     region_t r = {0};
-    vec2_t p = {15.0f, 15.0f};
+    vec2_t p = {32.0f, 32.0f};
     r.rects[0] = (box2_t){{0.0f, 0.0f}, {10.0f, 10.0f}};
     r.num_rects = 1;
     T_ASSERT(!G_RegionContains(&r, &p));

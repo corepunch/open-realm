@@ -1,0 +1,256 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "captures": {
+    "TARGET-02.1/captures/observe-1.jsonl": {
+      "bytes": 33974387,
+      "sha256": "c5a42099628ff6c4f6894aae284bf5149a3be9560d830410d1cd0e367c760163",
+      "metadata": {
+        "event": "metadata",
+        "task": "TARGET-02.1",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "target021_capture.py": "9c061cf418f77083765053f1de262d91c0c38cacf5039865288e2f866254c58b",
+          "target021_observer.js": "37f3c11e29a1213b7807eabb73797203de7522c6a5c56537803394e90d277e53",
+          "target021_probe.j": "500105421ef15eac51dc33a97dbc5892397bff63cc6308039105eaa093513ffe",
+          "target021_make_map.py": "e6e7f00b5c625e9be4401924afdd24c8092cd05c68c9836d3c45604e5113b146",
+          "map": "657403d348d14a7961348ec2b9ac7db3853aecebe70b6b94fd0184435685b9d4"
+        },
+        "map": "Maps\\RS-TARGET-02.1-a.w3m",
+        "seconds": 360.0,
+        "continue_at": 45,
+        "display": ":99",
+        "remote": "127.0.0.1:27050",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research3",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "T021 ",
+        "always": false
+      }
+    },
+    "TARGET-02.1/captures/observe-2.jsonl": {
+      "bytes": 33974385,
+      "sha256": "fc97b618402f0e008e7f100d11dfe51b56aaf409f89665597b615615545bf8b4",
+      "metadata": {
+        "event": "metadata",
+        "task": "TARGET-02.1",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "target021_capture.py": "9c061cf418f77083765053f1de262d91c0c38cacf5039865288e2f866254c58b",
+          "target021_observer.js": "37f3c11e29a1213b7807eabb73797203de7522c6a5c56537803394e90d277e53",
+          "target021_probe.j": "500105421ef15eac51dc33a97dbc5892397bff63cc6308039105eaa093513ffe",
+          "target021_make_map.py": "e6e7f00b5c625e9be4401924afdd24c8092cd05c68c9836d3c45604e5113b146",
+          "map": "657403d348d14a7961348ec2b9ac7db3853aecebe70b6b94fd0184435685b9d4"
+        },
+        "map": "Maps\\RS-TARGET-02.1-a.w3m",
+        "seconds": 600.0,
+        "continue_at": 45,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "T021 ",
+        "always": false
+      }
+    },
+    "TARGET-02.1/captures/control-2.jsonl": {
+      "bytes": 1490,
+      "sha256": "9e916f8217b7dc055fe6676d2f07646f796c48b43d3f58c818b7af47f639116b",
+      "metadata": {
+        "event": "metadata",
+        "task": "TARGET-02.1",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "target021_capture.py": "1e099c4ec975b06f21e08ca7db8189876a6c66bc3541c7aed25f4dd833e2f5d2",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "target021_probe.j": "500105421ef15eac51dc33a97dbc5892397bff63cc6308039105eaa093513ffe",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "657403d348d14a7961348ec2b9ac7db3853aecebe70b6b94fd0184435685b9d4"
+        },
+        "map": "Maps\\RS-TARGET-02.1-a.w3m",
+        "seconds": 600.0,
+        "continue_at": 45,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "T021 ",
+        "always": false,
+        "lite": false
+      }
+    }
+  },
+  "header_sha256": "3c628f4f5e33b69b28ce022fed6ef938b530a63ddb7002bd0f9966bb0f534d2a",
+  "region_captures": {
+    "TARGET-02.1/captures187/observe-1.jsonl": {
+      "bytes": 3089774,
+      "sha256": "4cef9952cffb047e2222c4b5e9aa08bc0290ee4bf0b7fd164e0c9063f8d96b39",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff187",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "follow187_observer.js": "bcbc1d2a80498a2320b2c7bba2ff52c6797dc1673bdc355f0d7b92f462e1e94b",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "3c5dd6fdfd0096c016c536e2b1918d767a3da1cbbdd854721fd6473a41901c61"
+        },
+        "map": "Maps\\RS-Follow187.w3m",
+        "seconds": 150.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "F187 ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "TARGET-02.1/captures187/observe-2.jsonl": {
+      "bytes": 3089776,
+      "sha256": "9b8de5b138c10d506026db124a1333c81a318a6f49c626486c578fac70287efb",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff187",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "follow187_observer.js": "bcbc1d2a80498a2320b2c7bba2ff52c6797dc1673bdc355f0d7b92f462e1e94b",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "3c5dd6fdfd0096c016c536e2b1918d767a3da1cbbdd854721fd6473a41901c61"
+        },
+        "map": "Maps\\RS-Follow187.w3m",
+        "seconds": 150.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "F187 ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "TARGET-02.1/captures187/control-1.jsonl": {
+      "bytes": 1531,
+      "sha256": "ce21890b30bd2e5ab073cd5a67e40f4c5cc62f3e5761110fbbc6ff6d7b53a563",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff187",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "follow187_observer.js": "bcbc1d2a80498a2320b2c7bba2ff52c6797dc1673bdc355f0d7b92f462e1e94b",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "3c5dd6fdfd0096c016c536e2b1918d767a3da1cbbdd854721fd6473a41901c61"
+        },
+        "map": "Maps\\RS-Follow187.w3m",
+        "seconds": 150.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "F187 ",
+        "always": false,
+        "lite": false
+      }
+    }
+  },
+  "sources": {
+    "tools/frida/research/follow187_probe.j": "4740aee08b96035dee8dc2de102d7606375c540b1161f7ccc87938cfdd607eb4",
+    "tools/frida/research/follow187_make_map.py": "e39cf671eb9de33a1797800bfa38e337885b422a882b19c30fc9ab363ae7bd31",
+    "tools/frida/research/follow187_observer.js": "bcbc1d2a80498a2320b2c7bba2ff52c6797dc1673bdc355f0d7b92f462e1e94b"
+  },
+  "map": {
+    "task": "TARGET-02.1 / payoff187",
+    "probe": "follow187_probe.j",
+    "scenes": 1,
+    "variant": 0,
+    "base_sha256": "199683be6cd1a888ade00f3dce1e3e93f16e92e05724717048b033108b5a2104",
+    "map_sha256": "3c5dd6fdfd0096c016c536e2b1918d767a3da1cbbdd854721fd6473a41901c61",
+    "members": [
+      "war3map.doo",
+      "war3map.j",
+      "war3map.mmp",
+      "war3map.shd",
+      "war3map.w3c",
+      "war3map.w3e",
+      "war3map.w3i",
+      "war3map.w3r",
+      "war3map.w3s",
+      "war3map.w3u",
+      "war3map.wct",
+      "war3map.wpm",
+      "war3map.wtg",
+      "war3map.wts",
+      "war3mapMap.blp",
+      "war3mapUnits.doo"
+    ],
+    "changed_members": {
+      "war3map.doo": "16d74745ef06ff4e6ba55a4afc510adaeadd93027f22fea3ddab504fb56702d7",
+      "war3map.j": "a757927ad35afb7957832c504a82668d84448b1c840a4645ebae2d7b006c5479",
+      "war3map.shd": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7",
+      "war3map.w3e": "5ed7e2bb7c1b4646f98f52490a0c735b299746c989f59a46dfd393cd7fb28920",
+      "war3map.wpm": "115055309afc7ff7cc9b8820df49d0f4b0bbf6f300f6ca09420f1968ee8d7587",
+      "war3mapUnits.doo": "ce9dc95470ad7718f9924ab12a1dfdb8feb60e25145c200f37072b1194bd8385"
+    },
+    "preload_output": "rs-follow187.txt",
+    "builder_sha256": "e39cf671eb9de33a1797800bfa38e337885b422a882b19c30fc9ab363ae7bd31",
+    "probe_sha256": "4740aee08b96035dee8dc2de102d7606375c540b1161f7ccc87938cfdd607eb4",
+    "wall": {
+      "fine_x": [
+        30,
+        33
+      ],
+      "fine_y": [
+        0,
+        49
+      ],
+      "wpm": 202
+    },
+    "floor_wpm": 64,
+    "fine_origin": [
+      0.0,
+      0.0
+    ],
+    "fine_cell_world": 32.0,
+    "container": "rebuilt MPQ with original HM3W header; signature not retained"
+  }
+}

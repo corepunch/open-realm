@@ -1,0 +1,12 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved_changes": false,
+  "functions": [
+    {
+      "address": "6f166140",
+      "name": "Path_CollectAndResolveNextStepBlockers",
+      "prototype": "uint Path_CollectAndResolveNextStepBlockers(WC3PathPrefix * path, WC3PathVector2 * source, WC3PathVector2 * destination)",
+      "comment": "Payoff202 MAP-04.2: original full166140 holds captured path+a0 spatial record through168360, including empty vectors, requester-wait early return inside resolver, peer-yield and skipped peers. INC166265 precedes class strip collection; CALL168360 at1662cc; DEC1662dd follows resolver before sole RET8. Forty-eight complete original calls cover clear/terrain/peer/self and outer depths0/1/7, observing counters at166265/168360/1662dd/1662f1 without replacing instructions. Engine combined collection/resolution now retains this same scope; collection-only adapter does not certify resolver lifetime. Existing MAP-04.2 Frida next-step scopes are balanced; supplied oracle depths are not additional public producer claims."
+    }
+  ]
+}

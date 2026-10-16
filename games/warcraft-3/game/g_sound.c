@@ -5,6 +5,55 @@ static soundPolicy_t sound_index_policy[MAX_SOUNDS];
 static UnitAckSounds_t const *sound_index_row[MAX_SOUNDS];
 static uint16_t sound_index_last[MAX_PLAYERS][MAX_SOUNDS];
 
+unitSoundProfile_t const unit_sound_empty;
+typedef struct unitSoundRecord_s {
+    unitSoundProfile_t value;
+    struct unitSoundRecord_s *next;
+} unitSoundRecord_t;
+static unitSoundRecord_t *unit_sound_profiles[1024];
+
+/* Resource preparation and explicit profile edits intern logical values once.
+ * Normalize padding so equivalent values share storage independently of the
+ * caller's stack bytes. Per-unit readers never hash or allocate. */
+unitSoundProfile_t const *G_InternUnitSoundProfile(unitSoundProfile_t const *source) {
+    unitSoundProfile_t value;
+    memset(&value, 0, sizeof(value));
+    memcpy(value.select, source->select, sizeof(value.select));
+    memcpy(value.yes, source->yes, sizeof(value.yes));
+    memcpy(value.ready, source->ready, sizeof(value.ready));
+    memcpy(value.chop, source->chop, sizeof(value.chop));
+    value.num_select = source->num_select; value.num_yes = source->num_yes;
+    value.num_ready = source->num_ready; value.num_chop = source->num_chop;
+    value.attack = source->attack; value.death = source->death;
+    if (!memcmp(&value, &unit_sound_empty, sizeof(value))) return &unit_sound_empty;
+    uint32_t hash = 2166136261u;
+    uint8_t const *bytes = (uint8_t const *)&value;
+    FOR_LOOP(i, sizeof(value)) hash = (hash ^ bytes[i]) * 16777619u;
+    unitSoundRecord_t **head = unit_sound_profiles + (hash & 1023);
+    for (unitSoundRecord_t *record = *head; record; record = record->next)
+        if (!memcmp(&record->value, &value, sizeof(value))) return &record->value;
+    unitSoundRecord_t *record = gi.MemAlloc(sizeof(*record));
+    if (!record) { gi.error("Unit sound profile allocation failed"); abort(); }
+    memcpy(&record->value, &value, sizeof(value));
+    record->next = *head; *head = record;
+    return &record->value;
+}
+
+/* Publish a new definition without changing pending events or other instances. */
+void G_SetUnitSoundProfile(edict_t *ent, unitSoundProfile_t const *value) {
+    ent->sound_profile = G_InternUnitSoundProfile(value);
+}
+
+void G_ClearUnitSoundProfiles(void) {
+    FOR_LOOP(i, sizeof(unit_sound_profiles) / sizeof(*unit_sound_profiles)) {
+        while (unit_sound_profiles[i]) {
+            unitSoundRecord_t *record = unit_sound_profiles[i];
+            unit_sound_profiles[i] = record->next;
+            gi.MemFree(record);
+        }
+    }
+}
+
 void G_AcceptSoundVariant(int index, uint32_t owner) {
     if (index <= 0 || index >= MAX_SOUNDS || owner >= MAX_PLAYERS || !sound_index_row[index]) return;
     FOR_LOOP(i, MAX_SOUNDS)
@@ -19,12 +68,26 @@ static float sound_index_volume[MAX_SOUNDS];
 static uint32_t sound_index_duration[MAX_SOUNDS];
 static uint8_t sound_index_volume_valid[MAX_SOUNDS];
 static uint8_t sound_index_duration_valid[MAX_SOUNDS];
+static uint32_t sound_index_variant[MAX_SOUNDS];
+static bool G_SoundRowVariantPath(UnitAckSounds_t const *, uint32_t, string_t, size_t);
+
+/* Decode immutable authored policy once. Indices and per-player response
+ * history remain live; registration still calls the server for every request. */
+typedef struct {
+    UnitAckSounds_t const *row;
+    uint32_t variant, generation;
+    soundPolicy_t policy;
+    uint64_t media_revision;
+    int index;
+} soundCompiledPolicy_t;
+static soundCompiledPolicy_t sound_compiled[MAX_SOUNDS];
 
 #define WC3_COMMAND_ERROR_LIFETIME_MS 10000u
 
 static uint32_t command_error_end_time[MAX_CLIENTS];
 
 void G_ResetSoundPresentationState(void) {
+    memset(sound_compiled, 0, sizeof(sound_compiled));
     memset(sound_index_policy, 0, sizeof(sound_index_policy));
     memset(sound_index_row, 0, sizeof(sound_index_row));
     memset(sound_index_last, 0, sizeof(sound_index_last));
@@ -32,6 +95,7 @@ void G_ResetSoundPresentationState(void) {
     memset(sound_index_duration, 0, sizeof(sound_index_duration));
     memset(sound_index_volume_valid, 0, sizeof(sound_index_volume_valid));
     memset(sound_index_duration_valid, 0, sizeof(sound_index_duration_valid));
+    memset(sound_index_variant, 0, sizeof(sound_index_variant));
 }
 
 float G_SoundIndexVolume(int sound_index) {
@@ -41,9 +105,15 @@ float G_SoundIndexVolume(int sound_index) {
 }
 
 uint32_t G_SoundIndexDuration(int sound_index) {
-    if (sound_index > 0 && sound_index < MAX_SOUNDS && sound_index_duration_valid[sound_index])
-        return sound_index_duration[sound_index];
-    return 0;
+    char path[512];
+    if (sound_index <= 0 || sound_index >= MAX_SOUNDS || !sound_index_row[sound_index]) return 0;
+    if (!sound_index_duration_valid[sound_index]) {
+        if (!G_SoundRowVariantPath(sound_index_row[sound_index], sound_index_variant[sound_index], path, sizeof(path))) return 0;
+        int32_t duration = G_SoundFileDuration(path);
+        sound_index_duration[sound_index] = (uint32_t)MAX(0, duration);
+        sound_index_duration_valid[sound_index] = true;
+    }
+    return sound_index_duration[sound_index];
 }
 
 void G_JassSoundRuntimeInit(handle_t handle) {
@@ -161,7 +231,13 @@ static bool G_SoundRowVariantPath(UnitAckSounds_t const *row, uint32_t variant,
 
 /* Default channel budgets recovered at 6fab5ec8 (1.27.1.7085). These are
  * game policy, not mixer constants. SLK Channel is a numeric string. */
+#ifdef BZ_TESTS
+static uint32_t sound_policy_decodes;
+#endif
 static soundPolicy_t G_SoundRowPolicy(UnitAckSounds_t const *row, uint32_t variant) {
+#ifdef BZ_TESTS
+    sound_policy_decodes++;
+#endif
     static uint8_t const limits[] = {16,3,3,3,3,8,2,3,5,3,3,8,1,6,2,2};
     static struct { cstring_t name; uint16_t flag; } const flags[] = {
         {"CHANNELFULLPREEMPT", SOUND_CHANNEL_PREEMPT}, {"CHANNELFULLPREEMPTOLDEST", SOUND_CHANNEL_OLDEST},
@@ -194,6 +270,19 @@ soundPolicy_t const *G_SoundIndexPolicy(int index) {
     return index > 0 && index < MAX_SOUNDS && sound_index_policy[index].max_total ? &sound_index_policy[index] : NULL;
 }
 
+static soundCompiledPolicy_t *G_CachedSoundDescriptor(UnitAckSounds_t const *row, uint32_t variant) {
+    uintptr_t hash = ((uintptr_t)row >> 4) ^ (variant * 2654435761u);
+    hash ^= hash >> 16;
+    soundCompiledPolicy_t *cached = sound_compiled + hash % MAX_SOUNDS;
+    uint32_t generation = G_SoundCatalogGeneration();
+    if (cached->row == row && cached->variant == variant && cached->generation == generation)
+        return cached;
+    soundPolicy_t policy = G_SoundRowPolicy(row, variant);
+    if (policy.max_total)
+        *cached = (soundCompiledPolicy_t){ .row = row, .variant = variant, .generation = generation, .policy = policy };
+    return policy.max_total ? cached : NULL;
+}
+
 void G_PlaySound(vec3_t const *origin, edict_t *ent, int channel, int index, float volume, float attenuation, float timeofs) {
     soundPolicy_t const *registered = G_SoundIndexPolicy(index);
     uint32_t request = ent && ent->sound.pending == index && (channel & CHAN_OWNER) ? G_UnitResponseRequest(ent, index) : 0;
@@ -215,9 +304,13 @@ static int G_RegisterSoundRowVariant(UnitAckSounds_t const *row, uint32_t varian
     char path[512];
     int sound;
 
+    if (!row) return 0;
+    soundCompiledPolicy_t *cached = G_CachedSoundDescriptor(row, variant);
+    if (!cached) return 0;
+    uint64_t revision = gi.MediaRevision();
+    if (cached->index > 0 && cached->media_revision == revision) return cached->index;
     if (!G_SoundRowVariantPath(row, variant, path, sizeof(path))) return 0;
-    soundPolicy_t policy = G_SoundRowPolicy(row, variant);
-    if (!policy.max_total) return 0;
+    soundPolicy_t policy = cached->policy;
     char alias[256];
     if (snprintf(alias, sizeof(alias), "%s#%u", row->name, (unsigned)variant) >= sizeof(alias)) {
         fprintf(stderr, "WC3 sound alias too long: %s\n", row->name);
@@ -225,14 +318,13 @@ static int G_RegisterSoundRowVariant(UnitAckSounds_t const *row, uint32_t varian
     }
     sound = gi.SoundIndexAlias(path, alias);
     if (sound > 0 && sound < MAX_SOUNDS) {
+        cached->index = sound;
+        cached->media_revision = gi.MediaRevision();
         sound_index_policy[sound] = policy;
         sound_index_row[sound] = row;
+        sound_index_variant[sound] = variant;
         sound_index_volume[sound] = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
         sound_index_volume_valid[sound] = true;
-        if (!sound_index_duration_valid[sound]) {
-            sound_index_duration[sound] = (uint32_t)MAX(0, G_SoundFileDuration(path));
-            sound_index_duration_valid[sound] = true;
-        }
     }
     return sound;
 }
@@ -527,8 +619,8 @@ void G_ShowCommandErrorText(edict_t *clent, cstring_t text) {
 }
 
 void G_QueueReadySound(edict_t *ent) {
-    if (!ent || !ent->sound.num_ready) return;
-    ent->sound.owner_pending = ent->sound.ready[rand() % ent->sound.num_ready];
+    if (!ent || !G_UnitSoundProfile(ent)->num_ready) return;
+    ent->sound.owner_pending = G_UnitSoundProfile(ent)->ready[rand() % G_UnitSoundProfile(ent)->num_ready];
 }
 
 void G_QueueOwnerSoundAlias(edict_t *ent, cstring_t alias) {
@@ -550,3 +642,106 @@ void G_QueueOwnerUISound(edict_t *ent, cstring_t skin_key) {
     if (!alias || !alias[0]) return;
     G_QueueOwnerSoundAlias(ent, alias);
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+static uint32_t sound_duration_test_reads;
+static handle_t sound_duration_test_file(cstring_t path, uint32_t *size) {
+    T_STREQ(path, "probe.wav");
+    /* 237 samples at 1000 Hz; fact metadata owns the duration. */
+    static uint8_t const wav[44] = {
+        'R','I','F','F',36,0,0,0,'W','A','V','E',
+        'f','m','t',' ',12,0,0,0,1,0,1,0,232,3,0,0,232,3,0,0,
+        'f','a','c','t',4,0,0,0,237,0,0,0
+    };
+    sound_duration_test_reads++;
+    *size = sizeof(wav);
+    void *data = malloc(sizeof(wav));
+    memcpy(data, wav, sizeof(wav));
+    return data;
+}
+static int sound_duration_test_index(cstring_t path, cstring_t alias) {
+    T_STREQ(path, "probe.wav");
+    T_STREQ(alias, "DeferredWhat#0");
+    return 101;
+}
+TEST(wc3_unit, sound_registration_defers_file_io_until_duration_query) {
+    struct game_import old = gi;
+    UnitAckSounds_t row = { .name = "DeferredWhat", .FileNames = "probe.wav", .Channel = "1",
+        .Priority = 113, .Volume = 127 };
+    G_ResetSoundPresentationState();
+    sound_duration_test_reads = 0;
+    gi.SoundIndexAlias = sound_duration_test_index;
+    gi.ReadFile = sound_duration_test_file;
+    gi.MemFree = free;
+    FOR_LOOP(i, 32) T_EQ(G_RegisterSoundRowVariant(&row, 0), 101);
+    T_EQ(sound_duration_test_reads, 0);
+    T_EQ(G_SoundIndexDuration(0), 0);
+    T_EQ(G_SoundIndexDuration(102), 0);
+    FOR_LOOP(i, 32) T_EQ(G_SoundIndexDuration(101), 237);
+    T_EQ(sound_duration_test_reads, 1);
+    G_ResetSoundPresentationState();
+    T_EQ(G_SoundIndexDuration(101), 0);
+    T_EQ(G_RegisterSoundRowVariant(&row, 0), 101);
+    T_EQ(sound_duration_test_reads, 1);
+    T_EQ(G_SoundIndexDuration(101), 237);
+    T_EQ(sound_duration_test_reads, 2);
+    gi = old;
+    G_ResetSoundPresentationState();
+}
+static int sound_descriptor_test_alias(cstring_t path, cstring_t alias) {
+    T_STREQ(path, "probe.wav");
+    T_STREQ(alias, "CompiledWhat#0");
+    return 101;
+}
+TEST(wc3_unit, sound_registration_reuses_decoded_authored_descriptor) {
+    struct game_import old = gi;
+    UnitAckSounds_t row = { .name = "CompiledWhat", .FileNames = "probe.wav", .Channel = "1",
+        .Flags = "NODUPLICATES,CHANNELFULLPREEMPT", .Priority = 1731, .Volume = 63.5f };
+    G_ResetSoundPresentationState();
+    gi.SoundIndexAlias = sound_descriptor_test_alias;
+    uint32_t before = sound_policy_decodes;
+    FOR_LOOP(i, 1024) T_EQ(G_RegisterSoundRowVariant(&row, 0), 101);
+    T_EQ(sound_policy_decodes - before, 1);
+    T_EQ(G_SoundIndexPolicy(101)->priority, 1731);
+    T_EQ(G_SoundIndexPolicy(101)->flags, SOUND_NO_DUPLICATES | SOUND_CHANNEL_PREEMPT);
+    T_FEQ(G_SoundIndexVolume(101), .5f, .0001f);
+    row.Priority = 99;
+    G_ResetSoundPresentationState();
+    T_EQ(G_RegisterSoundRowVariant(&row, 0), 101);
+    T_EQ(G_SoundIndexPolicy(101)->priority, 99);
+    gi = old;
+    G_ResetSoundPresentationState();
+}
+
+static uint64_t sound_registration_test_revision;
+static uint32_t sound_registration_test_calls;
+static uint64_t sound_registration_revision(void) { return sound_registration_test_revision; }
+static int sound_registration_index(cstring_t path, cstring_t alias) {
+    T_STREQ(path, "probe.wav");
+    T_STREQ(alias, "RevisionWhat#0");
+    sound_registration_test_calls++;
+    return sound_registration_test_revision == 73 ? 101 : 102;
+}
+TEST(wc3_unit, sound_registration_reuses_index_until_resource_revision_changes) {
+    struct game_import old = gi;
+    UnitAckSounds_t row = { .name = "RevisionWhat", .FileNames = "probe.wav", .Channel = "1",
+        .Priority = 117, .Volume = 127 };
+    G_ResetSoundPresentationState();
+    gi.MediaRevision = sound_registration_revision;
+    gi.SoundIndexAlias = sound_registration_index;
+    sound_registration_test_revision = 73;
+    sound_registration_test_calls = 0;
+    FOR_LOOP(i, 1024) T_EQ(G_RegisterSoundRowVariant(&row, 0), 101);
+    T_EQ(sound_registration_test_calls, 1);
+    sound_registration_test_revision++;
+    T_EQ(G_RegisterSoundRowVariant(&row, 0), 102);
+    T_EQ(sound_registration_test_calls, 2);
+    T_EQ(G_SoundIndexPolicy(102)->priority, 117);
+    G_ResetSoundPresentationState();
+    T_EQ(G_RegisterSoundRowVariant(&row, 0), 102);
+    T_EQ(sound_registration_test_calls, 3);
+    gi = old;
+    G_ResetSoundPresentationState();
+}
+#endif

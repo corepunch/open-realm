@@ -1,0 +1,4595 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "capture_sources": {
+    "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "captain_enrollment158_observer.js": "c69bc18a4c7dc29bfa6f2eb463b7f1929d5bf9c262c683225bf9b4f4e68008c8",
+    "map": "2581f603e2160e0f069fd4848bbbbd9f329cd86eff66ad03294a1518ec2af673"
+  },
+  "sources": {
+    "tools/frida/research/captain_enrollment158_make_map.py": "f9d46d4a2e5054c18bccbf458bd81d8fff2966d0abb7828bc12a486cd27b451b",
+    "tools/frida/research/captain_enrollment158_observer.js": "c69bc18a4c7dc29bfa6f2eb463b7f1929d5bf9c262c683225bf9b4f4e68008c8",
+    "tools/frida/research/captain_enrollment158_probe.ai": "7f40c19a00ddd297b2dc3c8821198109491c5c96fc6f68b9aabede1f5bb08701",
+    "tools/frida/research/captain_enrollment158_probe.j": "fa9d337ce78456d4c9dc7a04b8541c0ef488823c6efcd451863b595e8d93db4c",
+    "tools/frida/research/captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91"
+  },
+  "captures": {
+    "observe-6.jsonl": "82cb8d8fc43fc6a3f3633659ee82412afee90c9cfee4f4d3a32a77a87c7a3921",
+    "observe-7.jsonl": "24db9eb8488bcebb5b904a5a656596a66c3aa09acf8b00db888d9143a0713601",
+    "control-3.jsonl": "158045be56193b9bf6429f25ecaec41944f8207d5eac1f65d446deacfc710813"
+  },
+  "public_markers": [
+    "RSG tick=0 label=start",
+    "RSG tick=1 label=before-ai",
+    "RSG tick=1 label=after-ai",
+    "RSG tick=1 label=sample u=0 order=0 life=420.000 x=-1552.000 y=-944.000",
+    "RSG tick=1 label=sample u=1 order=0 life=420.000 x=-1232.000 y=-848.000",
+    "RSG tick=1 label=sample u=2 order=0 life=420.000 x=-1168.000 y=-848.000",
+    "RSG tick=1 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=2 label=before u=0 order=851986 life=420.000 x=-1552.000 y=-944.000",
+    "RSG tick=2 label=after u=0 order=851986 life=420.000 x=-1552.000 y=-944.000",
+    "RSG tick=2 label=before u=1 order=851986 life=420.000 x=-1232.000 y=-848.000",
+    "RSG tick=2 label=after u=1 order=851986 life=420.000 x=-1232.000 y=-848.000",
+    "RSG tick=2 label=sample u=0 order=851986 life=420.000 x=-1552.000 y=-944.000",
+    "RSG tick=2 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-848.000",
+    "RSG tick=2 label=sample u=2 order=0 life=420.000 x=-1168.000 y=-848.000",
+    "RSG tick=2 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=3 label=before u=0 order=851986 life=420.000 x=-1568.478 y=-926.327",
+    "RSG tick=3 label=after u=0 order=851986 life=420.000 x=-1568.478 y=-926.327",
+    "RSG tick=3 label=sample u=0 order=851986 life=420.000 x=-1568.478 y=-926.327",
+    "RSG tick=3 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-823.700",
+    "RSG tick=3 label=sample u=2 order=0 life=420.000 x=-1168.000 y=-848.000",
+    "RSG tick=3 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=4 label=sample u=0 order=851986 life=420.000 x=-1577.056 y=-900.727",
+    "RSG tick=4 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=4 label=sample u=2 order=0 life=420.000 x=-1168.000 y=-848.000",
+    "RSG tick=4 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=5 label=sample u=0 order=851986 life=420.000 x=-1590.140 y=-877.685",
+    "RSG tick=5 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=5 label=sample u=2 order=0 life=420.000 x=-1168.000 y=-848.000",
+    "RSG tick=5 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=6 label=before u=2 order=851986 life=420.000 x=-1168.000 y=-848.000",
+    "RSG tick=6 label=after u=2 order=851986 life=420.000 x=-1168.000 y=-848.000",
+    "RSG tick=6 label=before u=0 order=851986 life=420.000 x=-1607.731 y=-857.203",
+    "RSG tick=6 label=after u=0 order=851986 life=420.000 x=-1607.731 y=-857.203",
+    "RSG tick=6 label=sample u=0 order=851986 life=420.000 x=-1607.731 y=-857.203",
+    "RSG tick=6 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=6 label=sample u=2 order=851986 life=420.000 x=-1168.000 y=-848.000",
+    "RSG tick=6 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=7 label=sample u=0 order=851986 life=420.000 x=-1625.323 y=-836.720",
+    "RSG tick=7 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=7 label=sample u=2 order=851986 life=420.000 x=-1178.231 y=-845.387",
+    "RSG tick=7 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=8 label=sample u=0 order=851986 life=420.000 x=-1642.914 y=-816.237",
+    "RSG tick=8 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=8 label=sample u=2 order=851986 life=420.000 x=-1205.131 y=-847.336",
+    "RSG tick=8 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=9 label=sample u=0 order=851986 life=420.000 x=-1660.505 y=-795.754",
+    "RSG tick=9 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=9 label=sample u=2 order=851986 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=9 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=10 label=before u=2 order=851986 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=10 label=after u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=10 label=sample u=0 order=851986 life=420.000 x=-1678.096 y=-775.271",
+    "RSG tick=10 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=10 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=10 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=11 label=before u=0 order=851986 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=11 label=after u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=11 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=11 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=11 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=11 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=12 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=12 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=12 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=12 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=13 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=13 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=13 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=13 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=14 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=14 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=14 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=14 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=15 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=15 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=15 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=15 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=16 label=before u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=16 label=after u=1 order=0 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=16 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=16 label=sample u=1 order=0 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=16 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=16 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=17 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=17 label=sample u=1 order=0 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=17 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=17 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=18 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=18 label=sample u=1 order=0 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=18 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=18 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=19 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=19 label=sample u=1 order=0 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=19 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=19 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=20 label=before u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=20 label=after u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=20 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=20 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=20 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=20 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=21 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=21 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=21 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=21 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=22 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=22 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=22 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=22 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=23 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=23 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=23 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=23 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=24 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=24 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=24 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=24 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=25 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=25 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=25 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=25 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=26 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=26 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=26 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=26 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=27 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=27 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=27 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=27 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=28 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=28 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=28 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=28 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=29 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=29 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=29 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=29 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=30 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=30 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=30 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=30 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=31 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=31 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=31 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=31 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=32 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=32 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=32 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=32 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=33 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=33 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=33 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=33 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=34 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=34 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=34 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=34 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=35 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=35 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=35 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=35 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=36 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=36 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=36 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=36 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=37 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=37 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=37 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=37 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=38 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=38 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=38 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=38 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=39 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=39 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=39 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=39 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=40 label=sample u=0 order=0 life=420.000 x=-1695.687 y=-754.788",
+    "RSG tick=40 label=sample u=1 order=851986 life=420.000 x=-1232.000 y=-799.401",
+    "RSG tick=40 label=sample u=2 order=0 life=420.000 x=-1224.025 y=-847.813",
+    "RSG tick=40 label=sample u=3 order=0 life=420.000 x=-1104.000 y=-1168.000",
+    "RSG tick=40 label=complete"
+  ],
+  "normalized": [
+    {
+      "event": "policy",
+      "tick": 1,
+      "value": 1
+    },
+    {
+      "event": "attach",
+      "tick": 2,
+      "index": 0,
+      "captain": "captain",
+      "unit": 0,
+      "flags5c": 517,
+      "separationDisableDepth": 0,
+      "userCount": 0
+    },
+    {
+      "event": "idle-member",
+      "tick": 2,
+      "index": 0,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 0,
+      "flags5c": 517,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 2,
+      "index": 0,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 0,
+      "result": 1
+    },
+    {
+      "event": "reissue",
+      "tick": 2,
+      "index": 0,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 517,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 517,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 0,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "range",
+      "tick": 2,
+      "index": 0,
+      "unit": 0,
+      "value": 1123549184
+    },
+    {
+      "event": "temporary",
+      "tick": 2,
+      "index": 0,
+      "flags": 1573249,
+      "before": {
+        "flags5c": 516,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 516,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "unit": 0,
+      "head_changed": true,
+      "task_changed": true,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "attach",
+      "tick": 2,
+      "index": 1,
+      "captain": "captain",
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 0,
+      "userCount": 0
+    },
+    {
+      "event": "idle-member",
+      "tick": 2,
+      "index": 1,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 2,
+      "index": 1,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 2,
+      "index": 1,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 2,
+      "index": 1,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "temporary",
+      "tick": 2,
+      "index": 1,
+      "flags": 1573249,
+      "before": {
+        "flags5c": 4100,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4100,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "unit": 1,
+      "head_changed": true,
+      "task_changed": true,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "temporary",
+      "tick": 3,
+      "index": 0,
+      "flags": 1573249,
+      "before": {
+        "flags5c": 516,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 516,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "unit": 0,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 4,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 4,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 4,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 4,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 5,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 5,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 5,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 5,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "attach",
+      "tick": 6,
+      "index": 2,
+      "captain": "captain",
+      "unit": 2,
+      "flags5c": 517,
+      "separationDisableDepth": 0,
+      "userCount": 0
+    },
+    {
+      "event": "idle-member",
+      "tick": 6,
+      "index": 2,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 2,
+      "flags5c": 517,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 6,
+      "index": 2,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 2,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 6,
+      "index": 2,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 2,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 6,
+      "index": 2,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 517,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 517,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 2,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "temporary",
+      "tick": 6,
+      "index": 2,
+      "flags": 1573249,
+      "before": {
+        "flags5c": 516,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 516,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "unit": 2,
+      "head_changed": true,
+      "task_changed": true,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "temporary",
+      "tick": 6,
+      "index": 0,
+      "flags": 1573249,
+      "before": {
+        "flags5c": 516,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 516,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "unit": 0,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 6,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 6,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 6,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 6,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "policy",
+      "tick": 7,
+      "value": 0
+    },
+    {
+      "event": "idle-member",
+      "tick": 7,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 7,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 7,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 7,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 8,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 8,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 8,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 8,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 8,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 8,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 8,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 8,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 9,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 2,
+      "flags5c": 517,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 9,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 2,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 9,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 2,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 9,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 517,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 517,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 2,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 9,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 9,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 9,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 9,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        3,
+        3,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "detach",
+      "tick": 10,
+      "index": 2,
+      "captain": "captain",
+      "unit": 2,
+      "flags5c": 516,
+      "separationDisableDepth": 0,
+      "userCount": 1
+    },
+    {
+      "event": "temporary",
+      "tick": 10,
+      "index": 2,
+      "flags": 1572993,
+      "before": {
+        "flags5c": 516,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 517,
+        "separationDisableDepth": 0,
+        "userCount": 0
+      },
+      "unit": 2,
+      "head_changed": true,
+      "task_changed": true,
+      "head_present": false,
+      "task_present": false
+    },
+    {
+      "event": "idle-member",
+      "tick": 10,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 10,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 10,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 10,
+      "index": 3,
+      "captain": "captain",
+      "flags": 0,
+      "state": 2,
+      "counts": [
+        2,
+        2,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "detach",
+      "tick": 11,
+      "index": 0,
+      "captain": "captain",
+      "unit": 0,
+      "flags5c": 4100,
+      "separationDisableDepth": 0,
+      "userCount": 1
+    },
+    {
+      "event": "temporary",
+      "tick": 11,
+      "index": 0,
+      "flags": 1572993,
+      "before": {
+        "flags5c": 4100,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 0,
+        "userCount": 0
+      },
+      "unit": 0,
+      "head_changed": true,
+      "task_changed": true,
+      "head_present": false,
+      "task_present": false
+    },
+    {
+      "event": "policy",
+      "tick": 11,
+      "value": 1
+    },
+    {
+      "event": "idle-member",
+      "tick": 11,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 11,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 11,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 11,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 12,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 12,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 12,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 12,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 13,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 13,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 13,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 13,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 14,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 14,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 14,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 14,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "policy",
+      "tick": 15,
+      "value": 0
+    },
+    {
+      "event": "idle-member",
+      "tick": 15,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 15,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 15,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 15,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "detach",
+      "tick": 16,
+      "index": 1,
+      "captain": "captain",
+      "unit": 1,
+      "flags5c": 4100,
+      "separationDisableDepth": 0,
+      "userCount": 1
+    },
+    {
+      "event": "temporary",
+      "tick": 16,
+      "index": 1,
+      "flags": 1572993,
+      "before": {
+        "flags5c": 4100,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 0,
+        "userCount": 0
+      },
+      "unit": 1,
+      "head_changed": true,
+      "task_changed": true,
+      "head_present": false,
+      "task_present": false
+    },
+    {
+      "event": "policy",
+      "tick": 19,
+      "value": 1
+    },
+    {
+      "event": "attach",
+      "tick": 20,
+      "index": 1,
+      "captain": "captain",
+      "unit": 1,
+      "flags5c": 4100,
+      "separationDisableDepth": 0,
+      "userCount": 1
+    },
+    {
+      "event": "idle-member",
+      "tick": 20,
+      "index": 1,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 20,
+      "index": 1,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 20,
+      "index": 1,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 20,
+      "index": 1,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "temporary",
+      "tick": 20,
+      "index": 1,
+      "flags": 1573249,
+      "before": {
+        "flags5c": 4100,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4100,
+        "separationDisableDepth": 0,
+        "userCount": 1
+      },
+      "unit": 1,
+      "head_changed": true,
+      "task_changed": true,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 20,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 20,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 20,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 20,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 21,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 21,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 21,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 21,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 22,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 22,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 22,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 22,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 23,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 23,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 23,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 23,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 24,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 24,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 24,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 24,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 25,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 25,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 25,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 25,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 26,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 26,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 26,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 26,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 26,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 26,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 26,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 26,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 27,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 27,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 27,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 27,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 28,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 28,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 28,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 28,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 29,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 29,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 29,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 29,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 30,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 30,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 30,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 30,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 31,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 31,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 31,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 31,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 32,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 32,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 32,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 32,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 33,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 33,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 33,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 33,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 34,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 34,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 34,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 34,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 35,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 35,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 35,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 35,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 35,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 35,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 35,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 35,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 36,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 36,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 36,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 36,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 37,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 37,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 37,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 37,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 38,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 38,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 38,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 38,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    },
+    {
+      "event": "idle-member",
+      "tick": 39,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "unit": 1,
+      "flags5c": 4101,
+      "separationDisableDepth": 1,
+      "userCount": 1
+    },
+    {
+      "event": "reachability",
+      "tick": 39,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": "null",
+      "target": 1,
+      "result": 0
+    },
+    {
+      "event": "reachability",
+      "tick": 39,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        3304194048,
+        3272605696
+      ],
+      "source": 1,
+      "target": "null",
+      "result": 0
+    },
+    {
+      "event": "reissue",
+      "tick": 39,
+      "index": 3,
+      "captain": "captain",
+      "flags": 4096,
+      "state": 2,
+      "counts": [
+        1,
+        1,
+        0,
+        1,
+        0
+      ],
+      "point": [
+        0,
+        0
+      ],
+      "order": 851986,
+      "target": "captain",
+      "before": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 1
+      },
+      "after": {
+        "flags5c": 4101,
+        "separationDisableDepth": 1,
+        "userCount": 2
+      },
+      "unit": 1,
+      "head_changed": false,
+      "task_changed": false,
+      "head_present": true,
+      "task_present": true
+    }
+  ]
+}

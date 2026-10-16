@@ -1,0 +1,20 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "trace_wc3_pathfinding.py": "f1cf55e358c03232759bf6b16870e13e8a9147b8662fb57c00cc804c65880a13",
+    "wc3_pathfinding.js": "287fd5a80b538fcc99e1e17ece90e93cf41dda3f5813ba94a8e268f258a2fdf5",
+    "wc3_pathfinding_probe.j": "17926de3c2f6bc85769a5eb6b98735bb7f8af602ed215952cc34106f626e380e",
+    "make_wc3_pathfinding_map.py": "a93c42eba5beee1bf7243c730f2b86ab988f8b53f0bea176fa7816072a0e8eeb",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+    "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+    "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+    "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+    "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+    "map": "0a968f7de82eaf48933eee2f358522fae9d6beb4c801f8cf3cc6a14269bcb43b"
+  },
+  "owner_counter": 1024,
+  "primary_sha256": "c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae",
+  "scope": "Pinned owned scene37 primary source/owner sequence; presentation time is intentionally excluded.",
+  "completion_time": 1106248186
+}

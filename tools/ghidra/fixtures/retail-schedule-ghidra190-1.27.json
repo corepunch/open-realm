@@ -1,0 +1,24 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "records": [
+    {
+      "address": "6f15aa80",
+      "name": "PathOwner_Update",
+      "evidence": "Payoff190 SCHED-02.3: complete1000 owner entry/exit intervals with nonempty shared38c/group3b8/separation51c lists. Scheduler167310 first;328 shared16c220 visits then357 radius16e1f0 visits; group16c150/decide16c250/commit16c570; all mover1705c0 settling; alternating1702f0 last (1000 visits).32 ticks have both shared12+1 groups. Two read-only function-entry repeats and observer-free control retain all304 public markers. Owner1325 singleton radius pass sees0, twelve-member pass sees3ffc0000; both movement groups see3ffc0000. Second group sees first commit next-speed40960000 while previous published speed remains7f7fffff. Engine radius collection now follows actual newest-first group list; retained geometric generation snapshot eliminates per-pass allocation, preserving frozen callback generations. Reentrant mutation remains SCHED-02.4.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f16e1f0",
+      "name": "PathGroup_AccumulateSharedRadius",
+      "evidence": "Payoff190 SCHED-02.3: populated original15aa80 traverses group3b8 in newest-first order before any16c150. In first shared owner1325, singleton count1 contributes maximum63world/32 fine3ffc0000 before count12 collector; both physical commits subsequently observe complete max. Repeat/control timelines and357 radius entries retain order, including32 joint-group owner intervals. Engine slot-array radius order was wrong despite an equal commutative final maximum; now traverses the same derived creation-order list as physical visits.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f1702f0",
+      "name": "Separate_Update",
+      "evidence": "Payoff190 SCHED-02.3: two isolated authored repulse1 idle Footman clones keep owner51c populated without changing Captain trajectories. Each of1000 complete15aa80 callbacks records exactly one alternating separation visit after all physical group commits and mover settling. Both minimal function-entry repeats match304 public position/order markers against observer-free control. Separate engine native construction test creates equivalent two authored repulse owners and asserts separation after both shared-group commits; this is phase order, not an added numerical repulsion oracle.",
+      "readback_matches": true
+    }
+  ]
+}

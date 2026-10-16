@@ -54,6 +54,9 @@ struct game_import {
     void (*MinimapPing)(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags);
     int (*ImageIndex)(cstring_t imageName);
     int (*FontIndex)(cstring_t fontName, uint32_t fontSize);
+    /* Derived game resource caches must refresh after registration, edits or
+     * a world replacement. This revision never enters snapshots/savegames. */
+    uint64_t (*MediaRevision)(void);
     void (*LinkEntity)(edict_t *ent);
     void (*UnlinkEntity)(edict_t *ent);
     uint32_t (*BoxEdicts)(box2_t const *area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *));
@@ -66,7 +69,16 @@ struct game_import {
     /* Keep the native window responsive during synchronous map loading without
      * advancing commands, client simulation, or server simulation. */
     void (*LoadingFrame)(void);
+    /* Refresh the last published client state at a safe action boundary.
+     * Does not execute commands, receive snapshots or advance simulation. */
+    void (*FrameCheckpoint)(void);
     handle_t (*ReadFile)(cstring_t filename, uint32_t *size);
+    /* Borrow a mounted MPQ member for bounded reads/seek; NULL leaves loose
+     * files to ReadFile. CloseFile releases the filesystem read lock. */
+    handle_t (*OpenFile)(cstring_t filename);
+    void (*CloseFile)(handle_t file);
+    /* Probe the mounted filesystem without reading/decompressing payloads. */
+    bool (*FileExists)(cstring_t filename);
     /* Calls callback for every archive copy of filename, lowest priority first.
      * Useful for merging layered data files (e.g. GameData/Assets.txt). */
     void (*ReadFileAll)(cstring_t filename, void (*callback)(handle_t buf, uint32_t size, void *ud), void *ud);
@@ -79,6 +91,10 @@ struct game_import {
     /* Freeze only authoritative simulation advancement. The server keeps
      * packet processing and client transport alive while paused. */
     void (*SetPaused)(bool paused);
+    /* Schedule fixed simulation steps at numerator/denominator of wall time.
+     * Game time and each RunFrame step remain unchanged. Both values must be
+     * positive, with a resulting interval from 1 through INT32_MAX ms. */
+    void (*SetSimulationRate)(uint32_t numerator, uint32_t denominator);
     void (*multicast)(vec3_t const *origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);
@@ -114,6 +130,9 @@ struct game_import {
     uint32_t (*ListSaves)(string_t out, uint32_t out_size);
     /* Delete one save basename from the writable save directory. */
     bool (*DeleteSave)(cstring_t rel);
+    /* Host clock for session setup only. Store its result before simulation;
+     * deterministic gameplay must use the stored setup value or GetTime. */
+    uint32_t (*Milliseconds)(void);
 };
 
 struct client;

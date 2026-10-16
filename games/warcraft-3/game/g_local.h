@@ -18,12 +18,128 @@
 #include "g_shared.h"
 #include "g_unitrow.h"
 #include "jass/jlex.h"
+#include "games/warcraft-3/common/wc3_math.h"
+#include "games/warcraft-3/common/wc3_pathing_random.h"
+#include "games/warcraft-3/common/wc3_pathing_yield.h"
+#include "games/warcraft-3/common/wc3_pathing_repulsion.h"
+#include "games/warcraft-3/common/wc3_pathing_limits.h"
+typedef struct wc3FineBox_s wc3FineBox_t;
+typedef struct wc3RecordObject_s wc3RecordObject_t;
+typedef struct wc3SpatialRecords_s wc3SpatialRecords_t;
+
+/* Coarse paths are distinct owners from the member's fine path. Links are
+ * process-local; queue sequence and admission time are authoritative. */
+typedef struct moveCoarseRequest_s {
+    struct moveCoarseRequest_s *prev, *next;
+    uint64_t sequence;
+    uint32_t time;
+    uint8_t player, policy;
+    bool queued, waiting;
+} moveCoarseRequest_t;
+
+typedef struct {
+    uint32_t work, countdown, count, limit;
+    moveCoarseRequest_t *head, *tail;
+} moveCoarseBudget_t;
+
+/* Move owns the fine-coordinate chain; allocation follows route length, not the edict pool size. */
+typedef struct {
+    vec2_t *points;
+    uint32_t count, index, capacity;
+    uint8_t mask;
+    bool partial; /* Fine route endpoint differs from the requested point, including target-perimeter success. */
+    bool warp_markers; /* Last coarse replacement contains a gate; retained after consumption. */
+    vec2_t *adaptive_points; /* Accelerator coordinates, twice the fine-cell size. */
+    uint32_t adaptive_count, adaptive_index, adaptive_capacity;
+    vec2_t adaptive_goal;
+    /* Original path+24: a coarse result ending short of its request goal becomes the goal of
+     * later coarse requests and retries for the same destination, surviving table discards. */
+    vec2_t adaptive_adjusted, adaptive_adjusted_goal;
+    uint32_t adaptive_adjusted_valid;
+    /* Original path+88 0x20000000: the last coarse result ended short of its request goal.
+     * Cleared with the partial flag by 168740 clearResults. */
+    uint32_t adaptive_short;
+    float adaptive_radius;
+    uint32_t adaptive_revision;
+    uint8_t adaptive_mask; /* Authored hierarchy lane is independent of the current fine query. */
+    /* Singleton group plan is separate from the member's local route. */
+    vec2_t *group_points;
+    uint32_t group_count, group_index, group_capacity;
+    vec2_t group_goal;
+    vec2_t group_request; /* Derived world-coordinate key; admitted goal remains authoritative. */
+    uint32_t group_geometry; /* Process-local transform revision; cleared on save/load. */
+    float group_radius;
+    uint32_t group_revision;
+    uint8_t group_mask; /* Coarse owner lane survives member query toggles. */
+    moveCoarseRequest_t adaptive_admission, group_admission;
+} moveFineRoute_t;
+
+typedef struct {
+    edict_t *unit;
+    uint32_t spawn, flags;
+    vec2_t offset, destination, world_destination;
+    float speed, heading, arrival_range;
+    bool arrived, in_range, forced_arrival;
+    bool retired; /* Identity retained until owner preparation after rebinding. */
+} moveGroupMember_t;
+
+/* Shared request parameters have their own lifetime across physical batches.
+ * Groups store the generation ID, so growing this flat pool cannot stale them. */
+typedef struct {
+    uint64_t id;
+    uint32_t references;
+    bool inuse;
+    float speed, next_speed, radius;
+    uint32_t newer, older; /* Derived slot+1 links; rebuilt from saved IDs. */
+} moveShared_t;
+
+/* Move owns retained physical groups independently of JASS collection handles. */
+typedef struct moveGroup_s {
+    uint32_t id, count, flags, age, completion_counter, cooldown;
+    uint32_t request_id; /* Latest submitted request history for cohort acquisition. */
+    uint64_t sequence; /* Creation order survives slot reuse and save/load. */
+    uint64_t shared_id; /* Native group7c shared parameters, zero when unbound. */
+    bool inuse, initialized, ticking;
+    bool individual; /* Physical singleton schedules the unit-owned route. */
+    bool turning; /* Bridge-owned angular cohort, independent of the public task. */
+    float turn_rate; /* Native request+fc/group+74 per-decision angular override. */
+    vec2_t goal, point; /* Native fine destination and selected formation point. */
+    edict_t *target;
+    uint32_t target_spawn;
+    uint32_t target_region_owner; /* Saved pooled-object owner +1; zero uses target mover98. */
+    uint32_t target_region_slot; /* One-based widget slot; zero identifies its ordinary object. */
+    uint32_t target_region; /* Runtime pooled identity +1, rebuilt from the saved slot. */
+    bool follow_continuation; /* Pending d0173 after this ordinary approach. */
+    float follow_range; /* Captured authored world range; radii are read at activation. */
+    /* Optional ability-owned completion receiver. Cancellation calls it with
+     * arrived=false and must only release the receiver's pending work. */
+    edict_t *receiver;
+    uint32_t receiver_spawn;
+    uint32_t owner_ability; /* One-based ability index; zero retains the ordinary Move owner. */
+    void (*complete)(edict_t *receiver, edict_t *unit, bool arrived);
+    int32_t target_refresh;
+    uint32_t unseen_counter; /* Consecutive hidden target samples, native group+6c. */
+    float heading, radius;
+    moveFineRoute_t route;
+    moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];
+    /* Derived creation-order links and allocation slot; rebuilt after load. */
+    struct moveGroup_s *newer, *older;
+    uint32_t slot;
+} moveGroup_t;
+
+/* Original player rows have independent ordinary fine work and intrusive queues. */
+typedef struct {
+    uint32_t work, countdown, count, limit;
+    edict_t *head, *tail;
+} moveFineBudget_t;
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
-#define MAX_EVENT_QUEUE 1024
+/* Two order notifications for every world entity can precede one event pass.
+ * A power-of-two bound also keeps ring indexing a mask in the hot dispatch. */
+#define MAX_EVENT_QUEUE 32768
 #define MAX_JASS_DIALOGS 64 // dialogs; bounds live handles, freed slots are reused; used by the JASS registry
 #define MAX_JASS_DIALOG_BUTTONS 256 // buttons; bounds live handles, freed slots are reused; used by the JASS registry
 #define JASS_DIALOG_SLOT_BITS 16 // bits; low id bits hold slot+1 (fits 256 buttons), high bits the reuse generation
@@ -36,6 +152,7 @@
 #define BZ_STRINGIFY_INNER(value) #value
 #define BZ_STRINGIFY(value) BZ_STRINGIFY_INNER(value)
 #define MAX_ENTITIES MAX_GAME_ENTITIES
+#include "g_entity_set.h"
 #define MAX_REGION_SIZE 16
 #define MAX_REGIONS 2048 // fixed region data slots; generation tokens let retired slots be reused safely
 #define REGION_TOKEN_SLOT_BITS 13 // 2048 slots plus a two-bit tag; upper uintptr_t bits carry a generation
@@ -70,6 +187,7 @@ typedef struct {
 #define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
 #define MAX_SHOP_STOCK 24 // entries; exceeds Blizzard.j's default 11 item slots; bounds persisted shop merchandise
 #define MAX_CARGO 8
+#define MAX_BOARDING_RESERVATIONS 10
 #define MAX_HERO_ABILITIES 4
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
 #define MAX_UNIT_COOLDOWNS 16 // independent per-unit ability cooldown records; does not consume buff/status capacity
@@ -107,11 +225,15 @@ if (NAME) { \
 } while (0)
 
 
+#define FOR_SELECTION_MEMBERS(client_t, ENT) \
+for (edict_t *ENT = G_NextSelectedEntity(client_t, 0); ENT; \
+     ENT = G_NextSelectedEntity(client_t, (uint32_t)(ENT - g_edicts) + 1))
+
 #define FOR_SELECTED_UNITS(client_t, ENT) \
-FILTER_EDICTS(ENT, G_IsEntitySelected(client_t, ENT))
+FOR_SELECTION_MEMBERS(client_t, ENT) if (G_IsEntitySelected(client_t, ENT))
 
 #define FOR_CONTROLLABLE_SELECTED_UNITS(client_t, ENT) \
-FILTER_EDICTS(ENT, G_IsEntitySelected(client_t, ENT) && G_UnitCanControl(client_t, ENT))
+FOR_SELECTION_MEMBERS(client_t, ENT) if (G_IsEntitySelected(client_t, ENT) && G_UnitCanControl(client_t, ENT))
 
 struct jass_function;
 KNOWN_AS(jass_s, jass_t);
@@ -190,6 +312,7 @@ typedef struct {
     uint32_t ability_item_spawn_time;
     bool supports_order_queue; /* active target mode accepts Shift chaining */
     bool order_queued;         /* transient modifier for the current target callback */
+    bool order_alt;            /* physical Alt modifier; interpreted by the owning ability */
     bool order_queue_chained;  /* successful Shift target keeps this mode armed until Shift release */
     bool ability_off;          /* command-card separate-off variant selected for this dispatch */
     edict_t *dragged_item;      /* transient inventory item carried by the cursor for a drop order */
@@ -211,7 +334,10 @@ enum {
     AI_CORPSE_IN_CARGO = 1 << 10, /* corpse lifecycle; stored in a Meat Wagon cargo slot */
     AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
     AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
-    AI_SUMMON_EXPLODES_ON_DEATH = 1 << 13, /* spirit/beast summon magical death effect, no corpse */
+    AI_TOWN_OWNED = 1 << 13, /* Retail unit5c.4; AI enrollment, independent of script VM. */
+    AI_SUMMONED = 1 << 14, /* Retail unit248.4; independent of the creating ability. */
+    AI_SUMMON_EXPLODES_ON_DEATH = 1 << 15, /* spirit/beast summon magical death effect, no corpse */
+    AI_CORPSE_DECAY_SUSPENDED = 1 << 16, /* script canceled decay; resume starts a new bone phase */
 };
 
 typedef enum {
@@ -653,8 +779,19 @@ struct client_s {
 /* Player-issued WC3 Shift orders are simulation state, separate from the
  * training/research queue. Targets are retained by edict number + spawn_time
  * so a recycled slot cannot silently retarget an old queued command. */
-#define MAX_UNIT_ORDER_QUEUE 16
+#define MAX_UNIT_ORDER_QUEUE 500 /*693490:501 user heads including the active order. */
+/* One reserved slot lets an active looping order append its continuation
+ * before retiring its head, even when every user FIFO slot is occupied. */
+#define UNIT_ORDER_STORAGE_CAPACITY (MAX_UNIT_ORDER_QUEUE + 1)
+#define UNIT_ORDER_INITIAL_CAPACITY 17 /* Small queues retain their existing pooled bucket. */
 #define UNIT_ORDER_NAME_SIZE 20 // bytes; fits the 17-byte longest stock order name plus NUL; bounds queued order strings
+
+/* Retail command identities: issued Patrol becomes a two-endpoint order on
+ * activation. These are order IDs, not FourCCs or configurable unit data. */
+enum {
+    WC3_ORDER_ID_PATROL = 851990,
+    WC3_ORDER_ID_PATROL_TWO_POINTS = 851991,
+};
 
 typedef enum {
     UNIT_ORDER_TARGET_NONE,
@@ -667,21 +804,55 @@ typedef struct {
     char order[UNIT_ORDER_NAME_SIZE];
     unitOrderTargetType_t target_type;
     vec2_t point;
+    vec2_t continuation; /* Owned two-point orders retain their other endpoint. */
     /* Entity-target orders identify their gameplay target here. Queued Build
      * orders instead identify their owner-only Construction Site Indicator so
      * queue teardown can remove presentation without storing process pointers. */
     uint32_t target_number;
     uint32_t target_spawn_time;
+    bool target_is_unit; /* Captured class survives removal and slot reuse. */
     uint32_t issuer_player;
-    uint32_t order_id; /* rawcode payload for delayed orders such as construction */
+    uint32_t order_id; /* Retained identity/explicit payload (Build rawcode); zero resolves order name. */
     float group_speed;
+    uint32_t owner_context; /* Owning ability interprets this retained queue payload. */
 } unitOrder_t;
 
+/* Forced ability commands retain their concrete owner independently of the
+ * unit's live ability list and the player's Shift queue. New packets insert
+ * immediately after the suspended head, before existing successors. */
+typedef struct unitAbilityDisable_s {
+    struct unitAbilityDisable_s *next;
+    uint32_t code, references, exclusive_inventory;
+    int32_t depth, order_depth;
+    bool pause_owned, retire_owned, exclusive_owned, linked;
+} unitAbilityDisable_t;
+
+typedef struct unitAbilityOrder_s {
+    struct unitAbilityOrder_s *next;
+    uint32_t code, issuer_player, remaining;
+    char order[UNIT_ORDER_NAME_SIZE];
+} unitAbilityOrder_t;
+
 typedef struct {
-    unitOrder_t entries[MAX_UNIT_ORDER_QUEUE];
+    unitOrder_t entries[UNIT_ORDER_INITIAL_CAPACITY];
+} unitOrderStorage_t;
+
+typedef struct {
+    unitOrder_t *entries; /* owned ring; growth can relocate entries before callbacks */
     uint32_t head;
     uint32_t count;
+    uint32_t capacity;
 } unitOrderQueue_t;
+
+/* Scripted flag, user notification and physical suspension are separate
+ * stages. A reentrant task can win before the suspension is constructed. */
+typedef enum {
+    UNIT_PAUSE_NONE,
+    UNIT_PAUSE_ADMITTING,
+    UNIT_PAUSE_SUSPENDED,
+    UNIT_PAUSE_BYPASSED,
+    UNIT_PAUSE_WAITING, /* Public pause queued behind a counted execution hold. */
+} unitPausePhase_t;
 
 typedef enum {
     GUARD_NONE,
@@ -709,10 +880,18 @@ typedef enum {
 #define AB_INNATE       (1u << 9)  // bit 9; unit-data behavior; receives lifecycle messages without a command-card slot
 #define AB_COOLDOWN_ON_STATUS_REMOVE (1u << 10) // bit 10; defer spell cooldown until its owned status ends
 #define AB_STATUS_EVENTS (1u << 11) // bit 11; active statuses from this ability accept generic status policy events
-#define AB_ENGINE_EVENTS (1u << 12) // bit 12; engine-wide lifecycle/order notifications reach this ability
-#define AB_QUEUEABLE    (1u << 13) // bit 13; the command button accepts the generic Shift queue modifier
-#define AB_POWERUP      (1u << 14) // bit 14; item ability consumed on pickup without an inventory slot
+#define AB_OWNER_UPDATE (1u << 12) // bit 12; receives begin/update around scheduled owner-clock moves
+#define AB_ENGINE_EVENTS (1u << 13) // bit 13; engine-wide lifecycle/order notifications reach this ability
+#define AB_QUEUEABLE    (1u << 14) // bit 14; the command button accepts the generic Shift queue modifier
+#define AB_PRIMARY_TIMER (1u << 15) // bit 15; receives primary-clock timer passes independent of server frames
+#define AB_POWERUP (1u << 16) // bit 16; item ability consumed on pickup without an inventory slot
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
+#define AB_STATUS_POLICY (1u << 17) // bit 17; procedure classifies its attached buffs for public removal
+#define AB_TYPE_INIT (1u << 19) // explicit per-type initialization contract; direct init remains available
+#define AB_TYPE_UPDATE (1u << 20) // procedure declares type/state requirements for persistent updates
+#define AB_MOVE_TARGET_NO_WARP (1u << 21) // target ability excludes Way Gates from new group routes
+#define AB_INTRINSIC (1u << 22) // owner can expose an instance independently of the authored ability list
+#define AB_MOVE_SPEED_BONUS (1u << 18) // bit 18; receives the maximum move-speed bonus query
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
  * base classes.  SPELL_TARGET_UNIT_OR_POINT allows either (e.g. Carrion Swarm). */
@@ -750,6 +929,16 @@ typedef enum {
     WC3_EFFECT_MISSILE = 5,
     WC3_EFFECT_LIGHTNING = 6,
 } wc3EffectType_t;
+
+/* The producer retains insertion order and generations before any order callbacks. */
+typedef struct {
+    struct { edict_t *unit; uint32_t spawn; } units[BZ_WC3_GROUP_ORDER_UNITS];
+    uint32_t count, order_id, issuer_player;
+    bool queued, formation_toggle;
+    edict_t *selection_owner; /* UI producer only; script/captain rows retain producer order. */
+    cstring_t order;
+    vec2_t const *point;
+} groupPointOrder_t;
 
 typedef struct ability_s ability_t;
 typedef struct ability_call_s abilityCall_t;
@@ -792,22 +981,36 @@ typedef enum {
     A_ENABLE,           /* UnitAddAbility: notify the procedure that this ability was added to ent. */
     A_DISABLE,          /* UnitRemoveAbility: notify the procedure that this ability was removed from ent. */
     A_LEVEL,            /* Level refresh: return ent's current behavior-specific ability level. */
+    A_REQUIREMENTS_CHANGED, /* Player research state changed; authored owners recheck pending work. */
     A_LEVEL_CHANGED,    /* Level refresh: apply the new call->level to behavior-owned state. */
     A_ORDER,            /* Immediate-order dispatch: handle call->order; return whether it was accepted. */
+    A_POINT_ORDER_ADMIT, /* Point owner validates before pending orders are changed; abilityOrderResult_t. */
+    A_POINT_ORDER,      /* Point owner starts the admitted or queued command; abilityOrderResult_t. */
+    A_GROUP_POINT_ORDER, /* Batch producer: call->group_order; return abilityOrderResult_t. */
     A_TARGET_ORDER,     /* Target-owned interaction: handle call->target_order for an order aimed at this unit. */
     A_ORDER_ACCEPTED,   /* Accepted non-queued order that may not install a new move; call->order identifies it. */
+    A_PRIMARY_TIMER,    /* After a due path owner, before public timer/event callbacks. */
+    A_PRIMARY_TIMER_NEXT, /* Query an owner's earliest exact primary request. */
+    A_PRIMARY_TIMER_FIRE, /* Deliver that request at its deadline/serial boundary. */
+    A_PRIMARY_TIMER_REBASE, /* Rebase queued raw deadlines after the span drain. */
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
+    A_UNIT_TYPE_CHANGING, /* Old type is still bound; behaviors retire physical movement state. */
+    A_UNIT_TYPE_CHANGED, /* New type is bound; behaviors resume retained orders with the new profile. */
     A_UNIT_INIT,        /* Spawn/type rebind: initialize behavior from the unit's authored data. */
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
     A_AUTO_COMBAT_START, /* Generic AI acquired/retaliated against a target; persistent behaviors may mark a detour. */
     A_AUTO_COMBAT_END,   /* Generic combat ended; persistent behaviors may resume or restore their order. */
+    A_UNIT_TASK_COMPLETE, /* Completion before queued user orders: internal owners may take over. */
     A_UNIT_STAND,       /* Common stand installation; an owning ability may install its persistent stand behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
     A_MOVE_START,       /* Move accepted a new target; call->move_target identifies it. */
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_MOVE_BLOCKED,     /* Move reached terminal Hold after a blocked route; true consumes the transition. */
     A_DAMAGED,          /* Positive post-mitigation damage applied to a surviving unit, before combat response. */
+    A_COMBAT_ALERT,     /* Source notification before damage transformations or retaliation. */
+    A_ALLY_COMBAT_ALERT, /* Victim broadcasts its source to eligible help responders. */
     A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
+    A_UNIT_REMOVING,    /* Semantic removal before deferred memory reclamation; owners release identities. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
     A_NO_RETALIATE,     /* Damage query: return true to suppress automatic counter-attacks. */
@@ -821,6 +1024,9 @@ typedef enum {
     A_QUEUE_ORDER_CANCEL, /* Player FIFO: owning order ability releases queued presentation/state from call->queued_order. */
     A_STATUS_REFRESH,   /* Status set changed: owner reconciles derived state with remaining statuses. Payload: call->status of one remaining status. */
     A_STATUS_REMOVE,    /* Status expiring/dispelled: owner runs its inverse while the slot is still valid. Sent before the slot is wiped. Payload: call->status of the expiring slot. */
+    A_STATUS_REMOVED,   /* Applying owner notification after its status slot was wiped. */
+    A_STATUS_POLICY,    /* Applying owner returns unitBuffPolicy_t for call->status. */
+    A_MOVE_PARAMETERS_CHANGED, /* A stat owner changed the unit's effective movement parameters. */
     A_STATUS_TICK,      /* Active status scheduler; owner advances its saved next_tick before applying damage. */
     A_STATUS_DEATH,     /* Victim died with this status active; independent of the victim's learned abilities. */
     A_ISSUED_TARGET_ORDER, /* Issuer ability gets the target/order before generic Smart fallback. */
@@ -829,41 +1035,153 @@ typedef enum {
     A_SPELL_COMMIT,      /* Accepted spell commit notification; call->item is the spell being committed. */
     A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
     A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
+    A_TARGET_REMOVED,    /* Active move owner: call->removed_target is semantically removed, still allocated. */
+    A_TARGET_LOST,       /* Published target state changed; subscribed owners validate synchronously. */
+    A_OWNER_BEGIN,      /* Before owner-clock movement callbacks: publish the owning scheduler state. */
+    A_OWNER_UPDATE,     /* After owner-clock movement callbacks: update persistent ability-owned lists. */
+    A_UNIT_OWNER_CHANGING, /* Old owner remains published while behaviors cancel their orders/requests. */
+    A_UNIT_OWNER_CHANGED, /* Ownership changes refresh behavior-owned policies after publishing the new player. */
+    A_MOVE_SPEED_BONUS,  /* Aggregate all owners into call->move_speed_bonus; no stop-first dispatch. */
+    A_UNIT_EVENT_MASK,  /* InitAbilities: optional subscriptions for broadcast unit events; no unit state. */
+    A_UNIT_TYPE_INIT,   /* Pure per-type fresh-init contract; never sent as a unit lifecycle event. */
+    A_UNIT_TYPE_UPDATE, /* Pure update requirements; unknown procedures retain the full broadcast. */
+    A_TIMERS_RESET,     /* Discard derived timer membership before replacing level state. */
+    A_TIMERS_REBUILD,   /* Reconstruct membership from restored authoritative unit state. */
+    A_TARGET_ORDER_ADMIT, /* Registered/active owner validates before FIFO mutation; may intercept the current target. */
+    A_CHANNEL_STATE_CHANGED, /* Published channel begin/end; behavior owners refresh their runtime policy. */
+    A_UNIT_WORK_STATE_CHANGED, /* Work owner published its separation eligibility, including its inverse. */
+    A_UNIT_OWNED,       /* Read-only intrinsic ownership query; no initialization or allocation. */
+    A_STATUS_REPLACE,   /* Applying owner may release its contribution before a status payload is replaced. */
+    A_UNIT_RETIRE,      /* Death/removal commits an inactive unit before ability detach; identity remains valid. */
+    A_TARGET_OWNER_CHANGED, /* Retained target's owner event; distinct from TargetLost validation. */
+    A_POINT_ORDER_PRIORITY, /* Authored owners reduce the unsigned point-order score. */
+    A_TARGET_AVAILABLE, /* Nearby Attack subscribers reconsider a published target transition. */
+    A_CAST_PROFILE,    /* Concrete spell supplies its verified ordered phase policy. */
+    A_SPELL_COMMAND_PROFILE, /* Owner-authored order ID and target shape for the actual rawcode. */
+    A_FIND_SPELL_ORDER, /* Resolve a dynamic public order among attached spell owners. */
+    A_CAST_BEGIN,      /* Ability-owned v384 work, after CHANNEL and before validation. */
+    A_CAST_END,        /* Ability-owned v388 inverse before ENDCAST. */
+    A_MORPH_COMPLETE,  /* Concrete form owner after its primary transition inverse. */
+    A_MORPH_EXPIRE,    /* Transformed-form lifetime ended; owner starts its inverse. */
+    A_UNIT_SUSPEND,     /* Temporary execution suspension; distinct from ability detach. */
+    A_TRANSIENT_ORDER,  /* Execute a retained owner packet without public native validation. */
+    A_CONSTRUCTION_FINISH, /* Structure completion is published; ability-owned continuations run now. */
+    A_ORDER_RESUME, /* Retained head reactivation: the owner publishes its notification. */
     A_SPELL_APPROACH_RANGE, /* Spell query: ability-specific distance for the shared approach behavior. */
     A_SPELL_TARGET_MODE, /* Spell query: choose generic point or entity target selection. */
+    A_NUM_MESSAGES,
 } abilityMsg_t;
+
+/* A recognized contract promises initialization changes only the owner's
+ * state, not another ability's ownership. Unknown procedures run normally and
+ * end fresh-init specialization for all following callbacks. Tagged values
+ * cannot be confused with a procedure's ordinary boolean result. */
+typedef enum {
+    UNIT_INIT_UNKNOWN = 0,
+    UNIT_INIT_RUN = 0x57434900,
+    UNIT_INIT_SKIP_FALSE,
+    UNIT_INIT_SKIP_TRUE,
+    UNIT_INIT_RUN_LOCAL, /* No metadata, registry, runtime-ability or callback mutations. */
+} unitInitPolicy_t;
+
+/* Update plans preserve registry order. A pointer requirement is tested live,
+ * so an effect can finish after the ability or original order was removed. */
+enum {
+    UNIT_UPDATE_RUN = 0x57435500,
+    UNIT_UPDATE_SKIP,
+    UNIT_UPDATE_POINTER_BASE = 0x57440000,
+};
+#define UNIT_UPDATE_POINTER(member) (UNIT_UPDATE_POINTER_BASE + offsetof(edict_t, member))
+
+typedef struct {
+    uint64_t bits[(A_NUM_MESSAGES + 63) / 64];
+} abilityMessageSet_t;
+
+typedef enum {
+    UNIT_BUFF_KNOWN = 1u << 0,
+    UNIT_BUFF_POSITIVE = 1u << 1,
+    UNIT_BUFF_NEGATIVE = 1u << 2,
+    UNIT_BUFF_MAGIC = 1u << 3,
+    UNIT_BUFF_PHYSICAL = 1u << 4,
+    UNIT_BUFF_TIMED_LIFE = 1u << 5,
+    UNIT_BUFF_AURA = 1u << 6,
+    UNIT_BUFF_AUTO_DISPEL = 1u << 7,
+} unitBuffPolicy_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call)
 
 typedef intptr_t (*abilityProc_t)(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call);
 
+typedef struct {
+    wc3Clock_t deadline;
+    uint32_t sequence;
+    bool active;
+} abilityPrimaryTimer_t;
+
+typedef struct {
+    wc3Clock_t deadline;
+    uint32_t sequence;
+    abilityProc_t proc;
+} abilityTimerRequest_t;
+
 typedef enum {
     ABILITY_ORDER_UNHANDLED,
     ABILITY_ORDER_REJECTED,
     ABILITY_ORDER_ACCEPTED,
+    ABILITY_ORDER_INTERCEPTED, /* Accepted by the current owner without replacing its public head or queue. */
+    ABILITY_ORDER_POINT, /* Owner converts a target order to its captured point before admission. */
 } abilityOrderResult_t;
+
+typedef struct {
+    float channel_delay, cast_point, backswing;
+    bool effect_at_finish;
+    bool intercept_before_work;
+    bool finish_on_target_loss;
+} spellCastProfile_t;
+
+typedef struct { uint32_t order_id; spellTargetType_t target_type; } spellCommandProfile_t;
+typedef struct { uint32_t order_id, code; } spellOrderQuery_t;
 
 struct ability_call_s {
     abilityitem_t const *item;
+    bool ordered_cast; /* Concrete effect has already passed the ordered cast delay. */
     edict_t *source_item; /* inventory item that initiated an asynchronous item spell, if any */
     uint32_t source_item_spawn_time;
     union {
         spellTarget_t const *target;
+        spellCommandProfile_t *spell_command;
+        spellOrderQuery_t *spell_order;
+        spellCastProfile_t *cast_profile; /* A_CAST_PROFILE: borrowed output, no instance allocation. */
         union {
             float spell_approach_range;
             bool spell_entity_target_mode;
         };
         edict_t *client;
         edict_t *projectile;
+        edict_t *removed_target; /* A_TARGET_REMOVED; valid throughout the notification. */
+        edict_t *lost_target; /* A_TARGET_LOST; world/invisibility state is already published. */
         cstring_t order;
+        struct { vec2_t const *point; cstring_t order; } point_order;
+        groupPointOrder_t const *group_order; /* A_GROUP_POINT_ORDER: retained public point request. */
         abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
-        struct { edict_t *target; cstring_t order; } issued_target_order; /* A_ISSUED_TARGET_ORDER */
+        struct { edict_t *target; cstring_t order; bool queued; vec2_t *point; } issued_target_order; /* Issuer target admission/dispatch; optional conversion output. */
         edict_t *attacker; /* A_DAMAGED */
         edict_t *move_target; /* A_MOVE_START */
         cstring_t classname;
         uint32_t level;
         bool enabled;
+        struct { uint32_t order; vec2_t const *point; uint32_t *minimum; } point_priority;
+        float *move_speed_bonus; /* A_MOVE_SPEED_BONUS: maximum nonnegative flat contribution. */
+        struct { /* A_UNIT_TYPE_INIT/UPDATE: immutable inputs, never an instance. */
+            UnitAbilities_t const *unit_type;
+            UnitData_t const *unit_data;
+        };
+        struct { bool destroying; } retirement; /* A_UNIT_RETIRE: storage teardown after semantic cleanup. */
+        abilityMessageSet_t *unit_messages; /* A_UNIT_EVENT_MASK: procedure-owned broadcast subscriptions. */
+        abilityTimerRequest_t *primary_timer; /* Exact primary request query/delivery. */
+        float clock_span; /* A_PRIMARY_TIMER_REBASE. */
+        struct { edict_t *source; uint32_t flags; edict_t *victim; } combat_alert;
         struct { edict_t *producer; edict_t *item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
         struct { heroabilitystatus_t *slot; uint32_t ability; status_remove_reason_t reason; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
@@ -887,6 +1205,9 @@ typedef struct {
      * Warcraft corpse decay. M_MoveFrame maps the selected model sequence
      * across this duration instead of assuming one model frame per ms tick. */
     float (*animation_duration)(edict_t const *);
+    bool scheduled_think; /* dispatched by the game owner clock instead of the snapshot frame */
+    void (*sample_pose)(edict_t *);
+    void (*leave)(edict_t *); /* publish the current clock's pose without committing a decision */
 } umove_t;
 
 typedef struct {
@@ -929,6 +1250,22 @@ typedef struct {
 } edictStat_t;
 typedef edictStat_t edictStat_s;
 
+typedef struct {
+    uint16_t select[MAX_UNIT_SELECT_SOUNDS];
+    uint16_t yes[MAX_UNIT_SELECT_SOUNDS];
+    uint16_t ready[MAX_UNIT_SELECT_SOUNDS];
+    uint16_t chop[3];
+    uint8_t num_select, num_yes, num_ready, num_chop;
+    int attack, death;
+} unitSoundProfile_t;
+
+typedef struct {
+    int pending;
+    int owner_pending; /* Owner-only one-shot queued for the next snapshot. */
+    int world_pending; /* Unfiltered world one-shot queued for the next snapshot. */
+    uint8_t world_pending_event;
+} unitSound_t;
+
 typedef struct edictAbilities_s {
     uint32_t added[MAX_ABILITIES];
     uint32_t added_count;
@@ -945,8 +1282,12 @@ typedef struct {
     float TurnSpeed;
     float PropWindow;
     float AcquireRange;
+    uint32_t move_flags;
 } unitInfo_t;
 
+#define BZ_UNIT_TURN_SET 1u // bit; distinguishes scripted turn speed from authored speed; unitInfo_t.move_flags
+#define BZ_UNIT_WINDOW_SET 2u // bit; zero is a valid scripted movement window; unitInfo_t.move_flags
+#define BZ_UNIT_SPEED_SET 4u // bit; zero/negative scripted speeds must reach the authored clamp
 typedef struct {
     bool inuse;
     uint32_t id; /* (generation << JASS_DIALOG_SLOT_BITS) | (slot + 1); kept after release to advance on reuse */
@@ -982,6 +1323,7 @@ typedef struct gameevent_s {
     vec2_t point;
     bool has_point;
     event_t *responseTo;
+    uint64_t response_sequence; /* Pins a registration across deferred delivery/reuse. */
     uint32_t dialog_id, button_id;
     uint32_t dialog_player; /* one-based player index; zero means no override */
 } gameEvent_t;
@@ -1046,7 +1388,7 @@ typedef struct {
 #define MAX_MULTIBOARD_ITEMS 256 // views; MultiboardGetItem refcounted cell handles
 #define MAX_TEXTTAGS 100 // handles; retail-ish floating-text pool
 #define MAX_HASHTABLES 256 // handles; DotA uses many tables but not thousands; overflow logs to stderr
-#define MAX_HASHTABLE_ENTRIES 65536 // hard cap per table; grow from a small capacity
+#define MAX_HASHTABLE_ENTRIES (1u << 24) // slots per table; corrupt-save guard only, retail tables grow without a fixed limit (journey probes exceed 65536)
 #define MAX_HASHTABLE_TYPE 24 // chars; longest JASS handle type name + NUL for nested HT_HANDLE slots
 #define HASHTABLE_HANDLE_ID_BASE 0x100000u // keep allocated GetHandleId values out of low edict range
 #define MAX_GAMECACHE_ENTRIES 256 // mission/key slots per campaign cache blob
@@ -1057,7 +1399,8 @@ typedef struct {
 #define MAX_EVENTS 1024 // handlers; region-event tokens allow safe reuse of retired handler slots
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
-#define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
+#define MAX_WAYPOINTS 256 // entities; initial destination reserve, with leased growth
+#define SVF_MOVE_WAYPOINT 0x00000020 // game-owned destination storage; persisted in existing svflags
 #define WC3_PLAYERSTATE_NO_CREEP_SLEEP 25 // common.j playerstate; prevents Neutral Hostile from entering natural night sleep
 
 #ifdef WC3_DEBUG_TUTORIAL_FLOW
@@ -1132,12 +1475,25 @@ struct gtrigger_s {
     gTriggerAction_t *actions;
     gTriggerCondition_t *conditions;
     bool disabled;
+    bool destroyed, release_pending;
+    uint32_t evaluations, executions, release_sequence;
+    wc3Clock_t release_deadline;
 };
 
 struct gtimer_s {
     struct jass_function const *handler;
-    uint32_t duration, remaining;
+    uint32_t duration, remaining, updated;
     uint32_t generation;
+    float scalar_timeout;
+    wc3Clock_t scalar_deadline;
+    bool scalar_timing;
+    float scalar_period, scalar_residual, scalar_paused_remaining;
+    uint32_t scalar_segments, scalar_remaining_segments, scalar_sequence;
+    bool scalar_segmented, scalar_resume;
+    bool destroyed, destroy_pending;
+    uint32_t destroy_next; /* derived pending-release link, slot plus one */
+    wc3Clock_t scalar_fired_clock;
+    int32_t scalar_heap_index; /* derived, rebuilt after load */
     bool periodic, paused, running;
 };
 
@@ -1236,10 +1592,17 @@ typedef struct {
     } value;
 } hashtableEntry_t;
 
+/* Original 28a460 per-game proper-name counters; `used` holds `count` slots. */
+typedef struct {
+    uint32_t type, count;
+    uint16_t *used;
+} heroNameUsage_t;
+
 struct ghashtable_s {
     bool inuse;
     uint32_t num_entries, capacity; /* capacity is runtime only; entries pointer is not in the level schema */
     hashtableEntry_t *entries;
+    uint32_t *slots, slot_mask; /* runtime open-addressing index of entry+1; rebuilt after load */
 };
 
 struct gquestitem_s {
@@ -1350,7 +1713,8 @@ typedef enum {
     WC3_STATUS_STATE_SLEEPING      = 1u << 3,
     WC3_STATUS_STATE_MAGIC_IMMUNE  = 1u << 4,
     WC3_STATUS_STATE_INVULNERABLE  = 1u << 5,
-    WC3_STATUS_STATE_ETHEREAL      = 1u << 6
+    WC3_STATUS_STATE_ETHEREAL      = 1u << 6,
+    WC3_STATUS_STATE_MAGIC_LEASH   = 1u << 7
 } wc3_status_state_t;
 
 /* Status-owned numeric contributions.  The shared resolver performs only
@@ -1413,6 +1777,9 @@ typedef struct heroabilitystatus_s {
     wc3_status_modifier_t modifiers[WC3_STATUS_MAX_MODIFIERS];
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
+    uint32_t prevention_mask; /* captured Attacks Prevented mask; zero after its inverse */
+    float move_speed_delta; /* applying owner captures the exact signed contribution */
+    uint32_t move_speed_applied;
 } heroabilitystatus_t;
 
 /* Status application is authoritative for identity and source metadata.  The
@@ -1444,6 +1811,12 @@ typedef enum {
     WC3_STATUS_APPLY_FREE_SLOT,
     WC3_STATUS_APPLY_FULL
 } wc3_status_apply_check_t;
+
+typedef struct {
+    heroabilitystatus_t slots[MAX_UNIT_STATUSES];
+    uint32_t attack_prevention[3]; /* Attack-owned signed word counters: melee, ranged, special */
+    uint32_t spell_prevention; /* Unit-owned signed word counter; independent of Attack */
+} unitStatusStorage_t;
 
 typedef struct {
     uint32_t code;       /* normalized AbilityData.code rawcode; zero means unused slot */
@@ -1488,6 +1861,8 @@ typedef struct {
     edict_t *item;
 } shopPawnItemParams_t;
 
+typedef struct unitAnimationText_s unitAnimationText_t;
+
 #define WC3_ANIMATION_REQUEST_SIZE 80
 #define WC3_ANIMATION_PROPERTIES_SIZE 128
 
@@ -1513,6 +1888,7 @@ typedef enum {
     ANCIENT_ROOTING,
     ANCIENT_UPROOTED,
     ANCIENT_UPROOTING,
+    ANCIENT_ROOT_FACING, /* d0176 precedes morph and remains interruptible. */
 } ancientRootMode_t;
 
 typedef struct {
@@ -1522,11 +1898,11 @@ typedef struct {
     edict_t *worker;          /* Orc/Night Elf internal worker; Undead summoner while casting */
     uint32_t worker_spawn_time; /* validates worker pointer across remove/reuse */
     bool worker_inside;
+    bool worker_work_active; /* separately acquired after construct-start returns */
     bool consumes_worker;
     bool restore_invulnerable;
     bool restore_paused;
     bool restore_hidden;
-    uint32_t worker_release_time; /* Undead summon animation release time; 0 for other strategies */
     float progress;
     float duration_ms; /* override of UnitBalance buildTime for Tiny Structures; 0 uses normal duration */
     bool paid;
@@ -1557,8 +1933,11 @@ typedef struct {
 typedef struct {
     uint32_t ability;
     bool primary;
+    bool working; /* Work phase survives save; pause retains the order but ends this phase. */
     float gold_accum;
     float lumber_accum;
+    uint32_t target_spawn_time; /* Repair-owned target generation, retained through saved work. */
+    bool target_removed; /* Retirement observed before the scheduled work owner completes. */
 } buildwork_t;
 
 typedef struct {
@@ -1594,6 +1973,20 @@ typedef struct {
     bool hide_order_active; /* Ahid/ambush: suppress voluntary acquisition until replaced */
 } shadowMeld_t;
 
+/* Predicted health regeneration keeps a committed base rather than per-frame rounding. */
+typedef struct {
+    wc3Clock_t clock;
+    float base, value, rate;
+    bool sampling;
+} healthRegen_t;
+
+/* Shadow Strike's impact payload and independent recovery/damage/expiry clocks. */
+typedef struct {
+    abilityPrimaryTimer_t timers[3];
+    uint32_t status_id, rank, buff;
+    float duration, interval, damage, initial, move, attack, exponent, factor;
+} shadowStrike_t;
+
 typedef struct {
     uint32_t ability;          /* Amil alias that supplied Data A/B and duration */
     uint32_t normal_type;      /* Data A: worker form retained across the timed morph */
@@ -1612,7 +2005,15 @@ typedef struct {
     uint32_t original_model;   /* presentation state restored when the buff ends */
     float original_scale;
     float original_move_speed;
+    uint32_t move_group_isolation_applied;
 } polymorph_t;
+
+typedef struct {
+    abilityPrimaryTimer_t transition, expiration;
+    uint32_t code, base_type, target_type;
+    uint32_t category_clear, category_set; /* Concrete morph owner's fine occupancy publication. */
+    bool reverse, deferred_rebind, animation_held;
+} morph_t;
 
 typedef struct {
     float fly_height; /* authored Raven Form height applied after the forward morph clip */
@@ -1714,6 +2115,9 @@ typedef struct {
     bool pathing_active;
     bool placement_solid;
     bool loot_processed;
+    uint32_t placement_surface; /* retained Move-level registry handle, zero before publication */
+    uint32_t footprint_origin_valid;
+    vec2_t footprint_origin; /* texture-transition raster point, independent of physical pose */
     float occluder_height; /* mutable elevator level, measured above the destructable origin */
 
     uint32_t editor_id;
@@ -1728,19 +2132,34 @@ typedef struct {
 
 typedef struct {
     edict_t *units[MAX_CARGO];
+    bool separation_suppression[MAX_CARGO]; /* Entangle Cargo task ownership. */
     uint32_t count;
+    vec2_t ferry_destination; /* Adro retained destination, including the loading phase. */
+    bool ferry_pending, ferry_arrived, board_requested;
+    bool load_failed; /* AI Load retains its logical head after terminal path failure. */
+    bool shore_valid, shore_arrived, load_point, load_point_arrived;
+    vec2_t shore_ground, shore_water, load_destination;
+    bool board_static, board_failed;
+    uint8_t board_retries; /* d017f: initial approach plus five half-second retries. */
+    bool board_withdrawal; /* Synchronous Cargo800 cleanup guard; never saved. */
+    edict_t *boarding[MAX_BOARDING_RESERVATIONS];
+    uint32_t boarding_spawn[MAX_BOARDING_RESERVATIONS];
 } cargo_t;
 
 typedef struct {
     vec2_t destination;
     bool destination_set;
     bool active;
+    uint8_t edge_id; /* Native1..255, zero after the original allocation attempt exhausts. */
+    bool initialized; /* Exhaustion is retained until the ability is recreated. */
+    vec2_t source_half; /* Authored setup dimensions retained for cleanup after ability removal. */
 } waygate_t;
 
 typedef struct {
     uint32_t level;
     float armor, health;
     int32_t damage;
+    abilityPrimaryTimer_t transition; /* Native Avatar d01c4; outlives BHav. */
 } avatar_t;
 
 typedef struct {
@@ -1776,7 +2195,11 @@ struct edict_s {
     box2_t areabounds;
 
     // keep above in sync with server.h
+    uint32_t scheduled_think_frame; /* transient: prevent two owner thinks after a frame-local transition */
     uint32_t class_id;
+    uint64_t own_seq; /* Current owned-pool insertion order; independent of edict address. */
+    uint32_t ai_guard_handle; /* Derived guard slot/player; rebuilt from saved posts. */
+    uint32_t ai_town_spot, ai_town_player, ai_anchor_spot; /* Map-owned CTownSpot indexes; zero is absent. */
     uint32_t variation;
     uint32_t build_project;
     edict_t *build_preview; /* translucent Construction Site Indicator for an accepted build order */
@@ -1801,6 +2224,11 @@ struct edict_s {
     unsummon_t *unsummon;
     uint32_t spawn_time;
     uint32_t summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
+    struct {
+        wc3Clock_t origin;
+        abilityPrimaryTimer_t request;
+        float slope;
+    } permanent_invisibility_fade;
     /* Awan owns autonomous decisions, but ordinary Move owns the actual route. */
     uint32_t wander_next_time;
     uint32_t wander_random_state;
@@ -1808,15 +2236,18 @@ struct edict_s {
     edict_t *wander_waypoint; /* private, stable destination while Awan is installed */
     uint32_t wander_goal_generation;
     uint32_t waypoint_generation; /* increments whenever the waypoint ring reuses this edict */
-    uint32_t permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
     shadowMeld_t *shadowmeld;
+    shadowStrike_t *shadow_strike;
+    healthRegen_t *health_regen;
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */
     uint32_t shared_vision; /* players that receive this unit's ordinary sight via UnitShareVision */
+    uint32_t shared_reveal; /* UnitShareVision's captured alliance expansion; not a live query */
     uint32_t harvested_lumber;
     uint32_t harvested_gold;
     militia_t *militia;
     polymorph_t *polymorph;
     raven_t *raven;
+    morph_t *morph;
     blightGrowth_t *blight_growth;
     ensnare_t *ensnare;
     ancientRoot_t *ancient_root;
@@ -1847,30 +2278,55 @@ struct edict_s {
     stock_t *stock; /* shop merchandise; null unless this edict is a shop */
     float velocity;
     doodadHero_t hero;
+    int32_t hero_item_agility; /* reversible item contribution; hero.agi retains total AGI */
+    float hero_move_bonus; /* last published Hero contribution, independent of SetUnitMoveSpeed */
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
+    uint32_t hero_proper_name; /* original 28a460 Propernames slot, chosen once at creation */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
-    heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
+    heroabilitystatus_t *abilstatus; /* optional pool; fixed slot order when present */
     uint32_t next_status_instance_id;
     abilityCooldown_t abilitycooldowns[MAX_UNIT_COOLDOWNS];
     edictAbilities_s abilities;
     uint32_t autocast_code; /* one selected autocast ability; zero means disabled */
     avatar_t *avatar;
     bool ignore_alarm; /* UnitIgnoreAlarm: suppress this unit's automatic attacked notifications */
-    bool invulnerable;  // unit cannot take damage when true
-    bool paused;        // unit AI and movement suspended when true
+    bool invulnerable;  // scripted/innate invulnerability contribution
+    int32_t invulnerability_depth, spell_immunity_depth; /* counted transient owners */
+    bool paused;        /* Public pause flag; execution uses the suspension stage. */
     bool stunned;       // unit AI and movement suspended by timed status
-    bool no_pathing;    // pathfinding disabled when true
+    bool no_pathing;    // own query disabled; occupancy category remains active
     bool timed_life_paused; /* UnitPauseTimedLife: freeze BTLF expiry while set */
+    bool target_loss_transient; /* Blink's synchronous validation window; never saved. */
+    bool construction_held; /* Construction owns absence independently of scripted pause. */
     uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
     sleep_t *sleep;
     channel_t *channel;
+    struct edictChaos_s {
+        uint32_t code, phase; /* Owning alias and enabled/commit timer stage. */
+        wc3Clock_t deadline; /* Retail primary-clock deadline, including epoch wrap. */
+    } chaos;
     uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
     bool uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
     vec2_t old_origin;
     unitOrderQueue_t order_queue;
+    unitAbilityDisable_t *ability_disables; /* Lazy ordered availability owners; ordinary units allocate none. */
+    int32_t ability_pause_depth; /* Script-owned portion of Unit1c4. */
+    int32_t ability_exclusive_depth; /* Cast-owned portion; each inverse releases only its own source. */
+    unitAbilityOrder_t *ability_orders; /* Sparse forced commands beneath the suspended user head. */
+    uint32_t current_order_id; /* Active user command, distinct from pending FIFO and issued-event history. */
     waygate_t *waygate;
     struct edictMovement_s {
+        struct edictRepulse_s {
+            wc3Repulse_t state;
+            edict_t *next;
+            bool active, pause_suppression, removal_suppression;
+            int32_t disable_depth; /* Native Unit198 counted owner contributions. */
+        } repulse;
+        uint32_t support_flags; /* Unit280: deck2 and prior-refresh deep-water20; saved before the next height query. */
+        vec2_t support_point; /* Unit284/288; ordinary physics does not force another same-position query. */
+        float support_angle; /* Unit290; slope recomputation also observes heading changes. */
+        bool support_valid;
         vec2_t last_origin;
         float last_distance;
         uint32_t blocked_frames;
@@ -1889,9 +2345,61 @@ struct edict_s {
         edict_t *waygate_goal; /* CAbilityWarp-owned approach waypoint/entity */
         edict_t *flow_fallback_goal;
         moveFallbackState_t flow_fallback_state;
-        routePath_t path; /* persistent WC3 accelerator state shared with other server games */
+        routePath_t path; /* mover-owned waypoint cache; geometry contract shared with other server games */
+        moveFineRoute_t fine_route;
+        bool adaptive_disabled; /* Path88.200000 defaults enabled; type rebind changes policy independently of movement class. */
+        edict_t *fine_prev, *fine_next; /* Move-owned ordinary fine admission FIFO. */
+        bool fine_queued;
+        uint32_t formation_rank; /* Installed mover bucket rank, independent of later row edits. */
+        uint32_t fine_class; /* Retain the old player row until its pending request is unlinked. */
+        uint32_t fine_request_time; /* owner visits, original path+7c interval timestamp */
+        uint32_t wait_delay; /* eligible ordinary path advances; original requester4/peer20 */
+        uint32_t retry_count; /* original path98; admitted fine progress clears before blocker collection */
+        bool point_forced_arrival; /* Original moverD8.10000; range override still requires arrival heading. */
+        edict_t *wait_blocker; /* removed actors invalidate references before edict reuse */
+        uint32_t group_id; /* Move-owned active selection identity; independent of waypoint ring reuse. */
+        uint32_t previous_request_id; /* Latest submitted shared Move request; independent of FIFO activation. */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
+        float speed_factor; /* retained Move multiplier, updated by applying owners */
+        uint32_t speed_factor_initialized;
+        uint32_t group_isolation; /* Move counted owners excluding shared task admission */
+        float flat_speed_bonus; /* AIms maximum last published by a speed setter/order, independent of live inventory. */
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
+        vec2_t velocity;    /* committed Move velocity in world units/second; software scalar cancellation retains its bits */
+        vec2_t fine_pose; /* native fine position; world publication can lose these low bits */
+        bool pose_valid; /* initialized by accepted Move integration; explicit world commits invalidate it */
+        bool collision_profile; /* unit physical profile published; raw radius remains independently mutable */
+        vec2_t sampled_pose; /* exact predicted fine pose at the last published sample */
+        vec2_t pose_world; /* last published world pair; detects explicit external position writes */
+        wc3Clock_t pose_clock; /* time origin of the retained fine pose */
+        bool clock_valid;
+        float visual_facing, visual_speed; /* Native mover c8/cc, independent of physical heading. */
+        bool visual_valid, visual_active;
+        uint32_t visual_policy; /* Installed orientInterp low nibble, native d8 bits8..11. */
+        vec2_t region_position; /* Last owner/explicit-writer region sample, independent of presentation prediction. */
+        bool region_valid;
+        struct {
+            edict_t *actor; /* Retained virtual target, including the private point task after handoff. */
+            edict_t *roster_actor; /* Logical membership survives completion of the physical Move task. */
+            bool active; /* Private captain approach; the retained timer also watches a shared point leg. */
+            bool entered; /* Native c4 membership gates the shared point batch. */
+            bool outer; /* Registered outer-circle membership; departure publishes d01cd once. */
+            uint32_t member_index; /* Retained recruitment order, independent of edict allocation order. */
+            vec2_t home;
+            wc3Clock_t due; /* Creation-phase range deadline persists across the shared leg and private reissue. */
+            uint32_t sequence; /* Primary-clock registration, also used by a virtual actor's update request. */
+        } captain_home;
+        uint32_t captain_actor_members; /* Actual logical roster count controls range and all-entered admission. */
+        uint32_t captain_actor_type; /* Move-owned virtual category2 actor: captain selector1/2, otherwise0. */
+        bool captain_actor_owned; /* Logical captain ownership persists independently of its process-owned AI VM. */
+        bool captain_actor_siege; /* Native captain6c.20, refreshed only by logical roster mutations. */
+        bool type_rebind_pending; /* Retained point head waits for the next type-rebind task pass. */
+        wc3Clock_t type_rebind_deadline;
+        uint32_t pause_order_id; /* Point head beneath the scripted pause order. */
+        unitPausePhase_t pause_phase;
+        bool pause_resume_pending;
+        wc3Clock_t pause_deadline;
+        bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
         vec2_t route_resume_direction;
         vec2_t route_resume_goal_origin;
         edict_t *route_resume_goal;
@@ -1913,6 +2421,9 @@ struct edict_s {
         edict_t *attackmove_waypoint;  // resume attack-move after a combat detour
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
+        vec2_t follow_order_point; /* Retained user point48/50; target sampling never rewrites it. */
+        uint32_t follow_target_spawn_time; /* incarnation captured by the Follow owner */
+        uint64_t follow_sequence; /* Target subscription order, retained across save/load. */
         bool holding_position;
         /* Stop establishes a WC3 guard point. Automatic idle combat may leave
          * that point temporarily, then returns once the combat detour ends. */
@@ -1920,10 +2431,6 @@ struct edict_s {
         unitGuardState_t guard_state;
         /* Neutral Hostile's spawn anchor is independent of player Stop. */
         vec2_t creep_guard_origin;
-        uint32_t creep_guard_last_hit_ms;
-        uint32_t creep_guard_outside_ms;
-        uint32_t creep_guard_return_retries;
-        uint32_t creep_guard_retry_at_ms;
         bool creep_guard_enabled;
         creepGuardPhase_t creep_guard_phase;
         bool explicit_allied_attack;
@@ -1938,7 +2445,12 @@ struct edict_s {
     bool projectile_reflected; /* basic attack missile has already been returned by Defend */
     TARGTYPE targtype;
     edict_t *goalentity;
+    edict_t *attack_target; /* Attack owns its target independently of Move/FIFO parents. */
+    uint64_t attack_target_sequence;
     uint32_t attack_target_spawn_time; /* active CAbilityAttack target incarnation */
+    edict_t *attack_alternative; /* Weak rejected candidate; resolves only at its saved incarnation. */
+    uint32_t attack_alternative_spawn_time;
+    uint32_t attack_acquisition_suppressed; /* Explicit target owner clears retail Attack20.4000. */
     edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
     edict_t *spell_item; /* originating item for a pending walk-into-range spell */
     uint32_t spell_item_spawn_time;
@@ -1963,9 +2475,8 @@ struct edict_s {
     /* Warcraft Required Animation Names (UnitProfile.animProps/uani) plus
      * AddUnitAnimationProperties mutations. The request is retained separately
      * so a property change can reselect the same logical animation family. */
-    char animation_request[WC3_ANIMATION_REQUEST_SIZE];
+    unitAnimationText_t const *animation_request, *animation_props;
     char queued_animation[WC3_ANIMATION_REQUEST_SIZE]; /* JASS follow-up to an authored destructable clip */
-    char animation_props[WC3_ANIMATION_PROPERTIES_SIZE];
     unitbalance_t runtime;
     color32_t vertex_color;
     bool vertex_color_set;
@@ -1977,9 +2488,21 @@ struct edict_s {
     float attack_cooldown_remaining;
     uint32_t attack_cooldown_end_time;
     uint32_t attack_backswing_end_time;
+    edict_t *build_mine; /* Undead Build retained completion target, independent of the work wait. */
+    uint32_t build_mine_spawn_time;
+    abilityPrimaryTimer_t build_summon_wait; /* Unit-owned d019d work completion. */
+    abilityPrimaryTimer_t attack_speed_cap; /* Independent of the public order. */
+    abilityPrimaryTimer_t combat_help; /* Unit's primary d01b3 suppression request. */
+    abilityPrimaryTimer_t attack_swing; /* Attack d01b2: completion independent of weapon cooldown. */
+    struct {
+        abilityPrimaryTimer_t timer; /* Attack280: periodic poll or one-shot return. */
+        vec2_t point;
+        float range;
+        bool initialized, returning;
+    } attack_guard;
     unitInfo_t unitinfo;
-    unitAttack_t attack1;
-    unitAttack_t attack2;
+    unitAttack_t const *attack_profiles[2];
+    unitAttack_t *attack_overrides[2];
     uint32_t defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
     float armor_value;    /* computed armor ('realdef', incl. hero AGI/modifiers) */
     float permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
@@ -1988,20 +2511,8 @@ struct edict_s {
     float temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
     float temporary_mana_bonus; /* item/temporary maximum-mana modifiers preserved across hero recompute */
     float mana_regen_bonus; /* research/permanent mana regeneration modifiers */
-    struct {
-        uint16_t select[MAX_UNIT_SELECT_SOUNDS];
-        uint8_t num_select;
-        uint16_t yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
-        uint8_t num_yes;
-        uint16_t ready[MAX_UNIT_SELECT_SOUNDS]; /* training completion ("Ready" sounds) */
-        uint8_t num_ready;
-        uint16_t chop[3]; uint8_t num_chop;        /* weapon-vs-wood impact variants */
-        int pending;
-        int owner_pending;                  /* owner-only one-shot queued for next snapshot */
-        int world_pending;                  /* unfiltered world one-shot queued for next snapshot */
-        uint8_t world_pending_event;
-        int attack, death;
-    } sound;
+    unitSound_t sound;
+    unitSoundProfile_t const *sound_profile;
 
     void (*stand)(edict_t *);
     void (*birth)(edict_t *);
@@ -2027,8 +2538,37 @@ struct edict_s {
     } data;
 };
 
+/* Sound definitions never contain pending events. Readers cannot allocate or
+ * modify a shared profile; owner edits publish a new immutable logical value. */
+extern unitSoundProfile_t const unit_sound_empty;
+static inline unitSoundProfile_t const *G_UnitSoundProfile(edict_t const *ent) {
+    return ent->sound_profile ? ent->sound_profile : &unit_sound_empty;
+}
+unitSoundProfile_t const *G_InternUnitSoundProfile(unitSoundProfile_t const *value);
+void G_SetUnitSoundProfile(edict_t *ent, unitSoundProfile_t const *value);
+void G_ClearUnitSoundProfiles(void);
+
+/* Attack configuration is shared until a gameplay writer requests an override.
+ * Reading a fresh/partly constructed unit must preserve its old zero defaults. */
+extern unitAttack_t const unit_attack_empty[2];
+static inline unitAttack_t const *S_AttackProfileRead(edict_t const *ent, unsigned slot) {
+    assert(ent && slot < 2);
+    if (ent->attack_overrides[slot]) return ent->attack_overrides[slot];
+    return ent->attack_profiles[slot] ? ent->attack_profiles[slot] : unit_attack_empty + slot;
+}
+unitAttack_t *S_AttackProfileWrite(edict_t *, unsigned slot);
+unitAttack_t const *S_InternAttackProfile(unitAttack_t const *, unsigned slot);
+unitAttack_t const *S_CompileAttackProfile(UnitWeapon_t const *, unsigned slot, uint32_t type, uint32_t weapon);
+void S_AttackApplyDefaults(edict_t *, unsigned slot, unitAttack_t const *);
+void S_ClearAttackProfiles(void);
+unitAttack_t *G_AllocAttackOne(void);
+unitAttack_t *G_AllocAttackTwo(void);
+void G_FreeAttackOne(edict_t *);
+void G_FreeAttackTwo(edict_t *);
+
 typedef struct edictMovement_s edictMovement_s;
 typedef struct edictData_s edictData_s;
+#include "g_construction.h"
 typedef struct clientCamera_s clientCamera_s;
 
 /* An entity that should be ignored by collision and physics: dead, hidden, or
@@ -2052,7 +2592,6 @@ struct game_locals {
     struct {
         float attackHalfAngle;
         float maxCollisionRadius;
-        float maxUnitSpeed;
         float decayTime;
         float boneDecayTime;
         float dissipateTime;
@@ -2067,21 +2606,23 @@ struct game_locals {
         float rootAngle;
         /* Unit-target Move/Smart follows use WC3 Misc distances, not attack
          * acquisition range. war3mapMisc.txt may override either value. */
+        float guardDistance, guardReturnTime;
         float followRange;
         float structureFollowRange;
+        float minUnitSpeed, maxUnitSpeed;
+        float minBldgSpeed, maxBldgSpeed;
         /* Automatic attack alarms use stock MiscGame tuning; map Misc overrides win. */
         float attackNotifyDelay;
         float attackNotifyRange;
+        float callForHelp, creepCallForHelp;
         /* Neutral Hostile leash, read once per map instead of per creep tick. */
-        float guardDistance;
-        float maxGuardDistance;
-        uint32_t guardReturnMs;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         float defenseArmor;
         float strAttackBonus;
         float agiDefenseBonus;
         float agiAttackSpeedBonus;
+        float agiMoveBonus;
         float damageBonus[8][8];
         bool defendDeflection; /* Misc.DefendDeflection: permits Defend/Elune projectile returns */
         bool combatConstantsLoaded;
@@ -2113,6 +2654,7 @@ struct gevent_s {
     bool inuse;
     uint32_t handle_generation;
     uint8_t generation_exhausted;
+    uint64_t registration_sequence;
 };
 
 typedef struct {
@@ -2132,6 +2674,7 @@ typedef struct {
     event_t handlers[MAX_EVENTS];
     gameEvent_t queue[MAX_EVENT_QUEUE];
     uint32_t write, read;
+    uint64_t registration_sequence;
 } levelEvents_t;
 enum {
     WC3_FOG_STATE_MASKED = 1,  /* JASS FOG_OF_WAR_MASKED: unexplored */
@@ -2212,24 +2755,27 @@ typedef enum {
     BOT_CAPTAIN_RETREATING,
 } botCaptainState_t;
 
-/* Transient captain orders: record the destination actually issued to each
- * member, so amphibious planning cannot strand CaptainAtGoal at an
- * unreachable original coordinate. Bot/AI VMs are not saved. */
-typedef struct {
-    edict_t *unit;
-    vec2_t destination;
-    bool partial;
-} botCaptainRoute_t;
+enum {
+    BOT_CAPTAIN_RETREAT_FLAG = 1 << 1,
+    BOT_CAPTAIN_STRENGTH_READY = 1 << 12,
+};
 
 typedef struct {
     ARRAY(edict_t *, units);
-    ARRAY(botCaptainRoute_t, routes);
+    edict_t **units_storage; /* Allocation base; units points past unused prepend capacity. */
+    uint32_t units_capacity;
+    uint32_t entered_members; /* Derived inner memberships; Move updates edges and rebuilds on load. */
+    edict_t *home_actor; /* Move owns its occupancy and retained follower lifetime. */
     vec2_t home, goal;
-    vec2_t position; /* TeleportCaptain logical control position, not world unit coordinates */
+    float request_range; /* Retained request; range-enter refresh may use200 without replacing it. */
+    uint32_t point_order; /* Captain70: private d0012 versus shared AI point d0014. */
+    bool home_set, full;
+    wc3Clock_t created; /* Native range subscriptions begin when the virtual captain is created. */
+    int32_t strength_count; /* Nativec0 roster deltas, not a health sum. */
+    uint32_t policy_flags; /* Native6c: retreat2 and target-strength-ready1000. */
+    wc3Clock_t update_due; /* Native repeating d01c1, one second from actor creation. */
+    vec2_t position; /* Compatibility logical TeleportCaptain position; physical tasks remain Move-owned. */
     bool position_valid;
-    uint32_t desired;
-    uint32_t disadvantage_since; /* group-flee persistence timer; valid while disadvantage_active */
-    bool disadvantage_active;
     botCaptainState_t state;
 } botCaptain_t;
 
@@ -2241,6 +2787,8 @@ typedef struct {
     uint32_t class_id;
     vec2_t origin;
     edict_t *unit;
+    uint32_t identity; /* Stable across array relocation and callback admission. */
+    uint32_t assignments; /* Native guard44; 99999 retires a single assigned post. */
     int32_t replacements_used;
     bool replacement_pending;
 } botGuardPost_t;
@@ -2272,8 +2820,17 @@ typedef enum {
     BOT_DEFEND_PLAYER    = 1 << 14,
     BOT_HEROES_BUY_ITEMS = 1 << 15,
     BOT_AMPHIBIOUS = 1 << 16, /* AI routing policy; never modifies unit movement domains */
+    BOT_GUARD_NEW_UNITS = 1 << 18, /* Town2d0.1: assign eligible new units their own post. */
     BOT_DISABLE_PATHING = 1 << 17, /* AI policy only; never ignore collision in orders */
 } botFlag_t;
+
+#define BOT_TOWN_SPOTS 4 /* Original Town1b8..1c4. */
+typedef struct {edict_t *unit;uint32_t spawn_time;} botTownAnchor_t;
+typedef struct {
+    vec2_t attack_home,defense_home;
+    botTownAnchor_t building,mine,overlay;
+    uint32_t members[MAX_PLAYERS]; /* Derived unit associations; constant-time slot pruning. */
+} botTownSpot_t;
 
 typedef struct {
     jass_t *vm;
@@ -2292,8 +2849,11 @@ typedef struct {
     ARRAY(botCommand_t, commands);
     ARRAY(edict_t *, harvesters);
     ARRAY(botGuardPost_t, guards);
-    botMode_t mode, pending_mode;
+    uint32_t guards_capacity, guard_sequence;
+    botMode_t mode;
     uint32_t flags;
+    bool town_initialized; /* Town policy survives independent AI script startup. */
+    uint32_t town_spots[BOT_TOWN_SPOTS];
     int32_t replacement_count;
     uint32_t hero_id;
     uint32_t hero_level;
@@ -2303,8 +2863,8 @@ typedef struct {
     uint32_t flee_policy_last_scan; /* BZ_COMPAT_GUESS cadence for individual flee evaluation */
     uint32_t defend_policy_last_scan; /* BZ_COMPAT_GUESS cadence for allied-defense response */
     bool defend_player_active; /* engine-owned defense-captain diversion created by SetDefendPlayer */
-    bool paused, stop_requested, restart_requested;
-    char script[MAX_PATHLEN], pending_script[MAX_PATHLEN];
+    bool paused, stop_requested;
+    char script[MAX_PATHLEN];
 } bot_t;
 
 typedef struct {
@@ -2360,6 +2920,12 @@ struct level_locals {
     uint32_t num_triggers;
     gtimer_t timers[MAX_TIMERS];
     uint32_t num_timers;
+    uint32_t timer_release_head, pathing_owner_sequence;
+    uint32_t timer_sequence, timer_heap_count;
+    uint32_t timer_heap[MAX_TIMERS];
+    uint64_t timer_integer_bits[(MAX_TIMERS+63)/64], timer_integer_top;
+    wc3Clock_t timer_clock, timer_source_clock;
+    bool timer_clock_valid;
     timerdialog_t timer_dialogs[MAX_TIMERDIALOGS];
     leaderboard_t leaderboards[MAX_LEADERBOARDS];
     int32_t player_leaderboards[MAX_PLAYERS]; /* registry index, -1 = none */
@@ -2368,6 +2934,8 @@ struct level_locals {
     multiboardItem_t multiboard_items[MAX_MULTIBOARD_ITEMS];
     texttag_t texttags[MAX_TEXTTAGS];
     hashtable_t hashtables[MAX_HASHTABLES];
+    heroNameUsage_t *hero_names; /* per-game least-used proper-name counters, one row per type */
+    uint32_t num_hero_names;
     region_t regions[MAX_REGIONS];
     uint32_t num_regions;
     /* Transient: client slots whose WC3_LAYER_MULTIBOARD layout (custom board or
@@ -2383,11 +2951,16 @@ struct level_locals {
     gLightning_t lightning_effects[MAX_LIGHTNING_EFFECTS];
     uint32_t next_lightning_id;
     bot_t bots[MAX_PLAYERS];
+    ARRAY(botTownSpot_t,ai_town_spots);
+    uint32_t ai_town_spots_capacity;
+    uint32_t ai_owned_players; /* Configured Town AI objects; independent of script startup. */
+    uint32_t ai_vm_initialized; /* Player bits: retail AI+248 gates initial VM creation. */
     mapInfo_t const *mapinfo;
     PATHSTR map_path;
     struct {
         char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
         uint32_t teams, players, game_types, game_type, map_flags;
+        uint32_t random_seed; /* One host setup stamp; never read wall time from movement. */
         uint32_t placement, speed, difficulty, default_difficulty, resource_density, creature_density;
         uint32_t forced_start_locations;
         struct {
@@ -2405,13 +2978,44 @@ struct level_locals {
     struct {
         uint32_t base, cursor, count;
     } waypoints;
+    ARRAY(moveGroup_t *, move_groups);
+    uint32_t move_group_capacity;
+    ARRAY(moveShared_t, move_shared);
+    uint32_t move_shared_capacity;
+    uint64_t next_move_shared_id;
+    uint32_t next_move_group_id; /* Zero is ungrouped; allocation excludes every live unit identity. */
+    uint64_t next_move_group_sequence;
+    uint64_t next_follow_sequence;
+    uint64_t next_attack_target_sequence;
+    uint64_t next_unit_seq;
     quest_t quests[MAX_QUESTS];
     uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
+    bool show_map_cheat;
+    uint32_t pending_show_map_cheats;
     blightGrid_t blight;
     cineFilter_t cinefilter;
     uint32_t framenum;
     uint32_t time;
+    wc3Clock_t pathing_clock;
+    wc3Clock_t pathing_owner_deadline;
+    bool pathing_owner_clock_valid;
+    wc3Clock_t fow_deadline;
+    uint32_t fow_sequence;
+    bool fow_clock_valid;
+    bool move_fine_responsive; /* Saved simulation policy, selected at map start. */
+    wc3Random_t pathing_random;
+    wc3Random_t purpose_random[BZ_WC3_RANDOM_STREAMS]; /* CRandData: game-owned, never per-unit or client-local. */
+    uint32_t pathing_counter; /* original owner+538, initialized to0x400 */
+    moveFineBudget_t move_fine_budgets[MAX_PLAYERS];
+    moveCoarseBudget_t move_coarse_budgets[MAX_PLAYERS][3];
+    uint64_t move_coarse_sequence;
+    edict_t *repulse_head;
+    uint32_t repulse_phase;
+    uint32_t pathing_msec;
+    uint32_t pathing_phase; /* primary advance phase retained for diagnostics */
+    bool pathing_due; /* owner request due at the next timer dispatch */
+    bool scheduled_frame, scheduled_think; /* transient callback dispatch context */
     bool script_paused;
     bool quest_paused;
     bool modal_paused;
@@ -2443,11 +3047,17 @@ for (uint32_t questitem_index = 0; questitem_index < MAX_QUESTITEMS; ++questitem
     for (__typeof__((quest)->items[0]) *property = &(quest)->items[questitem_index]; property; property = NULL) \
         if (property->inuse)
 
+typedef enum {
+    UNIT_META_SCALAR,
+    UNIT_META_WEAPON_TARGETS
+} unitMetaFormat_t;
+
 typedef struct {
     cstring_t id;
     size_t row_offset;
     size_t field_offset;
     bzFieldType_t type;
+    unitMetaFormat_t format;
 } unitMeta_t;
 
 #define UITRIGGER_T_DEFINED
@@ -2490,11 +3100,16 @@ bool G_CampaignProgressSetTutorialCleared(bool cleared);
 bool G_CampaignProgressSetCampaignAvailable(int32_t campaign, bool available);
 bool G_CampaignProgressSetMissionAvailable(int32_t campaign, int32_t mission, bool available);
 void G_SetScriptPaused(bool paused);
+void G_SetGameSpeed(uint32_t speed);
+void G_ApplyGameSpeed(void);
 void G_SetClientModal(edict_t *player, uint32_t modal, bool open);
 void G_SetQuestDialogOpen(edict_t *player, bool open);
 TARGTYPE G_GetTargetType(cstring_t);
 uint32_t G_TargetFlagForType(TARGTYPE);
 cstring_t G_LevelString(cstring_t);
+uint32_t G_PickHeroProperName(uint32_t type);
+cstring_t G_HeroProperName(edict_t const *, char *, size_t);
+void G_ClearHeroNames(void);
 cstring_t G_MapString(mapInfo_t const *info, cstring_t name);
 cstring_t G_UnitName(uint32_t);
 bool G_SkipCutscene(void);
@@ -2591,11 +3206,16 @@ bool G_BotAddAssault(player_t *, int32_t, uint32_t);
 uint32_t G_BotCaptainGroupSize(player_t *);
 bool G_BotCaptainIsFull(player_t *);
 bool G_BotCaptainRetreating(player_t *);
+void G_BotCaptainAttack(player_t *, vec2_t const *);
+void G_BotCaptainGoalEvent(edict_t *);
+void G_RunCaptainTimers(void);
+void G_FireCaptainTimer(botCaptain_t *);
 void G_BotUpdateGroupFlee(player_t *);
 void G_BotRefreshPeonsRepair(player_t *);
 void G_BotUpdateIndividualFlee(player_t *);
 void G_BotUpdateHeroItems(player_t *);
 void G_BotUpdateDefendPlayer(player_t *);
+void G_BotRemoveCaptainUnit(edict_t *);
 void G_BotRemoveInjuries(player_t *);
 void G_BotRemoveSiege(player_t *);
 int32_t G_BotCaptainReadiness(player_t *, bool);
@@ -2607,6 +3227,23 @@ void G_BotRemoveAllGuardPositions(player_t *);
 void G_BotFillGuardPosts(player_t *);
 void G_BotReturnGuardPosts(player_t *);
 void G_BotHeroLevelUp(edict_t *);
+void G_BotInitPlayers(void);
+void G_BotRegisterTownUnit(edict_t *);
+void G_BotWithdrawTownUnit(edict_t *,bool);
+bool G_BotUnitIsWorker(edict_t const *);
+void G_BotRefreshTownSpot(botTownSpot_t *);
+void G_BotDefaultCaptainHomes(player_t *);
+void G_BotResetTownCaptainHomes(player_t *);
+void G_BotClearTownSpots(void);
+bool G_WriteTownSpots(FILE *);
+bool G_ReadTownSpots(FILE *);
+bool G_BotValidateTownSpots(bool);
+void G_BotTemporaryUnitReady(edict_t *);
+bool G_WriteCaptainState(FILE *);
+bool G_ReadCaptainState(FILE *);
+void G_BotUnitOwnerChanged(edict_t *);
+void G_BotDispatchAIStop(edict_t *unit);
+bool G_BotRecenterCargoCaptain(edict_t *unit);
 void G_BotUnitReady(edict_t *);
 bool G_BotPushCommand(player_t *, int32_t, int32_t);
 uint32_t G_BotCommandsWaiting(player_t *);
@@ -2615,7 +3252,6 @@ int32_t G_BotLastData(player_t *);
 void G_BotPopCommand(player_t *);
 void G_BotSetCaptainHome(player_t *, int32_t, float, float);
 void G_BotTeleportCaptain(player_t *, float, float);
-void G_BotCaptainAttack(player_t *, float, float);
 void G_BotCaptainGoHome(player_t *);
 void G_BotCaptainVsPlayer(player_t *, player_t *);
 void G_BotCaptainVsUnits(player_t *, player_t *);
@@ -2635,6 +3271,7 @@ void G_BlightInit(void);
 void G_BlightShutdown(void);
 bool G_IsPointBlighted(vec2_t const *point);
 void G_SetBlightPoint(vec2_t const *point, bool add);
+void G_SetBlightPathCell(uint32_t x, uint32_t y, bool add);
 void G_SetBlightRadius(vec2_t const *point, float radius, bool add);
 void G_SetBlightRect(box2_t const *rect, bool add);
 void G_BlightInitializeDestructable(edict_t *ent);
@@ -2652,8 +3289,17 @@ void G_FowUpdate(void);
 void G_FowMarkBlockersDirty(void);
 void G_FowSendDeltas(void);
 void G_FowSendFull(edict_t *ent);
+uint32_t G_FowPointState(uint32_t player, vec2_t const *point, uint32_t rdflags);
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent);
+typedef enum {
+    UNIT_VISIBILITY_IGNORE_FOG = 1,
+    UNIT_VISIBILITY_IGNORE_DETECTION = 2
+} unitVisibilityFlags_t;
+bool G_FowPlayerCanQueryUnit(uint32_t player, edict_t const *ent, uint32_t flags);
+bool G_FowPlayerCanTrackUnit(uint32_t player, edict_t const *ent);
+void G_QueueShowMapCheat(void);
+void G_RunShowMapCheats(void);
 bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner);
 bool G_UnitSharesVisionWith(edict_t const *unit, uint32_t viewer);
 void G_SetUnitSharedVision(edict_t *unit, uint32_t viewer, bool share);
@@ -2672,6 +3318,14 @@ void S_PermanentInvisibilityInitialize(edict_t *unit);
 void S_PermanentInvisibilityReveal(edict_t *unit);
 void G_FowSetStateRect(fogWrite_t const *fog, box2_t const *box);
 void G_FowSetStateRadius(fogWrite_t const *fog, vec2_t const *center, float radius);
+fogModifier_t *G_FogModifierCreate(void);
+bool G_FogModifierId(fogModifier_t const *mod, uint32_t *id);
+fogModifier_t *G_FogModifierById(uint32_t id);
+void G_FogModifierDestroy(fogModifier_t *mod);
+bool G_WriteFogModifiers(FILE *file);
+bool G_ReadFogModifiers(FILE *file);
+bool G_WriteFowState(FILE *file);
+bool G_ReadFowState(FILE *file);
 void G_FogModifierStart(fogModifier_t *mod);
 void G_FogModifierStop(fogModifier_t *mod);
 uint32_t G_FowWorldToCellX(float x);
@@ -2707,14 +3361,36 @@ bool ReadGame(cstring_t filename);
 edict_t *G_Spawn(void);
 void SP_CallSpawn(edict_t *);
 void G_BindEntityData(edict_t *);
+void G_ResetUnitResources(void);
 void G_BindEntityRuntime(edict_t *);
+void G_ReleaseLevel(void);
 void G_FillMapPlacedUnitMana(edict_t *);
 void G_SpawnEntities(void);
+void G_InitMapRandom(void);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif
 bool SP_FindEmptySpaceAround(edict_t *, uint32_t, vec2_t *, float *);
 bool G_FindUnitUnstuckPosition(edict_t *unit, vec2_t const *requested, vec2_t *out);
+bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t *out);
+bool G_FindWidgetPlacementPosition(edict_t *widget, vec2_t const *requested, float radius,
+                                   uint8_t mask, bool match_level, vec2_t *out);
+bool G_FindUnitMoveRecoveryPosition(edict_t *, vec2_t const *, vec2_t *);
+typedef struct { vec2_t point; uint8_t mask; bool blocked; } terrainPathingEdit_t;
+bool G_GetTerrainPathingFlags(vec2_t const *point, uint8_t *flags);
+bool G_MovePointIsBlocked(vec2_t const *,uint32_t,edict_t const *);
+bool G_SetTerrainPathingFlags(terrainPathingEdit_t const *edit);
+uint32_t G_GetTerrainPathingStateSize(void);
+bool G_GetTerrainPathingState(uint8_t *data, uint32_t size);
+bool G_SetTerrainPathingState(uint8_t const *data, uint32_t size);
+void G_SetTerrainBlightCell(uint32_t x, uint32_t y, bool add);
+typedef struct {
+    vec2_t point;
+    float radius;
+} unitExitReservation_t;
+
+bool SP_FindUnitExitPositionReserved(edict_t *producer, edict_t *unit,
+    unitExitReservation_t const *reserved, uint32_t count, vec2_t *out, float *angle);
 bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, float *angle);
 edict_t *SP_SpawnAtLocation(uint32_t, uint32_t, vec2_t const *);
 edict_t *SP_SpawnAtLocationNoBirth(uint32_t, uint32_t, vec2_t const *);
@@ -2812,27 +3488,78 @@ void G_FreeHashtable(hashtable_t *table);
 void G_ClearHashtableRegistry(void);
 bool G_HashtableIndex(hashtable_t const *table, uint32_t *index);
 bool G_HashtableReserve(hashtable_t *table, uint32_t need);
+hashtableEntry_t *G_HashtableFind(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type);
+hashtableEntry_t *G_HashtableEnsure(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type);
+void G_HashtableRemoveAt(hashtable_t *table, uint32_t index);
+void G_HashtableFlush(hashtable_t *table);
+bool G_HashtableRebuildIndex(hashtable_t *table);
 void G_ClearSaveRegistries(void);
 bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size);
 void G_HeroSaveLoadAuditFrame(void);
 void G_FormatHeroSaveSnap(edict_t const *hero, string_t out, uint32_t out_size);
+struct jass_context;
+wc3Clock_t G_TimerQueryClock(struct jass_context const *);
+float G_ClockMinimumDelay(void);
+float G_TimerRemainingScalar(gtimer_t const *, wc3Clock_t const *);
+float G_TimerElapsedScalar(gtimer_t const *, wc3Clock_t const *);
+void G_TimerStartScalarAt(gtimer_t *, float, bool, struct jass_function const *, wc3Clock_t const *);
+void G_TimerPauseAt(gtimer_t *, wc3Clock_t const *);
+void G_TimerResumeAt(gtimer_t *, wc3Clock_t const *);
+void G_RebuildTimerQueue(void);
 void G_RunTimers(void);
+void G_RunTimersBeforePathOwner(wc3Clock_t const *);
+void G_StartFowUpdates(void);
 void G_StartProjectilePresentation(edict_t *ent);
 void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, struct jass_function const *handler);
+void G_TimerStartScalar(gtimer_t *timer, float timeout, bool periodic, struct jass_function const *handler);
 void G_TimerPause(gtimer_t *timer);
 void G_TimerResume(gtimer_t *timer);
+void G_TimerRequestDestroy(gtimer_t *);
 void G_TimerDestroy(gtimer_t *timer);
 bool G_TimerCoroutineValid(handle_t timer, uint32_t generation);
 uint32_t G_TimerRemaining(gtimer_t const *timer);
 
 edict_t *Waypoint_add(vec2_t const *);
+void G_ResetWaypointCache(void);
+void S_MarkMoveGoals(edict_t const *owner);
+edict_t *S_SetMoveGoal(edict_t *owner, edict_t **slot, edict_t *goal);
+void S_SetFollowTarget(edict_t *, edict_t *);
+bool S_ValidateMoveFollows(void);
 void G_InitWaypoints(void);
+void G_ResetSpawnCache(void);
+void G_ClearEdictStorage(uint32_t count);
+void G_MarkEdictStorageUsed(uint32_t count);
+void G_MarkFreeEdict(edict_t *);
 void M_CheckGround (edict_t *);
+bool S_GetWalkableSupport(vec2_t point,float overlap,float *height);
+float S_GetLocationSupport(vec2_t point);
+void S_RefreshUnitSlope(edict_t *self);
+void S_InitFlightSupport(void);
+void S_ClearFlightSupport(void);
+void S_FinalizeFlightSupport(void);
+bool S_GetFlightSupport(vec2_t point, float *height);
+bool S_GetPresentationSupport(vec2_t point,uint32_t layer,float *height);
+bool S_WriteFlightSupport(FILE *);
+bool S_ReadFlightSupport(FILE *);
+void S_RefreshUnitSupport(edict_t *, bool force);
 void G_RegisterGroundSurface(edict_t *);
+void G_RegisterMovePlacementSurface(edict_t *ent);
+void G_ClearMovePlacementLevels(void);
+bool G_ValidateMovePlacementLevels(void);
+void G_RefreshMovePlacementModel(edict_t const *ent);
+uint32_t G_GetMovePlacementLevel(int32_t x,int32_t y);
+bool G_WriteMovePlacementLevels(FILE *file);
+bool G_ReadMovePlacementLevels(FILE *file);
 void G_UnregisterGroundSurface(edict_t *);
 void G_ClearGroundSurfaces(void);
 void monster_start(edict_t *);
 void monster_think(edict_t *);
+void M_RunScheduledThinks(void);
+void M_TrackMove(edict_t const *);
+void M_SetMove(edict_t *, umove_t *);
+void M_ResetMoveMembers(void);
+void S_TrackMoveTimers(edict_t const *);
+void M_SamplePoses(void);
 
 // g_model.c
 void         G_NormalizeModelFilename(cstring_t authored, string_t out, size_t out_size);
@@ -2847,8 +3574,24 @@ animation_t const *G_GetUnitAnimation(edict_t *unit, cstring_t animname);
 void         G_SetUnitAnimation(edict_t *unit, cstring_t animname);
 void         G_RunDestructableAnimation(edict_t *ent);
 void         G_ResetUnitAnimationProperties(edict_t *unit);
+void         G_ResetUnitAnimationPropertiesPrepared(edict_t *, unitAnimationDefaults_t *);
+cstring_t    G_UnitAnimationRequest(edict_t const *);
+cstring_t    G_UnitAnimationProperties(edict_t const *);
+void         G_StoreUnitAnimationRequest(edict_t *, cstring_t);
+void         G_StoreUnitAnimationProperties(edict_t *, cstring_t);
+void         G_ClearUnitAnimationText(void);
 void         G_AddUnitAnimationProperties(edict_t *unit, cstring_t properties, bool add);
 void         G_FreeModels(void);
+void G_PrepareWalkableModel(uint32_t model);
+void G_ForgetWalkableModel(edict_t const *ent);
+int G_WalkableModelHeight(edict_t const *ent,vec2_t point,float *height);
+typedef struct walkableModelSnapshot_s walkableModelSnapshot_t;
+walkableModelSnapshot_t *G_CaptureWalkableModel(edict_t const *ent);
+void G_FreeWalkableSnapshot(walkableModelSnapshot_t *pose);
+bool G_WalkableSnapshotBounds(walkableModelSnapshot_t const *pose,box2_t *box);
+int G_WalkableSnapshotHeight(walkableModelSnapshot_t const *pose,vec2_t point,float *height);
+bool G_WriteWalkableSnapshot(FILE *file,walkableModelSnapshot_t const *pose);
+bool G_ReadWalkableSnapshot(FILE *file,walkableModelSnapshot_t **pose);
 
 // g_ai.c
 void ai_birth(edict_t *);
@@ -2856,6 +3599,7 @@ void ai_stand(edict_t *);
 void ai_pain(edict_t *);
 void ai_idle(edict_t *);
 void unit_runwait(edict_t *, void (*callback)(edict_t * ));
+void G_UnitSuspendDecay(edict_t *self, bool suspend);
 void unit_stand(edict_t *);
 void unit_stand_no_queue(edict_t *);
 void unit_entercombat(edict_t *, edict_t *);
@@ -2875,6 +3619,7 @@ bool unit_status_can_dispel(heroabilitystatus_t const *);
 /* Magical dispels reject explicitly physical-only statuses; legacy unclassified buffs retain compatibility. */
 bool unit_status_can_magic_dispel(heroabilitystatus_t const *);
 bool unit_status_can_steal(heroabilitystatus_t const *);
+uint32_t unit_removebuffs(edict_t *, bool, bool, bool, bool, bool, bool, bool);
 heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);
 heroabilitystatus_t *unit_findstatussource(edict_t *, uint32_t, edict_t const *);
 void unit_statusdeath(edict_t *);
@@ -2889,6 +3634,16 @@ float unit_status_modifier_total(edict_t const *, wc3_status_modifier_type_t);
 
 
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
+float unit_turnspeed(edict_t const *);
+float S_UnitFacing(edict_t *);
+void S_SetUnitFacingTimed(edict_t *, float degrees, float duration);
+typedef struct {
+    float angle, turn; /* Radians and radians per physical decision. */
+    edict_t *receiver;
+    void (*complete)(edict_t *, edict_t *, bool);
+} moveFacingRequest_t;
+void S_BeginUnitFacingRequest(edict_t *, moveFacingRequest_t const *);
+float unit_propwindow(edict_t const *);
 void unit_moveindirection(edict_t *);
 void unit_moveindirection_ignore_units(edict_t *);
 bool unit_snap_to_point_ignore_units(edict_t *, vec2_t const *);
@@ -2905,17 +3660,51 @@ bool M_CheckAttack(edict_t *);
 bool unit_is_walking(edict_t const *);
 void unit_setanimation(edict_t *, cstring_t);
 void unit_setmove(edict_t *, umove_t *);
+uint32_t G_UnitMoveRevision(edict_t const *);
 void M_MoveFrame(edict_t *);
 float M_DistanceToGoal(edict_t *);
 float unit_movedistance(edict_t *);
+void S_AcquireMoveGroupIsolation(edict_t *);
+void S_ReleaseMoveGroupIsolation(edict_t *);
+void S_ApplyMoveSpeedContribution(edict_t *, heroabilitystatus_t *, float);
+void S_RemoveMoveSpeedContribution(edict_t *, heroabilitystatus_t *);
+void S_UpdateMoveSpeedContribution(edict_t *, heroabilitystatus_t *, float);
+float S_UnitMoveSpeed(edict_t *);
+float S_UnitDefaultMoveSpeed(edict_t const *);
+void S_SetUnitMoveSpeed(edict_t *, float);
+void S_RefreshHeroMoveSpeed(edict_t *);
+void S_SetUnitAxisPosition(edict_t *, uint32_t, float);
+void S_SetUnitPosition(edict_t *, vec2_t const *);
+void S_PlaceUnitPosition(edict_t *, vec2_t const *);
+void S_InitUnitPosition(edict_t *, vec2_t const *);
+void S_RecoverStoppedUnitPosition(edict_t *);
+void S_StopUnitMovement(edict_t *);
+void S_StopUnitMovementWithRecovery(edict_t *);
+void S_ToggleUnitMoveExclusion(edict_t const *,bool);
+void S_PublishMovement(edict_t *);
+void S_RunMoveTimers(void);
+void S_RunCaptainRangeTimers(void);
+void S_SetUnitPaused(edict_t *, bool);
+void S_SetUnitPauseFlag(edict_t *, bool);
+bool S_UnitExecutionPaused(edict_t const *);
+bool S_UnitOrderExecutionHeld(edict_t const *);
+bool S_UnitOrdersPaused(edict_t const *);
+void S_AcquireUnitSeparationSuppression(edict_t *);
+void S_ReleaseUnitSeparationSuppression(edict_t *);
+void S_RefreshUnitPauseSuppression(edict_t *);
 uint32_t M_RefreshHeatmap(edict_t *, float);
 uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
 uint8_t M_UnitStaticPathingFlags(edict_t const *);
-uint8_t M_UnitDynamicPathingFlags(edict_t const *, uint8_t mover_flags);
-bool M_UnitsShareCollisionDomain(edict_t const *, edict_t const *);
+#include "../common/wc3_pathing_profile.h"
+void S_CompileMovementData(UnitData_t *);
+unitMovementType_t S_UnitMovementType(UnitData_t const *);
+wc3MovementProfile_t const *S_UnitMovementProfile(UnitData_t const *);
+uint8_t S_UnitMoveCategory(edict_t const *);
+uint8_t S_UnitMoveCoarseMask(edict_t const *);
 bool M_UnitMoveDisabled(edict_t const *);
 bool M_IsDead(edict_t const *);
 void SP_SpawnUnit(edict_t *);
+void SP_SpawnFreshUnit(edict_t *);
 uint32_t unit_spawn_aiflags(uint32_t);
 bool SP_TrainUnit(edict_t *, uint32_t);
 uint32_t G_ProductionQueueCount(edict_t *);
@@ -2939,6 +3728,7 @@ bool G_CancelTrainingQueueItem(edict_t *producer, uint32_t index, bool refund);
 void G_CancelTrainingQueue(edict_t *producer, bool refund);
 bool G_QueueSacrifice(edict_t *producer, edict_t *worker, uint32_t result_id);
 void G_SetUnitPlayer(edict_t *unit, uint32_t player);
+void G_UnitOwnerInsert(edict_t *unit);
 uint32_t G_GetUnitTeamColor(edict_t const *unit);
 void G_SetEntityTeamColor(entityState_t *state, uint32_t color);
 void G_SetUnitTeamColor(edict_t *unit, uint32_t color);
@@ -2960,9 +3750,14 @@ bool G_HeroCanBeRevivedAt(edict_t const *altar, edict_t const *hero);
 bool G_UnitHasRally(edict_t const *producer);
 void G_ResetRallyTarget(edict_t *producer);
 bool G_SetRallyPoint(edict_t *producer, vec2_t const *point);
+bool S_IssueRallyPointOrder(edict_t *producer, vec2_t const *point, bool queue);
+bool S_IssueRallyTargetOrder(edict_t *producer, edict_t *target, bool queue);
 bool G_SetRallyEntity(edict_t *producer, edict_t *target);
 rallyTargetType_t G_ResolveRallyTarget(edict_t *producer, vec2_t *point, edict_t * *target);
 bool G_ApplyRallyOrder(edict_t *producer, edict_t *produced);
+void S_ResetLandMineThinkers(void);
+void S_InvalidateRallyProducers(void);
+void S_ForgetRallyProducer(edict_t *);
 void G_InvalidateRallyTarget(edict_t *target);
 void G_UpdateRallyIndicator(gameClient_t *client);
 
@@ -2995,6 +3790,18 @@ void G_ApplyPermanentAttackDamageBonus(edict_t *, float);
 void G_ApplyTemporaryAttackDamageBonus(edict_t *, float);
 void S_EnableAbility(edict_t *, uint32_t);
 void S_DisableAbility(edict_t *, uint32_t);
+void S_DispatchTransientAbilityOrder(edict_t *, abilityitem_t const *, cstring_t);
+void S_ExecuteTransientAbilityOrders(edict_t *);
+void S_ClearTransientAbilityOrders(edict_t *);
+void S_ClearAbilityDisables(edict_t *);
+void S_RestoreRetiredAbilityDisables(edict_t *);
+void S_ReleaseScriptedAbilityDisables(edict_t *);
+void S_AcquireScriptedAbilityDisables(edict_t *);
+void S_AcquireExclusiveAbilityDisables(edict_t *,uint32_t);
+void S_AcquireItemAbilityDisables(edict_t *,uint32_t);
+bool S_ReleaseItemAbilityDisables(edict_t *,uint32_t);
+bool S_ReleaseExclusiveAbilityDisables(edict_t *,uint32_t);
+bool S_UnitOrderDisabled(edict_t const *, cstring_t);
 void S_RefreshAbilityLevel(edict_t *, ability_t const *);
 bool S_UnitPolymorphed(edict_t const *unit);
 BZ_ABILITY_PROC(CAbilityOnFireHuman);
@@ -3005,10 +3812,196 @@ void G_PushEntity(edict_t *ent, float distance, vec2_t const *direction);
 void G_PushEntity3(edict_t *ent, float distance, vec3_t const *direction);
 bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, box2_t const *bounds,
                                                       float radius, uint8_t blocked_flags, vec2_t *out);
+bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out);
+typedef struct {
+    pathAccelParams_t geometry;
+    edict_t *mover; /* Route advancement can commit a portal crossing. */
+    edict_t const *target;
+    bool units;
+    vec2_t const *fine; /* Published native32-unit pose; NULL for explicit world-only geometry. */
+    vec2_t const *fine_target; /* Exact member destination; world projection can lose these bits. */
+    uint8_t coarse_mask; /* Authored hierarchy lane; zero derives an explicit geometry query. */
+    bool no_warp; /* Captured group policy10 excludes Way Gate edges on new coarse requests. */
+    bool group_path; /* A group borrows a source member; its path has no self exclusion. */
+    uint32_t target_region; /* Optional captured widget identity +1; zero uses the target mover. */
+} movePathQuery_t;
+#ifdef BZ_TESTS
+enum { MOVE_SCOPE_ENDPOINT, MOVE_SCOPE_WAYPOINT, MOVE_SCOPE_BLOCKERS, MOVE_SCOPE_PORTAL };
+typedef struct { movePathQuery_t const *query; unsigned kind,stage; } moveScopeTrace_t;
+void G_TestMoveObjectScopeTrace(void (*)(void *,moveScopeTrace_t const *),void *);
+typedef struct {
+    uint32_t kind,budget,pops,count;
+    bool complete;
+    vec2_t const *points;
+} moveRouteTrace_t;
+void G_TestMoveRouteTrace(void (*)(moveRouteTrace_t const *));
+#endif
+void G_RebindSavedMoveRoutes(void);
+bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
+void S_FreeMoveRoute(edict_t *self);
+void S_ClearMoveGroups(void);
+void S_RestoreMoveGroupBinding(edict_t *,moveGroup_t *);
+bool S_BeginUnitTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
+bool S_BeginUnitEntityPointApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
+bool S_BeginUnitPointTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
+edict_t *S_UnitTargetApproachReceiver(edict_t const *);
+void S_CancelUnitTargetApproach(edict_t *);
+bool S_BeginUnitTargetChase(edict_t *, edict_t *, float, abilityProc_t, void (*)(edict_t *, edict_t *, bool));
+bool S_UnitTargetChaseActive(edict_t const *, abilityProc_t);
+void S_EndUnitTargetChase(edict_t *, abilityProc_t);
+void S_AttackTargetChaseComplete(edict_t *, edict_t *, bool);
+void S_AttackRecoveryComplete(edict_t *, edict_t *, bool);
+bool S_ValidateAttackTargets(void);
+bool S_BeginUnitPointApproach(edict_t *, vec2_t const *, float, abilityProc_t, void (*)(edict_t *, edict_t *, bool));
+moveShared_t *S_FindMoveShared(uint64_t);
+bool S_RebuildMoveShared(void);
+bool S_ValidateMoveShared(void);
+uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit);
+bool S_AdmitUnitMoveFineRequest(edict_t *unit);
+void S_ChargeUnitMoveFineRequest(edict_t *unit, uint32_t work);
+void S_CancelUnitMoveFineRequest(edict_t *unit);
+void S_InitMoveFineScheduler(void);
+void S_ClearMoveFineRequests(void);
+bool G_IssueGroupPointOrder(groupPointOrder_t const *request);
+typedef struct { bool prepared; } moveCohortQuery_t;
+uint32_t G_MoveCohortDistance(moveCohortQuery_t *,edict_t const *,edict_t const *,float const [2],float const [2],uint32_t);
+vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);
+uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *query, float const fine_goal[2], edict_t **out);
+uint32_t G_ResolveUnitMoveStepBlockers(movePathQuery_t const *, float const [2], wc3YieldDecision_t *);
+#ifdef BZ_TESTS
+void S_TestMoveBlockerResolveTrace(void (*)(edict_t const *,uint32_t));
+#endif
+wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count);
+bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
+void G_ReserveMoveRouteBuffer(vec2_t **points, uint32_t *capacity, uint32_t count);
+bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
+bool G_BuildUnitMoveFineRouteStatus(movePathQuery_t const *query,moveFineRoute_t *route,vec2_t *out,uint32_t *status);
+bool G_UnitMoveGroupDestination(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *fine);
+bool G_UnitMoveGroupDestinationStatus(movePathQuery_t const *, moveFineRoute_t *, vec2_t *, bool *rebuilt);
+bool S_AdmitMoveCoarseRequest(edict_t *, moveCoarseRequest_t *, unsigned policy);
+void S_ChargeMoveCoarseRequest(moveCoarseRequest_t *, uint32_t work);
+void S_CancelMoveCoarseRequest(moveCoarseRequest_t *);
+void S_SetMoveCoarseTarget(moveCoarseRequest_t *, bool target);
+void S_SetMoveVisualPolicy(edict_t *,uint32_t);
+void S_SetMoveFormationRank(edict_t *, uint32_t);
+unsigned S_MoveSchedulingClass(edict_t const *);
+void S_InitMoveProjectile(edict_t *);
+void S_ClearMoveCoarseRequests(void);
+bool S_RestoreMoveCoarseRequests(void);
+bool S_RestoreMoveRepulsors(void);
+bool S_ValidateMoveCoarseRequests(void);
+bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest);
+bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);
+bool G_AdvanceUnitMoveAdaptiveDestination(edict_t *, moveFineRoute_t *, bool *);
+bool G_UnitMoveAdaptiveWaypointDue(moveFineRoute_t const *, vec2_t);
+bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
+bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *,moveFineRoute_t *,vec2_t *,uint32_t *);
+void G_FreeMovePathCache(void);
+void G_RunPathJob(void (*work)(void *), void *data);
+void G_WaitPathJob(void);
+void G_SetPathWorkerEnabled(bool enabled);
+void G_ShutdownPathWorker(void);
+void G_FinishMovePathingInitialization(void);
+uint32_t G_GetMoveAdaptiveStateSize(void);
+point2_t G_GetMoveAdaptiveMapSize(unsigned);
+bool G_GetMoveAdaptiveState(uint8_t *, uint32_t);
+bool G_SetMoveAdaptiveState(uint8_t const *, uint32_t);
+void G_RebuildSavedMovePathing(void);
+void G_ClearMoveSpatial(void);
+void G_SyncMoveSpatial(void);
+void S_ClearMoveProximity(void);
+void S_FreeMoveProximity(void);
+float S_MoveCollisionRadius(edict_t const *);
+void S_PublishMoveProximity(edict_t const *);
+void S_RemoveMoveProximity(edict_t const *);
+void S_QueryMoveProximity(edict_t const *,float const[2],float,bool (*)(edict_t const *));
+void S_QueryMoveProximityContext(edict_t const *,float const[2],float,void (*)(void *,edict_t const *),void *);
+void S_VisitMoveCircle(float const[2],float,bool (*)(void *,edict_t *),void *);
+void S_QueryMoveRangeCandidates(edict_t const *,float const[2],float,void (*)(void *,edict_t const *),void *);
+void S_PredictUnitFinePointAt(edict_t const *,wc3Clock_t const *,float[2]);
+bool S_UnitTargetInMoveRange(edict_t const *,edict_t const *,float);
+bool S_UnitTargetInFacingWindow(edict_t const *,edict_t const *,float);
+bool S_UnitTargetInCommittedMoveRange(edict_t const *,edict_t const *,float);
+float S_UnitCommittedTargetDistanceSquared(edict_t const *,edict_t const *);
+bool S_UnitPointInMoveRange(edict_t const *,vec2_t const *,float);
+wc3FineBox_t const *S_GetMoveProximity(uint32_t);
+bool S_LoadMoveProximity(uint32_t,wc3FineBox_t);
+bool S_NextMoveSpatialMaintenance(wc3Clock_t *,uint32_t *);
+void S_RunMoveSpatialMaintenance(void);
+void S_ResetMoveSpatialMaintenance(void);
+void S_BeginMoveSpatialLoad(void);
+void S_EndMoveSpatialLoad(bool complete);
+void S_RebaseMoveSpatialMaintenance(float);
+void S_CompactMoveProximity(void);
+uint32_t S_GetMoveProximityQuery(void);
+void S_SetMoveProximityQuery(uint32_t);
+uint32_t S_GetMoveProximityStamp(uint32_t);
+void S_SetMoveProximityStamp(uint32_t,uint32_t);
+void G_InitMoveSpatialLink(void);
+void G_MarkMoveSpatialObject(edict_t const *);
+void G_SetEntityHidden(edict_t *, bool);
+void G_PublishMoveSpatialObject(edict_t const *);
+void G_RemoveMoveSpatialObject(edict_t const *);
+void G_UnpublishMoveSpatialObject(edict_t const *);
+uint64_t G_GetMoveSpatialSerial(void);
+uint16_t G_GetMoveFineSearchStamp(void);
+void G_SetMoveFineSearchStamp(uint16_t);
+wc3RecordObject_t const *G_GetMoveSpatialObject(uint32_t);
+bool G_LoadMoveSpatialObject(uint32_t, wc3FineBox_t const *, bool);
+wc3SpatialRecords_t *S_GetMoveFineSpatial(void);
+uint32_t S_CaptureMoveTargetRegion(edict_t const *,uint8_t,uint32_t *);
+uint32_t S_MoveGroupTargetRegion(moveGroup_t *);
+bool S_SaveMoveGroupTargetRegion(moveGroup_t *);
+bool S_RestoreMoveGroupTargetRegion(moveGroup_t *);
+void S_PrepareMoveFineSpatial(void);
+void S_ClearMoveFineSpatial(void);
+void S_FreeMoveFineSpatial(void);
+void S_CompactMoveFineSpatial(void);
+void S_PublishMoveRegions(edict_t const *);
+void S_UnrasterMoveRegions(edict_t const *);
+void S_RetireMoveRegions(edict_t const *);
+struct wc3RegionCollection_s;
+struct wc3RegionCollection_s const *S_GetMoveRegions(uint32_t);
+typedef struct {
+    uint32_t width,height,turn,published;
+    float center[2];
+    uint8_t const *pixels;
+} moveRegionSave_t;
+void S_GetMoveRegionState(uint32_t,moveRegionSave_t *);
+bool S_LoadMoveRegions(uint32_t,uint32_t,moveRegionSave_t const *);
+bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
+bool G_UnitMoveTargetOnPerimeter(movePathQuery_t const *,vec2_t);
+bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);
+bool G_MovePathPointIsPathable(pathAccelParams_t const *params);
+bool G_MovePathLineIsPathable(pathAccelParams_t const *params);
+bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out);
+bool G_ClosestReachableMovePoint(pathAccelParams_t const *params, vec2_t *out);
+uint32_t G_RequestMovePathField(edict_t const *mover, edict_t const *goal, float radius, uint8_t flags);
+bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags);
 
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);
+void S_RunAbilityOwnerUpdates(void);
+void S_RunAbilityTimers(void);
+bool S_NextAbilityPrimaryTimer(abilityTimerRequest_t *);
+void S_RebaseAbilityPrimaryTimers(float);
+void S_ResetAbilityTimers(void);
+void S_RebuildAbilityTimers(void);
+void S_BeginAbilityOwnerUpdates(void);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
+void S_UnitCombatAlert(edict_t *, edict_t *, uint32_t);
+void S_UnitAllyCombatAlert(edict_t *, edict_t *, edict_t *);
+uint32_t S_UnitPointOrderPriority(edict_t *, uint32_t, vec2_t const *);
+bool S_InitFreshUnitAbilities(edict_t *);
+bool S_InitPreparedUnitAbilities(edict_t *, unitRuntimeType_t *);
+bool S_UnitTypeHasAbilityProc(UnitAbilities_t const *, abilityProc_t);
+bool S_UnitTypeHasAbilityCode(UnitAbilities_t const *, uint32_t);
+bool S_UnitHasAbilityFlags(edict_t const *, uint32_t);
+void S_ClearUnitEventPlans(void);
+void S_UnitTargetRemoved(edict_t *);
+void S_UnitTargetLost(edict_t *);
+void S_UnitTargetOwnerChanged(edict_t *);
+void S_UnitTargetAvailable(edict_t *);
 bool S_UnitAbilityEventWithCall(edict_t *, abilityMsg_t, abilityCall_t const *);
 bool S_UnitAbilityMoveArrive(edict_t *);
 bool S_AncientIsRooted(edict_t const *);
@@ -3020,13 +4013,22 @@ uint32_t S_AncientAttackMask(edict_t const *);
 uint32_t S_AncientRetaliationAttackMask(edict_t const *);
 bool S_AncientIsMorphing(edict_t const *);
 bool G_UnitIsStructure(edict_t const *);
+bool G_UnitIsInvulnerable(edict_t const *);
 TARGTYPE G_UnitTargetType(edict_t const *);
 bool G_UnitHasBuildMenu(edict_t const *);
 void S_ReleaseEntangledMineForTree(edict_t *);
 void S_UnitAbilityMoveLeave(edict_t *, abilityProc_t);
+void S_UnitAbilityMoveChanged(edict_t *, abilityProc_t);
 bool S_UnitAbilityOrderAccepted(edict_t *, cstring_t);
 abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *, cstring_t, edict_t *);
-bool S_UnitQueuedOrderEvent(edict_t *, unitOrder_t const *, abilityMsg_t);
+/* A callback may install the successor itself. Consuming that queue head must
+ * not send the displaced order's accepted notification to the successor. */
+typedef enum {
+    QUEUED_ORDER_UNHANDLED,
+    QUEUED_ORDER_STARTED,
+    QUEUED_ORDER_REPLACED
+} queuedOrderResult_t;
+queuedOrderResult_t S_UnitQueuedOrderEvent(edict_t *, unitOrder_t const *, abilityMsg_t);
 bool S_UnitTargetAbilityOrder(edict_t *, edict_t *, cstring_t);
 bool S_UnitProjectileHit(edict_t *);
 ability_t const *FindAbilityByOrder(cstring_t);
@@ -3038,6 +4040,7 @@ void S_AbilityCommand(edict_t *clent, ability_t const *ability);
 ability_t const *GetAbilityByIndex(uint32_t);
 uint32_t FindAbilityIndex(cstring_t);
 void InitAbilities(void);
+void S_ReplaceAbilityProcedure(ability_t const *, abilityProc_t);
 #ifdef WC3_DEBUG_AUTOCAST
 int G_AutocastDebugLevel(void);
 #endif
@@ -3106,7 +4109,10 @@ void G_StopBuildingUpgrade(edict_t *building, bool refund);
 void G_RunBuildingUpgradeFrame(edict_t *building);
 void G_UpdateBuildingUpgradeAnimation(edict_t *building);
 void G_ApplyPlayerUpgradesToUnit(edict_t *unit);
+void G_ResetPlayerTechIndexes(void);
 bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id);
+cstring_t G_AbilityRequirementField(uint32_t code, bool amounts);
+bool G_AbilityRequirementsSatisfied(edict_t const *unit, uint32_t code);
 bool G_UnitAbilityResearchVisible(edict_t const *unit, uint32_t ability_id);
 uint32_t G_GetUnitUpgradeForClass(edict_t const *unit, cstring_t wanted_class);
 bool G_ChargeBuilding(gameClient_t *client, uint32_t building_id);
@@ -3121,8 +4127,11 @@ bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *loc
 bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location, bool queue, uint32_t issuer_player);
 bool G_FindBuildOnTarget(uint32_t building_id, vec2_t const *point, edict_t * *out);
 float G_BuildApproachDistance(uint32_t building_id);
+bool G_StartWorkerConstruction(edict_t *builder, edict_t *building, constructionType_t type);
 bool G_StartHumanConstruction(edict_t *builder, edict_t *building);
 bool G_StartOrcConstruction(edict_t *builder, edict_t *building);
+void S_BeginUndeadConstructionWork(edict_t *worker);
+bool S_ValidateBuildMines(void);
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building);
 bool G_StartNightElfConstruction(edict_t *builder, edict_t *building);
 bool G_StartNagaConstruction(edict_t *builder, edict_t *building);
@@ -3131,6 +4140,7 @@ bool G_StartTinyConstruction(edict_t *builder, edict_t *building, float duration
 void G_RunConstructionFrame(edict_t *building);
 void G_UpdateConstructionAnimation(edict_t *building);
 void G_StopConstruction(edict_t *building);
+void G_DetachRemovedConstructionWorker(edict_t *building);
 bool G_CancelStructureConstruction(edict_t *building);
 void G_CompleteConstruction(edict_t *building);
 bool G_UnitHasHumanRepair(edict_t *ent);
@@ -3138,6 +4148,8 @@ bool S_OrderRepair(edict_t *ent, edict_t *target, uint32_t preferred);
 bool S_SetRepairAutocast(edict_t *ent, bool enabled);
 bool S_RepairSmart(edict_t *ent, edict_t *target);
 void S_CancelRepair(edict_t *ent);
+bool S_RepairSuppressesSeparation(edict_t const *ent);
+void S_SuspendRepairWork(edict_t *ent);
 void G_SetPlayerTechMaxAllowed(gameClient_t *client, uint32_t techid, int32_t maximum);
 int32_t G_GetPlayerTechMaxAllowed(gameClient_t *client, uint32_t techid);
 void G_SetPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t level_value);
@@ -3421,6 +4433,10 @@ int32_t G_CompareSelectionOrder(edict_t const *, edict_t const *);
 uint32_t G_GetOrderedSelectedUnits(gameClient_t *, edict_t * *, uint32_t);
 void G_SelectEntity(gameClient_t *, edict_t *);
 void G_DeselectEntity(gameClient_t *, edict_t *);
+uint32_t G_SetEntitySelectionMask(edict_t *, uint32_t);
+void G_ResetSelectionIndex(void);
+void G_RebuildSelectionIndex(void);
+edict_t *G_NextSelectedEntity(gameClient_t const *, uint32_t);
 bool G_IsEntitySelected(gameClient_t *, edict_t *);
 bool G_FocusSelectedUnit(gameClient_t *, edict_t *);
 bool G_CycleSelectionSubgroup(gameClient_t *);
@@ -3450,7 +4466,9 @@ void G_ClientSetCameraPosition(edict_t *, vec2_t const *);
 //  s_skills.c
 float AB_Data(cstring_t, uint32_t, uint32_t);
 uint32_t GetAbilityIndex(abilityProc_t);
+void S_SpellReleasePointApproach(edict_t *);
 void S_SpellTargetApproachThink(edict_t *);
+void S_SpellTargetApproachComplete(edict_t *, edict_t *, bool);
 void G_ResetHeroPassiveCaches(void);
 
 // g_combat.c
@@ -3461,21 +4479,57 @@ void T_Damage(edict_t *, edict_t *, int);
 // g_utils.c
 bool G_UnitIsWorldActive(edict_t const *);
 void G_FreeEdict(edict_t *);
+bool G_EntityHasStaticPathing(edict_t const *);
 void G_DeferFreeEdict(edict_t *);
+void G_QueueEdictRelease(edict_t *,wc3Clock_t const *);
+void G_DeferFreeEdictAt(edict_t *,wc3Clock_t const *);
 bool G_IsDeferredFree(edict_t const *);
 void G_RunDeferredFrees(void);
+bool G_NextUnitRelease(wc3Clock_t *,uint32_t *);
+void G_FireUnitRelease(void);
+void G_RebaseUnitReleases(float);
+#ifdef BZ_TESTS
+void G_TestFinishDeferredFrees(void);
+#endif
 void G_ResetDeferredFrees(void);
+bool G_WriteUnitReleases(FILE *);
+bool G_ReadUnitReleases(FILE *);
+void G_FlushPrimaryRequests(void);
+void G_ResetMoveRegionEvents(void);
+void G_TrackMoveRegionEvent(event_t const *);
+void G_ResetEventSubscribers(void);
+void G_TrackEventSubscriber(event_t *);
+void G_SetEventTrigger(event_t *, trigger_t *);
+bool G_EventSlotAvailable(event_t const *);
+void G_DispatchPlayerUnitEvent(edict_t *, EVENTTYPE);
+void G_DispatchUnitEventFamilies(gameEventPointParams_t const *, EVENTTYPE, bool);
+void G_TriggerRequestDestroy(trigger_t *, wc3Clock_t const *);
+bool G_NextTriggerRelease(wc3Clock_t *, uint32_t *);
+void G_FireTriggerRelease(void);
+void G_RebaseTriggerReleases(float);
+void G_ReleaseEvent(event_t *);
+void G_ResetRangeListeners(void);
+void G_StartRangeListener(event_t *,wc3Clock_t const *);
+void G_ReleaseRangeListener(event_t *);
+bool G_NextRangeRequest(wc3Clock_t *,uint32_t *);
+void G_FireRangeRequest(void);
+void G_RebaseRangeRequests(float);
+bool G_WriteRangeListeners(FILE *);
+bool G_ReadRangeListeners(FILE *);
 event_t *G_MakeEvent(EVENTTYPE);
 void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);
 bool G_EventSubjectIsCurrent(event_t *);
 void G_UnitPositionChanged(edict_t *, vec2_t const *);
+void G_UnitRegionPositionChanged(edict_t *, vec2_t const *);
 void G_JassVariableChanged(cstring_t, float, float);
 bool G_LimitMatches(uint32_t, float, float);
 quest_t *G_MakeQuest(void);
 bool G_RegionContains(region_t const *, vec2_t const *);
 void G_RemoveQuest(quest_t *);
 void G_InitPlayerAlliances(mapInfo_t const *);
+void G_InitControllerAlliances(void);
+uint32_t G_MapPlayerTeam(mapInfo_t const *, uint32_t);
 void G_SetPlayerAlliance(player_t const *, player_t const *, PLAYERALLIANCE, bool);
 bool G_GetPlayerAlliance(player_t const *, player_t const *, PLAYERALLIANCE);
 bool G_PlayerTreatsPlayerAsAlly(uint32_t, uint32_t);
@@ -3487,13 +4541,22 @@ bool unit_issuetargetorder(edict_t *, cstring_t, edict_t *);
 bool G_TransformUnitType(edict_t *, uint32_t);
 bool G_IssueUnitPointOrder(edict_t *, cstring_t, vec2_t const *, bool, uint32_t, float);
 bool G_IssueUnitTargetOrder(edict_t *, cstring_t, edict_t *, bool, uint32_t);
+void G_PublishIssuedTargetOrder(edict_t *, cstring_t, edict_t *, uint32_t);
 bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, uint32_t, float, uint32_t);
+bool G_RetainSuspendedUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, bool, uint32_t, float);
+bool G_AppendUnitOrder(edict_t *, unitOrder_t const *);
+bool G_PrependUnitOrder(edict_t *, unitOrder_t const *);
 bool G_UnitHasActiveOrder(edict_t const *);
+uint32_t G_CountUnitOrders(edict_t const *, uint32_t);
 void G_PublishIssuedPointOrder(edict_t *, uint32_t, vec2_t const *, uint32_t, cstring_t);
 void G_PublishIssuedImmediateOrder(edict_t *, uint32_t, uint32_t, cstring_t);
 uint32_t G_GetIssuedOrderId(edict_t const *);
 bool G_GetIssuedOrderPoint(edict_t const *, vec2_t *);
+uint32_t G_RegisteredOrderId(cstring_t);
 uint32_t G_OrderId(cstring_t);
+uint32_t S_SpellOrderId(edict_t *,uint32_t);
+spellTargetType_t S_SpellTargetType(edict_t *,uint32_t);
+uint32_t G_AbilityOrderId(ability_t const *);
 cstring_t G_OrderId2String(uint32_t);
 bool G_UnitStartNextQueuedOrder(edict_t *);
 void G_ClearUnitOrderQueue(edict_t *);
@@ -3512,6 +4575,28 @@ bool unit_addtimedstatus(edict_t *, cstring_t, uint32_t, float);
 wc3_status_apply_check_t unit_status_checkapplication(edict_t const *, status_application_t const *);
 heroabilitystatus_t *unit_applystatus(edict_t *, status_application_t const *);
 uint32_t G_UnitStatusLevel(edict_t const *, uint32_t);
+static inline uint32_t G_UnitStatusSlotCount(edict_t const *unit) {
+    return unit && unit->abilstatus ? MAX_UNIT_STATUSES : 0;
+}
+heroabilitystatus_t *G_EnsureUnitStatusSlots(edict_t *);
+typedef struct unitStatusQuery_s {
+    edict_t const *unit;
+    uint32_t slots, hero_slots, ability_count;
+    uint32_t const *abilities;
+    uint64_t ability_membership;
+    struct unitStatusQuery_s *previous;
+} unitStatusQuery_t;
+/* Borrowed discovery for one pure mechanical calculation; never span callbacks
+ * or an ownership mutation. Nested owners restore the enclosing query. */
+extern unitStatusQuery_t *g_unit_status_query;
+static inline bool G_UnitStatusQueryEmpty(edict_t const *unit) {
+    return g_unit_status_query && g_unit_status_query->unit == unit && !g_unit_status_query->slots;
+}
+static inline uint32_t G_QueryUnitStatusLevel(edict_t const *unit, uint32_t code) {
+    return G_UnitStatusQueryEmpty(unit) ? 0 : G_UnitStatusLevel(unit, code);
+}
+void G_BeginUnitStatusQuery(edict_t const *,unitStatusQuery_t *);
+void G_EndUnitStatusQuery(unitStatusQuery_t *);
 bool unit_statusshowstimedbar(uint32_t);
 float unit_statusremainingfraction(heroabilitystatus_t const *);
 heroabilitystatus_t const *unit_findtimedbarstatus(edict_t const *);
@@ -3583,8 +4668,44 @@ void order_attack(edict_t *, edict_t *);
 bool S_OrderAttack(edict_t *self, edict_t *target);
 bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target);
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot);
+bool S_UnitHasLongRangeSiegeAttack(edict_t const *attacker);
+bool S_UnitAttackApproachRange(edict_t const *attacker,float *maximum);
+edict_t *S_AttackAlternativeTarget(edict_t *);
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
+void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);
+bool S_IssuePointMoveOrder(edict_t *, cstring_t, vec2_t const *, uint32_t, float);
+bool S_IssueCaptainHomeMove(edict_t *, botCaptain_t const *);
+bool S_AdmitTemporaryCaptainUnit(edict_t *, botCaptain_t const *, edict_t *);
+void S_DetachCaptainUnit(edict_t *);
+typedef struct {
+    edict_t const *actor, *source, *target;
+    vec2_t from, to;
+    uint32_t budget;
+} moveOwnerDistance_t;
+uint32_t G_MoveOwnerDistance(moveOwnerDistance_t const *,uint32_t *);
+bool G_FindCargoShorePair(edict_t const *,edict_t const *,vec2_t *,vec2_t *);
+bool G_CaptainMoveReachable(edict_t const *, edict_t const *, edict_t const *, vec2_t const *, vec2_t const *);
+void S_SetCaptainHomeActor(botCaptain_t *, uint32_t, uint32_t);
+void S_TeleportCaptainActor(botCaptain_t *, vec2_t const *);
+void S_UpdateCaptainMemberOrders(botCaptain_t *);
+void S_CaptainGoHome(botCaptain_t *);
+void S_ReissueCaptainUnit(edict_t *, edict_t *);
+bool S_CaptainNearHome(botCaptain_t const *);
+bool S_CaptainNearRequest(botCaptain_t const *);
+void S_CaptainPointMove(botCaptain_t *, vec2_t const *, float);
+void S_ReleaseCaptainHomeActor(edict_t *);
+bool S_ValidateCaptainHomeActors(bool);
+bool S_IssueFollowOrder(edict_t *, edict_t *, uint32_t);
+/* Native5fb940 results; cargo/hidden are world-presence failures, not fog. */
+typedef enum {
+    MOVE_TARGET_VALID = 0,
+    MOVE_TARGET_LOADED = 0xa9,
+    MOVE_TARGET_HIDDEN = 0xaa,
+    MOVE_TARGET_UNSEEN = 0xba, /* Native5fbad0 order-time visibility refusal. */
+    MOVE_TARGET_LOST = 0xdd,
+} moveTargetResult_t;
+moveTargetResult_t S_MoveTargetStatus(edict_t const *, edict_t const *);
 bool move_is_active_order_walk(edict_t const *);
 void move_start_displacement(edict_t *, vec2_t const *);
 void M_StartWispTreeEgress(edict_t *, edict_t *);
@@ -3597,23 +4718,31 @@ void order_stop_queued(edict_t *);
 void G_CreepGuardInit(edict_t *);
 void G_CreepGuardAutoCombat(edict_t *);
 void G_CreepGuardSetEnabled(edict_t *, bool);
-void G_CreepGuardDamaged(edict_t *);
 void G_CreepGuardCallForHelp(edict_t *, edict_t *);
 void G_CreepGuardConstructionStarted(edict_t *);
-void G_CreepGuardTick(edict_t *);
-bool G_CreepGuardCombatEnd(edict_t *);
+void G_CreepGuardCombatEnd(edict_t *);
 void G_CreepGuardExplicitOrder(edict_t *);
+bool G_CreepGuardIssueReturn(edict_t *, vec2_t const *);
+void G_CreepGuardMoveArrived(edict_t *);
 void G_SetUnitGuardPosition(edict_t *);
 void G_ClearUnitGuardPosition(edict_t *);
 void order_attackmove(edict_t *, edict_t *);
-void order_patrol(edict_t *, edict_t *);
+bool order_patrol(edict_t *, edict_t *);
+bool S_IssuePatrolOrder(edict_t *, edict_t *);
 void order_patrol_resume(edict_t *);
+bool S_PatrolMoveArrive(edict_t *);
 void order_follow(edict_t *, edict_t *);
 void order_follow_resume(edict_t *);
 extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
 void unit_stand(edict_t *);
 bool G_ActorHasSkill(edict_t const *, cstring_t);
+bool G_ActorHasAbilityCode(edict_t const *, uint32_t code);
+#ifdef BZ_TESTS
+void G_TestRecordStaticAbilityToken(void);
+uint32_t G_TestStaticAbilityTokens(bool reset);
+uint32_t S_TestMoveBonusMessages(bool reset);
+#endif
 bool G_ActorAddSkill(edict_t *, uint32_t);
 bool G_ActorRemoveSkill(edict_t *, uint32_t);
 bool G_ActorSetSkillPermanent(edict_t *, uint32_t, bool);
@@ -3663,6 +4792,13 @@ void S_CargoInitUnit(edict_t *);
 bool S_CargoTryLoad(edict_t *, edict_t *);
 bool S_CorpseCargoTryLoad(edict_t *, edict_t *);
 bool S_CargoOrderBoard(edict_t *, edict_t *);
+bool S_CargoOrderLoad(edict_t *, edict_t *);
+bool S_CargoOrderDrop(edict_t *, vec2_t const *);
+bool S_CargoTryFailedMove(edict_t *, vec2_t const *);
+void S_AttackMoveComplete(edict_t *, edict_t *, bool);
+void S_CargoBoardComplete(edict_t *, edict_t *, bool);
+void S_CargoLoadComplete(edict_t *, edict_t *, bool);
+void S_CargoDropComplete(edict_t *, edict_t *, bool);
 bool S_CargoOrderNearestEntangledMine(edict_t *);
 bool S_CargoAttacksEnabled(edict_t const *);
 edict_t *S_CargoTransportForUnit(edict_t const *);
@@ -3676,6 +4812,14 @@ edict_t *S_CargoUnitAt(edict_t const *, uint32_t);
 bool S_CargoUnloadAt(edict_t *, uint32_t);
 bool S_CargoBeginUnloadAll(edict_t *);
 void S_CargoStandDown(edict_t *);
+void G_PublishWaygateSource(box2_t const *, uint8_t);
+typedef struct wc3AccGate_s wc3AccGate_t;
+void S_WaygateBuildEdges(wc3AccGate_t *);
+bool S_WaygateEdgeIsActive(uint8_t);
+bool G_FindUnitMovePortalPosition(edict_t *, vec2_t const *, vec2_t *);
+bool S_MoveThroughPortal(edict_t *, vec2_t const *);
+bool S_ValidateWaygateIds(void);
+void S_ResetWaygateCache(void);
 bool S_WaygateIsGate(edict_t const *);
 bool S_WaygateIsActive(edict_t const *);
 bool S_WaygateGetDestination(edict_t const *, vec2_t *);
@@ -3717,6 +4861,9 @@ bool move_is_blocked(edict_t *, float, float);
 bool move_is_settled_near_goal(edict_t *, float, float);
 bool move_is_terminal_hold(edict_t const *);
 void move_reset_progress(edict_t *);
+void G_ResetAcquisitionPresence(void);
+void G_BeginAcquisitionFrame(void);
+void G_AcquisitionEntityLinked(edict_t const *);
 edict_t *G_FindNearestEnemy(edict_t *, float);
 float G_AcquisitionRange(edict_t const *);
 float G_FollowStopRange(edict_t const *follower, edict_t const *target);
@@ -3734,8 +4881,10 @@ bool jass_dobuffer(jass_t *, string_t);
 void jass_runevents(jass_t *);
 
 // g_events.c
+void G_BeginEntityFrame(void);
 void G_RunEntities(void);
 void G_RunEvents(void);
+void G_DrainRegionEvents(void);
 /* Host save/restore lifecycle; the basic filename is only visible during these callbacks. */
 bool G_BeforeSaveGame(cstring_t name);
 void G_AfterLoadGame(cstring_t name);
@@ -3746,6 +4895,8 @@ void G_DrainPausedResultEvents(void);
 // g_items.c
 void SP_SpawnItem(edict_t *);
 bool G_IsItem(edict_t const *item);
+uint8_t G_ItemPathingCategory(void);
+void G_SetItemPosition(edict_t *item, vec2_t const *position);
 uint32_t G_InventoryCapacity(edict_t const *unit);
 void G_RefreshInventoryAfterTechChange(gameClient_t const *owner, uint32_t techid);
 bool G_InventoryCanUseItems(edict_t const *unit);
@@ -3822,6 +4973,8 @@ bool G_DestructableApplyDamage(edict_t *ent, edict_t *attacker, float damage);
 bool G_KillDestructable(edict_t *ent, edict_t *killer);
 bool G_SetDestructableDeadState(edict_t *ent, bool process_death);
 bool G_RemoveDestructable(edict_t *ent);
+void G_ApplyDestructableCreationPose(edict_t *ent);
+vec2_t G_DestructableCreationPoint(edict_t const *ent, vec2_t point, float facing);
 bool G_SetDestructableLife(edict_t *ent, float life);
 bool G_RestoreDestructable(edict_t *ent, float life, bool birth);
 uint32_t G_SelectDropItem(droppableItem_t const *entries, uint32_t count, uint32_t roll);
@@ -3873,6 +5026,11 @@ void G_FreeRally(edict_t *ent);
 rally_t *G_AllocRally(void);
 void G_FreeFood(edict_t *ent);
 food_t *G_AllocFood(void);
+void G_FreeUnitStatus(edict_t *ent);
+unitStatusStorage_t *G_AllocUnitStatus(void);
+void G_FreeUnitOrders(edict_t *ent);
+unitOrderStorage_t *G_AllocUnitOrders(void);
+bool G_ReserveUnitOrders(edict_t *ent, uint32_t capacity);
 void G_FreeBuildwork(edict_t *ent);
 buildwork_t *G_AllocBuildwork(void);
 void G_FreeRevival(edict_t *ent);
@@ -3887,6 +5045,17 @@ void G_FreeMilitia(edict_t *ent);
 militia_t *G_AllocMilitia(void);
 void G_FreePolymorph(edict_t *ent);
 polymorph_t *G_AllocPolymorph(void);
+healthRegen_t *G_AllocHealthRegen(void);
+void G_FreeHealthRegen(edict_t *);
+void G_SampleHealthRegen(edict_t *);
+void G_RebaseHealthRegen(edict_t *);
+void G_UpdateHealthRegen(edict_t *,float);
+shadowStrike_t *G_AllocShadowStrike(void);
+void G_FreeShadowStrike(edict_t *);
+void S_ForgetShadowStrike(edict_t *);
+void S_ShadowStrikeProjectileHit(edict_t *);
+void G_FreeMorph(edict_t *ent);
+morph_t *G_AllocMorph(void);
 void G_FreeRaven(edict_t *ent);
 raven_t *G_AllocRaven(void);
 void G_FreeBlightGrowth(edict_t *ent);
@@ -3907,6 +5076,8 @@ void G_FreeDestructable(edict_t *ent);
 destructable_t *G_AllocDestructable(void);
 void G_FreeCargo(edict_t *ent);
 cargo_t *G_AllocCargo(void);
+void S_InvalidateCargoHolders(void);
+void S_CargoForgetHolder(edict_t const *);
 void G_FreeStock(edict_t *ent);
 stock_t *G_AllocStock(void);
 void G_FreeWaygate(edict_t *ent);

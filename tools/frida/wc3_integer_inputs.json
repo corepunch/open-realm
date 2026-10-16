@@ -1,0 +1,269 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "int_literal_0",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0"
+    },
+    {
+      "id": "int_literal_1",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "1"
+    },
+    {
+      "id": "int_literal_2",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-1"
+    },
+    {
+      "id": "int_literal_3",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "16777217"
+    },
+    {
+      "id": "int_literal_4",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "2147483647"
+    },
+    {
+      "id": "int_literal_5",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "2147483648"
+    },
+    {
+      "id": "int_literal_6",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-2147483648"
+    },
+    {
+      "id": "int_literal_7",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "4294967295"
+    },
+    {
+      "id": "int_literal_8",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "4294967296"
+    },
+    {
+      "id": "int_literal_9",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "4294967297"
+    },
+    {
+      "id": "int_literal_10",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-4294967297"
+    },
+    {
+      "id": "int_literal_11",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "9223372036854775807"
+    },
+    {
+      "id": "int_literal_12",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "9223372036854775808"
+    },
+    {
+      "id": "int_literal_13",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "18446744073709551615"
+    },
+    {
+      "id": "int_literal_14",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "18446744073709551616"
+    },
+    {
+      "id": "int_literal_15",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "18446744073709551617"
+    },
+    {
+      "id": "int_literal_16",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-18446744073709551617"
+    },
+    {
+      "id": "int_literal_17",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+    },
+    {
+      "id": "int_literal_18",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$0"
+    },
+    {
+      "id": "int_literal_19",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$7fffffff"
+    },
+    {
+      "id": "int_literal_20",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$80000000"
+    },
+    {
+      "id": "int_literal_21",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-$80000000"
+    },
+    {
+      "id": "int_literal_22",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$ffffffff"
+    },
+    {
+      "id": "int_literal_23",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$100000000"
+    },
+    {
+      "id": "int_literal_24",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$100000001"
+    },
+    {
+      "id": "int_literal_25",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$ffffffffffffffff"
+    },
+    {
+      "id": "int_literal_26",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$10000000000000000"
+    },
+    {
+      "id": "int_literal_27",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$10000000000000001"
+    },
+    {
+      "id": "int_literal_28",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0x7FFFFFFF"
+    },
+    {
+      "id": "int_literal_29",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0x80000000"
+    },
+    {
+      "id": "int_literal_30",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0xFFFFFFFF"
+    },
+    {
+      "id": "int_literal_31",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0x100000001"
+    },
+    {
+      "id": "int_literal_32",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0xFFFFFFFFFFFFFFFF"
+    },
+    {
+      "id": "int_literal_33",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0x10000000000000001"
+    },
+    {
+      "id": "int_literal_34",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "00"
+    },
+    {
+      "id": "int_literal_35",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "077"
+    },
+    {
+      "id": "int_literal_36",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "017777777777"
+    },
+    {
+      "id": "int_literal_37",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "020000000000"
+    },
+    {
+      "id": "int_literal_38",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-020000000000"
+    },
+    {
+      "id": "int_literal_39",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "037777777777"
+    },
+    {
+      "id": "int_literal_40",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "040000000000"
+    },
+    {
+      "id": "int_literal_41",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "040000000001"
+    },
+    {
+      "id": "int_literal_42",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "01000000000000000000000"
+    },
+    {
+      "id": "int_literal_43",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "01000000000000000000001"
+    }
+  ]
+}

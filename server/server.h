@@ -106,16 +106,24 @@ typedef enum {
     SHAPETYPE_CYLINDER,
 } MODELCOLLISIONSHAPETYPE;
 
+typedef struct {
+    uint16_t slots[MAX_IMAGES * 2];
+    uint32_t first_free;
+    bool valid;
+} mediaIndex_t;
+
 extern struct server {
     serverState_t state;
     PATHSTR name;
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     PATHSTR sound_aliases[MAX_SOUNDS];
+    mediaIndex_t media_indices[4]; /* Derived names/aliases; reset with the map. */
     bool syncstrings[MAX_CONFIGSTRINGS];
     uint32_t framenum;
     uint32_t time;
     bool paused;
     uint32_t next_frame_msec; /* real-time deadline for the next simulation frame */
+    uint32_t rate_numerator, rate_denominator, frame_remainder;
     uint32_t pause_msec; /* wall-clock accumulator used only for paused keepalive snapshots */
     uint32_t keepalive; /* real-time deadline for connected clients without gameplay snapshots */
     entityState_t *baselines;
@@ -130,8 +138,8 @@ extern struct server {
  * work that should later be replayed at render-loop speed. Preserve normal
  * sub-tick lateness, but rebase a deadline that is more than one fixed step
  * overdue before running the next game frame. */
-static inline uint32_t SV_ClampSimulationDeadline(uint32_t realtime, uint32_t deadline) {
-    if (realtime >= deadline && realtime - deadline > FRAMETIME) {
+static inline uint32_t SV_ClampSimulationDeadline(uint32_t realtime, uint32_t deadline, uint32_t interval) {
+    if (realtime >= deadline && realtime - deadline > interval) {
         return realtime;
     }
     return deadline;
@@ -177,10 +185,14 @@ bool SV_ClientLinkBusy(client_t const *client);
 void SV_AcknowledgeFrames(client_t *client);
 void SV_ResetDeltaBase(client_t *client);
 void SV_SetPaused(bool paused);
+void SV_SetSimulationRate(uint32_t numerator, uint32_t denominator);
 void SV_ParseClientMessage(sizeBuf_t *msg, client_t *client);
 int SV_ModelIndex(cstring_t name);
 int SV_SoundIndex(cstring_t name);
 int SV_SoundIndexAlias(cstring_t name, cstring_t alias);
+#if defined(BZ_TESTS) || defined(TOOL_COMMON_NO_MPQ)
+uint32_t SV_TestMediaComparisons(void);
+#endif
 client_t *SV_ClientForEntityRecipient(edict_t *ent);
 client_t *SV_ClientForEdictRecipient(edict_t *ent);
 void PF_Unicast(edict_t *ent);
@@ -203,6 +215,8 @@ uint32_t SV_ConfigStringWireSize(uint32_t index);
 void SV_WriteConfigString(sizeBuf_t *msg, uint32_t i);
 void SV_QueuePendingConfigStrings(void);
 void SV_SetConfigString(uint32_t index, cstring_t value, uint32_t len);
+uint64_t SV_MediaRevision(void);
+void SV_ResetMediaRevision(void);
 
 // sv_user.c
 void SV_ExecuteUserCommand(sizeBuf_t *msg, client_t *client);
@@ -217,5 +231,6 @@ void SV_LinkEntity(edict_t *ent);
 void SV_UnlinkEntity(edict_t *ent);
 uint32_t SV_AreaEdicts(box2_t const *area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *));
 void SV_ClearWorld(void);
+void SV_ShutdownWorld(void);
 
 #endif

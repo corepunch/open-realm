@@ -69,7 +69,10 @@ uint32_t SetPlayerTaxRate(jass_t *j) {
 uint32_t SetPlayerRacePreference(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
     uint32_t *pref = jass_checkhandle(j, 2, "racepreference");
-    if (player && pref) PLAYER_CLIENT(player)->jass.race_pref |= *pref;
+    /* 213f30 replaces the preference, preserving only the existing flag40. */
+    if (player && pref)
+        PLAYER_CLIENT(player)->jass.race_pref =
+            (PLAYER_CLIENT(player)->jass.race_pref & 0x40u) | (*pref & ~0x40u);
     return 0;
 }
 uint32_t SetPlayerRaceSelectable(jass_t *j) {
@@ -127,9 +130,9 @@ uint32_t GetPlayerSlotState(jass_t *j) {
 
     if (client && client->jass.removed) {
         state = 2;
-    } else if (client && client->mapplayer &&
+    } else if (client && (client->ps.number >= PLAYER_NEUTRAL_AGGRESSIVE || (client->mapplayer &&
         (client->mapplayer->playerType == kPlayerTypeHuman ||
-         client->mapplayer->playerType == kPlayerTypeComputer))
+         client->mapplayer->playerType == kPlayerTypeComputer))))
     {
         state = 1;
     }
@@ -229,38 +232,41 @@ uint32_t IsPlayerObserver(jass_t *j) {
     //player_t *whichPlayer = jass_checkhandle(j, 1, "player");
     return jass_pushboolean(j, 0);
 }
+/* Point/location queries use the calling client's fog policy, independently
+ * of the queried player. Native206910/2053d0/2058c0 share classifier1e0b80. */
+static uint32_t JassFogPointState(player_t const *player, vec2_t const *point) {
+    gameClient_t const *client = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
+    return player ? G_FowPointState(PLAYER_NUM(player), point, client ? client->ps.rdflags : 0) : 0;
+}
 uint32_t IsVisibleToPlayer(jass_t *j) {
-    //float x = jass_checknumber(j, 1);
-    //float y = jass_checknumber(j, 2);
-    //handle_t whichPlayer = jass_checkhandle(j, 3, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
+    player_t const *player = jass_checkhandle(j, 3, "player");
+    return jass_pushboolean(j, JassFogPointState(player, &point) == WC3_FOG_STATE_VISIBLE);
 }
 uint32_t IsLocationVisibleToPlayer(jass_t *j) {
-    //handle_t whichLocation = jass_checkhandle(j, 1, "location");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t const *point = jass_checkhandle(j, 1, "location");
+    player_t const *player = jass_checkhandle(j, 2, "player");
+    return jass_pushboolean(j, JassFogPointState(player, point) == WC3_FOG_STATE_VISIBLE);
 }
 uint32_t IsFoggedToPlayer(jass_t *j) {
-    //float x = jass_checknumber(j, 1);
-    //float y = jass_checknumber(j, 2);
-    //handle_t whichPlayer = jass_checkhandle(j, 3, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
+    player_t const *player = jass_checkhandle(j, 3, "player");
+    return jass_pushboolean(j, JassFogPointState(player, &point) == WC3_FOG_STATE_FOGGED);
 }
 uint32_t IsLocationFoggedToPlayer(jass_t *j) {
-    //handle_t whichLocation = jass_checkhandle(j, 1, "location");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t const *point = jass_checkhandle(j, 1, "location");
+    player_t const *player = jass_checkhandle(j, 2, "player");
+    return jass_pushboolean(j, JassFogPointState(player, point) == WC3_FOG_STATE_FOGGED);
 }
 uint32_t IsMaskedToPlayer(jass_t *j) {
-    //float x = jass_checknumber(j, 1);
-    //float y = jass_checknumber(j, 2);
-    //handle_t whichPlayer = jass_checkhandle(j, 3, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
+    player_t const *player = jass_checkhandle(j, 3, "player");
+    return jass_pushboolean(j, JassFogPointState(player, &point) == WC3_FOG_STATE_MASKED);
 }
 uint32_t IsLocationMaskedToPlayer(jass_t *j) {
-    //handle_t whichLocation = jass_checkhandle(j, 1, "location");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    return jass_pushboolean(j, 0);
+    vec2_t const *point = jass_checkhandle(j, 1, "location");
+    player_t const *player = jass_checkhandle(j, 2, "player");
+    return jass_pushboolean(j, JassFogPointState(player, point) == WC3_FOG_STATE_MASKED);
 }
 uint32_t GetPlayerRace(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");
@@ -564,8 +570,8 @@ uint32_t IsFogEnabled(jass_t *j) {
         return jass_pushboolean(j, !(game.clients->ps.rdflags & RDF_NOFOG));
     }
 }
-static fogModifier_t *G_NewFogModifier(jass_t *j, player_t *player, uint32_t *state, bool useShared) {
-    API_ALLOC(fogModifier_t, fogmodifier);
+static fogModifier_t *G_NewFogModifier(player_t *player, uint32_t *state, bool useShared) {
+    fogModifier_t *fogmodifier = G_FogModifierCreate();
     if (!fogmodifier) {
         return NULL;
     }
@@ -580,12 +586,13 @@ uint32_t CreateFogModifierRect(jass_t *j) {
     uint32_t *whichState = jass_checkhandle(j, 2, "fogstate");
     box2_t const *where = jass_checkhandle(j, 3, "rect");
     bool useSharedVision = jass_checkboolean(j, 4);
-    fogModifier_t *mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
+    fogModifier_t *mod = G_NewFogModifier(forWhichPlayer, whichState, useSharedVision);
     if (mod && where) {
         mod->is_rect = true;
         mod->rect = *where;
     }
-    return 1;
+    return mod ? jass_pushlighthandle(j, mod, "fogmodifier")
+               : jass_pushnullhandle(j, "fogmodifier");
 }
 uint32_t CreateFogModifierRadius(jass_t *j) {
     player_t *forWhichPlayer = jass_checkhandle(j, 1, "player");
@@ -594,12 +601,13 @@ uint32_t CreateFogModifierRadius(jass_t *j) {
     float centerY = jass_checknumber(j, 4);
     float radius = jass_checknumber(j, 5);
     bool useSharedVision = jass_checkboolean(j, 6);
-    fogModifier_t *mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
+    fogModifier_t *mod = G_NewFogModifier(forWhichPlayer, whichState, useSharedVision);
     if (mod) {
         mod->center = MAKE(vec2_t, centerx, centerY);
         mod->radius = radius;
     }
-    return 1;
+    return mod ? jass_pushlighthandle(j, mod, "fogmodifier")
+               : jass_pushnullhandle(j, "fogmodifier");
 }
 uint32_t CreateFogModifierRadiusLoc(jass_t *j) {
     player_t *forWhichPlayer = jass_checkhandle(j, 1, "player");
@@ -607,16 +615,17 @@ uint32_t CreateFogModifierRadiusLoc(jass_t *j) {
     vec2_t const *center = jass_checkhandle(j, 3, "location");
     float radius = jass_checknumber(j, 4);
     bool useSharedVision = jass_checkboolean(j, 5);
-    fogModifier_t *mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
+    fogModifier_t *mod = G_NewFogModifier(forWhichPlayer, whichState, useSharedVision);
     if (mod && center) {
         mod->center = *center;
         mod->radius = radius;
     }
-    return 1;
+    return mod ? jass_pushlighthandle(j, mod, "fogmodifier")
+               : jass_pushnullhandle(j, "fogmodifier");
 }
 uint32_t DestroyFogModifier(jass_t *j) {
     fogModifier_t *whichFogModifier = jass_checkhandle(j, 1, "fogmodifier");
-    G_FogModifierStop(whichFogModifier);
+    G_FogModifierDestroy(whichFogModifier);
     return 0;
 }
 uint32_t FogModifierStart(jass_t *j) {
@@ -771,9 +780,9 @@ uint32_t ClearSelection(jass_t *j) {
     FOR_LOOP(i, globals.num_edicts) {
         if (currentplayer) {
             /* Selection is a per-player bitmask; clear only this player's bit. */
-            g_edicts[i].selected &= ~(1u << PLAYER_NUM(currentplayer));
+            G_SetEntitySelectionMask(g_edicts + i, g_edicts[i].selected & (~(1u << PLAYER_NUM(currentplayer))));
         } else {
-            g_edicts[i].selected = 0;
+            G_SetEntitySelectionMask(g_edicts + i, 0);
         }
     }
     JassMarkSelectionDirty(currentplayer);
@@ -787,16 +796,16 @@ uint32_t SelectUnit(jass_t *j) {
     }
     if (flag) {
         if (currentplayer) {
-            whichUnit->selected |= 1 << PLAYER_NUM(currentplayer);
+            G_SetEntitySelectionMask(whichUnit, whichUnit->selected | (1 << PLAYER_NUM(currentplayer)));
         } else {
-            whichUnit->selected = -1;
+            G_SetEntitySelectionMask(whichUnit, -1);
         }
     } else {
         if (currentplayer) {
             /* SelectUnit(false) must preserve every other player's selection bit. */
-            whichUnit->selected &= ~(1u << PLAYER_NUM(currentplayer));
+            G_SetEntitySelectionMask(whichUnit, whichUnit->selected & (~(1u << PLAYER_NUM(currentplayer))));
         } else {
-            whichUnit->selected = 0;
+            G_SetEntitySelectionMask(whichUnit, 0);
         }
     }
     JassMarkSelectionDirty(currentplayer);

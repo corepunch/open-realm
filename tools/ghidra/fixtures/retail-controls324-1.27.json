@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "task": "E2E-02.3",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "bundle_sha256": "42a92b4ba6e0ea40ec39a75d69671b3e4a24ac474bf0782fa2a32fa757bec0a0",
+  "reference_sha256": "be4baf1596809d58ca8d1033cdab3f98e870ecf06f8041824e92ab3da30678dc",
+  "helper_sha256": "b299165bff36f2a6f6cf23449259e1dff129e6e33a1dfdcedf930fe1e0da3741",
+  "helper_so_sha256": "1ed1c2f7a104a85bf2728dbb8b62af9e14ee4149ad10f7f475b50fb710bc39c1",
+  "source_sha256": {
+    "tools/frida/research/controls324_capture.py": "de067c178ebf6818fc15dcd90a138cca5e3ab651fdb680633f46d1990ac0158c",
+    "tools/ghidra/fixtures/retail-separation-crowd-inputs-1.27.json.gz": "cc54541059d3f55d824e1f17296441930f7c533ab2a01bdbbc5dc59e7168bd72",
+    "tools/ghidra/fixtures/retail-separation-crowds-1.27.json.gz": "37965588b517f035e934f772bf6e13e4b145da015962dd01b2c2ab8ead9cd385",
+    "tools/ghidra/fixtures/retail-speed314-1.27.json": "8aeb3e5d063184b1a73a0d0c9e32f57ab9b2c14767da931c105decfa67193bde",
+    "tools/ghidra/fixtures/retail-speed314-1.27.json.gz": "7700ae30c6fcc28c542575f1bd9ce9bd468d219fbd648b721fada34eecc35337",
+    "games/warcraft-3/game/tests/retail_separation_crowds.h": "74f05e3cbe351fea1da064ea971c06f702af65c0af28d1c7bee47a144712bae3",
+    "games/warcraft-3/game/tests/fixtures/retail_speed314.h": "4a0979ad01ea7c2e7036fa399983e4957619e05e421e537949a0c23ee69c29c7"
+  },
+  "scenes": {
+    "crowd": {
+      "provenance": "f1e46547248c51703dd976d932b71813311abcb28d100ab6bef94d8ccc211437",
+      "preload": "547332d6ff0c883837de7070c713e8dceec8d0a19223c849005853eed76d41c1",
+      "controller": "de067c178ebf6818fc15dcd90a138cca5e3ab651fdb680633f46d1990ac0158c"
+    },
+    "ground": {
+      "provenance": "ad58fc90243cbd4f040f20a7a4af5fe96b4ce1fac0d4ac4eda4d7a5035b7154d",
+      "preload": "beb6da4eecc60bfcc7b5dd92a5971b1b30b545ac2c43b99d27e2f856ae4b54db",
+      "controller": "de067c178ebf6818fc15dcd90a138cca5e3ab651fdb680633f46d1990ac0158c"
+    },
+    "foot": {
+      "provenance": "da983caf78c5a14993295bcb33d5cc0f11e165fa173fcde721c861e962f5c1bd",
+      "preload": "de36af5a3b8840c500858d18ba025a9485e21f39aa12b7ad772dcbd40e621d04",
+      "controller": "de067c178ebf6818fc15dcd90a138cca5e3ab651fdb680633f46d1990ac0158c"
+    },
+    "fly": {
+      "provenance": "fcb9e232b10e852042a8b7f2836fd70006ba672bab84f06a50998f6d7c286a50",
+      "preload": "bad078e46b4a79e6cbcfcf9e3b41aa6ecb89f04f9cf8f755197405da39b1e0be",
+      "controller": "de067c178ebf6818fc15dcd90a138cca5e3ab651fdb680633f46d1990ac0158c"
+    },
+    "amph": {
+      "provenance": "8985246ae367f3dafd5f3c7cd88f56b77851e1d1b2213a6d998662007872aaea",
+      "preload": "610df832296943d696b1bd235c98788dae4aa08471cc365e192cc70c08707933",
+      "controller": "de067c178ebf6818fc15dcd90a138cca5e3ab651fdb680633f46d1990ac0158c"
+    },
+    "hover": {
+      "provenance": "0ab0e455556eaf3483888cfdf467185ae5fc161f873e571ff9ff94cebf00ce2e",
+      "preload": "610df832296943d696b1bd235c98788dae4aa08471cc365e192cc70c08707933",
+      "controller": "de067c178ebf6818fc15dcd90a138cca5e3ab651fdb680633f46d1990ac0158c"
+    },
+    "float": {
+      "provenance": "ea7585f1e70770f553b109c0e0e505424881868dfb8113ca80eae45ba2e7f0ab",
+      "preload": "de36af5a3b8840c500858d18ba025a9485e21f39aa12b7ad772dcbd40e621d04",
+      "controller": "de067c178ebf6818fc15dcd90a138cca5e3ab651fdb680633f46d1990ac0158c"
+    }
+  },
+  "limits": [
+    "Complete recorded JASS samples and simulation tick labels; no unobserved internal-state or wall-clock equality claim.",
+    "Crowd public coordinates use R2S precision; five-mode finite values use R2SW four decimals and exceptional values retain authored nan/high/low labels.",
+    "Mixed crowd preserves four orders unfinished at tick302; completion marker is tick312. Ground completion is tick412.",
+    "Five modes cover isolated point Move, eight exceptional/zero speed inputs, finite restoration and Stop. This is not all terrain or NUM-03.2 closure.",
+    "Engine comparisons retain their original supplied RNG/clock and saved-spatial-order limits; original fixtures and source expectations are unchanged."
+  ]
+}

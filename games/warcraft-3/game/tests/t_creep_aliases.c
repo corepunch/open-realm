@@ -186,13 +186,13 @@ TEST(wc3_spell, creep_searing_arrows_uses_alias_bonus_damage) {
     old = G_SetSLKRows("AbilityData", rows);
     attacker = alloc_test_unit(MAKEFOURCC('n', 's', 'k', 'e'), 0, 0);
     attacker->data.UnitAbilities = &abilities;
-    attacker->attack1.weapon = WPN_MISSILE;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_MISSILE;
     attacker->svflags |= SVF_MONSTER;
     T_ASSERT(S_CastNoTargetSpell(attacker, BZ_ACSA));
     T_EQ(G_UnitStatusLevel(attacker, BZ_ACSA), 1);
     T_EQ(G_UnitStatusLevel(attacker, BZ_AHFA), 0);
     T_EQ(S_SearingArrowDamage(attacker, 20), 33);
-    attacker->attack1.weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
     T_EQ(S_SearingArrowDamage(attacker, 20), 20);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -398,7 +398,7 @@ TEST(wc3_spell, creep_evasion_zero_chance_alias_takes_hit) {
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
     attacker->s.player = 0; target->s.player = 1;
-    attacker->attack1.damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
     target->data.UnitAbilities = &abilities;
     target->health.value = target->health.max_value = 100;
     S_ResolveAttackHit(attacker, target, 10);
@@ -420,7 +420,7 @@ TEST(wc3_spell, creep_evasion_runtime_added_and_removed) {
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
     attacker->s.player = 0; target->s.player = 1;
-    attacker->attack1.damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
     target->data.UnitAbilities = &abilities;
     target->health.value = target->health.max_value = 100;
     target->abilities.added[0] = FS_SLKKey("ACes");
@@ -449,7 +449,7 @@ TEST(wc3_spell, creep_evasion_ranked_alias_uses_authored_row) {
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
     attacker->s.player = 0; target->s.player = 1;
-    attacker->attack1.damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
     target->health.value = target->health.max_value = 100;
     target->heroabilities[0] = MAKE(heroability_t, .code = FS_SLKKey("ACes"), .level = 1);
     S_ResolveAttackHit(attacker, target, 10);
@@ -482,7 +482,7 @@ TEST(wc3_spell, creep_evasion_base_and_brawler_retained) {
     alias_target->data.UnitAbilities = &alias_abils;
     base_target->health.value = base_target->health.max_value = 100;
     alias_target->health.value = alias_target->health.max_value = 100;
-    attacker->attack1.damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
     S_ResolveAttackHit(attacker, base_target, 10);
     T_FEQ(base_target->health.value, 100, 0.001f);
     S_ResolveAttackHit(attacker, alias_target, 10);

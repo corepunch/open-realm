@@ -39,6 +39,13 @@ behavior, and town discovery remain owned by the construction and town systems. 
 a failed request for retries. Candidate ranking, blocker radius/priority, worker preference, and hall placement offset
 are `BZ_COMPAT_GUESS` policies documented in [Player AI](../../docs/games/warcraft-3/player-ai.md).
 
+The six point/location fog queries (`IsVisibleToPlayer`, `IsFoggedToPlayer`,
+`IsMaskedToPlayer` and their location variants) now share completed-plane
+classification, calling-client fog/mask policy and neutral-player visibility.
+They do not refresh visibility during a query. Retail repeats/control and an
+exact public-JASS cold-save replay cover creation, Stop and Destroy; see
+[query contract and limits](../../docs/games/warcraft-3/retail-pathfinding-target-visibility.md#public-point-and-location-fog-queries-payoff253).
+
 ## Baseline
 
 The registry currently contains 919 callbacks. The last conservative source
@@ -75,6 +82,13 @@ to the registry or a placeholder begins consuming authoritative state.
 
 Issue #418 campaign-audit JASS native families now implemented: `SetCaptainHome`, `SetStagePoint`, `ShiftTownSpot`, `SuicideUnit`, `SuicideUnitEx`, `SuicidePlayer`, `MergeUnits`, `GetUpgradeGoldCost`, `GetUpgradeWoodCost` (plus the historical OpenRealm `GetUpgradeLumberCost` alias; all in `api_ai.h`), `EnumItemsInRect` / `GetEnumItem` (items in rect, mirrors `EnumDestructablesInRect`; boolexpr filter TODO), `GetChangingUnit` / `GetChangingUnitPrevOwner` (ownership-change event context, eventValue = prev_owner+1), `SetUnitUserData` / `GetUnitUserData` / `UnitSetUsesAltIcon` (unit state fields). Stubs added: `SetCampaignMenuRaceEx`, `SetAltMinimapIcon`, `DoNotSaveReplay`. Bot AI signatures for `SetCaptainHome` and `SuicideUnit*` take the player as explicit arg 1 (not from context); scripts call `GetAiPlayer()` to supply it. `EnumItemsInRect` arg 3 is the actionFunc; arg 2 (boolexpr) is skipped (TODO). `currentenumitem` is defined alongside `G_IsItem` in `g_items.c`.
 
+`CaptainGoHome()` is registered in `api_ai.h` and selects the current AI player's
+attack captain. Move owns its moving virtual actor, retained500-unit request,
+200-unit all-entered arrival request and12+1 roster batching. Public AI travel
+and saved continuations initially match retail through23.8s. Changed-destination
+wait reset extends the verified continuation through27.2s; one-point fine refills,
+autonomous occupied-home admission, empty/larger rosters and general retreat
+policy remain open. See [the implementation and exact scope](../../docs/games/warcraft-3/retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain).
 `GetFilterDestructable()` and `GetEnumDestructable()` resolve the currently
 enumerated destructable while an `EnumDestructablesInRect` action runs. The
 enumerator saves and restores that context so a nested enumeration does not
@@ -344,7 +358,7 @@ in the registry: `SetEnemyStartLocPrioCount`, `SetEnemyStartLocPrio`, and
 - Polymorph participates in that table as `polymorph = 852074`; owned `Aply` casts use the shared unit-target spell path. `IsUnitType(whichUnit, UNIT_TYPE_POLYMORPHED)` reflects the live reversible Polymorph state rather than a sheep rawcode. See [polymorph.md](../../docs/games/warcraft-3/polymorph.md).
 - `IssueBuildOrderById` routes directly through `G_IssueBuildOrder()`, so JASS construction uses the same worker `Builds`, technology/resource, placement/pathing, waypoint, and issued-point-order validation as player/AI construction. Building rawcodes passed to `IssuePointOrderById` or `IssuePointOrderByIdLoc` are special-cased into that same build path before generic order-id translation; canonical movement/spell ids continue through the order table. `CreateUnit` remains an immediate spawn rather than construction, and string-form `IssueBuildOrder` remains incomplete.
 - Construction completion publishes both `EVENT_PLAYER_UNIT_CONSTRUCT_FINISH` and `EVENT_UNIT_CONSTRUCT_FINISH`; `GetConstructedStructure()` resolves the completed structure in either callback family. `GetConstructingStructure()` and `GetCancelledStructure()` continue to expose the corresponding implemented start/cancel event structure. See [building-construction.md](../../docs/games/warcraft-3/building-construction.md).
-- Stock spell orders owned by the caster route through the unified spell pipeline. Successful casts publish `EVENT_PLAYER_UNIT_SPELL_EFFECT` and `EVENT_UNIT_SPELL_EFFECT` after mana/cooldown commit and before the gameplay callback. `GetSpellAbilityUnit`, `GetSpellAbilityId`, `GetSpellTargetUnit`, `GetSpellTargetX/Y/Loc`, `GetSpellTargetItem`, and `GetSpellTargetDestructable` expose that response context. `GetSpellAbility` and the CHANNEL/CAST/FINISH/ENDCAST lifecycle remain unsupported rather than being synthesized.
+- Stock spell orders route through the unified spell pipeline. Both EFFECT families run synchronously before resource commit/gameplay execution. Ordered Flame Strike/Inner Fire own CHANNEL, CAST, delayed EFFECT, FINISH and ENDCAST, with class-provided timing and saved primary deadlines. Player precedes unit delivery with frozen subscriber presence; source/ability identity remains retained while target getters reflect live synchronous ability state, including clearing after nested interruption. `GetSpellAbilityUnit`, `GetSpellAbilityId`, target Unit/X/Y/Loc/Item/Destructable natives expose that context. Other concrete classes, true channels, suspended live target contexts and `GetSpellAbility` remain gaps. See [ordered spell phases](../../docs/games/warcraft-3/retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).
 
 ## Time Of Day Game State
 
@@ -411,6 +425,14 @@ order table used by the string variant, then call the existing unit order path.
 The boolean result reports whether the group order was accepted according to
 the native contract; it is not an unconditional success value.
 
+The four `GroupPointOrder*` forms now use the verified twelve-member insertion-order
+snapshot and numeric/Loc adapters. They report aggregate acceptance and dispatch
+typed batches through the registered order ability. Move/Smart now retain a
+physical shared owner, separate decisions/commits and saved native formation
+state; a repeated public pair matches115 original commits. Wider eligibility,
+queued activation, other producers and crowd behavior remain explicit gaps. `GroupImmediateOrderById` and
+`GroupTargetOrderById` still need their adapters. See [retail point admission](../../docs/games/warcraft-3/retail-pathfinding-engine.md#public-group-point-orders-admit-twelve-members) and [shared pair movement](../../docs/games/warcraft-3/retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner).
+
 A `REGION` is the union of its cells and rectangles. Add/clear operations mutate
 that set, while `IsPointInRegion`, `IsLocationInRegion`, and `IsUnitInRegion`
 query it. Enter/leave events require per-unit previous membership so crossing an
@@ -425,16 +447,21 @@ This is distinct from `PauseUnit`, `PauseCompAI`, and timer pause state. `PauseT
 
 ## Timers
 
-A timer handle needs timeout, accumulated elapsed time, start time, periodic and
-paused flags, and a handler. Timer time uses deterministic server game time, not
-wall-clock time. Pausing freezes elapsed time; resuming preserves it; restarting
-replaces the previous schedule. During expiry, `GetExpiredTimer` resolves from
-the active JASS context and nested callbacks restore the previous value.
+Public timers retain authored timeout separately from effective counted requests
+and frozen paused remainder. Their scalar simulation clock is deterministic;
+inside an expiry callback it is temporarily borrowed from the due deadline.
+Nested callbacks restore the previous timer context. Pause freezes the getter
+remainder; Resume schedules that remainder, then its first expiry starts the
+current authored timeout/callback again. It does not simply resume a host
+millisecond stopwatch.
 
-One scheduler should drive both timer handlers and timer-expire trigger events.
-Periodic timers reschedule from their intended expiry to avoid frame-time drift.
-Destroying a timer cancels pending work and invalidates event references without
-leaving a scheduler pointer to freed JASS handle storage.
+Expiry conditions/actions precede the direct timer handler. Current direct
+execution survives a pause from the condition; queued C timer work retains its
+generation cancellation checks. Public DestroyTimer immediately invalidates
+lookup, while scalar catch-up retains the receiver until deferred primary-clock
+release after the timer quantum. Shared deadlines follow unsigned registration
+serials, including the path owner's insertion order. See
+[verified timer mutation and movement](../../docs/games/warcraft-3/retail-pathfinding-engine.md#timer-callback-mutations-preserve-heap-order-and-deferred-release).
 
 Timer dialogs are now implemented for the ordinary campaign-countdown path. `CreateTimerDialog` allocates a stable fixed-slot handle associated with an existing timer; `DestroyTimerDialog` removes only presentation state and leaves that timer running. `TimerDialogSetTitle`, title/time RGBA setters, `TimerDialogDisplay`, and `IsTimerDialogDisplayed` drive the stock `TimerDialog.fdf` HUD through a dedicated layout layer. Values render as zero-padded `MM:SS` and refresh only when the visible whole second or dialog presentation state changes. Local visibility follows the existing `currentplayer` convention. Timer-dialog handles and presentation state survive save/load through stable slot IDs. See [Timer Dialogs And Mission Countdowns](../../docs/games/warcraft-3/timer-dialogs.md).
 
@@ -571,6 +598,14 @@ The shared VM now also unwinds unknown (undeclared) calls through its protected 
 with runtime errors instead of process assertions, and protects global-initializer evaluation. Unique missing function names remain
 queryable until VM close via `jass_missingcount`/`jass_missingname`. See [Galaxy protected calls and coverage](../../docs/games/starcraft-2/galaxy-scripting.md#protected-calls-and-missing-native-inventory)
 for the SC2 reproduction, inventory workflow, and shared VM regressions. This does not change WC3 quest state ownership or native IDs.
+
+Public `CaptainGoHome` continuation now also covers intermediate partial
+fine/coarse handoff:7933 exact commits through30 seconds,327 virtual actor
+commits,812 shared footprints and7310 saved suffix commits. The native remains
+a thin AI dispatch into Move; source reconstruction, retry preservation and
+explicit stopped motion belong to the game-owned movement consumer. Natural
+journey completion and broader captain policies remain open. See
+[the refill port](../../docs/games/warcraft-3/retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff).
 
 ### Game save/load event and filename natives
 

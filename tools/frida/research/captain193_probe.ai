@@ -1,0 +1,30 @@
+// GROUP-03.4.6.2.1.2: attack captain recruits every authored producer type once.
+// GroupTimedLife(true) is the public policy that lets illusions/timed-life units join the attack captain.
+function main takes nothing returns nothing
+    call SetCampaignAI()
+    call GroupTimedLife(@GROUP_TIMED_LIFE@)
+    call CreateCaptains()
+    call SetCaptainHome(1,128.0,1920.0)
+    call InitAssault()
+    call AddAssault(1,'hRA0')
+    call AddAssault(1,'hRA1')
+    call AddAssault(1,'hRA2')
+    call AddAssault(1,'hRA3')
+    call AddAssault(1,'hRA4')
+    call AddAssault(1,'hRA5')
+    call AddAssault(1,'hRA6')
+    call AddAssault(1,'hRA7')
+    call AddAssault(1,'hRA8')
+    call AddAssault(1,'hRA9')
+    call AddAssault(1,'hRAs')
+    call AddAssault(1,'hRAt')
+    call AddAssault(1,'HRA0')
+    call AddAssault(1,'HRA1')
+    call AddAssault(1,'HRA2')
+    call CaptainAttack(128.0,1800.0)
+    call Sleep(1.0)
+    call CaptainAttack(500.0,1800.0)
+    loop
+        call Sleep(1.0)
+    endloop
+endfunction

@@ -8,7 +8,9 @@
 #include <stdlib.h>
 
 void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
-    modelPose_t pose = { .origin = entity->origin, .angles.yaw = entity->angle, .scale = entity->scale };
+    modelPose_t pose = { .origin = entity->origin, .angles = {
+        entity->angle + entity->pose_offset.yaw, entity->pose_offset.pitch, entity->pose_offset.roll },
+        .scale = entity->scale };
     mat4_t const *basis = R_EntityPose(entity, &pose);
     quaternion_t rotation = Quaternion_fromOrientation(&pose.angles);
     mat4_t placement;

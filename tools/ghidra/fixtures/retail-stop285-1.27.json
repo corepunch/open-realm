@@ -1,0 +1,2226 @@
+{
+  "version": 1,
+  "task": "BASE-01.4/MAP-04.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "bundle_sha256": "772d3fce9610e6129e716530c0fc78eba9351f618bfc88232566eab50a7e8831",
+  "source_sha256": {
+    "tools/frida/research/stop285_capture.py": "72e0381d3da6afa0d173e2c350b3866069fbf3ed5a631e5f32a57ed06062d969",
+    "tools/frida/research/stop285_observer.js": "7f67325331f2be17b0f54aac33497826d8e00522c5753c0ba900028b70a4fa09",
+    "tools/frida/research/stop285_make_map.py": "0618c2eab4b05bc1b0e50b1ddd2553d09f7c7026caa816388f94ae22152b5fb6",
+    "tools/frida/research/stop285_probe.j": "ce5e92dde899447ab2445d28f80db628b288338fa806cf1b653af09f718eab1a",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/make_wc3_pathfinding_map.py": "3e68c5b1bad2e6842d6f0e76fb6d265066476f68850ba4fb8329084837c57149",
+    "tools/ghidra/research/Stop285Evidence.java": "d1235cb3caf8587e0e284f236caa06ea15f5c2d65174faac413731c3dd5e8684",
+    "tools/ghidra/research/stop285_oracle.py": "a6fae8abafe7f4b1e50c3707c8bc3d1119291123ee8bc7c6d177d63e7c4abdb7",
+    "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3",
+    "tools/frida/research/smart277_ui_input.c": "e11a7f831682f27c1405e0429e073c9204fd56af3548cf52f6a15c90182a8233",
+    "tools/frida/research/point214_ui_input.c": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624",
+    "tools/frida/wc3_ui_input.c": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19"
+  },
+  "map_sha256": "97584e86760e747ee4d1f2808699e20348a7405c5d159683132438d07fc52117",
+  "instructions": {
+    "6f2155c0": "55",
+    "6f2155c1": "8bec",
+    "6f2155c3": "8b4d08",
+    "6f2155c6": "83ec08",
+    "6f2155c9": "56",
+    "6f2155ca": "e8c199fdff",
+    "6f2155cf": "8bf0",
+    "6f2155d1": "85f6",
+    "6f2155d3": "743b",
+    "6f2155d5": "6a01",
+    "6f2155d7": "8bce",
+    "6f2155d9": "e812ae4600",
+    "6f2155de": "8b4d0c",
+    "6f2155e1": "8b4510",
+    "6f2155e4": "6a00",
+    "6f2155e6": "6aff",
+    "6f2155e8": "8b09",
+    "6f2155ea": "8b00",
+    "6f2155ec": "6a00",
+    "6f2155ee": "6a00",
+    "6f2155f0": "6a00",
+    "6f2155f2": "6aff",
+    "6f2155f4": "894df8",
+    "6f2155f7": "8d4dfc",
+    "6f2155fa": "6a01",
+    "6f2155fc": "6a01",
+    "6f2155fe": "51",
+    "6f2155ff": "8945fc",
+    "6f215602": "8d4df8",
+    "6f215605": "8b06",
+    "6f215607": "51",
+    "6f215608": "8bce",
+    "6f21560a": "ff9080010000",
+    "6f215610": "5e",
+    "6f215611": "8be5",
+    "6f215613": "5d",
+    "6f215614": "c3",
+    "6f215620": "55",
+    "6f215621": "8bec",
+    "6f215623": "8b4d0c",
+    "6f215626": "83ec08",
+    "6f215629": "e82284fdff",
+    "6f21562e": "85c0",
+    "6f215630": "741f",
+    "6f215632": "8b4828",
+    "6f215635": "8b4024",
+    "6f215638": "8945f8",
+    "6f21563b": "8d45fc",
+    "6f21563e": "50",
+    "6f21563f": "8d45f8",
+    "6f215642": "894dfc",
+    "6f215645": "50",
+    "6f215646": "ff7508",
+    "6f215649": "e872ffffff",
+    "6f21564e": "83c40c",
+    "6f215651": "8be5",
+    "6f215653": "5d",
+    "6f215654": "c3",
+    "6f6803f0": "55",
+    "6f6803f1": "8bec",
+    "6f6803f3": "56",
+    "6f6803f4": "8bf1",
+    "6f6803f6": "6a01",
+    "6f6803f8": "ff7508",
+    "6f6803fb": "8b06",
+    "6f6803fd": "6a00",
+    "6f6803ff": "ff90ec000000",
+    "6f680405": "8bd0",
+    "6f680407": "b904000d00",
+    "6f68040c": "e81f050100",
+    "6f680411": "50",
+    "6f680412": "8bce",
+    "6f680414": "e807ffffff",
+    "6f680419": "5e",
+    "6f68041a": "5d",
+    "6f68041b": "c20400",
+    "6f698050": "55",
+    "6f698051": "8bec",
+    "6f698053": "83ec10",
+    "6f698056": "53",
+    "6f698057": "56",
+    "6f698058": "57",
+    "6f698059": "6a01",
+    "6f69805b": "8bf9",
+    "6f69805d": "e82e41ffff",
+    "6f698062": "8b5d18",
+    "6f698065": "8bf0",
+    "6f698067": "8975fc",
+    "6f69806a": "85f6",
+    "6f69806c": "7510",
+    "6f69806e": "f7874802000000020000",
+    "6f698078": "0f84c8000000",
+    "6f69807e": "8b07",
+    "6f698080": "8bcf",
+    "6f698082": "6a01",
+    "6f698084": "6a00",
+    "6f698086": "ff904c010000",
+    "6f69808c": "6a00",
+    "6f69808e": "8bcf",
+    "6f698090": "e89b1d0000",
+    "6f698095": "8b4730",
+    "6f698098": "8bcf",
+    "6f69809a": "a3ac0fd76f",
+    "6f69809f": "8b07",
+    "6f6980a1": "ff90ec000000",
+    "6f6980a7": "a3b00fd76f",
+    "6f6980ac": "891db40fd76f",
+    "6f6980b2": "83fbff",
+    "6f6980b5": "0f8585000000",
+    "6f6980bb": "a12cc8d36f",
+    "6f6980c0": "8d4d18",
+    "6f6980c3": "8b5508",
+    "6f6980c6": "83c06c",
+    "6f6980c9": "50",
+    "6f6980ca": "e8c1799dff",
+    "6f6980cf": "8b4518",
+    "6f6980d2": "8d88000000fd",
+    "6f6980d8": "33c8",
+    "6f6980da": "05000080fd",
+    "6f6980df": "c1f91f",
+    "6f6980e2": "f7d1",
+    "6f6980e4": "23c8",
+    "6f6980e6": "894d18",
+    "6f6980e9": "8d4d18",
+    "6f6980ec": "e82f809dff",
+    "6f6980f1": "8b0d2cc8d36f",
+    "6f6980f7": "8bf0",
+    "6f6980f9": "8b550c",
+    "6f6980fc": "83c170",
+    "6f6980ff": "51",
+    "6f698100": "8d4d18",
+    "6f698103": "e888799dff",
+    "6f698108": "8b4d18",
+    "6f69810b": "8d91000000fd",
+    "6f698111": "33d1",
+    "6f698113": "81c1000080fd",
+    "6f698119": "c1fa1f",
+    "6f69811c": "f7d2",
+    "6f69811e": "23d1",
+    "6f698120": "8d4d18",
+    "6f698123": "895518",
+    "6f698126": "e8f57f9dff",
+    "6f69812b": "6a00",
+    "6f69812d": "8bd0",
+    "6f69812f": "8bce",
+    "6f698131": "e85a3b0f00",
+    "6f698136": "8b75fc",
+    "6f698139": "a3b40fd76f",
+    "6f69813e": "eb06",
+    "6f698140": "891db40fd76f",
+    "6f698146": "8b4520",
+    "6f698149": "85c0",
+    "6f69814b": "750c",
+    "6f69814d": "33c9",
+    "6f69814f": "b8ac0fd76f",
+    "6f698154": "85f6",
+    "6f698156": "0f44c1",
+    "6f698159": "8b4d1c",
+    "6f69815c": "85c9",
+    "6f69815e": "750a",
+    "6f698160": "85f6",
+    "6f698162": "ba00b2696f",
+    "6f698167": "0f45ca",
+    "6f69816a": "ff752c",
+    "6f69816d": "ff7528",
+    "6f698170": "6a00",
+    "6f698172": "ff7524",
+    "6f698175": "50",
+    "6f698176": "51",
+    "6f698177": "53",
+    "6f698178": "ff7514",
+    "6f69817b": "8bcf",
+    "6f69817d": "ff7510",
+    "6f698180": "ff750c",
+    "6f698183": "ff7508",
+    "6f698186": "e885b3fbff",
+    "6f69818b": "8b07",
+    "6f69818d": "8bcf",
+    "6f69818f": "ff90a0010000",
+    "6f698195": "6a01",
+    "6f698197": "8d45f0",
+    "6f69819a": "8bcf",
+    "6f69819c": "50",
+    "6f69819d": "e8dec2feff",
+    "6f6981a2": "8b07",
+    "6f6981a4": "8bcf",
+    "6f6981a6": "ff90a0010000",
+    "6f6981ac": "8bcf",
+    "6f6981ae": "e8ad570000",
+    "6f6981b3": "8bcf",
+    "6f6981b5": "e826bdfbff",
+    "6f6981ba": "837f2800",
+    "6f6981be": "7407",
+    "6f6981c0": "8bcf",
+    "6f6981c2": "e859dbcdff",
+    "6f6981c7": "33db",
+    "6f6981c9": "399fec010000",
+    "6f6981cf": "0f94c3",
+    "6f6981d2": "85f6",
+    "6f6981d4": "7510",
+    "6f6981d6": "f7874802000000020000",
+    "6f6981e0": "7504",
+    "6f6981e2": "85db",
+    "6f6981e4": "7466",
+    "6f6981e6": "8b07",
+    "6f6981e8": "8bcf",
+    "6f6981ea": "6a01",
+    "6f6981ec": "6a01",
+    "6f6981ee": "6a01",
+    "6f6981f0": "ff9048010000",
+    "6f6981f6": "6a01",
+    "6f6981f8": "8bcf",
+    "6f6981fa": "e8311c0000",
+    "6f6981ff": "85f6",
+    "6f698201": "7407",
+    "6f698203": "8bcf",
+    "6f698205": "e816f6fdff",
+    "6f69820a": "837f2800",
+    "6f69820e": "743c",
+    "6f698210": "85db",
+    "6f698212": "7438",
+    "6f698214": "8b07",
+    "6f698216": "8d4df0",
+    "6f698219": "6a00",
+    "6f69821b": "6a00",
+    "6f69821d": "6aff",
+    "6f69821f": "6a01",
+    "6f698221": "51",
+    "6f698222": "8bcf",
+    "6f698224": "ff90e0000000",
+    "6f69822a": "8b4f28",
+    "6f69822d": "ba01000000",
+    "6f698232": "50",
+    "6f698233": "e80847b1ff",
+    "6f698238": "8b4f28",
+    "6f69823b": "8d8794020000",
+    "6f698241": "50",
+    "6f698242": "ba04000000",
+    "6f698247": "e83446b1ff",
+    "6f69824c": "8b8fe8010000",
+    "6f698252": "85c9",
+    "6f698254": "7405",
+    "6f698256": "e8753ae0ff",
+    "6f69825b": "6a01",
+    "6f69825d": "6a01",
+    "6f69825f": "6a00",
+    "6f698261": "6a00",
+    "6f698263": "e8d80efaff",
+    "6f698268": "50",
+    "6f698269": "8bcf",
+    "6f69826b": "e81049dfff",
+    "6f698270": "5f",
+    "6f698271": "5e",
+    "6f698272": "5b",
+    "6f698273": "85c0",
+    "6f698275": "7407",
+    "6f698277": "8bc8",
+    "6f698279": "e872f9faff",
+    "6f69827e": "8be5",
+    "6f698280": "5d",
+    "6f698281": "c22800",
+    "6f693490": "55",
+    "6f693491": "8bec",
+    "6f693493": "6aff",
+    "6f693495": "688884a56f",
+    "6f69349a": "64a100000000",
+    "6f6934a0": "50",
+    "6f6934a1": "83ec10",
+    "6f6934a4": "53",
+    "6f6934a5": "56",
+    "6f6934a6": "57",
+    "6f6934a7": "a19c68ce6f",
+    "6f6934ac": "33c5",
+    "6f6934ae": "50",
+    "6f6934af": "8d45f4",
+    "6f6934b2": "64a300000000",
+    "6f6934b8": "8bf1",
+    "6f6934ba": "f7465c00010000",
+    "6f6934c1": "0f85da000000",
+    "6f6934c7": "81beb4010000f4010000",
+    "6f6934d1": "0f8fca000000",
+    "6f6934d7": "8b86a8010000",
+    "6f6934dd": "2386ac010000",
+    "6f6934e3": "8b7d08",
+    "6f6934e6": "83f8ff",
+    "6f6934e9": "7417",
+    "6f6934eb": "8d8ea8010000",
+    "6f6934f1": "e82ade9cff",
+    "6f6934f6": "85c0",
+    "6f6934f8": "7408",
+    "6f6934fa": "57",
+    "6f6934fb": "8bc8",
+    "6f6934fd": "e83e560000",
+    "6f693502": "57",
+    "6f693503": "8d8ea8010000",
+    "6f693509": "e8020eb9ff",
+    "6f69350e": "8b86a0010000",
+    "6f693514": "23869c010000",
+    "6f69351a": "83f8ff",
+    "6f69351d": "740f",
+    "6f69351f": "8d8e9c010000",
+    "6f693525": "e8f6dd9cff",
+    "6f69352a": "85c0",
+    "6f69352c": "750c",
+    "6f69352e": "57",
+    "6f69352f": "8d8e9c010000",
+    "6f693535": "e8d60db9ff",
+    "6f69353a": "ff86b4010000",
+    "6f693540": "8d8e74010000",
+    "6f693546": "8b4104",
+    "6f693549": "2301",
+    "6f69354b": "83f8ff",
+    "6f69354e": "7447",
+    "6f693550": "e8cbdd9cff",
+    "6f693555": "85c0",
+    "6f693557": "743e",
+    "6f693559": "c745e800000000",
+    "6f693560": "c745e49002a86f",
+    "6f693567": "c745eca5020d00",
+    "6f69356e": "8b06",
+    "6f693570": "8d4de4",
+    "6f693573": "51",
+    "6f693574": "8bce",
+    "6f693576": "c745fc00000000",
+    "6f69357d": "897df0",
+    "6f693580": "ff5010",
+    "6f693583": "8b4df4",
+    "6f693586": "64890d00000000",
+    "6f69358d": "59",
+    "6f69358e": "5f",
+    "6f69358f": "5e",
+    "6f693590": "5b",
+    "6f693591": "8be5",
+    "6f693593": "5d",
+    "6f693594": "c20400",
+    "6f693597": "6a01",
+    "6f693599": "57",
+    "6f69359a": "8bce",
+    "6f69359c": "e83f76feff",
+    "6f6935a1": "8b4df4",
+    "6f6935a4": "64890d00000000",
+    "6f6935ab": "59",
+    "6f6935ac": "5f",
+    "6f6935ad": "5e",
+    "6f6935ae": "5b",
+    "6f6935af": "8be5",
+    "6f6935b1": "5d",
+    "6f6935b2": "c20400",
+    "6f680320": "55",
+    "6f680321": "8bec",
+    "6f680323": "56",
+    "6f680324": "8bf1",
+    "6f680326": "f7465c00010000",
+    "6f68032d": "0f85ad000000",
+    "6f680333": "83be9801000000",
+    "6f68033a": "7e2c",
+    "6f68033c": "837d0c00",
+    "6f680340": "7414",
+    "6f680342": "e8393bffff",
+    "6f680347": "ff7508",
+    "6f68034a": "8bce",
+    "6f68034c": "e83f310100",
+    "6f680351": "5e",
+    "6f680352": "5d",
+    "6f680353": "c20c00",
+    "6f680356": "ff7510",
+    "6f680359": "6a01",
+    "6f68035b": "ff7508",
+    "6f68035e": "e80d190100",
+    "6f680363": "5e",
+    "6f680364": "5d",
+    "6f680365": "c20c00",
+    "6f680368": "57",
+    "6f680369": "8b7d08",
+    "6f68036c": "57",
+    "6f68036d": "e87eaf0100",
+    "6f680372": "85c0",
+    "6f680374": "7413",
+    "6f680376": "837d0c00",
+    "6f68037a": "7463",
+    "6f68037c": "8bce",
+    "6f68037e": "e8fd3affff",
+    "6f680383": "5f",
+    "6f680384": "5e",
+    "6f680385": "5d",
+    "6f680386": "c20c00",
+    "6f680389": "837d0c00",
+    "6f68038d": "8bce",
+    "6f68038f": "7413",
+    "6f680391": "e87a32ffff",
+    "6f680396": "57",
+    "6f680397": "8bce",
+    "6f680399": "e8f2300100",
+    "6f68039e": "5f",
+    "6f68039f": "5e",
+    "6f6803a0": "5d",
+    "6f6803a1": "c20c00",
+    "6f6803a4": "e8373cffff",
+    "6f6803a9": "8b86a0010000",
+    "6f6803af": "8d8e9c010000",
+    "6f6803b5": "2301",
+    "6f6803b7": "83f8ff",
+    "6f6803ba": "7416",
+    "6f6803bc": "e85f0f9eff",
+    "6f6803c1": "85c0",
+    "6f6803c3": "740d",
+    "6f6803c5": "f6402008",
+    "6f6803c9": "7407",
+    "6f6803cb": "8bce",
+    "6f6803cd": "e83e460100",
+    "6f6803d2": "ff7510",
+    "6f6803d5": "8bce",
+    "6f6803d7": "6a00",
+    "6f6803d9": "57",
+    "6f6803da": "e891180100",
+    "6f6803df": "5f",
+    "6f6803e0": "5e",
+    "6f6803e1": "5d",
+    "6f6803e2": "c20c00",
+    "6f9d6ed0": "55",
+    "6f9d6ed1": "8bec",
+    "6f9d6ed3": "51",
+    "6f9d6ed4": "8b4508",
+    "6f9d6ed7": "56",
+    "6f9d6ed8": "6a00",
+    "6f9d6eda": "6aff",
+    "6f9d6edc": "8b4004",
+    "6f9d6edf": "8bf1",
+    "6f9d6ee1": "6a00",
+    "6f9d6ee3": "6a00",
+    "6f9d6ee5": "6a00",
+    "6f9d6ee7": "8945fc",
+    "6f9d6eea": "8b450c",
+    "6f9d6eed": "6a00",
+    "6f9d6eef": "6aff",
+    "6f9d6ef1": "6a01",
+    "6f9d6ef3": "8b4004",
+    "6f9d6ef6": "894508",
+    "6f9d6ef9": "8d4508",
+    "6f9d6efc": "6a01",
+    "6f9d6efe": "50",
+    "6f9d6eff": "8d45fc",
+    "6f9d6f02": "50",
+    "6f9d6f03": "e808c6c7ff",
+    "6f9d6f08": "8bce",
+    "6f9d6f0a": "e8f1060000",
+    "6f9d6f0f": "5e",
+    "6f9d6f10": "8be5",
+    "6f9d6f12": "5d",
+    "6f9d6f13": "c20800",
+    "6f9d7600": "55",
+    "6f9d7601": "8bec",
+    "6f9d7603": "51",
+    "6f9d7604": "56",
+    "6f9d7605": "8bf1",
+    "6f9d7607": "6a01",
+    "6f9d7609": "8b06",
+    "6f9d760b": "ff90d0000000",
+    "6f9d7611": "8b06",
+    "6f9d7613": "8bce",
+    "6f9d7615": "ff90d4000000",
+    "6f9d761b": "8945fc",
+    "6f9d761e": "8d4e44",
+    "6f9d7621": "8d45fc",
+    "6f9d7624": "50",
+    "6f9d7625": "686040656f",
+    "6f9d762a": "e8215468ff",
+    "6f9d762f": "8b06",
+    "6f9d7631": "8bce",
+    "6f9d7633": "6a00",
+    "6f9d7635": "ff90d0000000",
+    "6f9d763b": "5e",
+    "6f9d763c": "8be5",
+    "6f9d763e": "5d",
+    "6f9d763f": "c3"
+  },
+  "public": [
+    "S285 tick=0 scene=0 label=start order=0 x=0.000 y=0.000",
+    "S285 tick=1 scene=0 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=1 scene=0 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=1 scene=0 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=1 scene=0 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=1 scene=0 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=4 scene=0 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=11 scene=1 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=11 scene=1 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=11 scene=1 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=11 scene=1 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=11 scene=1 label=after order=0 x=784.000 y=752.000",
+    "S285 tick=14 scene=1 label=settled order=0 x=784.000 y=752.000",
+    "S285 tick=21 scene=2 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=21 scene=2 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=21 scene=2 label=player-exit order=851986 x=656.000 y=656.000",
+    "S285 tick=21 scene=2 label=unit-event order=851986 x=656.000 y=656.000",
+    "S285 tick=21 scene=2 label=after order=851986 x=800.000 y=800.000",
+    "S285 tick=24 scene=2 label=settled order=851986 x=871.127 y=774.393",
+    "S285 tick=31 scene=3 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=31 scene=3 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=31 scene=3 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=31 scene=3 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=31 scene=3 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=31 scene=3 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=31 scene=3 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=31 scene=3 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=34 scene=3 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=41 scene=4 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=41 scene=4 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=41 scene=4 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=41 scene=4 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=41 scene=4 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=44 scene=4 label=settled order=0 x=0.000 y=0.000",
+    "S285 tick=51 scene=5 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=51 scene=5 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=51 scene=5 label=player-exit order=851973 x=656.000 y=656.000",
+    "S285 tick=51 scene=5 label=unit-event order=851973 x=656.000 y=656.000",
+    "S285 tick=51 scene=5 label=after order=851973 x=800.000 y=800.000",
+    "S285 tick=54 scene=5 label=settled order=851973 x=800.000 y=800.000",
+    "S285 tick=61 scene=6 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=61 scene=6 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=61 scene=6 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=61 scene=6 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=61 scene=6 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=64 scene=6 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=71 scene=7 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=71 scene=7 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=71 scene=7 label=player-exit order=851972 x=900.000 y=656.000",
+    "S285 tick=71 scene=7 label=unit-event order=851972 x=900.000 y=656.000",
+    "S285 tick=71 scene=7 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=74 scene=7 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=81 scene=8 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=81 scene=8 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=81 scene=8 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=81 scene=8 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=81 scene=8 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=84 scene=8 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=91 scene=9 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=91 scene=9 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=91 scene=9 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=91 scene=9 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=91 scene=9 label=after order=0 x=784.000 y=752.000",
+    "S285 tick=94 scene=9 label=settled order=0 x=784.000 y=752.000",
+    "S285 tick=101 scene=10 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=101 scene=10 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=101 scene=10 label=player-exit order=851986 x=656.000 y=656.000",
+    "S285 tick=101 scene=10 label=unit-event order=851986 x=656.000 y=656.000",
+    "S285 tick=101 scene=10 label=after order=851986 x=800.000 y=800.000",
+    "S285 tick=104 scene=10 label=settled order=851986 x=868.577 y=775.310",
+    "S285 tick=111 scene=11 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=111 scene=11 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=111 scene=11 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=111 scene=11 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=111 scene=11 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=111 scene=11 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=111 scene=11 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=111 scene=11 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=114 scene=11 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=121 scene=12 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=121 scene=12 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=121 scene=12 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=121 scene=12 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=121 scene=12 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=124 scene=12 label=settled order=0 x=0.000 y=0.000",
+    "S285 tick=131 scene=13 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=131 scene=13 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=131 scene=13 label=player-exit order=851973 x=656.000 y=656.000",
+    "S285 tick=131 scene=13 label=unit-event order=851973 x=656.000 y=656.000",
+    "S285 tick=131 scene=13 label=after order=851973 x=800.000 y=800.000",
+    "S285 tick=134 scene=13 label=settled order=851973 x=800.000 y=800.000",
+    "S285 tick=141 scene=14 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=141 scene=14 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=141 scene=14 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=141 scene=14 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=141 scene=14 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=144 scene=14 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=151 scene=15 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=151 scene=15 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=151 scene=15 label=player-exit order=851972 x=900.000 y=656.000",
+    "S285 tick=151 scene=15 label=unit-event order=851972 x=900.000 y=656.000",
+    "S285 tick=151 scene=15 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=154 scene=15 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=161 scene=16 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=161 scene=16 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=161 scene=16 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=161 scene=16 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=161 scene=16 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=164 scene=16 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=171 scene=17 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=171 scene=17 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=171 scene=17 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=171 scene=17 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=171 scene=17 label=after order=0 x=784.000 y=752.000",
+    "S285 tick=174 scene=17 label=settled order=0 x=784.000 y=752.000",
+    "S285 tick=181 scene=18 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=181 scene=18 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=181 scene=18 label=player-exit order=851986 x=656.000 y=656.000",
+    "S285 tick=181 scene=18 label=unit-event order=851986 x=656.000 y=656.000",
+    "S285 tick=181 scene=18 label=after order=851986 x=800.000 y=800.000",
+    "S285 tick=184 scene=18 label=settled order=851986 x=873.657 y=773.481",
+    "S285 tick=191 scene=19 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=191 scene=19 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=191 scene=19 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=191 scene=19 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=191 scene=19 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=191 scene=19 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=191 scene=19 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=191 scene=19 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=194 scene=19 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=201 scene=20 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=201 scene=20 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=201 scene=20 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=201 scene=20 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=201 scene=20 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=204 scene=20 label=settled order=0 x=0.000 y=0.000",
+    "S285 tick=211 scene=21 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=211 scene=21 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=211 scene=21 label=player-exit order=851973 x=656.000 y=656.000",
+    "S285 tick=211 scene=21 label=unit-event order=851973 x=656.000 y=656.000",
+    "S285 tick=211 scene=21 label=after order=851973 x=800.000 y=800.000",
+    "S285 tick=214 scene=21 label=settled order=851973 x=800.000 y=800.000",
+    "S285 tick=221 scene=22 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=221 scene=22 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=221 scene=22 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=221 scene=22 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=221 scene=22 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=224 scene=22 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=231 scene=23 label=before order=0 x=656.000 y=656.000",
+    "S285 tick=231 scene=23 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=231 scene=23 label=player-exit order=851972 x=900.000 y=656.000",
+    "S285 tick=231 scene=23 label=unit-event order=851972 x=900.000 y=656.000",
+    "S285 tick=231 scene=23 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=234 scene=23 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=241 scene=24 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=241 scene=24 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=241 scene=24 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=241 scene=24 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=241 scene=24 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=244 scene=24 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=251 scene=25 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=251 scene=25 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=251 scene=25 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=251 scene=25 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=251 scene=25 label=after order=0 x=784.000 y=752.000",
+    "S285 tick=254 scene=25 label=settled order=0 x=784.000 y=752.000",
+    "S285 tick=261 scene=26 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=261 scene=26 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=261 scene=26 label=player-exit order=851986 x=656.000 y=656.000",
+    "S285 tick=261 scene=26 label=unit-event order=851986 x=656.000 y=656.000",
+    "S285 tick=261 scene=26 label=after order=851986 x=800.000 y=800.000",
+    "S285 tick=264 scene=26 label=settled order=851986 x=871.117 y=774.396",
+    "S285 tick=271 scene=27 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=271 scene=27 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=271 scene=27 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=271 scene=27 label=player-exit order=851972 x=656.000 y=656.000",
+    "S285 tick=271 scene=27 label=unit-event order=851972 x=656.000 y=656.000",
+    "S285 tick=271 scene=27 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=271 scene=27 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=271 scene=27 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=274 scene=27 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=281 scene=28 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=281 scene=28 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=281 scene=28 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=281 scene=28 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=281 scene=28 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=284 scene=28 label=settled order=0 x=0.000 y=0.000",
+    "S285 tick=291 scene=29 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=291 scene=29 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=291 scene=29 label=player-exit order=851973 x=656.000 y=656.000",
+    "S285 tick=291 scene=29 label=unit-event order=851973 x=656.000 y=656.000",
+    "S285 tick=291 scene=29 label=after order=851973 x=800.000 y=800.000",
+    "S285 tick=294 scene=29 label=settled order=851973 x=800.000 y=800.000",
+    "S285 tick=301 scene=30 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=301 scene=30 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=301 scene=30 label=player-exit order=0 x=656.000 y=656.000",
+    "S285 tick=301 scene=30 label=unit-event order=0 x=656.000 y=656.000",
+    "S285 tick=301 scene=30 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=304 scene=30 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=311 scene=31 label=before order=851986 x=656.000 y=656.000",
+    "S285 tick=311 scene=31 label=player-enter order=851972 x=656.000 y=656.000",
+    "S285 tick=311 scene=31 label=player-exit order=851972 x=900.000 y=656.000",
+    "S285 tick=311 scene=31 label=unit-event order=851972 x=900.000 y=656.000",
+    "S285 tick=311 scene=31 label=after order=0 x=800.000 y=800.000",
+    "S285 tick=314 scene=31 label=settled order=0 x=800.000 y=800.000",
+    "S285 tick=321 scene=32 label=before order=851973 x=656.000 y=656.000",
+    "S285 tick=321 scene=32 label=after order=851973 x=800.000 y=800.000",
+    "S285 tick=324 scene=32 label=settled order=851973 x=800.000 y=800.000",
+    "S285 tick=325 scene=32 label=player-enter order=851972 x=800.000 y=800.000",
+    "S285 tick=325 scene=32 label=player-exit order=851972 x=800.000 y=800.000",
+    "S285 tick=325 scene=32 label=unit-event order=851972 x=800.000 y=800.000",
+    "S285 tick=327 scene=32 label=resumed order=0 x=800.000 y=800.000",
+    "S285 tick=331 scene=33 label=before order=851973 x=656.000 y=656.000",
+    "S285 tick=331 scene=33 label=after order=851973 x=800.000 y=800.000",
+    "S285 tick=334 scene=33 label=settled order=851973 x=800.000 y=800.000",
+    "S285 tick=335 scene=33 label=player-enter order=851972 x=800.000 y=800.000",
+    "S285 tick=335 scene=33 label=player-exit order=851972 x=800.000 y=800.000",
+    "S285 tick=335 scene=33 label=unit-event order=851972 x=800.000 y=800.000",
+    "S285 tick=337 scene=33 label=resumed order=0 x=784.000 y=752.000",
+    "S285 tick=341 scene=34 label=before order=851973 x=656.000 y=656.000",
+    "S285 tick=341 scene=34 label=after order=851973 x=784.000 y=752.000",
+    "S285 tick=344 scene=34 label=settled order=851973 x=784.000 y=752.000",
+    "S285 tick=345 scene=34 label=player-enter order=851972 x=784.000 y=752.000",
+    "S285 tick=345 scene=34 label=player-exit order=851986 x=784.000 y=752.000",
+    "S285 tick=345 scene=34 label=unit-event order=851986 x=784.000 y=752.000",
+    "S285 tick=347 scene=34 label=resumed order=851986 x=856.307 y=735.311",
+    "S285 tick=351 scene=35 label=before order=851973 x=656.000 y=656.000",
+    "S285 tick=351 scene=35 label=after order=851973 x=800.000 y=800.000",
+    "S285 tick=354 scene=35 label=settled order=851973 x=800.000 y=800.000",
+    "S285 tick=355 scene=35 label=player-enter order=851972 x=800.000 y=800.000",
+    "S285 tick=355 scene=35 label=player-enter order=851972 x=800.000 y=800.000",
+    "S285 tick=355 scene=35 label=player-exit order=851972 x=800.000 y=800.000",
+    "S285 tick=355 scene=35 label=unit-event order=851972 x=800.000 y=800.000",
+    "S285 tick=355 scene=35 label=player-exit order=0 x=800.000 y=800.000",
+    "S285 tick=355 scene=35 label=unit-event order=0 x=800.000 y=800.000",
+    "S285 tick=357 scene=35 label=resumed order=0 x=800.000 y=800.000",
+    "S285 tick=359 scene=36 label=complete order=0 x=0.000 y=0.000"
+  ],
+  "projection": {
+    "0": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        2
+      ]
+    ],
+    "1": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        784.0,
+        752.0,
+        2
+      ]
+    ],
+    "2": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851986,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        851986,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        851986,
+        800.0,
+        800.0,
+        3
+      ]
+    ],
+    "3": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "4": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        3
+      ]
+    ],
+    "5": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851973,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "unit-event",
+        851973,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "after",
+        851973,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "6": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "7": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        900.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        900.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        2
+      ]
+    ],
+    "8": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        2
+      ]
+    ],
+    "9": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        784.0,
+        752.0,
+        2
+      ]
+    ],
+    "10": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851986,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        851986,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        851986,
+        800.0,
+        800.0,
+        3
+      ]
+    ],
+    "11": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "12": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        3
+      ]
+    ],
+    "13": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851973,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "unit-event",
+        851973,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "after",
+        851973,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "14": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "15": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        900.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        900.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        2
+      ]
+    ],
+    "16": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        2
+      ]
+    ],
+    "17": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        784.0,
+        752.0,
+        2
+      ]
+    ],
+    "18": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851986,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        851986,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        851986,
+        800.0,
+        800.0,
+        3
+      ]
+    ],
+    "19": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "20": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        3
+      ]
+    ],
+    "21": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851973,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "unit-event",
+        851973,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "after",
+        851973,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "22": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "23": [
+      [
+        "before",
+        0,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        900.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        900.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        2
+      ]
+    ],
+    "24": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        2
+      ]
+    ],
+    "25": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        784.0,
+        752.0,
+        2
+      ]
+    ],
+    "26": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851986,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        851986,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        851986,
+        800.0,
+        800.0,
+        3
+      ]
+    ],
+    "27": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "player-exit",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "unit-event",
+        851972,
+        656.0,
+        656.0,
+        2
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "28": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        3
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        3
+      ]
+    ],
+    "29": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851973,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "unit-event",
+        851973,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "after",
+        851973,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "30": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        0,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "unit-event",
+        0,
+        656.0,
+        656.0,
+        4
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        4
+      ]
+    ],
+    "31": [
+      [
+        "before",
+        851986,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        656.0,
+        656.0,
+        1
+      ],
+      [
+        "player-exit",
+        851972,
+        900.0,
+        656.0,
+        1
+      ],
+      [
+        "unit-event",
+        851972,
+        900.0,
+        656.0,
+        1
+      ],
+      [
+        "after",
+        0,
+        800.0,
+        800.0,
+        2
+      ]
+    ],
+    "32": [
+      [
+        "before",
+        851973,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "after",
+        851973,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "player-exit",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "unit-event",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "resumed",
+        0,
+        800.0,
+        800.0,
+        0
+      ]
+    ],
+    "33": [
+      [
+        "before",
+        851973,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "after",
+        851973,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "player-exit",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "unit-event",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "resumed",
+        0,
+        784.0,
+        752.0,
+        0
+      ]
+    ],
+    "34": [
+      [
+        "before",
+        851973,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "after",
+        851973,
+        784.0,
+        752.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        784.0,
+        752.0,
+        0
+      ],
+      [
+        "player-exit",
+        851986,
+        784.0,
+        752.0,
+        0
+      ],
+      [
+        "unit-event",
+        851986,
+        784.0,
+        752.0,
+        0
+      ],
+      [
+        "resumed",
+        851986,
+        856.307,
+        735.311,
+        0
+      ]
+    ],
+    "35": [
+      [
+        "before",
+        851973,
+        656.0,
+        656.0,
+        0
+      ],
+      [
+        "after",
+        851973,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "player-enter",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "player-exit",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "unit-event",
+        851972,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "player-exit",
+        0,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "unit-event",
+        0,
+        800.0,
+        800.0,
+        0
+      ],
+      [
+        "resumed",
+        0,
+        800.0,
+        800.0,
+        0
+      ]
+    ]
+  },
+  "chronology_sha256": "fb209ac0198ca247c1592280b0be89d8def21c71c034afd2ddcbfa823544361c",
+  "engine_tests": [
+    "wc3_movement.stop285*",
+    "wc3_movement.stop284*",
+    "wc3_movement.forced_position*",
+    "wc3_movement.stop247*",
+    "wc3_movement.stop257*",
+    "wc3_movement.stop258*",
+    "wc3_order_reentry.*",
+    "wc3_order_lifecycle.*",
+    "wc3_interrupt.*",
+    "wc3_spell.cast283*",
+    "wc3_ancient_root.*",
+    "wc3_movement.pathing_pause*",
+    "wc3_movement.primary_clock_public_move_save_pause_and_stop",
+    "wc3_movement.target256_paused*",
+    "wc3_patrol_motion.*",
+    "wc3_bot.captain*",
+    "wc3_movement.public_captain_go_home*",
+    "wc3_save.rejects_prior_save_versions"
+  ],
+  "scope": "Ports public SetUnitPosition/Loc Stop notifications, cleanup-before-placement, surviving callback Move and axis writes; paused placement retains suspension with deferred Stop in existing FIFO, activated by existing deterministic resume timer. Fifteen failing-first engine regressions cover56 fresh/cold-save native/callback cases. Full capture contains36 scenes and237 public markers; integration does not claim complete internal cancellation counts for nested Move, pause-during-notification, death or removal, nor the full post-resume Move trajectory of scene34 or cross-scene blocked-terrain history. Cold-save tests explicitly re-supply synthetic outer exclusion depth; that call-stack depth is not serialized. Wrapper oracle substitutes resolvers, factory/admission and virtual endpoints; it proves five wrapper order/ABI cases, not those endpoint implementations. Other forced writers/cargo/dead/form domains stayBASE01.4; wider exclusion/notification owners stayMAP04.2. No old frozen retail expectations replaced; no frame-budget or throughput claim."
+}

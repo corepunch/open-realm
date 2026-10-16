@@ -1,0 +1,5230 @@
+{
+  "version": 1,
+  "task": "GROUP-03.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "pins": {
+    "tools/frida/research/rank264_capture.py": "5a5f530cacf36863700617c1d0290c6e632eb74beff2812675653d4930643a87",
+    "tools/frida/research/rank264_observer.js": "6102ddaae10d92ba593d25dad8f42e272e34288a2f9d4872a687b3cf66c653ba",
+    "tools/frida/research/rank264_make_map.py": "9f1c39f5eca6c45b3d6209d76ff31de1dcc67e0505ff78285bdedb9e6ef85115",
+    "tools/frida/research/rank264_probe.j": "52420bbdf76cc9ba56a64a41b79aa74802c5354955d8e82466421b5586cd752b",
+    "tools/frida/research/queue263_ui_input.c": "1e4df3309b0b05956e9cd1c6722db502660fae5edafa4ee59eeb2b6a645d05e5",
+    "tools/frida/research/order0110_ui_input.c": "4928162d577a67069303fb247341b7176222912ae079d5d9782dda7d45aa3399",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/make_wc3_pathfinding_map.py": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf",
+    "tools/ghidra/research/Ranking264Evidence.java": "2cec7030475d22c056ca484709a5486f589818a6426cfeb8fd53c93738d38357",
+    "tools/ghidra/research/rank264_distance_oracle.py": "8fbf5ebdfbb7c0e84d8efd9e679f369fa1c1a9483c37bc8e1a8aeaa8a591c2b1",
+    "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3",
+    "games/warcraft-3/game/tests/fixtures/retail_ranking264_distance.h": "c76456cc5d885beb6fae3d4619fcc8429de7e1115d2a7f545bf803b64be52241"
+  },
+  "capture_sources": {
+    "rank264_capture.py": "5a5f530cacf36863700617c1d0290c6e632eb74beff2812675653d4930643a87",
+    "rank264_observer.js": "6102ddaae10d92ba593d25dad8f42e272e34288a2f9d4872a687b3cf66c653ba",
+    "rank264_make_map.py": "9f1c39f5eca6c45b3d6209d76ff31de1dcc67e0505ff78285bdedb9e6ef85115",
+    "rank264_probe.j": "52420bbdf76cc9ba56a64a41b79aa74802c5354955d8e82466421b5586cd752b",
+    "queue263_ui_input.c": "1e4df3309b0b05956e9cd1c6722db502660fae5edafa4ee59eeb2b6a645d05e5",
+    "order0110_ui_input.c": "4928162d577a67069303fb247341b7176222912ae079d5d9782dda7d45aa3399",
+    "queue263-ui.exe": "a71911a221a93e56e88030728572b72c39993eb62ea2917a61702904d7f1c87f",
+    "queue263-ui.exe.so": "0c20d168874f81070894d46dbe9509eeae3a0c365e24ce14c48b3dc8227b7be4"
+  },
+  "engine_tests": [
+    "wc3_order_lifecycle.*",
+    "wc3_order_reentry.*",
+    "wc3_interrupt.*",
+    "wc3_movement.group_move_attack*",
+    "wc3_movement.target251*",
+    "wc3_movement.target220*",
+    "wc3_save.rejects_prior_save_versions"
+  ],
+  "maps": {
+    "near": "b5258c456c507531cb4983ac1a9559274c0f21dd660d9d962b7a544bbcd55adf",
+    "sticky": "7040407588a29b0aa12d490d9d20614824ae310072a2eedcc13d380a520eef05",
+    "tie": "d357b147da6066d455d1932bafcf6a8bcf9c50c3e3bfa04336021eef33b324d0",
+    "farther": "1a702db8a5dc8c32f0657881fdfd54227ceb24ed31b5e30985e9302cfe7dbda4",
+    "threat": "efa5b84cf87101506ce79aadc529916d8ab928542a496295ac6afa71b100e54a",
+    "worker": "87ba7cc7a8c983ee0045fb714450fda05459ede99c7847435aa850a61c61b56b",
+    "disarmed": "c251d7a92b599c5cbc0e0fe99beedcbc878397de3ba6f1b9d34df06e863a991c",
+    "immobile": "231bf6ee7c7b4f32f7f92aca23df87ba72a0ba935a42b2c01d041b67b721e6a1"
+  },
+  "public": {
+    "near": [
+      "R264 tick=1 label=start scene=0 variant=near order=0 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-before scene=0 variant=near order=851983 x=564.847 y=230.982",
+      "R264 tick=4 label=owner-after scene=0 variant=near order=851983 x=564.847 y=230.982",
+      "R264 tick=5 label=next scene=0 variant=near order=851983 x=564.847 y=230.982",
+      "R264 tick=8 label=complete scene=0 variant=near order=851983 x=564.847 y=230.982"
+    ],
+    "sticky": [
+      "R264 tick=1 label=start scene=0 variant=sticky order=0 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-before scene=0 variant=sticky order=851983 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-after scene=0 variant=sticky order=851983 x=512.000 y=256.000",
+      "R264 tick=5 label=next scene=0 variant=sticky order=851983 x=512.000 y=256.000",
+      "R264 tick=8 label=complete scene=0 variant=sticky order=851983 x=512.000 y=256.000"
+    ],
+    "tie": [
+      "R264 tick=1 label=start scene=0 variant=tie order=0 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-before scene=0 variant=tie order=851983 x=569.059 y=265.672",
+      "R264 tick=4 label=owner-after scene=0 variant=tie order=851983 x=569.059 y=265.672",
+      "R264 tick=5 label=next scene=0 variant=tie order=851983 x=590.652 y=266.168",
+      "R264 tick=8 label=complete scene=0 variant=tie order=851983 x=671.629 y=268.028"
+    ],
+    "farther": [
+      "R264 tick=1 label=start scene=0 variant=farther order=0 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-before scene=0 variant=farther order=851983 x=571.331 y=258.834",
+      "R264 tick=4 label=owner-after scene=0 variant=farther order=851983 x=571.331 y=258.834",
+      "R264 tick=5 label=next scene=0 variant=farther order=851983 x=598.300 y=260.121",
+      "R264 tick=8 label=complete scene=0 variant=farther order=851983 x=679.206 y=263.979"
+    ],
+    "threat": [
+      "R264 tick=1 label=start scene=0 variant=threat order=0 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-before scene=0 variant=threat order=851983 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-after scene=0 variant=threat order=851983 x=512.000 y=256.000",
+      "R264 tick=5 label=next scene=0 variant=threat order=851983 x=512.000 y=256.000",
+      "R264 tick=8 label=complete scene=0 variant=threat order=851983 x=512.000 y=256.000"
+    ],
+    "worker": [
+      "R264 tick=1 label=start scene=0 variant=worker order=0 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-before scene=0 variant=worker order=851983 x=564.847 y=230.982",
+      "R264 tick=4 label=owner-after scene=0 variant=worker order=851983 x=564.847 y=230.982",
+      "R264 tick=5 label=next scene=0 variant=worker order=851983 x=564.847 y=230.982",
+      "R264 tick=8 label=complete scene=0 variant=worker order=851983 x=564.847 y=230.982"
+    ],
+    "disarmed": [
+      "R264 tick=1 label=start scene=0 variant=disarmed order=0 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-before scene=0 variant=disarmed order=851983 x=564.847 y=230.982",
+      "R264 tick=4 label=owner-after scene=0 variant=disarmed order=851983 x=564.847 y=230.982",
+      "R264 tick=5 label=next scene=0 variant=disarmed order=851983 x=586.705 y=216.476",
+      "R264 tick=8 label=complete scene=0 variant=disarmed order=851983 x=667.580 y=220.341"
+    ],
+    "immobile": [
+      "R264 tick=1 label=start scene=0 variant=immobile order=0 x=512.000 y=256.000",
+      "R264 tick=4 label=owner-before scene=0 variant=immobile order=851983 x=564.847 y=230.982",
+      "R264 tick=4 label=owner-after scene=0 variant=immobile order=851983 x=564.847 y=230.982",
+      "R264 tick=5 label=next scene=0 variant=immobile order=851983 x=586.705 y=216.476",
+      "R264 tick=8 label=complete scene=0 variant=immobile order=851983 x=667.580 y=220.341"
+    ]
+  },
+  "events": {
+    "near": [
+      {
+        "event": "marker",
+        "tick": 1,
+        "value": "R264 tick=1 label=start scene=0 variant=near order=0 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-before scene=0 variant=near order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5710,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 0,
+          "attack": {
+            "flags": 540693,
+            "prevention": 0,
+            "target": [
+              732,
+              732
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 540693,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1143930880,
+        "mode": 0,
+        "caller": "49e256",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "exempt",
+        "tick": 4,
+        "actor": 1
+      },
+      {
+        "event": "compare",
+        "tick": 4,
+        "actor": 1,
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 1,
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          0,
+          0
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 1,
+        "key": [
+          1677721600,
+          199229440
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 1,
+        "candidate": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          1677721600,
+          199229440
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "68c250",
+        "result": 0
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 1,
+        "key": [
+          1610612736,
+          199229440
+        ]
+      },
+      {
+        "event": "compare-end",
+        "tick": 4,
+        "actor": 1,
+        "accepted": 1,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 1,
+        "caller": "49449c",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-after scene=0 variant=near order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "marker",
+        "tick": 5,
+        "value": "R264 tick=5 label=next scene=0 variant=near order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "marker",
+        "tick": 8,
+        "value": "R264 tick=8 label=complete scene=0 variant=near order=851983 x=564.847 y=230.982"
+      }
+    ],
+    "sticky": [
+      {
+        "event": "marker",
+        "tick": 1,
+        "value": "R264 tick=1 label=start scene=0 variant=sticky order=0 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-before scene=0 variant=sticky order=851983 x=512.000 y=256.000"
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5710,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 0,
+          "attack": {
+            "flags": 540949,
+            "prevention": 0,
+            "target": [
+              732,
+              732
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 540949,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1143930880,
+        "mode": 0,
+        "caller": "49e256",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "exempt",
+        "tick": 4,
+        "actor": 0
+      },
+      {
+        "event": "compare",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          0,
+          0
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1677721600,
+          199229440
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          1677721600,
+          199229440
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1694498816,
+          199229440
+        ]
+      },
+      {
+        "event": "compare-end",
+        "tick": 4,
+        "actor": 0,
+        "accepted": 0,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-after scene=0 variant=sticky order=851983 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 5,
+        "value": "R264 tick=5 label=next scene=0 variant=sticky order=851983 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 8,
+        "value": "R264 tick=8 label=complete scene=0 variant=sticky order=851983 x=512.000 y=256.000"
+      }
+    ],
+    "tie": [
+      {
+        "event": "marker",
+        "tick": 1,
+        "value": "R264 tick=1 label=start scene=0 variant=tie order=0 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-before scene=0 variant=tie order=851983 x=569.059 y=265.672"
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5710,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 0,
+          "attack": {
+            "flags": 540693,
+            "prevention": 0,
+            "target": [
+              732,
+              732
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 540693,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1143930880,
+        "mode": 0,
+        "caller": "49e256",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "exempt",
+        "tick": 4,
+        "actor": 0
+      },
+      {
+        "event": "compare",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          0,
+          0
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "68c250",
+        "result": 0
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1610612736,
+          199229440
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          1610612736,
+          199229440
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "68c250",
+        "result": 0
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1610612736,
+          199229440
+        ]
+      },
+      {
+        "event": "distance",
+        "tick": 4,
+        "caller": "49e4bd",
+        "word": 1133097227
+      },
+      {
+        "event": "distance",
+        "tick": 4,
+        "caller": "49e4df",
+        "word": 1121327078
+      },
+      {
+        "event": "compare-end",
+        "tick": 4,
+        "actor": 0,
+        "accepted": 1,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 1,
+        "caller": "49449c",
+        "accepted": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "68c250",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-after scene=0 variant=tie order=851983 x=569.059 y=265.672"
+      },
+      {
+        "event": "marker",
+        "tick": 5,
+        "value": "R264 tick=5 label=next scene=0 variant=tie order=851983 x=590.652 y=266.168"
+      },
+      {
+        "event": "marker",
+        "tick": 8,
+        "value": "R264 tick=8 label=complete scene=0 variant=tie order=851983 x=671.629 y=268.028"
+      }
+    ],
+    "farther": [
+      {
+        "event": "marker",
+        "tick": 1,
+        "value": "R264 tick=1 label=start scene=0 variant=farther order=0 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-before scene=0 variant=farther order=851983 x=571.331 y=258.834"
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5710,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 0,
+          "attack": {
+            "flags": 540693,
+            "prevention": 0,
+            "target": [
+              732,
+              732
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 540693,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1143930880,
+        "mode": 0,
+        "caller": "49e256",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "exempt",
+        "tick": 4,
+        "actor": 0
+      },
+      {
+        "event": "compare",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          0,
+          0
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "68c250",
+        "result": 0
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1610612736,
+          199229440
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          1610612736,
+          199229440
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "68c250",
+        "result": 0
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1610612736,
+          199229440
+        ]
+      },
+      {
+        "event": "distance",
+        "tick": 4,
+        "caller": "49e4bd",
+        "word": 1121124253
+      },
+      {
+        "event": "distance",
+        "tick": 4,
+        "caller": "49e4df",
+        "word": 1132926997
+      },
+      {
+        "event": "compare-end",
+        "tick": 4,
+        "actor": 0,
+        "accepted": 0,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-after scene=0 variant=farther order=851983 x=571.331 y=258.834"
+      },
+      {
+        "event": "marker",
+        "tick": 5,
+        "value": "R264 tick=5 label=next scene=0 variant=farther order=851983 x=598.300 y=260.121"
+      },
+      {
+        "event": "marker",
+        "tick": 8,
+        "value": "R264 tick=8 label=complete scene=0 variant=farther order=851983 x=679.206 y=263.979"
+      }
+    ],
+    "threat": [
+      {
+        "event": "marker",
+        "tick": 1,
+        "value": "R264 tick=1 label=start scene=0 variant=threat order=0 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-before scene=0 variant=threat order=851983 x=512.000 y=256.000"
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5710,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 0,
+          "attack": {
+            "flags": 540949,
+            "prevention": 0,
+            "target": [
+              732,
+              732
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 540949,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1143930880,
+        "mode": 0,
+        "caller": "49e256",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "exempt",
+        "tick": 4,
+        "actor": 0
+      },
+      {
+        "event": "compare",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          0,
+          0
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1677721600,
+          199229440
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5190,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 524693,
+            "prevention": 0,
+            "target": [
+              769,
+              769
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          1677721600,
+          199229440
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "699b80",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1698693120,
+          199229440
+        ]
+      },
+      {
+        "event": "compare-end",
+        "tick": 4,
+        "actor": 0,
+        "accepted": 0,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5190,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 524693,
+            "prevention": 0,
+            "target": [
+              769,
+              769
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 524693,
+        "current": [
+          769,
+          769
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 3,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 0,
+          "attack": {
+            "flags": 34095381,
+            "prevention": 0,
+            "target": [
+              732,
+              732
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095381,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1140457472,
+        "mode": 0,
+        "caller": "49e256",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "exempt",
+        "tick": 4,
+        "actor": 3
+      },
+      {
+        "event": "compare",
+        "tick": 4,
+        "actor": 3,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 3,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          0,
+          0
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 3,
+        "key": [
+          1811939328,
+          199229440
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 3,
+        "candidate": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5190,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 524693,
+            "prevention": 0,
+            "target": [
+              769,
+              769
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          1811939328,
+          199229440
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 3,
+        "key": [
+          1841299456,
+          199229440
+        ]
+      },
+      {
+        "event": "compare-end",
+        "tick": 4,
+        "actor": 3,
+        "accepted": 0,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-after scene=0 variant=threat order=851983 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 5,
+        "value": "R264 tick=5 label=next scene=0 variant=threat order=851983 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 8,
+        "value": "R264 tick=8 label=complete scene=0 variant=threat order=851983 x=512.000 y=256.000"
+      }
+    ],
+    "worker": [
+      {
+        "event": "marker",
+        "tick": 1,
+        "value": "R264 tick=1 label=start scene=0 variant=worker order=0 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-before scene=0 variant=worker order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 0,
+          "rawcode": 1752196449,
+          "flags": 513,
+          "widget": 1349190,
+          "e4": 1,
+          "class248": 16,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 35127312,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1752196449,
+          "flags": 513,
+          "widget": 1349190,
+          "e4": 1,
+          "class248": 16,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 35127312,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 35127312,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5710,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 0,
+          "attack": {
+            "flags": 540693,
+            "prevention": 0,
+            "target": [
+              732,
+              732
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1752196449,
+          "flags": 513,
+          "widget": 1349190,
+          "e4": 1,
+          "class248": 16,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 35127312,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 540693,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1143930880,
+        "mode": 0,
+        "caller": "49e256",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "exempt",
+        "tick": 4,
+        "actor": 1
+      },
+      {
+        "event": "compare",
+        "tick": 4,
+        "actor": 1,
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1752196449,
+          "flags": 513,
+          "widget": 1349190,
+          "e4": 1,
+          "class248": 16,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 35127312,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 1,
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1752196449,
+          "flags": 513,
+          "widget": 1349190,
+          "e4": 1,
+          "class248": 16,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 35127312,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          0,
+          0
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 1,
+        "key": [
+          1677721600,
+          199229440
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 1,
+        "candidate": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          1677721600,
+          199229440
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "68c250",
+        "result": 0
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 1,
+        "key": [
+          1610612736,
+          199229440
+        ]
+      },
+      {
+        "event": "compare-end",
+        "tick": 4,
+        "actor": 1,
+        "accepted": 1,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 1,
+        "caller": "49449c",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1752196449,
+          "flags": 513,
+          "widget": 1349190,
+          "e4": 1,
+          "class248": 16,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 35127312,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-after scene=0 variant=worker order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "marker",
+        "tick": 5,
+        "value": "R264 tick=5 label=next scene=0 variant=worker order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "marker",
+        "tick": 8,
+        "value": "R264 tick=8 label=complete scene=0 variant=worker order=851983 x=564.847 y=230.982"
+      }
+    ],
+    "disarmed": [
+      {
+        "event": "marker",
+        "tick": 1,
+        "value": "R264 tick=1 label=start scene=0 variant=disarmed order=0 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-before scene=0 variant=disarmed order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5710,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 0,
+          "attack": {
+            "flags": 540693,
+            "prevention": 0,
+            "target": [
+              732,
+              732
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": null,
+          "move_present": true
+        },
+        "flags": 540693,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1143930880,
+        "mode": 0,
+        "caller": "49e256",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "exempt",
+        "tick": 4,
+        "actor": 0
+      },
+      {
+        "event": "compare",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": null,
+          "move_present": true
+        },
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": null,
+          "move_present": true
+        },
+        "bound": [
+          0,
+          0
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1677721600,
+          195035136
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 0,
+        "candidate": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          1677721600,
+          195035136
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "68c250",
+        "result": 0
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 0,
+        "key": [
+          1610612736,
+          199229440
+        ]
+      },
+      {
+        "event": "compare-end",
+        "tick": 4,
+        "actor": 0,
+        "accepted": 0,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": null,
+          "move_present": true
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-after scene=0 variant=disarmed order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "marker",
+        "tick": 5,
+        "value": "R264 tick=5 label=next scene=0 variant=disarmed order=851983 x=586.705 y=216.476"
+      },
+      {
+        "event": "marker",
+        "tick": 8,
+        "value": "R264 tick=8 label=complete scene=0 variant=disarmed order=851983 x=667.580 y=220.341"
+      }
+    ],
+    "immobile": [
+      {
+        "event": "marker",
+        "tick": 1,
+        "value": "R264 tick=1 label=start scene=0 variant=immobile order=0 x=512.000 y=256.000"
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-before scene=0 variant=immobile order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 570966032,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": false
+        },
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 570966032,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": false
+        },
+        "flags": 570966032,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 1,
+          "rawcode": 1751543663,
+          "flags": 512,
+          "widget": 5710,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 0,
+          "attack": {
+            "flags": 540693,
+            "prevention": 0,
+            "target": [
+              732,
+              732
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 570966032,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": false
+        },
+        "flags": 540693,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1143930880,
+        "mode": 0,
+        "caller": "49e256",
+        "accepted": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "exempt",
+        "tick": 4,
+        "actor": 1
+      },
+      {
+        "event": "compare",
+        "tick": 4,
+        "actor": 1,
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 570966032,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": false
+        },
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 1,
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 570966032,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": false
+        },
+        "bound": [
+          0,
+          0
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 1
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 1,
+        "key": [
+          1140850688,
+          199229440
+        ]
+      },
+      {
+        "event": "rank",
+        "tick": 4,
+        "actor": 1,
+        "candidate": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "bound": [
+          1140850688,
+          199229440
+        ],
+        "target": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "5fb040",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "495b90",
+        "result": 1
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "48e2c0",
+        "result": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 150
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "496b80",
+        "result": 0
+      },
+      {
+        "event": "range",
+        "tick": 4,
+        "range": 1119092736,
+        "mode": 0,
+        "caller": "49da13",
+        "accepted": 0
+      },
+      {
+        "event": "predicate",
+        "tick": 4,
+        "address": "68c250",
+        "result": 0
+      },
+      {
+        "event": "rank-end",
+        "tick": 4,
+        "actor": 1,
+        "key": [
+          1610612736,
+          199229440
+        ]
+      },
+      {
+        "event": "compare-end",
+        "tick": 4,
+        "actor": 1,
+        "accepted": 0,
+        "current": [
+          732,
+          732
+        ]
+      },
+      {
+        "event": "notify",
+        "tick": 4,
+        "actor": {
+          "identity": 2,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 34095120,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": true
+        },
+        "candidate": {
+          "identity": 0,
+          "rawcode": 1751543663,
+          "flags": 513,
+          "widget": 5702,
+          "e4": 2,
+          "class248": 0,
+          "movement": 1,
+          "forced": 0,
+          "owner": 1,
+          "attack": {
+            "flags": 570966032,
+            "prevention": 0,
+            "target": [
+              4294967295,
+              4294967295
+            ]
+          },
+          "move_present": false
+        },
+        "flags": 34095120,
+        "current": [
+          4294967295,
+          4294967295
+        ]
+      },
+      {
+        "event": "marker",
+        "tick": 4,
+        "value": "R264 tick=4 label=owner-after scene=0 variant=immobile order=851983 x=564.847 y=230.982"
+      },
+      {
+        "event": "marker",
+        "tick": 5,
+        "value": "R264 tick=5 label=next scene=0 variant=immobile order=851983 x=586.705 y=216.476"
+      },
+      {
+        "event": "marker",
+        "tick": 8,
+        "value": "R264 tick=8 label=complete scene=0 variant=immobile order=851983 x=667.580 y=220.341"
+      }
+    ]
+  },
+  "instructions": {
+    "6f49d680": "55",
+    "6f49d681": "8bec",
+    "6f49d683": "6aff",
+    "6f49d685": "684834a26f",
+    "6f49d68a": "64a100000000",
+    "6f49d690": "50",
+    "6f49d691": "83ec40",
+    "6f49d694": "53",
+    "6f49d695": "56",
+    "6f49d696": "57",
+    "6f49d697": "a19c68ce6f",
+    "6f49d69c": "33c5",
+    "6f49d69e": "50",
+    "6f49d69f": "8d45f4",
+    "6f49d6a2": "64a300000000",
+    "6f49d6a8": "894dec",
+    "6f49d6ab": "8b4130",
+    "6f49d6ae": "8945f0",
+    "6f49d6b1": "85c0",
+    "6f49d6b3": "7508",
+    "6f49d6b5": "e80686bbff",
+    "6f49d6ba": "8945f0",
+    "6f49d6bd": "f6405c04",
+    "6f49d6c1": "0f57c0",
+    "6f49d6c4": "660f1345b4",
+    "6f49d6c9": "7405",
+    "6f49d6cb": "660f13450c",
+    "6f49d6d0": "8b7508",
+    "6f49d6d3": "8b86ec010000",
+    "6f49d6d9": "8945bc",
+    "6f49d6dc": "85c0",
+    "6f49d6de": "745e",
+    "6f49d6e0": "6a00",
+    "6f49d6e2": "6a00",
+    "6f49d6e4": "8bc8",
+    "6f49d6e6": "e855d91500",
+    "6f49d6eb": "85c0",
+    "6f49d6ed": "750b",
+    "6f49d6ef": "8bce",
+    "6f49d6f1": "e86a0bffff",
+    "6f49d6f6": "85c0",
+    "6f49d6f8": "7444",
+    "6f49d6fa": "33ff",
+    "6f49d6fc": "c745d401000000",
+    "6f49d703": "f686fc01000002",
+    "6f49d70a": "bb00000020",
+    "6f49d70f": "743a",
+    "6f49d711": "855e5c",
+    "6f49d714": "7435",
+    "6f49d716": "39be00020000",
+    "6f49d71c": "7f2d",
+    "6f49d71e": "8b45f0",
+    "6f49d721": "f680fc01000002",
+    "6f49d728": "7421",
+    "6f49d72a": "85585c",
+    "6f49d72d": "741c",
+    "6f49d72f": "39b800020000",
+    "6f49d735": "7f14",
+    "6f49d737": "bb00002020",
+    "6f49d73c": "eb0d",
+    "6f49d73e": "8b7db8",
+    "6f49d741": "8b5db4",
+    "6f49d744": "c745d400000000",
+    "6f49d74b": "8b4dec",
+    "6f49d74e": "83caff",
+    "6f49d751": "6a01",
+    "6f49d753": "6aff",
+    "6f49d755": "8955d8",
+    "6f49d758": "c745b400000000",
+    "6f49d75f": "c745b800008003",
+    "6f49d766": "e8c5bdffff",
+    "6f49d76b": "85c0",
+    "6f49d76d": "7462",
+    "6f49d76f": "8b4dec",
+    "6f49d772": "8d45c8",
+    "6f49d775": "50",
+    "6f49d776": "56",
+    "6f49d777": "e80494ffff",
+    "6f49d77c": "8b55c8",
+    "6f49d77f": "8955d8",
+    "6f49d782": "83faff",
+    "6f49d785": "7518",
+    "6f49d787": "33c0",
+    "6f49d789": "33d2",
+    "6f49d78b": "8b4df4",
+    "6f49d78e": "64890d00000000",
+    "6f49d795": "59",
+    "6f49d796": "5f",
+    "6f49d797": "5e",
+    "6f49d798": "5b",
+    "6f49d799": "8be5",
+    "6f49d79b": "5d",
+    "6f49d79c": "c20c00",
+    "6f49d79f": "8b4dec",
+    "6f49d7a2": "8b8491dc000000",
+    "6f49d7a9": "83f803",
+    "6f49d7ac": "7405",
+    "6f49d7ae": "83f808",
+    "6f49d7b1": "751e",
+    "6f49d7b3": "8b849138020000",
+    "6f49d7ba": "85c0",
+    "6f49d7bc": "7413",
+    "6f49d7be": "8d4db4",
+    "6f49d7c1": "8bd6",
+    "6f49d7c3": "51",
+    "6f49d7c4": "8b4df0",
+    "6f49d7c7": "50",
+    "6f49d7c8": "e8b380ffff",
+    "6f49d7cd": "85c0",
+    "6f49d7cf": "74b6",
+    "6f49d7d1": "0b5db4",
+    "6f49d7d4": "0b7db8",
+    "6f49d7d7": "83bee400000003",
+    "6f49d7de": "7406",
+    "6f49d7e0": "81cb00000040",
+    "6f49d7e6": "8b86e8010000",
+    "6f49d7ec": "8945dc",
+    "6f49d7ef": "85c0",
+    "6f49d7f1": "7429",
+    "6f49d7f3": "8bc8",
+    "6f49d7f5": "e89683ffff",
+    "6f49d7fa": "85c0",
+    "6f49d7fc": "741e",
+    "6f49d7fe": "8b4ddc",
+    "6f49d801": "83c16c",
+    "6f49d804": "c745e801000000",
+    "6f49d80b": "8b4104",
+    "6f49d80e": "2301",
+    "6f49d810": "83f8ff",
+    "6f49d813": "740e",
+    "6f49d815": "e8063bbcff",
+    "6f49d81a": "eb09",
+    "6f49d81c": "c745e800000000",
+    "6f49d823": "33c0",
+    "6f49d825": "50",
+    "6f49d826": "8d4dc4",
+    "6f49d829": "e8829bd3ff",
+    "6f49d82e": "837de800",
+    "6f49d832": "8b45c4",
+    "6f49d835": "c745fc00000000",
+    "6f49d83c": "8945e0",
+    "6f49d83f": "0f8487000000",
+    "6f49d845": "81cf00004000",
+    "6f49d84b": "85c0",
+    "6f49d84d": "7443",
+    "6f49d84f": "8b4df0",
+    "6f49d852": "3bc1",
+    "6f49d854": "7508",
+    "6f49d856": "81cb0000c000",
+    "6f49d85c": "eb71",
+    "6f49d85e": "50",
+    "6f49d85f": "e81cc31f00",
+    "6f49d864": "8b4df0",
+    "6f49d867": "85c0",
+    "6f49d869": "7408",
+    "6f49d86b": "81cb00004000",
+    "6f49d871": "eb5c",
+    "6f49d873": "ff75e0",
+    "6f49d876": "e8e5e41e00",
+    "6f49d87b": "8b4df0",
+    "6f49d87e": "85c0",
+    "6f49d880": "7408",
+    "6f49d882": "81cf00002000",
+    "6f49d888": "eb4b",
+    "6f49d88a": "81cf00000008",
+    "6f49d890": "eb43",
+    "6f49d892": "8bce",
+    "6f49d894": "e8270affff",
+    "6f49d899": "85c0",
+    "6f49d89b": "7529",
+    "6f49d89d": "8b4dec",
+    "6f49d8a0": "83c16c",
+    "6f49d8a3": "8b4104",
+    "6f49d8a6": "2301",
+    "6f49d8a8": "83f8ff",
+    "6f49d8ab": "7504",
+    "6f49d8ad": "33c0",
+    "6f49d8af": "eb05",
+    "6f49d8b1": "e86a3abcff",
+    "6f49d8b6": "3bf0",
+    "6f49d8b8": "7512",
+    "6f49d8ba": "8b45dc",
+    "6f49d8bd": "f7402000800000",
+    "6f49d8c4": "7406",
+    "6f49d8c6": "81cb00004000",
+    "6f49d8cc": "8b4df0",
+    "6f49d8cf": "81cf00002008",
+    "6f49d8d5": "8b01",
+    "6f49d8d7": "ff90ec000000",
+    "6f49d8dd": "83f80c",
+    "6f49d8e0": "7c1c",
+    "6f49d8e2": "8b4df0",
+    "6f49d8e5": "e866781e00",
+    "6f49d8ea": "83f807",
+    "6f49d8ed": "7d0f",
+    "6f49d8ef": "c745d001000000",
+    "6f49d8f6": "81e7ffffdfff",
+    "6f49d8fc": "eb07",
+    "6f49d8fe": "c745d000000000",
+    "6f49d905": "8b550c",
+    "6f49d908": "8bc3",
+    "6f49d90a": "2500000060",
+    "6f49d90f": "8bcf",
+    "6f49d911": "8945c8",
+    "6f49d914": "81e10000e00b",
+    "6f49d91a": "8bc2",
+    "6f49d91c": "2500000060",
+    "6f49d921": "8945c0",
+    "6f49d924": "8b4510",
+    "6f49d927": "8945cc",
+    "6f49d92a": "250000e00b",
+    "6f49d92f": "3bc8",
+    "6f49d931": "0f82b7070000",
+    "6f49d937": "770c",
+    "6f49d939": "8b45c8",
+    "6f49d93c": "3b45c0",
+    "6f49d93f": "0f82a9070000",
+    "6f49d945": "837de800",
+    "6f49d949": "7425",
+    "6f49d94b": "f6864802000010",
+    "6f49d952": "751c",
+    "6f49d954": "8b4ddc",
+    "6f49d957": "8d45c0",
+    "6f49d95a": "50",
+    "6f49d95b": "ff75f0",
+    "6f49d95e": "e81d92ffff",
+    "6f49d963": "8b550c",
+    "6f49d966": "85c0",
+    "6f49d968": "7506",
+    "6f49d96a": "81cb00000008",
+    "6f49d970": "8165cc0000e00b",
+    "6f49d977": "8bc7",
+    "6f49d979": "8bcb",
+    "6f49d97b": "250000e00b",
+    "6f49d980": "81e100000068",
+    "6f49d986": "81e200000068",
+    "6f49d98c": "3b45cc",
+    "6f49d98f": "0f8259070000",
+    "6f49d995": "7708",
+    "6f49d997": "3bca",
+    "6f49d999": "0f824f070000",
+    "6f49d99f": "8b45d8",
+    "6f49d9a2": "83f8ff",
+    "6f49d9a5": "751c",
+    "6f49d9a7": "8b4dec",
+    "6f49d9aa": "8d4510",
+    "6f49d9ad": "50",
+    "6f49d9ae": "56",
+    "6f49d9af": "e8cc91ffff",
+    "6f49d9b4": "8b4510",
+    "6f49d9b7": "8945d8",
+    "6f49d9ba": "83f8ff",
+    "6f49d9bd": "0f842b070000",
+    "6f49d9c3": "8b4dec",
+    "6f49d9c6": "50",
+    "6f49d9c7": "8d45e4",
+    "6f49d9ca": "50",
+    "6f49d9cb": "e8d0aaffff",
+    "6f49d9d0": "f30f100564bfd66f",
+    "6f49d9d8": "8d4de4",
+    "6f49d9db": "0f2f45e4",
+    "6f49d9df": "b864bfd66f",
+    "6f49d9e4": "0f46c1",
+    "6f49d9e7": "8b4dec",
+    "6f49d9ea": "8b00",
+    "6f49d9ec": "8945e4",
+    "6f49d9ef": "e86caaffff",
+    "6f49d9f4": "8b16",
+    "6f49d9f6": "8bce",
+    "6f49d9f8": "8945c8",
+    "6f49d9fb": "ff92b8000000",
+    "6f49da01": "8b4dc8",
+    "6f49da04": "6a00",
+    "6f49da06": "50",
+    "6f49da07": "8945c0",
+    "6f49da0a": "8d45e4",
+    "6f49da0d": "50",
+    "6f49da0e": "e86ddbbbff",
+    "6f49da13": "85c0",
+    "6f49da15": "7519",
+    "6f49da17": "8b4dec",
+    "6f49da1a": "56",
+    "6f49da1b": "e830aeffff",
+    "6f49da20": "8bc8",
+    "6f49da22": "e829e81e00",
+    "6f49da27": "85c0",
+    "6f49da29": "7505",
+    "6f49da2b": "8945cc",
+    "6f49da2e": "eb30",
+    "6f49da30": "8b4dec",
+    "6f49da33": "81cb00000004",
+    "6f49da39": "83c16c",
+    "6f49da3c": "c745cc01000000",
+    "6f49da43": "8b4104",
+    "6f49da46": "2301",
+    "6f49da48": "83f8ff",
+    "6f49da4b": "7504",
+    "6f49da4d": "33c0",
+    "6f49da4f": "eb05",
+    "6f49da51": "e8ca38bcff",
+    "6f49da56": "3bc6",
+    "6f49da58": "7506",
+    "6f49da5a": "81cb00000001",
+    "6f49da60": "8b4df0",
+    "6f49da63": "f6415c04",
+    "6f49da67": "0f848f060000",
+    "6f49da6d": "8b01",
+    "6f49da6f": "8b7630",
+    "6f49da72": "ff90ec000000",
+    "6f49da78": "8b0da887d66f",
+    "6f49da7e": "8bd0",
+    "6f49da80": "8955e8",
+    "6f49da83": "8b4930",
+    "6f49da86": "8a4946",
+    "6f49da89": "0fb6c9",
+    "6f49da8c": "894d10",
+    "6f49da8f": "83f901",
+    "6f49da92": "7521",
+    "6f49da94": "837dd000",
+    "6f49da98": "751b",
+    "6f49da9a": "8b4df0",
+    "6f49da9d": "e8ce101d00",
+    "6f49daa2": "8b4d10",
+    "6f49daa5": "ba02000000",
+    "6f49daaa": "85c0",
+    "6f49daac": "0f44ca",
+    "6f49daaf": "8b55e8",
+    "6f49dab2": "894d10",
+    "6f49dab5": "8bc3",
+    "6f49dab7": "2500000008",
+    "6f49dabc": "83c800",
+    "6f49dabf": "7406",
+    "6f49dac1": "81cf00800000",
+    "6f49dac7": "83f902",
+    "6f49daca": "0f8c88020000",
+    "6f49dad0": "8bca",
+    "6f49dad2": "e8a9a35200",
+    "6f49dad7": "85c0",
+    "6f49dad9": "0f8579020000",
+    "6f49dadf": "81fe746c616f",
+    "6f49dae5": "0f870c010000",
+    "6f49daeb": "0f8485010000",
+    "6f49daf1": "81fe746c6168",
+    "6f49daf7": "0f8798000000",
+    "6f49dafd": "0f8473010000",
+    "6f49db03": "81fe776f6d65",
+    "6f49db09": "7766",
+    "6f49db0b": "743c",
+    "6f49db0d": "81fe626f6465",
+    "6f49db13": "7723",
+    "6f49db15": "0f84d1000000",
+    "6f49db1b": "81fe65746165",
+    "6f49db21": "0f844f010000",
+    "6f49db27": "81fe6e656465",
+    "6f49db2d": "0f84ed010000",
+    "6f49db33": "e9f8010000",
+    "6f49db38": "81fe6c6f6765",
+    "6f49db3e": "0f84a9010000",
+    "6f49db44": "e9e7010000",
+    "6f49db49": "8b4d08",
+    "6f49db4c": "8d45b8",
+    "6f49db4f": "50",
+    "6f49db50": "e88b8bf1ff",
+    "6f49db55": "f30f1000",
+    "6f49db59": "0f2f05acc7d36f",
+    "6f49db60": "0f86ec010000",
+    "6f49db66": "81cb00000200",
+    "6f49db6c": "e9e7010000",
+    "6f49db71": "8bc6",
+    "6f49db73": "2d616f7465",
+    "6f49db78": "0f8482010000",
+    "6f49db7e": "83e804",
+    "6f49db81": "0f8479010000",
+    "6f49db87": "83e807",
+    "6f49db8a": "0f8470010000",
+    "6f49db90": "e99b010000",
+    "6f49db95": "81fe6d756c68",
+    "6f49db9b": "772b",
+    "6f49db9d": "744d",
+    "6f49db9f": "81fe73616368",
+    "6f49dba5": "0f8455010000",
+    "6f49dbab": "81fe756f6868",
+    "6f49dbb1": "0f849b010000",
+    "6f49dbb7": "81fe65656b68",
+    "6f49dbbd": "0f843d010000",
+    "6f49dbc3": "e968010000",
+    "6f49dbc8": "81fe776f7468",
+    "6f49dbce": "0f842c010000",
+    "6f49dbd4": "81fe74697668",
+    "6f49dbda": "0f8440010000",
+    "6f49dbe0": "81fe77747768",
+    "6f49dbe6": "0f8544010000",
+    "6f49dbec": "81cb00100000",
+    "6f49dbf2": "e961010000",
+    "6f49dbf7": "81fe646f6175",
+    "6f49dbfd": "0f87ca000000",
+    "6f49dc03": "7471",
+    "6f49dc05": "81fe7274736f",
+    "6f49dc0b": "7744",
+    "6f49dc0d": "0f84ed000000",
+    "6f49dc13": "81fe6572676f",
+    "6f49dc19": "771f",
+    "6f49dc1b": "0f84df000000",
+    "6f49dc21": "81fe726f666f",
+    "6f49dc27": "74c3",
+    "6f49dc29": "81fe7472666f",
+    "6f49dc2f": "0f84cb000000",
+    "6f49dc35": "e9f6000000",
+    "6f49dc3a": "81fe6477686f",
+    "6f49dc40": "0f85ea000000",
+    "6f49dc46": "81cf00000044",
+    "6f49dc4c": "e907010000",
+    "6f49dc51": "81fe746f746f",
+    "6f49dc57": "74ed",
+    "6f49dc59": "81fe6272746f",
+    "6f49dc5f": "0f84ed000000",
+    "6f49dc65": "81fe6e69766f",
+    "6f49dc6b": "0f84af000000",
+    "6f49dc71": "e9ba000000",
+    "6f49dc76": "6a01",
+    "6f49dc78": "6a01",
+    "6f49dc7a": "6a00",
+    "6f49dc7c": "6a00",
+    "6f49dc7e": "e85d7df7ff",
+    "6f49dc83": "8b4d08",
+    "6f49dc86": "50",
+    "6f49dc87": "e8f4eefeff",
+    "6f49dc8c": "85c0",
+    "6f49dc8e": "741b",
+    "6f49dc90": "8b10",
+    "6f49dc92": "8bc8",
+    "6f49dc94": "6a00",
+    "6f49dc96": "ff922c030000",
+    "6f49dc9c": "85c0",
+    "6f49dc9e": "740b",
+    "6f49dca0": "81cb00001000",
+    "6f49dca6": "e9ad000000",
+    "6f49dcab": "8bc3",
+    "6f49dcad": "2500000001",
+    "6f49dcb2": "83c800",
+    "6f49dcb5": "740b",
+    "6f49dcb7": "81cb00000800",
+    "6f49dcbd": "e996000000",
+    "6f49dcc2": "81cb00200000",
+    "6f49dcc8": "e98b000000",
+    "6f49dccd": "81fe6c706e75",
+    "6f49dcd3": "7733",
+    "6f49dcd5": "7429",
+    "6f49dcd7": "81fe76726775",
+    "6f49dcdd": "7716",
+    "6f49dcdf": "0f8407ffffff",
+    "6f49dce5": "81fe6c6f6775",
+    "6f49dceb": "7543",
+    "6f49dced": "81cb00800000",
+    "6f49dcf3": "eb63",
+    "6f49dcf5": "8d86cf8f918a",
+    "6f49dcfb": "83f801",
+    "6f49dcfe": "7730",
+    "6f49dd00": "81cb00400000",
+    "6f49dd06": "eb50",
+    "6f49dd08": "81fe32677a75",
+    "6f49dd0e": "7718",
+    "6f49dd10": "81fe31677a75",
+    "6f49dd16": "733a",
+    "6f49dd18": "81fe6d6f7475",
+    "6f49dd1e": "7510",
+    "6f49dd20": "81cb00000400",
+    "6f49dd26": "eb30",
+    "6f49dd28": "81fe67697a75",
+    "6f49dd2e": "7422",
+    "6f49dd30": "6a01",
+    "6f49dd32": "6a01",
+    "6f49dd34": "6a00",
+    "6f49dd36": "6a00",
+    "6f49dd38": "e8c3b00f00",
+    "6f49dd3d": "8b4d08",
+    "6f49dd40": "50",
+    "6f49dd41": "e83aeefeff",
+    "6f49dd46": "85c0",
+    "6f49dd48": "740e",
+    "6f49dd4a": "81cb00080000",
+    "6f49dd50": "eb06",
+    "6f49dd52": "81cb00000100",
+    "6f49dd58": "8b45e0",
+    "6f49dd5b": "85c0",
+    "6f49dd5d": "7458",
+    "6f49dd5f": "8b4df0",
+    "6f49dd62": "50",
+    "6f49dd63": "e818be1f00",
+    "6f49dd68": "85c0",
+    "6f49dd6a": "744b",
+    "6f49dd6c": "8b4de0",
+    "6f49dd6f": "e8cc77d6ff",
+    "6f49dd74": "85c0",
+    "6f49dd76": "7408",
+    "6f49dd78": "81cf00000100",
+    "6f49dd7e": "eb37",
+    "6f49dd80": "837d1002",
+    "6f49dd84": "7c31",
+    "6f49dd86": "8b4de8",
+    "6f49dd89": "e8f2a05200",
+    "6f49dd8e": "85c0",
+    "6f49dd90": "7525",
+    "6f49dd92": "8b45e0",
+    "6f49dd95": "83b8e400000003",
+    "6f49dd9c": "7519",
+    "6f49dd9e": "8b4ddc",
+    "6f49dda1": "8b81b8020000",
+    "6f49dda7": "83bc81f400000003",
+    "6f49ddaf": "7506",
+    "6f49ddb1": "81cf00001000",
+    "6f49ddb7": "8b4508",
+    "6f49ddba": "83b8ec00000000",
+    "6f49ddc1": "7f21",
+    "6f49ddc3": "6a01",
+    "6f49ddc5": "6a01",
+    "6f49ddc7": "6a00",
+    "6f49ddc9": "6a00",
+    "6f49ddcb": "6872654542",
+    "6f49ddd0": "8bc8",
+    "6f49ddd2": "e8a9edfeff",
+    "6f49ddd7": "85c0",
+    "6f49ddd9": "8b4508",
+    "6f49dddc": "7506",
+    "6f49ddde": "81cf00000080",
+    "6f49dde4": "6a01",
+    "6f49dde6": "6a01",
+    "6f49dde8": "6a00",
+    "6f49ddea": "6a01",
+    "6f49ddec": "68736e6542",
+    "6f49ddf1": "8bc8",
+    "6f49ddf3": "e888edfeff",
+    "6f49ddf8": "85c0",
+    "6f49ddfa": "7506",
+    "6f49ddfc": "81cf00100000",
+    "6f49de02": "8b4df0",
+    "6f49de05": "6a01",
+    "6f49de07": "6a01",
+    "6f49de09": "6a01",
+    "6f49de0b": "6a01",
+    "6f49de0d": "68696f7041",
+    "6f49de12": "e869edfeff",
+    "6f49de17": "85c0",
+    "6f49de19": "741f",
+    "6f49de1b": "8b4d08",
+    "6f49de1e": "6a01",
+    "6f49de20": "6a01",
+    "6f49de22": "6a00",
+    "6f49de24": "6a01",
+    "6f49de26": "68696f7042",
+    "6f49de2b": "e850edfeff",
+    "6f49de30": "85c0",
+    "6f49de32": "7506",
+    "6f49de34": "81cf00200000",
+    "6f49de3a": "837d1001",
+    "6f49de3e": "7c29",
+    "6f49de40": "8b4de8",
+    "6f49de43": "e838a05200",
+    "6f49de48": "85c0",
+    "6f49de4a": "8b4508",
+    "6f49de4d": "751d",
+    "6f49de4f": "f6804802000010",
+    "6f49de56": "7414",
+    "6f49de58": "83b89401000003",
+    "6f49de5f": "750b",
+    "6f49de61": "81cf00000800",
+    "6f49de67": "eb03",
+    "6f49de69": "8b4508",
+    "6f49de6c": "837dd000",
+    "6f49de70": "0f85d7010000",
+    "6f49de76": "ffb0e4000000",
+    "6f49de7c": "8b45ec",
+    "6f49de7f": "8d4dd8",
+    "6f49de82": "8b55d8",
+    "6f49de85": "8b9490f4000000",
+    "6f49de8c": "e88fd01c00",
+    "6f49de91": "837d1002",
+    "6f49de95": "7c3b",
+    "6f49de97": "8b4de8",
+    "6f49de9a": "e8e19f5200",
+    "6f49de9f": "85c0",
+    "6f49dea1": "752f",
+    "6f49dea3": "f30f1045d8",
+    "6f49dea8": "0f2f050854cd6f",
+    "6f49deaf": "7206",
+    "6f49deb1": "81cf00000040",
+    "6f49deb7": "8b4508",
+    "6f49deba": "f6804802000004",
+    "6f49dec1": "7409",
+    "6f49dec3": "f7405c00000040",
+    "6f49deca": "7406",
+    "6f49decc": "81cf00000010",
+    "6f49ded2": "8b4df0",
+    "6f49ded5": "e8960c1d00",
+    "6f49deda": "85c0",
+    "6f49dedc": "757e",
+    "6f49dede": "f30f1045d8",
+    "6f49dee3": "0f2f054cc7d36f",
+    "6f49deea": "7215",
+    "6f49deec": "3945d4",
+    "6f49deef": "7408",
+    "6f49def1": "81cf00080000",
+    "6f49def7": "eb63",
+    "6f49def9": "81cf00000400",
+    "6f49deff": "eb5b",
+    "6f49df01": "0f2f052054cd6f",
+    "6f49df08": "7216",
+    "6f49df0a": "837dd400",
+    "6f49df0e": "7408",
+    "6f49df10": "81cf00040000",
+    "6f49df16": "eb44",
+    "6f49df18": "81cf00000200",
+    "6f49df1e": "eb3c",
+    "6f49df20": "0f2f0548c7d36f",
+    "6f49df27": "7208",
+    "6f49df29": "81cf00010000",
+    "6f49df2f": "eb2b",
+    "6f49df31": "0f2f05fc53cd6f",
+    "6f49df38": "7605",
+    "6f49df3a": "83cf08",
+    "6f49df3d": "eb1d",
+    "6f49df3f": "0f2f05e853cd6f",
+    "6f49df46": "7605",
+    "6f49df48": "83cf01",
+    "6f49df4b": "eb0f",
+    "6f49df4d": "0f2f05d453cd6f",
+    "6f49df54": "7606",
+    "6f49df56": "81cb00000080",
+    "6f49df5c": "837d1001",
+    "6f49df60": "0f8ce7000000",
+    "6f49df66": "8b4de8",
+    "6f49df69": "e8129f5200",
+    "6f49df6e": "85c0",
+    "6f49df70": "0f85d7000000",
+    "6f49df76": "3945cc",
+    "6f49df79": "7521",
+    "6f49df7b": "50",
+    "6f49df7c": "ff75c0",
+    "6f49df7f": "8d55e4",
+    "6f49df82": "68c0c7d36f",
+    "6f49df87": "8d4d10",
+    "6f49df8a": "e8211cbdff",
+    "6f49df8f": "8b4dc8",
+    "6f49df92": "50",
+    "6f49df93": "e8e8d5bbff",
+    "6f49df98": "85c0",
+    "6f49df9a": "745d",
+    "6f49df9c": "8b4d08",
+    "6f49df9f": "e89c75d6ff",
+    "6f49dfa4": "85c0",
+    "6f49dfa6": "740c",
+    "6f49dfa8": "8b4df0",
+    "6f49dfab": "e840dc1f00",
+    "6f49dfb0": "85c0",
+    "6f49dfb2": "7531",
+    "6f49dfb4": "8b4d08",
+    "6f49dfb7": "6a01",
+    "6f49dfb9": "e8d2e11e00",
+    "6f49dfbe": "85c0",
+    "6f49dfc0": "742b",
+    "6f49dfc2": "8b4508",
+    "6f49dfc5": "f7405c00000002",
+    "6f49dfcc": "741f",
+    "6f49dfce": "8bc8",
+    "6f49dfd0": "e82be41e00",
+    "6f49dfd5": "85c0",
+    "6f49dfd7": "7514",
+    "6f49dfd9": "8b4508",
+    "6f49dfdc": "83b8e801000000",
+    "6f49dfe3": "7408",
+    "6f49dfe5": "81cf00000044",
+    "6f49dfeb": "eb0c",
+    "6f49dfed": "837dcc00",
+    "6f49dff1": "7406",
+    "6f49dff3": "81cf00400000",
+    "6f49dff9": "8b4d08",
+    "6f49dffc": "f6814802000010",
+    "6f49e003": "754b",
+    "6f49e005": "8b01",
+    "6f49e007": "8d5510",
+    "6f49e00a": "52",
+    "6f49e00b": "ff902c010000",
+    "6f49e011": "f30f1005b8c7d36f",
+    "6f49e019": "f30f104d10",
+    "6f49e01e": "0f2fc1",
+    "6f49e021": "7608",
+    "6f49e023": "81cf00020000",
+    "6f49e029": "eb22",
+    "6f49e02b": "f30f1005c8c7d36f",
+    "6f49e033": "0f2fc1",
+    "6f49e036": "7605",
+    "6f49e038": "83cf04",
+    "6f49e03b": "eb10",
+    "6f49e03d": "f30f1005d8c7d36f",
+    "6f49e045": "0f2fc1",
+    "6f49e048": "7603",
+    "6f49e04a": "83cf02",
+    "6f49e04d": "8b4d08",
+    "6f49e050": "8b01",
+    "6f49e052": "ff90ec000000",
+    "6f49e058": "83f80c",
+    "6f49e05b": "7d08",
+    "6f49e05d": "81cf00000020",
+    "6f49e063": "eb0e",
+    "6f49e065": "8b4d08",
+    "6f49e068": "e8e3701e00",
+    "6f49e06d": "99",
+    "6f49e06e": "c1e004",
+    "6f49e071": "0bf8",
+    "6f49e073": "837dd400",
+    "6f49e077": "744d",
+    "6f49e079": "837dd000",
+    "6f49e07d": "7512",
+    "6f49e07f": "8b4d08",
+    "6f49e082": "e849b5ffff",
+    "6f49e087": "85c0",
+    "6f49e089": "7406",
+    "6f49e08b": "81cb00000010",
+    "6f49e091": "8b45f0",
+    "6f49e094": "8b88ec010000",
+    "6f49e09a": "85c9",
+    "6f49e09c": "745e",
+    "6f49e09e": "8d4508",
+    "6f49e0a1": "50",
+    "6f49e0a2": "e8e9e71500",
+    "6f49e0a7": "8b4dbc",
+    "6f49e0aa": "8bf0",
+    "6f49e0ac": "8d4510",
+    "6f49e0af": "50",
+    "6f49e0b0": "e8dbe71500",
+    "6f49e0b5": "f30f1006",
+    "6f49e0b9": "0f2f00",
+    "6f49e0bc": "763e",
+    "6f49e0be": "81cb00000002",
+    "6f49e0c4": "eb36",
+    "6f49e0c6": "81fe3170736f",
+    "6f49e0cc": "7418",
+    "6f49e0ce": "81fe3270736f",
+    "6f49e0d4": "7410",
+    "6f49e0d6": "81fe3370736f",
+    "6f49e0dc": "7408",
+    "6f49e0de": "81cb00000002",
+    "6f49e0e4": "eb16",
+    "6f49e0e6": "81cb00000020",
+    "6f49e0ec": "eb0e",
+    "6f49e0ee": "0f57c0",
+    "6f49e0f1": "660f13450c",
+    "6f49e0f6": "8b7d10",
+    "6f49e0f9": "8b5d0c",
+    "6f49e0fc": "8b4dc4",
+    "6f49e0ff": "c745fcffffffff",
+    "6f49e106": "85c9",
+    "6f49e108": "7409",
+    "6f49e10a": "ff4904",
+    "6f49e10d": "7504",
+    "6f49e10f": "8b31",
+    "6f49e111": "ff16",
+    "6f49e113": "8bc3",
+    "6f49e115": "8bd7",
+    "6f49e117": "8b4df4",
+    "6f49e11a": "64890d00000000",
+    "6f49e121": "59",
+    "6f49e122": "5f",
+    "6f49e123": "5e",
+    "6f49e124": "5b",
+    "6f49e125": "8be5",
+    "6f49e127": "5d",
+    "6f49e128": "c20c00",
+    "6f49e3a0": "55",
+    "6f49e3a1": "8bec",
+    "6f49e3a3": "83ec2c",
+    "6f49e3a6": "53",
+    "6f49e3a7": "57",
+    "6f49e3a8": "8bf9",
+    "6f49e3aa": "8b4770",
+    "6f49e3ad": "8d4f6c",
+    "6f49e3b0": "2301",
+    "6f49e3b2": "83f8ff",
+    "6f49e3b5": "7504",
+    "6f49e3b7": "33db",
+    "6f49e3b9": "eb07",
+    "6f49e3bb": "e8602fbcff",
+    "6f49e3c0": "8bd8",
+    "6f49e3c2": "8b4508",
+    "6f49e3c5": "3bd8",
+    "6f49e3c7": "750a",
+    "6f49e3c9": "5f",
+    "6f49e3ca": "33c0",
+    "6f49e3cc": "5b",
+    "6f49e3cd": "8be5",
+    "6f49e3cf": "5d",
+    "6f49e3d0": "c20400",
+    "6f49e3d3": "6a00",
+    "6f49e3d5": "6a00",
+    "6f49e3d7": "50",
+    "6f49e3d8": "8bcf",
+    "6f49e3da": "e8a1f2ffff",
+    "6f49e3df": "8bc8",
+    "6f49e3e1": "8945f8",
+    "6f49e3e4": "0bca",
+    "6f49e3e6": "8955fc",
+    "6f49e3e9": "74de",
+    "6f49e3eb": "56",
+    "6f49e3ec": "85db",
+    "6f49e3ee": "0f840a010000",
+    "6f49e3f4": "8b03",
+    "6f49e3f6": "0f57c0",
+    "6f49e3f9": "8bcb",
+    "6f49e3fb": "660f1345f0",
+    "6f49e400": "ff501c",
+    "6f49e403": "8bf0",
+    "6f49e405": "e896671e00",
+    "6f49e40a": "3bf0",
+    "6f49e40c": "8b75f8",
+    "6f49e40f": "7535",
+    "6f49e411": "ff75fc",
+    "6f49e414": "8bcf",
+    "6f49e416": "56",
+    "6f49e417": "53",
+    "6f49e418": "e863f2ffff",
+    "6f49e41d": "8bca",
+    "6f49e41f": "8945f4",
+    "6f49e422": "894dec",
+    "6f49e425": "3b4dfc",
+    "6f49e428": "7228",
+    "6f49e42a": "7704",
+    "6f49e42c": "3bc6",
+    "6f49e42e": "7622",
+    "6f49e430": "ff7508",
+    "6f49e433": "8d4f78",
+    "6f49e436": "e8d55ed8ff",
+    "6f49e43b": "5e",
+    "6f49e43c": "5f",
+    "6f49e43d": "33c0",
+    "6f49e43f": "5b",
+    "6f49e440": "8be5",
+    "6f49e442": "5d",
+    "6f49e443": "c20400",
+    "6f49e446": "8b45f4",
+    "6f49e449": "8945ec",
+    "6f49e44c": "8b45f0",
+    "6f49e44f": "8945f4",
+    "6f49e452": "8b5730",
+    "6f49e455": "85d2",
+    "6f49e457": "7509",
+    "6f49e459": "8bcf",
+    "6f49e45b": "e86078bbff",
+    "6f49e460": "8bd0",
+    "6f49e462": "3975f4",
+    "6f49e465": "0f8593000000",
+    "6f49e46b": "8b4dec",
+    "6f49e46e": "3b4dfc",
+    "6f49e471": "0f8587000000",
+    "6f49e477": "8d45d4",
+    "6f49e47a": "8bca",
+    "6f49e47c": "50",
+    "6f49e47d": "8b02",
+    "6f49e47f": "ff90b8000000",
+    "6f49e485": "8bc8",
+    "6f49e487": "e874a4bbff",
+    "6f49e48c": "8b45d4",
+    "6f49e48f": "8bcb",
+    "6f49e491": "8945e0",
+    "6f49e494": "8b45d8",
+    "6f49e497": "8945e4",
+    "6f49e49a": "8b45dc",
+    "6f49e49d": "8945e8",
+    "6f49e4a0": "8b03",
+    "6f49e4a2": "ff90b8000000",
+    "6f49e4a8": "6a00",
+    "6f49e4aa": "8d4de4",
+    "6f49e4ad": "51",
+    "6f49e4ae": "8d4de0",
+    "6f49e4b1": "51",
+    "6f49e4b2": "8d4df4",
+    "6f49e4b5": "51",
+    "6f49e4b6": "8bc8",
+    "6f49e4b8": "e803cdbbff",
+    "6f49e4bd": "8b5d08",
+    "6f49e4c0": "8bcb",
+    "6f49e4c2": "8b03",
+    "6f49e4c4": "ff90b8000000",
+    "6f49e4ca": "6a00",
+    "6f49e4cc": "8d4de4",
+    "6f49e4cf": "51",
+    "6f49e4d0": "8d4de0",
+    "6f49e4d3": "51",
+    "6f49e4d4": "8d4dec",
+    "6f49e4d7": "51",
+    "6f49e4d8": "8bc8",
+    "6f49e4da": "e8e1ccbbff",
+    "6f49e4df": "f30f1045ec",
+    "6f49e4e4": "0f2f45f4",
+    "6f49e4e8": "7214",
+    "6f49e4ea": "53",
+    "6f49e4eb": "8d4f78",
+    "6f49e4ee": "e81d5ed8ff",
+    "6f49e4f3": "5e",
+    "6f49e4f4": "5f",
+    "6f49e4f5": "33c0",
+    "6f49e4f7": "5b",
+    "6f49e4f8": "8be5",
+    "6f49e4fa": "5d",
+    "6f49e4fb": "c20400",
+    "6f49e4fe": "5e",
+    "6f49e4ff": "5f",
+    "6f49e500": "b801000000",
+    "6f49e505": "5b",
+    "6f49e506": "8be5",
+    "6f49e508": "5d",
+    "6f49e509": "c20400",
+    "6f495b90": "83793c00",
+    "6f495b94": "7e03",
+    "6f495b96": "33c0",
+    "6f495b98": "c3",
+    "6f495b99": "8b4120",
+    "6f495b9c": "2500001800",
+    "6f495ba1": "f7d8",
+    "6f495ba3": "1bc0",
+    "6f495ba5": "f7d8",
+    "6f495ba7": "c3",
+    "6f05b1c0": "55",
+    "6f05b1c1": "8bec",
+    "6f05b1c3": "83ec18",
+    "6f05b1c6": "8b510c",
+    "6f05b1c9": "8b4908",
+    "6f05b1cc": "56",
+    "6f05b1cd": "e85e93ffff",
+    "6f05b1d2": "8b0d2cc8d36f",
+    "6f05b1d8": "8bf0",
+    "6f05b1da": "8b5510",
+    "6f05b1dd": "83c170",
+    "6f05b1e0": "51",
+    "6f05b1e1": "8d4d10",
+    "6f05b1e4": "e8a7480100",
+    "6f05b1e9": "8b4d10",
+    "6f05b1ec": "a12cc8d36f",
+    "6f05b1f1": "83c06c",
+    "6f05b1f4": "50",
+    "6f05b1f5": "8d91000000fd",
+    "6f05b1fb": "33d1",
+    "6f05b1fd": "81c1000080fd",
+    "6f05b203": "c1fa1f",
+    "6f05b206": "f7d2",
+    "6f05b208": "23d1",
+    "6f05b20a": "8d4dfc",
+    "6f05b20d": "895510",
+    "6f05b210": "8b550c",
+    "6f05b213": "e878480100",
+    "6f05b218": "8b45fc",
+    "6f05b21b": "8d88000000fd",
+    "6f05b221": "33c8",
+    "6f05b223": "05000080fd",
+    "6f05b228": "c1f91f",
+    "6f05b22b": "f7d1",
+    "6f05b22d": "23c8",
+    "6f05b22f": "837d1400",
+    "6f05b233": "8b4510",
+    "6f05b236": "894df0",
+    "6f05b239": "8945f4",
+    "6f05b23c": "741c",
+    "6f05b23e": "8d4510",
+    "6f05b241": "8bce",
+    "6f05b243": "50",
+    "6f05b244": "e8f75d1000",
+    "6f05b249": "50",
+    "6f05b24a": "8d45e8",
+    "6f05b24d": "8bce",
+    "6f05b24f": "50",
+    "6f05b250": "e87b0b0000",
+    "6f05b255": "8d45e8",
+    "6f05b258": "eb0f",
+    "6f05b25a": "8b4678",
+    "6f05b25d": "8945f8",
+    "6f05b260": "8b467c",
+    "6f05b263": "8945fc",
+    "6f05b266": "8d45f8",
+    "6f05b269": "8b4d08",
+    "6f05b26c": "8d55f0",
+    "6f05b26f": "50",
+    "6f05b270": "e8db550100",
+    "6f05b275": "8b4508",
+    "6f05b278": "5e",
+    "6f05b279": "8be5",
+    "6f05b27b": "5d",
+    "6f05b27c": "c21000",
+    "6f68c250": "55",
+    "6f68c251": "8bec",
+    "6f68c253": "56",
+    "6f68c254": "8bf1",
+    "6f68c256": "8b4d08",
+    "6f68c259": "8b4134",
+    "6f68c25c": "85c0",
+    "6f68c25e": "740b",
+    "6f68c260": "6a02",
+    "6f68c262": "8bc8",
+    "6f68c264": "e8f77a9dff",
+    "6f68c269": "eb0f",
+    "6f68c26b": "8b01",
+    "6f68c26d": "ff90b8000000",
+    "6f68c273": "8bc8",
+    "6f68c275": "e806ea9cff",
+    "6f68c27a": "85c0",
+    "6f68c27c": "7505",
+    "6f68c27e": "5e",
+    "6f68c27f": "5d",
+    "6f68c280": "c20400",
+    "6f68c283": "50",
+    "6f68c284": "8d8e64010000",
+    "6f68c28a": "e821ca9cff",
+    "6f68c28f": "5e",
+    "6f68c290": "5d",
+    "6f68c291": "c20400"
+  },
+  "instruction_count": 1013,
+  "bundle_sha256": "dae22135a3414306ad317813d3eb47708f4ccde63fc1249dde1f42f37124b93e",
+  "limits": [
+    "Ordinary player-controlled availability replacement. The TownAI-specific ranking branch and artillery-area495880 retain previous engine policy and remain open.",
+    "Optional ability188/18c priority overrides, Attack8000 with no resolved target, present target perimeters and rejected-candidate alternative78/7c ownership are not certified.",
+    "The priority and strict distance decisions are original native captures. Engine regressions compare actual retained targets, public order/waypoint, RNG and save restoration, not entire combat trajectories.",
+    "The synthetic engine archive has no UnitWeapons.slk; its original authored weapon row is rebound after ReadGame, while mutable attack overrides and command state come from save.",
+    "Process addresses are preserved in raw captures and excluded only from repeated semantic projections. Original numeric/capture fixtures are unchanged."
+  ],
+  "distance_rows": [
+    {
+      "origin": [
+        0,
+        0
+      ],
+      "source": [
+        1023410177,
+        1074580685
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 0,
+      "epoch": 0,
+      "world": [
+        1114479002,
+        1113797427
+      ],
+      "distance": 1114462053
+    },
+    {
+      "origin": [
+        0,
+        0
+      ],
+      "source": [
+        1023410177,
+        1074580685
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 1089994752,
+      "epoch": 1,
+      "world": [
+        1122736538,
+        1110232269
+      ],
+      "distance": 1113809067
+    },
+    {
+      "origin": [
+        0,
+        0
+      ],
+      "source": [
+        3204448256,
+        1087792742
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 0,
+      "epoch": 0,
+      "world": [
+        1110022554,
+        1128844492
+      ],
+      "distance": 1101301351
+    },
+    {
+      "origin": [
+        0,
+        0
+      ],
+      "source": [
+        3204448256,
+        1087792742
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 1089994752,
+      "epoch": 1,
+      "world": [
+        1120508314,
+        1127953202
+      ],
+      "distance": 1095039060
+    },
+    {
+      "origin": [
+        3321889024,
+        1166016768
+      ],
+      "source": [
+        1023410177,
+        1074580685
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 0,
+      "epoch": 0,
+      "world": [
+        3321767629,
+        1166133094
+      ],
+      "distance": 1114462081
+    },
+    {
+      "origin": [
+        3321889024,
+        1166016768
+      ],
+      "source": [
+        1023410177,
+        1074580685
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 1089994752,
+      "epoch": 1,
+      "world": [
+        3321648026,
+        1166105241
+      ],
+      "distance": 1113809109
+    },
+    {
+      "origin": [
+        3321889024,
+        1166016768
+      ],
+      "source": [
+        3204448256,
+        1087792742
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 0,
+      "epoch": 0,
+      "world": [
+        3321802445,
+        1166428006
+      ],
+      "distance": 1101301378
+    },
+    {
+      "origin": [
+        3321889024,
+        1166016768
+      ],
+      "source": [
+        3204448256,
+        1087792742
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 1089994752,
+      "epoch": 1,
+      "world": [
+        3321682842,
+        1166400153
+      ],
+      "distance": 1095039138
+    },
+    {
+      "origin": [
+        1266679808,
+        3405774848
+      ],
+      "source": [
+        1023410177,
+        1074580685
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 0,
+      "epoch": 0,
+      "world": [
+        1266679837,
+        3405774735
+      ],
+      "distance": 1114571840
+    },
+    {
+      "origin": [
+        1266679808,
+        3405774848
+      ],
+      "source": [
+        1023410177,
+        1074580685
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 1089994752,
+      "epoch": 1,
+      "world": [
+        1266679866,
+        3405774762
+      ],
+      "distance": 1113876736
+    },
+    {
+      "origin": [
+        1266679808,
+        3405774848
+      ],
+      "source": [
+        3204448256,
+        1087792742
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 0,
+      "epoch": 0,
+      "world": [
+        1266679829,
+        3405774447
+      ],
+      "distance": 1101375616
+    },
+    {
+      "origin": [
+        1266679808,
+        3405774848
+      ],
+      "source": [
+        3204448256,
+        1087792742
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 1089994752,
+      "epoch": 1,
+      "world": [
+        1266679858,
+        3405774474
+      ],
+      "distance": 1095181312
+    },
+    {
+      "origin": [
+        1079194419,
+        3237373542
+      ],
+      "source": [
+        1023410177,
+        1074580685
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 0,
+      "epoch": 0,
+      "world": [
+        1115344077,
+        1111778918
+      ],
+      "distance": 1114462053
+    },
+    {
+      "origin": [
+        1079194419,
+        3237373542
+      ],
+      "source": [
+        1023410177,
+        1074580685
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 1089994752,
+      "epoch": 1,
+      "world": [
+        1123169075,
+        1108213760
+      ],
+      "distance": 1113809069
+    },
+    {
+      "origin": [
+        1079194419,
+        3237373542
+      ],
+      "source": [
+        3204448256,
+        1087792742
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 0,
+      "epoch": 0,
+      "world": [
+        1110887629,
+        1128339864
+      ],
+      "distance": 1101301352
+    },
+    {
+      "origin": [
+        1079194419,
+        3237373542
+      ],
+      "source": [
+        3204448256,
+        1087792742
+      ],
+      "target": [
+        1084489728,
+        1091305472
+      ],
+      "velocity": [
+        1089051034,
+        3218708890
+      ],
+      "now": 1048576000,
+      "old": 1089994752,
+      "epoch": 1,
+      "world": [
+        1120940851,
+        1127448574
+      ],
+      "distance": 1095039064
+    }
+  ]
+}

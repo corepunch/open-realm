@@ -72,8 +72,8 @@ static void sacrifice_release_worker(edict_t *item) {
     edict_t *worker;
     if (!item || !item->sacrifice || !(worker = item->sacrifice->worker)) return;
     if (worker->inuse && worker->spawn_time == item->sacrifice->worker_spawn_time) {
-        if (!item->sacrifice->restore_hidden) worker->s.renderfx &= ~RF_HIDDEN;
-        worker->paused = item->sacrifice->restore_paused;
+        if (!item->sacrifice->restore_hidden) G_SetEntityHidden(worker,false);
+        S_SetUnitPauseFlag(worker,item->sacrifice->restore_paused);
         G_InvalidateUnitShortcutsForUnit(worker);
     }
 }
@@ -124,7 +124,7 @@ bool G_QueueSacrifice(edict_t *producer, edict_t *worker, uint32_t result_id) {
     result->training = true;
     result->training_food_wait_notified = false;
     G_SetHealth(result, 0);
-    result->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(result,true);
     if (!result->sacrifice) result->sacrifice = G_AllocSacrifice();
     assert(result->sacrifice);
     result->sacrifice->worker = worker;
@@ -132,8 +132,8 @@ bool G_QueueSacrifice(edict_t *producer, edict_t *worker, uint32_t result_id) {
     result->sacrifice->restore_paused = worker->paused;
     restore_hidden = (worker->s.renderfx & RF_HIDDEN) != 0;
     result->sacrifice->restore_hidden = restore_hidden;
-    worker->s.renderfx |= RF_HIDDEN;
-    worker->paused = true;
+    G_SetEntityHidden(worker,true);
+    S_SetUnitPauseFlag(worker,true);
     G_InvalidateUnitShortcutsForUnit(worker);
 
     unit_add_build_queue(producer, result);

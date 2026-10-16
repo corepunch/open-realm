@@ -83,9 +83,10 @@ through `areabounds` must remain aligned with `server.h`.
 
 `CM_LoadMap` parses original-unit edits and user-created units from `war3map.w3u` into `MAPINFO.originalUnits` and
 `MAPINFO.userCreatedUnits`. Before map entities spawn, `G_SetMapUnitOverrides` builds stable per-map `UnitBalance_t`,
-`UnitProfile_t`, and `UnitUI_t` rows. Original-unit edits are applied first; a custom unit then inherits the already-overridden base
-rows and applies its own registered Balance/Profile/UI modifications. `G_UnitBalance(id)`, `G_UnitProfile(id)`, and `G_UnitUI(id)`
-check these exact-ID rows before falling back to the base-SLK/custom-ID remap.
+`UnitData_t`, `UnitWeapons_t`, `UnitAbilities_t`, `UnitProfile_t`, and `UnitUI_t` rows. Original-unit edits are applied first; a custom
+unit then inherits the already-overridden base rows and applies its registered typed modifications. Each corresponding accessor
+checks these exact-ID rows before falling back to the base-SLK/custom-ID remap. Weapon range (`ua1r`/`ua2r`) and enabled slots
+(`uaen`) consequently reach normal public spawning and restored data bindings, including Captain AI approach range inputs.
 
 Ability object edits from `war3map.w3a` land in `MAPINFO.originalAbilities` / `userCreatedAbilities` (w3a modifications include
 the level + data-pointer ints that w3u omits). `G_SetMapAbilityOverrides` builds `AbilityData_t` rows. `G_AbilityData` checks
@@ -102,10 +103,10 @@ This is required because spawned edicts retain immutable typed-row pointers; nev
 row. String override values point into map-owned `war3map.w3u` / `war3map.w3t` modification storage, so the caches are rebuilt at map
 load and cleared again during unit-data shutdown.
 
-The current merge covers fields already mapped to `UnitBalance_t`, `UnitProfile_t`, or `UnitUI_t` in `UnitsMetaData`. This includes
+The current merge covers registered typed fields in `UnitsMetaData`. This includes
 balance fields such as `ugol`, `ufoo`, `usma`, `usrg`, and `usst`; `uani` (`animProps`, Required Animation Names); `umdl` (model);
-`usca` (model scale); profile/name fields; tint/team-colour fields; selection/shadow fields; and `usnd`. Data/Weapons/Abilities
-object-data merge remains separate work and still uses base typed rows through `ResolveUnitID`.
+`usca` (model scale); profile/name fields; tint/team-colour fields; selection/shadow fields; and `usnd`. Full metadata-driven field coverage, including differently encoded string/list values, remains separate work; registering a field
+does not establish every authored encoding.
 
 `uani` is especially important because a different visible form does not necessarily mean a different model file.
 `UnitProfile.animProps` supplies persistent secondary MDX animation tags such as `alternate`; `G_SetUnitAnimation()`

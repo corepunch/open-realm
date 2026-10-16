@@ -36,7 +36,13 @@ static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
     cstring_t buff = melee_buff(spell, level);
     if (!st.entity || !buff) return;
     heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
-                                  S_SpellHeroDuration(spell->code, level, st.entity));
+        S_SpellHeroDuration(spell->code, level, st.entity));
+    if (status) {
+        status->data = spell->code;
+        status->source = caster;
+        status->source_spawn_time = caster->spawn_time;
+    }
+    /* The status owner publishes its captured contribution during insertion. */
     if (status && status->code == MAKEFOURCC('B','b','l','o'))
         status->buff_flags = WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_TRANSFERABLE;
     else if (status && status->code == MAKEFOURCC('B','f','a','e'))
@@ -96,6 +102,16 @@ BZ_ABILITY_PROC(CAbilityBloodlust) {
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
     case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, true, false, 900.0f);
+    case A_STATUS_POLICY:
+        return UNIT_BUFF_KNOWN | UNIT_BUFF_POSITIVE | UNIT_BUFF_MAGIC | UNIT_BUFF_AUTO_DISPEL;
+    case A_STATUS_REFRESH:
+        if(call && call->status.slot)S_ApplyMoveSpeedContribution(ent,call->status.slot,
+            S_SpellData(call->status.ability,call->status.slot->level,2));
+        return true;
+    case A_STATUS_REPLACE: case A_STATUS_REMOVE:
+        if(call)S_RemoveMoveSpeedContribution(ent,call->status.slot);
+        return true;
+    case A_STATUS_REMOVED: return true;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
@@ -145,12 +161,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityRoar) {
 /* DataA owns the attack-rate bonus as a fraction (0.4 = +40%); DataB owns move speed. */
 float S_BloodlustAttackBonus(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
-    return level ? S_SpellData(MAKEFOURCC('A', 'b', 'l', 'o'), level, 1) : 0.0f;
+    heroabilitystatus_t const *status = level ? unit_findstatus((edict_t *)unit, MAKEFOURCC('B','b','l','o')) : NULL;
+    return level ? S_SpellData(status->data ? status->data : MAKEFOURCC('A','b','l','o'), level, 1) : 0;
 }
 
 float S_BloodlustMoveBonus(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
-    return level ? S_SpellData(MAKEFOURCC('A', 'b', 'l', 'o'), level, 2) : 0.0f;
+    uint32_t level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
+    heroabilitystatus_t const *status = level ? unit_findstatus((edict_t *)unit, MAKEFOURCC('B','b','l','o')) : NULL;
+    return level ? S_SpellData(status->data ? status->data : MAKEFOURCC('A','b','l','o'), level, 2) : 0;
 }
 
 /* DataA owns the armor reduction as a flat amount. */

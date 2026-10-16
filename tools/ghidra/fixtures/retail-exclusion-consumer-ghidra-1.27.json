@@ -1,0 +1,24 @@
+{
+  "program": "game.dll",
+  "unsaved_changes": false,
+  "functions": [
+    {
+      "address": "6f16ee80",
+      "name": "Separate_ValidateEndpoint",
+      "prototype": "uint Separate_ValidateEndpoint(void * separation, WC3PathVector2 * point)",
+      "comment": "Payoff148/MAP-04.2: complete initialized original endpoint, waypoint and next-step consumers agree in96 supplied geometry/class/blocked/outer-depth/null-self cases with96 observer-free controls. Endpoint captures separation mover+98, increments that record+40, forces fine+d4\u003d1 only through149370, then restores mode and captured record on success/failure. Null self still evaluates terrain and other objects; target is not excluded. Return is the original footprint EAX result, not void."
+    },
+    {
+      "address": "6f167bf0",
+      "name": "Path_SelectVisibleFineWaypoint",
+      "prototype": "int Path_SelectVisibleFineWaypoint(WC3PathPrefix * path, WC3PathVector2 * source)",
+      "comment": "Payoff148/MAP-04.2: complete original waypoint calls retain the captured path+a0 record counter through every168d30 segment sample, then decrement it before returning the chosen index. Four footprint classes, blocked/clear terrain, supplied outer depth and null self are in the96-case consumer matrix with observer-free output/stamp controls. Target remains live. Capture/release is a counted scope, not a boolean self overlay; source and route inputs remain explicitly supplied."
+    },
+    {
+      "address": "6f166140",
+      "name": "Path_CollectAndResolveNextStepBlockers",
+      "prototype": "uint Path_CollectAndResolveNextStepBlockers(WC3PathPrefix * path, WC3PathVector2 * source, WC3PathVector2 * destination)",
+      "comment": "Payoff148/MAP-04.2: complete original class0..3 next-step calls in the96-case matrix retain path+a0 record+40 through strip collection AND168360 resolution, then restore that captured record. Null self does not skip collection; terrain/non-mover tokens are still emitted. Engine adapter now matches collection results and counted self boundaries; its later moving-peer resolver, embedded recovery, portal and group publication scopes remain separate integration obligations. Observer-free controls compare result and complete fine/map/object prefixes; no stubs or instruction replacement."
+    }
+  ]
+}

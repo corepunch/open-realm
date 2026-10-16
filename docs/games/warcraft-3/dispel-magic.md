@@ -66,6 +66,12 @@ statuses on an Animated Dead unit are still processed normally. Cyclone `DataA==
 for its authored undispellable case. Skipped slots do not increment Advm's per-buff heal count. See [Cyclone](cyclone.md) and
 [Timed Status Presentation](timed-status-presentation.md).
 
+Inner Fire (`Ainf` and `ACif`) reports positive magical/autodispellable status
+policy through `CAbilityInnerFire`. This also lets ItemTeleport's cast protection
+remove `Binf` alongside negative magical statuses; unclassified status policy
+previously left Inner Fire behind. The public ItemTeleport protection regression
+covers both polarities. See [counted separation owners](retail-pathfinding-separation.md).
+
 ## Diagnostic Workflow
 
 ```sh

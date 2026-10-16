@@ -1,0 +1,307 @@
+{
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved_changes": false,
+  "labels": [{"address":"6f68a8c4","names":["UnitCreation_TestCapturedMoveSpeed"]},{"address":"6f68a8de","names":["UnitCreation_CreateNonzeroSpeedMoveOwner"]},{"address":"6f68a8fb","names":["UnitCreation_AfterOptionalMoveOwner"]}],
+  "functions": [
+    {
+      "address": "6f66bf40",
+      "name": "UnitProfile_BuildFromUnitData",
+      "signature": "undefined UnitProfile_BuildFromUnitData()",
+      "convention": "unknown",
+      "comment": "Per-rawcode profile builder (hash d709f4/fc). 66c90f..66c93e: 6b3640 movetp string -> 685340 bits -> row+1a8; 685e30(bits,EDX=1)->row+1ac category; 685e30(bits,EDX=0)->row+1b0 query; targType&1e ->row+1b4; 6b3620 moveHeight->row+1f8; 6b3600 moveFloor->row+1fc. Unicorn slice 66c909..66c944 (60 strings, only 6b3640 stubbed) and live custom w3u umvt rows (852 parses) agree. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] Per-rawcode profile builder (hash d709f4/fc). 66c90f..66c93e: 6b3640 movetp string -> 685340 bits -> row+1a8; 685e30(bits,EDX=1)->row+1ac category; 685e30(bits,EDX=0)->row+1b0 query; targType&1e ->row+1b4; 6b3620 moveHeight->row+1f8; 6b3600 moveFloor->row+1fc. Unicorn slice 66c909..66c944 (60 strings, only 6b3640 stubbed) and live custom w3u umvt rows (852 parses) agree. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f6b3640",
+      "name": "UnitDataSlk_GetMovementTypeString",
+      "signature": "undefined UnitDataSlk_GetMovementTypeString()",
+      "convention": "unknown",
+      "comment": "thiscall ECX UnitData SLK row, stack4 out, RET4: column +e0 'movetp' via 6acfb0. Live custom w3u umvt strings reach 685340 byte-exact. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX UnitData SLK row, stack4 out, RET4: column +e0 'movetp' via 6acfb0. Live custom w3u umvt strings reach 685340 byte-exact. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f6b3620",
+      "name": "UnitDataSlk_GetMoveHeight",
+      "signature": "undefined UnitDataSlk_GetMoveHeight()",
+      "convention": "unknown",
+      "comment": "thiscall ECX UnitData SLK row, stack4 out, stack8 arg, RET8: column +ec 'moveHeight' via 6ad270; builder stores row+1f8. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX UnitData SLK row, stack4 out, stack8 arg, RET8: column +ec 'moveHeight' via 6ad270; builder stores row+1f8. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f6b3600",
+      "name": "UnitDataSlk_GetMoveFloor",
+      "signature": "undefined UnitDataSlk_GetMoveFloor()",
+      "convention": "unknown",
+      "comment": "thiscall ECX UnitData SLK row, stack4 out, stack8 arg, RET8: column +f8 'moveFloor' via 6ad270; builder stores row+1fc. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX UnitData SLK row, stack4 out, stack8 arg, RET8: column +f8 'moveFloor' via 6ad270; builder stores row+1fc. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f678af0",
+      "name": "UnitProfile_GetMovementType",
+      "signature": "undefined UnitProfile_GetMovementType()",
+      "convention": "unknown",
+      "comment": "fastcall ECX rawcode, RET plain, u32 EAX: profile row+1a8 movement bits (685340 output); miss returns 0. 47 call sites incl. morph form tests (==2 fly). Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX rawcode, RET plain, u32 EAX: profile row+1a8 movement bits (685340 output); miss returns 0. 47 call sites incl. morph form tests (==2 fly). Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f678a80",
+      "name": "UnitProfile_GetMoveHeight",
+      "signature": "undefined UnitProfile_GetMoveHeight()",
+      "convention": "unknown",
+      "comment": "fastcall ECX out float*, EDX rawcode, RET plain, EAX=out: row+1f8 moveHeight, miss writes runtime zero. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX out float*, EDX rawcode, RET plain, EAX=out: row+1f8 moveHeight, miss writes runtime zero. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f678a10",
+      "name": "UnitProfile_GetMoveFloor",
+      "signature": "undefined UnitProfile_GetMoveFloor()",
+      "convention": "unknown",
+      "comment": "fastcall ECX out float*, EDX rawcode, RET plain, EAX=out: row+1fc moveFloor, miss writes runtime zero. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX out float*, EDX rawcode, RET plain, EAX=out: row+1fc moveFloor, miss writes runtime zero. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f678b70",
+      "name": "UnitProfile_GetTargetedAs",
+      "signature": "undefined UnitProfile_GetTargetedAs()",
+      "convention": "unknown",
+      "comment": "fastcall ECX rawcode, RET plain: row+1b4 targType flags (&1e). Ground push tests bit4 (air). Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX rawcode, RET plain: row+1b4 targType flags (&1e). Ground push tests bit4 (air). Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f66d780",
+      "name": "CUnit_GetSupportZ",
+      "signature": "undefined CUnit_GetSupportZ()",
+      "convention": "unknown",
+      "comment": "CUnit vtable slot e4. thiscall ECX unit, stack4 point*, stack8 layer (ECX of 78d1e0), stackC out on-deck flag*, stack10 force; RET10; x87 ST0. Flyer (Unit+5c&20000000, Unit+200<=0): e8 + base + (z(-3)-base)*e8/max210 (max>0.01). Else base (+water max if Unit+1fc&38, amph only with Unit+280&20) + e8. Live: Amrf hfoo 768->968 after SetUnitFlyHeight200, control hfoo stays 768; hover moveHeight50 adds 50. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nMAP-02.2: verified ABI thiscall ECX unit, [esp+4] point*, [esp+8] layer->ECX of 78d1e0, [esp+c] out on-deck flag*, [esp+10] force; RET 0x10; ST0. Order: structure(68c190(1))&&Unit+280 bit8 -> 69a9d0; else base = bit8 ? (cached Unit+28c when !force && |dx|,|dy|<.001 && Unit+224 path unresolved, else 66b1b0 multi-sample average) : 78d1e0(layer); fly=vt+e8; if Unit+5c&20000000 && Unit+200<=0: return fly + base + (78d1e0(-3)-base)*fly/Unit+210 (if max>0.01, else unscaled); else if Unit+1fc&0x38 and water present and (Unit+1fc!=0x20 or Unit+280&0x20) and water>base: base=water; return fly+base. 8064-case original-code oracle 0 mismatches; live 5 movetypes x 8 file-backed points.\n   [MAP-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nMAP-02.2 correction: the 66d780 oracle executes 7680 cases (not 8064); total MAP-02.2 oracle 8068 cases incl. 78d1e0 120, 64f7e0 12, 64eca0 256; all with Unit+210 max 360 (max<=0.01 branch not exercised).\n   [MAP-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] CUnit vtable slot e4. thiscall ECX unit, stack4 point*, stack8 layer (ECX of 78d1e0), stackC out on-deck flag*, stack10 force; RET10; x87 ST0. Flyer (Unit+5c&20000000, Unit+200<=0): e8 + base + (z(-3)-base)*e8/max210 (max>0.01). Else base (+water max if Unit+1fc&38, amph only with Unit+280&20) + e8. Live: Amrf hfoo 768->968 after SetUnitFlyHeight200, control hfoo stays 768; hover moveHeight50 adds 50. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f68f390",
+      "name": "CUnit_GetFlyHeightOffset",
+      "signature": "undefined CUnit_GetFlyHeightOffset()",
+      "convention": "unknown",
+      "comment": "CUnit vtable slot e8, thiscall ECX unit, RET plain, x87 ST0. Unit+20&800 or Unit+1fc==2: interpolated Unit+214 height; Unit+1fc==8 (hover): authored moveHeight row+1f8; else 0. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] CUnit vtable slot e8, thiscall ECX unit, RET plain, x87 ST0. Unit+20&800 or Unit+1fc==2: interpolated Unit+214 height; Unit+1fc==8 (hover): authored moveHeight row+1f8; else 0. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f6877b0",
+      "name": "CUnit_PushForcedGround",
+      "signature": "undefined CUnit_PushForcedGround()",
+      "convention": "unknown",
+      "comment": "thiscall ECX unit, stack4 out*, stack8 rate*, RET8. Unit+200++ ; first push with authored targType air bit: Unit+24c=(t&~4)|2 and publish slot15c category ca/query 02 (685e30(1,..)); then 69cf20. Live Ensnare (CBuffEnsnare*) on hgry: 0/04 -> ca/02, Unit+1fc stays 2. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX unit, stack4 out*, stack8 rate*, RET8. Unit+200++ ; first push with authored targType air bit: Unit+24c=(t&~4)|2 and publish slot15c category ca/query 02 (685e30(1,..)); then 69cf20. Live Ensnare (CBuffEnsnare*) on hgry: 0/04 -> ca/02, Unit+1fc stays 2. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n\n[BASE-02.1/Payoff131] Payoff131: Ensnare changes fine query/category04/00 to02/ca while retaining published coarse class3. Engine query carries explicit authored hierarchy lane independently of current physical flying layer; production spell regression checks this after a real Ensnare cast. Full landing support interpolation remains MAP-02.2 and lifecycle work.",
+      "parameters": []
+    },
+    {
+      "address": "6f69c840",
+      "name": "CUnit_PopForcedGround",
+      "signature": "undefined CUnit_PopForcedGround()",
+      "convention": "unknown",
+      "comment": "thiscall ECX unit, stack4 out*, stack8 rate*, RET8. --Unit+200; on zero with authored air targType restores Unit+24c and republishes authored slots164/160 via 15c. Live Ensnare expiry restores 0/04. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX unit, stack4 out*, stack8 rate*, RET8. --Unit+200; on zero with authored air targType restores Unit+24c and republishes authored slots164/160 via 15c. Live Ensnare expiry restores 0/04. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f569b80",
+      "name": "AbilityMorph_BeginLanding",
+      "signature": "undefined AbilityMorph_BeginLanding()",
+      "convention": "unknown",
+      "comment": "fastcall ECX morph ability (CAbilityMorph family). Fly->ground form: point test 685e30(1,0) query02, placement 439490 if blocked, Unit+1fc=1, publish ca/02, adaptive on, floor/height from target form. Live Amrf/Arav unravenform before rebind. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX morph ability (CAbilityMorph family). Fly->ground form: point test 685e30(1,0) query02, placement 439490 if blocked, Unit+1fc=1, publish ca/02, adaptive on, floor/height from target form. Live Amrf/Arav unravenform before rebind. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f56a000",
+      "name": "AbilityMorph_BeginTakeoff",
+      "signature": "undefined AbilityMorph_BeginTakeoff()",
+      "convention": "unknown",
+      "comment": "fastcall ECX morph ability. Ground->fly form: flags, height raise then 552230 rebind. Live Amrf/Arav ravenform. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX morph ability. Ground->fly form: flags, height raise then 552230 rebind. Live Amrf/Arav ravenform. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f544c60",
+      "name": "AbilityMorph_DispatchFormTransition",
+      "signature": "undefined AbilityMorph_DispatchFormTransition()",
+      "convention": "unknown",
+      "comment": "fastcall ECX morph ability, RET plain. Compares 678af0 of +18c/+190 forms with fly(2): fly->ground 569b80, ground->fly 56a000, else virtual 3f8. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX morph ability, RET plain. Compares 678af0 of +18c/+190 forms with fly(2): fly->ground 569b80, ground->fly 56a000, else virtual 3f8. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f56bc30",
+      "name": "AbilityMorph_SetForms",
+      "signature": "undefined AbilityMorph_SetForms()",
+      "convention": "unknown",
+      "comment": "thiscall ECX morph ability, stack4 normal, stack8 alternate, RET8. +18c/+190 forms; Unit+20 bit800 set when either form 678af0==2 else cleared. Live: UnitAddAbility Amrf sets 800, removal keeps it. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX morph ability, stack4 normal, stack8 alternate, RET8. +18c/+190 forms; Unit+20 bit800 set when either form 678af0==2 else cleared. Live: UnitAddAbility Amrf sets 800, removal keeps it. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f4ba8d0",
+      "name": "AbilityBurrow_SetUnitCategory",
+      "signature": "undefined AbilityBurrow_SetUnitCategory()",
+      "convention": "unknown",
+      "comment": "fastcall ECX unit, EDX hide, stack4 keepBuild, RET4. Current category (05ac60) &~2 when EDX!=0 else |2; stack!=0 &~8 else |8; republish with current query. Live burrow ca->c8, unburrow c8->ca, query 02. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX unit, EDX hide, stack4 keepBuild, RET4. Current category (05ac60) &~2 when EDX!=0 else |2; stack!=0 &~8 else |8; republish with current query. Live burrow ca->c8, unburrow c8->ca, query 02. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f4ba940",
+      "name": "AbilitySubmerge_SetUnitCategory",
+      "signature": "undefined AbilitySubmerge_SetUnitCategory()",
+      "convention": "unknown",
+      "comment": "fastcall ECX unit, EDX hide, stack4 keepBuild, RET4. Like 4ba8d0 with mask c2 (walk/float/amph). Instruction-level only. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX unit, EDX hide, stack4 keepBuild, RET4. Like 4ba8d0 with mask c2 (walk/float/amph). Instruction-level only. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f699220",
+      "name": "CUnit_PublishGhostProfile",
+      "signature": "undefined CUnit_PublishGhostProfile()",
+      "convention": "unknown",
+      "comment": "fastcall ECX unit. Publish authored category&29 and query&39|10 (terrain-only walk bit). Callers CAbilityHarvestReturn; 580250 same policy for CBuffWindWalk. Instruction-level. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX unit. Publish authored category&29 and query&39|10 (terrain-only walk bit). Callers CAbilityHarvestReturn; 580250 same policy for CBuffWindWalk. Instruction-level. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f699290",
+      "name": "CUnit_RepublishAuthoredProfile",
+      "signature": "undefined CUnit_RepublishAuthoredProfile()",
+      "convention": "unknown",
+      "comment": "fastcall ECX unit. Publish authored slots160/164 via 15c. Instruction-level. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX unit. Publish authored slots160/164 via 15c. Instruction-level. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f9d6e60",
+      "name": "CaptainAI_PublishMovementType",
+      "signature": "undefined CaptainAI_PublishMovementType()",
+      "convention": "unknown",
+      "comment": "thiscall ECX captain, stack4 movement bits, RET4. Adaptive (bits!=2), class 685db0, query 685e30(b,0), category 685e30(b,1)&~8, +6c bit8 iff fly. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX captain, stack4 movement bits, RET4. Adaptive (bits!=2), class 685db0, query 685e30(b,0), category 685e30(b,1)&~8, +6c bit8 iff fly. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f9d2610",
+      "name": "CaptainAI_GetQueryMask",
+      "signature": "undefined CaptainAI_GetQueryMask()",
+      "convention": "unknown",
+      "comment": "fastcall ECX captain. +6c: bit8 without 4000 -> 685e30(2,0)=04; bit8000 -> (20,0)=80; else (1,0)=02. Tail jumps. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] fastcall ECX captain. +6c: bit8 without 4000 -> 685e30(2,0)=04; bit8000 -> (20,0)=80; else (1,0)=02. Tail jumps. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f2152c0",
+      "name": "Jass_SetUnitFlyHeight",
+      "signature": "undefined Jass_SetUnitFlyHeight()",
+      "convention": "unknown",
+      "comment": "Native SetUnitFlyHeight (handle, real*, real*). height>0 -> 698680(h,rate,raise1) else constant. Live: writes Unit+208/210 for any unit; visible support only with Unit+20&800, fly or hover rules of e8. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] Native SetUnitFlyHeight (handle, real*, real*). height>0 -> 698680(h,rate,raise1) else constant. Live: writes Unit+208/210 for any unit; visible support only with Unit+20&800, fly or hover rules of e8. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f203bf0",
+      "name": "Jass_GetUnitFlyHeight",
+      "signature": "undefined Jass_GetUnitFlyHeight()",
+      "convention": "unknown",
+      "comment": "Native GetUnitFlyHeight: returns Unit+208 raw (not e8). Live control hfoo returns 200 while support Z is unchanged. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] Native GetUnitFlyHeight: returns Unit+208 raw (not e8). Live control hfoo returns 200 while support Z is unchanged. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f698680",
+      "name": "CUnit_SetFlyHeight",
+      "signature": "undefined CUnit_SetFlyHeight()",
+      "convention": "unknown",
+      "comment": "thiscall ECX unit, stack4 out*, stack8 height*, stackC rate*, stack10 raiseMax; RET10. Raise Unit+210 max if flag and higher; set clamp value Unit+208; if Unit+200==0 apply 69cf20. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX unit, stack4 out*, stack8 height*, stackC rate*, stack10 raiseMax; RET10. Raise Unit+210 max if flag and higher; set clamp value Unit+208; if Unit+200==0 apply 69cf20. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f698630",
+      "name": "CUnit_SetFlyFloor",
+      "signature": "undefined CUnit_SetFlyFloor()",
+      "convention": "unknown",
+      "comment": "thiscall ECX unit, stack4 floor*, RET4. Unit+20c min=floor, reclamp, interpolator Unit+214. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX unit, stack4 floor*, RET4. Unit+20c min=floor, reclamp, interpolator Unit+214. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f699840",
+      "name": "CUnit_SetTargetedAs",
+      "signature": "undefined CUnit_SetTargetedAs()",
+      "convention": "unknown",
+      "comment": "thiscall ECX unit, stack4 flags, RET4. Unit+24c current targeted-as flags; on change dispatch target lost. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] thiscall ECX unit, stack4 flags, RET4. Unit+24c current targeted-as flags; on change dispatch target lost. Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f64eca0",
+      "name": "PathWorld_IsDeepWaterPoint",
+      "signature": "undefined PathWorld_IsDeepWaterPoint()",
+      "convention": "unknown",
+      "comment": "stack x,y (by value), RET8: terrain point blocks query02 and not query40. 684480 stores result in Unit+280 bit20 (amphibious water support). Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nMAP-02.2: stdcall(x,y) RET 8: 04e090(&x,&y,mask 02,0) && !04e090(mask 40) -> 1. Oracle 256 cell bytes (64 ones); live set only where WPM 0a (top byte 1b); blank WPM leaves it 0 in W3E water.\n   [MAP-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] stack x,y (by value), RET8: terrain point blocks query02 and not query40. 684480 stores result in Unit+280 bit20 (amphibious water support). Evidence: research/BASE-02.1 (static asm, Unicorn oracle, live types2 captures).",
+      "parameters": []
+    },
+    {
+      "address": "6f685340",
+      "name": "UnitMovementType_ParseName",
+      "signature": "uint __fastcall UnitMovementType_ParseName(uchar * movetp)",
+      "convention": "__fastcall",
+      "comment": "Fastcall ECX movetp string, plainRET, EAX movement bits. Null string returns0. Linear Storm Ordinal_509 compare against name/bit table6fce6000 until null entry6fce6058: fly2 hover8 foot1 horse4 unbuild40 float10 amph20, _/-/none/empty0; no match0. Sole static caller66bf40 stores row+1a8. Assembly-verified.\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] Fastcall ECX movetp string, plainRET, EAX movement bits. Null string returns0. Linear Storm Ordinal_509 compare against name/bit table6fce6000 until null entry6fce6058: fly2 hover8 foot1 horse4 unbuild40 float10 amph20, _/-/none/empty0; no match0. Sole static caller66bf40 stores row+1a8. Assembly-verified.",
+      "parameters": [
+        {
+          "name": "movetp",
+          "type": "/uchar *32",
+          "storage": "ECX:4"
+        }
+      ]
+    },
+    {
+      "address": "6f685e30",
+      "name": "UnitMovementType_ToPathingMask",
+      "signature": "uchar __fastcall UnitMovementType_ToPathingMask(uint bits, uint selector)",
+      "convention": "__fastcall",
+      "comment": "Fastcall ECX movement bits, EDX selector(nonzero=category,0=query), plainRET, EAX byte mask. Byte index6f685eb0[ECX-1], jump table6f685e98, ECX-1>3f default0. 1/4/8: query02 category ca; 2: query04 category0; 10: query40 category ca; 20: query80 category ca; 40: query0 category08; every other value incl.0 and multi-bit combinations0/0. Profile builder66bf40 calls EDX1 for row+1ac and EDX0 for row+1b0. Assembly-verified.\n   [BASE-02.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] Fastcall ECX movement bits, EDX selector(nonzero=category,0=query), plainRET, EAX byte mask. Byte index6f685eb0[ECX-1], jump table6f685e98, ECX-1>3f default0. 1/4/8: query02 category ca; 2: query04 category0; 10: query40 category ca; 20: query80 category ca; 40: query0 category08; every other value incl.0 and multi-bit combinations0/0. Profile builder66bf40 calls EDX1 for row+1ac and EDX0 for row+1b0. Assembly-verified.",
+      "parameters": [
+        {
+          "name": "bits",
+          "type": "/uint",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "selector",
+          "type": "/uint",
+          "storage": "EDX:4"
+        }
+      ]
+    },
+    {
+      "address": "6f68a060",
+      "name": "Unit_InitializeFromCreationProfile",
+      "signature": "undefined Unit_InitializeFromCreationProfile()",
+      "convention": "unknown",
+      "comment": "[BASE-02.1/Payoff131] Payoff131: captured creation speed+68 is compared to runtime zero at68a8c4..68a8dc. Equal +0/-0 skip Move factory65bd60; all other scalar words tested, including unordered NaNs, reach factory boundary68a8de. No movetp test in this gate. Complete original slice16 cases plus15 positive-speed custom-profile public Move probes first/repeat/control. Engine mobility no longer follows zero fine mask.",
+      "parameters": []
+    },
+    {
+      "address": "6f685db0",
+      "name": "UnitMovementType_ToPathClassFlags",
+      "signature": "uint __fastcall UnitMovementType_ToPathClassFlags(uint mode)",
+      "convention": "__fastcall",
+      "comment": "Instruction-checked ECX movement-type value, plain RET/u32EAX. Input2 returns6,16 returns4,32 returns2; other switch entries/default return0. Public Payoff87 ground/flight/ground Chaos publishes actual class0/3 through05c6f0/168c00 while the same mover identity survives. This flags conversion is independent of690c20 fine query masks.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n\n[BASE-02.1/Payoff131] Payoff131 BASE-02.1: all135 exact original inputs checked; bits2/10/20 publish classes3/2/1, every other input including multibit combinations class0. Native packed masks6fce4570 indexed by class:06000006/80000080/40000040/04000004. Production profile table separates this class from fine query/category and current physical flying state.",
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "/uint",
+          "storage": "ECX:4"
+        }
+      ]
+    }
+  ],
+  "layout": {
+    "path": "/WarcraftIII/Pathfinding127/WC3AuthoredMovementFields",
+    "length": 12,
+    "fields": [
+      {
+        "offset": 0,
+        "name": "movement_bits",
+        "type": "/uint"
+      },
+      {
+        "offset": 4,
+        "name": "occupied_category",
+        "type": "/uint"
+      },
+      {
+        "offset": 8,
+        "name": "fine_query",
+        "type": "/uint"
+      }
+    ]
+  }
+}

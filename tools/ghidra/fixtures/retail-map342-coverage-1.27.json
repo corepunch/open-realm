@@ -1,0 +1,514 @@
+{
+  "version": 1,
+  "task": "MAP-04.2",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "scopes": [
+    {
+      "name": "fine_request_self_target",
+      "entry": "0x6f166e90",
+      "acquires": [
+        "0x6f166f66",
+        "0x6f166f7d"
+      ],
+      "releases": [
+        "0x6f167041",
+        "0x6f167048"
+      ],
+      "reported_exits": [],
+      "oracles": [
+        "oracle-exclusions"
+      ],
+      "tests": [
+        "pathfinding.fine_scope_restores_exact_partial_and_pre_acquire_denial_exits",
+        "pathfinding.fine_scopes_restore_nested_counters_aliases_and_complete_native_windows"
+      ],
+      "contract": "Exact, partial, interval-denied and admission-denied; reverse self/target release, including aliases and outer depth."
+    },
+    {
+      "name": "coarse_request_rectangles",
+      "entry": "0x6f166c30",
+      "acquires": [
+        "0x6f166d35",
+        "0x6f166d4c"
+      ],
+      "releases": [
+        "0x6f166dd7",
+        "0x6f166dee"
+      ],
+      "reported_exits": [
+        "0x6f166e2a",
+        "0x6f166e7e"
+      ],
+      "oracles": [
+        "oracle-exclusions"
+      ],
+      "tests": [
+        "pathfinding.coarse_scope_restores_exact_partial_and_pre_acquire_denial_exits",
+        "pathfinding.coarse_scopes_match_complete_native_overlapping_hierarchy_matrix"
+      ],
+      "contract": "Exact and partial post-release returns; interval/admission denial before acquire. Pending fine edits publish only under rounded restored coverage."
+    },
+    {
+      "name": "visible_waypoint_self",
+      "entry": "0x6f167bf0",
+      "acquires": [
+        "0x6f167c2a"
+      ],
+      "releases": [
+        "0x6f167cbd"
+      ],
+      "reported_exits": [],
+      "oracles": [
+        "oracle-exclusions"
+      ],
+      "tests": [
+        "pathfinding.fine_consumers_hold_captured_self_and_restore_every_result",
+        "pathfinding.fresh_waypoint219_holds_self_after_fine_search_and_restores_outer_depth"
+      ],
+      "contract": "Clear/blocked, null self, all footprint classes and outer holds; fresh and retained waypoint consumers."
+    },
+    {
+      "name": "next_step_blockers_self",
+      "entry": "0x6f166140",
+      "acquires": [
+        "0x6f166265"
+      ],
+      "releases": [
+        "0x6f1662dd"
+      ],
+      "reported_exits": [],
+      "oracles": [
+        "oracle-blocker-scopes202"
+      ],
+      "tests": [
+        "pathfinding.blocker202_holds_captured_self_through_ordered_resolution",
+        "pathfinding.blocker202_public_move_keeps_outer_scope_through_resolution"
+      ],
+      "contract": "All four blocker collectors and ordered resolver; preserve outer hold through resolution."
+    },
+    {
+      "name": "portal_fine_point",
+      "entry": "0x6f16ec00",
+      "acquires": [
+        "0x6f16ec34"
+      ],
+      "releases": [
+        "0x6f16eca0"
+      ],
+      "reported_exits": [],
+      "oracles": [
+        "oracle-portal-scope"
+      ],
+      "tests": [
+        "pathfinding.portal188_placement_holds_self_through_admission_and_exhaustion"
+      ],
+      "contract": "Accepted and exhausted placement; captured self remains held through the adaptive callback."
+    },
+    {
+      "name": "separation_endpoint",
+      "entry": "0x6f16ee80",
+      "acquires": [
+        "0x6f16ef24"
+      ],
+      "releases": [
+        "0x6f16ef61"
+      ],
+      "reported_exits": [],
+      "oracles": [
+        "oracle-exclusions"
+      ],
+      "tests": [
+        "pathfinding.fine_consumers_hold_captured_self_and_restore_every_result"
+      ],
+      "contract": "Clear/blocked endpoint, null self and outer holds across four footprints."
+    },
+    {
+      "name": "embedded_point_recovery",
+      "entry": "0x6f170080",
+      "acquires": [
+        "0x6f170133"
+      ],
+      "releases": [
+        "0x6f1701d2"
+      ],
+      "reported_exits": [],
+      "oracles": [
+        "oracle-embedded-recovery-scope",
+        "oracle-work247",
+        "oracle-map342"
+      ],
+      "tests": [
+        "wc3_movement.recovery183_holds_spatial_identity_through_commit_and_all_exits",
+        "wc3_movement.map342_recovery_region_filters_run_inside_held_scope"
+      ],
+      "contract": "Clear, admitted, exhausted and query-disabled; hold spans actual position publication. Held recovery region filters mutate Stop/Move/Pause/death/removal/placement/terrain; exact nested scope counts and captured counter restoration, including save continuations."
+    },
+    {
+      "name": "group_publish_members",
+      "entry": "0x6f16bcf0",
+      "acquires": [
+        "0x6f16bd1d"
+      ],
+      "releases": [
+        "0x6f16bd2a",
+        "0x6f16bd90"
+      ],
+      "reported_exits": [],
+      "oracles": [
+        "oracle-capscope273"
+      ],
+      "tests": [
+        "wc3_movement.capscope273_original_target_alias_pending_drop_and_nested_depth",
+        "wc3_movement.capscope273_captain_nested_replacement_rejection_and_cold_save"
+      ],
+      "contract": "Not-ready/conflict and normal publication; target alias/invalid generation, pending drop, nested replacement and save. Native cached/retired region variants restore independently of producer reachability."
+    },
+    {
+      "name": "stop_with_recovery_unit",
+      "entry": "0x6f05ca50",
+      "acquires": [
+        "0x6f05ca68"
+      ],
+      "releases": [
+        "0x6f05ca8f"
+      ],
+      "reported_exits": [],
+      "oracles": [
+        "oracle-work247",
+        "oracle-work257",
+        "oracle-work258",
+        "oracle-stop284",
+        "oracle-scope299",
+        "oracle-scope300",
+        "oracle-scope301",
+        "oracle-owner303",
+        "oracle-removal304",
+        "oracle-map342"
+      ],
+      "tests": [
+        "wc3_movement.stop257_unit_scope_excludes_all_regions_after_save_and_restores_outer_depth",
+        "wc3_movement.stop258_structure_stop_and_support_skip_embedded_placement",
+        "wc3_movement.scope299_idle_nested_move",
+        "wc3_movement.scope300_idle_nested_pause",
+        "wc3_movement.removal304_scheduled_first_disable_after_native_return",
+        "wc3_movement.stop284_idle_callback_terrain_edit",
+        "wc3_movement.scope299_active_nested_move",
+        "wc3_movement.scope300_active_nested_pause",
+        "wc3_movement.scope301_idle_nested_removal",
+        "wc3_movement.scope301_active_nested_removal",
+        "wc3_movement.scope301_idle_nested_death",
+        "wc3_movement.scope301_active_nested_death",
+        "wc3_movement.stop284_idle_nested_completed_stop",
+        "wc3_movement.stop284_active_nested_completed_stop",
+        "wc3_movement.stop284_active_callback_terrain_edit",
+        "wc3_movement.stop285_idle_nested_position_notifies",
+        "wc3_movement.stop285_active_nested_position_notifies",
+        "wc3_movement.map342_recovery_region_filters_run_inside_held_scope"
+      ],
+      "contract": "Stop/Move, structure support skip, nested Stop/Move/Pause/death/removal/placement and terrain edit. Unit/bridge/embedded holds have separate owners; deferred removal releases after native return. Held recovery region filters mutate Stop/Move/Pause/death/removal/placement/terrain; exact nested scope counts and captured counter restoration, including save continuations."
+    },
+    {
+      "name": "point_query_unit",
+      "entry": "0x6f04df50",
+      "acquires": [
+        "0x6f04dffb"
+      ],
+      "releases": [
+        "0x6f04e03f"
+      ],
+      "reported_exits": [
+        "0x6f04e05d"
+      ],
+      "oracles": [
+        "oracle-work231"
+      ],
+      "tests": [
+        "wc3_fine_spatial.point_query231_matches_original_counted_scope_and_stamps"
+      ],
+      "contract": "All600 original point-scope cases; null/self counter and endpoint-mode/stamp restoration."
+    },
+    {
+      "name": "rectangle_list_query",
+      "entry": "0x6f059590",
+      "acquires": [
+        "0x6f059733",
+        "0x6f05976e"
+      ],
+      "releases": [
+        "0x6f059808",
+        "0x6f05983f"
+      ],
+      "reported_exits": [
+        "0x6f0598ea",
+        "0x6f0599ae"
+      ],
+      "oracles": [
+        "oracle-work230"
+      ],
+      "tests": [
+        "pathfinding.captain_distance_excludes_widget_bounds_and_restores_pending_terrain"
+      ],
+      "contract": "Successful and unreachable distance returns after both list restores; alias and source/target orientations. Unresolvable native handle faults instead of returning from a held scope."
+    },
+    {
+      "name": "unreferenced_mixed_query",
+      "entry": "0x6f0599c0",
+      "acquires": [
+        "0x6f059a4c"
+      ],
+      "releases": [
+        "0x6f059bbe"
+      ],
+      "reported_exits": [],
+      "oracles": [
+        "oracle-exclusions"
+      ],
+      "tests": [],
+      "contract": "No static references to0599c0; no public reachable restoration exit. Keep this dead-code observation explicit."
+    }
+  ],
+  "limits": [
+    "This closes exclusion exit/restoration coverage, not every behavior of the surrounding movement or ability callbacks. Original fixture limitations remain unchanged.",
+    "Fatal allocation/invalid-handle termination is not a recoverable exit; controlled native callback boundaries and public repeat/control evidence remain distinguished."
+  ],
+  "exclusion_resolutions": [
+    {
+      "oracle": "oracle-exclusions",
+      "index": 1,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "Portal188 and recovery247/257/258 plus public284/299-304 cover the previously unresolved restoration outcomes."
+    },
+    {
+      "oracle": "oracle-embedded-recovery-scope",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "evidence-boundary",
+      "rationale": "Controlled native boundaries remain explicit. Recovery183 and public247/257/284/299-304 separately verify engine publication and nested restoration; no broader native geometry is inferred."
+    },
+    {
+      "oracle": "oracle-embedded-recovery-scope",
+      "index": 1,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "183 holds through publication;247/257/258 establish outer owners and284/299-304 cover public nested mutations."
+    },
+    {
+      "oracle": "oracle-portal-scope",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "evidence-boundary",
+      "rationale": "Portal188 verifies admitted/exhausted held-record exits and production placement callbacks. The old controlled16ecc0 boundary and absence of a thrown-exception claim remain evidence limits."
+    },
+    {
+      "oracle": "oracle-blocker-scopes202",
+      "index": 1,
+      "owner": "E2E-05.2",
+      "disposition": "evidence-boundary",
+      "rationale": "The old original-code versus live distinction is unchanged. Coverage342 executes its restoration assertions and retains existing capture provenance."
+    },
+    {
+      "oracle": "oracle-blocker-scopes202",
+      "index": 2,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "342 joins every scope exit;284/299-304 cover public recovery mutations without changing202 expected outputs."
+    },
+    {
+      "oracle": "oracle-cancel208",
+      "index": 2,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "Fresh static request closures contain no callback or writer; synchronous Stop cannot interrupt a held request. Public between-phase edits and nested Stop are covered284/342."
+    },
+    {
+      "oracle": "oracle-e2e-lifetimes213",
+      "index": 3,
+      "owner": "E2E-05.2",
+      "disposition": "evidence-boundary",
+      "rationale": "Worker teardown coverage is unchanged. Synchronous original searches have no public mid-search save callback; retail save UI and multiplayer/replay remain outside this capture contract."
+    },
+    {
+      "oracle": "oracle-work226",
+      "index": 3,
+      "owner": "ORDER-01.16",
+      "disposition": "behavior",
+      "rationale": "Construction pause/resume ownership remains the construction lifecycle task. Coverage342 accounts for exclusion restoration, not every resumed work phase."
+    },
+    {
+      "oracle": "oracle-work230",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "231 supplies point-query restoration;248/249/273 supply group publication and342 verifies all exit obligations."
+    },
+    {
+      "oracle": "oracle-work230",
+      "index": 2,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "231 supplies point-query restoration;248/249/273 supply group publication and342 verifies all exit obligations."
+    },
+    {
+      "oracle": "oracle-work231",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "247/257/258 supply outer recovery scopes and273 supplies group publication;342 joins the checks."
+    },
+    {
+      "oracle": "oracle-work231",
+      "index": 3,
+      "owner": "GROUP-04.6",
+      "disposition": "behavior",
+      "rationale": "Persistent canonical target/completion and worker/group composition remain GROUP-04.6; point-query counters and mode restoration are verified231/342. No throughput claim is added."
+    },
+    {
+      "oracle": "oracle-work235",
+      "index": 3,
+      "owner": "GROUP-04.6",
+      "disposition": "behavior",
+      "rationale": "Fine restoration is verified146/342; unresolved/busy canonical producers and persistent request callback state retain GROUP-04.6."
+    },
+    {
+      "oracle": "oracle-work247",
+      "index": 2,
+      "owner": "FOOT-04.2",
+      "disposition": "behavior",
+      "rationale": "Public notification restoration is verified284/299-304. Nonflat and rejected-support placement domains remain FOOT-04.2, independently of scope balance."
+    },
+    {
+      "oracle": "oracle-work247",
+      "index": 3,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "257/258 implement unit ownership and284/299-304 implement callback Stop/Move/Pause/death/removal owners."
+    },
+    {
+      "oracle": "oracle-work248",
+      "index": 3,
+      "owner": "GROUP-04.6",
+      "disposition": "behavior",
+      "rationale": "Canonical admission callback/save and broader group composition remain GROUP-04.6; normal pending/drop exclusion exits are verified248/273/342."
+    },
+    {
+      "oracle": "oracle-work249",
+      "index": 3,
+      "owner": "GROUP-04.6",
+      "disposition": "behavior",
+      "rationale": "Captain scope restoration is verified273/342; cached-region producers, busy issued-event chronology and broader persistent canonical ownership remain GROUP-04.6."
+    },
+    {
+      "oracle": "oracle-work257",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "284/299-304 integrate duplicate and reentrant public recovery ownership;342 executes their unchanged expectations."
+    },
+    {
+      "oracle": "oracle-work258",
+      "index": 3,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "284/299-304 provide the missing public callback compositions;342 accounts for all scope exits. Historical capture labels and performance limits remain unchanged."
+    },
+    {
+      "oracle": "oracle-work258",
+      "index": 4,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "284/299-304 provide the missing public callback compositions;342 accounts for all scope exits. Historical capture labels and performance limits remain unchanged."
+    },
+    {
+      "oracle": "oracle-capscope273",
+      "index": 0,
+      "owner": "GROUP-04.6",
+      "disposition": "behavior",
+      "rationale": "All original cached/retired-region scope results remain intact. Supplying those cached-region inputs from broader canonical engine producers remains GROUP-04.6;342 does not claim that producer implementation."
+    },
+    {
+      "oracle": "oracle-capscope273",
+      "index": 2,
+      "owner": "GROUP-04.6",
+      "disposition": "behavior",
+      "rationale": "Scope exits and public Stop callback mutations are covered342; broader canonical admission and callback compositions remain GROUP-04.6. No performance claim."
+    },
+    {
+      "oracle": "oracle-cast283",
+      "index": 1,
+      "owner": "ORDER-01.13",
+      "disposition": "behavior",
+      "rationale": "Spell suspension, target response, reentrant save and metadata mutation remain ability lifecycle work. Exclusion restoration does not discharge those semantics."
+    },
+    {
+      "oracle": "oracle-stop284",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "299/300/301/303/304 implement the previously diagnostic Move/Pause/death/removal counts;285 covers placement.342 requires their executed assertions."
+    },
+    {
+      "oracle": "oracle-stop284",
+      "index": 1,
+      "owner": "GROUP-04.6",
+      "disposition": "behavior",
+      "rationale": "Cached-region producers remain GROUP-04.6; public stale-handle reachability also belongs to BASE-03.1. Known recovery mutations restore correctly in299-304/342; unknown producer behavior is not declared complete."
+    },
+    {
+      "oracle": "oracle-stop285",
+      "index": 0,
+      "owner": "ORDER-01.13",
+      "disposition": "behavior",
+      "rationale": "299-304 integrate the nested cancellation/restoration owners; the complete resumed ability/Move trajectory and broader suspension compositions remain ORDER-01.13."
+    },
+    {
+      "oracle": "oracle-pause286",
+      "index": 1,
+      "owner": "ORDER-01.13",
+      "disposition": "behavior",
+      "rationale": "300/301/304 verify cleanup scope restoration. Modal/resumed-owner chronology and complete post-resume ability trajectories retain ORDER-01.13."
+    },
+    {
+      "oracle": "oracle-scope299",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "300/301/303/304 implement the remaining suspension/death/removal recovery owners;342 verifies the full exit table."
+    },
+    {
+      "oracle": "oracle-scope300",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "301/303/304 implement fine death/removal lifetime and final disable;342 executes these and the full scope table."
+    },
+    {
+      "oracle": "oracle-scope301",
+      "index": 0,
+      "owner": "SEP-01.2",
+      "disposition": "behavior",
+      "rationale": "Fine exclusion identity and death/removal restoration are verified301/303/304/342. Wider availability, inactive and proximity producer lifetimes retain SEP-01.2."
+    },
+    {
+      "oracle": "oracle-owner303",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "304 integrates deferred first-disable recovery after RemoveUnit returns;342 verifies the joined exit inventory."
+    },
+    {
+      "oracle": "oracle-owner303",
+      "index": 1,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "304 integrates deferred first-disable recovery after RemoveUnit returns;342 verifies the joined exit inventory."
+    },
+    {
+      "oracle": "oracle-removal304",
+      "index": 0,
+      "owner": "E2E-05.2",
+      "disposition": "superseded-review",
+      "rationale": "342 joins all twelve static sites with native exit reports and Classic/TFT restoration assertions."
+    }
+  ]
+}

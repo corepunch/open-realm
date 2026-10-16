@@ -1,0 +1,768 @@
+{
+  "version": 1,
+  "task": "MAP-04.2",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "engine_tests": [
+    "wc3_movement.stop258*",
+    "wc3_movement.stop257*",
+    "wc3_movement.stop247*",
+    "wc3_ancient_root.*",
+    "wc3_movement.recovery183*",
+    "wc3_movement.public_stop*",
+    "wc3_order_lifecycle.*",
+    "wc3_interrupt.*",
+    "wc3_movement.target256*",
+    "wc3_movement.primary_clock_public_move_save_pause_and_stop",
+    "wc3_movement.pathing_pause_and_displacement_match_original_and_saved_continuations",
+    "wc3_save.fine_spatial*",
+    "wc3_save.rejects_prior_save_versions"
+  ],
+  "pins": {
+    "tools/frida/research/work258_observer.js": "ac08bf8f4faf7b414e0e1a2749670d9e449d8bf4c885b756b96e43a564ea5ad9",
+    "tools/frida/research/work258_make_map.py": "6d2d5c65cb0d9ea183e1f5ce33647bd7cf50021b7145c35590f2b454b2a70e66",
+    "tools/frida/research/work258_probe.j": "3fafae3e35409b2e401d9ed414b1d2902dd9997b04e17cfd0005f8381ae0f5b3",
+    "tools/ghidra/research/Work258Evidence.java": "9b7097ca9ca8077435d941dbb8942c9429461e9b0d3b5b01caf21a9831281508",
+    "tools/ghidra/research/work258_oracle.py": "ffd45619d352790d231cdcaf8b990b4d55adaa2707f88554407174d01e337b12",
+    "tools/frida/research/target222_capture.py": "850343c8f953687d4fe5223aa35a4f2f5ce89fbab32711c3826b3eee55361548",
+    "tools/frida/research/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "tools/frida/make_wc3_pathfinding_map.py": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf",
+    "tools/ghidra/fixtures/retail-work247-1.27.json": "622ce15028e0fde08cf54237703528c2fb6f7d15850ec60740e3e021ebc71058",
+    "tools/ghidra/fixtures/retail-work247-1.27.json.gz": "238875288e5210f93d548b58b6c890bb41da373e6e42171456bc39ccfa2ea1b4",
+    "tools/ghidra/research/work247_oracle.py": "76e66bccb6aff9dd4611b2f9310816225ab20780195e80e569175ddba1fb8121",
+    "tools/ghidra/research/foot03_rig.py": "1a333f7281d1d70672d5db6915ee513c3486498fe2a4fa5dd41f9dc5e8eaca61",
+    "tools/ghidra/research/foot03_spatial_harness_copy.py": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3"
+  },
+  "bundle_sha256": "6886c649364ff345206e60cd744b0f2e5d708fb560ad5153a3c6429ca0e26d5f",
+  "map_sha256": "20cb04cdee5755150432db1ce615c9956f84c48255679b208495a50836be164c",
+  "instructions": {
+    "6f69a840": "55",
+    "6f69a841": "8bec",
+    "6f69a843": "83ec10",
+    "6f69a846": "56",
+    "6f69a847": "8bf1",
+    "6f69a849": "8b06",
+    "6f69a84b": "ff90d4000000",
+    "6f69a851": "6a01",
+    "6f69a853": "8bce",
+    "6f69a855": "8945fc",
+    "6f69a858": "e83319ffff",
+    "6f69a85d": "85c0",
+    "6f69a85f": "753e",
+    "6f69a861": "8b06",
+    "6f69a863": "8bce",
+    "6f69a865": "6a01",
+    "6f69a867": "ff90d0000000",
+    "6f69a86d": "8d45fc",
+    "6f69a870": "50",
+    "6f69a871": "686040656f",
+    "6f69a876": "8d8e64010000",
+    "6f69a87c": "e8cf219cff",
+    "6f69a881": "8b06",
+    "6f69a883": "8bce",
+    "6f69a885": "6a00",
+    "6f69a887": "ff90d0000000",
+    "6f69a88d": "6a01",
+    "6f69a88f": "8d45f0",
+    "6f69a892": "8bce",
+    "6f69a894": "50",
+    "6f69a895": "e8e69bfeff",
+    "6f69a89a": "5e",
+    "6f69a89b": "8be5",
+    "6f69a89d": "5d",
+    "6f69a89e": "c3",
+    "6f69a89f": "6a00",
+    "6f69a8a1": "6a00",
+    "6f69a8a3": "8d8e64010000",
+    "6f69a8a9": "e8a2219cff",
+    "6f69a8ae": "6a01",
+    "6f69a8b0": "8d45f0",
+    "6f69a8b3": "8bce",
+    "6f69a8b5": "50",
+    "6f69a8b6": "e8c59bfeff",
+    "6f69a8bb": "5e",
+    "6f69a8bc": "8be5",
+    "6f69a8be": "5d",
+    "6f69a8bf": "c3",
+    "6f68c190": "55",
+    "6f68c191": "8bec",
+    "6f68c193": "8b415c",
+    "6f68c196": "a900000100",
+    "6f68c19b": "741a",
+    "6f68c19d": "837d0800",
+    "6f68c1a1": "740b",
+    "6f68c1a3": "84c0",
+    "6f68c1a5": "7907",
+    "6f68c1a7": "a900000008",
+    "6f68c1ac": "7409",
+    "6f68c1ae": "b801000000",
+    "6f68c1b3": "5d",
+    "6f68c1b4": "c20400",
+    "6f68c1b7": "33c0",
+    "6f68c1b9": "5d",
+    "6f68c1ba": "c20400",
+    "6f651590": "55",
+    "6f651591": "8bec",
+    "6f651593": "56",
+    "6f651594": "8bf1",
+    "6f651596": "8b5610",
+    "6f651599": "8b4e0c",
+    "6f65159c": "e88f2fa0ff",
+    "6f6515a1": "85c0",
+    "6f6515a3": "7438",
+    "6f6515a5": "33d2",
+    "6f6515a7": "81780c6c67612b",
+    "6f6515ae": "0f44d0",
+    "6f6515b1": "85d2",
+    "6f6515b3": "7428",
+    "6f6515b5": "837a2000",
+    "6f6515b9": "7522",
+    "6f6515bb": "8b06",
+    "6f6515bd": "8bce",
+    "6f6515bf": "ff7508",
+    "6f6515c2": "ff90b8000000",
+    "6f6515c8": "8bc8",
+    "6f6515ca": "e861a7a0ff",
+    "6f6515cf": "8b4e34",
+    "6f6515d2": "85c9",
+    "6f6515d4": "7407",
+    "6f6515d6": "5e",
+    "6f6515d7": "5d",
+    "6f6515d8": "e93327a1ff",
+    "6f6515dd": "5e",
+    "6f6515de": "5d",
+    "6f6515df": "c20400",
+    "6f171340": "55",
+    "6f171341": "8bec",
+    "6f171343": "83ec18",
+    "6f171346": "53",
+    "6f171347": "56",
+    "6f171348": "57",
+    "6f171349": "8bd9",
+    "6f17134b": "e810e2ffff",
+    "6f171350": "a144c7d36f",
+    "6f171355": "8db380000000",
+    "6f17135b": "8945f0",
+    "6f17135e": "8d55f4",
+    "6f171361": "8945f4",
+    "6f171364": "8d4dfc",
+    "6f171367": "8d4604",
+    "6f17136a": "50",
+    "6f17136b": "e820e7efff",
+    "6f171370": "56",
+    "6f171371": "8d55f0",
+    "6f171374": "8bf8",
+    "6f171376": "8d4df8",
+    "6f171379": "e812e7efff",
+    "6f17137e": "6a01",
+    "6f171380": "8b08",
+    "6f171382": "894de8",
+    "6f171385": "8bcb",
+    "6f171387": "8b07",
+    "6f171389": "8945ec",
+    "6f17138c": "8d45e8",
+    "6f17138f": "50",
+    "6f171390": "e84be4feff",
+    "6f171395": "837d0800",
+    "6f171399": "a144c7d36f",
+    "6f17139e": "8983c4000000",
+    "6f1713a4": "8983c0000000",
+    "6f1713aa": "7409",
+    "6f1713ac": "6a00",
+    "6f1713ae": "8bcb",
+    "6f1713b0": "e8ebfbffff",
+    "6f1713b5": "8b4d18",
+    "6f1713b8": "85c9",
+    "6f1713ba": "741c",
+    "6f1713bc": "8b83a8000000",
+    "6f1713c2": "6a02",
+    "6f1713c4": "ff7520",
+    "6f1713c7": "ff751c",
+    "6f1713ca": "51",
+    "6f1713cb": "ffb09c000000",
+    "6f1713d1": "8bcb",
+    "6f1713d3": "e8a8ecffff",
+    "6f1713d8": "837d0c00",
+    "6f1713dc": "7417",
+    "6f1713de": "837d1000",
+    "6f1713e2": "8bcb",
+    "6f1713e4": "740a",
+    "6f1713e6": "ff7514",
+    "6f1713e9": "e8d2f9ffff",
+    "6f1713ee": "eb05",
+    "6f1713f0": "e85bf9ffff",
+    "6f1713f5": "8b8ba8000000",
+    "6f1713fb": "85c9",
+    "6f1713fd": "742d",
+    "6f1713ff": "a1dc41d56f",
+    "6f171404": "8945e8",
+    "6f171407": "8945ec",
+    "6f17140a": "8d45e8",
+    "6f17140d": "6a00",
+    "6f17140f": "50",
+    "6f171410": "e86b77ffff",
+    "6f171415": "8bb3a8000000",
+    "6f17141b": "8bce",
+    "6f17141d": "e8de73ffff",
+    "6f171422": "818e8800000000001000",
+    "6f17142c": "5f",
+    "6f17142d": "5e",
+    "6f17142e": "5b",
+    "6f17142f": "8be5",
+    "6f171431": "5d",
+    "6f171432": "c21c00",
+    "6f05ca50": "55",
+    "6f05ca51": "8bec",
+    "6f05ca53": "56",
+    "6f05ca54": "57",
+    "6f05ca55": "8bf9",
+    "6f05ca57": "8b570c",
+    "6f05ca5a": "8b4f08",
+    "6f05ca5d": "e8ce7affff",
+    "6f05ca62": "6a01",
+    "6f05ca64": "8bcf",
+    "6f05ca66": "8bf0",
+    "6f05ca68": "e8c3f2ffff",
+    "6f05ca6d": "ff750c",
+    "6f05ca70": "8b4d08",
+    "6f05ca73": "51",
+    "6f05ca74": "f7d9",
+    "6f05ca76": "1bc9",
+    "6f05ca78": "83e105",
+    "6f05ca7b": "51",
+    "6f05ca7c": "6a00",
+    "6f05ca7e": "6a00",
+    "6f05ca80": "6a00",
+    "6f05ca82": "6a01",
+    "6f05ca84": "8bce",
+    "6f05ca86": "e8b5481100",
+    "6f05ca8b": "6a00",
+    "6f05ca8d": "8bcf",
+    "6f05ca8f": "e89cf2ffff",
+    "6f05ca94": "5f",
+    "6f05ca95": "5e",
+    "6f05ca96": "5d",
+    "6f05ca97": "c20800"
+  },
+  "markers": [
+    "W258 tick=0 scene=0 label=start order=0",
+    "W258 tick=40 scene=0 label=before order=0 x=1024.000 y=1024.000",
+    "W258 tick=40 scene=0 label=after-accepted order=0 x=1024.000 y=1024.000",
+    "W258 tick=44 scene=0 label=settled order=0 x=1024.000 y=1024.000",
+    "W258 tick=90 scene=1 label=before order=0 x=1024.000 y=1024.000",
+    "W258 tick=90 scene=1 label=after-accepted order=0 x=1024.000 y=1024.000",
+    "W258 tick=94 scene=1 label=settled order=0 x=1024.000 y=1024.000",
+    "W258 tick=140 scene=2 label=before order=0 x=1024.000 y=1024.000",
+    "W258 tick=140 scene=2 label=after-accepted order=0 x=1024.000 y=1024.000",
+    "W258 tick=144 scene=2 label=settled order=0 x=1024.000 y=1024.000",
+    "W258 tick=150 scene=3 label=unroot-852166 order=852166 x=1024.000 y=1024.000",
+    "W258 tick=190 scene=3 label=before order=0 x=1024.000 y=1024.000",
+    "W258 tick=190 scene=3 label=after-accepted order=0 x=1024.000 y=1024.000",
+    "W258 tick=194 scene=3 label=settled order=0 x=1024.000 y=1024.000",
+    "W258 tick=199 scene=4 label=complete order=0 x=0.000 y=0.000"
+  ],
+  "events": [
+    {
+      "event": "unit-stop-enter",
+      "seq": 0,
+      "scene": 0,
+      "flags": 513,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 1,
+      "scene": 0,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 2,
+      "scene": 0,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 3,
+      "scene": 0,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 4,
+      "scene": 0,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 5,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 6,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 7,
+      "scene": 0,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 8,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 9,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 10,
+      "scene": 0,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 11,
+      "scene": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 12,
+      "scene": 0,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 13,
+      "scene": 0,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-stop-exit",
+      "seq": 14,
+      "scene": 0,
+      "flags": 513,
+      "regions": 0
+    },
+    {
+      "event": "unit-stop-enter",
+      "seq": 15,
+      "scene": 0,
+      "flags": 513,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 16,
+      "scene": 0,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 17,
+      "scene": 0,
+      "on": 1,
+      "regions": 0
+    },
+    {
+      "event": "stop-enter",
+      "seq": 18,
+      "scene": 0,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 19,
+      "scene": 0,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 20,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 21,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 22,
+      "scene": 0,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 23,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 24,
+      "scene": 0,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 25,
+      "scene": 0,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 26,
+      "scene": 0
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 27,
+      "scene": 0,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 28,
+      "scene": 0,
+      "on": 0,
+      "regions": 0
+    },
+    {
+      "event": "unit-stop-exit",
+      "seq": 29,
+      "scene": 0,
+      "flags": 513,
+      "regions": 0
+    },
+    {
+      "event": "unit-stop-enter",
+      "seq": 30,
+      "scene": 3,
+      "flags": 103041,
+      "regions": 3
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 31,
+      "scene": 3,
+      "on": 1,
+      "regions": 3
+    },
+    {
+      "event": "widget-toggle-enter",
+      "seq": 32,
+      "scene": 3,
+      "on": 1,
+      "flags": [
+        268435456,
+        268435456,
+        268435456
+      ]
+    },
+    {
+      "event": "widget-toggle-exit",
+      "seq": 33,
+      "scene": 3,
+      "on": 1,
+      "flags": [
+        268435457,
+        268435457,
+        268435457
+      ]
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 34,
+      "scene": 3,
+      "on": 1,
+      "regions": 3
+    },
+    {
+      "event": "stop-enter",
+      "seq": 35,
+      "scene": 3,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 36,
+      "scene": 3,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 37,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 38,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 39,
+      "scene": 3,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 40,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 41,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 42,
+      "scene": 3,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 43,
+      "scene": 3
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 44,
+      "scene": 3,
+      "on": 0,
+      "regions": 3
+    },
+    {
+      "event": "widget-toggle-enter",
+      "seq": 45,
+      "scene": 3,
+      "on": 0,
+      "flags": [
+        268435457,
+        268435457,
+        268435457
+      ]
+    },
+    {
+      "event": "widget-toggle-exit",
+      "seq": 46,
+      "scene": 3,
+      "on": 0,
+      "flags": [
+        268435456,
+        268435456,
+        268435456
+      ]
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 47,
+      "scene": 3,
+      "on": 0,
+      "regions": 3
+    },
+    {
+      "event": "unit-stop-exit",
+      "seq": 48,
+      "scene": 3,
+      "flags": 103041,
+      "regions": 3
+    },
+    {
+      "event": "unit-stop-enter",
+      "seq": 49,
+      "scene": 3,
+      "flags": 103041,
+      "regions": 3
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 50,
+      "scene": 3,
+      "on": 1,
+      "regions": 3
+    },
+    {
+      "event": "widget-toggle-enter",
+      "seq": 51,
+      "scene": 3,
+      "on": 1,
+      "flags": [
+        268435456,
+        268435456,
+        268435456
+      ]
+    },
+    {
+      "event": "widget-toggle-exit",
+      "seq": 52,
+      "scene": 3,
+      "on": 1,
+      "flags": [
+        268435457,
+        268435457,
+        268435457
+      ]
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 53,
+      "scene": 3,
+      "on": 1,
+      "regions": 3
+    },
+    {
+      "event": "stop-enter",
+      "seq": 54,
+      "scene": 3,
+      "callback": true
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 55,
+      "scene": 3,
+      "on": 1,
+      "counter": 2
+    },
+    {
+      "event": "stop-mover-enter",
+      "seq": 56,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "inner-enter",
+      "seq": 57,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "footprint",
+      "seq": 58,
+      "scene": 3,
+      "counter": 3,
+      "mode": 1
+    },
+    {
+      "event": "inner-exit",
+      "seq": 59,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "stop-mover-exit",
+      "seq": 60,
+      "scene": 3,
+      "counter": 2,
+      "mode": 0
+    },
+    {
+      "event": "outer-toggle",
+      "seq": 61,
+      "scene": 3,
+      "on": 0,
+      "counter": 1
+    },
+    {
+      "event": "stop-exit",
+      "seq": 62,
+      "scene": 3
+    },
+    {
+      "event": "unit-toggle-enter",
+      "seq": 63,
+      "scene": 3,
+      "on": 0,
+      "regions": 3
+    },
+    {
+      "event": "widget-toggle-enter",
+      "seq": 64,
+      "scene": 3,
+      "on": 0,
+      "flags": [
+        268435457,
+        268435457,
+        268435457
+      ]
+    },
+    {
+      "event": "widget-toggle-exit",
+      "seq": 65,
+      "scene": 3,
+      "on": 0,
+      "flags": [
+        268435456,
+        268435456,
+        268435456
+      ]
+    },
+    {
+      "event": "unit-toggle-exit",
+      "seq": 66,
+      "scene": 3,
+      "on": 0,
+      "regions": 3
+    },
+    {
+      "event": "unit-stop-exit",
+      "seq": 67,
+      "scene": 3,
+      "flags": 103041,
+      "regions": 3
+    }
+  ],
+  "limits": [
+    "Original predicate kernel uses supplied flags and mode; it does not construct an original Unit.",
+    "Public traces cover four live unit forms on the supplied arena; only uprooted Tree carries widget regions.",
+    "Earlier original247 null-callback kernel and controls are reused unchanged.",
+    "Current-form engine checks use the existing Root ability fixture; no public duplicate callbacks or notification reentrancy are synthesized.",
+    "No performance target or broader MAP-04.2 closure is claimed. Shared capture metadata retains the TARGET-03.2 runner label; map and sources pin this MAP-04.2 experiment."
+  ]
+}

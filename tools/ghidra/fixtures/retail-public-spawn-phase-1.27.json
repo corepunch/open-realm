@@ -1,0 +1,98 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "motion_fixture": "retail-public-spawn-motion-1.27.json",
+  "motion_fixture_sha256": "1178a6ca4d2dfa96f4d76ba53f1d85641c325ce5f37d6a8e2557d143054ede89",
+  "owner_counter": 1024,
+  "primary_sha256": "c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae",
+  "births": [
+    {
+      "case": "spawn_0",
+      "primary_advances": 20,
+      "owner_updates": 3,
+      "clock": [
+        1036831943,
+        0,
+        1133903872
+      ],
+      "phase": 2
+    },
+    {
+      "case": "spawn_1",
+      "primary_advances": 420,
+      "owner_updates": 70,
+      "clock": [
+        1074161236,
+        0,
+        1133903872
+      ],
+      "phase": 0
+    },
+    {
+      "case": "spawn_2",
+      "primary_advances": 820,
+      "owner_updates": 136,
+      "clock": [
+        1082340024,
+        0,
+        1133903872
+      ],
+      "phase": 4
+    },
+    {
+      "case": "spawn_3",
+      "primary_advances": 1220,
+      "owner_updates": 203,
+      "clock": [
+        1086534024,
+        0,
+        1133903872
+      ],
+      "phase": 2
+    },
+    {
+      "case": "spawn_4",
+      "primary_advances": 1620,
+      "owner_updates": 270,
+      "clock": [
+        1090623522,
+        0,
+        1133903872
+      ],
+      "phase": 0
+    },
+    {
+      "case": "spawn_5",
+      "primary_advances": 2020,
+      "owner_updates": 336,
+      "clock": [
+        1092720322,
+        0,
+        1133903872
+      ],
+      "phase": 4
+    },
+    {
+      "case": "spawn_6",
+      "primary_advances": 2420,
+      "owner_updates": 403,
+      "clock": [
+        1094817122,
+        0,
+        1133903872
+      ],
+      "phase": 2
+    },
+    {
+      "case": "spawn_7",
+      "primary_advances": 2820,
+      "owner_updates": 470,
+      "clock": [
+        1096913922,
+        0,
+        1133903872
+      ],
+      "phase": 0
+    }
+  ],
+  "scope": "Observed periodic0.1-second JASS timer public spawns inside primary timer dispatch, from zero primary clock; all247 downstream commits are frozen separately. General timer scalar deadlines and zero/submillisecond intervals excluded."
+}

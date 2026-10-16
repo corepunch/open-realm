@@ -1,0 +1,61 @@
+{
+  "runs": [
+    {
+      "mode": "observe",
+      "map_sha256": "cbf7183da8f4593bf5ceef12d40a54292a4a48670b8be384639955337c3add5d",
+      "capture_sha256": "7fbdd15438d79a8fcadc657e26fc86f274c4de81af4f9dbe84278cf703a84f3a",
+      "preload_sha256": "82ea20fef554f0c06fa0ce54b412c739df006306a8ec0a6a5975f9df123e982e",
+      "markers": 1105,
+      "coordinate_samples": 597,
+      "loaded": {
+        "fine": {
+          "source": 4294967295,
+          "nearest": 4294967295,
+          "count": 0,
+          "budget": 0
+        },
+        "coarse": {
+          "source": 4294967295,
+          "nearest": 4294967295,
+          "count": 0,
+          "budget": 0
+        }
+      }
+    },
+    {
+      "mode": "observe",
+      "map_sha256": "cbf7183da8f4593bf5ceef12d40a54292a4a48670b8be384639955337c3add5d",
+      "capture_sha256": "c5fd65086b8d677d31976e0fc9b6c6223305a0ae5be25e494933306c1844bf19",
+      "preload_sha256": "0d7015f5a2db60f246dfd5b4ebceea6438ceab73b74e1b4e94c6d38793d8c242",
+      "markers": 1103,
+      "coordinate_samples": 597,
+      "loaded": {
+        "fine": {
+          "source": 4294967295,
+          "nearest": 4294967295,
+          "count": 0,
+          "budget": 0
+        },
+        "coarse": {
+          "source": 4294967295,
+          "nearest": 4294967295,
+          "count": 0,
+          "budget": 0
+        }
+      }
+    },
+    {
+      "mode": "control",
+      "map_sha256": "cbf7183da8f4593bf5ceef12d40a54292a4a48670b8be384639955337c3add5d",
+      "capture_sha256": "656b6b6dbe5bddd1011c8d0966c366f82cecb5c79d600b0b9db89eea62c52d13",
+      "preload_sha256": "6d445a41c4c74371aa1fe51581076631fdba950b5111d324adaf9fd707ec0eb8",
+      "markers": 1105,
+      "coordinate_samples": 597,
+      "loaded": null
+    }
+  ],
+  "observer_repeats": 2,
+  "observer_free_controls": 1,
+  "public_markers": 597,
+  "full_public_sequences_equal": true
+}

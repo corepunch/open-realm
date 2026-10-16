@@ -25,11 +25,20 @@ void test_sound_event(edict_t *ent, uint32_t request, uint32_t event) {
     G_ClientCommand(player, 4, args);
 }
 
+static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
+
+/* ReadGame rebinds object data from the fixture archive, which has no
+ * UnitWeapons.slk; restore the allocator's permissive row afterwards. */
+void reattach_test_weapons(edict_t *ent) {
+    if (ent && (!ent->data.UnitWeapons || !ent->data.UnitWeapons->attacksEnabled))
+        ent->data.UnitWeapons = &test_weapons;
+}
+
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
-    static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     edict_t *ent = G_Spawn();
     ent->class_id = class_id;
     G_BindEntityData(ent);
+    S_SetMoveFormationRank(ent, ent->data.UnitData->formationRank);
     /* This helper constructs allocator-only units instead of running
      * SP_SpawnUnit. Give its generic movement fixture a permissive window;
      * focused PropWindow tests set their authored/runtime value explicitly. */
@@ -60,10 +69,27 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
      * a generic test unit must not silently start life as a corpse. */
     ent->health.max_value = MAX(ent->data.UnitBalance->maxHealth, 1.0f);
     ent->health.value = ent->health.max_value;
+    G_UnitOwnerInsert(ent);
     return ent;
 }
 
 void reset_entities(void) {
+    G_BotClearTownSpots();
+    G_ResetUnitAbilityCodes();
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
+    G_ResetWaypointCache();
+    level.waypoints=(typeof(level.waypoints)){0};
+    G_ResetMoveRegionEvents();
+    G_ResetEventSubscribers();
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
+    /* Existing movement fixtures compare exact retail admission clocks.
+     * Responsive-policy tests opt in after resetting their world. */
+    level.move_fine_responsive=false;
+    S_ResetAbilityTimers();
+    G_ClearMoveSpatial();
+    M_ResetMoveMembers();
     uint32_t cap = globals.max_edicts;
     G_ResetDeferredFrees();
     G_ResetHeroPassiveCaches();
@@ -75,9 +101,13 @@ void reset_entities(void) {
      * test shrinks max_edicts to num_edicts+1 (26 in the full suite); walking 16000
      * edicts first would G_FreeActorSkills stale high slots. */
     if (cap > MAX_ENTITIES) cap = MAX_ENTITIES;
-    FOR_LOOP(i, cap) G_FreeActorSkills(g_edicts + i);
+    FOR_LOOP(i, cap) {
+        S_FreeMoveRoute(g_edicts+i);
+        G_FreeActorSkills(g_edicts+i);
+    }
     G_PoolsReset();
-    memset(g_edicts, 0, sizeof(edict_t) * cap);
+    G_ClearEdictStorage(cap);
+    level.repulse_head=NULL;level.repulse_phase=0;
     globals.max_edicts = MAX_ENTITIES;
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
@@ -102,6 +132,7 @@ static war3mapVertex_t test_vertices[(TEST_PATHMAP_CELLS + 1) * (TEST_PATHMAP_CE
 
 static uint32_t test_get_time(void) { return level.time; }
 static void test_set_paused(bool paused) { (void)paused; }
+static void test_set_simulation_rate(uint32_t n, uint32_t d) { (void)n; (void)d; }
 /* Parallel shards share the per-user saves directory; game-module save slots
  * (hero_saveload_audit, JASS SaveGame) must stay private to this process. */
 static void test_save_path(cstring_t rel, string_t out, uint32_t out_size) { strlcpy(out, Test_TempPath(rel), out_size); }
@@ -114,6 +145,7 @@ void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells) {
 
 void setup_test_world(void) {
     G_ClearGroundSurfaces();
+    S_ClearFlightSupport();
 	memset(&test_mapinfo, 0, sizeof(test_mapinfo));
 	level.mapinfo = &test_mapinfo;
 	G_InitPlayerAlliances(level.mapinfo);
@@ -142,6 +174,15 @@ void setup_test_world(void) {
 
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
+    S_ResetAbilityTimers();
+    /* Physical Move owners also retain process-local links. Release them
+     * before wiping level; otherwise the next frame follows orphaned owners. */
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
+    G_ResetEventSubscribers();
+    G_ResetUnitAbilityCodes();
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
     G_ResetDeferredFrees();
     UI_TestResetInfoPanelIconCache();
     G_ResetSelectionSoundState();
@@ -153,7 +194,8 @@ static void reset_test_state(void) {
     G_FowShutdown();
     G_BlightShutdown();
     globals.max_edicts = MAX_ENTITIES;
-    memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
+    G_ClearEdictStorage(globals.max_edicts);
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
     /* Restore player-slot client pointers so G_GetPlayerEntityByNumber works. */
@@ -166,8 +208,7 @@ static void reset_test_state(void) {
     game.constants.gameDayLength = 480.0f;
     game.constants.foodCeiling = 100;
     game.constants.guardDistance = 600.0f;
-    game.constants.maxGuardDistance = 1000.0f;
-    game.constants.guardReturnMs = 5000;
+    game.constants.guardReturnTime = 5.0f;
     game.constants.upkeepUsageCount = 2;
     game.constants.upkeepGoldTaxCount = 3;
     game.constants.upkeepLumberTaxCount = 3;
@@ -191,6 +232,7 @@ static void reset_test_state(void) {
     G_ClearRegionRegistry();
     G_ClearHashtableRegistry();
     memset(&level, 0, sizeof(level));
+    level.pathing_clock.span = 300;
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     memset(&test_mapinfo, 0, sizeof(test_mapinfo));
@@ -198,6 +240,7 @@ static void reset_test_state(void) {
     G_InitPlayerAlliances(level.mapinfo);
     gi.GetTime = test_get_time;
     gi.SetPaused = test_set_paused;
+    gi.SetSimulationRate = test_set_simulation_rate;
     gi.SavePath = test_save_path;
     CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0, 0}, .max = {512, 384}));
     gi.ClearWorld();
@@ -223,7 +266,20 @@ static bool run_test_jass_impl(cstring_t src, cstring_t expected) {
     string_t buf = gi.MemAlloc(len + 1);
     memcpy(buf, src, len + 1);
 
-    if (level.vm) { jass_close(level.vm); level.vm = NULL; }
+    if (level.vm) {
+        /* Trigger actions/conditions and timers name functions owned by the
+         * VM being closed. A test that runs a second script must not keep,
+         * or save, registry rows that point into the freed VM. */
+        FOR_LOOP(i, level.num_triggers) {
+            DELETE_LIST(gTriggerAction_t, level.triggers[i].actions, gi.MemFree);
+            DELETE_LIST(gTriggerCondition_t, level.triggers[i].conditions, gi.MemFree);
+        }
+        memset(level.triggers, 0, sizeof(level.triggers)); level.num_triggers = 0;
+        memset(level.timers, 0, sizeof(level.timers)); level.num_timers = 0;
+        memset(&level.events, 0, sizeof(level.events));
+        G_ResetEventSubscribers();
+        jass_close(level.vm); level.vm = NULL;
+    }
 
     jass_sethost(&MAKE(jassHost_t,
         .MemAlloc         = gi.MemAlloc,

@@ -110,6 +110,7 @@ uint32_t RemoveRegion(jass_t *j) {
             if (level.events.queue[n % MAX_EVENT_QUEUE].responseTo == event)
                 level.events.queue[n % MAX_EVENT_QUEUE].responseTo = NULL;
         event->inuse = false;
+        G_TrackMoveRegionEvent(event);
         if (event->handle_generation == EVENT_HANDLE_GENERATION_MAX) event->generation_exhausted = true;
         else event->handle_generation++;
     }
@@ -186,5 +187,5 @@ uint32_t GetLocationY(jass_t *j) {
 }
 uint32_t GetLocationZ(jass_t *j) {
     vec2_t const *whichLocation = jass_checkhandle(j, 1, "location");
-    return jass_pushnumber(j, whichLocation ? CM_GetHeightAtPoint(whichLocation->x, whichLocation->y) : 0);
+    return jass_pushnumber(j, whichLocation ? S_GetLocationSupport(*whichLocation) : 0);
 }

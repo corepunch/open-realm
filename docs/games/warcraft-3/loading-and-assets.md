@@ -377,6 +377,16 @@ startup `+map` arguments are cvar assignments, so the last value wins instead of
 
 LAN loading uses bounded startup pages and an engine-owned client map reader; see [LAN lobby and startup](../../architecture/network.md#lan-lobby-and-startup) for the timeout, UDP-size, and remote-only import-crash fixes.
 
+
+### Whole-map ground list preserves earlier layers
+
+`R_BuildGroundLayers` must guard both writes in `ADD_TO_LIST` when a lower
+terrain layer returnsNULL. An unbraced macro guarded only `mapLayer->next`;
+the second assignment erased already-built higher layers. The renderer fixture
+builds a populated `Lgrs` layer and lets the real lower `Ldrt` texture lookup
+fail. It first reproduces the lost list, then retains the populated batch after
+the brace fix. Missing terrain art remains logged by the existing resolver.
+
 ### Special terrain doodad cave placement and cliff replacement textures
 
 The 16-byte special-doodad records after the ordinary `war3map.doo` placements

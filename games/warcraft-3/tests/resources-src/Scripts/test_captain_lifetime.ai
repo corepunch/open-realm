@@ -1,0 +1,35 @@
+function PathCaptainLifetimeRecruit takes nothing returns nothing
+    call SetCaptainHome(1,-1936.0,-144.0)
+    call InitAssault()
+    if AddAssault(1,'hBGL') and AddAssault(12,'hBGM') then
+        call Preload("PATHCAPTAIN lifetime accepted")
+    else
+        call Preload("PATHCAPTAIN lifetime rejected")
+    endif
+    if CaptainGroupSize()==13 then
+        call Preload("PATHCAPTAIN lifetime roster thirteen")
+    else
+        call Preload("PATHCAPTAIN lifetime roster wrong")
+    endif
+endfunction
+
+function main takes nothing returns nothing
+    call SetCampaignAI()
+    call Preload("PATHCAPTAIN lifetime initial recruit")
+    call CreateCaptains()
+    call PathCaptainLifetimeRecruit()
+    call Sleep(9.0)
+    if CaptainGroupSize()==0 then
+        call Preload("PATHCAPTAIN lifetime retained zero")
+    elseif CaptainGroupSize()==13 then
+        call Preload("PATHCAPTAIN lifetime retained thirteen")
+    else
+        call Preload("PATHCAPTAIN lifetime retained other")
+    endif
+    call Preload("PATHCAPTAIN lifetime before refill")
+    call PathCaptainLifetimeRecruit()
+    call Preload("PATHCAPTAIN lifetime after refill")
+    loop
+        call Sleep(1.0)
+    endloop
+endfunction

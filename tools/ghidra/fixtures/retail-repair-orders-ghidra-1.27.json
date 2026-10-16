@@ -1,0 +1,172 @@
+{
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "layouts": [
+    {
+      "path": "/WarcraftIII/Pathfinding127/WC3RepairPrefix",
+      "length": 464,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "/void *32",
+          "length": 4
+        },
+        {
+          "offset": 32,
+          "name": "flags",
+          "type": "/uint",
+          "length": 4
+        },
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "/WarcraftIII/Pathfinding127/WC3UnitOrdersPrefix *32",
+          "length": 4
+        },
+        {
+          "offset": 80,
+          "name": "rank",
+          "type": "/uint",
+          "length": 4
+        },
+        {
+          "offset": 312,
+          "name": "work_target",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity",
+          "length": 8
+        },
+        {
+          "offset": 324,
+          "name": "other_work_target",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity",
+          "length": 8
+        },
+        {
+          "offset": 340,
+          "name": "modifier0",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4
+        },
+        {
+          "offset": 348,
+          "name": "modifier1",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4
+        },
+        {
+          "offset": 356,
+          "name": "modifier2",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4
+        },
+        {
+          "offset": 364,
+          "name": "modifier3",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathScalar",
+          "length": 4
+        },
+        {
+          "offset": 368,
+          "name": "last_target",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity",
+          "length": 8
+        },
+        {
+          "offset": 460,
+          "name": "health_effect",
+          "type": "/void *32",
+          "length": 4
+        }
+      ]
+    }
+  ],
+  "methods": [
+    {
+      "address": "6f3ff160",
+      "prototype": "uint __thiscall Repair_ValidateUnitTarget(WC3RepairPrefix * ability, WC3UnitOrdersPrefix * target)",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "/WarcraftIII/Pathfinding127/WC3RepairPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "target",
+          "type": "/WarcraftIII/Pathfinding127/WC3UnitOrdersPrefix *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ]
+    },
+    {
+      "address": "6f4371b0",
+      "prototype": "uint __thiscall Repair_InterceptRetainedTarget(WC3RepairPrefix * ability, WC3OrderPrefix * order)",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "/WarcraftIII/Pathfinding127/WC3RepairPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "order",
+          "type": "/WarcraftIII/Pathfinding127/WC3OrderPrefix *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ]
+    },
+    {
+      "address": "6f409630",
+      "prototype": "void __thiscall Repair_BeginUnitWork(WC3RepairPrefix * ability, WC3UnitOrdersPrefix * target)",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "/WarcraftIII/Pathfinding127/WC3RepairPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "target",
+          "type": "/WarcraftIII/Pathfinding127/WC3UnitOrdersPrefix *32",
+          "storage": "Stack[0x4]:4"
+        }
+      ]
+    },
+    {
+      "address": "6f43a310",
+      "prototype": "void __thiscall Repair_UpdateWorkOwner(WC3RepairPrefix * ability, uint notify_gold, uint notify_lumber)",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "/WarcraftIII/Pathfinding127/WC3RepairPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "notify_gold",
+          "type": "/uint",
+          "storage": "Stack[0x4]:4"
+        },
+        {
+          "name": "notify_lumber",
+          "type": "/uint",
+          "storage": "Stack[0x8]:4"
+        }
+      ]
+    },
+    {
+      "address": "6f436e10",
+      "prototype": "void __thiscall Repair_StopWorkOwner(WC3RepairPrefix * ability, uint stop_flag)",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "/WarcraftIII/Pathfinding127/WC3RepairPrefix *32",
+          "storage": "ECX:4"
+        },
+        {
+          "name": "stop_flag",
+          "type": "/uint",
+          "storage": "Stack[0x4]:4"
+        }
+      ]
+    }
+  ],
+  "globals": [],
+  "passed": true
+}

@@ -310,7 +310,7 @@ static bool ShowTrainedUnit(edict_t *townhall, edict_t *unit) {
     unit->s.angle = angle;
     unit->training = false;
     unit->training_food_wait_notified = false;
-    unit->s.renderfx &= ~RF_HIDDEN;
+    G_SetEntityHidden(unit,false);
     /* Food Used was already reserved on this queue entity. Completion only
      * activates Food Made; it must not charge Food Used a second time. */
     G_SetUnitFoodMade(unit, unit->data.UnitBalance->foodMade);
@@ -478,7 +478,7 @@ void unit_add_build_queue(edict_t *self, edict_t *item) {
     edict_t *last;
 
     /* Queued units must not run stand/birth callbacks, which clear build and used to sever the queue behind them. */
-    item->currentmove = NULL;
+    M_SetMove(item,NULL);
     item->animation = NULL;
     if (!self->build) {
         self->build = item;
@@ -588,7 +588,7 @@ void unit_build(edict_t *self, uint32_t class_id) {
     ent->training_food_wait_notified = false;
     G_SetHealth(ent, 0);
     /* SP_SpawnAtLocation already ran birth; calling it twice reset the trained unit and crashed sparse fixtures. */
-    ent->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(ent,true);
     unit_add_build_queue(self, ent);
     /* Warcraft publishes TRAIN_START when an accepted trainee enters the
      * producer queue.  The producer is the triggering unit; the hidden queued
@@ -643,7 +643,7 @@ bool G_QueueResearch(edict_t *producer, uint32_t upgrade_id) {
     item->class_id = 0;
     item->s.player = producer->s.player;
     item->training = true;
-    item->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(item,true);
     item->research = G_AllocResearch();
     assert(item->research);
     item->research->upgrade = upgrade_id;

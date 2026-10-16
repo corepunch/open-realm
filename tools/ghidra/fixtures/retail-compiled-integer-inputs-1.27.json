@@ -1,0 +1,754 @@
+{
+  "target_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "trace_wc3_pathfinding.py": "8ce33049aa148a414b2edd29ca12ed94921f022a0b9979ba5a84b8df3ee8c5d8",
+    "wc3_pathfinding.js": "f9dfa3685d884d5eb26a0e26debfd44e4655ed91df75cb5d3b91d70c3bca64eb",
+    "wc3_pathfinding_probe.j": "05b5b76bb8fbb21879b9b81002cf0e76420f918cb6c18ec54e4298dda755d8db",
+    "make_wc3_pathfinding_map.py": "a46ad85db5e047226ab54fe41016a940184f55f234b2f28ed9ee11c40e6204a4",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+    "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+    "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+    "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+    "map": "952275b68e992c62f610876eaad8e5ac5a345c9834cd76044f621e7fa7544cff"
+  },
+  "cases": [
+    {
+      "id": "int_literal_0",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_1",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "1",
+      "input_word": 1,
+      "output": 1065353216
+    },
+    {
+      "id": "int_literal_2",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-1",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_3",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "16777217",
+      "input_word": 16777217,
+      "output": 1266679808
+    },
+    {
+      "id": "int_literal_4",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "2147483647",
+      "input_word": 2147483647,
+      "output": 1325400063
+    },
+    {
+      "id": "int_literal_5",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "2147483648",
+      "input_word": 2147483648,
+      "output": 3472883712
+    },
+    {
+      "id": "int_literal_6",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-2147483648",
+      "input_word": 2147483648,
+      "output": 3472883712
+    },
+    {
+      "id": "int_literal_7",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "4294967295",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_8",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "4294967296",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_9",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "4294967297",
+      "input_word": 1,
+      "output": 1065353216
+    },
+    {
+      "id": "int_literal_10",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-4294967297",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_11",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "9223372036854775807",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_12",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "9223372036854775808",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_13",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "18446744073709551615",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_14",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "18446744073709551616",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_15",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "18446744073709551617",
+      "input_word": 1,
+      "output": 1065353216
+    },
+    {
+      "id": "int_literal_16",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-18446744073709551617",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_17",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_18",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$0",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_19",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$7fffffff",
+      "input_word": 2147483647,
+      "output": 1325400063
+    },
+    {
+      "id": "int_literal_20",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$80000000",
+      "input_word": 2147483648,
+      "output": 3472883712
+    },
+    {
+      "id": "int_literal_21",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-$80000000",
+      "input_word": 2147483648,
+      "output": 3472883712
+    },
+    {
+      "id": "int_literal_22",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$ffffffff",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_23",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$100000000",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_24",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$100000001",
+      "input_word": 1,
+      "output": 1065353216
+    },
+    {
+      "id": "int_literal_25",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$ffffffffffffffff",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_26",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$10000000000000000",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_27",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "$10000000000000001",
+      "input_word": 1,
+      "output": 1065353216
+    },
+    {
+      "id": "int_literal_28",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0x7FFFFFFF",
+      "input_word": 2147483647,
+      "output": 1325400063
+    },
+    {
+      "id": "int_literal_29",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0x80000000",
+      "input_word": 2147483648,
+      "output": 3472883712
+    },
+    {
+      "id": "int_literal_30",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0xFFFFFFFF",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_31",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0x100000001",
+      "input_word": 1,
+      "output": 1065353216
+    },
+    {
+      "id": "int_literal_32",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0xFFFFFFFFFFFFFFFF",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_33",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "0x10000000000000001",
+      "input_word": 1,
+      "output": 1065353216
+    },
+    {
+      "id": "int_literal_34",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "00",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_35",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "077",
+      "input_word": 63,
+      "output": 1115422720
+    },
+    {
+      "id": "int_literal_36",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "017777777777",
+      "input_word": 2147483647,
+      "output": 1325400063
+    },
+    {
+      "id": "int_literal_37",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "020000000000",
+      "input_word": 2147483648,
+      "output": 3472883712
+    },
+    {
+      "id": "int_literal_38",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "-020000000000",
+      "input_word": 2147483648,
+      "output": 3472883712
+    },
+    {
+      "id": "int_literal_39",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "037777777777",
+      "input_word": 4294967295,
+      "output": 3212836864
+    },
+    {
+      "id": "int_literal_40",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "040000000000",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_41",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "040000000001",
+      "input_word": 1,
+      "output": 1065353216
+    },
+    {
+      "id": "int_literal_42",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "01000000000000000000000",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "int_literal_43",
+      "native": "I2R",
+      "producer": "integer_literal",
+      "input": "01000000000000000000001",
+      "input_word": 1,
+      "output": 1065353216
+    }
+  ],
+  "integer_sequence": [
+    {
+      "event": "numeric-integer-literal",
+      "text": "9223372036854775807",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "9223372036854775808",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "18446744073709551615",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "18446744073709551616",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "18446744073709551617",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "18446744073709551617",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "$ffffffffffffffff",
+      "radix": 16,
+      "prefix": 1,
+      "caller": 9588310,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "$10000000000000000",
+      "radix": 16,
+      "prefix": 1,
+      "caller": 9588310,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "$10000000000000001",
+      "radix": 16,
+      "prefix": 1,
+      "caller": 9588310,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "0x100000001",
+      "radix": 16,
+      "prefix": 2,
+      "caller": 9588326,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "0xFFFFFFFFFFFFFFFF",
+      "radix": 16,
+      "prefix": 2,
+      "caller": 9588326,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "0x10000000000000001",
+      "radix": 16,
+      "prefix": 2,
+      "caller": 9588326,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "017777777777",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 2147483647
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "020000000000",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 2147483648
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "020000000000",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 2147483648
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "037777777777",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "040000000000",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "040000000001",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "01000000000000000000000",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "01000000000000000000001",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "9223372036854775807",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "9223372036854775808",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "18446744073709551615",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "18446744073709551616",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "18446744073709551617",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "18446744073709551617",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+      "radix": 10,
+      "prefix": 0,
+      "caller": 9588280,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "$ffffffffffffffff",
+      "radix": 16,
+      "prefix": 1,
+      "caller": 9588310,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "$10000000000000000",
+      "radix": 16,
+      "prefix": 1,
+      "caller": 9588310,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "$10000000000000001",
+      "radix": 16,
+      "prefix": 1,
+      "caller": 9588310,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "0x100000001",
+      "radix": 16,
+      "prefix": 2,
+      "caller": 9588326,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "0xFFFFFFFFFFFFFFFF",
+      "radix": 16,
+      "prefix": 2,
+      "caller": 9588326,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "0x10000000000000001",
+      "radix": 16,
+      "prefix": 2,
+      "caller": 9588326,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "017777777777",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 2147483647
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "020000000000",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 2147483648
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "020000000000",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 2147483648
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "037777777777",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 4294967295
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "040000000000",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "040000000001",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 1
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "01000000000000000000000",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 0
+    },
+    {
+      "event": "numeric-integer-literal",
+      "text": "01000000000000000000001",
+      "radix": 8,
+      "prefix": 1,
+      "caller": 9588294,
+      "token": 264,
+      "output": 1
+    }
+  ],
+  "scope": "Actual compiled decimal/octal/$hex/0xhex integer108 words, separate unary minus and original I2R native inputs/outputs. Read-only compiler observations of wide tokens; no full lexical grammar equivalence.",
+  "move_destination_words": [
+    3304194048,
+    3272605696
+  ]
+}

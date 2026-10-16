@@ -33,7 +33,7 @@ static bool G_UnitHasWorkerShortcutCapability(edict_t const *ent) {
      * harvest-capable custom workers without a build menu. This avoids
      * hard-coding race/unit rawcodes while keeping combat-only resource
      * gatherers out unless their data explicitly makes them builders. */
-    return (builds && *builds) || G_ActorHasSkill((edict_t *)ent, "Ahar");
+    return (builds && *builds) || G_ActorHasAbilityCode((edict_t *)ent, MAKEFOURCC('A','h','a','r'));
 }
 
 bool G_UnitShowsHeroShortcut(gameClient_t *client, edict_t const *ent) {

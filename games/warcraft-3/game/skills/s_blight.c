@@ -7,15 +7,12 @@ static uint32_t blight_growth_ability(edict_t *ent) {
     char alias_name[5] = { 0 };
 
     if (!ent) return 0;
-    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
-        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            uint32_t alias = 0;
-            abilityitem_t item;
-            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
-            memcpy(&alias, token, sizeof(alias));
-            item = S_AbilityItem(alias);
-            if (item.ability && item.ability->proc == CAbilityBlightGrowth) return alias;
-        }
+    uint32_t count;
+    uint32_t const *codes = G_UnitAbilityCodes(ent->data.UnitAbilities, &count);
+    FOR_LOOP(i, count) {
+        abilityitem_t item = S_AbilityItem(codes[i]);
+        if (item.ability && item.ability->proc == CAbilityBlightGrowth &&
+            G_ActorHasAbilityCode(ent, codes[i])) return codes[i];
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
         uint32_t const alias = ent->abilities.added[i];
@@ -54,9 +51,17 @@ static void blight_growth_reset(edict_t *ent, uint32_t code, uint32_t now) {
  * A_UNIT_INIT/A_ENABLE cache the concrete alias so units without Blight Growth
  * do not parse their ability lists every simulation frame. */
 BZ_ABILITY_PROC(CAbilityBlightGrowth) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return UNIT_UPDATE_POINTER(blight_growth);
     uint32_t code, level, now;
     float interval, expansion, max_radius;
 
+    if (msg == A_UNIT_TYPE_INIT) {
+        if (ent || !call) return UNIT_INIT_UNKNOWN;
+        return S_UnitTypeHasAbilityProc(call->unit_type, CAbilityBlightGrowth) ? UNIT_INIT_RUN : UNIT_INIT_SKIP_FALSE;
+    }
+    if (msg == A_UNIT_EVENT_MASK)
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT, A_ENABLE, A_DISABLE, A_UNIT_REMOVE, A_UPDATE);
     if (!ent) return false;
     switch (msg) {
     case A_UNIT_INIT:

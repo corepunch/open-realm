@@ -1,0 +1,2101 @@
+{
+ "task": "SEP-01.2",
+ "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f",
+ "oracle": {
+  "sha256": "2c6a72939d48400158bbd5e82848a78a68a34382da66422d54483d0c5d5006c8",
+  "packed_rule": "word=(prior&0xffff)|((selector&15)<<16)|((category&0xff)<<20)|((rank&15)<<28)",
+  "packed_word_cases": 65536,
+  "harness_selfcheck": {
+   "pairs": 600,
+   "tails": 105
+  },
+  "inert_rows": "5..15 all words 0x00000000",
+  "inert_pairs": [
+   {
+    "source": [
+     1098907648,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     347053739,
+     2528167636
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": true
+   },
+   {
+    "source": [
+     1098907648,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     347053739,
+     2528167636
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": true
+   },
+   {
+    "source": [
+     1098907648,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     347053739,
+     2528167636
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": true
+   },
+   {
+    "source": [
+     1098907648,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     347053739,
+     2528167636
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": true
+   },
+   {
+    "source": [
+     1098907910,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     347053739,
+     2528167636
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": true
+   },
+   {
+    "source": [
+     1098907910,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     347053739,
+     2528167636
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": true
+   },
+   {
+    "source": [
+     1098907383,
+     1098907874
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     347053739,
+     2528167636
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": true
+   },
+   {
+    "source": [
+     1098907383,
+     1098907874
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     347053739,
+     2528167636
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": true
+   },
+   {
+    "source": [
+     1099038720,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1099038720,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1098775306,
+     1099020791
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1098775306,
+     1099020791
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1099431936,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1099431936,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1098378278,
+     1099360218
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1098378278,
+     1099360218
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1101476659,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1101476659,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1096313737,
+     1101125243
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1096313737,
+     1101125243
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1104098099,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1104098099,
+     1098907648
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1093666890,
+     1103388094
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     0,
+     0
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     0,
+     0
+    ],
+    "randomBranch": false
+   },
+   {
+    "source": [
+     1093666890,
+     1103388094
+    ],
+    "candidate": [
+     1098907648,
+     1098907648
+    ],
+    "prior": [
+     1036831949,
+     3192704205
+    ],
+    "ownerBefore": [
+     305419896,
+     2596069104
+    ],
+    "ownerAfter": [
+     305419896,
+     2596069104
+    ],
+    "vector": [
+     1036831949,
+     3192704205
+    ],
+    "randomBranch": false
+   }
+  ],
+  "inert_tails": [
+   {
+    "vector": [
+     0,
+     2147483648
+    ],
+    "packed": 327680,
+    "vectorAfter": [
+     0,
+     0
+    ],
+    "packedAfter": 327680
+   },
+   {
+    "vector": [
+     0,
+     2147483648
+    ],
+    "packed": 2881814531,
+    "vectorAfter": [
+     0,
+     0
+    ],
+    "packedAfter": 2881814531
+   },
+   {
+    "vector": [
+     994352038,
+     3145929327
+    ],
+    "packed": 327680,
+    "vectorAfter": [
+     0,
+     0
+    ],
+    "packedAfter": 327680
+   },
+   {
+    "vector": [
+     994352038,
+     3145929327
+    ],
+    "packed": 2881814531,
+    "vectorAfter": [
+     0,
+     0
+    ],
+    "packedAfter": 2881814531
+   },
+   {
+    "vector": [
+     1043878380,
+     3195388559
+    ],
+    "packed": 327680,
+    "vectorAfter": [
+     0,
+     0
+    ],
+    "packedAfter": 327680
+   },
+   {
+    "vector": [
+     1043878380,
+     3195388559
+    ],
+    "packed": 2881814531,
+    "vectorAfter": [
+     0,
+     0
+    ],
+    "packedAfter": 2881814531
+   },
+   {
+    "vector": [
+     1077936128,
+     3229614080
+    ],
+    "packed": 327680,
+    "vectorAfter": [
+     0,
+     0
+    ],
+    "packedAfter": 327680
+   },
+   {
+    "vector": [
+     1077936128,
+     3229614080
+    ],
+    "packed": 2881814531,
+    "vectorAfter": [
+     0,
+     0
+    ],
+    "packedAfter": 2881814531
+   }
+  ]
+ },
+ "map": {
+  "name": "RS-SEP-01.2-policy",
+  "sha256": "e09fc401f4d012344d85d062329aeced63da484d30e8180027cb87327e9f9ddb"
+ },
+ "captures": {
+  "first": "756e0a119c7029c02e38dfe69ffeb3986a551236bdf8a0dccf6deb5ed8767f23",
+  "repeat": "b594870cac2a4949c484e943373316f7c4c8a7b951d12e8db2a0d314e73de864",
+  "first_preload": "712f97554029dbe05845ad0ca68580d32ddf17cde69cef4e0a2c56dfae7d25e3",
+  "repeat_preload": "d1c79a26a752cdd7666407ddf0c38cc6452265fa462229e0d473c1e6205450a7"
+ },
+ "producers": {
+  "configure_sites (6f1710e0 callers)": {
+   "6f05c9dc": "MoverBridge 6f05c9c0 <- Unit_RefreshSeparationConfiguration 6f693d50 (authored/runtime policy)",
+   "6f16eb59": "Mover_Destroy 6f16eb20: 1710e0(0,0,0,0) destroys separation",
+   "6f16f82a": "mover load 6f16f6e0: 1710e0(enabled-from-stream if version>=0x1771, 0,0,0) then sep vtable+0x30 restores state"
+  },
+  "refresh_triggers (6f693d50 call/jmp sites)": {
+   "6f68a4f5": "CUnit vtable 6fb77eb0 slot+0x1ac (6f68a060) unit initialization; live caller 0x68a4fa at every CreateUnit",
+   "6f670d4d": "Unit_RebindTypeRetainingPublicIdentity 6f670950 (12 callers: chaos/morph type rebinds) - static only",
+   "6f698f88": "Unit_SetPlayerOwner 6f698ce0 after writing Unit+58; skipped when owner unchanged (6f698d13); live 0x698f8d",
+   "6f69c493": "6f69c490 CUnit event 0xd0145 (handler 6f690490 slot+0xc); live on PauseUnit(true) before suppression acquire",
+   "6f69c583": "6f69c580 CUnit event 0xd0146; live on PauseUnit(false) before suppression release",
+   "6f67e0e3": "6f67e0e0 from Unit_CancelAllOrders 6f673610 when Unit+5c&0x100000 - static only",
+   "6f688d96 (jmp)": "Unit_AcquireSeparationSuppression 6f688d90: ++Unit+198 then refresh",
+   "6f6785c6 (jmp)": "Unit_ReleaseSeparationSuppression 6f6785c0: --Unit+198 then refresh",
+   "6f48ef47 (jmp)": "6f48ef40: Unit+20 |= 0x40000000 then refresh (channel begin; live 0x4eec5c CAbilityChannel)",
+   "6f48bca7 (jmp)": "6f48bca0: Unit+20 &= ~0x40000000 then refresh (channel end; live 0x4cc7d4 CAbilityChannel)"
+  },
+  "enable_predicate 6f66fc50 (returns record+0x224 raw int, else 0)": [
+   "UnitData record found for Unit+30 rawcode and record+0x224 != 0",
+   "Unit+20 & 0x40000000 == 0",
+   "signed Unit+198 <= 0",
+   "Unit+5c & 0x100000 == 0",
+   "signed Unit+54 <= 0",
+   "Unit+5c & 0x200000 == 0"
+  ],
+  "category 6f695090": "EAX = (((Unit+60 & 1) ? 15 : CUnit vslot+0xec()=Unit+58) & 15) << 4 | (record+0x22c & 15)",
+  "selector/rank args": "6f693d50 stores only AL of 6f695130 (record+0x228) and 6f6951a0 (record+0x230) into dword stack slots; upper bytes are uninitialized and ignored by the setters (live args e.g. 0x0026f300 / 0x00200200)",
+  "Unit+60 bit0 writers": {
+   "6f57f421": "or 1 - CAbilityMechanicalCritter vtable 6fb3d9a0 slot+0x3e4 (6f57f410) on argument unit; no refresh",
+   "6f58dfb6": "and ~1 - CBuffMechanicalCritter vtable 6fb3d628 slot+0x33c (6f58dfa0) on owner unit; no refresh",
+   "6f5ada90/6f584720": "unreferenced set/clear helpers"
+  }
+ },
+ "live_cases": [
+  {
+   "phase": 0,
+   "cluster": 4,
+   "label": "group 1 vs group 17 (alias &15)",
+   "units": [
+    {
+     "i": 8,
+     "code": "hSG1",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "urpg": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00100000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00100000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "9": {
+       "eligible": 27
+      }
+     },
+     "visits": 117,
+     "applications": 14,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 76.6187,
+     "separated": true
+    },
+    {
+     "i": 9,
+     "code": "hSGH",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "urpg": 17
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00100000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00100000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "8": {
+       "eligible": 28
+      }
+     },
+     "visits": 118,
+     "applications": 15,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 80.584,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 0,
+   "cluster": 7,
+   "label": "rank 17 vs rank 1 (alias &15)",
+   "units": [
+    {
+     "i": 14,
+     "code": "hSRH",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "urpr": 17
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "10000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "10000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "15": {
+       "eligible": 27
+      }
+     },
+     "visits": 117,
+     "applications": 14,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 76.6187,
+     "separated": true
+    },
+    {
+     "i": 15,
+     "code": "hSR1",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "urpr": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "10000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "10000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "14": {
+       "eligible": 28
+      }
+     },
+     "visits": 118,
+     "applications": 15,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 80.584,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 0,
+   "cluster": 8,
+   "label": "repulse=2 vs repulse=1",
+   "units": [
+    {
+     "i": 16,
+     "code": "hSE2",
+     "owner": 0,
+     "authored": {
+      "urpo": 2
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "17": {
+       "eligible": 28
+      }
+     },
+     "visits": 117,
+     "applications": 14,
+     "rejectedEndpoints": 1,
+     "draws": 0,
+     "jassDisplacementWorld": 80.7772,
+     "separated": true
+    },
+    {
+     "i": 17,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "16": {
+       "eligible": 28
+      }
+     },
+     "visits": 118,
+     "applications": 14,
+     "rejectedEndpoints": 1,
+     "draws": 0,
+     "jassDisplacementWorld": 91.4508,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 1,
+   "cluster": 5,
+   "label": "selector 5 (zero row) pair",
+   "units": [
+    {
+     "i": 28,
+     "code": "hS05",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "urpp": 5
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00050000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00050000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "29": {
+       "eligible": 117
+      }
+     },
+     "visits": 117,
+     "applications": 0,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 0.0,
+     "separated": false
+    },
+    {
+     "i": 29,
+     "code": "hS05",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "urpp": 5
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00050000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00050000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "28": {
+       "eligible": 118
+      }
+     },
+     "visits": 118,
+     "applications": 0,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 0.0,
+     "separated": false
+    }
+   ]
+  },
+  {
+   "phase": 1,
+   "cluster": 6,
+   "label": "selector 5 vs selector 0",
+   "units": [
+    {
+     "i": 30,
+     "code": "hS05",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "urpp": 5
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00050000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00050000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "31": {
+       "eligible": 117
+      }
+     },
+     "visits": 117,
+     "applications": 0,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 0.0,
+     "separated": false
+    },
+    {
+     "i": 31,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "30": {
+       "eligible": 41
+      }
+     },
+     "visits": 118,
+     "applications": 28,
+     "rejectedEndpoints": 1,
+     "draws": 0,
+     "jassDisplacementWorld": 136.7844,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 1,
+   "cluster": 7,
+   "label": "selector 17 vs selector 1 (alias &15)",
+   "units": [
+    {
+     "i": 32,
+     "code": "hS17",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "urpp": 17
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00010000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00010000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "33": {
+       "eligible": 38
+      }
+     },
+     "visits": 117,
+     "applications": 26,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 97.1509,
+     "separated": true
+    },
+    {
+     "i": 33,
+     "code": "hS01",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "urpp": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00010000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00010000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "32": {
+       "eligible": 39
+      }
+     },
+     "visits": 118,
+     "applications": 27,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 94.092,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 3,
+   "cluster": 0,
+   "label": "owner 15 vs owner 0 + UnitAddAbility('Amec') + SetUnitOwner(1)",
+   "units": [
+    {
+     "i": 54,
+     "code": "hS00",
+     "owner": 15,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "0f000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "0f000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "55": {
+       "category mismatch": 25
+      }
+     },
+     "visits": 200,
+     "applications": 0,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 0.0,
+     "separated": false
+    },
+    {
+     "i": 55,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       "01000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "01000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "54": {
+       "category mismatch": 26
+      }
+     },
+     "visits": 202,
+     "applications": 0,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 32.249,
+     "separated": false
+    }
+   ]
+  },
+  {
+   "phase": 3,
+   "cluster": 1,
+   "label": "owner 15 vs owner 0 + SetUnitOwner(1)",
+   "units": [
+    {
+     "i": 56,
+     "code": "hS00",
+     "owner": 15,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "0f000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "0f000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "57": {
+       "category mismatch": 26
+      }
+     },
+     "visits": 201,
+     "applications": 0,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 0.0,
+     "separated": false
+    },
+    {
+     "i": 57,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       "01000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "01000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "56": {
+       "category mismatch": 26
+      }
+     },
+     "visits": 201,
+     "applications": 0,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 0.0,
+     "separated": false
+    }
+   ]
+  },
+  {
+   "phase": 3,
+   "cluster": 2,
+   "label": "owner 15 vs owner 0 + 'Amec' + PauseUnit true/false",
+   "units": [
+    {
+     "i": 58,
+     "code": "hS00",
+     "owner": 15,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "0f000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "0f000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "59": {
+       "category mismatch": 23,
+       "no separation (+ac null)": 2
+      }
+     },
+     "visits": 200,
+     "applications": 0,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 0.0,
+     "separated": false
+    },
+    {
+     "i": 59,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "58": {
+       "category mismatch": 24
+      }
+     },
+     "visits": 185,
+     "applications": 0,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 32.249,
+     "separated": false
+    }
+   ]
+  },
+  {
+   "phase": 3,
+   "cluster": 3,
+   "label": "owner 0 vs owner 1 + SetUnitOwner(0)",
+   "units": [
+    {
+     "i": 60,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "61": {
+       "category mismatch": 7,
+       "eligible": 29
+      }
+     },
+     "visits": 201,
+     "applications": 12,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 18.1389,
+     "separated": true
+    },
+    {
+     "i": 61,
+     "code": "hS00",
+     "owner": 1,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "01000000"
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "60": {
+       "category mismatch": 7,
+       "eligible": 37
+      }
+     },
+     "visits": 201,
+     "applications": 20,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 132.2838,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 3,
+   "cluster": 4,
+   "label": "channel (ANcl clone) on second unit, collapse",
+   "units": [
+    {
+     "i": 62,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "63": {
+       "eligible": 42,
+       "no separation (+ac null)": 15
+      }
+     },
+     "visits": 201,
+     "applications": 26,
+     "rejectedEndpoints": 10,
+     "draws": 0,
+     "jassDisplacementWorld": 74.0996,
+     "separated": true
+    },
+    {
+     "i": 63,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "62": {
+       "eligible": 50
+      }
+     },
+     "visits": 151,
+     "applications": 35,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 209.1438,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 3,
+   "cluster": 5,
+   "label": "PauseUnit on second unit, collapse, unpause",
+   "units": [
+    {
+     "i": 64,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "65": {
+       "eligible": 43,
+       "no separation (+ac null)": 8
+      }
+     },
+     "visits": 201,
+     "applications": 28,
+     "rejectedEndpoints": 1,
+     "draws": 0,
+     "jassDisplacementWorld": 11.2449,
+     "separated": true
+    },
+    {
+     "i": 65,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "64": {
+       "eligible": 46
+      }
+     },
+     "visits": 134,
+     "applications": 28,
+     "rejectedEndpoints": 4,
+     "draws": 0,
+     "jassDisplacementWorld": 180.8119,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 3,
+   "cluster": 6,
+   "label": "amph vs amph",
+   "units": [
+    {
+     "i": 66,
+     "code": "hSAM",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "umvt": "amph"
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "67": {
+       "eligible": 39
+      }
+     },
+     "visits": 201,
+     "applications": 14,
+     "rejectedEndpoints": 1,
+     "draws": 0,
+     "jassDisplacementWorld": 80.7764,
+     "separated": true
+    },
+    {
+     "i": 67,
+     "code": "hSAM",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "umvt": "amph"
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "66": {
+       "eligible": 39
+      }
+     },
+     "visits": 201,
+     "applications": 14,
+     "rejectedEndpoints": 1,
+     "draws": 0,
+     "jassDisplacementWorld": 91.4515,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 3,
+   "cluster": 7,
+   "label": "horse vs horse",
+   "units": [
+    {
+     "i": 68,
+     "code": "hSHR",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "umvt": "horse"
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "69": {
+       "eligible": 38
+      }
+     },
+     "visits": 201,
+     "applications": 14,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 76.6187,
+     "separated": true
+    },
+    {
+     "i": 69,
+     "code": "hSHR",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "umvt": "horse"
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "68": {
+       "eligible": 39
+      }
+     },
+     "visits": 201,
+     "applications": 15,
+     "rejectedEndpoints": 0,
+     "draws": 0,
+     "jassDisplacementWorld": 80.584,
+     "separated": true
+    }
+   ]
+  },
+  {
+   "phase": 3,
+   "cluster": 8,
+   "label": "radius 1.0 vs radius 0.25 at 0.25 fine",
+   "units": [
+    {
+     "i": 70,
+     "code": "hSC2",
+     "owner": 0,
+     "authored": {
+      "urpo": 1,
+      "ucol": 32.0
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "71": {
+       "eligible": 201
+      }
+     },
+     "visits": 201,
+     "applications": 0,
+     "rejectedEndpoints": 200,
+     "draws": 0,
+     "jassDisplacementWorld": 0.0,
+     "separated": false
+    },
+    {
+     "i": 71,
+     "code": "hS00",
+     "owner": 0,
+     "authored": {
+      "urpo": 1
+     },
+     "words": [
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x5c9e1",
+       null
+      ],
+      [
+       "0x5c9e1",
+       "00000000"
+      ],
+      [
+       "0x16eb5e",
+       null
+      ]
+     ],
+     "decisions": {
+      "70": {
+       "eligible": 201
+      }
+     },
+     "visits": 201,
+     "applications": 0,
+     "rejectedEndpoints": 200,
+     "draws": 0,
+     "jassDisplacementWorld": 0.0,
+     "separated": false
+    }
+   ]
+  }
+ ],
+ "packed_word": "(prior&0xffff)|((repulseParam&15)<<16)|((((Unit+60&1)?15:owner)&15)<<24)|((repulseGroup&15)<<20)|((repulsePrio&15)<<28)",
+ "selector_rows": {
+  "0": "[40a00000,3c23d70b,3f000000,3eccccce,3f333334]",
+  "1-4": "see SEP-01.4",
+  "5-15": "all zero: never accumulates, never installs cooldown, still consumes overlap draws"
+ }
+}

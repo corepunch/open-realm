@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "task": "E2E-02.2",
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "controller_sha256": "ec84b2cee33830e7bfc5682f5531c0588a989588d24af3a59addfc5c0cd8166b",
+  "scenes": {
+    "blocked_goal": {
+      "reference_sha256": "0eda15259ff0083397526a29048b09832c3bef49dccae18c17f0ca22424bdc2d",
+      "reference_provenance_sha256": "5bf89416e2ce238c1baf73554147741968f52e2915b162eb495410c4312e172e",
+      "map_sha256": "393739f1d4eafc6c12e39ec60dac841a11768bc2190f48be97e085061117811b",
+      "controls": [
+        {
+          "preload": "9da87f5ee4fcf782f6143761fc56aaa454a62257dbe78da6e6019179dfe0bb18",
+          "provenance": "10c96211d333bec1e6628eca3acd5a8851b345a2c4d72a2bbbf1de1d1b4d4fcf",
+          "controller": "fb3bece59c4fbb5bea9bf1c6f5113380fa12de0d721941bde04972827131702a"
+        },
+        {
+          "preload": "ecf33857d4b1a681ec1079876224b186641d63c536c796da2a421fb866b3ed21",
+          "provenance": "44699d87a76bfd6d7cfe04cd2627775dacbf8b63ccfa188f4f9735de5f4b2d67",
+          "controller": "ec84b2cee33830e7bfc5682f5531c0588a989588d24af3a59addfc5c0cd8166b"
+        }
+      ]
+    },
+    "remove_reorder": {
+      "reference_sha256": "c625ea5ec10bee1065f5ca7a653d8f3c340537cadf7a71285f5a3ced5279fe5d",
+      "reference_provenance_sha256": "18edb11f2c086321579b1179c81b9a72721ff725e46f685ce6fd5e6795d2fcd9",
+      "map_sha256": "b570ac7a3140e02562f0f5a3a25de8730f21cb965397a18b1be340600398e6ed",
+      "controls": [
+        {
+          "preload": "958508bfa7565729743bac1a2d18f392959d97d8436d843bfc3cca236ee88707",
+          "provenance": "d49857319f460e6afff7f102e8c7b4b472b7bcf29ef89a68f08970751bddef7c",
+          "controller": "fb3bece59c4fbb5bea9bf1c6f5113380fa12de0d721941bde04972827131702a"
+        },
+        {
+          "preload": "ae124f6ff72b3c7fc16954be25c9f6bf0ee19d39be85730dbe53a9386eefdad6",
+          "provenance": "93f8fd490c7c75dcec6edb5101ddf8ea881981ed7fb8050c3a3a06847d31465d",
+          "controller": "ec84b2cee33830e7bfc5682f5531c0588a989588d24af3a59addfc5c0cd8166b"
+        }
+      ]
+    },
+    "follow_fog_reacquire": {
+      "reference_sha256": "470336f7ddb063aa64767c5370d7ce22951772c4e6ba199e55c094d71639ee72",
+      "reference_provenance_sha256": "4a09029594ee361e889c82546ed7174227c4c297c9fa24e04e0dae1971f52757",
+      "map_sha256": "61f3c10f8a61fc4c702f7f51a2579eba702b3298c61ed00b36e00acc08673a6a",
+      "controls": [
+        {
+          "preload": "85ca0e8fb889699f8b14703d205537709e26f645fce0008403e8e52a6f209a3b",
+          "provenance": "ef51e35c4736e0dcabee8df6d0c35952098a8dbcccf81e50edfa33e9b290780b",
+          "controller": "bb285ce1251b98d1ff613573252916acbc9426b46707f4634059e19b8816aed6"
+        },
+        {
+          "preload": "b0ae3d7281d965ca5de99bd9930b088247afb1efe88a9d13084ec6d28a61d0d2",
+          "provenance": "fca4de3addd52e4b3abfb591076086246c15b8ad287838f58367ec616a4db1a1",
+          "controller": "ec84b2cee33830e7bfc5682f5531c0588a989588d24af3a59addfc5c0cd8166b"
+        }
+      ]
+    },
+    "widget_lifecycle": {
+      "reference_sha256": "99b6840589003babe302c90ccf734b1ec936e4bc1de55affca5edc17b9769a03",
+      "reference_provenance_sha256": "8fedfab0cc8795456743b39bf7dc237561a7d663b5bf5db92b661470390b68cd",
+      "map_sha256": "c9017c1ea950ce99d301b20dec3eb382fb4236006daae2d709f3f53ed380b8b3",
+      "controls": [
+        {
+          "preload": "9f4662f45e4de1e945343af6c80b9e282b32d5e45863841dab98562ebc4a325e",
+          "provenance": "9e91f92494988fd5f81bdae2f5ce248436fa2942b29a920873132d053b92f6b0",
+          "controller": "3fbb3b4e73213bf894f788f84552c3cf6bb6c321da69da832009d25edaaa31a2"
+        },
+        {
+          "preload": "307034dca0c3b5f23d4845dcaa453f5e486979a9427443d41590264d132feeae",
+          "provenance": "abdeb05aa8ee3e2e00f9f7055ee32168f04c481f4c86aeb86cac856c2e12efba",
+          "controller": "ec84b2cee33830e7bfc5682f5531c0588a989588d24af3a59addfc5c0cd8166b"
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Observer controls compare the complete recorded JASS marker stream, including R2S positions at three decimal places, sampled orders and lifecycle markers. Internal words and wall-clock timing are not observed by these controls.",
+    "Each scene retains its unchanged observed reference and historical first no-attach control, plus a new B/C owned-process no-attach repeat. No new engine policy or fresh-process save equivalence is claimed."
+  ],
+  "input_helper_sha256": "b299165bff36f2a6f6cf23449259e1dff129e6e33a1dfdcedf930fe1e0da3741",
+  "input_helper_so_sha256": "1ed1c2f7a104a85bf2728dbb8b62af9e14ee4149ad10f7f475b50fb710bc39c1",
+  "bundle_sha256": "f8e0ef07ddda019699c29521665ffa4f7cd0aebd0ed908d937616b19167c3412"
+}

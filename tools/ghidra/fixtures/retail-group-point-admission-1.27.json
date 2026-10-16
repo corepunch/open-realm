@@ -1,0 +1,2694 @@
+{
+  "version": 1,
+  "metadata": {
+    "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "owned": true,
+    "source_sha256": {
+      "trace_wc3_pathfinding.py": "8e2979643b5b08d0eb832bac36716002abd7f47f33fa82bc8fe3e1ea80b24198",
+      "wc3_pathfinding.js": "f90a9d6d896129b9169744ae25d47818e2a150943a0944011e2246f053f70b1d",
+      "wc3_pathfinding_probe.j": "afb50387ce2c4a1fe46ba9c2a8d7871084203e8c1bb47b215eee09687828919c",
+      "make_wc3_pathfinding_map.py": "db685765519706916196151effc5f57991784f5abba4514854c49a801d7eb433",
+      "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+      "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+      "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+      "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+      "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+      "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+      "map": "a21ff25fc16f04c303f4d6eceddb18ca32edd991d2dbeac1ba73ec9d100f8680"
+    },
+    "map": "Maps\\PathingRE-GroupOrders-261001.w3m",
+    "seconds": 170.0,
+    "frida": "17.18.0",
+    "timestamp": 1481263518,
+    "imageSize": 15130624,
+    "samples": 10000,
+    "watchCell": null,
+    "blockers": false,
+    "taskEvents": false,
+    "widgetEvents": false,
+    "motionEvents": true,
+    "velocityEvents": true,
+    "yieldEvents": false,
+    "clockEvents": true,
+    "headingEvents": false,
+    "profileEvents": true,
+    "numericEvents": false,
+    "randomEvents": false,
+    "literalTexts": [],
+    "integerTexts": [],
+    "byteEvents": false
+  },
+  "capture_sha256": "f24bbab9ddd58d3acce66749c305c16216567695e38be0b6b73b591b9be61a6f",
+  "admissions": [
+    [
+      {
+        "event": "group-point-native-begin",
+        "order": 851986,
+        "point": [
+          3301441536,
+          3272605696
+        ]
+      },
+      {
+        "event": "group-point-request-begin",
+        "order": 851986,
+        "flags": 0,
+        "point": [
+          3301441536,
+          3272605696
+        ]
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-request-end",
+        "order": 851986,
+        "flags": 0,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "accepted": 1
+      },
+      {
+        "event": "group-point-native-end",
+        "order": 851986,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "accepted": 1
+      }
+    ],
+    [
+      {
+        "event": "group-point-native-begin",
+        "order": 851986,
+        "point": [
+          3304194048,
+          3295936512
+        ]
+      },
+      {
+        "event": "group-point-request-begin",
+        "order": 851986,
+        "flags": 0,
+        "point": [
+          3304194048,
+          3295936512
+        ]
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-request-end",
+        "order": 851986,
+        "flags": 0,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "accepted": 1
+      },
+      {
+        "event": "group-point-native-end",
+        "order": 851986,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "accepted": 1
+      }
+    ],
+    [
+      {
+        "event": "group-point-native-begin",
+        "order": 851986,
+        "point": [
+          3301441536,
+          3272605696
+        ]
+      },
+      {
+        "event": "group-point-request-begin",
+        "order": 851986,
+        "flags": 0,
+        "point": [
+          3301441536,
+          3272605696
+        ]
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-request-end",
+        "order": 851986,
+        "flags": 0,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "accepted": 1
+      },
+      {
+        "event": "group-point-native-end",
+        "order": 851986,
+        "point": [
+          3301441536,
+          3272605696
+        ],
+        "accepted": 1
+      }
+    ],
+    [
+      {
+        "event": "group-point-native-begin",
+        "order": 851986,
+        "point": [
+          3304194048,
+          3295936512
+        ]
+      },
+      {
+        "event": "group-point-request-begin",
+        "order": 851986,
+        "flags": 0,
+        "point": [
+          3304194048,
+          3295936512
+        ]
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "attach",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 0,
+        "output": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 0,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 0
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 1
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 2
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 3
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 4
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 5
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 6
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 7
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 8
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 9
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 10
+      },
+      {
+        "event": "group-point-member-begin",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-member-end",
+        "phase": "admit",
+        "order": 851986,
+        "flags": 6,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "acceptedBefore": 1,
+        "acceptedAfter": 1,
+        "output": 1,
+        "member": 11
+      },
+      {
+        "event": "group-point-request-end",
+        "order": 851986,
+        "flags": 0,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "accepted": 1
+      },
+      {
+        "event": "group-point-native-end",
+        "order": 851986,
+        "point": [
+          3304194048,
+          3295936512
+        ],
+        "accepted": 1
+      }
+    ]
+  ],
+  "scope": "Four public CGroup point forms;12 retained insertion-order units and two excluded members. Shared CMoveReq observed, physical engine group motion remains GROUP-04.6.",
+  "repeat_capture_sha256": "3b1088f5a28639260be450ed111e3a0a9d3066c5505d5d739cf3e48ad24e3d29"
+}

@@ -157,6 +157,13 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     uint32_t old_player;
 
     if (!unit || unit->s.player == player) return;
+    /* Ownership transfer must cancel an AI-owned return without resetting
+     * the independent Stop guard anchor to the creep's current position.
+     * Run before Move's owner-change Stop, which records that anchor. */
+    if (unit->movement.creep_guard_enabled &&
+        unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING)
+        order_stop_cleanup(unit);
+    S_UnitAbilityEvent(unit, A_UNIT_OWNER_CHANGING);
     G_InvalidateUnitShortcutsForUnit(unit);
     /* Queue/upgrade charges belong to the original player. Cancel before
      * ownership changes so neither reservations nor refunds cross the transfer. */
@@ -176,12 +183,9 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
         G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_CAP, -unit->food->made);
         G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, unit->food->made);
     }
-    /* Ownership transfer must cancel an AI-owned return without resetting
-     * the independent Stop guard anchor to the creep's current position. */
-    if (unit->movement.creep_guard_enabled &&
-        unit->movement.creep_guard_phase == CREEP_GUARD_RETURNING)
-        order_stop_cleanup(unit);
     unit->s.player = player;
+    G_AcquisitionEntityLinked(unit);
+    S_UnitAbilityEvent(unit, A_UNIT_OWNER_CHANGED);
     /* A converted creep must not carry autonomous combat/return orders across
      * ownership. New Neutral Hostile units anchor at their conversion position;
      * units leaving Neutral Hostile discard the policy. */
@@ -193,6 +197,13 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
             G_CreepGuardSetEnabled(unit, false);
     }
     G_PublishChangeOwnerEvents(unit, old_player);
+    S_UnitTargetOwnerChanged(unit);
+    /* Original6991a2: d01a5 follows the synchronous d01a2 subscribers. */
+    S_UnitTargetAvailable(unit);
+    /* Native698ce0 publishes the owner event before9b9230 ->9c3660 reinserts
+     * into the new owner's head. Same-owner calls retain their pool position. */
+    G_UnitOwnerInsert(unit);
+    G_BotUnitOwnerChanged(unit);
     G_InvalidateCommands(old_client);
     G_InvalidateCommands(new_client);
     G_InvalidateUnitInfoPanel(unit);
