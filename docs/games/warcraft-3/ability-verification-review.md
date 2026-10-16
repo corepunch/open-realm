@@ -37,6 +37,29 @@ This verifies the named contracts, not exhaustive retail parity or rendered art.
 | Passive items | Exact base-code comparisons discarded stock alias bonuses | `A_ITEM_ADD` / `A_ITEM_REMOVE` carry `abilityitem_t` to the owning passive procedure. Read each alias's amount on pickup/drop; no per-family global amount cache. Stacked items survive save/load and independent removal. |
 | Natural creep sleep | Wake removed unrelated owned overlays | Tag sleep art with ACsp and require that identity during cleanup. Wake, move and disable preserve regeneration art. |
 
+## Retail target validation checks
+
+Two focused JASS probes checked Charm (`ANch`) and TFT Purge (`Apg2`) against
+the pinned Warcraft III 1.29.2.9231 executable (PE32 x86; SHA-256
+`3f2ed0120d80578bf07e4423296dade1adfb959d59a2d20a7584224559570eed`).
+
+- Charm transferred an ordinary level-3 `nftt` creep. A `Hpal` Hero, a dead
+  `nftt`, and a live `nftt` with permanent Resistant Skin (`ACsk`) remained
+  with Player 12. Follow-up tests found the stock level-5 boundary: levels 4
+  and 5 transferred; level 6 did not. A custom level-3 copy behaved
+  anomalously and remains unexplained.
+- Friendly and hostile Purge casts both spent mana. The allied target moved
+  about as far as its unpurged control at 1.5 seconds (382.881 vs. 403.491);
+  the hostile target was strongly suppressed (80.865 vs. 385.253). This
+  supports applying Purge's movement status to hostile targets only while
+  retaining friendly dispel behavior. Exact recovery and other aliases remain
+  unverified.
+
+These are Retail JASS observations, not a complete target-mask specification.
+The implementation rejects dead or resistant Charm targets and gates Purge's
+movement status on hostility. Regression coverage for these specific cases
+should accompany future changes to either path.
+
 ## Data and timing
 
 Use the archive audit instead of inferring fields from tooltip prose:

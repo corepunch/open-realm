@@ -15,8 +15,13 @@ unregistered here. Orb/totem `AIpg` / `AIps` are out of scope.
 | `AIlp` | ROC and TFT | Item Purge / Lightning Purge |
 | `ACpu` | ROC and TFT | creep Purge — unregistered |
 
-Casting strips every timed status from the target, applies the Purge slow buff,
-and deals `DataC` damage when `target->owner` is set (summoned).
+Casting strips every timed status from the target and deals `DataC` damage when
+`target->owner` is set (summoned). The movement slow/pause is applied only to
+hostile targets. A friendly cast still performs its dispel without adding
+`Bprg` or stopping movement. Retail JASS verification of stock TFT `Apg2`
+confirmed the distinction: at 1.5 seconds the friendly target moved 382.881
+units versus 403.491 for its unpurged control; the hostile target moved 80.865
+versus 385.253. This does not establish behavior for the other aliases.
 
 ## Authored fields
 
@@ -56,7 +61,8 @@ AbilityData.slk (Aprg / Apg2 / AIlp)
   -> DataA/C/D/E, Dur/HeroDur, BuffID, targs, Cost, Rng
 CAbilityPurge
   -> clear timed statuses (skip S_StatusIsUndispellable; Cyclone DataA==0)
-  -> unit_addtimedstatus(BuffID or Bprg); store spell->code in status.data
+  -> hostile target only: unit_addtimedstatus(BuffID or Bprg); store spell->code in status.data
+  -> friendly target: dispel only; no Purge movement status
   -> S_SpellDamage(DataC) when target->owner
 S_PurgeMoveReduction / S_PurgeIsImmobilized
   -> read DataA/D/E from status.data (casting rawcode), not hardcoded Aprg
