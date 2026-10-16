@@ -297,7 +297,8 @@
     "oracle-power349",
     "oracle-power350",
     "oracle-trig351",
-    "oracle-basic352"
+    "oracle-basic352",
+    "oracle-group354"
   ],
   "entries": [
     {
@@ -6794,6 +6795,18 @@
           "task": "BASE-03.1",
           "disposition": "reachability",
           "rationale": "Direct cross references and exact startup table roots do not enumerate every possible indirect entry."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-group354",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Other override classes, retained-target flag8000, full trajectories and wider acquisition policies remain GROUP-03.2.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "MagicLeashTarget does not establish other optional ability overrides, the retained-target8000 branch or complete acquisition/movement compositions."
         }
       ]
     }

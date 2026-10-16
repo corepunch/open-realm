@@ -21640,3 +21640,79 @@ expression, facing, Move and save tests. Rejection tests cover missing callers,
 instructions/thunks, damaged storage proof, ownership, ABI, counters, incomplete
 controls, changed literal returns and host-formatted Move inputs. No network or
 save layout changes are required.
+
+### Magic Leash separates attack execution from defending priority (Group354)
+
+GROUP-03.2's optional defending override is now integrated for Aerial Shackles.
+Original `49d680` first checks candidate Attack eligibility through `495b90`:
+positive signed ability `+3c` rejects; otherwise enabled weapon bits `+20.180000`
+qualify. If there is no resolved victim, `48e2c0` walks attached abilities and
+queries virtual `+188`. `CBuffMagicLeashTarget` implements that query at `63e680`
+with literal one. It adds low priority `00400000`, while the armed contribution
+in the high word remains set. An execution predicate that forbids the victim's
+attacks is therefore inappropriate for this priority calculation.
+
+Five public scenes cover no buff, retained Shackles, removed buff, removed
+Attack, and Thunder Bolt. The candidate's first ordinary packed priority is
+`0be00000:64000000`; only retained Shackles changes it to
+`0be00000:64400000`. Removing Attack yields `0ba00000:64000000` and bypasses the
+optional override. Removing Shackles restores the ordinary word before the next
+availability delivery. Two complete read-only captures repeat all **547**
+normalized native events, and an observer-free control repeats all **37** public
+markers. The original DLL hash remains `d51e5680…d8236`.
+
+The engine now separates human ability weapon eligibility from actual attack
+execution. Magic Leash owns a categorical status contribution, so an authored
+custom target BuffID retains the same attack lock, movement-speed contribution and defending policy.
+Legacy `Bmlt` status insertion supplies that same category. The existing status
+storage serializes the category; **Save200** rejects older semantics. There are
+no new edict pointer fields, callback identities, client policies or network data.
+The override is consumed only when the candidate has an eligible Attack and no
+resolved victim; other relation priorities retain their existing ordering.
+
+The initial actual-cast regression reproduced **70 failures / 264 assertions**.
+After the fix, the expanded **308-assertion** production regression covers stock
+and custom `A354`/`B354`, nonstock duration4.125/DPS7, actual damage while bound,
+optional Attack removal, pause/Cloud overlap, active channel cold saves and buff
+inverse. It also drives public owner-transfer availability: an out-of-range
+Shackles candidate outranks the nearer retained candidate, preserving Attack
+Move's public head and granting the speed-cap exemption. Both Classic and TFT
+pass the full verifier's **316 tests / 38,503 assertions**. Thirteen evidence
+rejection tests reject changed words, missing repeats/inverses, incomplete
+controls, damaged source/assembly inventories and diagnostic-observer outputs.
+
+Do not infer the override from the word "stun". Public Thunder Bolt and War
+Stomp in these preliminary probes use `BPSE`, concrete `CBuffPause` vtable
+`adcec8`, whose virtual188 is false (`41d9d0`). The base `CBuffStun` vtable
+`adcb60` has a true virtual188 (`4dc980`), but those public casts do not instantiate
+that class. A diagnostic observer adding a mid-function ability-chain hook and
+tiny virtual-return hooks changed high priority words to `08e40c27`; those
+captures are excluded. Accepted observations use the established complete
+function observer and agree with the unhooked control. Full-frame motion,
+other override families, the retained-target `8000` fallback and wider
+GROUP-03.2 composition are still open. No child TODO is added.
+
+Reproduce the bounded live probe by building with `group341_make_map.py --base
+<original Group338Hard.w3m> --probe tools/frida/research/group354_probe.j --output
+<new.w3m>`, then using `group338_capture.py` with `--observer group354_observer.js
+--marker-prefix 'G354 ' --preload group354.txt --seconds 60 --continue-at 12` in
+an isolated B/C install. Preserve complete repeats and an unhooked control.
+The portable bundle contains the frozen base for exact map reconstruction:
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_group354.py \
+  --binary /path/to/game.dll --report /tmp/group354-fresh.json
+python3 -m unittest tests.test_wc3_pathfinding_group354
+```
+
+The verifier checks all818 original instructions in five complete functions,
+source pins, complete native lifetimes and exact map reconstruction before
+running both-edition production tests. Ghidra comments are saved and mirrored in
+`MapPathfinding.java`. The report tree is
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff354/`;
+`observe-d/e` and `control-a` are the accepted captures. Earlier probes remain
+available as diagnostics and are not promoted into parity evidence.
+
+Corpus registration adds `oracle-group354` with strict priority counts, complete
+repeat/control evidence and production regressions. This entry retains
+GROUP-03.2 and does not close the full replacement readiness gates.

@@ -17,6 +17,17 @@ from run_wc3_pathfinding_corpus import (DEFAULT_MANIFEST,load_manifest,check_rep
 
 
 class CorpusTests(unittest.TestCase):
+    def test_magic_leash_contract_rejects_partial_reports(self):
+        for name in ('oracle-group354',):
+            entry=next(e for e in self.manifest['entries']if e['id']==name)
+            report={'binary_sha256':self.target['game_sha256'],'passed':True,'engine':{'classic':{},'tft':{}}}
+            report.update({k:r['equal']if 'equal'in r else [None]*r['length']
+                           for k,r in entry['checks'].items()if 'equal'in r or 'length'in r})
+            check_report(report,entry,self.target)
+            for field,rule in entry['checks'].items():
+                changed=dict(report);changed[field]={}if field=='engine'else rule['equal']-1 if 'equal'in rule else report[field][1:]
+                with self.assertRaises(ValueError):check_report(changed,entry,self.target)
+
     def test_mechanical201_preserves_ordered_selection_and_latent_category(self):
         sys.path.insert(0,str(ROOT/'tools/frida/research'))
         from mechanical201_verify import stages
@@ -150,7 +161,7 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),295)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),296)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),160)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']

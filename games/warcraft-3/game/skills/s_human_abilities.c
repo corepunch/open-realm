@@ -527,6 +527,7 @@ static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityit
         return;
     }
     thinker->variation = slot->instance_id;
+    slot->state_mask |= WC3_STATUS_STATE_MAGIC_LEASH;
     thinker->resources = buff;
     thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
@@ -958,9 +959,15 @@ BZ_ABILITY_PROC(CAbilityAvatar) {
     }
 }
 
+/* Native495b90 keeps MagicLeashTarget's weapon eligible for ranking even
+ * while its separate execution lock forbids attacks. Cloud and Morph disable
+ * that eligibility as well. The applying status carries custom BuffID policy. */
+bool S_HumanAttackPriorityEnabled(edict_t const *unit) {
+    return unit && !human_has_status(unit, MAKEFOURCC('B','c','l','f')) && !S_UnitPolymorphed(unit);
+}
+
 bool S_HumanCanAttack(edict_t const *unit) {
-    return unit && !human_has_status(unit, MAKEFOURCC('B','m','l','t')) &&
-           !human_has_status(unit, MAKEFOURCC('B','c','l','f')) && !S_UnitPolymorphed(unit);
+    return S_HumanAttackPriorityEnabled(unit) && !unit_hasstatusstate(unit,WC3_STATUS_STATE_MAGIC_LEASH);
 }
 
 float S_HumanMoveFactor(edict_t const *unit) {
@@ -974,7 +981,7 @@ float S_HumanMoveFactor(edict_t const *unit) {
     }
     if ((level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
     factor *= 1.0f - S_SlowAuraMoveReduction(unit);
-    if (G_QueryUnitStatusLevel(unit, MAKEFOURCC('B','m','l','t'))) return 0.0f;
+    if (unit_hasstatusstate(unit,WC3_STATUS_STATE_MAGIC_LEASH)) return 0.0f;
     return factor;
 }
 

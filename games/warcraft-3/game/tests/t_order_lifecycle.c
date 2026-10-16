@@ -385,6 +385,90 @@ TEST(wc3_order_lifecycle, group338_defending_priority_uses_victim_spell_grant) {
     reset_entities();setup_test_world();
 }
 
+/* Group354 retail: MagicLeashTarget v188 supplies low00400000 while
+ * its Attack remains enabled. Pause/Thunder Bolt do not supply that override.
+ * Custom BuffID must keep the same gameplay owner and cold-save inverse. */
+TEST(wc3_order_lifecycle, group354_shackles_defending_priority_survives_save_and_inverse) {
+    cstring_t slk =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\nC;Y1;X4;K\"Rng1\"\n"
+        "C;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\nC;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"Amls\"\nC;Y2;X2;K\"Amls\"\nC;Y2;X3;K\"air,enemy\"\nC;Y2;X4;K\"800\"\n"
+        "C;Y2;X5;K\"4.125\"\nC;Y2;X6;K\"4.125\"\nC;Y2;X7;K\"7\"\nC;Y2;X8;K\"Bmlc,Bmlt\"\n"
+        "C;Y3;X1;K\"A354\"\nC;Y3;X2;K\"Amls\"\nC;Y3;X3;K\"air,enemy\"\nC;Y3;X4;K\"800\"\n"
+        "C;Y3;X5;K\"4.125\"\nC;Y3;X6;K\"4.125\"\nC;Y3;X7;K\"7\"\nC;Y3;X8;K\"Bmlc,B354\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    FOR_LOOP(custom,2)FOR_LOOP(saved,2)FOR_LOOP(mode,4) {
+        reset_entities();setup_test_world();level.time=1000;level.show_map_cheat=true;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *unit=review_order_unit(512,0),*target=review_order_unit(640,1),*caster=review_order_unit(864,2);
+        unit->invulnerable=true;target->health.value=target->health.max_value=1000;
+        unit->s.model=target->s.model=caster->s.model=1;
+        unit->collision=target->collision=31;target->targtype=TARG_AIR;
+        unit->defense_type=target->defense_type=2;
+        S_AttackProfileWrite(unit,0)->range=400;
+        S_AttackProfileWrite(unit,0)->targetsAllowed|=WC3_TARGET_FLAG_AIR;
+        UnitAbilities_t abilities={.abilList=custom ? "A354" : "Amls"};caster->data.UnitAbilities=&abilities;
+        uint32_t code=custom ? MAKEFOURCC('A','3','5','4') : MAKEFOURCC('A','m','l','s');
+        uint32_t buff=custom ? MAKEFOURCC('B','3','5','4') : MAKEFOURCC('B','m','l','t');
+        uint64_t before=G_TestAttackTargetPriority(unit,target);
+        T_EQ((uint32_t)before,0x64000000u);T_EQ((uint32_t)(before>>32),0x0be00000u);
+        T_ASSERT(S_CastUnitTargetSpell(caster,code,target));
+        T_EQ(G_UnitStatusLevel(target,buff),1);
+        T_Damage(target,caster,1);T_NULL(target->attack_target);
+        T_ASSERT(!S_HumanCanAttack(target));T_FEQ(S_HumanMoveFactor(target),0,0);
+        T_EQ((uint32_t)G_TestAttackTargetPriority(unit,target),0x64400000u);
+        T_EQ((uint32_t)(G_TestAttackTargetPriority(unit,target)>>32),0x0be00000u);
+        if(saved) {
+            UnitWeapons_t const *weapons[3]={unit->data.UnitWeapons,target->data.UnitWeapons,caster->data.UnitWeapons};
+            cstring_t file=Test_TempPath("wc3-group354-shackles.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit->data.UnitWeapons=weapons[0];target->data.UnitWeapons=weapons[1];caster->data.UnitWeapons=weapons[2];
+            caster->data.UnitAbilities=&abilities;
+            T_EQ((uint32_t)G_TestAttackTargetPriority(unit,target),0x64400000u);
+            T_ASSERT(!S_HumanCanAttack(target));T_FEQ(S_HumanMoveFactor(target),0,0);
+        }
+        if(mode==0) {
+            edict_t *retained=review_order_unit(1200,1);
+            retained->collision=31;retained->defense_type=2;retained->s.model=1;
+            ((mapInfo_t *)level.mapinfo)->players[3].playerType=kPlayerTypeHuman;
+            G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(retained);
+            unit->runtime.acquisition_range=1100;
+            target->s.origin2.x=1400;gi.LinkEntity(target);G_PublishMoveSpatialObject(target);
+            T_ASSERT(G_IssueUnitPointOrder(unit,"attack",&(vec2_t){1800,0},false,0,0));
+            order_attack(unit,retained);T_EQ(unit->attack_target,retained);
+            uint32_t head=unit->current_order_id;
+            T_EQ((uint32_t)G_TestAttackTargetPriority(unit,target),0x60400000u);
+            G_SetUnitPlayer(target,3);
+            T_EQ(unit->attack_target,target);T_EQ(unit->current_order_id,head);
+            T_ASSERT(unit->attack_speed_cap.active);
+            T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            target->s.origin2.x=640;gi.LinkEntity(target);G_PublishMoveSpatialObject(target);
+        }
+        if(mode==1) {
+            T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','a','t','k')));
+            T_EQ((uint32_t)G_TestAttackTargetPriority(unit,target)&0x00400000u,0u);
+        }
+        if(mode==2) {
+            S_SetUnitPaused(target,true);
+            T_EQ((uint32_t)G_TestAttackTargetPriority(unit,target)&0x00400000u,0u);
+            S_SetUnitPaused(target,false);
+        }
+        if(mode==3) {
+            T_NOT_NULL(unit_addtimedstatus(target,"Bclf",1,8));
+            T_EQ((uint32_t)G_TestAttackTargetPriority(unit,target)&0x00400000u,0u);
+            unit_removestatus(target,unit_findstatus(target,MAKEFOURCC('B','c','l','f')),STATUS_REMOVE_SCRIPT);
+        }
+        unit_removestatus(target,unit_findstatus(target,buff),STATUS_REMOVE_SCRIPT);
+        T_ASSERT(S_HumanCanAttack(target));T_FEQ(S_HumanMoveFactor(target),1,0);
+        if(mode!=1)T_EQ(G_TestAttackTargetPriority(unit,target),before);
+        /* Ordinary pause-stun must not substitute for MagicLeashTarget. */
+        T_NOT_NULL(unit_addtimedstatus(target,"Bstu",1,1));
+        T_EQ((uint32_t)G_TestAttackTargetPriority(unit,target)&0x00400000u,0u);
+    }
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 /* Repeated Group338 scene0/3, at normal and hard map difficulty: Town AI
  * compares the same candidates even before any AI script starts. */
 TEST(wc3_order_lifecycle, group338_town_priority_replaces_without_script_vm) {

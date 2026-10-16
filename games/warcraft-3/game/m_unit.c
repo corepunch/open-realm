@@ -1905,6 +1905,8 @@ static uint32_t unit_builtin_status_states(uint32_t code) {
         return WC3_STATUS_STATE_STUNNED;
     case MAKEFOURCC('B','U','s','l'):
         return WC3_STATUS_STATE_STUNNED | WC3_STATUS_STATE_SLEEPING;
+    case MAKEFOURCC('B','m','l','t'):
+        return WC3_STATUS_STATE_MAGIC_LEASH;
     case MAKEFOURCC('B','N','s','i'):
     case MAKEFOURCC('B','N','s','o'):
         return WC3_STATUS_STATE_SILENCED;

@@ -172,3 +172,10 @@ and non-firing ground holds do not grant it. Two fresh Frida repeats plus an
 observer-free control cover melee, ranged Attack Once, targeted artillery and
 Attack Ground. See [evidence and engine regressions](retail-pathfinding-engine.md#explicit-weapon-windups-release-the-shared-speed-cap-payoff199).
 The `49e130` notification guards and broader captain domains remain open.
+
+
+Group354 integrates the Aerial Shackles defending-priority branch before target
+replacement while retaining the independent speed-cap exemption. Bound victims
+remain armed for priority and receive low00400000, while attack execution stays
+held. See [the original words, custom BuffID/save regression and observer
+limits](retail-pathfinding-engine.md#magic-leash-separates-attack-execution-from-defending-priority-group354).

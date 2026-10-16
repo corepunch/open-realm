@@ -1713,7 +1713,8 @@ typedef enum {
     WC3_STATUS_STATE_SLEEPING      = 1u << 3,
     WC3_STATUS_STATE_MAGIC_IMMUNE  = 1u << 4,
     WC3_STATUS_STATE_INVULNERABLE  = 1u << 5,
-    WC3_STATUS_STATE_ETHEREAL      = 1u << 6
+    WC3_STATUS_STATE_ETHEREAL      = 1u << 6,
+    WC3_STATUS_STATE_MAGIC_LEASH   = 1u << 7
 } wc3_status_state_t;
 
 /* Status-owned numeric contributions.  The shared resolver performs only

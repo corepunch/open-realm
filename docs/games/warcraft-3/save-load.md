@@ -2011,3 +2011,11 @@ not a field_t pointer or persisted array slot. Read validates indexes, ownership
 unique membership, ordered post identities and finite coordinates; retained
 vacant/retired posts are valid. Old formats are rejected. See ORDER344 in
 [retail movement engine](retail-pathfinding-engine.md).
+
+Format200 assigns the saved status category `WC3_STATUS_STATE_MAGIC_LEASH`.
+Aerial Shackles applies it independently of the authored target BuffID, preserving
+execution locks and its separate defending-priority contribution across cold
+saves. Existing status storage retains this value; no pointer fixups or callback
+entries change. Versions through199 are rejected. Stock and custom BuffID
+round trips plus incompatible-version/layout checks are covered by Group354 in
+[retail movement engine](retail-pathfinding-engine.md#magic-leash-separates-attack-execution-from-defending-priority-group354).

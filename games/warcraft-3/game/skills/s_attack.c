@@ -2039,11 +2039,12 @@ static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target
     bool armed=G_ActorHasAbilityCode(target,MAKEFOURCC('A','a','t','k')) &&
         attack_mask_has_weapon(target,attack_order_mask(target)) && !target->paused &&
         !S_UnitIsCycloned(target) && !S_UnitIsEntanglingRooted(target) &&
-        S_HumanCanAttack(target) && S_CargoAttacksEnabled(target);
+        S_HumanAttackPriorityEnabled(target) && S_CargoAttacksEnabled(target);
     edict_t const *victim=armed ? target->attack_target : NULL;
     if(victim && (!victim->inuse || G_IsDeferredFree(victim) ||
        victim->spawn_time!=target->attack_target_spawn_time))victim=NULL;
     wc3AttackTargetRelation_t relation=WC3_ATTACK_TARGET_IDLE;
+    if(!victim && unit_hasstatusstate(target,WC3_STATUS_STATE_MAGIC_LEASH))relation=WC3_ATTACK_TARGET_ALLY;
     if(victim==unit)relation=WC3_ATTACK_TARGET_SELF;
     else if(victim) {
         /*49d8b2 asks for the victim's spell grant to the observer. Passive

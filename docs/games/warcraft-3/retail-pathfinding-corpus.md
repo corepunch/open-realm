@@ -10,9 +10,9 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **365 entries**: **63** distinct original-code oracle
-scripts plus **67** declared variants, **121** archived JSONL audits and **114**
-stronger live contracts. Each entry supplies an argument vector, pinned inputs,
+As of Group354, the inventory has **577 entries**: **296** oracle contracts
+(including variants) supplied by **224** distinct verifier scripts, **121**
+archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
 checksums separately. Scratch exports and failed producer attempts remain
@@ -67,6 +67,42 @@ reproducible; an exact fresh live recreation of every historical observer is
 not claimed. New scenario manifests and adjacent per-capture provenance records
 remain the authority for stronger reproduction. The inventory does not reopen
 or silently upgrade the existing evidence.
+
+## Registering a new verifier
+
+A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
+corpus manifest. Preserve its exact report checks, scope, exclusions, binary
+identity, source versions and frozen input hashes. The current Group354
+inventory has578 entries:296 oracle contracts supplied by225 distinct verifier
+scripts,121 archived audits and160 live contracts. Contract variants are not
+additional verifier scripts.
+
+Update `retail-pathfinding-exclusion-owners-1.27.json` in the same change:
+include the oracle ID even when it declares no exclusions, and assign each
+nonempty exclusion to an existing open task with its exact text, disposition
+and rationale. Ownership records organize outstanding work; they do not prove
+behavior or unreachability. Group354/Fault353 add no TODO leaves. Their audit
+covers754 exclusions on250 oracles, with zero unassigned rows.
+
+Refresh only intentionally changed manifest fingerprints after reviewing their
+source/fixture differences. Keep literal numerical expectations unchanged
+unless new original evidence justifies a documented correction. Update the
+corpus tests' inventory counts when adding contracts. Run both audits before
+the expensive full suite: a missing script first prevents manifest loading;
+after that is fixed, an unsynchronized ownership inventory can fail separately.
+
+```sh
+python3 tools/ghidra/run_wc3_pathfinding_corpus.py --check-only
+python3 tools/ghidra/audit_wc3_pathing_exclusion_owners.py
+python3 -m unittest tests.test_wc3_pathfinding_corpus \
+  tests.test_wc3_pathfinding_exclusion_owners \
+  tests.test_wc3_pathfinding_group354
+```
+
+Execute new contracts in a fresh output directory through the corpus runner,
+then run the full checkpoint. This verifies the aggregate registration as well
+as the individual scripts. `oracle-group354` preserves its independent gameplay regressions and existing
+parent-task limits; this entry does not close the full replacement readiness gates.
 
 ## Running fresh reports
 

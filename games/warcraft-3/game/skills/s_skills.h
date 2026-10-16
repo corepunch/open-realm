@@ -505,6 +505,7 @@ void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t cons
 bool S_OrderAttackGround(edict_t *unit, vec2_t const *point);
 void S_ReincarnationOnDeath(edict_t *unit);
 bool S_HumanCanAttack(edict_t const *unit);
+bool S_HumanAttackPriorityEnabled(edict_t const *unit);
 float S_HumanMoveFactor(edict_t const *unit);
 float S_DefendAttackReduction(edict_t const *unit);
 float S_HumanArmorBonus(edict_t const *unit);
