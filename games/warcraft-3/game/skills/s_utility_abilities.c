@@ -114,8 +114,9 @@ static bool charm_validate(edict_t *caster, spellTarget_t st, abilityitem_t cons
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t max_level = (uint32_t)S_SpellData(spell->code, level, 1);
 
-    if (!S_SpellIsEnemy(caster, target)) return false;
-    if (max_level && target->data.UnitBalance->level > max_level) return false;
+    if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target) ||
+        S_UnitIsResistant(target)) return false;
+    if (max_level && (!target->data.UnitBalance || target->data.UnitBalance->level > max_level)) return false;
     return true;
 }
 
