@@ -428,4 +428,158 @@ done:
         G_BotStop(0);level.started=false;reset_entities();setup_test_world();
     }
 }
+/* Public member damage reaches the Captain before ordinary retaliation.
+ * A mana-only melee roster has c0==0; combat contact sends its moving
+ * virtual actor home without setting the removal-driven retreat bit. */
+TEST(wc3_bot, captain358_mana_roster_combat_contact_goes_home_and_restores) {
+    CaptainPolicyWorld();
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *units[6];
+    FOR_LOOP(i,6) {
+        units[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+80*(i%4),192+80*(i/4)},0);
+        units[i]->mana.value=100;units[i]->mana.max_value=200;
+    }
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    level.bots[0].flags|=BOT_GROUPS_FLEE;
+    T_EQ(captain->strength_count,0);
+    G_BotCaptainAttack(player,&(vec2_t){1900,1024});
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    uint32_t limit=level.time+10000;
+    while(level.time<limit && S_CaptainNearHome(captain)) {level.time+=5;globals.RunFrame();}
+    T_ASSERT(!S_CaptainNearHome(captain));
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(1900));
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY);
+    edict_t *source=unit_create(1,MAKEFOURCC('h','f','o','o'),&(vec2_t){1800,1800},0);
+    cstring_t file=Test_TempPath("wc3-captain358-contact.bin");
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_EQ(captain->strength_count,0);
+    T_Damage(units[0],source,1);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(captain->home.x));
+    T_EQ(wc3_float_bits(captain->goal.y),wc3_float_bits(captain->home.y));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(500));
+    T_ASSERT(!G_BotCaptainRetreating(player));
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(500));
+    T_EQ(captain->strength_count,0);
+    T_ASSERT(!G_BotCaptainRetreating(player));
+    G_BotCaptainAttack(player,&(vec2_t){1600,1024});
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    /* An already removed contact cannot replace that new live actor request. */
+    G_FreeEdict(source);
+    G_BotCaptainCombatContact(units[1],source);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(1600));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+/*9d0650 applies the predicate again at removal. A mana mutation can
+ * therefore leave c0 negative; it is retained policy state, not a recount. */
+TEST(wc3_bot, captain_contact_preserves_negative_mana_counter_through_save_and_readmission) {
+    CaptainPolicyWorld();
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *units[6];
+    FOR_LOOP(i,6) {
+        units[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+80*(i%4),192+80*(i/4)},0);
+        units[i]->mana.value=100;units[i]->mana.max_value=200;
+    }
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    T_EQ(captain->strength_count,0);
+    G_BotCaptainAttack(player,&(vec2_t){1900,1024});
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    uint32_t limit=level.time+10000;
+    while(level.time<limit && S_CaptainNearHome(captain)) {level.time+=5;globals.RunFrame();}
+    T_ASSERT(!S_CaptainNearHome(captain));
+    units[0]->mana.value=0;
+    G_FreeEdict(units[0]);
+    T_EQ(ARRAY_COUNT(captain->units),5);
+    T_EQ(captain->strength_count,-1);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(1900));
+    T_ASSERT(!G_BotCaptainRetreating(player));
+    cstring_t file=Test_TempPath("wc3-captain-negative-mana.bin");
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_EQ(captain->strength_count,-1);
+    level.bots[0].flags|=BOT_GROUPS_FLEE;
+    edict_t *source=unit_create(1,MAKEFOURCC('h','f','o','o'),&(vec2_t){1800,1800},0);
+    T_Damage(units[1],source,1);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(captain->home.x));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(500));
+    T_ASSERT(!G_BotCaptainRetreating(player));
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_EQ(captain->strength_count,-1);
+    edict_t *replacement=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){128,128},0);
+    replacement->mana.value=0;
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    T_EQ(captain->strength_count,0);
+    T_EQ(ARRAY_COUNT(captain->units),6);
+    remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+/* The source engagement continuation has its own target and active route;
+ * a policy0 refresh must not replace the CaptainAttack retained point. */
+TEST(wc3_bot, captain_near_home_hostile_contact_retains_point_and_pursues_source) {
+    CaptainPolicyWorld();
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    UnitWeapons_t weapons={.attacksEnabled=1};
+    edict_t *units[6];
+    FOR_LOOP(i,6) {
+        units[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+80*(i%4),192+80*(i/4)},0);
+        units[i]->mana.value=100;units[i]->mana.max_value=200;
+        units[i]->data.UnitWeapons=&weapons;
+        units[i]->runtime.acquisition_range=1000;units[i]->targtype=TARG_GROUND;
+        unitAttack_t *profile=S_AttackProfileWrite(units[i],0);
+        profile->type=ATK_NORMAL;profile->damageBase=17;
+        profile->cooldown=1.5f;profile->damagePoint=3.25f;
+        profile->range=600;profile->weapon=WPN_NORMAL;
+        profile->targetsAllowed=WC3_TARGET_FLAG_GROUND;
+        gi.LinkEntity(units[i]);
+    }
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    G_BotCaptainAttack(player,&captain->home);
+    T_ASSERT(S_CaptainNearHome(captain));
+    G_SetPlayerAlliance(player,&game.clients[1].ps,ALLIANCE_PASSIVE,false);
+    G_SetPlayerAlliance(&game.clients[1].ps,player,ALLIANCE_PASSIVE,false);
+    edict_t *source=unit_create(1,MAKEFOURCC('h','f','o','o'),&(vec2_t){1500,1024},0);
+    source->targtype=TARG_GROUND;S_SetUnitPaused(source,true);gi.LinkEntity(source);
+    T_ASSERT(S_AttackCanTarget(units[0],source));
+    T_Damage(units[0],source,1);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(captain->home.x));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    T_ASSERT(!G_BotCaptainRetreating(player));
+    T_NOT_NULL(captain->home_actor->goalentity);
+    if(captain->home_actor->goalentity) {
+        T_EQ(wc3_float_bits(captain->home_actor->goalentity->s.origin2.x),wc3_float_bits(source->s.origin2.x));
+        T_EQ(wc3_float_bits(captain->home_actor->goalentity->s.origin2.y),wc3_float_bits(source->s.origin2.y));
+    }
+    T_EQ(wc3_float_bits(captain->home_actor->s.origin2.x),wc3_float_bits(captain->home.x));
+    cstring_t file=Test_TempPath("wc3-captain-source-owner.bin");
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(captain->home.x));
+    T_NOT_NULL(captain->home_actor->goalentity);
+    if(captain->home_actor->goalentity)
+        T_EQ(wc3_float_bits(captain->home_actor->goalentity->s.origin2.x),wc3_float_bits(source->s.origin2.x));
+    T_EQ(captain->follow.unit,source);
+    T_EQ(captain->follow.birth,source->spawn_time);
+    G_FreeEdict(source);
+    T_NULL(captain->follow.unit);
+    T_NULL(captain->backup.unit);
+    T_EQ(ARRAY_COUNT(captain->units),6u);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(captain->home.x));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    T_NOT_NULL(captain->home_actor->goalentity);
+    if(captain->home_actor->goalentity)
+        T_EQ(wc3_float_bits(captain->home_actor->goalentity->s.origin2.x),wc3_float_bits(captain->home.x));
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_REQUEST_RESTORED);
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_NULL(captain->follow.unit);
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_REQUEST_RESTORED);
+    T_EQ(wc3_float_bits(captain->active_goal.x),wc3_float_bits(captain->home.x));
+    remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
 #endif

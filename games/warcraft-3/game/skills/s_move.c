@@ -1550,7 +1550,7 @@ void S_SetCaptainHomeActor(botCaptain_t *captain, uint32_t player, uint32_t type
         captain->update_due=G_TimerQueryClock(NULL);
         wc3_clock_advance(&captain->update_due,1,0);
         captain->state=type==BOT_CAPTAIN_ATTACK+1 ? BOT_CAPTAIN_ACTIVE : BOT_CAPTAIN_FORMING;
-        captain->goal=captain->home;
+        captain->goal=captain->active_goal=captain->home;
         captain->request_range=200;
         captain->point_order=851988u; /* Native initializer9d2f90 retains d0014. */
     }
@@ -1795,7 +1795,7 @@ void S_UpdateCaptainMemberOrders(botCaptain_t *captain) {
     if(captain->entered_members<members)move_captain_shared_target(actor);
     else {
         edict_t **roster=move_captain_collect_roster(actor);
-        move_captain_shared_point(actor,roster,members,&captain->goal,true);
+        move_captain_shared_point(actor,roster,members,&captain->active_goal,true);
         gi.MemFree(roster);
     }
 }
@@ -1815,8 +1815,8 @@ static float move_captain_point_speed(botCaptain_t const *captain) {
         speed=MIN(speed,S_UnitMoveSpeed(unit));
         if (!S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP)) ordinary=true;
     }
-    float x=wc3_float(wc3_float_bits(wc3_sub(captain->goal.x,captain->home.x))&0x7fffffffu);
-    float y=wc3_float(wc3_float_bits(wc3_sub(captain->goal.y,captain->home.y))&0x7fffffffu);
+    float x=wc3_float(wc3_float_bits(wc3_sub(captain->active_goal.x,captain->home.x))&0x7fffffffu);
+    float y=wc3_float(wc3_float_bits(wc3_sub(captain->active_goal.y,captain->home.y))&0x7fffffffu);
     if (ordinary && entered<members &&
         !(x<wc3_float(0x3a83126f) && y<wc3_float(0x3a83126f))) {
         float count=wc3_float(wc3_from_int(members));
@@ -6169,7 +6169,7 @@ void S_ReissueCaptainUnit(edict_t *unit,edict_t *actor) {
 
 /*9d44d0 retains the point/range before publishing the virtual mover request.
  * Physical roster publication remains in encounter order, in twelve-row batches. */
-void S_CaptainPointMove(botCaptain_t *captain,vec2_t const *point,float range) {
+static void move_captain_publish_point(botCaptain_t *captain,vec2_t const *point,float range,bool retain,bool prepare) {
     edict_t *actor=captain->home_actor;
     if (!actor) return;
     /*9d44d0 retains the AI Move variant for a point away from authored home. */
@@ -6178,7 +6178,8 @@ void S_CaptainPointMove(botCaptain_t *captain,vec2_t const *point,float range) {
     if(!(dx<wc3_float(0x3a83126f) && dy<wc3_float(0x3a83126f)))captain->point_order=851988u;
     uint32_t members=actor->movement.captain_actor_members;
     edict_t **roster=move_captain_collect_roster(actor);
-    captain->goal=*point;captain->request_range=range;
+    if(retain) {captain->goal=*point;captain->request_range=range;}
+    captain->active_goal=*point;
     uint32_t entered=0;
     FOR_EACH_ARRAY(edict_t *,member,captain->units) {
         edict_t *ent=*member;
@@ -6194,11 +6195,46 @@ void S_CaptainPointMove(botCaptain_t *captain,vec2_t const *point,float range) {
     actor->unitinfo.TurnSpeed=wc3_decimal("0.4");
     actor->unitinfo.PropWindow=wc3_float(0x3dcccccd);
     actor->unitinfo.move_flags|=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
-    move_captain_actor_point(actor,point,range);
+    if(prepare)move_captain_actor_point(actor,point,range);
     if (!members) {gi.MemFree(roster);return;}
     if (entered==members) move_captain_shared_point(actor,roster,members,point,true);
     else FOR_LOOP(i,members) S_ReissueCaptainUnit(roster[i],actor);
     gi.MemFree(roster);
+}
+
+void S_CaptainPointMove(botCaptain_t *captain,vec2_t const *point,float range) {
+    move_captain_publish_point(captain,point,range,true,true);
+}
+
+/*9d4600 retains the requested point only for policy1. Outside configured
+ * range the bridge first approaches the captured target point; its goal
+ * callback refreshes the live target and enters the persistent target task. */
+bool S_CaptainTargetCloser(botCaptain_t const *captain,edict_t const *source,edict_t const *retained) {
+    wc3GridPose_t actor,a,b;
+    unit_predicted_pose(captain->home_actor,&actor);
+    unit_predicted_pose(source,&a);unit_predicted_pose(retained,&b);
+    float ax=wc3_sub(actor.world[0],a.world[0]),ay=wc3_sub(actor.world[1],a.world[1]);
+    float bx=wc3_sub(actor.world[0],b.world[0]),by=wc3_sub(actor.world[1],b.world[1]);
+    return wc3_add(wc3_mul(ax,ax),wc3_mul(ay,ay))<wc3_add(wc3_mul(bx,bx),wc3_mul(by,by));
+}
+
+void S_CaptainTargetMove(botCaptain_t *captain,edict_t *target,bool retain,float range) {
+    if(!target) {S_CaptainPointMove(captain,&captain->goal,200);return;}
+    edict_t *actor=captain->home_actor;
+    if(!actor || !target->inuse || G_IsDeferredFree(target))return;
+    wc3GridPose_t pose;unit_predicted_pose(target,&pose);
+    vec2_t point={pose.world[0],pose.world[1]};
+    bool inside=S_UnitTargetInMoveRange(actor,target,range);
+    move_captain_publish_point(captain,&point,range,retain,!inside);
+    if(inside) {
+        uint32_t fine=actor->movement.fine_request_time;
+        uint32_t coarse=actor->movement.fine_route.adaptive_admission.time;
+        move_leave(actor);S_IssueMoveOrder(actor,target,G_OrderId("move"));
+        actor->movement.fine_request_time=fine;
+        actor->movement.fine_route.adaptive_admission.time=coarse;
+        S_SetFollowTarget(actor,target);
+        move_start_target_group(actor,target,true,wc3_div(range,32),false);
+    }
 }
 
 /*9d2670 near-home inverse uses the roster range count, not the state enum.

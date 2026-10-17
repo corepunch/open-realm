@@ -422,3 +422,94 @@ Final focused validation passes353 tests /2,649,844 assertions per Classic/TFT;
 9 evidence and37 corpus Python checks pass.615 historical retail fixture files
 and527 prior corpus contracts remain unchanged. This is cadence7/12after the
 Payoff287 checkpoint, with no new full-suite claim.
+
+## Combat contact is a Captain producer (Payoff358)
+
+The earlier handoff described `6f9d8460` as a member-attacked handler. Its two
+actual callers establish a wider producer: fresh Attack acquisition calls it
+at `6f49419b`, and `Unit_CallForHelp` calls `6f69c810` after recipient traversal;
+that bridge resolves the member's logical Captain and calls it at `6f69c835`.
+The help path reaches this producer once per admitted source query, after ally
+notifications and before setting the source suppression bit and timer. Merely
+notifying each nearby unit would duplicate or reorder this Captain event.
+
+Far from authored home, a Captain with no retreat bit, GroupsFlee enabled and
+its strength-ready flag set reads the retained c0 roster counter. When c0 is
+zero or negative, combat contact calls ordinary GoHome with range500 without
+setting retreat bit2. This differs from removal-driven retreat. With positive
+c0 the handler enters the separate target-engagement policy. Near home, combat
+contact clears retreat only when c4 is at least the signed half of membership.
+The broader engagement and follow-target branches remain in GROUP-03.4.7.3.
+
+The public retail scene uses six stock Sorceresses under `SetMeleeAI`, each
+with current mana100, then CaptainAttack south and one scripted damage source
+while the virtual actor is away from home. Its recorded c0 is zero. Contact
+replaces retained south/range200 with authored north/range500; flags stay1001,
+so CaptainRetreating remains false. A preliminary Footman probe demonstrated
+that writing `UNIT_STATE_MAX_MANA` does not create a mana pool in this retail
+version: its public mana readings stayed zero. That probe cannot stand in for
+the Sorceress roster. The original map and its capture are preserved separately.
+
+Ghidra's complete contact, acquisition, roster-count and GoHome instruction
+bodies and incoming references are exported by `Captain358Evidence.java`.
+The contact comment was saved in `game.dll`. Reports, owned runtime captures
+and rejected diagnostics are under `research/GROUP-03.4.7.3/payoff358/` in the
+1.27 report root. This section does not establish complete combat target
+routing, full actor/member trajectories or retail save/load parity.
+
+The failing-first engine test drove a moving six-member mana-only melee roster,
+round-tripped its retained owner before contact, called real `T_Damage`, then
+round-tripped the resulting home request and replaced it with CaptainAttack.
+A removed source cannot override that replacement. Classic and TFT each pass
+22 assertions in the new regression; the strict contact/home/arrival verifier
+runs three tests and57 assertions per edition. Twelve evidence rejection tests
+cover missing contact/GoHome, invented retreat/count/range, corrupted public
+positions, ownership, instrumented control and incomplete completion. No save
+layout or network contract changed.
+
+## Retained request versus hostile-source route (Payoff358 continuation)
+
+Combat contact near home continues into `9cf410` when retreat is clear, or when
+at least half the logical roster has entered range. The same source engagement
+continuation applies far from home with GroupsFlee disabled. A hostile source
+must be visible to the Captain owner and valid for at least one member's Attack.
+The common first-source branch rotates the identity into follow114 and refreshes
+movement through `9d4600` with policy0 and range200. The resulting active54/5c
+point belongs to the source; retained d4/dc and e4 still belong to CaptainAttack.
+Using GoHome alone or replacing the retained point with the source loses this
+continuation. The physical actor first approaches the captured source position;
+its goal event refreshes the live source and can enter a persistent target task.
+
+The near-home retail scene has two read-only repeats and an observer-free
+control with378 identical public markers. At counter1424 the follow identity is
+published, the active route changes to the hostile source, and the authored home
+request/range200 remains retained. Actor completion refreshes that source again
+at1609. A second scene removes the source at1624: `9d7760` reevaluates first,
+rotates null into the follow role, then restores the retained request with
+policy1/range200. Logical roster count remains6 and c0 remains0; flags1001 become
+3001 without retreat bit2. Two repeats and a control retain380 identical markers.
+
+A third scene changes one Sorceress's mana to zero and removes it in the same
+callback. Native `9d0650` subtracts using current mana, leaving c0=-1. Combat
+contact subsequently requests home500 with no retreat. Two repeats and a control
+retain353 identical markers. Recounting current members or clamping the signed
+counter would change this observed state.
+
+The strict continuation fixture freezes all nine completed runs,1111 public
+markers, six contact boundaries and two source-loss boundaries. It checks1158
+original instruction guards; its source scripts and Ghidra `game.dll` comments
+are saved. The near-home production regression first failed15/17 assertions on
+the source route and its save restoration; adding source removal then failed
+24/26 assertions on stale identity and route. After the owner changes it passes
+32 assertions, including a second round trip after source removal. The signed
+counter regression passes21, and incompatible version201 rejection adds seven:
+the verifier runs three tests and60 assertions in both Classic and TFT. Twenty-five
+combined evidence tests reject missing or contaminated contact/loss evidence.
+
+Save202 stores active_goal independently of the retained request and saves the
+role-typed target/follow/backup entity identities with their birth stamps. It
+also retains the request-restored flag2000. No network format changes. Native
+retail saves are not part of this proof. Full allied support/overflow/Hero
+policies, semantic target-change callbacks, cross-owner subscription ordering,
+independent acquisition and complete actor/member trajectories remain within
+GROUP-03.4.7.3; this continuation does not close that leaf.

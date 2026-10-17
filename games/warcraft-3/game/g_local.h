@@ -2760,7 +2760,13 @@ typedef enum {
 enum {
     BOT_CAPTAIN_RETREAT_FLAG = 1 << 1,
     BOT_CAPTAIN_STRENGTH_READY = 1 << 12,
+    BOT_CAPTAIN_REQUEST_RESTORED = 1 << 13,
 };
+
+typedef struct {
+    edict_t *unit;
+    uint32_t birth;
+} botCaptainTarget_t;
 
 typedef struct {
     ARRAY(edict_t *, units);
@@ -2769,6 +2775,8 @@ typedef struct {
     uint32_t entered_members; /* Derived inner memberships; Move updates edges and rebuilds on load. */
     edict_t *home_actor; /* Move owns its occupancy and retained follower lifetime. */
     vec2_t home, goal;
+    vec2_t active_goal; /* Captain54/5c; policy0 engagement retains the authored request separately. */
+    botCaptainTarget_t target, follow, backup; /* Native108/114/120 identity roles. */
     float request_range; /* Retained request; range-enter refresh may use200 without replacing it. */
     uint32_t point_order; /* Captain70: private d0012 versus shared AI point d0014. */
     bool home_set, full;
@@ -3203,6 +3211,7 @@ void G_BotCreateCaptains(player_t *);
 void G_BotInitAssault(player_t *);
 uint32_t G_BotIgnoredUnits(player_t *, uint32_t);
 bool G_BotCaptainInCombat(player_t *, bool);
+void G_BotCaptainCombatContact(edict_t *, edict_t *);
 void G_BotAttackMoveKill(player_t *, edict_t *);
 bool G_BotAddAssault(player_t *, int32_t, uint32_t);
 uint32_t G_BotCaptainGroupSize(player_t *);
@@ -4700,6 +4709,8 @@ void S_ReissueCaptainUnit(edict_t *, edict_t *);
 bool S_CaptainNearHome(botCaptain_t const *);
 bool S_CaptainNearRequest(botCaptain_t const *);
 void S_CaptainPointMove(botCaptain_t *, vec2_t const *, float);
+void S_CaptainTargetMove(botCaptain_t *, edict_t *, bool, float);
+bool S_CaptainTargetCloser(botCaptain_t const *, edict_t const *, edict_t const *);
 void S_ReleaseCaptainHomeActor(edict_t *);
 bool S_ValidateCaptainHomeActors(bool);
 bool S_IssueFollowOrder(edict_t *, edict_t *, uint32_t);

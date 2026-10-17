@@ -301,7 +301,9 @@
     "oracle-group354",
     "oracle-group355",
     "oracle-target356",
-    "oracle-ethereal357"
+    "oracle-ethereal357",
+    "oracle-captain358",
+    "oracle-captain358-engagement"
   ],
   "entries": [
     {
@@ -6867,6 +6869,30 @@
           "task": "SEP-01.2",
           "disposition": "behavior",
           "rationale": "Other concrete form and counted owner producers remain within the original leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-captain358",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Retained combat targets, follow engagements, full trajectories, wider roster/default/economy producers and retail saves remain GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "The complete captain lifecycle remains assigned to its existing leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-captain358-engagement",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Allied support/overflow/Hero policies, semantic target-change callbacks, cross-owner subscription ordering, independent acquisition, full trajectories and retail saves remain GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "The complete captain lifecycle remains assigned to its existing leaf."
         }
       ]
     }

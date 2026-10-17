@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 201; /* Counted intrinsic/form ethereal attachment ownership. */
+static uint32_t const save_version = 202; /* Captain active route and role-typed target identities. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -4795,6 +4795,21 @@ TEST(wc3_save, rejects_version_77_after_cinematic_portrait_format_change) {
     T_ASSERT(!G_GetSaveMap(previous_filename, map, sizeof(map)));
     T_ASSERT(!ReadGame(previous_filename));
     remove(filename); remove(previous_filename);
+}
+
+TEST(wc3_save, rejects_version_201_before_captain_target_layout) {
+    cstring_t current=Test_TempPath("save-captain-target-current.bin");
+    cstring_t previous=Test_TempPath("save-captain-target-v201.bin");
+    saveHeader_t header;char map[sizeof(header.map_path)];
+    setup_test_world();reset_entities();
+    T_ASSERT(WriteGame(current));
+    FILE *file=fopen(current,"rb");T_NOT_NULL(file);if(!file)return;
+    T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
+    T_EQ(header.version,save_version);
+    T_ASSERT(write_save_fixture_header(current,previous,201,header.edict_size));
+    T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));
+    T_ASSERT(!ReadGame(previous));
+    remove(current);remove(previous);
 }
 
 TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {

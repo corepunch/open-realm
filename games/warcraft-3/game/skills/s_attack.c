@@ -403,6 +403,11 @@ static void attack_call_for_help(edict_t *victim,edict_t *source) {
         S_UnitAllyCombatAlert(unit,victim,source);
     }
     query->next=attack_help_queries;attack_help_queries=query;
+    /*66e9c5: notify the victim's Captain after the recipient traversal.
+     * Callback removal/reuse must not redirect contact to a new incarnation. */
+    if(victim->inuse && victim->spawn_time==victim_birth && !G_IsDeferredFree(victim) &&
+       source->inuse && source->spawn_time==source_birth && !G_IsDeferredFree(source))
+        G_BotCaptainCombatContact(victim,source);
     /* Native66e700 arms the selected suppression after all recipient callbacks, even if
      * the victim has no Attack ability or the damage amount is zero. */
     if(!victim->inuse || victim->spawn_time!=victim_birth || G_IsDeferredFree(victim))return;

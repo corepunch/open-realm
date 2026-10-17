@@ -1077,10 +1077,93 @@ static bool G_BotReevaluateCaptain(bot_t *bot,botCaptain_t *captain) {
         go_home=!(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY) || (captain->strength_count<3 && count<7);
     }
     if (!go_home) return false;
+    captain->target=captain->follow=captain->backup=(botCaptainTarget_t){0};
     if (captain->state==BOT_CAPTAIN_RETREATING) captain->state=BOT_CAPTAIN_ACTIVE;
     if (count) captain->policy_flags|=BOT_CAPTAIN_RETREAT_FLAG;
     S_CaptainGoHome(captain);
     return true;
+}
+
+static edict_t *G_BotCaptainTarget(botCaptainTarget_t const *ref) {
+    edict_t *unit=ref->unit;
+    return unit && unit->inuse && unit->spawn_time==ref->birth &&
+        !G_IsDeferredFree(unit) ? unit : NULL;
+}
+
+static botCaptainTarget_t G_BotCaptainIdentity(edict_t *unit) {
+    return (botCaptainTarget_t){unit,unit ? unit->spawn_time : 0};
+}
+
+static bool G_BotCaptainArmed(edict_t const *unit) {
+    if(!unit || !S_HumanAttackPriorityEnabled(unit))return false;
+    FOR_LOOP(i,2)if(S_UnitAttackSlotEnabled(unit,i) && S_AttackProfileRead(unit,i)->type!=ATK_NONE)return true;
+    return false;
+}
+
+static void G_BotCaptainRotateFollow(botCaptain_t *captain,edict_t *source) {
+    captain->backup=captain->follow;
+    captain->follow=G_BotCaptainIdentity(source);
+    S_CaptainTargetMove(captain,source,false,200);
+}
+
+/*9cf410 admits a visible hostile source only if at least one roster Attack
+ * can validate it. Follow and backup identities are separate from the retained
+ * request; policy0 changes the live route without overwriting CaptainAttack. */
+static void G_BotCaptainEngageSource(botCaptain_t *captain,edict_t *source) {
+    uint32_t player=captain->home_actor->s.player;
+    if((captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG) ||
+       G_PlayerTreatsPlayerAsAlly(player,source->s.player) ||
+       !G_FowPlayerCanQueryUnit(player,source,UNIT_VISIBILITY_IGNORE_FOG))return;
+    if(source->s.player>11 && source!=G_BotCaptainTarget(&captain->target) &&
+       source->data.UnitBalance && source->data.UnitBalance->level>0)return;
+    bool eligible=false;
+    FOR_EACH_ARRAY(edict_t *,member,captain->units)
+        if(G_BotUnitAlive(*member) && S_AttackCanTarget(*member,source)) {eligible=true;break;}
+    if(!eligible)return;
+    edict_t *follow=G_BotCaptainTarget(&captain->follow);
+    if(source==follow)return;
+    if(follow && (!G_BotCaptainArmed(follow) ||
+       (G_BotCaptainArmed(source) && S_CaptainTargetCloser(captain,source,follow)))) {
+        G_BotCaptainRotateFollow(captain,source);return;
+    }
+    if(source==G_BotCaptainTarget(&captain->backup))return;
+    if(follow && G_ActorHasAbilityCode(follow,MAKEFOURCC('A','a','t','k'))) {
+        if(!G_BotCaptainTarget(&captain->backup))captain->backup=G_BotCaptainIdentity(source);
+        return;
+    }
+    G_BotCaptainRotateFollow(captain,source);
+}
+
+/*9d8460 is shared by fresh acquisition and help contact. Near-home quorum
+ * gates the engagement continuation; far-home c0<=0 is the separate home500
+ * branch and never manufactures the member-removal retreat flag. */
+void G_BotCaptainCombatContact(edict_t *unit,edict_t *source) {
+    if(!unit || !source || !unit->inuse || !source->inuse ||
+       G_IsDeferredFree(unit) || G_IsDeferredFree(source) || unit->s.player>=MAX_PLAYERS)return;
+    bot_t *bot=level.bots+unit->s.player;
+    if(!bot->town_initialized)return;
+    FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+        botCaptain_t *captain=bot->captains+c;
+        FOR_EACH_ARRAY(edict_t *,member,captain->units) {
+            if(*member!=unit)continue;
+            if(!captain->home_actor)return;
+            if(S_CaptainNearHome(captain)) {
+                if((captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG) &&
+                   captain->entered_members<ARRAY_COUNT(captain->units)/2)return;
+                captain->policy_flags&=~BOT_CAPTAIN_RETREAT_FLAG;
+                G_BotCaptainEngageSource(captain,source);return;
+            }
+            if(captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG)return;
+            if(!(bot->flags&BOT_GROUPS_FLEE)) {G_BotCaptainEngageSource(captain,source);return;}
+            if(captain->state!=BOT_CAPTAIN_FORMING &&
+               !(captain->policy_flags&BOT_CAPTAIN_STRENGTH_READY)) {
+                G_BotReevaluateCaptain(bot,captain);return;
+            }
+            if(captain->strength_count<=0)S_CaptainGoHome(captain);
+            else G_BotCaptainEngageSource(captain,source);
+            return;
+        }
+    }
 }
 
 /* The one-second Captain event is independent of private script execution.
@@ -1181,9 +1264,40 @@ static void G_BotWithdrawCaptainUnit(edict_t *unit,bool removed) {
     }
 }
 
+/*9d7760 also subscribes non-roster sources. Removal reevaluates before
+ * promoting the backup identity and restoring the retained point request. */
+static void G_BotCaptainSourceRemoved(edict_t *unit) {
+    FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+        botCaptain_t *captain=level.bots[p].captains+c;
+        bool follow=captain->follow.unit==unit && captain->follow.birth==unit->spawn_time;
+        bool backup=captain->backup.unit==unit && captain->backup.birth==unit->spawn_time;
+        bool retained=captain->target.unit==unit && captain->target.birth==unit->spawn_time;
+        if(!follow && !backup && !retained)continue;
+        G_BotReevaluateCaptain(level.bots+p,captain);
+        if(captain->follow.unit==unit) {
+            captain->follow=captain->backup;captain->backup=(botCaptainTarget_t){0};
+            if(retained) {
+                captain->target=(botCaptainTarget_t){0};
+                if(ARRAY_COUNT(captain->units)<3)S_CaptainGoHome(captain);
+            } else {
+                edict_t *next=G_BotCaptainTarget(&captain->follow);
+                if(next)S_CaptainTargetMove(captain,next,false,200);
+                else {
+                    S_CaptainTargetMove(captain,G_BotCaptainTarget(&captain->target),true,200);
+                    captain->policy_flags|=BOT_CAPTAIN_REQUEST_RESTORED;
+                }
+            }
+        } else if(captain->backup.unit==unit) {
+            captain->backup=(botCaptainTarget_t){0};
+            if(retained)captain->target=captain->follow;
+        } else if(retained)captain->target=(botCaptainTarget_t){0};
+    }
+}
+
 void G_BotRemoveCaptainUnit(edict_t *unit) {
     G_BotUnassignGuard(unit);
     G_BotWithdrawCaptainUnit(unit,true);
+    G_BotCaptainSourceRemoved(unit);
     G_BotWithdrawTownUnit(unit,true);
 }
 
@@ -1309,7 +1423,8 @@ bool G_BotRecenterCargoCaptain(edict_t *unit) {
 /* Saved logical state uses entity indexes, never roster backing or VM pointers.
  * Physical Move state independently persists the same actor/member references. */
 typedef struct {
-    vec2_t home,goal,position;
+    vec2_t home,goal,position,active_goal;
+    uint32_t target[3],target_birth[3];
     uint32_t position_valid;
     wc3Clock_t created,update_due;
     float request_range;
@@ -1385,12 +1500,19 @@ bool G_WriteCaptainState(FILE *file) {
         FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
             botCaptain_t const *captain=bot->captains+c;
             botCaptainSave_t record={.home=captain->home,.goal=captain->goal,.position=captain->position,
+                .active_goal=captain->active_goal,
+                .target={captain->target.unit ? (uint32_t)(captain->target.unit-g_edicts)+1 : 0,
+                         captain->follow.unit ? (uint32_t)(captain->follow.unit-g_edicts)+1 : 0,
+                         captain->backup.unit ? (uint32_t)(captain->backup.unit-g_edicts)+1 : 0},
+                .target_birth={captain->target.birth,captain->follow.birth,captain->backup.birth},
                 .position_valid=captain->position_valid,.created=captain->created,.point_order=captain->point_order,
                 .update_due=captain->update_due,.request_range=captain->request_range,.policy_flags=captain->policy_flags,.strength_count=captain->strength_count,
                 .actor=captain->home_actor ? (uint32_t)(captain->home_actor-g_edicts)+1 : 0,
                 .count=ARRAY_COUNT(captain->units),.home_set=captain->home_set,.full=captain->full,.state=captain->state};
             if (record.count>globals.num_edicts || (record.count && !captain->units) ||
                 (record.actor && (record.actor>globals.num_edicts || !captain->home_actor->inuse))) return false;
+            FOR_LOOP(t,3)if(record.target[t] && (record.target[t]>globals.num_edicts ||
+                !g_edicts[record.target[t]-1].inuse || g_edicts[record.target[t]-1].spawn_time!=record.target_birth[t]))return false;
             if (fwrite(&record,sizeof(record),1,file)!=1) return false;
             FOR_LOOP(i,record.count) {
                 edict_t const *unit=captain->units[i];
@@ -1418,13 +1540,17 @@ bool G_ReadCaptainState(FILE *file) {
             botCaptainSave_t record;
             if (fread(&record,sizeof(record),1,file)!=1 || record.count>globals.num_edicts ||
                 record.actor>globals.num_edicts || record.home_set>1 || record.full>1 || record.position_valid>1 || record.state>BOT_CAPTAIN_RETREATING ||
+                !isfinite(record.active_goal.x) || !isfinite(record.active_goal.y) ||
                 !isfinite(record.position.x) || !isfinite(record.position.y) ||
                 !isfinite(record.home.x) || !isfinite(record.home.y) || !isfinite(record.goal.x) || !isfinite(record.goal.y) ||
                 !isfinite(record.created.time) || !isfinite(record.created.span) || record.created.span<0 ||
                 !isfinite(record.update_due.time) || !isfinite(record.update_due.span) || record.update_due.span<0 ||
                 !isfinite(record.request_range) || record.request_range<0 ||
                 (record.point_order && record.point_order!=851986u && record.point_order!=851988u) ||
-                (record.policy_flags&~(BOT_CAPTAIN_RETREAT_FLAG|BOT_CAPTAIN_STRENGTH_READY))) return false;
+                (record.policy_flags&~(BOT_CAPTAIN_RETREAT_FLAG|BOT_CAPTAIN_STRENGTH_READY|BOT_CAPTAIN_REQUEST_RESTORED))) return false;
+            FOR_LOOP(t,3)if(record.target[t]>globals.num_edicts || (!record.target[t] && record.target_birth[t]) ||
+                (record.target[t] && (!g_edicts[record.target[t]-1].inuse ||
+                 g_edicts[record.target[t]-1].spawn_time!=record.target_birth[t])))return false;
             edict_t *actor=record.actor ? g_edicts+record.actor-1 : NULL;
             if (actor && (!actor->inuse || !actor->movement.captain_actor_owned ||
                 actor->s.player!=p || actor->movement.captain_actor_type!=c+1)) return false;
@@ -1433,6 +1559,10 @@ bool G_ReadCaptainState(FILE *file) {
              * denote restored edicts here. Do not retire those new actors. */
             gi.MemFree(captain->units_storage ? captain->units_storage : captain->units);
             *captain=(botCaptain_t){.home=record.home,.goal=record.goal,.position=record.position,
+                .active_goal=record.active_goal,
+                .target={record.target[0] ? g_edicts+record.target[0]-1 : NULL,record.target_birth[0]},
+                .follow={record.target[1] ? g_edicts+record.target[1]-1 : NULL,record.target_birth[1]},
+                .backup={record.target[2] ? g_edicts+record.target[2]-1 : NULL,record.target_birth[2]},
                 .position_valid=record.position_valid,.created=record.created,.point_order=record.point_order,
                 .update_due=record.update_due,.request_range=record.request_range,.policy_flags=record.policy_flags,.strength_count=record.strength_count,
                 .home_actor=actor,.home_set=record.home_set,.full=record.full,.state=record.state};
@@ -1836,6 +1966,9 @@ void G_BotCaptainGoalEvent(edict_t *actor) {
     if (!type || type>BOT_CAPTAIN_COUNT) return;
     botCaptain_t *captain=level.bots[actor->s.player].captains+type-1;
     if (captain->home_actor!=actor) return;
+    edict_t *follow=G_BotCaptainTarget(&captain->follow);
+    edict_t *target=follow ? follow : G_BotCaptainTarget(&captain->target);
+    if(target) {S_CaptainTargetMove(captain,target,!follow,200);return;}
     if (S_CaptainNearRequest(captain)) S_CaptainGoHome(captain);
     else {
         vec2_t point=captain->goal;

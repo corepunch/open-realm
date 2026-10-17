@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "299 executable original/evidence contracts;580 total entries; provenance and limitations remain per-entry.",
+  "scope": "301 executable original/evidence contracts;582 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -55926,6 +55926,119 @@
       "report": "ethereal357.json",
       "expected_exit": 0,
       "expected_status": "verified"
+    },
+    {
+      "id": "oracle-captain358",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_captain358.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "captain358.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 439
+        },
+        "contact_boundaries": {
+          "equal": 2
+        },
+        "instructions": {
+          "equal": 661
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 3,
+              "assertions": 57
+            },
+            "tft": {
+              "tests": 3,
+              "assertions": 57
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "GROUP-03.4.7.3 admitted combat contact returns a mana-only roster captain home without adding removal retreat; public frames and saved inverse.",
+      "exclusions": [
+        "Retained combat targets, follow engagements, full trajectories, wider roster/default/economy producers and retail saves remain GROUP-03.4.7.3."
+      ]
+    },
+    {
+      "id": "oracle-captain358-engagement",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_captain358_engagement.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "captain358-engagement.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "captures": {
+          "equal": 6
+        },
+        "controls": {
+          "equal": 3
+        },
+        "public_markers": {
+          "equal": 1111
+        },
+        "contact_boundaries": {
+          "equal": 6
+        },
+        "loss_boundaries": {
+          "equal": 2
+        },
+        "instructions": {
+          "equal": 1158
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 3,
+              "assertions": 60
+            },
+            "tft": {
+              "tests": 3,
+              "assertions": 60
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "GROUP-03.4.7.3 near-home hostile source policy0 preserves retained request; source removal restores it without roster mutation; signed mana counter/save/inverse.",
+      "exclusions": [
+        "Allied support/overflow/Hero policies, semantic target-change callbacks, cross-owner subscription ordering, independent acquisition, full trajectories and retail saves remain GROUP-03.4.7.3."
+      ]
     }
   ],
   "fixtures": [
@@ -56824,7 +56937,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "c18fef1fa21955a913aaa3d4847149f13df313bdc88d7ac08f21d7494dd71736"
+      "sha256": "61ff458c766f65a0cef7359cffebc4dd5179359386f1a7941112d08e3a5ddc52"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -57680,7 +57793,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "497c7d74cf167b0b1f6bfc8d78e3c942cfa3225c58b01b760592459d782af645"
+      "sha256": "66cfccba3c2db5a12b22a53da56789977068c7916b8507374c18b78ee83f63eb"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -58116,7 +58229,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "6d3fd3b5f0f417382a312e67eb9e656bc22c3761c2b5c0dacedce629932c16a0"
+      "sha256": "e442e692916d7199ca835db7e5d6933d037ff7bc60b68ddc0df299effbd42bd8"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -58124,7 +58237,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "6b946383dcd2a3af33c1814ac283695f23742f0e70cb78ff51d67d2f588d209b"
+      "sha256": "de163ee00d7263dbff77d898caee8da14eaf344cc5880f5853fe1c9a2373e0ac"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -58616,7 +58729,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "ae37ce0b060da92b4e331e91a79eaef02d88acd72a495610ff5bee48f29efad2"
+      "sha256": "1ad51c2305bb1dcafba4ebd6e50a196b2914acd83f1cc5c41c67f1ad13ef9e4c"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -58632,7 +58745,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "6d3ddc7e60de7edd89fb4d7df4a5bde490c6815ef406bc615b3716a9bdff9ba5"
+      "sha256": "0414c47818970f6fff770359719e4d6d1982e598f885f8182e40ea0bc9356dfa"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -58640,7 +58753,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "7fe716ac2403200e6185967513f6417fa0835ff0cf7d666782ecd29fdab85ee0"
+      "sha256": "078eae614468e0e57b6fcb73db4fd2c80e2c10c2daa720ea7843e0b525dc060e"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -58752,7 +58865,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_bot.c",
-      "sha256": "1401a620428175df6be13e8cbea692fa58b198a9795119eba2c4de3999847590"
+      "sha256": "429856a600b934b98d01bfba6e1b515315afe18bee4186e9dff4ef481ff7ce12"
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
@@ -59004,7 +59117,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_captain_policy.c",
-      "sha256": "3fc72917815f4104e255566648dc4dba1c0971bcd6801f613464a6963ca7b7b7"
+      "sha256": "d7aa25145bda19e0b6b7faf963eaf510775004970cd4a786626ea6f1447467c3"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/test_captain_attack.ai",
@@ -59028,7 +59141,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
-      "sha256": "00ffa146acec88e2505720ea7850807d9e990e00cd07bc1a187efb756db89c86"
+      "sha256": "939d1ebbcacd35385843e6c1f9b3ff7051b408a7ce5c4e6aa56f152819b3cf46"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.7.3/HANDOFF.md",
@@ -63632,7 +63745,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "748cb991cf93aa04955dba5def7e02a7f84bf2b37e1c497f2504600eac6d178e"
+      "sha256": "1afb5a2ac3493596290f11da63d688c3180d73272237294ff753b6904cc0bff3"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -65488,7 +65601,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "fd8b20a3b36da06a15b27ba4427b34bb91dbe67f8d343206b201b1a10901bab3"
+      "sha256": "c0007e89db911fa68b789731e42f34562fbd1076d6c2df36d0890d1ac475cb53"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -66125,6 +66238,90 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_ethereal357.py",
       "sha256": "27a048ed551323afb1d439990f82248e9edf9f29e7badc1ee3ce182c3e51d1a0"
+    },
+    {
+      "path": "tools/frida/research/captain358_make_map.py",
+      "sha256": "adcf8c088a1989bfffed568df1ec5dae7b8c3f0f51944884bd6d4659386f2386"
+    },
+    {
+      "path": "tools/frida/research/captain358_probe.ai",
+      "sha256": "8f767ed7f199e8a1cb42f004f64cf1cb08d890663c6b36d22c5971a2ae63a724"
+    },
+    {
+      "path": "tools/frida/research/captain358_probe.j",
+      "sha256": "6385c4e734a3ca2c1fcdc83e496c6b2abb09343c638eadea2730777d9cfd6a4c"
+    },
+    {
+      "path": "tools/frida/research/captain358_observer.js",
+      "sha256": "88569396735ac1ee4b525cf26fee9cac71c02f60db75afd7468c063ed9e2b191"
+    },
+    {
+      "path": "tools/frida/research/captain358_engagement_make_map.py",
+      "sha256": "3ffb1975c6c5ae47e9a3e8388c91d8bca6345ccdb5a16c03282cdc69eecdc5ee"
+    },
+    {
+      "path": "tools/frida/research/captain358_engagement_observer.js",
+      "sha256": "1db19e7016eb6efb1d12a620f0b0346610964b6286967cc270af85c3138ad65b"
+    },
+    {
+      "path": "tools/frida/research/captain358_negative_make_map.py",
+      "sha256": "1f7674971efc380669ab2ddab69645997bffa351397b70197ff01fc2edd22ffe"
+    },
+    {
+      "path": "tools/frida/research/captain358_negative_probe.j",
+      "sha256": "6385c4e734a3ca2c1fcdc83e496c6b2abb09343c638eadea2730777d9cfd6a4c"
+    },
+    {
+      "path": "tools/frida/research/captain358_negative_probe.ai",
+      "sha256": "bcbafac0bf00a42afe89ee737bcb29955cbe705abc0b387f65ea035dbbc16661"
+    },
+    {
+      "path": "tools/ghidra/research/Captain358Evidence.java",
+      "sha256": "9aaeed4777e1e2a0741c1f63595a4bc66f56bca26c948f8f7a1145ac822cad1d"
+    },
+    {
+      "path": "tools/ghidra/research/Captain358EngagementEvidence.java",
+      "sha256": "4245bf2fcefffb7e6c9cd76f3fdaed3f46ba71325b951c37ba92a1a8117eeb61"
+    },
+    {
+      "path": "tools/ghidra/research/captain358_freeze.py",
+      "sha256": "25275c9a234d96da77f40e8841da9368ffb3e98649ee6698213378d1cf8b3754"
+    },
+    {
+      "path": "tools/ghidra/research/captain358_engagement_freeze.py",
+      "sha256": "e99e1ead1bfb3b61f49100cec95324d55ee44585676fd8f4ab605df81ec287f2"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_captain358.py",
+      "sha256": "fac8242a120ef86c68201e273c8e73b8401f16844afb379b8a9514925645700a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_captain358_engagement.py",
+      "sha256": "a62763fcbd59cd170d9800a2f0e17f62dbc6d61c0bda1ac36477dc00cf8a38b7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain358-1.27.json",
+      "sha256": "d5af9576fddc870cfcb322773e2def5efc39f09e3ea03da81ec8b894ae73e861"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain358-1.27.json.gz",
+      "sha256": "b67e18e056d4783568a38f9cf9ddeabdfc50ccfa1c6066cc6d3296cbbc6f875b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain358-engagement-1.27.json",
+      "sha256": "93e1aa22ddc4ffdc642affb7f5b04bce942ccad476de1e1c583770729764f864"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain358-engagement-1.27.json.gz",
+      "sha256": "282ea3cb0c7c590aba9200f618d1153360d67343e49993a54e7b2d8af534ebfc"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain358.py",
+      "sha256": "ef2d8a20a803825ca9eb948ef78bebb1b802b361d14c97c9a537db91849058c4"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain358_engagement.py",
+      "sha256": "45c78cf2c00b7fed5bbc725ddd3ee3a00c95cc3eee06897a928cb9f269741044"
     }
   ]
 }
