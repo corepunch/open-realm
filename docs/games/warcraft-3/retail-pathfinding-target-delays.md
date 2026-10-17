@@ -87,3 +87,8 @@ and visibility lifecycle. TARGET-02.1 and FORM-04.2 remain open.
 
 See also [movement integration](retail-pathfinding-engine.md) and
 [composed blockers](retail-pathfinding-composed-blockers.md).
+
+The [Payoff356 target audit](retail-pathfinding-target-audit356.md) adds complete
+literal Move and stepped Smart journeys, delayed cold-save continuations and the
+current producer inventory. It also records the historical six-decimal pose-word
+loss and the inherited shadow-map size that can prevent retail probes loading.

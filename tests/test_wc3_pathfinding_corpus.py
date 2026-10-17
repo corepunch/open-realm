@@ -18,7 +18,7 @@ from run_wc3_pathfinding_corpus import (DEFAULT_MANIFEST,load_manifest,check_rep
 
 class CorpusTests(unittest.TestCase):
     def test_magic_leash_contract_rejects_partial_reports(self):
-        for name in ('oracle-group354','oracle-group355'):
+        for name in ('oracle-group354','oracle-group355','oracle-target356'):
             entry=next(e for e in self.manifest['entries']if e['id']==name)
             report={'binary_sha256':self.target['game_sha256'],'passed':True,'engine':{'classic':{},'tft':{}}}
             report.update({k:r['equal']if 'equal'in r else [None]*r['length']
@@ -161,7 +161,7 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),297)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),298)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),160)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']

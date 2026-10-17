@@ -29192,4 +29192,107 @@ static void power349_run(bool saved) {
 }
 TEST(wc3_movement, power349_public_parameter_overwrites_match_retail) {power349_run(false);}
 TEST(wc3_movement, power349_saved_parameter_overwrites_match_retail) {power349_run(true);}
+
+
+#include "fixtures/retail_target356.h"
+static edict_t *target356_unit;
+static uint32_t const (*target356_rows)[23];
+static uint32_t target356_cursor,target356_count;
+static bool target356_mismatch;
+static void target356_before(moveGroup_t const *group) {
+    if(target356_mismatch || group->count!=1 || group->members[0].unit!=target356_unit) return;
+    T_ASSERT(target356_cursor<target356_count);
+    if(target356_cursor>=target356_count)return;
+    uint32_t const *row=target356_rows[target356_cursor];
+    moveFineRoute_t const *path=&target356_unit->movement.fine_route;
+    uint32_t actual[]={level.pathing_counter,group->target_refresh,group->unseen_counter,
+        wc3_float_bits(target356_unit->movement.fine_pose.x),wc3_float_bits(target356_unit->movement.fine_pose.y),
+        target356_unit->movement.fine_request_time,path->adaptive_admission.time,
+        wc3_float_bits(path->adaptive_goal.x),wc3_float_bits(path->adaptive_goal.y),
+        wc3_float_bits(group->route.group_goal.x),wc3_float_bits(group->route.group_goal.y),
+        group->route.adaptive_admission.time,group->route.group_admission.time,0,group->route.group_count,
+        UINT32_MAX,group->route.group_index,path->count,path->adaptive_count,path->index,path->adaptive_index,
+        target356_unit->movement.wait_delay,target356_unit->movement.retry_count};
+    FOR_LOOP(i,23) {
+        /* Newly allocated, unpublished route storage has no coordinate identity. */
+        if((i==7 || i==8) && !path->adaptive_points)continue;
+        if((i==9 || i==10) && !group->initialized)continue;
+        if(i==16 && !group->route.group_count)continue;
+        if(i==19 && !path->count)continue;
+        if(i==20 && !path->adaptive_count)continue;
+        T_EQ(actual[i],row[i]);
+        if(actual[i]!=row[i]) {
+            fprintf(stderr,"target356 row=%u field=%u counter=%u actual=%08x expected=%08x\n",
+                target356_cursor,i,level.pathing_counter,actual[i],row[i]);
+            target356_mismatch=true;
+        }
+    }
+    target356_cursor++;
+}
+static void target356_journey(bool step) {
+    reset_entities();setup_test_world();
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    float old_follow=game.constants.followRange;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;game.constants.followRange=300;
+    unitModification_t mods[]={{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','T','5','6'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};mapInfo_t const *oldinfo=level.mapinfo;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+    int start=step ? 220 : 420;
+    char script[5000];snprintf(script,sizeof(script),
+        "globals\nunit a\nunit b\ninteger tick=0\ninteger dir=1\nendglobals\n"
+        "function ModuloInteger takes integer dividend,integer divisor returns integer\n"
+        "local integer modulus=dividend-(dividend/divisor)*divisor\n"
+        "if modulus<0 then\nset modulus=modulus+divisor\nendif\nreturn modulus\nendfunction\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==%d then\nset a=CreateUnit(Player(0),'hT56',480,288,0)\n"
+        "set b=CreateUnit(Player(0),'hT56',1568,288,90)\ncall SetUnitMoveSpeed(b,150)\n%s\nendif\n"
+        "if tick==%d then\ncall IssueTargetOrder(a,\"%s\",b)\nendif\n"
+        "%s\n"
+        "if tick==%d then\ncall IssueImmediateOrder(a,\"stop\")\ncall IssueImmediateOrder(b,\"stop\")\nendif\n"
+        "endfunction\nfunction main takes nothing returns nothing\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n",
+        start,step ? "" : "call IssuePointOrder(b,\"move\",GetUnitX(b),1312)",start+5,step ? "smart" : "move",
+        step ? "if tick>=222 and tick<=406 and ModuloInteger(tick,2)==0 then\n"
+            "if (dir==1 and GetUnitY(b)>=1280) or (dir==-1 and GetUnitY(b)<=320) then\nset dir=-dir\nendif\n"
+            "call SetUnitY(b,GetUnitY(b)+64*I2R(dir))\nendif" :
+            "if tick==490 then\ncall IssuePointOrder(b,\"move\",GetUnitX(b),288)\nendif\n"
+            "if tick==560 then\ncall IssuePointOrder(b,\"move\",GetUnitX(b),1312)\nendif",start+190);
+    T_ASSERT(run_test_jass(script));
+    target356_rows=step ? target356_step : target356_move;
+    target356_count=step ? sizeof(target356_step)/sizeof(*target356_step) : sizeof(target356_move)/sizeof(*target356_move);
+    target356_unit=NULL;target356_cursor=0;target356_mismatch=false;move_test_group_begin=target356_before;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("wc3-target356-delay.bin");uint32_t saved_cursor=0;
+    FOR_LOOP(pass,2) {
+        if(pass) {if(!saved_cursor)break;T_ASSERT(ReadGame(file));target356_cursor=saved_cursor;}
+        while(level.time<(start+191)*100 && !target356_mismatch && target356_cursor<target356_count) {
+            level.time+=5;globals.RunFrame();
+            if(!target356_unit)FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) {target356_unit=ent;break;}
+            if(!pass && !saved_cursor && level.pathing_counter==(step ? 1919 : 2595)) {
+                T_ASSERT(WriteGame(file));saved_cursor=target356_cursor;
+            }
+        }
+        T_EQ(target356_cursor,target356_count);
+        if(target356_mismatch)break;
+        move_test_group_begin=NULL;
+        while(level.time<(start+191)*100) {level.time+=5;globals.RunFrame();}
+        T_EQ(target356_unit->current_order_id,0);T_EQ(target356_unit->movement.group_id,0);
+        move_test_group_begin=target356_before;
+    }
+    remove(file);move_test_group_begin=NULL;target356_unit=NULL;level.started=false;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
+}
+TEST(wc3_movement, target356_public_move_target_complete_delay_journey) {target356_journey(false);}
+TEST(wc3_movement, target356_public_stepped_target_complete_delay_journey) {target356_journey(true);}
+
 #endif

@@ -151,7 +151,7 @@ def analyze(rows):
                 me = next((m for m in s['members'] if m.get('id') == follower), None)
                 row = dict(c=s['c'], gi=gi, group=gkey, target=s['target'], flags=hex(s['flags']), cd=s['cd'], unseen=s['unseen'],
                            gpath=dict(dest=fv(s['path']['dest']), times=s['path']['times'], idx=s['path']['idx'], cnt=s['path']['cnt']) if s.get('path') else None,
-                           self=dict(pos=fv(me['pos']), range=f32(me['range']) if 'range' in me else None, flags=hex(me['flags']) if 'flags' in me else None,
+                           self=dict(pos=fv(me['pos']), pos_words=me['pos'], range=f32(me['range']) if 'range' in me else None, flags=hex(me['flags']) if 'flags' in me else None,
                                      dest=fv(me['path']['dest']), times=me['path']['times'],
                                      idx=me['path']['idx'], cnt=me['path']['cnt'], retry=me['path'].get('retry')) if me and me.get('path') else None,
                            decisions=[compact_event(e, gpaths) for e in v['events']],

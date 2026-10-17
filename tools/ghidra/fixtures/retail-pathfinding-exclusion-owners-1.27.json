@@ -299,7 +299,8 @@
     "oracle-trig351",
     "oracle-basic352",
     "oracle-group354",
-    "oracle-group355"
+    "oracle-group355",
+    "oracle-target356"
   ],
   "entries": [
     {
@@ -6820,6 +6821,39 @@
           "task": "GROUP-03.2",
           "disposition": "behavior",
           "rationale": "The verified bounded producer does not establish the other explicitly listed public lifetimes and acquisition policies."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-target356",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Full natural 36-follower numerical contention remains TARGET-02.1.",
+          "task": "TARGET-02.1",
+          "disposition": "behavior",
+          "rationale": "The literal unit target contract preserves the remaining scope under its existing owner."
+        },
+        {
+          "index": 1,
+          "text": "Final captured-region/pathing-mask composition audit remains TARGET-02.1.",
+          "task": "TARGET-02.1",
+          "disposition": "behavior",
+          "rationale": "The literal unit target contract preserves the remaining scope under its existing owner."
+        },
+        {
+          "index": 2,
+          "text": "Captain target producers remain GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "evidence-boundary",
+          "rationale": "The literal unit target contract preserves the remaining scope under its existing owner."
+        },
+        {
+          "index": 3,
+          "text": "Missile target producers remain E2E-06.1.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The literal unit target contract preserves the remaining scope under its existing owner."
         }
       ]
     }
