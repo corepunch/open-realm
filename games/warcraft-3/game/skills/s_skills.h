@@ -72,6 +72,8 @@ BZ_ABILITY_PROC(CAbilityRavenForm);
 BZ_ABILITY_PROC(CAbilityBearForm);
 BZ_ABILITY_PROC(CAbilityMorphTransition);
 BZ_ABILITY_PROC(CAbilityGroundMorph);
+BZ_ABILITY_PROC(CAbilityCorporealForm);
+BZ_ABILITY_PROC(CAbilityEtherealForm);
 bool S_PrepareMorphFlight(edict_t *,uint32_t target,abilityLevel_t const *,bool *takeoff,bool *landing);
 void S_BeginMorphRise(edict_t *);
 void S_UpdateMorphRise(edict_t *);

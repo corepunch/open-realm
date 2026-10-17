@@ -1936,6 +1936,7 @@ static uint32_t unit_builtin_status_states(uint32_t code) {
 bool unit_hasstatusstate(edict_t const *ent, wc3_status_state_t state) {
     uint32_t mask = (uint32_t)state;
     if (!ent || !mask || (mask & (mask - 1u))) return false;
+    if (state == WC3_STATUS_STATE_ETHEREAL && ent->ethereal_depth > 0) return true;
     FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         if (!status->level || !((status->state_mask | unit_builtin_status_states(status->code)) & mask)) continue;

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Target356, the inventory has **579 entries**: **298** oracle contracts
-(including variants) supplied by **226** distinct verifier scripts, **121**
+As of Ethereal357, the inventory has **580 entries**: **299** oracle contracts
+(including variants) supplied by **227** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -72,8 +72,8 @@ or silently upgrade the existing evidence.
 
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
-identity, source versions and frozen input hashes. The current Target356
-inventory has579 entries:298 oracle contracts supplied by226 distinct verifier
+identity, source versions and frozen input hashes. The current Ethereal357
+inventory has580 entries:299 oracle contracts supplied by227 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2359,3 +2359,7 @@ Target356 adds1,233 literal Move/Smart movement decisions with delayed saved
 continuations, Stop cleanup and raw pose precision rejection checks. Fresh native
 repeats preserve5,017 decisions and2,085 public markers; the full crowd and final
 mask audit remain in TARGET-02.1.
+
+Ethereal357 registers counted innate/form ethereal attachment and positive
+HeroDur reverse expiry with repeated native observations, observer-free controls,
+failing-first production/save regressions and164 original instruction guards.

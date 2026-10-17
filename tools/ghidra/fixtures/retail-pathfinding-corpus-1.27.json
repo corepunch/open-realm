@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "298 executable original/evidence contracts;579 total entries; provenance and limitations remain per-entry.",
+  "scope": "299 executable original/evidence contracts;580 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -55872,6 +55872,60 @@
         "Captain target producers remain GROUP-03.4.7.3.",
         "Missile target producers remain E2E-06.1."
       ]
+    },
+    {
+      "id": "oracle-ethereal357",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_ethereal357.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "checks": {
+        "captures": {
+          "equal": 3
+        },
+        "scenes": {
+          "equal": 6
+        },
+        "public_markers": {
+          "equal": 500
+        },
+        "native_events": {
+          "equal": 894
+        },
+        "instructions": {
+          "equal": 164
+        },
+        "engine": {
+          "nonempty": true
+        },
+        "lifetime": {
+          "equal": {
+            "captures": 3,
+            "scenes": 2,
+            "public_markers": 164,
+            "native_events": 274
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "SEP-01.2 counted innate and Corporeal/Ethereal morph ownership, common positive HeroDur expiry, saved attachment and inverse.",
+      "exclusions": [
+        "Remaining Morph subclasses, counted-owner compositions and full producer replay remain SEP-01.2."
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "ethereal357.json",
+      "expected_exit": 0,
+      "expected_status": "verified"
     }
   ],
   "fixtures": [
@@ -56770,7 +56824,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "c40ff58b4f0984bb2e618dd8e8dc49946a3220a697a93dbef13a5646f2673a69"
+      "sha256": "c18fef1fa21955a913aaa3d4847149f13df313bdc88d7ac08f21d7494dd71736"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -58062,7 +58116,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "32e3ca6f22fa194cdc573a6d49f8a48c8575f17552fa0136b1155904b0d14eef"
+      "sha256": "6d3fd3b5f0f417382a312e67eb9e656bc22c3761c2b5c0dacedce629932c16a0"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -58070,7 +58124,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "e783d5a33e892ce25e2c95f7a26e961df3e3e48927305a3d60030a6097d98a7c"
+      "sha256": "6b946383dcd2a3af33c1814ac283695f23742f0e70cb78ff51d67d2f588d209b"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -58562,7 +58616,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "cb66a83160fbef34977e4bedb4e7673cfb245a7b1de67d00781851fad1745988"
+      "sha256": "ae37ce0b060da92b4e331e91a79eaef02d88acd72a495610ff5bee48f29efad2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -58578,7 +58632,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "b375d02cb3d4464e1ee19de6509509d6af733ecd8aeb7b1dc887012964516d26"
+      "sha256": "6d3ddc7e60de7edd89fb4d7df4a5bde490c6815ef406bc615b3716a9bdff9ba5"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -58590,7 +58644,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "f2678b3f6cb16e901d4dc41e65e039ace157e7e11681282652f8893ebba51fb1"
+      "sha256": "18aa5e74959e37370604cc5801aaa4113ceaa51b2615fe45b472be729e64d2ae"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -59526,7 +59580,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "d71f593d8c37215d6d2d896c5641d3d271b4bdef89dcc28545371c8c8c0c6bf4"
+      "sha256": "b9875c6b010a1c676d303fbd5d6449d21f58874cd3c2e8aaba5bf202e00e3463"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -59786,7 +59840,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "6dc253af2f0e5667a9fbd076d72cbf4250a48a917e98069da88c7ba3ad3a584a"
+      "sha256": "7c3e8c1474c81711a3cd8ed7f8b4a27566c72f05d14a3f223658b3c96d63b901"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -60014,7 +60068,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit.c",
-      "sha256": "378619837369cf851e73a6b31ca3ce2f94413d5d50d4e3f63925c17bf400fa84"
+      "sha256": "f08dc18edbaef93f1c0c6701ed347046185d685978ae3c7f224156afa86fe6d0"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/common.j",
@@ -63578,7 +63632,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "c9b02713c71ecb2e8541907ad5cc9d012e249ac01e32df195e589a8893109b35"
+      "sha256": "748cb991cf93aa04955dba5def7e02a7f84bf2b37e1c497f2504600eac6d178e"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -65130,7 +65184,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_ground_morph.c",
-      "sha256": "b3685d79b3a84e6345ee9c7a2cecf353a7d220c6faaab727062ceb34aed19634"
+      "sha256": "cef1966826263100f06fadacef06e8e88f095b87d2c10715aa9fffa2c7f65006"
     },
     {
       "path": "tools/frida/research/morph331_probe.j",
@@ -65434,7 +65488,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "aa4c35ec98f319d132bcc210a5fc7f5fb17c06c47c52a68bd64a6d7d1408e568"
+      "sha256": "fd8b20a3b36da06a15b27ba4427b34bb91dbe67f8d343206b201b1a10901bab3"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -66035,6 +66089,42 @@
     {
       "path": "tools/frida/research/target021_expected.py",
       "sha256": "02a7d67af42e6d21b5d34079104456fe4f4eec33dfd649373b0abb9aaa349d29"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-ethereal-forms.md",
+      "sha256": "4d0db39eb9eb3379eb3e232207fa10d6471cacef4f106408da421ce90188d9c4"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_ethereal357.py",
+      "sha256": "0b7e650b85f33cb38bc287e29694541d18704ee8def7c2dc971ad8d4558832de"
+    },
+    {
+      "path": "tools/frida/research/ethereal357_lifetime_make_map.py",
+      "sha256": "25d94e705859af78d25643203d77e47acfa452ac2f6140dd060b69f1c8a5d9d9"
+    },
+    {
+      "path": "tools/frida/research/ethereal357_lifetime_probe.j",
+      "sha256": "9d41f2c08cd268861e25fca0aa1a9b532799f6ada4cf8bb198c462d906d9b631"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-ethereal357-1.27.json",
+      "sha256": "4627ba6c986d80fd6ed630a5803ea0fab9c1813cecfba21c2c91c0ced491614f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-ethereal357-inputs-1.27.json.gz",
+      "sha256": "21773f00922aeed0ff44fd3c6fb78bf21bbd42d495bac81888ebf5808fd7c8fc"
+    },
+    {
+      "path": "tools/ghidra/research/Ethereal357Evidence.java",
+      "sha256": "2e9298dc0cdbdc253e0506f3a21a59686463726ff6f6116c0c2dae9858f052d2"
+    },
+    {
+      "path": "tools/ghidra/research/ethereal357_freeze.py",
+      "sha256": "a8f29e23e04aa0d69ff4ea79e4455a624ad7437cc17c9e665b84d300feb6eb12"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_ethereal357.py",
+      "sha256": "27a048ed551323afb1d439990f82248e9edf9f29e7badc1ee3ce182c3e51d1a0"
     }
   ]
 }

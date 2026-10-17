@@ -3622,4 +3622,79 @@ TEST(wc3_unit, status_periodic_scheduler_rejects_unscheduled_expired_or_invalid_
     T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 2000));
     T_ASSERT(!unit_status_take_due_tick(NULL, 1000, 2000));
 }
+/* Ethereal357 replays Audit333's public forward/reverse owner lifetime with
+ * non-stock endpoints/duration in both real AbilityData column schemas. */
+TEST(wc3_unit, ethereal357_forms_keep_counted_state_through_transition_save_and_inverse) {
+    for(unsigned family=0;family<2;family++)for(unsigned schema=0;schema<2;schema++)for(unsigned action=0;action<5;action++) {
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        reset_test_entities();setup_test_world();
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char data[1100];cstring_t parent=family ? "Aetf" : "Acpf",alias=family ? "Ae57" : "Ac57";
+        cstring_t orders[2]={family ? "etherealform" : "corporealform",family ? "unetherealform" : "uncorporealform"};
+        snprintf(data,sizeof(data),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"%s\"\nC;X2;K\"%s\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\nC;X5;K0.375\nC;X6;K%s\nC;X1;Y3;K\"Aetl\"\nC;X2;K\"Aetl\"\nE\n",
+            schema ? "Data11" : "DataA1",alias,parent,action==4 ? "0.625" : "0");
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        uint32_t code=FS_SLKKey(alias),base=FS_SLKKey("hpea"),alt=FS_SLKKey("hfoo");
+        edict_t *unit=alloc_test_unit(base,64,64);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        T_ASSERT(G_ActorAddSkill(unit,code));
+        edict_t *enemy=alloc_test_unit(alt,96,64);enemy->s.player=1;uint32_t enemy_slot=enemy-g_edicts;
+        T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),!family);
+        if(action==0) {
+            T_ASSERT(G_ActorAddSkill(unit,FS_SLKKey("Aetl")));
+            T_ASSERT(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL));
+            T_ASSERT(G_ActorRemoveSkill(unit,FS_SLKKey("Aetl")));
+            T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),!family);
+        }
+        for(unsigned reverse=0;reverse<2;reverse++) {
+            float start=1+reverse;level.pathing_clock=(wc3Clock_t){.time=start,.span=300};
+            bool source_ethereal=family ? reverse : !reverse;
+            T_ASSERT(unit_issueimmediateorder(unit,orders[reverse]));
+            T_EQ(unit->current_order_id,G_OrderId(orders[reverse]));
+            T_EQ(unit->movement.repulse.disable_depth,1);
+            T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),source_ethereal);
+            T_EQ(S_AttackHitAllowed(enemy,unit,unit),!source_ethereal);
+            T_EQ(S_AttackHitAllowed(unit,enemy,enemy),!source_ethereal);
+            if(action==1) {T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->current_order_id,G_OrderId(orders[reverse]));}
+            if(action==3) {S_SetUnitPaused(unit,true);T_ASSERT(!S_UnitExecutionPaused(unit));}
+            if(action==2) {uint32_t slot=unit-g_edicts;cstring_t path=Test_TempPath("ethereal357-transition.bin");
+                T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;enemy=g_edicts+enemy_slot;}
+            morph330_advance(start+.374f);
+            T_EQ(unit->class_id,reverse ? alt : base);
+            T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),source_ethereal);
+            T_EQ(S_AttackHitAllowed(enemy,unit,unit),!source_ethereal);
+            T_EQ(S_AttackHitAllowed(unit,enemy,enemy),!source_ethereal);
+            morph330_advance(start+.375f);
+            T_EQ(unit->class_id,reverse ? base : alt);
+            T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),!source_ethereal);
+            T_EQ(S_AttackHitAllowed(enemy,unit,unit),source_ethereal);
+            T_EQ(S_AttackHitAllowed(unit,enemy,enemy),source_ethereal);
+            T_EQ(unit->movement.repulse.disable_depth,action==3 ? 1 : 0);
+            if(action==3) {T_ASSERT(S_UnitExecutionPaused(unit));S_SetUnitPaused(unit,false);
+                morph330_advance(start+.425f);S_RunMoveTimers();T_EQ(unit->movement.repulse.disable_depth,0);}
+            if(action==4 && !reverse) {
+                abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);
+                T_ASSERT(pending);if(pending)T_FEQ(request.deadline.time,2.0f,.000001f);
+                morph330_advance(1.999f);T_EQ(unit->class_id,alt);
+                uint32_t slot=unit-g_edicts;cstring_t path=Test_TempPath("ethereal357-lifetime.bin");
+                T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;enemy=g_edicts+enemy_slot;
+                morph330_advance(2.0f);T_EQ(unit->movement.repulse.disable_depth,1);
+                T_EQ(unit->class_id,alt);T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),family!=0);
+                morph330_advance(2.374f);T_EQ(unit->class_id,alt);
+                morph330_advance(2.375f);T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,0);
+                T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),!family);
+                break;
+            }
+            if(action==2) {uint32_t slot=unit-g_edicts;cstring_t path=Test_TempPath("ethereal357-completed.bin");
+                T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;enemy=g_edicts+enemy_slot;
+                T_EQ(unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL),!source_ethereal);
+            T_EQ(S_AttackHitAllowed(enemy,unit,unit),source_ethereal);
+            T_EQ(S_AttackHitAllowed(unit,enemy,enemy),source_ethereal);}
+        }
+        T_ASSERT(G_ActorRemoveSkill(unit,code));T_ASSERT(!unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL));
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
 #endif /* BZ_TESTS */

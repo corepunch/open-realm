@@ -228,7 +228,32 @@ BZ_ABILITY_PROC(CAbilityGhost) {
  * asymmetric collision/building-blocking policy remains intentionally
  * separate until that retail behavior is pinned down. */
 BZ_ABILITY_PROC(CAbilityGhostVisible) { return CAbilityPassive(ent, msg, call); }
-BZ_ABILITY_PROC(CAbilityEthereal) { return CAbilityPassive(ent, msg, call); }
+/* Original48b7f0/48ec80 count sources independently; only the positive/zero
+ * edges publish target availability. Timed Banish remains a separate status. */
+void S_AcquireEthereal(edict_t *ent) {
+    ent->ethereal_depth=(int32_t)((uint32_t)ent->ethereal_depth+1);
+    if(ent->ethereal_depth==1) {
+        S_UnitTargetLost(ent);
+        G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
+    }
+}
+void S_ReleaseEthereal(edict_t *ent) {
+    ent->ethereal_depth=(int32_t)((uint32_t)ent->ethereal_depth-1);
+    if(ent->ethereal_depth==0) {
+        S_UnitTargetAvailable(ent);
+        G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
+    }
+}
+BZ_ABILITY_PROC(CAbilityEthereal) {
+    switch(msg) {
+    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT);
+    case A_ENABLE:case A_UNIT_INIT:
+        if(ent && call && call->item)S_InitializeEtherealAbility(ent,call->item->code,true);
+        return true;
+    case A_DISABLE:if(ent && call && call->item)S_SetEtherealAbility(ent,call->item->code,false);return true;
+    default:return CAbilityPassive(ent,msg,call);
+    }
+}
 BZ_ABILITY_PROC(CAbilityScout) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityBallsOfFire) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilitySalvage) { return CAbilityPassive(ent, msg, call); }

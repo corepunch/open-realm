@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 200; /* Magic Leash's status-owned execution and priority policy. */
+static uint32_t const save_version = 201; /* Counted intrinsic/form ethereal attachment ownership. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1216,6 +1216,7 @@ field_t edict_fields[] = {
     F(edict_s, ability_exclusive_depth, F_INT),
     F(edict_s, invulnerability_depth, F_INT),
     F(edict_s, spell_immunity_depth, F_INT),
+    F(edict_s, ethereal_depth, F_INT),
     F(edict_s, scheduled_think_frame, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, target_loss_transient, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, construction_held, F_INT),
@@ -2937,7 +2938,7 @@ typedef struct {
 typedef struct {
     uint32_t code,exclusive_inventory;
     int32_t depth,order_depth;
-    bool pause_owned,retire_owned,exclusive_owned;
+    bool pause_owned,retire_owned,exclusive_owned,ethereal_initialized,ethereal_owned;
 } savedAbilityDisable_t;
 
 static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
@@ -2948,7 +2949,7 @@ static bool WriteAbilityDisables(FILE *f,edict_t const *ent) {
     }
     if(!SaveBytes(f,&count,sizeof(count)))return false;
     for(unitAbilityDisable_t const *s=ent->ability_disables;s;s=s->next) {
-        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory};
+        savedAbilityDisable_t saved={.code=s->code,.depth=s->depth,.order_depth=s->order_depth,.pause_owned=s->pause_owned,.retire_owned=s->retire_owned,.exclusive_owned=s->exclusive_owned,.exclusive_inventory=s->exclusive_inventory,.ethereal_initialized=s->ethereal_initialized,.ethereal_owned=s->ethereal_owned};
         if(!SaveBytes(f,&saved,sizeof(saved)))return false;
     }
     return true;
@@ -2965,6 +2966,7 @@ static bool ReadAbilityDisables(FILE *f,edict_t *ent) {
             if(s->code==saved.code)goto failed;
         unitAbilityDisable_t *state=calloc(1,sizeof(*state));if(!state)goto failed;
         state->code=saved.code;state->depth=saved.depth;state->order_depth=saved.order_depth;
+        state->ethereal_initialized=saved.ethereal_initialized;state->ethereal_owned=saved.ethereal_owned;
         state->pause_owned=saved.pause_owned;state->retire_owned=saved.retire_owned;state->exclusive_owned=saved.exclusive_owned;state->exclusive_inventory=saved.exclusive_inventory;state->linked=true;state->references=1;*tail=state;tail=&state->next;
     }
     return true;

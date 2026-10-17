@@ -300,7 +300,8 @@
     "oracle-basic352",
     "oracle-group354",
     "oracle-group355",
-    "oracle-target356"
+    "oracle-target356",
+    "oracle-ethereal357"
   ],
   "entries": [
     {
@@ -6854,6 +6855,18 @@
           "task": "E2E-06.1",
           "disposition": "evidence-boundary",
           "rationale": "The literal unit target contract preserves the remaining scope under its existing owner."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-ethereal357",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Remaining Morph subclasses, counted-owner compositions and full producer replay remain SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Other concrete form and counted owner producers remain within the original leaf."
         }
       ]
     }

@@ -11,6 +11,8 @@ int G_AutocastDebugLevel(void) {
 
 static cstring_t const cargo_drop_orders[] = { "unloadall", NULL };
 static cstring_t const cargo_load_orders[] = { "load", NULL };
+static cstring_t const corporeal_form_orders[] = { "corporealform", "uncorporealform", NULL };
+static cstring_t const ethereal_form_orders[] = { "etherealform", "unetherealform", NULL };
 static cstring_t const burrow_orders[] = { "burrow", "unburrow", NULL };
 static cstring_t const avenger_form_orders[] = { "avengerform", NULL };
 static cstring_t const robo_goblin_orders[] = { "robogoblin", "unrobogoblin", NULL };
@@ -513,8 +515,8 @@ static ability_t abilitylist[] = {
     { "Arbr", CAbilityPassive, AB_PASSIVE },  /* Reinforced Burrows Upgrade */
     { "Aast", CAbilityAncestralSpirit, AB_SPELL, SPELL_TARGET_NONE },  /* Ancestral Spirit */
     { "Adch", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant */
-    { "Acpf", CAbilityBanish, AB_SPELL },  /* Corporeal Form */
-    { "Aetf", CAbilityBanish, AB_SPELL },  /* Ethereal Form */
+    { "Acpf", CAbilityCorporealForm, AB_SPELL, SPELL_TARGET_NONE, corporeal_form_orders },  /* Corporeal Form */
+    { "Aetf", CAbilityEtherealForm, AB_SPELL, SPELL_TARGET_NONE, ethereal_form_orders },  /* Ethereal Form */
     { "Aspl", CAbilitySpiritLink, AB_SPELL, SPELL_TARGET_UNIT },  /* Spirit Link */
     { "Aliq", CAbilityLiquidFire, AB_PASSIVE },  /* Liquid Fire */
     { "Auco", CAbilityUnstableConcoction, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Unstable Concoction */
@@ -1849,6 +1851,22 @@ static void ability_disable_prepare(edict_t *ent) {
         if(ent->heroabilities[i].level && ent->heroabilities[i].code)ability_disable_attach(ent,ent->heroabilities[i].code);
     FOR_LOOP(i,ARRAY_COUNT(ent->abilities.added))
         if(ent->abilities.added[i])ability_disable_attach(ent,ent->abilities.added[i]);
+}
+
+/* Initialization messages also run during type refresh. Ethereal's counted
+ * contribution belongs to this attached ability, and must not be reacquired. */
+void S_SetEtherealAbility(edict_t *ent,uint32_t code,bool held) {
+    ability_disable_prepare(ent);
+    unitAbilityDisable_t *owner=ability_disable_owner(ent,code);
+    owner->ethereal_initialized=true;
+    if(owner->ethereal_owned==held)return;
+    owner->ethereal_owned=held;
+    if(held)S_AcquireEthereal(ent);else S_ReleaseEthereal(ent);
+}
+void S_InitializeEtherealAbility(edict_t *ent,uint32_t code,bool held) {
+    ability_disable_prepare(ent);
+    unitAbilityDisable_t *owner=ability_disable_owner(ent,code);
+    if(!owner->ethereal_initialized)S_SetEtherealAbility(ent,code,held);
 }
 
 static void ability_disables_acquire(edict_t *ent,bool scripted) {

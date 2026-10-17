@@ -825,6 +825,7 @@ typedef struct unitAbilityDisable_s {
     uint32_t code, references, exclusive_inventory;
     int32_t depth, order_depth;
     bool pause_owned, retire_owned, exclusive_owned, linked;
+    bool ethereal_initialized, ethereal_owned; /* Attachment lifetime, independent of type refresh. */
 } unitAbilityDisable_t;
 
 typedef struct unitAbilityOrder_s {
@@ -2292,6 +2293,7 @@ struct edict_s {
     bool ignore_alarm; /* UnitIgnoreAlarm: suppress this unit's automatic attacked notifications */
     bool invulnerable;  // scripted/innate invulnerability contribution
     int32_t invulnerability_depth, spell_immunity_depth; /* counted transient owners */
+    int32_t ethereal_depth; /* Unit158: independent signed innate/form contributions. */
     bool paused;        /* Public pause flag; execution uses the suspension stage. */
     bool stunned;       // unit AI and movement suspended by timed status
     bool no_pathing;    // own query disabled; occupancy category remains active
@@ -3627,6 +3629,10 @@ void incinerate_explode_think(edict_t *);
 void monsoon_think(edict_t *);
 void unit_refreshstatusflags(edict_t *);
 bool unit_hasstatusstate(edict_t const *, wc3_status_state_t);
+void S_AcquireEthereal(edict_t *);
+void S_ReleaseEthereal(edict_t *);
+void S_InitializeEtherealAbility(edict_t *,uint32_t,bool);
+void S_SetEtherealAbility(edict_t *,uint32_t,bool);
 /* Modifier descriptors belong to live status slots. These APIs do not yet
  * feed combat/movement arithmetic; ability migrations do that in phase 7. */
 bool unit_status_setmodifier(heroabilitystatus_t *, uint32_t index, wc3_status_modifier_t const *);

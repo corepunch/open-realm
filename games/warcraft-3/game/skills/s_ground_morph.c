@@ -87,3 +87,27 @@ BZ_ABILITY_PROC(CAbilityGroundMorph) {
     default:return CAbilitySimpleSpell(ent,msg,call);
     }
 }
+
+/* Corporeal/Ethereal Form share CAbilityMorph's deferred rebind and counted
+ * transition. Their separate Unit158 contribution changes only at completion. */
+static intptr_t ethereal_form_message(edict_t *ent,abilityMsg_t msg,abilityCall_t const *call,bool corporeal) {
+    if(!call || !call->item)return false;
+    switch(msg) {
+    case A_UNIT_EVENT_MASK:return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_UNIT_INIT,
+        A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
+    case A_ENABLE:case A_UNIT_INIT:
+        if(ent)S_InitializeEtherealAbility(ent,call->item->code,corporeal);
+        return true;
+    case A_MORPH_COMPLETE:
+        if(G_ActorHasAbilityCode(ent,call->item->code))
+            S_SetEtherealAbility(ent,call->item->code,corporeal==call->enabled);
+        /*552120 applies the shared authored form lifetime after subclass40c. */
+        return CAbilityGroundMorph(ent,msg,call);
+    case A_DISABLE:
+        if(ent)S_SetEtherealAbility(ent,call->item->code,false);
+        return CAbilityGroundMorph(ent,msg,call);
+    default:return CAbilityGroundMorph(ent,msg,call);
+    }
+}
+BZ_ABILITY_PROC(CAbilityCorporealForm) {return ethereal_form_message(ent,msg,call,true);}
+BZ_ABILITY_PROC(CAbilityEtherealForm) {return ethereal_form_message(ent,msg,call,false);}
