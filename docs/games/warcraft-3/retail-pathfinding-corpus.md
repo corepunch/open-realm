@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Group354, the inventory has **577 entries**: **296** oracle contracts
-(including variants) supplied by **224** distinct verifier scripts, **121**
+As of Group355, the inventory has **578 entries**: **297** oracle contracts
+(including variants) supplied by **225** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -72,8 +72,8 @@ or silently upgrade the existing evidence.
 
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
-identity, source versions and frozen input hashes. The current Group354
-inventory has578 entries:296 oracle contracts supplied by225 distinct verifier
+identity, source versions and frozen input hashes. The current Group355
+inventory has578 entries:297 oracle contracts supplied by225 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2350,3 +2350,7 @@ engine runs. Reload coverage rebuilds Move/cast owners while the private AI VM
 remains live; it does not certify fresh-process AI restoration. See
 [public Slow casting](retail-pathfinding-engine.md#public-slow-turns-before-its-authored-cast-phases-payoff321).
 The corpus contains558 entries, including277 executable oracle entries.
+
+Group355 registers retained nonzero-minimum defending priority with two664-event
+retail repeats,58 unhooked markers,1,179 instruction guards and both-edition
+production replacement/save/inverse regressions. Its scope remains GROUP-03.2.

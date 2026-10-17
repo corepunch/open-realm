@@ -2044,7 +2044,12 @@ static uint64_t attack_target_priority(edict_t const *unit,edict_t const *target
     if(victim && (!victim->inuse || G_IsDeferredFree(victim) ||
        victim->spawn_time!=target->attack_target_spawn_time))victim=NULL;
     wc3AttackTargetRelation_t relation=WC3_ATTACK_TARGET_IDLE;
-    if(!victim && unit_hasstatusstate(target,WC3_STATUS_STATE_MAGIC_LEASH))relation=WC3_ATTACK_TARGET_ALLY;
+    /*49d8bd: retained minimum-range weapons defend even outside our range.
+     * The binder tests authored !=0, including negatives, rather than the
+     * nonnegative distance used by movement/weapon admission. */
+    if(!victim && (unit_hasstatusstate(target,WC3_STATUS_STATE_MAGIC_LEASH) ||
+       (target==unit->attack_target && target->data.UnitWeapons &&
+        target->data.UnitWeapons->minimumAttackRange!=0)))relation=WC3_ATTACK_TARGET_ALLY;
     if(victim==unit)relation=WC3_ATTACK_TARGET_SELF;
     else if(victim) {
         /*49d8b2 asks for the victim's spell grant to the observer. Passive

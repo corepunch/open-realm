@@ -385,6 +385,59 @@ TEST(wc3_order_lifecycle, group338_defending_priority_uses_victim_spell_grant) {
     reset_entities();setup_test_world();
 }
 
+/*49d8bd uses the retained candidate's authored nonzero minimum-range flag.
+ * It is independent of the observer's range and of current in-range stickiness. */
+TEST(wc3_order_lifecycle, group355_retained_minimum_range_priority_and_public_replacement) {
+    float const minima[]={0,120,600,-24,-0.0f};
+    FOR_LOOP(saved,2)FOR_LOOP(mode,4)FOR_LOOP(kind,sizeof(minima)/sizeof(*minima)) {
+        reset_entities();setup_test_world();level.time=1000;level.show_map_cheat=true;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{4096,4096}});
+        edict_t *unit=review_order_unit(512,0),*retained=review_order_unit(1500,1),*incoming=review_order_unit(1400,0);
+        unit->s.model=retained->s.model=incoming->s.model=1;
+        unit->collision=retained->collision=incoming->collision=31;
+        unit->defense_type=retained->defense_type=incoming->defense_type=2;
+        unit->invulnerable=true;unit->runtime.acquisition_range=1100;
+        UnitWeapons_t const *authored=retained->data.UnitWeapons;
+        UnitWeapons_t weapons=*authored;weapons.minimumAttackRange=minima[kind];weapons.attacksEnabled=1;
+        retained->data.UnitWeapons=&weapons;
+        S_AttackProfileWrite(unit,0)->range=400;
+        T_ASSERT(unit_issueimmediateorder(retained,"holdposition"));
+        T_ASSERT(unit_issueimmediateorder(incoming,"holdposition"));
+        if(mode==1)S_SetUnitPaused(retained,true);
+        if(mode==2)T_ASSERT(G_ActorRemoveSkill(retained,MAKEFOURCC('A','a','t','k')));
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(retained);G_PublishMoveSpatialObject(incoming);
+        T_ASSERT(G_IssueUnitPointOrder(unit,"attack",&(vec2_t){1800,0},false,0,0));
+        order_attack(unit,retained);T_EQ(unit->attack_target,retained);
+        if(mode==3) {
+            /* The same minimum-range candidate has no retained-target bonus
+             * when another actor is asking the question. */
+            edict_t *observer=review_order_unit(512,2);observer->invulnerable=true;
+            T_EQ((uint32_t)G_TestAttackTargetPriority(observer,retained)&0x00400000u,0u);
+        }
+        if(saved) {
+            UnitWeapons_t const *source=unit->data.UnitWeapons,*next=incoming->data.UnitWeapons;
+            cstring_t file=Test_TempPath("wc3-group355-retained-minimum.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            unit->data.UnitWeapons=source;incoming->data.UnitWeapons=next;retained->data.UnitWeapons=&weapons;
+            T_EQ(unit->attack_target,retained);
+        }
+        bool defending=minima[kind]!=0 && mode!=1 && mode!=2;
+        uint64_t key=G_TestAttackTargetPriority(unit,retained);
+        T_EQ((uint32_t)key&0x00400000u,defending ? 0x00400000u : 0u);
+        T_EQ((uint32_t)key&0x05000000u,0u); /* Both candidates are out of range. */
+        uint32_t head=unit->current_order_id;
+        G_SetUnitPlayer(incoming,1);
+        T_EQ(unit->attack_target,defending ? retained : incoming);
+        T_EQ(unit->current_order_id,head);
+        /* Stop removes the retained identity; the authored minimum alone
+         * must not confer defending priority on later independent queries. */
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        T_EQ((uint32_t)G_TestAttackTargetPriority(unit,retained)&0x00400000u,0u);
+        retained->data.UnitWeapons=authored;
+    }
+    reset_entities();setup_test_world();
+}
+
 /* Group354 retail: MagicLeashTarget v188 supplies low00400000 while
  * its Attack remains enabled. Pause/Thunder Bolt do not supply that override.
  * Custom BuffID must keep the same gameplay owner and cold-save inverse. */

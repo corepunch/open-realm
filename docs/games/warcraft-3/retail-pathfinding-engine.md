@@ -21716,3 +21716,59 @@ available as diagnostics and are not promoted into parity evidence.
 Corpus registration adds `oracle-group354` with strict priority counts, complete
 repeat/control evidence and production regressions. This entry retains
 GROUP-03.2 and does not close the full replacement readiness gates.
+
+### Retained minimum-range targets keep defending priority (Group355)
+
+`49d8bd` supplies a second no-victim defending producer after the optional
+ability virtual188 query: the candidate must be the observer's retained Attack
+target and its own Attack20 must contain8000. The weapon binder `49cab0` derives
+that flag from **authored minimumAttackRange unequal to zero**. Movement's
+nonnegative minimum-distance query cannot replace that comparison. A negative
+minimum sets the flag; negative zero clears it. This priority is independent of
+the observer's weapon reach and the separate in-range/retained05000000 bits.
+
+Eight public owner-transfer scenes use authored minima0,120,600,negative24 and
+signed zero, plus nonretained120, Attack removal and pause. Two complete
+read-only Frida repeats retain all **664** normalized native events; an
+observer-free control matches all **58** public markers. At availability, both
+candidates are out of the observer's weapon range. The incoming candidate has
+key `0be00000:60000000`; the retained nonzero-minimum candidate has
+`0be00000:60400000` and prevents replacement despite being farther away.
+Nonretained minimum alone grants no defending bit. Attack removal and pause
+remove weapon eligibility. Original lower-bound pruning can return zero for
+those disabled retained candidates; that does not grant a different priority.
+
+The production regression first failed **24 /480 assertions** in each edition.
+The engine now uses the existing authored minimum and retained identity before
+forming the packed priority. All **480** assertions pass, including fresh and
+cold saved availability, Stop inverse, independent observers, negative values
+and signed zero. The focused suite passes **317 tests /38,983 assertions** per
+Classic and TFT edition. Fifteen evidence rejection tests reject altered
+priority words even when the projected expected stream is also changed.
+Ghidra's four complete functions supply **1,179** checked instruction guards;
+the final notes are saved and mirrored in `MapPathfinding.java`.
+
+The remote Frida spawn operation began blocking after creating a running game,
+before returning its owned PID. `group355_capture.py` instead launches its own
+Wine child, rejects a prefix already containing a game, identifies the unique
+new game PID and attaches before owned loading input. It records launch
+ownership and cleans up only that child. Diagnostic incomplete launches are
+preserved outside the accepted bundle. A separate system Wine update left
+11.19 servers running against11.20 clients; affected attempts are also excluded.
+Research prefixes were refreshed under their existing B/C locks; owner sessions
+were untouched. The accepted control and repeats have complete boundary marks.
+
+```sh
+python3 tools/ghidra/verify_wc3_pathing_group355.py \
+  --binary /path/to/game.dll --report /tmp/group355-fresh.json
+python3 -m unittest tests.test_wc3_pathfinding_group355
+```
+
+The portable bundle retains the original base map for exact reconstruction by
+`group355_make_map.py`. Accepted captures are `observe-d`, `observe-e` and
+`control-b` under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/payoff355/`.
+The strict verifier checks reconstruction, all original instructions, complete
+repeat/control streams, literal ranking decisions and both-edition production
+regressions. Other optional overrides, acquisition guards and broader
+speed/captain policies remain in the existing GROUP-03.2 task; no child is added.

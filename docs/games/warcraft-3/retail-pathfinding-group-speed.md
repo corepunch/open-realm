@@ -179,3 +179,8 @@ replacement while retaining the independent speed-cap exemption. Bound victims
 remain armed for priority and receive low00400000, while attack execution stays
 held. See [the original words, custom BuffID/save regression and observer
 limits](retail-pathfinding-engine.md#magic-leash-separates-attack-execution-from-defending-priority-group354).
+
+Group355 integrates the retained candidate minimum-range defending producer,
+separate from weapon reach and the optional Magic Leash override. See
+[retained minimum-range priority](retail-pathfinding-engine.md#retained-minimum-range-targets-keep-defending-priority-group355)
+for the public negative/signed-zero matrix and saved availability regressions.

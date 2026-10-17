@@ -298,7 +298,8 @@
     "oracle-power350",
     "oracle-trig351",
     "oracle-basic352",
-    "oracle-group354"
+    "oracle-group354",
+    "oracle-group355"
   ],
   "entries": [
     {
@@ -6807,6 +6808,18 @@
           "task": "GROUP-03.2",
           "disposition": "behavior",
           "rationale": "MagicLeashTarget does not establish other optional ability overrides, the retained-target8000 branch or complete acquisition/movement compositions."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-group355",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Other defending-override classes, remaining acquisition guards and broader target-speed/captain policies remain GROUP-03.2.",
+          "task": "GROUP-03.2",
+          "disposition": "behavior",
+          "rationale": "The verified bounded producer does not establish the other explicitly listed public lifetimes and acquisition policies."
         }
       ]
     }
