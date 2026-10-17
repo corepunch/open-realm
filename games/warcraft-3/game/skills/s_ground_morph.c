@@ -34,7 +34,7 @@ static bool ground_morph_begin(edict_t *unit,abilityitem_t const *item,bool reve
        (unit->morph && unit->morph->transition.active))return false;
     order_stop_cleanup(unit);
     unit_setmove(unit,reverse ? &ground_morph_reverse : &ground_morph_forward);
-    unit->current_order_id=G_OrderId(item->ability->orders[reverse ? 1 : 0]);
+    unit->current_order_id=data->dur==0 ? 0 : G_OrderId(item->ability->orders[reverse ? 1 : 0]);
     S_BeginMorphTransition(unit,code,base,target,reverse,true,data->dur);
     /* The collision inverse precedes the delayed reverse type rebind. */
     if(reverse && ground_morph_is_burrow(item))ground_morph_category(unit,code,false);

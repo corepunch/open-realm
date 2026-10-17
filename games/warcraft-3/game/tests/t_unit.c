@@ -2938,12 +2938,14 @@ TEST(wc3_unit, submerge_rejects_walkable_land_and_morphs_on_deep_water) {
 
     CM_SetupTestPathmap(1, 1, water);
     T_ASSERT(unit_issueimmediateorder(unit, "submerge"));
+    morph330_advance(level.pathing_clock.time); /* Original zero-Dur completion runs after public return. */
     T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
     T_ASSERT(S_UnitIsSubmerged(unit));
     T_ASSERT(unit->s.renderfx & RF_HIDDEN);
     T_ASSERT(S_UnitUsesInvisibilityRenderFlag(unit));
 
     T_ASSERT(unit_issueimmediateorder(unit, "unsubmerge"));
+    morph330_advance(level.pathing_clock.time); /* Original zero-Dur completion runs after public return. */
     T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
     T_ASSERT(!S_UnitIsSubmerged(unit));
     T_ASSERT(!(unit->s.renderfx & RF_HIDDEN));
@@ -2973,11 +2975,13 @@ TEST(wc3_unit, submerge_toggle_state_selects_surface_button) {
     call = MAKE(abilityCall_t, .item = &item);
     T_ASSERT(!S_AbilityMessage(unit, A_TOGGLE_ON, &call));
     T_ASSERT(unit_issueimmediateorder(unit, "submerge"));
+    morph330_advance(level.pathing_clock.time); /* Original zero-Dur completion runs after public return. */
     T_ASSERT(S_AbilityMessage(unit, A_TOGGLE_ON, &call));
     T_ASSERT(G_BuildCommandButton(unit, "Asb1", false, 0, &button));
     T_STREQ(button.tooltip, "Surface");
     T_STREQ(button.ubertip, "Return to the surface.");
     T_ASSERT(unit_issueimmediateorder(unit, "unsubmerge"));
+    morph330_advance(level.pathing_clock.time); /* Original zero-Dur completion runs after public return. */
     T_ASSERT(!S_AbilityMessage(unit, A_TOGGLE_ON, &call));
     restore_submerge_test_data(rows, old, ui_rows, old_ui);
 }
@@ -3622,6 +3626,7 @@ TEST(wc3_unit, status_periodic_scheduler_rejects_unscheduled_expired_or_invalid_
     T_ASSERT(!unit_status_take_due_tick(&slot, 1000, 2000));
     T_ASSERT(!unit_status_take_due_tick(NULL, 1000, 2000));
 }
+
 /* Ethereal357 replays Audit333's public forward/reverse owner lifetime with
  * non-stock endpoints/duration in both real AbilityData column schemas. */
 TEST(wc3_unit, ethereal357_forms_keep_counted_state_through_transition_save_and_inverse) {
@@ -3695,6 +3700,87 @@ TEST(wc3_unit, ethereal357_forms_keep_counted_state_through_transition_save_and_
         T_ASSERT(G_ActorRemoveSkill(unit,code));T_ASSERT(!unit_hasstatusstate(unit,WC3_STATUS_STATE_ETHEREAL));
         reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
     }
+}
+
+
+/* Submerge360: original Submerge inherits Morph's counted transition but
+ * restores visibility/category at reverse admission, before the type rebind. */
+TEST(wc3_unit, submerge360_authored_transition_keeps_mask_and_saved_inverse) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned action=0;action<4;action++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        mapInfo_t const *old_map=level.mapinfo;mapInfo_t info=*old_map;
+        int enabled=2,selector=17;
+        unitModification_t mods[]={
+            {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&enabled},
+            {.modID=MAKEFOURCC('u','r','p','p'),.type=mod_int,.data=&selector},
+            {.modID=MAKEFOURCC('u','r','p','g'),.type=mod_int,.data=&selector},
+            {.modID=MAKEFOURCC('u','r','p','r'),.type=mod_int,.data=&selector}};
+        unitData_t types[]={
+            {.originalUnitID=FS_SLKKey("hpea"),.newUnitID=FS_SLKKey("hS60"),.numbeOfModifications=4,.modifications=mods},
+            {.originalUnitID=FS_SLKKey("hfoo"),.newUnitID=FS_SLKKey("hT60"),.numbeOfModifications=4,.modifications=mods}};
+        info.num_userCreatedUnits=2;info.userCreatedUnits=types;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        char data[1000];snprintf(data,sizeof(data),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\n"
+            "C;X1;Y2;K\"Au60\"\nC;X2;K\"ANsu\"\nC;X3;K\"hS60\"\nC;X4;K\"hT60\"\nC;X5;K0.375\nC;X6;K0\nE\n",
+            schema ? "Data11" : "DataA1");
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        uint8_t water[]={CM_PATHING_UNWALKABLE};CM_SetupTestPathmap(1,1,water);
+        edict_t *unit=alloc_test_unit(types[0].newUnitID,.5f,.5f);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        S_UnitAbilityEvent(unit,A_UNIT_INIT);T_ASSERT(unit->movement.repulse.active);
+        T_EQ(unit->movement.repulse.state.packed,0x10110000u);T_ASSERT(G_ActorAddSkill(unit,FS_SLKKey("Au60")));
+        for(unsigned reverse=0;reverse<2;reverse++) {
+            float start=1+reverse;level.pathing_clock=(wc3Clock_t){.time=start,.span=300};
+            cstring_t order=reverse ? "unsubmerge" : "submerge";
+            T_ASSERT(unit_issueimmediateorder(unit,order));
+            T_EQ(unit->current_order_id,G_OrderId(order));T_EQ(unit->class_id,types[reverse].newUnitID);
+            T_EQ(unit->movement.repulse.disable_depth,1);T_ASSERT(!unit->movement.repulse.active);
+            T_ASSERT(!S_UnitIsSubmerged(unit));T_ASSERT(!(unit->s.renderfx&RF_HIDDEN));
+            T_EQ(S_UnitMoveCategory(unit),0xca);
+            if(action==1) {T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_EQ(unit->current_order_id,G_OrderId(order));}
+            if(action==3) {S_SetUnitPaused(unit,true);T_ASSERT(!S_UnitExecutionPaused(unit));}
+            if(action==2) {uint32_t slot=unit-g_edicts;cstring_t path=Test_TempPath("submerge360-transition.bin");
+                T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;}
+            morph330_advance(start+.374f);T_EQ(unit->class_id,types[reverse].newUnitID);
+            T_EQ(unit->movement.repulse.disable_depth,1);T_ASSERT(!S_UnitIsSubmerged(unit));
+            morph330_advance(start+.375f);T_EQ(unit->class_id,types[!reverse].newUnitID);
+            T_EQ(S_UnitIsSubmerged(unit),!reverse);T_EQ((unit->s.renderfx&RF_HIDDEN)!=0,!reverse);
+            T_EQ(S_UnitMoveCategory(unit),reverse ? 0xca : 8);
+            T_EQ(unit->movement.repulse.disable_depth,action==3 ? 1 : 0);
+            if(action==3) {T_ASSERT(S_UnitExecutionPaused(unit));S_SetUnitPaused(unit,false);
+                morph330_advance(start+.425f);S_RunMoveTimers();T_EQ(unit->movement.repulse.disable_depth,0);}
+            T_ASSERT(unit->movement.repulse.active);T_EQ(unit->movement.repulse.state.packed,0x10110000u);
+            if(action==2) {uint32_t slot=unit-g_edicts;cstring_t path=Test_TempPath("submerge360-completed.bin");
+                T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;
+                T_EQ(S_UnitMoveCategory(unit),reverse ? 0xca : 8);T_EQ(S_UnitIsSubmerged(unit),!reverse);}
+        }
+        reset_entities();G_SetMapUnitOverrides(old_map);level.mapinfo=old_map;
+        restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
+
+TEST(wc3_unit, submerge360_zero_duration_rebinds_after_public_return_at_same_clock) {
+    reset_test_entities();setup_test_world();
+    slkTestData_t *rows,*old,*ui,*old_ui;install_submerge_test_data(&rows,&old,&ui,&old_ui);
+    uint8_t water[]={CM_PATHING_UNWALKABLE};CM_SetupTestPathmap(1,1,water);
+    edict_t *unit=alloc_test_unit(FS_SLKKey("hpea"),.5f,.5f);unit->stand=unit_stand;unit->svflags|=SVF_MONSTER;
+    T_ASSERT(G_ActorAddSkill(unit,FS_SLKKey("Asb1")));
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    T_ASSERT(unit_issueimmediateorder(unit,"submerge"));
+    T_EQ(unit->class_id,FS_SLKKey("hpea"));T_EQ(unit->current_order_id,0);
+    T_EQ(unit->movement.repulse.disable_depth,1);T_ASSERT(!S_UnitIsSubmerged(unit));
+    abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);T_ASSERT(pending);
+    if(pending)T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1));
+    morph330_advance(1);T_EQ(unit->class_id,FS_SLKKey("hfoo"));T_ASSERT(S_UnitIsSubmerged(unit));
+    T_EQ(unit->movement.repulse.disable_depth,0);T_EQ(S_UnitMoveCategory(unit),8);
+    T_ASSERT(unit_issueimmediateorder(unit,"unsubmerge"));
+    T_EQ(unit->class_id,FS_SLKKey("hfoo"));T_EQ(unit->current_order_id,0);
+    T_EQ(unit->movement.repulse.disable_depth,1);T_ASSERT(!S_UnitIsSubmerged(unit));
+    T_EQ(S_UnitMoveCategory(unit),0xca);
+    morph330_advance(1);T_EQ(unit->class_id,FS_SLKKey("hpea"));T_EQ(unit->movement.repulse.disable_depth,0);
+    reset_entities();restore_submerge_test_data(rows,old,ui,old_ui);
 }
 
 #endif /* BZ_TESTS */

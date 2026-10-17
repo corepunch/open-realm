@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "301 executable original/evidence contracts;582 total entries; provenance and limitations remain per-entry.",
+  "scope": "302 executable original/evidence contracts;583 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -56039,6 +56039,52 @@
       "exclusions": [
         "Allied support/overflow/Hero policies, semantic target-change callbacks, cross-owner subscription ordering, independent acquisition, full trajectories and retail saves remain GROUP-03.4.7.3."
       ]
+    },
+    {
+      "id": "oracle-submerge360",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_submerge360.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "checks": {
+        "captures": {
+          "equal": 6
+        },
+        "scenes": {
+          "equal": 10
+        },
+        "public_markers": {
+          "equal": 832
+        },
+        "native_events": {
+          "equal": 1468
+        },
+        "instructions": {
+          "equal": 534
+        },
+        "engine": {
+          "nonempty": true
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "SEP-01.2 delayed stock Naga Submerge and zero-duration primary-clock transitions, retained query mask, saved inverse and category.",
+      "exclusions": [
+        "Preplaced alternate initialization, death/overlap and remaining Morph/counted-owner producer replay remain SEP-01.2."
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "submerge360.json",
+      "expected_exit": 0,
+      "expected_status": "verified"
     }
   ],
   "fixtures": [
@@ -56937,7 +56983,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "61ff458c766f65a0cef7359cffebc4dd5179359386f1a7941112d08e3a5ddc52"
+      "sha256": "c954f39dfc33980a882aeb8b3a8c0259368437cff4068492fdbd6ad5421d543e"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -58229,7 +58275,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "e442e692916d7199ca835db7e5d6933d037ff7bc60b68ddc0df299effbd42bd8"
+      "sha256": "20a71e85bc7d5c1fd85956f286ffc67cd7f7aaca2ea1984fd0c98fec86f1eb81"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -58729,7 +58775,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "1ad51c2305bb1dcafba4ebd6e50a196b2914acd83f1cc5c41c67f1ad13ef9e4c"
+      "sha256": "92fcdf5787a8b50da99f94f3da55a124e30a1469a293e3edc14cd840eedd86ad"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -58745,7 +58791,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "0414c47818970f6fff770359719e4d6d1982e598f885f8182e40ea0bc9356dfa"
+      "sha256": "981844a9c37b7519b07f5478cec9a160c2ceacb04e28c80cc37279615c00d280"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -60181,7 +60227,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit.c",
-      "sha256": "f08dc18edbaef93f1c0c6701ed347046185d685978ae3c7f224156afa86fe6d0"
+      "sha256": "5f76ba8ebd7babf7f1b7256a068c547f39cd0f046fe950f867d9ce11dcdcb6f0"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/common.j",
@@ -63745,7 +63791,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "1afb5a2ac3493596290f11da63d688c3180d73272237294ff753b6904cc0bff3"
+      "sha256": "7aa65b73bc55caae12631ac6f669ceb02626d35c3bbcd24b1e855ff861c79148"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -65241,7 +65287,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_morph.c",
-      "sha256": "8d27bf10bc049e02b1960ff58662b6babb65fd5cf15c8e811ea7e3120f1d7fc6"
+      "sha256": "38b48db17807d6dc9b33a067de8ae20f2afdfa06d7c503e86db4daeaa6d05900"
     },
     {
       "path": "games/warcraft-3/game/skills/s_raven.c",
@@ -65297,7 +65343,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_ground_morph.c",
-      "sha256": "cef1966826263100f06fadacef06e8e88f095b87d2c10715aa9fffa2c7f65006"
+      "sha256": "c79d3ca09724200113a35a9e74bf36658c533a110455d5d6ff033c6984e632bd"
     },
     {
       "path": "tools/frida/research/morph331_probe.j",
@@ -65601,7 +65647,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "c0007e89db911fa68b789731e42f34562fbd1076d6c2df36d0890d1ac475cb53"
+      "sha256": "7882568c694d8967505b119ef54e134fc896cb2bf2d888e41b51112cd5847f48"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -66322,6 +66368,50 @@
     {
       "path": "tests/test_wc3_pathfinding_captain358_engagement.py",
       "sha256": "45c78cf2c00b7fed5bbc725ddd3ee3a00c95cc3eee06897a928cb9f269741044"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-submerge.md",
+      "sha256": "0aceae485a5850e4186c2369edb5af58c80570cf42e07bc68bea98726c2a20f9"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_submerge360.py",
+      "sha256": "3991181e86d695903f6856aefd20730233befcc139aa573c79c7b4f2d2be4cf4"
+    },
+    {
+      "path": "tools/frida/research/submerge360_make_map.py",
+      "sha256": "ac8db8c34b0f523c8ee58104d92205bfd94fd30a283759fbc480f839c1fa7fa1"
+    },
+    {
+      "path": "tools/frida/research/submerge360_observer.js",
+      "sha256": "29117d1c37ff115575cd2dff34dcbe7175700fba21411eddb59824a3b1fe6f9e"
+    },
+    {
+      "path": "tools/frida/research/submerge360_probe.j",
+      "sha256": "b4fe2e70ea2508f3b4c5ca5aaa6978bc6a2760ab1ce50986c2e0156219132c2d"
+    },
+    {
+      "path": "tools/frida/research/submerge360_zero_probe.j",
+      "sha256": "15334cd86719c8777f279516068a9b933b5d0194f0b226316b5f97674c94bca2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-submerge360-1.27.json",
+      "sha256": "e72589b6a6428552bf6732114e91df0d06cd709779a3147a4afeaf501ae34084"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-submerge360-inputs-1.27.json.gz",
+      "sha256": "eab66d5f84abb339c04e33a7c6991dd057f5ad682446026f8c743cba47857ba1"
+    },
+    {
+      "path": "tools/ghidra/research/Submerge360Evidence.java",
+      "sha256": "128b2cf9246ea9d8d8275c9cc5d14bdda159d1a3b02997ad44ae4db79aa58208"
+    },
+    {
+      "path": "tools/ghidra/research/submerge360_freeze.py",
+      "sha256": "58c8f28c7e480485f913c9a76f895c643e3c3f866aaa8964d7c9741d0f0ebda5"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_submerge360.py",
+      "sha256": "5ac02ed013112e19fcc011c01ef6a980a38b53fddee0c0341e411142291bc85a"
     }
   ]
 }

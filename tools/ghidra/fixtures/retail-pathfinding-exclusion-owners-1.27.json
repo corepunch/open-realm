@@ -303,7 +303,8 @@
     "oracle-target356",
     "oracle-ethereal357",
     "oracle-captain358",
-    "oracle-captain358-engagement"
+    "oracle-captain358-engagement",
+    "oracle-submerge360"
   ],
   "entries": [
     {
@@ -6893,6 +6894,18 @@
           "task": "GROUP-03.4.7.3",
           "disposition": "behavior",
           "rationale": "The complete captain lifecycle remains assigned to its existing leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-submerge360",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Preplaced alternate initialization, death/overlap and remaining Morph/counted-owner producer replay remain SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Concrete initialization and remaining form lifetimes retain the original separation leaf."
         }
       ]
     }

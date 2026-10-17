@@ -71,7 +71,9 @@ void S_BeginMorphTransition(edict_t *unit,uint32_t code,uint32_t base,uint32_t t
     wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
     *unit->morph=(morph_t){.code=code,.base_type=base,.target_type=target,.reverse=reverse,.deferred_rebind=deferred,
         .transition={.deadline=now,.sequence=++level.timer_sequence,.active=true}};
-    unit->morph->transition.deadline.time=wc3_add(now.time,MAX(delay,G_ClockMinimumDelay()));
+    /* Native d01c4 accepts literal zero: public return precedes delivery at
+     * the same primary clock. It is not the generic JASS timer minimum. */
+    unit->morph->transition.deadline.time=wc3_add(now.time,delay==0 ? delay : MAX(delay,G_ClockMinimumDelay()));
     S_AcquireUnitSeparationSuppression(unit);
     morph_timer_insert(unit);
 }

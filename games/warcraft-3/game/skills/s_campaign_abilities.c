@@ -133,34 +133,43 @@ static uint32_t submerge_find_code(edict_t const *unit) {
 static bool submerge_validate(edict_t *unit, uint32_t code) {
     uint32_t normal, submerged;
     heroabilitystatus_t *status;
-    if (!unit || !submerge_types(code, &normal, &submerged)) return false;
+    if (!unit || !submerge_types(code, &normal, &submerged) ||
+        (unit->morph && unit->morph->transition.active)) return false;
     status = submerge_status(unit);
     if (status) return unit->class_id == submerged;
     return unit->class_id == normal && submerge_deep_water(unit);
 }
 
-static bool submerge_execute(edict_t *unit, uint32_t code) {
-    uint32_t normal, submerged, level;
-    bool const active = S_UnitIsSubmerged(unit);
-    if (!unit || !submerge_types(code, &normal, &submerged)) return false;
-    if (!active && !submerge_deep_water(unit)) return false;
-    if ((active && unit->class_id != submerged) || (!active && unit->class_id != normal)) return false;
-    level = G_UnitAbilityLevel(unit, code);
-    if (!level) level = 1;
-    if (!G_TransformUnitType(unit, active ? normal : submerged)) return false;
-    if (active) {
-        S_ToggleUnitAbilityStatus(unit, code, level);
-        unit->s.renderfx &= ~RF_HIDDEN;
-    } else {
-        S_ToggleUnitAbilityStatus(unit, code, level);
-        unit->s.renderfx |= RF_HIDDEN;
+/*4ba940 changes occupancy c2 while preserving the query and bit8. */
+static void submerge_category(edict_t *unit,bool hidden) {
+    if(unit->morph) {
+        unit->morph->category_clear=hidden ? 0xc2 : 0;
+        unit->morph->category_set=hidden ? 8 : 0xca;
     }
-    unit->goalentity = NULL;
-    unit->secondarygoal = NULL;
-    move_reset_progress(unit);
-    unit_stand(unit);
     gi.LinkEntity(unit);
-    return true;
+}
+static void submerge_publish(edict_t *unit,uint32_t code,bool hidden) {
+    bool before=S_UnitHasInvisibilityState(unit);
+    if(S_UnitIsSubmerged(unit)!=hidden)
+        S_ToggleUnitAbilityStatus(unit,code,MAX(1,G_UnitAbilityLevel(unit,code)));
+    if(hidden)unit->s.renderfx|=RF_HIDDEN;
+    else if(!S_UnitHasInvisibilityState(unit))unit->s.renderfx&=~RF_HIDDEN;
+    submerge_category(unit,hidden);
+    bool after=S_UnitHasInvisibilityState(unit);
+    if(!before && after)S_UnitTargetLost(unit);
+    else if(before && !after)S_UnitTargetAvailable(unit);
+}
+static bool submerge_execute(edict_t *unit,abilityCall_t const *call) {
+    uint32_t code=call->item->code,normal,submerged;
+    bool active=S_UnitIsSubmerged(unit);
+    if(!unit || !submerge_types(code,&normal,&submerged) ||
+       (!active && !submerge_deep_water(unit)) ||
+       unit->class_id!=(active ? submerged : normal))return false;
+    /* Original virtual410 publishes the inverse BEFORE the reverse hold. */
+    if(active)submerge_publish(unit,code,false);
+    bool accepted=CAbilityGroundMorph(unit,A_EXECUTE,call);
+    if(accepted && active)submerge_category(unit,false);
+    return accepted;
 }
 
 static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
@@ -170,6 +179,8 @@ static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t c
     if (!code) code = submerge_find_code(ent);
     active = S_UnitIsSubmerged(ent);
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
     case A_COMMAND: {
         gameClient_t *client;
         uint32_t subgroup_class;
@@ -202,7 +213,15 @@ static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t c
     case A_VALIDATE:
         return code && submerge_validate(ent, code);
     case A_EXECUTE:
-        return code && submerge_execute(ent, code);
+        return code && submerge_execute(ent, call);
+    case A_MORPH_COMPLETE:
+        submerge_publish(ent,code,!call->enabled && G_ActorHasAbilityCode(ent,code));
+        return CAbilityGroundMorph(ent,msg,call);
+    case A_MORPH_EXPIRE:
+        return code && submerge_execute(ent,call);
+    case A_DISABLE:
+        if(ent && S_UnitIsSubmerged(ent))submerge_publish(ent,code,false);
+        return CAbilityGroundMorph(ent,msg,call);
     default:
         return CAbilitySimpleSpell(ent, msg, call);
     }
