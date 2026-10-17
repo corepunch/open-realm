@@ -824,3 +824,8 @@ Flame Strike/Inner Fire, including reentrant interruption and saved continuation
 Read-only repeat/control evidence corrects previously unverified engine getter
 assertions while preserving every older retail fixture. Other concrete classes
 remain open. See [ordered spell phases](retail-pathfinding-engine.md#ordered-spell-phases-use-active-only-deadlines-payoff283).
+
+## Target producer closure361/362
+
+- [Complete natural target contention](retail-pathfinding-crowd361.md)
+- [Final target producer and mask composition](retail-pathfinding-target-masks362.md)

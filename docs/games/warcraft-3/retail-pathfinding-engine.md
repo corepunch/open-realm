@@ -21772,3 +21772,16 @@ The strict verifier checks reconstruction, all original instructions, complete
 repeat/control streams, literal ranking decisions and both-edition production
 regressions. Other optional overrides, acquisition guards and broader
 speed/captain policies remain in the existing GROUP-03.2 task; no child is added.
+
+## Complete target-refresh producer composition (Target361/362)
+
+TARGET-02.1 closes through the [current-query/producer inventory](retail-pathfinding-target-masks362.md)
+and [complete natural contention](retail-pathfinding-crowd361.md). New matrices
+cover24,622 original owner decisions, including22,772 natural36-follower states,
+1,233 Move/stepped Smart states and617 amphibious states, plus saved suffixes.
+Existing engine behavior matches; copied wall/radius/turn and inactive-cache
+assertion errors remain fixture diagnostics, not fabricated engine failures.
+The strict complete mask/visibility/retained-cohort audit passes109 tests and
+2,026,927 assertions per Classic/TFT edition,28,880 original gate cases,1,434
+instruction guards and17 evidence tests. Captain/missile owner and general route
+geometry contracts keep their existing leaves; no child TODO is created.

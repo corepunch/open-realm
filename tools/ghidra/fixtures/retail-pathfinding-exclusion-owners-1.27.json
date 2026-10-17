@@ -304,7 +304,9 @@
     "oracle-ethereal357",
     "oracle-captain358",
     "oracle-captain358-engagement",
-    "oracle-submerge360"
+    "oracle-submerge360",
+    "oracle-crowd361",
+    "oracle-mask362"
   ],
   "entries": [
     {
@@ -478,9 +480,9 @@
         {
           "index": 2,
           "text": "Ordinary point target only: invalid target identity and order68=0; target units/items/destructibles/waygates and local-target branch excluded",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 3,
@@ -1008,9 +1010,9 @@
         {
           "index": 1,
           "text": "target exit",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 2,
@@ -1048,9 +1050,9 @@
         {
           "index": 2,
           "text": "target exit",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 3,
@@ -1067,9 +1069,9 @@
         {
           "index": 0,
           "text": "target exit",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 1,
@@ -1226,9 +1228,9 @@
         {
           "index": 0,
           "text": "Public target-category and cell-link chronological producer; building/destructable target footprints; populated owner route state.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         }
       ]
     },
@@ -1238,9 +1240,9 @@
         {
           "index": 0,
           "text": "Public target-category and cell-link chronological producer; building/destructable target footprints; populated owner route state.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         }
       ]
     },
@@ -2451,9 +2453,9 @@
         {
           "index": 1,
           "text": "No live scheduler emulation or complete damage/cooldown/attack-speed-change parity claim.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Own the unresolved Attack/chase physical target lifetime and its timing/combat composition; this assignment does not claim full damage-system parity."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         }
       ]
     },
@@ -2463,9 +2465,9 @@
         {
           "index": 0,
           "text": "Not complete projectile-line impact, point Attack Once admission or live stat-change rescaling parity.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Own the unresolved Attack/chase physical target lifetime and its timing/combat composition; this assignment does not claim full damage-system parity."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         }
       ]
     },
@@ -3313,9 +3315,9 @@
         {
           "index": 0,
           "text": "Only the six public Smart/Move Apiv-loss scenes are live-verified here; queued-head/combat composition, visible lost-target producers and other policy callers remain open.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 1,
@@ -3400,9 +3402,9 @@
         {
           "index": 3,
           "text": "Null/dead/loaded/hidden-widget and structure fallback combinations remain open. Existing Smart refusal, hidden-arrival and numerical fixtures are preserved.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 4,
@@ -3473,9 +3475,9 @@
         {
           "index": 1,
           "text": "Owner transfer acts on the subscribed Move task: approach continuation advances, persistent Follow ends. Smart automatic combat and other ability parents remain outside this contract.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Own the unresolved Attack/chase physical target lifetime and its timing/combat composition; this assignment does not claim full damage-system parity."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 2,
@@ -3527,9 +3529,9 @@
         {
           "index": 2,
           "text": "Ground-unit chase ownership is integrated. Flyers, structure/destructable approaches, complete Attack task-stack recovery and ordered Attack target-loss subscriptions remain open.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Own the unresolved Attack/chase physical target lifetime and its timing/combat composition; this assignment does not claim full damage-system parity."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 3,
@@ -3560,9 +3562,9 @@
         {
           "index": 2,
           "text": "Engine integrates indexed Attack TargetLost and ground-unit chase point recovery. Flyers, structures/destructables, Blink exceptions and complete initial/turn-only/task-stack timing remain open.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Own the unresolved Attack/chase physical target lifetime and its timing/combat composition; this assignment does not claim full damage-system parity."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 3,
@@ -4384,9 +4386,9 @@
         {
           "index": 0,
           "text": "Physical requests match all captured initial turn commits, with fresh and two cold-save variants; initial public Attack task admission and cooldown scheduling remain TARGET/ORDER scope.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Own the unresolved Attack/chase physical target lifetime and its timing/combat composition; this assignment does not claim full damage-system parity."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 1,
@@ -4424,9 +4426,9 @@
         {
           "index": 0,
           "text": "Fine destination data flow is certified here; full target-order trajectories, formation offsets and remaining refresh/admission coverage stay in TARGET-02.1/GROUP-04.6.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 1,
@@ -4617,9 +4619,9 @@
         {
           "index": 2,
           "text": "Fresh live cases cover self, hidden, dead and visible ordinary units. Existing visibility/validation fixtures stay unchanged. Wider dynamic target-loss producers, structures, arbitrary ability orders and compositions remain TARGET-03.2 and their owning tasks.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 3,
@@ -4669,9 +4671,9 @@
         {
           "index": 0,
           "text": "Public engine replay certifies the three queried centers and exact fog-publication ordering, not complete circle geometry. Retail uses128-unit fog cells here; engine geometry remains64-unit and uncertified in general.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 1,
@@ -4709,9 +4711,9 @@
         {
           "index": 2,
           "text": "This chunk implements neutral mobile Attack guard polling/return. Structure-disabled heading, early global neutral-passive gates, Asla sleep continuation and wider damage/creep/JASS guard policies are not certified.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Own the unresolved Attack/chase physical target lifetime and its timing/combat composition; this assignment does not claim full damage-system parity."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 3,
@@ -5020,9 +5022,9 @@
         {
           "index": 4,
           "text": "Unhandled stale non-unit widgets keep their existing engine rejection policy; their fallback execution is not inferred from the unit-target scenarios.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         }
       ]
     },
@@ -5503,9 +5505,9 @@
         {
           "index": 0,
           "text": "Enemy/non-unit interaction owners and full trajectory parity are not certified.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         }
       ]
     },
@@ -5515,9 +5517,9 @@
         {
           "index": 0,
           "text": "Complete trajectory parity and other absent-Move nonstructure/special producer families are not certified.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Extend target-family, visibility/loss, masks and scene coverage through physical admission, refresh and replan lifetimes."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         }
       ]
     },
@@ -6054,9 +6056,9 @@
         {
           "index": 0,
           "text": "Stock Footman/tree remains a point-task control. Full Attack task/damage/backswing timing and large-battle performance are not certified;46 tasks remain.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Own the unresolved Attack/chase physical target lifetime and its timing/combat composition; this assignment does not claim full damage-system parity."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         }
       ]
     },
@@ -6383,9 +6385,9 @@
         {
           "index": 3,
           "text": "Projectile notification opt-outs follow recovered v38c policy; projectile impact behavior is not changed or certified by this scene.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "Own the unresolved Attack/chase physical target lifetime and its timing/combat composition; this assignment does not claim full damage-system parity."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         }
       ]
     },
@@ -6665,9 +6667,9 @@
         {
           "index": 0,
           "text": "ORDER346 completes the arrival/failure branch inventory and successful transport. Moving/hidden alternative producers beyond the captured nearest-selection scenes are not certified.",
-          "task": "TARGET-02.1",
+          "task": "E2E-06.1",
           "disposition": "evidence-boundary",
-          "rationale": "Existing target visibility/loss and other-order-family work owns those producer domains; the alternative-found/absent dispatch branches themselves are frozen by ORDER345/346."
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 1,
@@ -6834,16 +6836,16 @@
         {
           "index": 0,
           "text": "Full natural 36-follower numerical contention remains TARGET-02.1.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "The literal unit target contract preserves the remaining scope under its existing owner."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 1,
           "text": "Final captured-region/pathing-mask composition audit remains TARGET-02.1.",
-          "task": "TARGET-02.1",
-          "disposition": "behavior",
-          "rationale": "The literal unit target contract preserves the remaining scope under its existing owner."
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "The original TARGET-02.1-specific producer, mask, visibility, contention and saved-continuation coverage is completed by361/362; the retained observation limit for full frozen numerical/structure contracts belongs to existing E2E-06.1."
         },
         {
           "index": 2,
@@ -6906,6 +6908,51 @@
           "task": "SEP-01.2",
           "disposition": "behavior",
           "rationale": "Concrete initialization and remaining form lifetimes retain the original separation leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-crowd361",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Final amphibious/producer/mask audit is completed by companion362 in the existing TARGET-02.1 leaf.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "Carry the bounded supplied-observation/profile/owner scope into the existing replacement contract; companion TARGET-02.1 coverage is complete, and other owners retain existing leaves."
+        },
+        {
+          "index": 1,
+          "text": "Lite observer omits retry words; only22 captured native words are claimed.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "Carry the bounded supplied-observation/profile/owner scope into the existing replacement contract; companion TARGET-02.1 coverage is complete, and other owners retain existing leaves."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-mask362",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Arbitrary route-search geometry remains in existing algorithm leaves.",
+          "task": "FOOT-04.2",
+          "disposition": "behavior",
+          "rationale": "Carry the bounded supplied-observation/profile/owner scope into the existing replacement contract; companion TARGET-02.1 coverage is complete, and other owners retain existing leaves."
+        },
+        {
+          "index": 1,
+          "text": "Captain ownership/trajectories remain GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "evidence-boundary",
+          "rationale": "Carry the bounded supplied-observation/profile/owner scope into the existing replacement contract; companion TARGET-02.1 coverage is complete, and other owners retain existing leaves."
+        },
+        {
+          "index": 2,
+          "text": "Missile ownership/trajectories remain E2E-06.1.",
+          "task": "E2E-06.1",
+          "disposition": "evidence-boundary",
+          "rationale": "Carry the bounded supplied-observation/profile/owner scope into the existing replacement contract; companion TARGET-02.1 coverage is complete, and other owners retain existing leaves."
         }
       ]
     }

@@ -92,3 +92,9 @@ The [Payoff356 target audit](retail-pathfinding-target-audit356.md) adds complet
 literal Move and stepped Smart journeys, delayed cold-save continuations and the
 current producer inventory. It also records the historical six-decimal pose-word
 loss and the inherited shadow-map size that can prevent retail probes loading.
+
+## Complete natural contention and producer audit361/362
+
+[Natural36-follower contention](retail-pathfinding-crowd361.md) preserves all22,772
+actual owner decisions and delayed saved recovery. The [final producer/mask audit](retail-pathfinding-target-masks362.md)
+adds617 original amphibious visits and closes the existing TARGET-02.1 scope.

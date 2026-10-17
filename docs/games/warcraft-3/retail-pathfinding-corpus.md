@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Submerge360, the inventory has **583 entries**: **302** oracle contracts
-(including variants) supplied by **230** distinct verifier scripts, **121**
+As of Target362, the inventory has **585 entries**: **304** oracle contracts
+(including variants) supplied by **232** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -72,8 +72,8 @@ or silently upgrade the existing evidence.
 
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
-identity, source versions and frozen input hashes. The current Submerge360
-inventory has583 entries:302 oracle contracts supplied by230 distinct verifier
+identity, source versions and frozen input hashes. The current Target362
+inventory has585 entries:304 oracle contracts supplied by232 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2371,3 +2371,9 @@ and active route have distinct owners; the wider captain lifecycle remains open.
 Submerge360 registers stock Naga and zero-duration transition witnesses with
 retained query masks, primary-clock completion, saved inverse and534 original
 instruction guards. Initial alternate attachment remains within SEP-01.2.
+
+Target361/362 adds the complete natural crowd and amphibious/current-query audit,
+closing TARGET-02.1 without child TODOs. The inventory has585 entries:304 oracle
+contracts supplied by232 verifier scripts. Both engine editions pass109 directly
+affected tests/2,026,927 assertions;17 integrity checks and saved continuations
+are retained. See [target composition](retail-pathfinding-target-masks362.md).

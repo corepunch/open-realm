@@ -87,3 +87,10 @@ python3 tests/test_wc3_pathfinding_target356.py
 
 See also [target destination delays](retail-pathfinding-target-delays.md) and the
 [preserved TARGET-02.1 handoff](retail-pathfinding-handoffs/TARGET-02.1/HANDOFF.md).
+
+## Completed follow-up361/362
+
+The original remaining natural contention and mask/producer audit are now completed
+by [crowd361](retail-pathfinding-crowd361.md) and [target362](retail-pathfinding-target-masks362.md).
+Earlier bounds above describe the356 checkpoint; the existing TARGET-02.1 leaf
+closes after the complete companion inventory and109 tests per edition.
