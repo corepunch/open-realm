@@ -321,7 +321,8 @@
     "oracle-target371-ground",
     "oracle-captain373-strategic",
     "oracle-morph374",
-    "oracle-pause379"
+    "oracle-pause379",
+    "oracle-captain378-role-masks"
   ],
   "entries": [
     {
@@ -7204,6 +7205,18 @@
           "task": "SEP-01.2",
           "disposition": "behavior",
           "rationale": "The existing SEP-01.2 leaf retains other counted availability producers/acquire walks; this inverse chunk does not close them."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-captain378-role-masks",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Broader Town preferred-primary, transport selection, complete Captain journeys and retail save files remain within existing GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "Broader Town policy, transport, complete journeys and retail saves remain in the original Captain leaf."
         }
       ]
     }

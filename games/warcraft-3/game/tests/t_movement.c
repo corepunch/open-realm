@@ -18459,6 +18459,7 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
         moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
         T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),words[i]);
     }
+    G_RefreshCaptainTargetSubscriptions(captain); /* Fixture assigned the saved roster directly. */
     T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
     captain->home_actor=units[0]->movement.captain_home.roster_actor;
     T_NOT_NULL(captain->home_actor);
@@ -18502,6 +18503,7 @@ TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
         T_ASSERT(captain->home_actor->movement.captain_actor_siege);
         T_EQ(wc3_float_bits(move_find_group(image->movement.group_id)->members[0].arrival_range),words[i ? 7 : 1]);
     }
+    G_RefreshCaptainTargetSubscriptions(captain); /* Include both manually appended images. */
     T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
     FOR_LOOP(i,2)if(roster[8+i])
         T_EQ(wc3_float_bits(move_find_group(roster[8+i]->movement.group_id)->members[0].arrival_range),words[i ? 7 : 1]);
@@ -18687,8 +18689,11 @@ static void public_captain_lifetime_journey(unsigned operation,uint32_t const (*
     T_EQ(found,13);follow_commit_trace=&trace;move_test_motion_commit=record_captain_observed_commit;
     groupRadiusTrace_t radii_trace={0};group_radius_trace=&radii_trace;move_test_group_route=record_captain_shared_radius;
     unsigned steps=0,footprint_steps=0,saved_steps[5]={0},saved_footprints[5]={0},suffix=0;
-    unsigned times[]={10150,12000,14000,20000,30000};char files[5][80];
-    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-captain-lifetime-%u-%u.bin",Test_TempPath(""),operation,i);
+    unsigned times[]={10150,12000,14000,20000,30000};PATHSTR files[5];
+    FOR_LOOP(i,5) {
+        int n=snprintf(files[i],sizeof(files[i]),"%swc3-captain-lifetime-%u-%u.bin",Test_TempPath(""),operation,i);
+        T_ASSERT(n>=0 && (size_t)n<sizeof(files[i]));
+    }
     bool mismatch=false;edict_t *old_actor=NULL;uint32_t old_generation=0;
     FOR_LOOP(pass,6) {
         if(pass) {

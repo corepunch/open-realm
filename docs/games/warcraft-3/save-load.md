@@ -179,7 +179,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 213, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 214, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -2123,3 +2123,5 @@ Upstream synchronization uses format213 to combine format212 pathfinding owners
 with upstream score attribution, item overrides, difficulty and timed visibility.
 Completed fog planes retain the existing pathfinding snapshot contract; timed
 Omniscience deadlines are saved alongside those planes. Older layouts are rejected.
+
+Format 214 changes the meaning of saved Captain target-event subscriptions. Roster membership owns death and owner-change events; retained target, follow and backup roles also own TargetLost. A unit with both roles retains their union and each event's FIFO rank. Format 213 records may contain a roster-only TargetLost subscription, which is invalid under the current contract. The exact-version guard rejects format 213 before restoring the world; no migration is provided. The `wc3_save.target378_rejects_version_213_before_captain_role_masks` regression checks the writer version, early rejection without live-state changes, and current-format restoration.

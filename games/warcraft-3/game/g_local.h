@@ -4191,6 +4191,7 @@ bool S_UnitTypeHasAbilityCode(UnitAbilities_t const *, uint32_t);
 bool S_UnitHasAbilityFlags(edict_t const *, uint32_t);
 void S_ClearUnitEventPlans(void);
 void S_UnitTargetRemoved(edict_t *);
+void S_UnitTargetRemovedCleanup(edict_t *);
 /* g_target_events.c: each concrete callback has an independent FIFO rank
  * for each target event; pointers and derived links are never saved. */
 typedef enum { TARGET_OWNER_MOVE=1, TARGET_OWNER_ATTACK, TARGET_OWNER_CAPTAIN } targetSubscriberKind_t;

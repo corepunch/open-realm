@@ -1568,19 +1568,27 @@ void S_UnitTargetOwnerChanged(edict_t *target) {
 }
 
 /* Notify active behavior owners after semantic removal, before deferred memory reclamation. */
-void S_UnitTargetRemoved(edict_t *target) {
+/* Keep the original Remove snapshot across synchronous Lost callbacks. */
+static void unit_target_removed_cleanup(edict_t *target,uint32_t count) {
     abilityCall_t call = MAKE(abilityCall_t, .removed_target = target);
-    uint32_t count = globals.num_edicts;
-
-    /* Move's retained parent can be subscribed while a different ability owns
-     * the active task. Retire that subscription before generic owner cleanup. */
-    S_UnitTargetLost(target);
     FOR_LOOP(i, count) {
         edict_t *ent = globals.edicts + i;
         if (ent == target || !ent->inuse || G_IsDeferredFree(ent) || !ent->currentmove || !ent->currentmove->proc)
             continue;
         ent->currentmove->proc(ent, A_TARGET_REMOVED, &call);
     }
+}
+
+void S_UnitTargetRemoved(edict_t *target) {
+    uint32_t count=globals.num_edicts;
+    S_UnitTargetLost(target);
+    unit_target_removed_cleanup(target,count);
+}
+
+/* Death already published its distinct Lost/Death rings before cancellation.
+ * Keep generic current-owner cleanup without a second Lost publication. */
+void S_UnitTargetRemovedCleanup(edict_t *target) {
+    unit_target_removed_cleanup(target,globals.num_edicts);
 }
 
 bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {

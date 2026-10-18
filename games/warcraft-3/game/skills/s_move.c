@@ -7186,9 +7186,9 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return true;
     }
     case A_DEATH:
-        /* Native death retires active Follow heads synchronously, before the
-         * next physical-owner update or a replacement target can be created. */
-        S_UnitTargetRemoved(ent);
+        /* unit_die already published Lost then Death before cancellation.
+         * Retain generic owner cleanup without publishing Lost twice. */
+        S_UnitTargetRemovedCleanup(ent);
         return true;
     case A_QUEUE_ORDER_START: {
         unitOrder_t const *queued=call->queued_order;

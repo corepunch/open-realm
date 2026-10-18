@@ -513,10 +513,19 @@ void unit_die(edict_t *self, edict_t *attacker) {
 #ifdef WC3_SC2API
     WC3_SC2API_RecordDeath(self);
 #endif
-    G_ClearActiveUnitOrder(self);
+    uint32_t const death_birth=self->spawn_time;
     selected_mask = self->selected;
     summon_explodes = (self->aiflags & AI_SUMMON_EXPLODES_ON_DEATH) != 0;
     script_explodes = (self->aiflags & AI_SCRIPT_EXPLODED) != 0;
+    /*679bc0 commits death before the ordered target Lost and Death rings,
+     * while the old user command and physical owner are still retained. */
+    G_SetHealth(self,0.0f);
+    self->svflags|=SVF_DEADMONSTER;
+    S_UnitTargetLost(self);
+    if(!self->inuse || self->spawn_time!=death_birth)return;
+    G_DispatchTargetSubscriptions(self,A_DEATH);
+    if(!self->inuse || self->spawn_time!=death_birth)return;
+    G_ClearActiveUnitOrder(self);
 
     CAbilityAvatar(self,A_DEATH,NULL); /* Death must not start a reverse transition. */
     /* A dead polymorphed unit must not later restore as a living unit when its
@@ -526,8 +535,6 @@ void unit_die(edict_t *self, edict_t *attacker) {
     G_ClearUnitOrderQueue(self);
     self->current_order_id = 0;
     G_InvalidateUnitShortcutsForUnit(self);
-    G_SetHealth(self, 0.0f);
-    self->svflags |= SVF_DEADMONSTER;
     /* Death task events reach the attached Move owner, not every physical
      * mover. Zero-speed units still have collision and separation storage. */
     if(G_ActorHasAbilityCode(self,MAKEFOURCC('A','m','o','v')))
@@ -2411,13 +2418,26 @@ uint32_t unit_removebuffs(edict_t *ent, bool positive, bool negative,
         abilityitem_t item;
         abilityCall_t call;
         uint32_t policy;
-        if (!status->level) continue;
+        if (!status->level || (status->buff_flags & WC3_STATUS_BUFF_UNDISPELLABLE)) continue;
         item = S_AbilityItem(status->data);
         policy = 0;
         if (item.ability && (item.ability->flags & AB_STATUS_POLICY)) {
             call = MAKE(abilityCall_t, .item = &item);
             call.status.slot = status; call.status.ability = status->data;
             policy = (uint32_t)S_AbilityMessage(ent, A_STATUS_POLICY, &call);
+        }
+        /* Upstream statuses may carry explicit classification without an
+         * ability-owned policy. Keep the native owner policy authoritative,
+         * and accept only complete, unambiguous dispellable metadata here. */
+        if (!(policy & UNIT_BUFF_KNOWN) && unit_status_can_dispel(status)) {
+            uint32_t polarity=status->buff_flags & (WC3_STATUS_BUFF_POSITIVE | WC3_STATUS_BUFF_NEGATIVE);
+            uint32_t kind=status->buff_flags & (WC3_STATUS_BUFF_MAGICAL | WC3_STATUS_BUFF_PHYSICAL);
+            if ((polarity==WC3_STATUS_BUFF_POSITIVE || polarity==WC3_STATUS_BUFF_NEGATIVE) &&
+                (kind==WC3_STATUS_BUFF_MAGICAL || kind==WC3_STATUS_BUFF_PHYSICAL)) {
+                policy=UNIT_BUFF_KNOWN |
+                    (polarity==WC3_STATUS_BUFF_POSITIVE ? UNIT_BUFF_POSITIVE : UNIT_BUFF_NEGATIVE) |
+                    (kind==WC3_STATUS_BUFF_MAGICAL ? UNIT_BUFF_MAGIC : UNIT_BUFF_PHYSICAL);
+            }
         }
         if (!(policy & UNIT_BUFF_KNOWN)) {
             fprintf(stderr, "UnitRemoveBuffs: unclassified status %.4s, applying ability %.4s on %s\n",
@@ -2431,7 +2451,7 @@ uint32_t unit_removebuffs(edict_t *ent, bool positive, bool negative,
         if (physical && !(policy & UNIT_BUFF_PHYSICAL)) continue;
         if (magic && !(policy & UNIT_BUFF_MAGIC)) continue;
         if (auto_dispel && !(policy & UNIT_BUFF_AUTO_DISPEL)) continue;
-        unit_expirestatus(ent, status);
+        unit_removestatus(ent, status, STATUS_REMOVE_SCRIPT);
         removed++; i = 0;
     }
     if (removed) {

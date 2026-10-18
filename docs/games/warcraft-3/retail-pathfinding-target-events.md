@@ -134,3 +134,5 @@ Final isolated Save208 validation compiled both production and test modules from
 the reviewed Git index: 22 tests / 970 assertions per edition, plus the full
 save suite (224 tests / 68,041 assertions per edition), 11 target-event integrity
 tests, 38 corpus tests and 12 exclusion-owner tests. All passed.
+
+Payoff378 distinguishes roster death/owner subscriptions from retained-target lost/death/owner subscriptions, and publishes the separate death registry before old-order cancellation. See [Captain event roles](retail-pathfinding-captain-event-roles.md) for the failing-first regressions and exact scope.

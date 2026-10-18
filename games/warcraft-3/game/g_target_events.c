@@ -156,11 +156,26 @@ void G_SetUnitTargetSubscription(targetSubscriberKind_t kind,edict_t *owner,edic
     if(other)FOR_LOOP(i,2)target_subscription_insert(&(targetSubscriptionRecord_t){.target=other,.owner=identity,
         .target_birth=target->spawn_time,.owner_birth=owner->spawn_time,.kind=kind,.mask=1u<<i});
 }
-void G_AddCaptainTargetSubscription(botCaptain_t *captain,edict_t *target) {
+/* Native9cf680 roster registration selects death/owner, while retained
+ * target roles also select lost. One callback/event entry owns the union;
+ * adding a role must not reorder existing death/owner registrations. */
+static uint32_t target_subscription_captain_mask(botCaptain_t const *captain,edict_t const *target) {
+    uint32_t mask=0;
+    FOR_EACH_ARRAY(edict_t *,member,captain->units)if(*member==target){mask=6;break;}
+    botCaptainTarget_t const *roles[]={&captain->target,&captain->follow,&captain->backup};
+    FOR_LOOP(i,3)if(roles[i]->unit==target && roles[i]->birth==target->spawn_time)return 7;
+    return mask;
+}
+static void target_subscription_add_captain(botCaptain_t *captain,edict_t *target,uint32_t mask) {
     uint32_t identity=target_subscription_captain(captain),other=target_subscription_unit(target);
     uint32_t const events[]={1,4,2}; /*9d4a50 lost, death, owner.*/
-    if(identity && other)FOR_LOOP(i,3)target_subscription_insert(&(targetSubscriptionRecord_t){.target=other,.owner=identity,
+    if(identity && other)FOR_LOOP(i,3)if(mask&events[i])target_subscription_insert(&(targetSubscriptionRecord_t){.target=other,.owner=identity,
         .target_birth=target->spawn_time,.kind=TARGET_OWNER_CAPTAIN,.mask=events[i]});
+}
+/* The enrollment producer already knows this is a roster member. Avoid a
+ * second roster scan for each insertion or each full refresh. */
+void G_AddCaptainTargetSubscription(botCaptain_t *captain,edict_t *target) {
+    target_subscription_add_captain(captain,target,6);
 }
 void G_RemoveCaptainTargetSubscription(botCaptain_t *captain,edict_t *target) {
     uint32_t identity=target_subscription_captain(captain),other=target_subscription_unit(target);
@@ -179,7 +194,7 @@ void G_RefreshCaptainTargetSubscriptions(botCaptain_t *captain) {
     FOR_EACH_ARRAY(edict_t *,member,captain->units)G_AddCaptainTargetSubscription(captain,*member);
     botCaptainTarget_t const *roles[]={&captain->target,&captain->follow,&captain->backup};
     FOR_LOOP(i,3)if(roles[i]->unit && roles[i]->unit->inuse && roles[i]->unit->spawn_time==roles[i]->birth)
-        G_AddCaptainTargetSubscription(captain,roles[i]->unit);
+        target_subscription_add_captain(captain,roles[i]->unit,7);
     uint32_t id=target_subscription_owners[key];
     while(id) {uint32_t next=target_subscriptions[id-1].owner_next;if(!target_subscriptions[id-1].touched)target_subscription_remove(id);id=next;}
 }
@@ -218,12 +233,6 @@ void G_DispatchTargetSubscriptions(edict_t *target,abilityMsg_t message) {
     gi.MemFree(delivery);
 }
 
-static bool target_subscription_captain_owns(botCaptain_t const *captain,edict_t const *target) {
-    FOR_EACH_ARRAY(edict_t *,member,captain->units)if(*member==target)return true;
-    botCaptainTarget_t const *roles[]={&captain->target,&captain->follow,&captain->backup};
-    FOR_LOOP(i,3)if(roles[i]->unit==target && roles[i]->birth==target->spawn_time)return true;
-    return false;
-}
 static bool target_subscription_record_valid(targetSubscriptionRecord_t const *r) {
     if(!r->sequence || r->sequence>target_subscription_sequence || !r->target || r->target>globals.num_edicts ||
        r->kind<TARGET_OWNER_MOVE || r->kind>TARGET_OWNER_CAPTAIN || !r->owner)return false;
@@ -232,7 +241,7 @@ static bool target_subscription_record_valid(targetSubscriptionRecord_t const *r
     if(r->kind==TARGET_OWNER_CAPTAIN) {
         if(r->owner>MAX_PLAYERS*BOT_CAPTAIN_COUNT || r->owner_birth || (r->mask!=1 && r->mask!=2 && r->mask!=4))return false;
         uint32_t owner=r->owner-1;
-        return target_subscription_captain_owns(level.bots[owner/BOT_CAPTAIN_COUNT].captains+owner%BOT_CAPTAIN_COUNT,target);
+        return (target_subscription_captain_mask(level.bots[owner/BOT_CAPTAIN_COUNT].captains+owner%BOT_CAPTAIN_COUNT,target)&r->mask)!=0;
     }
     if(r->owner>globals.num_edicts || (r->mask!=1 && r->mask!=2))return false;
     edict_t const *owner=g_edicts+r->owner-1;
@@ -276,7 +285,7 @@ bool G_ValidateTargetSubscriptions(void) {
         botCaptain_t const *captain=level.bots[p].captains+c;
         uint32_t owner=p*BOT_CAPTAIN_COUNT+c+1;
         FOR_LOOP(e,3) {
-            FOR_EACH_ARRAY(edict_t *,member,captain->units)
+            if(e)FOR_EACH_ARRAY(edict_t *,member,captain->units)
                 if(!target_subscription_exists(TARGET_OWNER_CAPTAIN,owner,*member,1u<<e))return false;
             botCaptainTarget_t const *roles[]={&captain->target,&captain->follow,&captain->backup};
             FOR_LOOP(i,3)if(roles[i]->unit && !target_subscription_exists(TARGET_OWNER_CAPTAIN,owner,roles[i]->unit,1u<<e))return false;

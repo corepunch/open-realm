@@ -18,6 +18,7 @@ TEST(server_clock, clock275_fixed_steps_rate_pause_hitch_and_fraction) {
     svs.num_clients = 0;
     for (uint32_t rate = 3; rate <= 5; rate++) {
         memset(&sv, 0, sizeof(sv));
+        sv.state = ss_game; /* Exercise the active server fixed-step scheduler. */
         svs.realtime = clock275_frames = 0;
         SV_SetSimulationRate(rate, 5);
         for (unsigned ms = 0; ms < 10000; ms++) SV_Frame(1);

@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 213; /* Merge upstream score, item and timed visibility state with pathfinding owners. */
+static uint32_t const save_version = 214; /* Captain roster subscriptions exclude TargetLost; retained target roles keep it. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -4919,6 +4919,32 @@ TEST(wc3_save, rejects_version_77_after_cinematic_portrait_format_change) {
     T_ASSERT(!G_GetSaveMap(previous_filename, map, sizeof(map)));
     T_ASSERT(!ReadGame(previous_filename));
     remove(filename); remove(previous_filename);
+}
+
+TEST(wc3_save, target378_rejects_version_213_before_captain_role_masks) {
+    cstring_t current = Test_TempPath("save-captain-role-mask-current.bin");
+    cstring_t previous = Test_TempPath("save-captain-role-mask-v213.bin");
+    saveHeader_t header;
+    char map[sizeof(header.map_path)];
+    setup_test_world();
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    T_ASSERT(WriteGame(current));
+    FILE *file = fopen(current, "rb");
+    T_NOT_NULL(file);
+    if (!file) return;
+    T_ASSERT(LoadBytes(file, &header, sizeof(header)));
+    fclose(file);
+    T_EQ(header.version, 214);
+    T_ASSERT(write_save_fixture_header(current, previous, 213, header.edict_size));
+    unit->user_data = 378;
+    T_ASSERT(!G_GetSaveMap(previous, map, sizeof(map)));
+    T_ASSERT(!ReadGame(previous));
+    T_EQ(unit->user_data, 378);
+    T_ASSERT(ReadGame(current));
+    T_EQ(unit->user_data, 0);
+    remove(current);
+    remove(previous);
 }
 
 TEST(wc3_save, rejects_version_201_before_captain_target_layout) {
