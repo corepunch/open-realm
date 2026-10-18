@@ -7503,6 +7503,14 @@ TEST(wc3_building, build296_summon_wait_is_independent_and_replacement_safe) {
     reset_entities();building_restore_repair_data(old,rows);setup_test_world();
 }
 
+/* Query the Build owner for its scalar heap fixture; independent Attack
+ * acquisition timers may precede it in the production primary merger. */
+static bool build296_next_wait(abilityTimerRequest_t *next) {
+    abilityCall_t call={.primary_timer=next};
+    next->proc=CAbilityBuild;
+    return CAbilityBuild(NULL,A_PRIMARY_TIMER_NEXT,&call);
+}
+
 /* Persistence and epoch drain exercise the same production primary queue. */
 TEST(wc3_building, build296_summon_primary_request_survives_save_rebase_and_reuse) {
     reset_entities();setup_test_world();
@@ -7513,7 +7521,7 @@ TEST(wc3_building, build296_summon_primary_request_survives_save_rebase_and_reus
     level.pathing_clock=(wc3Clock_t){.time=299.75f,.span=300};
     T_ASSERT(G_StartUndeadConstruction(worker,building));
     abilityTimerRequest_t request;
-    T_ASSERT(S_NextAbilityPrimaryTimer(&request));
+    T_ASSERT(build296_next_wait(&request));
     T_ASSERT(request.proc==CAbilityBuild);T_EQ(request.deadline.time,300.75f);
     uint32_t serial=request.sequence;
     cstring_t save=Test_TempPath("summon296.bin");
@@ -7521,11 +7529,11 @@ TEST(wc3_building, build296_summon_primary_request_survives_save_rebase_and_reus
     worker->build_summon_wait.active=false;S_ResetAbilityTimers();
     T_ASSERT(ReadGame(save));
     T_ASSERT(worker->currentmove==&build_move_summon);
-    T_ASSERT(S_NextAbilityPrimaryTimer(&request));T_EQ(request.sequence,serial);
+    T_ASSERT(build296_next_wait(&request));T_EQ(request.sequence,serial);
     T_EQ(request.deadline.time,300.75f);T_EQ(request.deadline.span,300.0f);
     S_RebaseAbilityPrimaryTimers(300);
     level.pathing_clock=(wc3Clock_t){.time=.75f,.epoch=1,.span=300};
-    T_ASSERT(S_NextAbilityPrimaryTimer(&request));
+    T_ASSERT(build296_next_wait(&request));
     T_EQ(request.deadline.epoch,1);T_EQ(request.deadline.time,.75f);
     level.scheduled_frame=true;
     request.proc(NULL,A_PRIMARY_TIMER_FIRE,NULL);
@@ -7559,7 +7567,7 @@ TEST(wc3_building, build296_summon_heap_orders_and_cancels_only_owned_waits) {
     replacement->current_order_id=G_OrderId("holdposition");
     float previous=0;unsigned fired=0;uint32_t previous_serial=0;
     abilityTimerRequest_t request;
-    while(S_NextAbilityPrimaryTimer(&request) && request.proc==CAbilityBuild) {
+    while(build296_next_wait(&request)) {
         T_ASSERT(request.deadline.time>=previous);
         if(request.deadline.time==previous)T_ASSERT(request.sequence>previous_serial);
         previous=request.deadline.time;previous_serial=request.sequence;

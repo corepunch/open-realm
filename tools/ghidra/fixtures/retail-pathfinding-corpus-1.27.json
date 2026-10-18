@@ -59483,7 +59483,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
-      "sha256": "e5cb82eb08ea331f7b1e86ad8cc6e64bac9ad586b105cb017d6684a6a888ad98"
+      "sha256": "f7104b90cf3cfa4247947af0e7f27272c4929026dee19ef1a78f6a9eab9a08cc"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.7.3/HANDOFF.md",
@@ -60167,7 +60167,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_building.c",
-      "sha256": "4aaf8a55ecb526688953c5e5a048d536aa96041146fae8f2e7f2dcd138841f36"
+      "sha256": "415b1ef582d675a947e1aa361bf11d5f8eee3a878c4903a12f2b7ac8baf5d34c"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
@@ -60535,7 +60535,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_items.c",
-      "sha256": "0baa93fd9efb370264e639b9a8fc4b2947a6fee477b38882f53e8b022b9bb583"
+      "sha256": "68b27948f2f4c086bdf3949e3d85f2829dca22931e34def717a5a29db6b09fdd"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_recovery_scope.py",

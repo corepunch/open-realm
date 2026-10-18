@@ -578,3 +578,26 @@ The final acquisition gate runs three production tests in each edition: the
 no-damage Captain acquisition and saved inverse, incompatible-version rejection,
 and the existing scalar rebase regression. Both editions pass all 46 assertions.
 The evidence validator also rejects missing rebase coverage.
+
+## Independent timers and older construction/teleport regressions
+
+The Save206 full-suite checkpoint exposed four older fixtures that consumed the
+first global primary request as though it belonged to Build or SpellCast. GDB
+shows the independent Attack scan is legitimately earlier: its deadline is0.5,
+while the tested Teleport cast deadline is1.375. The new acquisition timer is
+preserved. Construction and Teleport fixtures now query their actual owner via
+`A_PRIMARY_TIMER_NEXT`; every original deadline, serial, ordering, lifecycle and
+save assertion remains.
+
+Before correction the four tests fail61 assertions per edition. After the
+fixture-only correction, all three Build296 and five Teleport327 tests pass480
+assertions per edition. The production game module has the identical SHA-256
+`0e377813fb233ac2fe52492e3e3020160a4d9a6cc7db4cc064287141b0d68ca3`.
+The corrected private snapshot passes the complete repository checkpoint:
+9,437 native tests across33 JUnit reports, with no failures, plus2,485 Python
+tests. The32 ordinary native summaries account for9,429 tests and40,342,353
+assertions; the separate power-lifetime harness contributes eight more tests.
+The run uses the native SDL2 library, avoiding the host SDL2-to-SDL3 compatibility
+layer that crashed the initial client-input diagnostic. Diagnostics and the exact
+two-file correction are archived under `GROUP-03.4.7.3/payoff358/checkpoint206-*`;
+the complete repeat log is `SEP-01.2/phoenix365/root-fixture206-checkpoint.log`.

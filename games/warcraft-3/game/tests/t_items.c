@@ -4288,6 +4288,15 @@ TEST(wc3_cursor, inventory_drag_publishes_icon_and_clears_after_cancel_or_remova
     gi.Write = write; gi.unicast = unicast;
 }
 
+/* These scalar cast fixtures deliver their own SpellCast queue. Independent
+ * Attack acquisition requests share the production primary merger and may be
+ * earlier; they must not replace the request whose deadline is under test. */
+static bool item327_next_cast(abilityTimerRequest_t *next) {
+    abilityCall_t call={.primary_timer=next};
+    next->proc=CAbilitySpellCast;
+    return CAbilitySpellCast(NULL,A_PRIMARY_TIMER_NEXT,&call);
+}
+
 /* Native327: ItemTeleport acquires at cast begin, holds Stop, rejects Move,
  * and releases before the deferred pause task. Authored Cast owns the delay. */
 TEST(wc3_items, teleport327_public_item_target_owns_separation_until_completion) {
@@ -4323,7 +4332,7 @@ TEST(wc3_items, teleport327_public_item_target_owns_separation_until_completion)
     T_ASSERT(unit_issueimmediateorder(unit,"stop"));
     T_EQ(unit->current_order_id,852008);
     T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
-    abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);T_ASSERT(pending);
+    abilityTimerRequest_t request;bool pending=item327_next_cast(&request);T_ASSERT(pending);
     if(pending) {
         T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
         level.pathing_clock=request.deadline;
@@ -4386,7 +4395,7 @@ TEST(wc3_items, teleport327_public_item_lifecycle_releases_only_its_owner) {
         G_DeferFreeEdict(target);
         T_EQ(unit->movement.repulse.disable_depth,1);
         abilityTimerRequest_t loss;
-        T_ASSERT(S_NextAbilityPrimaryTimer(&loss));
+        T_ASSERT(item327_next_cast(&loss));
         wc3Clock_t expected=level.pathing_clock;
         FOR_LOOP(i,2)wc3_clock_advance(&expected,wc3_float(0x3ba3d70a),0);
         T_EQ(wc3_float_bits(loss.deadline.time),wc3_float_bits(expected.time));
@@ -4399,7 +4408,7 @@ TEST(wc3_items, teleport327_public_item_lifecycle_releases_only_its_owner) {
                 cstring_t path=Test_TempPath("teleport327-lost-target.bin");
                 T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);
                 unit=g_edicts+u;item=g_edicts+i;item->data.ItemData=&data;
-                T_ASSERT(S_NextAbilityPrimaryTimer(&loss));
+                T_ASSERT(item327_next_cast(&loss));
                 T_EQ(wc3_float_bits(loss.deadline.time),wc3_float_bits(expected.time));
             }
             level.pathing_clock=loss.deadline;
@@ -4440,7 +4449,7 @@ TEST(wc3_items, teleport327_public_item_lifecycle_releases_only_its_owner) {
     if(action<3 || action==7) {
         reset_entities();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);continue;
     }
-    abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);T_ASSERT(pending);
+    abilityTimerRequest_t request;bool pending=item327_next_cast(&request);T_ASSERT(pending);
     if(pending) {
         T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
         level.pathing_clock=request.deadline;
@@ -4504,7 +4513,7 @@ TEST(wc3_items, teleport327_cast_protection_preserves_scripted_invulnerability) 
     T_ASSERT(unit_issueimmediateorder(unit,"stop"));
     T_EQ(unit->current_order_id,852008);
     T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
-    abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);T_ASSERT(pending);
+    abilityTimerRequest_t request;bool pending=item327_next_cast(&request);T_ASSERT(pending);
     if(pending) {
         T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
         level.pathing_clock=request.deadline;
@@ -4559,7 +4568,7 @@ TEST(wc3_items, teleport327_passenger_limit_prefers_hero_and_excludes_enemy) {
     T_ASSERT(unit_issueimmediateorder(unit,"stop"));
     T_EQ(unit->current_order_id,852008);
     T_ASSERT(!unit_issueorder(unit,"move",&(vec2_t){128,64}));
-    abilityTimerRequest_t request;bool pending=S_NextAbilityPrimaryTimer(&request);T_ASSERT(pending);
+    abilityTimerRequest_t request;bool pending=item327_next_cast(&request);T_ASSERT(pending);
     if(pending) {
         T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(1.375f));
         level.pathing_clock=request.deadline;
