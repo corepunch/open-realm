@@ -854,6 +854,18 @@ static bool metamorphosis_begin(edict_t *unit,uint32_t code,bool reverse) {
     S_BeginMorphTransition(unit,code,base,target,reverse,true,data->dur);
     return true;
 }
+/* ChemicalRage55d380 enters552120 synchronously when attached to its authored
+ * alternate form. The concrete producer starts its authored lifetime here,
+ * without a transition hold. Existing state distinguishes a type refresh. */
+static void chemical_rage_initialize_lifetime(edict_t *unit,uint32_t code) {
+    if(!unit)return;
+    abilityLevel_t const *data=G_AbilityLevel(code,S_SpellLevel(unit,code));
+    if(!data->unitID || unit->class_id!=data->unitID || (unit->morph && unit->morph->code==code))return;
+    if(!unit->morph)unit->morph=G_AllocMorph();
+    assert(unit->morph);
+    unit->morph->code=code;unit->morph->base_type=data->data[0].id;unit->morph->target_type=data->unitID;
+    S_ScheduleMorphExpiration(unit,data->heroDur);
+}
 BZ_ABILITY_PROC(CAbilityMetamorphosis) {
     if(!call || !call->item)return false;
     /* Preserve the conversion-owner identity used by AI while sharing the
@@ -862,19 +874,29 @@ BZ_ABILITY_PROC(CAbilityMetamorphosis) {
         return CAbilityGroundMorph(ent,msg,call);
     uint32_t code=call->item->code;
     if(!metamorphosis_timed_ground(call->item))return CAbilityAvengerForm(ent,msg,call);
+    bool chemical=!strcmp(call->item->ability->classname,"ANcr");
     switch(msg) {
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_MOVE_LEAVE,A_TARGET_MODE_EXIT);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_DISABLE,A_MOVE_LEAVE,A_TARGET_MODE_EXIT) |
+            (chemical ? UNIT_MESSAGE_SUBSCRIPTIONS(A_ENABLE,A_UNIT_INIT,A_UNIT_TYPE_CHANGED) : 0);
+    case A_ENABLE:case A_UNIT_INIT:case A_UNIT_TYPE_CHANGED:
+        if(!chemical)return CAbilitySimpleSpell(ent,msg,call);
+        S_InitializeConfiguredMorphAvailability(ent,call);
+        chemical_rage_initialize_lifetime(ent,code);return true;
     case A_VALIDATE:
         return ent && !(ent->morph && ent->morph->transition.active) &&
             G_AbilityLevel(code,S_SpellLevel(ent,code))->unitID &&
             G_AbilityLevel(code,S_SpellLevel(ent,code))->unitID!=ent->class_id;
     case A_EXECUTE:return metamorphosis_begin(ent,code,false);
     case A_MORPH_COMPLETE:
+        if(chemical)S_CompleteConfiguredMorphAvailability(ent,call);
         if(!call->enabled)S_ScheduleMorphExpiration(ent,S_SpellDuration(code,S_SpellLevel(ent,code),true));
         unit_stand(ent);return true;
     case A_MORPH_EXPIRE:return metamorphosis_begin(ent,code,true);
-    case A_DISABLE:S_RemoveMorphAbility(ent,code);return true;
+    case A_DISABLE:
+        if(chemical)S_DetachConfiguredMorphAvailability(ent,call);
+        else S_RemoveMorphAbility(ent,code);
+        return true;
     default:return CAbilitySimpleSpell(ent,msg,call);
     }
 }

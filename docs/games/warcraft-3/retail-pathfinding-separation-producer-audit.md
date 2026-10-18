@@ -70,3 +70,11 @@ controls. The shared configured helper is invoked only by ANrg, Bear and Raven;
 Burrow/Submerge keep their unconditional policy. Mount reachability, other concrete
 Morph subclasses and counted-owner compositions remain in existing SEP-01.2.
 [Evidence](robo-goblin-passive-availability.md).
+
+Payoff380 adds the concrete Chemical Rage configured availability producer: the actual
+v41c policy and +a4 removal slots, initial/late passive attachment, deferred .375
+completion and pending/active detach inverse are supported by repeated public/native
+controls. The shared configured helper is invoked by Chemical Rage, ANrg, Bear and Raven;
+Burrow/Submerge keep their unconditional policy. Mount reachability, other concrete
+Morph subclasses and counted-owner compositions remain in existing SEP-01.2.
+[Evidence](chemical-rage-passive-availability.md).

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Morph375, the inventory has **602 entries**: **321** oracle contracts
-(including variants) supplied by **249** distinct verifier scripts, **121**
+As of ChemicalRage380, the inventory has **603 entries**: **322** oracle contracts
+(including variants) supplied by **250** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -72,8 +72,8 @@ or silently upgrade the existing evidence.
 
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
-identity, source versions and frozen input hashes. The current Morph375
-inventory has602 entries:321 oracle contracts supplied by249 distinct verifier
+identity, source versions and frozen input hashes. The current ChemicalRage380
+inventory has603 entries:322 oracle contracts supplied by250 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2461,3 +2461,9 @@ detach inverses, including initial/late attachment and in-process saves.
 Strict acceptance: classic: 28 tests/15752 assertions; tft: 28 tests/15752 assertions. Complete projection retains literal exceptions;
 Mount, remaining concrete producers and compositions stay in SEP-01.2.
 [Contract and evidence](robo-goblin-passive-availability.md).
+
+Payoff380 registers configured Chemical Rage passive availability and concrete pending/active
+detach inverses, including initial/late attachment and in-process saves.
+Strict acceptance: classic: 30 tests/19026 assertions; tft: 30 tests/19026 assertions. Complete projection retains literal exceptions;
+Mount, remaining concrete producers and compositions stay in SEP-01.2.
+[Contract and evidence](chemical-rage-passive-availability.md).

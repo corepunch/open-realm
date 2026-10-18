@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "321 executable original/evidence contracts;602 total entries; provenance and limitations remain per-entry.",
+  "scope": "322 executable original/evidence contracts;603 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -57135,6 +57135,72 @@
         "Save checks use in-process WriteGame/ReadGame; no fresh-process restoration claim.",
         "Two pre-start system exception rows per instrumented capture outside game.dll are retained literally; cause and OS-fault unreachability are not established."
       ]
+    },
+    {
+      "id": "oracle-morph380",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_morph380.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "morph380.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "SEP-01.2 concrete Chemical Rage configured alternate availability, initial/late Apiv attachment, reverse completion and pending/active detach; in-process save/load.",
+      "checks": {
+        "instructions": {
+          "equal": 3901
+        },
+        "data_ranges": {
+          "equal": 16
+        },
+        "captures": {
+          "equal": 12
+        },
+        "scenes": {
+          "equal": 10
+        },
+        "public_markers": {
+          "equal": 746
+        },
+        "native_events": {
+          "equal": 898
+        },
+        "recorded_system_exceptions": {
+          "equal": 8
+        },
+        "projected_events": {
+          "equal": 1652
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 30,
+              "assertions": 19026
+            },
+            "tft": {
+              "tests": 30,
+              "assertions": 19026
+            }
+          }
+        }
+      },
+      "exclusions": [
+        "Mount reachability, remaining concrete Morph producers and counted-owner compositions remain within existing SEP-01.2.",
+        "Save checks use in-process WriteGame/ReadGame; no fresh-process restoration claim.",
+        "Two pre-start system exception rows per instrumented capture outside game.dll are retained literally; cause and OS-fault unreachability are not established."
+      ]
     }
   ],
   "fixtures": [
@@ -58033,7 +58099,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "91f86157cae477857a37a95f9412cdd1e6e4421bb33a1f27fd5921e686ecbf36"
+      "sha256": "8ab78fe8141f9590acd5589746e4b7b10384b710d62874cb8bd2c650786cac35"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -59825,7 +59891,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "27e095c0b1d8ab2c3fe0b7ed3b667b6a0c257140df8c3b6f313439fbb8aeb646"
+      "sha256": "7c24d8a26412271575b3affac27d5250841af9df1f80002e822db8f7c0a23c88"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -59841,7 +59907,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "640859d4c4f85811cbf91209580800182c8865ac20bd67fbc9baca11c42a95fb"
+      "sha256": "96d018890b018dbbca6bf4015662a9bb1f8a577a589430cf1b96ba88f2cc2146"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -64841,7 +64907,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "a9afab659c625edfdb5096dc0f9611d488e7e8f64917fab4cdbe7a2c778a2251"
+      "sha256": "75af4bc9dbc6aa7af078fe7917aea8b2208f90ca43923c67530962177160c946"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -66373,7 +66439,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_requested_abilities.c",
-      "sha256": "5ebbdf8148cf9ada9acd50244ebc8b6121e42bfdc34ef2d0fc33b301e7076e21"
+      "sha256": "9e790c1a27186f84f2f8920c9c464228ab61013676dc4f6b1dc20e0450f06bef"
     },
     {
       "path": "games/warcraft-3/game.mk",
@@ -66697,7 +66763,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "41ee730f25af3241ca83a3745e77eabc801aff059c93cf7600b7d0728a7d8a3e"
+      "sha256": "bb047980bda5cdf592a6be6e8ca608f84db1dd32e51c2ee2cd7d389783f9d927"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -67693,7 +67759,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-separation-producer-audit.md",
-      "sha256": "b7579aaa8329236c33327c13ed85e328c5b5824fab0e13ef4a20d0c9591ee661"
+      "sha256": "cd0da1aef65bac09faf6aab4c6574bb001aaf0b421676030e0fea865dc9554c8"
     },
     {
       "path": "tests/test_wc3_pathfinding_phoenix365.py",
@@ -68766,6 +68832,66 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_morph375.py",
       "sha256": "ded30a2ca278eff08a27ed64e1954649a3f7dc5bc39b3860b4feedd9f7ad5e24"
+    },
+    {
+      "path": "docs/games/warcraft-3/chemical-rage-passive-availability.md",
+      "sha256": "14fda4efeb30572305c81855153a82bb4b2aff318362de04373a42c5044cafbe"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_morph380.c",
+      "sha256": "127663fb18c5bb4148cce1750d313b56d562ec0d1092ded35c29790f448d10d2"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_morph380.py",
+      "sha256": "9b0f68fb8071b36f29355eb94bd1b788214190c22a756c2024acf61b0e21fc04"
+    },
+    {
+      "path": "tools/frida/research/payoff380_make_map.py",
+      "sha256": "a253932c7454c533103623f8e860efd53dabd044f0d6376ded0094d3f8c501d6"
+    },
+    {
+      "path": "tools/frida/research/payoff380_observer.js",
+      "sha256": "82283b24e7120b1e9d4122356e918a95d57c5a1aab34cece27df5ea4f3d55a38"
+    },
+    {
+      "path": "tools/frida/research/payoff380_probe.j",
+      "sha256": "ad3b1fdbac2409b83664339f8fd9d273d2468404c0ba6d9751af742bd081e028"
+    },
+    {
+      "path": "tools/frida/research/payoff380b_observer.js",
+      "sha256": "9a72e4ccda6388b810c3bf67800de3f75fc38eaaa7c91af97f993c2969f3c2e8"
+    },
+    {
+      "path": "tools/frida/research/payoff380d_make_map.py",
+      "sha256": "4a74a2d149bcb8117912c9273d9cb0dc2d0c68237d00273538bd15463b722464"
+    },
+    {
+      "path": "tools/frida/research/payoff380d_probe.j",
+      "sha256": "b74cc4e36bb564f0a4ad3101aea8ef5accf7be0d46d1711dfbe35a4f8ccee203"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-morph380-1.27.json",
+      "sha256": "a4071b77a9df8b76a06779bac98e0cd9406ddfe5830720f88014a0e1e72a53d7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-morph380-ghidra-1.27.json",
+      "sha256": "a778f39799300a34cdb955cb1f483ec219adbcde0ac685041ad034023b668bb8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-morph380-inputs-1.27.json.gz",
+      "sha256": "9d8d22b919df14022c083a63d6b68d80e9a8cca22c3e94854f960abe3fd89c18"
+    },
+    {
+      "path": "tools/ghidra/research/Payoff380ChemicalEvidence.java",
+      "sha256": "6214414d3740cffa7f71cdfe541a392d9ecd89f1770ceda652713631bb1662dd"
+    },
+    {
+      "path": "tools/ghidra/research/morph380_freeze.py",
+      "sha256": "8cd0435d237a5afcca31e88f08fa8d99fda3f73f0799a3ffef929eacfc1d2fa0"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_morph380.py",
+      "sha256": "307065f6fce09a9de00311a770d7ea9cbf342aa6fafcfb81115b02299eab6a82"
     }
   ]
 }
