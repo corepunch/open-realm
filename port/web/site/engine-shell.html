@@ -125,6 +125,7 @@ canvas { display: block; max-width: 100%; background: #000; }
 <p>Experimental OpenRealm browser runtime. Imported archives are read directly from OPFS through WasmFS. Engine compatibility is experimental.</p>
 </div>
 </main>
+<script src="pages-isolation.js"></script>
 <script>
 var webglProbe = document.createElement('canvas');
 var browserCapable = !!(webglProbe.getContext('webgl2') &&
@@ -135,8 +136,14 @@ var browserUnsupported = document.getElementById('browser-unsupported');
 var browserUnsupportedMessage = document.getElementById('browser-unsupported-message');
 if (!browserCapable) {
   browserUnsupported.hidden = false;
-} else if (!window.openrealmPagesReady && window.crossOriginIsolated) {
-  pageContent.hidden = false;
+} else if (!window.openrealmPagesReady) {
+  if (window.crossOriginIsolated) {
+    pageContent.hidden = false;
+  } else {
+    browserUnsupportedMessage.textContent =
+      'Cross-origin isolation bootstrap was not loaded. Check pages-isolation.js and reload.';
+    browserUnsupported.hidden = false;
+  }
 }
 if (browserCapable && window.openrealmPagesReady) {
   window.openrealmPagesReady.then(function (ready) {
@@ -297,7 +304,6 @@ openrealmInstallKeyboardCapture(window, document, gameCanvas, gameContainer);
 <script src="early-map-loading.js"></script>
 <script src="installer.js"></script>
 <script src="mpq-header.js"></script>
-<script src="pages-isolation.js"></script>
 <script src="filesystem-bridge.js"></script>
 <template id="engine-script">{{{ SCRIPT }}}</template>
 </body>

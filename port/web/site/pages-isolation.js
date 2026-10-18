@@ -1,10 +1,10 @@
-/* GitHub Pages-only cross-origin isolation bootstrap for /openwarcraft3/play/.
+/* GitHub Pages-only cross-origin isolation bootstrap for /open-realm/play/.
  * This script runs before the OPFS mount and game launcher, but is not a
  * replacement for COOP/COEP response headers on the original navigation.
  */
 (function (root) {
   'use strict';
-  const PATH = '/openwarcraft3/play/';
+  const PATH = '/open-realm/play/';
   const RELOAD_KEY = 'openrealm-pages-coi-reloaded-v1';
 
   function pageMatches(pathname) {
