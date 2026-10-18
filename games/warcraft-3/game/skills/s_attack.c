@@ -1861,6 +1861,15 @@ bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {
 /* Attack-move: walk toward the goal, but each tick prefer engaging the
  * nearest enemy within acquisition range over continuing to walk. */
 static umove_t attackmove_move_walk;
+/*49a980 consumes the range-zero point task during admission. Starting this
+ * physical owner is independent of the later Attack acquisition scan. */
+static void attackmove_start_point_task(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) ||
+       unit->currentmove!=&attackmove_move_walk || !unit->goalentity || !S_UnitCanTranslate(unit))return;
+    if(!S_UnitTargetChaseActive(unit,CAbilityAttack))
+        if(!S_BeginUnitPointApproach(unit,&unit->goalentity->s.origin2,0,CAbilityAttack,S_AttackMoveComplete))
+            S_AttackMoveComplete(unit,unit,false);
+}
 static void ai_attackmove_walk(edict_t *ent) {
     if (G_ShouldAcquireThisFrame(ent)) {
         edict_t *enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
@@ -1871,13 +1880,7 @@ static void ai_attackmove_walk(edict_t *ent) {
         }
     }
 
-    if (!ent->goalentity || !S_UnitCanTranslate(ent)) return;
-    /* Point Attack shares Move's physical task and blocked-endpoint retries.
-     * The old steering path replaced an unreachable guard goal with a nearby
-     * reachable point, so failure could never request the return ferry. */
-    if (!S_UnitTargetChaseActive(ent,CAbilityAttack))
-        if (!S_BeginUnitPointApproach(ent,&ent->goalentity->s.origin2,0,CAbilityAttack,S_AttackMoveComplete))
-            S_AttackMoveComplete(ent,ent,false);
+    attackmove_start_point_task(ent);
 }
 
 /* Retire the point task before ferry/AI admission, preserving its destination
@@ -2324,6 +2327,7 @@ void order_attackmove(edict_t *self, edict_t *waypoint) {
     attack_set_target(self,NULL);
     move_reset_progress(self);
     unit_setmove(self, &attackmove_move_walk);
+    attackmove_start_point_task(self);
 }
 
 static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {

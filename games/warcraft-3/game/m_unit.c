@@ -1139,7 +1139,6 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
 }
 
 static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed, uint32_t *owner_head) {
-    vec2_t target;
     edict_t *waypoint;
 
     if (!self || !order || !point || G_IsDeferredFree(self)) return false;
@@ -1182,10 +1181,9 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
         return accepted;
     }
     if (strcmp(order,"attack")) return false;
-    target = *point;
-    pathAccelParams_t query = { point, NULL, self->collision, M_UnitStaticPathingFlags(self) };
-    G_ClosestMovePathPoint(&query, &target);
-    waypoint = Waypoint_add(&target);
+    /*49a980 retains the clicked point; blocked goals reach Move's own
+     * partial-endpoint and cannot-path completion rather than admission repair. */
+    waypoint = Waypoint_add(point);
     if (!waypoint) return false;
     self->movement.holding_position = false;
     order_attackmove(self, waypoint);

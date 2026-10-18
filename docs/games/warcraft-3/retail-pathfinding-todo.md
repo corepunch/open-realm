@@ -8,6 +8,13 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
+Point371 admits the raw point Attack physical owner synchronously. Six complete
+native captures retain3,396 public markers and3,422 whole records;3,216 original
+guards protect24 full functions. Both editions pass29 focused tests/11,306
+assertions,30 queue/target tests/2,679 and123 affected ferry tests/9,547.
+Existing TARGET-01.2 remains open for Ground and wider producer inventory.
+[Evidence](retail-pathfinding-point-command-admission.md).
+
 Captain369 implements independent deferred target selection, immutable global class
 query order, pending-query save/load and selected-primary loss restore/rearm.
 Failing production regressions precede both ports; three tests pass72 assertions
@@ -1833,7 +1840,7 @@ Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh,
 ### TARGET-01 — Arrival inputs
 
 - [x] **TARGET-01.1** Point-task range has 4,957 exact cases; object range has 948 calls and six invalid-handle probes. Evidence: [range predicates][ranges]; this does not close their gameplay producers.
-- [ ] **TARGET-01.2** Trace remaining target/command range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values. Ordinary zero-range point Move is independently closed01.4; Patrol, AttackMove, occupied destinations and force/can't-path producer decisions remain here and their owning order tasks.
+- [ ] **TARGET-01.2** Trace remaining target/command range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values. Ordinary zero-range point Move is independently closed01.4; Patrol, AttackMove, occupied destinations and force/can't-path producer decisions remain here and their owning order tasks. Point371: synchronous raw point Attack producer and saved physical owner verified by six native captures,3,216 guards and29 tests/11,306 assertions per edition; Ground and broader producer inventory remain open.
 - [x] **TARGET-01.3** Trace one ability-specific approach producer and contrast its range/stop contract with those commands. Payoff185 integrates actual ground Holy Light: authored unbuffered range, nonpersistent physical approach, exact50-row fine motion and retail final public stop; repeated/control producer evidence, non-stock schemas, cancellation and Save146 pass. Target Move retains its distinct configured persistent range. See [spell approaches](retail-pathfinding-engine.md#spell-approaches-capture-a-physical-stopping-range-payoff185). Complete spell timing, perimeter and other target families remain in their existing tasks.
 - [x] **TARGET-01.4** Split ordinary zero-range point Move from01.2: capture actual range publication, predicted-pose predicate and final stop; port them into the owning Move ability. Evidence: [point Move arrival](retail-pathfinding-engine.md#point-move-arrival),2342 complete original/C predicate cases, two identical183-evaluation/commit live witnesses, failing actual-order engine regressions then corrected range/heading gate and previous-velocity final step. Full world/grid/clock phases, other owners and force producers remain01.2/3/NUM-02.3; the rejected first observer capture stays explicit.
 

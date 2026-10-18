@@ -314,7 +314,8 @@
     "oracle-burrow366",
     "oracle-target363",
     "oracle-captain368-clear",
-    "oracle-captain369-selection"
+    "oracle-captain369-selection",
+    "oracle-target371"
   ],
   "entries": [
     {
@@ -7071,6 +7072,18 @@
           "task": "GROUP-03.4.7.3",
           "disposition": "behavior",
           "rationale": "Random structure destinations, transport, Suicide publication and Town primary override remain in the original existing leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-target371",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "AttackGround selected-range/FLT_MAX admission, wider target/ability producer inventory and full retail-save parity remain existing TARGET-01.2 and BASE/E2E scope.",
+          "task": "TARGET-01.2",
+          "disposition": "behavior",
+          "rationale": "The existing TARGET-01.2 leaf retains Ground and broader producer coverage; point admission does not close it."
         }
       ]
     }

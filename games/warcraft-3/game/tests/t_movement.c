@@ -23587,6 +23587,9 @@ TEST(wc3_movement, order346_headless_blocked_attack_returns_to_guard_and_save) {
         T_NOT_NULL(unit->currentmove);
         if(unit->currentmove && unit->currentmove->think)unit->currentmove->think(unit);
         T_ASSERT(S_UnitTargetChaseActive(unit,CAbilityAttack));
+        moveGroup_t *old_chase=move_unit_group(unit);
+        T_NOT_NULL(old_chase);
+        uint64_t old_sequence=old_chase?old_chase->sequence:0;
         if(saved) {
             cstring_t file=Test_TempPath("order346-headless.bin");
             T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
@@ -23604,7 +23607,16 @@ TEST(wc3_movement, order346_headless_blocked_attack_returns_to_guard_and_save) {
             T_FEQ(unit->goalentity->s.origin2.x,256,0);
             T_FEQ(unit->goalentity->s.origin2.y,256,0);
         }
-        T_ASSERT(!S_UnitTargetChaseActive(unit,CAbilityAttack));
+        /* The failed target owner retired before the guard's point Attack.
+         * Retail49a980 admits that replacement physical owner synchronously. */
+        moveGroup_t *guard=move_unit_group(unit);T_NOT_NULL(guard);
+        if(guard) {
+            T_NE(guard->sequence,old_sequence);T_NULL(guard->target);
+            T_EQ(guard->receiver,unit);T_EQ(guard->complete,S_AttackMoveComplete);
+            T_EQ(guard->owner_ability,GetAbilityIndex(CAbilityAttack)+1);
+            T_EQ(wc3_float_bits(guard->members[0].arrival_range),0x3efae148u);
+            T_FEQ(guard->goal.x,8,0);T_FEQ(guard->goal.y,8,0);
+        }
         G_BotStop(0);G_FowShutdown();reset_entities();setup_test_world();
         game.clients[0].jass.controller=controller;game.clients[0].mapplayer=mapplayer;
     }
