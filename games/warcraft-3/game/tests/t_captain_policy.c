@@ -671,4 +671,99 @@ TEST(wc3_bot, captain_near_home_hostile_contact_retains_point_and_pursues_source
     T_EQ(wc3_float_bits(captain->active_goal.x),wc3_float_bits(captain->home.x));
     remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
 }
+/* Native ClearCaptainTargets is a semantic identity removal, not a home order.
+ * With no identities, two public observations retain every point/request word. */
+TEST(wc3_bot, captain_clear368_without_targets_retains_nonhome_request) {
+    CaptainPolicyWorld();
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *members[6];
+    FOR_LOOP(i,6) {
+        members[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+80*(i%4),256+80*(i/4)},0);
+        members[i]->mana.value=100;members[i]->mana.max_value=200;
+    }
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    vec2_t point={1800,700};G_BotCaptainAttack(player,&point);
+    T_NULL(captain->target.unit);T_NULL(captain->follow.unit);T_NULL(captain->backup.unit);
+    T_EQ(captain->state,BOT_CAPTAIN_ACTIVE);
+    edict_t *actor=captain->home_actor,*goal=actor->goalentity;
+    umove_t const *move=actor->currentmove;
+    uint32_t flags=captain->policy_flags,order=actor->current_order_id;
+    G_BotClearCaptainTargets(player);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(point.x));
+    T_EQ(wc3_float_bits(captain->goal.y),wc3_float_bits(point.y));
+    T_EQ(wc3_float_bits(captain->active_goal.x),wc3_float_bits(point.x));
+    T_EQ(wc3_float_bits(captain->active_goal.y),wc3_float_bits(point.y));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    T_EQ(captain->state,BOT_CAPTAIN_ACTIVE);T_EQ(captain->policy_flags,flags);
+    T_EQ(actor->goalentity,goal);T_EQ(actor->currentmove,move);T_EQ(actor->current_order_id,order);
+    T_EQ(ARRAY_COUNT(captain->units),6u);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+/* Public Clear removes a living source semantically and restores the retained
+ * request. It must not broadcast actual source retirement to unrelated units. */
+TEST(wc3_bot, captain_clear368_follow_inverse_and_saved_point) {
+    CaptainPolicyWorld();
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_MELEE));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    UnitWeapons_t weapons={.attacksEnabled=1};
+    edict_t *units[6];
+    FOR_LOOP(i,6) {
+        units[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+80*(i%4),192+80*(i/4)},0);
+        units[i]->mana.value=100;units[i]->mana.max_value=200;
+        units[i]->data.UnitWeapons=&weapons;
+        units[i]->runtime.acquisition_range=1000;units[i]->targtype=TARG_GROUND;
+        unitAttack_t *profile=S_AttackProfileWrite(units[i],0);
+        profile->type=ATK_NORMAL;profile->damageBase=17;
+        profile->cooldown=1.5f;profile->damagePoint=3.25f;
+        profile->range=600;profile->weapon=WPN_NORMAL;
+        profile->targetsAllowed=WC3_TARGET_FLAG_GROUND;
+        gi.LinkEntity(units[i]);
+    }
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+    botCaptain_t *captain=level.bots[0].captains;
+    G_BotCaptainAttack(player,&captain->home);
+    T_ASSERT(S_CaptainNearHome(captain));
+    G_SetPlayerAlliance(player,&game.clients[1].ps,ALLIANCE_PASSIVE,false);
+    G_SetPlayerAlliance(&game.clients[1].ps,player,ALLIANCE_PASSIVE,false);
+    edict_t *source=unit_create(1,MAKEFOURCC('h','f','o','o'),&(vec2_t){1500,1024},0);
+    source->targtype=TARG_GROUND;S_SetUnitPaused(source,true);gi.LinkEntity(source);
+    T_ASSERT(S_AttackCanTarget(units[0],source));
+    T_Damage(units[0],source,1);
+    T_EQ(captain->follow.unit,source);
+    T_EQ(captain->follow.birth,source->spawn_time);
+    edict_t *outsider=unit_create(2,MAKEFOURCC('h','f','o','o'),&(vec2_t){1800,1024},0);
+    outsider->data.UnitWeapons=&weapons;outsider->targtype=TARG_GROUND;
+    *S_AttackProfileWrite(outsider,0)=*S_AttackProfileRead(units[0],0);
+    T_ASSERT(unit_issuetargetorder(outsider,"attack",source));
+    T_EQ(outsider->attack_target,source);
+    vec2_t retained=captain->goal;
+    float range=captain->request_range,life=source->health.value;
+    G_BotClearCaptainTargets(player);
+    T_NULL(captain->follow.unit);T_NULL(captain->backup.unit);T_NULL(captain->target.unit);
+    T_EQ(ARRAY_COUNT(captain->units),6u);
+    T_ASSERT(source->inuse);T_EQ(wc3_float_bits(source->health.value),wc3_float_bits(life));
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(retained.x));
+    T_EQ(wc3_float_bits(captain->goal.y),wc3_float_bits(retained.y));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(range));
+    T_EQ(wc3_float_bits(captain->active_goal.x),wc3_float_bits(retained.x));
+    T_EQ(wc3_float_bits(captain->active_goal.y),wc3_float_bits(retained.y));
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_REQUEST_RESTORED);
+    T_ASSERT(!(captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG));
+    T_ASSERT(units[0]->attack_target!=source);
+    T_EQ(outsider->attack_target,source);
+    cstring_t file=Test_TempPath("wc3-clear368-source.bin");
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_NULL(captain->follow.unit);T_NULL(captain->backup.unit);T_NULL(captain->target.unit);
+    T_ASSERT(captain->policy_flags&BOT_CAPTAIN_REQUEST_RESTORED);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(retained.x));
+    T_EQ(wc3_float_bits(captain->active_goal.y),wc3_float_bits(retained.y));
+    remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+
 #endif

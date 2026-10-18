@@ -312,7 +312,8 @@
     "oracle-captain358-acquire",
     "oracle-phoenix365",
     "oracle-burrow366",
-    "oracle-target363"
+    "oracle-target363",
+    "oracle-captain368-clear"
   ],
   "entries": [
     {
@@ -7045,6 +7046,18 @@
           "task": "GROUP-03.4.7.3",
           "disposition": "behavior",
           "rationale": "The existing Captain composition leaf retains Inventory/Missile engine ordering, wider Captain policies and complete motion; this oracle certifies typed Move/Attack/Captain subscription ownership only."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-captain368-clear",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Pending d01c2 target selection, complete target-role combinations, wider Captain policy and full journeys remain GROUP-03.4.7.3.",
+          "task": "GROUP-03.4.7.3",
+          "disposition": "behavior",
+          "rationale": "Separate target selection and full Captain policy remain in the original existing leaf."
         }
       ]
     }

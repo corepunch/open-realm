@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "310 executable original/evidence contracts;591 total entries; provenance and limitations remain per-entry.",
+  "scope": "311 executable original/evidence contracts;592 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -56479,6 +56479,61 @@
       "exclusions": [
         "Inventory/Missile engine callback ordering, other Captain policies, complete trajectories and retail-save remain existing GROUP-03.4.7.3 and BASE/E2E scope."
       ]
+    },
+    {
+      "id": "oracle-captain368-clear",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_captain368_clear.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "captain368-clear.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "instructions": {
+          "equal": 551
+        },
+        "captures": {
+          "equal": 4
+        },
+        "controls": {
+          "equal": 2
+        },
+        "public_markers": {
+          "equal": 684
+        },
+        "clear_boundaries": {
+          "equal": 4
+        },
+        "engine": {
+          "equal": {
+            "classic": {
+              "tests": 2,
+              "assertions": 50
+            },
+            "tft": {
+              "tests": 2,
+              "assertions": 50
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "GROUP-03.4.7.3 synchronous ClearCaptainTargets role withdrawal, retained nonhome point and living-source inverse.",
+      "exclusions": [
+        "Pending d01c2 target selection, complete target-role combinations, wider Captain policy and full journeys remain GROUP-03.4.7.3."
+      ]
     }
   ],
   "fixtures": [
@@ -57377,7 +57432,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "0a48716d4c4fb1354a8bb3016957bb87d6e46af30861475cfd1251158ff94d16"
+      "sha256": "5cb3e97bd3f8c7b3abcbf78c80c51498c51a922e5b59d3e358e73486ed49175c"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -59169,7 +59224,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "24b94231fbffe2cc42724f78c9d25aeceaf164614c80461673e93a4e148caa4d"
+      "sha256": "97040d60431d255ec694ec414bac50aa06474f689f014db0e56d6bc99eb31220"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -59185,7 +59240,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "f3be9be4e3feefede6c539ccde5fd94e0dff334c26b94569d59bdc71c82231e7"
+      "sha256": "e91e33c85c2c7073eb636c915c858fe857393dcfb6773823f39db66b588337f9"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -59305,7 +59360,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_bot.c",
-      "sha256": "f11e2f99a76007ab8a34de86d07c311d313fe9fffb606d8e57c4000d567c8000"
+      "sha256": "876c23ba60d89491f965c77d4e02c1352534e3abc8b06f305d410130f4e15896"
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
@@ -59557,7 +59612,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_captain_policy.c",
-      "sha256": "bd0f5719f82cd1532cc3bcd07354adaf03710818fb31129ba382f0d2dc947259"
+      "sha256": "95a1eaabee87400027bae5928b02280033595b9bbea64541101aa817fcb3b7b8"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/test_captain_attack.ai",
@@ -64185,7 +64240,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "c135443dddfedfb5b5413a39a3deff82186a787374379e88eb266f80426d59b1"
+      "sha256": "d78a3ea59dfbfc830895272102c9b28eb5421ad4761c6386b403a05f138dcb57"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -66041,7 +66096,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "a64706ea80e4e24eb95cf694ced4636bc310d0f34f4c6d9f8ffc2034274975e1"
+      "sha256": "4d6d239fc51b7a2114f2e0a9ff353da3879c52b608382559fdcdf49f42b111a7"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -67298,6 +67353,54 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_target363.py",
       "sha256": "1afb11ee9767bfbbaa975aa9f93830341a83ea805d08224a8f17906a462d99a9"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-captain-clear.md",
+      "sha256": "f59ec995f69837398e55763395b87f9e2798e74256ae890cfa15493f58007717"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain368_clear.py",
+      "sha256": "6313d3cecce61b91973ff60709bc4cd528137718dbcc93b98b2a5a046e5f89b9"
+    },
+    {
+      "path": "tools/frida/research/captain358_clear_make_map.py",
+      "sha256": "e60b8e4d81b6478465e50eb9a489a40f88987a258e10d0a95ece592979229924"
+    },
+    {
+      "path": "tools/frida/research/captain358_clear_observer.js",
+      "sha256": "e8509a90f3affcad713e618b8da9347d8192add6bbf5efae15434c897127f55d"
+    },
+    {
+      "path": "tools/frida/research/captain358_clear_probe.ai",
+      "sha256": "19f1820cf8c0444f3b8de2616d818529f9bdffb4c8881f37af5879074416cfa5"
+    },
+    {
+      "path": "tools/frida/research/captain358_clear_probe.j",
+      "sha256": "6385c4e734a3ca2c1fcdc83e496c6b2abb09343c638eadea2730777d9cfd6a4c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain368-clear-1.27.json",
+      "sha256": "46064361342d3d0e7cd2473562d579d9009904efc25bf27d7173f59ad94f6d66"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain368-clear-1.27.json.gz",
+      "sha256": "d0246b58de42176cf9c9f624676cb34c44d8b748f04021e3d7029bcd48a340e0"
+    },
+    {
+      "path": "tools/ghidra/research/Captain368ClearEvidence.java",
+      "sha256": "2bf792c7dcea8e370c9828319026438357110d15f4f25223aac7315759202b37"
+    },
+    {
+      "path": "tools/ghidra/research/Captain368ClockEvidence.java",
+      "sha256": "943b26c04568199b0d82dc26eea58ab56792f3bd3210fce333438d5bbd8f7c6d"
+    },
+    {
+      "path": "tools/ghidra/research/freeze_wc3_pathing_captain368_clear.py",
+      "sha256": "b6d92c750dd551b7b43fdbfb51d1e4961f76c22bf13c354330e68bf1848c2b4a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_captain368_clear.py",
+      "sha256": "f389141867d1f867e09a37e224e95e36ef2e778c5efa0170572a25ce467a9e61"
     }
   ]
 }

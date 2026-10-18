@@ -2070,10 +2070,13 @@ void G_BotClearCaptainTargets(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
     botCaptain_t *captain = &bot->captains[BOT_CAPTAIN_ATTACK];
-    /* BZ_COMPAT_GUESS: clear logical targets only; existing member orders
-     * keep running, so do not claim the captain is idle while they fight. */
-    captain->position_valid = false;
-    captain->goal = captain->home;
+    /*9d0f20 commits state2, then resolves each role after the preceding
+     * semantic removal. Clearing a living target is local to this Captain;
+     * unrelated Attack and Move subscribers retain their own identities. */
+    captain->state=BOT_CAPTAIN_ACTIVE;
+    G_BotCaptainTargetEvent(captain,G_BotCaptainTarget(&captain->backup));
+    G_BotCaptainTargetEvent(captain,G_BotCaptainTarget(&captain->follow));
+    G_BotCaptainTargetEvent(captain,G_BotCaptainTarget(&captain->target));
 }
 
 void G_BotResetCaptainLocs(player_t *player) {
