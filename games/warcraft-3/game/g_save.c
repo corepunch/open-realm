@@ -106,7 +106,7 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format193 retains Attack's weak rejected-alternative identity. */
 /* Format195 persists script-owned corpse decay suspension in aiflags. */
 /* Format198 additionally retains naval shore points and point-Load arrival ownership. */
-static uint32_t const save_version = 205; /* Independent Attack acquisition request. */
+static uint32_t const save_version = 206; /* Phoenix interception retains a living identity at zero life. */
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; amortizes small field writes across a save
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -862,6 +862,7 @@ static field_t const morph_fields[] = {
     TF(morph_t, reverse, F_INT),
     TF(morph_t, deferred_rebind, F_INT),
     TF(morph_t, animation_held, F_INT),
+    TF(morph_t, death_intercepted, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -4813,6 +4814,21 @@ TEST(wc3_save, rejects_version_201_before_captain_target_layout) {
     T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
     T_EQ(header.version,save_version);
     T_ASSERT(write_save_fixture_header(current,previous,201,header.edict_size));
+    T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));
+    T_ASSERT(!ReadGame(previous));
+    remove(current);remove(previous);
+}
+
+TEST(wc3_save, rejects_version_205_before_phoenix_death_interception) {
+    cstring_t current=Test_TempPath("save-phoenix-current.bin");
+    cstring_t previous=Test_TempPath("save-phoenix-v205.bin");
+    saveHeader_t header;char map[sizeof(header.map_path)];
+    setup_test_world();reset_entities();
+    T_ASSERT(WriteGame(current));
+    FILE *file=fopen(current,"rb");T_NOT_NULL(file);if(!file)return;
+    T_ASSERT(LoadBytes(file,&header,sizeof(header)));fclose(file);
+    T_EQ(header.version,save_version);
+    T_ASSERT(write_save_fixture_header(current,previous,205,header.edict_size));
     T_ASSERT(!G_GetSaveMap(previous,map,sizeof(map)));
     T_ASSERT(!ReadGame(previous));
     remove(current);remove(previous);

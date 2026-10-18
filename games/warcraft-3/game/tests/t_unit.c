@@ -3839,4 +3839,55 @@ TEST(wc3_unit, alternate364_attachment_publishes_form_before_first_order_and_col
     }
 }
 
+/* Phoenix365: original fatal-health admission keeps the same living handle,
+ * protects the pending form, and owns both timed transitions and egg expiry. */
+TEST(wc3_unit, phoenix365_fatal_admission_retains_live_identity_and_saved_rebirth) {
+    for(unsigned schema=0;schema<2;schema++)for(unsigned source=0;source<3;source++) {
+        reset_test_entities();setup_test_world();
+        slkTestData_t *rows,*old_rows,*ui,*old_ui,*profile,*old_profile;
+        install_raven_form_test_data(&rows,&old_rows,&ui,&old_ui,&profile,&old_profile);
+        char data[1400];snprintf(data,sizeof(data),"ID;PWXL;N;E\nC;X1;Y1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"%s\"\n"
+            "C;X4;K\"UnitID1\"\nC;X5;K\"Dur1\"\nC;X6;K\"HeroDur1\"\nC;X7;K\"%s\"\nC;X8;K\"%s\"\n"
+            "C;X1;Y2;K\"Ap65\"\nC;X2;K\"Aphx\"\nC;X3;K\"hpea\"\nC;X4;K\"hfoo\"\n"
+            "C;X5;K0.375\nC;X6;K0.625\nC;X7;K7\nC;X8;K0.125\nE\n",
+            schema ? "Data11" : "DataA1",schema ? "Data12" : "DataB1",schema ? "Data13" : "DataC1");
+        slkTestData_t *timing=parse_slk_string(data);G_SetSLKRows("AbilityData",timing);
+        uint32_t code=FS_SLKKey("Ap65"),base=FS_SLKKey("hpea"),alt=FS_SLKKey("hfoo");
+        edict_t *unit=alloc_test_unit(base,64,64);unit->stand=unit_stand;unit->die=unit_die;unit->svflags|=SVF_MONSTER;
+        T_ASSERT(G_ActorAddSkill(unit,code));G_SetHealth(unit,unit->health.max_value);
+        int const existing=source==2 ? 1 : 0;unit->invulnerability_depth=existing;unit->spell_immunity_depth=existing;
+        level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+        if(source==0)unit_die(unit,NULL);
+        else if(source==1)T_Damage(unit,unit,10000);
+        else G_SetHealth(unit,0);
+        T_ASSERT(!M_IsDead(unit));T_ASSERT(!(unit->svflags&SVF_DEADMONSTER));T_EQ(unit->class_id,base);
+        T_EQ(unit->current_order_id,G_OrderId("phoenixmorph"));
+        T_EQ(unit->invulnerability_depth,existing+1);T_EQ(unit->spell_immunity_depth,existing+1);
+        T_EQ(unit->movement.repulse.disable_depth,1);T_FEQ(unit->health.value,0,.000001f);
+        bool pending=unit->morph && unit->morph->transition.active;T_ASSERT(pending);
+        if(pending) {
+            T_EQ(unit->morph->code,code);T_FEQ(unit->morph->transition.deadline.time,1.5f,.000001f);
+            uint32_t slot=unit-g_edicts,identity=unit->spawn_time;
+            cstring_t path=Test_TempPath("phoenix365-transition.bin");
+            T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;
+            T_ASSERT(!M_IsDead(unit));T_EQ(unit->spawn_time,identity);
+            morph330_advance(1.499f);T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,1);
+            morph330_advance(1.5f);T_EQ(unit->class_id,alt);T_ASSERT(!M_IsDead(unit));
+            T_FEQ(unit->health.value,unit->health.max_value,.000001f);T_EQ(unit->movement.repulse.disable_depth,0);
+            T_EQ(unit->invulnerability_depth,existing);T_EQ(unit->spell_immunity_depth,existing);
+            pending=unit->morph->expiration.active;T_ASSERT(pending);if(pending)T_FEQ(unit->morph->expiration.deadline.time,2.125f,.000001f);
+            path=Test_TempPath("phoenix365-egg.bin");T_ASSERT(WriteGame(path));T_ASSERT(ReadGame(path));remove(path);unit=g_edicts+slot;
+            morph330_advance(2.124f);T_EQ(unit->class_id,alt);T_EQ(unit->movement.repulse.disable_depth,0);
+            morph330_advance(2.125f);T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,1);
+            T_EQ(unit->invulnerability_depth,existing);T_EQ(unit->spell_immunity_depth,existing+1);
+            morph330_advance(2.499f);T_EQ(unit->class_id,base);
+            morph330_advance(2.5f);T_EQ(unit->class_id,base);T_EQ(unit->movement.repulse.disable_depth,0);
+            T_ASSERT(!M_IsDead(unit));T_FEQ(unit->health.value,unit->health.max_value,.000001f);
+            T_EQ(unit->invulnerability_depth,existing);T_EQ(unit->spell_immunity_depth,existing);
+            T_EQ(unit->spawn_time,identity);T_ASSERT(!unit->morph->transition.active && !unit->morph->expiration.active);
+        }
+        reset_entities();restore_raven_form_test_data(rows,old_rows,ui,old_ui,profile,old_profile);free_slk_rows(timing);
+    }
+}
+
 #endif /* BZ_TESTS */

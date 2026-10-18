@@ -264,6 +264,9 @@ void G_SetHealth(edict_t *ent, float value) {
     }
     if (G_UnitIsStructure(ent) && (old != next || value <= 0.0f))
         S_RefreshAbilityLevel(ent, FindAbilityByClassname("Afih"));
+    /* The retail life crossing listener admits Phoenix's private order before
+     * committing death. Its .4 threshold has the strict .005 listener epsilon. */
+    if(value<0.405f && !(ent->svflags&SVF_DEADMONSTER))S_PhoenixInterceptDeath(ent);
 }
 
 void G_AddHealth(edict_t *ent, float value) { G_SampleHealthRegen(ent);G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
@@ -488,6 +491,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     bool summon_explodes;
 
     if (!self || (self->svflags & SVF_DEADMONSTER)) return;
+    if(S_PhoenixInterceptDeath(self))return;
     selected_mask = self->selected;
     summon_explodes = (self->aiflags & AI_SUMMON_EXPLODES_ON_DEATH) != 0;
 

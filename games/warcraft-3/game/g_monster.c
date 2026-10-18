@@ -102,7 +102,8 @@ bool player_pay(player_t *ps, uint32_t project) {
 }
 
 bool M_IsDead(edict_t const *ent) {
-    return ent->health.value <= 0;
+    return ent->health.value <= 0 && !(!(ent->svflags&SVF_DEADMONSTER) &&
+        ent->morph && ent->morph->death_intercepted);
 }
 
 /* Advance the unit's animation frame by its scaled simulation timestep.

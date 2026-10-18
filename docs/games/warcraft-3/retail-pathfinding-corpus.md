@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-As of Captain205, the inventory has **588 entries**: **307** oracle contracts
-(including variants) supplied by **235** distinct verifier scripts, **121**
+As of Phoenix365, the inventory has **589 entries**: **308** oracle contracts
+(including variants) supplied by **236** distinct verifier scripts, **121**
 archived JSONL audits and **160** stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -73,7 +73,7 @@ or silently upgrade the existing evidence.
 A new `tools/ghidra/verify_wc3_pathing_*.py` must appear as an oracle in the
 corpus manifest. Preserve its exact report checks, scope, exclusions, binary
 identity, source versions and frozen input hashes. The current Captain205
-inventory has588 entries:307 oracle contracts supplied by235 distinct verifier
+inventory has589 entries:308 oracle contracts supplied by236 distinct verifier
 scripts,121 archived audits and160 live contracts. Contract variants are not
 additional verifier scripts.
 
@@ -2391,3 +2391,10 @@ Captain205 registers the independent AI-point Attack acquisition timer, native
 publication/contact ordering and saved scalar rebase regression. Its strict gate
 passes3 tests/46 assertions per edition, with1,300 original guards and379 public
 markers. The wider Captain leaf remains open.
+
+Phoenix365 registers the original pre-death veto and same live identity through
+forward egg conversion, positive egg lifetime and reverse completion. Six retail
+captures preserve1,618 native events and1,204 public markers;1,021 byte guards
+and14 evidence-integrity checks protect them. Production verification passes
+20 tests/3432 assertions per edition. Burrow/Mount and remaining producer
+composition are retained by SEP-01.2.

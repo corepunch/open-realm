@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "307 executable original/evidence contracts;588 total entries; provenance and limitations remain per-entry.",
+  "scope": "308 executable original/evidence contracts;589 total entries; provenance and limitations remain per-entry.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -56335,6 +56335,52 @@
       "exclusions": [
         "Legacy polling domains, full candidate and neutral admission, acquired-target script event, cross-owner subscription ordering, complete trajectories and retail saves remain GROUP-03.4.7.3."
       ]
+    },
+    {
+      "id": "oracle-phoenix365",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_phoenix365.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "phoenix365.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "SEP-01.2 Phoenix pre-death admission, alive-at-zero-life identity, typed forward/egg/reverse clocks, independent protections and cold-save ownership.",
+      "checks": {
+        "captures": {
+          "equal": 6
+        },
+        "scenes": {
+          "equal": 6
+        },
+        "public_markers": {
+          "equal": 1204
+        },
+        "native_events": {
+          "equal": 1618
+        },
+        "instructions": {
+          "equal": 1021
+        },
+        "engine": {
+          "nonempty": true
+        }
+      },
+      "exclusions": [
+        "Burrow hidden-state and active-form availability, Mount reachability, other common Morph producers and counted-owner composition/replay remain within existing SEP-01.2."
+      ]
     }
   ],
   "fixtures": [
@@ -57233,7 +57279,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "09c70adecfbd0c87e0c23fe71cce7f36cb578236ee6ff38d5dabacd9d35685bb"
+      "sha256": "7fa84dc01e38bc44381ee69c0c7c74f1f8ec023badf41cd12cab8c108de8124a"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -58525,7 +58571,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "e484a053d2160ab667d16cc8122cecbf7c1ffbcdc21f23764c7b772f51ac2263"
+      "sha256": "5ac5de7af28d84cc119df59e8e2986048332da877820f2f8bcdb851f334455db"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -58533,7 +58579,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "f6457b41bf02c600a73cdb13465ace747268f5307d12369dca4f3453bd4b82dd"
+      "sha256": "9d8d86bc3938e7018fc0293e66e966fee1441914be4af76bd6b499fa80333ddc"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -59025,7 +59071,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "71e208522b6ea688d1761be9e900240a30a06074707d48c15571644a4374180d"
+      "sha256": "746ac60bf8b2790dc92758688fa4bc297083c2790b74272b2ea44e7e15f1f061"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -59041,7 +59087,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "065b8197ab99049ccea89032dba70d7f0b73001de0a245aae804347553357dad"
+      "sha256": "109825b2903149b572973e21e8563af06c46042970d9bc150df6d4a7ee7ac420"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -59053,7 +59099,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "d3f576ba31555445eb8842146fd7e1229d0a2ac3f2c6b32413224e659f80956b"
+      "sha256": "469318762aae76f629fdebd2dfa38de813cdcddcbc90b0da8d00d044a60d8637"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -59989,7 +60035,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "b9875c6b010a1c676d303fbd5d6449d21f58874cd3c2e8aaba5bf202e00e3463"
+      "sha256": "d0379457701007f206ba6f7f50000f08f1a02cb05c02bd75b6120bdba8591241"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -60249,7 +60295,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.h",
-      "sha256": "8bcfdb5b31a7f4d100c5bf1bd438364be41ef9fea3ae3ac99a10b3e95bb8cbf7"
+      "sha256": "bf8b879d63022dcf10e531ac439bae78de936f81b7debf2273b14e2633988fdf"
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
@@ -60477,7 +60523,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit.c",
-      "sha256": "a9db13bcc8c8296cac62fd0e914af409245a725b1bc78e85fd66c043f9915ac3"
+      "sha256": "37f6196b2f1cf2677c315e1a30576e833249fa8aee640977b9e3ea01d968f1d5"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/common.j",
@@ -61861,7 +61907,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_monster.c",
-      "sha256": "4d745afc3077525b434c5da5bc8f1c473bf540165807c6ddd45998fff0d8d85f"
+      "sha256": "71eee17d43a56d2692789ab7b8ed9ae65c7c83170927d58fb0908f861d7364d8"
     },
     {
       "path": "games/warcraft-3/game/api/api_math.h",
@@ -64041,7 +64087,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-corpus.md",
-      "sha256": "5ac96137968f7c7f40c9b28a269409aa10ae491ce42ee77cfd2734e9814f3864"
+      "sha256": "204310bf33a8de96cdf436d2f1c1e013b6aef7fe8f6a4bd15c860bc770b38e5d"
     },
     {
       "path": "tools/ghidra/retail_capture_source.py",
@@ -65897,7 +65943,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-exclusion-owners-1.27.json",
-      "sha256": "0c73bdf35315aca651a381e50f9bb2434e1be4f8983abcf68ed36dc50cd27a8d"
+      "sha256": "c24b24a36f72521157fa752dafcc87beb80d0df0573f957e071560187bb7c627"
     },
     {
       "path": "tools/frida/research/map342_make_map.py",
@@ -66886,6 +66932,54 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_captain358_acquire.py",
       "sha256": "58bb034c78439384a8c4df33893583157f1f5f5782834c7b47c6563c3f5a9f6c"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-phoenix365.md",
+      "sha256": "bdb9e431262995f3728f71bdc2de3ea5b9fcbd35a0e1fdc62ace64b068644485"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-separation-producer-audit.md",
+      "sha256": "c18a719cc056218a4bc93aecf60912e9eab20708a813524c7922f66ce978b030"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_phoenix365.py",
+      "sha256": "40a6a4b2361d876960555f22e332dc30e377dea9143262d8a116172862aa6bdf"
+    },
+    {
+      "path": "tools/frida/research/phoenix365_life_probe.j",
+      "sha256": "db02d74937acb3ee9eeb6f3a7831ad4f4d0d45d0af0c40b941cf4ddef43a55a4"
+    },
+    {
+      "path": "tools/frida/research/phoenix365_make_map.py",
+      "sha256": "8068ccc1b05ba5721530b453d79c9ba6f17ae1d1bd0f4459823b5076fc6100d5"
+    },
+    {
+      "path": "tools/frida/research/phoenix365_observer.js",
+      "sha256": "3a3f9e854a366ccc390e162e437c4c3fb9246420f5e6aaa196ab543bb6e7a081"
+    },
+    {
+      "path": "tools/frida/research/phoenix365_probe.j",
+      "sha256": "17991a49a6f6ef2ad2d5ef0eab632d7db069e972bb22db48e1be762a23c6a4b4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-phoenix365-1.27.json",
+      "sha256": "3808c8ce9c89f4839751a2c8aa5f30ed9f24171e2102d4491ec2a14143a48bc8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-phoenix365-inputs-1.27.json.gz",
+      "sha256": "83bca259a3197baafc0b9a4096400f40969cac6181778288753c60e8d2b2b2f3"
+    },
+    {
+      "path": "tools/ghidra/research/Phoenix365Evidence.java",
+      "sha256": "efedf25963488dee2814338437c5447e4e1e833c6244f2a15649c7940fdaeb5d"
+    },
+    {
+      "path": "tools/ghidra/research/phoenix365_freeze.py",
+      "sha256": "4de25b6f63eade48c03b440eed4f6b22c453b46efa2baa22d6cc24761bef28fb"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_phoenix365.py",
+      "sha256": "3a8e382cde9a5083bc7b82bf5c19ecaa4963adb27761cbb410d20348d8788b50"
     }
   ]
 }

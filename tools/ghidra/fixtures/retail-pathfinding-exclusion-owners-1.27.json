@@ -309,7 +309,8 @@
     "oracle-mask362",
     "oracle-alternate364",
     "oracle-group359",
-    "oracle-captain358-acquire"
+    "oracle-captain358-acquire",
+    "oracle-phoenix365"
   ],
   "entries": [
     {
@@ -7006,6 +7007,18 @@
           "task": "GROUP-03.4.7.3",
           "disposition": "behavior",
           "rationale": "Complete acquisition, target lifecycle and Captain policy remain in the original existing leaf."
+        }
+      ]
+    },
+    {
+      "oracle": "oracle-phoenix365",
+      "exclusions": [
+        {
+          "index": 0,
+          "text": "Burrow hidden-state and active-form availability, Mount reachability, other common Morph producers and counted-owner composition/replay remain within existing SEP-01.2.",
+          "task": "SEP-01.2",
+          "disposition": "behavior",
+          "rationale": "Remaining Burrow, Mount, common Morph availability and counted-owner replay retain the original separation producer leaf; this oracle covers Phoenix fatal admission and typed lifecycle."
         }
       ]
     }

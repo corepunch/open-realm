@@ -2015,6 +2015,7 @@ typedef struct {
     uint32_t code, base_type, target_type;
     uint32_t category_clear, category_set; /* Concrete morph owner's fine occupancy publication. */
     bool reverse, deferred_rebind, animation_held;
+    bool death_intercepted; /* Phoenix retains the living identity until egg completion. */
 } morph_t;
 
 typedef struct {
@@ -4584,6 +4585,7 @@ void G_ClearUnitOrderQueue(edict_t *);
 uint32_t G_UnitQueuedOrderCount(edict_t const *);
 void unit_birth(edict_t *);
 void unit_die(edict_t *, edict_t *);
+bool S_PhoenixInterceptDeath(edict_t *);
 void G_SpawnSummonMagicalEffect(edict_t *);
 void unit_begin_decay(edict_t *);
 void G_RestartCorpseBoneDecayAfterCargo(edict_t *);

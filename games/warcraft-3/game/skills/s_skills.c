@@ -13,6 +13,7 @@ static cstring_t const cargo_drop_orders[] = { "unloadall", NULL };
 static cstring_t const cargo_load_orders[] = { "load", NULL };
 static cstring_t const corporeal_form_orders[] = { "corporealform", "uncorporealform", NULL };
 static cstring_t const ethereal_form_orders[] = { "etherealform", "unetherealform", NULL };
+static cstring_t const phoenix_morph_orders[] = { "phoenixmorph", "phoenixmorph", NULL };
 static cstring_t const burrow_orders[] = { "burrow", "unburrow", NULL };
 static cstring_t const avenger_form_orders[] = { "avengerform", NULL };
 static cstring_t const robo_goblin_orders[] = { "robogoblin", "unrobogoblin", NULL };
@@ -143,7 +144,7 @@ static ability_t abilitylist[] = {
     { "AHfs", CAbilityFlameStrike, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike */
     { "AHbn", CAbilityBanish, AB_SPELL, SPELL_TARGET_UNIT },  /* Banish */
     { "AHpx", CAbilitySummonPhoenix, AB_SPELL },  /* Phoenix */
-    { "Aphx", CAbilityPassive, AB_PASSIVE },  /* Phoenix Morphing (Egg Related) */
+    { "Aphx", CAbilityPhoenix, AB_SPELL | AB_PASSIVE, SPELL_TARGET_NONE, phoenix_morph_orders },
     { "Apxf", CAbilityPassive, AB_PASSIVE },  /* Phoenix Fire */
     { "Agyb", CAbilityPassive, AB_PASSIVE },  /* Flying Machine Bombs */
     { "Asth", CAbilityPassive, AB_PASSIVE },  /* Storm Hammers */
