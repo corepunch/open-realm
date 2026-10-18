@@ -1649,6 +1649,8 @@ static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
         if(!queued.order_id)queued.order_id=unit_order_event_id(queued.order);
         uint32_t const spawn=self->spawn_time,revision=G_UnitMoveRevision(self);
         self->current_order_id=queued.order_id;
+        bool const point_head=queued.target_type==UNIT_ORDER_TARGET_POINT;
+        if(point_head)G_SetActiveUnitOrder(self,&queued);
         /* Busy693490 appends without notification.67abe0 publishes the new
          * user head before its task, including a lost target's point event. */
         if(queued.target_type==UNIT_ORDER_TARGET_POINT || queued.target_type==UNIT_ORDER_TARGET_BUILD)
@@ -1672,7 +1674,8 @@ static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
         queuedOrderResult_t result=unit_execute_queued_order(self,&queued,&head);
         if(result==QUEUED_ORDER_REPLACED)return true;
         if(result==QUEUED_ORDER_STARTED) {
-            G_SetActiveUnitOrder(self,&queued);
+            /* Point callbacks may have replaced or retired this logical head. */
+            if(!point_head)G_SetActiveUnitOrder(self,&queued);
             if(queued.target_type!=UNIT_ORDER_TARGET_NONE)self->current_order_id=head;
             uint32_t const accepted_revision=G_UnitMoveRevision(self);
             S_UnitAbilityOrderAccepted(self,queued.order);
@@ -1681,6 +1684,7 @@ static bool unit_start_next_queued_order(edict_t *self,bool *selected_ai) {
             return true;
         }
         self->current_order_id=0;
+        if(point_head)G_ClearActiveUnitOrder(self);
     }
     return false;
 }

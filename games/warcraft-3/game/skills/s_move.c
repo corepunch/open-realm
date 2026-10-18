@@ -5694,6 +5694,13 @@ static bool move_queued_cohort_candidate(void *data,edict_t *other) {
     return false;
 }
 
+/* The observed active command is the logical head, before issued callbacks.
+ * A callback may replace it while the original physical constructor unwinds. */
+static void move_set_active_point_head(edict_t *unit,unitOrder_t const *order) {
+    unit->current_order_id=order->order_id;
+    G_SetActiveUnitOrder(unit,order);
+}
+
 /*680320 retires the old internal task before67abe0 notifies the new user
  * head. The point constructor then owns its own d0144 cleanup. Callback
  * commands cannot inherit the pending outer group's prepared admission. */
@@ -5704,7 +5711,10 @@ bool S_IssuePointMoveOrder(edict_t *self, cstring_t order, vec2_t const *point,
     uint32_t const order_id=move_group_admission.unit==self && move_group_admission.order_id ?
         move_group_admission.order_id : G_OrderId(order);
     S_StopUnitMovementWithRecovery(self);
-    self->current_order_id=order_id;
+    unitOrder_t active={.target_type=UNIT_ORDER_TARGET_POINT,.point=requested,
+        .issuer_player=issuer,.order_id=order_id,.group_speed=speed};
+    snprintf(active.order,sizeof(active.order),"%s",order);
+    move_set_active_point_head(self,&active);
     uint32_t const revision=G_UnitMoveRevision(self);
     typeof(move_group_admission) admission=move_group_admission;
     move_group_admission=(typeof(move_group_admission)){0};
@@ -5728,7 +5738,7 @@ bool S_IssuePointMoveOrder(edict_t *self, cstring_t order, vec2_t const *point,
 static queuedOrderResult_t move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     if (!queued->owner_context || queued->target_type!=UNIT_ORDER_TARGET_POINT) return QUEUED_ORDER_UNHANDLED;
     uint32_t spawn=unit->spawn_time,revision=G_UnitMoveRevision(unit);
-    unit->current_order_id=queued->order_id;
+    move_set_active_point_head(unit,queued);
     /*67abe0 publishes the user head before constructing its internal task.
      * A nested command cannot borrow the outer packet's prepared request. */
     typeof(move_group_admission) admission=move_group_admission;

@@ -58768,7 +58768,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "7e7bc311b7bf637c268873c7c4645eab4268ccfafb873bb5f1dba2ce84e58549"
+      "sha256": "13da1df761a5b11974902d79aa3afdb283158ed6665c67590376e04b3541af4d"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -60668,7 +60668,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "dc59319e15d3938908c8bdfdafc4146e762b8acbe7eb405f61c9267928e76c4e"
+      "sha256": "f184d4215940e3665b904fe8aac4b4c28338809dea3ba6952127cac81a1ddc8b"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",

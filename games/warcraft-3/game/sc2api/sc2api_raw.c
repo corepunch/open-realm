@@ -250,7 +250,7 @@ bool WC3_SC2API_FillRawUnit(uint32_t player, edict_t const *ent, wc3Sc2RawUnit_t
     /*Resolve the same authored WC3 buff rawcode used by the normal status
      * panel, then expose that stable uint32 id as SC2 Raw Unit.buff_ids. Only
      * publish live visible state; snapshots return before this point. */
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         uint32_t const buff = G_UnitStatusBuffCode(&ent->abilstatus[i]);
         bool duplicate = false;
 
